@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_TOOL_OUTPUT_FILE_H
-#define LLVM_SUPPORT_TOOL_OUTPUT_FILE_H
+#ifndef LLVM_SUPPORT_TOOLOUTPUTFILE_H
+#define LLVM_SUPPORT_TOOLOUTPUTFILE_H
 
 #include "llvm/Support/raw_ostream.h"
 
@@ -47,7 +47,9 @@ public:
   /// tool_output_file - This constructor's arguments are passed to
   /// to raw_fd_ostream's constructor.
   tool_output_file(const char *filename, std::string &ErrorInfo,
-                   unsigned Flags = 0);
+                   sys::fs::OpenFlags Flags = sys::fs::F_None);
+
+  tool_output_file(const char *Filename, int FD);
 
   /// os - Return the contained raw_fd_ostream.
   raw_fd_ostream &os() { return OS; }

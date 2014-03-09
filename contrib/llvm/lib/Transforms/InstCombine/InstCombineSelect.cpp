@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstCombine.h"
-#include "llvm/Support/PatternMatch.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Support/PatternMatch.h"
 using namespace llvm;
 using namespace PatternMatch;
 
@@ -127,13 +127,14 @@ Instruction *InstCombiner::FoldSelectOpOp(SelectInst &SI, Instruction *TI,
     // If this is a non-volatile load or a cast from the same type,
     // merge.
     if (TI->isCast()) {
-      if (TI->getOperand(0)->getType() != FI->getOperand(0)->getType())
+      Type *FIOpndTy = FI->getOperand(0)->getType();
+      if (TI->getOperand(0)->getType() != FIOpndTy)
         return 0;
       // The select condition may be a vector. We may only change the operand
       // type if the vector width remains the same (and matches the condition).
       Type *CondTy = SI.getCondition()->getType();
-      if (CondTy->isVectorTy() && CondTy->getVectorNumElements() !=
-          FI->getOperand(0)->getType()->getVectorNumElements())
+      if (CondTy->isVectorTy() && (!FIOpndTy->isVectorTy() ||
+          CondTy->getVectorNumElements() != FIOpndTy->getVectorNumElements()))
         return 0;
     } else {
       return 0;  // unknown unary op.
@@ -349,6 +350,68 @@ static Value *SimplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
   return 0;
 }
 
+/// foldSelectICmpAndOr - We want to turn:
+///   (select (icmp eq (and X, C1), 0), Y, (or Y, C2))
+/// into:
+///   (or (shl (and X, C1), C3), y)
+/// iff:
+///   C1 and C2 are both powers of 2
+/// where:
+///   C3 = Log(C2) - Log(C1)
+///
+/// This transform handles cases where:
+/// 1. The icmp predicate is inverted
+/// 2. The select operands are reversed
+/// 3. The magnitude of C2 and C1 are flipped
+static Value *foldSelectICmpAndOr(const SelectInst &SI, Value *TrueVal,
+                                  Value *FalseVal,
+                                  InstCombiner::BuilderTy *Builder) {
+  const ICmpInst *IC = dyn_cast<ICmpInst>(SI.getCondition());
+  if (!IC || !IC->isEquality() || !SI.getType()->isIntegerTy())
+    return 0;
+
+  Value *CmpLHS = IC->getOperand(0);
+  Value *CmpRHS = IC->getOperand(1);
+
+  if (!match(CmpRHS, m_Zero()))
+    return 0;
+
+  Value *X;
+  const APInt *C1;
+  if (!match(CmpLHS, m_And(m_Value(X), m_Power2(C1))))
+    return 0;
+
+  const APInt *C2;
+  bool OrOnTrueVal = false;
+  bool OrOnFalseVal = match(FalseVal, m_Or(m_Specific(TrueVal), m_Power2(C2)));
+  if (!OrOnFalseVal)
+    OrOnTrueVal = match(TrueVal, m_Or(m_Specific(FalseVal), m_Power2(C2)));
+
+  if (!OrOnFalseVal && !OrOnTrueVal)
+    return 0;
+
+  Value *V = CmpLHS;
+  Value *Y = OrOnFalseVal ? TrueVal : FalseVal;
+
+  unsigned C1Log = C1->logBase2();
+  unsigned C2Log = C2->logBase2();
+  if (C2Log > C1Log) {
+    V = Builder->CreateZExtOrTrunc(V, Y->getType());
+    V = Builder->CreateShl(V, C2Log - C1Log);
+  } else if (C1Log > C2Log) {
+    V = Builder->CreateLShr(V, C1Log - C2Log);
+    V = Builder->CreateZExtOrTrunc(V, Y->getType());
+  } else
+    V = Builder->CreateZExtOrTrunc(V, Y->getType());
+
+  ICmpInst::Predicate Pred = IC->getPredicate();
+  if ((Pred == ICmpInst::ICMP_NE && OrOnFalseVal) ||
+      (Pred == ICmpInst::ICMP_EQ && OrOnTrueVal))
+    V = Builder->CreateXor(V, *C2);
+
+  return Builder->CreateOr(V, Y);
+}
+
 /// visitSelectInstWithICmp - Visit a SelectInst that has an
 /// ICmpInst as its first operand.
 ///
@@ -520,6 +583,9 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
     }
   }
 
+  if (Value *V = foldSelectICmpAndOr(SI, TrueVal, FalseVal, Builder))
+    return ReplaceInstUsesWith(SI, V);
+
   return Changed ? &SI : 0;
 }
 
@@ -596,7 +662,7 @@ static Value *foldSelectICmpAnd(const SelectInst &SI, ConstantInt *TrueVal,
                                 ConstantInt *FalseVal,
                                 InstCombiner::BuilderTy *Builder) {
   const ICmpInst *IC = dyn_cast<ICmpInst>(SI.getCondition());
-  if (!IC || !IC->isEquality())
+  if (!IC || !IC->isEquality() || !SI.getType()->isIntegerTy())
     return 0;
 
   if (!match(IC->getOperand(1), m_Zero()))
@@ -604,8 +670,7 @@ static Value *foldSelectICmpAnd(const SelectInst &SI, ConstantInt *TrueVal,
 
   ConstantInt *AndRHS;
   Value *LHS = IC->getOperand(0);
-  if (LHS->getType() != SI.getType() ||
-      !match(LHS, m_And(m_Value(), m_ConstantInt(AndRHS))))
+  if (!match(LHS, m_And(m_Value(), m_ConstantInt(AndRHS))))
     return 0;
 
   // If both select arms are non-zero see if we have a select of the form
@@ -639,7 +704,13 @@ static Value *foldSelectICmpAnd(const SelectInst &SI, ConstantInt *TrueVal,
   unsigned ValZeros = ValC->getValue().logBase2();
   unsigned AndZeros = AndRHS->getValue().logBase2();
 
-  Value *V = LHS;
+  // If types don't match we can still convert the select by introducing a zext
+  // or a trunc of the 'and'. The trunc case requires that all of the truncated
+  // bits are zero, we can figure that out by looking at the 'and' mask.
+  if (AndZeros >= ValC->getBitWidth())
+    return 0;
+
+  Value *V = Builder->CreateZExtOrTrunc(LHS, SI.getType());
   if (ValZeros > AndZeros)
     V = Builder->CreateShl(V, ValZeros - AndZeros);
   else if (ValZeros < AndZeros)
@@ -675,7 +746,8 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
       // Change: A = select B, false, C --> A = and !B, C
       Value *NotCond = Builder->CreateNot(CondVal, "not."+CondVal->getName());
       return BinaryOperator::CreateAnd(NotCond, FalseVal);
-    } else if (ConstantInt *C = dyn_cast<ConstantInt>(FalseVal)) {
+    }
+    if (ConstantInt *C = dyn_cast<ConstantInt>(FalseVal)) {
       if (C->getZExtValue() == false) {
         // Change: A = select B, C, false --> A = and B, C
         return BinaryOperator::CreateAnd(CondVal, TrueVal);
@@ -689,14 +761,14 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
     // select a, a, b  -> a|b
     if (CondVal == TrueVal)
       return BinaryOperator::CreateOr(CondVal, FalseVal);
-    else if (CondVal == FalseVal)
+    if (CondVal == FalseVal)
       return BinaryOperator::CreateAnd(CondVal, TrueVal);
 
     // select a, ~a, b -> (~a)&b
     // select a, b, ~a -> (~a)|b
     if (match(TrueVal, m_Not(m_Specific(CondVal))))
       return BinaryOperator::CreateAnd(TrueVal, FalseVal);
-    else if (match(FalseVal, m_Not(m_Specific(CondVal))))
+    if (match(FalseVal, m_Not(m_Specific(CondVal))))
       return BinaryOperator::CreateOr(TrueVal, FalseVal);
   }
 
@@ -837,7 +909,7 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
             Value *NewFalseOp = NegVal;
             if (AddOp != TI)
               std::swap(NewTrueOp, NewFalseOp);
-            Value *NewSel = 
+            Value *NewSel =
               Builder->CreateSelect(CondVal, NewTrueOp,
                                     NewFalseOp, SI.getName() + ".p");
 
@@ -861,7 +933,7 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
     Value *LHS, *RHS, *LHS2, *RHS2;
     if (SelectPatternFlavor SPF = MatchSelectPattern(&SI, LHS, RHS)) {
       if (SelectPatternFlavor SPF2 = MatchSelectPattern(LHS, LHS2, RHS2))
-        if (Instruction *R = FoldSPFofSPF(cast<Instruction>(LHS),SPF2,LHS2,RHS2, 
+        if (Instruction *R = FoldSPFofSPF(cast<Instruction>(LHS),SPF2,LHS2,RHS2,
                                           SI, SPF, RHS))
           return R;
       if (SelectPatternFlavor SPF2 = MatchSelectPattern(RHS, LHS2, RHS2))
@@ -907,7 +979,7 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
     return &SI;
   }
 
-  if (VectorType *VecTy = dyn_cast<VectorType>(SI.getType())) {
+  if (VectorType* VecTy = dyn_cast<VectorType>(SI.getType())) {
     unsigned VWidth = VecTy->getNumElements();
     APInt UndefElts(VWidth, 0);
     APInt AllOnesEltMask(APInt::getAllOnesValue(VWidth));
@@ -915,24 +987,6 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
       if (V != &SI)
         return ReplaceInstUsesWith(SI, V);
       return &SI;
-    }
-
-    if (ConstantVector *CV = dyn_cast<ConstantVector>(CondVal)) {
-      // Form a shufflevector instruction.
-      SmallVector<Constant *, 8> Mask(VWidth);
-      Type *Int32Ty = Type::getInt32Ty(CV->getContext());
-      for (unsigned i = 0; i != VWidth; ++i) {
-        Constant *Elem = cast<Constant>(CV->getOperand(i));
-        if (ConstantInt *E = dyn_cast<ConstantInt>(Elem))
-          Mask[i] = ConstantInt::get(Int32Ty, i + (E->isZero() ? VWidth : 0));
-        else if (isa<UndefValue>(Elem))
-          Mask[i] = UndefValue::get(Int32Ty);
-        else
-          return 0;
-      }
-      Constant *MaskVal = ConstantVector::get(Mask);
-      Value *V = Builder->CreateShuffleVector(TrueVal, FalseVal, MaskVal);
-      return ReplaceInstUsesWith(SI, V);
     }
 
     if (isa<ConstantAggregateZero>(CondVal)) {

@@ -45,6 +45,7 @@
 #include <sys/random.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -128,8 +129,8 @@ static void	tuncreate(const char *name, struct cdev *dev);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static void	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
-static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct route *ro);
+static int	tunoutput(struct ifnet *, struct mbuf *,
+		    const struct sockaddr *, struct route *ro);
 static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
@@ -258,6 +259,7 @@ tun_destroy(struct tun_softc *tp)
 	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
 	seldrain(&tp->tun_rsel);
+	knlist_clear(&tp->tun_rsel.si_note, 0);
 	knlist_destroy(&tp->tun_rsel.si_note);
 	mtx_destroy(&tp->tun_mtx);
 	cv_destroy(&tp->tun_cv);
@@ -321,6 +323,7 @@ static moduledata_t tun_mod = {
 };
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_tun, 1);
 
 static void
 tunstart(struct ifnet *ifp)
@@ -359,8 +362,6 @@ tuncreate(const char *name, struct cdev *dev)
 {
 	struct tun_softc *sc;
 	struct ifnet *ifp;
-
-	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	sc = malloc(sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
@@ -545,17 +546,15 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifs = (struct ifstat *)data;
 		mtx_lock(&tp->tun_mtx);
 		if (tp->tun_pid)
-			sprintf(ifs->ascii + strlen(ifs->ascii),
+			snprintf(ifs->ascii, sizeof(ifs->ascii),
 			    "\tOpened by PID %d\n", tp->tun_pid);
+		else
+			ifs->ascii[0] = '\0';
 		mtx_unlock(&tp->tun_mtx);
 		break;
 	case SIOCSIFADDR:
 		tuninit(ifp);
 		TUNDEBUG(ifp, "address set\n");
-		break;
-	case SIOCSIFDSTADDR:
-		tuninit(ifp);
-		TUNDEBUG(ifp, "destination address set\n");
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -575,7 +574,7 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * tunoutput - queue packets from higher level ready to put out.
  */
 static int
-tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
@@ -609,15 +608,13 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	}
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af; 
-	}
-
-	if (bpf_peers_present(ifp->if_bpf)) {
+	else
 		af = dst->sa_family;
+
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m0);
-	}
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (cached_tun_flags & TUN_LMODE) {
@@ -644,10 +641,10 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			ifp->if_oerrors++;
 			return (ENOBUFS);
 		} else
-			*(u_int32_t *)m0->m_data = htonl(dst->sa_family);
+			*(u_int32_t *)m0->m_data = htonl(af);
 	} else {
 #ifdef INET
-		if (dst->sa_family != AF_INET)
+		if (af != AF_INET)
 #endif
 		{
 			m_freem(m0);
@@ -923,9 +920,8 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);

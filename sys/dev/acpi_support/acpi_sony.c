@@ -95,7 +95,7 @@ static device_method_t acpi_sony_methods[] = {
 	DEVMETHOD(device_attach, acpi_sony_attach),
 	DEVMETHOD(device_detach, acpi_sony_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_sony_driver = {

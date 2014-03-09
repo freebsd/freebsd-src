@@ -64,11 +64,11 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     return 1;
   }
   DepOut.os() << OutputFilename << ":";
-  const std::vector<std::string> &Dependencies = Parser.getDependencies();
-  for (std::vector<std::string>::const_iterator I = Dependencies.begin(),
-                                                E = Dependencies.end();
+  const TGLexer::DependenciesMapTy &Dependencies = Parser.getDependencies();
+  for (TGLexer::DependenciesMapTy::const_iterator I = Dependencies.begin(),
+                                                  E = Dependencies.end();
        I != E; ++I) {
-    DepOut.os() << " " << (*I);
+    DepOut.os() << " " << I->first;
   }
   DepOut.os() << "\n";
   DepOut.keep();
@@ -83,7 +83,7 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   // Parse the input file.
   OwningPtr<MemoryBuffer> File;
   if (error_code ec =
-        MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), File)) {
+        MemoryBuffer::getFileOrSTDIN(InputFilename, File)) {
     errs() << "Could not open input file '" << InputFilename << "': "
            << ec.message() <<"\n";
     return 1;
@@ -117,11 +117,14 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   if (MainFn(Out.os(), Records))
     return 1;
 
+  if (ErrorsPrinted > 0) {
+    errs() << argv0 << ": " << ErrorsPrinted << " errors.\n";
+    return 1;
+  }
+
   // Declare success.
   Out.keep();
   return 0;
-
-  return 1;
 }
 
 }

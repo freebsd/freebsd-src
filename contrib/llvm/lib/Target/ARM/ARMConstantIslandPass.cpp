@@ -16,23 +16,23 @@
 #define DEBUG_TYPE "arm-cp-islands"
 #include "ARM.h"
 #include "ARMMachineFunctionInfo.h"
-#include "Thumb2InstrInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
+#include "Thumb2InstrInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -128,7 +128,7 @@ namespace {
         // If the block size isn't a multiple of the known bits, assume the
         // worst case padding.
         if (Size & ((1u << Bits) - 1))
-          Bits = CountTrailingZeros_32(Size);
+          Bits = countTrailingZeros(Size);
         return Bits;
       }
 
@@ -753,6 +753,7 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
             Scale = 4;
             break;
 
+          case ARM::LDRBi12:
           case ARM::LDRi12:
           case ARM::LDRcp:
           case ARM::t2LDRpci:
@@ -1468,7 +1469,7 @@ void ARMConstantIslands::removeDeadCPEMI(MachineInstr *CPEMI) {
   if (CPEBB->empty()) {
     BBInfo[CPEBB->getNumber()].Size = 0;
 
-    // This block no longer needs to be aligned. <rdar://problem/10534709>.
+    // This block no longer needs to be aligned.
     CPEBB->setAlignment(0);
   } else
     // Entries are sorted by descending alignment, so realign from the front.

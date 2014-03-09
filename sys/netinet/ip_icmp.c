@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -92,9 +93,14 @@ SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
 	"Enable logging of ICMP response rate limiting");
 
 #ifdef INET
-VNET_DEFINE(struct icmpstat, icmpstat);
-SYSCTL_VNET_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
-	&VNET_NAME(icmpstat), icmpstat, "");
+VNET_PCPUSTAT_DEFINE(struct icmpstat, icmpstat);
+VNET_PCPUSTAT_SYSINIT(icmpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_icmp, ICMPCTL_STATS, stats, struct icmpstat,
+    icmpstat, "ICMP statistics (struct icmpstat, netinet/icmp_var.h)");
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(icmpstat);
+#endif /* VIMAGE */
 
 static VNET_DEFINE(int, icmpmaskrepl) = 0;
 #define	V_icmpmaskrepl			VNET(icmpmaskrepl)
@@ -197,7 +203,7 @@ void
 kmod_icmpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_icmpstat + statnum))++;
+	counter_u64_add(VNET(icmpstat)[statnum], 1);
 }
 
 /*

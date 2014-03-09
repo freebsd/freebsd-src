@@ -548,8 +548,8 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 		MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 		    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_END_OF_LIST |
-		    raid_act->write ? MPI_SGE_FLAGS_HOST_TO_IOC :
-		    MPI_SGE_FLAGS_IOC_TO_HOST));
+		    (raid_act->write ? MPI_SGE_FLAGS_HOST_TO_IOC :
+		    MPI_SGE_FLAGS_IOC_TO_HOST)));
 	}
 	se->FlagsLength = htole32(se->FlagsLength);
 	rap->MsgContext = htole32(req->index | user_handler_id);

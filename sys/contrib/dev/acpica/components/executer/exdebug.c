@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -208,6 +208,7 @@ AcpiExDoDebugObject (
             return_VOID;
 
         default:
+
             break;
         }
 
@@ -241,6 +242,7 @@ AcpiExDoDebugObject (
                     break;
 
                 default:
+
                     AcpiExDoDebugObject ((SourceDesc->Reference.Node)->Object,
                         Level+4, 0);
                     break;

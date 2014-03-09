@@ -34,11 +34,11 @@ class ASTDecl {
   template <typename CHECKER>
   static void _checkDecl(void *checker, const Decl *D, AnalysisManager& mgr,
                          BugReporter &BR) {
-    ((const CHECKER *)checker)->checkASTDecl(llvm::cast<DECL>(D), mgr, BR);
+    ((const CHECKER *)checker)->checkASTDecl(cast<DECL>(D), mgr, BR);
   }
 
   static bool _handlesDecl(const Decl *D) {
-    return llvm::isa<DECL>(D);
+    return isa<DECL>(D);
   }
 public:
   template <typename CHECKER>
@@ -86,11 +86,11 @@ template <typename STMT>
 class PreStmt {
   template <typename CHECKER>
   static void _checkStmt(void *checker, const Stmt *S, CheckerContext &C) {
-    ((const CHECKER *)checker)->checkPreStmt(llvm::cast<STMT>(S), C);
+    ((const CHECKER *)checker)->checkPreStmt(cast<STMT>(S), C);
   }
 
   static bool _handlesStmt(const Stmt *S) {
-    return llvm::isa<STMT>(S);
+    return isa<STMT>(S);
   }
 public:
   template <typename CHECKER>
@@ -105,11 +105,11 @@ template <typename STMT>
 class PostStmt {
   template <typename CHECKER>
   static void _checkStmt(void *checker, const Stmt *S, CheckerContext &C) {
-    ((const CHECKER *)checker)->checkPostStmt(llvm::cast<STMT>(S), C);
+    ((const CHECKER *)checker)->checkPostStmt(cast<STMT>(S), C);
   }
 
   static bool _handlesStmt(const Stmt *S) {
-    return llvm::isa<STMT>(S);
+    return isa<STMT>(S);
   }
 public:
   template <typename CHECKER>
@@ -227,18 +227,18 @@ public:
   }
 };
 
-class EndPath {
+class EndFunction {
   template <typename CHECKER>
-  static void _checkEndPath(void *checker,
-                            CheckerContext &C) {
-    ((const CHECKER *)checker)->checkEndPath(C);
+  static void _checkEndFunction(void *checker,
+                                CheckerContext &C) {
+    ((const CHECKER *)checker)->checkEndFunction(C);
   }
 
 public:
   template <typename CHECKER>
   static void _register(CHECKER *checker, CheckerManager &mgr) {
-    mgr._registerForEndPath(
-     CheckerManager::CheckEndPathFunc(checker, _checkEndPath<CHECKER>));
+    mgr._registerForEndFunction(
+     CheckerManager::CheckEndFunctionFunc(checker, _checkEndFunction<CHECKER>));
   }
 };
 
@@ -293,7 +293,7 @@ class RegionChanges {
   static ProgramStateRef 
   _checkRegionChanges(void *checker,
                       ProgramStateRef state,
-                      const StoreManager::InvalidatedSymbols *invalidated,
+                      const InvalidatedSymbols *invalidated,
                       ArrayRef<const MemRegion *> Explicits,
                       ArrayRef<const MemRegion *> Regions,
                       const CallEvent *Call) {
@@ -317,6 +317,90 @@ public:
   }
 };
 
+class PointerEscape {
+  template <typename CHECKER>
+  static ProgramStateRef
+  _checkPointerEscape(void *Checker,
+                     ProgramStateRef State,
+                     const InvalidatedSymbols &Escaped,
+                     const CallEvent *Call,
+                     PointerEscapeKind Kind,
+                     RegionAndSymbolInvalidationTraits *ETraits) {
+
+    if (!ETraits)
+      return ((const CHECKER *)Checker)->checkPointerEscape(State,
+                                                            Escaped,
+                                                            Call,
+                                                            Kind);
+
+    InvalidatedSymbols RegularEscape;
+    for (InvalidatedSymbols::const_iterator I = Escaped.begin(), 
+                                            E = Escaped.end(); I != E; ++I)
+      if (!ETraits->hasTrait(*I,
+              RegionAndSymbolInvalidationTraits::TK_PreserveContents) &&
+          !ETraits->hasTrait(*I,
+              RegionAndSymbolInvalidationTraits::TK_SuppressEscape))
+        RegularEscape.insert(*I);
+
+    if (RegularEscape.empty())
+      return State;
+
+    return ((const CHECKER *)Checker)->checkPointerEscape(State,
+                                                          RegularEscape,
+                                                          Call,
+                                                          Kind);
+  }
+
+public:
+  template <typename CHECKER>
+  static void _register(CHECKER *checker, CheckerManager &mgr) {
+    mgr._registerForPointerEscape(
+          CheckerManager::CheckPointerEscapeFunc(checker,
+                                                _checkPointerEscape<CHECKER>));
+  }
+};
+
+class ConstPointerEscape {
+  template <typename CHECKER>
+  static ProgramStateRef
+  _checkConstPointerEscape(void *Checker,
+                      ProgramStateRef State,
+                      const InvalidatedSymbols &Escaped,
+                      const CallEvent *Call,
+                      PointerEscapeKind Kind,
+                      RegionAndSymbolInvalidationTraits *ETraits) {
+
+    if (!ETraits)
+      return State;
+
+    InvalidatedSymbols ConstEscape;
+    for (InvalidatedSymbols::const_iterator I = Escaped.begin(), 
+                                            E = Escaped.end(); I != E; ++I)
+      if (ETraits->hasTrait(*I,
+              RegionAndSymbolInvalidationTraits::TK_PreserveContents) &&
+          !ETraits->hasTrait(*I,
+              RegionAndSymbolInvalidationTraits::TK_SuppressEscape))
+        ConstEscape.insert(*I);
+
+    if (ConstEscape.empty())
+      return State;
+
+    return ((const CHECKER *)Checker)->checkConstPointerEscape(State,
+                                                               ConstEscape,
+                                                               Call,
+                                                               Kind);
+  }
+
+public:
+  template <typename CHECKER>
+  static void _register(CHECKER *checker, CheckerManager &mgr) {
+    mgr._registerForPointerEscape(
+      CheckerManager::CheckPointerEscapeFunc(checker,
+                                            _checkConstPointerEscape<CHECKER>));
+  }
+};
+
+  
 template <typename EVENT>
 class Event {
   template <typename CHECKER>
@@ -446,6 +530,18 @@ struct ImplicitNullDerefEvent {
   bool IsLoad;
   ExplodedNode *SinkNode;
   BugReporter *BR;
+};
+
+/// \brief A helper class which wraps a boolean value set to false by default.
+///
+/// This class should behave exactly like 'bool' except that it doesn't need to
+/// be explicitly initialized.
+struct DefaultBool {
+  bool val;
+  DefaultBool() : val(false) {}
+  /*implicit*/ operator bool&() { return val; }
+  /*implicit*/ operator const bool&() const { return val; }
+  DefaultBool &operator=(bool b) { val = b; return *this; }
 };
 
 } // end ento namespace

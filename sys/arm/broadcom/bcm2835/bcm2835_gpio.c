@@ -45,16 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/fdt.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "gpio_if.h"
+#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
-#undef	DEBUG
+#include "gpio_if.h"
 
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -85,17 +84,6 @@ struct bcm_gpio_softc {
 	int			sc_ro_pins[BCM_GPIO_PINS];
 	struct gpio_pin		sc_gpio_pins[BCM_GPIO_PINS];
 	struct bcm_gpio_sysctl	sc_sysctl[BCM_GPIO_PINS];
-};
-
-enum bcm_gpio_fsel {
-	BCM_GPIO_INPUT,
-	BCM_GPIO_OUTPUT,
-	BCM_GPIO_ALT5,
-	BCM_GPIO_ALT4,
-	BCM_GPIO_ALT0,
-	BCM_GPIO_ALT1,
-	BCM_GPIO_ALT2,
-	BCM_GPIO_ALT3,
 };
 
 enum bcm_gpio_pud {
@@ -257,6 +245,32 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
 }
 
+void
+bcm_gpio_set_alternate(device_t dev, uint32_t pin, uint32_t nfunc)
+{
+	struct bcm_gpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	BCM_GPIO_LOCK(sc);
+
+	/* Disable pull-up or pull-down on pin. */
+	bcm_gpio_set_pud(sc, pin, BCM_GPIO_NONE);
+
+	/* And now set the pin function. */
+	bcm_gpio_set_function(sc, pin, nfunc);
+
+	/* Update the pin flags. */
+	for (i = 0; i < sc->sc_gpio_npins; i++) {
+		if (sc->sc_gpio_pins[i].gp_pin == pin)
+			break;
+	}
+	if (i < sc->sc_gpio_npins)
+		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(nfunc);
+
+        BCM_GPIO_UNLOCK(sc);
+}
+
 static void
 bcm_gpio_pin_configure(struct bcm_gpio_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
@@ -385,8 +399,8 @@ bcm_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (bcm_gpio_pin_is_ro(sc, pin))
 		return (EINVAL);
 
-	/* Filter out unwanted flags. */
-	if ((flags &= sc->sc_gpio_pins[i].gp_caps) != flags)
+	/* Check for unwanted flags. */
+	if ((flags & sc->sc_gpio_pins[i].gp_caps) != flags)
 		return (EINVAL);
 
 	/* Can't mix input/output together. */
@@ -535,7 +549,7 @@ bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 	struct bcm_gpio_softc *sc;
 	struct bcm_gpio_sysctl *sc_sysctl;
 	uint32_t nfunc;
-	int i, error;
+	int error;
 
 	sc_sysctl = arg1;
 	sc = sc_sysctl->sc;
@@ -552,23 +566,8 @@ bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 	if (bcm_gpio_str_func(buf, &nfunc) != 0)
 		return (EINVAL);
 
-	BCM_GPIO_LOCK(sc);
-
-	/* Disable pull-up or pull-down on pin. */
-	bcm_gpio_set_pud(sc, sc_sysctl->pin, BCM_GPIO_NONE);
-
-	/* And now set the pin function. */
-	bcm_gpio_set_function(sc, sc_sysctl->pin, nfunc);
-
-	/* Update the pin flags. */
-	for (i = 0; i < sc->sc_gpio_npins; i++) {
-		if (sc->sc_gpio_pins[i].gp_pin == sc_sysctl->pin)
-			break;
-	}
-	if (i < sc->sc_gpio_npins)
-		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(nfunc);
-
-	BCM_GPIO_UNLOCK(sc);
+	/* Update the pin alternate function. */
+	bcm_gpio_set_alternate(sc->sc_dev, sc_sysctl->pin, nfunc);
 
 	return (0);
 }
@@ -590,7 +589,7 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
  	tree_node = device_get_sysctl_tree(sc->sc_dev);
  	tree = SYSCTL_CHILDREN(tree_node);
 	pin_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "pin",
-	    CTLFLAG_RW, NULL, "GPIO Pins");
+	    CTLFLAG_RD, NULL, "GPIO Pins");
 	pin_tree = SYSCTL_CHILDREN(pin_node);
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
@@ -675,6 +674,10 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 static int
 bcm_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-gpio"))
 		return (ENXIO);
 
@@ -729,7 +732,7 @@ bcm_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Initialize the software controlled pins. */
-	for (i = 0, j = 0; j < BCM_GPIO_PINS - 1; j++) {
+	for (i = 0, j = 0; j < BCM_GPIO_PINS; j++) {
 		if (bcm_gpio_pin_is_ro(sc, j))
 			continue;
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
@@ -763,6 +766,14 @@ bcm_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
+static phandle_t
+bcm_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t bcm_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_gpio_probe),
@@ -778,6 +789,9 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		bcm_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	bcm_gpio_get_node),
 
 	DEVMETHOD_END
 };

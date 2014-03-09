@@ -18,24 +18,23 @@
 
 #define DEBUG_TYPE "branchfolding"
 #include "BranchFolding.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -136,8 +135,8 @@ bool BranchFolder::OptimizeImpDefsBlock(MachineBasicBlock *MBB) {
     if (!I->isImplicitDef())
       break;
     unsigned Reg = I->getOperand(0).getReg();
-    ImpDefRegs.insert(Reg);
-    for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+    for (MCSubRegIterator SubRegs(Reg, TRI, /*IncludeSelf=*/true);
+         SubRegs.isValid(); ++SubRegs)
       ImpDefRegs.insert(*SubRegs);
     ++I;
   }
@@ -407,7 +406,8 @@ void BranchFolder::ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
 /// MBB so that the part before the iterator falls into the part starting at the
 /// iterator.  This returns the new MBB.
 MachineBasicBlock *BranchFolder::SplitMBBAt(MachineBasicBlock &CurMBB,
-                                            MachineBasicBlock::iterator BBI1) {
+                                            MachineBasicBlock::iterator BBI1,
+                                            const BasicBlock *BB) {
   if (!TII->isLegalToSplitMBBAt(CurMBB, BBI1))
     return 0;
 
@@ -415,7 +415,7 @@ MachineBasicBlock *BranchFolder::SplitMBBAt(MachineBasicBlock &CurMBB,
 
   // Create the fall-through block.
   MachineFunction::iterator MBBI = &CurMBB;
-  MachineBasicBlock *NewMBB =MF.CreateMachineBasicBlock(CurMBB.getBasicBlock());
+  MachineBasicBlock *NewMBB =MF.CreateMachineBasicBlock(BB);
   CurMBB.getParent()->insert(++MBBI, NewMBB);
 
   // Move all the successors of this block to the specified block.
@@ -571,8 +571,8 @@ static bool ProfitableToMerge(MachineBasicBlock *MBB1,
   // instructions that would be deleted in the merge.
   MachineFunction *MF = MBB1->getParent();
   if (EffectiveTailLen >= 2 &&
-      MF->getFunction()->getFnAttributes().
-        hasAttribute(Attributes::OptimizeForSize) &&
+      MF->getFunction()->getAttributes().
+        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize) &&
       (I1 == MBB1->begin() || I2 == MBB2->begin()))
     return true;
 
@@ -648,6 +648,7 @@ void BranchFolder::RemoveBlocksWithHash(unsigned CurHash,
 /// CreateCommonTailOnlyBlock - None of the blocks to be tail-merged consist
 /// only of the common tail.  Create a block that does by splitting one.
 bool BranchFolder::CreateCommonTailOnlyBlock(MachineBasicBlock *&PredBB,
+                                             MachineBasicBlock *SuccBB,
                                              unsigned maxCommonTailLength,
                                              unsigned &commonTailIndex) {
   commonTailIndex = 0;
@@ -677,7 +678,12 @@ bool BranchFolder::CreateCommonTailOnlyBlock(MachineBasicBlock *&PredBB,
   DEBUG(dbgs() << "\nSplitting BB#" << MBB->getNumber() << ", size "
                << maxCommonTailLength);
 
-  MachineBasicBlock *newMBB = SplitMBBAt(*MBB, BBI);
+  // If the split block unconditionally falls-thru to SuccBB, it will be
+  // merged. In control flow terms it should then take SuccBB's name. e.g. If
+  // SuccBB is an inner loop, the common tail is still part of the inner loop.
+  const BasicBlock *BB = (SuccBB && MBB->succ_size() == 1) ?
+    SuccBB->getBasicBlock() : MBB->getBasicBlock();
+  MachineBasicBlock *newMBB = SplitMBBAt(*MBB, BBI, BB);
   if (!newMBB) {
     DEBUG(dbgs() << "... failed!");
     return false;
@@ -785,7 +791,7 @@ bool BranchFolder::TryTailMergeBlocks(MachineBasicBlock *SuccBB,
          !SameTails[commonTailIndex].tailIsWholeBlock())) {
       // None of the blocks consist entirely of the common tail.
       // Split a block so that one does.
-      if (!CreateCommonTailOnlyBlock(PredBB,
+      if (!CreateCommonTailOnlyBlock(PredBB, SuccBB,
                                      maxCommonTailLength, commonTailIndex)) {
         RemoveBlocksWithHash(CurHash, SuccBB, PredBB);
         continue;

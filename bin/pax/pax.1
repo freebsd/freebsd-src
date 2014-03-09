@@ -33,7 +33,7 @@
 .\"	@(#)pax.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2010
+.Dd December 21, 2013
 .Dt PAX 1
 .Os
 .Sh NAME
@@ -587,6 +587,16 @@ precedence.
 For example, if
 .Dl Fl p Ar eme
 is specified, file modification times are still preserved.
+.Pp
+File flags set by
+.Xr chflags 1
+are not understood by
+.Nm ,
+however
+.Xr tar 1
+and
+.Xr dump 1
+will preserve these.
 .It Fl s Ar replstr
 Modify the file or archive member names specified by the
 .Ar pattern
@@ -1195,3 +1205,11 @@ at the University of California, San Diego
 The
 .Nm
 utility does not recognize multibyte characters.
+.Pp
+File flags set by
+.Xr chflags 1
+are not preserved by
+.Nm .
+The BUGS section of
+.Xr chflags 1
+has a list of utilities that are unaware of flags.

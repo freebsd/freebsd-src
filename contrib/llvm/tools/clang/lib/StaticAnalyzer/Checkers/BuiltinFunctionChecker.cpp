@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/Basic/Builtins.h"
 
 using namespace clang;
 using namespace ento;
@@ -37,14 +37,15 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
   if (!FD)
     return false;
 
-  unsigned id = FD->getBuiltinID();
-
-  if (!id)
+  switch (FD->getBuiltinID()) {
+  default:
     return false;
 
-  switch (id) {
-  case Builtin::BI__builtin_expect: {
+  case Builtin::BI__builtin_expect:
+  case Builtin::BI__builtin_addressof: {
     // For __builtin_expect, just return the value of the subexpression.
+    // __builtin_addressof is going from a reference to a pointer, but those
+    // are represented the same way in the analyzer.
     assert (CE->arg_begin() != CE->arg_end());
     SVal X = state->getSVal(*(CE->arg_begin()), LCtx);
     C.addTransition(state->BindExpr(CE, LCtx, X));
@@ -61,20 +62,36 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // SVal of the argument directly. If we save the extent in bits, we
     // cannot represent values like symbol*8.
     DefinedOrUnknownSVal Size =
-      cast<DefinedOrUnknownSVal>(state->getSVal(*(CE->arg_begin()), LCtx));
+        state->getSVal(*(CE->arg_begin()), LCtx).castAs<DefinedOrUnknownSVal>();
 
     SValBuilder& svalBuilder = C.getSValBuilder();
     DefinedOrUnknownSVal Extent = R->getExtent(svalBuilder);
     DefinedOrUnknownSVal extentMatchesSizeArg =
       svalBuilder.evalEQ(state, Extent, Size);
     state = state->assume(extentMatchesSizeArg, true);
+    assert(state && "The region should not have any previous constraints");
 
     C.addTransition(state->BindExpr(CE, LCtx, loc::MemRegionVal(R)));
     return true;
   }
-  }
 
-  return false;
+  case Builtin::BI__builtin_object_size: {
+    // This must be resolvable at compile time, so we defer to the constant
+    // evaluator for a value.
+    SVal V = UnknownVal();
+    llvm::APSInt Result;
+    if (CE->EvaluateAsInt(Result, C.getASTContext(), Expr::SE_NoSideEffects)) {
+      // Make sure the result has the correct type.
+      SValBuilder &SVB = C.getSValBuilder();
+      BasicValueFactory &BVF = SVB.getBasicValueFactory();
+      BVF.getAPSIntType(CE->getType()).apply(Result);
+      V = SVB.makeIntVal(Result);
+    }
+
+    C.addTransition(state->BindExpr(CE, LCtx, V));
+    return true;
+  }
+  }
 }
 
 void ento::registerBuiltinFunctionChecker(CheckerManager &mgr) {

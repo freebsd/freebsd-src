@@ -96,12 +96,14 @@ int	copyinstrfrom(const void * __restrict src, void * __restrict dst,
 int	copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop);
 int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);
 int	copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz);
+int	physcopyin(void *src, vm_paddr_t dst, size_t len);
+int	physcopyout(vm_paddr_t src, void *dst, size_t len);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,
 	    struct uio *uio);
 int	uiomove_nofault(void *cp, int n, struct uio *uio);
-int	uiomoveco(void *cp, int n, struct uio *uio, int disposable);
+int	uiomove_object(struct vm_object *obj, off_t obj_size, struct uio *uio);
 
 #else /* !_KERNEL */
 

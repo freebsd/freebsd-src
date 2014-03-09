@@ -15,8 +15,8 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
-#include "llvm/Object/MachOFormat.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/MachO.h"
 #include <vector>
 
 namespace llvm {
@@ -44,6 +44,13 @@ protected:
 
 public:
   virtual ~MCMachObjectTargetWriter();
+
+  /// @name Lifetime Management
+  /// @{
+
+  virtual void reset() {};
+
+  /// @}
 
   /// @name Accessors
   /// @{
@@ -91,7 +98,7 @@ class MachObjectWriter : public MCObjectWriter {
   /// @{
 
   llvm::DenseMap<const MCSectionData*,
-                 std::vector<object::macho::RelocationEntry> > Relocations;
+                 std::vector<MachO::any_relocation_info> > Relocations;
   llvm::DenseMap<const MCSectionData*, unsigned> IndirectSymBase;
 
   /// @}
@@ -110,6 +117,13 @@ public:
                    bool _IsLittleEndian)
     : MCObjectWriter(_OS, _IsLittleEndian), TargetObjectWriter(MOTW) {
   }
+
+  /// @name Lifetime management Methods
+  /// @{
+
+  virtual void reset();
+
+  /// @}
 
   /// @name Utility Methods
   /// @{
@@ -141,9 +155,8 @@ public:
 
   bool is64Bit() const { return TargetObjectWriter->is64Bit(); }
   bool isARM() const {
-    uint32_t CPUType = TargetObjectWriter->getCPUType() &
-      ~object::mach::CTFM_ArchMask;
-    return CPUType == object::mach::CTM_ARM;
+    uint32_t CPUType = TargetObjectWriter->getCPUType() & ~MachO::CPU_ARCH_MASK;
+    return CPUType == MachO::CPU_TYPE_ARM;
   }
 
   /// @}
@@ -182,6 +195,8 @@ public:
   void WriteLinkeditLoadCommand(uint32_t Type, uint32_t DataOffset,
                                 uint32_t DataSize);
 
+  void WriteLinkerOptionsLoadCommand(const std::vector<std::string> &Options);
+
   // FIXME: We really need to improve the relocation validation. Basically, we
   // want to implement a separate computation which evaluates the relocation
   // entry as the linker would, and verifies that the resultant fixup value is
@@ -197,7 +212,7 @@ public:
   //    these through in many cases.
 
   void addRelocation(const MCSectionData *SD,
-                     object::macho::RelocationEntry &MRE) {
+                     MachO::any_relocation_info &MRE) {
     Relocations[SD].push_back(MRE);
   }
 
@@ -223,8 +238,6 @@ public:
   /// ComputeSymbolTable - Compute the symbol table data
   ///
   /// \param StringTable [out] - The string table data.
-  /// \param StringIndexMap [out] - Map from symbol names to offsets in the
-  /// string table.
   void ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
                           std::vector<MachSymbolData> &LocalSymbolData,
                           std::vector<MachSymbolData> &ExternalSymbolData,

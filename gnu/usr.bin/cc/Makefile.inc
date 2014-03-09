@@ -23,7 +23,11 @@ CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 CSTD?=	gnu89
 
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-CFLAGS+=	-DCROSS_COMPILE
+CFLAGS+=	-DCROSS_DIRECTORY_STRUCTURE
+.endif
+
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
 .if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb"

@@ -1,103 +1,215 @@
-/* -*-  Mode:C; c-basic-offset:4; tab-width:4 -*- */
+/******************************************************************************
+ * xen_intr.h
+ * 
+ * APIs for managing Xen event channel, virtual IRQ, and physical IRQ
+ * notifications.
+ * 
+ * Copyright (c) 2004, K A Fraser
+ * Copyright (c) 2012, Spectra Logic Corporation
+ *
+ * This file may be distributed separately from the Linux kernel, or
+ * incorporated into other software packages, subject to the following license:
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this source file (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify,
+ * merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * $FreeBSD$
+ */
 #ifndef _XEN_INTR_H_
 #define _XEN_INTR_H_
 
-/*
-* The flat IRQ space is divided into two regions:
-*  1. A one-to-one mapping of real physical IRQs. This space is only used
-*     if we have physical device-access privilege. This region is at the 
-*     start of the IRQ space so that existing device drivers do not need
-*     to be modified to translate physical IRQ numbers into our IRQ space.
-*  3. A dynamic mapping of inter-domain and Xen-sourced virtual IRQs. These
-*     are bound using the provided bind/unbind functions.
-*
-*
-* $FreeBSD$
-*/
+#ifndef __XEN_EVTCHN_PORT_DEFINED__
+typedef uint32_t evtchn_port_t;
+DEFINE_XEN_GUEST_HANDLE(evtchn_port_t);
+#define __XEN_EVTCHN_PORT_DEFINED__ 1
+#endif
 
-#define PIRQ_BASE   0
-#define NR_PIRQS  128
+/** Registered Xen interrupt callback handle. */
+typedef void * xen_intr_handle_t;
 
-#define DYNIRQ_BASE (PIRQ_BASE + NR_PIRQS)
-#define NR_DYNIRQS  128
+/** If non-zero, the hypervisor has been configured to use a direct vector */
+extern int xen_vector_callback_enabled;
 
-#define NR_IRQS   (NR_PIRQS + NR_DYNIRQS)
-
-#define pirq_to_irq(_x)   ((_x) + PIRQ_BASE)
-#define irq_to_pirq(_x)   ((_x) - PIRQ_BASE)
-
-#define dynirq_to_irq(_x) ((_x) + DYNIRQ_BASE)
-#define irq_to_dynirq(_x) ((_x) - DYNIRQ_BASE)
-
-/* 
- * Dynamic binding of event channels and VIRQ sources to guest IRQ space.
+/**
+ * Associate an already allocated local event channel port an interrupt
+ * handler.
+ *
+ * \param dev         The device making this bind request.
+ * \param local_port  The event channel to bind.
+ * \param filter      An interrupt filter handler.  Specify NULL
+ *                    to always dispatch to the ithread handler.
+ * \param handler     An interrupt ithread handler.  Optional (can
+ *                    specify NULL) if all necessary event actions
+ *                    are performed by filter.
+ * \param arg         Argument to present to both filter and handler.
+ * \param irqflags    Interrupt handler flags.  See sys/bus.h.
+ * \param handlep     Pointer to an opaque handle used to manage this
+ *                    registration.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
+int xen_intr_bind_local_port(device_t dev, evtchn_port_t local_port,
+	driver_filter_t filter, driver_intr_t handler, void *arg,
+	enum intr_type irqflags, xen_intr_handle_t *handlep);
 
-/*
- * Bind a caller port event channel to an interrupt handler. If
- * successful, the guest IRQ number is returned in *irqp. Return zero
- * on success or errno otherwise.
+/**
+ * Allocate a local event channel port, accessible by the specified
+ * remote/foreign domain and, if successful, associate the port with
+ * the specified interrupt handler.
+ *
+ * \param dev            The device making this bind request.
+ * \param remote_domain  Remote domain grant permission to signal the
+ *                       newly allocated local port.
+ * \param filter         An interrupt filter handler.  Specify NULL
+ *                       to always dispatch to the ithread handler.
+ * \param handler        An interrupt ithread handler.  Optional (can
+ *                       specify NULL) if all necessary event actions
+ *                       are performed by filter.
+ * \param arg            Argument to present to both filter and handler.
+ * \param irqflags       Interrupt handler flags.  See sys/bus.h.
+ * \param handlep        Pointer to an opaque handle used to manage this
+ *                       registration.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
-extern int bind_caller_port_to_irqhandler(unsigned int caller_port,
-	const char *devname, driver_intr_t handler, void *arg,
-	unsigned long irqflags, unsigned int *irqp);
+int xen_intr_alloc_and_bind_local_port(device_t dev,
+	u_int remote_domain, driver_filter_t filter, driver_intr_t handler,
+	void *arg, enum intr_type irqflags, xen_intr_handle_t *handlep);
 
-/*
- * Bind a listening port to an interrupt handler. If successful, the
- * guest IRQ number is returned in *irqp. Return zero on success or
- * errno otherwise.
+/**
+ * Associate the specified interrupt handler with the remote event
+ * channel port specified by remote_domain and remote_port.
+ *
+ * \param dev            The device making this bind request.
+ * \param remote_domain  The domain peer for this event channel connection.
+ * \param remote_port    Remote domain's local port number for this event
+ *                       channel port.
+ * \param filter         An interrupt filter handler.  Specify NULL
+ *                       to always dispatch to the ithread handler.
+ * \param handler        An interrupt ithread handler.  Optional (can
+ *                       specify NULL) if all necessary event actions
+ *                       are performed by filter.
+ * \param arg            Argument to present to both filter and handler.
+ * \param irqflags       Interrupt handler flags.  See sys/bus.h.
+ * \param handlep        Pointer to an opaque handle used to manage this
+ *                       registration.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
-extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
-	const char *devname, driver_intr_t handler, void *arg,
-	unsigned long irqflags, unsigned int *irqp);
+int xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
+	evtchn_port_t remote_port, driver_filter_t filter,
+	driver_intr_t handler, void *arg, enum intr_type irqflags,
+	xen_intr_handle_t *handlep);
 
-/*
- * Bind a VIRQ to an interrupt handler. If successful, the guest IRQ
- * number is returned in *irqp. Return zero on success or errno
- * otherwise.
+/**
+ * Associate the specified interrupt handler with the specified Xen
+ * virtual interrupt source.
+ *
+ * \param dev       The device making this bind request.
+ * \param virq      The Xen virtual IRQ number for the Xen interrupt
+ *                  source being hooked.
+ * \param cpu       The cpu on which interrupt events should be delivered. 
+ * \param filter    An interrupt filter handler.  Specify NULL
+ *                  to always dispatch to the ithread handler.
+ * \param handler   An interrupt ithread handler.  Optional (can
+ *                  specify NULL) if all necessary event actions
+ *                  are performed by filter.
+ * \param arg       Argument to present to both filter and handler.
+ * \param irqflags  Interrupt handler flags.  See sys/bus.h.
+ * \param handlep   Pointer to an opaque handle used to manage this
+ *                  registration.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
-extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
-	const char *devname, driver_filter_t filter, driver_intr_t handler,
-	void *arg, unsigned long irqflags,	unsigned int *irqp);
+int xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
+	driver_filter_t filter, driver_intr_t handler,
+	void *arg, enum intr_type irqflags, xen_intr_handle_t *handlep);
 
-/*
- * Bind an IPI to an interrupt handler. If successful, the guest
- * IRQ number is returned in *irqp. Return zero on success or errno
- * otherwise.
+/**
+ * Allocate a local event channel port for servicing interprocessor
+ * interupts and, if successful, associate the port with the specified
+ * interrupt handler.
+ *
+ * \param dev       The device making this bind request.
+ * \param cpu       The cpu receiving the IPI.
+ * \param filter    The interrupt filter servicing this IPI.
+ * \param irqflags  Interrupt handler flags.  See sys/bus.h.
+ * \param handlep   Pointer to an opaque handle used to manage this
+ *                  registration.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
-extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
-	const char *devname, driver_filter_t filter,
-	unsigned long irqflags, unsigned int *irqp);
+int xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
+	driver_filter_t filter, enum intr_type irqflags,
+	xen_intr_handle_t *handlep);
 
-/*
- * Bind an interdomain event channel to an interrupt handler. If
- * successful, the guest IRQ number is returned in *irqp. Return zero
- * on success or errno otherwise.
+/**
+ * Unbind an interrupt handler from its interrupt source.
+ *
+ * \param handlep  A pointer to the opaque handle that was initialized
+ *		   at the time the interrupt source was bound.
+ *
+ * \returns  0 on success, otherwise an errno.
+ *
+ * \note  The event channel, if any, that was allocated at bind time is
+ *        closed upon successful return of this method.
+ *
+ * \note  It is always safe to call xen_intr_unbind() on a handle that
+ *        has been initilized to NULL.
  */
-extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
-	unsigned int remote_port, const char *devname,
-	driver_intr_t handler, void *arg,
-	unsigned long irqflags, unsigned int *irqp);
+void xen_intr_unbind(xen_intr_handle_t *handle);
 
-/*
- * Unbind an interrupt handler using the guest IRQ number returned
- * when it was bound.
+/**
+ * Add a description to an interrupt handler.
+ *
+ * \param handle  The opaque handle that was initialized at the time
+ *		  the interrupt source was bound.
+ *
+ * \param fmt     The sprintf compatible format string for the description,
+ *                followed by optional sprintf arguments.
+ *
+ * \returns  0 on success, otherwise an errno.
  */
-extern void unbind_from_irqhandler(unsigned int irq);
+int
+xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
+	__attribute__((format(printf, 2, 3)));
 
-static __inline__ int irq_cannonicalize(unsigned int irq)
-{
-    return (irq == 2) ? 9 : irq;
-}
+/**
+ * Signal the remote peer of an interrupt source associated with an
+ * event channel port.
+ *
+ * \param handle  The opaque handle that was initialized at the time
+ *                the interrupt source was bound.
+ *
+ * \note  For xen interrupt sources other than event channel ports,
+ *        this method takes no action.
+ */
+void xen_intr_signal(xen_intr_handle_t handle);
 
-extern void disable_irq(unsigned int);
-extern void disable_irq_nosync(unsigned int);
-extern void enable_irq(unsigned int);
-
-extern void irq_suspend(void);
-extern void irq_resume(void);
-
-extern void	idle_block(void);
-extern int	ap_cpu_initclocks(int cpu);
+/**
+ * Get the local event channel port number associated with this interrupt
+ * source.
+ *
+ * \param handle  The opaque handle that was initialized at the time
+ *                the interrupt source was bound.
+ *
+ * \returns  0 if the handle is invalid, otherwise positive port number.
+ */
+evtchn_port_t xen_intr_port(xen_intr_handle_t handle);
 
 #endif /* _XEN_INTR_H_ */

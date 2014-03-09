@@ -14,9 +14,9 @@
 #ifndef CODEGEN_INTRINSIC_H
 #define CODEGEN_INTRINSIC_H
 
+#include "llvm/CodeGen/ValueTypes.h"
 #include <string>
 #include <vector>
-#include "llvm/CodeGen/ValueTypes.h"
 
 namespace llvm {
   class Record;
@@ -77,7 +77,9 @@ namespace llvm {
     bool isNoReturn;
 
     enum ArgAttribute {
-      NoCapture
+      NoCapture,
+      ReadOnly,
+      ReadNone
     };
     std::vector<std::pair<unsigned, ArgAttribute> > ArgumentAttributes;
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -139,6 +139,18 @@ __RCSID("$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $");
 #include    "dir.h"
 #include    "job.h"
 
+extern int makelevel;
+/*
+ * XXX transition hack for FreeBSD ports.
+ * bsd.port.mk can set .MAKE.FreeBSD_UL=yes
+ * to cause us to treat :[LU] as aliases for :t[lu]
+ * To be reverted when ports converts to :t[lu] (when 8.3 is EOL)
+ */
+#define MAKE_FREEBSD_UL ".MAKE.FreeBSD_UL"
+#ifdef MAKE_FREEBSD_UL
+static int FreeBSD_UL = FALSE;
+#endif
+
 /*
  * This lets us tell if we have replaced the original environ
  * (which we cannot free).
@@ -175,6 +187,7 @@ static char	varNoError[] = "";
  * The four contexts are searched in the reverse order from which they are
  * listed.
  */
+GNode          *VAR_INTERNAL; /* variables from make itself */
 GNode          *VAR_GLOBAL;   /* variables from the makefile */
 GNode          *VAR_CMD;      /* variables defined on the command-line */
 
@@ -309,7 +322,6 @@ static char *VarGetPattern(GNode *, Var_Parse_State *,
 			   int, const char **, int, int *, int *,
 			   VarPattern *);
 static char *VarQuote(char *);
-static char *VarChangeCase(char *, int);
 static char *VarHash(char *);
 static char *VarModify(GNode *, Var_Parse_State *,
     const char *,
@@ -408,6 +420,10 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	(ctxt != VAR_GLOBAL))
     {
 	var = Hash_FindEntry(&VAR_GLOBAL->context, name);
+	if ((var == NULL) && (ctxt != VAR_INTERNAL)) {
+	    /* VAR_INTERNAL is subordinate to VAR_GLOBAL */
+	    var = Hash_FindEntry(&VAR_INTERNAL->context, name);
+	}
     }
     if ((var == NULL) && (flags & FIND_ENV)) {
 	char *env;
@@ -429,6 +445,9 @@ VarFind(const char *name, GNode *ctxt, int flags)
 		   (ctxt != VAR_GLOBAL))
 	{
 	    var = Hash_FindEntry(&VAR_GLOBAL->context, name);
+	    if ((var == NULL) && (ctxt != VAR_INTERNAL)) {
+		var = Hash_FindEntry(&VAR_INTERNAL->context, name);
+	    }
 	    if (var == NULL) {
 		return NULL;
 	    } else {
@@ -530,11 +549,20 @@ void
 Var_Delete(const char *name, GNode *ctxt)
 {
     Hash_Entry 	  *ln;
-
-    ln = Hash_FindEntry(&ctxt->context, name);
+    char *cp;
+    
+    if (strchr(name, '$')) {
+	cp = Var_Subst(NULL, name, VAR_GLOBAL, 0);
+    } else {
+	cp = (char *)name;
+    }
+    ln = Hash_FindEntry(&ctxt->context, cp);
     if (DEBUG(VAR)) {
 	fprintf(debug_file, "%s:delete %s%s\n",
-	    ctxt->name, name, ln ? "" : " (not found)");
+	    ctxt->name, cp, ln ? "" : " (not found)");
+    }
+    if (cp != name) {
+	free(cp);
     }
     if (ln != NULL) {
 	Var 	  *v;
@@ -648,6 +676,15 @@ Var_ExportVars(void)
     Var *v;
     char *val;
     int n;
+
+    /*
+     * Several make's support this sort of mechanism for tracking
+     * recursion - but each uses a different name.
+     * We allow the makefiles to update MAKELEVEL and ensure
+     * children see a correctly incremented value.
+     */
+    snprintf(tmp, sizeof(tmp), "%d", makelevel + 1);
+    setenv(MAKE_LEVEL_ENV, tmp, 1);
 
     if (VAR_EXPORTED_NONE == var_exportedVars)
 	return;
@@ -770,7 +807,7 @@ Var_UnExport(char *str)
     if (unexport_env) {
 	char **newenv;
 
-	cp = getenv(MAKE_LEVEL);	/* we should preserve this */
+	cp = getenv(MAKE_LEVEL_ENV);	/* we should preserve this */
 	if (environ == savedEnv) {
 	    /* we have been here before! */
 	    newenv = bmake_realloc(environ, 2 * sizeof(char *));
@@ -787,10 +824,7 @@ Var_UnExport(char *str)
 	environ = savedEnv = newenv;
 	newenv[0] = NULL;
 	newenv[1] = NULL;
-	setenv(MAKE_LEVEL, cp, 1);
-#ifdef MAKE_LEVEL_SAFE
-	setenv(MAKE_LEVEL_SAFE, cp, 1);
-#endif
+	setenv(MAKE_LEVEL_ENV, cp, 1);
     } else {
 	for (; *str != '\n' && isspace((unsigned char) *str); str++)
 	    continue;
@@ -914,6 +948,14 @@ Var_Set(const char *name, const char *val, GNode *ctxt, int flags)
     }
     v = VarFind(name, ctxt, 0);
     if (v == NULL) {
+	if (ctxt == VAR_CMD && (flags & VAR_NO_EXPORT) == 0) {
+	    /*
+	     * This var would normally prevent the same name being added
+	     * to VAR_GLOBAL, so delete it from there if needed.
+	     * Otherwise -V name may show the wrong value.
+	     */
+	    Var_Delete(name, VAR_GLOBAL);
+	}
 	VarAdd(name, val, ctxt);
     } else {
 	Buf_Empty(&v->val);
@@ -948,26 +990,14 @@ Var_Set(const char *name, const char *val, GNode *ctxt, int flags)
 
 	Var_Append(MAKEOVERRIDES, name, VAR_GLOBAL);
     }
-    /*
-     * Another special case.
-     * Several make's support this sort of mechanism for tracking
-     * recursion - but each uses a different name.
-     * We allow the makefiles to update .MAKE.LEVEL and ensure
-     * children see a correctly incremented value.
-     */
-    if (ctxt == VAR_GLOBAL && strcmp(MAKE_LEVEL, name) == 0) {
-	char tmp[64];
-	int level;
 	
-	level = atoi(val);
-	snprintf(tmp, sizeof(tmp), "%u", level + 1);
-	setenv(MAKE_LEVEL, tmp, 1);
-#ifdef MAKE_LEVEL_SAFE
-	setenv(MAKE_LEVEL_SAFE, tmp, 1);
-#endif
+#ifdef MAKE_FREEBSD_UL
+    if (strcmp(MAKE_FREEBSD_UL, name) == 0) {
+	FreeBSD_UL = getBoolean(MAKE_FREEBSD_UL, FALSE);
     }
-	
-	
+#endif
+
+
  out:
     if (expanded_name != NULL)
 	free(expanded_name);
@@ -2302,9 +2332,7 @@ VarHash(char *str)
     size_t         len, len2;
     unsigned char  *ustr = (unsigned char *)str;
     uint32_t       h, k, c1, c2;
-    int            done;
 
-    done = 1;
     h  = 0x971e137bU;
     c1 = 0x95543787U;
     c2 = 0x2ad7eb25U;
@@ -2334,7 +2362,7 @@ VarHash(char *str)
 	h = (h << 13) ^ (h >> 19);
 	h = h * 5 + 0x52dce729U;
 	h ^= k;
-   } while (!done);
+   }
    h ^= len2;
    h *= 0x85ebca6b;
    h ^= h >> 13;
@@ -2347,37 +2375,6 @@ VarHash(char *str)
        h >>= 4;
    }
 
-   return Buf_Destroy(&buf, FALSE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarChangeCase --
- *      Change the string to all uppercase or all lowercase
- *
- * Input:
- *	str		String to modify
- *	upper		TRUE -> uppercase, else lowercase
- *
- * Results:
- *      The string with case changed
- *
- * Side Effects:
- *      None.
- *
- *-----------------------------------------------------------------------
- */
-static char *
-VarChangeCase(char *str, int upper)
-{
-   Buffer         buf;
-   int            (*modProc)(int);
-
-   modProc = (upper ? toupper : tolower);
-   Buf_Init(&buf, 0);
-   for (; *str ; str++) {
-       Buf_AddByte(&buf, modProc(*str));
-   }
    return Buf_Destroy(&buf, FALSE);
 }
 
@@ -2567,7 +2564,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 	}
     apply_mods:
 	if (DEBUG(VAR)) {
-	    fprintf(debug_file, "Applying :%c to \"%s\"\n", *tstr, nstr);
+	    fprintf(debug_file, "Applying[%s] :%c to \"%s\"\n", v->name,
+		*tstr, nstr);
 	}
 	newStr = var_Error;
 	switch ((modifier = *tstr)) {
@@ -2691,8 +2689,24 @@ ApplyModifiers(char *nstr, const char *tstr,
 		free(loop.str);
 		break;
 	    }
-	case 'D':
 	case 'U':
+#ifdef MAKE_FREEBSD_UL
+	    if (FreeBSD_UL) {
+		int nc = tstr[1];
+
+		/* we have to be careful, since :U is used internally */
+		if (nc == ':' || nc == endc) {
+		    char *dp = bmake_strdup(nstr);
+		    for (newStr = dp; *dp; dp++)
+			*dp = toupper((unsigned char)*dp);
+		    cp = tstr + 1;
+		    termc = *cp;
+		    break;		/* yes inside the conditional */
+		}
+		/* FALLTHROUGH */
+	    }
+#endif
+	case 'D':
 	    {
 		Buffer  buf;    	/* Buffer for patterns */
 		int	    wantit;	/* want data in buffer */
@@ -2752,6 +2766,17 @@ ApplyModifiers(char *nstr, const char *tstr,
 		break;
 	    }
 	case 'L':
+#ifdef MAKE_FREEBSD_UL
+	    if (FreeBSD_UL) {
+		char *dp = bmake_strdup(nstr);
+		for (newStr = dp; *dp; dp++)
+		    *dp = tolower((unsigned char)*dp);
+		cp = tstr + 1;
+		termc = *cp;
+		break;
+	    }
+	    /* FALLTHROUGH */
+#endif
 	    {
 		if ((v->flags & VAR_JUNK) != 0)
 		    v->flags |= VAR_KEEP;
@@ -3056,8 +3081,16 @@ ApplyModifiers(char *nstr, const char *tstr,
 					       VarRealpath, NULL);
 			    cp = tstr + 2;
 			    termc = *cp;
-			} else if (tstr[1] == 'u' || tstr[1] == 'l') {
-			    newStr = VarChangeCase(nstr, (tstr[1] == 'u'));
+			} else if (tstr[1] == 'u') {
+			    char *dp = bmake_strdup(nstr);
+			    for (newStr = dp; *dp; dp++)
+				*dp = toupper((unsigned char)*dp);
+			    cp = tstr + 2;
+			    termc = *cp;
+			} else if (tstr[1] == 'l') {
+			    char *dp = bmake_strdup(nstr);
+			    for (newStr = dp; *dp; dp++)
+				*dp = tolower((unsigned char)*dp);
 			    cp = tstr + 2;
 			    termc = *cp;
 			} else if (tstr[1] == 'W' || tstr[1] == 'w') {
@@ -3167,8 +3200,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 		    free(cp2);
 		}
 		if (DEBUG(VAR))
-		    fprintf(debug_file, "Pattern for [%s] is [%s]\n", nstr,
-			pattern);
+		    fprintf(debug_file, "Pattern[%s] for [%s] is [%s]\n",
+			v->name, nstr, pattern);
 		if (*tstr == 'M') {
 		    newStr = VarModify(ctxt, &parsestate, nstr, VarMatch,
 				       pattern);
@@ -3523,7 +3556,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 	    }
 	}
 	if (DEBUG(VAR)) {
-	    fprintf(debug_file, "Result of :%c is \"%s\"\n", modifier, newStr);
+	    fprintf(debug_file, "Result[%s] of :%c is \"%s\"\n",
+		v->name, modifier, newStr);
 	}
 
 	if (newStr != nstr) {
@@ -4156,6 +4190,7 @@ Var_GetHead(char *file)
 void
 Var_Init(void)
 {
+    VAR_INTERNAL = Targ_NewGN("Internal");
     VAR_GLOBAL = Targ_NewGN("Global");
     VAR_CMD = Targ_NewGN("Command");
 

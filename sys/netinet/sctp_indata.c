@@ -789,13 +789,12 @@ doit_again:
 			 * but should we?
 			 */
 			if (stcb->sctp_socket) {
-				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
+				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
 				    stcb->sctp_ep->partial_delivery_point);
 			} else {
 				pd_point = stcb->sctp_ep->partial_delivery_point;
 			}
 			if (sctp_is_all_msg_on_reasm(asoc, &tsize) || (tsize >= pd_point)) {
-
 				/*
 				 * Yes, we setup to start reception, by
 				 * backing down the TSN just in case we
@@ -1417,7 +1416,6 @@ sctp_does_tsn_belong_to_reasm(struct sctp_association *asoc,
 	return (0);
 }
 
-
 static int
 sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct mbuf **m, int offset, struct sctp_data_chunk *ch, int chk_length,
@@ -1729,7 +1727,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		sctp_alloc_a_readq(stcb, control);
 		sctp_build_readq_entry_mac(control, stcb, asoc->context, net, tsn,
 		    protocol_id,
-		    stcb->asoc.context,
 		    strmno, strmseq,
 		    chunk_flags,
 		    dmbuf);
@@ -1790,7 +1787,6 @@ failed_express_del:
 				asoc->highest_tsn_inside_nr_map = tsn;
 			}
 			SCTP_STAT_INCR(sctps_recvexpressm);
-			control->sinfo_tsn = tsn;
 			asoc->tsn_last_delivered = tsn;
 			asoc->fragment_flags = chunk_flags;
 			asoc->tsn_of_pdapi_last_delivered = tsn;
@@ -1857,7 +1853,6 @@ failed_pdapi_express_del:
 		sctp_alloc_a_readq(stcb, control);
 		sctp_build_readq_entry_mac(control, stcb, asoc->context, net, tsn,
 		    protocol_id,
-		    stcb->asoc.context,
 		    strmno, strmseq,
 		    chunk_flags,
 		    dmbuf);
@@ -2494,7 +2489,7 @@ doit_again:
 		 * delivery queue and something can be delivered.
 		 */
 		if (stcb->sctp_socket) {
-			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
+			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
 			    stcb->sctp_ep->partial_delivery_point);
 		} else {
 			pd_point = stcb->sctp_ep->partial_delivery_point;
@@ -4221,19 +4216,15 @@ again:
 		abort_out_now:
 				*abort_now = 1;
 				/* XXX */
-				oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+				oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 				    0, M_NOWAIT, 1, MT_DATA);
 				if (oper) {
 					struct sctp_paramhdr *ph;
-					uint32_t *ippp;
 
-					SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-					    sizeof(uint32_t);
+					SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr);
 					ph = mtod(oper, struct sctp_paramhdr *);
 					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(SCTP_BUF_LEN(oper));
-					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_24);
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_24;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, oper, SCTP_SO_NOT_LOCKED);
@@ -4262,19 +4253,19 @@ again:
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
 
-			if (asoc->alternate) {
-				netp = asoc->alternate;
-			} else {
-				netp = asoc->primary_destination;
-			}
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-			sctp_send_shutdown_ack(stcb, netp);
 			sctp_stop_timers_for_shutdown(stcb);
+			if (asoc->alternate) {
+				netp = asoc->alternate;
+			} else {
+				netp = asoc->primary_destination;
+			}
+			sctp_send_shutdown_ack(stcb, netp);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, netp);
 		}
@@ -4725,7 +4716,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			}
 		}
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-		if (tp1->pr_sctp_on) {
+		if (PR_SCTP_ENABLED(tp1->flags)) {
 			if (asoc->pr_sctp_cnt != 0)
 				asoc->pr_sctp_cnt--;
 		}
@@ -4953,19 +4944,15 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		abort_out_now:
 				*abort_now = 1;
 				/* XXX */
-				oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+				oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 				    0, M_NOWAIT, 1, MT_DATA);
 				if (oper) {
 					struct sctp_paramhdr *ph;
-					uint32_t *ippp;
 
-					SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-					    sizeof(uint32_t);
+					SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr);
 					ph = mtod(oper, struct sctp_paramhdr *);
 					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(SCTP_BUF_LEN(oper));
-					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_31);
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_31;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, oper, SCTP_SO_NOT_LOCKED);
@@ -4973,11 +4960,6 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			} else {
 				struct sctp_nets *netp;
 
-				if (asoc->alternate) {
-					netp = asoc->alternate;
-				} else {
-					netp = asoc->primary_destination;
-				}
 				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
@@ -4985,6 +4967,11 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
+				if (asoc->alternate) {
+					netp = asoc->alternate;
+				} else {
+					netp = asoc->primary_destination;
+				}
 				sctp_send_shutdown(stcb, netp);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 				    stcb->sctp_ep, stcb, netp);
@@ -4996,19 +4983,19 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
 
-			if (asoc->alternate) {
-				netp = asoc->alternate;
-			} else {
-				netp = asoc->primary_destination;
-			}
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-			sctp_send_shutdown_ack(stcb, netp);
 			sctp_stop_timers_for_shutdown(stcb);
+			if (asoc->alternate) {
+				netp = asoc->alternate;
+			} else {
+				netp = asoc->primary_destination;
+			}
+			sctp_send_shutdown_ack(stcb, netp);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, netp);
 			return;

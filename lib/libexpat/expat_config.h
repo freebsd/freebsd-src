@@ -45,6 +45,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
+/* Define to 1 if you have the <sys/param.h> header file. */
+#define HAVE_SYS_PARAM_H 1
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
@@ -54,20 +57,27 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "expat-bugs@mail.libexpat.org"
+#define PACKAGE_BUGREPORT "expat-bugs@libexpat.org"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "expat"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "expat 1.95.5"
+#define PACKAGE_STRING "expat 2.1.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "expat"
 
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.95.5"
+#define PACKAGE_VERSION "2.1.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -89,11 +99,14 @@
 /* Define to make XML Namespaces functionality available. */
 #define XML_NS 1
 
+/* Define to __FUNCTION__ or "" if `__func__' does not conform to ANSI C. */
+/* #undef __func__ */
+
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 /* #undef off_t */
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

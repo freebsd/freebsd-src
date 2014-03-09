@@ -29,23 +29,60 @@
 
 . ${BACKEND}/functions-mountoptical.sh
 
+# Performs the extraction of data to disk from FreeBSD dist files
+start_extract_dist()
+{
+  if [ -z "$1" ] ; then exit_err "Called dist extraction with no directory set!"; fi
+  if [ -z "$INSFILE" ]; then exit_err "Called extraction with no install file set!"; fi
+  local DDIR="$1"
+
+  # Check if we are doing an upgrade, and if so use our exclude list
+  if [ "${INSTALLMODE}" = "upgrade" ]; then
+   TAROPTS="-X ${PROGDIR}/conf/exclude-from-upgrade"
+  else
+   TAROPTS=""
+  fi
+
+  # Loop though and extract dist files
+  for di in $INSFILE
+  do
+      # Check the MANIFEST see if we have an archive size / count
+      if [ -e "${DDIR}/MANIFEST" ]; then 
+         count=`grep "^${di}.txz" ${DDIR}/MANIFEST | awk '{print $3}'`
+	 if [ ! -z "$count" ] ; then
+            echo "INSTALLCOUNT: $count"
+	 fi
+      fi
+      echo_log "pc-sysinstall: Starting Extraction (${di})"
+      tar -xpv -C ${FSMNT} -f ${DDIR}/${di}.txz ${TAROPTS} >&1 2>&1
+      if [ $? -ne 0 ]; then
+        exit_err "ERROR: Failed extracting the dist file: $di"
+      fi
+  done
+
+  # Check if this was a FTP download and clean it up now
+  if [ "${INSTALLMEDIUM}" = "ftp" ]; then
+    echo_log "Cleaning up downloaded archives"
+    rm -rf ${DDIR}
+  fi
+
+  echo_log "pc-sysinstall: Extraction Finished"
+}
+
 # Performs the extraction of data to disk from a uzip or tar archive
 start_extract_uzip_tar()
 {
-  if [ -z "$INSFILE" ]
-  then
+  if [ -z "$INSFILE" ]; then
     exit_err "ERROR: Called extraction with no install file set!"
   fi
 
   # Check if we have a .count file, and echo it out for a front-end to use in progress bars
-  if [ -e "${INSFILE}.count" ]
-  then
+  if [ -e "${INSFILE}.count" ]; then
     echo "INSTALLCOUNT: `cat ${INSFILE}.count`"
   fi
 
   # Check if we are doing an upgrade, and if so use our exclude list
-  if [ "${INSTALLMODE}" = "upgrade" ]
-  then
+  if [ "${INSTALLMODE}" = "upgrade" ]; then
    TAROPTS="-X ${PROGDIR}/conf/exclude-from-upgrade"
   else
    TAROPTS=""
@@ -87,9 +124,8 @@ start_extract_uzip_tar()
       mdconfig -d -u ${MDDEVICE}
        ;;
     tar)
-	  tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
-      if [ $? -ne 0 ]
-      then
+      tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
+      if [ $? -ne 0 ]; then
         exit_err "ERROR: Failed extracting the tar image"
       fi
       ;;
@@ -174,6 +210,38 @@ start_extract_split()
   cd "${HERE}"
 
   echo_log "pc-sysinstall: Extraction Finished"
+};
+
+# Function which will attempt to fetch the dist file(s) before we start
+fetch_dist_file()
+{
+  get_value_from_cfg ftpPath
+  if [ -z "$VAL" ]
+  then
+    exit_err "ERROR: Install medium was set to ftp, but no ftpPath was provided!" 
+  fi
+
+  FTPPATH="${VAL}"
+  
+  # Check if we have a /usr partition to save the download
+  if [ -d "${FSMNT}/usr" ]
+  then
+    DLDIR="${FSMNT}/usr/.fetch.$$"
+  else
+    DLDIR="${FSMNT}/.fetch.$$"
+  fi
+  mkdir -p ${DLDIR}
+
+  # Do the fetch of the dist archive(s) now
+  for di in $INSFILE
+  do
+    fetch_file "${FTPPATH}/${di}.txz" "${DLDIR}/${di}.txz" "1"
+  done
+
+  # Check to see if there is a MANIFEST file for this install
+  fetch_file "${FTPPATH}/MANIFEST" "${DLDIR}/MANIFEST" "0"
+
+  export DLDIR
 };
 
 # Function which will attempt to fetch the install file before we start
@@ -390,6 +458,13 @@ init_extraction()
       case $PACKAGETYPE in
         uzip) INSFILE="${FBSD_UZIP_FILE}" ;;
         tar) INSFILE="${FBSD_TAR_FILE}" ;;
+        dist) 
+	  get_value_from_cfg_with_spaces distFiles
+	  if [ -z "$VAL" ] ; then
+	     exit_err "No dist files specified!"
+	  fi
+	  INSFILE="${VAL}" 
+  	  ;;
         split)
           INSDIR="${FBSD_BRANCH_DIR}"
 
@@ -401,6 +476,13 @@ init_extraction()
       case $PACKAGETYPE in
         uzip) INSFILE="${UZIP_FILE}" ;;
         tar) INSFILE="${TAR_FILE}" ;;
+        dist) 
+	  get_value_from_cfg_with_spaces distFiles
+	  if [ -z "$VAL" ] ; then
+	     exit_err "No dist files specified!"
+	  fi
+	  INSFILE="${VAL}" 
+  	  ;;
       esac
     fi
     export INSFILE
@@ -417,22 +499,32 @@ init_extraction()
 	    start_extract_split
 
       else
-        INSFILE="${CDMNT}/${INSFILE}" ; export INSFILE
-        start_extract_uzip_tar
+	if [ "$PACKAGETYPE" = "dist" ] ; then
+          start_extract_dist "${CDMNT}/usr/freebsd-dist"
+	else
+          INSFILE="${CDMNT}/${INSFILE}" ; export INSFILE
+          start_extract_uzip_tar
+	fi
       fi
       ;;
 
     ftp)
-      if [ "$PACKAGETYPE" = "split" ]
-      then
-        fetch_split_files
+      case $PACKAGETYPE in
+	 split)
+           fetch_split_files
 
-        INSDIR="${INSFILE}" ; export INSDIR
-        start_extract_split
-      else
-        fetch_install_file
-        start_extract_uzip_tar 
-      fi
+           INSDIR="${INSFILE}" ; export INSDIR
+           start_extract_split
+	   ;;
+	  dist)
+           fetch_dist_file
+           start_extract_dist "$DLDIR"
+	   ;;
+	     *)
+           fetch_install_file
+           start_extract_uzip_tar 
+	   ;;
+       esac
       ;;
 
     sftp) ;;
@@ -446,8 +538,13 @@ init_extraction()
         exit_err "Install medium was set to local, but no localPath was provided!"
       fi
       LOCALPATH=$VAL
-      INSFILE="${LOCALPATH}/${INSFILE}" ; export INSFILE
-      start_extract_uzip_tar
+      if [ "$PACKAGETYPE" = "dist" ] ; then
+        INSFILE="${INSFILE}" ; export INSFILE
+        start_extract_dist "$LOCALPATH"
+      else
+        INSFILE="${LOCALPATH}/${INSFILE}" ; export INSFILE
+        start_extract_uzip_tar
+      fi
       ;;
     *) exit_err "ERROR: Unknown install medium" ;;
   esac

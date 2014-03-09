@@ -50,9 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
+#include <machine/devmap.h>
+#include <machine/fdt.h>
 #include <machine/machdep.h>
-#include <machine/pmap.h>
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -61,6 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 static int platform_mpp_init(void);
+#if defined(SOC_MV_ARMADAXP)
+void armadaxp_init_coher_fabric(void);
+void armadaxp_l2_init(void);
+#endif
 
 #define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
@@ -200,11 +204,15 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
+	return (fdt_immr_va);
+}
+
+void
+initarm_early_init(void)
+{
+
 	if (fdt_immr_addr(MV_BASE) != 0)
 		while (1);
-
-	/* Platform-specific initialisation */
-	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
 }
 
 void
@@ -233,15 +241,22 @@ initarm_late_init(void)
 	/* Disable watchdog and timers */
 	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
 #endif
+#if defined(SOC_MV_ARMADAXP)
+#if !defined(SMP)
+	/* For SMP case it should be initialized after APs are booted */
+	armadaxp_init_coher_fabric();
+#endif
+	armadaxp_l2_init();
+#endif
 }
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
+static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
 static int
-platform_sram_devmap(struct pmap_devmap *map)
+platform_sram_devmap(struct arm_devmap_entry *map)
 {
 #if !defined(SOC_MV_ARMADAXP)
 	phandle_t child, root;
@@ -279,6 +294,25 @@ out:
 }
 
 /*
+ * Supply a default do-nothing implementation of mv_pci_devmap() via a weak
+ * alias.  Many Marvell platforms don't support a PCI interface, but to support
+ * those that do, we end up with a reference to this function below, in
+ * initarm_devmap_init().  If "device pci" appears in the kernel config, the
+ * real implementation of this function in arm/mv/mv_pci.c overrides the weak
+ * alias defined here.
+ */
+int mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+    vm_offset_t io_va, vm_offset_t mem_va);
+int
+mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+    vm_offset_t io_va, vm_offset_t mem_va)
+{
+
+	return (0);
+}
+__weak_reference(mv_default_fdt_pci_devmap, mv_pci_devmap);
+
+/*
  * XXX: When device entry in devmap has pd_size smaller than section size,
  * system will freeze during initialization
  */
@@ -287,16 +321,28 @@ out:
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	phandle_t root, child;
 	pcell_t bank_count;
-	u_long base, size;
 	int i, num_mapped;
 
 	i = 0;
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	arm_devmap_register_table(&fdt_devmap[0]);
 
+#ifdef SOC_MV_ARMADAXP
+	vm_paddr_t cur_immr_pa;
+
+	/*
+	 * Acquire SoC registers' base passed by u-boot and fill devmap
+	 * accordingly. DTB is going to be modified basing on this data
+	 * later.
+	 */
+	__asm __volatile("mrc p15, 4, %0, c15, c0, 0" : "=r" (cur_immr_pa));
+	cur_immr_pa = (cur_immr_pa << 13) & 0xff000000;
+	if (cur_immr_pa != 0)
+		fdt_immr_pa = cur_immr_pa;
+#endif
 	/*
 	 * IMMR range.
 	 */
@@ -333,7 +379,7 @@ platform_devmap_init(void)
 			 * XXX this should account for PCI and multiple ranges
 			 * of a given kind.
 			 */
-			if (fdt_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
+			if (mv_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
 				    MV_PCI_VA_MEM_BASE) != 0)
 				return (ENXIO);
 			i += 2;
@@ -361,29 +407,6 @@ platform_devmap_init(void)
 			i += num_mapped;
 		}
 	}
-
-	/*
-	 * CESA SRAM range.
-	 */
-	if ((child = OF_finddevice("sram")) != -1)
-		if (fdt_is_compatible(child, "mrvl,cesa-sram"))
-			goto moveon;
-
-	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
-		/* No CESA SRAM node. */
-		return (0);
-moveon:
-	if (i >= FDT_DEVMAP_MAX)
-		return (ENOMEM);
-
-	if (fdt_regsize(child, &base, &size) != 0)
-		return (EINVAL);
-
-	fdt_devmap[i].pd_va = MV_CESA_SRAM_BASE; /* XXX */
-	fdt_devmap[i].pd_pa = base;
-	fdt_devmap[i].pd_size = size;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
 
 	return (0);
 }

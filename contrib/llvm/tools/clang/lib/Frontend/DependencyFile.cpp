@@ -21,6 +21,7 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -151,19 +152,22 @@ void DependencyFileCallback::AddFilename(StringRef Filename) {
     Files.push_back(Filename);
 }
 
-/// PrintFilename - GCC escapes spaces, but apparently not ' or " or other
-/// scary characters.
+/// PrintFilename - GCC escapes spaces, # and $, but apparently not ' or " or
+/// other scary characters.
 static void PrintFilename(raw_ostream &OS, StringRef Filename) {
   for (unsigned i = 0, e = Filename.size(); i != e; ++i) {
-    if (Filename[i] == ' ')
+    if (Filename[i] == ' ' || Filename[i] == '#')
       OS << '\\';
+    else if (Filename[i] == '$') // $ is escaped by $$.
+      OS << '$';
     OS << Filename[i];
   }
 }
 
 void DependencyFileCallback::OutputDependencyFile() {
   if (SeenMissingHeader) {
-    llvm::sys::Path(OutputFile).eraseFromDisk();
+    bool existed;
+    llvm::sys::fs::remove(OutputFile, existed);
     return;
   }
 

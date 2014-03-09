@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_AST_DECLLOOKUPS_H
 #define LLVM_CLANG_AST_DECLLOOKUPS_H
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/AST/DeclarationName.h"
@@ -35,6 +36,8 @@ public:
   all_lookups_iterator(StoredDeclsMap::iterator It,
                        StoredDeclsMap::iterator End)
       : It(It), End(End) {}
+
+  DeclarationName getLookupName() const { return It->first; }
 
   reference operator*() const { return It->second.getLookupResult(); }
   pointer operator->() const { return It->second.getLookupResult(); }
@@ -65,7 +68,7 @@ public:
   }
 };
 
-DeclContext::all_lookups_iterator DeclContext::lookups_begin() const {
+inline DeclContext::all_lookups_iterator DeclContext::lookups_begin() const {
   DeclContext *Primary = const_cast<DeclContext*>(this)->getPrimaryContext();
   if (Primary->hasExternalVisibleStorage())
     getParentASTContext().getExternalSource()->completeVisibleDeclsMap(Primary);
@@ -74,11 +77,27 @@ DeclContext::all_lookups_iterator DeclContext::lookups_begin() const {
   return all_lookups_iterator();
 }
 
-DeclContext::all_lookups_iterator DeclContext::lookups_end() const {
+inline DeclContext::all_lookups_iterator DeclContext::lookups_end() const {
   DeclContext *Primary = const_cast<DeclContext*>(this)->getPrimaryContext();
   if (Primary->hasExternalVisibleStorage())
     getParentASTContext().getExternalSource()->completeVisibleDeclsMap(Primary);
   if (StoredDeclsMap *Map = Primary->buildLookup())
+    return all_lookups_iterator(Map->end(), Map->end());
+  return all_lookups_iterator();
+}
+
+inline
+DeclContext::all_lookups_iterator DeclContext::noload_lookups_begin() const {
+  DeclContext *Primary = const_cast<DeclContext*>(this)->getPrimaryContext();
+  if (StoredDeclsMap *Map = Primary->getLookupPtr())
+    return all_lookups_iterator(Map->begin(), Map->end());
+  return all_lookups_iterator();
+}
+
+inline
+DeclContext::all_lookups_iterator DeclContext::noload_lookups_end() const {
+  DeclContext *Primary = const_cast<DeclContext*>(this)->getPrimaryContext();
+  if (StoredDeclsMap *Map = Primary->getLookupPtr())
     return all_lookups_iterator(Map->end(), Map->end());
   return all_lookups_iterator();
 }

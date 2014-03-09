@@ -16,24 +16,20 @@
 #include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
 
 // helper functions. FIXME: Eliminate.
-static inline bool isImmUs(unsigned val) {
-  return val <= 11;
-}
-
 static inline bool isImmU6(unsigned val) {
   return val < (1 << 6);
 }
@@ -92,19 +88,21 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineModuleInfo *MMI = &MF.getMMI();
+  const MCRegisterInfo *MRI = MMI->getContext().getRegisterInfo();
   const XCoreInstrInfo &TII =
     *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
-  bool FP = hasFP(MF);
-  const AttrListPtr &PAL = MF.getFunction()->getAttributes();
+  if (MFI->getMaxAlignment() > getStackAlignment())
+    report_fatal_error("emitPrologue unsupported alignment: "
+                       + Twine(MFI->getMaxAlignment()));
 
-  for (unsigned I = 0, E = PAL.getNumAttrs(); I != E; ++I)
-    if (PAL.getAttributesAtIndex(I).hasAttribute(Attributes::Nest)) {
-      loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
-      break;
-    }
+  bool FP = hasFP(MF);
+  const AttributeSet &PAL = MF.getFunction()->getAttributes();
+
+  if (PAL.hasAttrSomewhere(Attribute::Nest))
+    loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
 
   // Work out frame sizes.
   int FrameSize = MFI->getStackSize();
@@ -119,9 +117,9 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   }
   bool emitFrameMoves = XCoreRegisterInfo::needsFrameMoves(MF);
 
+  bool saveLR = XFI->getUsesLR();
   // Do we need to allocate space on the stack?
   if (FrameSize) {
-    bool saveLR = XFI->getUsesLR();
     bool LRSavedOnEntry = false;
     int Opcode;
     if (saveLR && (MFI->getObjectOffset(XFI->getLRSpillSlot()) == 0)) {
@@ -135,34 +133,28 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
     BuildMI(MBB, MBBI, dl, TII.get(Opcode)).addImm(FrameSize);
 
     if (emitFrameMoves) {
-      std::vector<MachineMove> &Moves = MMI->getFrameMoves();
-
       // Show update of SP.
       MCSymbol *FrameLabel = MMI->getContext().CreateTempSymbol();
       BuildMI(MBB, MBBI, dl, TII.get(XCore::PROLOG_LABEL)).addSym(FrameLabel);
-
-      MachineLocation SPDst(MachineLocation::VirtualFP);
-      MachineLocation SPSrc(MachineLocation::VirtualFP, -FrameSize * 4);
-      Moves.push_back(MachineMove(FrameLabel, SPDst, SPSrc));
-
+      MMI->addFrameInst(MCCFIInstruction::createDefCfaOffset(FrameLabel,
+                                                             -FrameSize*4));
       if (LRSavedOnEntry) {
-        MachineLocation CSDst(MachineLocation::VirtualFP, 0);
-        MachineLocation CSSrc(XCore::LR);
-        Moves.push_back(MachineMove(FrameLabel, CSDst, CSSrc));
+        unsigned Reg = MRI->getDwarfRegNum(XCore::LR, true);
+        MMI->addFrameInst(MCCFIInstruction::createOffset(FrameLabel, Reg, 0));
       }
     }
-    if (saveLR) {
-      int LRSpillOffset = MFI->getObjectOffset(XFI->getLRSpillSlot());
-      storeToStack(MBB, MBBI, XCore::LR, LRSpillOffset + FrameSize*4, dl, TII);
-      MBB.addLiveIn(XCore::LR);
+  }
+  if (saveLR) {
+    int LRSpillOffset = MFI->getObjectOffset(XFI->getLRSpillSlot());
+    storeToStack(MBB, MBBI, XCore::LR, LRSpillOffset + FrameSize*4, dl, TII);
+    MBB.addLiveIn(XCore::LR);
 
-      if (emitFrameMoves) {
-        MCSymbol *SaveLRLabel = MMI->getContext().CreateTempSymbol();
-        BuildMI(MBB, MBBI, dl, TII.get(XCore::PROLOG_LABEL)).addSym(SaveLRLabel);
-        MachineLocation CSDst(MachineLocation::VirtualFP, LRSpillOffset);
-        MachineLocation CSSrc(XCore::LR);
-        MMI->getFrameMoves().push_back(MachineMove(SaveLRLabel, CSDst, CSSrc));
-      }
+    if (emitFrameMoves) {
+      MCSymbol *SaveLRLabel = MMI->getContext().CreateTempSymbol();
+      BuildMI(MBB, MBBI, dl, TII.get(XCore::PROLOG_LABEL)).addSym(SaveLRLabel);
+      unsigned Reg = MRI->getDwarfRegNum(XCore::LR, true);
+      MMI->addFrameInst(MCCFIInstruction::createOffset(SaveLRLabel, Reg,
+                                                       LRSpillOffset));
     }
   }
 
@@ -175,37 +167,34 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
     if (emitFrameMoves) {
       MCSymbol *SaveR10Label = MMI->getContext().CreateTempSymbol();
       BuildMI(MBB, MBBI, dl, TII.get(XCore::PROLOG_LABEL)).addSym(SaveR10Label);
-      MachineLocation CSDst(MachineLocation::VirtualFP, FPSpillOffset);
-      MachineLocation CSSrc(XCore::R10);
-      MMI->getFrameMoves().push_back(MachineMove(SaveR10Label, CSDst, CSSrc));
+      unsigned Reg = MRI->getDwarfRegNum(XCore::R10, true);
+      MMI->addFrameInst(MCCFIInstruction::createOffset(SaveR10Label, Reg,
+                                                       FPSpillOffset));
     }
     // Set the FP from the SP.
     unsigned FramePtr = XCore::R10;
-    BuildMI(MBB, MBBI, dl, TII.get(XCore::LDAWSP_ru6), FramePtr)
-      .addImm(0);
+    BuildMI(MBB, MBBI, dl, TII.get(XCore::LDAWSP_ru6), FramePtr).addImm(0);
     if (emitFrameMoves) {
       // Show FP is now valid.
       MCSymbol *FrameLabel = MMI->getContext().CreateTempSymbol();
       BuildMI(MBB, MBBI, dl, TII.get(XCore::PROLOG_LABEL)).addSym(FrameLabel);
-      MachineLocation SPDst(FramePtr);
-      MachineLocation SPSrc(MachineLocation::VirtualFP);
-      MMI->getFrameMoves().push_back(MachineMove(FrameLabel, SPDst, SPSrc));
+      unsigned Reg = MRI->getDwarfRegNum(FramePtr, true);
+      MMI->addFrameInst(MCCFIInstruction::createDefCfaRegister(FrameLabel,
+                                                               Reg));
     }
   }
 
   if (emitFrameMoves) {
     // Frame moves for callee saved.
-    std::vector<MachineMove> &Moves = MMI->getFrameMoves();
     std::vector<std::pair<MCSymbol*, CalleeSavedInfo> >&SpillLabels =
         XFI->getSpillLabels();
     for (unsigned I = 0, E = SpillLabels.size(); I != E; ++I) {
       MCSymbol *SpillLabel = SpillLabels[I].first;
       CalleeSavedInfo &CSI = SpillLabels[I].second;
       int Offset = MFI->getObjectOffset(CSI.getFrameIdx());
-      unsigned Reg = CSI.getReg();
-      MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
-      MachineLocation CSSrc(Reg);
-      Moves.push_back(MachineMove(SpillLabel, CSDst, CSSrc));
+      unsigned Reg = MRI->getDwarfRegNum(CSI.getReg(), true);
+      MMI->addFrameInst(MCCFIInstruction::createOffset(SpillLabel, Reg,
+                                                       Offset));
     }
   }
 }
@@ -216,6 +205,7 @@ void XCoreFrameLowering::emitEpilogue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   const XCoreInstrInfo &TII =
     *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
+  XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   DebugLoc dl = MBBI->getDebugLoc();
 
   bool FP = hasFP(MF);
@@ -240,31 +230,35 @@ void XCoreFrameLowering::emitEpilogue(MachineFunction &MF,
     report_fatal_error("emitEpilogue Frame size too big: " + Twine(FrameSize));
   }
 
-  if (FrameSize) {
-    XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
+  if (FP) {
+    // Restore R10
+    int FPSpillOffset = MFI->getObjectOffset(XFI->getFPSpillSlot());
+    FPSpillOffset += FrameSize*4;
+    loadFromStack(MBB, MBBI, XCore::R10, FPSpillOffset, dl, TII);
+  }
 
-    if (FP) {
-      // Restore R10
-      int FPSpillOffset = MFI->getObjectOffset(XFI->getFPSpillSlot());
-      FPSpillOffset += FrameSize*4;
-      loadFromStack(MBB, MBBI, XCore::R10, FPSpillOffset, dl, TII);
-    }
-    bool restoreLR = XFI->getUsesLR();
-    if (restoreLR && MFI->getObjectOffset(XFI->getLRSpillSlot()) != 0) {
-      int LRSpillOffset = MFI->getObjectOffset(XFI->getLRSpillSlot());
-      LRSpillOffset += FrameSize*4;
-      loadFromStack(MBB, MBBI, XCore::LR, LRSpillOffset, dl, TII);
-      restoreLR = false;
-    }
+  bool restoreLR = XFI->getUsesLR();
+  if (restoreLR &&
+      (FrameSize == 0 || MFI->getObjectOffset(XFI->getLRSpillSlot()) != 0)) {
+    int LRSpillOffset = MFI->getObjectOffset(XFI->getLRSpillSlot());
+    LRSpillOffset += FrameSize*4;
+    loadFromStack(MBB, MBBI, XCore::LR, LRSpillOffset, dl, TII);
+    restoreLR = false;
+  }
+
+  if (FrameSize) {
     if (restoreLR) {
       // Fold prologue into return instruction
+      assert(MFI->getObjectOffset(XFI->getLRSpillSlot()) == 0);
       assert(MBBI->getOpcode() == XCore::RETSP_u6
         || MBBI->getOpcode() == XCore::RETSP_lu6);
       int Opcode = (isU6) ? XCore::RETSP_u6 : XCore::RETSP_lu6;
-      BuildMI(MBB, MBBI, dl, TII.get(Opcode)).addImm(FrameSize);
+      MachineInstrBuilder MIB  = BuildMI(MBB, MBBI, dl, TII.get(Opcode)).addImm(FrameSize);
+      for (unsigned i = 3, e = MBBI->getNumOperands(); i < e; ++i)
+        MIB->addOperand(MBBI->getOperand(i)); // copy any variadic operands
       MBB.erase(MBBI);
     } else {
-      int Opcode = (isU6) ? XCore::LDAWSP_ru6_RRegs : XCore::LDAWSP_lru6_RRegs;
+      int Opcode = (isU6) ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
       BuildMI(MBB, MBBI, dl, TII.get(Opcode), XCore::SP).addImm(FrameSize);
     }
   }
@@ -335,6 +329,58 @@ bool XCoreFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
+// This function eliminates ADJCALLSTACKDOWN,
+// ADJCALLSTACKUP pseudo instructions
+void XCoreFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  const XCoreInstrInfo &TII =
+    *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
+  if (!hasReservedCallFrame(MF)) {
+    // Turn the adjcallstackdown instruction into 'extsp <amt>' and the
+    // adjcallstackup instruction into 'ldaw sp, sp[<amt>]'
+    MachineInstr *Old = I;
+    uint64_t Amount = Old->getOperand(0).getImm();
+    if (Amount != 0) {
+      // We need to keep the stack aligned properly.  To do this, we round the
+      // amount of space needed for the outgoing arguments up to the next
+      // alignment boundary.
+      unsigned Align = getStackAlignment();
+      Amount = (Amount+Align-1)/Align*Align;
+
+      assert(Amount%4 == 0);
+      Amount /= 4;
+
+      bool isU6 = isImmU6(Amount);
+      if (!isU6 && !isImmU16(Amount)) {
+        // FIX could emit multiple instructions in this case.
+#ifndef NDEBUG
+        errs() << "eliminateCallFramePseudoInstr size too big: "
+               << Amount << "\n";
+#endif
+        llvm_unreachable(0);
+      }
+
+      MachineInstr *New;
+      if (Old->getOpcode() == XCore::ADJCALLSTACKDOWN) {
+        int Opcode = isU6 ? XCore::EXTSP_u6 : XCore::EXTSP_lu6;
+        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode))
+          .addImm(Amount);
+      } else {
+        assert(Old->getOpcode() == XCore::ADJCALLSTACKUP);
+        int Opcode = isU6 ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
+        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode), XCore::SP)
+          .addImm(Amount);
+      }
+
+      // Replace the pseudo instruction with a new instruction...
+      MBB.insert(I, New);
+    }
+  }
+  
+  MBB.erase(I);
+}
+
 void
 XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                      RegScavenger *RS) const {
@@ -360,7 +406,7 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   }
   if (RegInfo->requiresRegisterScavenging(MF)) {
     // Reserve a slot close to SP or frame pointer.
-    RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
+    RS->addScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
                                                        RC->getAlignment(),
                                                        false));
   }

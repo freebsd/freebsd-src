@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2011
+.Dd February 7, 2013
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -243,6 +243,17 @@ returns a non-negative integer, termed a file descriptor.
 It returns \-1 on failure.
 The file pointer used to mark the current position within the
 file is set to the beginning of the file.
+.Pp
+If a sleeping open of a device node from
+.Xr devfs 5
+is interrupted by a signal, the call always fails with
+.Er EINTR ,
+even if the
+.Dv SA_RESTART
+flag is set for the signal.
+A sleeping open of a fifo (see
+.Xr mkfifo 2 )
+is restarted as normal.
 .Pp
 When a new file is created it is given the group of the directory
 which contains it.

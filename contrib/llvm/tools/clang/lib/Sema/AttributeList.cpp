@@ -15,15 +15,25 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringSwitch.h"
 using namespace clang;
+
+IdentifierLoc *IdentifierLoc::create(ASTContext &Ctx, SourceLocation Loc,
+                                     IdentifierInfo *Ident) {
+  IdentifierLoc *Result = new (Ctx) IdentifierLoc;
+  Result->Loc = Loc;
+  Result->Ident = Ident;
+  return Result;
+}
 
 size_t AttributeList::allocated_size() const {
   if (IsAvailability) return AttributeFactory::AvailabilityAllocSize;
   else if (IsTypeTagForDatatype)
     return AttributeFactory::TypeTagForDatatypeAllocSize;
-  return (sizeof(AttributeList) + NumArgs * sizeof(Expr*));
+  else if (IsProperty)
+    return AttributeFactory::PropertyAllocSize;
+  return (sizeof(AttributeList) + NumArgs * sizeof(ArgsUnion));
 }
 
 AttributeFactory::AttributeFactory() {
@@ -96,10 +106,9 @@ void AttributePool::takePool(AttributeList *pool) {
 AttributeList *
 AttributePool::createIntegerAttribute(ASTContext &C, IdentifierInfo *Name,
                                       SourceLocation TokLoc, int Arg) {
-  Expr *IArg = IntegerLiteral::Create(C, llvm::APInt(32, (uint64_t) Arg),
+  ArgsUnion IArg = IntegerLiteral::Create(C, llvm::APInt(32, (uint64_t) Arg),
                                       C.IntTy, TokLoc);
-  return create(Name, TokLoc, 0, TokLoc, 0, TokLoc, &IArg, 1,
-                AttributeList::AS_GNU);
+  return create(Name, TokLoc, 0, TokLoc, &IArg, 1, AttributeList::AS_GNU);
 }
 
 #include "clang/Sema/AttrParsedAttrKinds.inc"
@@ -124,4 +133,40 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
   Buf += AttrName;
 
   return ::getAttrKind(Buf);
+}
+
+unsigned AttributeList::getAttributeSpellingListIndex() const {
+  // Both variables will be used in tablegen generated
+  // attribute spell list index matching code.
+  StringRef Name = AttrName->getName();
+  StringRef Scope = ScopeName ? ScopeName->getName() : "";
+
+#include "clang/Sema/AttrSpellingListIndex.inc"
+
+}
+
+struct ParsedAttrInfo {
+  unsigned NumArgs : 4;
+  unsigned OptArgs : 4;
+  unsigned HasCustomParsing : 1;
+};
+
+namespace {
+  #include "clang/Sema/AttrParsedAttrImpl.inc"
+}
+
+static const ParsedAttrInfo &getInfo(const AttributeList &A) {
+  return AttrInfoMap[A.getKind()];
+}
+
+unsigned AttributeList::getMinArgs() const {
+  return getInfo(*this).NumArgs;
+}
+
+unsigned AttributeList::getMaxArgs() const {
+  return getMinArgs() + getInfo(*this).OptArgs;
+}
+
+bool AttributeList::hasCustomParsing() const {
+  return getInfo(*this).HasCustomParsing;
 }

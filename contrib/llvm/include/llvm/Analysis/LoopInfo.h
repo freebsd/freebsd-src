@@ -27,21 +27,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_LOOP_INFO_H
-#define LLVM_ANALYSIS_LOOP_INFO_H
+#ifndef LLVM_ANALYSIS_LOOPINFO_H
+#define LLVM_ANALYSIS_LOOPINFO_H
 
-#include "llvm/Pass.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/Dominators.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Pass.h"
 #include <algorithm>
-#include <map>
 
 namespace llvm {
 
@@ -55,7 +50,9 @@ inline void RemoveFromVector(std::vector<T*> &V, T *N) {
 class DominatorTree;
 class LoopInfo;
 class Loop;
+class MDNode;
 class PHINode;
+class raw_ostream;
 template<class N, class M> class LoopInfoBase;
 template<class N, class M> class LoopBase;
 
@@ -71,6 +68,8 @@ class LoopBase {
 
   // Blocks - The list of blocks in this loop.  First entry is the header node.
   std::vector<BlockT*> Blocks;
+
+  SmallPtrSet<const BlockT*, 8> DenseBlockSet;
 
   LoopBase(const LoopBase<BlockT, LoopT> &) LLVM_DELETED_FUNCTION;
   const LoopBase<BlockT, LoopT>&
@@ -111,7 +110,7 @@ public:
   /// contains - Return true if the specified basic block is in this loop.
   ///
   bool contains(const BlockT *BB) const {
-    return std::find(block_begin(), block_end(), BB) != block_end();
+    return DenseBlockSet.count(BB);
   }
 
   /// contains - Return true if the specified instruction is in this loop.
@@ -137,7 +136,6 @@ public:
   /// getBlocks - Get a list of the basic blocks which make up this loop.
   ///
   const std::vector<BlockT*> &getBlocks() const { return Blocks; }
-  std::vector<BlockT*> &getBlocksVector() { return Blocks; }
   typedef typename std::vector<BlockT*>::const_iterator block_iterator;
   block_iterator block_begin() const { return Blocks.begin(); }
   block_iterator block_end() const { return Blocks.end(); }
@@ -151,10 +149,10 @@ public:
   /// block that is outside of the current loop.
   ///
   bool isLoopExiting(const BlockT *BB) const {
-    typedef GraphTraits<BlockT*> BlockTraits;
+    typedef GraphTraits<const BlockT*> BlockTraits;
     for (typename BlockTraits::ChildIteratorType SI =
-         BlockTraits::child_begin(const_cast<BlockT*>(BB)),
-         SE = BlockTraits::child_end(const_cast<BlockT*>(BB)); SI != SE; ++SI) {
+         BlockTraits::child_begin(BB),
+         SE = BlockTraits::child_end(BB); SI != SE; ++SI) {
       if (!contains(*SI))
         return true;
     }
@@ -169,8 +167,8 @@ public:
 
     typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
     for (typename InvBlockTraits::ChildIteratorType I =
-         InvBlockTraits::child_begin(const_cast<BlockT*>(H)),
-         E = InvBlockTraits::child_end(const_cast<BlockT*>(H)); I != E; ++I)
+         InvBlockTraits::child_begin(H),
+         E = InvBlockTraits::child_end(H); I != E; ++I)
       if (contains(*I))
         ++NumBackEdges;
 
@@ -274,6 +272,17 @@ public:
   /// transformations should use addBasicBlockToLoop.
   void addBlockEntry(BlockT *BB) {
     Blocks.push_back(BB);
+    DenseBlockSet.insert(BB);
+  }
+
+  /// reverseBlocks - interface to reverse Blocks[from, end of loop] in this loop
+  void reverseBlock(unsigned from) {
+    std::reverse(Blocks.begin() + from, Blocks.end());
+  }
+
+  /// reserveBlocks- interface to do reserve() for Blocks
+  void reserveBlocks(unsigned size) {
+    Blocks.reserve(size);
   }
 
   /// moveToHeader - This method is used to move BB (which must be part of this
@@ -296,6 +305,7 @@ public:
   /// the mapping in the LoopInfo class.
   void removeBlockFromLoop(BlockT *BB) {
     RemoveFromVector(Blocks, BB);
+    DenseBlockSet.erase(BB);
   }
 
   /// verifyLoop - Verify loop structure
@@ -310,6 +320,7 @@ protected:
   friend class LoopInfoBase<BlockT, LoopT>;
   explicit LoopBase(BlockT *BB) : ParentLoop(0) {
     Blocks.push_back(BB);
+    DenseBlockSet.insert(BB);
   }
 };
 
@@ -380,6 +391,36 @@ public:
 
   /// isSafeToClone - Return true if the loop body is safe to clone in practice.
   bool isSafeToClone() const;
+
+  /// Returns true if the loop is annotated parallel.
+  ///
+  /// A parallel loop can be assumed to not contain any dependencies between
+  /// iterations by the compiler. That is, any loop-carried dependency checking
+  /// can be skipped completely when parallelizing the loop on the target
+  /// machine. Thus, if the parallel loop information originates from the
+  /// programmer, e.g. via the OpenMP parallel for pragma, it is the
+  /// programmer's responsibility to ensure there are no loop-carried
+  /// dependencies. The final execution order of the instructions across
+  /// iterations is not guaranteed, thus, the end result might or might not
+  /// implement actual concurrent execution of instructions across multiple
+  /// iterations.
+  bool isAnnotatedParallel() const;
+
+  /// Return the llvm.loop loop id metadata node for this loop if it is present.
+  ///
+  /// If this loop contains the same llvm.loop metadata on each branch to the
+  /// header then the node is returned. If any latch instruction does not
+  /// contain llvm.loop or or if multiple latches contain different nodes then
+  /// 0 is returned.
+  MDNode *getLoopID() const;
+  /// Set the llvm.loop loop id metadata for this loop.
+  ///
+  /// The LoopID metadata node will be added to each terminator instruction in
+  /// the loop that branches to the loop header.
+  ///
+  /// The LoopID metadata node should have one or more operands and the first
+  /// operand should should be the node itself.
+  void setLoopID(MDNode *LoopID) const;
 
   /// hasDedicatedExits - Return true if no exit block for the loop
   /// has a predecessor that is outside the loop.

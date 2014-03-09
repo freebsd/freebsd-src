@@ -12,7 +12,7 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * support for the The RPKI/Router Protocol Protocol as per draft-ietf-sidr-rpki-rtr-12
+ * support for the The RPKI/Router Protocol as RFC6810
  *
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
@@ -46,7 +46,7 @@ typedef struct rpki_rtr_pdu_ {
     u_char version;		/* Version number */
     u_char pdu_type;		/* PDU type */
     union {
-	u_char cache_nonce[2];	/* Cache Nonce */
+	u_char session_id[2];	/* Session id */
 	u_char error_code[2];	/* Error code */
     } u;
     u_char length[4];
@@ -167,7 +167,7 @@ indent_string (u_int indent)
      * Trailing zero.
      */
     buf[idx] = '\0';
-    
+
     return buf;
 }
 
@@ -201,9 +201,9 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
     case RPKI_RTR_SERIAL_QUERY_PDU:
     case RPKI_RTR_END_OF_DATA_PDU:
         msg = (const u_char *)(pdu_header + 1);
-	printf("%sCache-Nonce: 0x%04x, Serial: %u",
+	printf("%sSession ID: 0x%04x, Serial: %u",
 	       indent_string(indent+2),
-	       EXTRACT_16BITS(pdu_header->u.cache_nonce),
+	       EXTRACT_16BITS(pdu_header->u.session_id),
 	       EXTRACT_32BITS(msg));
 	break;
 
@@ -219,9 +219,9 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 	break;
 
     case RPKI_RTR_CACHE_RESPONSE_PDU:
-	printf("%sCache-Nonce: 0x%04x",
+	printf("%sSession ID: 0x%04x",
 	       indent_string(indent+2),
-	       EXTRACT_16BITS(pdu_header->u.cache_nonce));
+	       EXTRACT_16BITS(pdu_header->u.session_id));
 	break;
 
     case RPKI_RTR_IPV4_PREFIX_PDU:
@@ -320,7 +320,7 @@ rpki_rtr_print(register const u_char *pptr, register u_int len) {
     u_int tlen, pdu_type, pdu_len;
     const u_char *tptr;
     const rpki_rtr_pdu *pdu_header;
-    
+
     tptr = pptr;
     tlen = len;
 

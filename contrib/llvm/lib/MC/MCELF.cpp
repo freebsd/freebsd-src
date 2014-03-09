@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCELF.h"
+#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCELFSymbolFlags.h"
 #include "llvm/MC/MCFixupKindInfo.h"
@@ -36,8 +36,8 @@ unsigned MCELF::GetBinding(const MCSymbolData &SD) {
 void MCELF::SetType(MCSymbolData &SD, unsigned Type) {
   assert(Type == ELF::STT_NOTYPE || Type == ELF::STT_OBJECT ||
          Type == ELF::STT_FUNC || Type == ELF::STT_SECTION ||
-         Type == ELF::STT_FILE || Type == ELF::STT_COMMON ||
-         Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
+         Type == ELF::STT_COMMON || Type == ELF::STT_TLS ||
+         Type == ELF::STT_GNU_IFUNC);
 
   uint32_t OtherFlags = SD.getFlags() & ~(0xf << ELF_STT_Shift);
   SD.setFlags(OtherFlags | (Type << ELF_STT_Shift));
@@ -47,11 +47,12 @@ unsigned MCELF::GetType(const MCSymbolData &SD) {
   uint32_t Type = (SD.getFlags() & (0xf << ELF_STT_Shift)) >> ELF_STT_Shift;
   assert(Type == ELF::STT_NOTYPE || Type == ELF::STT_OBJECT ||
          Type == ELF::STT_FUNC || Type == ELF::STT_SECTION ||
-         Type == ELF::STT_FILE || Type == ELF::STT_COMMON ||
-         Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
+         Type == ELF::STT_COMMON || Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
   return Type;
 }
 
+// Visibility is stored in the first two bits of st_other
+// st_other values are stored in the second byte of get/setFlags
 void MCELF::SetVisibility(MCSymbolData &SD, unsigned Visibility) {
   assert(Visibility == ELF::STV_DEFAULT || Visibility == ELF::STV_INTERNAL ||
          Visibility == ELF::STV_HIDDEN || Visibility == ELF::STV_PROTECTED);
@@ -66,6 +67,19 @@ unsigned MCELF::GetVisibility(MCSymbolData &SD) {
   assert(Visibility == ELF::STV_DEFAULT || Visibility == ELF::STV_INTERNAL ||
          Visibility == ELF::STV_HIDDEN || Visibility == ELF::STV_PROTECTED);
   return Visibility;
+}
+
+// Other is stored in the last six bits of st_other
+// st_other values are stored in the second byte of get/setFlags
+void MCELF::setOther(MCSymbolData &SD, unsigned Other) {
+  uint32_t OtherFlags = SD.getFlags() & ~(0x3f << ELF_Other_Shift);
+  SD.setFlags(OtherFlags | (Other << ELF_Other_Shift));
+}
+
+unsigned MCELF::getOther(MCSymbolData &SD) {
+  unsigned Other =
+    (SD.getFlags() & (0x3f << ELF_Other_Shift)) >> ELF_Other_Shift;
+  return Other;
 }
 
 }

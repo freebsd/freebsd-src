@@ -13,13 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_TARGETSCHEDMODEL_H
-#define LLVM_TARGET_TARGETSCHEDMODEL_H
+#ifndef LLVM_CODEGEN_TARGETSCHEDULE_H
+#define LLVM_CODEGEN_TARGETSCHEDULE_H
 
-#include "llvm/Target/TargetSubtargetInfo.h"
-#include "llvm/MC/MCSchedule.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/MC/MCSchedule.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 namespace llvm {
 
@@ -128,18 +128,23 @@ public:
     return ResourceLCM;
   }
 
+  /// \brief Number of micro-ops that may be buffered for OOO execution.
+  unsigned getMicroOpBufferSize() const { return SchedModel.MicroOpBufferSize; }
+
+  /// \brief Number of resource units that may be buffered for OOO execution.
+  /// \return The buffer size in resource units or -1 for unlimited.
+  int getResourceBufferSize(unsigned PIdx) const {
+    return SchedModel.getProcResource(PIdx)->BufferSize;
+  }
+
   /// \brief Compute operand latency based on the available machine model.
   ///
-  /// Computes and return the latency of the given data dependent def and use
+  /// Compute and return the latency of the given data dependent def and use
   /// when the operand indices are already known. UseMI may be NULL for an
   /// unknown user.
-  ///
-  /// FindMin may be set to get the minimum vs. expected latency. Minimum
-  /// latency is used for scheduling groups, while expected latency is for
-  /// instruction cost and critical path.
   unsigned computeOperandLatency(const MachineInstr *DefMI, unsigned DefOperIdx,
-                                 const MachineInstr *UseMI, unsigned UseOperIdx,
-                                 bool FindMin) const;
+                                 const MachineInstr *UseMI, unsigned UseOperIdx)
+    const;
 
   /// \brief Compute the instruction latency based on the available machine
   /// model.
@@ -147,19 +152,19 @@ public:
   /// Compute and return the expected latency of this instruction independent of
   /// a particular use. computeOperandLatency is the prefered API, but this is
   /// occasionally useful to help estimate instruction cost.
-  unsigned computeInstrLatency(const MachineInstr *MI) const;
+  ///
+  /// If UseDefaultDefLatency is false and no new machine sched model is
+  /// present this method falls back to TII->getInstrLatency with an empty
+  /// instruction itinerary (this is so we preserve the previous behavior of the
+  /// if converter after moving it to TargetSchedModel).
+  unsigned computeInstrLatency(const MachineInstr *MI,
+                               bool UseDefaultDefLatency = true) const;
 
   /// \brief Output dependency latency of a pair of defs of the same register.
   ///
   /// This is typically one cycle.
   unsigned computeOutputLatency(const MachineInstr *DefMI, unsigned DefIdx,
                                 const MachineInstr *DepMI) const;
-
-private:
-  /// getDefLatency is a helper for computeOperandLatency. Return the
-  /// instruction's latency if operand lookup is not required.
-  /// Otherwise return -1.
-  int getDefLatency(const MachineInstr *DefMI, bool FindMin) const;
 };
 
 } // namespace llvm

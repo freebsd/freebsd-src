@@ -19,6 +19,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 
@@ -200,6 +201,14 @@ public:
     }
   }
 
+#if LLVM_HAS_RVALUE_REFERENCES
+  PartialDiagnostic(PartialDiagnostic &&Other)
+    : DiagID(Other.DiagID), DiagStorage(Other.DiagStorage),
+      Allocator(Other.Allocator) {
+    Other.DiagStorage = 0;
+  }
+#endif
+
   PartialDiagnostic(const PartialDiagnostic &Other, Storage *DiagStorage)
     : DiagID(Other.DiagID), DiagStorage(DiagStorage),
       Allocator(reinterpret_cast<StorageAllocator *>(~uintptr_t(0)))
@@ -241,6 +250,19 @@ public:
 
     return *this;
   }
+
+#if LLVM_HAS_RVALUE_REFERENCES
+  PartialDiagnostic &operator=(PartialDiagnostic &&Other) {
+    freeStorage();
+
+    DiagID = Other.DiagID;
+    DiagStorage = Other.DiagStorage;
+    Allocator = Other.Allocator;
+
+    Other.DiagStorage = 0;
+    return *this;
+  }
+#endif
 
   ~PartialDiagnostic() {
     freeStorage();
@@ -299,7 +321,7 @@ public:
   }
 
   void EmitToString(DiagnosticsEngine &Diags,
-                    llvm::SmallVectorImpl<char> &Buf) const {
+                    SmallVectorImpl<char> &Buf) const {
     // FIXME: It should be possible to render a diagnostic to a string without
     //        messing with the state of the diagnostics engine.
     DiagnosticBuilder DB(Diags.Report(getDiagID()));
@@ -342,6 +364,27 @@ public:
                                                     StringRef S) {
 
     PD.AddString(S);
+    return PD;
+  }
+
+  friend inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
+                                                    const IdentifierInfo *II) {
+    PD.AddTaggedVal(reinterpret_cast<intptr_t>(II),
+                    DiagnosticsEngine::ak_identifierinfo);
+    return PD;
+  }
+
+  // Adds a DeclContext to the diagnostic. The enable_if template magic is here
+  // so that we only match those arguments that are (statically) DeclContexts;
+  // other arguments that derive from DeclContext (e.g., RecordDecls) will not
+  // match.
+  template<typename T>
+  friend inline
+  typename llvm::enable_if<llvm::is_same<T, DeclContext>,
+                           const PartialDiagnostic &>::type
+  operator<<(const PartialDiagnostic &PD, T *DC) {
+    PD.AddTaggedVal(reinterpret_cast<intptr_t>(DC),
+                    DiagnosticsEngine::ak_declcontext);
     return PD;
   }
 

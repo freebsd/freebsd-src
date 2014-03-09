@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)line.c	10.21 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: line.c,v 10.26 2011/08/12 12:36:41 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -32,15 +32,15 @@ static int scr_update __P((SCR *, recno_t, lnop_t, int));
  * db_eget --
  *	Front-end to db_get, special case handling for empty files.
  *
- * PUBLIC: int db_eget __P((SCR *, recno_t, char **, size_t *, int *));
+ * PUBLIC: int db_eget __P((SCR *, recno_t, CHAR_T **, size_t *, int *));
  */
 int
-db_eget(sp, lno, pp, lenp, isemptyp)
-	SCR *sp;
-	recno_t lno;				/* Line number. */
-	char **pp;				/* Pointer store. */
-	size_t *lenp;				/* Length store. */
-	int *isemptyp;
+db_eget(
+	SCR *sp,
+	recno_t lno,				/* Line number. */
+	CHAR_T **pp,				/* Pointer store. */
+	size_t *lenp,				/* Length store. */
+	int *isemptyp)
 {
 	recno_t l1;
 
@@ -60,7 +60,7 @@ db_eget(sp, lno, pp, lenp, isemptyp)
 		return (1);
 
 	/* If the file isn't empty, fail loudly. */
-	if (lno != 0 && lno != 1 || l1 != 0) {
+	if ((lno != 0 && lno != 1) || l1 != 0) {
 		db_err(sp, lno);
 		return (1);
 	}
@@ -76,20 +76,23 @@ db_eget(sp, lno, pp, lenp, isemptyp)
  *	Look in the text buffers for a line, followed by the cache, followed
  *	by the database.
  *
- * PUBLIC: int db_get __P((SCR *, recno_t, u_int32_t, char **, size_t *));
+ * PUBLIC: int db_get __P((SCR *, recno_t, u_int32_t, CHAR_T **, size_t *));
  */
 int
-db_get(sp, lno, flags, pp, lenp)
-	SCR *sp;
-	recno_t lno;				/* Line number. */
-	u_int32_t flags;
-	char **pp;				/* Pointer store. */
-	size_t *lenp;				/* Length store. */
+db_get(
+	SCR *sp,
+	recno_t lno,				/* Line number. */
+	u_int32_t flags,
+	CHAR_T **pp,				/* Pointer store. */
+	size_t *lenp)				/* Length store. */
 {
 	DBT data, key;
 	EXF *ep;
 	TEXT *tp;
 	recno_t l1, l2;
+	CHAR_T *wp;
+	size_t wlen;
+	size_t nlen;
 
 	/*
 	 * The underlying recno stuff handles zero by returning NULL, but
@@ -113,14 +116,14 @@ db_get(sp, lno, flags, pp, lenp)
 	 * is there.
 	 */
 	if (F_ISSET(sp, SC_TINPUT)) {
-		l1 = ((TEXT *)sp->tiq.cqh_first)->lno;
-		l2 = ((TEXT *)sp->tiq.cqh_last)->lno;
+		l1 = ((TEXT *)TAILQ_FIRST(sp->tiq))->lno;
+		l2 = ((TEXT *)TAILQ_LAST(sp->tiq, _texth))->lno;
 		if (l1 <= lno && l2 >= lno) {
 #if defined(DEBUG) && 0
 	TRACE(sp, "retrieve TEXT buffer line %lu\n", (u_long)lno);
 #endif
-			for (tp = sp->tiq.cqh_first;
-			    tp->lno != lno; tp = tp->q.cqe_next);
+			for (tp = TAILQ_FIRST(sp->tiq);
+			    tp->lno != lno; tp = TAILQ_NEXT(tp, q));
 			if (lenp != NULL)
 				*lenp = tp->len;
 			if (pp != NULL)
@@ -149,32 +152,52 @@ db_get(sp, lno, flags, pp, lenp)
 	ep->c_lno = OOBLNO;
 
 nocache:
+	nlen = 1024;
+retry:
 	/* Get the line from the underlying database. */
 	key.data = &lno;
 	key.size = sizeof(lno);
 	switch (ep->db->get(ep->db, &key, &data, 0)) {
-        case -1:
+	case -1:
 		goto err2;
 	case 1:
 err1:		if (LF_ISSET(DBG_FATAL))
 err2:			db_err(sp, lno);
+alloc_err:
 err3:		if (lenp != NULL)
 			*lenp = 0;
 		if (pp != NULL)
 			*pp = NULL;
 		return (1);
+	case 0:
+		if (data.size > nlen) {
+			nlen = data.size;
+			goto retry;
+		}
+	}
+
+	if (FILE2INT(sp, data.data, data.size, wp, wlen)) {
+		if (!F_ISSET(sp, SC_CONV_ERROR)) {
+			F_SET(sp, SC_CONV_ERROR);
+			msgq(sp, M_ERR, "324|Conversion error on line %d", lno);
+		}
+		goto err3;
 	}
 
 	/* Reset the cache. */
+	if (wp != data.data) {
+		BINC_GOTOW(sp, ep->c_lp, ep->c_blen, wlen);
+		MEMCPY(ep->c_lp, wp, wlen);
+	} else
+		ep->c_lp = data.data;
 	ep->c_lno = lno;
-	ep->c_len = data.size;
-	ep->c_lp = data.data;
+	ep->c_len = wlen;
 
 #if defined(DEBUG) && 0
 	TRACE(sp, "retrieve DB line %lu\n", (u_long)lno);
 #endif
 	if (lenp != NULL)
-		*lenp = data.size;
+		*lenp = wlen;
 	if (pp != NULL)
 		*pp = ep->c_lp;
 	return (0);
@@ -187,9 +210,9 @@ err3:		if (lenp != NULL)
  * PUBLIC: int db_delete __P((SCR *, recno_t));
  */
 int
-db_delete(sp, lno)
-	SCR *sp;
-	recno_t lno;
+db_delete(
+	SCR *sp,
+	recno_t lno)
 {
 	DBT key;
 	EXF *ep;
@@ -242,18 +265,20 @@ db_delete(sp, lno)
  * db_append --
  *	Append a line into the file.
  *
- * PUBLIC: int db_append __P((SCR *, int, recno_t, char *, size_t));
+ * PUBLIC: int db_append __P((SCR *, int, recno_t, CHAR_T *, size_t));
  */
 int
-db_append(sp, update, lno, p, len)
-	SCR *sp;
-	int update;
-	recno_t lno;
-	char *p;
-	size_t len;
+db_append(
+	SCR *sp,
+	int update,
+	recno_t lno,
+	CHAR_T *p,
+	size_t len)
 {
 	DBT data, key;
 	EXF *ep;
+	char *fp;
+	size_t flen;
 	int rval;
 
 #if defined(DEBUG) && 0
@@ -265,11 +290,13 @@ db_append(sp, update, lno, p, len)
 		return (1);
 	}
 		
+	INT2FILE(sp, p, len, fp, flen);
+
 	/* Update file. */
 	key.data = &lno;
 	key.size = sizeof(lno);
-	data.data = p;
-	data.size = len;
+	data.data = fp;
+	data.size = flen;
 	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, R_IAFTER) == -1) {
 		msgq(sp, M_SYSERR,
@@ -316,17 +343,19 @@ db_append(sp, update, lno, p, len)
  * db_insert --
  *	Insert a line into the file.
  *
- * PUBLIC: int db_insert __P((SCR *, recno_t, char *, size_t));
+ * PUBLIC: int db_insert __P((SCR *, recno_t, CHAR_T *, size_t));
  */
 int
-db_insert(sp, lno, p, len)
-	SCR *sp;
-	recno_t lno;
-	char *p;
-	size_t len;
+db_insert(
+	SCR *sp,
+	recno_t lno,
+	CHAR_T *p,
+	size_t len)
 {
 	DBT data, key;
 	EXF *ep;
+	char *fp;
+	size_t flen;
 	int rval;
 
 #if defined(DEBUG) && 0
@@ -339,11 +368,13 @@ db_insert(sp, lno, p, len)
 		return (1);
 	}
 		
+	INT2FILE(sp, p, len, fp, flen);
+		
 	/* Update file. */
 	key.data = &lno;
 	key.size = sizeof(lno);
-	data.data = p;
-	data.size = len;
+	data.data = fp;
+	data.size = flen;
 	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, R_IBEFORE) == -1) {
 		msgq(sp, M_SYSERR,
@@ -381,23 +412,24 @@ db_insert(sp, lno, p, len)
  * db_set --
  *	Store a line in the file.
  *
- * PUBLIC: int db_set __P((SCR *, recno_t, char *, size_t));
+ * PUBLIC: int db_set __P((SCR *, recno_t, CHAR_T *, size_t));
  */
 int
-db_set(sp, lno, p, len)
-	SCR *sp;
-	recno_t lno;
-	char *p;
-	size_t len;
+db_set(
+	SCR *sp,
+	recno_t lno,
+	CHAR_T *p,
+	size_t len)
 {
 	DBT data, key;
 	EXF *ep;
+	char *fp;
+	size_t flen;
 
 #if defined(DEBUG) && 0
 	TRACE(sp, "replace line %lu: len %lu {%.*s}\n",
 	    (u_long)lno, (u_long)len, MIN(len, 20), p);
 #endif
-
 	/* Check for no underlying file. */
 	if ((ep = sp->ep) == NULL) {
 		ex_emsg(sp, NULL, EXM_NOFILEYET);
@@ -407,11 +439,13 @@ db_set(sp, lno, p, len)
 	/* Log before change. */
 	log_line(sp, lno, LOG_LINE_RESET_B);
 
+	INT2FILE(sp, p, len, fp, flen);
+
 	/* Update file. */
 	key.data = &lno;
 	key.size = sizeof(lno);
-	data.data = p;
-	data.size = len;
+	data.data = fp;
+	data.size = flen;
 	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, 0) == -1) {
 		msgq(sp, M_SYSERR,
@@ -443,9 +477,9 @@ db_set(sp, lno, p, len)
  * PUBLIC: int db_exist __P((SCR *, recno_t));
  */
 int
-db_exist(sp, lno)
-	SCR *sp;
-	recno_t lno;
+db_exist(
+	SCR *sp,
+	recno_t lno)
 {
 	EXF *ep;
 
@@ -464,8 +498,8 @@ db_exist(sp, lno)
 	 */
 	if (ep->c_nlines != OOBLNO)
 		return (lno <= (F_ISSET(sp, SC_TINPUT) ?
-		    ep->c_nlines + (((TEXT *)sp->tiq.cqh_last)->lno -
-		    ((TEXT *)sp->tiq.cqh_first)->lno) : ep->c_nlines));
+		    ep->c_nlines + (((TEXT *)TAILQ_LAST(sp->tiq, _texth))->lno -
+		    ((TEXT *)TAILQ_FIRST(sp->tiq))->lno) : ep->c_nlines));
 
 	/* Go get the line. */
 	return (!db_get(sp, lno, 0, NULL, NULL));
@@ -478,13 +512,15 @@ db_exist(sp, lno)
  * PUBLIC: int db_last __P((SCR *, recno_t *));
  */
 int
-db_last(sp, lnop)
-	SCR *sp;
-	recno_t *lnop;
+db_last(
+	SCR *sp,
+	recno_t *lnop)
 {
 	DBT data, key;
 	EXF *ep;
 	recno_t lno;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/* Check for no underlying file. */
 	if ((ep = sp->ep) == NULL) {
@@ -499,8 +535,8 @@ db_last(sp, lnop)
 	if (ep->c_nlines != OOBLNO) {
 		*lnop = ep->c_nlines;
 		if (F_ISSET(sp, SC_TINPUT))
-			*lnop += ((TEXT *)sp->tiq.cqh_last)->lno -
-			    ((TEXT *)sp->tiq.cqh_first)->lno;
+			*lnop += ((TEXT *)TAILQ_LAST(sp->tiq, _texth))->lno -
+			    ((TEXT *)TAILQ_FIRST(sp->tiq))->lno;
 		return (0);
 	}
 
@@ -508,27 +544,104 @@ db_last(sp, lnop)
 	key.size = sizeof(lno);
 
 	switch (ep->db->seq(ep->db, &key, &data, R_LAST)) {
-        case -1:
+	case -1:
+alloc_err:
 		msgq(sp, M_SYSERR, "007|unable to get last line");
 		*lnop = 0;
 		return (1);
-        case 1:
+	case 1:
 		*lnop = 0;
 		return (0);
-	default:
-		break;
+	case 0:
+		;
 	}
 
-	/* Fill the cache. */
 	memcpy(&lno, key.data, sizeof(lno));
-	ep->c_nlines = ep->c_lno = lno;
-	ep->c_len = data.size;
-	ep->c_lp = data.data;
+
+	if (lno != ep->c_lno) {
+		FILE2INT(sp, data.data, data.size, wp, wlen);
+
+		/* Fill the cache. */
+		if (wp != data.data) {
+			BINC_GOTOW(sp, ep->c_lp, ep->c_blen, wlen);
+			MEMCPY(ep->c_lp, wp, wlen);
+		} else
+			ep->c_lp = data.data;
+		ep->c_lno = lno;
+		ep->c_len = wlen;
+	}
+	ep->c_nlines = lno;
 
 	/* Return the value. */
 	*lnop = (F_ISSET(sp, SC_TINPUT) &&
-	    ((TEXT *)sp->tiq.cqh_last)->lno > lno ?
-	    ((TEXT *)sp->tiq.cqh_last)->lno : lno);
+	    ((TEXT *)TAILQ_LAST(sp->tiq, _texth))->lno > lno ?
+	    ((TEXT *)TAILQ_LAST(sp->tiq, _texth))->lno : lno);
+	return (0);
+}
+
+/*
+ * db_rget --
+ *	Retrieve a raw line from database. No cache, no conversion.
+ *
+ * PUBLIC: int db_rget __P((SCR *, recno_t, char **, size_t *));
+ */
+int
+db_rget(
+	SCR *sp,
+	recno_t lno,				/* Line number. */
+	char **pp,				/* Pointer store. */
+	size_t *lenp)				/* Length store. */
+{
+	DBT data, key;
+	EXF *ep;
+
+	/* Check for no underlying file. */
+	if ((ep = sp->ep) == NULL)
+		return (1);
+
+	/* Get the line from the underlying database. */
+	key.data = &lno;
+	key.size = sizeof(lno);
+	if (ep->db->get(ep->db, &key, &data, 0))
+	/* We do not report error, and do not ensure the size! */
+		return (1);
+
+	if (lenp != NULL)
+		*lenp = data.size;
+	if (pp != NULL)
+		*pp = data.data;
+	return (0);
+}
+
+/*
+ * db_rset --
+ *	Store a line in the file. No log, no conversion.
+ *
+ * PUBLIC: int db_rset __P((SCR *, recno_t, char *, size_t));
+ */
+int
+db_rset(
+	SCR *sp,
+	recno_t lno,
+	char *p,
+	size_t len)
+{
+	DBT data, key;
+	EXF *ep;
+
+	/* Check for no underlying file. */
+	if ((ep = sp->ep) == NULL)
+		return (1);
+		
+	/* Update file. */
+	key.data = &lno;
+	key.size = sizeof(lno);
+	data.data = p;
+	data.size = len;
+	if (ep->db->put(ep->db, &key, &data, 0) == -1)
+	/* We do not report error, and do not ensure the size! */
+		return (1);
+
 	return (0);
 }
 
@@ -539,9 +652,9 @@ db_last(sp, lnop)
  * PUBLIC: void db_err __P((SCR *, recno_t));
  */
 void
-db_err(sp, lno)
-	SCR *sp;
-	recno_t lno;
+db_err(
+	SCR *sp,
+	recno_t lno)
 {
 	msgq(sp, M_ERR,
 	    "008|Error: unable to retrieve line %lu", (u_long)lno);
@@ -553,11 +666,11 @@ db_err(sp, lno)
  *	just changed.
  */
 static int
-scr_update(sp, lno, op, current)
-	SCR *sp;
-	recno_t lno;
-	lnop_t op;
-	int current;
+scr_update(
+	SCR *sp,
+	recno_t lno,
+	lnop_t op,
+	int current)
 {
 	EXF *ep;
 	SCR *tsp;
@@ -567,8 +680,7 @@ scr_update(sp, lno, op, current)
 
 	ep = sp->ep;
 	if (ep->refcnt != 1)
-		for (tsp = sp->gp->dq.cqh_first;
-		    tsp != (void *)&sp->gp->dq; tsp = tsp->q.cqe_next)
+		TAILQ_FOREACH(tsp, sp->gp->dq, q)
 			if (sp != tsp && tsp->ep == ep)
 				if (vs_change(tsp, lno, op))
 					return (1);

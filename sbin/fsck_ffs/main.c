@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
+int	restarts;
+
 static void usage(void) __dead2;
 static int argtoi(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
@@ -82,7 +84,7 @@ main(int argc, char *argv[])
 	sync();
 	skipclean = 1;
 	inoopt = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npry")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npRrSyZ")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -138,13 +140,24 @@ main(int argc, char *argv[])
 			ckclean++;
 			break;
 
+		case 'R':
+			wantrestart = 1;
+			break;
 		case 'r':
 			inoopt++;
+			break;
+
+		case 'S':
+			surrender = 1;
 			break;
 
 		case 'y':
 			yflag++;
 			nflag = 0;
+			break;
+
+		case 'Z':
+			Zflag++;
 			break;
 
 		default:
@@ -178,8 +191,12 @@ main(int argc, char *argv[])
 		rlimit.rlim_cur = rlimit.rlim_max;
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
-	while (argc-- > 0)
-		(void)checkfilesys(*argv++);
+	while (argc > 0) {
+		if (checkfilesys(*argv) == ERESTART)
+			continue;
+		argc--;
+		argv++;
+	}
 
 	if (returntosingle)
 		ret = 2;
@@ -220,6 +237,8 @@ checkfilesys(char *filesys)
 	iov = NULL;
 	iovlen = 0;
 	errmsg[0] = '\0';
+	fsutilinit();
+	fsckinit();
 
 	cdevname = filesys;
 	if (debug && ckclean)
@@ -424,7 +443,9 @@ checkfilesys(char *filesys)
 			printf("** Root file system\n");
 		printf("** Phase 1 - Check Blocks and Sizes\n");
 	}
+	clock_gettime(CLOCK_REALTIME_PRECISE, &startprog);
 	pass1();
+	IOstats("Pass1");
 
 	/*
 	 * 1b: locate first references to duplicates, if any
@@ -437,6 +458,7 @@ checkfilesys(char *filesys)
 			    usedsoftdep ? "softupdates" : "");
 		printf("** Phase 1b - Rescan For More DUPS\n");
 		pass1b();
+		IOstats("Pass1b");
 	}
 
 	/*
@@ -445,6 +467,7 @@ checkfilesys(char *filesys)
 	if (preen == 0)
 		printf("** Phase 2 - Check Pathnames\n");
 	pass2();
+	IOstats("Pass2");
 
 	/*
 	 * 3: scan inodes looking for disconnected directories
@@ -452,6 +475,7 @@ checkfilesys(char *filesys)
 	if (preen == 0)
 		printf("** Phase 3 - Check Connectivity\n");
 	pass3();
+	IOstats("Pass3");
 
 	/*
 	 * 4: scan inodes looking for disconnected files; check reference counts
@@ -459,6 +483,7 @@ checkfilesys(char *filesys)
 	if (preen == 0)
 		printf("** Phase 4 - Check Reference Counts\n");
 	pass4();
+	IOstats("Pass4");
 
 	/*
 	 * 5: check and repair resource counts in cylinder groups
@@ -466,6 +491,7 @@ checkfilesys(char *filesys)
 	if (preen == 0)
 		printf("** Phase 5 - Check Cyl groups\n");
 	pass5();
+	IOstats("Pass5");
 
 	/*
 	 * print out summary statistics
@@ -519,6 +545,7 @@ checkfilesys(char *filesys)
 	}
 	if (rerun)
 		resolved = 0;
+	finalIOstats();
 
 	/*
 	 * Check to see if the file system is mounted read-write.
@@ -534,8 +561,12 @@ checkfilesys(char *filesys)
 	inostathead = NULL;
 	if (fsmodified && !preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
-	if (rerun)
+	if (rerun) {
+		if (wantrestart && (restarts++ < 10) &&
+		    (preen || reply("RESTART")))
+			return (ERESTART);
 		printf("\n***** PLEASE RERUN FSCK *****\n");
+	}
 	if (chkdoreload(mntp) != 0) {
 		if (!fsmodified)
 			return (0);
@@ -637,4 +668,16 @@ usage(void)
 "usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] filesystem ...\n",
 	    getprogname());
 	exit(1);
+}
+
+void
+infohandler(int sig __unused)
+{
+	got_siginfo = 1;
+}
+
+void
+alarmhandler(int sig __unused)
+{
+	got_sigalarm = 1;
 }

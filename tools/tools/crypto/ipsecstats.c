@@ -25,11 +25,12 @@
  *
  * $FreeBSD$
  */
-#include <stdio.h>
 #include <sys/types.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
+#include <stdint.h>
+#include <stdio.h>
 
 struct alg {
 	int		a;
@@ -82,7 +83,7 @@ algname(int a, const struct alg algs[], int nalgs)
 int
 main(int argc, char *argv[])
 {
-#define	STAT(x,fmt)	if (x) printf(fmt "\n", x)
+#define	STAT(x,fmt)	if (x) printf(fmt "\n", (uintmax_t)x)
 	struct ipsecstat ips;
 	struct ahstat ahs;
 	struct espstat esps;
@@ -99,8 +100,7 @@ main(int argc, char *argv[])
 	if (sysctlbyname("net.inet.esp.stats", &esps, &slen, NULL, NULL) < 0)
 		err(1, "net.inet.esp.stats");
 
-#define	AHSTAT(x,fmt)	if (x) printf("ah " fmt ": %u\n", x)
-#define	AHSTAT64(x,fmt)	if (x) printf("ah " fmt ": %llu\n", x)
+#define	AHSTAT(x,fmt)	if (x) printf("ah " fmt ": %ju\n", (uintmax_t)x)
 	AHSTAT(ahs.ahs_input, "input packets processed");
 	AHSTAT(ahs.ahs_output, "output packets processed");
 	AHSTAT(ahs.ahs_hdrops, "headers too short");
@@ -120,17 +120,15 @@ main(int argc, char *argv[])
 	AHSTAT(ahs.ahs_tunnel, "tunnel sanity check failures");
 	for (i = 0; i < AH_ALG_MAX; i++)
 		if (ahs.ahs_hist[i])
-			printf("ah packets with %s: %u\n"
+			printf("ah packets with %s: %ju\n"
 				, algname(i, aalgs, N(aalgs))
-				, ahs.ahs_hist[i]
+				, (uintmax_t)ahs.ahs_hist[i]
 			);
-	AHSTAT64(ahs.ahs_ibytes, "bytes received");
-	AHSTAT64(ahs.ahs_obytes, "bytes transmitted");
-#undef AHSTAT64
+	AHSTAT(ahs.ahs_ibytes, "bytes received");
+	AHSTAT(ahs.ahs_obytes, "bytes transmitted");
 #undef AHSTAT
 
-#define	ESPSTAT(x,fmt)	if (x) printf("esp " fmt ": %u\n", x)
-#define	ESPSTAT64(x,fmt)	if (x) printf("esp " fmt ": %llu\n", x)
+#define	ESPSTAT(x,fmt)	if (x) printf("esp " fmt ": %ju\n", (uintmax_t)x)
 	ESPSTAT(esps.esps_input, "input packets processed");
 	ESPSTAT(esps.esps_output, "output packets processed");
 	ESPSTAT(esps.esps_hdrops, "headers too short");
@@ -151,29 +149,30 @@ main(int argc, char *argv[])
 	ESPSTAT(esps.esps_tunnel, "tunnel sanity check failures");
 	for (i = 0; i < ESP_ALG_MAX; i++)
 		if (esps.esps_hist[i])
-			printf("esp packets with %s: %u\n"
+			printf("esp packets with %s: %ju\n"
 				, algname(i, espalgs, N(espalgs))
-				, esps.esps_hist[i]
+				, (uintmax_t)esps.esps_hist[i]
 			);
-	ESPSTAT64(esps.esps_ibytes, "bytes received");
-	ESPSTAT64(esps.esps_obytes, "bytes transmitted");
-#undef ESPSTAT64
+	ESPSTAT(esps.esps_ibytes, "bytes received");
+	ESPSTAT(esps.esps_obytes, "bytes transmitted");
 #undef ESPSTAT
 
 	printf("\n");
 	if (ips.ips_in_polvio+ips.ips_out_polvio)
-		printf("policy violations: input %u output %u\n",
-			ips.ips_in_polvio, ips.ips_out_polvio);
-	STAT(ips.ips_out_nosa, "no SA found %u (output)");
-	STAT(ips.ips_out_nomem, "no memory available %u (output)");
-	STAT(ips.ips_out_noroute, "no route available %u (output)");
-	STAT(ips.ips_out_inval, "generic error %u (output)");
-	STAT(ips.ips_out_bundlesa, "bundled SA processed %u (output)");
-	printf("m_clone processing: %u mbufs + %u clusters coalesced\n",
-		ips.ips_mbcoalesced, ips.ips_clcoalesced);
-	printf("m_clone processing: %u clusters copied\n", ips.ips_clcopied);
-	printf("m_makespace: %u mbufs inserted\n", ips.ips_mbinserted);
-	printf("header position [front/middle/end]: %u/%u/%u\n",
-		ips.ips_input_front, ips.ips_input_middle, ips.ips_input_end);
+		printf("policy violations: input %ju output %ju\n",
+		    (uintmax_t)ips.ips_in_polvio,
+		    (uintmax_t)ips.ips_out_polvio);
+	STAT(ips.ips_out_nosa, "no SA found %ju (output)");
+	STAT(ips.ips_out_nomem, "no memory available %ju (output)");
+	STAT(ips.ips_out_noroute, "no route available %ju (output)");
+	STAT(ips.ips_out_inval, "generic error %ju (output)");
+	STAT(ips.ips_out_bundlesa, "bundled SA processed %ju (output)");
+	printf("m_clone processing: %ju mbufs + %ju clusters coalesced\n",
+	    (uintmax_t)ips.ips_mbcoalesced, (uintmax_t)ips.ips_clcoalesced);
+	STAT(ips.ips_clcopied, "m_clone processing: %ju clusters copied\n");
+	STAT(ips.ips_mbinserted, "m_makespace: %ju mbufs inserted\n");
+	printf("header position [front/middle/end]: %ju/%ju/%ju\n",
+	    (uintmax_t)ips.ips_input_front, (uintmax_t)ips.ips_input_middle,
+	    (uintmax_t)ips.ips_input_end);
 	return 0;
 }

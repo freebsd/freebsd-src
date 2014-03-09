@@ -4,10 +4,10 @@
 
 .PATH: ${.CURDIR}/../../contrib/mtree
 
-PROG=		nmtree
-MAN=		nmtree.8
+PROG=		mtree
+MAN=		mtree.5 mtree.8
 SRCS=		compare.c crc.c create.c excludes.c getid.c misc.c mtree.c \
-		spec.c specspec.c verify.c
+		only.c spec.c specspec.c verify.c
 LDADD+=		-lmd -lutil
 
 CFLAGS+=	-I${.CURDIR}/../../contrib/mknod
@@ -20,7 +20,7 @@ LIBNETBSD=	${LIBNETBSDDIR}/libnetbsd.a
 DPADD+=		${LIBNETBSD}
 LDADD+=		${LIBNETBSD}
 
-nmtree.8: mtree.8
-	cp ${.ALLSRC} ${.TARGET}
+LINKS=		${BINDIR}/mtree ${BINDIR}/nmtree
+MLINKS=		mtree.8 nmtree.8
 
 .include <bsd.prog.mk>

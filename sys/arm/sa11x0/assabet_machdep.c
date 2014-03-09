@@ -79,15 +79,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <machine/pmap.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/armreg.h>
+#include <machine/physmem.h>
+
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
@@ -123,8 +124,6 @@ extern vm_offset_t sa1_cache_clean_addr;
 #endif
 /* Physical and virtual addresses for some global pages */
 
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
@@ -136,7 +135,7 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
 /* Static device mappings. */
-static const struct pmap_devmap assabet_devmap[] = {
+static const struct arm_devmap_entry assabet_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -203,9 +202,9 @@ initarm(struct arm_boot_params *abp)
 
 	boothowto = RB_VERBOSE | RB_SINGLE;     /* Default value */
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	cninit();
 	set_cpufuncs();
-	physmem = memsize / PAGE_SIZE;
 	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
@@ -326,7 +325,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, vector_page, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the statically mapped devices. */
-	pmap_devmap_bootstrap(l1pagetable, assabet_devmap);
+	arm_devmap_bootstrap(l1pagetable, assabet_devmap);
 	pmap_map_chunk(l1pagetable, sa1_cache_clean_addr, 0xf0000000,
 	    CPU_SA110_CACHE_CLEAN_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -372,16 +371,27 @@ initarm(struct arm_boot_params *abp)
 
 	cpufunc_control(0x337f, 0x107d);
 	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
+	cpu_setup("");
 
 	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;
-
-	dump_avail[0] = phys_avail[0] = round_page(virtual_avail);
-	dump_avail[1] = phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
-	dump_avail[2] = phys_avail[2] = 0;
-	dump_avail[3] = phys_avail[3] = 0;
-					
 	mutex_init();
-	pmap_bootstrap(freemempos, 0xd0000000, &kernel_l1pt);
+	vm_max_kernel_address = 0xd0000000;
+	pmap_bootstrap(freemempos, &kernel_l1pt);
+
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(physical_start, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();

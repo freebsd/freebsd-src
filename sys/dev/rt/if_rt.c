@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "if_rtreg.h"
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -148,7 +149,7 @@ static int
 rt_probe(device_t dev)
 {
 	device_set_desc(dev, "Ralink RT305XF onChip Ethernet MAC");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*
@@ -475,20 +476,16 @@ rt_ifmedia_upd(struct ifnet *ifp)
 	struct rt_softc *sc;
 #ifdef IF_RT_PHY_SUPPORT
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error = 0;
 
 	sc = ifp->if_softc;
 	RT_SOFTC_LOCK(sc);
 
 	mii = device_get_softc(sc->rt_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-				miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
-	}
-	if (mii)
-		error = mii_mediachg(mii);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	error = mii_mediachg(mii);
 	RT_SOFTC_UNLOCK(sc);
 
 	return (error);

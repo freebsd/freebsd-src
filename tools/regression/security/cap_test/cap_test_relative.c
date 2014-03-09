@@ -61,7 +61,8 @@ test_relative(void)
 	cap_rights_t rights;
 
 	REQUIRE(etc = open("/etc/", O_RDONLY));
-	CHECK_SYSCALL_FAILS(EINVAL, cap_getrights, etc, &rights);
+	CHECK_SYSCALL_SUCCEEDS(cap_getrights, etc, &rights);
+	CHECK_RIGHTS(rights, CAP_ALL);
 
 	MAKE_CAPABILITY(etc_cap, etc, CAP_READ);
 	MAKE_CAPABILITY(etc_cap_ro, etc, CAP_READ | CAP_LOOKUP);

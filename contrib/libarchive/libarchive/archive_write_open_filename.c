@@ -46,10 +46,14 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_private.h"
 #include "archive_string.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
+#endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
 #endif
 
 struct write_file_data {
@@ -136,7 +140,7 @@ file_open(struct archive *a, void *client_data)
 	const char *mbs;
 
 	mine = (struct write_file_data *)client_data;
-	flags = O_WRONLY | O_CREAT | O_TRUNC | O_BINARY;
+	flags = O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_CLOEXEC;
 
 	/*
 	 * Open the file.
@@ -171,6 +175,7 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 	mine->fd = open(mbs, flags, 0666);
+	__archive_ensure_cloexec_flag(mine->fd);
 #endif
 	if (mine->fd < 0) {
 		if (mbs != NULL)

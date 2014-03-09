@@ -62,7 +62,7 @@ altera_sdcard_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Altera Secure Data Card IP Core");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -109,8 +109,6 @@ static driver_t altera_sdcard_nexus_driver = {
 	altera_sdcard_nexus_methods,
 	sizeof(struct altera_sdcard_softc),
 };
-
-static devclass_t altera_sdcard_devclass;
 
 DRIVER_MODULE(altera_sdcard, nexus, altera_sdcard_nexus_driver,
     altera_sdcard_devclass, 0, 0);

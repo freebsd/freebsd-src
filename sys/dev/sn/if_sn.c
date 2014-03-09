@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -443,7 +444,7 @@ startagain:
 	/*
 	 * Wait a short amount of time to see if the allocation request
 	 * completes.  Otherwise, I enable the interrupt and wait for
-	 * completion asyncronously.
+	 * completion asynchronously.
 	 */
 
 	time_out = MEMORY_WAIT_TIME;

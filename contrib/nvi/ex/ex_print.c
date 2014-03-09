@@ -10,27 +10,24 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_print.c	10.18 (Berkeley) 5/12/96";
+static const char sccsid[] = "$Id: ex_print.c,v 10.26 2013/11/02 02:11:07 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 #include "../common/common.h"
 
-static int ex_prchars __P((SCR *, const char *, size_t *, size_t, u_int, int));
+static int ex_prchars __P((SCR *, const CHAR_T *, size_t *, size_t, 
+                           u_int, int));
 
 /*
  * ex_list -- :[line [,line]] l[ist] [count] [flags]
@@ -40,9 +37,7 @@ static int ex_prchars __P((SCR *, const char *, size_t *, size_t, u_int, int));
  * PUBLIC: int ex_list __P((SCR *, EXCMD *));
  */
 int
-ex_list(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_list(SCR *sp, EXCMD *cmdp)
 {
 	if (ex_print(sp, cmdp,
 	    &cmdp->addr1, &cmdp->addr2, cmdp->iflags | E_C_LIST))
@@ -60,9 +55,7 @@ ex_list(sp, cmdp)
  * PUBLIC: int ex_number __P((SCR *, EXCMD *));
  */
 int
-ex_number(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_number(SCR *sp, EXCMD *cmdp)
 {
 	if (ex_print(sp, cmdp,
 	    &cmdp->addr1, &cmdp->addr2, cmdp->iflags | E_C_HASH))
@@ -80,9 +73,7 @@ ex_number(sp, cmdp)
  * PUBLIC: int ex_pr __P((SCR *, EXCMD *));
  */
 int
-ex_pr(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_pr(SCR *sp, EXCMD *cmdp)
 {
 	if (ex_print(sp, cmdp, &cmdp->addr1, &cmdp->addr2, cmdp->iflags))
 		return (1);
@@ -98,16 +89,13 @@ ex_pr(sp, cmdp)
  * PUBLIC: int ex_print __P((SCR *, EXCMD *, MARK *, MARK *, u_int32_t));
  */
 int
-ex_print(sp, cmdp, fp, tp, flags)
-	SCR *sp;
-	EXCMD *cmdp;
-	MARK *fp, *tp;
-	u_int32_t flags;
+ex_print(SCR *sp, EXCMD *cmdp, MARK *fp, MARK *tp, u_int32_t flags)
 {
 	GS *gp;
 	recno_t from, to;
 	size_t col, len;
-	char *p, buf[10];
+	CHAR_T *p;
+	CHAR_T buf[10];
 
 	NEEDFILE(sp, cmdp);
 
@@ -122,11 +110,10 @@ ex_print(sp, cmdp, fp, tp, flags)
 		 */
 		if (LF_ISSET(E_C_HASH)) {
 			if (from <= 999999) {
-				snprintf(buf, sizeof(buf), "%6lu  ",
-				    (u_long)from);
+				SPRINTF(buf, SIZE(buf), L("%6u  "), from);
 				p = buf;
 			} else
-				p = "TOOBIG  ";
+				p = L("TOOBIG  ");
 			if (ex_prchars(sp, p, &col, 8, 0, 0))
 				return (1);
 		}
@@ -154,19 +141,15 @@ ex_print(sp, cmdp, fp, tp, flags)
  * ex_ldisplay --
  *	Display a line without any preceding number.
  *
- * PUBLIC: int ex_ldisplay __P((SCR *, const char *, size_t, size_t, u_int));
+ * PUBLIC: int ex_ldisplay __P((SCR *, const CHAR_T *, size_t, size_t, u_int));
  */
 int
-ex_ldisplay(sp, p, len, col, flags)
-	SCR *sp;
-	const char *p;
-	size_t len, col;
-	u_int flags;
+ex_ldisplay(SCR *sp, const CHAR_T *p, size_t len, size_t col, u_int flags)
 {
 	if (len > 0 && ex_prchars(sp, p, &col, len, LF_ISSET(E_C_LIST), 0))
 		return (1);
 	if (!INTERRUPTED(sp) && LF_ISSET(E_C_LIST)) {
-		p = "$";
+		p = L("$");
 		if (ex_prchars(sp, p, &col, 1, LF_ISSET(E_C_LIST), 0))
 			return (1);
 	}
@@ -182,21 +165,19 @@ ex_ldisplay(sp, p, len, col, flags)
  * PUBLIC: int ex_scprint __P((SCR *, MARK *, MARK *));
  */
 int
-ex_scprint(sp, fp, tp)
-	SCR *sp;
-	MARK *fp, *tp;
+ex_scprint(SCR *sp, MARK *fp, MARK *tp)
 {
-	const char *p;
+	CHAR_T *p;
 	size_t col, len;
 
 	col = 0;
 	if (O_ISSET(sp, O_NUMBER)) {
-		p = "        ";
+		p = L("        ");
 		if (ex_prchars(sp, p, &col, 8, 0, 0))
 			return (1);
 	}
 
-	if (db_get(sp, fp->lno, DBG_FATAL, (char **)&p, &len))
+	if (db_get(sp, fp->lno, DBG_FATAL, &p, &len))
 		return (1);
 
 	if (ex_prchars(sp, p, &col, fp->cno, 0, ' '))
@@ -207,7 +188,7 @@ ex_scprint(sp, fp, tp)
 		return (1);
 	if (INTERRUPTED(sp))
 		return (1);
-	p = "[ynq]";		/* XXX: should be msg_cat. */
+	p = L("[ynq]");		/* XXX: should be msg_cat. */
 	if (ex_prchars(sp, p, &col, 5, 0, 0))
 		return (1);
 	(void)ex_fflush(sp);
@@ -219,14 +200,11 @@ ex_scprint(sp, fp, tp)
  *	Local routine to dump characters to the screen.
  */
 static int
-ex_prchars(sp, p, colp, len, flags, repeatc)
-	SCR *sp;
-	const char *p;
-	size_t *colp, len;
-	u_int flags;
-	int repeatc;
+ex_prchars(SCR *sp, const CHAR_T *p, size_t *colp, size_t len, 
+	    u_int flags, int repeatc)
 {
-	CHAR_T ch, *kp;
+	CHAR_T ch;
+	char *kp;
 	GS *gp;
 	size_t col, tlen, ts;
 
@@ -235,7 +213,7 @@ ex_prchars(sp, p, colp, len, flags, repeatc)
 	gp = sp->gp;
 	ts = O_VAL(sp, O_TABSTOP);
 	for (col = *colp; len--;)
-		if ((ch = *p++) == '\t' && !LF_ISSET(E_C_LIST))
+		if ((ch = *p++) == L('\t') && !LF_ISSET(E_C_LIST))
 			for (tlen = ts - col % ts;
 			    col < sp->cols && tlen--; ++col) {
 				(void)ex_printf(sp,
@@ -245,21 +223,32 @@ ex_prchars(sp, p, colp, len, flags, repeatc)
 			}
 		else {
 			kp = KEY_NAME(sp, ch);
-			tlen = KEY_LEN(sp, ch);
-			if (!repeatc  && col + tlen < sp->cols) {
+			tlen = KEY_COL(sp, ch);
+
+			/*
+			 * Start a new line if the last character does not fit
+			 * into the current line.  The implicit new lines are
+			 * not interruptible.
+			 */
+			if (col + tlen > sp->cols) {
+				col = 0;
+				(void)ex_puts(sp, "\n");
+			}
+
+			col += tlen;
+			if (!repeatc) {
 				(void)ex_puts(sp, kp);
-				col += tlen;
-			} else
-				for (; tlen--; ++kp, ++col) {
-					if (col == sp->cols) {
-						col = 0;
-						(void)ex_puts(sp, "\n");
-					}
-					(void)ex_printf(sp,
-					    "%c", repeatc ? repeatc : *kp);
-					if (INTERRUPTED(sp))
-						goto intr;
-				}
+				if (INTERRUPTED(sp))
+					goto intr;
+			} else while (tlen--) {
+				(void)ex_printf(sp, "%c", repeatc);
+				if (INTERRUPTED(sp))
+					goto intr;
+			}
+			if (col == sp->cols) {
+				col = 0;
+				(void)ex_puts(sp, "\n");
+			}
 		}
 intr:	*colp = col;
 	return (0);
@@ -272,14 +261,10 @@ intr:	*colp = col;
  * PUBLIC: int ex_printf __P((SCR *, const char *, ...));
  */
 int
-#ifdef __STDC__
-ex_printf(SCR *sp, const char *fmt, ...)
-#else
-ex_printf(sp, fmt, va_alist)
-	SCR *sp;
-	const char *fmt;
-	va_dcl
-#endif
+ex_printf(
+	SCR *sp,
+	const char *fmt,
+	...)
 {
 	EX_PRIVATE *exp;
 	va_list ap;
@@ -287,11 +272,7 @@ ex_printf(sp, fmt, va_alist)
 
 	exp = EXP(sp);
 
-#ifdef __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	exp->obp_len += n = vsnprintf(exp->obp + exp->obp_len,
 	    sizeof(exp->obp) - exp->obp_len, fmt, ap);
 	va_end(ap);
@@ -310,9 +291,7 @@ ex_printf(sp, fmt, va_alist)
  * PUBLIC: int ex_puts __P((SCR *, const char *));
  */
 int
-ex_puts(sp, str)
-	SCR *sp;
-	const char *str;
+ex_puts(SCR *sp, const char *str)
 {
 	EX_PRIVATE *exp;
 	int doflush, n;
@@ -338,8 +317,7 @@ ex_puts(sp, str)
  * PUBLIC: int ex_fflush __P((SCR *sp));
  */
 int
-ex_fflush(sp)
-	SCR *sp;
+ex_fflush(SCR *sp)
 {
 	EX_PRIVATE *exp;
 

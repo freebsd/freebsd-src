@@ -12,14 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Rewrite/Core/HTMLRewrite.h"
-#include "clang/Lex/TokenConcatenation.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/ADT/SmallString.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/TokenConcatenation.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
@@ -165,8 +164,7 @@ void html::EscapeText(Rewriter &R, FileID FID,
   }
 }
 
-std::string html::EscapeText(const std::string& s, bool EscapeSpaces,
-                             bool ReplaceTabs) {
+std::string html::EscapeText(StringRef s, bool EscapeSpaces, bool ReplaceTabs) {
 
   unsigned len = s.size();
   std::string Str;
@@ -362,7 +360,7 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
   const SourceManager &SM = PP.getSourceManager();
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(FID);
   Lexer L(FID, FromFile, SM, PP.getLangOpts());
-  const char *BufferStart = L.getBufferStart();
+  const char *BufferStart = L.getBuffer().data();
 
   // Inform the preprocessor that we want to retain comments as tokens, so we
   // can highlight them.

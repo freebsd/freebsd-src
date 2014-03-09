@@ -13,14 +13,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/AST/Stmt.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/PrettyPrinter.h"
+#include "clang/AST/Stmt.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 raw_ostream &RewriteBuffer::write(raw_ostream &os) const {
@@ -416,6 +418,7 @@ bool Rewriter::IncreaseIndentation(CharSourceRange range,
   return false;
 }
 
+namespace {
 // A wrapper for a file stream that atomically overwrites the target.
 //
 // Creates a file output stream for a temporary file in the constructor,
@@ -430,8 +433,7 @@ public:
     TempFilename = Filename;
     TempFilename += "-%%%%%%%%";
     int FD;
-    if (llvm::sys::fs::unique_file(TempFilename.str(), FD, TempFilename,
-                                    /*makeAbsolute=*/true, 0664)) {
+    if (llvm::sys::fs::createUniqueFile(TempFilename.str(), FD, TempFilename)) {
       AllWritten = false;
       Diagnostics.Report(clang::diag::err_unable_to_make_temp)
         << TempFilename;
@@ -460,8 +462,8 @@ public:
     }
   }
 
-  bool ok() { return FileStream; }
-  llvm::raw_ostream &getStream() { return *FileStream; }
+  bool ok() { return FileStream.isValid(); }
+  raw_ostream &getStream() { return *FileStream; }
 
 private:
   DiagnosticsEngine &Diagnostics;
@@ -470,6 +472,7 @@ private:
   OwningPtr<llvm::raw_fd_ostream> FileStream;
   bool &AllWritten;
 };
+} // end anonymous namespace
 
 bool Rewriter::overwriteChangedFiles() {
   bool AllWritten = true;

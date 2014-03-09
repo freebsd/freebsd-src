@@ -14,19 +14,47 @@
 
 #include "clang/Parse/Parser.h"
 #include "RAIIObjectsForParser.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/PrettyStackTrace.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/PrettyStackTrace.h"
-#include "clang/Basic/SourceManager.h"
+#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetAsmParser.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
 // C99 6.8: Statements and Blocks.
 //===----------------------------------------------------------------------===//
+
+/// \brief Parse a standalone statement (for instance, as the body of an 'if',
+/// 'while', or 'for').
+StmtResult Parser::ParseStatement(SourceLocation *TrailingElseLoc) {
+  StmtResult Res;
+
+  // We may get back a null statement if we found a #pragma. Keep going until
+  // we get an actual statement.
+  do {
+    StmtVector Stmts;
+    Res = ParseStatementOrDeclaration(Stmts, true, TrailingElseLoc);
+  } while (!Res.isInvalid() && !Res.get());
+
+  return Res;
+}
 
 /// ParseStatementOrDeclaration - Read 'statement' or 'declaration'.
 ///       StatementOrDeclaration:
@@ -84,7 +112,7 @@ Parser::ParseStatementOrDeclaration(StmtVector &Stmts, bool OnlyStatement,
   ParenBraceBracketBalancer BalancerRAIIObj(*this);
 
   ParsedAttributesWithRange Attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(Attrs, 0, /*MightBeObjCMessageSend*/ true);
+  MaybeParseCXX11Attributes(Attrs, 0, /*MightBeObjCMessageSend*/ true);
 
   StmtResult Res = ParseStatementOrDeclarationAfterAttributes(Stmts,
                                  OnlyStatement, TrailingElseLoc, Attrs);
@@ -96,6 +124,38 @@ Parser::ParseStatementOrDeclaration(StmtVector &Stmts, bool OnlyStatement,
     return Res;
 
   return Actions.ProcessStmtAttributes(Res.get(), Attrs.getList(), Attrs.Range);
+}
+
+namespace {
+class StatementFilterCCC : public CorrectionCandidateCallback {
+public:
+  StatementFilterCCC(Token nextTok) : NextToken(nextTok) {
+    WantTypeSpecifiers = nextTok.is(tok::l_paren) || nextTok.is(tok::less) ||
+                         nextTok.is(tok::identifier) || nextTok.is(tok::star) ||
+                         nextTok.is(tok::amp) || nextTok.is(tok::l_square);
+    WantExpressionKeywords = nextTok.is(tok::l_paren) ||
+                             nextTok.is(tok::identifier) ||
+                             nextTok.is(tok::arrow) || nextTok.is(tok::period);
+    WantRemainingKeywords = nextTok.is(tok::l_paren) || nextTok.is(tok::semi) ||
+                            nextTok.is(tok::identifier) ||
+                            nextTok.is(tok::l_brace);
+    WantCXXNamedCasts = false;
+  }
+
+  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+    if (FieldDecl *FD = candidate.getCorrectionDeclAs<FieldDecl>())
+      return !candidate.getCorrectionSpecifier() || isa<ObjCIvarDecl>(FD);
+    if (NextToken.is(tok::equal))
+      return candidate.getCorrectionDeclAs<VarDecl>();
+    if (NextToken.is(tok::period) &&
+        candidate.getCorrectionDeclAs<NamespaceDecl>())
+      return false;
+    return CorrectionCandidateCallback::ValidateCandidate(candidate);
+  }
+
+private:
+  Token NextToken;
+};
 }
 
 StmtResult
@@ -136,25 +196,12 @@ Retry:
     if (Next.isNot(tok::coloncolon)) {
       // Try to limit which sets of keywords should be included in typo
       // correction based on what the next token is.
-      // FIXME: Pass the next token into the CorrectionCandidateCallback and
-      //        do this filtering in a more fine-grained manner.
-      CorrectionCandidateCallback DefaultValidator;
-      DefaultValidator.WantTypeSpecifiers =
-          Next.is(tok::l_paren) || Next.is(tok::less) ||
-          Next.is(tok::identifier) || Next.is(tok::star) ||
-          Next.is(tok::amp) || Next.is(tok::l_square);
-      DefaultValidator.WantExpressionKeywords =
-          Next.is(tok::l_paren) || Next.is(tok::identifier) ||
-          Next.is(tok::arrow) || Next.is(tok::period);
-      DefaultValidator.WantRemainingKeywords =
-          Next.is(tok::l_paren) || Next.is(tok::semi) ||
-          Next.is(tok::identifier) || Next.is(tok::l_brace);
-      DefaultValidator.WantCXXNamedCasts = false;
-      if (TryAnnotateName(/*IsAddressOfOperand*/false, &DefaultValidator)
+      StatementFilterCCC Validator(Next);
+      if (TryAnnotateName(/*IsAddressOfOperand*/false, &Validator)
             == ANK_Error) {
         // Handle errors here by skipping up to the next semicolon or '}', and
         // eat the semicolon if that's what stopped us.
-        SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
+        SkipUntil(tok::r_brace, StopAtSemi | StopBeforeMatch);
         if (Tok.is(tok::semi))
           ConsumeToken();
         return StmtError();
@@ -280,6 +327,7 @@ Retry:
     return StmtEmpty();
 
   case tok::annot_pragma_fp_contract:
+    ProhibitAttributes(Attrs);
     Diag(Tok, diag::err_pragma_fp_contract_scope);
     ConsumeToken();
     return StmtError();
@@ -288,6 +336,15 @@ Retry:
     ProhibitAttributes(Attrs);
     HandlePragmaOpenCLExtension();
     return StmtEmpty();
+
+  case tok::annot_pragma_captured:
+    ProhibitAttributes(Attrs);
+    return HandlePragmaCaptured();
+
+  case tok::annot_pragma_openmp:
+    ProhibitAttributes(Attrs);
+    return ParseOpenMPDeclarativeOrExecutableDirective();
+
   }
 
   // If we reached this code, the statement must end in a semicolon.
@@ -299,7 +356,7 @@ Retry:
     // succeed.
     ExpectAndConsume(tok::semi, diag::err_expected_semi_after_stmt, SemiError);
     // Skip until we see a } or ;, but don't eat it.
-    SkipUntil(tok::r_brace, true, true);
+    SkipUntil(tok::r_brace, StopAtSemi | StopBeforeMatch);
   }
 
   return Res;
@@ -316,10 +373,10 @@ StmtResult Parser::ParseExprStatement() {
     // If the expression is invalid, skip ahead to the next semicolon or '}'.
     // Not doing this opens us up to the possibility of infinite loops if
     // ParseExpression does not consume any tokens.
-    SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
+    SkipUntil(tok::r_brace, StopAtSemi | StopBeforeMatch);
     if (Tok.is(tok::semi))
       ConsumeToken();
-    return StmtError();
+    return Actions.ActOnExprStmtError();
   }
 
   if (Tok.is(tok::colon) && getCurScope()->isSwitchScope() &&
@@ -335,7 +392,7 @@ StmtResult Parser::ParseExprStatement() {
 
   // Otherwise, eat the semicolon.
   ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-  return Actions.ActOnExprStmt(Actions.MakeFullExpr(Expr.get()));
+  return Actions.ActOnExprStmt(Expr);
 }
 
 StmtResult Parser::ParseSEHTryBlock() {
@@ -459,11 +516,40 @@ StmtResult Parser::ParseLabeledStatement(ParsedAttributesWithRange &attrs) {
   // identifier ':' statement
   SourceLocation ColonLoc = ConsumeToken();
 
-  // Read label attributes, if present. attrs will contain both C++11 and GNU
-  // attributes (if present) after this point.
-  MaybeParseGNUAttributes(attrs);
+  // Read label attributes, if present.
+  StmtResult SubStmt;
+  if (Tok.is(tok::kw___attribute)) {
+    ParsedAttributesWithRange TempAttrs(AttrFactory);
+    ParseGNUAttributes(TempAttrs);
 
-  StmtResult SubStmt(ParseStatement());
+    // In C++, GNU attributes only apply to the label if they are followed by a
+    // semicolon, to disambiguate label attributes from attributes on a labeled
+    // declaration.
+    //
+    // This doesn't quite match what GCC does; if the attribute list is empty
+    // and followed by a semicolon, GCC will reject (it appears to parse the
+    // attributes as part of a statement in that case). That looks like a bug.
+    if (!getLangOpts().CPlusPlus || Tok.is(tok::semi))
+      attrs.takeAllFrom(TempAttrs);
+    else if (isDeclarationStatement()) {
+      StmtVector Stmts;
+      // FIXME: We should do this whether or not we have a declaration
+      // statement, but that doesn't work correctly (because ProhibitAttributes
+      // can't handle GNU attributes), so only call it in the one case where
+      // GNU attributes are allowed.
+      SubStmt = ParseStatementOrDeclarationAfterAttributes(
+          Stmts, /*OnlyStmts*/ true, 0, TempAttrs);
+      if (!TempAttrs.empty() && !SubStmt.isInvalid())
+        SubStmt = Actions.ProcessStmtAttributes(
+            SubStmt.get(), TempAttrs.getList(), TempAttrs.Range);
+    } else {
+      Diag(Tok, diag::err_expected_semi_after) << "__attribute__";
+    }
+  }
+
+  // If we've not parsed a statement yet, parse one now.
+  if (!SubStmt.isInvalid() && !SubStmt.isUsable())
+    SubStmt = ParseStatement();
 
   // Broken substmt shouldn't prevent the label from being added to the AST.
   if (SubStmt.isInvalid())
@@ -500,7 +586,7 @@ StmtResult Parser::ParseCaseStatement(bool MissingCase, ExprResult Expr) {
   // out of stack space in our recursive descent parser.  As a special case,
   // flatten this recursion into an iterative loop.  This is complex and gross,
   // but all the grossness is constrained to ParseCaseStatement (and some
-  // wierdness in the actions), so this is just local grossness :).
+  // weirdness in the actions), so this is just local grossness :).
 
   // TopLevelCase - This is the highest level we have parsed.  'case 1' in the
   // example above.
@@ -531,7 +617,7 @@ StmtResult Parser::ParseCaseStatement(bool MissingCase, ExprResult Expr) {
     ExprResult LHS(MissingCase ? Expr : ParseConstantExpression());
     MissingCase = false;
     if (LHS.isInvalid()) {
-      SkipUntil(tok::colon);
+      SkipUntil(tok::colon, StopAtSemi);
       return StmtError();
     }
 
@@ -544,7 +630,7 @@ StmtResult Parser::ParseCaseStatement(bool MissingCase, ExprResult Expr) {
 
       RHS = ParseConstantExpression();
       if (RHS.isInvalid()) {
-        SkipUntil(tok::colon);
+        SkipUntil(tok::colon, StopAtSemi);
         return StmtError();
       }
     }
@@ -777,7 +863,6 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   // only allowed at the start of a compound stmt regardless of the language.
   while (Tok.is(tok::kw___label__)) {
     SourceLocation LabelLoc = ConsumeToken();
-    Diag(LabelLoc, diag::ext_gnu_local_label);
 
     SmallVector<Decl *, 8> DeclsInGroup;
     while (1) {
@@ -796,8 +881,8 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
     }
 
     DeclSpec DS(AttrFactory);
-    DeclGroupPtrTy Res = Actions.FinalizeDeclaratorGroup(getCurScope(), DS,
-                                      DeclsInGroup.data(), DeclsInGroup.size());
+    DeclGroupPtrTy Res =
+        Actions.FinalizeDeclaratorGroup(getCurScope(), DS, DeclsInGroup);
     StmtResult R = Actions.ActOnDeclStmt(Res, LabelLoc, Tok.getLocation());
 
     ExpectAndConsumeSemi(diag::err_expected_semi_declaration);
@@ -830,7 +915,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
         ConsumeToken();
 
       ParsedAttributesWithRange attrs(AttrFactory);
-      MaybeParseCXX0XAttributes(attrs, 0, /*MightBeObjCMessageSend*/ true);
+      MaybeParseCXX11Attributes(attrs, 0, /*MightBeObjCMessageSend*/ true);
 
       // If this is the start of a declaration, parse it as such.
       if (isDeclarationStatement()) {
@@ -856,7 +941,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
         // Eat the semicolon at the end of stmt and convert the expr into a
         // statement.
         ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-        R = Actions.ActOnExprStmt(Actions.MakeFullExpr(Res.get()));
+        R = Actions.ActOnExprStmt(Res);
       }
     }
 
@@ -867,15 +952,10 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   SourceLocation CloseLoc = Tok.getLocation();
 
   // We broke out of the while loop because we found a '}' or EOF.
-  if (Tok.isNot(tok::r_brace)) {
-    Diag(Tok, diag::err_expected_rbrace);
-    Diag(T.getOpenLocation(), diag::note_matching) << "{";
+  if (!T.consumeClose())
     // Recover by creating a compound statement with what we parsed so far,
     // instead of dropping everything and returning StmtError();
-  } else {
-    if (!T.consumeClose())
-      CloseLoc = T.getCloseLocation();
-  }
+    CloseLoc = T.getCloseLocation();
 
   return Actions.ActOnCompoundStmt(T.getOpenLocation(), CloseLoc,
                                    Stmts, isStmtExpr);
@@ -1047,11 +1127,6 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
 
   IfScope.Exit();
 
-  // If the condition was invalid, discard the if statement.  We could recover
-  // better by replacing it with a valid expr, but don't do that yet.
-  if (CondExp.isInvalid() && !CondVar)
-    return StmtError();
-
   // If the then or else stmt is invalid and the other is valid (and present),
   // make turn the invalid one into a null stmt to avoid dropping the other
   // part.  If both are invalid, return error.
@@ -1121,7 +1196,7 @@ StmtResult Parser::ParseSwitchStatement(SourceLocation *TrailingElseLoc) {
     // will have no place to connect back with the switch.
     if (Tok.is(tok::l_brace)) {
       ConsumeBrace();
-      SkipUntil(tok::r_brace, false, false);
+      SkipUntil(tok::r_brace);
     } else
       SkipUntil(tok::semi);
     return Switch;
@@ -1272,7 +1347,7 @@ StmtResult Parser::ParseDoStatement() {
     if (!Body.isInvalid()) {
       Diag(Tok, diag::err_expected_while);
       Diag(DoLoc, diag::note_matching) << "do";
-      SkipUntil(tok::semi, false, true);
+      SkipUntil(tok::semi, StopBeforeMatch);
     }
     return StmtError();
   }
@@ -1280,18 +1355,16 @@ StmtResult Parser::ParseDoStatement() {
 
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen_after) << "do/while";
-    SkipUntil(tok::semi, false, true);
+    SkipUntil(tok::semi, StopBeforeMatch);
     return StmtError();
   }
 
-  // Parse the parenthesized condition.
+  // Parse the parenthesized expression.
   BalancedDelimiterTracker T(*this, tok::l_paren);
   T.consumeOpen();
 
-  // FIXME: Do not just parse the attribute contents and throw them away
-  ParsedAttributesWithRange attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(attrs);
-  ProhibitAttributes(attrs);
+  // A do-while expression is not a condition, so can't have attributes.
+  DiagnoseAndSkipCXX11Attributes();
 
   ExprResult Cond = ParseExpression();
   T.consumeClose();
@@ -1383,7 +1456,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
   }
 
   ParsedAttributesWithRange attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(attrs);
+  MaybeParseCXX11Attributes(attrs);
 
   // Parse the first part of the for specifier.
   if (Tok.is(tok::semi)) {  // for (;
@@ -1394,9 +1467,6 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     // Parse declaration, which eats the ';'.
     if (!C99orCXXorObjC)   // Use of C99-style for loops in C90 mode?
       Diag(Tok, diag::ext_c99_variable_decl_in_for_loop);
-
-    ParsedAttributesWithRange attrs(AttrFactory);
-    MaybeParseCXX0XAttributes(attrs);
 
     // In C++0x, "for (T NS:a" might not be a typo for ::
     bool MightBeForRangeStmt = getLangOpts().CPlusPlus;
@@ -1411,7 +1481,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
 
     if (ForRangeInit.ParsedForRangeDecl()) {
-      Diag(ForRangeInit.ColonLoc, getLangOpts().CPlusPlus0x ?
+      Diag(ForRangeInit.ColonLoc, getLangOpts().CPlusPlus11 ?
            diag::warn_cxx98_compat_for_range : diag::ext_for_range);
 
       ForRange = true;
@@ -1442,7 +1512,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
       if (ForEach)
         FirstPart = Actions.ActOnForEachLValueExpr(Value.get());
       else
-        FirstPart = Actions.ActOnExprStmt(Actions.MakeFullExpr(Value.get()));
+        FirstPart = Actions.ActOnExprStmt(Value);
     }
 
     if (Tok.is(tok::semi)) {
@@ -1456,19 +1526,19 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
         return StmtError();
       }
       Collection = ParseExpression();
-    } else if (getLangOpts().CPlusPlus0x && Tok.is(tok::colon) && FirstPart.get()) {
+    } else if (getLangOpts().CPlusPlus11 && Tok.is(tok::colon) && FirstPart.get()) {
       // User tried to write the reasonable, but ill-formed, for-range-statement
       //   for (expr : expr) { ... }
       Diag(Tok, diag::err_for_range_expected_decl)
         << FirstPart.get()->getSourceRange();
-      SkipUntil(tok::r_paren, false, true);
+      SkipUntil(tok::r_paren, StopBeforeMatch);
       SecondPartIsInvalid = true;
     } else {
       if (!Value.isInvalid()) {
         Diag(Tok, diag::err_expected_semi_for);
       } else {
         // Skip until semicolon or rparen, don't consume it.
-        SkipUntil(tok::r_paren, true, true);
+        SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
         if (Tok.is(tok::semi))
           ConsumeToken();
       }
@@ -1500,7 +1570,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
         Diag(Tok, diag::err_expected_semi_for);
       else
         // Skip until semicolon or rparen, don't consume it.
-        SkipUntil(tok::r_paren, true, true);
+        SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
     }
 
     if (Tok.is(tok::semi)) {
@@ -1510,7 +1580,9 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     // Parse the third part of the for specifier.
     if (Tok.isNot(tok::r_paren)) {   // for (...;...;)
       ExprResult Third = ParseExpression();
-      ThirdPart = Actions.MakeFullExpr(Third.take());
+      // FIXME: The C++11 standard doesn't actually say that this is a
+      // discarded-value expression, but it clearly should be.
+      ThirdPart = Actions.MakeFullDiscardedValueExpr(Third.take());
     }
   }
   // Match the ')'.
@@ -1600,7 +1672,7 @@ StmtResult Parser::ParseGotoStatement() {
     SourceLocation StarLoc = ConsumeToken();
     ExprResult R(ParseExpression());
     if (R.isInvalid()) {  // Skip to the semicolon, but don't consume it.
-      SkipUntil(tok::semi, false, true);
+      SkipUntil(tok::semi, StopBeforeMatch);
       return StmtError();
     }
     Res = Actions.ActOnIndirectGotoStmt(GotoLoc, StarLoc, R.take());
@@ -1652,18 +1724,293 @@ StmtResult Parser::ParseReturnStatement() {
     if (Tok.is(tok::l_brace) && getLangOpts().CPlusPlus) {
       R = ParseInitializer();
       if (R.isUsable())
-        Diag(R.get()->getLocStart(), getLangOpts().CPlusPlus0x ?
+        Diag(R.get()->getLocStart(), getLangOpts().CPlusPlus11 ?
              diag::warn_cxx98_compat_generalized_initializer_lists :
              diag::ext_generalized_initializer_lists)
           << R.get()->getSourceRange();
     } else
         R = ParseExpression();
     if (R.isInvalid()) {  // Skip to the semicolon, but don't consume it.
-      SkipUntil(tok::semi, false, true);
+      SkipUntil(tok::semi, StopBeforeMatch);
       return StmtError();
     }
   }
   return Actions.ActOnReturnStmt(ReturnLoc, R.take());
+}
+
+namespace {
+  class ClangAsmParserCallback : public llvm::MCAsmParserSemaCallback {
+    Parser &TheParser;
+    SourceLocation AsmLoc;
+    StringRef AsmString;
+
+    /// The tokens we streamed into AsmString and handed off to MC.
+    ArrayRef<Token> AsmToks;
+
+    /// The offset of each token in AsmToks within AsmString.
+    ArrayRef<unsigned> AsmTokOffsets;
+
+  public:
+    ClangAsmParserCallback(Parser &P, SourceLocation Loc,
+                           StringRef AsmString,
+                           ArrayRef<Token> Toks,
+                           ArrayRef<unsigned> Offsets)
+      : TheParser(P), AsmLoc(Loc), AsmString(AsmString),
+        AsmToks(Toks), AsmTokOffsets(Offsets) {
+      assert(AsmToks.size() == AsmTokOffsets.size());
+    }
+
+    void *LookupInlineAsmIdentifier(StringRef &LineBuf,
+                                    InlineAsmIdentifierInfo &Info,
+                                    bool IsUnevaluatedContext) {
+      // Collect the desired tokens.
+      SmallVector<Token, 16> LineToks;
+      const Token *FirstOrigToken = 0;
+      findTokensForString(LineBuf, LineToks, FirstOrigToken);
+
+      unsigned NumConsumedToks;
+      ExprResult Result =
+        TheParser.ParseMSAsmIdentifier(LineToks, NumConsumedToks, &Info,
+                                       IsUnevaluatedContext);
+
+      // If we consumed the entire line, tell MC that.
+      // Also do this if we consumed nothing as a way of reporting failure.
+      if (NumConsumedToks == 0 || NumConsumedToks == LineToks.size()) {
+        // By not modifying LineBuf, we're implicitly consuming it all.
+
+      // Otherwise, consume up to the original tokens.
+      } else {
+        assert(FirstOrigToken && "not using original tokens?");
+
+        // Since we're using original tokens, apply that offset.
+        assert(FirstOrigToken[NumConsumedToks].getLocation()
+                  == LineToks[NumConsumedToks].getLocation());
+        unsigned FirstIndex = FirstOrigToken - AsmToks.begin();
+        unsigned LastIndex = FirstIndex + NumConsumedToks - 1;
+
+        // The total length we've consumed is the relative offset
+        // of the last token we consumed plus its length.
+        unsigned TotalOffset = (AsmTokOffsets[LastIndex]
+                                + AsmToks[LastIndex].getLength()
+                                - AsmTokOffsets[FirstIndex]);
+        LineBuf = LineBuf.substr(0, TotalOffset);
+      }
+
+      // Initialize the "decl" with the lookup result.
+      Info.OpDecl = static_cast<void*>(Result.take());
+      return Info.OpDecl;
+    }
+
+    bool LookupInlineAsmField(StringRef Base, StringRef Member,
+                              unsigned &Offset) {
+      return TheParser.getActions().LookupInlineAsmField(Base, Member,
+                                                         Offset, AsmLoc);
+    }
+
+    static void DiagHandlerCallback(const llvm::SMDiagnostic &D,
+                                    void *Context) {
+      ((ClangAsmParserCallback*) Context)->handleDiagnostic(D);
+    }
+
+  private:
+    /// Collect the appropriate tokens for the given string.
+    void findTokensForString(StringRef Str, SmallVectorImpl<Token> &TempToks,
+                             const Token *&FirstOrigToken) const {
+      // For now, assert that the string we're working with is a substring
+      // of what we gave to MC.  This lets us use the original tokens.
+      assert(!std::less<const char*>()(Str.begin(), AsmString.begin()) &&
+             !std::less<const char*>()(AsmString.end(), Str.end()));
+
+      // Try to find a token whose offset matches the first token.
+      unsigned FirstCharOffset = Str.begin() - AsmString.begin();
+      const unsigned *FirstTokOffset
+        = std::lower_bound(AsmTokOffsets.begin(), AsmTokOffsets.end(),
+                           FirstCharOffset);
+
+      // For now, assert that the start of the string exactly
+      // corresponds to the start of a token.
+      assert(*FirstTokOffset == FirstCharOffset);
+
+      // Use all the original tokens for this line.  (We assume the
+      // end of the line corresponds cleanly to a token break.)
+      unsigned FirstTokIndex = FirstTokOffset - AsmTokOffsets.begin();
+      FirstOrigToken = &AsmToks[FirstTokIndex];
+      unsigned LastCharOffset = Str.end() - AsmString.begin();
+      for (unsigned i = FirstTokIndex, e = AsmTokOffsets.size(); i != e; ++i) {
+        if (AsmTokOffsets[i] >= LastCharOffset) break;
+        TempToks.push_back(AsmToks[i]);
+      }
+    }
+
+    void handleDiagnostic(const llvm::SMDiagnostic &D) {
+      // Compute an offset into the inline asm buffer.
+      // FIXME: This isn't right if .macro is involved (but hopefully, no
+      // real-world code does that).
+      const llvm::SourceMgr &LSM = *D.getSourceMgr();
+      const llvm::MemoryBuffer *LBuf =
+        LSM.getMemoryBuffer(LSM.FindBufferContainingLoc(D.getLoc()));
+      unsigned Offset = D.getLoc().getPointer() - LBuf->getBufferStart();
+
+      // Figure out which token that offset points into.
+      const unsigned *TokOffsetPtr =
+        std::lower_bound(AsmTokOffsets.begin(), AsmTokOffsets.end(), Offset);
+      unsigned TokIndex = TokOffsetPtr - AsmTokOffsets.begin();
+      unsigned TokOffset = *TokOffsetPtr;
+
+      // If we come up with an answer which seems sane, use it; otherwise,
+      // just point at the __asm keyword.
+      // FIXME: Assert the answer is sane once we handle .macro correctly.
+      SourceLocation Loc = AsmLoc;
+      if (TokIndex < AsmToks.size()) {
+        const Token &Tok = AsmToks[TokIndex];
+        Loc = Tok.getLocation();
+        Loc = Loc.getLocWithOffset(Offset - TokOffset);
+      }
+      TheParser.Diag(Loc, diag::err_inline_ms_asm_parsing)
+        << D.getMessage();
+    }
+  };
+}
+
+/// Parse an identifier in an MS-style inline assembly block.
+///
+/// \param CastInfo - a void* so that we don't have to teach Parser.h
+///   about the actual type.
+ExprResult Parser::ParseMSAsmIdentifier(llvm::SmallVectorImpl<Token> &LineToks,
+                                        unsigned &NumLineToksConsumed,
+                                        void *CastInfo,
+                                        bool IsUnevaluatedContext) {
+  llvm::InlineAsmIdentifierInfo &Info =
+    *(llvm::InlineAsmIdentifierInfo *) CastInfo;
+
+  // Push a fake token on the end so that we don't overrun the token
+  // stream.  We use ';' because it expression-parsing should never
+  // overrun it.
+  const tok::TokenKind EndOfStream = tok::semi;
+  Token EndOfStreamTok;
+  EndOfStreamTok.startToken();
+  EndOfStreamTok.setKind(EndOfStream);
+  LineToks.push_back(EndOfStreamTok);
+
+  // Also copy the current token over.
+  LineToks.push_back(Tok);
+
+  PP.EnterTokenStream(LineToks.begin(),
+                      LineToks.size(),
+                      /*disable macros*/ true,
+                      /*owns tokens*/ false);
+
+  // Clear the current token and advance to the first token in LineToks.
+  ConsumeAnyToken();
+
+  // Parse an optional scope-specifier if we're in C++.
+  CXXScopeSpec SS;
+  if (getLangOpts().CPlusPlus) {
+    ParseOptionalCXXScopeSpecifier(SS, ParsedType(), /*EnteringContext=*/false);
+  }
+
+  // Require an identifier here.
+  SourceLocation TemplateKWLoc;
+  UnqualifiedId Id;
+  bool Invalid = ParseUnqualifiedId(SS,
+                                    /*EnteringContext=*/false,
+                                    /*AllowDestructorName=*/false,
+                                    /*AllowConstructorName=*/false,
+                                    /*ObjectType=*/ ParsedType(),
+                                    TemplateKWLoc,
+                                    Id);
+
+  // If we've run into the poison token we inserted before, or there
+  // was a parsing error, then claim the entire line.
+  if (Invalid || Tok.is(EndOfStream)) {
+    NumLineToksConsumed = LineToks.size() - 2;
+
+    // Otherwise, claim up to the start of the next token.
+  } else {
+    // Figure out how many tokens we are into LineToks.
+    unsigned LineIndex = 0;
+    while (LineToks[LineIndex].getLocation() != Tok.getLocation()) {
+      LineIndex++;
+      assert(LineIndex < LineToks.size() - 2); // we added two extra tokens
+    }
+
+    NumLineToksConsumed = LineIndex;
+  }
+      
+  // Finally, restore the old parsing state by consuming all the
+  // tokens we staged before, implicitly killing off the
+  // token-lexer we pushed.
+  for (unsigned n = LineToks.size() - 2 - NumLineToksConsumed; n != 0; --n) {
+    ConsumeAnyToken();
+  }
+  ConsumeToken(EndOfStream);
+
+  // Leave LineToks in its original state.
+  LineToks.pop_back();
+  LineToks.pop_back();
+
+  // Perform the lookup.
+  return Actions.LookupInlineAsmIdentifier(SS, TemplateKWLoc, Id, Info,
+                                           IsUnevaluatedContext);
+}
+
+/// Turn a sequence of our tokens back into a string that we can hand
+/// to the MC asm parser.
+static bool buildMSAsmString(Preprocessor &PP,
+                             SourceLocation AsmLoc,
+                             ArrayRef<Token> AsmToks,
+                             SmallVectorImpl<unsigned> &TokOffsets,
+                             SmallString<512> &Asm) {
+  assert (!AsmToks.empty() && "Didn't expect an empty AsmToks!");
+
+  // Is this the start of a new assembly statement?
+  bool isNewStatement = true;
+
+  for (unsigned i = 0, e = AsmToks.size(); i < e; ++i) {
+    const Token &Tok = AsmToks[i];
+
+    // Start each new statement with a newline and a tab.
+    if (!isNewStatement &&
+        (Tok.is(tok::kw_asm) || Tok.isAtStartOfLine())) {
+      Asm += "\n\t";
+      isNewStatement = true;
+    }
+
+    // Preserve the existence of leading whitespace except at the
+    // start of a statement.
+    if (!isNewStatement && Tok.hasLeadingSpace())
+      Asm += ' ';
+
+    // Remember the offset of this token.
+    TokOffsets.push_back(Asm.size());
+
+    // Don't actually write '__asm' into the assembly stream.
+    if (Tok.is(tok::kw_asm)) {
+      // Complain about __asm at the end of the stream.
+      if (i + 1 == e) {
+        PP.Diag(AsmLoc, diag::err_asm_empty);
+        return true;
+      }
+
+      continue;
+    }
+
+    // Append the spelling of the token.
+    SmallString<32> SpellingBuffer;
+    bool SpellingInvalid = false;
+    Asm += PP.getSpelling(Tok, SpellingBuffer, &SpellingInvalid);
+    assert(!SpellingInvalid && "spelling was invalid after correct parse?");
+
+    // We are no longer at the start of a statement.
+    isNewStatement = false;
+  }
+
+  // Ensure that the buffer is null-terminated.
+  Asm.push_back('\0');
+  Asm.pop_back();
+
+  assert(TokOffsets.size() == AsmToks.size());
+  return false;
 }
 
 /// ParseMicrosoftAsmStatement. When -fms-extensions/-fasm-blocks is enabled,
@@ -1682,9 +2029,6 @@ StmtResult Parser::ParseReturnStatement() {
 ///         ms-asm-line '\n' ms-asm-instruction-block
 ///
 StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
-  // MS-style inline assembly is not fully supported, so emit a warning.
-  Diag(AsmLoc, diag::warn_unsupported_msasm);
-
   SourceManager &SrcMgr = PP.getSourceManager();
   SourceLocation EndLoc = AsmLoc;
   SmallVector<Token, 4> AsmToks;
@@ -1777,24 +2121,117 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
     return StmtError();
   }
 
-  // If MS-style inline assembly is disabled, then build an empty asm.
-  if (!getLangOpts().EmitMicrosoftInlineAsm) {
-    Token t;
-    t.setKind(tok::string_literal);
-    t.setLiteralData("\"/*FIXME: not done*/\"");
-    t.clearFlag(Token::NeedsCleaning);
-    t.setLength(21);
-    ExprResult AsmString(Actions.ActOnStringLiteral(&t, 1));
-    ExprVector Constraints;
-    ExprVector Exprs;
-    ExprVector Clobbers;
-    return Actions.ActOnGCCAsmStmt(AsmLoc, true, true, 0, 0, 0, Constraints,
-                                   Exprs, AsmString.take(), Clobbers, EndLoc);
+  // Okay, prepare to use MC to parse the assembly.
+  SmallVector<StringRef, 4> ConstraintRefs;
+  SmallVector<Expr*, 4> Exprs;
+  SmallVector<StringRef, 4> ClobberRefs;
+
+  // We need an actual supported target.
+  llvm::Triple TheTriple = Actions.Context.getTargetInfo().getTriple();
+  llvm::Triple::ArchType ArchTy = TheTriple.getArch();
+  const std::string &TT = TheTriple.getTriple();
+  const llvm::Target *TheTarget = 0;
+  bool UnsupportedArch = (ArchTy != llvm::Triple::x86 &&
+                          ArchTy != llvm::Triple::x86_64);
+  if (UnsupportedArch) {
+    Diag(AsmLoc, diag::err_msasm_unsupported_arch) << TheTriple.getArchName();
+  } else {
+    std::string Error;
+    TheTarget = llvm::TargetRegistry::lookupTarget(TT, Error);
+    if (!TheTarget)
+      Diag(AsmLoc, diag::err_msasm_unable_to_create_target) << Error;
+  }
+
+  // If we don't support assembly, or the assembly is empty, we don't
+  // need to instantiate the AsmParser, etc.
+  if (!TheTarget || AsmToks.empty()) {
+    return Actions.ActOnMSAsmStmt(AsmLoc, LBraceLoc, AsmToks, StringRef(),
+                                  /*NumOutputs*/ 0, /*NumInputs*/ 0,
+                                  ConstraintRefs, ClobberRefs, Exprs, EndLoc);
+  }
+
+  // Expand the tokens into a string buffer.
+  SmallString<512> AsmString;
+  SmallVector<unsigned, 8> TokOffsets;
+  if (buildMSAsmString(PP, AsmLoc, AsmToks, TokOffsets, AsmString))
+    return StmtError();
+
+  OwningPtr<llvm::MCRegisterInfo> MRI(TheTarget->createMCRegInfo(TT));
+  OwningPtr<llvm::MCAsmInfo> MAI(TheTarget->createMCAsmInfo(*MRI, TT));
+  // Get the instruction descriptor.
+  const llvm::MCInstrInfo *MII = TheTarget->createMCInstrInfo(); 
+  OwningPtr<llvm::MCObjectFileInfo> MOFI(new llvm::MCObjectFileInfo());
+  OwningPtr<llvm::MCSubtargetInfo>
+    STI(TheTarget->createMCSubtargetInfo(TT, "", ""));
+
+  llvm::SourceMgr TempSrcMgr;
+  llvm::MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &TempSrcMgr);
+  llvm::MemoryBuffer *Buffer =
+    llvm::MemoryBuffer::getMemBuffer(AsmString, "<MS inline asm>");
+
+  // Tell SrcMgr about this buffer, which is what the parser will pick up.
+  TempSrcMgr.AddNewSourceBuffer(Buffer, llvm::SMLoc());
+
+  OwningPtr<llvm::MCStreamer> Str(createNullStreamer(Ctx));
+  OwningPtr<llvm::MCAsmParser>
+    Parser(createMCAsmParser(TempSrcMgr, Ctx, *Str.get(), *MAI));
+  OwningPtr<llvm::MCTargetAsmParser>
+    TargetParser(TheTarget->createMCAsmParser(*STI, *Parser, *MII));
+
+  llvm::MCInstPrinter *IP =
+    TheTarget->createMCInstPrinter(1, *MAI, *MII, *MRI, *STI);
+
+  // Change to the Intel dialect.
+  Parser->setAssemblerDialect(1);
+  Parser->setTargetParser(*TargetParser.get());
+  Parser->setParsingInlineAsm(true);
+  TargetParser->setParsingInlineAsm(true);
+
+  ClangAsmParserCallback Callback(*this, AsmLoc, AsmString,
+                                  AsmToks, TokOffsets);
+  TargetParser->setSemaCallback(&Callback);
+  TempSrcMgr.setDiagHandler(ClangAsmParserCallback::DiagHandlerCallback,
+                            &Callback);
+
+  unsigned NumOutputs;
+  unsigned NumInputs;
+  std::string AsmStringIR;
+  SmallVector<std::pair<void *, bool>, 4> OpExprs;
+  SmallVector<std::string, 4> Constraints;
+  SmallVector<std::string, 4> Clobbers;
+  if (Parser->parseMSInlineAsm(AsmLoc.getPtrEncoding(), AsmStringIR,
+                               NumOutputs, NumInputs, OpExprs, Constraints,
+                               Clobbers, MII, IP, Callback))
+    return StmtError();
+
+  // Build the vector of clobber StringRefs.
+  unsigned NumClobbers = Clobbers.size();
+  ClobberRefs.resize(NumClobbers);
+  for (unsigned i = 0; i != NumClobbers; ++i)
+    ClobberRefs[i] = StringRef(Clobbers[i]);
+
+  // Recast the void pointers and build the vector of constraint StringRefs.
+  unsigned NumExprs = NumOutputs + NumInputs;
+  ConstraintRefs.resize(NumExprs);
+  Exprs.resize(NumExprs);
+  for (unsigned i = 0, e = NumExprs; i != e; ++i) {
+    Expr *OpExpr = static_cast<Expr *>(OpExprs[i].first);
+    if (!OpExpr)
+      return StmtError();
+
+    // Need address of variable.
+    if (OpExprs[i].second)
+      OpExpr = Actions.BuildUnaryOp(getCurScope(), AsmLoc, UO_AddrOf, OpExpr)
+        .take();
+
+    ConstraintRefs[i] = StringRef(Constraints[i]);
+    Exprs[i] = OpExpr;
   }
 
   // FIXME: We should be passing source locations for better diagnostics.
-  return Actions.ActOnMSAsmStmt(AsmLoc, LBraceLoc,
-                                llvm::makeArrayRef(AsmToks), EndLoc);
+  return Actions.ActOnMSAsmStmt(AsmLoc, LBraceLoc, AsmToks, AsmStringIR,
+                                NumOutputs, NumInputs,
+                                ConstraintRefs, ClobberRefs, Exprs, EndLoc);
 }
 
 /// ParseAsmStatement - Parse a GNU extended asm statement.
@@ -1820,7 +2257,7 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
   assert(Tok.is(tok::kw_asm) && "Not an asm stmt");
   SourceLocation AsmLoc = ConsumeToken();
 
-  if (getLangOpts().MicrosoftExt && Tok.isNot(tok::l_paren) &&
+  if (getLangOpts().AsmBlocks && Tok.isNot(tok::l_paren) &&
       !isTypeQualifier()) {
     msAsm = true;
     return ParseMicrosoftAsmStatement(AsmLoc);
@@ -1834,12 +2271,15 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
     Diag(Loc, diag::w_asm_qualifier_ignored) << "const";
   if (DS.getTypeQualifiers() & DeclSpec::TQ_restrict)
     Diag(Loc, diag::w_asm_qualifier_ignored) << "restrict";
+  // FIXME: Once GCC supports _Atomic, check whether it permits it here.
+  if (DS.getTypeQualifiers() & DeclSpec::TQ_atomic)
+    Diag(Loc, diag::w_asm_qualifier_ignored) << "_Atomic";
 
   // Remember if this was a volatile asm.
   bool isVolatile = DS.getTypeQualifiers() & DeclSpec::TQ_volatile;
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen_after) << "asm";
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return StmtError();
   }
   BalancedDelimiterTracker T(*this, tok::l_paren);
@@ -1958,7 +2398,7 @@ bool Parser::ParseAsmOperandsOpt(SmallVectorImpl<IdentifierInfo *> &Names,
 
       if (Tok.isNot(tok::identifier)) {
         Diag(Tok, diag::err_expected_ident);
-        SkipUntil(tok::r_paren);
+        SkipUntil(tok::r_paren, StopAtSemi);
         return true;
       }
 
@@ -1972,14 +2412,14 @@ bool Parser::ParseAsmOperandsOpt(SmallVectorImpl<IdentifierInfo *> &Names,
 
     ExprResult Constraint(ParseAsmStringLiteral());
     if (Constraint.isInvalid()) {
-        SkipUntil(tok::r_paren);
+        SkipUntil(tok::r_paren, StopAtSemi);
         return true;
     }
     Constraints.push_back(Constraint.release());
 
     if (Tok.isNot(tok::l_paren)) {
       Diag(Tok, diag::err_expected_lparen_after) << "asm operand";
-      SkipUntil(tok::r_paren);
+      SkipUntil(tok::r_paren, StopAtSemi);
       return true;
     }
 
@@ -1989,7 +2429,7 @@ bool Parser::ParseAsmOperandsOpt(SmallVectorImpl<IdentifierInfo *> &Names,
     ExprResult Res(ParseExpression());
     T.consumeClose();
     if (Res.isInvalid()) {
-      SkipUntil(tok::r_paren);
+      SkipUntil(tok::r_paren, StopAtSemi);
       return true;
     }
     Exprs.push_back(Res.release());
@@ -2003,9 +2443,10 @@ Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {
   assert(Tok.is(tok::l_brace));
   SourceLocation LBraceLoc = Tok.getLocation();
 
-  if (SkipFunctionBodies && trySkippingFunctionBody()) {
+  if (SkipFunctionBodies && (!Decl || Actions.canSkipFunctionBody(Decl)) &&
+      trySkippingFunctionBody()) {
     BodyScope.Exit();
-    return Actions.ActOnFinishFunctionBody(Decl, 0);
+    return Actions.ActOnSkippedFunctionBody(Decl);
   }
 
   PrettyDeclStackTraceEntry CrashInfo(Actions, Decl, LBraceLoc,
@@ -2019,8 +2460,7 @@ Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {
   // If the function body could not be parsed, make a bogus compoundstmt.
   if (FnBody.isInvalid()) {
     Sema::CompoundScopeRAII CompoundScope(Actions);
-    FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc,
-                                       MultiStmtArg(), false);
+    FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc, None, false);
   }
 
   BodyScope.Exit();
@@ -2045,9 +2485,10 @@ Decl *Parser::ParseFunctionTryBlock(Decl *Decl, ParseScope &BodyScope) {
   else
     Actions.ActOnDefaultCtorInitializers(Decl);
 
-  if (SkipFunctionBodies && trySkippingFunctionBody()) {
+  if (SkipFunctionBodies && Actions.canSkipFunctionBody(Decl) &&
+      trySkippingFunctionBody()) {
     BodyScope.Exit();
-    return Actions.ActOnFinishFunctionBody(Decl, 0);
+    return Actions.ActOnSkippedFunctionBody(Decl);
   }
 
   SourceLocation LBraceLoc = Tok.getLocation();
@@ -2056,8 +2497,7 @@ Decl *Parser::ParseFunctionTryBlock(Decl *Decl, ParseScope &BodyScope) {
   // compound statement as the body.
   if (FnBody.isInvalid()) {
     Sema::CompoundScopeRAII CompoundScope(Actions);
-    FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc,
-                                       MultiStmtArg(), false);
+    FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc, None, false);
   }
 
   BodyScope.Exit();
@@ -2071,7 +2511,7 @@ bool Parser::trySkippingFunctionBody() {
 
   if (!PP.isCodeCompletionEnabled()) {
     ConsumeBrace();
-    SkipUntil(tok::r_brace, /*StopAtSemi=*/false, /*DontConsume=*/false);
+    SkipUntil(tok::r_brace);
     return true;
   }
 
@@ -2079,8 +2519,7 @@ bool Parser::trySkippingFunctionBody() {
   // the body contains the code-completion point.
   TentativeParsingAction PA(*this);
   ConsumeBrace();
-  if (SkipUntil(tok::r_brace, /*StopAtSemi=*/false, /*DontConsume=*/false,
-                /*StopAtCodeCompletion=*/true)) {
+  if (SkipUntil(tok::r_brace, StopAtCodeCompletion)) {
     PA.Commit();
     return true;
   }
@@ -2123,8 +2562,8 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
   // FIXME: Possible draft standard bug: attribute-specifier should be allowed?
 
   StmtResult TryBlock(ParseCompoundStatement(/*isStmtExpr=*/false,
-                      Scope::DeclScope |
-                        (FnTry ? Scope::FnTryScope : Scope::TryScope)));
+                      Scope::DeclScope | Scope::TryScope |
+                        (FnTry ? Scope::FnTryCatchScope : 0)));
   if (TryBlock.isInvalid())
     return TryBlock;
 
@@ -2153,9 +2592,10 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
   }
   else {
     StmtVector Handlers;
-    ParsedAttributesWithRange attrs(AttrFactory);
-    MaybeParseCXX0XAttributes(attrs);
-    ProhibitAttributes(attrs);
+
+    // C++11 attributes can't appear here, despite this context seeming
+    // statement-like.
+    DiagnoseAndSkipCXX11Attributes();
 
     if (Tok.isNot(tok::kw_catch))
       return StmtError(Diag(Tok, diag::err_expected_catch));
@@ -2169,20 +2609,19 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
     if (Handlers.empty())
       return StmtError();
 
-    return Actions.ActOnCXXTryBlock(TryLoc, TryBlock.take(),Handlers);
+    return Actions.ActOnCXXTryBlock(TryLoc, TryBlock.take(), Handlers);
   }
 }
 
 /// ParseCXXCatchBlock - Parse a C++ catch block, called handler in the standard
 ///
-///       handler:
-///         'catch' '(' exception-declaration ')' compound-statement
+///   handler:
+///     'catch' '(' exception-declaration ')' compound-statement
 ///
-///       exception-declaration:
-///         type-specifier-seq declarator
-///         type-specifier-seq abstract-declarator
-///         type-specifier-seq
-///         '...'
+///   exception-declaration:
+///     attribute-specifier-seq[opt] type-specifier-seq declarator
+///     attribute-specifier-seq[opt] type-specifier-seq abstract-declarator[opt]
+///     '...'
 ///
 StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
   assert(Tok.is(tok::kw_catch) && "Expected 'catch'");
@@ -2197,15 +2636,21 @@ StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
   // The name in a catch exception-declaration is local to the handler and
   // shall not be redeclared in the outermost block of the handler.
   ParseScope CatchScope(this, Scope::DeclScope | Scope::ControlScope |
-                          (FnCatch ? Scope::FnCatchScope : Scope::CatchScope));
+                          (FnCatch ? Scope::FnTryCatchScope : 0));
 
   // exception-declaration is equivalent to '...' or a parameter-declaration
   // without default arguments.
   Decl *ExceptionDecl = 0;
   if (Tok.isNot(tok::ellipsis)) {
+    ParsedAttributesWithRange Attributes(AttrFactory);
+    MaybeParseCXX11Attributes(Attributes);
+
     DeclSpec DS(AttrFactory);
+    DS.takeAttributesFrom(Attributes);
+
     if (ParseCXXTypeSpecifierSeq(DS))
       return StmtError();
+
     Declarator ExDecl(DS, Declarator::CXXCatchContext);
     ParseDeclarator(ExDecl);
     ExceptionDecl = Actions.ActOnExceptionDeclarator(getCurScope(), ExDecl);

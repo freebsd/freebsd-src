@@ -15,24 +15,20 @@
 #ifndef LLVM_CLANG_DIAGNOSTICIDS_H
 #define LLVM_CLANG_DIAGNOSTICIDS_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringRef.h"
-#include "clang/Basic/LLVM.h"
-
-namespace llvm {
-  template<typename T, unsigned> class SmallVector;
-}
 
 namespace clang {
   class DiagnosticsEngine;
   class SourceLocation;
-  struct WarningOption;
 
   // Import the diagnostic enums themselves.
   namespace diag {
     // Start position for diagnostics.
     enum {
-      DIAG_START_DRIVER        =                               300,
+      DIAG_START_COMMON        =                                 0,
+      DIAG_START_DRIVER        = DIAG_START_COMMON          +  300,
       DIAG_START_FRONTEND      = DIAG_START_DRIVER          +  100,
       DIAG_START_SERIALIZATION = DIAG_START_FRONTEND        +  100,
       DIAG_START_LEX           = DIAG_START_SERIALIZATION   +  120,
@@ -52,7 +48,8 @@ namespace clang {
     // Get typedefs for common diagnostics.
     enum {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
-             SFINAE,ACCESS,CATEGORY,NOWERROR,SHOWINSYSHEADER) ENUM,
+             SFINAE,CATEGORY,NOWERROR,SHOWINSYSHEADER) ENUM,
+#define COMMONSTART
 #include "clang/Basic/DiagnosticCommonKinds.inc"
       NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
@@ -109,11 +106,12 @@ public:
   void setNoErrorAsFatal(bool Value) { HasNoErrorAsFatal = Value; }
 };
 
-/// \brief Used for handling and querying diagnostic IDs. Can be used and shared
-/// by multiple Diagnostics for multiple translation units.
+/// \brief Used for handling and querying diagnostic IDs.
+///
+/// Can be used and shared by multiple Diagnostics for multiple translation units.
 class DiagnosticIDs : public RefCountedBase<DiagnosticIDs> {
 public:
-  /// Level The level of the diagnostic, after it has been through mapping.
+  /// \brief The level of the diagnostic, after it has been through mapping.
   enum Level {
     Ignored, Note, Warning, Error, Fatal
   };
@@ -128,7 +126,7 @@ public:
 
   /// \brief Return an ID for a diagnostic with the specified message and level.
   ///
-  /// If this is the first request for this diagnosic, it is registered and
+  /// If this is the first request for this diagnostic, it is registered and
   /// created, otherwise the existing ID is returned.
   unsigned getCustomDiagID(Level L, StringRef Message);
 
@@ -228,31 +226,27 @@ public:
 
   /// \brief Get the set of all diagnostic IDs in the group with the given name.
   ///
-  /// \param Diags [out] - On return, the diagnostics in the group.
-  /// \returns True if the given group is unknown, false otherwise.
+  /// \param[out] Diags - On return, the diagnostics in the group.
+  /// \returns \c true if the given group is unknown, \c false otherwise.
   bool getDiagnosticsInGroup(StringRef Group,
-                             llvm::SmallVectorImpl<diag::kind> &Diags) const;
+                             SmallVectorImpl<diag::kind> &Diags) const;
 
   /// \brief Get the set of all diagnostic IDs.
-  void getAllDiagnostics(llvm::SmallVectorImpl<diag::kind> &Diags) const;
+  void getAllDiagnostics(SmallVectorImpl<diag::kind> &Diags) const;
 
   /// \brief Get the warning option with the closest edit distance to the given
   /// group name.
   static StringRef getNearestWarningOption(StringRef Group);
 
 private:
-  /// \brief Get the set of all diagnostic IDs in the given group.
-  ///
-  /// \param Diags [out] - On return, the diagnostics in the group.
-  void getDiagnosticsInGroup(const WarningOption *Group,
-                             llvm::SmallVectorImpl<diag::kind> &Diags) const;
- 
-  /// \brief Based on the way the client configured the DiagnosticsEngine
-  /// object, classify the specified diagnostic ID into a Level, consumable by
+  /// \brief Classify the specified diagnostic ID into a Level, consumable by
   /// the DiagnosticClient.
+  /// 
+  /// The classification is based on the way the client configured the
+  /// DiagnosticsEngine object.
   ///
-  /// \param Loc The source location we are interested in finding out the
-  /// diagnostic state. Can be null in order to query the latest state.
+  /// \param Loc The source location for which we are interested in finding out
+  /// the diagnostic state. Can be null in order to query the latest state.
   DiagnosticIDs::Level getDiagnosticLevel(unsigned DiagID, SourceLocation Loc,
                                           const DiagnosticsEngine &Diag) const;
 

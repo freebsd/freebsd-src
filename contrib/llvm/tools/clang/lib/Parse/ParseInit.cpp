@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"
-#include "clang/Parse/ParseDiagnostic.h"
 #include "RAIIObjectsForParser.h"
+#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/ADT/SmallString.h"
@@ -33,7 +33,7 @@ bool Parser::MayBeDesignationStart() {
     return true;
       
   case tok::l_square: {  // designator: array-designator
-    if (!PP.getLangOpts().CPlusPlus0x)
+    if (!PP.getLangOpts().CPlusPlus11)
       return true;
     
     // C++11 lambda expressions and C99 designators can be ambiguous all the
@@ -244,7 +244,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       bool IsExpr;
       void *TypeOrExpr;
       if (ParseObjCXXMessageReceiver(IsExpr, TypeOrExpr)) {
-        SkipUntil(tok::r_square);
+        SkipUntil(tok::r_square, StopAtSemi);
         return ExprError();
       }
       
@@ -285,7 +285,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
                                                              0);
         ConsumeToken(); // the identifier
         if (!ReceiverType) {
-          SkipUntil(tok::r_square);
+          SkipUntil(tok::r_square, StopAtSemi);
           return ExprError();
         }
 
@@ -312,7 +312,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     if (!Idx.get()) {
       Idx = ParseAssignmentExpression();
       if (Idx.isInvalid()) {
-        SkipUntil(tok::r_square);
+        SkipUntil(tok::r_square, StopAtSemi);
         return Idx;
       }
     }
@@ -340,7 +340,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
 
       ExprResult RHS(ParseConstantExpression());
       if (RHS.isInvalid()) {
-        SkipUntil(tok::r_square);
+        SkipUntil(tok::r_square, StopAtSemi);
         return RHS;
       }
       Desig.AddDesignator(Designator::getArrayRange(Idx.release(),
@@ -412,7 +412,7 @@ ExprResult Parser::ParseBraceInitializer() {
     if (!getLangOpts().CPlusPlus)
       Diag(LBraceLoc, diag::ext_gnu_empty_initializer);
     // Match the '}'.
-    return Actions.ActOnInitList(LBraceLoc, MultiExprArg(), ConsumeBrace());
+    return Actions.ActOnInitList(LBraceLoc, None, ConsumeBrace());
   }
 
   bool InitExprsOk = true;
@@ -457,7 +457,7 @@ ExprResult Parser::ParseBraceInitializer() {
       // immediately, it can't be an error, since there is no other way of
       // leaving this loop except through this if.
       if (Tok.isNot(tok::comma)) {
-        SkipUntil(tok::r_brace, false, true);
+        SkipUntil(tok::r_brace, StopBeforeMatch);
         break;
       }
     }

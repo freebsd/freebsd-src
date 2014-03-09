@@ -12,20 +12,20 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "pre-RA-sched"
-#include "ScheduleDAGSDNodes.h"
-#include "InstrEmitter.h"
-#include "llvm/InlineAsm.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Support/Debug.h"
+#include "InstrEmitter.h"
+#include "ScheduleDAGSDNodes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 STATISTIC(NumUnfolds,    "Number of nodes unfolded");
@@ -102,8 +102,8 @@ private:
   void InsertCopiesAndMoveSuccs(SUnit*, unsigned,
                                 const TargetRegisterClass*,
                                 const TargetRegisterClass*,
-                                SmallVector<SUnit*, 2>&);
-  bool DelayForLiveRegsBottomUp(SUnit*, SmallVector<unsigned, 4>&);
+                                SmallVectorImpl<SUnit*>&);
+  bool DelayForLiveRegsBottomUp(SUnit*, SmallVectorImpl<unsigned>&);
   void ListScheduleBottomUp();
 
   /// forceUnitLatencies - The fast scheduler doesn't care about real latencies.
@@ -387,7 +387,7 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
 void ScheduleDAGFast::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
                                               const TargetRegisterClass *DestRC,
                                               const TargetRegisterClass *SrcRC,
-                                               SmallVector<SUnit*, 2> &Copies) {
+                                              SmallVectorImpl<SUnit*> &Copies) {
   SUnit *CopyFromSU = newSUnit(static_cast<SDNode *>(NULL));
   CopyFromSU->CopySrcRC = SrcRC;
   CopyFromSU->CopyDstRC = DestRC;
@@ -448,7 +448,7 @@ static EVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
 static bool CheckForLiveRegDef(SUnit *SU, unsigned Reg,
                                std::vector<SUnit*> &LiveRegDefs,
                                SmallSet<unsigned, 4> &RegAdded,
-                               SmallVector<unsigned, 4> &LRegs,
+                               SmallVectorImpl<unsigned> &LRegs,
                                const TargetRegisterInfo *TRI) {
   bool Added = false;
   for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
@@ -467,7 +467,7 @@ static bool CheckForLiveRegDef(SUnit *SU, unsigned Reg,
 /// If the specific node is the last one that's available to schedule, do
 /// whatever is necessary (i.e. backtracking or cloning) to make it possible.
 bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
-                                               SmallVector<unsigned, 4> &LRegs){
+                                              SmallVectorImpl<unsigned> &LRegs){
   if (NumLiveRegs == 0)
     return false;
 
@@ -567,7 +567,7 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
         // "expensive to copy" values to break the dependency. In case even
         // that doesn't work, insert cross class copies.
         SUnit *TrySU = NotReady[0];
-        SmallVector<unsigned, 4> &LRegs = LRegsMap[TrySU];
+        SmallVectorImpl<unsigned> &LRegs = LRegsMap[TrySU];
         assert(LRegs.size() == 1 && "Can't handle this yet!");
         unsigned Reg = LRegs[0];
         SUnit *LRDef = LiveRegDefs[Reg];

@@ -15,9 +15,8 @@ CFLAGS=	-O1 \
 	-I${.CURDIR}/../../../sys/cddl/boot/zfs \
 	-I. \
 	-fdiagnostics-show-option \
-	-W -Wextra -Wno-sign-compare -Wno-unused-parameter \
-	-Werror
-LDFLAGS+=-lmd
+	-W -Wextra -Wno-sign-compare -Wno-unused-parameter
+LDADD+=	-lmd
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboottest.o: machine

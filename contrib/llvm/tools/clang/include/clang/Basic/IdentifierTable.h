@@ -16,9 +16,10 @@
 #ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 #define LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 
+#include "clang/Basic/LLVM.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/TokenKinds.h"
-#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
@@ -146,11 +147,8 @@ public:
   bool hadMacroDefinition() const {
     return HadMacro;
   }
-  void setHadMacroDefinition(bool Val) {
-    HadMacro = Val;
-  }
 
-  /// getTokenID - If this is a source-language token (e.g. 'for'), this API
+  /// If this is a source-language token (e.g. 'for'), this API
   /// can be used to cause the lexer to map identifiers to source-language
   /// tokens.
   tok::TokenKind getTokenID() const { return (tok::TokenKind)TokenID; }
@@ -186,8 +184,9 @@ public:
   }
   void setObjCKeywordID(tok::ObjCKeywordKind ID) { ObjCOrBuiltinID = ID; }
 
-  /// getBuiltinID - Return a value indicating whether this is a builtin
-  /// function.  0 is not-built-in.  1 is builtin-for-some-nonprimary-target.
+  /// \brief Return a value indicating whether this is a builtin function.
+  ///
+  /// 0 is not-built-in.  1 is builtin-for-some-nonprimary-target.
   /// 2+ are specific builtin functions.
   unsigned getBuiltinID() const {
     if (ObjCOrBuiltinID >= tok::NUM_OBJC_KEYWORDS)
@@ -239,7 +238,7 @@ public:
       RecomputeNeedsHandleIdentifier();
   }
 
-  /// isPoisoned - Return true if this token has been poisoned.
+  /// \brief Return true if this token has been poisoned.
   bool isPoisoned() const { return IsPoisoned; }
 
   /// isCPlusPlusOperatorKeyword/setIsCPlusPlusOperatorKeyword controls whether
@@ -259,12 +258,14 @@ public:
   T *getFETokenInfo() const { return static_cast<T*>(FETokenInfo); }
   void setFETokenInfo(void *T) { FETokenInfo = T; }
 
-  /// isHandleIdentifierCase - Return true if the Preprocessor::HandleIdentifier
-  /// must be called on a token of this identifier.  If this returns false, we
-  /// know that HandleIdentifier will not affect the token.
+  /// \brief Return true if the Preprocessor::HandleIdentifier must be called
+  /// on a token of this identifier.
+  ///
+  /// If this returns false, we know that HandleIdentifier will not affect
+  /// the token.
   bool isHandleIdentifierCase() const { return NeedsHandleIdentifier; }
 
-  /// isFromAST - Return true if the identifier in its current state was loaded
+  /// \brief Return true if the identifier in its current state was loaded
   /// from an AST file.
   bool isFromAST() const { return IsFromAST; }
 
@@ -296,12 +297,10 @@ public:
       RecomputeNeedsHandleIdentifier();
   }
   
-  /// \brief Determine whether this is the contextual keyword
-  /// '__experimental_modules_import'.
+  /// \brief Determine whether this is the contextual keyword \c import.
   bool isModulesImport() const { return IsModulesImport; }
   
-  /// \brief Set whether this identifier is the contextual keyword 
-  /// '__experimental_modules_import'.
+  /// \brief Set whether this identifier is the contextual keyword \c import.
   void setModulesImport(bool I) {
     IsModulesImport = I;
     if (I)
@@ -311,10 +310,9 @@ public:
   }
   
 private:
-  /// RecomputeNeedsHandleIdentifier - The Preprocessor::HandleIdentifier does
-  /// several special (but rare) things to identifiers of various sorts.  For
-  /// example, it changes the "for" keyword token from tok::identifier to
-  /// tok::for.
+  /// The Preprocessor::HandleIdentifier does several special (but rare)
+  /// things to identifiers of various sorts.  For example, it changes the
+  /// \c for keyword token from tok::identifier to tok::for.
   ///
   /// This method is very tied to the definition of HandleIdentifier.  Any
   /// change to it should be reflected here.
@@ -326,9 +324,10 @@ private:
   }
 };
 
-/// \brief an RAII object for [un]poisoning an identifier
-/// within a certain scope. II is allowed to be null, in
-/// which case, objects of this type have no effect.
+/// \brief An RAII object for [un]poisoning an identifier within a scope.
+///
+/// \p II is allowed to be null, in which case objects of this type have
+/// no effect.
 class PoisonIdentifierRAIIObject {
   IdentifierInfo *const II;
   const bool OldValue;
@@ -374,17 +373,16 @@ public:
   virtual StringRef Next() = 0;
 };
 
-/// IdentifierInfoLookup - An abstract class used by IdentifierTable that
-///  provides an interface for performing lookups from strings
-/// (const char *) to IdentiferInfo objects.
+/// \brief Provides lookups to, and iteration over, IdentiferInfo objects.
 class IdentifierInfoLookup {
 public:
   virtual ~IdentifierInfoLookup();
 
-  /// get - Return the identifier token info for the specified named identifier.
-  ///  Unlike the version in IdentifierTable, this returns a pointer instead
-  ///  of a reference.  If the pointer is NULL then the IdentifierInfo cannot
-  ///  be found.
+  /// \brief Return the IdentifierInfo for the specified named identifier.
+  ///
+  /// Unlike the version in IdentifierTable, this returns a pointer instead
+  /// of a reference.  If the pointer is null then the IdentifierInfo cannot
+  /// be found.
   virtual IdentifierInfo* get(StringRef Name) = 0;
 
   /// \brief Retrieve an iterator into the set of all identifiers
@@ -397,7 +395,7 @@ public:
   ///
   /// \returns A new iterator into the set of known identifiers. The
   /// caller is responsible for deleting this iterator.
-  virtual IdentifierIterator *getIdentifiers() const;
+  virtual IdentifierIterator *getIdentifiers();
 };
 
 /// \brief An abstract class used to resolve numerical identifier
@@ -580,6 +578,19 @@ enum { ObjCMethodFamilyBitWidth = 4 };
 /// \brief An invalid value of ObjCMethodFamily.
 enum { InvalidObjCMethodFamily = (1 << ObjCMethodFamilyBitWidth) - 1 };
 
+/// \brief A family of Objective-C methods.
+///
+/// These are family of methods whose result type is initially 'id', but
+/// but are candidate for the result type to be changed to 'instancetype'.
+enum ObjCInstanceTypeFamily {
+  OIT_None,
+  OIT_Array,
+  OIT_Dictionary,
+  OIT_Singleton,
+  OIT_Init,
+  OIT_ReturnsSelf
+};
+
 /// \brief Smart pointer class that efficiently represents Objective-C method
 /// names.
 ///
@@ -700,6 +711,8 @@ public:
   static Selector getTombstoneMarker() {
     return Selector(uintptr_t(-2));
   }
+  
+  static ObjCInstanceTypeFamily getInstTypeMethodFamily(Selector sel);
 };
 
 /// \brief This table allows us to fully hide how we implement
@@ -728,13 +741,19 @@ public:
   /// \brief Return the total amount of memory allocated for managing selectors.
   size_t getTotalMemory() const;
 
-  /// \brief Return the setter name for the given identifier.
+  /// \brief Return the default setter name for the given identifier.
   ///
   /// This is "set" + \p Name where the initial character of \p Name
   /// has been capitalized.
-  static Selector constructSetterName(IdentifierTable &Idents,
-                                      SelectorTable &SelTable,
-                                      const IdentifierInfo *Name);
+  static SmallString<64> constructSetterName(StringRef Name);
+
+  /// \brief Return the default setter selector for the given identifier.
+  ///
+  /// This is "set" + \p Name where the initial character of \p Name
+  /// has been capitalized.
+  static Selector constructSetterSelector(IdentifierTable &Idents,
+                                          SelectorTable &SelTable,
+                                          const IdentifierInfo *Name);
 };
 
 /// DeclarationNameExtra - Common base of the MultiKeywordSelector,

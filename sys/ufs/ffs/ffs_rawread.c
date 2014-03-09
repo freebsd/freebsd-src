@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttycom.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/rwlock.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -143,9 +144,9 @@ ffs_rawread_sync(struct vnode *vp)
 		if ((obj = vp->v_object) != NULL &&
 		    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
 			VI_UNLOCK(vp);
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 		} else
 			VI_UNLOCK(vp);
 
@@ -240,7 +241,7 @@ ffs_rawread_readahead(struct vnode *vp,
 			bp->b_bcount = bsize - blockoff * DEV_BSIZE;
 		bp->b_bufsize = bp->b_bcount;
 		
-		if (vmapbuf(bp) < 0)
+		if (vmapbuf(bp, 1) < 0)
 			return EFAULT;
 		
 		maybe_yield();
@@ -259,7 +260,7 @@ ffs_rawread_readahead(struct vnode *vp,
 		bp->b_bcount = bsize * (1 + bforwards) - blockoff * DEV_BSIZE;
 	bp->b_bufsize = bp->b_bcount;
 	
-	if (vmapbuf(bp) < 0)
+	if (vmapbuf(bp, 1) < 0)
 		return EFAULT;
 	
 	BO_STRATEGY(&dp->v_bufobj, bp);

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
 #include <net/ethernet.h>
@@ -355,7 +356,12 @@ hostap_deliver_data(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	/* clear driver/net80211 flags before passing up */
+#if __FreeBSD_version >= 1000046
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+	m_clrprotoflags(m);
+#else
 	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+#endif
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP,
 	    ("gack, opmode %d", vap->iv_opmode));
@@ -412,7 +418,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		if (mcopy != NULL) {
 			int len, err;
 			len = mcopy->m_pkthdr.len;
-			err = ifp->if_transmit(ifp, mcopy);
+			err = ieee80211_vap_xmitpkt(vap, mcopy);
 			if (err) {
 				/* NB: IFQ_HANDOFF reclaims mcopy */
 			} else {
@@ -688,7 +694,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -706,7 +712,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -850,7 +856,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if (subtype != IEEE80211_FC0_SUBTYPE_AUTH) {
 				/*
 				 * Only shared key auth frames with a challenge
@@ -878,7 +884,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		}
 		/*
 		 * Pass the packet to radiotap before calling iv_recv_mgmt().
@@ -2255,8 +2261,8 @@ void
 ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame_min *wh;
-	struct ifnet *ifp;
 	struct mbuf *m;
 	uint16_t aid;
 	int qlen;
@@ -2320,9 +2326,15 @@ ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 	}
 	m->m_flags |= M_PWR_SAV;		/* bypass PS handling */
 
-	if (m->m_flags & M_ENCAP)
-		ifp = vap->iv_ic->ic_ifp;
-	else
-		ifp = vap->iv_ifp;
-	(void) ifp->if_transmit(ifp, m);
+	/*
+	 * Do the right thing; if it's an encap'ed frame then
+	 * call ieee80211_parent_xmitpkt() (and free the ref) else
+	 * call ieee80211_vap_xmitpkt().
+	 */
+	if (m->m_flags & M_ENCAP) {
+		if (ieee80211_parent_xmitpkt(ic, m) != 0)
+			ieee80211_free_node(ni);
+	} else {
+		(void) ieee80211_vap_xmitpkt(vap, m);
+	}
 }

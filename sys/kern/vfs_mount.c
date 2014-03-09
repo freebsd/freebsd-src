@@ -232,7 +232,7 @@ vfs_equalopts(const char *opt1, const char *opt2)
 /*
  * If a mount option is specified several times,
  * (with or without the "no" prefix) only keep
- * the last occurence of it.
+ * the last occurrence of it.
  */
 static void
 vfs_sanitizeopts(struct vfsoptlist *opts)
@@ -656,7 +656,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if (fstypelen >= MFSNAMELEN - 1 || fspathlen >= MNAMELEN - 1) {
+	if (fstypelen > MFSNAMELEN || fspathlen > MNAMELEN) {
 		error = ENAMETOOLONG;
 		goto bail;
 	}
@@ -861,8 +861,9 @@ vfs_domount_first(
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 		panic("mount: lost mount");
-	VOP_UNLOCK(newdp, 0);
 	VOP_UNLOCK(vp, 0);
+	EVENTHANDLER_INVOKE(vfs_mounted, mp, newdp, td);
+	VOP_UNLOCK(newdp, 0);
 	mountcheckdirs(vp, newdp);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -1256,18 +1257,28 @@ dounmount(mp, flags, td)
 		return (error);
 	}
 
+	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);
+		vn_finished_write(mp);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
 	/* Allow filesystems to detect that a forced unmount is in progress. */
-	if (flags & MNT_FORCE)
+	if (flags & MNT_FORCE) {
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Must be done after setting MNTK_UNMOUNTF and before
+		 * waiting for mnt_lockref to become 0.
+		 */
+		VFS_PURGE(mp);
+		MNT_ILOCK(mp);
+	}
 	error = 0;
 	if (mp->mnt_lockref) {
 		mp->mnt_kern_flag |= MNTK_DRAINING;
@@ -1281,7 +1292,6 @@ dounmount(mp, flags, td)
 	KASSERT(error == 0,
 	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
 	    __func__, __FILE__, __LINE__));
-	vn_start_write(NULL, &mp, V_WAIT);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
@@ -1354,6 +1364,7 @@ dounmount(mp, flags, td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
+	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vput(coveredvp);

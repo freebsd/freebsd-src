@@ -72,11 +72,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/user.h>
+#include <sys/uuid.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <vm/vm.h>
@@ -101,13 +103,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
-#ifdef COMPAT_LINUX32				/* XXX */
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
@@ -390,8 +388,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		sbuf_printf(sb, " 0 0\n");
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (flep != NULL)
-		free(flep, M_TEMP);
+	free(flep, M_TEMP);
 	return (error);
 }
 
@@ -451,8 +448,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	}
 	g_topology_unlock();
 
-	if (flep != NULL)
-		free(flep, M_TEMP);
+	free(flep, M_TEMP);
 	return (error);
 }
 
@@ -1037,9 +1033,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		e_end = entry->end;
 		obj = entry->object.vm_object;
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-			VM_OBJECT_LOCK(tobj);
+			VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 		last_timestamp = map->timestamp;
@@ -1055,11 +1051,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			else
 				vp = NULL;
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp) {
 				vn_fullpath(td, vp, &name, &freename);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -1342,6 +1338,22 @@ linprocfs_dofdescfs(PFS_FILL_ARGS)
 	return (0);
 }
 
+
+/*
+ * Filler function for proc/sys/kernel/random/uuid
+ */
+static int
+linprocfs_douuid(PFS_FILL_ARGS)
+{
+	struct uuid uuid;
+
+	kern_uuidgen(&uuid, 1);
+	sbuf_printf_uuid(sb, &uuid);
+	sbuf_printf(sb, "\n");
+	return(0);
+}
+
+
 /*
  * Constructor
  */
@@ -1439,6 +1451,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sys/kernel/random/... */
+	dir = pfs_create_dir(dir, "random", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "uuid", &linprocfs_douuid,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);

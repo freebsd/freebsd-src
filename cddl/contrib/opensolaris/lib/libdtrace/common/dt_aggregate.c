@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <stdlib.h>
@@ -894,33 +895,14 @@ dt_aggregate_valcmp(const void *lhs, const void *rhs)
 	caddr_t rdata = rh->dtahe_data.dtada_data;
 	dtrace_recdesc_t *lrec, *rrec;
 	int64_t *laddr, *raddr;
-	int rval, i;
+	int rval;
 
-	if ((rval = dt_aggregate_hashcmp(lhs, rhs)) != 0)
-		return (rval);
+	assert(lagg->dtagd_nrecs == ragg->dtagd_nrecs);
 
-	if (lagg->dtagd_nrecs > ragg->dtagd_nrecs)
-		return (DT_GREATERTHAN);
+	lrec = &lagg->dtagd_rec[lagg->dtagd_nrecs - 1];
+	rrec = &ragg->dtagd_rec[ragg->dtagd_nrecs - 1];
 
-	if (lagg->dtagd_nrecs < ragg->dtagd_nrecs)
-		return (DT_LESSTHAN);
-
-	for (i = 0; i < lagg->dtagd_nrecs; i++) {
-		lrec = &lagg->dtagd_rec[i];
-		rrec = &ragg->dtagd_rec[i];
-
-		if (lrec->dtrd_offset < rrec->dtrd_offset)
-			return (DT_LESSTHAN);
-
-		if (lrec->dtrd_offset > rrec->dtrd_offset)
-			return (DT_GREATERTHAN);
-
-		if (lrec->dtrd_action < rrec->dtrd_action)
-			return (DT_LESSTHAN);
-
-		if (lrec->dtrd_action > rrec->dtrd_action)
-			return (DT_GREATERTHAN);
-	}
+	assert(lrec->dtrd_action == rrec->dtrd_action);
 
 	laddr = (int64_t *)(uintptr_t)(ldata + lrec->dtrd_offset);
 	raddr = (int64_t *)(uintptr_t)(rdata + rrec->dtrd_offset);

@@ -172,8 +172,7 @@ msdosfs_create(ap)
 	if (error)
 		goto bad;
 
-	ndirent.de_Attributes = (ap->a_vap->va_mode & VWRITE) ?
-				ATTR_ARCHIVE : ATTR_ARCHIVE | ATTR_READONLY;
+	ndirent.de_Attributes = ATTR_ARCHIVE;
 	ndirent.de_LowerCase = 0;
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
@@ -256,8 +255,7 @@ msdosfs_access(ap)
 	mode_t file_mode;
 	accmode_t accmode = ap->a_accmode;
 
-	file_mode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
-	    ((dep->de_Attributes & ATTR_READONLY) ? 0 : (S_IWUSR|S_IWGRP|S_IWOTH));
+	file_mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	file_mode &= (vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 
 	/*
@@ -266,8 +264,8 @@ msdosfs_access(ap)
 	 */
 	if (accmode & VWRITE) {
 		switch (vp->v_type) {
-		case VDIR:
 		case VREG:
+		case VDIR:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 			break;
@@ -322,10 +320,7 @@ msdosfs_getattr(ap)
 	else
 		vap->va_fileid = (long)fileid;
 
-	if ((dep->de_Attributes & ATTR_READONLY) == 0)
-		mode = S_IRWXU|S_IRWXG|S_IRWXO;
-	else
-		mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
+	mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	vap->va_mode = mode & 
 	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
@@ -345,8 +340,14 @@ msdosfs_getattr(ap)
 		vap->va_birthtime.tv_nsec = 0;
 	}
 	vap->va_flags = 0;
-	if ((dep->de_Attributes & ATTR_ARCHIVE) == 0)
-		vap->va_flags |= SF_ARCHIVED;
+	if (dep->de_Attributes & ATTR_ARCHIVE)
+		vap->va_flags |= UF_ARCHIVE;
+	if (dep->de_Attributes & ATTR_HIDDEN)
+		vap->va_flags |= UF_HIDDEN;
+	if (dep->de_Attributes & ATTR_READONLY)
+		vap->va_flags |= UF_READONLY;
+	if (dep->de_Attributes & ATTR_SYSTEM)
+		vap->va_flags |= UF_SYSTEM;
 	vap->va_gen = 0;
 	vap->va_blocksize = pmp->pm_bpcluster;
 	vap->va_bytes =
@@ -395,6 +396,18 @@ msdosfs_setattr(ap)
 #endif
 		return (EINVAL);
 	}
+
+	/*
+	 * We don't allow setting attributes on the root directory.
+	 * The special case for the root directory is because before
+	 * FAT32, the root directory didn't have an entry for itself
+	 * (and was otherwise special).  With FAT32, the root
+	 * directory is not so special, but still doesn't have an
+	 * entry for itself.
+	 */
+	if (vp->v_vflag & VV_ROOT)
+		return (EINVAL);
+
 	if (vap->va_flags != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
@@ -408,24 +421,29 @@ msdosfs_setattr(ap)
 		 * attributes.  We ignored the access time and the
 		 * read and execute bits.  We were strict for the other
 		 * attributes.
-		 *
-		 * Here we are strict, stricter than ufs in not allowing
-		 * users to attempt to set SF_SETTABLE bits or anyone to
-		 * set unsupported bits.  However, we ignore attempts to
-		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
-		 * sensible filesystem attempts it a lot.
 		 */
-		if (vap->va_flags & SF_SETTABLE) {
-			error = priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0);
-			if (error)
-				return (error);
-		}
-		if (vap->va_flags & ~SF_ARCHIVED)
+		if (vap->va_flags & ~(UF_ARCHIVE | UF_HIDDEN | UF_READONLY |
+		    UF_SYSTEM))
 			return EOPNOTSUPP;
-		if (vap->va_flags & SF_ARCHIVED)
-			dep->de_Attributes &= ~ATTR_ARCHIVE;
-		else if (!(dep->de_Attributes & ATTR_DIRECTORY))
+		if (vap->va_flags & UF_ARCHIVE)
 			dep->de_Attributes |= ATTR_ARCHIVE;
+		else
+			dep->de_Attributes &= ~ATTR_ARCHIVE;
+		if (vap->va_flags & UF_HIDDEN)
+			dep->de_Attributes |= ATTR_HIDDEN;
+		else
+			dep->de_Attributes &= ~ATTR_HIDDEN;
+		/* We don't allow changing the readonly bit on directories. */
+		if (vp->v_type != VDIR) {
+			if (vap->va_flags & UF_READONLY)
+				dep->de_Attributes |= ATTR_READONLY;
+			else
+				dep->de_Attributes &= ~ATTR_READONLY;
+		}
+		if (vap->va_flags & UF_SYSTEM)
+			dep->de_Attributes |= ATTR_SYSTEM;
+		else
+			dep->de_Attributes &= ~ATTR_SYSTEM;
 		dep->de_flag |= DE_MODIFIED;
 	}
 
@@ -489,21 +507,24 @@ msdosfs_setattr(ap)
 				error = VOP_ACCESS(vp, VWRITE, cred, td);
 		} else
 			error = VOP_ACCESS(vp, VADMIN, cred, td);
-		if (vp->v_type != VDIR) {
-			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
-			    vap->va_atime.tv_sec != VNOVAL) {
-				dep->de_flag &= ~DE_ACCESS;
-				timespec2fattime(&vap->va_atime, 0,
-				    &dep->de_ADate, NULL, NULL);
-			}
-			if (vap->va_mtime.tv_sec != VNOVAL) {
-				dep->de_flag &= ~DE_UPDATE;
-				timespec2fattime(&vap->va_mtime, 0,
-				    &dep->de_MDate, &dep->de_MTime, NULL);
-			}
-			dep->de_Attributes |= ATTR_ARCHIVE;
-			dep->de_flag |= DE_MODIFIED;
+		if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
+		    vap->va_atime.tv_sec != VNOVAL) {
+			dep->de_flag &= ~DE_ACCESS;
+			timespec2fattime(&vap->va_atime, 0,
+			    &dep->de_ADate, NULL, NULL);
 		}
+		if (vap->va_mtime.tv_sec != VNOVAL) {
+			dep->de_flag &= ~DE_UPDATE;
+			timespec2fattime(&vap->va_mtime, 0,
+			    &dep->de_MDate, &dep->de_MTime, NULL);
+		}
+		/*
+		 * We don't set the archive bit when modifying the time of
+		 * a directory to emulate the Windows/DOS behavior.
+		 */
+		if (vp->v_type != VDIR)
+			dep->de_Attributes |= ATTR_ARCHIVE;
+		dep->de_flag |= DE_MODIFIED;
 	}
 	/*
 	 * DOS files only have the ability to have their writability
@@ -600,7 +621,7 @@ msdosfs_read(ap)
 			error = bread(vp, lbn, blsize, NOCRED, &bp);
 		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, dep->de_FileSize, lbn, blsize,
-			    NOCRED, on + uio->uio_resid, seqcount, &bp);
+			    NOCRED, on + uio->uio_resid, seqcount, 0, &bp);
 		} else if (seqcount > 1) {
 			rasize = blsize;
 			error = breadn(vp, lbn,
@@ -820,7 +841,7 @@ msdosfs_write(ap)
 		else if (n + croffset == pmp->pm_bpcluster) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
 				cluster_write(vp, bp, dep->de_FileSize,
-				    seqcount);
+				    seqcount, 0);
 			else
 				bawrite(bp);
 		} else
@@ -850,9 +871,6 @@ errexit:
 
 /*
  * Flush the blocks of a file to disk.
- *
- * This function is worthless for vnodes that represent directories. Maybe we
- * could just do a sync if they try an fsync on a directory file.
  */
 static int
 msdosfs_fsync(ap)
@@ -863,9 +881,35 @@ msdosfs_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	struct vnode *devvp;
+	int allerror, error;
 
 	vop_stdfsync(ap);
-	return (deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT));
+
+	/*
+	* If the syncing request comes from fsync(2), sync the entire
+	* FAT and any other metadata that happens to be on devvp.  We
+	* need this mainly for the FAT.  We write the FAT sloppily, and
+	* syncing it all now is the best we can easily do to get all
+	* directory entries associated with the file (not just the file)
+	* fully synced.  The other metadata includes critical metadata
+	* for all directory entries, but only in the MNT_ASYNC case.  We
+	* will soon sync all metadata in the file's directory entry.
+	* Non-critical metadata for associated directory entries only
+	* gets synced accidentally, as in most file systems.
+	*/
+	if (ap->a_waitfor == MNT_WAIT) {
+		devvp = VTODE(ap->a_vp)->de_pmp->pm_devvp;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+		allerror = VOP_FSYNC(devvp, MNT_WAIT, ap->a_td);
+		VOP_UNLOCK(devvp, 0);
+	} else
+		allerror = 0;
+
+	error = deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT);
+	if (allerror == 0)
+		allerror = error;
+	return (allerror);
 }
 
 static int
@@ -973,7 +1017,7 @@ msdosfs_rename(ap)
 	u_char to_count;
 	int doingdirectory = 0, newparent = 0;
 	int error;
-	u_long cn;
+	u_long cn, pcl;
 	daddr_t bn;
 	struct denode *fddep;	/* from file's parent directory	 */
 	struct msdosfsmount *pmp;
@@ -1246,9 +1290,12 @@ abortit:
 			goto bad;
 		}
 		dotdotp = (struct direntry *)bp->b_data + 1;
-		putushort(dotdotp->deStartCluster, dp->de_StartCluster);
+		pcl = dp->de_StartCluster;
+		if (FAT32(pmp) && pcl == pmp->pm_rootdirblk)
+			pcl = MSDOSFSROOT;
+		putushort(dotdotp->deStartCluster, pcl);
 		if (FAT32(pmp))
-			putushort(dotdotp->deHighClust, dp->de_StartCluster >> 16);
+			putushort(dotdotp->deHighClust, pcl >> 16);
 		if (DOINGASYNC(fvp))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0) {
@@ -1369,8 +1416,13 @@ msdosfs_mkdir(ap)
 	putushort(denp[0].deMDate, ndirent.de_MDate);
 	putushort(denp[0].deMTime, ndirent.de_MTime);
 	pcl = pdep->de_StartCluster;
+	/*
+	 * Although the root directory has a non-magic starting cluster
+	 * number for FAT32, chkdsk and fsck_msdosfs still require
+	 * references to it in dotdot entries to be magic.
+	 */
 	if (FAT32(pmp) && pcl == pmp->pm_rootdirblk)
-		pcl = 0;
+		pcl = MSDOSFSROOT;
 	putushort(denp[1].deStartCluster, pcl);
 	putushort(denp[1].deCDate, ndirent.de_CDate);
 	putushort(denp[1].deCTime, ndirent.de_CTime);
@@ -1380,7 +1432,7 @@ msdosfs_mkdir(ap)
 	putushort(denp[1].deMTime, ndirent.de_MTime);
 	if (FAT32(pmp)) {
 		putushort(denp[0].deHighClust, newcluster >> 16);
-		putushort(denp[1].deHighClust, pdep->de_StartCluster >> 16);
+		putushort(denp[1].deHighClust, pcl >> 16);
 	}
 
 	if (DOINGASYNC(ap->a_dvp))

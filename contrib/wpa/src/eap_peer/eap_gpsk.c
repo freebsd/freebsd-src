@@ -2,19 +2,14 @@
  * EAP peer method: EAP-GPSK (RFC 5433)
  * Copyright (c) 2006-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/random.h"
 #include "eap_peer/eap_i.h"
 #include "eap_common/eap_gpsk_common.h"
 
@@ -326,7 +321,7 @@ static struct wpabuf * eap_gpsk_send_gpsk_2(struct eap_gpsk_data *data,
 	wpabuf_put_be16(resp, data->id_server_len);
 	wpabuf_put_data(resp, data->id_server, data->id_server_len);
 
-	if (os_get_random(data->rand_peer, EAP_GPSK_RAND_LEN)) {
+	if (random_get_bytes(data->rand_peer, EAP_GPSK_RAND_LEN)) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Failed to get random data "
 			   "for RAND_Peer");
 		eap_gpsk_state(data, FAILURE);

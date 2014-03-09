@@ -1,4 +1,4 @@
-//===-- CommandFlags.h - Register Coalescing Interface ----------*- C++ -*-===//
+//===-- CommandFlags.h - Command Line Flags Interface -----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,13 +13,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_COMMAND_LINE_FLAGS_H
-#define LLVM_CODEGEN_COMMAND_LINE_FLAGS_H
+#ifndef LLVM_CODEGEN_COMMANDFLAGS_H
+#define LLVM_CODEGEN_COMMANDFLAGS_H
 
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetMachine.h"
-
 #include <string>
 using namespace llvm;
 
@@ -111,11 +110,6 @@ DisableFPElim("disable-fp-elim",
               cl::init(false));
 
 cl::opt<bool>
-DisableFPElimNonLeaf("disable-non-leaf-fp-elim",
-  cl::desc("Disable frame pointer elimination optimization for non-leaf funcs"),
-  cl::init(false));
-
-cl::opt<bool>
 EnableUnsafeFPMath("enable-unsafe-fp-math",
                 cl::desc("Enable optimizations that may decrease FP precision"),
                 cl::init(false));
@@ -156,7 +150,7 @@ FloatABIForCalls("float-abi",
 
 cl::opt<llvm::FPOpFusion::FPOpFusionMode>
 FuseFPOps("fp-contract",
-          cl::desc("Enable aggresive formation of fused FP ops"),
+          cl::desc("Enable aggressive formation of fused FP ops"),
           cl::init(FPOpFusion::Standard),
           cl::values(
               clEnumValN(FPOpFusion::Fast, "fast",
@@ -187,11 +181,6 @@ OverrideStackAlignment("stack-alignment",
                        cl::desc("Override default stack alignment"),
                        cl::init(0));
 
-cl::opt<bool>
-EnableRealignStack("realign-stack",
-                   cl::desc("Realign stack if needed"),
-                   cl::init(true));
-
 cl::opt<std::string>
 TrapFuncName("trap-func", cl::Hidden,
         cl::desc("Emit a call to trap function rather than a trap instruction"),
@@ -221,8 +210,4 @@ cl::opt<std::string> StartAfter("start-after",
                           cl::value_desc("pass-name"),
                           cl::init(""));
 
-cl::opt<unsigned>
-SSPBufferSize("stack-protector-buffer-size", cl::init(8),
-              cl::desc("Lower bound for a buffer to be considered for "
-                       "stack protection"));
 #endif

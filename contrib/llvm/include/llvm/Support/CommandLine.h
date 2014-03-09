@@ -20,10 +20,11 @@
 #ifndef LLVM_SUPPORT_COMMANDLINE_H
 #define LLVM_SUPPORT_COMMANDLINE_H
 
-#include "llvm/Support/type_traits.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/type_traits.h"
 #include <cassert>
 #include <climits>
 #include <cstdarg>
@@ -137,7 +138,23 @@ enum MiscFlags {               // Miscellaneous flags to adjust argument
   Sink               = 0x04   // Should this cl::list eat all unknown options?
 };
 
+//===----------------------------------------------------------------------===//
+// Option Category class
+//
+class OptionCategory {
+private:
+  const char *const Name;
+  const char *const Description;
+  void registerCategory();
+public:
+  OptionCategory(const char *const Name, const char *const Description = 0)
+      : Name(Name), Description(Description) { registerCategory(); }
+  const char *getName() { return Name; }
+  const char *getDescription() { return Description; }
+};
 
+// The general Option Category (used as default category).
+extern OptionCategory GeneralCategory;
 
 //===----------------------------------------------------------------------===//
 // Option Base class
@@ -173,10 +190,12 @@ class Option {
   unsigned Position;      // Position of last occurrence of the option
   unsigned AdditionalVals;// Greater than 0 for multi-valued option.
   Option *NextRegistered; // Singly linked list of registered options.
+
 public:
-  const char *ArgStr;     // The argument string itself (ex: "help", "o")
-  const char *HelpStr;    // The descriptive text message for -help
-  const char *ValueStr;   // String describing what the value of this option is
+  const char *ArgStr;   // The argument string itself (ex: "help", "o")
+  const char *HelpStr;  // The descriptive text message for -help
+  const char *ValueStr; // String describing what the value of this option is
+  OptionCategory *Category; // The Category this option belongs to
 
   inline enum NumOccurrencesFlag getNumOccurrencesFlag() const {
     return (enum NumOccurrencesFlag)Occurrences;
@@ -214,13 +233,14 @@ public:
   void setFormattingFlag(enum FormattingFlags V) { Formatting = V; }
   void setMiscFlag(enum MiscFlags M) { Misc |= M; }
   void setPosition(unsigned pos) { Position = pos; }
+  void setCategory(OptionCategory &C) { Category = &C; }
 protected:
   explicit Option(enum NumOccurrencesFlag OccurrencesFlag,
                   enum OptionHidden Hidden)
     : NumOccurrences(0), Occurrences(OccurrencesFlag), Value(0),
       HiddenFlag(Hidden), Formatting(NormalFormatting), Misc(0),
       Position(0), AdditionalVals(0), NextRegistered(0),
-      ArgStr(""), HelpStr(""), ValueStr("") {
+      ArgStr(""), HelpStr(""), ValueStr(""), Category(&GeneralCategory) {
   }
 
   inline void setNumAdditionalVals(unsigned n) { AdditionalVals = n; }
@@ -312,6 +332,16 @@ struct LocationClass {
 template<class Ty>
 LocationClass<Ty> location(Ty &L) { return LocationClass<Ty>(L); }
 
+// cat - Specifiy the Option category for the command line argument to belong
+// to.
+struct cat {
+  OptionCategory &Category;
+  cat(OptionCategory &c) : Category(c) {}
+
+  template<class Opt>
+  void apply(Opt &O) const { O.setCategory(Category); }
+};
+
 
 //===----------------------------------------------------------------------===//
 // OptionValue class
@@ -320,6 +350,7 @@ LocationClass<Ty> location(Ty &L) { return LocationClass<Ty>(L); }
 struct GenericOptionValue {
   virtual ~GenericOptionValue() {}
   virtual bool compare(const GenericOptionValue &V) const = 0;
+
 private:
   virtual void anchor();
 };
@@ -469,8 +500,7 @@ public:
 
   template<class Opt>
   void apply(Opt &O) const {
-    for (unsigned i = 0, e = static_cast<unsigned>(Values.size());
-         i != e; ++i)
+    for (size_t i = 0, e = Values.size(); i != e; ++i)
       O.getParser().addLiteralOption(Values[i].first, Values[i].second.first,
                                      Values[i].second.second);
   }
@@ -629,8 +659,7 @@ public:
     else
       ArgVal = ArgName;
 
-    for (unsigned i = 0, e = static_cast<unsigned>(Values.size());
-         i != e; ++i)
+    for (size_t i = 0, e = Values.size(); i != e; ++i)
       if (Values[i].Name == ArgVal) {
         V = Values[i].V.getValue();
         return false;
@@ -1092,7 +1121,7 @@ public:
 
   // Make sure we initialize the value with the default constructor for the
   // type.
-  opt_storage() : Value(DataType()) {}
+  opt_storage() : Value(DataType()), Default(DataType()) {}
 
   template<class T>
   void setValue(const T &V, bool initial = false) {
@@ -1676,10 +1705,102 @@ struct extrahelp {
 };
 
 void PrintVersionMessage();
-// This function just prints the help message, exactly the same way as if the
-// -help option had been given on the command line.
-// NOTE: THIS FUNCTION TERMINATES THE PROGRAM!
-void PrintHelpMessage();
+
+/// This function just prints the help message, exactly the same way as if the
+/// -help or -help-hidden option had been given on the command line.
+///
+/// NOTE: THIS FUNCTION TERMINATES THE PROGRAM!
+///
+/// \param Hidden if true will print hidden options
+/// \param Categorized if true print options in categories
+void PrintHelpMessage(bool Hidden=false, bool Categorized=false);
+
+
+//===----------------------------------------------------------------------===//
+// Public interface for accessing registered options.
+//
+
+/// \brief Use this to get a StringMap to all registered named options
+/// (e.g. -help). Note \p Map Should be an empty StringMap.
+///
+/// \param [out] Map will be filled with mappings where the key is the
+/// Option argument string (e.g. "help") and value is the corresponding
+/// Option*.
+///
+/// Access to unnamed arguments (i.e. positional) are not provided because
+/// it is expected that the client already has access to these.
+///
+/// Typical usage:
+/// \code
+/// main(int argc,char* argv[]) {
+/// StringMap<llvm::cl::Option*> opts;
+/// llvm::cl::getRegisteredOptions(opts);
+/// assert(opts.count("help") == 1)
+/// opts["help"]->setDescription("Show alphabetical help information")
+/// // More code
+/// llvm::cl::ParseCommandLineOptions(argc,argv);
+/// //More code
+/// }
+/// \endcode
+///
+/// This interface is useful for modifying options in libraries that are out of
+/// the control of the client. The options should be modified before calling
+/// llvm::cl::ParseCommandLineOptions().
+void getRegisteredOptions(StringMap<Option*> &Map);
+
+//===----------------------------------------------------------------------===//
+// Standalone command line processing utilities.
+//
+
+/// \brief Saves strings in the inheritor's stable storage and returns a stable
+/// raw character pointer.
+class StringSaver {
+  virtual void anchor();
+public:
+  virtual const char *SaveString(const char *Str) = 0;
+  virtual ~StringSaver() {};  // Pacify -Wnon-virtual-dtor.
+};
+
+/// \brief Tokenizes a command line that can contain escapes and quotes.
+//
+/// The quoting rules match those used by GCC and other tools that use
+/// libiberty's buildargv() or expandargv() utilities, and do not match bash.
+/// They differ from buildargv() on treatment of backslashes that do not escape
+/// a special character to make it possible to accept most Windows file paths.
+///
+/// \param [in] Source The string to be split on whitespace with quotes.
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [out] NewArgv All parsed strings are appended to NewArgv.
+void TokenizeGNUCommandLine(StringRef Source, StringSaver &Saver,
+                            SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief Tokenizes a Windows command line which may contain quotes and escaped
+/// quotes.
+///
+/// See MSDN docs for CommandLineToArgvW for information on the quoting rules.
+/// http://msdn.microsoft.com/en-us/library/windows/desktop/17w5ykft(v=vs.85).aspx
+///
+/// \param [in] Source The string to be split on whitespace with quotes.
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [out] NewArgv All parsed strings are appended to NewArgv.
+void TokenizeWindowsCommandLine(StringRef Source, StringSaver &Saver,
+                                SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief String tokenization function type.  Should be compatible with either
+/// Windows or Unix command line tokenizers.
+typedef void (*TokenizerCallback)(StringRef Source, StringSaver &Saver,
+                                  SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief Expand response files on a command line recursively using the given
+/// StringSaver and tokenization strategy.  Argv should contain the command line
+/// before expansion and will be modified in place.
+///
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [in] Tokenizer Tokenization strategy. Typically Unix or Windows.
+/// \param [in,out] Argv Command line into which to expand response files.
+/// \return true if all @files were expanded successfully or there were none.
+bool ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
+                         SmallVectorImpl<const char *> &Argv);
 
 } // End namespace cl
 

@@ -18,7 +18,9 @@
 
 #include "config.h"
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* activate extra prototypes for glibc */
+#endif
 
 #include <sys/types.h>
 #include <sys/socket.h> /* For CMSG_* */
@@ -137,8 +139,10 @@
 # include <tmpdir.h>
 #endif
 
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h> /* Openpty on FreeBSD at least */
+#if defined(HAVE_BSD_LIBUTIL_H)
+# include <bsd/libutil.h>
+#elif defined(HAVE_LIBUTIL_H)
+# include <libutil.h>
 #endif
 
 #if defined(KRB5) && defined(USE_AFS)

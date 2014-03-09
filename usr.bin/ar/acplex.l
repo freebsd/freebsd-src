@@ -36,14 +36,16 @@ __FBSDID("$FreeBSD$");
 
 #include "y.tab.h"
 
-#define YY_NO_UNPUT
-#define YY_NO_INPUT
 int lineno = 1;
 
 int	yylex(void);
 
+#define	YY_DECL	int yylex(void)
+
 %}
 
+%option nounput
+%option noinput
 %option noyywrap
 
 %%

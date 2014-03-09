@@ -70,7 +70,7 @@ pci_cfgregread(int bus, int slot, int func, int reg, int len)
 	register_t is;
 	u_long addr;
 
-	addr = pci_sal_address(0, bus, slot, func, reg);
+	addr = pci_sal_address(bus >> 8, bus & 0xff, slot, func, reg);
 	if (addr == ~0ul)
 		return (~0);
 
@@ -91,7 +91,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int len)
 	register_t is;
 	u_long addr;
 
-	addr = pci_sal_address(0, bus, slot, func, reg);
+	addr = pci_sal_address(bus >> 8, bus & 0xff, slot, func, reg);
 	if (addr == ~0ul)
 		return;
 

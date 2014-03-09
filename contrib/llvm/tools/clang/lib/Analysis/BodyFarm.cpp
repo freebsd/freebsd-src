@@ -12,12 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringSwitch.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/ExprObjC.h"
 #include "BodyFarm.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
+#include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
 
@@ -103,9 +103,7 @@ BinaryOperator *ASTMaker::makeComparison(const Expr *LHS, const Expr *RHS,
 }
 
 CompoundStmt *ASTMaker::makeCompound(ArrayRef<Stmt *> Stmts) {
-  return new (C) CompoundStmt(C, const_cast<Stmt**>(Stmts.data()),
-                              Stmts.size(),
-                              SourceLocation(), SourceLocation());
+  return new (C) CompoundStmt(C, Stmts, SourceLocation(), SourceLocation());
 }
 
 DeclRefExpr *ASTMaker::makeDeclRefExpr(const VarDecl *D) {
@@ -196,8 +194,8 @@ static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
   // (1) Create the call.
   DeclRefExpr *DR = M.makeDeclRefExpr(Block);
   ImplicitCastExpr *ICE = M.makeLvalueToRvalue(DR, Ty);
-  CallExpr *CE = new (C) CallExpr(C, ICE, ArrayRef<Expr*>(), C.VoidTy,
-                                  VK_RValue, SourceLocation());
+  CallExpr *CE = new (C) CallExpr(C, ICE, None, C.VoidTy, VK_RValue,
+                                  SourceLocation());
 
   // (2) Create the assignment to the predicate.
   IntegerLiteral *IL =
@@ -259,8 +257,8 @@ static Stmt *create_dispatch_sync(ASTContext &C, const FunctionDecl *D) {
   ASTMaker M(C);
   DeclRefExpr *DR = M.makeDeclRefExpr(PV);
   ImplicitCastExpr *ICE = M.makeLvalueToRvalue(DR, Ty);
-  CallExpr *CE = new (C) CallExpr(C, ICE, ArrayRef<Expr*>(), C.VoidTy,
-                                  VK_RValue, SourceLocation());
+  CallExpr *CE = new (C) CallExpr(C, ICE, None, C.VoidTy, VK_RValue,
+                                  SourceLocation());
   return CE;
 }
 
@@ -270,7 +268,11 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
   if (D->param_size() != 3)
     return 0;
   
-  // Body for:
+  // Signature:
+  // _Bool OSAtomicCompareAndSwapPtr(void *__oldValue,
+  //                                 void *__newValue,
+  //                                 void * volatile *__theValue)
+  // Generate body:
   //   if (oldValue == *theValue) {
   //    *theValue = newValue;
   //    return YES;
@@ -342,7 +344,7 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
 Stmt *BodyFarm::getBody(const FunctionDecl *D) {
   D = D->getCanonicalDecl();
   
-  llvm::Optional<Stmt *> &Val = Bodies[D];
+  Optional<Stmt *> &Val = Bodies[D];
   if (Val.hasValue())
     return Val.getValue();
   

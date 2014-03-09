@@ -253,7 +253,7 @@ static device_method_t acpi_ec_methods[] = {
     DEVMETHOD(acpi_ec_read,	acpi_ec_read_method),
     DEVMETHOD(acpi_ec_write,	acpi_ec_write_method),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_ec_driver = {

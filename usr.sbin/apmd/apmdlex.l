@@ -36,13 +36,13 @@
 #include "apmd.h"
 #include "y.tab.h"
 
-/* We don't need it, avoid the warning. */
-#define YY_NO_UNPUT
-#define YY_NO_INPUT
-
 int lineno;
 int first_time;
 %}
+
+/* We don't need it, avoid the warning. */
+%option nounput
+%option noinput
 
 %s TOP
 

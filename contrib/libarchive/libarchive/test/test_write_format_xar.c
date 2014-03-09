@@ -46,7 +46,7 @@ test_xar(const char *option)
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	if (option != NULL &&
 	    archive_write_set_options(a, option) != ARCHIVE_OK) {
 		skipping("option `%s` is not supported on this platform", option);

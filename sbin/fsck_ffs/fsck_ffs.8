@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2012
+.Dd July 30, 2013
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BEFfnpry
+.Op Fl BEFfnpRryZ
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -266,6 +266,11 @@ which is assumed to be affirmative;
 do not open the file system for writing.
 .It Fl p
 Preen file systems (see above).
+.It Fl R
+Instruct fsck_ffs to restart itself if it encounters certain errors that
+warrant another run.  It will limit itself to a maximum of 10 restarts
+in a given run in order to avoid an endless loop with extremely corrupted
+filesystems.
 .It Fl r
 Free up excess unused inodes.
 Decreasing the number of preallocated inodes reduces the
@@ -275,11 +280,25 @@ and frees up space that can allocated to files.
 The
 .Fl r
 option is ignored when running in preen mode.
+.It Fl S
+Surrender on error.
+With this flag enabled, a hard error returned on disk i/o will cause
+.Nm
+to abort instead of continuing on and possibly tripping over more i/o errors.
 .It Fl y
 Assume a yes response to all questions asked by
 .Nm ;
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
+.It Fl Z
+Similar to
+.Fl E ,
+but overwrites unused blocks with zeroes.
+If both
+.Fl E
+and
+.Fl Z
+are specified, blocks are first zeroed and then erased.
 .El
 .Pp
 Inconsistencies checked are as follows:

@@ -11,14 +11,14 @@
 #define LLVM_CLANG_EDIT_EDITEDSOURCE_H
 
 #include "clang/Edit/FileOffset.h"
-#include "llvm/Support/Allocator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
 #include <map>
 
 namespace clang {
   class LangOptions;
-  class PreprocessingRecord;
+  class PPConditionalDirectiveRecord;
 
 namespace edit {
   class Commit;
@@ -27,7 +27,8 @@ namespace edit {
 class EditedSource {
   const SourceManager &SourceMgr;
   const LangOptions &LangOpts;
-  const PreprocessingRecord *PPRec;
+  const PPConditionalDirectiveRecord *PPRec;
+  const bool ForceCommitInSystemHeader;
 
   struct FileEdit {
     StringRef Text;
@@ -45,13 +46,21 @@ class EditedSource {
 
 public:
   EditedSource(const SourceManager &SM, const LangOptions &LangOpts,
-               const PreprocessingRecord *PPRec = 0)
+               const PPConditionalDirectiveRecord *PPRec = 0,
+               const bool FCommitInSystemHeader = true)
     : SourceMgr(SM), LangOpts(LangOpts), PPRec(PPRec),
+      ForceCommitInSystemHeader(FCommitInSystemHeader),
       StrAlloc(/*size=*/512) { }
 
   const SourceManager &getSourceManager() const { return SourceMgr; }
   const LangOptions &getLangOpts() const { return LangOpts; }
-  const PreprocessingRecord *getPreprocessingRecord() const { return PPRec; }
+  const PPConditionalDirectiveRecord *getPPCondDirectiveRecord() const {
+    return PPRec;
+  }
+  
+  bool getForceCommitInSystemHeader() const {
+    return ForceCommitInSystemHeader;
+  }
 
   bool canInsertInOffset(SourceLocation OrigLoc, FileOffset Offs);
 

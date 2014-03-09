@@ -39,5 +39,5 @@ DEFINE_TEST(test_archive_read_close_twice)
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
-	archive_read_finish(a);
+	archive_read_free(a);
 }

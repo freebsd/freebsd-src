@@ -15,9 +15,8 @@
 #ifndef CLANG_CODEGEN_CXXABI_H
 #define CLANG_CODEGEN_CXXABI_H
 
-#include "clang/Basic/LLVM.h"
-
 #include "CodeGenFunction.h"
+#include "clang/Basic/LLVM.h"
 
 namespace llvm {
   class Constant;
@@ -55,11 +54,26 @@ protected:
     return CGF.CXXABIThisValue;
   }
 
+  /// Issue a diagnostic about unsupported features in the ABI.
+  void ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S);
+
+  /// Get a null value for unsupported member pointers.
+  llvm::Constant *GetBogusMemberPointer(QualType T);
+
+  // FIXME: Every place that calls getVTT{Decl,Value} is something
+  // that needs to be abstracted properly.
   ImplicitParamDecl *&getVTTDecl(CodeGenFunction &CGF) {
-    return CGF.CXXVTTDecl;
+    return CGF.CXXStructorImplicitParamDecl;
   }
   llvm::Value *&getVTTValue(CodeGenFunction &CGF) {
-    return CGF.CXXVTTValue;
+    return CGF.CXXStructorImplicitParamValue;
+  }
+
+  ImplicitParamDecl *&getStructorImplicitParamDecl(CodeGenFunction &CGF) {
+    return CGF.CXXStructorImplicitParamDecl;
+  }
+  llvm::Value *&getStructorImplicitParamValue(CodeGenFunction &CGF) {
+    return CGF.CXXStructorImplicitParamValue;
   }
 
   /// Build a parameter variable suitable for 'this'.
@@ -82,6 +96,35 @@ public:
   MangleContext &getMangleContext() {
     return *MangleCtx;
   }
+
+  /// Returns true if the given constructor or destructor is one of the
+  /// kinds that the ABI says returns 'this' (only applies when called
+  /// non-virtually for destructors).
+  ///
+  /// There currently is no way to indicate if a destructor returns 'this'
+  /// when called virtually, and code generation does not support the case.
+  virtual bool HasThisReturn(GlobalDecl GD) const { return false; }
+
+  /// Returns true if the given record type should be returned indirectly.
+  virtual bool isReturnTypeIndirect(const CXXRecordDecl *RD) const = 0;
+
+  /// Specify how one should pass an argument of a record type.
+  enum RecordArgABI {
+    /// Pass it using the normal C aggregate rules for the ABI, potentially
+    /// introducing extra copies and passing some or all of it in registers.
+    RAA_Default = 0,
+
+    /// Pass it on the stack using its defined layout.  The argument must be
+    /// evaluated directly into the correct stack position in the arguments area,
+    /// and the call machinery must not move it or introduce extra copies.
+    RAA_DirectInMemory,
+
+    /// Pass it as a pointer to temporary memory.
+    RAA_Indirect
+  };
+
+  /// Returns how an argument of the given record type should be passed.
+  virtual RecordArgABI getRecordArgABI(const CXXRecordDecl *RD) const = 0;
 
   /// Find the LLVM type used to represent the given member pointer
   /// type.
@@ -153,6 +196,12 @@ protected:
   /// is required.
   llvm::Constant *getMemberPointerAdjustment(const CastExpr *E);
 
+  /// \brief Computes the non-virtual adjustment needed for a member pointer
+  /// conversion along an inheritance path stored in an APValue.  Unlike
+  /// getMemberPointerAdjustment(), the adjustment can be negative if the path
+  /// is from a derived type to a base type.
+  CharUnits getMemberPointerPathAdjustment(const APValue &MP);
+
 public:
   /// Adjust the given non-null pointer to an object of polymorphic
   /// type to point to the complete object.
@@ -163,11 +212,16 @@ public:
                                               llvm::Value *ptr,
                                               QualType type) = 0;
 
+  virtual llvm::Value *GetVirtualBaseClassOffset(CodeGenFunction &CGF,
+                                                 llvm::Value *This,
+                                                 const CXXRecordDecl *ClassDecl,
+                                        const CXXRecordDecl *BaseClassDecl) = 0;
+
   /// Build the signature of the given constructor variant by adding
-  /// any required parameters.  For convenience, ResTy has been
-  /// initialized to 'void', and ArgTys has been initialized with the
-  /// type of 'this' (although this may be changed by the ABI) and
-  /// will have the formal parameters added to it afterwards.
+  /// any required parameters.  For convenience, ArgTys has been initialized
+  /// with the type of 'this' and ResTy has been initialized with the type of
+  /// 'this' if HasThisReturn(GlobalDecl(Ctor, T)) is true or 'void' otherwise
+  /// (although both may be changed by the ABI).
   ///
   /// If there are ever any ABIs where the implicit parameters are
   /// intermixed with the formal parameters, we can address those
@@ -177,27 +231,138 @@ public:
                                          CanQualType &ResTy,
                                SmallVectorImpl<CanQualType> &ArgTys) = 0;
 
+  virtual llvm::BasicBlock *EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
+                                                          const CXXRecordDecl *RD);
+
+  /// Emit the code to initialize hidden members required
+  /// to handle virtual inheritance, if needed by the ABI.
+  virtual void
+  initializeHiddenVirtualInheritanceMembers(CodeGenFunction &CGF,
+                                            const CXXRecordDecl *RD) {}
+
+  /// Emit constructor variants required by this ABI.
+  virtual void EmitCXXConstructors(const CXXConstructorDecl *D) = 0;
+
   /// Build the signature of the given destructor variant by adding
-  /// any required parameters.  For convenience, ResTy has been
-  /// initialized to 'void' and ArgTys has been initialized with the
-  /// type of 'this' (although this may be changed by the ABI).
+  /// any required parameters.  For convenience, ArgTys has been initialized
+  /// with the type of 'this' and ResTy has been initialized with the type of
+  /// 'this' if HasThisReturn(GlobalDecl(Dtor, T)) is true or 'void' otherwise
+  /// (although both may be changed by the ABI).
   virtual void BuildDestructorSignature(const CXXDestructorDecl *Dtor,
                                         CXXDtorType T,
                                         CanQualType &ResTy,
                                SmallVectorImpl<CanQualType> &ArgTys) = 0;
+
+  /// Returns true if the given destructor type should be emitted as a linkonce
+  /// delegating thunk, regardless of whether the dtor is defined in this TU or
+  /// not.
+  virtual bool useThunkForDtorVariant(const CXXDestructorDecl *Dtor,
+                                      CXXDtorType DT) const = 0;
+
+  /// Emit destructor variants required by this ABI.
+  virtual void EmitCXXDestructors(const CXXDestructorDecl *D) = 0;
+
+  /// Get the type of the implicit "this" parameter used by a method. May return
+  /// zero if no specific type is applicable, e.g. if the ABI expects the "this"
+  /// parameter to point to some artificial offset in a complete object due to
+  /// vbases being reordered.
+  virtual const CXXRecordDecl *
+  getThisArgumentTypeForMethod(const CXXMethodDecl *MD) {
+    return MD->getParent();
+  }
+
+  /// Perform ABI-specific "this" argument adjustment required prior to
+  /// a virtual function call.
+  virtual llvm::Value *adjustThisArgumentForVirtualCall(CodeGenFunction &CGF,
+                                                        GlobalDecl GD,
+                                                        llvm::Value *This) {
+    return This;
+  }
 
   /// Build the ABI-specific portion of the parameter list for a
   /// function.  This generally involves a 'this' parameter and
   /// possibly some extra data for constructors and destructors.
   ///
   /// ABIs may also choose to override the return type, which has been
-  /// initialized with the formal return type of the function.
+  /// initialized with the type of 'this' if HasThisReturn(CGF.CurGD) is true or
+  /// the formal return type of the function otherwise.
   virtual void BuildInstanceFunctionParams(CodeGenFunction &CGF,
                                            QualType &ResTy,
                                            FunctionArgList &Params) = 0;
 
+  /// Perform ABI-specific "this" parameter adjustment in a virtual function
+  /// prologue.
+  virtual llvm::Value *adjustThisParameterInVirtualFunctionPrologue(
+      CodeGenFunction &CGF, GlobalDecl GD, llvm::Value *This) {
+    return This;
+  }
+
   /// Emit the ABI-specific prolog for the function.
   virtual void EmitInstanceFunctionProlog(CodeGenFunction &CGF) = 0;
+
+  /// Emit the constructor call. Return the function that is called.
+  virtual void EmitConstructorCall(CodeGenFunction &CGF,
+                                   const CXXConstructorDecl *D,
+                                   CXXCtorType Type,
+                                   bool ForVirtualBase, bool Delegating,
+                                   llvm::Value *This,
+                                   CallExpr::const_arg_iterator ArgBeg,
+                                   CallExpr::const_arg_iterator ArgEnd) = 0;
+
+  /// Emits the VTable definitions required for the given record type.
+  virtual void emitVTableDefinitions(CodeGenVTables &CGVT,
+                                     const CXXRecordDecl *RD) = 0;
+
+  /// Get the address point of the vtable for the given base subobject while
+  /// building a constructor or a destructor. On return, NeedsVirtualOffset
+  /// tells if a virtual base adjustment is needed in order to get the offset
+  /// of the base subobject.
+  virtual llvm::Value *getVTableAddressPointInStructor(
+      CodeGenFunction &CGF, const CXXRecordDecl *RD, BaseSubobject Base,
+      const CXXRecordDecl *NearestVBase, bool &NeedsVirtualOffset) = 0;
+
+  /// Get the address point of the vtable for the given base subobject while
+  /// building a constexpr.
+  virtual llvm::Constant *
+  getVTableAddressPointForConstExpr(BaseSubobject Base,
+                                    const CXXRecordDecl *VTableClass) = 0;
+
+  /// Get the address of the vtable for the given record decl which should be
+  /// used for the vptr at the given offset in RD.
+  virtual llvm::GlobalVariable *getAddrOfVTable(const CXXRecordDecl *RD,
+                                                CharUnits VPtrOffset) = 0;
+
+  /// Build a virtual function pointer in the ABI-specific way.
+  virtual llvm::Value *getVirtualFunctionPointer(CodeGenFunction &CGF,
+                                                 GlobalDecl GD,
+                                                 llvm::Value *This,
+                                                 llvm::Type *Ty) = 0;
+
+  /// Emit the ABI-specific virtual destructor call.
+  virtual void EmitVirtualDestructorCall(CodeGenFunction &CGF,
+                                         const CXXDestructorDecl *Dtor,
+                                         CXXDtorType DtorType,
+                                         SourceLocation CallLoc,
+                                         llvm::Value *This) = 0;
+
+  virtual void adjustCallArgsForDestructorThunk(CodeGenFunction &CGF,
+                                                GlobalDecl GD,
+                                                CallArgList &CallArgs) {}
+
+  /// Emit any tables needed to implement virtual inheritance.  For Itanium,
+  /// this emits virtual table tables.  For the MSVC++ ABI, this emits virtual
+  /// base tables.
+  virtual void emitVirtualInheritanceTables(const CXXRecordDecl *RD) = 0;
+
+  virtual void setThunkLinkage(llvm::Function *Thunk, bool ForVTable) = 0;
+
+  virtual llvm::Value *performThisAdjustment(CodeGenFunction &CGF,
+                                             llvm::Value *This,
+                                             const ThisAdjustment &TA) = 0;
+
+  virtual llvm::Value *performReturnAdjustment(CodeGenFunction &CGF,
+                                               llvm::Value *Ret,
+                                               const ReturnAdjustment &RA) = 0;
 
   virtual void EmitReturnFromThunk(CodeGenFunction &CGF,
                                    RValue RV, QualType ResultType);
@@ -207,6 +372,10 @@ public:
 
   /// Gets the deleted virtual member call name.
   virtual StringRef GetDeletedVirtualCallName() = 0;
+
+  /// \brief Returns true iff static data members that are initialized in the
+  /// class definition should have linkonce linkage.
+  virtual bool isInlineInitializedStaticDataMemberLinkOnce() { return false; }
 
   /**************************** Array cookies ******************************/
 
@@ -254,6 +423,9 @@ public:
                                QualType ElementType, llvm::Value *&NumElements,
                                llvm::Value *&AllocPtr, CharUnits &CookieSize);
 
+  /// Return whether the given global decl needs a VTT parameter.
+  virtual bool NeedsVTTParameter(GlobalDecl GD);
+
 protected:
   /// Returns the extra size required in order to store the array
   /// cookie for the given type.  Assumes that an array cookie is
@@ -286,25 +458,43 @@ public:
   ///   - a static local variable
   ///   - a static data member of a class template instantiation
   virtual void EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
-                               llvm::GlobalVariable *DeclPtr, bool PerformInit);
+                               llvm::GlobalVariable *DeclPtr,
+                               bool PerformInit) = 0;
 
   /// Emit code to force the execution of a destructor during global
   /// teardown.  The default implementation of this uses atexit.
   ///
   /// \param dtor - a function taking a single pointer argument
   /// \param addr - a pointer to pass to the destructor function.
-  virtual void registerGlobalDtor(CodeGenFunction &CGF, llvm::Constant *dtor,
-                                  llvm::Constant *addr);
+  virtual void registerGlobalDtor(CodeGenFunction &CGF, const VarDecl &D,
+                                  llvm::Constant *dtor, llvm::Constant *addr);
 
-  /***************************** Virtual Tables *******************************/
+  /*************************** thread_local initialization ********************/
 
-  /// Generates and emits the virtual tables for a class.
-  virtual void EmitVTables(const CXXRecordDecl *Class) = 0;
+  /// Emits ABI-required functions necessary to initialize thread_local
+  /// variables in this translation unit.
+  ///
+  /// \param Decls The thread_local declarations in this translation unit.
+  /// \param InitFunc If this translation unit contains any non-constant
+  ///        initialization or non-trivial destruction for thread_local
+  ///        variables, a function to perform the initialization. Otherwise, 0.
+  virtual void EmitThreadLocalInitFuncs(
+      llvm::ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
+      llvm::Function *InitFunc);
+
+  /// Emit a reference to a non-local thread_local variable (including
+  /// triggering the initialization of all thread_local variables in its
+  /// translation unit).
+  virtual LValue EmitThreadLocalDeclRefExpr(CodeGenFunction &CGF,
+                                            const DeclRefExpr *DRE);
 };
 
-/// Creates an instance of a C++ ABI class.
-CGCXXABI *CreateARMCXXABI(CodeGenModule &CGM);
+// Create an instance of a C++ ABI class:
+
+/// Creates an Itanium-family ABI.
 CGCXXABI *CreateItaniumCXXABI(CodeGenModule &CGM);
+
+/// Creates a Microsoft-family ABI.
 CGCXXABI *CreateMicrosoftCXXABI(CodeGenModule &CGM);
 
 }

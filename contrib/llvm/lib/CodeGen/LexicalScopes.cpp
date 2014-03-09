@@ -16,10 +16,10 @@
 
 #define DEBUG_TYPE "lexicalscopes"
 #include "llvm/CodeGen/LexicalScopes.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
@@ -212,15 +212,15 @@ LexicalScope *LexicalScopes::getOrCreateAbstractScope(const MDNode *N) {
 
 /// constructScopeNest
 void LexicalScopes::constructScopeNest(LexicalScope *Scope) {
-  assert (Scope && "Unable to calculate scop edominance graph!");
+  assert (Scope && "Unable to calculate scope dominance graph!");
   SmallVector<LexicalScope *, 4> WorkStack;
   WorkStack.push_back(Scope);
   unsigned Counter = 0;
   while (!WorkStack.empty()) {
     LexicalScope *WS = WorkStack.back();
-    const SmallVector<LexicalScope *, 4> &Children = WS->getChildren();
+    const SmallVectorImpl<LexicalScope *> &Children = WS->getChildren();
     bool visitedChildren = false;
-    for (SmallVector<LexicalScope *, 4>::const_iterator SI = Children.begin(),
+    for (SmallVectorImpl<LexicalScope *>::const_iterator SI = Children.begin(),
            SE = Children.end(); SI != SE; ++SI) {
       LexicalScope *ChildScope = *SI;
       if (!ChildScope->getDFSOut()) {
@@ -279,8 +279,8 @@ getMachineBasicBlocks(DebugLoc DL,
     return;
   }
 
-  SmallVector<InsnRange, 4> &InsnRanges = Scope->getRanges();
-  for (SmallVector<InsnRange, 4>::iterator I = InsnRanges.begin(),
+  SmallVectorImpl<InsnRange> &InsnRanges = Scope->getRanges();
+  for (SmallVectorImpl<InsnRange>::iterator I = InsnRanges.begin(),
          E = InsnRanges.end(); I != E; ++I) {
     InsnRange &R = *I;
     MBBs.insert(R.first->getParent());
@@ -314,24 +314,22 @@ bool LexicalScopes::dominates(DebugLoc DL, MachineBasicBlock *MBB) {
 void LexicalScope::anchor() { }
 
 /// dump - Print data structures.
-void LexicalScope::dump() const {
+void LexicalScope::dump(unsigned Indent) const {
 #ifndef NDEBUG
   raw_ostream &err = dbgs();
-  err.indent(IndentLevel);
+  err.indent(Indent);
   err << "DFSIn: " << DFSIn << " DFSOut: " << DFSOut << "\n";
   const MDNode *N = Desc;
+  err.indent(Indent);
   N->dump();
   if (AbstractScope)
-    err << "Abstract Scope\n";
+    err << std::string(Indent, ' ') << "Abstract Scope\n";
 
-  IndentLevel += 2;
   if (!Children.empty())
-    err << "Children ...\n";
+    err << std::string(Indent + 2, ' ') << "Children ...\n";
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
     if (Children[i] != this)
-      Children[i]->dump();
-
-  IndentLevel -= 2;
+      Children[i]->dump(Indent + 2);
 #endif
 }
 

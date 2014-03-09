@@ -13,15 +13,17 @@
 
 #define DEBUG_TYPE "correlated-value-propagation"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/Pass.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumPhis,      "Number of phis propagated");
@@ -97,12 +99,29 @@ bool CorrelatedValuePropagation::processPHI(PHINode *P) {
     Value *Incoming = P->getIncomingValue(i);
     if (isa<Constant>(Incoming)) continue;
 
-    Constant *C = LVI->getConstantOnEdge(P->getIncomingValue(i),
-                                         P->getIncomingBlock(i),
-                                         BB);
-    if (!C) continue;
+    Value *V = LVI->getConstantOnEdge(Incoming, P->getIncomingBlock(i), BB);
 
-    P->setIncomingValue(i, C);
+    // Look if the incoming value is a select with a constant but LVI tells us
+    // that the incoming value can never be that constant. In that case replace
+    // the incoming value with the other value of the select. This often allows
+    // us to remove the select later.
+    if (!V) {
+      SelectInst *SI = dyn_cast<SelectInst>(Incoming);
+      if (!SI) continue;
+
+      Constant *C = dyn_cast<Constant>(SI->getFalseValue());
+      if (!C) continue;
+
+      if (LVI->getPredicateOnEdge(ICmpInst::ICMP_EQ, SI, C,
+                                  P->getIncomingBlock(i), BB) !=
+          LazyValueInfo::False)
+        continue;
+
+      DEBUG(dbgs() << "CVP: Threading PHI over " << *SI << '\n');
+      V = SI->getTrueValue();
+    }
+
+    P->setIncomingValue(i, V);
     Changed = true;
   }
 

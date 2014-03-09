@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -144,11 +145,7 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-#ifdef VIMAGE
-	error = vnet_sysctl_handle_int(oidp, arg1, arg2, req);
-#else
 	error = sysctl_handle_int(oidp, arg1, arg2, req);
-#endif
 	if (error == 0) {
 		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
 		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
@@ -334,8 +331,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	anonport = inp->inp_lport == 0 && (nam == NULL ||
-	    ((struct sockaddr_in *)nam)->sin_port == 0);
+	anonport = nam == NULL || ((struct sockaddr_in *)nam)->sin_port == 0;
 	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
 	    &inp->inp_lport, cred);
 	if (error)
@@ -468,6 +464,23 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 
 	return (0);
 }
+
+/*
+ * Return cached socket options.
+ */
+short
+inp_so_options(const struct inpcb *inp)
+{
+   short so_options;
+
+   so_options = 0;
+
+   if ((inp->inp_flags2 & INP_REUSEPORT) != 0)
+	   so_options |= SO_REUSEPORT;
+   if ((inp->inp_flags2 & INP_REUSEADDR) != 0)
+	   so_options |= SO_REUSEADDR;
+   return (so_options);
+}
 #endif /* INET || INET6 */
 
 #ifdef INET
@@ -538,7 +551,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
-			if (so->so_options & SO_REUSEADDR)
+			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
@@ -596,8 +609,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t && (reuseport == 0 ||
-			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
+			} else if (t && (reuseport & inp_so_options(t)) == 0) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||

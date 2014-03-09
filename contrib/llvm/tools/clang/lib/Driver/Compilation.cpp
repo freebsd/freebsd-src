@@ -8,23 +8,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Compilation.h"
-
 #include "clang/Driver/Action.h"
-#include "clang/Driver/ArgList.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
-
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Program.h"
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 using namespace clang::driver;
 using namespace clang;
+using namespace llvm::opt;
 
 Compilation::Compilation(const Driver &D, const ToolChain &_DefaultToolChain,
                          InputArgList *_Args, DerivedArgList *_TranslatedArgs)
@@ -71,181 +69,66 @@ const DerivedArgList &Compilation::getArgsForToolChain(const ToolChain *TC,
   return *Entry;
 }
 
-void Compilation::PrintJob(raw_ostream &OS, const Job &J,
-                           const char *Terminator, bool Quote) const {
-  if (const Command *C = dyn_cast<Command>(&J)) {
-    OS << " \"" << C->getExecutable() << '"';
-    for (ArgStringList::const_iterator it = C->getArguments().begin(),
-           ie = C->getArguments().end(); it != ie; ++it) {
-      OS << ' ';
-      if (!Quote && !std::strpbrk(*it, " \"\\$")) {
-        OS << *it;
-        continue;
-      }
+bool Compilation::CleanupFile(const char *File, bool IssueErrors) const {
+  std::string P(File);
 
-      // Quote the argument and escape shell special characters; this isn't
-      // really complete but is good enough.
-      OS << '"';
-      for (const char *s = *it; *s; ++s) {
-        if (*s == '"' || *s == '\\' || *s == '$')
-          OS << '\\';
-        OS << *s;
-      }
-      OS << '"';
-    }
-    OS << Terminator;
-  } else {
-    const JobList *Jobs = cast<JobList>(&J);
-    for (JobList::const_iterator
-           it = Jobs->begin(), ie = Jobs->end(); it != ie; ++it)
-      PrintJob(OS, **it, Terminator, Quote);
-  }
-}
+  // FIXME: Why are we trying to remove files that we have not created? For
+  // example we should only try to remove a temporary assembly file if
+  // "clang -cc1" succeed in writing it. Was this a workaround for when
+  // clang was writing directly to a .s file and sometimes leaving it behind
+  // during a failure?
 
-static bool skipArg(const char *Flag, bool &SkipNextArg) {
-  StringRef FlagRef(Flag);
+  // FIXME: If this is necessary, we can still try to split
+  // llvm::sys::fs::remove into a removeFile and a removeDir and avoid the
+  // duplicated stat from is_regular_file.
 
-  // Assume we're going to see -Flag <Arg>.
-  SkipNextArg = true;
-
-  // These flags are all of the form -Flag <Arg> and are treated as two
-  // arguments.  Therefore, we need to skip the flag and the next argument.
-  bool Res = llvm::StringSwitch<bool>(Flag)
-    .Cases("-I", "-MF", "-MT", "-MQ", true)
-    .Cases("-o", "-coverage-file", "-dependency-file", true)
-    .Cases("-fdebug-compilation-dir", "-fmodule-cache-path", "-idirafter", true)
-    .Cases("-include", "-include-pch", "-internal-isystem", true)
-    .Cases("-internal-externc-isystem", "-iprefix", "-iwithprefix", true)
-    .Cases("-iwithprefixbefore", "-isysroot", "-isystem", "-iquote", true)
-    .Cases("-resource-dir", "-serialize-diagnostic-file", true)
-    .Case("-dwarf-debug-flags", true)
-    .Default(false);
-
-  // Match found.
-  if (Res)
-    return Res;
-
-  // The remaining flags are treated as a single argument.
-  SkipNextArg = false;
-
-  // These flags are all of the form -Flag and have no second argument.
-  Res = llvm::StringSwitch<bool>(Flag)
-    .Cases("-M", "-MM", "-MG", "-MP", "-MD", true)
-    .Case("-MMD", true)
-    .Default(false);
-
-  // Match found.
-  if (Res)
-    return Res;
-
-  // These flags are treated as a single argument (e.g., -F<Dir>).
-  if (FlagRef.startswith("-F") || FlagRef.startswith("-I"))
+  // Don't try to remove files which we don't have write access to (but may be
+  // able to remove), or non-regular files. Underlying tools may have
+  // intentionally not overwritten them.
+  if (!llvm::sys::fs::can_write(File) || !llvm::sys::fs::is_regular_file(File))
     return true;
 
-  return false;
-}
-
-static bool quoteNextArg(const char *flag) {
-  return llvm::StringSwitch<bool>(flag)
-    .Case("-D", true)
-    .Default(false);
-}
-
-void Compilation::PrintDiagnosticJob(raw_ostream &OS, const Job &J) const {
-  if (const Command *C = dyn_cast<Command>(&J)) {
-    OS << C->getExecutable();
-    unsigned QuoteNextArg = 0;
-    for (ArgStringList::const_iterator it = C->getArguments().begin(),
-           ie = C->getArguments().end(); it != ie; ++it) {
-
-      bool SkipNext;
-      if (skipArg(*it, SkipNext)) {
-        if (SkipNext) ++it;
-        continue;
-      }
-
-      if (!QuoteNextArg)
-        QuoteNextArg = quoteNextArg(*it) ? 2 : 0;
-
-      OS << ' ';
-
-      if (QuoteNextArg == 1)
-        OS << '"';
-
-      if (!std::strpbrk(*it, " \"\\$")) {
-        OS << *it;
-      } else {
-        // Quote the argument and escape shell special characters; this isn't
-        // really complete but is good enough.
-        OS << '"';
-        for (const char *s = *it; *s; ++s) {
-          if (*s == '"' || *s == '\\' || *s == '$')
-            OS << '\\';
-          OS << *s;
-        }
-        OS << '"';
-      }
-
-      if (QuoteNextArg) {
-        if (QuoteNextArg == 1)
-          OS << '"';
-        --QuoteNextArg;
-      }
-    }
-    OS << '\n';
-  } else {
-    const JobList *Jobs = cast<JobList>(&J);
-    for (JobList::const_iterator
-           it = Jobs->begin(), ie = Jobs->end(); it != ie; ++it)
-      PrintDiagnosticJob(OS, **it);
+  if (llvm::error_code EC = llvm::sys::fs::remove(File)) {
+    // Failure is only failure if the file exists and is "regular". We checked
+    // for it being regular before, and llvm::sys::fs::remove ignores ENOENT,
+    // so we don't need to check again.
+    
+    if (IssueErrors)
+      getDriver().Diag(clang::diag::err_drv_unable_to_remove_file)
+        << EC.message();
+    return false;
   }
+  return true;
 }
 
 bool Compilation::CleanupFileList(const ArgStringList &Files,
                                   bool IssueErrors) const {
   bool Success = true;
-
   for (ArgStringList::const_iterator
+         it = Files.begin(), ie = Files.end(); it != ie; ++it)
+    Success &= CleanupFile(*it, IssueErrors);
+  return Success;
+}
+
+bool Compilation::CleanupFileMap(const ArgStringMap &Files,
+                                 const JobAction *JA,
+                                 bool IssueErrors) const {
+  bool Success = true;
+  for (ArgStringMap::const_iterator
          it = Files.begin(), ie = Files.end(); it != ie; ++it) {
 
-    llvm::sys::Path P(*it);
-    std::string Error;
-
-    // Don't try to remove files which we don't have write access to (but may be
-    // able to remove). Underlying tools may have intentionally not overwritten
-    // them.
-    if (!P.canWrite())
+    // If specified, only delete the files associated with the JobAction.
+    // Otherwise, delete all files in the map.
+    if (JA && it->first != JA)
       continue;
-
-    if (P.eraseFromDisk(false, &Error)) {
-      // Failure is only failure if the file exists and is "regular". There is
-      // a race condition here due to the limited interface of
-      // llvm::sys::Path, we want to know if the removal gave ENOENT.
-
-      // FIXME: Grumble, P.exists() is broken. PR3837.
-      struct stat buf;
-      if (::stat(P.c_str(), &buf) == 0 ? (buf.st_mode & S_IFMT) == S_IFREG :
-                                         (errno != ENOENT)) {
-        if (IssueErrors)
-          getDriver().Diag(clang::diag::err_drv_unable_to_remove_file)
-            << Error;
-        Success = false;
-      }
-    }
+    Success &= CleanupFile(it->second, IssueErrors);
   }
-
   return Success;
 }
 
 int Compilation::ExecuteCommand(const Command &C,
                                 const Command *&FailingCommand) const {
-  llvm::sys::Path Prog(C.getExecutable());
-  const char **Argv = new const char*[C.getArguments().size() + 2];
-  Argv[0] = C.getExecutable();
-  std::copy(C.getArguments().begin(), C.getArguments().end(), Argv+1);
-  Argv[C.getArguments().size() + 1] = 0;
-
-  if ((getDriver().CCCEcho || getDriver().CCPrintOptions ||
+  if ((getDriver().CCPrintOptions ||
        getArgs().hasArg(options::OPT_v)) && !getDriver().CCGenDiagnostics) {
     raw_ostream *OS = &llvm::errs();
 
@@ -253,9 +136,8 @@ int Compilation::ExecuteCommand(const Command &C,
     // output stream.
     if (getDriver().CCPrintOptions && getDriver().CCPrintOptionsFilename) {
       std::string Error;
-      OS = new llvm::raw_fd_ostream(getDriver().CCPrintOptionsFilename,
-                                    Error,
-                                    llvm::raw_fd_ostream::F_Append);
+      OS = new llvm::raw_fd_ostream(getDriver().CCPrintOptionsFilename, Error,
+                                    llvm::sys::fs::F_Append);
       if (!Error.empty()) {
         getDriver().Diag(clang::diag::err_drv_cc_print_options_failure)
           << Error;
@@ -268,18 +150,15 @@ int Compilation::ExecuteCommand(const Command &C,
     if (getDriver().CCPrintOptions)
       *OS << "[Logging clang options]";
 
-    PrintJob(*OS, C, "\n", /*Quote=*/getDriver().CCPrintOptions);
+    C.Print(*OS, "\n", /*Quote=*/getDriver().CCPrintOptions);
 
     if (OS != &llvm::errs())
       delete OS;
   }
 
   std::string Error;
-  int Res =
-    llvm::sys::Program::ExecuteAndWait(Prog, Argv,
-                                       /*env*/0, Redirects,
-                                       /*secondsToWait*/0, /*memoryLimit*/0,
-                                       &Error);
+  bool ExecutionFailed;
+  int Res = C.Execute(Redirects, &Error, &ExecutionFailed);
   if (!Error.empty()) {
     assert(Res && "Error string set with 0 result code!");
     getDriver().Diag(clang::diag::err_drv_command_failure) << Error;
@@ -288,25 +167,51 @@ int Compilation::ExecuteCommand(const Command &C,
   if (Res)
     FailingCommand = &C;
 
-  delete[] Argv;
-  return Res;
+  return ExecutionFailed ? 1 : Res;
 }
 
-int Compilation::ExecuteJob(const Job &J,
-                            const Command *&FailingCommand) const {
+typedef SmallVectorImpl< std::pair<int, const Command *> > FailingCommandList;
+
+static bool ActionFailed(const Action *A,
+                         const FailingCommandList &FailingCommands) {
+
+  if (FailingCommands.empty())
+    return false;
+
+  for (FailingCommandList::const_iterator CI = FailingCommands.begin(),
+         CE = FailingCommands.end(); CI != CE; ++CI)
+    if (A == &(CI->second->getSource()))
+      return true;
+
+  for (Action::const_iterator AI = A->begin(), AE = A->end(); AI != AE; ++AI)
+    if (ActionFailed(*AI, FailingCommands))
+      return true;
+
+  return false;
+}
+
+static bool InputsOk(const Command &C,
+                     const FailingCommandList &FailingCommands) {
+  return !ActionFailed(&C.getSource(), FailingCommands);
+}
+
+void Compilation::ExecuteJob(const Job &J,
+                             FailingCommandList &FailingCommands) const {
   if (const Command *C = dyn_cast<Command>(&J)) {
-    return ExecuteCommand(*C, FailingCommand);
+    if (!InputsOk(*C, FailingCommands))
+      return;
+    const Command *FailingCommand = 0;
+    if (int Res = ExecuteCommand(*C, FailingCommand))
+      FailingCommands.push_back(std::make_pair(Res, FailingCommand));
   } else {
     const JobList *Jobs = cast<JobList>(&J);
-    for (JobList::const_iterator
-           it = Jobs->begin(), ie = Jobs->end(); it != ie; ++it)
-      if (int Res = ExecuteJob(**it, FailingCommand))
-        return Res;
-    return 0;
+    for (JobList::const_iterator it = Jobs->begin(), ie = Jobs->end();
+         it != ie; ++it)
+      ExecuteJob(**it, FailingCommands);
   }
 }
 
-void Compilation::initCompilationForDiagnostics(void) {
+void Compilation::initCompilationForDiagnostics() {
   // Free actions and jobs.
   DeleteContainerPointers(Actions);
   Jobs.clear();
@@ -314,6 +219,7 @@ void Compilation::initCompilationForDiagnostics(void) {
   // Clear temporary/results file lists.
   TempFiles.clear();
   ResultFiles.clear();
+  FailureResultFiles.clear();
 
   // Remove any user specified output.  Claim any unclaimed arguments, so as
   // to avoid emitting warnings about unused args.
@@ -326,11 +232,12 @@ void Compilation::initCompilationForDiagnostics(void) {
   TranslatedArgs->ClaimAllArgs();
 
   // Redirect stdout/stderr to /dev/null.
-  Redirects = new const llvm::sys::Path*[3]();
-  Redirects[1] = new const llvm::sys::Path();
-  Redirects[2] = new const llvm::sys::Path();
+  Redirects = new const StringRef*[3]();
+  Redirects[0] = 0;
+  Redirects[1] = new const StringRef();
+  Redirects[2] = new const StringRef();
 }
 
-StringRef Compilation::getSysRoot(void) const {
+StringRef Compilation::getSysRoot() const {
   return getDriver().SysRoot;
 }

@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -148,6 +149,8 @@ static const struct rl_type rl_devs[] = {
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139, RL_8139,
 		"Addtron Technology 8139 10/100BaseTX" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_520TX_REVC1, RL_8139,
+		"D-Link DFE-520TX (rev. C1) 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS, RL_8139,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_690TXD, RL_8139,

@@ -71,8 +71,8 @@ void PPCScoreboardHazardRecognizer::Reset() {
 //   3. Handling of the esoteric cases in "Resource-based Instruction Grouping".
 //
 
-PPCHazardRecognizer970::PPCHazardRecognizer970(const TargetInstrInfo &tii)
-  : TII(tii) {
+PPCHazardRecognizer970::PPCHazardRecognizer970(const TargetMachine &TM)
+  : TM(TM) {
   EndDispatchGroup();
 }
 
@@ -91,7 +91,7 @@ PPCHazardRecognizer970::GetInstrType(unsigned Opcode,
                                      bool &isFirst, bool &isSingle,
                                      bool &isCracked,
                                      bool &isLoad, bool &isStore) {
-  const MCInstrDesc &MCID = TII.get(Opcode);
+  const MCInstrDesc &MCID = TM.getInstrInfo()->get(Opcode);
 
   isLoad  = MCID.mayLoad();
   isStore = MCID.mayStore();
@@ -179,7 +179,7 @@ getHazardType(SUnit *SU, int Stalls) {
   }
 
   // Do not allow MTCTR and BCTRL to be in the same dispatch group.
-  if (HasCTRSet && (Opcode == PPC::BCTRL_Darwin || Opcode == PPC::BCTRL_SVR4))
+  if (HasCTRSet && Opcode == PPC::BCTRL)
     return NoopHazard;
 
   // If this is a load following a store, make sure it's not to the same or

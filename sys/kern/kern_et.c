@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2010-2013 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ et_register(struct eventtimer *et)
 			    et->et_quality);
 		}
 	}
+	KASSERT(et->et_start, ("et_register: timer has no start function"));
 	et->et_sysctl = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
 	    CTLFLAG_RW, 0, "event timer description");
@@ -159,43 +160,29 @@ et_init(struct eventtimer *et, et_event_cb_t *event,
  * period - period of subsequent periodic ticks.
  */
 int
-et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 
 	if (!et->et_active)
 		return (ENXIO);
-	if (first == NULL && period == NULL)
-		return (EINVAL);
-	if ((et->et_flags & ET_FLAGS_PERIODIC) == 0 &&
-	    period != NULL)
-		return (ENODEV);
-	if ((et->et_flags & ET_FLAGS_ONESHOT) == 0 &&
-	    period == NULL)
-		return (ENODEV);
-	if (first != NULL) {
-		if (first->sec < et->et_min_period.sec ||
-		    (first->sec == et->et_min_period.sec &&
-		     first->frac < et->et_min_period.frac))
-		        first = &et->et_min_period;
-		if (first->sec > et->et_max_period.sec ||
-		    (first->sec == et->et_max_period.sec &&
-		     first->frac > et->et_max_period.frac))
-		        first = &et->et_max_period;
+	KASSERT(period >= 0, ("et_start: negative period"));
+	KASSERT((et->et_flags & ET_FLAGS_PERIODIC) || period == 0,
+		("et_start: period specified for oneshot-only timer"));
+	KASSERT((et->et_flags & ET_FLAGS_ONESHOT) || period != 0,
+		("et_start: period not specified for periodic-only timer"));
+	if (period != 0) {
+		if (period < et->et_min_period)
+		        period = et->et_min_period;
+		else if (period > et->et_max_period)
+		        period = et->et_max_period;
 	}
-	if (period != NULL) {
-		if (period->sec < et->et_min_period.sec ||
-		    (period->sec == et->et_min_period.sec &&
-		     period->frac < et->et_min_period.frac))
-		        period = &et->et_min_period;
-		if (period->sec > et->et_max_period.sec ||
-		    (period->sec == et->et_max_period.sec &&
-		     period->frac > et->et_max_period.frac))
-		        period = &et->et_max_period;
+	if (period == 0 || first != 0) {
+		if (first < et->et_min_period)
+		        first = et->et_min_period;
+		else if (first > et->et_max_period)
+		        first = et->et_max_period;
 	}
-	if (et->et_start)
-		return (et->et_start(et, first, period));
-	return (0);
+	return (et->et_start(et, first, period));
 }
 
 /* Stop event timer hardware. */

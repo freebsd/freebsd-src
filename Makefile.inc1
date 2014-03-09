@@ -4,6 +4,8 @@
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
+#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
+#	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
 #	-DKERNFAST define NO_KERNEL{CONFIG,CLEAN,DEPEND,OBJ}
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
@@ -11,8 +13,8 @@
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
+#	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
-#	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
@@ -20,28 +22,25 @@
 #	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
+#	METALOG="path to metadata log" to write permission and ownership
+#	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
+#	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 
 #
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
 # doxygen     - build API documentation of the kernel
-# update      - convenient way to update your source tree (eg: cvsup/cvs)
+# update      - convenient way to update your source tree (eg: svn/svnup)
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
-# You are supposed to define both of these when calling Makefile.inc1
-# directly.  However, some old scripts don't.  Cope for the moment, but
-# issue a new warning for a transition period.
-.if defined(TARGET) && !defined(TARGET_ARCH)
-.warning "You must pass both TARGET and TARGET_ARCH to Makefile.inc1.  Setting TARGET_ARCH=${TARGET}."
-TARGET_ARCH=${TARGET}
-.endif
 .if !defined(TARGET) || !defined(TARGET_ARCH)
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
@@ -59,6 +58,10 @@ TARGET_ARCH=${TARGET}
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
 #
+SRCDIR?=	${.CURDIR}
+.if defined(SUBDIR_OVERRIDE)
+SUBDIR=	${SUBDIR_OVERRIDE}
+.else
 SUBDIR=	share/info lib libexec
 SUBDIR+=bin
 .if ${MK_GAMES} != "no"
@@ -82,6 +85,9 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
@@ -97,9 +103,6 @@ SUBDIR+=etc
 SUBDIR+= ${_DIR}
 .endif
 .endfor
-
-.if defined(SUBDIR_OVERRIDE)
-SUBDIR=		${SUBDIR_OVERRIDE}
 .endif
 
 .if defined(NOCLEAN)
@@ -115,15 +118,8 @@ LOCAL_TOOL_DIRS?=
 
 BUILDENV_SHELL?=/bin/sh
 
-CVS?=		cvs
-CVSFLAGS?=	-A -P -d -I!
-SVN?=		svn
+SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
-SUP?=		/usr/bin/csup
-SUPFLAGS?=	-g -L 2
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
-.endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
@@ -136,11 +132,14 @@ OSRELDATE=	0
 .endif
 
 .if !defined(VERSION)
-VERSION!=	uname -srp
-VERSION+=	${OSRELDATE}
+REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
+SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		${SRCDIR}/sys/sys/param.h
+VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6eb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -181,7 +180,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games
+BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -241,28 +240,43 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
+		SSP_CFLAGS= \
+		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
+		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
+
+# build-tools stage
+TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
+		SSP_CFLAGS= \
+		-DNO_LINT \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
+
+# cross-tools stage
+XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		-DWITHOUT_GDB -DNO_TESTS
+
+# kernel-tools stage
+KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${BPATH}:${PATH} \
+		WORLDTMP=${WORLDTMP} \
+		VERSION="${VERSION}" \
+		COMPILER_TYPE=${COMPILER_TYPE}
+KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
+		${KTMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
-
-# build-tools stage
-TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
-		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		DESTDIR= \
-		BOOTSTRAPPING=${OSRELDATE} \
-		SSP_CFLAGS= \
-		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
-
-# cross-tools stage
-XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
-		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		-DWITHOUT_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -271,20 +285,79 @@ WMAKEENV=	${CROSSENV} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
+
+# make hierarchy
+HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
+.if defined(NO_ROOT)
+HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
+.endif
+
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
-.if ${CC:T:Mgcc} == "gcc"
+
+.if defined(CROSS_TOOLCHAIN_PREFIX)
+CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+.endif
+XCOMPILERS=	CC CXX CPP
+.for COMPILER in ${XCOMPILERS}
+.if defined(CROSS_COMPILER_PREFIX)
+X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
+.else
+X${COMPILER}?=	${${COMPILER}}
+.endif
+.endfor
+XBINUTILS=	AS AR LD NM OBJDUMP RANLIB STRINGS
+.for BINUTIL in ${XBINUTILS}
+.if defined(CROSS_BINUTILS_PREFIX)
+X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
+.else
+X${BINUTIL}?=	${${BINUTIL}}
+.endif
+.endfor
+WMAKEENV+=	CC="${XCC} ${XFLAGS}" CXX="${XCXX} ${XFLAGS}" \
+		CPP="${XCPP} ${XFLAGS}" \
+		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
+		OBJDUMP=${XOBJDUMP} RANLIB=${XRANLIB} STRINGS=${XSTRINGS}
+
+.if ${XCC:T:Mgcc} == "gcc"
 WMAKE_COMPILER_TYPE=	gcc
-.elif ${CC:T:Mclang} == "clang"
+.elif ${XCC:T:Mclang} == "clang"
 WMAKE_COMPILER_TYPE=	clang
 .elif ${MK_CLANG_IS_CC} == "no"
 WMAKE_COMPILER_TYPE=	gcc
 .else
 WMAKE_COMPILER_TYPE=	clang
 .endif
+IMAKE_COMPILER_TYPE=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
+
+.if ${XCC:M/*}
+XFLAGS=		--sysroot=${WORLDTMP}
+.if defined(CROSS_BINUTILS_PREFIX)
+# In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
+# directory, but the compiler will look in the right place for it's
+# tools so we don't need to tell it where to look.
+.if exists(${CROSS_BINUTILS_PREFIX})
+XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+.endif
+.else
+XFLAGS+=	-B${WORLDTMP}/usr/bin
+.endif
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} && ${WMAKE_COMPILER_TYPE} == "clang"
+.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
+${MK_ARM_EABI} != "no"
+TARGET_ABI=	gnueabi
+.else
+TARGET_ABI=	unknown
+.endif
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
+XFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
+.endif
+
 WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
+WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
@@ -318,6 +391,9 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
+.if ${XCC:M/*}
+LIB32FLAGS+=		--sysroot=${WORLDTMP}
+.endif
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
@@ -328,24 +404,28 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
+		LIBPRIVATEDIR=/usr/lib32/private \
 		COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 LIB32WMAKEFLAGS+=	\
-		CC="${CC} ${LIB32FLAGS}" \
-		CXX="${CXX} ${LIB32FLAGS}" \
+		CC="${XCC} ${LIB32FLAGS}" \
+		CXX="${XCXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
 		-DCOMPAT_32BIT \
+		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
-		-DNO_LINT
+		-DNO_LINT \
+		-DNO_TESTS
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
+		-DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
+		${IMAKE_INSTALL}
 .endif
 
-# install stage
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
-IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${IMAKE_INSTALL} ${IMAKE_MTREE} ${IMAKE_COMPILER_TYPE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -354,10 +434,26 @@ IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 .endif
+.if defined(DB_FROM_SRC)
+INSTALLFLAGS+=	-N ${.CURDIR}/etc
+MTREEFLAGS+=	-N ${.CURDIR}/etc
+.endif
+_INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
+.if defined(NO_ROOT)
+METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+IMAKE+=		-DNO_ROOT METALOG=${METALOG}
+INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
+MTREEFLAGS+=	-W
+.endif
+.if defined(DB_FROM_SRC) || defined(NO_ROOT)
+IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
+.endif
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
-KMAKE=		${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME}
+KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
@@ -391,7 +487,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    lib usr legacy/usr
+    lib usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -405,9 +501,16 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
-	    -p ${WORLDTMP}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	# We could instead disable debug files for these build stages
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
+.if ${MK_TESTS} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -453,6 +556,7 @@ _cross-tools:
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
+	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -466,7 +570,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DNO_PROFILE libraries
+	    -DWITHOUT_MAN -DNO_PROFILE -DNO_TESTS libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -490,6 +594,10 @@ build32:
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${LIB32TMP}/usr/lib >/dev/null
+.endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
@@ -592,15 +700,20 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 #
 # Checks to be sure system is ready for installworld/installkernel.
 #
-installcheck:
+installcheck: _installcheck_world _installcheck_kernel
+_installcheck_world:
+_installcheck_kernel:
 
 #
-# Require DESTDIR to be set if installing for a different architecture.
+# Require DESTDIR to be set if installing for a different architecture or
+# using the user/group database in the source tree.
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE} || \
+    defined(DB_FROM_SRC)
 .if !make(distributeworld)
-installcheck: installcheck_DESTDIR
-installcheck_DESTDIR:
+_installcheck_world: __installcheck_DESTDIR
+_installcheck_kernel: __installcheck_DESTDIR
+__installcheck_DESTDIR:
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
@@ -608,6 +721,7 @@ installcheck_DESTDIR:
 .endif
 .endif
 
+.if !defined(DB_FROM_SRC)
 #
 # Check for missing UIDs/GIDs.
 #
@@ -621,8 +735,12 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
-installcheck: installcheck_UGID
-installcheck_UGID:
+.if ${MK_UNBOUND} != "no"
+CHECK_UIDS+=	unbound
+CHECK_GIDS+=	unbound
+.endif
+_installcheck_world: __installcheck_UGID
+__installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
@@ -635,6 +753,7 @@ installcheck_UGID:
 		false; \
 	fi
 .endfor
+.endif
 
 #
 # Required install tools to be saved in a scratch dir for safety.
@@ -647,9 +766,9 @@ _zoneinfo=	zic tzsetup
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep ${_install-info} \
-	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	test true uname wc ${_zoneinfo}
+	date echo egrep find grep id install ${_install-info} \
+	ln lockf make mkdir mtree mv pwd_mkdb \
+	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -670,7 +789,9 @@ EXTRA_DISTRIBUTIONS+=	games
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
 
-distributeworld installworld: installcheck
+MTREE_MAGIC?=	mtree 2.0
+
+distributeworld installworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -692,6 +813,9 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${METALOG}
+.endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -701,24 +825,84 @@ distributeworld installworld: installcheck
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
+.endif
+.if defined(NO_ROOT)
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
+.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
+	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
-	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
+	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -empty -delete
 .endfor
+.if defined(NO_ROOT)
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevant mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist} | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.meta
+.endfor
+.if ${MK_DEBUG_FILES} != "no"
+. for dist in base ${EXTRA_DISTRIBUTIONS}
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevant mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+. endfor
+.endif
+.endif
 .endif
 
 packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    --exclude usr/lib/debug \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+.else
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    --exclude usr/lib/debug .
+.endif
 .endfor
+
+.if ${MK_DEBUG_FILES} != "no"
+. for dist in base ${EXTRA_DISTRIBUTIONS}
+.  if defined(NO_ROOT)
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+.  else
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    usr/lib/debug
+.  endif
+. endfor
+.endif
 
 #
 # reinstall
@@ -732,7 +916,7 @@ reinstall:
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
-	    LOCAL_MTREE=${LOCAL_MTREE} hierarchy
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
@@ -753,7 +937,8 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -779,15 +964,10 @@ NO_KERNELOBJ=		t
 KERNCONF=${KERNFAST}
 .endif
 .endif
-.if !defined(KERNCONF) && defined(KERNEL)
-KERNCONF=	${KERNEL}
-KERNWARN=
-.else
 .if ${TARGET_ARCH} == "powerpc64"
 KERNCONF?=	GENERIC64
 .else
 KERNCONF?=	GENERIC
-.endif
 .endif
 INSTKERNNAME?=	kernel
 
@@ -816,12 +996,6 @@ buildkernel:
 .if empty(BUILDKERNELS)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
-.endif
-.if defined(KERNWARN)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> WARNING: KERNEL= setting should be changed to KERNCONF="
-	@echo "--------------------------------------------------------------"
-	@sleep 3
 .endif
 	@echo
 .for _kernel in ${BUILDKERNELS}
@@ -858,20 +1032,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD \
-	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
-# XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
-.for target in obj depend all
-	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD ${target}
-.endfor
-.endif
+	${_+_}cd ${.CURDIR}; ${KTMAKE} kernel-tools
 .if !defined(NO_KERNELDEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -895,7 +1056,7 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel installkernel.debug \
-reinstallkernel reinstallkernel.debug: installcheck
+reinstallkernel reinstallkernel.debug: _installcheck_kernel
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
@@ -905,32 +1066,61 @@ reinstallkernel reinstallkernel.debug: installcheck
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
-	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
 .endif
+	mkdir -p ${DESTDIR}/${DISTDIR}
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
+.endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
+	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
+	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
+	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
+	    ${DESTDIR}/${DISTDIR}/kernel.meta
+.endif
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
+.endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
+	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
+	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
+	sed -e 's|^./kernel|.|' \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endif
 .endfor
 
 packagekernel:
+.if defined(NO_ROOT)
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endfor
+.else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
 .endfor
+.endif
 
 #
 # doxygen
@@ -947,52 +1137,22 @@ doxygen:
 #
 # update
 #
-# Update the source tree(s), by running cvsup/cvs/svn to update to the
+# Update the source tree(s), by running svn/svnup to update to the
 # latest copy.
 #
 update:
-.if defined(SUP_UPDATE)
+.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
+	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
 	@echo "--------------------------------------------------------------"
-.if defined(SUPFILE)
-	@${SUP} ${SUPFLAGS} ${SUPFILE}
-.endif
-.if defined(SUPFILE1)
-	@${SUP} ${SUPFLAGS} ${SUPFILE1}
-.endif
-.if defined(SUPFILE2)
-	@${SUP} ${SUPFLAGS} ${SUPFILE2}
-.endif
-.if defined(PORTSSUPFILE) && !defined(NO_PORTSUPDATE)
-	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
-.endif
-.if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.endif
-.if defined(WWWSUPFILE) && !defined(NO_WWWUPDATE)
-	@${SUP} ${SUPFLAGS} ${WWWSUPFILE}
-.endif
-.endif
-.if defined(CVS_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d CVS ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
-		echo "--------------------------------------------------------------" ; \
-		echo ${CVS} -R -q update ${CVSFLAGS} ; \
-		${CVS} -R -q update ${CVSFLAGS} ; \
-	fi
+	@exit 1
 .endif
 .if defined(SVN_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d .svn ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} using Subversion" ; \
-		echo "--------------------------------------------------------------" ; \
-		echo ${SVN} update ${SVNFLAGS} ; \
-		${SVN} update ${SVNFLAGS} ; \
-	fi
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Updating ${.CURDIR} using Subversion"
+	@echo "--------------------------------------------------------------"
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .endif
 
 #
@@ -1016,11 +1176,11 @@ legacy:
 .endif
 .for _tool in tools/build
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
-	    cd ${.CURDIR}/${_tool}; \
-	    ${MAKE} DIRPRFX=${_tool}/ obj; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
-	    ${MAKE} DIRPRFX=${_tool}/ depend; \
-	    ${MAKE} DIRPRFX=${_tool}/ all; \
+	    cd ${.CURDIR}/${_tool} && \
+	    ${MAKE} DIRPRFX=${_tool}/ obj && \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes && \
+	    ${MAKE} DIRPRFX=${_tool}/ depend && \
+	    ${MAKE} DIRPRFX=${_tool}/ all && \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1055,8 +1215,26 @@ _sed=		usr.bin/sed
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} < 1000002
+_m4=		usr.bin/m4
+.endif
+
 .if ${BOOTSTRAPPING} < 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
+.endif
+
+.if ${BOOTSTRAPPING} < 1000014
+_crunch=	usr.sbin/crunch
+.endif
+
+.if ${BOOTSTRAPPING} < 1000026
+_nmtree=	lib/libnetbsd \
+		usr.sbin/nmtree
+.endif
+
+.if ${BOOTSTRAPPING} < 1000027
+_cat=		bin/cat
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1077,14 +1255,17 @@ _clang_tblgen= \
 
 # dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 800038 && \
-          !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)) \
+    ((${BOOTSTRAPPING} < 1000034 && \
+          !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
-.if ${MK_FDT} != "no"
+# Default to building the GPL DTC, but build the BSDL one if users explicitly
+# request it.
+_dtc= usr.bin/dtc
+.if ${MK_GPL_DTC} != "no"
 _dtc= gnu/usr.bin/dtc
 .endif
 
@@ -1094,13 +1275,14 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/lib/libroken \
 	kerberos5/lib/libvers \
 	kerberos5/tools/asn1_compile \
-	kerberos5/tools/slc
+	kerberos5/tools/slc \
+	usr.bin/compile_et
 .endif
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools:
+bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
@@ -1111,31 +1293,32 @@ bootstrap-tools:
     ${_ar} \
     ${_dtc} \
     ${_awk} \
+    ${_cat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
     ${_yacc} \
+    ${_m4} \
     ${_lex} \
+    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config
+    usr.sbin/config \
+    ${_crunch} \
+    ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
 #
 # build-tools: Build special purpose build tools
 #
-.if defined(MODULES_WITH_WORLD) && exists(${KERNSRCDIR}/modules)
-_aicasm= sys/modules/aic7xxx/aicasm
-.endif
-
 .if !defined(NO_SHARE)
 _share=	share/syscons/scrnmaps
 .endif
@@ -1148,7 +1331,7 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue= rescue/rescue
 .endif
 
-build-tools:
+build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
@@ -1157,24 +1340,32 @@ build-tools:
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_share} \
-    ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
     usr.bin/mkesdb_static \
-    usr.bin/mkcsmapper_static
+    usr.bin/mkcsmapper_static \
+    usr.bin/vi/catalog
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
     ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
+
+#
+# kernel-tools: Build kernel-building tools
+#
+kernel-tools: .MAKE
+	mkdir -p ${MAKEOBJDIRPREFIX}/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${MAKEOBJDIRPREFIX}/usr >/dev/null
 
 #
 # cross-tools: Build cross-building tools
@@ -1193,20 +1384,27 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
-.if ${MK_BINUTILS} != "no"
+.if ${XAS:M/*} == "" && ${MK_BINUTILS} != "no"
 _binutils=	gnu/usr.bin/binutils
 .endif
 
-.if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
+# If an full path to an external cross compiler is given, don't build
+# a cross compiler.
+.if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
-.endif
-
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" || ${TARGET} == "pc98")
+.else
 _cc=		gnu/usr.bin/cc
 .endif
 
-cross-tools:
+# The boot2 for pc98 requires gcc.
+.if ${TARGET} == "pc98"
+_cc=		gnu/usr.bin/cc
+.endif
+.endif
+
+cross-tools: .MAKE
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
@@ -1217,10 +1415,10 @@ cross-tools:
     ${_crunchide} \
     ${_kgzip}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
@@ -1228,11 +1426,7 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-.for _mtree in ${LOCAL_MTREE}
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
-	    -p ${DESTDIR}/
-.endfor
+	cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1241,12 +1435,12 @@ hierarchy hier:
 # interdependencies (__L) are built automatically by the
 # ${.CURDIR}/tools/make_libdeps.sh script.
 #
-libraries:
-	cd ${.CURDIR}; \
-	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
-	    ${MAKE} -f Makefile.inc1 _startup_libs; \
-	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
-	    ${MAKE} -f Makefile.inc1 _generic_libs;
+libraries: .MAKE
+	cd ${.CURDIR} && \
+	    ${MAKE} -f Makefile.inc1 _prereq_libs && \
+	    ${MAKE} -f Makefile.inc1 _startup_libs && \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs && \
+	    ${MAKE} -f Makefile.inc1 _generic_libs
 
 #
 # static libgcc.a prerequisite for shared libc
@@ -1269,11 +1463,13 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+_startup_libs+=	lib/libc_nonshared
 .if ${MK_LIBCPLUSPLUS} != "no"
 _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+gnu/lib/libgcc__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: gnu/lib/libgcc__L
 .endif
@@ -1287,21 +1483,28 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
-		${_lib_atf_libatf_c} \
+		${_lib_atf} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
-		lib/libexpat \
+		lib/libelf lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
-		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
+		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
+		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
-		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
-		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
-		${_secure_lib_libssl}
+		${_cddl_lib_libzfs_core} \
+		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
+		${_secure_lib_libcrypto} ${_lib_libldns} \
+		${_secure_lib_libssh} ${_secure_lib_libssl}
 
-.if ${MK_ATF} != "no"
-_lib_atf_libatf_c=	lib/atf/libatf-c
+.if defined(WITH_ATF) || ${MK_TESTS} != "no"
+.if !defined(WITH_ATF)
+# Ensure that the ATF libraries will be built during make libraries, even
+# though they will have -DNO_TESTS
+MAKE+=		-DWITH_ATF
+.endif
+_lib_atf=	lib/atf
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -1311,6 +1514,13 @@ _lib_libthr=	lib/libthr
 .if ${MK_OFED} != "no"
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
+
+.if ${MK_CASPER} != "no"
+_lib_libcapsicum=lib/libcapsicum
+.endif
+
+lib/libcapsicum__L: lib/libnv__L
+lib/libpjdlog__L: lib/libutil__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}
@@ -1324,7 +1534,9 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
+_cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 .endif
 
 .if ${MK_CRYPT} != "no"
@@ -1332,9 +1544,16 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
+.if ${MK_LDNS} != "no"
+_lib_libldns= lib/libldns
+lib/libldns__L: secure/lib/libcrypto__L
+.endif
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
+.if ${MK_LDNS} != "no"
+secure/lib/libssh__L: lib/libldns__L
+.endif
 .if ${MK_KERBEROS_SUPPORT} != "no"
 secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
@@ -1397,39 +1616,43 @@ lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
-${_lib}__PL: .PHONY
+${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
-${_lib}__L: .PHONY
+${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} DIRPRFX=${_lib}/ all; \
-		${MAKE} DIRPRFX=${_lib}/ install
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
 # libpam is special: we need to build static PAM modules before
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
-lib/libpam__L: .PHONY
+lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} DIRPRFX=lib/libpam/ obj; \
-		${MAKE} DIRPRFX=lib/libpam/ depend; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
+		cd ${.CURDIR}/lib/libpam && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET all && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
@@ -1438,8 +1661,8 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 
 .for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
-${entry}.${__target}__D: .PHONY
-	${_+_}@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+${entry}.${__target}__D: .PHONY .MAKE
+	${_+_}@set -e; if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
 		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
@@ -1485,6 +1708,7 @@ delete-old-files:
 # argument list will get too long. Using .for/.endfor make "loops" will make
 # the Makefile parser segfault.
 	@exec 3<&0; \
+	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
 	while read file; do \
@@ -1507,7 +1731,8 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
@@ -1528,6 +1753,7 @@ delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 	@exec 3<&0; \
+	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_LIBS | xargs -n1 | \
 	while read file; do \
@@ -1535,23 +1761,37 @@ delete-old-libs:
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
+		for ext in debug symbols; do \
+		  if ! [ -e "${DESTDIR}/$${file}" ] && [ -f \
+		      "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" ]; then \
+			  rm ${RM_I} "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" \
+			      <&3; \
+		  fi; \
+		done; \
 	done
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_LIBS | xargs -n1 | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
 		fi; \
+		for ext in debug symbols; do \
+		  if [ -f "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" ]; then \
+			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
+		  fi; \
+		done; \
 	done
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
@@ -1563,7 +1803,8 @@ delete-old-dirs:
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_DIRS | xargs -n1 | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
@@ -1612,7 +1853,7 @@ builddtb:
 		echo "ERROR: FDT_DTS_FILE must be specified!"; \
 		exit 1; \
 	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE} ]; then \
 		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
 			exist!"; \
 		exit 1;	\
@@ -1622,9 +1863,9 @@ builddtb:
 			directory"; \
 	fi
 	@PATH=${TMPPATH} \
-	dtc -O dtb -o \
-	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
-	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}
+	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
+	    ${FDT_DTS_FILE} \
+	    ${DTBOUTPUTPATH}/`basename ${FDT_DTS_FILE} .dts`
 
 ###############
 
@@ -1638,23 +1879,26 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	-DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE \
-	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
+	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_TESTS -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
 XDDIR=${XDEV_ARCH}-freebsd
-XDTP=/usr/${XDDIR}
-CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR}
+XDTP=usr/${XDDIR}
+CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
+	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
-	_SHLIBDIRPREFIX=${XDTP} \
-	TOOLS_PREFIX=${XDTP}
-CD2ENV=${CDENV} \
+	_SHLIBDIRPREFIX=${XDDESTDIR} \
+	TOOLS_PREFIX=${XDDESTDIR}
+CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
+	-B${XDDESTDIR}/usr/lib
+CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
 	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
 
-CDTMP=	${MAKEOBJDIRPREFIX}/${XDEV}/${.CURDIR}/tmp
-CDMAKE=${CDENV} ${MAKE} ${NOFUN}
-CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDTP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
-XDDESTDIR=${DESTDIR}${XDTP}
+CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
+CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
+CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
+XDDESTDIR=${DESTDIR}/${XDTP}
 .if !defined(OSREL)
 OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif
@@ -1662,8 +1906,24 @@ OSREL!= uname -r | sed -e 's/[-(].*//'
 .ORDER: xdev-build xdev-install
 xdev: xdev-build xdev-install
 
-.ORDER: _xb-build-tools _xb-cross-tools
-xdev-build: _xb-build-tools _xb-cross-tools
+.ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
+xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
+
+_xb-worldtmp:
+	mkdir -p ${CDTMP}/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${CDTMP}/usr >/dev/null
+
+_xb-bootstrap-tools:
+.for _tool in \
+    ${_clang_tblgen}
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
+	${CDMAKE} DIRPRFX=${_tool}/ all && \
+	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
+.endfor
 
 _xb-build-tools:
 	${_+_}@cd ${.CURDIR}; \
@@ -1673,11 +1933,13 @@ _xb-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/ar
+    usr.bin/ar \
+    ${_clang_libs} \
+    ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
-	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 
@@ -1699,7 +1961,8 @@ _xi-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/ar
+    usr.bin/ar \
+    ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
@@ -1715,6 +1978,7 @@ _xi-libraries:
 
 _xi-links:
 	${_+_}cd ${XDDESTDIR}/usr/bin; \
+       mkdir -p ../../../../usr/bin; \
 		for i in *; do \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
@@ -1722,6 +1986,8 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-buil xdev-install:
+xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
+
+buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE

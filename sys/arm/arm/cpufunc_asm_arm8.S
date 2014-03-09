@@ -58,6 +58,7 @@ ENTRY(arm8_clock_config)
 	mcr	p15, 0, r2, c15, c0, 0 	/* Write clock register */
 	mov	r0, r3			/* Return old value */
 	RET
+END(arm8_clock_config)
 
 /*
  * Functions to set the MMU Translation Table Base register
@@ -66,9 +67,9 @@ ENTRY(arm8_clock_config)
  * addresses that are about to change.
  */
 ENTRY(arm8_setttb)
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	orr	r1, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r1
+	msr	cpsr_fsxc, r1
 
 	stmfd	sp!, {r0-r3, lr}
 	bl	_C_LABEL(arm8_cache_cleanID)
@@ -87,9 +88,10 @@ ENTRY(arm8_setttb)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 
 	RET
+END(arm8_setttb)
 
 /*
  * TLB functions
@@ -97,10 +99,12 @@ ENTRY(arm8_setttb)
 ENTRY(arm8_tlb_flushID)
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
 	RET
+END(arm8_tlb_flushID)
 
 ENTRY(arm8_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c7, 1	/* flush I+D tlb single entry */
 	RET
+END(arm8_tlb_flushID_SE)
 
 /*
  * Cache functions
@@ -108,10 +112,12 @@ ENTRY(arm8_tlb_flushID_SE)
 ENTRY(arm8_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
 	RET
+END(arm8_cache_flushID)
 
 ENTRY(arm8_cache_flushID_E)
 	mcr	p15, 0, r0, c7, c7, 1	/* flush I+D single entry */
 	RET
+END(arm8_cache_flushID_E)
 
 ENTRY(arm8_cache_cleanID)
 	mov	r0, #0x00000000
@@ -153,10 +159,12 @@ ENTRY(arm8_cache_cleanID)
 	bne	1b
 
 	RET
+END(arm8_cache_cleanID)
 
 ENTRY(arm8_cache_cleanID_E)
 	mcr	p15, 0, r0, c7, c11, 1	/* clean I+D single entry */
 	RET
+END(arm8_cache_cleanID_E)
 
 ENTRY(arm8_cache_purgeID)
 	/*
@@ -174,9 +182,9 @@ ENTRY(arm8_cache_purgeID)
 
 	mov	r0, #0x00000000
 
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	orr	r2, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r2
+	msr	cpsr_fsxc, r2
 
 1:	mov	r2, r0
 	mcr	p15, 0, r2, c7, c11, 1
@@ -230,8 +238,9 @@ ENTRY(arm8_cache_purgeID)
 	adds	r0, r0, #0x04000000
 	bne	1b
 
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 	RET
+END(arm8_cache_purgeID)
 
 ENTRY(arm8_cache_purgeID_E)
 	/*
@@ -246,13 +255,14 @@ ENTRY(arm8_cache_purgeID_E)
 	 * mcr p15, 0, rd, c7, c11, 1
 	 * mcr p15, 0, rd, c7, c7, 1
 	 */
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	orr	r2, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r2
+	msr	cpsr_fsxc, r2
 	mcr	p15, 0, r0, c7, c11, 1	/* clean I+D single entry */
 	mcr	p15, 0, r0, c7, c7, 1	/* flush I+D single entry */
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 	RET
+END(arm8_cache_purgeID_E)
 
 /*
  * Context switch.
@@ -282,3 +292,5 @@ ENTRY(arm8_context_switch)
 	mov	r0, r0
 	mov	r0, r0
 	RET
+END(arm8_context_switch)
+

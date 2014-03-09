@@ -77,7 +77,7 @@ static void sctp_statesprint(uint32_t state);
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT	0x8
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_PENDING	0x9
 
-char *sctpstates[] = {
+const char *sctpstates[] = {
 	"CLOSED",
 	"BOUND",
 	"LISTEN",
@@ -393,7 +393,7 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb,
 {
 	int indent = 0, xladdr_total = 0, is_listening = 0;
 	static int first = 1;
-	char *tname, *pname;
+	const char *tname, *pname;
 	struct xsctp_tcb *xstcb;
 	struct xsctp_laddr *xladdr;
 	size_t offset_laddr;
@@ -527,7 +527,7 @@ retry:
  */
 void
 sctp_protopr(u_long off __unused,
-    const char *name, int af1, int proto)
+    const char *name __unused, int af1 __unused, int proto)
 {
 	char *buf;
 	const char *mibvar = "net.inet.sctp.assoclist";

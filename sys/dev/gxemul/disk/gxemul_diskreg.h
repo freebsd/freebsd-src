@@ -36,16 +36,28 @@
 #define	GXEMUL_DISK_DEV_ID_START	(0x0000)
 #define	GXEMUL_DISK_DEV_ID_END		(0x0100)
 
-#define	GXEMUL_DISK_DEV_OFFSET		(0x0000)
+#ifdef _LP64
+#define GXEMUL_DISK_DEV_OFFSET		(0x0000)
+#else
+#define GXEMUL_DISK_DEV_OFFSET_LO       (0x0000)
+#define GXEMUL_DISK_DEV_OFFSET_HI       (0x0008)
+#endif
 #define	GXEMUL_DISK_DEV_DISKID		(0x0010)
 #define	GXEMUL_DISK_DEV_START		(0x0020)
 #define	GXEMUL_DISK_DEV_STATUS		(0x0030)
 #define	GXEMUL_DISK_DEV_BLOCK		(0x4000)
 
+#ifdef _LP64
 #define	GXEMUL_DISK_DEV_FUNCTION(f)					\
 	(volatile uint64_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_DISK_DEV_BASE + (f))
 #define	GXEMUL_DISK_DEV_READ(f)						\
 	(volatile uint64_t)*GXEMUL_DISK_DEV_FUNCTION(f)
+#else
+#define	GXEMUL_DISK_DEV_FUNCTION(f)					\
+	(volatile uint32_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_DISK_DEV_BASE + (f))
+#define	GXEMUL_DISK_DEV_READ(f)						\
+	(volatile uint32_t)*GXEMUL_DISK_DEV_FUNCTION(f)
+#endif
 #define	GXEMUL_DISK_DEV_WRITE(f, v)					\
 	*GXEMUL_DISK_DEV_FUNCTION(f) = (v)
 

@@ -1184,9 +1184,7 @@ lldp_print(register const u_char *pptr, register u_int len) {
     tptr = pptr;
     tlen = len;
 
-    if (vflag) {
-        printf("LLDP, length %u", len);
-    }
+    printf("LLDP, length %u", len);
 
     while (tlen >= sizeof(tlv)) {
 
@@ -1322,14 +1320,8 @@ lldp_print(register const u_char *pptr, register u_int len) {
              * The system name is also print in non-verbose mode
              * similar to the CDP printer.
              */
-            if (vflag) {
-                printf(": ");
-                safeputs((const char *)tptr, tlv_len);
-            } else {
-                printf("LLDP, name ");
-                safeputs((const char *)tptr, tlv_len);
-                printf(", length %u", len);
-            }
+            printf(": ");
+            safeputs((const char *)tptr, tlv_len);
             break;
 
         case LLDP_SYSTEM_DESCR_TLV:

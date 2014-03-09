@@ -28,7 +28,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 # int bn_mul_mont_gather5(
 $rp="%rdi";	# BN_ULONG *rp,
@@ -900,8 +901,8 @@ $code.=<<___;
 	jnz	.Lgather
 ___
 $code.=<<___ if ($win64);
-	movaps	%xmm6,(%rsp)
-	movaps	%xmm7,0x10(%rsp)
+	movaps	(%rsp),%xmm6
+	movaps	0x10(%rsp),%xmm7
 	lea	0x28(%rsp),%rsp
 ___
 $code.=<<___;

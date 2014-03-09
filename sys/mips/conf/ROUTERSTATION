@@ -18,5 +18,11 @@ options		GEOM_UZIP
 # For DOS
 options		MSDOSFS
 
+# Etherswitch support
+options		ARGE_MDIO
+device		miiproxy
+device		etherswitch
+device		ukswitch
+
 # Boot path - redboot MFS
 options		ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"

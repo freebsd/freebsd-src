@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: inputbox6-utf8,v 1.8 2010/01/13 10:20:03 tom Exp $
+# $Id: inputbox6-utf8,v 1.9 2013/09/24 00:06:02 tom Exp $
 
 . ./setup-vars
 
@@ -7,10 +7,11 @@
 
 . ./setup-utf8
 
+TITLE="あいうえお"
+
 $DIALOG \
---title    `printf "\xe3\x81\x82\xe3\x81\x84\xe3\x81\x86\xe3\x81\x88\xe3\x81\x8a"` "$@" \
---inputbox `printf "\xe3\x81\x82\xe3\x81\x84\xe3\x81\x86\xe3\x81\x88\xe3\x81\x8a"` \
-10 20 "Ｄ.Ｏ.Ｇ"	 2>$tempfile
+--title    "$TITLE" "$@" \
+--inputbox "$TITLE" 10 20 "Ｄ.Ｏ.Ｇ"	 2>$tempfile
 
 retval=$?
 

@@ -13,17 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/LiteralSupport.h"
-#include "clang/Lex/HeaderSearch.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/LexDiagnostic.h"
-#include "clang/Lex/CodeCompletionHandler.h"
-#include "clang/Lex/ModuleLoader.h"
-#include "clang/Lex/Pragma.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/CodeCompletionHandler.h"
+#include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/HeaderSearchOptions.h"
+#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/LiteralSupport.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/ModuleLoader.h"
+#include "clang/Lex/Pragma.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SaveAndRestore.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -56,10 +58,43 @@ MacroInfo *Preprocessor::AllocateMacroInfo(SourceLocation L) {
   return MI;
 }
 
-MacroInfo *Preprocessor::CloneMacroInfo(const MacroInfo &MacroToClone) {
-  MacroInfo *MI = AllocateMacroInfo();
-  new (MI) MacroInfo(MacroToClone, BP);
+MacroInfo *Preprocessor::AllocateDeserializedMacroInfo(SourceLocation L,
+                                                       unsigned SubModuleID) {
+  LLVM_STATIC_ASSERT(llvm::AlignOf<MacroInfo>::Alignment >= sizeof(SubModuleID),
+                     "alignment for MacroInfo is less than the ID");
+  DeserializedMacroInfoChain *MIChain =
+      BP.Allocate<DeserializedMacroInfoChain>();
+  MIChain->Next = DeserialMIChainHead;
+  DeserialMIChainHead = MIChain;
+
+  MacroInfo *MI = &MIChain->MI;
+  new (MI) MacroInfo(L);
+  MI->FromASTFile = true;
+  MI->setOwningModuleID(SubModuleID);
   return MI;
+}
+
+DefMacroDirective *
+Preprocessor::AllocateDefMacroDirective(MacroInfo *MI, SourceLocation Loc,
+                                        bool isImported) {
+  DefMacroDirective *MD = BP.Allocate<DefMacroDirective>();
+  new (MD) DefMacroDirective(MI, Loc, isImported);
+  return MD;
+}
+
+UndefMacroDirective *
+Preprocessor::AllocateUndefMacroDirective(SourceLocation UndefLoc) {
+  UndefMacroDirective *MD = BP.Allocate<UndefMacroDirective>();
+  new (MD) UndefMacroDirective(UndefLoc);
+  return MD;
+}
+
+VisibilityMacroDirective *
+Preprocessor::AllocateVisibilityMacroDirective(SourceLocation Loc,
+                                               bool isPublic) {
+  VisibilityMacroDirective *MD = BP.Allocate<VisibilityMacroDirective>();
+  new (MD) VisibilityMacroDirective(Loc, isPublic);
+  return MD;
 }
 
 /// \brief Release the specified MacroInfo to be reused for allocating
@@ -140,15 +175,14 @@ void Preprocessor::ReadMacroName(Token &MacroNameTok, char isDefineUndef) {
       Diag(MacroNameTok, diag::err_pp_macro_not_identifier);
     // Fall through on error.
   } else if (isDefineUndef && II->getPPKeywordID() == tok::pp_defined) {
-    // Error if defining "defined": C99 6.10.8.4.
+    // Error if defining "defined": C99 6.10.8/4, C++ [cpp.predefined]p4.
     Diag(MacroNameTok, diag::err_defined_macro_name);
-  } else if (isDefineUndef && II->hasMacroDefinition() &&
+  } else if (isDefineUndef == 2 && II->hasMacroDefinition() &&
              getMacroInfo(II)->isBuiltinMacro()) {
-    // Error if defining "__LINE__" and other builtins: C99 6.10.8.4.
-    if (isDefineUndef == 1)
-      Diag(MacroNameTok, diag::pp_redef_builtin_macro);
-    else
-      Diag(MacroNameTok, diag::pp_undef_builtin_macro);
+    // Warn if undefining "__LINE__" and other builtins, per C99 6.10.8/4
+    // and C++ [cpp.predefined]p4], but allow it as an extension.
+    Diag(MacroNameTok, diag::ext_pp_undef_builtin_macro);
+    return;
   } else {
     // Okay, we got a good identifier node.  Return it.
     return;
@@ -208,7 +242,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
                                                 bool FoundElse,
                                                 SourceLocation ElseLoc) {
   ++NumSkipped;
-  assert(CurTokenLexer == 0 && CurPPLexer && "Lexing a macro, not a file?");
+  assert(!CurTokenLexer && CurPPLexer && "Lexing a macro, not a file?");
 
   CurPPLexer->pushConditionalLevel(IfTokenLoc, /*isSkipping*/false,
                                  FoundNonSkipPortion, FoundElse);
@@ -255,7 +289,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
     // directive mode.  Tell the lexer this so any newlines we see will be
     // converted into an EOD token (this terminates the macro).
     CurPPLexer->ParsingPreprocessorDirective = true;
-    if (CurLexer) CurLexer->SetCommentRetentionState(false);
+    if (CurLexer) CurLexer->SetKeepWhitespaceMode(false);
 
 
     // Read the next token, the directive flavor.
@@ -266,7 +300,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
     if (Tok.isNot(tok::raw_identifier)) {
       CurPPLexer->ParsingPreprocessorDirective = false;
       // Restore comment saving mode.
-      if (CurLexer) CurLexer->SetCommentRetentionState(KeepComments);
+      if (CurLexer) CurLexer->resetExtendedTokenMode();
       continue;
     }
 
@@ -282,7 +316,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
         FirstChar != 'i' && FirstChar != 'e') {
       CurPPLexer->ParsingPreprocessorDirective = false;
       // Restore comment saving mode.
-      if (CurLexer) CurLexer->SetCommentRetentionState(KeepComments);
+      if (CurLexer) CurLexer->resetExtendedTokenMode();
       continue;
     }
 
@@ -299,7 +333,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
       if (IdLen >= 20) {
         CurPPLexer->ParsingPreprocessorDirective = false;
         // Restore comment saving mode.
-        if (CurLexer) CurLexer->SetCommentRetentionState(KeepComments);
+        if (CurLexer) CurLexer->resetExtendedTokenMode();
         continue;
       }
       memcpy(DirectiveBuf, &DirectiveStr[0], IdLen);
@@ -397,7 +431,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
           if (Callbacks)
             Callbacks->Elif(Tok.getLocation(),
                             SourceRange(ConditionalBegin, ConditionalEnd),
-                            CondInfo.IfLoc);
+                            ShouldEnter, CondInfo.IfLoc);
           break;
         }
       }
@@ -405,7 +439,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
 
     CurPPLexer->ParsingPreprocessorDirective = false;
     // Restore comment saving mode.
-    if (CurLexer) CurLexer->SetCommentRetentionState(KeepComments);
+    if (CurLexer) CurLexer->resetExtendedTokenMode();
   }
 
   // Finally, if we are out of the conditional (saw an #endif or ran off the end
@@ -498,14 +532,97 @@ void Preprocessor::PTHSkipExcludedConditionalBlock() {
   }
 }
 
+Module *Preprocessor::getModuleForLocation(SourceLocation FilenameLoc) {
+  ModuleMap &ModMap = HeaderInfo.getModuleMap();
+  if (SourceMgr.isInMainFile(FilenameLoc)) {
+    if (Module *CurMod = getCurrentModule())
+      return CurMod;                               // Compiling a module.
+    return HeaderInfo.getModuleMap().SourceModule; // Compiling a source.
+  }
+  // Try to determine the module of the include directive.
+  FileID IDOfIncl = SourceMgr.getFileID(FilenameLoc);
+  if (const FileEntry *EntryOfIncl = SourceMgr.getFileEntryForID(IDOfIncl)) {
+    // The include comes from a file.
+    return ModMap.findModuleForHeader(EntryOfIncl).getModule();
+  } else {
+    // The include does not come from a file,
+    // so it is probably a module compilation.
+    return getCurrentModule();
+  }
+}
+
+bool Preprocessor::violatesPrivateInclude(
+    Module *RequestingModule,
+    const FileEntry *IncFileEnt,
+    ModuleMap::ModuleHeaderRole Role,
+    Module *RequestedModule) {
+  #ifndef NDEBUG
+  // Check for consistency between the module header role
+  // as obtained from the lookup and as obtained from the module.
+  // This check is not cheap, so enable it only for debugging.
+  SmallVectorImpl<const FileEntry *> &PvtHdrs
+      = RequestedModule->PrivateHeaders;
+  SmallVectorImpl<const FileEntry *>::iterator Look
+      = std::find(PvtHdrs.begin(), PvtHdrs.end(), IncFileEnt);
+  bool IsPrivate = Look != PvtHdrs.end();
+  assert((IsPrivate && Role == ModuleMap::PrivateHeader)
+               || (!IsPrivate && Role != ModuleMap::PrivateHeader));
+  #endif
+  return Role == ModuleMap::PrivateHeader &&
+         RequestedModule->getTopLevelModule() != RequestingModule;
+}
+
+bool Preprocessor::violatesUseDeclarations(
+    Module *RequestingModule,
+    Module *RequestedModule) {
+  ModuleMap &ModMap = HeaderInfo.getModuleMap();
+  ModMap.resolveUses(RequestingModule, /*Complain=*/false);
+  const SmallVectorImpl<Module *> &AllowedUses = RequestingModule->DirectUses;
+  SmallVectorImpl<Module *>::const_iterator Declared =
+      std::find(AllowedUses.begin(), AllowedUses.end(), RequestedModule);
+  return Declared == AllowedUses.end();
+}
+
+void Preprocessor::verifyModuleInclude(SourceLocation FilenameLoc,
+                                       StringRef Filename,
+                                       const FileEntry *IncFileEnt) {
+  Module *RequestingModule = getModuleForLocation(FilenameLoc);
+  if (RequestingModule)
+    HeaderInfo.getModuleMap().resolveUses(RequestingModule, /*Complain=*/false);
+  ModuleMap::KnownHeader RequestedModule =
+      HeaderInfo.getModuleMap().findModuleForHeader(IncFileEnt,
+                                                    RequestingModule);
+
+  if (RequestingModule == RequestedModule.getModule())
+    return; // No faults wihin a module, or between files both not in modules.
+
+  if (RequestingModule != HeaderInfo.getModuleMap().SourceModule)
+    return; // No errors for indirect modules.
+            // This may be a bit of a problem for modules with no source files.
+
+  if (RequestedModule && violatesPrivateInclude(RequestingModule, IncFileEnt,
+                                                RequestedModule.getRole(),
+                                                RequestedModule.getModule()))
+    Diag(FilenameLoc, diag::error_use_of_private_header_outside_module)
+        << Filename;
+
+  // FIXME: Add support for FixIts in module map files and offer adding the
+  // required use declaration.
+  if (RequestingModule && getLangOpts().ModulesDeclUse &&
+      violatesUseDeclarations(RequestingModule, RequestedModule.getModule()))
+    Diag(FilenameLoc, diag::error_undeclared_use_of_module)
+        << Filename;
+}
+
 const FileEntry *Preprocessor::LookupFile(
+    SourceLocation FilenameLoc,
     StringRef Filename,
     bool isAngled,
     const DirectoryLookup *FromDir,
     const DirectoryLookup *&CurDir,
     SmallVectorImpl<char> *SearchPath,
     SmallVectorImpl<char> *RelativePath,
-    Module **SuggestedModule,
+    ModuleMap::KnownHeader *SuggestedModule,
     bool SkipCache) {
   // If the header lookup mechanism may be relative to the current file, pass in
   // info about where the current file is.
@@ -531,16 +648,20 @@ const FileEntry *Preprocessor::LookupFile(
   const FileEntry *FE = HeaderInfo.LookupFile(
       Filename, isAngled, FromDir, CurDir, CurFileEnt,
       SearchPath, RelativePath, SuggestedModule, SkipCache);
-  if (FE) return FE;
+  if (FE) {
+    if (SuggestedModule)
+      verifyModuleInclude(FilenameLoc, Filename, FE);
+    return FE;
+  }
 
   // Otherwise, see if this is a subframework header.  If so, this is relative
   // to one of the headers on the #include stack.  Walk the list of the current
   // headers on the #include stack and pass them to HeaderInfo.
-  // FIXME: SuggestedModule!
   if (IsFileLexer()) {
     if ((CurFileEnt = SourceMgr.getFileEntryForID(CurPPLexer->getFileID())))
       if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt,
-                                                    SearchPath, RelativePath)))
+                                                    SearchPath, RelativePath,
+                                                    SuggestedModule)))
         return FE;
   }
 
@@ -550,7 +671,8 @@ const FileEntry *Preprocessor::LookupFile(
       if ((CurFileEnt =
            SourceMgr.getFileEntryForID(ISEntry.ThePPLexer->getFileID())))
         if ((FE = HeaderInfo.LookupSubframeworkHeader(
-                Filename, CurFileEnt, SearchPath, RelativePath)))
+                Filename, CurFileEnt, SearchPath, RelativePath,
+                SuggestedModule)))
           return FE;
     }
   }
@@ -590,6 +712,11 @@ void Preprocessor::HandleDirective(Token &Result) {
   // mode.  Tell the lexer this so any newlines we see will be converted into an
   // EOD token (which terminates the directive).
   CurPPLexer->ParsingPreprocessorDirective = true;
+  if (CurLexer) CurLexer->SetKeepWhitespaceMode(false);
+
+  bool ImmediatelyAfterTopLevelIfndef =
+      CurPPLexer->MIOpt.getImmediatelyAfterTopLevelIfndef();
+  CurPPLexer->MIOpt.resetImmediatelyAfterTopLevelIfndef();
 
   ++NumDirectives;
 
@@ -634,14 +761,9 @@ void Preprocessor::HandleDirective(Token &Result) {
   // and reset to previous state when returning from this function.
   ResetMacroExpansionHelper helper(this);
 
-TryAgain:
   switch (Result.getKind()) {
   case tok::eod:
     return;   // null directive.
-  case tok::comment:
-    // Handle stuff like "# /*foo*/ define X" in -E -C mode.
-    LexUnexpandedToken(Result);
-    goto TryAgain;
   case tok::code_completion:
     if (CodeComplete)
       CodeComplete->CodeCompleteDirective(
@@ -683,7 +805,7 @@ TryAgain:
 
     // C99 6.10.3 - Macro Replacement.
     case tok::pp_define:
-      return HandleDefineDirective(Result);
+      return HandleDefineDirective(Result, ImmediatelyAfterTopLevelIfndef);
     case tok::pp_undef:
       return HandleUndefDirective(Result);
 
@@ -697,7 +819,7 @@ TryAgain:
 
     // C99 6.10.6 - Pragma Directive.
     case tok::pp_pragma:
-      return HandlePragmaDirective(PIK_HashPragma);
+      return HandlePragmaDirective(SavedHash.getLocation(), PIK_HashPragma);
 
     // GNU Extensions.
     case tok::pp_import:
@@ -766,7 +888,8 @@ TryAgain:
 /// GetLineValue - Convert a numeric token into an unsigned value, emitting
 /// Diagnostic DiagID if it is invalid, and returning the value in Val.
 static bool GetLineValue(Token &DigitTok, unsigned &Val,
-                         unsigned DiagID, Preprocessor &PP) {
+                         unsigned DiagID, Preprocessor &PP,
+                         bool IsGNULineDirective=false) {
   if (DigitTok.isNot(tok::numeric_constant)) {
     PP.Diag(DigitTok, DiagID);
 
@@ -788,9 +911,14 @@ static bool GetLineValue(Token &DigitTok, unsigned &Val,
   // here.
   Val = 0;
   for (unsigned i = 0; i != ActualLength; ++i) {
-    if (!isdigit(DigitTokBegin[i])) {
+    // C++1y [lex.fcon]p1:
+    //   Optional separating single quotes in a digit-sequence are ignored
+    if (DigitTokBegin[i] == '\'')
+      continue;
+
+    if (!isDigit(DigitTokBegin[i])) {
       PP.Diag(PP.AdvanceToTokenCharacter(DigitTok.getLocation(), i),
-              diag::err_pp_line_digit_sequence);
+              diag::err_pp_line_digit_sequence) << IsGNULineDirective;
       PP.DiscardUntilEndOfDirective();
       return true;
     }
@@ -805,7 +933,8 @@ static bool GetLineValue(Token &DigitTok, unsigned &Val,
   }
 
   if (DigitTokBegin[0] == '0' && Val)
-    PP.Diag(DigitTok.getLocation(), diag::warn_pp_line_decimal);
+    PP.Diag(DigitTok.getLocation(), diag::warn_pp_line_decimal)
+      << IsGNULineDirective;
 
   return false;
 }
@@ -834,11 +963,11 @@ void Preprocessor::HandleLineDirective(Token &Tok) {
   // Enforce C99 6.10.4p3: "The digit sequence shall not specify ... a
   // number greater than 2147483647".  C90 requires that the line # be <= 32767.
   unsigned LineLimit = 32768U;
-  if (LangOpts.C99 || LangOpts.CPlusPlus0x)
+  if (LangOpts.C99 || LangOpts.CPlusPlus11)
     LineLimit = 2147483648U;
   if (LineNo >= LineLimit)
     Diag(DigitTok, diag::ext_pp_line_too_big) << LineLimit;
-  else if (LangOpts.CPlusPlus0x && LineNo >= 32768U)
+  else if (LangOpts.CPlusPlus11 && LineNo >= 32768U)
     Diag(DigitTok, diag::warn_cxx98_compat_pp_line_too_big);
 
   int FilenameID = -1;
@@ -971,7 +1100,7 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
   // line # limit other than it fit in 32-bits.
   unsigned LineNo;
   if (GetLineValue(DigitTok, LineNo, diag::err_pp_linemarker_requires_integer,
-                   *this))
+                   *this, true))
     return;
 
   Token StrTok;
@@ -1107,23 +1236,19 @@ void Preprocessor::HandleMacroPublicDirective(Token &Tok) {
   // Check to see if this is the last token on the #__public_macro line.
   CheckEndOfDirective("__public_macro");
 
+  IdentifierInfo *II = MacroNameTok.getIdentifierInfo();
   // Okay, we finally have a valid identifier to undef.
-  MacroInfo *MI = getMacroInfo(MacroNameTok.getIdentifierInfo());
+  MacroDirective *MD = getMacroDirective(II);
   
   // If the macro is not defined, this is an error.
-  if (MI == 0) {
-    Diag(MacroNameTok, diag::err_pp_visibility_non_macro)
-      << MacroNameTok.getIdentifierInfo();
+  if (MD == 0) {
+    Diag(MacroNameTok, diag::err_pp_visibility_non_macro) << II;
     return;
   }
   
   // Note that this macro has now been exported.
-  MI->setVisibility(/*IsPublic=*/true, MacroNameTok.getLocation());
-  
-  // If this macro definition came from a PCH file, mark it
-  // as having changed since serialization.
-  if (MI->isFromAST())
-    MI->setChangedAfterLoad();
+  appendMacroDirective(II, AllocateVisibilityMacroDirective(
+                                MacroNameTok.getLocation(), /*IsPublic=*/true));
 }
 
 /// \brief Handle a #private directive.
@@ -1138,23 +1263,19 @@ void Preprocessor::HandleMacroPrivateDirective(Token &Tok) {
   // Check to see if this is the last token on the #__private_macro line.
   CheckEndOfDirective("__private_macro");
   
+  IdentifierInfo *II = MacroNameTok.getIdentifierInfo();
   // Okay, we finally have a valid identifier to undef.
-  MacroInfo *MI = getMacroInfo(MacroNameTok.getIdentifierInfo());
+  MacroDirective *MD = getMacroDirective(II);
   
   // If the macro is not defined, this is an error.
-  if (MI == 0) {
-    Diag(MacroNameTok, diag::err_pp_visibility_non_macro)
-      << MacroNameTok.getIdentifierInfo();
+  if (MD == 0) {
+    Diag(MacroNameTok, diag::err_pp_visibility_non_macro) << II;
     return;
   }
   
   // Note that this macro has now been marked private.
-  MI->setVisibility(/*IsPublic=*/false, MacroNameTok.getLocation());
-  
-  // If this macro definition came from a PCH file, mark it
-  // as having changed since serialization.
-  if (MI->isFromAST())
-    MI->setChangedAfterLoad();
+  appendMacroDirective(II, AllocateVisibilityMacroDirective(
+                               MacroNameTok.getLocation(), /*IsPublic=*/false));
 }
 
 //===----------------------------------------------------------------------===//
@@ -1362,11 +1483,12 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   SmallString<1024> RelativePath;
   // We get the raw path only if we have 'Callbacks' to which we later pass
   // the path.
-  Module *SuggestedModule = 0;
+  ModuleMap::KnownHeader SuggestedModule;
+  SourceLocation FilenameLoc = FilenameTok.getLocation();
   const FileEntry *File = LookupFile(
-      Filename, isAngled, LookupFrom, CurDir,
+      FilenameLoc, Filename, isAngled, LookupFrom, CurDir,
       Callbacks ? &SearchPath : NULL, Callbacks ? &RelativePath : NULL,
-      getLangOpts().Modules? &SuggestedModule : 0);
+      HeaderInfo.getHeaderSearchOpts().ModuleMaps ? &SuggestedModule : 0);
 
   if (Callbacks) {
     if (!File) {
@@ -1375,18 +1497,20 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
       if (Callbacks->FileNotFound(Filename, RecoveryPath)) {
         if (const DirectoryEntry *DE = FileMgr.getDirectory(RecoveryPath)) {
           // Add the recovery path to the list of search paths.
-          DirectoryLookup DL(DE, SrcMgr::C_User, true, false);
+          DirectoryLookup DL(DE, SrcMgr::C_User, false);
           HeaderInfo.AddSearchPath(DL, isAngled);
           
           // Try the lookup again, skipping the cache.
-          File = LookupFile(Filename, isAngled, LookupFrom, CurDir, 0, 0,
-                            getLangOpts().Modules? &SuggestedModule : 0,
-                            /*SkipCache*/true);
+          File = LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, CurDir,
+                            0, 0, HeaderInfo.getHeaderSearchOpts().ModuleMaps
+                                      ? &SuggestedModule
+                                      : 0,
+                            /*SkipCache*/ true);
         }
       }
     }
     
-    if (!SuggestedModule) {
+    if (!SuggestedModule || !getLangOpts().Modules) {
       // Notify the callback object that we've seen an inclusion directive.
       Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled,
                                     FilenameRange, File,
@@ -1401,10 +1525,10 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
       // brackets, we can attempt a lookup as though it were a quoted path to
       // provide the user with a possible fixit.
       if (isAngled) {
-        File = LookupFile(Filename, false, LookupFrom, CurDir, 
-                          Callbacks ? &SearchPath : 0, 
-                          Callbacks ? &RelativePath : 0, 
-                          getLangOpts().Modules ? &SuggestedModule : 0);
+        File = LookupFile(
+            FilenameLoc, Filename, false, LookupFrom, CurDir,
+            Callbacks ? &SearchPath : 0, Callbacks ? &RelativePath : 0,
+            HeaderInfo.getHeaderSearchOpts().ModuleMaps ? &SuggestedModule : 0);
         if (File) {
           SourceRange Range(FilenameTok.getLocation(), CharEnd);
           Diag(FilenameTok, diag::err_pp_file_not_found_not_fatal) << 
@@ -1422,12 +1546,12 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
 
   // If we are supposed to import a module rather than including the header,
   // do so now.
-  if (SuggestedModule) {
+  if (SuggestedModule && getLangOpts().Modules) {
     // Compute the module access path corresponding to this module.
     // FIXME: Should we have a second loadModule() overload to avoid this
     // extra lookup step?
-    llvm::SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> Path;
-    for (Module *Mod = SuggestedModule; Mod; Mod = Mod->Parent)
+    SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> Path;
+    for (Module *Mod = SuggestedModule.getModule(); Mod; Mod = Mod->Parent)
       Path.push_back(std::make_pair(getIdentifierInfo(Mod->Name),
                                     FilenameTok.getLocation()));
     std::reverse(Path.begin(), Path.end());
@@ -1476,19 +1600,32 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
       Diag(HashLoc, diag::warn_auto_module_import)
         << IncludeKind << PathString 
         << FixItHint::CreateReplacement(ReplaceRange,
-             "@__experimental_modules_import " + PathString.str().str() + ";");
+             "@import " + PathString.str().str() + ";");
     }
     
-    // Load the module.
-    // If this was an #__include_macros directive, only make macros visible.
-    Module::NameVisibilityKind Visibility 
-      = (IncludeKind == 3)? Module::MacrosVisible : Module::AllVisible;
-    Module *Imported
+    // Load the module. Only make macros visible. We'll make the declarations
+    // visible when the parser gets here.
+    Module::NameVisibilityKind Visibility = Module::MacrosVisible;
+    ModuleLoadResult Imported
       = TheModuleLoader.loadModule(IncludeTok.getLocation(), Path, Visibility,
                                    /*IsIncludeDirective=*/true);
-    assert((Imported == 0 || Imported == SuggestedModule) &&
+    assert((Imported == 0 || Imported == SuggestedModule.getModule()) &&
            "the imported module is different than the suggested one");
-    
+
+    if (!Imported && hadModuleLoaderFatalFailure()) {
+      // With a fatal failure in the module loader, we abort parsing.
+      Token &Result = IncludeTok;
+      if (CurLexer) {
+        Result.startToken();
+        CurLexer->FormTokenWithChars(Result, CurLexer->BufferEnd, tok::eof);
+        CurLexer->cutOffLexing();
+      } else {
+        assert(CurPTHLexer && "#include but no current lexer set!");
+        CurPTHLexer->getEOF(Result);
+      }
+      return;
+    }
+
     // If this header isn't part of the module we're building, we're done.
     if (!BuildingImportedModule && Imported) {
       if (Callbacks) {
@@ -1496,6 +1633,27 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
                                       FilenameRange, File,
                                       SearchPath, RelativePath, Imported);
       }
+
+      if (IncludeKind != 3) {
+        // Let the parser know that we hit a module import, and it should
+        // make the module visible.
+        // FIXME: Produce this as the current token directly, rather than
+        // allocating a new token for it.
+        Token *Tok = new Token[1];
+        Tok[0].startToken();
+        Tok[0].setKind(tok::annot_module_include);
+        Tok[0].setLocation(HashLoc);
+        Tok[0].setAnnotationEndLoc(End);
+        Tok[0].setAnnotationValue(Imported);
+        EnterTokenStream(Tok, 1, true, true);
+      }
+      return;
+    }
+
+    // If we failed to find a submodule that we expected to find, we can
+    // continue. Otherwise, there's an error in the included file, so we
+    // don't want to include it.
+    if (!BuildingImportedModule && !Imported.isMissingExpected()) {
       return;
     }
   }
@@ -1637,9 +1795,15 @@ bool Preprocessor::ReadMacroDefinitionArgList(MacroInfo *MI, Token &Tok) {
       return true;
     case tok::ellipsis:  // #define X(... -> C99 varargs
       if (!LangOpts.C99)
-        Diag(Tok, LangOpts.CPlusPlus0x ? 
+        Diag(Tok, LangOpts.CPlusPlus11 ? 
              diag::warn_cxx98_compat_variadic_macro :
              diag::ext_variadic_macro);
+
+      // OpenCL v1.2 s6.9.e: variadic macros are not supported.
+      if (LangOpts.OpenCL) {
+        Diag(Tok, diag::err_pp_opencl_variadic_macros);
+        return true;
+      }
 
       // Lex the token after the identifier.
       LexUnexpandedToken(Tok);
@@ -1709,7 +1873,8 @@ bool Preprocessor::ReadMacroDefinitionArgList(MacroInfo *MI, Token &Tok) {
 
 /// HandleDefineDirective - Implements \#define.  This consumes the entire macro
 /// line then lets the caller lex the next real token.
-void Preprocessor::HandleDefineDirective(Token &DefineTok) {
+void Preprocessor::HandleDefineDirective(Token &DefineTok,
+                                         bool ImmediatelyAfterHeaderGuard) {
   ++NumDefined;
 
   Token MacroNameTok;
@@ -1735,6 +1900,11 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   // marking each of the identifiers as being used as macro arguments.  Also,
   // check other constraints on the first token of the macro body.
   if (Tok.is(tok::eod)) {
+    if (ImmediatelyAfterHeaderGuard) {
+      // Save this macro information since it may part of a header guard.
+      CurPPLexer->MIOpt.SetDefinedMacro(MacroNameTok.getIdentifierInfo(),
+                                        MacroNameTok.getLocation());
+    }
     // If there is no body to this macro, we have no special handling here.
   } else if (Tok.hasLeadingSpace()) {
     // This is a normal token with leading space.  Clear the leading space
@@ -1763,7 +1933,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
 
     // Read the first token after the arg list for down below.
     LexUnexpandedToken(Tok);
-  } else if (LangOpts.C99 || LangOpts.CPlusPlus0x) {
+  } else if (LangOpts.C99 || LangOpts.CPlusPlus11) {
     // C99 requires whitespace between the macro definition and the body.  Emit
     // a diagnostic for something like "#define X+".
     Diag(Tok, diag::ext_c99_whitespace_required_after_macro_name);
@@ -1809,11 +1979,47 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
     while (Tok.isNot(tok::eod)) {
       LastTok = Tok;
 
-      if (Tok.isNot(tok::hash)) {
+      if (Tok.isNot(tok::hash) && Tok.isNot(tok::hashhash)) {
         MI->AddTokenToBody(Tok);
 
         // Get the next token of the macro.
         LexUnexpandedToken(Tok);
+        continue;
+      }
+
+      // If we're in -traditional mode, then we should ignore stringification
+      // and token pasting. Mark the tokens as unknown so as not to confuse
+      // things.
+      if (getLangOpts().TraditionalCPP) {
+        Tok.setKind(tok::unknown);
+        MI->AddTokenToBody(Tok);
+
+        // Get the next token of the macro.
+        LexUnexpandedToken(Tok);
+        continue;
+      }
+
+      if (Tok.is(tok::hashhash)) {
+        
+        // If we see token pasting, check if it looks like the gcc comma
+        // pasting extension.  We'll use this information to suppress
+        // diagnostics later on.
+        
+        // Get the next token of the macro.
+        LexUnexpandedToken(Tok);
+
+        if (Tok.is(tok::eod)) {
+          MI->AddTokenToBody(LastTok);
+          break;
+        }
+
+        unsigned NumTokens = MI->getNumTokens();
+        if (NumTokens && Tok.getIdentifierInfo() == Ident__VA_ARGS__ &&
+            MI->getReplacementToken(NumTokens-1).is(tok::comma))
+          MI->setHasCommaPasting();
+
+        // Things look ok, add the '##' token to the macro.
+        MI->AddTokenToBody(LastTok);
         continue;
       }
 
@@ -1830,6 +2036,8 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
         // confused.
         if (getLangOpts().AsmPreprocessor && Tok.isNot(tok::eod)) {
           LastTok.setKind(tok::unknown);
+          MI->AddTokenToBody(LastTok);
+          continue;
         } else {
           Diag(Tok, diag::err_pp_stringize_not_parameter);
           ReleaseMacroInfo(MI);
@@ -1874,7 +2082,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
 
   // Finally, if this identifier already had a macro defined for it, verify that
   // the macro bodies are identical, and issue diagnostics if they are not.
-  if (MacroInfo *OtherMI = getMacroInfo(MacroNameTok.getIdentifierInfo())) {
+  if (const MacroInfo *OtherMI=getMacroInfo(MacroNameTok.getIdentifierInfo())) {
     // It is very common for system headers to have tons of macro redefinitions
     // and for warnings to be disabled in system headers.  If this is the case,
     // then don't bother calling MacroInfo::isIdenticalTo.
@@ -1883,10 +2091,14 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
       if (!OtherMI->isUsed() && OtherMI->isWarnIfUnused())
         Diag(OtherMI->getDefinitionLoc(), diag::pp_macro_not_used);
 
+      // Warn if defining "__LINE__" and other builtins, per C99 6.10.8/4 and 
+      // C++ [cpp.predefined]p4, but allow it as an extension.
+      if (OtherMI->isBuiltinMacro())
+        Diag(MacroNameTok, diag::ext_pp_redef_builtin_macro);
       // Macros must be identical.  This means all tokens and whitespace
-      // separation must be the same.  C99 6.10.3.2.
-      if (!OtherMI->isAllowRedefinitionsWithoutWarning() &&
-          !MI->isIdenticalTo(*OtherMI, *this)) {
+      // separation must be the same.  C99 6.10.3p2.
+      else if (!OtherMI->isAllowRedefinitionsWithoutWarning() &&
+               !MI->isIdenticalTo(*OtherMI, *this, /*Syntactic=*/LangOpts.MicrosoftExt)) {
         Diag(MI->getDefinitionLoc(), diag::ext_pp_macro_redef)
           << MacroNameTok.getIdentifierInfo();
         Diag(OtherMI->getDefinitionLoc(), diag::note_previous_definition);
@@ -1896,12 +2108,13 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
       WarnUnusedMacroLocs.erase(OtherMI->getDefinitionLoc());
   }
 
-  setMacroInfo(MacroNameTok.getIdentifierInfo(), MI);
+  DefMacroDirective *MD =
+      appendDefMacroDirective(MacroNameTok.getIdentifierInfo(), MI);
 
   assert(!MI->isUsed());
   // If we need warning for not using the macro, add its location in the
   // warn-because-unused-macro set. If it gets used it will be removed from set.
-  if (isInPrimaryFile() && // don't warn for include'd macros.
+  if (getSourceManager().isInMainFile(MI->getDefinitionLoc()) &&
       Diags->getDiagnosticLevel(diag::pp_macro_not_used,
           MI->getDefinitionLoc()) != DiagnosticsEngine::Ignored) {
     MI->setIsWarnIfUnused(true);
@@ -1910,7 +2123,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
 
   // If the callbacks want to know, tell them about the macro definition.
   if (Callbacks)
-    Callbacks->MacroDefined(MacroNameTok, MI);
+    Callbacks->MacroDefined(MacroNameTok, MD);
 }
 
 /// HandleUndefDirective - Implements \#undef.
@@ -1929,7 +2142,13 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   CheckEndOfDirective("undef");
 
   // Okay, we finally have a valid identifier to undef.
-  MacroInfo *MI = getMacroInfo(MacroNameTok.getIdentifierInfo());
+  MacroDirective *MD = getMacroDirective(MacroNameTok.getIdentifierInfo());
+  const MacroInfo *MI = MD ? MD->getMacroInfo() : 0;
+
+  // If the callbacks want to know, tell them about the macro #undef.
+  // Note: no matter if the macro was defined or not.
+  if (Callbacks)
+    Callbacks->MacroUndefined(MacroNameTok, MD);
 
   // If the macro is not defined, this is a noop undef, just return.
   if (MI == 0) return;
@@ -1937,27 +2156,11 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   if (!MI->isUsed() && MI->isWarnIfUnused())
     Diag(MI->getDefinitionLoc(), diag::pp_macro_not_used);
 
-  // If the callbacks want to know, tell them about the macro #undef.
-  if (Callbacks)
-    Callbacks->MacroUndefined(MacroNameTok, MI);
-
   if (MI->isWarnIfUnused())
     WarnUnusedMacroLocs.erase(MI->getDefinitionLoc());
 
-  UndefineMacro(MacroNameTok.getIdentifierInfo(), MI,
-                MacroNameTok.getLocation());
-}
-
-void Preprocessor::UndefineMacro(IdentifierInfo *II, MacroInfo *MI,
-                                 SourceLocation UndefLoc) {
-  MI->setUndefLoc(UndefLoc);
-  if (MI->isFromAST()) {
-    MI->setChangedAfterLoad();
-    if (Listener)
-      Listener->UndefinedMacro(MI);
-  }
-
-  clearMacroInfo(II);
+  appendMacroDirective(MacroNameTok.getIdentifierInfo(),
+                       AllocateUndefMacroDirective(MacroNameTok.getLocation()));
 }
 
 
@@ -1991,7 +2194,8 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
   CheckEndOfDirective(isIfndef ? "ifndef" : "ifdef");
 
   IdentifierInfo *MII = MacroNameTok.getIdentifierInfo();
-  MacroInfo *MI = getMacroInfo(MII);
+  MacroDirective *MD = getMacroDirective(MII);
+  MacroInfo *MI = MD ? MD->getMacroInfo() : 0;
 
   if (CurPPLexer->getConditionalStackDepth() == 0) {
     // If the start of a top-level #ifdef and if the macro is not defined,
@@ -2000,7 +2204,7 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
     // handle.
     if (!ReadAnyTokensBeforeDirective && MI == 0) {
       assert(isIfndef && "#ifdef shouldn't reach here");
-      CurPPLexer->MIOpt.EnterTopLevelIFNDEF(MII);
+      CurPPLexer->MIOpt.EnterTopLevelIfndef(MII, MacroNameTok.getLocation());
     } else
       CurPPLexer->MIOpt.EnterTopLevelConditional();
   }
@@ -2011,9 +2215,9 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
 
   if (Callbacks) {
     if (isIfndef)
-      Callbacks->Ifndef(DirectiveTok.getLocation(), MacroNameTok);
+      Callbacks->Ifndef(DirectiveTok.getLocation(), MacroNameTok, MD);
     else
-      Callbacks->Ifdef(DirectiveTok.getLocation(), MacroNameTok);
+      Callbacks->Ifdef(DirectiveTok.getLocation(), MacroNameTok, MD);
   }
 
   // Should we include the stuff contained by this directive?
@@ -2046,14 +2250,16 @@ void Preprocessor::HandleIfDirective(Token &IfToken,
   // directive seen, handle it for the multiple-include optimization.
   if (CurPPLexer->getConditionalStackDepth() == 0) {
     if (!ReadAnyTokensBeforeDirective && IfNDefMacro && ConditionalTrue)
-      CurPPLexer->MIOpt.EnterTopLevelIFNDEF(IfNDefMacro);
+      // FIXME: Pass in the location of the macro name, not the 'if' token.
+      CurPPLexer->MIOpt.EnterTopLevelIfndef(IfNDefMacro, IfToken.getLocation());
     else
       CurPPLexer->MIOpt.EnterTopLevelConditional();
   }
 
   if (Callbacks)
     Callbacks->If(IfToken.getLocation(),
-                  SourceRange(ConditionalBegin, ConditionalEnd));
+                  SourceRange(ConditionalBegin, ConditionalEnd),
+                  ConditionalTrue);
 
   // Should we include the stuff contained by this directive?
   if (ConditionalTrue) {
@@ -2149,7 +2355,8 @@ void Preprocessor::HandleElifDirective(Token &ElifToken) {
   
   if (Callbacks)
     Callbacks->Elif(ElifToken.getLocation(),
-                    SourceRange(ConditionalBegin, ConditionalEnd), CI.IfLoc);
+                    SourceRange(ConditionalBegin, ConditionalEnd),
+                    true, CI.IfLoc);
 
   // Finally, skip the rest of the contents of this block.
   SkipExcludedConditionalBlock(CI.IfLoc, /*Foundnonskip*/true,

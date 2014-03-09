@@ -12,13 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/HeaderMap.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/FileManager.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include <cctype>
 #include <cstdio>
 using namespace clang;
 
@@ -62,7 +62,7 @@ static inline unsigned HashHMapKey(StringRef Str) {
   const char *S = Str.begin(), *End = Str.end();
 
   for (; S != End; S++)
-    Result += tolower(*S) * 13;
+    Result += toLowercase(*S) * 13;
   return Result;
 }
 
@@ -82,7 +82,7 @@ const HeaderMap *HeaderMap::Create(const FileEntry *FE, FileManager &FM) {
   if (FileSize <= sizeof(HMapHeader)) return 0;
 
   OwningPtr<const llvm::MemoryBuffer> FileBuffer(FM.getBufferForFile(FE));
-  if (FileBuffer == 0) return 0;  // Unreadable file?
+  if (!FileBuffer) return 0;  // Unreadable file?
   const char *FileStart = FileBuffer->getBufferStart();
 
   // We know the file is at least as big as the header, check it now.

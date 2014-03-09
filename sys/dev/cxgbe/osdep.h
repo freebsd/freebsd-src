@@ -45,6 +45,7 @@
 #define CH_ALERT(adap, fmt, ...) log(LOG_ALERT, fmt, ##__VA_ARGS__)
 #define CH_WARN_RATELIMIT(adap, fmt, ...) log(LOG_WARNING, fmt, ##__VA_ARGS__)
 
+#ifndef LINUX_TYPES_DEFINED
 typedef int8_t  s8;
 typedef int16_t s16;
 typedef int32_t s32;
@@ -64,8 +65,11 @@ typedef uint64_t __be64;
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define __BIG_ENDIAN_BITFIELD
+#define htobe32_const(x) (x)
 #elif BYTE_ORDER == LITTLE_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD
+#define htobe32_const(x) (((x) >> 24) | (((x) >> 8) & 0xff00) |	\
+    ((((x) & 0xffffff) << 8) & 0xff0000) | ((((x) & 0xff) << 24) & 0xff000000))
 #else
 #error "Must set BYTE_ORDER"
 #endif
@@ -106,6 +110,7 @@ typedef boolean_t bool;
 #define SPEED_100	100
 #define SPEED_1000	1000
 #define SPEED_10000	10000
+#define SPEED_40000	40000
 #define DUPLEX_HALF	0
 #define DUPLEX_FULL	1
 #define AUTONEG_DISABLE	0
@@ -152,5 +157,6 @@ strstrip(char *s)
 
 	return (r);
 }
+#endif /* LINUX_TYPES_DEFINED */
 
 #endif

@@ -1048,8 +1048,8 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 	wp = (struct wds *)cam_sim_softc(sim);
 	ccb_h = &csio->ccb_h;
 
-	DBG(DBX "wds%d: cmd TARG=%d LUN=%d\n", unit, ccb_h->target_id,
-	    ccb_h->target_lun);
+	DBG(DBX "wds%d: cmd TARG=%d LUN=%jx\n", unit, ccb_h->target_id,
+	    (uintmax_t)ccb_h->target_lun);
 
 	if (ccb_h->target_id > 7 || ccb_h->target_id == WDS_HBA_ID) {
 		ccb_h->status = CAM_TID_INVALID;
@@ -1066,7 +1066,7 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 		xpt_done((union ccb *) csio);
 		return;
 	}
-	if (ccb_h->flags & (CAM_CDB_PHYS | CAM_SCATTER_VALID | CAM_DATA_PHYS)) {
+	if ((ccb_h->flags & CAM_DATA_MASK) != CAM_DATA_VADDR) {
 		/* don't support these */
 		ccb_h->status = CAM_REQ_INVALID;
 		xpt_done((union ccb *) csio);

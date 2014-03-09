@@ -79,6 +79,7 @@
  */
 
 #include "assym.s"
+#include "opt_sched.h"
 
 #include <machine/asm.h>
 #include <machine/asmacros.h>
@@ -87,17 +88,23 @@ __FBSDID("$FreeBSD$");
 
 #define DOMAIN_CLIENT	0x01
 
-#ifdef _ARM_ARCH_6
-#define GET_PCPU(tmp) \
-	mrc p15, 0, tmp, c13, c0, 4;
+#if defined(_ARM_ARCH_6) && defined(SMP)
+#define GET_PCPU(tmp, tmp2) \
+	mrc 	p15, 0, tmp, c0, c0, 5;	\
+	and	tmp, tmp, #0xf;		\
+	ldr 	tmp2, .Lcurpcpu+4;	\
+	mul 	tmp, tmp, tmp2;		\
+	ldr	tmp2, .Lcurpcpu;	\
+	add	tmp, tmp, tmp2;
 #else
-.Lcurpcpu:
-	.word	_C_LABEL(__pcpu)
 
-#define GET_PCPU(tmp) \
+#define GET_PCPU(tmp, tmp2) \
 	ldr	tmp, .Lcurpcpu
 #endif
 
+.Lcurpcpu:
+        .word   _C_LABEL(__pcpu)
+	.word	PCPU_SIZE
 .Lcpufuncs:	
 	.word	_C_LABEL(cpufuncs)
 .Lblocked_lock:
@@ -111,9 +118,9 @@ ENTRY(cpu_throw)
 	 * r5 = newtd
 	 */
 
-	GET_PCPU(r7)
+	GET_PCPU(r7, r9)
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_discard will clear pcpu->pc_vfpcthread, and modify
 	 * and modify the control as needed.
@@ -123,14 +130,14 @@ ENTRY(cpu_throw)
 	bne     3f
 	bl      _C_LABEL(vfp_discard)           /* yes, shut down vfp */
 3:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
 
 	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
   
 	/* Switch to lwp0 context */
 
 	ldr	r9, .Lcpufuncs
-#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B)
+#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B) && !defined(CPU_KRAIT)
 	mov	lr, pc
 	ldr	pc, [r9, #CF_IDCACHE_WBINV_ALL]
 #endif
@@ -190,10 +197,15 @@ ENTRY(cpu_throw)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
+	GET_PCPU(r6, r4)
+	/* Hook in a new pcb */
+	str	r7, [r6, #PC_CURPCB]
 	/* We have a new curthread now so make a note it */
-	GET_CURTHREAD_PTR(r6)
+	add	r6, r6, #PC_CURTHREAD
 	str	r5, [r6]
-
+#ifndef ARM_TP_ADDRESS
+	mcr	p15, 0, r5, c13, c0, 4
+#endif
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
 #ifdef ARM_TP_ADDRESS
@@ -206,14 +218,19 @@ ENTRY(cpu_throw)
 #else
 	mcr p15, 0, r6, c13, c0, 3
 #endif
-	/* Hook in a new pcb */
-	GET_PCPU(r6)
-	str	r7, [r6, #PC_CURPCB]
 
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(cpu_throw)
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
+	sub	sp, sp, #4;
+#ifdef __ARM_EABI__
+	.save	{r4-r7, lr}
+	.pad	#4
+#endif
+
 	mov	r6, r2 /* Save the mutex */
 
 .Lswitch_resume:
@@ -222,11 +239,13 @@ ENTRY(cpu_switch)
 
 	/* Process is now on a processor. */
 	/* We have a new curthread now so make a note it */
-	GET_CURTHREAD_PTR(r7)
-	str	r1, [r7]
+	GET_PCPU(r7, r2)
+	str	r1, [r7, #PC_CURTHREAD]
+#ifndef ARM_TP_ADDRESS
+	mcr	p15, 0, r1, c13, c0, 4
+#endif
 
 	/* Hook in a new pcb */
-	GET_PCPU(r7)
 	ldr	r2, [r1, #TD_PCB]
 	str	r2, [r7, #PC_CURPCB]
 
@@ -299,14 +318,14 @@ ENTRY(cpu_switch)
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_store will clear pcpu->pc_vfpcthread, save 
 	 * registers and state, and modify the control as needed.
 	 * a future exception will bounce the backup settings in the fp unit.
 	 * XXX vfp_store can't change r4
 	 */
-	GET_PCPU(r7)
+	GET_PCPU(r7, r8)
 	ldr	r8, [r7, #(PC_VFPCTHREAD)]
 	cmp	r4, r8				/* old thread used vfp? */
 	bne	1f				/* no, don't save */
@@ -321,7 +340,7 @@ ENTRY(cpu_switch)
 	add	r0, r2, #(PCB_VFPSTATE)
 	bl	_C_LABEL(vfp_store)
 1:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
 
 	/* r1 now free! */
 
@@ -352,7 +371,7 @@ ENTRY(cpu_switch)
 	cmpeq	r0, r5				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
 
-#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B)
+#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B) && !defined(CPU_KRAIT)
 	/*
 	 * Definately need to flush the cache.
 	 */
@@ -428,13 +447,14 @@ ENTRY(cpu_switch)
 
 	/* Release the old thread */
 	str	r6, [r4, #TD_LOCK]
+#if defined(SCHED_ULE) && defined(SMP)
 	ldr	r6, .Lblocked_lock
 	GET_CURTHREAD_PTR(r3)
-
 1:
 	ldr	r4, [r3, #TD_LOCK]
 	cmp	r4, r6
 	beq	1b
+#endif
 	
 	/* XXXSCW: Safe to re-enable FIQs here */
 
@@ -466,15 +486,6 @@ ENTRY(cpu_switch)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
-	/* rem: r6 = lock */
-	/* rem: r7 = new pcb */
-
-#ifdef ARMFPE
-	add	r0, r7, #(USER_SIZE) & 0x00ff
-	add	r0, r0, #(USER_SIZE) & 0xff00
-	bl	_C_LABEL(arm_fpe_core_changecontext)
-#endif
-
 	/* rem: r5 = new lwp's proc */
 	/* rem: r6 = lock */
 	/* rem: r7 = new PCB */
@@ -485,6 +496,7 @@ ENTRY(cpu_switch)
 	 * Pull the registers that got pushed when either savectx() or
 	 * cpu_switch() was called and return.
 	 */
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
 #ifdef DIAGNOSTIC
 .Lswitch_bogons:
@@ -496,21 +508,24 @@ ENTRY(cpu_switch)
 .Lswitch_panic_str:
 	.asciz	"cpu_switch: sched_qs empty with non-zero sched_whichqs!\n"
 #endif
+END(cpu_switch)
+
 ENTRY(savectx)
 	stmfd   sp!, {r4-r7, lr}
+	sub	sp, sp, #4
 	/*
 	 * r0 = pcb
 	 */
 	/* Store all the registers in the process's pcb */
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_store will clear pcpu->pc_vfpcthread, save 
 	 * registers and state, and modify the control as needed.
 	 * a future exception will bounce the backup settings in the fp unit.
 	 */
-	GET_PCPU(r7)
+	GET_PCPU(r7, r4)
 	ldr	r4, [r7, #(PC_VFPCTHREAD)]      /* vfp thread */
 	ldr	r2, [r7, #(PC_CURTHREAD)]       /* current thread */
 	cmp	r4, r2
@@ -524,10 +539,13 @@ ENTRY(savectx)
 	add	r0, r0, #(PCB_VFPSTATE)
 	bl	_C_LABEL(vfp_store)
 1:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(savectx)
 
 ENTRY(fork_trampoline)
+	STOP_UNWINDING	/* Can't unwind beyond the thread enty point */
 	mov	r1, r5
 	mov	r2, sp
 	mov	r0, r4
@@ -543,3 +561,5 @@ ENTRY(fork_trampoline)
 	movs	pc, lr			/* Exit */
 
 AST_LOCALS
+END(fork_trampoline)
+

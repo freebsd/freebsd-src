@@ -20,7 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -68,6 +70,7 @@ zfs_prop_init(void)
 		{ "fletcher2",	ZIO_CHECKSUM_FLETCHER_2 },
 		{ "fletcher4",	ZIO_CHECKSUM_FLETCHER_4 },
 		{ "sha256",	ZIO_CHECKSUM_SHA256 },
+		{ "noparity",	ZIO_CHECKSUM_NOPARITY },
 		{ NULL }
 	};
 
@@ -96,6 +99,7 @@ zfs_prop_init(void)
 		{ "gzip-8",	ZIO_COMPRESS_GZIP_8 },
 		{ "gzip-9",	ZIO_COMPRESS_GZIP_9 },
 		{ "zle",	ZIO_COMPRESS_ZLE },
+		{ "lz4",	ZIO_COMPRESS_LZ4 },
 		{ NULL }
 	};
 
@@ -211,8 +215,8 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_COMPRESSION, "compression",
 	    ZIO_COMPRESS_DEFAULT, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
-	    "on | off | lzjb | gzip | gzip-[1-9] | zle", "COMPRESS",
-	    compress_table);
+	    "on | off | lzjb | gzip | gzip-[1-9] | zle | lz4",
+	    "COMPRESS", compress_table);
 	zprop_register_index(ZFS_PROP_SNAPDIR, "snapdir", ZFS_SNAPDIR_HIDDEN,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "hidden | visible", "SNAPDIR", snapdir_table);
@@ -308,7 +312,8 @@ zfs_prop_init(void)
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "on | off | share(1M) options",
 	    "SHARENFS");
 	zprop_register_string(ZFS_PROP_TYPE, "type", NULL, PROP_READONLY,
-	    ZFS_TYPE_DATASET, "filesystem | volume | snapshot", "TYPE");
+	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK,
+	    "filesystem | volume | snapshot | bookmark", "TYPE");
 	zprop_register_string(ZFS_PROP_SHARESMB, "sharesmb", "off",
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "on | off | sharemgr(1M) options", "SHARESMB");
@@ -348,6 +353,10 @@ zfs_prop_init(void)
 	    ZFS_TYPE_SNAPSHOT, "<count>", "USERREFS");
 	zprop_register_number(ZFS_PROP_WRITTEN, "written", 0, PROP_READONLY,
 	    ZFS_TYPE_DATASET, "<size>", "WRITTEN");
+	zprop_register_number(ZFS_PROP_LOGICALUSED, "logicalused", 0,
+	    PROP_READONLY, ZFS_TYPE_DATASET, "<size>", "LUSED");
+	zprop_register_number(ZFS_PROP_LOGICALREFERENCED, "logicalreferenced",
+	    0, PROP_READONLY, ZFS_TYPE_DATASET, "<size>", "LREFER");
 
 	/* default number properties */
 	zprop_register_number(ZFS_PROP_QUOTA, "quota", 0, PROP_DEFAULT,
@@ -370,18 +379,18 @@ zfs_prop_init(void)
 
 	/* hidden properties */
 	zprop_register_hidden(ZFS_PROP_CREATETXG, "createtxg", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "CREATETXG");
+	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "CREATETXG");
 	zprop_register_hidden(ZFS_PROP_NUMCLONES, "numclones", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_SNAPSHOT, "NUMCLONES");
 	zprop_register_hidden(ZFS_PROP_NAME, "name", PROP_TYPE_STRING,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "NAME");
+	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "NAME");
 	zprop_register_hidden(ZFS_PROP_ISCSIOPTIONS, "iscsioptions",
 	    PROP_TYPE_STRING, PROP_INHERIT, ZFS_TYPE_VOLUME, "ISCSIOPTIONS");
 	zprop_register_hidden(ZFS_PROP_STMF_SHAREINFO, "stmf_sbd_lu",
 	    PROP_TYPE_STRING, PROP_INHERIT, ZFS_TYPE_VOLUME,
 	    "STMF_SBD_LU");
 	zprop_register_hidden(ZFS_PROP_GUID, "guid", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "GUID");
+	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "GUID");
 	zprop_register_hidden(ZFS_PROP_USERACCOUNTING, "useraccounting",
 	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_DATASET,
 	    "USERACCOUNTING");
@@ -389,10 +398,12 @@ zfs_prop_init(void)
 	    PROP_READONLY, ZFS_TYPE_DATASET, "UNIQUE");
 	zprop_register_hidden(ZFS_PROP_OBJSETID, "objsetid", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET, "OBJSETID");
+	zprop_register_hidden(ZFS_PROP_INCONSISTENT, "inconsistent",
+	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_DATASET, "INCONSISTENT");
 
 	/* oddball properties */
 	zprop_register_impl(ZFS_PROP_CREATION, "creation", PROP_TYPE_NUMBER, 0,
-	    NULL, PROP_READONLY, ZFS_TYPE_DATASET,
+	    NULL, PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK,
 	    "<date>", "CREATION", B_FALSE, B_TRUE, NULL);
 }
 

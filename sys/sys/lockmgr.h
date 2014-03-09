@@ -146,6 +146,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_NOWITNESS	0x000010
 #define	LK_QUIET	0x000020
 #define	LK_ADAPTIVE	0x000040
+#define	LK_IS_VNODE	0x000080	/* Tell WITNESS about a VNODE lock */
 
 /*
  * Additional attributes to be used in lockmgr().
@@ -168,6 +169,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_RELEASE	0x100000
 #define	LK_SHARED	0x200000
 #define	LK_UPGRADE	0x400000
+#define	LK_TRYUPGRADE	0x800000
 
 #define	LK_TOTAL_MASK	(LK_INIT_MASK | LK_EATTR_MASK | LK_TYPE_MASK)
 

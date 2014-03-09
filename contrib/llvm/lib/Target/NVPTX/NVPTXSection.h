@@ -14,8 +14,8 @@
 #ifndef LLVM_NVPTXSECTION_H
 #define LLVM_NVPTXSECTION_H
 
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCSection.h"
-#include "llvm/GlobalVariable.h"
 #include <vector>
 
 namespace llvm {
@@ -24,20 +24,23 @@ namespace llvm {
 /// the ASMPrint interface.
 ///
 class NVPTXSection : public MCSection {
-
+  virtual void anchor();
 public:
   NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K) {}
-  ~NVPTXSection() {}
+  virtual ~NVPTXSection() {}
 
   /// Override this as NVPTX has its own way of printing switching
   /// to a section.
   virtual void PrintSwitchToSection(const MCAsmInfo &MAI,
-                                    raw_ostream &OS) const {}
+                                    raw_ostream &OS,
+                                    const MCExpr *Subsection) const {}
 
   /// Base address of PTX sections is zero.
   virtual bool isBaseAddressKnownZero() const { return true; }
   virtual bool UseCodeAlign() const { return false; }
   virtual bool isVirtualSection() const { return false; }
+  virtual std::string getLabelBeginName() const { return ""; }
+  virtual std::string getLabelEndName() const { return ""; }
 };
 
 } // end namespace llvm

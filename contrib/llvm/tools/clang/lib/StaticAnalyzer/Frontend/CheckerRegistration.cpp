@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
-#include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/StaticAnalyzer/Checkers/ClangCheckers.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/CheckerOptInfo.h"
 #include "clang/StaticAnalyzer/Core/CheckerRegistry.h"
-#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Basic/Diagnostic.h"
+#include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallVector.h"
 
 using namespace clang;
 using namespace ento;
@@ -100,11 +100,12 @@ void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,
 }
 
 
-CheckerManager *ento::createCheckerManager(const AnalyzerOptions &opts,
+CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
                                            const LangOptions &langOpts,
                                            ArrayRef<std::string> plugins,
                                            DiagnosticsEngine &diags) {
-  OwningPtr<CheckerManager> checkerMgr(new CheckerManager(langOpts));
+  OwningPtr<CheckerManager> checkerMgr(new CheckerManager(langOpts,
+                                                          &opts));
 
   SmallVector<CheckerOptInfo, 8> checkerOpts;
   for (unsigned i = 0, e = opts.CheckersControlList.size(); i != e; ++i) {

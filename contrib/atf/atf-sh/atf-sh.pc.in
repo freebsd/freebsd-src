@@ -1,0 +1,8 @@
+# ATF pkg-config file
+
+exec_prefix=__EXEC_PREFIX__
+interpreter=${exec_prefix}/bin/atf-sh
+
+Name: atf-sh
+Description: Automated Testing Framework (POSIX shell binding)
+Version: __ATF_VERSION__

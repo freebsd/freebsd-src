@@ -98,10 +98,8 @@ setlagghash(const char *val, int d, int s, const struct afswtch *afp)
 			rf.rf_flags |= LAGG_F_HASHL3;
 		else if (strcmp(tok, "l4") == 0)
 			rf.rf_flags |= LAGG_F_HASHL4;
-		else  {
-			free(str);
+		else
 			errx(1, "Invalid lagghash option: %s", tok);
-		}
 	}
 	free(str);
 	if (rf.rf_flags == 0)

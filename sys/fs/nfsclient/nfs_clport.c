@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
-#include "opt_kdtrace.h"
 
 #include <sys/capability.h>
 
@@ -361,6 +360,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
+	u_quad_t nsize;
+	int setnsize;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -418,6 +419,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
+	setnsize = 0;
+	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -429,6 +432,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+				vnode_pager_setsize(vp, np->n_size);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -440,11 +444,22 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 					np->n_size = vap->va_size;
 					np->n_flag |= NSIZECHANGED;
 				}
+				vnode_pager_setsize(vp, np->n_size);
+			} else if (vap->va_size < np->n_size) {
+				/*
+				 * When shrinking the size, the call to
+				 * vnode_pager_setsize() cannot be done
+				 * with the mutex held, so delay it until
+				 * after the mtx_unlock call.
+				 */
+				nsize = np->n_size = vap->va_size;
+				np->n_flag |= NSIZECHANGED;
+				setnsize = 1;
 			} else {
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
+				vnode_pager_setsize(vp, np->n_size);
 			}
-			vnode_pager_setsize(vp, np->n_size);
 		} else {
 			np->n_size = vap->va_size;
 		}
@@ -480,6 +495,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
 #endif
 	NFSUNLOCKNODE(np);
+	if (setnsize)
+		vnode_pager_setsize(vp, nsize);
 	return (0);
 }
 
@@ -726,7 +743,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
 	nfsattrbit_t attrbits;
-	struct timeval curtime;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
 	case ND_NFSV2:
@@ -755,7 +771,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 		break;
 	case ND_NFSV3:
-		getmicrotime(&curtime);
 		if (vap->va_mode != (mode_t)VNOVAL) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = newnfs_true;
@@ -789,7 +804,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = newnfs_false;
 		}
 		if (vap->va_atime.tv_sec != VNOVAL) {
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -802,7 +817,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
@@ -1203,10 +1218,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
-	int error;
 	struct nameidata nd;
 	struct nfscl_dumpmntopts dumpmntopts;
+	cap_rights_t rights;
 	char *buf;
+	int error;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1217,10 +1233,10 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
-		    != 0) {
+		error = fget(td, nfscbdarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_CLIENT), &fp);
+		if (error)
 			return (error);
-		}
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
 			return (EPERM);

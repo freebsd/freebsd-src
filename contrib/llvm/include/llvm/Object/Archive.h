@@ -14,25 +14,55 @@
 #ifndef LLVM_OBJECT_ARCHIVE_H
 #define LLVM_OBJECT_ARCHIVE_H
 
-#include "llvm/Object/Binary.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/Object/Binary.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 namespace llvm {
 namespace object {
+struct ArchiveMemberHeader {
+  char Name[16];
+  char LastModified[12];
+  char UID[6];
+  char GID[6];
+  char AccessMode[8];
+  char Size[10]; ///< Size of data, not including header or padding.
+  char Terminator[2];
+
+  /// Get the name without looking up long names.
+  llvm::StringRef getName() const;
+
+  /// Members are not larger than 4GB.
+  uint32_t getSize() const;
+
+  sys::fs::perms getAccessMode() const;
+  sys::TimeValue getLastModified() const;
+  unsigned getUID() const;
+  unsigned getGID() const;
+};
 
 class Archive : public Binary {
   virtual void anchor();
 public:
   class Child {
     const Archive *Parent;
+    /// \brief Includes header but not padding byte.
     StringRef Data;
+    /// \brief Offset from Data to the start of the file.
+    uint16_t StartOfFile;
+
+    const ArchiveMemberHeader *getHeader() const {
+      return reinterpret_cast<const ArchiveMemberHeader *>(Data.data());
+    }
 
   public:
-    Child(const Archive *p, StringRef d) : Parent(p), Data(d) {}
+    Child(const Archive *Parent, const char *Start);
 
     bool operator ==(const Child &other) const {
-      return (Parent == other.Parent) && (Data.begin() == other.Data.begin());
+      assert(Parent == other.Parent);
+      return Data.begin() == other.Data.begin();
     }
 
     bool operator <(const Child &other) const {
@@ -40,22 +70,34 @@ public:
     }
 
     Child getNext() const;
-    error_code getName(StringRef &Result) const;
-    int getLastModified() const;
-    int getUID() const;
-    int getGID() const;
-    int getAccessMode() const;
-    ///! Return the size of the archive member without the header or padding.
-    uint64_t getSize() const;
 
-    MemoryBuffer *getBuffer() const;
+    error_code getName(StringRef &Result) const;
+    StringRef getRawName() const { return getHeader()->getName(); }
+    sys::TimeValue getLastModified() const {
+      return getHeader()->getLastModified();
+    }
+    unsigned getUID() const { return getHeader()->getUID(); }
+    unsigned getGID() const { return getHeader()->getGID(); }
+    sys::fs::perms getAccessMode() const {
+      return getHeader()->getAccessMode();
+    }
+    /// \return the size of the archive member without the header or padding.
+    uint64_t getSize() const { return Data.size() - StartOfFile; }
+
+    StringRef getBuffer() const {
+      return StringRef(Data.data() + StartOfFile, getSize());
+    }
+
+    error_code getMemoryBuffer(OwningPtr<MemoryBuffer> &Result,
+                               bool FullPath = false) const;
+
     error_code getAsBinary(OwningPtr<Binary> &Result) const;
   };
 
   class child_iterator {
     Child child;
   public:
-    child_iterator() : child(Child(0, StringRef())) {}
+    child_iterator() : child(Child(0, 0)) {}
     child_iterator(const Child &c) : child(c) {}
     const Child* operator->() const {
       return &child;
@@ -122,7 +164,17 @@ public:
 
   Archive(MemoryBuffer *source, error_code &ec);
 
-  child_iterator begin_children(bool skip_internal = true) const;
+  enum Kind {
+    K_GNU,
+    K_BSD,
+    K_COFF
+  };
+
+  Kind kind() const { 
+    return Format;
+  }
+
+  child_iterator begin_children(bool SkipInternal = true) const;
   child_iterator end_children() const;
 
   symbol_iterator begin_symbols() const;
@@ -133,9 +185,16 @@ public:
     return v->isArchive();
   }
 
+  // check if a symbol is in the archive
+  child_iterator findSym(StringRef name) const;
+
+  bool hasSymbolTable() const;
+
 private:
   child_iterator SymbolTable;
   child_iterator StringTable;
+  child_iterator FirstRegular;
+  Kind Format;
 };
 
 }

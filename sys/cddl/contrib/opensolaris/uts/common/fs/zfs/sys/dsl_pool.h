@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_DSL_POOL_H
@@ -36,6 +36,7 @@
 #include <sys/arc.h>
 #include <sys/bpobj.h>
 #include <sys/bptree.h>
+#include <sys/rrwlock.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -47,6 +48,13 @@ struct dsl_dataset;
 struct dsl_pool;
 struct dmu_tx;
 struct dsl_scan;
+
+extern uint64_t zfs_dirty_data_max;
+extern uint64_t zfs_dirty_data_max_max;
+extern uint64_t zfs_dirty_data_sync;
+extern int zfs_dirty_data_max_percent;
+extern int zfs_delay_min_dirty_percent;
+extern uint64_t zfs_delay_scale;
 
 /* These macros are for indexing into the zfs_all_blkstats_t. */
 #define	DMU_OT_DEFERRED	DMU_OT_NONE
@@ -82,9 +90,6 @@ typedef struct dsl_pool {
 
 	/* No lock needed - sync context only */
 	blkptr_t dp_meta_rootbp;
-	hrtime_t dp_read_overhead;
-	uint64_t dp_throughput; /* bytes per millisec */
-	uint64_t dp_write_limit;
 	uint64_t dp_tmp_userrefs_obj;
 	bpobj_t dp_free_bpobj;
 	uint64_t dp_bptree_obj;
@@ -94,11 +99,18 @@ typedef struct dsl_pool {
 
 	/* Uses dp_lock */
 	kmutex_t dp_lock;
-	uint64_t dp_space_towrite[TXG_SIZE];
-	uint64_t dp_tempreserved[TXG_SIZE];
+	kcondvar_t dp_spaceavail_cv;
+	uint64_t dp_dirty_pertxg[TXG_SIZE];
+	uint64_t dp_dirty_total;
 	uint64_t dp_mos_used_delta;
 	uint64_t dp_mos_compressed_delta;
 	uint64_t dp_mos_uncompressed_delta;
+
+	/*
+	 * Time of most recently scheduled (furthest in the future)
+	 * wakeup for delayed transactions.
+	 */
+	hrtime_t dp_last_wakeup;
 
 	/* Has its own locking */
 	tx_state_t dp_tx;
@@ -109,11 +121,12 @@ typedef struct dsl_pool {
 
 	/*
 	 * Protects administrative changes (properties, namespace)
+	 *
 	 * It is only held for write in syncing context.  Therefore
 	 * syncing context does not need to ever have it for read, since
 	 * nobody else could possibly have it for write.
 	 */
-	krwlock_t dp_config_rwlock;
+	rrwlock_t dp_config_rwlock;
 
 	zfs_all_blkstats_t *dp_blkstats;
 } dsl_pool_t;
@@ -127,33 +140,31 @@ void dsl_pool_sync_done(dsl_pool_t *dp, uint64_t txg);
 int dsl_pool_sync_context(dsl_pool_t *dp);
 uint64_t dsl_pool_adjustedsize(dsl_pool_t *dp, boolean_t netfree);
 uint64_t dsl_pool_adjustedfree(dsl_pool_t *dp, boolean_t netfree);
-int dsl_pool_tempreserve_space(dsl_pool_t *dp, uint64_t space, dmu_tx_t *tx);
-void dsl_pool_tempreserve_clear(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
-void dsl_pool_memory_pressure(dsl_pool_t *dp);
-void dsl_pool_willuse_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
+void dsl_pool_dirty_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
+void dsl_pool_undirty_space(dsl_pool_t *dp, int64_t space, uint64_t txg);
 void dsl_free(dsl_pool_t *dp, uint64_t txg, const blkptr_t *bpp);
 void dsl_free_sync(zio_t *pio, dsl_pool_t *dp, uint64_t txg,
     const blkptr_t *bpp);
-int dsl_read(zio_t *pio, spa_t *spa, const blkptr_t *bpp, arc_buf_t *pbuf,
-    arc_done_func_t *done, void *priv, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb);
-int dsl_read_nolock(zio_t *pio, spa_t *spa, const blkptr_t *bpp,
-    arc_done_func_t *done, void *priv, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb);
 void dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_upgrade_clones(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_upgrade_dir_clones(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_mos_diduse_space(dsl_pool_t *dp,
     int64_t used, int64_t comp, int64_t uncomp);
+void dsl_pool_config_enter(dsl_pool_t *dp, void *tag);
+void dsl_pool_config_exit(dsl_pool_t *dp, void *tag);
+boolean_t dsl_pool_config_held(dsl_pool_t *dp);
+boolean_t dsl_pool_need_dirty_delay(dsl_pool_t *dp);
 
 taskq_t *dsl_pool_vnrele_taskq(dsl_pool_t *dp);
 
-extern int dsl_pool_user_hold(dsl_pool_t *dp, uint64_t dsobj,
-    const char *tag, uint64_t *now, dmu_tx_t *tx);
-extern int dsl_pool_user_release(dsl_pool_t *dp, uint64_t dsobj,
+int dsl_pool_user_hold(dsl_pool_t *dp, uint64_t dsobj,
+    const char *tag, uint64_t now, dmu_tx_t *tx);
+int dsl_pool_user_release(dsl_pool_t *dp, uint64_t dsobj,
     const char *tag, dmu_tx_t *tx);
-extern void dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp);
+void dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp);
 int dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **);
+int dsl_pool_hold(const char *name, void *tag, dsl_pool_t **dp);
+void dsl_pool_rele(dsl_pool_t *dp, void *tag);
 
 #ifdef	__cplusplus
 }

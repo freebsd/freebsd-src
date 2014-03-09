@@ -12,13 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/CharUnits.h"
-#include "clang/AST/Type.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/PrettyPrinter.h"
+#include "clang/AST/Type.h"
 #include "clang/AST/TypeVisitor.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/APSInt.h"
@@ -75,27 +76,47 @@ bool QualType::isConstant(QualType T, ASTContext &Ctx) {
 unsigned ConstantArrayType::getNumAddressingBits(ASTContext &Context,
                                                  QualType ElementType,
                                                const llvm::APInt &NumElements) {
+  uint64_t ElementSize = Context.getTypeSizeInChars(ElementType).getQuantity();
+
+  // Fast path the common cases so we can avoid the conservative computation
+  // below, which in common cases allocates "large" APSInt values, which are
+  // slow.
+
+  // If the element size is a power of 2, we can directly compute the additional
+  // number of addressing bits beyond those required for the element count.
+  if (llvm::isPowerOf2_64(ElementSize)) {
+    return NumElements.getActiveBits() + llvm::Log2_64(ElementSize);
+  }
+
+  // If both the element count and element size fit in 32-bits, we can do the
+  // computation directly in 64-bits.
+  if ((ElementSize >> 32) == 0 && NumElements.getBitWidth() <= 64 &&
+      (NumElements.getZExtValue() >> 32) == 0) {
+    uint64_t TotalSize = NumElements.getZExtValue() * ElementSize;
+    return 64 - llvm::countLeadingZeros(TotalSize);
+  }
+
+  // Otherwise, use APSInt to handle arbitrary sized values.
   llvm::APSInt SizeExtended(NumElements, true);
   unsigned SizeTypeBits = Context.getTypeSize(Context.getSizeType());
   SizeExtended = SizeExtended.extend(std::max(SizeTypeBits,
                                               SizeExtended.getBitWidth()) * 2);
 
-  uint64_t ElementSize
-    = Context.getTypeSizeInChars(ElementType).getQuantity();
   llvm::APSInt TotalSize(llvm::APInt(SizeExtended.getBitWidth(), ElementSize));
   TotalSize *= SizeExtended;  
-  
+
   return TotalSize.getActiveBits();
 }
 
 unsigned ConstantArrayType::getMaxSizeBits(ASTContext &Context) {
   unsigned Bits = Context.getTypeSize(Context.getSizeType());
   
-  // GCC appears to only allow 63 bits worth of address space when compiling
-  // for 64-bit, so we do the same.
-  if (Bits == 64)
-    --Bits;
-  
+  // Limit the number of bits in size_t so that maximal bit size fits 64 bit
+  // integer (see PR8256).  We can do this as currently there is no hardware
+  // that supports full 64-bit virtual space.
+  if (Bits > 61)
+    Bits = 61;
+
   return Bits;
 }
 
@@ -317,6 +338,10 @@ template <> const TemplateSpecializationType *Type::getAs() const {
   return getAsSugar<TemplateSpecializationType>(this);
 }
 
+template <> const AttributedType *Type::getAs() const {
+  return getAsSugar<AttributedType>(this);
+}
+
 /// getUnqualifiedDesugaredType - Pull any qualifiers and syntactic
 /// sugar off the given type.  This should produce an object of the
 /// same dynamic type as the canonical type.
@@ -335,23 +360,6 @@ const Type *Type::getUnqualifiedDesugaredType() const {
     }
 #include "clang/AST/TypeNodes.def"
     }
-  }
-}
-
-bool Type::isDerivedType() const {
-  switch (CanonicalType->getTypeClass()) {
-  case Pointer:
-  case VariableArray:
-  case ConstantArray:
-  case IncompleteArray:
-  case FunctionProto:
-  case FunctionNoProto:
-  case LValueReference:
-  case RValueReference:
-  case Record:
-    return true;
-  default:
-    return false;
   }
 }
 bool Type::isClassType() const {
@@ -730,9 +738,9 @@ bool Type::isSignedIntegerOrEnumerationType() const {
 
 bool Type::hasSignedIntegerRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
-    return VT->getElementType()->isSignedIntegerType();
+    return VT->getElementType()->isSignedIntegerOrEnumerationType();
   else
-    return isSignedIntegerType();
+    return isSignedIntegerOrEnumerationType();
 }
 
 /// isUnsignedIntegerType - Return true if this is an integer type that is
@@ -770,9 +778,9 @@ bool Type::isUnsignedIntegerOrEnumerationType() const {
 
 bool Type::hasUnsignedIntegerRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
-    return VT->getElementType()->isUnsignedIntegerType();
+    return VT->getElementType()->isUnsignedIntegerOrEnumerationType();
   else
-    return isUnsignedIntegerType();
+    return isUnsignedIntegerOrEnumerationType();
 }
 
 bool Type::isFloatingType() const {
@@ -939,7 +947,7 @@ bool Type::isIncompleteType(NamedDecl **Def) const {
 
 bool QualType::isPODType(ASTContext &Context) const {
   // C++11 has a more relaxed definition of POD.
-  if (Context.getLangOpts().CPlusPlus0x)
+  if (Context.getLangOpts().CPlusPlus11)
     return isCXX11PODType(Context);
 
   return isCXX98PODType(Context);
@@ -1052,11 +1060,13 @@ bool QualType::isTrivialType(ASTContext &Context) const {
   if (const RecordType *RT = CanonicalType->getAs<RecordType>()) {
     if (const CXXRecordDecl *ClassDecl =
         dyn_cast<CXXRecordDecl>(RT->getDecl())) {
-      // C++0x [class]p5:
-      //   A trivial class is a class that has a trivial default constructor
-      if (!ClassDecl->hasTrivialDefaultConstructor()) return false;
-      //   and is trivially copyable.
-      if (!ClassDecl->isTriviallyCopyable()) return false;
+      // C++11 [class]p6:
+      //   A trivial class is a class that has a default constructor,
+      //   has no non-trivial default constructors, and is trivially
+      //   copyable.
+      return ClassDecl->hasDefaultConstructor() &&
+             !ClassDecl->hasNonTrivialDefaultConstructor() &&
+             ClassDecl->isTriviallyCopyable();
     }
     
     return true;
@@ -1087,13 +1097,16 @@ bool QualType::isTriviallyCopyableType(ASTContext &Context) const {
     }        
   }
 
-  // C++0x [basic.types]p9
+  // C++11 [basic.types]p9
   //   Scalar types, trivially copyable class types, arrays of such types, and
-  //   cv-qualified versions of these types are collectively called trivial
-  //   types.
+  //   non-volatile const-qualified versions of these types are collectively
+  //   called trivially copyable types.
 
   QualType CanonicalType = getCanonicalType();
   if (CanonicalType->isDependentType())
+    return false;
+
+  if (CanonicalType.isVolatileQualified())
     return false;
 
   // Return false for incomplete types after skipping any incomplete array types
@@ -1120,16 +1133,20 @@ bool QualType::isTriviallyCopyableType(ASTContext &Context) const {
 
 
 
-bool Type::isLiteralType() const {
+bool Type::isLiteralType(const ASTContext &Ctx) const {
   if (isDependentType())
     return false;
 
-  // C++0x [basic.types]p10:
+  // C++1y [basic.types]p10:
+  //   A type is a literal type if it is:
+  //   -- cv void; or
+  if (Ctx.getLangOpts().CPlusPlus1y && isVoidType())
+    return true;
+
+  // C++11 [basic.types]p10:
   //   A type is a literal type if it is:
   //   [...]
-  //   -- an array of literal type.
-  // Extension: variable arrays cannot be literal types, since they're
-  // runtime-sized.
+  //   -- an array of literal type other than an array of runtime bound; or
   if (isVariableArrayType())
     return false;
   const Type *BaseTy = getBaseElementTypeUnsafe();
@@ -1140,7 +1157,7 @@ bool Type::isLiteralType() const {
   if (BaseTy->isIncompleteType())
     return false;
 
-  // C++0x [basic.types]p10:
+  // C++11 [basic.types]p10:
   //   A type is a literal type if it is:
   //    -- a scalar type; or
   // As an extension, Clang treats vector types and complex types as
@@ -1169,6 +1186,15 @@ bool Type::isLiteralType() const {
 
     return true;
   }
+
+  // We treat _Atomic T as a literal type if T is a literal type.
+  if (const AtomicType *AT = BaseTy->getAs<AtomicType>())
+    return AT->getValueType()->isLiteralType(Ctx);
+
+  // If this type hasn't been deduced yet, then conservatively assume that
+  // it'll work out to be a literal type.
+  if (isa<AutoType>(BaseTy->getCanonicalTypeInternal()))
+    return true;
 
   return false;
 }
@@ -1495,7 +1521,7 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case Double:            return "double";
   case LongDouble:        return "long double";
   case WChar_S:
-  case WChar_U:           return "wchar_t";
+  case WChar_U:           return Policy.MSWChar ? "__wchar_t" : "wchar_t";
   case Char16:            return "char16_t";
   case Char32:            return "char32_t";
   case NullPtr:           return "nullptr_t";
@@ -1509,12 +1535,20 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case ObjCId:            return "id";
   case ObjCClass:         return "Class";
   case ObjCSel:           return "SEL";
+  case OCLImage1d:        return "image1d_t";
+  case OCLImage1dArray:   return "image1d_array_t";
+  case OCLImage1dBuffer:  return "image1d_buffer_t";
+  case OCLImage2d:        return "image2d_t";
+  case OCLImage2dArray:   return "image2d_array_t";
+  case OCLImage3d:        return "image3d_t";
+  case OCLSampler:        return "sampler_t";
+  case OCLEvent:          return "event_t";
   }
   
   llvm_unreachable("Invalid builtin type.");
 }
 
-QualType QualType::getNonLValueExprType(ASTContext &Context) const {
+QualType QualType::getNonLValueExprType(const ASTContext &Context) const {
   if (const ReferenceType *RefType = getTypePtr()->getAs<ReferenceType>())
     return RefType->getPointeeType();
   
@@ -1532,40 +1566,43 @@ QualType QualType::getNonLValueExprType(ASTContext &Context) const {
 
 StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   switch (CC) {
-  case CC_Default: 
-    llvm_unreachable("no name for default cc");
-
   case CC_C: return "cdecl";
   case CC_X86StdCall: return "stdcall";
   case CC_X86FastCall: return "fastcall";
   case CC_X86ThisCall: return "thiscall";
   case CC_X86Pascal: return "pascal";
+  case CC_X86_64Win64: return "ms_abi";
+  case CC_X86_64SysV: return "sysv_abi";
   case CC_AAPCS: return "aapcs";
   case CC_AAPCS_VFP: return "aapcs-vfp";
   case CC_PnaclCall: return "pnaclcall";
+  case CC_IntelOclBicc: return "intel_ocl_bicc";
   }
 
   llvm_unreachable("Invalid calling convention.");
 }
 
-FunctionProtoType::FunctionProtoType(QualType result, const QualType *args,
-                                     unsigned numArgs, QualType canonical,
+FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> args,
+                                     QualType canonical,
                                      const ExtProtoInfo &epi)
-  : FunctionType(FunctionProto, result, epi.TypeQuals, epi.RefQualifier,
+  : FunctionType(FunctionProto, result, epi.TypeQuals,
                  canonical,
                  result->isDependentType(),
                  result->isInstantiationDependentType(),
                  result->isVariablyModifiedType(),
                  result->containsUnexpandedParameterPack(),
                  epi.ExtInfo),
-    NumArgs(numArgs), NumExceptions(epi.NumExceptions),
+    NumArgs(args.size()), NumExceptions(epi.NumExceptions),
     ExceptionSpecType(epi.ExceptionSpecType),
     HasAnyConsumedArgs(epi.ConsumedArguments != 0),
-    Variadic(epi.Variadic), HasTrailingReturn(epi.HasTrailingReturn)
+    Variadic(epi.Variadic), HasTrailingReturn(epi.HasTrailingReturn),
+    RefQualifier(epi.RefQualifier)
 {
+  assert(NumArgs == args.size() && "function has too many parameters");
+
   // Fill in the trailing argument array.
   QualType *argSlot = reinterpret_cast<QualType*>(this+1);
-  for (unsigned i = 0; i != numArgs; ++i) {
+  for (unsigned i = 0; i != NumArgs; ++i) {
     if (args[i]->isDependentType())
       setDependent();
     else if (args[i]->isInstantiationDependentType())
@@ -1579,7 +1616,7 @@ FunctionProtoType::FunctionProtoType(QualType result, const QualType *args,
 
   if (getExceptionSpecType() == EST_Dynamic) {
     // Fill in the exception array.
-    QualType *exnSlot = argSlot + numArgs;
+    QualType *exnSlot = argSlot + NumArgs;
     for (unsigned i = 0, e = epi.NumExceptions; i != e; ++i) {
       if (epi.Exceptions[i]->isDependentType())
         setDependent();
@@ -1593,7 +1630,7 @@ FunctionProtoType::FunctionProtoType(QualType result, const QualType *args,
     }
   } else if (getExceptionSpecType() == EST_ComputedNoexcept) {
     // Store the noexcept expression and context.
-    Expr **noexSlot = reinterpret_cast<Expr**>(argSlot + numArgs);
+    Expr **noexSlot = reinterpret_cast<Expr**>(argSlot + NumArgs);
     *noexSlot = epi.NoexceptExpr;
     
     if (epi.NoexceptExpr) {
@@ -1606,7 +1643,7 @@ FunctionProtoType::FunctionProtoType(QualType result, const QualType *args,
   } else if (getExceptionSpecType() == EST_Uninstantiated) {
     // Store the function decl from which we will resolve our
     // exception specification.
-    FunctionDecl **slot = reinterpret_cast<FunctionDecl**>(argSlot + numArgs);
+    FunctionDecl **slot = reinterpret_cast<FunctionDecl**>(argSlot + NumArgs);
     slot[0] = epi.ExceptionSpecDecl;
     slot[1] = epi.ExceptionSpecTemplate;
     // This exception specification doesn't make the type dependent, because
@@ -1614,19 +1651,19 @@ FunctionProtoType::FunctionProtoType(QualType result, const QualType *args,
   } else if (getExceptionSpecType() == EST_Unevaluated) {
     // Store the function decl from which we will resolve our
     // exception specification.
-    FunctionDecl **slot = reinterpret_cast<FunctionDecl**>(argSlot + numArgs);
+    FunctionDecl **slot = reinterpret_cast<FunctionDecl**>(argSlot + NumArgs);
     slot[0] = epi.ExceptionSpecDecl;
   }
 
   if (epi.ConsumedArguments) {
     bool *consumedArgs = const_cast<bool*>(getConsumedArgsBuffer());
-    for (unsigned i = 0; i != numArgs; ++i)
+    for (unsigned i = 0; i != NumArgs; ++i)
       consumedArgs[i] = epi.ConsumedArguments[i];
   }
 }
 
 FunctionProtoType::NoexceptResult
-FunctionProtoType::getNoexceptSpec(ASTContext &ctx) const {
+FunctionProtoType::getNoexceptSpec(const ASTContext &ctx) const {
   ExceptionSpecificationType est = getExceptionSpecType();
   if (est == EST_BasicNoexcept)
     return NR_Nothrow;
@@ -1811,6 +1848,49 @@ bool TagType::isBeingDefined() const {
   return getDecl()->isBeingDefined();
 }
 
+bool AttributedType::isMSTypeSpec() const {
+  switch (getAttrKind()) {
+  default:  return false;
+  case attr_ptr32:
+  case attr_ptr64:
+  case attr_sptr:
+  case attr_uptr:
+    return true;
+  }
+  llvm_unreachable("invalid attr kind");
+}
+
+bool AttributedType::isCallingConv() const {
+  switch (getAttrKind()) {
+  case attr_ptr32:
+  case attr_ptr64:
+  case attr_sptr:
+  case attr_uptr:
+  case attr_address_space:
+  case attr_regparm:
+  case attr_vector_size:
+  case attr_neon_vector_type:
+  case attr_neon_polyvector_type:
+  case attr_objc_gc:
+  case attr_objc_ownership:
+  case attr_noreturn:
+      return false;
+  case attr_pcs:
+  case attr_pcs_vfp:
+  case attr_cdecl:
+  case attr_fastcall:
+  case attr_stdcall:
+  case attr_thiscall:
+  case attr_pascal:
+  case attr_ms_abi:
+  case attr_sysv_abi:
+  case attr_pnaclcall:
+  case attr_inteloclbicc:
+    return true;
+  }
+  llvm_unreachable("invalid attr kind");
+}
+
 CXXRecordDecl *InjectedClassNameType::getDecl() const {
   return cast<CXXRecordDecl>(getInterestingTagDecl(Decl));
 }
@@ -1870,7 +1950,8 @@ anyDependentTemplateArguments(const TemplateArgumentLoc *Args, unsigned N,
   return false;
 }
 
-bool TemplateSpecializationType::
+#ifndef NDEBUG
+static bool 
 anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N,
                               bool &InstantiationDependent) {
   for (unsigned i = 0; i != N; ++i) {
@@ -1884,6 +1965,7 @@ anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N,
   }
   return false;
 }
+#endif
 
 TemplateSpecializationType::
 TemplateSpecializationType(TemplateName T,
@@ -1907,8 +1989,8 @@ TemplateSpecializationType(TemplateName T,
   (void)InstantiationDependent;
   assert((!Canon.isNull() ||
           T.isDependent() || 
-          anyDependentTemplateArguments(Args, NumArgs, 
-                                        InstantiationDependent)) &&
+          ::anyDependentTemplateArguments(Args, NumArgs, 
+                                          InstantiationDependent)) &&
          "No canonical type for non-dependent class template specialization");
 
   TemplateArgument *TemplateArgs
@@ -1987,22 +2069,18 @@ namespace {
 
 /// \brief The cached properties of a type.
 class CachedProperties {
-  NamedDecl::LinkageInfo LV;
+  Linkage L;
   bool local;
-  
+
 public:
-  CachedProperties(NamedDecl::LinkageInfo LV, bool local)
-    : LV(LV), local(local) {}
-  
-  Linkage getLinkage() const { return LV.linkage(); }
-  Visibility getVisibility() const { return LV.visibility(); }
-  bool isVisibilityExplicit() const { return LV.visibilityExplicit(); }
+  CachedProperties(Linkage L, bool local) : L(L), local(local) {}
+
+  Linkage getLinkage() const { return L; }
   bool hasLocalOrUnnamedType() const { return local; }
-  
+
   friend CachedProperties merge(CachedProperties L, CachedProperties R) {
-    NamedDecl::LinkageInfo MergedLV = L.LV;
-    MergedLV.merge(R.LV);
-    return CachedProperties(MergedLV,
+    Linkage MergedLinkage = minLinkage(L.L, R.L);
+    return CachedProperties(MergedLinkage,
                          L.hasLocalOrUnnamedType() | R.hasLocalOrUnnamedType());
   }
 };
@@ -2022,10 +2100,8 @@ public:
 
   static CachedProperties get(const Type *T) {
     ensure(T);
-    NamedDecl::LinkageInfo LV(T->TypeBits.getLinkage(),
-                              T->TypeBits.getVisibility(),
-                              T->TypeBits.isVisibilityExplicit());
-    return CachedProperties(LV, T->TypeBits.hasLocalOrUnnamedType());
+    return CachedProperties(T->TypeBits.getLinkage(),
+                            T->TypeBits.hasLocalOrUnnamedType());
   }
 
   static void ensure(const Type *T) {
@@ -2037,10 +2113,7 @@ public:
     if (!T->isCanonicalUnqualified()) {
       const Type *CT = T->getCanonicalTypeInternal().getTypePtr();
       ensure(CT);
-      T->TypeBits.CacheValidAndVisibility =
-        CT->TypeBits.CacheValidAndVisibility;
-      T->TypeBits.CachedExplicitVisibility =
-        CT->TypeBits.CachedExplicitVisibility;
+      T->TypeBits.CacheValid = true;
       T->TypeBits.CachedLinkage = CT->TypeBits.CachedLinkage;
       T->TypeBits.CachedLocalOrUnnamed = CT->TypeBits.CachedLocalOrUnnamed;
       return;
@@ -2048,10 +2121,7 @@ public:
 
     // Compute the cached properties and then set the cache.
     CachedProperties Result = computeCachedProperties(T);
-    T->TypeBits.CacheValidAndVisibility = Result.getVisibility() + 1U;
-    T->TypeBits.CachedExplicitVisibility = Result.isVisibilityExplicit();
-    assert(T->TypeBits.isCacheValid() &&
-           T->TypeBits.getVisibility() == Result.getVisibility());
+    T->TypeBits.CacheValid = true;
     T->TypeBits.CachedLinkage = Result.getLinkage();
     T->TypeBits.CachedLocalOrUnnamed = Result.hasLocalOrUnnamedType();
   }
@@ -2077,13 +2147,18 @@ static CachedProperties computeCachedProperties(const Type *T) {
 #include "clang/AST/TypeNodes.def"
     // Treat instantiation-dependent types as external.
     assert(T->isInstantiationDependentType());
-    return CachedProperties(NamedDecl::LinkageInfo(), false);
+    return CachedProperties(ExternalLinkage, false);
+
+  case Type::Auto:
+    // Give non-deduced 'auto' types external linkage. We should only see them
+    // here in error recovery.
+    return CachedProperties(ExternalLinkage, false);
 
   case Type::Builtin:
     // C++ [basic.link]p8:
     //   A type is said to have linkage if and only if:
     //     - it is a fundamental type (3.9.1); or
-    return CachedProperties(NamedDecl::LinkageInfo(), false);
+    return CachedProperties(ExternalLinkage, false);
 
   case Type::Record:
   case Type::Enum: {
@@ -2093,11 +2168,11 @@ static CachedProperties computeCachedProperties(const Type *T) {
     //     - it is a class or enumeration type that is named (or has a name
     //       for linkage purposes (7.1.3)) and the name has linkage; or
     //     -  it is a specialization of a class template (14); or
-    NamedDecl::LinkageInfo LV = Tag->getLinkageAndVisibility();
+    Linkage L = Tag->getLinkageInternal();
     bool IsLocalOrUnnamed =
       Tag->getDeclContext()->isFunctionOrMethod() ||
-      (!Tag->getIdentifier() && !Tag->getTypedefNameForAnonDecl());
-    return CachedProperties(LV, IsLocalOrUnnamed);
+      !Tag->hasNameForLinkage();
+    return CachedProperties(L, IsLocalOrUnnamed);
   }
 
     // C++ [basic.link]p8:
@@ -2135,9 +2210,8 @@ static CachedProperties computeCachedProperties(const Type *T) {
     return result;
   }
   case Type::ObjCInterface: {
-    NamedDecl::LinkageInfo LV =
-      cast<ObjCInterfaceType>(T)->getDecl()->getLinkageAndVisibility();
-    return CachedProperties(LV, false);
+    Linkage L = cast<ObjCInterfaceType>(T)->getDecl()->getLinkageInternal();
+    return CachedProperties(L, false);
   }
   case Type::ObjCObject:
     return Cache::get(cast<ObjCObjectType>(T)->getBaseType());
@@ -2156,31 +2230,102 @@ Linkage Type::getLinkage() const {
   return TypeBits.getLinkage();
 }
 
-/// \brief Determine the linkage of this type.
-Visibility Type::getVisibility() const {
-  Cache::ensure(this);
-  return TypeBits.getVisibility();
-}
-
-bool Type::isVisibilityExplicit() const {
-  Cache::ensure(this);
-  return TypeBits.isVisibilityExplicit();
-}
-
 bool Type::hasUnnamedOrLocalType() const {
   Cache::ensure(this);
   return TypeBits.hasLocalOrUnnamedType();
 }
 
-std::pair<Linkage,Visibility> Type::getLinkageAndVisibility() const {
-  Cache::ensure(this);
-  return std::make_pair(TypeBits.getLinkage(), TypeBits.getVisibility());
+static LinkageInfo computeLinkageInfo(QualType T);
+
+static LinkageInfo computeLinkageInfo(const Type *T) {
+  switch (T->getTypeClass()) {
+#define TYPE(Class,Base)
+#define NON_CANONICAL_TYPE(Class,Base) case Type::Class:
+#include "clang/AST/TypeNodes.def"
+    llvm_unreachable("didn't expect a non-canonical type here");
+
+#define TYPE(Class,Base)
+#define DEPENDENT_TYPE(Class,Base) case Type::Class:
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class,Base) case Type::Class:
+#include "clang/AST/TypeNodes.def"
+    // Treat instantiation-dependent types as external.
+    assert(T->isInstantiationDependentType());
+    return LinkageInfo::external();
+
+  case Type::Builtin:
+    return LinkageInfo::external();
+
+  case Type::Auto:
+    return LinkageInfo::external();
+
+  case Type::Record:
+  case Type::Enum:
+    return cast<TagType>(T)->getDecl()->getLinkageAndVisibility();
+
+  case Type::Complex:
+    return computeLinkageInfo(cast<ComplexType>(T)->getElementType());
+  case Type::Pointer:
+    return computeLinkageInfo(cast<PointerType>(T)->getPointeeType());
+  case Type::BlockPointer:
+    return computeLinkageInfo(cast<BlockPointerType>(T)->getPointeeType());
+  case Type::LValueReference:
+  case Type::RValueReference:
+    return computeLinkageInfo(cast<ReferenceType>(T)->getPointeeType());
+  case Type::MemberPointer: {
+    const MemberPointerType *MPT = cast<MemberPointerType>(T);
+    LinkageInfo LV = computeLinkageInfo(MPT->getClass());
+    LV.merge(computeLinkageInfo(MPT->getPointeeType()));
+    return LV;
+  }
+  case Type::ConstantArray:
+  case Type::IncompleteArray:
+  case Type::VariableArray:
+    return computeLinkageInfo(cast<ArrayType>(T)->getElementType());
+  case Type::Vector:
+  case Type::ExtVector:
+    return computeLinkageInfo(cast<VectorType>(T)->getElementType());
+  case Type::FunctionNoProto:
+    return computeLinkageInfo(cast<FunctionType>(T)->getResultType());
+  case Type::FunctionProto: {
+    const FunctionProtoType *FPT = cast<FunctionProtoType>(T);
+    LinkageInfo LV = computeLinkageInfo(FPT->getResultType());
+    for (FunctionProtoType::arg_type_iterator ai = FPT->arg_type_begin(),
+           ae = FPT->arg_type_end(); ai != ae; ++ai)
+      LV.merge(computeLinkageInfo(*ai));
+    return LV;
+  }
+  case Type::ObjCInterface:
+    return cast<ObjCInterfaceType>(T)->getDecl()->getLinkageAndVisibility();
+  case Type::ObjCObject:
+    return computeLinkageInfo(cast<ObjCObjectType>(T)->getBaseType());
+  case Type::ObjCObjectPointer:
+    return computeLinkageInfo(cast<ObjCObjectPointerType>(T)->getPointeeType());
+  case Type::Atomic:
+    return computeLinkageInfo(cast<AtomicType>(T)->getValueType());
+  }
+
+  llvm_unreachable("unhandled type class");
 }
 
-void Type::ClearLinkageCache() {
-  TypeBits.CacheValidAndVisibility = 0;
-  if (QualType(this, 0) != CanonicalType)
-    CanonicalType->TypeBits.CacheValidAndVisibility = 0;
+static LinkageInfo computeLinkageInfo(QualType T) {
+  return computeLinkageInfo(T.getTypePtr());
+}
+
+bool Type::isLinkageValid() const {
+  if (!TypeBits.isCacheValid())
+    return true;
+
+  return computeLinkageInfo(getCanonicalTypeInternal()).getLinkage() ==
+    TypeBits.getLinkage();
+}
+
+LinkageInfo Type::getLinkageAndVisibility() const {
+  if (!isCanonicalUnqualified())
+    return computeLinkageInfo(getCanonicalTypeInternal());
+
+  LinkageInfo LV = computeLinkageInfo(this);
+  assert(LV.getLinkage() == getLinkage());
+  return LV;
 }
 
 Qualifiers::ObjCLifetime Type::getObjCARCImplicitLifetime() const {
@@ -2295,26 +2440,4 @@ QualType::DestructionKind QualType::isDestructedTypeImpl(QualType type) {
     return DK_cxx_destructor;
 
   return DK_none;
-}
-
-bool QualType::hasTrivialAssignment(ASTContext &Context, bool Copying) const {
-  switch (getObjCLifetime()) {
-  case Qualifiers::OCL_None:
-    break;
-      
-  case Qualifiers::OCL_ExplicitNone:
-    return true;
-      
-  case Qualifiers::OCL_Autoreleasing:
-  case Qualifiers::OCL_Strong:
-  case Qualifiers::OCL_Weak:
-    return !Context.getLangOpts().ObjCAutoRefCount;
-  }
-  
-  if (const CXXRecordDecl *Record 
-            = getTypePtr()->getBaseElementTypeUnsafe()->getAsCXXRecordDecl())
-    return Copying ? Record->hasTrivialCopyAssignment() :
-                     Record->hasTrivialMoveAssignment();
-  
-  return true;
 }

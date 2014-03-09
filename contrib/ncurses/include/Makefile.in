@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.35 2001/12/08 18:50:06 tom Exp $
+# $Id: Makefile.in,v 1.41 2013/08/03 23:10:51 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -40,6 +40,7 @@
 .SUFFIXES:
 
 SHELL		= /bin/sh
+VPATH		= @srcdir@
 THIS		= Makefile
 
 DESTDIR		= @DESTDIR@
@@ -47,12 +48,18 @@ srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 includedir	= @includedir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AWK		= @AWK@
 LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
 
 VERSION		= @cf_cv_rel_version@
 
@@ -64,6 +71,7 @@ TERMINFO_CAPS	= $(srcdir)/@TERMINFO_CAPS@
 CONFIG_SRC = \
 	MKterm.h.awk \
 	curses.head \
+	ncurses_dll.h \
 	termcap.h \
 	unctrl.h
 
@@ -73,6 +81,7 @@ AUTO_SRC = \
 	hashsize.h \
 	ncurses_def.h \
 	parametrized.h \
+	config.h \
 	term.h
 
 ################################################################################
@@ -104,11 +113,15 @@ ncurses_def.h: $(srcdir)/ncurses_defs $(srcdir)/MKncurses_def.sh
 parametrized.h: $(TERMINFO_CAPS) $(srcdir)/MKparametrized.sh
 	AWK=$(AWK) sh $(srcdir)/MKparametrized.sh $(TERMINFO_CAPS) >$@
 
+# This is required by pthread.h on MinGW
+config.h:
+	touch $@
+
 tags:
-	ctags *.[ch]
+	$(CTAGS) *.[ch]
 
 @MAKE_UPPER_TAGS@TAGS:
-@MAKE_UPPER_TAGS@	etags *.[ch]
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
@@ -117,7 +130,7 @@ clean :: mostlyclean
 	-rm -f $(AUTO_SRC)
 
 distclean :: clean
-	-rm -f Makefile $(CONFIG_SRC)
+	-rm -f Makefile $(CONFIG_SRC) config.h
 
 realclean :: distclean
 

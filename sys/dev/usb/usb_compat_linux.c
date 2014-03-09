@@ -25,6 +25,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -45,7 +48,6 @@
 #include <sys/priv.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
@@ -61,6 +63,7 @@
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_debug.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 struct usb_linux_softc {
 	LIST_ENTRY(usb_linux_softc) sc_attached_list;
@@ -109,7 +112,7 @@ static device_method_t usb_linux_methods[] = {
 	DEVMETHOD(device_suspend, usb_linux_suspend),
 	DEVMETHOD(device_resume, usb_linux_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t usb_linux_driver = {

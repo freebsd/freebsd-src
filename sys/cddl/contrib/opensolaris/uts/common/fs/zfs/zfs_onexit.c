@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -105,7 +106,7 @@ zfs_onexit_minor_to_state(minor_t minor, zfs_onexit_t **zo)
 {
 	*zo = zfsdev_get_soft_state(minor, ZSST_CTLDEV);
 	if (*zo == NULL)
-		return (EBADF);
+		return (SET_ERROR(EBADF));
 
 	return (0);
 }
@@ -121,12 +122,13 @@ zfs_onexit_fd_hold(int fd, minor_t *minorp)
 {
 	file_t *fp, *tmpfp;
 	zfs_onexit_t *zo;
+	cap_rights_t rights;
 	void *data;
 	int error;
 
-	fp = getf(fd);
+	fp = getf(fd, cap_rights_init(&rights));
 	if (fp == NULL)
-		return (EBADF);
+		return (SET_ERROR(EBADF));
 
 	tmpfp = curthread->td_fpop;
 	curthread->td_fpop = fp;
@@ -216,7 +218,7 @@ zfs_onexit_del_cb(minor_t minor, uint64_t action_handle, boolean_t fire)
 		kmem_free(ap, sizeof (zfs_onexit_action_node_t));
 	} else {
 		mutex_exit(&zo->zo_lock);
-		error = ENOENT;
+		error = SET_ERROR(ENOENT);
 	}
 
 	return (error);
@@ -245,7 +247,7 @@ zfs_onexit_cb_data(minor_t minor, uint64_t action_handle, void **data)
 	if (ap != NULL)
 		*data = ap->za_data;
 	else
-		error = ENOENT;
+		error = SET_ERROR(ENOENT);
 	mutex_exit(&zo->zo_lock);
 
 	return (error);

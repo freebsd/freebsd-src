@@ -43,7 +43,8 @@ ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx, CharUnits size,
 // Constructor for C++ records.
 ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx,
                                  CharUnits size, CharUnits alignment,
-                                 bool hasOwnVFPtr, CharUnits vbptroffset,
+                                 bool hasOwnVFPtr, bool hasExtendableVFPtr,
+                                 CharUnits vbptroffset,
                                  CharUnits datasize,
                                  const uint64_t *fieldoffsets,
                                  unsigned fieldcount,
@@ -52,6 +53,8 @@ ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx,
                                  CharUnits SizeOfLargestEmptySubobject,
                                  const CXXRecordDecl *PrimaryBase,
                                  bool IsPrimaryBaseVirtual,
+                                 const CXXRecordDecl *BaseSharingVBPtr,
+                                 bool AlignAfterVBases,
                                  const BaseOffsetsMapTy& BaseOffsets,
                                  const VBaseOffsetsMapTy& VBaseOffsets)
   : Size(size), DataSize(datasize), Alignment(alignment), FieldOffsets(0),
@@ -71,14 +74,17 @@ ASTRecordLayout::ASTRecordLayout(const ASTContext &Ctx,
   CXXInfo->VBaseOffsets = VBaseOffsets;
   CXXInfo->HasOwnVFPtr = hasOwnVFPtr;
   CXXInfo->VBPtrOffset = vbptroffset;
+  CXXInfo->HasExtendableVFPtr = hasExtendableVFPtr;
+  CXXInfo->BaseSharingVBPtr = BaseSharingVBPtr;
+  CXXInfo->AlignAfterVBases = AlignAfterVBases;
+
 
 #ifndef NDEBUG
     if (const CXXRecordDecl *PrimaryBase = getPrimaryBase()) {
       if (isPrimaryBaseVirtual()) {
-        // Microsoft ABI doesn't have primary virtual base
-        if (Ctx.getTargetInfo().getCXXABI() != CXXABI_Microsoft) {
-        assert(getVBaseClassOffset(PrimaryBase).isZero() &&
-               "Primary virtual base must be at offset 0!");
+        if (Ctx.getTargetInfo().getCXXABI().hasPrimaryVBases()) {
+          assert(getVBaseClassOffset(PrimaryBase).isZero() &&
+                 "Primary virtual base must be at offset 0!");
         }
       } else {
         assert(getBaseClassOffset(PrimaryBase).isZero() &&

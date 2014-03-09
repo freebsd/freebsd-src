@@ -574,7 +574,6 @@ static int
 fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 {
 	const Elf_Sym *symp = lc->symtab;;
-	const char *name;
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
 	int i;
@@ -605,11 +604,6 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 			*ctfoff = 0xffffffff;
 			continue;
 		}
-
-		if (symp->st_name < lc->strcnt)
-			name = lc->strtab + symp->st_name;
-		else
-			name = "(?)";
 
 		switch (ELF_ST_TYPE(symp->st_info)) {
 		case STT_OBJECT:
@@ -777,6 +771,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 		pop[kind]++;
 	}
 
+	/* account for a sentinel value below */
+	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
 	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
@@ -1258,6 +1254,11 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	uint32_t offset;
 	ushort_t info, kind, n;
 
+	if (fbt->fbtp_roffset != 0 && desc->dtargd_ndx == 0) {
+		(void) strcpy(desc->dtargd_native, "int");
+		return;
+	}
+
 	desc->dtargd_ndx = DTRACE_ARGNONE;
 
 	/* Get a pointer to the CTF data and it's length. */
@@ -1308,17 +1309,33 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 		return;
 	}
 
-	/* Check if the requested argument doesn't exist. */
-	if (ndx >= n)
-		return;
+	if (fbt->fbtp_roffset != 0) {
+		/* Only return type is available for args[1] in return probe. */
+		if (ndx > 1)
+			return;
+		ASSERT(ndx == 1);
+	} else {
+		/* Check if the requested argument doesn't exist. */
+		if (ndx >= n)
+			return;
 
-	/* Skip the return type and arguments up to the one requested. */
-	dp += ndx + 1;
+		/* Skip the return type and arguments up to the one requested. */
+		dp += ndx + 1;
+	}
 
 	if (fbt_type_name(&lc, *dp, desc->dtargd_native, sizeof(desc->dtargd_native)) > 0)
 		desc->dtargd_ndx = ndx;
 
 	return;
+}
+
+static int
+fbt_linker_file_cb(linker_file_t lf, void *arg)
+{
+
+	fbt_provide_module(arg, lf);
+
+	return (0);
 }
 
 static void
@@ -1345,8 +1362,10 @@ fbt_load(void *dummy)
 	if (dtrace_register("fbt", &fbt_attr, DTRACE_PRIV_USER,
 	    NULL, &fbt_pops, NULL, &fbt_id) != 0)
 		return;
-}
 
+	/* Create probes for the kernel and already-loaded modules. */
+	linker_file_foreach(fbt_linker_file_cb, NULL);
+}
 
 static int
 fbt_unload()

@@ -35,14 +35,17 @@ then
     source_periodic_confs
 fi
 
-case "$daily_status_security_passwdless_enable" in
-    [Yy][Ee][Ss])
+security_daily_compat_var security_status_passwdless_enable
+
+rc=0
+
+if check_yesno_period security_status_passwdless_enable
+then
 	echo ""
 	echo 'Checking for passwordless accounts:'
 	n=$(awk -F: 'NF > 1 && $1 !~ /^[#+-]/ && $2=="" {print $0}' /etc/master.passwd |
 	    tee /dev/stderr | wc -l)
-	[ $n -gt 0 ] && rc=1 || rc=0;;
-    *)	rc=0;;
-esac
+	[ $n -gt 0 ] && rc=1 || rc=0
+fi
 
 exit "$rc"

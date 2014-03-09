@@ -1,15 +1,9 @@
 /*
  * Wi-Fi Protected Setup - common functionality
- * Copyright (c) 2008-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -20,8 +14,8 @@
 #include "crypto/dh_group5.h"
 #include "crypto/sha1.h"
 #include "crypto/sha256.h"
+#include "crypto/random.h"
 #include "wps_i.h"
-#include "wps_dev_attr.h"
 
 
 void wps_kdf(const u8 *key, const u8 *label_prefix, size_t label_prefix_len,
@@ -81,6 +75,8 @@ int wps_derive_keys(struct wps_data *wps)
 		return -1;
 	}
 
+	wpa_hexdump_buf_key(MSG_DEBUG, "WPS: DH Private Key", wps->dh_privkey);
+	wpa_hexdump_buf(MSG_DEBUG, "WPS: DH peer Public Key", pubkey);
 	dh_shared = dh5_derive_shared(wps->dh_ctx, pubkey, wps->dh_privkey);
 	dh5_free(wps->dh_ctx);
 	wps->dh_ctx = NULL;
@@ -241,7 +237,7 @@ unsigned int wps_generate_pin(void)
 	unsigned int val;
 
 	/* Generate seven random digits for the PIN */
-	if (os_get_random((unsigned char *) &val, sizeof(val)) < 0) {
+	if (random_get_bytes((unsigned char *) &val, sizeof(val)) < 0) {
 		struct os_time now;
 		os_get_time(&now);
 		val = os_random() ^ now.sec ^ now.usec;
@@ -253,7 +249,24 @@ unsigned int wps_generate_pin(void)
 }
 
 
-void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg)
+int wps_pin_str_valid(const char *pin)
+{
+	const char *p;
+	size_t len;
+
+	p = pin;
+	while (*p >= '0' && *p <= '9')
+		p++;
+	if (*p != '\0')
+		return 0;
+
+	len = p - pin;
+	return len == 4 || len == 8;
+}
+
+
+void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg,
+		    u16 config_error, u16 error_indication)
 {
 	union wps_event_data data;
 
@@ -262,6 +275,8 @@ void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg)
 
 	os_memset(&data, 0, sizeof(data));
 	data.fail.msg = msg;
+	data.fail.config_error = config_error;
+	data.fail.error_indication = error_indication;
 	wps->event_cb(wps->cb_ctx, WPS_EV_FAIL, &data);
 }
 
@@ -309,7 +324,7 @@ void wps_pbc_timeout_event(struct wps_context *wps)
 
 #ifdef CONFIG_WPS_OOB
 
-static struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
+struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
 {
 	struct wps_data data;
 	struct wpabuf *plain;
@@ -325,7 +340,9 @@ static struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
 	data.wps = wps;
 	data.auth_type = wps->auth_types;
 	data.encr_type = wps->encr_types;
-	if (wps_build_version(plain) || wps_build_cred(&data, plain)) {
+	if (wps_build_version(plain) ||
+	    wps_build_cred(&data, plain) ||
+	    wps_build_wfa_ext(plain, 0, NULL, 0)) {
 		wpabuf_free(plain);
 		return NULL;
 	}
@@ -334,31 +351,22 @@ static struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
 }
 
 
-static struct wpabuf * wps_get_oob_dev_pwd(struct wps_context *wps)
+struct wpabuf * wps_build_nfc_pw_token(u16 dev_pw_id,
+				       const struct wpabuf *pubkey,
+				       const struct wpabuf *dev_pw)
 {
 	struct wpabuf *data;
 
-	data = wpabuf_alloc(9 + WPS_OOB_DEVICE_PASSWORD_ATTR_LEN);
-	if (data == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to allocate memory for OOB "
-			   "device password attribute");
+	data = wpabuf_alloc(200);
+	if (data == NULL)
 		return NULL;
-	}
-
-	wpabuf_free(wps->oob_conf.dev_password);
-	wps->oob_conf.dev_password =
-		wpabuf_alloc(WPS_OOB_DEVICE_PASSWORD_LEN * 2 + 1);
-	if (wps->oob_conf.dev_password == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to allocate memory for OOB "
-			   "device password");
-		wpabuf_free(data);
-		return NULL;
-	}
 
 	if (wps_build_version(data) ||
-	    wps_build_oob_dev_password(data, wps)) {
-		wpa_printf(MSG_ERROR, "WPS: Build OOB device password "
-			   "attribute error");
+	    wps_build_oob_dev_pw(data, dev_pw_id, pubkey,
+				 wpabuf_head(dev_pw), wpabuf_len(dev_pw)) ||
+	    wps_build_wfa_ext(data, 0, NULL, 0)) {
+		wpa_printf(MSG_ERROR, "WPS: Failed to build NFC password "
+			   "token");
 		wpabuf_free(data);
 		return NULL;
 	}
@@ -367,66 +375,17 @@ static struct wpabuf * wps_get_oob_dev_pwd(struct wps_context *wps)
 }
 
 
-static int wps_parse_oob_dev_pwd(struct wps_context *wps,
-				 struct wpabuf *data)
-{
-	struct oob_conf_data *oob_conf = &wps->oob_conf;
-	struct wps_parse_attr attr;
-	const u8 *pos;
-
-	if (wps_parse_msg(data, &attr) < 0 ||
-	    attr.oob_dev_password == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: OOB device password not found");
-		return -1;
-	}
-
-	pos = attr.oob_dev_password;
-
-	oob_conf->pubkey_hash =
-		wpabuf_alloc_copy(pos, WPS_OOB_PUBKEY_HASH_LEN);
-	if (oob_conf->pubkey_hash == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to allocate memory for OOB "
-			   "public key hash");
-		return -1;
-	}
-	pos += WPS_OOB_PUBKEY_HASH_LEN;
-
-	wps->oob_dev_pw_id = WPA_GET_BE16(pos);
-	pos += sizeof(wps->oob_dev_pw_id);
-
-	oob_conf->dev_password =
-		wpabuf_alloc(WPS_OOB_DEVICE_PASSWORD_LEN * 2 + 1);
-	if (oob_conf->dev_password == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to allocate memory for OOB "
-			   "device password");
-		return -1;
-	}
-	wpa_snprintf_hex_uppercase(wpabuf_put(oob_conf->dev_password,
-				   wpabuf_size(oob_conf->dev_password)),
-				   wpabuf_size(oob_conf->dev_password), pos,
-				   WPS_OOB_DEVICE_PASSWORD_LEN);
-
-	return 0;
-}
-
-
-static int wps_parse_oob_cred(struct wps_context *wps, struct wpabuf *data)
+int wps_oob_use_cred(struct wps_context *wps, struct wps_parse_attr *attr)
 {
 	struct wpabuf msg;
-	struct wps_parse_attr attr;
 	size_t i;
 
-	if (wps_parse_msg(data, &attr) < 0 || attr.num_cred <= 0) {
-		wpa_printf(MSG_ERROR, "WPS: OOB credential not found");
-		return -1;
-	}
-
-	for (i = 0; i < attr.num_cred; i++) {
+	for (i = 0; i < attr->num_cred; i++) {
 		struct wps_credential local_cred;
 		struct wps_parse_attr cattr;
 
 		os_memset(&local_cred, 0, sizeof(local_cred));
-		wpabuf_set(&msg, attr.cred[i], attr.cred_len[i]);
+		wpabuf_set(&msg, attr->cred[i], attr->cred_len[i]);
 		if (wps_parse_msg(&msg, &cattr) < 0 ||
 		    wps_process_cred(&cattr, &local_cred)) {
 			wpa_printf(MSG_ERROR, "WPS: Failed to parse OOB "
@@ -439,94 +398,6 @@ static int wps_parse_oob_cred(struct wps_context *wps, struct wpabuf *data)
 	return 0;
 }
 
-
-int wps_process_oob(struct wps_context *wps, struct oob_device_data *oob_dev,
-		    int registrar)
-{
-	struct wpabuf *data;
-	int ret, write_f, oob_method = wps->oob_conf.oob_method;
-	void *oob_priv;
-
-	write_f = oob_method == OOB_METHOD_DEV_PWD_E ? !registrar : registrar;
-
-	oob_priv = oob_dev->init_func(wps, oob_dev, registrar);
-	if (oob_priv == NULL) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to initialize OOB device");
-		return -1;
-	}
-
-	if (write_f) {
-		if (oob_method == OOB_METHOD_CRED)
-			data = wps_get_oob_cred(wps);
-		else
-			data = wps_get_oob_dev_pwd(wps);
-
-		ret = 0;
-		if (data == NULL || oob_dev->write_func(oob_priv, data) < 0)
-			ret = -1;
-	} else {
-		data = oob_dev->read_func(oob_priv);
-		if (data == NULL)
-			ret = -1;
-		else {
-			if (oob_method == OOB_METHOD_CRED)
-				ret = wps_parse_oob_cred(wps, data);
-			else
-				ret = wps_parse_oob_dev_pwd(wps, data);
-		}
-	}
-	wpabuf_free(data);
-	oob_dev->deinit_func(oob_priv);
-
-	if (ret < 0) {
-		wpa_printf(MSG_ERROR, "WPS: Failed to process OOB data");
-		return -1;
-	}
-
-	return 0;
-}
-
-
-struct oob_device_data * wps_get_oob_device(char *device_type)
-{
-#ifdef CONFIG_WPS_UFD
-	if (os_strstr(device_type, "ufd") != NULL)
-		return &oob_ufd_device_data;
-#endif /* CONFIG_WPS_UFD */
-#ifdef CONFIG_WPS_NFC
-	if (os_strstr(device_type, "nfc") != NULL)
-		return &oob_nfc_device_data;
-#endif /* CONFIG_WPS_NFC */
-
-	return NULL;
-}
-
-
-#ifdef CONFIG_WPS_NFC
-struct oob_nfc_device_data * wps_get_oob_nfc_device(char *device_name)
-{
-	if (device_name == NULL)
-		return NULL;
-#ifdef CONFIG_WPS_NFC_PN531
-	if (os_strstr(device_name, "pn531") != NULL)
-		return &oob_nfc_pn531_device_data;
-#endif /* CONFIG_WPS_NFC_PN531 */
-
-	return NULL;
-}
-#endif /* CONFIG_WPS_NFC */
-
-
-int wps_get_oob_method(char *method)
-{
-	if (os_strstr(method, "pin-e") != NULL)
-		return OOB_METHOD_DEV_PWD_E;
-	if (os_strstr(method, "pin-r") != NULL)
-		return OOB_METHOD_DEV_PWD_R;
-	if (os_strstr(method, "cred") != NULL)
-		return OOB_METHOD_CRED;
-	return OOB_METHOD_UNKNOWN;
-}
 
 #endif /* CONFIG_WPS_OOB */
 
@@ -604,15 +475,13 @@ u16 wps_config_methods_str2bin(const char *str)
 	if (str == NULL) {
 		/* Default to enabling methods based on build configuration */
 		methods |= WPS_CONFIG_DISPLAY | WPS_CONFIG_KEYPAD;
-#ifdef CONFIG_WPS_UFD
-		methods |= WPS_CONFIG_USBA;
-#endif /* CONFIG_WPS_UFD */
+#ifdef CONFIG_WPS2
+		methods |= WPS_CONFIG_VIRT_DISPLAY;
+#endif /* CONFIG_WPS2 */
 #ifdef CONFIG_WPS_NFC
 		methods |= WPS_CONFIG_NFC_INTERFACE;
 #endif /* CONFIG_WPS_NFC */
 	} else {
-		if (os_strstr(str, "usba"))
-			methods |= WPS_CONFIG_USBA;
 		if (os_strstr(str, "ethernet"))
 			methods |= WPS_CONFIG_ETHERNET;
 		if (os_strstr(str, "label"))
@@ -629,7 +498,114 @@ u16 wps_config_methods_str2bin(const char *str)
 			methods |= WPS_CONFIG_PUSHBUTTON;
 		if (os_strstr(str, "keypad"))
 			methods |= WPS_CONFIG_KEYPAD;
+#ifdef CONFIG_WPS2
+		if (os_strstr(str, "virtual_display"))
+			methods |= WPS_CONFIG_VIRT_DISPLAY;
+		if (os_strstr(str, "physical_display"))
+			methods |= WPS_CONFIG_PHY_DISPLAY;
+		if (os_strstr(str, "virtual_push_button"))
+			methods |= WPS_CONFIG_VIRT_PUSHBUTTON;
+		if (os_strstr(str, "physical_push_button"))
+			methods |= WPS_CONFIG_PHY_PUSHBUTTON;
+#endif /* CONFIG_WPS2 */
 	}
 
 	return methods;
 }
+
+
+struct wpabuf * wps_build_wsc_ack(struct wps_data *wps)
+{
+	struct wpabuf *msg;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building Message WSC_ACK");
+
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return NULL;
+
+	if (wps_build_version(msg) ||
+	    wps_build_msg_type(msg, WPS_WSC_ACK) ||
+	    wps_build_enrollee_nonce(wps, msg) ||
+	    wps_build_registrar_nonce(wps, msg) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	return msg;
+}
+
+
+struct wpabuf * wps_build_wsc_nack(struct wps_data *wps)
+{
+	struct wpabuf *msg;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building Message WSC_NACK");
+
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return NULL;
+
+	if (wps_build_version(msg) ||
+	    wps_build_msg_type(msg, WPS_WSC_NACK) ||
+	    wps_build_enrollee_nonce(wps, msg) ||
+	    wps_build_registrar_nonce(wps, msg) ||
+	    wps_build_config_error(msg, wps->config_error) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	return msg;
+}
+
+
+#ifdef CONFIG_WPS_NFC
+struct wpabuf * wps_nfc_token_gen(int ndef, int *id, struct wpabuf **pubkey,
+				  struct wpabuf **privkey,
+				  struct wpabuf **dev_pw)
+{
+	struct wpabuf *priv = NULL, *pub = NULL, *pw, *ret;
+	void *dh_ctx;
+	u16 val;
+
+	pw = wpabuf_alloc(WPS_OOB_DEVICE_PASSWORD_LEN);
+	if (pw == NULL)
+		return NULL;
+
+	if (random_get_bytes(wpabuf_put(pw, WPS_OOB_DEVICE_PASSWORD_LEN),
+			     WPS_OOB_DEVICE_PASSWORD_LEN) ||
+	    random_get_bytes((u8 *) &val, sizeof(val))) {
+		wpabuf_free(pw);
+		return NULL;
+	}
+
+	dh_ctx = dh5_init(&priv, &pub);
+	if (dh_ctx == NULL) {
+		wpabuf_free(pw);
+		return NULL;
+	}
+	dh5_free(dh_ctx);
+
+	*id = 0x10 + val % 0xfff0;
+	wpabuf_free(*pubkey);
+	*pubkey = pub;
+	wpabuf_free(*privkey);
+	*privkey = priv;
+	wpabuf_free(*dev_pw);
+	*dev_pw = pw;
+
+	ret = wps_build_nfc_pw_token(*id, *pubkey, *dev_pw);
+	if (ndef && ret) {
+		struct wpabuf *tmp;
+		tmp = ndef_build_wifi(ret);
+		wpabuf_free(ret);
+		if (tmp == NULL)
+			return NULL;
+		ret = tmp;
+	}
+
+	return ret;
+}
+#endif /* CONFIG_WPS_NFC */

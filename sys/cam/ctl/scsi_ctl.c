@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_error.h>
 
 typedef enum {
-	CTLFE_CCB_WAITING 	= 0x01
+	CTLFE_CCB_DEFAULT	= 0x00
 } ctlfe_ccb_types;
 
 struct ctlfe_softc {
@@ -81,6 +81,7 @@ struct ctlfe_softc {
 	path_id_t path_id;
 	struct cam_sim *sim;
 	char port_name[DEV_IDLEN];
+	struct mtx lun_softc_mtx;
 	STAILQ_HEAD(, ctlfe_lun_softc) lun_softc_list;
 	STAILQ_ENTRY(ctlfe_softc) links;
 };
@@ -224,38 +225,25 @@ static struct periph_driver ctlfe_driver =
 	ctlfeinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
 };
-PERIPHDRIVER_DECLARE(ctl, ctlfe_driver);
+
+static int ctlfe_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+/*
+ * We're not using PERIPHDRIVER_DECLARE(), because it runs at SI_SUB_DRIVERS,
+ * and that happens before CTL gets initialised.
+ */
+static moduledata_t ctlfe_moduledata = {
+	"ctlfe",
+	ctlfe_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlfe, ctlfe_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlfe, 1);
+MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
 
 extern struct ctl_softc *control_softc;
-extern int ctl_disable;
-
-int
-ctlfeinitialize(void)
-{
-	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return (0);
-
-	STAILQ_INIT(&ctlfe_softc_list);
-
-	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
-
-	xpt_lock_buses();
-	periphdriver_register(&ctlfe_driver);
-	xpt_unlock_buses();
-
-	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED | 
-				    AC_CONTRACT, ctlfeasync, NULL, NULL);
-
-	if (status != CAM_REQ_CMP) {
-		printf("ctl: Failed to attach async callback due to CAM "
-		       "status 0x%x!\n", status);
-	}
-
-	return (0);
-}
 
 void
 ctlfeshutdown(void)
@@ -267,10 +255,6 @@ void
 ctlfeinit(void)
 {
 	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return;
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
@@ -284,6 +268,21 @@ ctlfeinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
+	}
+}
+
+static int
+ctlfe_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		periphdriver_register(&ctlfe_driver);
+		return (0);
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
 	}
 }
 
@@ -304,10 +303,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	case AC_PATH_REGISTERED: {
 		struct ctl_frontend *fe;
 		struct ctlfe_softc *bus_softc;
-		struct ctlfe_lun_softc *lun_softc;
-		struct cam_path *path;
 		struct ccb_pathinq *cpi;
-		cam_status status;
 		int retval;
 
 		cpi = (struct ccb_pathinq *)arg;
@@ -324,26 +320,18 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 #ifdef CTLFE_INIT_ENABLE
 		if (ctlfe_num_targets >= ctlfe_max_targets) {
 			union ccb *ccb;
-			struct cam_sim *sim;
 
 			ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP,
 						  M_NOWAIT | M_ZERO);
 			if (ccb == NULL) {
 				printf("%s: unable to malloc CCB!\n", __func__);
-				xpt_free_path(path);
 				return;
 			}
-			xpt_setup_ccb(&ccb->ccb_h, cpi->ccb_h.path,
-				      CAM_PRIORITY_NONE);
-
-			sim = xpt_path_sim(cpi->ccb_h.path);
+			xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
 
 			ccb->ccb_h.func_code = XPT_SET_SIM_KNOB;
 			ccb->knob.xport_specific.valid = KNOB_VALID_ROLE;
 			ccb->knob.xport_specific.fc.role = KNOB_ROLE_INITIATOR;
-
-			/* We should hold the SIM lock here */
-			mtx_assert(sim->mtx, MA_OWNED);
 
 			xpt_action(ccb);
 
@@ -386,7 +374,9 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		}
 
 		bus_softc->path_id = cpi->ccb_h.path_id;
-		bus_softc->sim = xpt_path_sim(cpi->ccb_h.path);
+		bus_softc->sim = xpt_path_sim(path);
+		mtx_init(&bus_softc->lun_softc_mtx, "LUN softc mtx", NULL,
+		    MTX_DEF);
 		STAILQ_INIT(&bus_softc->lun_softc_list);
 
 		fe = &bus_softc->fe;
@@ -440,6 +430,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		if (retval != 0) {
 			printf("%s: ctl_frontend_register() failed with "
 			       "error %d!\n", __func__, retval);
+			mtx_destroy(&bus_softc->lun_softc_mtx);
 			free(bus_softc, M_CTLFE);
 			break;
 		} else {
@@ -448,44 +439,32 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			mtx_unlock(&ctlfe_list_mtx);
 		}
 
-		status = xpt_create_path(&path, /*periph*/ NULL,
-					 bus_softc->path_id,CAM_TARGET_WILDCARD,
-					 CAM_LUN_WILDCARD);
-		if (status != CAM_REQ_CMP) {
-			printf("%s: unable to create path for wildcard "
-			       "periph\n", __func__);
-			break;
-		}
-		lun_softc = malloc(sizeof(*lun_softc), M_CTLFE,
-				   M_NOWAIT | M_ZERO);
-		if (lun_softc == NULL) {
-			xpt_print(path, "%s: unable to allocate softc for "
-				  "wildcard periph\n", __func__);
-			xpt_free_path(path);
-			break;
-		}
-
-		lun_softc->parent_softc = bus_softc;
-		lun_softc->flags |= CTLFE_LUN_WILDCARD;
-
-		status = cam_periph_alloc(ctlferegister,
-					  ctlfeoninvalidate,
-					  ctlfecleanup,
-					  ctlfestart,
-					  "ctl",
-					  CAM_PERIPH_BIO,
-					  path,
-					  ctlfeasync,
-					  0,
-					  lun_softc);
-
-		xpt_free_path(path);
-
 		break;
 	}
-	case AC_PATH_DEREGISTERED:
-		/* ctl_frontend_deregister() */
+	case AC_PATH_DEREGISTERED: {
+		struct ctlfe_softc *softc = NULL;
+
+		mtx_lock(&ctlfe_list_mtx);
+		STAILQ_FOREACH(softc, &ctlfe_softc_list, links) {
+			if (softc->path_id == xpt_path_path_id(path)) {
+				STAILQ_REMOVE(&ctlfe_softc_list, softc,
+						ctlfe_softc, links);
+				break;
+			}
+		}
+		mtx_unlock(&ctlfe_list_mtx);
+
+		if (softc != NULL) {
+			/*
+			 * XXX KDM are we certain at this point that there
+			 * are no outstanding commands for this frontend?
+			 */
+			ctl_frontend_deregister(&softc->fe);
+			mtx_destroy(&softc->lun_softc_mtx);
+			free(softc, M_CTLFE);
+		}
 		break;
+	}
 	case AC_CONTRACT: {
 		struct ac_contract *ac;
 
@@ -556,19 +535,18 @@ ctlferegister(struct cam_periph *periph, void *arg)
 {
 	struct ctlfe_softc *bus_softc;
 	struct ctlfe_lun_softc *softc;
-	struct cam_sim *sim;
 	union ccb en_lun_ccb;
 	cam_status status;
 	int i;
 
 	softc = (struct ctlfe_lun_softc *)arg;
 	bus_softc = softc->parent_softc;
-	sim = xpt_path_sim(periph->path);
 	
 	TAILQ_INIT(&softc->work_queue);
 	softc->periph = periph;
 
-	callout_init_mtx(&softc->dma_callout, sim->mtx, /*flags*/ 0);
+	callout_init_mtx(&softc->dma_callout, xpt_path_mtx(periph->path),
+	    /*flags*/ 0);
 	periph->softc = softc;
 
 	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -598,6 +576,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
+		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
 		softc->atios_sent++;
 		status = new_ccb->ccb_h.status;
@@ -633,6 +612,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
+		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
 		softc->inots_sent++;
 		status = new_ccb->ccb_h.status;
@@ -664,6 +644,7 @@ ctlfeoninvalidate(struct cam_periph *periph)
 {
 	union ccb en_lun_ccb;
 	cam_status status;
+	struct ctlfe_softc *bus_softc;
 	struct ctlfe_lun_softc *softc;
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
@@ -686,24 +667,28 @@ ctlfeoninvalidate(struct cam_periph *periph)
 		  "INOTs outstanding, %d refs\n", softc->atios_sent -
 		  softc->atios_returned, softc->inots_sent -
 		  softc->inots_returned, periph->refcount);
+
+	bus_softc = softc->parent_softc;
+	mtx_lock(&bus_softc->lun_softc_mtx);
+	STAILQ_REMOVE(&bus_softc->lun_softc_list, softc, ctlfe_lun_softc, links);
+	mtx_unlock(&bus_softc->lun_softc_mtx);
 }
 
 static void
 ctlfecleanup(struct cam_periph *periph)
 {
 	struct ctlfe_lun_softc *softc;
-	struct ctlfe_softc *bus_softc;
 
 	xpt_print(periph->path, "%s: Called\n", __func__);
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
-	bus_softc = softc->parent_softc;
 
-	STAILQ_REMOVE(&bus_softc->lun_softc_list, softc, ctlfe_lun_softc,links);
-	
 	/*
 	 * XXX KDM is there anything else that needs to be done here?
 	 */
+
+	callout_stop(&softc->dma_callout);
+
 	free(softc, M_CTLFE);
 }
 
@@ -717,15 +702,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc->ccbs_alloced++;
 
+	start_ccb->ccb_h.ccb_type = CTLFE_CCB_DEFAULT;
+
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		panic("shouldn't get to the CCB waiting case!");
-		start_ccb->ccb_h.ccb_type = CTLFE_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (ccb_h == NULL) {
+	if (ccb_h == NULL) {
 		softc->ccbs_freed++;
 		xpt_release_ccb(start_ccb);
 	} else {
@@ -804,7 +784,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				}
 				start_ccb->ccb_h.func_code = XPT_ABORT;
 				start_ccb->cab.abort_ccb = (union ccb *)atio;
-				start_ccb->ccb_h.cbfcnp = ctlfedone;
 
 				/* Tell the SIM that we've aborted this ATIO */
 				xpt_action(start_ccb);
@@ -857,8 +836,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 			/*
 			 * Datamove call, we need to setup the S/G list. 
-			 * If we pass in a S/G list, the isp(4) driver at
-			 * least expects physical/bus addresses.
 			 */
 
 			cmd_info = (struct ctlfe_lun_cmd_info *)
@@ -889,6 +866,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			
 			csio->cdb_len = atio->cdb_len;
 
+			flags &= ~CAM_DATA_MASK;
 			if (io->scsiio.kern_sg_entries == 0) {
 				/* No S/G list */
 				data_ptr = io->scsiio.kern_data_ptr;
@@ -896,7 +874,9 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				csio->sglist_cnt = 0;
 
 				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PHYS;
+					flags |= CAM_DATA_PADDR;
+				else
+					flags |= CAM_DATA_VADDR;
 			} else if (io->scsiio.kern_sg_entries <=
 				   (sizeof(cmd_info->cam_sglist)/
 				   sizeof(cmd_info->cam_sglist[0]))) {
@@ -920,11 +900,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 						ctl_sglist[i].len;
 				}
 				csio->sglist_cnt = io->scsiio.kern_sg_entries;
-				flags |= CAM_SCATTER_VALID;
 				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_SG_LIST_PHYS;
+					flags |= CAM_DATA_SG_PADDR;
 				else
-					flags &= ~CAM_SG_LIST_PHYS;
+					flags |= CAM_DATA_SG;
 				data_ptr = (uint8_t *)cam_sglist;
 				dxfer_len = io->scsiio.kern_data_len;
 			} else {
@@ -933,18 +912,23 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				int *ti;
 
 				/*
-				 * XXX KDM this is a temporary hack.  The
-				 * isp(4) driver can't deal with S/G lists
-				 * with virtual pointers, so we need to
-				 * go through and send down one virtual
-				 * pointer at a time.
+				 * If we have more S/G list pointers than
+				 * will fit in the available storage in the
+				 * cmd_info structure inside the ctl_io header,
+				 * then we need to send down the pointers
+				 * one element at a time.
 				 */
+
 				sglist = (struct ctl_sg_entry *)
 					io->scsiio.kern_data_ptr;
 				ti = &cmd_info->cur_transfer_index;
 				data_ptr = sglist[*ti].addr;
 				dxfer_len = sglist[*ti].len;
 				csio->sglist_cnt = 0;
+				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+					flags |= CAM_DATA_PADDR;
+				else
+					flags |= CAM_DATA_VADDR;
 				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
 				(*ti)++;
 			}
@@ -969,23 +953,23 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/*
 		 * Valid combinations:
-		 *  - CAM_SEND_STATUS, SCATTER_VALID = 0, dxfer_len = 0,
+		 *  - CAM_SEND_STATUS, CAM_DATA_SG = 0, dxfer_len = 0,
 		 *    sglist_cnt = 0
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID = 0, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG = 0, dxfer_len != 0,
 		 *    sglist_cnt = 0 
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG, dxfer_len != 0,
 		 *    sglist_cnt != 0
 		 */
 #ifdef CTLFEDEBUG
 		if (((flags & CAM_SEND_STATUS)
-		  && (((flags & CAM_SCATTER_VALID) != 0)
+		  && (((flags & CAM_DATA_SG) != 0)
 		   || (dxfer_len != 0)
 		   || (csio->sglist_cnt != 0)))
 		 || (((flags & CAM_SEND_STATUS) == 0)
 		  && (dxfer_len == 0))
-		 || ((flags & CAM_SCATTER_VALID)
+		 || ((flags & CAM_DATA_SG)
 		  && (csio->sglist_cnt == 0))
-		 || (((flags & CAM_SCATTER_VALID) == 0)
+		 || (((flags & CAM_DATA_SG) == 0)
 		  && (csio->sglist_cnt != 0))) {
 			printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
 			       "%d sg %u\n", __func__, atio->tag_id,
@@ -1012,6 +996,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*data_ptr*/ data_ptr,
 			      /*dxfer_len*/ dxfer_len,
 			      /*timeout*/ 5 * 1000);
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		start_ccb->ccb_h.ccb_atio = atio;
 		if (((flags & CAM_SEND_STATUS) == 0)
 		 && (io != NULL))
@@ -1019,7 +1004,9 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		softc->ctios_sent++;
 
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
 
 		if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			cam_release_devq(periph->path,
@@ -1156,7 +1143,10 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ctlfe_softc *bus_softc;
 	struct ccb_accept_tio *atio = NULL;
 	union ctl_io *io = NULL;
+	struct mtx *mtx;
 
+	KASSERT((done_ccb->ccb_h.flags & CAM_UNLOCKED) != 0,
+	    ("CCB in ctlfedone() without CAM_UNLOCKED flag"));
 #ifdef CTLFE_DEBUG
 	printf("%s: entered, func_code = %#x, type = %#lx\n", __func__,
 	       done_ccb->ccb_h.func_code, done_ccb->ccb_h.ccb_type);
@@ -1164,12 +1154,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	bus_softc = softc->parent_softc;
-
-	if (done_ccb->ccb_h.ccb_type == CTLFE_CCB_WAITING) {
-		panic("shouldn't get to the CCB waiting case!");
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
 	/*
 	 * If the peripheral is invalid, ATIOs and immediate notify CCBs
@@ -1185,7 +1171,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		case XPT_IMMEDIATE_NOTIFY:
 		case XPT_NOTIFY_ACKNOWLEDGE:
 			ctlfe_free_ccb(periph, done_ccb);
-			return;
+			goto out;
 		default:
 			break;
 		}
@@ -1223,6 +1209,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_schedule(periph, /*priority*/ 1);
 			break;
 		}
+		mtx_unlock(mtx);
 		ctl_zero_io(io);
 
 		/* Save pointers on both sides */
@@ -1279,7 +1266,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 #endif
 
 		ctl_queue(io);
-		break;
+		return;
 	}
 	case XPT_CONT_TARGET_IO: {
 		int srr = 0;
@@ -1341,7 +1328,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
 					  periph_links.tqe);
 			xpt_schedule(periph, /*priority*/ 1);
-			return;
+			break;
 		}
 
 		/*
@@ -1367,10 +1354,11 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 			if (periph->flags & CAM_PERIPH_INVALID) {
 				ctlfe_free_ccb(periph, (union ccb *)atio);
-				return;
 			} else {
-				xpt_action((union ccb *)atio);
 				softc->atios_sent++;
+				mtx_unlock(mtx);
+				xpt_action((union ccb *)atio);
+				return;
 			}
 		} else {
 			struct ctlfe_lun_cmd_info *cmd_info;
@@ -1405,13 +1393,15 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				break;
 			default:
 				/*
-				 * XXX KDM the isp(4) driver doesn't really
-				 * seem to send errors back for data
-				 * transfers that I can tell.  There is one
-				 * case where it'll send CAM_REQ_CMP_ERR,
-				 * but probably not that many more cases.
-				 * So set a generic data phase error here,
-				 * like the SXP driver sets.
+				 * XXX KDM we probably need to figure out a
+				 * standard set of errors that the SIM
+				 * drivers should return in the event of a
+				 * data transfer failure.  A data phase
+				 * error will at least point the user to a
+				 * data transfer error of some sort.
+				 * Hopefully the SIM printed out some
+				 * additional information to give the user
+				 * a clue what happened.
 				 */
 				io->io_hdr.port_status = 0xbad1;
 				ctl_set_data_phase_error(&io->scsiio);
@@ -1484,10 +1474,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 					      /*dxfer_len*/ dxfer_len,
 					      /*timeout*/ 5 * 1000);
 
+				csio->ccb_h.flags |= CAM_UNLOCKED;
 				csio->resid = 0;
 				csio->ccb_h.ccb_atio = atio;
 				io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
 				softc->ctios_sent++;
+				mtx_unlock(mtx);
 				xpt_action((union ccb *)csio);
 			} else {
 				/*
@@ -1496,10 +1488,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				softc->ccbs_freed++;
 				xpt_release_ccb(done_ccb);
+				mtx_unlock(mtx);
 
 				/* Call the backend move done callback */
 				io->scsiio.be_move_done(io);
 			}
+			return;
 		}
 		break;
 	}
@@ -1620,7 +1614,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				ctl_free_io(io);
 				ctlfe_free_ccb(periph, done_ccb);
 
-				return;
+				goto out;
 			}
 			if (send_ctl_io != 0) {
 				ctl_queue(io);
@@ -1657,12 +1651,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_action(done_ccb);
 		softc->inots_sent++;
 		break;
-	case XPT_ABORT:
-		/*
-		 * XPT_ABORT is an immediate CCB, we shouldn't get here.
-		 */
-		panic("%s: XPT_ABORT CCB returned!", __func__);
-		break;
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB:
 		break;
@@ -1671,6 +1659,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		      done_ccb->ccb_h.func_code);
 		break;
 	}
+
+out:
+	mtx_unlock(mtx);
 }
 
 static void
@@ -1680,28 +1671,25 @@ ctlfe_onoffline(void *arg, int online)
 	union ccb *ccb;
 	cam_status status;
 	struct cam_path *path;
-	struct cam_sim *sim;
 	int set_wwnn;
 
 	bus_softc = (struct ctlfe_softc *)arg;
 
 	set_wwnn = 0;
 
-	sim = bus_softc->sim;
-
-	CAM_SIM_LOCK(sim);
 	status = xpt_create_path(&path, /*periph*/ NULL, bus_softc->path_id,
 		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		printf("%s: unable to create path!\n", __func__);
-		CAM_SIM_UNLOCK(sim);
 		return;
 	}
-	CAM_SIM_UNLOCK(sim);
-
-	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_WAITOK | M_ZERO);
+	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_NOWAIT | M_ZERO);
+	if (ccb == NULL) {
+		printf("%s: unable to malloc CCB!\n", __func__);
+		xpt_free_path(path);
+		return;
+	}
 	xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
-
 
 	/*
 	 * Copan WWN format:
@@ -1720,11 +1708,9 @@ ctlfe_onoffline(void *arg, int online)
 
 		ccb->ccb_h.func_code = XPT_GET_SIM_KNOB;
 
-		CAM_SIM_LOCK(sim);
 
 		xpt_action(ccb);
 
-		CAM_SIM_UNLOCK(sim);
 
 		if ((ccb->knob.xport_specific.valid & KNOB_VALID_ADDRESS) != 0){
 #ifdef RANDOM_WWNN
@@ -1822,9 +1808,6 @@ ctlfe_onoffline(void *arg, int online)
 	else
 		ccb->knob.xport_specific.fc.role = KNOB_ROLE_NONE;
 
-
-	CAM_SIM_LOCK(sim);
-
 	xpt_action(ccb);
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -1841,8 +1824,6 @@ ctlfe_onoffline(void *arg, int online)
 
 	xpt_free_path(path);
 
-	CAM_SIM_UNLOCK(sim);
-
 	free(ccb, M_TEMP);
 
 	return;
@@ -1851,13 +1832,101 @@ ctlfe_onoffline(void *arg, int online)
 static void
 ctlfe_online(void *arg)
 {
+	struct ctlfe_softc *bus_softc;
+	struct cam_path *path;
+	cam_status status;
+	struct ctlfe_lun_softc *lun_softc;
+
+	bus_softc = (struct ctlfe_softc *)arg;
+
+	/*
+	 * Create the wildcard LUN before bringing the port online.
+	 */
+	status = xpt_create_path(&path, /*periph*/ NULL,
+				 bus_softc->path_id, CAM_TARGET_WILDCARD,
+				 CAM_LUN_WILDCARD);
+	if (status != CAM_REQ_CMP) {
+		printf("%s: unable to create path for wildcard periph\n",
+				__func__);
+		return;
+	}
+
+	lun_softc = malloc(sizeof(*lun_softc), M_CTLFE,
+			M_NOWAIT | M_ZERO);
+	if (lun_softc == NULL) {
+		xpt_print(path, "%s: unable to allocate softc for "
+				"wildcard periph\n", __func__);
+		xpt_free_path(path);
+		return;
+	}
+
+	xpt_path_lock(path);
+	lun_softc->parent_softc = bus_softc;
+	lun_softc->flags |= CTLFE_LUN_WILDCARD;
+
+	mtx_lock(&bus_softc->lun_softc_mtx);
+	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
+	mtx_unlock(&bus_softc->lun_softc_mtx);
+
+	status = cam_periph_alloc(ctlferegister,
+				  ctlfeoninvalidate,
+				  ctlfecleanup,
+				  ctlfestart,
+				  "ctl",
+				  CAM_PERIPH_BIO,
+				  path,
+				  ctlfeasync,
+				  0,
+				  lun_softc);
+
+	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		const struct cam_status_entry *entry;
+
+		entry = cam_fetch_status_entry(status);
+
+		printf("%s: CAM error %s (%#x) returned from "
+		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
+		       entry->status_text : "Unknown", status);
+	}
+
 	ctlfe_onoffline(arg, /*online*/ 1);
+
+	xpt_path_unlock(path);
+	xpt_free_path(path);
 }
 
 static void
 ctlfe_offline(void *arg)
 {
+	struct ctlfe_softc *bus_softc;
+	struct cam_path *path;
+	cam_status status;
+	struct cam_periph *periph;
+
+	bus_softc = (struct ctlfe_softc *)arg;
+
+	/*
+	 * Disable the wildcard LUN for this port now that we have taken
+	 * the port offline.
+	 */
+	status = xpt_create_path(&path, /*periph*/ NULL,
+				 bus_softc->path_id, CAM_TARGET_WILDCARD,
+				 CAM_LUN_WILDCARD);
+	if (status != CAM_REQ_CMP) {
+		printf("%s: unable to create path for wildcard periph\n",
+		       __func__);
+		return;
+	}
+
+	xpt_path_lock(path);
+
 	ctlfe_onoffline(arg, /*online*/ 0);
+
+	if ((periph = cam_periph_find(path, "ctl")) != NULL)
+		cam_periph_invalidate(periph);
+
+	xpt_path_unlock(path);
+	xpt_free_path(path);
 }
 
 static int
@@ -1883,40 +1952,35 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	struct ctlfe_lun_softc *softc;
 	struct cam_path *path;
 	struct cam_periph *periph;
-	struct cam_sim *sim;
 	cam_status status;
 
-	
 	bus_softc = (struct ctlfe_softc *)arg;
-	sim = bus_softc->sim;
 
-	CAM_SIM_LOCK(sim);
-
-	status = xpt_create_path(&path, /*periph*/ NULL, bus_softc->path_id,
-				 targ_id.id, lun_id);
+	status = xpt_create_path(&path, /*periph*/ NULL,
+				  bus_softc->path_id,
+				  targ_id.id, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
 		       status);
-		CAM_SIM_UNLOCK(sim);
 		return (1);
 	}
-	CAM_SIM_UNLOCK(sim);
 
 	softc = malloc(sizeof(*softc), M_CTLFE, M_WAITOK | M_ZERO);
-
-	CAM_SIM_LOCK(sim);
+	xpt_path_lock(path);
 	periph = cam_periph_find(path, "ctl");
 	if (periph != NULL) {
 		/* We've already got a periph, no need to alloc a new one. */
+		xpt_path_unlock(path);
 		xpt_free_path(path);
 		free(softc, M_CTLFE);
-		CAM_SIM_UNLOCK(sim);
 		return (0);
 	}
 
 	softc->parent_softc = bus_softc;
+	mtx_lock(&bus_softc->lun_softc_mtx);
 	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
+	mtx_unlock(&bus_softc->lun_softc_mtx);
 
 	status = cam_periph_alloc(ctlferegister,
 				  ctlfeoninvalidate,
@@ -1929,31 +1993,24 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 				  0,
 				  softc);
 
+	xpt_path_unlock(path);
 	xpt_free_path(path);
-
-	CAM_SIM_UNLOCK(sim);
-
 	return (0);
 }
 
 /*
- * XXX KDM we disable LUN removal here.  The problem is that the isp(4)
- * driver doesn't currently handle LUN removal properly.  We need to keep 
- * enough state here at the peripheral level even after LUNs have been
- * removed inside CTL.
- *
- * Once the isp(4) driver is fixed, this can be re-enabled.
+ * This will get called when the user removes a LUN to disable that LUN
+ * on every bus that is attached to CTL.  
  */
 static int
 ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 {
-#ifdef NOTYET
 	struct ctlfe_softc *softc;
 	struct ctlfe_lun_softc *lun_softc;
 
 	softc = (struct ctlfe_softc *)arg;
 
-	mtx_lock(softc->sim->mtx);
+	mtx_lock(&softc->lun_softc_mtx);
 	STAILQ_FOREACH(lun_softc, &softc->lun_softc_list, links) {
 		struct cam_path *path;
 
@@ -1965,42 +2022,28 @@ ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 		}
 	}
 	if (lun_softc == NULL) {
-		mtx_unlock(softc->sim->mtx);
+		mtx_unlock(&softc->lun_softc_mtx);
 		printf("%s: can't find target %d lun %d\n", __func__,
 		       targ_id.id, lun_id);
 		return (1);
 	}
+	cam_periph_acquire(lun_softc->periph);
+	mtx_unlock(&softc->lun_softc_mtx);
 
+	cam_periph_lock(lun_softc->periph);
 	cam_periph_invalidate(lun_softc->periph);
-
-	mtx_unlock(softc->sim->mtx);
-#endif
-
+	cam_periph_unlock(lun_softc->periph);
+	cam_periph_release(lun_softc->periph);
 	return (0);
 }
 
 static void
 ctlfe_dump_sim(struct cam_sim *sim)
 {
-	int i;
 
 	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
 	       sim->sim_name, sim->unit_number,
 	       sim->max_tagged_dev_openings, sim->max_dev_openings);
-	printf("%s%d: max_ccbs: %u, ccb_count: %u\n", 
-	       sim->sim_name, sim->unit_number,
-	       sim->max_ccbs, sim->ccb_count);
-	printf("%s%d: ccb_freeq is %sempty\n",
-	       sim->sim_name, sim->unit_number,
-	       (SLIST_FIRST(&sim->ccb_freeq) == NULL) ? "" : "NOT ");
-	printf("%s%d: alloc_queue.entries %d, alloc_openings %d\n",
-	       sim->sim_name, sim->unit_number,
-	       sim->devq->alloc_queue.entries, sim->devq->alloc_openings);
-	printf("%s%d: qfrozen_cnt:", sim->sim_name, sim->unit_number);
-	for (i = 0; i < CAM_RL_VALUES; i++) {
-		printf("%s%u", (i != 0) ? ":" : "",
-		sim->devq->alloc_queue.qfrozen_cnt[i]);
-	}
 	printf("\n");
 }
 
@@ -2068,7 +2111,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
 		  num_items);
-	xpt_print(periph->path, "%ju CCBs oustanding (%ju allocated, %ju "
+	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
 		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
 		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
 		  (uintmax_t)softc->ccbs_freed);
@@ -2131,17 +2174,13 @@ static void
 ctlfe_datamove_done(union ctl_io *io)
 {
 	union ccb *ccb;
-	struct cam_sim *sim;
 	struct cam_periph *periph;
 	struct ctlfe_lun_softc *softc;
 
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 
-	sim = xpt_path_sim(ccb->ccb_h.path);
-
-	mtx_lock(sim->mtx);
-
 	periph = xpt_path_periph(ccb->ccb_h.path);
+	cam_periph_lock(periph);
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
@@ -2186,7 +2225,7 @@ ctlfe_datamove_done(union ctl_io *io)
 			xpt_schedule(periph, /*priority*/ 1);
 	}
 
-	mtx_unlock(sim->mtx);
+	cam_periph_unlock(periph);
 }
 
 static void

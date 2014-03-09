@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipsasmparser
 
 SRCDIR=	lib/Target/Mips/AsmParser

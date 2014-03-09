@@ -58,6 +58,8 @@
 
 static struct _citrus_mapper_area	*maparea = NULL;
 
+static pthread_rwlock_t			ma_lock = PTHREAD_RWLOCK_INITIALIZER;
+
 #define CS_ALIAS	_PATH_CSMAPPER "/charset.alias"
 #define CS_PIVOT	_PATH_CSMAPPER "/charset.pivot"
 
@@ -314,7 +316,7 @@ get_none(struct _citrus_mapper_area *__restrict ma,
 {
 	int ret;
 
-	WLOCK;
+	WLOCK(&ma_lock);
 	if (csm_none) {
 		*rcsm = csm_none;
 		ret = 0;
@@ -329,7 +331,7 @@ get_none(struct _citrus_mapper_area *__restrict ma,
 	*rcsm = csm_none;
 	ret = 0;
 quit:
-	UNLOCK;
+	UNLOCK(&ma_lock);
 	return (ret);
 }
 

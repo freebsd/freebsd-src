@@ -52,14 +52,10 @@
  *	radix tree should be able to operate well no matter how much 
  *	fragmentation there is and no matter how large a bitmap is used.
  *
- *	Unlike the rlist code, the blist code wires all necessary memory at
- *	creation time.  Neither allocations nor frees require interaction with
- *	the memory subsystem.  In contrast, the rlist code may allocate memory 
- *	on an rlist_free() call.  The non-blocking features of the blist code
- *	are used to great advantage in the swap code (vm/nswap_pager.c).  The
- *	rlist code uses a little less overall memory than the blist code (but
- *	due to swap interleaving not all that much less), but the blist code 
- *	scales much, much better.
+ *	The blist code wires all necessary memory at creation time.  Neither
+ *	allocations nor frees require interaction with the memory subsystem.
+ *	The non-blocking features of the blist code are used in the swap code
+ *	(vm/swap_pager.c).
  *
  *	LAYOUT: The radix tree is layed out recursively using a
  *	linear array.  Each meta node is immediately followed (layed out

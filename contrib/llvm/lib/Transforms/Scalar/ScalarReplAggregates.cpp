@@ -21,32 +21,32 @@
 
 #define DEBUG_TYPE "scalarrepl"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Constants.h"
-#include "llvm/DIBuilder.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Operator.h"
-#include "llvm/Pass.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/DIBuilder.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
@@ -166,21 +166,21 @@ namespace {
     void DeleteDeadInstructions();
 
     void RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
-                              SmallVector<AllocaInst*, 32> &NewElts);
+                              SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteBitCast(BitCastInst *BC, AllocaInst *AI, uint64_t Offset,
-                        SmallVector<AllocaInst*, 32> &NewElts);
+                        SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
-                    SmallVector<AllocaInst*, 32> &NewElts);
+                    SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
                                   uint64_t Offset,
-                                  SmallVector<AllocaInst*, 32> &NewElts);
+                                  SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
                                       AllocaInst *AI,
-                                      SmallVector<AllocaInst*, 32> &NewElts);
+                                      SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
-                                       SmallVector<AllocaInst*, 32> &NewElts);
+                                       SmallVectorImpl<AllocaInst *> &NewElts);
     void RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
-                                      SmallVector<AllocaInst*, 32> &NewElts);
+                                      SmallVectorImpl<AllocaInst *> &NewElts);
     bool ShouldAttemptScalarRepl(AllocaInst *AI);
   };
 
@@ -963,7 +963,7 @@ ConvertScalar_InsertValue(Value *SV, Value *Old,
   if (SV->getType()->isFloatingPointTy() || SV->getType()->isVectorTy())
     SV = Builder.CreateBitCast(SV, IntegerType::get(SV->getContext(),SrcWidth));
   else if (SV->getType()->isPointerTy())
-    SV = Builder.CreatePtrToInt(SV, TD.getIntPtrType(SV->getContext()));
+    SV = Builder.CreatePtrToInt(SV, TD.getIntPtrType(SV->getType()));
 
   // Zero extend or truncate the value if needed.
   if (SV->getType() != AllocaType) {
@@ -1066,12 +1066,12 @@ public:
 
     LoadAndStorePromoter::run(Insts);
     AI->eraseFromParent();
-    for (SmallVector<DbgDeclareInst *, 4>::iterator I = DDIs.begin(),
+    for (SmallVectorImpl<DbgDeclareInst *>::iterator I = DDIs.begin(),
            E = DDIs.end(); I != E; ++I) {
       DbgDeclareInst *DDI = *I;
       DDI->eraseFromParent();
     }
-    for (SmallVector<DbgValueInst *, 4>::iterator I = DVIs.begin(),
+    for (SmallVectorImpl<DbgValueInst *>::iterator I = DVIs.begin(),
            E = DVIs.end(); I != E; ++I) {
       DbgValueInst *DVI = *I;
       DVI->eraseFromParent();
@@ -1086,7 +1086,7 @@ public:
   }
 
   virtual void updateDebugInfo(Instruction *Inst) const {
-    for (SmallVector<DbgDeclareInst *, 4>::const_iterator I = DDIs.begin(),
+    for (SmallVectorImpl<DbgDeclareInst *>::const_iterator I = DDIs.begin(),
            E = DDIs.end(); I != E; ++I) {
       DbgDeclareInst *DDI = *I;
       if (StoreInst *SI = dyn_cast<StoreInst>(Inst))
@@ -1094,7 +1094,7 @@ public:
       else if (LoadInst *LI = dyn_cast<LoadInst>(Inst))
         ConvertDebugDeclareToDebugValue(DDI, LI, *DIB);
     }
-    for (SmallVector<DbgValueInst *, 4>::const_iterator I = DVIs.begin(),
+    for (SmallVectorImpl<DbgValueInst *>::const_iterator I = DVIs.begin(),
            E = DVIs.end(); I != E; ++I) {
       DbgValueInst *DVI = *I;
       Value *Arg = NULL;
@@ -1462,8 +1462,8 @@ bool SROA::ShouldAttemptScalarRepl(AllocaInst *AI) {
 }
 
 // performScalarRepl - This algorithm is a simple worklist driven algorithm,
-// which runs on all of the alloca instructions in the function, removing them
-// if they are only used by getelementptr instructions.
+// which runs on all of the alloca instructions in the entry block, removing
+// them if they are only used by getelementptr instructions.
 //
 bool SROA::performScalarRepl(Function &F) {
   std::vector<AllocaInst*> WorkList;
@@ -1724,17 +1724,8 @@ void SROA::isSafeGEP(GetElementPtrInst *GEPI,
       continue;
 
     ConstantInt *IdxVal = dyn_cast<ConstantInt>(GEPIt.getOperand());
-    if (!IdxVal) {
-      // Non constant GEPs are only a problem on arrays, structs, and pointers
-      // Vectors can be dynamically indexed.
-      // FIXME: Add support for dynamic indexing on arrays.  This should be
-      // ok on any subarrays of the alloca array, eg, a[0][i] is ok, but a[i][0]
-      // isn't.
-      if (!(*GEPIt)->isVectorTy())
-        return MarkUnsafe(Info, GEPI);
-      NonConstant = true;
-      NonConstantIdxSize = TD->getTypeAllocSize(*GEPIt);
-    }
+    if (!IdxVal)
+      return MarkUnsafe(Info, GEPI);
   }
 
   // Compute the offset due to this GEP and check if the alloca has a
@@ -1874,7 +1865,7 @@ bool SROA::TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size) {
 /// Offset indicates the position within AI that is referenced by this
 /// instruction.
 void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
-                                SmallVector<AllocaInst*, 32> &NewElts) {
+                                SmallVectorImpl<AllocaInst *> &NewElts) {
   for (Value::use_iterator UI = I->use_begin(), E = I->use_end(); UI!=E;) {
     Use &TheUse = UI.getUse();
     Instruction *User = cast<Instruction>(*UI++);
@@ -1988,7 +1979,7 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
 /// RewriteBitCast - Update a bitcast reference to the alloca being replaced
 /// and recursively continue updating all of its uses.
 void SROA::RewriteBitCast(BitCastInst *BC, AllocaInst *AI, uint64_t Offset,
-                          SmallVector<AllocaInst*, 32> &NewElts) {
+                          SmallVectorImpl<AllocaInst *> &NewElts) {
   RewriteForScalarRepl(BC, AI, Offset, NewElts);
   if (BC->getOperand(0) != AI)
     return;
@@ -2046,7 +2037,7 @@ uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset,
 /// elements of the alloca that are being split apart, and if so, rewrite
 /// the GEP to be relative to the new element.
 void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
-                      SmallVector<AllocaInst*, 32> &NewElts) {
+                      SmallVectorImpl<AllocaInst *> &NewElts) {
   uint64_t OldOffset = Offset;
   SmallVector<Value*, 8> Indices(GEPI->op_begin() + 1, GEPI->op_end());
   // If the GEP was dynamic then it must have been a dynamic vector lookup.
@@ -2108,7 +2099,7 @@ void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
 /// to mark the lifetime of the scalarized memory.
 void SROA::RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
                                     uint64_t Offset,
-                                    SmallVector<AllocaInst*, 32> &NewElts) {
+                                    SmallVectorImpl<AllocaInst *> &NewElts) {
   ConstantInt *OldSize = cast<ConstantInt>(II->getArgOperand(0));
   // Put matching lifetime markers on everything from Offset up to
   // Offset+OldSize.
@@ -2162,9 +2153,10 @@ void SROA::RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
 
 /// RewriteMemIntrinUserOfAlloca - MI is a memcpy/memset/memmove from or to AI.
 /// Rewrite it to copy or set the elements of the scalarized memory.
-void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
-                                        AllocaInst *AI,
-                                        SmallVector<AllocaInst*, 32> &NewElts) {
+void
+SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
+                                   AllocaInst *AI,
+                                   SmallVectorImpl<AllocaInst *> &NewElts) {
   // If this is a memcpy/memmove, construct the other pointer as the
   // appropriate type.  The "Other" pointer is the pointer that goes to memory
   // that doesn't have anything to do with the alloca that we are promoting. For
@@ -2198,7 +2190,7 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
     if (OtherPtr == AI || OtherPtr == NewElts[0]) {
       // This code will run twice for a no-op memcpy -- once for each operand.
       // Put only one reference to MI on the DeadInsts list.
-      for (SmallVector<Value*, 32>::const_iterator I = DeadInsts.begin(),
+      for (SmallVectorImpl<Value *>::const_iterator I = DeadInsts.begin(),
              E = DeadInsts.end(); I != E; ++I)
         if (*I == MI) return;
       DeadInsts.push_back(MI);
@@ -2335,8 +2327,9 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
 /// RewriteStoreUserOfWholeAlloca - We found a store of an integer that
 /// overwrites the entire allocation.  Extract out the pieces of the stored
 /// integer and store them individually.
-void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
-                                         SmallVector<AllocaInst*, 32> &NewElts){
+void
+SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
+                                    SmallVectorImpl<AllocaInst *> &NewElts) {
   // Extract each element out of the integer according to its structure offset
   // and store the element value to the individual alloca.
   Value *SrcVal = SI->getOperand(0);
@@ -2449,8 +2442,9 @@ void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
 
 /// RewriteLoadUserOfWholeAlloca - We found a load of the entire allocation to
 /// an integer.  Load the individual pieces to form the aggregate value.
-void SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
-                                        SmallVector<AllocaInst*, 32> &NewElts) {
+void
+SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
+                                   SmallVectorImpl<AllocaInst *> &NewElts) {
   // Extract each element out of the NewElts according to its structure offset
   // and form the result value.
   Type *AllocaEltTy = AI->getAllocatedType();

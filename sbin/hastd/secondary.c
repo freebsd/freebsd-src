@@ -71,6 +71,7 @@ struct hio {
 	uint8_t		 hio_cmd;
 	uint64_t	 hio_offset;
 	uint64_t	 hio_length;
+	bool		 hio_memsync;
 	TAILQ_ENTRY(hio) hio_next;
 };
 
@@ -81,19 +82,21 @@ static struct hast_resource *gres;
  * until some in-progress requests are freed.
  */
 static TAILQ_HEAD(, hio) hio_free_list;
+static size_t hio_free_list_size;
 static pthread_mutex_t hio_free_list_lock;
 static pthread_cond_t hio_free_list_cond;
 /*
- * Disk thread (the one that do I/O requests) takes requests from this list.
+ * Disk thread (the one that does I/O requests) takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_disk_list;
+static size_t hio_disk_list_size;
 static pthread_mutex_t hio_disk_list_lock;
 static pthread_cond_t hio_disk_list_cond;
 /*
- * There is one recv list for every component, although local components don't
- * use recv lists as local requests are done synchronously.
+ * Thread that sends requests back to primary takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_send_list;
+static size_t hio_send_list_size;
 static pthread_mutex_t hio_send_list_lock;
 static pthread_cond_t hio_send_list_cond;
 
@@ -107,14 +110,12 @@ static void *disk_thread(void *arg);
 static void *send_thread(void *arg);
 
 #define	QUEUE_INSERT(name, hio)	do {					\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock);				\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	if (TAILQ_EMPTY(&hio_##name##_list))				\
+		cv_broadcast(&hio_##name##_list_cond);			\
 	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
+	hio_##name##_list_size++;					\
 	mtx_unlock(&hio_##name##_list_lock);				\
-	if (_wakeup)							\
-		cv_signal(&hio_##name##_list_cond);			\
 } while (0)
 #define	QUEUE_TAKE(name, hio)	do {					\
 	mtx_lock(&hio_##name##_list_lock);				\
@@ -122,9 +123,20 @@ static void *send_thread(void *arg);
 		cv_wait(&hio_##name##_list_cond,			\
 		    &hio_##name##_list_lock);				\
 	}								\
+	PJDLOG_ASSERT(hio_##name##_list_size != 0);			\
+	hio_##name##_list_size--;					\
 	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_next);		\
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
+
+static void
+output_status_aux(struct nv *nvout)
+{
+
+	nv_add_uint64(nvout, (uint64_t)hio_free_list_size, "idle_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_disk_list_size, "local_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_send_list_size, "send_queue_size");
+}
 
 static void
 hio_clear(struct hio *hio)
@@ -135,6 +147,22 @@ hio_clear(struct hio *hio)
 	hio->hio_cmd = HIO_UNDEF;
 	hio->hio_offset = 0;
 	hio->hio_length = 0;
+	hio->hio_memsync = false;
+}
+
+static void
+hio_copy(const struct hio *srchio, struct hio *dsthio)
+{
+
+	/*
+	 * We don't copy hio_error, hio_data and hio_next fields.
+	 */
+
+	dsthio->hio_seq = srchio->hio_seq;
+	dsthio->hio_cmd = srchio->hio_cmd;
+	dsthio->hio_offset = srchio->hio_offset;
+	dsthio->hio_length = srchio->hio_length;
+	dsthio->hio_memsync = srchio->hio_memsync;
 }
 
 static void
@@ -174,6 +202,7 @@ init_environment(void)
 		}
 		hio_clear(hio);
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_next);
+		hio_free_list_size++;
 	}
 }
 
@@ -425,6 +454,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	}
 
 	gres = res;
+	res->output_status_aux = output_status_aux;
 	mode = pjdlog_mode_get();
 	debuglevel = pjdlog_debug_get();
 
@@ -543,8 +573,10 @@ requnpack(struct hast_resource *res, struct hio *hio, struct nv *nv)
 	case HIO_FLUSH:
 	case HIO_KEEPALIVE:
 		break;
-	case HIO_READ:
 	case HIO_WRITE:
+		hio->hio_memsync = nv_exists(nv, "memsync");
+		/* FALLTHROUGH */
+	case HIO_READ:
 	case HIO_DELETE:
 		hio->hio_offset = nv_get_uint64(nv, "offset");
 		if (nv_error(nv) != 0) {
@@ -563,7 +595,7 @@ requnpack(struct hast_resource *res, struct hio *hio, struct nv *nv)
 			hio->hio_error = EINVAL;
 			goto end;
 		}
-		if (hio->hio_length > MAXPHYS) {
+		if (hio->hio_cmd != HIO_DELETE && hio->hio_length > MAXPHYS) {
 			pjdlog_error("Data length is too large (%ju > %ju).",
 			    (uintmax_t)hio->hio_length, (uintmax_t)MAXPHYS);
 			hio->hio_error = EINVAL;
@@ -621,7 +653,7 @@ static void *
 recv_thread(void *arg)
 {
 	struct hast_resource *res = arg;
-	struct hio *hio;
+	struct hio *hio, *mshio;
 	struct nv *nv;
 
 	for (;;) {
@@ -675,6 +707,27 @@ recv_thread(void *arg)
 				secondary_exit(EX_TEMPFAIL,
 				    "Unable to receive request data");
 			}
+			if (hio->hio_memsync) {
+				/*
+				 * For memsync requests we expect two replies.
+				 * Clone the hio so we can handle both of them.
+				 */
+				pjdlog_debug(2, "recv: Taking free request.");
+				QUEUE_TAKE(free, mshio);
+				pjdlog_debug(2, "recv: (%p) Got request.",
+				    mshio);
+				hio_copy(hio, mshio);
+				mshio->hio_error = 0;
+				/*
+				 * We want to keep 'memsync' tag only on the
+				 * request going onto send queue (mshio).
+				 */
+				hio->hio_memsync = false;
+				pjdlog_debug(2,
+				    "recv: (%p) Moving memsync request to the send queue.",
+				    mshio);
+				QUEUE_INSERT(send, mshio);
+			}
 		}
 		nv_free(nv);
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
@@ -725,6 +778,7 @@ disk_thread(void *arg)
 				pjdlog_errno(LOG_WARNING,
 				    "Unable to store cleared activemap");
 				free(map);
+				res->hr_stat_activemap_write_error++;
 				break;
 			}
 			free(map);
@@ -818,6 +872,10 @@ send_thread(void *arg)
 		nvout = nv_alloc();
 		/* Copy sequence number. */
 		nv_add_uint64(nvout, hio->hio_seq, "seq");
+		if (hio->hio_memsync) {
+			PJDLOG_ASSERT(hio->hio_cmd == HIO_WRITE);
+			nv_add_int8(nvout, 1, "received");
+		}
 		switch (hio->hio_cmd) {
 		case HIO_READ:
 			if (hio->hio_error == 0) {
@@ -839,8 +897,23 @@ send_thread(void *arg)
 			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
 			    hio->hio_cmd);
 		}
-		if (hio->hio_error != 0)
+		if (hio->hio_error != 0) {
+			switch (hio->hio_cmd) {
+			case HIO_READ:
+				res->hr_stat_read_error++;
+				break;
+			case HIO_WRITE:
+				res->hr_stat_write_error++;
+				break;
+			case HIO_DELETE:
+				res->hr_stat_delete_error++;
+				break;
+			case HIO_FLUSH:
+				res->hr_stat_flush_error++;
+				break;
+			}
 			nv_add_int16(nvout, hio->hio_error, "error");
+		}
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) == -1) {
 			secondary_exit(EX_TEMPFAIL, "Unable to send reply");

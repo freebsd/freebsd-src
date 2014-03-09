@@ -33,6 +33,7 @@ is_disk()
   for _dsk in `sysctl -n kern.disks`
   do
     [ "$_dsk" = "${1}" ] && return 0
+    [ "/dev/$_dsk" = "${1}" ] && return 0
   done
 
   return 1

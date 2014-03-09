@@ -13,28 +13,29 @@
 
 #define DEBUG_TYPE "jump-threading"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Pass.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
 #include "llvm/Analysis/Loads.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
 using namespace llvm;
 
 STATISTIC(NumThreads, "Number of jumps threaded");
@@ -129,6 +130,7 @@ namespace {
     bool ProcessBranchOnXOR(BinaryOperator *BO);
 
     bool SimplifyPartiallyRedundantLoad(LoadInst *LI);
+    bool TryToUnfoldSelect(CmpInst *CondCmp, BasicBlock *BB);
   };
 }
 
@@ -216,19 +218,24 @@ bool JumpThreading::runOnFunction(Function &F) {
 }
 
 /// getJumpThreadDuplicationCost - Return the cost of duplicating this block to
-/// thread across it.
-static unsigned getJumpThreadDuplicationCost(const BasicBlock *BB) {
+/// thread across it. Stop scanning the block when passing the threshold.
+static unsigned getJumpThreadDuplicationCost(const BasicBlock *BB,
+                                             unsigned Threshold) {
   /// Ignore PHI nodes, these will be flattened when duplication happens.
   BasicBlock::const_iterator I = BB->getFirstNonPHI();
 
   // FIXME: THREADING will delete values that are just used to compute the
   // branch, so they shouldn't count against the duplication cost.
 
-
   // Sum up the cost of each instruction until we get to the terminator.  Don't
   // include the terminator because the copy won't include it.
   unsigned Size = 0;
   for (; !isa<TerminatorInst>(I); ++I) {
+
+    // Stop scanning the block if we've reached the threshold.
+    if (Size > Threshold)
+      return Size;
+
     // Debugger intrinsics don't incur code size.
     if (isa<DbgInfoIntrinsic>(I)) continue;
 
@@ -244,7 +251,11 @@ static unsigned getJumpThreadDuplicationCost(const BasicBlock *BB) {
     // as having cost of 2 total, and if they are a vector intrinsic, we model
     // them as having cost 1.
     if (const CallInst *CI = dyn_cast<CallInst>(I)) {
-      if (!isa<IntrinsicInst>(CI))
+      if (CI->hasFnAttr(Attribute::NoDuplicate))
+        // Blocks with NoDuplicate are modelled as having infinite cost, so they
+        // are never duplicated.
+        return ~0U;
+      else if (!isa<IntrinsicInst>(CI))
         Size += 3;
       else if (!CI->getType()->isVectorTy())
         Size += 1;
@@ -766,7 +777,11 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
           return true;
         }
       }
+
     }
+
+    if (CondBr && CondConst && TryToUnfoldSelect(CondCmp, BB))
+      return true;
   }
 
   // Check for some cases that are worth simplifying.  Right now we want to look
@@ -812,7 +827,6 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   return false;
 }
 
-
 /// SimplifyPartiallyRedundantLoad - If LI is an obviously partially redundant
 /// load instruction, eliminate it by replacing it with a PHI node.  This is an
 /// important optimization that encourages jump threading, and needs to be run
@@ -825,6 +839,12 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
   // partially redundant.
   BasicBlock *LoadBB = LI->getParent();
   if (LoadBB->getSinglePredecessor())
+    return false;
+
+  // If the load is defined in a landing pad, it can't be partially redundant,
+  // because the edges between the invoke and the landing pad cannot have other
+  // instructions between them.
+  if (LoadBB->isLandingPad())
     return false;
 
   Value *LoadedPtr = LI->getOperand(0);
@@ -1337,7 +1357,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
     return false;
   }
 
-  unsigned JumpThreadCost = getJumpThreadDuplicationCost(BB);
+  unsigned JumpThreadCost = getJumpThreadDuplicationCost(BB, Threshold);
   if (JumpThreadCost > Threshold) {
     DEBUG(dbgs() << "  Not threading BB '" << BB->getName()
           << "' - Cost is too high: " << JumpThreadCost << "\n");
@@ -1481,7 +1501,7 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
     return false;
   }
 
-  unsigned DuplicationCost = getJumpThreadDuplicationCost(BB);
+  unsigned DuplicationCost = getJumpThreadDuplicationCost(BB, Threshold);
   if (DuplicationCost > Threshold) {
     DEBUG(dbgs() << "  Not duplicating BB '" << BB->getName()
           << "' - Cost is too high: " << DuplicationCost << "\n");
@@ -1606,4 +1626,80 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   return true;
 }
 
+/// TryToUnfoldSelect - Look for blocks of the form
+/// bb1:
+///   %a = select
+///   br bb
+///
+/// bb2:
+///   %p = phi [%a, %bb] ...
+///   %c = icmp %p
+///   br i1 %c
+///
+/// And expand the select into a branch structure if one of its arms allows %c
+/// to be folded. This later enables threading from bb1 over bb2.
+bool JumpThreading::TryToUnfoldSelect(CmpInst *CondCmp, BasicBlock *BB) {
+  BranchInst *CondBr = dyn_cast<BranchInst>(BB->getTerminator());
+  PHINode *CondLHS = dyn_cast<PHINode>(CondCmp->getOperand(0));
+  Constant *CondRHS = cast<Constant>(CondCmp->getOperand(1));
 
+  if (!CondBr || !CondBr->isConditional() || !CondLHS ||
+      CondLHS->getParent() != BB)
+    return false;
+
+  for (unsigned I = 0, E = CondLHS->getNumIncomingValues(); I != E; ++I) {
+    BasicBlock *Pred = CondLHS->getIncomingBlock(I);
+    SelectInst *SI = dyn_cast<SelectInst>(CondLHS->getIncomingValue(I));
+
+    // Look if one of the incoming values is a select in the corresponding
+    // predecessor.
+    if (!SI || SI->getParent() != Pred || !SI->hasOneUse())
+      continue;
+
+    BranchInst *PredTerm = dyn_cast<BranchInst>(Pred->getTerminator());
+    if (!PredTerm || !PredTerm->isUnconditional())
+      continue;
+
+    // Now check if one of the select values would allow us to constant fold the
+    // terminator in BB. We don't do the transform if both sides fold, those
+    // cases will be threaded in any case.
+    LazyValueInfo::Tristate LHSFolds =
+        LVI->getPredicateOnEdge(CondCmp->getPredicate(), SI->getOperand(1),
+                                CondRHS, Pred, BB);
+    LazyValueInfo::Tristate RHSFolds =
+        LVI->getPredicateOnEdge(CondCmp->getPredicate(), SI->getOperand(2),
+                                CondRHS, Pred, BB);
+    if ((LHSFolds != LazyValueInfo::Unknown ||
+         RHSFolds != LazyValueInfo::Unknown) &&
+        LHSFolds != RHSFolds) {
+      // Expand the select.
+      //
+      // Pred --
+      //  |    v
+      //  |  NewBB
+      //  |    |
+      //  |-----
+      //  v
+      // BB
+      BasicBlock *NewBB = BasicBlock::Create(BB->getContext(), "select.unfold",
+                                             BB->getParent(), BB);
+      // Move the unconditional branch to NewBB.
+      PredTerm->removeFromParent();
+      NewBB->getInstList().insert(NewBB->end(), PredTerm);
+      // Create a conditional branch and update PHI nodes.
+      BranchInst::Create(NewBB, BB, SI->getCondition(), Pred);
+      CondLHS->setIncomingValue(I, SI->getFalseValue());
+      CondLHS->addIncoming(SI->getTrueValue(), NewBB);
+      // The select is now dead.
+      SI->eraseFromParent();
+
+      // Update any other PHI nodes in BB.
+      for (BasicBlock::iterator BI = BB->begin();
+           PHINode *Phi = dyn_cast<PHINode>(BI); ++BI)
+        if (Phi != CondLHS)
+          Phi->addIncoming(Phi->getIncomingValueForBlock(Pred), NewBB);
+      return true;
+    }
+  }
+  return false;
+}

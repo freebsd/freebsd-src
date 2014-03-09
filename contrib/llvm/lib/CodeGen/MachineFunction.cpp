@@ -14,28 +14,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Function.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -54,27 +55,42 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
                                  GCModuleInfo* gmi)
   : Fn(F), Target(TM), Ctx(mmi.getContext()), MMI(mmi), GMI(gmi) {
   if (TM.getRegisterInfo())
-    RegInfo = new (Allocator) MachineRegisterInfo(*TM.getRegisterInfo());
+    RegInfo = new (Allocator) MachineRegisterInfo(TM);
   else
     RegInfo = 0;
+
   MFInfo = 0;
-  FrameInfo = new (Allocator) MachineFrameInfo(*TM.getFrameLowering());
-  if (Fn->getFnAttributes().hasAttribute(Attributes::StackAlignment))
+  FrameInfo =
+    new (Allocator) MachineFrameInfo(TM,!F->hasFnAttribute("no-realign-stack"));
+
+  if (Fn->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                       Attribute::StackAlignment))
     FrameInfo->ensureMaxAlignment(Fn->getAttributes().
-                                  getFnAttributes().getStackAlignment());
-  ConstantPool = new (Allocator) MachineConstantPool(TM.getDataLayout());
+                                getStackAlignment(AttributeSet::FunctionIndex));
+
+  ConstantPool = new (Allocator) MachineConstantPool(TM);
   Alignment = TM.getTargetLowering()->getMinFunctionAlignment();
+
   // FIXME: Shouldn't use pref alignment if explicit alignment is set on Fn.
-  if (!Fn->getFnAttributes().hasAttribute(Attributes::OptimizeForSize))
+  if (!Fn->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                        Attribute::OptimizeForSize))
     Alignment = std::max(Alignment,
                          TM.getTargetLowering()->getPrefFunctionAlignment());
+
   FunctionNumber = FunctionNum;
   JumpTableInfo = 0;
 }
 
 MachineFunction::~MachineFunction() {
-  BasicBlocks.clear();
+  // Don't call destructors on MachineInstr and MachineOperand. All of their
+  // memory comes from the BumpPtrAllocator which is about to be purged.
+  //
+  // Do call MachineBasicBlock destructors, it contains std::vectors.
+  for (iterator I = begin(), E = end(); I != E; I = BasicBlocks.erase(I))
+    I->Insts.clearAndLeakNodesUnsafely();
+
   InstructionRecycler.clear(Allocator);
+  OperandRecycler.clear(Allocator);
   BasicBlockRecycler.clear(Allocator);
   if (RegInfo) {
     RegInfo->~MachineRegisterInfo();
@@ -157,7 +173,7 @@ MachineInstr *
 MachineFunction::CreateMachineInstr(const MCInstrDesc &MCID,
                                     DebugLoc DL, bool NoImp) {
   return new (InstructionRecycler.Allocate<MachineInstr>(Allocator))
-    MachineInstr(MCID, DL, NoImp);
+    MachineInstr(*this, MCID, DL, NoImp);
 }
 
 /// CloneMachineInstr - Create a new MachineInstr which is a copy of the
@@ -172,9 +188,17 @@ MachineFunction::CloneMachineInstr(const MachineInstr *Orig) {
 
 /// DeleteMachineInstr - Delete the given MachineInstr.
 ///
+/// This function also serves as the MachineInstr destructor - the real
+/// ~MachineInstr() destructor must be empty.
 void
 MachineFunction::DeleteMachineInstr(MachineInstr *MI) {
-  MI->~MachineInstr();
+  // Strip it for parts. The operand array and the MI object itself are
+  // independently recyclable.
+  if (MI->Operands)
+    deallocateOperandArray(MI->CapOperands, MI->Operands);
+  // Don't call ~MachineInstr() which must be trivial anyway because
+  // ~MachineFunction drops whole lists of MachineInstrs wihout calling their
+  // destructors.
   InstructionRecycler.Deallocate(Allocator, MI);
 }
 
@@ -328,13 +352,6 @@ void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
     }
     OS << '\n';
   }
-  if (RegInfo && !RegInfo->liveout_empty()) {
-    OS << "Function Live Outs:";
-    for (MachineRegisterInfo::liveout_iterator
-         I = RegInfo->liveout_begin(), E = RegInfo->liveout_end(); I != E; ++I)
-      OS << ' ' << PrintReg(*I, TRI);
-    OS << '\n';
-  }
 
   for (const_iterator BB = begin(), E = end(); BB != E; ++BB) {
     OS << '\n';
@@ -445,6 +462,80 @@ MCSymbol *MachineFunction::getPICBaseSymbol() const {
 //  MachineFrameInfo implementation
 //===----------------------------------------------------------------------===//
 
+const TargetFrameLowering *MachineFrameInfo::getFrameLowering() const {
+  return TM.getFrameLowering();
+}
+
+/// ensureMaxAlignment - Make sure the function is at least Align bytes
+/// aligned.
+void MachineFrameInfo::ensureMaxAlignment(unsigned Align) {
+  if (!getFrameLowering()->isStackRealignable() || !RealignOption)
+    assert(Align <= getFrameLowering()->getStackAlignment() &&
+           "For targets without stack realignment, Align is out of limit!");
+  if (MaxAlignment < Align) MaxAlignment = Align;
+}
+
+/// clampStackAlignment - Clamp the alignment if requested and emit a warning.
+static inline unsigned clampStackAlignment(bool ShouldClamp, unsigned Align,
+                                           unsigned StackAlign) {
+  if (!ShouldClamp || Align <= StackAlign)
+    return Align;
+  DEBUG(dbgs() << "Warning: requested alignment " << Align
+               << " exceeds the stack alignment " << StackAlign
+               << " when stack realignment is off" << '\n');
+  return StackAlign;
+}
+
+/// CreateStackObject - Create a new statically sized stack object, returning
+/// a nonnegative identifier to represent it.
+///
+int MachineFrameInfo::CreateStackObject(uint64_t Size, unsigned Alignment,
+                      bool isSS, bool MayNeedSP, const AllocaInst *Alloca) {
+  assert(Size != 0 && "Cannot allocate zero size stack objects!");
+  Alignment =
+    clampStackAlignment(!getFrameLowering()->isStackRealignable() ||
+                          !RealignOption,
+                        Alignment, getFrameLowering()->getStackAlignment());
+  Objects.push_back(StackObject(Size, Alignment, 0, false, isSS, MayNeedSP,
+                                Alloca));
+  int Index = (int)Objects.size() - NumFixedObjects - 1;
+  assert(Index >= 0 && "Bad frame index!");
+  ensureMaxAlignment(Alignment);
+  return Index;
+}
+
+/// CreateSpillStackObject - Create a new statically sized stack object that
+/// represents a spill slot, returning a nonnegative identifier to represent
+/// it.
+///
+int MachineFrameInfo::CreateSpillStackObject(uint64_t Size,
+                                             unsigned Alignment) {
+  Alignment =
+    clampStackAlignment(!getFrameLowering()->isStackRealignable() ||
+                          !RealignOption,
+                        Alignment, getFrameLowering()->getStackAlignment()); 
+  CreateStackObject(Size, Alignment, true, false);
+  int Index = (int)Objects.size() - NumFixedObjects - 1;
+  ensureMaxAlignment(Alignment);
+  return Index;
+}
+
+/// CreateVariableSizedObject - Notify the MachineFrameInfo object that a
+/// variable sized object has been created.  This must be created whenever a
+/// variable sized object is created, whether or not the index returned is
+/// actually used.
+///
+int MachineFrameInfo::CreateVariableSizedObject(unsigned Alignment) {
+  HasVarSizedObjects = true;
+  Alignment =
+    clampStackAlignment(!getFrameLowering()->isStackRealignable() ||
+                          !RealignOption,
+                        Alignment, getFrameLowering()->getStackAlignment()); 
+  Objects.push_back(StackObject(0, Alignment, 0, false, false, true, 0));
+  ensureMaxAlignment(Alignment);
+  return (int)Objects.size()-NumFixedObjects-1;
+}
+
 /// CreateFixedObject - Create a new object at a fixed location on the stack.
 /// All fixed objects should be created before other objects are created for
 /// efficiency. By default, fixed objects are immutable. This returns an
@@ -457,8 +548,12 @@ int MachineFrameInfo::CreateFixedObject(uint64_t Size, int64_t SPOffset,
   // the incoming frame position.  If the frame object is at offset 32 and
   // the stack is guaranteed to be 16-byte aligned, then we know that the
   // object is 16-byte aligned.
-  unsigned StackAlign = TFI.getStackAlignment();
+  unsigned StackAlign = getFrameLowering()->getStackAlignment();
   unsigned Align = MinAlign(SPOffset, StackAlign);
+  Align =
+    clampStackAlignment(!getFrameLowering()->isStackRealignable() ||
+                          !RealignOption,
+                        Align, getFrameLowering()->getStackAlignment()); 
   Objects.insert(Objects.begin(), StackObject(Size, Align, SPOffset, Immutable,
                                               /*isSS*/   false,
                                               /*NeedSP*/ false,
@@ -497,6 +592,54 @@ MachineFrameInfo::getPristineRegs(const MachineBasicBlock *MBB) const {
   return BV;
 }
 
+unsigned MachineFrameInfo::estimateStackSize(const MachineFunction &MF) const {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
+  unsigned MaxAlign = getMaxAlignment();
+  int Offset = 0;
+
+  // This code is very, very similar to PEI::calculateFrameObjectOffsets().
+  // It really should be refactored to share code. Until then, changes
+  // should keep in mind that there's tight coupling between the two.
+
+  for (int i = getObjectIndexBegin(); i != 0; ++i) {
+    int FixedOff = -getObjectOffset(i);
+    if (FixedOff > Offset) Offset = FixedOff;
+  }
+  for (unsigned i = 0, e = getObjectIndexEnd(); i != e; ++i) {
+    if (isDeadObjectIndex(i))
+      continue;
+    Offset += getObjectSize(i);
+    unsigned Align = getObjectAlignment(i);
+    // Adjust to alignment boundary
+    Offset = (Offset+Align-1)/Align*Align;
+
+    MaxAlign = std::max(Align, MaxAlign);
+  }
+
+  if (adjustsStack() && TFI->hasReservedCallFrame(MF))
+    Offset += getMaxCallFrameSize();
+
+  // Round up the size to a multiple of the alignment.  If the function has
+  // any calls or alloca's, align to the target's StackAlignment value to
+  // ensure that the callee's frame or the alloca data is suitably aligned;
+  // otherwise, for leaf functions, align to the TransientStackAlignment
+  // value.
+  unsigned StackAlign;
+  if (adjustsStack() || hasVarSizedObjects() ||
+      (RegInfo->needsStackRealignment(MF) && getObjectIndexEnd() != 0))
+    StackAlign = TFI->getStackAlignment();
+  else
+    StackAlign = TFI->getTransientStackAlignment();
+
+  // If the frame pointer is eliminated, all frame offsets will be relative to
+  // SP not FP. Align to MaxAlign so this works.
+  StackAlign = std::max(StackAlign, MaxAlign);
+  unsigned AlignMask = StackAlign - 1;
+  Offset = (Offset + AlignMask) & ~uint64_t(AlignMask);
+
+  return (unsigned)Offset;
+}
 
 void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
   if (Objects.empty()) return;
@@ -644,6 +787,10 @@ void MachineJumpTableInfo::dump() const { print(dbgs()); }
 
 void MachineConstantPoolValue::anchor() { }
 
+const DataLayout *MachineConstantPool::getDataLayout() const {
+  return TM.getDataLayout();
+}
+
 Type *MachineConstantPoolEntry::getType() const {
   if (isMachineConstantPoolEntry())
     return Val.MachineCPVal->getType();
@@ -725,7 +872,8 @@ unsigned MachineConstantPool::getConstantPoolIndex(const Constant *C,
   // FIXME, this could be made much more efficient for large constant pools.
   for (unsigned i = 0, e = Constants.size(); i != e; ++i)
     if (!Constants[i].isMachineConstantPoolEntry() &&
-        CanShareConstantPoolEntry(Constants[i].Val.ConstVal, C, TD)) {
+        CanShareConstantPoolEntry(Constants[i].Val.ConstVal, C,
+                                  getDataLayout())) {
       if ((unsigned)Constants[i].getAlignment() < Alignment)
         Constants[i].Alignment = Alignment;
       return i;
@@ -762,7 +910,7 @@ void MachineConstantPool::print(raw_ostream &OS) const {
     if (Constants[i].isMachineConstantPoolEntry())
       Constants[i].Val.MachineCPVal->print(OS);
     else
-      OS << *(const Value*)Constants[i].Val.ConstVal;
+      WriteAsOperand(OS, Constants[i].Val.ConstVal, /*PrintType=*/false);
     OS << ", align=" << Constants[i].getAlignment();
     OS << "\n";
   }

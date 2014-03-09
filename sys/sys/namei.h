@@ -33,6 +33,8 @@
 #ifndef _SYS_NAMEI_H_
 #define	_SYS_NAMEI_H_
 
+#include <sys/caprights.h>
+#include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 
@@ -75,7 +77,7 @@ struct nameidata {
 	/*
 	 * Results: returned from namei
 	 */
-	cap_rights_t ni_baserights;	/* rights the *at base has (or -1) */
+	struct filecaps ni_filecaps;	/* rights the *at base has */
 	/*
 	 * Results: returned from/manipulated by lookup
 	 */
@@ -145,7 +147,7 @@ struct nameidata {
 #define	NOCROSSMOUNT	0x00400000 /* do not cross mount points */
 #define	NOMACCHECK	0x00800000 /* do not perform MAC checks */
 #define	AUDITVNODE1	0x04000000 /* audit the looked up vnode information */
-#define	AUDITVNODE2 	0x08000000 /* audit the looked up vnode information */
+#define	AUDITVNODE2	0x08000000 /* audit the looked up vnode information */
 #define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
 #define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
 #define	PARAMASK	0x3ffffe00 /* mask of parameter descriptors */
@@ -157,32 +159,14 @@ struct nameidata {
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, 0, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, 0, td)
-#define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rights, td) \
-	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rights, td)
+#define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp, td) \
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
 
-static __inline void
-NDINIT_ALL(struct nameidata *ndp,
-	u_long op, u_long flags,
-	enum uio_seg segflg,
-	const char *namep,
-	int dirfd,
-	struct vnode *startdir,
-	cap_rights_t rights,
-	struct thread *td)
-{
-	ndp->ni_cnd.cn_nameiop = op;
-	ndp->ni_cnd.cn_flags = flags;
-	ndp->ni_segflg = segflg;
-	ndp->ni_dirp = namep;
-	ndp->ni_dirfd = dirfd;
-	ndp->ni_startdir = startdir;
-	ndp->ni_strictrelative = 0;
-	ndp->ni_rightsneeded = rights;
-	ndp->ni_baserights = 0;
-	ndp->ni_cnd.cn_thread = td;
-}
+void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
+    enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
+    cap_rights_t *rightsp, struct thread *td);
 
 #define NDF_NO_DVP_RELE		0x00000001
 #define NDF_NO_DVP_UNLOCK	0x00000002

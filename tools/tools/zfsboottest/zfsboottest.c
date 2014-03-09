@@ -52,6 +52,7 @@ pager_output(const char *line)
 
 #define ZFS_TEST
 #define	printf(...)	 fprintf(stderr, __VA_ARGS__)
+#include "libzfs.h"
 #include "zfsimpl.c"
 #undef printf
 
@@ -134,7 +135,6 @@ main(int argc, char** argv)
 			close(fd[i - 1]);
 		}
 	}
-	spa_all_status();
 
 	spa = STAILQ_FIRST(&zfs_pools);
 	if (spa == NULL) {
@@ -147,7 +147,10 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
+	spa_all_status();
+
 #if 0
+	uint64_t rootobj;
 	if (zfs_get_root(spa, &rootobj)) {
 		fprintf(stderr, "can't get root\n");
 		exit(1);
@@ -158,8 +161,8 @@ main(int argc, char** argv)
 	if (zfs_mount(spa, 0, &zfsmnt)) {
 		fprintf(stderr, "can't mount\n");
 		exit(1);
-	}
 #endif
+	}
 
 	printf("\n");
 	for (++i, failures = 0; i < argc; i++) {

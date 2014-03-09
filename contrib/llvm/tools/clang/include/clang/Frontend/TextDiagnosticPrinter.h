@@ -17,8 +17,8 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/OwningPtr.h"
 
 namespace clang {
 class DiagnosticOptions;
@@ -27,7 +27,7 @@ class TextDiagnostic;
 
 class TextDiagnosticPrinter : public DiagnosticConsumer {
   raw_ostream &OS;
-  llvm::IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
 
   /// \brief Handle to the currently active text diagnostic emitter.
   OwningPtr<TextDiagnostic> TextDiag;
@@ -50,7 +50,6 @@ public:
   void BeginSourceFile(const LangOptions &LO, const Preprocessor *PP);
   void EndSourceFile();
   void HandleDiagnostic(DiagnosticsEngine::Level Level, const Diagnostic &Info);
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const;
 };
 
 } // end namespace clang

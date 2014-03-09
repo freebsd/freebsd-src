@@ -41,7 +41,7 @@
 #include "procstat.h"
 
 void
-procstat_vm(struct kinfo_proc *kipp)
+procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 {
 	struct kinfo_vmentry *freep, *kve;
 	int ptrwidth;
@@ -54,7 +54,7 @@ procstat_vm(struct kinfo_proc *kipp)
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
 
-	freep = kinfo_getvmmap(kipp->ki_pid, &cnt);
+	freep = procstat_getvmmap(procstat, kipp, &cnt);
 	if (freep == NULL)
 		return;
 	for (i = 0; i < cnt; i++) {
@@ -99,6 +99,9 @@ procstat_vm(struct kinfo_proc *kipp)
 			break;
 		case KVME_TYPE_SG:
 			str = "sg";
+			break;
+		case KVME_TYPE_MGTDEVICE:
+			str = "md";
 			break;
 		case KVME_TYPE_UNKNOWN:
 		default:

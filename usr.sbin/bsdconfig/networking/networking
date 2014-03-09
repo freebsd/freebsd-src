@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2006-2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -37,8 +37,8 @@ f_include $BSDCFG_SHARE/mustberoot.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -48,36 +48,45 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
-	local hline="$hline_arrows_tab_enter"
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X' '$msg_exit'
 		'1' '$msg_hostname_domain'
 		'2' '$msg_network_interfaces'
 		'3' '$msg_default_router'
 		'4' '$msg_dns_nameservers'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\"                   \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\" $size $menu_list       \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 
@@ -89,9 +98,9 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -107,41 +116,32 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
-	[ $retval -eq 0 ] || f_die
-
+	command=
 	case "$mtag" in
-	X) # Exit
-	   break
-	   ;;
-
-	1) # Hostname/Domain
-	   $BSDCFG_LIBE/$APP_DIR/hostname ${USE_XDIALOG:+-X}
-	   ;;
-
-	2) # Network Interfaces
-	   $BSDCFG_LIBE/$APP_DIR/devices ${USE_XDIALOG:+-X}
-
-	   # Make subsequent uses of this menu faster by not performing
-	   # "ifconfig up" (limiting the pain one must endure). See also
-	   # `$BSDCFG_SHARE/networking/device.subr'.
-	   #
-	   export DIALOG_MENU_NETDEV_KICK_INTERFACES=
-	   ;;
-
-	3) # Default Router/Gateway
-	   $BSDCFG_LIBE/$APP_DIR/defaultrouter ${USE_XDIALOG:+-X}
-	   ;;
-
-	4) # DNS nameservers
-	   $BSDCFG_LIBE/$APP_DIR/nameservers ${USE_XDIALOG:+-X}
-	   ;;
-
+	X) break ;;
+	1) command=hostname      ;; # Hostname/Domain
+	2) command=devices       ;; # Network Interfaces
+	3) command=defaultrouter ;; # Default Router/Gateway
+	4) command=nameservers   ;; # DNS nameservers
 	esac
 
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
+	else
+		f_die 1 "$msg_unknown_networking_menu_selection"
+	fi
+
+	if [ "$mtag" = "devices" ]; then
+		#
+		# Make subsequent uses of this menu faster by not performing
+		# "ifconfig up" (limiting the pain one must endure). See also
+		# `$BSDCFG_SHARE/networking/device.subr'.
+		#
+		export DIALOG_MENU_NETDEV_KICK_INTERFACES=
+	fi
 done
 
 exit $SUCCESS

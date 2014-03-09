@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2012
+.Dd May 1, 2013
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -48,6 +48,10 @@ The
 command displays statistics kept about
 .Tn NFS
 client and server activity.
+For the NFSv4 server, the statistics are for operations within the Compound
+RPCs and not the count of RPCs.
+If you wish to compare RPC counts between NFSv3 and NFSv4, you must use
+statistics in the client(s).
 .Pp
 The options are as follows:
 .Bl -tag -width indent

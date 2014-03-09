@@ -29,7 +29,9 @@
 #ifndef _USB_HID_H_
 #define	_USB_HID_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/usb/usb_endian.h>
+#endif
 
 #define	UR_GET_HID_DESCRIPTOR	0x06
 #define	UDESC_HID		0x21
@@ -242,5 +244,7 @@ struct usb_hid_descriptor *hid_get_descriptor_from_usb(
 usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 	    void **descp, uint16_t *sizep, struct malloc_type *mem,
 	    uint8_t iface_index);
+int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
+int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
 #endif					/* _KERNEL */
 #endif					/* _USB_HID_H_ */

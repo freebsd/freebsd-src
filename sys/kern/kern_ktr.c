@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -66,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_output.h>
 #endif
 
+#ifndef KTR_BOOT_ENTRIES
+#define	KTR_BOOT_ENTRIES	1024
+#endif
+
 #ifndef KTR_ENTRIES
 #define	KTR_ENTRIES	1024
 #endif
@@ -96,9 +97,9 @@ FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 volatile int	ktr_idx = 0;
 int	ktr_mask = KTR_MASK;
 int	ktr_compile = KTR_COMPILE;
-int	ktr_entries = KTR_ENTRIES;
+int	ktr_entries = KTR_BOOT_ENTRIES;
 int	ktr_version = KTR_VERSION;
-struct	ktr_entry ktr_buf_init[KTR_ENTRIES];
+struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
 struct	ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
 static char ktr_cpumask_str[CPUSETBUFSIZ];
@@ -193,6 +194,33 @@ sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
     sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
+
+#if KTR_ENTRIES > KTR_BOOT_ENTRIES
+/*
+ * A simplified version of sysctl_debug_ktr_entries.
+ * No need to care about SMP, scheduling, etc.
+ */
+static void
+ktr_entries_initializer(void *dummy __unused)
+{
+	int mask;
+
+	/* Temporarily disable ktr in case malloc() is being traced. */
+	mask = ktr_mask;
+	ktr_mask = 0;
+	ktr_buf = malloc(sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR,
+	    M_WAITOK | M_ZERO);
+	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
+	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
+	if (ktr_idx != 0)
+		memcpy(ktr_buf + KTR_BOOT_ENTRIES - ktr_idx, ktr_buf_init,
+		    ktr_idx * sizeof(*ktr_buf));
+	ktr_entries = KTR_ENTRIES;
+	ktr_mask = mask;
+}
+SYSINIT(ktr_entries_initializer, SI_SUB_KMEM, SI_ORDER_ANY,
+    ktr_entries_initializer, NULL);
+#endif
 
 static int
 sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)

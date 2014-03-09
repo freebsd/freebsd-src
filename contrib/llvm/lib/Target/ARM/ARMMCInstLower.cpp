@@ -15,8 +15,8 @@
 #include "ARM.h"
 #include "ARMAsmPrinter.h"
 #include "MCTargetDesc/ARMMCExpr.h"
-#include "llvm/Constants.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Target/Mangler.h"
@@ -82,7 +82,7 @@ bool ARMAsmPrinter::lowerOperand(const MachineOperand &MO,
         MO.getMBB()->getSymbol(), OutContext));
     break;
   case MachineOperand::MO_GlobalAddress:
-    MCOp = GetSymbolRef(MO, Mang->getSymbol(MO.getGlobal()));
+    MCOp = GetSymbolRef(MO, getSymbol(MO.getGlobal()));
     break;
   case MachineOperand::MO_ExternalSymbol:
    MCOp = GetSymbolRef(MO,

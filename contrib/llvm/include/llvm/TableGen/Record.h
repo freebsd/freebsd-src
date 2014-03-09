@@ -19,9 +19,9 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 
@@ -128,16 +128,8 @@ public:   // These methods should only be called from subclasses of Init
     return convertValue((TypedInit*)FI);
   }
 
-public:   // These methods should only be called by subclasses of RecTy.
-  // baseClassOf - These virtual methods should be overloaded to return true iff
-  // all values of type 'RHS' can be converted to the 'this' type.
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
+public:
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const RecTy &Ty) {
@@ -179,19 +171,11 @@ public:
   virtual bool typeIsConvertibleTo(const RecTy *RHS) const {
     return RHS->baseClassOf(this);
   }
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const;
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
-
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 
-// BitsRecTy - 'bits<n>' - Represent a fixed number of bits
-/// BitsRecTy - 'bits&lt;n&gt;' - Represent a fixed number of bits
+/// BitsRecTy - 'bits<n>' - Represent a fixed number of bits
 ///
 class BitsRecTy : public RecTy {
   unsigned Size;
@@ -226,16 +210,7 @@ public:
   virtual bool typeIsConvertibleTo(const RecTy *RHS) const {
     return RHS->baseClassOf(this);
   }
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return Size == 1; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const {
-    return RHS->Size == Size;
-  }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
-
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 
@@ -273,14 +248,7 @@ public:
     return RHS->baseClassOf(this);
   }
 
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return true; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
-
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 /// StringRecTy - 'string' - Represent an string value
@@ -317,20 +285,10 @@ public:
   virtual bool typeIsConvertibleTo(const RecTy *RHS) const {
     return RHS->baseClassOf(this);
   }
-
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return true; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
 };
 
-// ListRecTy - 'list<Ty>' - Represent a list of values, all of which must be of
-// the specified type.
-/// ListRecTy - 'list&lt;Ty&gt;' - Represent a list of values, all of which must
-/// be of the specified type.
+/// ListRecTy - 'list<Ty>' - Represent a list of values, all of which must be of
+/// the specified type.
 ///
 class ListRecTy : public RecTy {
   RecTy *Ty;
@@ -366,15 +324,7 @@ public:
     return RHS->baseClassOf(this);
   }
 
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const {
-    return RHS->getElementType()->typeIsConvertibleTo(Ty);
-  }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 /// DagRecTy - 'dag' - Represent a dag fragment
@@ -410,14 +360,6 @@ public:
   virtual bool typeIsConvertibleTo(const RecTy *RHS) const {
     return RHS->baseClassOf(this);
   }
-
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return true; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
 };
 
 
@@ -458,13 +400,7 @@ public:
   virtual bool typeIsConvertibleTo(const RecTy *RHS) const {
     return RHS->baseClassOf(this);
   }
-  virtual bool baseClassOf(const BitRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const BitsRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const IntRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const StringRecTy *RHS) const { return false; }
-  virtual bool baseClassOf(const ListRecTy   *RHS) const { return false; }
-  virtual bool baseClassOf(const DagRecTy    *RHS) const { return false; }
-  virtual bool baseClassOf(const RecordRecTy *RHS) const;
+  virtual bool baseClassOf(const RecTy*) const;
 };
 
 /// resolveTypes - Find a common type that T1 and T2 convert to.
@@ -758,7 +694,7 @@ public:
 };
 
 
-/// IntInit - 7 - Represent an initalization by a literal integer value.
+/// IntInit - 7 - Represent an initialization by a literal integer value.
 ///
 class IntInit : public TypedInit {
   int64_t Value;
@@ -991,7 +927,7 @@ public:
 ///
 class BinOpInit : public OpInit {
 public:
-  enum BinaryOp { SHL, SRA, SRL, STRCONCAT, CONCAT, EQ };
+  enum BinaryOp { ADD, SHL, SRA, SRL, STRCONCAT, CONCAT, EQ };
 private:
   BinaryOp Opc;
   Init *LHS, *RHS;
@@ -1448,12 +1384,14 @@ class Record {
   SmallVector<SMLoc, 4> Locs;
   std::vector<Init *> TemplateArgs;
   std::vector<RecordVal> Values;
-  std::vector<Record*> SuperClasses;
+  std::vector<Record *> SuperClasses;
+  std::vector<SMRange> SuperClassRanges;
 
   // Tracks Record instances. Not owned by Record.
   RecordKeeper &TrackedRecords;
 
   DefInit *TheInit;
+  bool IsAnonymous;
 
   void init();
   void checkName();
@@ -1462,14 +1400,15 @@ public:
 
   // Constructs a record.
   explicit Record(const std::string &N, ArrayRef<SMLoc> locs,
-                  RecordKeeper &records) :
+                  RecordKeeper &records, bool Anonymous = false) :
     ID(LastID++), Name(StringInit::get(N)), Locs(locs.begin(), locs.end()),
-    TrackedRecords(records), TheInit(0) {
+    TrackedRecords(records), TheInit(0), IsAnonymous(Anonymous) {
     init();
   }
-  explicit Record(Init *N, ArrayRef<SMLoc> locs, RecordKeeper &records) :
+  explicit Record(Init *N, ArrayRef<SMLoc> locs, RecordKeeper &records,
+                  bool Anonymous = false) :
     ID(LastID++), Name(N), Locs(locs.begin(), locs.end()),
-    TrackedRecords(records), TheInit(0) {
+    TrackedRecords(records), TheInit(0), IsAnonymous(Anonymous) {
     init();
   }
 
@@ -1478,7 +1417,8 @@ public:
   Record(const Record &O) :
     ID(LastID++), Name(O.Name), Locs(O.Locs), TemplateArgs(O.TemplateArgs),
     Values(O.Values), SuperClasses(O.SuperClasses),
-    TrackedRecords(O.TrackedRecords), TheInit(O.TheInit) { }
+    SuperClassRanges(O.SuperClassRanges), TrackedRecords(O.TrackedRecords),
+    TheInit(O.TheInit), IsAnonymous(O.IsAnonymous) { }
 
   ~Record() {}
 
@@ -1509,6 +1449,7 @@ public:
   }
   const std::vector<RecordVal> &getValues() const { return Values; }
   const std::vector<Record*>   &getSuperClasses() const { return SuperClasses; }
+  ArrayRef<SMRange> getSuperClassRanges() const { return SuperClassRanges; }
 
   bool isTemplateArg(Init *Name) const {
     for (unsigned i = 0, e = TemplateArgs.size(); i != e; ++i)
@@ -1583,9 +1524,10 @@ public:
     return false;
   }
 
-  void addSuperClass(Record *R) {
+  void addSuperClass(Record *R, SMRange Range) {
     assert(!isSubClassOf(R) && "Already subclassing record!");
     SuperClasses.push_back(R);
+    SuperClassRanges.push_back(Range);
   }
 
   /// resolveReferences - If there are any field references that refer to fields
@@ -1602,6 +1544,10 @@ public:
     return TrackedRecords;
   }
 
+  bool isAnonymous() const {
+    return IsAnonymous;
+  }
+
   void dump() const;
 
   //===--------------------------------------------------------------------===//
@@ -1612,6 +1558,11 @@ public:
   /// or throw an exception if the field does not exist.
   ///
   Init *getValueInit(StringRef FieldName) const;
+
+  /// Return true if the named field is unset.
+  bool isValueUnset(StringRef FieldName) const {
+    return getValueInit(FieldName) == UnsetInit::get();
+  }
 
   /// getValueAsString - This method looks up the specified field and returns
   /// its value as a string, throwing an exception if the field does not exist
@@ -1777,6 +1728,86 @@ struct LessRecordByID {
 struct LessRecordFieldName {
   bool operator()(const Record *Rec1, const Record *Rec2) const {
     return Rec1->getValueAsString("Name") < Rec2->getValueAsString("Name");
+  }
+};
+
+struct LessRecordRegister {
+  static size_t min(size_t a, size_t b) { return a < b ? a : b; }
+  static bool ascii_isdigit(char x) { return x >= '0' && x <= '9'; }
+
+  struct RecordParts {
+    SmallVector<std::pair< bool, StringRef>, 4> Parts;
+
+    RecordParts(StringRef Rec) {
+      if (Rec.empty())
+        return;
+
+      size_t Len = 0;
+      const char *Start = Rec.data();
+      const char *Curr = Start;
+      bool isDigitPart = ascii_isdigit(Curr[0]);
+      for (size_t I = 0, E = Rec.size(); I != E; ++I, ++Len) {
+        bool isDigit = ascii_isdigit(Curr[I]);
+        if (isDigit != isDigitPart) {
+          Parts.push_back(std::make_pair(isDigitPart, StringRef(Start, Len)));
+          Len = 0;
+          Start = &Curr[I];
+          isDigitPart = ascii_isdigit(Curr[I]);
+        }
+      }
+      // Push the last part.
+      Parts.push_back(std::make_pair(isDigitPart, StringRef(Start, Len)));
+    }
+
+    size_t size() { return Parts.size(); }
+
+    std::pair<bool, StringRef> getPart(size_t i) {
+      assert (i < Parts.size() && "Invalid idx!");
+      return Parts[i];
+    }
+  };
+
+  bool operator()(const Record *Rec1, const Record *Rec2) const {
+    RecordParts LHSParts(StringRef(Rec1->getName()));
+    RecordParts RHSParts(StringRef(Rec2->getName()));
+
+    size_t LHSNumParts = LHSParts.size();
+    size_t RHSNumParts = RHSParts.size();
+    assert (LHSNumParts && RHSNumParts && "Expected at least one part!");
+
+    if (LHSNumParts != RHSNumParts)
+      return LHSNumParts < RHSNumParts;
+
+    // We expect the registers to be of the form [_a-zA-z]+([0-9]*[_a-zA-Z]*)*.
+    for (size_t I = 0, E = LHSNumParts; I < E; I+=2) {
+      std::pair<bool, StringRef> LHSPart = LHSParts.getPart(I);
+      std::pair<bool, StringRef> RHSPart = RHSParts.getPart(I);
+      // Expect even part to always be alpha.
+      assert (LHSPart.first == false && RHSPart.first == false &&
+              "Expected both parts to be alpha.");
+      if (int Res = LHSPart.second.compare(RHSPart.second))
+        return Res < 0;
+    }
+    for (size_t I = 1, E = LHSNumParts; I < E; I+=2) {
+      std::pair<bool, StringRef> LHSPart = LHSParts.getPart(I);
+      std::pair<bool, StringRef> RHSPart = RHSParts.getPart(I);
+      // Expect odd part to always be numeric.
+      assert (LHSPart.first == true && RHSPart.first == true &&
+              "Expected both parts to be numeric.");
+      if (LHSPart.second.size() != RHSPart.second.size())
+        return LHSPart.second.size() < RHSPart.second.size();
+
+      unsigned LHSVal, RHSVal;
+
+      bool LHSFailed = LHSPart.second.getAsInteger(10, LHSVal); (void)LHSFailed;
+      assert(!LHSFailed && "Unable to convert LHS to integer.");
+      bool RHSFailed = RHSPart.second.getAsInteger(10, RHSVal); (void)RHSFailed;
+      assert(!RHSFailed && "Unable to convert RHS to integer.");
+
+      if (LHSVal != RHSVal)
+        return LHSVal < RHSVal;
+    }
+    return LHSNumParts < RHSNumParts;
   }
 };
 

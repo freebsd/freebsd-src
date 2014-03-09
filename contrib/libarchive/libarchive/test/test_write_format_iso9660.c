@@ -50,7 +50,7 @@ DEFINE_TEST(test_write_format_iso9660)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
 
 	/*

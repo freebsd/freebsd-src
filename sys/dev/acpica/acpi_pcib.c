@@ -129,18 +129,10 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 int
 acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 {
-    ACPI_STATUS			status;
+    ACPI_STATUS status;
+    int error;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    /*
-     * Don't attach if we're not really there.
-     *
-     * XXX: This isn't entirely correct since we may be a PCI bus
-     * on a hot-plug docking station, etc.
-     */
-    if (!acpi_DeviceIsPresent(dev))
-	return_VALUE(ENXIO);
 
     /*
      * Get the PCI interrupt routing table for this bus.  If we can't
@@ -168,7 +160,8 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
      */
     prt_walk_table(prt, prt_attach_devices, dev);
 
-    return_VALUE (bus_generic_attach(dev));
+    error = bus_generic_attach(dev);
+    return_VALUE(error);
 }
 
 static void
@@ -273,7 +266,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 out:
     ACPI_SERIAL_END(pcib);
 
-    return_VALUE (interrupt);
+    return_VALUE(interrupt);
 }
 
 int
@@ -285,4 +278,3 @@ acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
     acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
     return (0);
 }
-

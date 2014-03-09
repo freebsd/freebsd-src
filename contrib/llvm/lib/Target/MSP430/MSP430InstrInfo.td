@@ -40,9 +40,9 @@ def SDT_MSP430Shift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
 // MSP430 Specific Node Definitions.
 //===----------------------------------------------------------------------===//
 def MSP430retflag  : SDNode<"MSP430ISD::RET_FLAG", SDTNone,
-                       [SDNPHasChain, SDNPOptInGlue]>;
+                       [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def MSP430retiflag : SDNode<"MSP430ISD::RETI_FLAG", SDTNone,
-                       [SDNPHasChain, SDNPOptInGlue]>;
+                       [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 
 def MSP430rra     : SDNode<"MSP430ISD::RRA", SDTIntUnaryOp, []>;
 def MSP430rla     : SDNode<"MSP430ISD::RLA", SDTIntUnaryOp, []>;
@@ -183,10 +183,10 @@ let isBarrier = 1 in {
                     "br\t$brdst",
                     [(brind tblockaddress:$brdst)]>;
     def Br  : I16rr<0, (outs), (ins GR16:$brdst),
-                    "mov.w\t{$brdst, pc}",
+                    "br\t$brdst",
                     [(brind GR16:$brdst)]>;
     def Bm  : I16rm<0, (outs), (ins memsrc:$brdst),
-                    "mov.w\t{$brdst, pc}",
+                    "br\t$brdst",
                     [(brind (load addr:$brdst))]>;
   }
 }

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmtablegen
 
 SRCDIR=	lib/TableGen
@@ -10,6 +12,5 @@ SRCS=	Error.cpp \
 	TableGenBackend.cpp \
 	TGLexer.cpp \
 	TGParser.cpp
-LLVM_REQUIRES_EH=
 
 .include "../clang.lib.mk"

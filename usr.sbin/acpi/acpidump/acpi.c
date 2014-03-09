@@ -501,6 +501,7 @@ acpi_handle_hpet(ACPI_TABLE_HEADER *sdp)
 		printf("FALSE}\n");
 	printf("\tPCI Vendor ID=0x%04x\n", hpet->Id >> 16);
 	printf("\tMinimal Tick=%d\n", hpet->MinimumTick);
+	printf("\tFlags=0x%02x\n", hpet->Flags);
 	printf(END_COMMENT);
 }
 
@@ -537,7 +538,7 @@ acpi_handle_mcfg(ACPI_TABLE_HEADER *sdp)
 	alloc = (ACPI_MCFG_ALLOCATION *)(mcfg + 1);
 	for (i = 0; i < entries; i++, alloc++) {
 		printf("\n");
-		printf("\tBase Address=0x%016jx\n", alloc->Address);
+		printf("\tBase Address=0x%016jx\n", (uintmax_t)alloc->Address);
 		printf("\tSegment Group=0x%04x\n", alloc->PciSegment);
 		printf("\tStart Bus=%d\n", alloc->StartBusNumber);
 		printf("\tEnd Bus=%d\n", alloc->EndBusNumber);
@@ -554,16 +555,16 @@ acpi_handle_slit(ACPI_TABLE_HEADER *sdp)
 	printf(BEGIN_COMMENT);
 	acpi_print_sdt(sdp);
 	slit = (ACPI_TABLE_SLIT *)sdp;
-	printf("\tLocality Count=%jd\n", slit->LocalityCount);
+	printf("\tLocality Count=%ju\n", (uintmax_t)slit->LocalityCount);
 	printf("\n\t      ");
 	for (i = 0; i < slit->LocalityCount; i++)
-		printf(" %3jd", i);
+		printf(" %3ju", (uintmax_t)i);
 	printf("\n\t     +");
 	for (i = 0; i < slit->LocalityCount; i++)
 		printf("----");
 	printf("\n");
 	for (i = 0; i < slit->LocalityCount; i++) {
-		printf("\t %3jd |", i);
+		printf("\t %3ju |", (uintmax_t)i);
 		for (j = 0; j < slit->LocalityCount; j++)
 			printf(" %3d",
 			    slit->Entry[i * slit->LocalityCount + j]);
@@ -830,7 +831,7 @@ acpi_handle_dmar_drhd(ACPI_DMAR_HARDWARE_UNIT *drhd)
 #undef PRINTFLAG
 
 	printf("\tSegment=%d\n", drhd->Segment);
-	printf("\tAddress=0x%0jx\n", drhd->Address);
+	printf("\tAddress=0x%0jx\n", (uintmax_t)drhd->Address);
 
 	remaining = drhd->Header.Length - sizeof(ACPI_DMAR_HARDWARE_UNIT);
 	if (remaining > 0)
@@ -855,8 +856,8 @@ acpi_handle_dmar_rmrr(ACPI_DMAR_RESERVED_MEMORY *rmrr)
 	printf("\tType=RMRR\n");
 	printf("\tLength=%d\n", rmrr->Header.Length);
 	printf("\tSegment=%d\n", rmrr->Segment);
-	printf("\tBaseAddress=0x%0jx\n", rmrr->BaseAddress);
-	printf("\tLimitAddress=0x%0jx\n", rmrr->EndAddress);
+	printf("\tBaseAddress=0x%0jx\n", (uintmax_t)rmrr->BaseAddress);
+	printf("\tLimitAddress=0x%0jx\n", (uintmax_t)rmrr->EndAddress);
 
 	remaining = rmrr->Header.Length - sizeof(ACPI_DMAR_RESERVED_MEMORY);
 	if (remaining > 0)
@@ -911,7 +912,7 @@ acpi_handle_dmar_rhsa(ACPI_DMAR_RHSA *rhsa)
 	printf("\n");
 	printf("\tType=RHSA\n");
 	printf("\tLength=%d\n", rhsa->Header.Length);
-	printf("\tBaseAddress=0x%0jx\n", rhsa->BaseAddress);
+	printf("\tBaseAddress=0x%0jx\n", (uintmax_t)rhsa->BaseAddress);
 	printf("\tProximityDomain=0x%08x\n", rhsa->ProximityDomain);
 }
 

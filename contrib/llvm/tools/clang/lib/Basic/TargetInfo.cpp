@@ -11,21 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <cctype>
 #include <cstdlib>
 using namespace clang;
 
 static const LangAS::Map DefaultAddrSpaceMap = { 0 };
 
 // TargetInfo Constructor.
-TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
-{
+TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
   // Set defaults.  Defaults are set for a 32-bit RISC platform, like PPC or
   // SPARC.  These should be overridden by concrete targets as needed.
   BigEndian = true;
@@ -37,6 +36,7 @@ TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
   SuitableAlign = 64;
+  MinGlobalAlign = 0;
   HalfWidth = 16;
   HalfAlign = 16;
   FloatWidth = 32;
@@ -84,10 +84,11 @@ TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
   ComplexLongDoubleUsesFP2Ret = false;
 
   // Default to using the Itanium ABI.
-  CXXABI = CXXABI_Itanium;
+  TheCXXABI.set(TargetCXXABI::GenericItanium);
 
   // Default to an empty address space map.
   AddrSpaceMap = &DefaultAddrSpaceMap;
+  UseAddrSpaceMapMangling = false;
 
   // Default to an unknown platform name.
   PlatformName = "unknown";
@@ -102,6 +103,8 @@ TargetInfo::~TargetInfo() {}
 const char *TargetInfo::getTypeName(IntType T) {
   switch (T) {
   default: llvm_unreachable("not an integer!");
+  case SignedChar:       return "char";
+  case UnsignedChar:     return "unsigned char";
   case SignedShort:      return "short";
   case UnsignedShort:    return "unsigned short";
   case SignedInt:        return "int";
@@ -118,10 +121,12 @@ const char *TargetInfo::getTypeName(IntType T) {
 const char *TargetInfo::getTypeConstantSuffix(IntType T) {
   switch (T) {
   default: llvm_unreachable("not an integer!");
+  case SignedChar:
   case SignedShort:
   case SignedInt:        return "";
   case SignedLong:       return "L";
   case SignedLongLong:   return "LL";
+  case UnsignedChar:
   case UnsignedShort:
   case UnsignedInt:      return "U";
   case UnsignedLong:     return "UL";
@@ -134,6 +139,8 @@ const char *TargetInfo::getTypeConstantSuffix(IntType T) {
 unsigned TargetInfo::getTypeWidth(IntType T) const {
   switch (T) {
   default: llvm_unreachable("not an integer!");
+  case SignedChar:
+  case UnsignedChar:     return getCharWidth();
   case SignedShort:
   case UnsignedShort:    return getShortWidth();
   case SignedInt:
@@ -145,11 +152,49 @@ unsigned TargetInfo::getTypeWidth(IntType T) const {
   };
 }
 
+TargetInfo::IntType TargetInfo::getIntTypeByWidth(
+    unsigned BitWidth, bool IsSigned) const {
+  if (getCharWidth() == BitWidth)
+    return IsSigned ? SignedChar : UnsignedChar;
+  if (getShortWidth() == BitWidth)
+    return IsSigned ? SignedShort : UnsignedShort;
+  if (getIntWidth() == BitWidth)
+    return IsSigned ? SignedInt : UnsignedInt;
+  if (getLongWidth() == BitWidth)
+    return IsSigned ? SignedLong : UnsignedLong;
+  if (getLongLongWidth() == BitWidth)
+    return IsSigned ? SignedLongLong : UnsignedLongLong;
+  return NoInt;
+}
+
+TargetInfo::RealType TargetInfo::getRealTypeByWidth(unsigned BitWidth) const {
+  if (getFloatWidth() == BitWidth)
+    return Float;
+  if (getDoubleWidth() == BitWidth)
+    return Double;
+
+  switch (BitWidth) {
+  case 96:
+    if (&getLongDoubleFormat() == &llvm::APFloat::x87DoubleExtended)
+      return LongDouble;
+    break;
+  case 128:
+    if (&getLongDoubleFormat() == &llvm::APFloat::PPCDoubleDouble ||
+        &getLongDoubleFormat() == &llvm::APFloat::IEEEquad)
+      return LongDouble;
+    break;
+  }
+
+  return NoFloat;
+}
+
 /// getTypeAlign - Return the alignment (in bits) of the specified integer type
 /// enum. For example, SignedInt -> getIntAlign().
 unsigned TargetInfo::getTypeAlign(IntType T) const {
   switch (T) {
   default: llvm_unreachable("not an integer!");
+  case SignedChar:
+  case UnsignedChar:     return getCharAlign();
   case SignedShort:
   case UnsignedShort:    return getShortAlign();
   case SignedInt:
@@ -166,11 +211,13 @@ unsigned TargetInfo::getTypeAlign(IntType T) const {
 bool TargetInfo::isTypeSigned(IntType T) {
   switch (T) {
   default: llvm_unreachable("not an integer!");
+  case SignedChar:
   case SignedShort:
   case SignedInt:
   case SignedLong:
   case SignedLongLong:
     return true;
+  case UnsignedChar:
   case UnsignedShort:
   case UnsignedInt:
   case UnsignedLong:
@@ -187,6 +234,35 @@ void TargetInfo::setForcedLangOptions(LangOptions &Opts) {
     UseBitFieldTypeAlignment = false;
   if (Opts.ShortWChar)
     WCharType = UnsignedShort;
+
+  if (Opts.OpenCL) {
+    // OpenCL C requires specific widths for types, irrespective of
+    // what these normally are for the target.
+    // We also define long long and long double here, although the
+    // OpenCL standard only mentions these as "reserved".
+    IntWidth = IntAlign = 32;
+    LongWidth = LongAlign = 64;
+    LongLongWidth = LongLongAlign = 128;
+    HalfWidth = HalfAlign = 16;
+    FloatWidth = FloatAlign = 32;
+    DoubleWidth = DoubleAlign = 64;
+    LongDoubleWidth = LongDoubleAlign = 128;
+
+    assert(PointerWidth == 32 || PointerWidth == 64);
+    bool Is32BitArch = PointerWidth == 32;
+    SizeType = Is32BitArch ? UnsignedInt : UnsignedLong;
+    PtrDiffType = Is32BitArch ? SignedInt : SignedLong;
+    IntPtrType = Is32BitArch ? SignedInt : SignedLong;
+
+    IntMaxType = SignedLongLong;
+    UIntMaxType = UnsignedLongLong;
+    Int64Type = SignedLong;
+
+    HalfFormat = &llvm::APFloat::IEEEhalf;
+    FloatFormat = &llvm::APFloat::IEEEsingle;
+    DoubleFormat = &llvm::APFloat::IEEEdouble;
+    LongDoubleFormat = &llvm::APFloat::IEEEquad;
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -223,7 +299,7 @@ bool TargetInfo::isValidGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // If we have a number it maps to an entry in the register name array.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n))
       return n >= 0 && (unsigned)n < NumNames;
@@ -279,7 +355,7 @@ TargetInfo::getNormalizedGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // First, check if we have a number.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n)) {
       assert(n >= 0 && (unsigned)n < NumNames &&
@@ -373,7 +449,9 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
     Name++;
   }
 
-  return true;
+  // If a constraint allows neither memory nor register operands it contains
+  // only modifiers. Reject it.
+  return Info.allowsMemory() || Info.allowsRegister();
 }
 
 bool TargetInfo::resolveSymbolicName(const char *&Name,
@@ -494,5 +572,19 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
     Name++;
   }
 
+  return true;
+}
+
+bool TargetCXXABI::tryParse(llvm::StringRef name) {
+  const Kind unknown = static_cast<Kind>(-1);
+  Kind kind = llvm::StringSwitch<Kind>(name)
+    .Case("arm", GenericARM)
+    .Case("ios", iOS)
+    .Case("itanium", GenericItanium)
+    .Case("microsoft", Microsoft)
+    .Default(unknown);
+  if (kind == unknown) return false;
+
+  set(kind);
   return true;
 }

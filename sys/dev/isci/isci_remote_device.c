@@ -83,7 +83,7 @@ scif_cb_remote_device_ready(SCI_CONTROLLER_HANDLE_T controller,
 			 */
 			union ccb *ccb = xpt_alloc_ccb_nowait();
 
-			xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(isci_controller->sim),
 			    isci_remote_device->index, CAM_LUN_WILDCARD);
 
@@ -262,7 +262,7 @@ isci_remote_device_freeze_lun_queue(struct ISCI_REMOTE_DEVICE *remote_device,
 	if (!(remote_device->frozen_lun_mask & (1 << lun))) {
 		struct cam_path *path;
 
-		xpt_create_path(&path, xpt_periph,
+		xpt_create_path(&path, NULL,
 		    cam_sim_path(remote_device->domain->controller->sim),
 		    remote_device->index, lun);
 		xpt_freeze_devq(path, 1);
@@ -279,7 +279,7 @@ isci_remote_device_release_lun_queue(struct ISCI_REMOTE_DEVICE *remote_device,
 		struct cam_path *path;
 
 		remote_device->frozen_lun_mask &= ~(1 << lun);
-		xpt_create_path(&path, xpt_periph,
+		xpt_create_path(&path, NULL,
 		    cam_sim_path(remote_device->domain->controller->sim),
 		    remote_device->index, lun);
 		xpt_release_devq(path, 1, TRUE);

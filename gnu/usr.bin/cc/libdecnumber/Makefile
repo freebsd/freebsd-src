@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # Use our headers in preference to ones from ../cc_tools.
 CFLAGS+=	-I${.CURDIR} -I.
 

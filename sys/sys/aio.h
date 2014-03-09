@@ -37,6 +37,7 @@
 #define	LIO_READ		0x2
 #ifdef _KERNEL
 #define	LIO_SYNC		0x3
+#define	LIO_MLOCK		0x4
 #endif
 
 /*
@@ -123,6 +124,11 @@ int	aio_cancel(int, struct aiocb *);
  * Suspend until all specified I/O or timeout is complete.
  */
 int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
+
+/*
+ * Asynchronous mlock
+ */
+int	aio_mlock(struct aiocb *);
 
 #ifdef __BSD_VISIBLE
 int	aio_waitcomplete(struct aiocb **, struct timespec *);

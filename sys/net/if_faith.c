@@ -56,6 +56,7 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -84,7 +85,7 @@ struct faith_softc {
 };
 
 static int faithioctl(struct ifnet *, u_long, caddr_t);
-int faithoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int faithoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	struct route *);
 static void faithrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 #ifdef INET6
@@ -184,12 +185,9 @@ faith_clone_destroy(ifp)
 	free(sc, M_FAITH);
 }
 
-int
-faithoutput(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+static int
+faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	int isr;
 	u_int32_t af;
@@ -200,15 +198,13 @@ faithoutput(ifp, m, dst, ro)
 	if (ro != NULL)
 		rt = ro->ro_rt;
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-
-	if (bpf_peers_present(ifp->if_bpf)) {
+	else
 		af = dst->sa_family;
+
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-	}
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
@@ -217,7 +213,7 @@ faithoutput(ifp, m, dst, ro)
 	}
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-	switch (dst->sa_family) {
+	switch (af) {
 #ifdef INET
 	case AF_INET:
 		isr = NETISR_IP;
@@ -250,7 +246,7 @@ faithrtrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
+	rt->rt_mtu = rt->rt_ifp->if_mtu;
 }
 
 /*

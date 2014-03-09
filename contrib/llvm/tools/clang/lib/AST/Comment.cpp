@@ -12,6 +12,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/CharInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -32,20 +33,6 @@ const char *Comment::getCommentKindName() const {
   llvm_unreachable("Unknown comment kind!");
 }
 
-void Comment::dump() const {
-  // It is important that Comment::dump() is defined in a different TU than
-  // Comment::dump(raw_ostream, SourceManager).  If both functions were defined
-  // in CommentDumper.cpp, that object file would be removed by linker because
-  // none of its functions are referenced by other object files, despite the
-  // LLVM_ATTRIBUTE_USED.
-  dump(llvm::errs(), NULL, NULL);
-}
-
-void Comment::dump(const ASTContext &Context) const {
-  dump(llvm::errs(), &Context.getCommentCommandTraits(),
-       &Context.getSourceManager());
-}
-
 namespace {
 struct good {};
 struct bad {};
@@ -55,14 +42,16 @@ good implements_child_begin_end(Comment::child_iterator (T::*)() const) {
   return good();
 }
 
+LLVM_ATTRIBUTE_UNUSED
 static inline bad implements_child_begin_end(
                       Comment::child_iterator (Comment::*)() const) {
   return bad();
 }
 
 #define ASSERT_IMPLEMENTS_child_begin(function) \
-  (void) sizeof(good(implements_child_begin_end(function)))
+  (void) good(implements_child_begin_end(function))
 
+LLVM_ATTRIBUTE_UNUSED
 static inline void CheckCommentASTNodes() {
 #define ABSTRACT_COMMENT(COMMENT)
 #define COMMENT(CLASS, PARENT) \
@@ -108,9 +97,7 @@ Comment::child_iterator Comment::child_end() const {
 bool TextComment::isWhitespaceNoCache() const {
   for (StringRef::const_iterator I = Text.begin(), E = Text.end();
        I != E; ++I) {
-    const char C = *I;
-    if (C != ' ' && C != '\n' && C != '\r' &&
-        C != '\t' && C != '\f' && C != '\v')
+    if (!clang::isWhitespace(*I))
       return false;
   }
   return true;
@@ -148,7 +135,7 @@ void DeclInfo::fill() {
   IsObjCMethod = false;
   IsInstanceMethod = false;
   IsClassMethod = false;
-  ParamVars = ArrayRef<const ParmVarDecl *>();
+  ParamVars = None;
   TemplateParameters = NULL;
 
   if (!CommentDecl) {
@@ -255,32 +242,32 @@ void DeclInfo::fill() {
     while (true) {
       TL = TL.IgnoreParens();
       // Look through qualified types.
-      if (QualifiedTypeLoc *QualifiedTL = dyn_cast<QualifiedTypeLoc>(&TL)) {
-        TL = QualifiedTL->getUnqualifiedLoc();
+      if (QualifiedTypeLoc QualifiedTL = TL.getAs<QualifiedTypeLoc>()) {
+        TL = QualifiedTL.getUnqualifiedLoc();
         continue;
       }
       // Look through pointer types.
-      if (PointerTypeLoc *PointerTL = dyn_cast<PointerTypeLoc>(&TL)) {
-        TL = PointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (PointerTypeLoc PointerTL = TL.getAs<PointerTypeLoc>()) {
+        TL = PointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
-      if (BlockPointerTypeLoc *BlockPointerTL =
-              dyn_cast<BlockPointerTypeLoc>(&TL)) {
-        TL = BlockPointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (BlockPointerTypeLoc BlockPointerTL =
+              TL.getAs<BlockPointerTypeLoc>()) {
+        TL = BlockPointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
-      if (MemberPointerTypeLoc *MemberPointerTL =
-              dyn_cast<MemberPointerTypeLoc>(&TL)) {
-        TL = MemberPointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (MemberPointerTypeLoc MemberPointerTL =
+              TL.getAs<MemberPointerTypeLoc>()) {
+        TL = MemberPointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
       // Is this a typedef for a function type?
-      if (FunctionTypeLoc *FTL = dyn_cast<FunctionTypeLoc>(&TL)) {
+      if (FunctionTypeLoc FTL = TL.getAs<FunctionTypeLoc>()) {
         Kind = FunctionKind;
-        ArrayRef<ParmVarDecl *> Params = FTL->getParams();
+        ArrayRef<ParmVarDecl *> Params = FTL.getParams();
         ParamVars = ArrayRef<const ParmVarDecl *>(Params.data(),
                                                   Params.size());
-        ResultType = FTL->getResultLoc().getType();
+        ResultType = FTL.getResultLoc().getType();
         break;
       }
       break;
@@ -307,12 +294,14 @@ void DeclInfo::fill() {
 
 StringRef ParamCommandComment::getParamName(const FullComment *FC) const {
   assert(isParamIndexValid());
-  return FC->getThisDeclInfo()->ParamVars[getParamIndex()]->getName();
+  if (isVarArgParam())
+    return "...";
+  return FC->getDeclInfo()->ParamVars[getParamIndex()]->getName();
 }
 
 StringRef TParamCommandComment::getParamName(const FullComment *FC) const {
   assert(isPositionValid());
-  const TemplateParameterList *TPL = FC->getThisDeclInfo()->TemplateParameters;
+  const TemplateParameterList *TPL = FC->getDeclInfo()->TemplateParameters;
   for (unsigned i = 0, e = getDepth(); i != e; ++i) {
     if (i == e-1)
       return TPL->getParam(getIndex(i))->getName();

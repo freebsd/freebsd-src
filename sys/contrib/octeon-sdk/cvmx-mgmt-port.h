@@ -223,6 +223,13 @@ extern cvmx_helper_link_info_t cvmx_mgmt_port_link_get(int port);
  */
 extern int cvmx_mgmt_port_link_set(int port, cvmx_helper_link_info_t link_info);
 
+/**
+ * Return the number of management ports supported on this board.
+ *
+ * @return Number of ports
+ */
+extern int cvmx_mgmt_port_num_ports(void);
+
 #ifdef __cplusplus
 }
 #endif

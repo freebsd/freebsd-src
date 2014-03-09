@@ -27,9 +27,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/elf.h>
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <machine/cpufunc.h>
+#include "libc_private.h"
 
 static u_int
 __vdso_gettc_low(const struct vdso_timehands *th)
@@ -41,9 +43,18 @@ __vdso_gettc_low(const struct vdso_timehands *th)
 	return (rv);
 }
 
+#pragma weak __vdso_gettc
 u_int
 __vdso_gettc(const struct vdso_timehands *th)
 {
 
 	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) : rdtsc32());
+}
+
+#pragma weak __vdso_gettimekeep
+int
+__vdso_gettimekeep(struct vdso_timekeep **tk)
+{
+
+	return (_elf_aux_info(AT_TIMEKEEP, tk, sizeof(*tk)));
 }

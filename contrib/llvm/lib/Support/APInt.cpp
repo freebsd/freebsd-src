@@ -23,9 +23,9 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cmath>
-#include <limits>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
+#include <limits>
 using namespace llvm;
 
 /// A utility function for allocating memory, checking for allocation failures,
@@ -559,12 +559,12 @@ bool APInt::slt(const APInt& RHS) const {
   if (lhsNeg) {
     // Sign bit is set so perform two's complement to make it positive
     lhs.flipAllBits();
-    lhs++;
+    ++lhs;
   }
   if (rhsNeg) {
     // Sign bit is set so perform two's complement to make it positive
     rhs.flipAllBits();
-    rhs++;
+    ++rhs;
   }
 
   // Now we have unsigned values to compare so do the comparison if necessary
@@ -692,14 +692,14 @@ unsigned APInt::countLeadingZerosSlowCase() const {
   unsigned i = getNumWords();
   integerPart MSW = pVal[i-1] & MSWMask;
   if (MSW)
-    return CountLeadingZeros_64(MSW) - (APINT_BITS_PER_WORD - BitsInMSW);
+    return llvm::countLeadingZeros(MSW) - (APINT_BITS_PER_WORD - BitsInMSW);
 
   unsigned Count = BitsInMSW;
   for (--i; i > 0u; --i) {
     if (pVal[i-1] == 0)
       Count += APINT_BITS_PER_WORD;
     else {
-      Count += CountLeadingZeros_64(pVal[i-1]);
+      Count += llvm::countLeadingZeros(pVal[i-1]);
       break;
     }
   }
@@ -735,13 +735,13 @@ unsigned APInt::countLeadingOnes() const {
 
 unsigned APInt::countTrailingZeros() const {
   if (isSingleWord())
-    return std::min(unsigned(CountTrailingZeros_64(VAL)), BitWidth);
+    return std::min(unsigned(llvm::countTrailingZeros(VAL)), BitWidth);
   unsigned Count = 0;
   unsigned i = 0;
   for (; i < getNumWords() && pVal[i] == 0; ++i)
     Count += APINT_BITS_PER_WORD;
   if (i < getNumWords())
-    Count += CountTrailingZeros_64(pVal[i]);
+    Count += llvm::countTrailingZeros(pVal[i]);
   return std::min(Count, BitWidth);
 }
 
@@ -1512,7 +1512,7 @@ static void KnuthDiv(unsigned *u, unsigned *v, unsigned *q, unsigned* r,
   // and v so that its high bits are shifted to the top of v's range without
   // overflow. Note that this can require an extra word in u so that u must
   // be of length m+n+1.
-  unsigned shift = CountLeadingZeros_32(v[n-1]);
+  unsigned shift = countLeadingZeros(v[n-1]);
   unsigned v_carry = 0;
   unsigned u_carry = 0;
   if (shift) {
@@ -1876,6 +1876,17 @@ APInt APInt::udiv(const APInt& RHS) const {
   return Quotient;
 }
 
+APInt APInt::sdiv(const APInt &RHS) const {
+  if (isNegative()) {
+    if (RHS.isNegative())
+      return (-(*this)).udiv(-RHS);
+    return -((-(*this)).udiv(RHS));
+  }
+  if (RHS.isNegative())
+    return -(this->udiv(-RHS));
+  return this->udiv(RHS);
+}
+
 APInt APInt::urem(const APInt& RHS) const {
   assert(BitWidth == RHS.BitWidth && "Bit widths must be the same");
   if (isSingleWord()) {
@@ -1911,6 +1922,17 @@ APInt APInt::urem(const APInt& RHS) const {
   APInt Remainder(1,0);
   divide(*this, lhsWords, RHS, rhsWords, 0, &Remainder);
   return Remainder;
+}
+
+APInt APInt::srem(const APInt &RHS) const {
+  if (isNegative()) {
+    if (RHS.isNegative())
+      return -((-(*this)).urem(-RHS));
+    return -((-(*this)).urem(RHS));
+  }
+  if (RHS.isNegative())
+    return this->urem(-RHS);
+  return this->urem(RHS);
 }
 
 void APInt::udivrem(const APInt &LHS, const APInt &RHS,
@@ -1951,6 +1973,24 @@ void APInt::udivrem(const APInt &LHS, const APInt &RHS,
 
   // Okay, lets do it the long way
   divide(LHS, lhsWords, RHS, rhsWords, &Quotient, &Remainder);
+}
+
+void APInt::sdivrem(const APInt &LHS, const APInt &RHS,
+                    APInt &Quotient, APInt &Remainder) {
+  if (LHS.isNegative()) {
+    if (RHS.isNegative())
+      APInt::udivrem(-LHS, -RHS, Quotient, Remainder);
+    else {
+      APInt::udivrem(-LHS, RHS, Quotient, Remainder);
+      Quotient = -Quotient;
+    }
+    Remainder = -Remainder;
+  } else if (RHS.isNegative()) {
+    APInt::udivrem(LHS, -RHS, Quotient, Remainder);
+    Quotient = -Quotient;
+  } else {
+    APInt::udivrem(LHS, RHS, Quotient, Remainder);
+  }
 }
 
 APInt APInt::sadd_ov(const APInt &RHS, bool &Overflow) const {
@@ -2076,7 +2116,7 @@ void APInt::fromString(unsigned numbits, StringRef str, uint8_t radix) {
   }
   // If its negative, put it in two's complement form
   if (isNeg) {
-    (*this)--;
+    --(*this);
     this->flipAllBits();
   }
 }
@@ -2157,7 +2197,7 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
     // Flip the bits and add one to turn it into the equivalent positive
     // value and put a '-' in the result.
     Tmp.flipAllBits();
-    Tmp++;
+    ++Tmp;
     Str.push_back('-');
   }
 
@@ -2264,24 +2304,7 @@ namespace {
   static unsigned int
   partMSB(integerPart value)
   {
-    unsigned int n, msb;
-
-    if (value == 0)
-      return -1U;
-
-    n = integerPartWidth / 2;
-
-    msb = 0;
-    do {
-      if (value >> n) {
-        value >>= n;
-        msb += n;
-      }
-
-      n >>= 1;
-    } while (n);
-
-    return msb;
+    return findLastSet(value, ZB_Max);
   }
 
   /* Returns the bit number of the least significant set bit of a
@@ -2289,24 +2312,7 @@ namespace {
   static unsigned int
   partLSB(integerPart value)
   {
-    unsigned int n, lsb;
-
-    if (value == 0)
-      return -1U;
-
-    lsb = integerPartWidth - 1;
-    n = integerPartWidth / 2;
-
-    do {
-      if (value << n) {
-        value <<= n;
-        lsb -= n;
-      }
-
-      n >>= 1;
-    } while (n);
-
-    return lsb;
+    return findFirstSet(value, ZB_Max);
   }
 }
 
@@ -2847,6 +2853,20 @@ APInt::tcIncrement(integerPart *dst, unsigned int parts)
 
   return i == parts;
 }
+
+/* Decrement a bignum in-place, return the borrow flag.  */
+integerPart
+APInt::tcDecrement(integerPart *dst, unsigned int parts) {
+  for (unsigned int i = 0; i < parts; i++) {
+    // If the current word is non-zero, then the decrement has no effect on the
+    // higher-order words of the integer and no borrow can occur. Exit early.
+    if (dst[i]--)
+      return 0;
+  }
+  // If every word was zero, then there is a borrow.
+  return 1;
+}
+
 
 /* Set the least significant BITS bits of a bignum, clear the
    rest.  */

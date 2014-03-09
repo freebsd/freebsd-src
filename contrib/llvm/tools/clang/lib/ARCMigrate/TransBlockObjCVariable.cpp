@@ -1,4 +1,4 @@
-//===--- TransBlockObjCVariable.cpp - Tranformations to ARC mode ----------===//
+//===--- TransBlockObjCVariable.cpp - Transformations to ARC mode ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -28,6 +28,7 @@
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/Basic/SourceManager.h"
 
 using namespace clang;

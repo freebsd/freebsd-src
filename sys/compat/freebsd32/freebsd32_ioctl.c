@@ -353,9 +353,11 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 		caddr_t	data;
 	}*/ ;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0)
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);

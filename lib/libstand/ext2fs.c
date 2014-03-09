@@ -536,6 +536,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 	 * Found terminal component.
 	 */
 	error = 0;
+	fp->f_seekp = 0;
 out:
 	if (buf)
 		free(buf);
@@ -584,6 +585,7 @@ read_inode(ino_t inumber, struct open_file *f)
 	for (level = 0; level < NIADDR; level++)
 		fp->f_blkno[level] = -1;
 	fp->f_buf_blkno = -1;
+	fp->f_seekp = 0;
 
 out:
 	free(buf);

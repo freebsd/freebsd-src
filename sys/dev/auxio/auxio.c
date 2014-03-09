@@ -131,7 +131,8 @@ static device_method_t auxio_sbus_methods[] = {
 	DEVMETHOD(device_probe,		auxio_bus_probe),
 	DEVMETHOD(device_attach,	auxio_sbus_attach),
 	DEVMETHOD(device_detach,	auxio_bus_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t auxio_sbus_driver = {
@@ -151,7 +152,8 @@ static device_method_t auxio_ebus_methods[] = {
 	DEVMETHOD(device_probe,		auxio_bus_probe),
 	DEVMETHOD(device_attach,	auxio_ebus_attach),
 	DEVMETHOD(device_detach,	auxio_bus_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t auxio_ebus_driver = {

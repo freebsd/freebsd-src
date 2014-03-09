@@ -51,7 +51,7 @@ struct deletelist {
 	struct deletelist *last;
 };
 
-union {
+static union {
 	uint8_t buf[sizeof(struct chrp_header)];
 	struct chrp_header header;
 } conv;

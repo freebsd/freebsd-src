@@ -14,10 +14,10 @@
 #ifndef LLVM_RUNTIME_DYLD_MACHO_H
 #define LLVM_RUNTIME_DYLD_MACHO_H
 
-#include "llvm/ADT/IndexedMap.h"
-#include "llvm/Object/MachOObject.h"
-#include "llvm/Support/Format.h"
 #include "RuntimeDyldImpl.h"
+#include "llvm/ADT/IndexedMap.h"
+#include "llvm/Object/MachO.h"
+#include "llvm/Support/Format.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -25,7 +25,6 @@ using namespace llvm::object;
 
 namespace llvm {
 class RuntimeDyldMachO : public RuntimeDyldImpl {
-protected:
   bool resolveI386Relocation(uint8_t *LocalAddress,
                              uint64_t FinalAddress,
                              uint64_t Value,
@@ -48,22 +47,55 @@ protected:
                             unsigned Size,
                             int64_t Addend);
 
-  virtual void processRelocationRef(const ObjRelocationInfo &Rel,
+  void resolveRelocation(const SectionEntry &Section,
+                         uint64_t Offset,
+                         uint64_t Value,
+                         uint32_t Type,
+                         int64_t Addend,
+                         bool isPCRel,
+                         unsigned Size);
+
+  unsigned getMaxStubSize() {
+    if (Arch == Triple::arm || Arch == Triple::thumb)
+      return 8; // 32-bit instruction and 32-bit address
+    else if (Arch == Triple::x86_64)
+      return 8; // GOT entry
+    else
+      return 0;
+  }
+
+  unsigned getStubAlignment() {
+    return 1;
+  }
+
+  struct EHFrameRelatedSections {
+    EHFrameRelatedSections() : EHFrameSID(RTDYLD_INVALID_SECTION_ID),
+                               TextSID(RTDYLD_INVALID_SECTION_ID),
+                               ExceptTabSID(RTDYLD_INVALID_SECTION_ID) {}
+    EHFrameRelatedSections(SID EH, SID T, SID Ex) 
+      : EHFrameSID(EH), TextSID(T), ExceptTabSID(Ex) {}
+    SID EHFrameSID;
+    SID TextSID;
+    SID ExceptTabSID;
+  };
+
+  // When a module is loaded we save the SectionID of the EH frame section
+  // in a table until we receive a request to register all unregistered
+  // EH frame sections with the memory manager.
+  SmallVector<EHFrameRelatedSections, 2> UnregisteredEHFrameSections;
+public:
+  RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
+
+  virtual void resolveRelocation(const RelocationEntry &RE, uint64_t Value);
+  virtual void processRelocationRef(unsigned SectionID,
+                                    RelocationRef RelI,
                                     ObjectImage &Obj,
                                     ObjSectionToIDMap &ObjSectionToID,
                                     const SymbolTableMap &Symbols,
                                     StubMap &Stubs);
-
-public:
-  virtual void resolveRelocation(const SectionEntry &Section,
-                                 uint64_t Offset,
-                                 uint64_t Value,
-                                 uint32_t Type,
-                                 int64_t Addend);
-
-  RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
-
-  bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
+  virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
+  virtual void registerEHFrames();
+  virtual void finalizeLoad(ObjSectionToIDMap &SectionMap);
 };
 
 } // end namespace llvm

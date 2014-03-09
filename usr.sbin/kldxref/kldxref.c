@@ -42,7 +42,6 @@
 #include <sys/stat.h>
 #include <sys/module.h>
 #define FREEBSD_ELF
-#include <link.h>
 #include <err.h>
 #include <fts.h>
 #include <string.h>
@@ -275,6 +274,16 @@ usage(void)
 	exit(1);
 }
 
+static int
+compare(const FTSENT *const *a, const FTSENT *const *b)
+{
+	if ((*a)->fts_info == FTS_D && (*b)->fts_info != FTS_D)
+		return 1;
+	if ((*a)->fts_info != FTS_D && (*b)->fts_info == FTS_D)
+		return -1;
+	return strcmp((*a)->fts_name, (*b)->fts_name);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -316,7 +325,7 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 	}
 
-	ftsp = fts_open(argv, fts_options, 0);
+	ftsp = fts_open(argv, fts_options, compare);
 	if (ftsp == NULL)
 		exit(1);
 

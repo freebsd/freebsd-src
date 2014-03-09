@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
 
 #define	LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
@@ -58,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #define	test_tol(func, x, result, tol, excepts) do {			\
 	volatile long double _in = (x), _out = (result);		\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal(func(_in), _out, (tol)));			\
-	assert((func, fetestexcept(ALL_STD_EXCEPT) == (excepts)));	\
+	assert(fpequal_tol(func(_in), _out, (tol), CS_BOTH));		\
+	assert(((void)func, fetestexcept(ALL_STD_EXCEPT) == (excepts))); \
 } while (0)
 #define test(func, x, result, excepts)					\
 	test_tol(func, (x), (result), 0, (excepts))
@@ -78,8 +77,8 @@ __FBSDID("$FreeBSD$");
 #define	test2_tol(func, y, x, result, tol, excepts) do {		\
 	volatile long double _iny = (y), _inx = (x), _out = (result);	\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal(func(_iny, _inx), _out, (tol)));			\
-	assert((func, fetestexcept(ALL_STD_EXCEPT) == (excepts)));	\
+	assert(fpequal_tol(func(_iny, _inx), _out, (tol), CS_BOTH));	\
+	assert(((void)func, fetestexcept(ALL_STD_EXCEPT) == (excepts))); \
 } while (0)
 #define test2(func, y, x, result, excepts)				\
 	test2_tol(func, (y), (x), (result), 0, (excepts))
@@ -104,33 +103,6 @@ c7pi = 2.19911485751285526692385036829565196e+01L,
 c5pio3 = 5.23598775598298873077107230546583851e+00L,
 sqrt2m1 = 4.14213562373095048801688724209698081e-01L;
 
-/*
- * Determine whether x and y are equal to within a relative error of tol,
- * with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- */
-int
-fpequal(long double x, long double y, long double tol)
-{
-	fenv_t env;
-	int ret;
-
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (!signbit(x) != !signbit(y))
-		return (0);
-	if (x == y)
-		return (1);
-	if (tol == 0)
-		return (0);
-
-	/* Hard case: need to check the tolerance. */
-	feholdexcept(&env);
-	ret = fabsl(x - y) <= fabsl(y * tol);
-	fesetenv(&env);
-	return (ret);
-}
 
 /*
  * Test special case inputs in asin(), acos() and atan(): signed

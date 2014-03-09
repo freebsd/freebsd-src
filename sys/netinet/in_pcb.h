@@ -442,6 +442,7 @@ struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
+short	inp_so_options(const struct inpcb *inp);
 
 #endif /* _KERNEL */
 
@@ -543,6 +544,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */
+#define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
 
 /*
  * Flags passed to in_pcblookup*() functions.

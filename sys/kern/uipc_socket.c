@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_zero.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
@@ -136,6 +135,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
+#include <netinet/in.h>
 
 #include <net/vnet.h>
 
@@ -219,21 +219,6 @@ SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn,
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
-
-#if defined(SOCKET_SEND_COW) || defined(SOCKET_RECV_PFLIP)
-SYSCTL_NODE(_kern_ipc, OID_AUTO, zero_copy, CTLFLAG_RD, 0,
-    "Zero copy controls");
-#ifdef SOCKET_RECV_PFLIP
-int so_zero_copy_receive = 1;
-SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, receive, CTLFLAG_RW,
-    &so_zero_copy_receive, 0, "Enable zero copy receive");
-#endif
-#ifdef SOCKET_SEND_COW
-int so_zero_copy_send = 1;
-SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
-    &so_zero_copy_send, 0, "Enable zero copy send");
-#endif /* SOCKET_SEND_COW */
-#endif /* SOCKET_SEND_COW || SOCKET_RECV_PFLIP */
 
 /*
  * accept_mtx locks down per-socket fields relating to accept queues.  See
@@ -494,13 +479,17 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
  * connections, sonewconn is called.  If the connection is possible (subject
  * to space constraints, etc.) then we allocate a new structure, propoerly
  * linked into the data structure of the original socket, and return this.
- * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
+ * Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED.
  *
  * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
 sonewconn(struct socket *head, int connstatus)
 {
+	static struct timeval lastover;
+	static struct timeval overinterval = { 60, 0 };
+	static int overcount;
+
 	struct socket *so;
 	int over;
 
@@ -512,9 +501,17 @@ sonewconn(struct socket *head, int connstatus)
 #else
 	if (over) {
 #endif
-		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
-		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, over);
+		overcount++;
+
+		if (ratecheck(&lastover, &overinterval)) {
+			log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
+			    "%i already in queue awaiting acceptance "
+			    "(%d occurrences)\n",
+			    __func__, head->so_pcb, head->so_qlen, overcount);
+
+			overcount = 0;
+		}
+
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
@@ -565,8 +562,12 @@ sonewconn(struct socket *head, int connstatus)
 	/*
 	 * The accept socket may be tearing down but we just
 	 * won a race on the ACCEPT_LOCK.
+	 * However, if sctp_peeloff() is called on a 1-to-many
+	 * style socket, the SO_ACCEPTCONN doesn't need to be set.
 	 */
-	if (!(head->so_options & SO_ACCEPTCONN)) {
+	if (!(head->so_options & SO_ACCEPTCONN) &&
+	    ((head->so_proto->pr_protocol != IPPROTO_SCTP) ||
+	     (head->so_type != SOCK_SEQPACKET))) {
 		SOCK_LOCK(so);
 		so->so_head = NULL;
 		sofree(so);		/* NB: returns ACCEPT_UNLOCK'ed. */
@@ -615,7 +616,18 @@ sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
+}
+
+int
+sobindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = (*so->so_proto->pr_usrreqs->pru_bindat)(fd, so, nam, td);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /*
@@ -638,7 +650,7 @@ solisten(struct socket *so, int backlog, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
 }
 
 int
@@ -896,6 +908,13 @@ soaccept(struct socket *so, struct sockaddr **nam)
 int
 soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
+	return (soconnectat(AT_FDCWD, so, nam, td));
+}
+
+int
+soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
 	int error;
 
 	if (so->so_options & SO_ACCEPTCONN)
@@ -917,7 +936,13 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
+		if (fd == AT_FDCWD) {
+			error = (*so->so_proto->pr_usrreqs->pru_connect)(so,
+			    nam, td);
+		} else {
+			error = (*so->so_proto->pr_usrreqs->pru_connectat)(fd,
+			    so, nam, td);
+		}
 	}
 	CURVNET_RESTORE();
 
@@ -949,113 +974,6 @@ sodisconnect(struct socket *so)
 	return (error);
 }
 
-#ifdef SOCKET_SEND_COW
-struct so_zerocopy_stats{
-	int size_ok;
-	int align_ok;
-	int found_ifp;
-};
-struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
-
-/*
- * sosend_copyin() is only used if zero copy sockets are enabled.  Otherwise
- * sosend_dgram() and sosend_generic() use m_uiotombuf().
- *
- * sosend_copyin() accepts a uio and prepares an mbuf chain holding part or
- * all of the data referenced by the uio.  If desired, it uses zero-copy.
- * *space will be updated to reflect data copied in.
- *
- * NB: If atomic I/O is requested, the caller must already have checked that
- * space can hold resid bytes.
- *
- * NB: In the event of an error, the caller may need to free the partial
- * chain pointed to by *mpp.  The contents of both *uio and *space may be
- * modified even in the case of an error.
- */
-static int
-sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
-    int flags)
-{
-	struct mbuf *m, **mp, *top;
-	long len;
-	ssize_t resid;
-	int error;
-	int cow_send;
-
-	*retmp = top = NULL;
-	mp = &top;
-	len = 0;
-	resid = uio->uio_resid;
-	error = 0;
-	do {
-		cow_send = 0;
-		if (resid >= MINCLSIZE) {
-			if (top == NULL) {
-				m = m_gethdr(M_WAITOK, MT_DATA);
-				m->m_pkthdr.len = 0;
-				m->m_pkthdr.rcvif = NULL;
-			} else
-				m = m_get(M_WAITOK, MT_DATA);
-			if (so_zero_copy_send &&
-			    resid >= PAGE_SIZE &&
-			    *space >= PAGE_SIZE &&
-			    uio->uio_iov->iov_len >= PAGE_SIZE) {
-				so_zerocp_stats.size_ok++;
-				so_zerocp_stats.align_ok++;
-				cow_send = socow_setup(m, uio);
-				len = cow_send;
-			}
-			if (!cow_send) {
-				m_clget(m, M_WAITOK);
-				len = min(min(MCLBYTES, resid), *space);
-			}
-		} else {
-			if (top == NULL) {
-				m = m_gethdr(M_WAITOK, MT_DATA);
-				m->m_pkthdr.len = 0;
-				m->m_pkthdr.rcvif = NULL;
-
-				len = min(min(MHLEN, resid), *space);
-				/*
-				 * For datagram protocols, leave room
-				 * for protocol headers in first mbuf.
-				 */
-				if (atomic && m && len < MHLEN)
-					MH_ALIGN(m, len);
-			} else {
-				m = m_get(M_WAITOK, MT_DATA);
-				len = min(min(MLEN, resid), *space);
-			}
-		}
-		if (m == NULL) {
-			error = ENOBUFS;
-			goto out;
-		}
-
-		*space -= len;
-		if (cow_send)
-			error = 0;
-		else
-			error = uiomove(mtod(m, void *), (int)len, uio);
-		resid = uio->uio_resid;
-		m->m_len = len;
-		*mp = m;
-		top->m_pkthdr.len += len;
-		if (error)
-			goto out;
-		mp = &m->m_next;
-		if (resid <= 0) {
-			if (flags & MSG_EOR)
-				top->m_flags |= M_EOR;
-			break;
-		}
-	} while (*space > 0 && atomic);
-out:
-	*retmp = top;
-	return (error);
-}
-#endif /* SOCKET_SEND_COW */
-
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
 
 int
@@ -1065,9 +983,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	long space;
 	ssize_t resid;
 	int clen = 0, error, dontroute;
-#ifdef SOCKET_SEND_COW
-	int atomic = sosendallatonce(so) || top;
-#endif
 
 	KASSERT(so->so_type == SOCK_DGRAM, ("sosend_dgram: !SOCK_DGRAM"));
 	KASSERT(so->so_proto->pr_flags & PR_ATOMIC,
@@ -1150,11 +1065,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		if (flags & MSG_EOR)
 			top->m_flags |= M_EOR;
 	} else {
-#ifdef SOCKET_SEND_COW
-		error = sosend_copyin(uio, &top, atomic, &space, flags);
-		if (error)
-			goto out;
-#else
 		/*
 		 * Copy the data from userland into a mbuf chain.
 		 * If no data is to be copied in, a single empty mbuf
@@ -1167,7 +1077,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 			goto out;
 		}
 		space -= resid - uio->uio_resid;
-#endif /* SOCKET_SEND_COW */
 		resid = uio->uio_resid;
 	}
 	KASSERT(resid == 0, ("sosend_dgram: resid != 0"));
@@ -1339,12 +1248,6 @@ restart:
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
 			} else {
-#ifdef SOCKET_SEND_COW
-				error = sosend_copyin(uio, &top, atomic,
-				    &space, flags);
-				if (error != 0)
-					goto release;
-#else
 				/*
 				 * Copy the data from userland into a mbuf
 				 * chain.  If no data is to be copied in,
@@ -1359,7 +1262,6 @@ restart:
 					goto release;
 				}
 				space -= resid - uio->uio_resid;
-#endif /* SOCKET_SEND_COW */
 				resid = uio->uio_resid;
 			}
 			if (dontroute) {
@@ -1451,20 +1353,6 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	if (error)
 		goto bad;
 	do {
-#ifdef SOCKET_RECV_PFLIP
-		if (so_zero_copy_receive) {
-			int disposable;
-
-			if ((m->m_flags & M_EXT)
-			 && (m->m_ext.ext_type == EXT_DISPOSABLE))
-				disposable = 1;
-			else
-				disposable = 0;
-
-			error = uiomoveco(mtod(m, void *),
-			    min(uio->uio_resid, m->m_len), uio, disposable);
-		} else
-#endif /* SOCKET_RECV_PFLIP */
 		error = uiomove(mtod(m, void *),
 		    (int) min(uio->uio_resid, m->m_len), uio);
 		m = m_free(m);
@@ -1698,7 +1586,7 @@ dontblock:
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				VNET_SO_ASSERT(so);
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 				SOCKBUF_LOCK(&so->so_rcv);
 			} else if (controlp != NULL)
 				*controlp = cm;
@@ -1787,20 +1675,6 @@ dontblock:
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			SOCKBUF_UNLOCK(&so->so_rcv);
-#ifdef SOCKET_RECV_PFLIP
-			if (so_zero_copy_receive) {
-				int disposable;
-
-				if ((m->m_flags & M_EXT)
-				 && (m->m_ext.ext_type == EXT_DISPOSABLE))
-					disposable = 1;
-				else
-					disposable = 0;
-
-				error = uiomoveco(mtod(m, char *) + moff,
-				    (int)len, uio, disposable);
-			} else
-#endif /* SOCKET_RECV_PFLIP */
 			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (error) {
@@ -1831,6 +1705,7 @@ dontblock:
 				nextrecord = m->m_nextpkt;
 				sbfree(&so->so_rcv, m);
 				if (mp != NULL) {
+					m->m_nextpkt = NULL;
 					*mp = m;
 					mp = &m->m_next;
 					so->so_rcv.sb_mb = m = m->m_next;
@@ -1848,28 +1723,27 @@ dontblock:
 				moff += len;
 			else {
 				if (mp != NULL) {
-					int copy_flag;
-
-					if (flags & MSG_DONTWAIT)
-						copy_flag = M_NOWAIT;
-					else
-						copy_flag = M_WAIT;
-					if (copy_flag == M_WAITOK)
+					if (flags & MSG_DONTWAIT) {
+						*mp = m_copym(m, 0, len,
+						    M_NOWAIT);
+						if (*mp == NULL) {
+							/*
+							 * m_copym() couldn't
+							 * allocate an mbuf.
+							 * Adjust uio_resid back
+							 * (it was adjusted
+							 * down by len bytes,
+							 * which we didn't end
+							 * up "copying" over).
+							 */
+							uio->uio_resid += len;
+							break;
+						}
+					} else {
 						SOCKBUF_UNLOCK(&so->so_rcv);
-					*mp = m_copym(m, 0, len, copy_flag);
-					if (copy_flag == M_WAITOK)
+						*mp = m_copym(m, 0, len,
+						    M_WAITOK);
 						SOCKBUF_LOCK(&so->so_rcv);
-					if (*mp == NULL) {
-						/*
-						 * m_copym() couldn't
-						 * allocate an mbuf.  Adjust
-						 * uio_resid back (it was
-						 * adjusted down by len
-						 * bytes, which we didn't end
-						 * up "copying" over).
-						 */
-						uio->uio_resid += len;
-						break;
 					}
 				}
 				m->m_data += len;
@@ -2332,7 +2206,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			cm->m_next = NULL;
 			if (pr->pr_domain->dom_externalize != NULL) {
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 			} else if (controlp != NULL)
 				*controlp = cm;
 			else
@@ -2399,9 +2273,11 @@ soshutdown(struct socket *so, int how)
 		sorflush(so);
 	if (how != SHUT_RD) {
 		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		wakeup(&so->so_timeo);
 		CURVNET_RESTORE();
 		return (error);
 	}
+	wakeup(&so->so_timeo);
 	CURVNET_RESTORE();
 	return (0);
 }
@@ -2509,7 +2385,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	int	error, optval;
 	struct	linger l;
 	struct	timeval tv;
-	u_long  val;
+	sbintime_t val;
 	uint32_t val32;
 #ifdef MAC
 	struct mac extmac;
@@ -2666,22 +2542,12 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				    sizeof tv);
 			if (error)
 				goto bad;
-
-			/* assert(hz > 0); */
-			if (tv.tv_sec < 0 || tv.tv_sec > INT_MAX / hz ||
-			    tv.tv_usec < 0 || tv.tv_usec >= 1000000) {
+			if (tv.tv_sec < 0 || tv.tv_usec < 0 ||
+			    tv.tv_usec >= 1000000) {
 				error = EDOM;
 				goto bad;
 			}
-			/* assert(tick > 0); */
-			/* assert(ULONG_MAX - INT_MAX >= 1000000); */
-			val = (u_long)(tv.tv_sec * hz) + tv.tv_usec / tick;
-			if (val > INT_MAX) {
-				error = EDOM;
-				goto bad;
-			}
-			if (val == 0 && tv.tv_usec != 0)
-				val = 1;
+			val = tvtosbt(tv);
 
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
@@ -2835,8 +2701,7 @@ integer:
 			optval = (sopt->sopt_name == SO_SNDTIMEO ?
 				  so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
 
-			tv.tv_sec = optval / hz;
-			tv.tv_usec = (optval % hz) * tick;
+			tv = sbttotv(optval);
 #ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
@@ -3141,7 +3006,23 @@ pru_bind_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 int
+pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
 pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
+pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
 {
 
 	return EOPNOTSUPP;

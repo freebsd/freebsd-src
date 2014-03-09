@@ -51,7 +51,7 @@ __BEGIN_DECLS
 StringList *sl_init(void);
 int	 sl_add(StringList *, char *);
 void	 sl_free(StringList *, int);
-char	*sl_find(StringList *, char *);
+char	*sl_find(StringList *, const char *);
 __END_DECLS
 
 #endif /* _STRINGLIST_H */

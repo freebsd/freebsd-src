@@ -98,7 +98,7 @@ bfd_boolean as_needed;
 
 /* Nonzero means never create DT_NEEDED entries for dynamic libraries
    in DT_NEEDED tags.  */
-bfd_boolean add_needed = TRUE;
+bfd_boolean add_needed = FALSE;
 
 /* TRUE if we should demangle symbol names.  */
 bfd_boolean demangling;

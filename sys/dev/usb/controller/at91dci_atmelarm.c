@@ -91,7 +91,7 @@ at91_vbus_poll(struct at91_udp_softc *sc)
 {
 	uint8_t vbus_val;
 
-	vbus_val = at91_pio_gpio_get(VBUS_BASE, VBUS_MASK);
+	vbus_val = at91_pio_gpio_get(VBUS_BASE, VBUS_MASK) != 0;
 	at91dci_vbus_interrupt(&sc->sc_dci, vbus_val);
 
 	callout_reset(&sc->sc_vbus, hz, (void *)&at91_vbus_poll, sc);
@@ -212,13 +212,8 @@ at91_udp_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-#if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#else
-	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#endif
 	if (err) {
 		sc->sc_dci.sc_intr_hdl = NULL;
 		goto error;

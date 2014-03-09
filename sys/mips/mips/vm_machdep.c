@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
-#include <machine/asm.h>
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -77,13 +76,39 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/user.h>
 #include <sys/mbuf.h>
+#ifndef __mips_n64
 #include <sys/sf_buf.h>
+#endif
+
+/* Duplicated from asm.h */
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	CALLFRAME_SIZ	(SZREG * (4 + 2))
+#elif defined(__mips_n32) || defined(__mips_n64)
+#define	CALLFRAME_SIZ	(SZREG * 4)
+#endif
+
+#ifndef __mips_n64
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
-#ifndef __mips_n64
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -97,7 +122,7 @@ static struct {
 } sf_freelist;
 
 static u_int	sf_buf_alloc_want;
-#endif
+#endif /* !__mips_n64 */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -437,10 +462,11 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	register_t sp;
 
 	/*
-	* At the point where a function is called, sp must be 8
-	* byte aligned[for compatibility with 64-bit CPUs]
-	* in ``See MIPS Run'' by D. Sweetman, p. 269
-	* align stack */
+	 * At the point where a function is called, sp must be 8
+	 * byte aligned[for compatibility with 64-bit CPUs]
+	 * in ``See MIPS Run'' by D. Sweetman, p. 269
+	 * align stack
+	 */
 	sp = ((register_t)(intptr_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
 	    CALLFRAME_SIZ;
 
@@ -502,7 +528,7 @@ sf_buf_init(void *arg)
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
 	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
@@ -511,7 +537,6 @@ sf_buf_init(void *arg)
 	}
 	sf_buf_alloc_want = 0;
 }
-#endif
 
 /*
  * Get an sf_buf from the freelist.  Will block if none are available.
@@ -519,7 +544,6 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
-#ifndef __mips_n64
 	struct sf_buf *sf;
 	int error;
 
@@ -528,7 +552,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			break;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
@@ -548,9 +572,6 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
-#else
-	return ((struct sf_buf *)m);
-#endif
 }
 
 /*
@@ -559,7 +580,6 @@ sf_buf_alloc(struct vm_page *m, int flags)
 void
 sf_buf_free(struct sf_buf *sf)
 {
-#ifndef __mips_n64
 	pmap_qremove(sf->kva, 1);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
@@ -567,8 +587,8 @@ sf_buf_free(struct sf_buf *sf)
 	if (sf_buf_alloc_want > 0)
 		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
-#endif
 }
+#endif	/* !__mips_n64 */
 
 /*
  * Software interrupt handler for queued VM system processing.
@@ -613,6 +633,16 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, a1);
 	DB_PRINT_REG(trapframe, a2);
 	DB_PRINT_REG(trapframe, a3);
+#if defined(__mips_n32) || defined(__mips_n64)
+	DB_PRINT_REG(trapframe, a4);
+	DB_PRINT_REG(trapframe, a5);
+	DB_PRINT_REG(trapframe, a6);
+	DB_PRINT_REG(trapframe, a7);
+	DB_PRINT_REG(trapframe, t0);
+	DB_PRINT_REG(trapframe, t1);
+	DB_PRINT_REG(trapframe, t2);
+	DB_PRINT_REG(trapframe, t3);
+#else
 	DB_PRINT_REG(trapframe, t0);
 	DB_PRINT_REG(trapframe, t1);
 	DB_PRINT_REG(trapframe, t2);
@@ -621,6 +651,7 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, t5);
 	DB_PRINT_REG(trapframe, t6);
 	DB_PRINT_REG(trapframe, t7);
+#endif
 	DB_PRINT_REG(trapframe, s0);
 	DB_PRINT_REG(trapframe, s1);
 	DB_PRINT_REG(trapframe, s2);

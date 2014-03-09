@@ -101,6 +101,7 @@ ENTRY(read_multi_1)
 	ldrgtb	r3, [r0]
 	strgtb	r3, [r1], #1
 	ldmdb	fp, {fp, sp, pc}
+END(read_multi_1)
 
 /*
  * Write bytes to an I/O address from a block of memory
@@ -152,6 +153,7 @@ ENTRY(write_multi_1)
 	ldrgtb	r3, [r1], #1
 	strgtb	r3, [r0]
 	ldmdb	fp, {fp, sp, pc}
+END(write_multi_1)
 
 /*
  * Reads short ints (16 bits) from an I/O address into a block of memory
@@ -199,7 +201,7 @@ ENTRY(insw)
 	bgt	.Lfastinswloop
 
 	RET
-
+END(insw)
 
 /*
  * Writes short ints (16 bits) from a block of memory to an I/O address
@@ -260,6 +262,7 @@ ENTRY(outsw)
 	bgt	.Lfastoutswloop
 
 	RET
+END(outsw)
 
 /*
  * reads short ints (16 bits) from an I/O address into a block of memory
@@ -318,7 +321,7 @@ ENTRY(insw16)
 	bgt	.Linsw16loop
 
 	ldmfd	sp!, {r4,r5,pc}		/* Restore regs and go home */
-
+END(insw16)
 
 /*
  * Writes short ints (16 bits) from a block of memory to an I/O address
@@ -385,6 +388,7 @@ ENTRY(outsw16)
 	bgt	.Loutsw16loop
 
 	ldmfd	sp!, {r4,r5,pc}		/* and go home */
+END(outsw16)
 
 /*
  * reads short ints (16 bits) from an I/O address into a block of memory
@@ -481,6 +485,7 @@ ENTRY(inswm8)
 
 .Linswm8_l1:
 	ldmfd	sp!, {r4-r9,pc}		/* And go home */
+END(inswm8)
 
 /*
  * write short ints (16 bits) to an I/O address from a block of memory
@@ -585,3 +590,5 @@ ENTRY(outswm8)
 
 .Loutswm8_l1:
 	ldmfd	sp!, {r4-r8,pc}		/* And go home */
+END(outswm8)
+

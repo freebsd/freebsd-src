@@ -331,6 +331,8 @@ _mapping_get_high_missing_mt_idx(struct mps_softc *sc)
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 
 	start_idx = 0;
+	start_idx_ir = 0;
+	end_idx_ir = 0;
 	end_idx = sc->max_devices;
 	if (ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_RESERVED_TARGETID_0)
 		start_idx = 1;
@@ -925,8 +927,9 @@ _mapping_get_dev_info(struct mps_softc *sc,
 					sas_address = (sas_address << 32) |
 					    sas_device_pg0.SASAddress.Low;
 				}
-				mps_dprint(sc, MPS_INFO, "SAS Address for SATA "
-					   "device = %jx\n", sas_address);
+				mps_dprint(sc, MPS_MAPPING,
+				    "SAS Address for SATA device = %jx\n",
+				    sas_address);
 			} else {
 				sas_address =
 					sas_device_pg0.SASAddress.High;
@@ -1214,12 +1217,12 @@ _mapping_add_new_device(struct mps_softc *sc,
 						phy_change->is_processed = 1;
 					} else {
 						phy_change->is_processed = 1;
-						printf("%s: failed to add the "
-						    "device with handle 0x%04x "
-						    "to persistent table "
-						    "because there is no free "
-						    "space available\n",
-						    __func__,
+						mps_dprint(sc, MPS_INFO, "%s: "
+						    "failed to add the device "
+						    "with handle 0x%04x to "
+						    "persistent table because "
+						    "there is no free space "
+						    "available\n", __func__,
 						    phy_change->dev_handle);
 					}
 				} else {
@@ -1316,12 +1319,12 @@ _mapping_add_new_device(struct mps_softc *sc,
 					phy_change->is_processed = 1;
 				} else if (dpm_idx == MPS_DPM_BAD_IDX) {
 						phy_change->is_processed = 1;
-						printf("%s: failed to add the "
-						    "device with handle 0x%04x "
-						    "to persistent table "
-						    "because there is no free "
-						    "space available\n",
-						    __func__,
+						mps_dprint(sc, MPS_INFO, "%s: "
+						    "failed to add the device "
+						    "with handle 0x%04x to "
+						    "persistent table because "
+						    "there is no free space "
+						    "available\n", __func__,
 						    phy_change->dev_handle);
 				}
 			}

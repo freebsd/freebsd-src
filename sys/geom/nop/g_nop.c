@@ -107,6 +107,7 @@ g_nop_start(struct bio *bp)
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 	G_NOP_LOGREQ(bp, "Request received.");
+	mtx_lock(&sc->sc_lock);
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		sc->sc_reads++;
@@ -119,12 +120,13 @@ g_nop_start(struct bio *bp)
 		failprob = sc->sc_wfailprob;
 		break;
 	}
+	mtx_unlock(&sc->sc_lock);
 	if (failprob > 0) {
 		u_int rval;
 
 		rval = arc4random() % 100;
 		if (rval < failprob) {
-			G_NOP_LOGREQ(bp, "Returning error=%d.", sc->sc_error);
+			G_NOP_LOGREQLVL(1, bp, "Returning error=%d.", sc->sc_error);
 			g_io_deliver(bp, sc->sc_error);
 			return;
 		}
@@ -136,8 +138,6 @@ g_nop_start(struct bio *bp)
 	}
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
-	cbp->bio_data = bp->bio_data;
-	cbp->bio_length = bp->bio_length;
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL pp"));
 	cbp->bio_to = pp;
@@ -216,7 +216,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		}
 	}
 	gp = g_new_geomf(mp, "%s", name);
-	sc = g_malloc(sizeof(*sc), M_WAITOK);
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_offset = offset;
 	sc->sc_explicitsize = explicitsize;
 	sc->sc_error = ioerror;
@@ -226,6 +226,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_writes = 0;
 	sc->sc_readbytes = 0;
 	sc->sc_wrotebytes = 0;
+	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
 	gp->softc = sc;
 	gp->start = g_nop_start;
 	gp->orphan = g_nop_orphan;
@@ -234,16 +235,19 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	gp->dumpconf = g_nop_dumpconf;
 
 	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		gctl_error(req, "Cannot attach to provider %s.", pp->name);
 		goto fail;
 	}
 
+	newpp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(newpp, 0);
 	G_NOP_DEBUG(0, "Device %s created.", gp->name);
 	return (0);
@@ -252,6 +256,7 @@ fail:
 		g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_provider(newpp);
+	mtx_destroy(&sc->sc_lock);
 	g_free(gp->softc);
 	g_destroy_geom(gp);
 	return (error);
@@ -260,10 +265,12 @@ fail:
 static int
 g_nop_destroy(struct g_geom *gp, boolean_t force)
 {
+	struct g_nop_softc *sc;
 	struct g_provider *pp;
 
 	g_topology_assert();
-	if (gp->softc == NULL)
+	sc = gp->softc;
+	if (sc == NULL)
 		return (ENXIO);
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
@@ -278,8 +285,9 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	} else {
 		G_NOP_DEBUG(0, "Device %s removed.", gp->name);
 	}
-	g_free(gp->softc);
 	gp->softc = NULL;
+	mtx_destroy(&sc->sc_lock);
+	g_free(sc);
 	g_wither_geom(gp, ENXIO);
 
 	return (0);

@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
@@ -25,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * USB Universal Host Controller driver.
  * Handles e.g. PIIX3 and PIIX4.
@@ -38,6 +36,9 @@ __FBSDID("$FreeBSD$");
  *             ftp://download.intel.com/design/intarch/datashts/29056201.pdf
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -73,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/uhci.h>
 #include <dev/usb/controller/uhcireg.h>
 
@@ -148,11 +151,11 @@ struct uhci_std_temp {
 	uint8_t	last_frame;
 };
 
-extern struct usb_bus_methods uhci_bus_methods;
-extern struct usb_pipe_methods uhci_device_bulk_methods;
-extern struct usb_pipe_methods uhci_device_ctrl_methods;
-extern struct usb_pipe_methods uhci_device_intr_methods;
-extern struct usb_pipe_methods uhci_device_isoc_methods;
+static const struct usb_bus_methods uhci_bus_methods;
+static const struct usb_pipe_methods uhci_device_bulk_methods;
+static const struct usb_pipe_methods uhci_device_ctrl_methods;
+static const struct usb_pipe_methods uhci_device_intr_methods;
+static const struct usb_pipe_methods uhci_device_isoc_methods;
 
 static uint8_t	uhci_restart(uhci_softc_t *sc);
 static void	uhci_do_poll(struct usb_bus *);
@@ -1176,8 +1179,13 @@ uhci_non_isoc_done_sub(struct usb_xfer *xfer)
 		    (status & UHCI_TD_SPD) ? "[SPD]" : "");
 	}
 #endif
-	return (status & UHCI_TD_STALLED) ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION;
+	if (status & UHCI_TD_STALLED) {
+		/* try to separate I/O errors from STALL */
+		if (UHCI_TD_GET_ERRCNT(status) == 0)
+			return (USB_ERR_IOERROR);
+		return (USB_ERR_STALLED);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
@@ -1837,7 +1845,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 static void
 uhci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
 	uhci_qh_t *qh;
 
@@ -1932,7 +1940,7 @@ uhci_device_bulk_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_bulk_methods =
+static const struct usb_pipe_methods uhci_device_bulk_methods =
 {
 	.open = uhci_device_bulk_open,
 	.close = uhci_device_bulk_close,
@@ -1994,7 +2002,7 @@ uhci_device_ctrl_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_ctrl_methods =
+static const struct usb_pipe_methods uhci_device_ctrl_methods =
 {
 	.open = uhci_device_ctrl_open,
 	.close = uhci_device_ctrl_close,
@@ -2081,7 +2089,7 @@ uhci_device_intr_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_intr_methods =
+static const struct usb_pipe_methods uhci_device_intr_methods =
 {
 	.open = uhci_device_intr_open,
 	.close = uhci_device_intr_close,
@@ -2289,7 +2297,7 @@ uhci_device_isoc_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_isoc_methods =
+static const struct usb_pipe_methods uhci_device_isoc_methods =
 {
 	.open = uhci_device_isoc_open,
 	.close = uhci_device_isoc_close,
@@ -3073,7 +3081,7 @@ uhci_device_resume(struct usb_device *udev)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	uhci_qh_t *qh;
 
 	DPRINTF("\n");
@@ -3115,7 +3123,7 @@ uhci_device_suspend(struct usb_device *udev)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	uhci_qh_t *qh;
 
 	DPRINTF("\n");
@@ -3210,7 +3218,7 @@ uhci_set_hw_power(struct usb_bus *bus)
 }
 
 
-struct usb_bus_methods uhci_bus_methods =
+static const struct usb_bus_methods uhci_bus_methods =
 {
 	.endpoint_init = uhci_ep_init,
 	.xfer_setup = uhci_xfer_setup,

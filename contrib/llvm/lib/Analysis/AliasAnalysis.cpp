@@ -26,16 +26,17 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Type.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 using namespace llvm;
 
@@ -363,6 +364,8 @@ AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
 namespace {
   /// Only find pointer captures which happen before the given instruction. Uses
   /// the dominator tree to determine whether one instruction is before another.
+  /// Only support the case where the Value is defined in the same basic block
+  /// as the given instruction and the use.
   struct CapturesBefore : public CaptureTracker {
     CapturesBefore(const Instruction *I, DominatorTree *DT)
       : BeforeHere(I), DT(DT), Captured(false) {}
@@ -372,8 +375,15 @@ namespace {
     bool shouldExplore(Use *U) {
       Instruction *I = cast<Instruction>(U->getUser());
       BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
+      // We explore this usage only if the usage can reach "BeforeHere".
+      // If use is not reachable from entry, there is no need to explore.
+      if (BeforeHere != I && !DT->isReachableFromEntry(BB))
+        return false;
+      // If the value is defined in the same basic block as use and BeforeHere,
+      // there is no need to explore the use if BeforeHere dominates use.
+      // Check whether there is a path from I to BeforeHere.
+      if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
+          !isPotentiallyReachable(I, BeforeHere, DT))
         return false;
       return true;
     }
@@ -381,8 +391,11 @@ namespace {
     bool captured(Use *U) {
       Instruction *I = cast<Instruction>(U->getUser());
       BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
+      // Same logic as in shouldExplore.
+      if (BeforeHere != I && !DT->isReachableFromEntry(BB))
+        return false;
+      if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
+          !isPotentiallyReachable(I, BeforeHere, DT))
         return false;
       Captured = true;
       return true;
@@ -420,6 +433,7 @@ AliasAnalysis::callCapturesBefore(const Instruction *I,
     return AliasAnalysis::ModRef;
 
   unsigned ArgNo = 0;
+  AliasAnalysis::ModRefResult R = AliasAnalysis::NoModRef;
   for (ImmutableCallSite::arg_iterator CI = CS.arg_begin(), CE = CS.arg_end();
        CI != CE; ++CI, ++ArgNo) {
     // Only look at the no-capture or byval pointer arguments.  If this
@@ -433,12 +447,18 @@ AliasAnalysis::callCapturesBefore(const Instruction *I,
     // is impossible to alias the pointer we're checking.  If not, we have to
     // assume that the call could touch the pointer, even though it doesn't
     // escape.
-    if (!isNoAlias(AliasAnalysis::Location(*CI),
-                   AliasAnalysis::Location(Object))) {
-      return AliasAnalysis::ModRef;
+    if (isNoAlias(AliasAnalysis::Location(*CI),
+		  AliasAnalysis::Location(Object)))
+      continue;
+    if (CS.doesNotAccessMemory(ArgNo))
+      continue;
+    if (CS.onlyReadsMemory(ArgNo)) {
+      R = AliasAnalysis::Ref;
+      continue;
     }
+    return AliasAnalysis::ModRef;
   }
-  return AliasAnalysis::NoModRef;
+  return R;
 }
 
 // AliasAnalysis destructor: DO NOT move this to the header file for
@@ -503,7 +523,16 @@ bool AliasAnalysis::canInstructionRangeModify(const Instruction &I1,
 bool llvm::isNoAliasCall(const Value *V) {
   if (isa<CallInst>(V) || isa<InvokeInst>(V))
     return ImmutableCallSite(cast<Instruction>(V))
-      .paramHasAttr(0, Attributes::NoAlias);
+      .paramHasAttr(0, Attribute::NoAlias);
+  return false;
+}
+
+/// isNoAliasArgument - Return true if this is an argument with the noalias
+/// attribute.
+bool llvm::isNoAliasArgument(const Value *V)
+{
+  if (const Argument *A = dyn_cast<Argument>(V))
+    return A->hasNoAliasAttr();
   return false;
 }
 
@@ -523,21 +552,5 @@ bool llvm::isIdentifiedObject(const Value *V) {
     return true;
   if (const Argument *A = dyn_cast<Argument>(V))
     return A->hasNoAliasAttr() || A->hasByValAttr();
-  return false;
-}
-
-/// isKnownNonNull - Return true if we know that the specified value is never
-/// null.
-bool llvm::isKnownNonNull(const Value *V) {
-  // Alloca never returns null, malloc might.
-  if (isa<AllocaInst>(V)) return true;
-
-  // A byval argument is never null.
-  if (const Argument *A = dyn_cast<Argument>(V))
-    return A->hasByValAttr();
-
-  // Global values are not null unless extern weak.
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    return !GV->hasExternalWeakLinkage();
   return false;
 }

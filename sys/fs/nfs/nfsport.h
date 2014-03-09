@@ -79,6 +79,7 @@
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -140,32 +141,32 @@
  * Allocate mbufs. Must succeed and never set the mbuf ptr to NULL.
  */
 #define	NFSMGET(m)	do { 					\
-		MGET((m), M_TRYWAIT, MT_DATA); 			\
+		MGET((m), M_WAITOK, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGET((m), M_TRYWAIT, MT_DATA); 		\
+			MGET((m), M_WAITOK, MT_DATA); 		\
 		} 						\
 	} while (0)
 #define	NFSMGETHDR(m)	do { 					\
-		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
+		MGETHDR((m), M_WAITOK, MT_DATA);		\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
+			MGETHDR((m), M_WAITOK, MT_DATA); 	\
 		} 						\
 	} while (0)
 #define	NFSMCLGET(m, w)	do { 					\
-		MGET((m), M_TRYWAIT, MT_DATA); 			\
+		MGET((m), M_WAITOK, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGET((m), M_TRYWAIT, MT_DATA); 		\
+			MGET((m), M_WAITOK, MT_DATA); 		\
 		} 						\
 		MCLGET((m), (w));				\
 	} while (0)
 #define	NFSMCLGETHDR(m, w) do { 				\
-		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
+		MGETHDR((m), M_WAITOK, MT_DATA);		\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
+			MGETHDR((m), M_WAITOK, MT_DATA); 	\
 		} 						\
 	} while (0)
 #define	NFSMTOD	mtod
@@ -588,12 +589,6 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NCHNAMLEN	9999999
 
 /*
- * Define these to use the time of day clock.
- */
-#define	NFSGETTIME(t)		(getmicrotime(t))
-#define	NFSGETNANOTIME(t)	(getnanotime(t))
-
-/*
  * These macros are defined to initialize and set the timer routine.
  */
 #define	NFS_TIMERINIT \
@@ -609,11 +604,6 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSREQSPINLOCK		extern struct mtx nfs_req_mutex
 #define	NFSLOCKREQ()		mtx_lock(&nfs_req_mutex)
 #define	NFSUNLOCKREQ()		mtx_unlock(&nfs_req_mutex)
-#define	NFSCACHEMUTEX		extern struct mtx nfs_cache_mutex
-#define	NFSCACHEMUTEXPTR	(&nfs_cache_mutex)
-#define	NFSLOCKCACHE()		mtx_lock(&nfs_cache_mutex)
-#define	NFSUNLOCKCACHE()	mtx_unlock(&nfs_cache_mutex)
-#define	NFSCACHELOCKREQUIRED()	mtx_assert(&nfs_cache_mutex, MA_OWNED)
 #define	NFSSOCKMUTEX		extern struct mtx nfs_slock_mutex
 #define	NFSSOCKMUTEXPTR		(&nfs_slock_mutex)
 #define	NFSLOCKSOCK()		mtx_lock(&nfs_slock_mutex)
@@ -812,7 +802,7 @@ MALLOC_DECLARE(M_NEWNFSLAYRECALL);
  */
 int nfscl_loadattrcache(struct vnode **, struct nfsvattr *, void *, void *,
     int, int);
-void newnfs_realign(struct mbuf **);
+int newnfs_realign(struct mbuf **, int);
 
 /*
  * If the port runs on an SMP box that can enforce Atomic ops with low
@@ -986,13 +976,6 @@ struct nfsreq {
 #else
 #define	NFSVNO_DELEGOK(v)	(1)
 #endif
-
-/*
- * Define this as the flags argument for msleep() when catching signals
- * while holding a resource that other threads would block for, such as
- * a vnode lock.
- */
-#define	NFS_PCATCH	(PCATCH | PBDRY)
 
 #endif	/* _KERNEL */
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,7 @@ AcpiEvIsNotifyObject (
         return (TRUE);
 
     default:
+
         return (FALSE);
     }
 }
@@ -291,21 +292,23 @@ AcpiEvTerminate (
 
         Status = AcpiEvWalkGpeList (AcpiHwDisableGpeBlock, NULL);
 
-        /* Remove SCI handler */
-
-        Status = AcpiEvRemoveSciHandler ();
-        if (ACPI_FAILURE(Status))
-        {
-            ACPI_ERROR ((AE_INFO,
-                "Could not remove SCI handler"));
-        }
-
         Status = AcpiEvRemoveGlobalLockHandler ();
         if (ACPI_FAILURE(Status))
         {
             ACPI_ERROR ((AE_INFO,
                 "Could not remove Global Lock handler"));
         }
+
+        AcpiGbl_EventsInitialized = FALSE;
+    }
+
+    /* Remove SCI handlers */
+
+    Status = AcpiEvRemoveAllSciHandlers ();
+    if (ACPI_FAILURE(Status))
+    {
+        ACPI_ERROR ((AE_INFO,
+            "Could not remove SCI handler"));
     }
 
     /* Deallocate all handler objects installed within GPE info structs */

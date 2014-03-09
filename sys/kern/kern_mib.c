@@ -99,6 +99,9 @@ SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
 SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     version, 0, "Kernel version");
 
+SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    compiler_version, 0, "Version of compiler used to compile kernel");
+
 SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
     CTLFLAG_CAPRD, ostype, 0, "Operating system type");
 
@@ -257,6 +260,13 @@ sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_hw_machine_arch, "A", "System architecture");
+
+SYSCTL_STRING(_kern, OID_AUTO, supported_archs, CTLFLAG_RD | CTLFLAG_MPSAFE,
+#ifdef COMPAT_FREEBSD32
+    MACHINE_ARCH " " MACHINE_ARCH32, 0, "Supported architectures for binaries");
+#else
+    MACHINE_ARCH, 0, "Supported architectures for binaries");
+#endif
 
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)

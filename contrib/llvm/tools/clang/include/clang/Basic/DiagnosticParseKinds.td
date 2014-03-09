@@ -18,8 +18,14 @@ def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">,
 def warn_file_asm_volatile : Warning<
   "meaningless 'volatile' on asm outside function">, CatInlineAsm;
 
-def warn_unsupported_msasm : Warning<
-  "MS-style inline assembly is not supported">, InGroup<Microsoft>;
+let CategoryName = "Inline Assembly Issue" in {
+def err_asm_empty : Error<"__asm used with no assembly instructions">;
+def err_inline_ms_asm_parsing : Error<"%0">;
+def err_msasm_unsupported_arch : Error<
+  "Unsupported architecture '%0' for MS-style inline assembly">;
+def err_msasm_unable_to_create_target : Error<
+  "MS-style inline assembly is not available: %0">;
+}
 
 let CategoryName = "Parse Issue" in {
 
@@ -50,13 +56,12 @@ def warn_duplicate_declspec : Warning<"duplicate '%0' declaration specifier">,
 def ext_plain_complex : ExtWarn<
   "plain '_Complex' requires a type specifier; assuming '_Complex double'">;
 def ext_integer_complex : Extension<
-  "complex integer types are a GNU extension">, InGroup<GNU>;
+  "complex integer types are a GNU extension">, InGroup<GNUComplexInteger>;
 def ext_thread_before : Extension<"'__thread' before '%0'">;
+def ext_keyword_as_ident : ExtWarn<
+  "keyword '%0' will be treated as an identifier %select{here|for the remainder of the translation unit}1">,
+  InGroup<KeywordCompat>;
 
-def ext_empty_struct_union : Extension<
-  "empty %select{struct|union}0 is a GNU extension">, InGroup<GNU>;
-def warn_empty_struct_union_compat : Warning<"empty %select{struct|union}0 "
-  "has size 0 in C, size 1 in C++">, InGroup<CXXCompat>, DefaultIgnore;
 def error_empty_enum : Error<"use of empty enum">;
 def err_invalid_sign_spec : Error<"'%0' cannot be signed or unsigned">;
 def err_invalid_short_spec : Error<"'short %0' is invalid">;
@@ -71,8 +76,6 @@ def ext_c99_variable_decl_in_for_loop : Extension<
   "variable declaration in for loop is a C99-specific feature">, InGroup<C99>;
 def ext_c99_compound_literal : Extension<
   "compound literals are a C99-specific feature">, InGroup<C99>;
-def ext_c99_flexible_array_member : Extension<
-  "Flexible array members are a C99-specific feature">, InGroup<C99>;
 def ext_enumerator_list_comma_c : Extension<
   "commas at the end of enumerator lists are a C99-specific "
   "feature">, InGroup<C99>;
@@ -98,6 +101,8 @@ def warn_cxx98_compat_enum_fixed_underlying_type : Warning<
 def warn_cxx98_compat_alignof : Warning<
   "alignof expressions are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def ext_alignof_expr : ExtWarn<
+  "%0 applied to an expression is a GNU extension">, InGroup<GNUAlignofExpression>;
 
 def warn_microsoft_dependent_exists : Warning<
   "dependent %select{__if_not_exists|__if_exists}0 declarations are ignored">, 
@@ -113,18 +118,19 @@ def note_previous_default_assoc : Note<
 def ext_c11_alignment : Extension<
   "%0 is a C11-specific feature">, InGroup<C11>;
 
+def ext_c11_noreturn : Extension<
+  "_Noreturn functions are a C11-specific feature">, InGroup<C11>;
+
 def ext_gnu_indirect_goto : Extension<
-  "use of GNU indirect-goto extension">, InGroup<GNU>;
+  "use of GNU indirect-goto extension">, InGroup<GNULabelsAsValue>;
 def ext_gnu_address_of_label : Extension<
-  "use of GNU address-of-label extension">, InGroup<GNU>;
-def ext_gnu_local_label : Extension<
-  "use of GNU locally declared label extension">, InGroup<GNU>;
+  "use of GNU address-of-label extension">, InGroup<GNULabelsAsValue>;
 def ext_gnu_statement_expr : Extension<
-  "use of GNU statement expression extension">, InGroup<GNU>;
+  "use of GNU statement expression extension">, InGroup<GNUStatementExpression>;
 def ext_gnu_conditional_expr : Extension<
-  "use of GNU ?: expression extension, eliding middle term">, InGroup<GNU>;
+  "use of GNU ?: conditional expression extension, omitting middle operand">, InGroup<GNUConditionalOmittedOperand>;
 def ext_gnu_empty_initializer : Extension<
-  "use of GNU empty initializer extension">, InGroup<GNU>;
+  "use of GNU empty initializer extension">, InGroup<GNUEmptyInitializer>;
 def ext_gnu_array_range : Extension<"use of GNU array range extension">, 
   InGroup<GNUDesignator>;
 def ext_gnu_missing_equal_designator : ExtWarn<
@@ -135,7 +141,7 @@ def ext_gnu_old_style_field_designator : ExtWarn<
   "use of GNU old-style field designator extension">, 
   InGroup<GNUDesignator>;
 def ext_gnu_case_range : Extension<"use of GNU case range extension">,
-  InGroup<GNU>;
+  InGroup<GNUCaseRange>;
 
 // Generic errors.
 def err_expected_expression : Error<"expected expression">;
@@ -147,7 +153,7 @@ def err_expected_ident_lparen : Error<"expected identifier or '('">;
 def err_expected_ident_lbrace : Error<"expected identifier or '{'">;
 def err_expected_lbrace : Error<"expected '{'">;
 def err_expected_lparen : Error<"expected '('">;
-def err_expected_lparen_or_lbrace : Error<"expected '('or '{'">;
+def err_expected_lparen_or_lbrace : Error<"expected '(' or '{'">;
 def err_expected_rparen : Error<"expected ')'">;
 def err_expected_lsquare : Error<"expected '['">;
 def err_expected_rsquare : Error<"expected ']'">;
@@ -164,10 +170,6 @@ def err_expected_member_name_or_semi : Error<
   "expected member name or ';' after declaration specifiers">;
 def err_function_declared_typedef : Error<
   "function definition declared 'typedef'">;
-def err_iboutletcollection_builtintype : Error<
-  "type argument of iboutletcollection attribute cannot be a builtin type">;
-def err_iboutletcollection_with_protocol : Error<
-  "invalid argument of iboutletcollection attribute">;
 def err_at_defs_cxx : Error<"@defs is not supported in Objective-C++">;
 def err_at_in_class : Error<"unexpected '@' in member specification">;
 
@@ -225,13 +227,10 @@ def note_missing_selector_name : Note<
 def note_force_empty_selector_name : Note<
   "or insert whitespace before ':' to use %0 as parameter name "
   "and have an empty entry in the selector">;
-def note_missing_argument_name : Note<
-  "did you mean to use %0 as the selector name instead of %1">;
 def err_label_end_of_compound_statement : Error<
   "label at end of compound statement: expected statement">;
 def err_address_of_label_outside_fn : Error<
   "use of address-of-label extension outside of a function body">;
-def err_expected_string_literal : Error<"expected string literal">;
 def err_asm_operand_wide_string_literal : Error<
   "cannot use %select{unicode|wide}0 string literal in 'asm'">;
 def err_expected_selector_for_method : Error<
@@ -278,6 +277,11 @@ def warn_auto_storage_class : Warning<
 def ext_auto_storage_class : ExtWarn<
   "'auto' storage class specifier is not permitted in C++11, and will not "
   "be supported in future releases">, InGroup<DiagGroup<"auto-storage-class">>;
+def ext_decltype_auto_type_specifier : ExtWarn<
+  "'decltype(auto)' type specifier is a C++1y extension">, InGroup<CXX1y>;
+def warn_cxx11_compat_decltype_auto_type_specifier : Warning<
+  "'decltype(auto)' type specifier is incompatible with C++ standards before "
+  "C++1y">, InGroup<CXXPre1yCompat>, DefaultIgnore;
 def ext_for_range : ExtWarn<
   "range-based for loop is a C++11 extension">, InGroup<CXX11>;
 def warn_cxx98_compat_for_range : Warning<
@@ -302,6 +306,11 @@ def err_expected_class_name_not_template :
   Error<"'typename' is redundant; base classes are implicitly types">;
 def err_unspecified_vla_size_with_static : Error<
   "'static' may not be used with an unspecified variable length array size">;
+def warn_deprecated_register : Warning<
+  "'register' storage class specifier is deprecated">,
+  InGroup<DeprecatedRegister>;
+def err_expected_parentheses_around_typename : Error<
+  "expected parentheses around type name in %0 expression">;
 
 def err_expected_case_before_expression: Error<
   "expected 'case' keyword before expression">;
@@ -353,6 +362,8 @@ def warn_cxx98_compat_static_assert : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_paren_after_colon_colon : Error<
   "unexpected parenthesis after '::'">;
+def err_function_definition_not_allowed : Error<
+  "function definition is not allowed here">;
 
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
@@ -364,7 +375,7 @@ def note_objc_container_start : Note<
   "%select{class|protocol|category|class extension|implementation"
   "|category implementation}0 started here">;
 def warn_objc_protocol_qualifier_missing_id : Warning<
-  "protocol qualifiers without 'id' is archaic">;
+  "protocol has no object type specified; defaults to qualified 'id'">;
 def err_objc_unknown_at : Error<"expected an Objective-C directive after '@'">;
 def err_illegal_super_cast : Error<
   "cannot cast 'super' (it isn't an expression)">;
@@ -400,6 +411,11 @@ def err_objc_properties_require_objc2 : Error<
   "properties are an Objective-C 2 feature">;
 def err_objc_unexpected_attr : Error<
   "prefix attribute must be followed by an interface or protocol">;
+def err_objc_postfix_attribute : Error <
+  "postfix attributes are not allowed on Objective-C directives">;
+def err_objc_postfix_attribute_hint : Error <
+  "postfix attributes are not allowed on Objective-C directives, place"
+  " them in front of '%select{@interface|@protocol}0'">;
 def err_objc_directive_only_in_protocol : Error<
   "directive may only be specified in protocols only">;
 def err_missing_catch_finally : Error<
@@ -407,6 +423,10 @@ def err_missing_catch_finally : Error<
 def err_objc_concat_string : Error<"unexpected token after Objective-C string">;
 def err_expected_objc_container : Error<
   "'@end' must appear in an Objective-C context">;
+def err_unexpected_protocol_qualifier : Error<
+  "@implementation declaration can not be protocol qualified">;
+def err_objc_unexpected_atend : Error<
+  "'@end' appears where closing brace '}' is expected">;
 def error_property_ivar_decl : Error<
   "property synthesize requires specification of an ivar">;
 def err_synthesized_property_name : Error<
@@ -425,8 +445,11 @@ def err_declaration_does_not_declare_param : Error<
 def err_no_matching_param : Error<"parameter named %0 is missing">;
 
 /// C++ parser diagnostics
+def err_invalid_operator_on_type : Error<
+  "cannot use %select{dot|arrow}0 operator on a type">;
 def err_expected_unqualified_id : Error<
   "expected %select{identifier|unqualified-id}0">;
+def err_unexpected_unqualified_id : Error<"type-id cannot have a name">;
 def err_func_def_no_params : Error<
   "function definition does not declare parameters">;
 def err_expected_lparen_after_type : Error<
@@ -444,6 +467,10 @@ def err_expected_member_or_base_name : Error<
   "expected class member or base class name">;
 def err_expected_lbrace_after_base_specifiers : Error<
   "expected '{' after base class list">;
+def err_missing_end_of_definition : Error<
+  "missing '}' at end of definition of %q0">;
+def note_missing_end_of_definition_before : Note<
+  "still within definition of %q0 here">;
 def ext_ellipsis_exception_spec : Extension<
   "exception specification of '...' is a Microsoft extension">,
   InGroup<Microsoft>;
@@ -458,17 +485,27 @@ def err_expected_rbrace_or_comma : Error<"expected '}' or ','">;
 def err_expected_rsquare_or_comma : Error<"expected ']' or ','">;
 def err_using_namespace_in_class : Error<
   "'using namespace' is not allowed in classes">;
+def err_constructor_bad_name : Error<
+  "missing return type for function %0; did you mean the constructor name %1?">;
 def err_destructor_tilde_identifier : Error<
   "expected a class name after '~' to name a destructor">;
 def err_destructor_template_id : Error<
   "destructor name %0 does not refer to a template">;
 def err_default_arg_unparsed : Error<
   "unexpected end of default argument expression">;
-def err_parser_impl_limit_overflow : Error<
-  "parser recursion limit reached, program too complex">, DefaultFatal;
+def err_bracket_depth_exceeded : Error<
+  "bracket nesting level exceeded maximum of %0">, DefaultFatal;
+def note_bracket_depth : Note<
+  "use -fbracket-depth=N to increase maximum nesting level">;
 def err_misplaced_ellipsis_in_declaration : Error<
   "'...' must %select{immediately precede declared identifier|"
   "be innermost component of anonymous pack declaration}0">;
+def ext_abstract_pack_declarator_parens : ExtWarn<
+  "ISO C++11 requires a parenthesized pack declaration to have a name">,
+  InGroup<DiagGroup<"anonymous-pack-parens">>;
+def err_function_is_not_record : Error<
+  "unexpected '%select{.|->}0' in function call; perhaps remove the "
+  "'%select{.|->}0'?">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -504,16 +541,32 @@ def err_cxx11_attribute_forbids_arguments : Error<
   "attribute '%0' cannot have an argument list">;
 def err_cxx11_attribute_forbids_ellipsis : Error<
   "attribute '%0' cannot be used as an attribute pack">;
+def err_cxx11_attribute_repeated : Error<
+  "attribute %0 cannot appear multiple times in an attribute specifier">;
 def err_attributes_not_allowed : Error<"an attribute list cannot appear here">;
 def err_l_square_l_square_not_attribute : Error<
   "C++11 only allows consecutive left square brackets when "
   "introducing an attribute">;
-def err_alignas_pack_exp_unsupported : Error<
-  "pack expansions in alignment specifiers are not supported yet">;
 def err_ms_declspec_type : Error<
   "__declspec attributes must be an identifier or string literal">;
 def warn_ms_declspec_unknown : Warning<
   "unknown __declspec attribute %0 ignored">, InGroup<UnknownAttributes>;
+def err_ms_property_no_getter_or_putter : Error<
+  "property does not specify a getter or a putter">;
+def err_ms_property_unknown_accessor : Error<
+  "expected 'get' or 'put' in property declaration">;
+def err_ms_property_has_set_accessor : Error<
+  "putter for property must be specified as 'put', not 'set'">;
+def err_ms_property_missing_accessor_kind : Error<
+  "missing 'get=' or 'put='">;
+def err_ms_property_expected_equal : Error<
+  "expected '=' after '%0'">;
+def err_ms_property_duplicate_accessor : Error<
+  "property declaration specifies '%0' accessor twice">;
+def err_ms_property_expected_accessor_name : Error<
+  "expected name of accessor method">;
+def err_ms_property_expected_comma_or_rparen : Error<
+  "expected ',' or ')' at end of property accessor list">;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
@@ -534,7 +587,7 @@ def err_two_right_angle_brackets_need_space : Error<
 def err_right_angle_bracket_equal_needs_space : Error<
   "a space is required between a right angle bracket and an equals sign "
   "(use '> =')">;
-def warn_cxx0x_right_shift_in_template_arg : Warning<
+def warn_cxx11_right_shift_in_template_arg : Warning<
   "use of right-shift operator ('>>') in template argument will require "
   "parentheses in C++11">, InGroup<CXX11Compat>;
 def warn_cxx98_compat_two_right_angle_brackets : Warning<
@@ -548,7 +601,12 @@ def err_explicit_instantiation_with_definition : Error<
     "explicit template instantiation cannot have a definition; if this "
     "definition is meant to be an explicit specialization, add '<>' after the "
     "'template' keyword">;
-def err_enum_template : Error<"enumeration cannot be a template">;
+def err_template_defn_explicit_instantiation : Error<
+  "%select{function|class|variable}0 cannot be defined in an explicit instantiation; if this "
+  "declaration is meant to be a %select{function|class|variable}0 definition, remove the 'template' keyword">;
+def err_friend_explicit_instantiation : Error<
+  "friend cannot be declared in an explicit instantiation; if this "
+  "declaration is meant to be a friend declaration, remove the 'template' keyword">;
 def err_explicit_instantiation_enum : Error<
     "enumerations cannot be explicitly instantiated">;
 def err_expected_template_parameter : Error<"expected template parameter">;
@@ -565,7 +623,7 @@ def warn_cxx98_compat_extern_template : Warning<
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 def warn_static_inline_explicit_inst_ignored : Warning<
   "ignoring '%select{static|inline}0' keyword on explicit template "
-  "instantiation">;
+  "instantiation">, InGroup<DiagGroup<"static-inline-explicit-instantiation">>;
   
 // Constructor template diagnostics.
 def err_out_of_line_constructor_template_id : Error<
@@ -649,6 +707,9 @@ def warn_cxx98_compat_override_control_keyword : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_override_control_interface : Error<
   "'%0' keyword not permitted with interface types">;
+def ext_ms_sealed_keyword : ExtWarn<
+  "'sealed' keyword is a Microsoft extension">,
+  InGroup<Microsoft>;
 
 def err_access_specifier_interface : Error<
   "interface types cannot specify '%select{private|protected}0' access">;
@@ -658,6 +719,8 @@ def err_duplicate_virt_specifier : Error<
 
 def err_scoped_enum_missing_identifier : Error<
   "scoped enumeration requires a name">;
+def ext_scoped_enum : ExtWarn<
+  "scoped enumerations are a C++11 extension">, InGroup<CXX11>;
 def warn_cxx98_compat_scoped_enum : Warning<
   "scoped enumerations are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
@@ -737,9 +800,16 @@ def warn_pragma_unused_expected_punc : Warning<
   "expected ')' or ',' in '#pragma unused'">;
 // - #pragma fp_contract
 def err_pragma_fp_contract_scope : Error<
-  "'#pragma fp_contract' should only appear at file scope or at the start of a "
-  "compound expression">; 
-
+  "'#pragma fp_contract' can only appear at file scope or at the start of a "
+  "compound statement">; 
+// - #pragma comment
+def err_pragma_comment_malformed : Error<
+  "pragma comment requires parenthesized identifier and optional string">;
+def err_pragma_comment_unknown_kind : Error<"unknown kind of pragma comment">;
+// - #pragma detect_mismatch
+def err_pragma_detect_mismatch_malformed : Error<
+  "pragma detect_mismatch is malformed; it requires two comma-separated "
+  "string literals">;
 
 // OpenCL Section 6.8.g
 def err_not_opencl_storage_class_specifier : Error<
@@ -764,14 +834,30 @@ def err_seh___except_filter : Error<
 
 def err_seh___finally_block : Error<
   "%0 only allowed in __finally block">;
-  
+
+// OpenMP support.
+def warn_pragma_omp_ignored : Warning <
+  "unexpected '#pragma omp ...' in program">, InGroup<SourceUsesOpenMP>, DefaultIgnore;
+def warn_omp_extra_tokens_at_eol : Warning <
+  "extra tokens at the end of '#pragma omp %0' are ignored">,
+  InGroup<ExtraTokens>;
+def err_omp_unknown_directive : Error <
+  "expected an OpenMP directive">;
+def err_omp_unexpected_directive : Error <
+  "unexpected OpenMP directive '#pragma omp %0'">;
+def err_omp_expected_punc : Error <
+  "expected ',' or ')' in %select{'#pragma omp %1'|'%1' clause}0">;
+def err_omp_unexpected_clause : Error <
+  "unexpected OpenMP clause '%0' in directive '#pragma omp %1'">;
+def err_omp_more_one_clause : Error <
+  "directive '#pragma omp %0' cannot contain more than one '%1' clause">;
 } // end of Parse Issue category.
 
 let CategoryName = "Modules Issue" in {
 def err_module_expected_ident : Error<
   "expected a module name after module import">;
 def err_module_expected_semi : Error<
-  "expected a semicolon name after module name">;
+  "expected ';' after module name">;
 }
 
 } // end of Parser diagnostics

@@ -32,6 +32,9 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -66,6 +69,7 @@
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
 #include <dev/usb/quirk/usb_quirk.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
 	ST_COMMAND,
@@ -501,13 +505,8 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	usb_error_t err;
 	uint8_t do_unlock;
 
-	/* automatic locking */
-	if (usbd_enum_is_locked(udev)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		usbd_enum_lock(udev);
-	}
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	/*
 	 * Make sure any driver which is hooked up to this interface,
@@ -803,7 +802,6 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 	if (sc == NULL)
 		return (USB_ERR_INVAL);
 
-	err = 0;
 	switch (method) {
 	case MSC_EJECT_STOPUNIT:
 		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
@@ -844,7 +842,8 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:
-		printf("usb_msc_eject: unknown eject method (%d)\n", method);
+		DPRINTF("Unknown eject method (%d)\n", method);
+		err = 0;
 		break;
 	}
 	DPRINTF("Eject CD command status: %s\n", usbd_errstr(err));

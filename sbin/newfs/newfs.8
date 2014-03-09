@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2011
+.Dd October 1, 2013
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Op Fl g Ar avgfilesize
 .Op Fl h Ar avgfpdir
 .Op Fl i Ar bytes
+.Op Fl k Ar held-for-metadata-blocks
 .Op Fl m Ar free-space
 .Op Fl o Ar optimization
 .Op Fl p Ar partition
@@ -163,6 +164,17 @@ This flag is implemented by running the
 .Xr tunefs 8
 utility found in the user's
 .Dv $PATH .
+.It Fl k Ar held-for-metadata-blocks
+Set the amount of space to be held for metadata blocks in each cylinder group.
+When set, the file system preference routines will try to save
+the specified amount of space immediately following the inode blocks
+in each cylinder group for use by metadata blocks.
+Clustering the metadata blocks speeds up random file access
+and decreases the running time of
+.Xr fsck 8 .
+By default
+.Xr newfs 8
+sets it to half of the space reserved to minfree.
 .It Fl l
 Enable multilabel MAC on the new file system.
 .It Fl m Ar free-space
@@ -214,7 +226,7 @@ See
 for more details on how to set this option.
 .It Fl p Ar partition
 The partition name (a..h) you want to use in case the underlying image
-is a file, so you don't have access to individual partitions through the
+is a file, so you do not have access to individual partitions through the
 filesystem.
 Can also be used with a device, e.g.
 .Nm
@@ -273,10 +285,10 @@ to find the alternate superblocks if the standard superblock is lost.
 The size of a sector in bytes (almost never anything but 512).
 .El
 .Sh EXAMPLES
-.Dl newfs /dev/ad3s1a
+.Dl newfs /dev/ada3s1a
 .Pp
 Creates a new ufs file system on
-.Pa ad3s1a .
+.Pa ada3s1a .
 The
 .Nm
 utility will use a block size of 32768 bytes, a fragment size of 4096 bytes

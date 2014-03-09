@@ -4,14 +4,8 @@
  * Copyright (c) 2009-2010, Witold Sowa <witold.sowa@gmail.com>
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -25,85 +19,22 @@
 #include "../wpa_supplicant_i.h"
 #include "../driver_i.h"
 #include "../notify.h"
-#include "../wpas_glue.h"
 #include "../bss.h"
 #include "../scan.h"
+#include "../autoscan.h"
 #include "dbus_new_helpers.h"
 #include "dbus_new.h"
 #include "dbus_new_handlers.h"
 #include "dbus_dict_helpers.h"
+#include "dbus_common_i.h"
 
 extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
 
 static const char *debug_strings[] = {
-	"msgdump", "debug", "info", "warning", "error", NULL
+	"excessive", "msgdump", "debug", "info", "warning", "error", NULL
 };
-
-
-/**
- * wpas_dbus_new_decompose_object_path - Decompose an interface object path into parts
- * @path: The dbus object path
- * @network: (out) the configured network this object path refers to, if any
- * @bssid: (out) the scanned bssid this object path refers to, if any
- * Returns: The object path of the network interface this path refers to
- *
- * For a given object path, decomposes the object path into object id, network,
- * and BSSID parts, if those parts exist.
- */
-static char * wpas_dbus_new_decompose_object_path(const char *path,
-						  char **network,
-						  char **bssid)
-{
-	const unsigned int dev_path_prefix_len =
-		strlen(WPAS_DBUS_NEW_PATH_INTERFACES "/");
-	char *obj_path_only;
-	char *next_sep;
-
-	/* Be a bit paranoid about path */
-	if (!path || os_strncmp(path, WPAS_DBUS_NEW_PATH_INTERFACES "/",
-				dev_path_prefix_len))
-		return NULL;
-
-	/* Ensure there's something at the end of the path */
-	if ((path + dev_path_prefix_len)[0] == '\0')
-		return NULL;
-
-	obj_path_only = os_strdup(path);
-	if (obj_path_only == NULL)
-		return NULL;
-
-	next_sep = os_strchr(obj_path_only + dev_path_prefix_len, '/');
-	if (next_sep != NULL) {
-		const char *net_part = os_strstr(
-			next_sep, WPAS_DBUS_NEW_NETWORKS_PART "/");
-		const char *bssid_part = os_strstr(
-			next_sep, WPAS_DBUS_NEW_BSSIDS_PART "/");
-
-		if (network && net_part) {
-			/* Deal with a request for a configured network */
-			const char *net_name = net_part +
-				os_strlen(WPAS_DBUS_NEW_NETWORKS_PART "/");
-			*network = NULL;
-			if (os_strlen(net_name))
-				*network = os_strdup(net_name);
-		} else if (bssid && bssid_part) {
-			/* Deal with a request for a scanned BSSID */
-			const char *bssid_name = bssid_part +
-				os_strlen(WPAS_DBUS_NEW_BSSIDS_PART "/");
-			if (strlen(bssid_name))
-				*bssid = os_strdup(bssid_name);
-			else
-				*bssid = NULL;
-		}
-
-		/* Cut off interface object path before "/" */
-		*next_sep = '\0';
-	}
-
-	return obj_path_only;
-}
 
 
 /**
@@ -117,6 +48,20 @@ static char * wpas_dbus_new_decompose_object_path(const char *path,
 DBusMessage * wpas_dbus_error_unknown_error(DBusMessage *message,
 					    const char *arg)
 {
+	/*
+	 * This function can be called as a result of a failure
+	 * within internal getter calls, which will call this function
+	 * with a NULL message parameter.  However, dbus_message_new_error
+	 * looks very unkindly (i.e, abort()) on a NULL message, so
+	 * in this case, we should not call it.
+	 */
+	if (message == NULL) {
+		wpa_printf(MSG_INFO, "dbus: wpas_dbus_error_unknown_error "
+			   "called with NULL message (arg=%s)",
+			   arg ? arg : "N/A");
+		return NULL;
+	}
+
 	return dbus_message_new_error(message, WPAS_DBUS_ERROR_UNKNOWN_ERROR,
 				      arg);
 }
@@ -178,7 +123,7 @@ DBusMessage * wpas_dbus_error_invalid_args(DBusMessage *message,
 static const char *dont_quote[] = {
 	"key_mgmt", "proto", "pairwise", "auth_alg", "group", "eap",
 	"opensc_engine_path", "pkcs11_engine_path", "pkcs11_module_path",
-	"bssid", NULL
+	"bssid", "scan_freq", "freq_list", NULL
 };
 
 static dbus_bool_t should_quote_opt(const char *key)
@@ -213,36 +158,35 @@ static struct wpa_supplicant * get_iface_by_dbus_path(
 
 /**
  * set_network_properties - Set properties of a configured network
- * @message: Pointer to incoming dbus message
  * @wpa_s: wpa_supplicant structure for a network interface
  * @ssid: wpa_ssid structure for a configured network
  * @iter: DBus message iterator containing dictionary of network
  * properties to set.
- * Returns: NULL when succeed or DBus error on failure
+ * @error: On failure, an error describing the failure
+ * Returns: TRUE if the request succeeds, FALSE if it failed
  *
  * Sets network configuration with parameters given id DBus dictionary
  */
-static DBusMessage * set_network_properties(DBusMessage *message,
-					    struct wpa_supplicant *wpa_s,
-					    struct wpa_ssid *ssid,
-					    DBusMessageIter *iter)
+dbus_bool_t set_network_properties(struct wpa_supplicant *wpa_s,
+				   struct wpa_ssid *ssid,
+				   DBusMessageIter *iter,
+				   DBusError *error)
 {
-
 	struct wpa_dbus_dict_entry entry = { .type = DBUS_TYPE_STRING };
-	DBusMessage *reply = NULL;
 	DBusMessageIter	iter_dict;
+	char *value = NULL;
 
-	if (!wpa_dbus_dict_open_read(iter, &iter_dict))
-		return wpas_dbus_error_invalid_args(message, NULL);
+	if (!wpa_dbus_dict_open_read(iter, &iter_dict, error))
+		return FALSE;
 
 	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
-		char *value = NULL;
 		size_t size = 50;
 		int ret;
-		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry)) {
-			reply = wpas_dbus_error_invalid_args(message, NULL);
-			break;
-		}
+
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto error;
+
+		value = NULL;
 		if (entry.type == DBUS_TYPE_ARRAY &&
 		    entry.array_type == DBUS_TYPE_BYTE) {
 			if (entry.array_len <= 0)
@@ -304,78 +248,66 @@ static DBusMessage * set_network_properties(DBusMessage *message,
 
 		if ((os_strcmp(entry.key, "psk") == 0 &&
 		     value[0] == '"' && ssid->ssid_len) ||
-		    (strcmp(entry.key, "ssid") == 0 && ssid->passphrase))
+		    (os_strcmp(entry.key, "ssid") == 0 && ssid->passphrase))
 			wpa_config_update_psk(ssid);
 		else if (os_strcmp(entry.key, "priority") == 0)
 			wpa_config_update_prio_list(wpa_s->conf);
 
 		os_free(value);
 		wpa_dbus_dict_entry_clear(&entry);
-		continue;
-
-	error:
-		os_free(value);
-		reply = wpas_dbus_error_invalid_args(message, entry.key);
-		wpa_dbus_dict_entry_clear(&entry);
-		break;
 	}
 
-	return reply;
+	return TRUE;
+
+error:
+	os_free(value);
+	wpa_dbus_dict_entry_clear(&entry);
+	dbus_set_error_const(error, DBUS_ERROR_INVALID_ARGS,
+			     "invalid message format");
+	return FALSE;
 }
 
 
 /**
  * wpas_dbus_simple_property_getter - Get basic type property
- * @message: Pointer to incoming dbus message
+ * @iter: Message iter to use when appending arguments
  * @type: DBus type of property (must be basic type)
  * @val: pointer to place holding property value
- * Returns: The DBus message containing response for Properties.Get call
- * or DBus error message if error occurred.
+ * @error: On failure an error describing the failure
+ * Returns: TRUE if the request was successful, FALSE if it failed
  *
  * Generic getter for basic type properties. Type is required to be basic.
  */
-DBusMessage * wpas_dbus_simple_property_getter(DBusMessage *message,
-					       const int type, const void *val)
+dbus_bool_t wpas_dbus_simple_property_getter(DBusMessageIter *iter,
+					     const int type,
+					     const void *val,
+					     DBusError *error)
 {
-	DBusMessage *reply = NULL;
-	DBusMessageIter iter, variant_iter;
+	DBusMessageIter variant_iter;
 
 	if (!dbus_type_is_basic(type)) {
-		wpa_printf(MSG_ERROR, "dbus: wpas_dbus_simple_property_getter:"
-			   " given type is not basic");
-		return wpas_dbus_error_unknown_error(message, NULL);
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: given type is not basic", __func__);
+		return FALSE;
 	}
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
+	                                      wpa_dbus_type_as_string(type),
+	                                      &variant_iter))
+		goto error;
 
-	if (reply != NULL) {
-		dbus_message_iter_init_append(reply, &iter);
-		if (!dbus_message_iter_open_container(
-			    &iter, DBUS_TYPE_VARIANT,
-			    wpa_dbus_type_as_string(type), &variant_iter) ||
-		    !dbus_message_iter_append_basic(&variant_iter, type,
-						    val) ||
-		    !dbus_message_iter_close_container(&iter, &variant_iter)) {
-			wpa_printf(MSG_ERROR, "dbus: "
-				   "wpas_dbus_simple_property_getter: out of "
-				   "memory to put property value into "
-				   "message");
-			dbus_message_unref(reply);
-			reply = dbus_message_new_error(message,
-						       DBUS_ERROR_NO_MEMORY,
-						       NULL);
-		}
-	} else {
-		wpa_printf(MSG_ERROR, "dbus: wpas_dbus_simple_property_getter:"
-			   " out of memory to return property value");
-		reply = dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					       NULL);
-	}
+	if (!dbus_message_iter_append_basic(&variant_iter, type, val))
+		goto error;
 
-	return reply;
+	if (!dbus_message_iter_close_container(iter, &variant_iter))
+		goto error;
+
+	return TRUE;
+
+error:
+	dbus_set_error(error, DBUS_ERROR_FAILED,
+	               "%s: error constructing reply", __func__);
+	return FALSE;
 }
 
 
@@ -384,102 +316,79 @@ DBusMessage * wpas_dbus_simple_property_getter(DBusMessage *message,
  * @message: Pointer to incoming dbus message
  * @type: DBus type of property (must be basic type)
  * @val: pointer to place where value being set will be stored
- * Returns: NULL or DBus error message if error occurred.
+ * Returns: TRUE if the request was successful, FALSE if it failed
  *
  * Generic setter for basic type properties. Type is required to be basic.
  */
-DBusMessage * wpas_dbus_simple_property_setter(DBusMessage *message,
-					       const int type, void *val)
+dbus_bool_t wpas_dbus_simple_property_setter(DBusMessageIter *iter,
+					     DBusError *error,
+					     const int type, void *val)
 {
-	DBusMessageIter iter, variant_iter;
+	DBusMessageIter variant_iter;
 
 	if (!dbus_type_is_basic(type)) {
-		wpa_printf(MSG_ERROR, "dbus: wpas_dbus_simple_property_setter:"
-			   " given type is not basic");
-		return wpas_dbus_error_unknown_error(message, NULL);
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: given type is not basic", __func__);
+		return FALSE;
 	}
 
-	if (!dbus_message_iter_init(message, &iter)) {
-		wpa_printf(MSG_ERROR, "dbus: wpas_dbus_simple_property_setter:"
-			   " out of memory to return scanning state");
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
-	}
-
-	/* omit first and second argument and get value from third */
-	dbus_message_iter_next(&iter);
-	dbus_message_iter_next(&iter);
-	dbus_message_iter_recurse(&iter, &variant_iter);
-
+	/* Look at the new value */
+	dbus_message_iter_recurse(iter, &variant_iter);
 	if (dbus_message_iter_get_arg_type(&variant_iter) != type) {
-		wpa_printf(MSG_DEBUG, "dbus: wpas_dbus_simple_property_setter:"
-			   " wrong property type");
-		return wpas_dbus_error_invalid_args(message,
-						    "wrong property type");
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "wrong property type");
+		return FALSE;
 	}
 	dbus_message_iter_get_basic(&variant_iter, val);
 
-	return NULL;
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_simple_array_property_getter - Get array type property
- * @message: Pointer to incoming dbus message
+ * @iter: Pointer to incoming dbus message iterator
  * @type: DBus type of property array elements (must be basic type)
  * @array: pointer to array of elements to put into response message
  * @array_len: length of above array
- * Returns: The DBus message containing response for Properties.Get call
- * or DBus error message if error occurred.
+ * @error: a pointer to an error to fill on failure
+ * Returns: TRUE if the request succeeded, FALSE if it failed
  *
  * Generic getter for array type properties. Array elements type is
  * required to be basic.
  */
-DBusMessage * wpas_dbus_simple_array_property_getter(DBusMessage *message,
-						     const int type,
-						     const void *array,
-						     size_t array_len)
+dbus_bool_t wpas_dbus_simple_array_property_getter(DBusMessageIter *iter,
+						   const int type,
+						   const void *array,
+						   size_t array_len,
+						   DBusError *error)
 {
-	DBusMessage *reply = NULL;
-	DBusMessageIter iter, variant_iter, array_iter;
+	DBusMessageIter variant_iter, array_iter;
 	char type_str[] = "a?"; /* ? will be replaced with subtype letter; */
 	const char *sub_type_str;
 	size_t element_size, i;
 
 	if (!dbus_type_is_basic(type)) {
-		wpa_printf(MSG_ERROR, "dbus: "
-			   "wpas_dbus_simple_array_property_getter: given "
-			   "type is not basic");
-		return wpas_dbus_error_unknown_error(message, NULL);
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: given type is not basic", __func__);
+		return FALSE;
 	}
 
 	sub_type_str = wpa_dbus_type_as_string(type);
 	type_str[1] = sub_type_str[0];
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
-	if (reply == NULL) {
-		wpa_printf(MSG_ERROR, "dbus: "
-			   "wpas_dbus_simple_array_property_getter: out of "
-			   "memory to create return message");
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
+					      type_str, &variant_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: failed to construct message 1", __func__);
+		return FALSE;
 	}
 
-	dbus_message_iter_init_append(reply, &iter);
-
-	if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
-					      type_str, &variant_iter) ||
-	    !dbus_message_iter_open_container(&variant_iter, DBUS_TYPE_ARRAY,
+	if (!dbus_message_iter_open_container(&variant_iter, DBUS_TYPE_ARRAY,
 					      sub_type_str, &array_iter)) {
-		wpa_printf(MSG_ERROR, "dbus: "
-			   "wpas_dbus_simple_array_property_getter: out of "
-			   "memory to open container");
-		dbus_message_unref(reply);
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: failed to construct message 2", __func__);
+		return FALSE;
 	}
 
 	switch(type) {
@@ -507,11 +416,9 @@ DBusMessage * wpas_dbus_simple_array_property_getter(DBusMessage *message,
 		element_size = sizeof(char *);
 		break;
 	default:
-		wpa_printf(MSG_ERROR, "dbus: "
-			   "wpas_dbus_simple_array_property_getter: "
-			   "fatal: unknown element type");
-		element_size = 1;
-		break;
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: unknown element type %d", __func__, type);
+		return FALSE;
 	}
 
 	for (i = 0; i < array_len; i++) {
@@ -519,17 +426,89 @@ DBusMessage * wpas_dbus_simple_array_property_getter(DBusMessage *message,
 					       array + i * element_size);
 	}
 
-	if (!dbus_message_iter_close_container(&variant_iter, &array_iter) ||
-	    !dbus_message_iter_close_container(&iter, &variant_iter)) {
-		wpa_printf(MSG_ERROR, "dbus: "
-			   "wpas_dbus_simple_array_property_getter: out of "
-			   "memory to close container");
-		dbus_message_unref(reply);
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+	if (!dbus_message_iter_close_container(&variant_iter, &array_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: failed to construct message 3", __func__);
+		return FALSE;
 	}
 
-	return reply;
+	if (!dbus_message_iter_close_container(iter, &variant_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+		               "%s: failed to construct message 4", __func__);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_simple_array_array_property_getter - Get array array type property
+ * @iter: Pointer to incoming dbus message iterator
+ * @type: DBus type of property array elements (must be basic type)
+ * @array: pointer to array of elements to put into response message
+ * @array_len: length of above array
+ * @error: a pointer to an error to fill on failure
+ * Returns: TRUE if the request succeeded, FALSE if it failed
+ *
+ * Generic getter for array type properties. Array elements type is
+ * required to be basic.
+ */
+dbus_bool_t wpas_dbus_simple_array_array_property_getter(DBusMessageIter *iter,
+							 const int type,
+							 struct wpabuf **array,
+							 size_t array_len,
+							 DBusError *error)
+{
+	DBusMessageIter variant_iter, array_iter;
+	char type_str[] = "aa?";
+	char inner_type_str[] = "a?";
+	const char *sub_type_str;
+	size_t i;
+
+	if (!dbus_type_is_basic(type)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: given type is not basic", __func__);
+		return FALSE;
+	}
+
+	sub_type_str = wpa_dbus_type_as_string(type);
+	type_str[2] = sub_type_str[0];
+	inner_type_str[1] = sub_type_str[0];
+
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
+					      type_str, &variant_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: failed to construct message 1", __func__);
+		return FALSE;
+	}
+	if (!dbus_message_iter_open_container(&variant_iter, DBUS_TYPE_ARRAY,
+					      inner_type_str, &array_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: failed to construct message 2", __func__);
+		return FALSE;
+	}
+
+	for (i = 0; i < array_len; i++) {
+		wpa_dbus_dict_bin_array_add_element(&array_iter,
+						    wpabuf_head(array[i]),
+						    wpabuf_len(array[i]));
+
+	}
+
+	if (!dbus_message_iter_close_container(&variant_iter, &array_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: failed to close message 2", __func__);
+		return FALSE;
+	}
+
+	if (!dbus_message_iter_close_container(iter, &variant_iter)) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: failed to close message 1", __func__);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 
@@ -553,28 +532,35 @@ DBusMessage * wpas_dbus_handler_create_interface(DBusMessage *message,
 	struct wpa_dbus_dict_entry entry;
 	char *driver = NULL;
 	char *ifname = NULL;
+	char *confname = NULL;
 	char *bridge_ifname = NULL;
 
 	dbus_message_iter_init(message, &iter);
 
-	if (!wpa_dbus_dict_open_read(&iter, &iter_dict))
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict, NULL))
 		goto error;
 	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
 		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
 			goto error;
-		if (!strcmp(entry.key, "Driver") &&
+		if (!os_strcmp(entry.key, "Driver") &&
 		    (entry.type == DBUS_TYPE_STRING)) {
 			driver = os_strdup(entry.str_value);
 			wpa_dbus_dict_entry_clear(&entry);
 			if (driver == NULL)
 				goto error;
-		} else if (!strcmp(entry.key, "Ifname") &&
+		} else if (!os_strcmp(entry.key, "Ifname") &&
 			   (entry.type == DBUS_TYPE_STRING)) {
 			ifname = os_strdup(entry.str_value);
 			wpa_dbus_dict_entry_clear(&entry);
 			if (ifname == NULL)
 				goto error;
-		} else if (!strcmp(entry.key, "BridgeIfname") &&
+		} else if (!os_strcmp(entry.key, "ConfigFile") &&
+			   (entry.type == DBUS_TYPE_STRING)) {
+			confname = os_strdup(entry.str_value);
+			wpa_dbus_dict_entry_clear(&entry);
+			if (confname == NULL)
+				goto error;
+		} else if (!os_strcmp(entry.key, "BridgeIfname") &&
 			   (entry.type == DBUS_TYPE_STRING)) {
 			bridge_ifname = os_strdup(entry.str_value);
 			wpa_dbus_dict_entry_clear(&entry);
@@ -604,6 +590,7 @@ DBusMessage * wpas_dbus_handler_create_interface(DBusMessage *message,
 		os_memset(&iface, 0, sizeof(iface));
 		iface.driver = driver;
 		iface.ifname = ifname;
+		iface.confname = confname;
 		iface.bridge_ifname = bridge_ifname;
 		/* Otherwise, have wpa_supplicant attach to it. */
 		if ((wpa_s = wpa_supplicant_add_iface(global, &iface))) {
@@ -621,6 +608,7 @@ DBusMessage * wpas_dbus_handler_create_interface(DBusMessage *message,
 out:
 	os_free(driver);
 	os_free(ifname);
+	os_free(confname);
 	os_free(bridge_ifname);
 	return reply;
 
@@ -654,7 +642,7 @@ DBusMessage * wpas_dbus_handler_remove_interface(DBusMessage *message,
 	wpa_s = get_iface_by_dbus_path(global, path);
 	if (wpa_s == NULL)
 		reply = wpas_dbus_error_iface_unknown(message);
-	else if (wpa_supplicant_remove_iface(global, wpa_s)) {
+	else if (wpa_supplicant_remove_iface(global, wpa_s, 0)) {
 		reply = wpas_dbus_error_unknown_error(
 			message, "wpa_supplicant couldn't remove this "
 			"interface.");
@@ -706,79 +694,86 @@ DBusMessage * wpas_dbus_handler_get_interface(DBusMessage *message,
 
 /**
  * wpas_dbus_getter_debug_level - Get debug level
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: DBus message with value of debug level
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "DebugLevel" property.
  */
-DBusMessage * wpas_dbus_getter_debug_level(DBusMessage *message,
-					   struct wpa_global *global)
+dbus_bool_t wpas_dbus_getter_debug_level(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data)
 {
 	const char *str;
 	int idx = wpa_debug_level;
+
 	if (idx < 0)
 		idx = 0;
-	if (idx > 4)
-		idx = 4;
+	if (idx > 5)
+		idx = 5;
 	str = debug_strings[idx];
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						&str);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&str, error);
 }
 
 
 /**
  * wpas_dbus_getter_debug_timestamp - Get debug timestamp
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: DBus message with value of debug timestamp
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "DebugTimestamp" property.
  */
-DBusMessage * wpas_dbus_getter_debug_timestamp(DBusMessage *message,
-					       struct wpa_global *global)
+dbus_bool_t wpas_dbus_getter_debug_timestamp(DBusMessageIter *iter,
+                                             DBusError *error,
+                                             void *user_data)
 {
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&wpa_debug_timestamp);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&wpa_debug_timestamp, error);
 
 }
 
 
 /**
  * wpas_dbus_getter_debug_show_keys - Get debug show keys
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: DBus message with value of debug show_keys
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "DebugShowKeys" property.
  */
-DBusMessage * wpas_dbus_getter_debug_show_keys(DBusMessage *message,
-					       struct wpa_global *global)
+dbus_bool_t wpas_dbus_getter_debug_show_keys(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data)
 {
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&wpa_debug_show_keys);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&wpa_debug_show_keys, error);
 
 }
 
 /**
  * wpas_dbus_setter_debug_level - Set debug level
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: %NULL or DBus error message
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "DebugLevel" property.
  */
-DBusMessage * wpas_dbus_setter_debug_level(DBusMessage *message,
-					   struct wpa_global *global)
+dbus_bool_t wpas_dbus_setter_debug_level(DBusMessageIter *iter,
+					 DBusError *error, void *user_data)
 {
-	DBusMessage *reply;
+	struct wpa_global *global = user_data;
 	const char *str = NULL;
 	int i, val = -1;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_STRING,
-						 &str);
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_STRING,
+					      &str))
+		return FALSE;
 
 	for (i = 0; debug_strings[i]; i++)
 		if (os_strcmp(debug_strings[i], str) == 0) {
@@ -789,138 +784,180 @@ DBusMessage * wpas_dbus_setter_debug_level(DBusMessage *message,
 	if (val < 0 ||
 	    wpa_supplicant_set_debug_params(global, val, wpa_debug_timestamp,
 					    wpa_debug_show_keys)) {
-		dbus_message_unref(reply);
-		return wpas_dbus_error_invalid_args(
-			message, "Wrong debug level value");
+		dbus_set_error_const(error, DBUS_ERROR_FAILED, "wrong debug "
+				     "level value");
+		return FALSE;
 	}
 
-	return NULL;
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_setter_debug_timestamp - Set debug timestamp
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: %NULL or DBus error message
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "DebugTimestamp" property.
  */
-DBusMessage * wpas_dbus_setter_debug_timestamp(DBusMessage *message,
-					       struct wpa_global *global)
+dbus_bool_t wpas_dbus_setter_debug_timestamp(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data)
 {
-	DBusMessage *reply;
+	struct wpa_global *global = user_data;
 	dbus_bool_t val;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_BOOLEAN,
-						 &val);
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
+					      &val))
+		return FALSE;
 
 	wpa_supplicant_set_debug_params(global, wpa_debug_level, val ? 1 : 0,
 					wpa_debug_show_keys);
-
-	return NULL;
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_setter_debug_show_keys - Set debug show keys
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: %NULL or DBus error message
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "DebugShowKeys" property.
  */
-DBusMessage * wpas_dbus_setter_debug_show_keys(DBusMessage *message,
-					       struct wpa_global *global)
+dbus_bool_t wpas_dbus_setter_debug_show_keys(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data)
 {
-	DBusMessage *reply;
+	struct wpa_global *global = user_data;
 	dbus_bool_t val;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_BOOLEAN,
-						 &val);
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
+					      &val))
+		return FALSE;
 
 	wpa_supplicant_set_debug_params(global, wpa_debug_level,
 					wpa_debug_timestamp,
 					val ? 1 : 0);
-
-	return NULL;
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_getter_interfaces - Request registered interfaces list
- * @message: Pointer to incoming dbus message
- * @global: %wpa_supplicant global data structure
- * Returns: The object paths array containing registered interfaces
- * objects paths or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Interfaces" property. Handles requests
  * by dbus clients to return list of registered interfaces objects
  * paths
  */
-DBusMessage * wpas_dbus_getter_interfaces(DBusMessage *message,
-					  struct wpa_global *global)
+dbus_bool_t wpas_dbus_getter_interfaces(DBusMessageIter *iter,
+					DBusError *error,
+					void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_global *global = user_data;
 	struct wpa_supplicant *wpa_s;
 	const char **paths;
 	unsigned int i = 0, num = 0;
+	dbus_bool_t success;
 
 	for (wpa_s = global->ifaces; wpa_s; wpa_s = wpa_s->next)
 		num++;
 
-	paths = os_zalloc(num * sizeof(char*));
+	paths = os_calloc(num, sizeof(char *));
 	if (!paths) {
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
 	for (wpa_s = global->ifaces; wpa_s; wpa_s = wpa_s->next)
-		paths[i] = wpa_s->dbus_new_path;
+		paths[i++] = wpa_s->dbus_new_path;
 
-	reply = wpas_dbus_simple_array_property_getter(message,
-						       DBUS_TYPE_OBJECT_PATH,
-						       paths, num);
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_OBJECT_PATH,
+							 paths, num, error);
 
 	os_free(paths);
-	return reply;
+	return success;
 }
 
 
 /**
  * wpas_dbus_getter_eap_methods - Request supported EAP methods list
- * @message: Pointer to incoming dbus message
- * @nothing: not used argument. may be NULL or anything else
- * Returns: The object paths array containing supported EAP methods
- * represented by strings or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "EapMethods" property. Handles requests
  * by dbus clients to return list of strings with supported EAP methods
  */
-DBusMessage * wpas_dbus_getter_eap_methods(DBusMessage *message, void *nothing)
+dbus_bool_t wpas_dbus_getter_eap_methods(DBusMessageIter *iter,
+					 DBusError *error, void *user_data)
 {
-	DBusMessage *reply = NULL;
 	char **eap_methods;
 	size_t num_items = 0;
+	dbus_bool_t success;
 
 	eap_methods = eap_get_names_as_string_array(&num_items);
 	if (!eap_methods) {
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
-	reply = wpas_dbus_simple_array_property_getter(message,
-						       DBUS_TYPE_STRING,
-						       eap_methods, num_items);
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_STRING,
+							 eap_methods,
+							 num_items, error);
 
 	while (num_items)
 		os_free(eap_methods[--num_items]);
 	os_free(eap_methods);
-	return reply;
+	return success;
+}
+
+
+/**
+ * wpas_dbus_getter_global_capabilities - Request supported global capabilities
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Capabilities" property. Handles requests by dbus clients to
+ * return a list of strings with supported capabilities like AP, RSN IBSS,
+ * and P2P that are determined at compile time.
+ */
+dbus_bool_t wpas_dbus_getter_global_capabilities(DBusMessageIter *iter,
+					         DBusError *error,
+					         void *user_data)
+{
+	const char *capabilities[5] = { NULL, NULL, NULL, NULL, NULL };
+	size_t num_items = 0;
+
+#ifdef CONFIG_AP
+	capabilities[num_items++] = "ap";
+#endif /* CONFIG_AP */
+#ifdef CONFIG_IBSS_RSN
+	capabilities[num_items++] = "ibss-rsn";
+#endif /* CONFIG_IBSS_RSN */
+#ifdef CONFIG_P2P
+	capabilities[num_items++] = "p2p";
+#endif /* CONFIG_P2P */
+#ifdef CONFIG_INTERWORKING
+	capabilities[num_items++] = "interworking";
+#endif /* CONFIG_INTERWORKING */
+
+	return wpas_dbus_simple_array_property_getter(iter,
+						      DBUS_TYPE_STRING,
+						      capabilities,
+						      num_items, error);
 }
 
 
@@ -987,21 +1024,34 @@ static int wpas_dbus_get_scan_ssids(DBusMessage *message, DBusMessageIter *var,
 		dbus_message_iter_recurse(&array_iter, &sub_array_iter);
 
 		dbus_message_iter_get_fixed_array(&sub_array_iter, &val, &len);
-		if (len == 0) {
-			dbus_message_iter_next(&array_iter);
-			continue;
-		}
 
-		ssid = os_malloc(len);
-		if (ssid == NULL) {
-			wpa_printf(MSG_DEBUG, "wpas_dbus_handler_scan[dbus]: "
-				   "out of memory. Cannot allocate memory for "
-				   "SSID");
-			*reply = dbus_message_new_error(
-				message, DBUS_ERROR_NO_MEMORY, NULL);
+		if (len > MAX_SSID_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "wpas_dbus_handler_scan[dbus]: "
+				   "SSID too long (len=%d max_len=%d)",
+				   len, MAX_SSID_LEN);
+			*reply = wpas_dbus_error_invalid_args(
+				message, "Invalid SSID: too long");
 			return -1;
 		}
-		os_memcpy(ssid, val, len);
+
+		if (len != 0) {
+			ssid = os_malloc(len);
+			if (ssid == NULL) {
+				wpa_printf(MSG_DEBUG,
+					   "wpas_dbus_handler_scan[dbus]: "
+					   "out of memory. Cannot allocate "
+					   "memory for SSID");
+				*reply = dbus_message_new_error(
+					message, DBUS_ERROR_NO_MEMORY, NULL);
+				return -1;
+			}
+			os_memcpy(ssid, val, len);
+		} else {
+			/* Allow zero-length SSIDs */
+			ssid = NULL;
+		}
+
 		ssids[ssids_num].ssid = ssid;
 		ssids[ssids_num].ssid_len = len;
 
@@ -1146,8 +1196,9 @@ static int wpas_dbus_get_scan_channels(DBusMessage *message,
 
 #define FREQS_ALLOC_CHUNK 32
 		if (freqs_num % FREQS_ALLOC_CHUNK == 0) {
-			nfreqs = os_realloc(freqs, sizeof(int) *
-					    (freqs_num + FREQS_ALLOC_CHUNK));
+			nfreqs = os_realloc_array(
+				freqs, freqs_num + FREQS_ALLOC_CHUNK,
+				sizeof(int));
 			if (nfreqs == NULL)
 				os_free(freqs);
 			freqs = nfreqs;
@@ -1167,8 +1218,7 @@ static int wpas_dbus_get_scan_channels(DBusMessage *message,
 		dbus_message_iter_next(&array_iter);
 	}
 
-	nfreqs = os_realloc(freqs,
-			    sizeof(int) * (freqs_num + 1));
+	nfreqs = os_realloc_array(freqs, freqs_num + 1, sizeof(int));
 	if (nfreqs == NULL)
 		os_free(freqs);
 	freqs = nfreqs;
@@ -1260,14 +1310,19 @@ DBusMessage * wpas_dbus_handler_scan(DBusMessage *message,
 				"passive scan");
 			goto out;
 		} else if (params.freqs && params.freqs[0]) {
-			/* wildcard ssid */
-			params.num_ssids++;
 			wpa_supplicant_trigger_scan(wpa_s, &params);
 		} else {
-			wpa_s->scan_req = 2;
+			wpa_s->scan_req = MANUAL_SCAN_REQ;
 			wpa_supplicant_req_scan(wpa_s, 0, 0);
 		}
 	} else if (!os_strcmp(type, "active")) {
+		if (!params.num_ssids) {
+			/* Add wildcard ssid */
+			params.num_ssids++;
+		}
+#ifdef CONFIG_AUTOSCAN
+		autoscan_deinit(wpa_s);
+#endif /* CONFIG_AUTOSCAN */
 		wpa_supplicant_trigger_scan(wpa_s, &params);
 	} else {
 		wpa_printf(MSG_DEBUG, "wpas_dbus_handler_scan[dbus]: "
@@ -1326,6 +1381,7 @@ DBusMessage * wpas_dbus_handler_add_network(DBusMessage *message,
 	DBusMessageIter	iter;
 	struct wpa_ssid *ssid = NULL;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
+	DBusError error;
 
 	dbus_message_iter_init(message, &iter);
 
@@ -1343,11 +1399,15 @@ DBusMessage * wpas_dbus_handler_add_network(DBusMessage *message,
 	ssid->disabled = 1;
 	wpa_config_set_network_defaults(ssid);
 
-	reply = set_network_properties(message, wpa_s, ssid, &iter);
-	if (reply) {
+	dbus_error_init(&error);
+	if (!set_network_properties(wpa_s, ssid, &iter, &error)) {
 		wpa_printf(MSG_DEBUG, "wpas_dbus_handler_add_network[dbus]:"
 			   "control interface couldn't set network "
 			   "properties");
+		reply = wpas_dbus_reply_new_from_error(message, &error,
+						       DBUS_ERROR_INVALID_ARGS,
+						       "Failed to add network");
+		dbus_error_free(&error);
 		goto err;
 	}
 
@@ -1382,6 +1442,28 @@ err:
 
 
 /**
+ * wpas_dbus_handler_reassociate - Reassociate to current AP
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NotConnected DBus error message if not connected
+ * or NULL otherwise.
+ *
+ * Handler function for "Reassociate" method call of network interface.
+ */
+DBusMessage * wpas_dbus_handler_reassociate(DBusMessage *message,
+					    struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->current_ssid != NULL) {
+		wpas_request_connection(wpa_s);
+		return NULL;
+	}
+
+	return dbus_message_new_error(message, WPAS_DBUS_ERROR_NOT_CONNECTED,
+				      "This interface is not connected");
+}
+
+
+/**
  * wpas_dbus_handler_remove_network - Remove a configured network
  * @message: Pointer to incoming dbus message
  * @wpa_s: wpa_supplicant structure for a network interface
@@ -1403,14 +1485,16 @@ DBusMessage * wpas_dbus_handler_remove_network(DBusMessage *message,
 
 	/* Extract the network ID and ensure the network */
 	/* is actually a child of this interface */
-	iface = wpas_dbus_new_decompose_object_path(op, &net_id, NULL);
-	if (iface == NULL || os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
+	iface = wpas_dbus_new_decompose_object_path(op, 0, &net_id, NULL);
+	if (iface == NULL || net_id == NULL ||
+	    os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
 		reply = wpas_dbus_error_invalid_args(message, op);
 		goto out;
 	}
 
+	errno = 0;
 	id = strtoul(net_id, NULL, 10);
-	if (errno == EINVAL) {
+	if (errno != 0) {
 		reply = wpas_dbus_error_invalid_args(message, op);
 		goto out;
 	}
@@ -1444,6 +1528,43 @@ out:
 }
 
 
+static void remove_network(void *arg, struct wpa_ssid *ssid)
+{
+	struct wpa_supplicant *wpa_s = arg;
+
+	wpas_notify_network_removed(wpa_s, ssid);
+
+	if (wpa_config_remove_network(wpa_s->conf, ssid->id) < 0) {
+		wpa_printf(MSG_ERROR,
+			   "wpas_dbus_handler_remove_all_networks[dbus]: "
+			   "error occurred when removing network %d",
+			   ssid->id);
+		return;
+	}
+
+	if (ssid == wpa_s->current_ssid)
+		wpa_supplicant_deauthenticate(wpa_s,
+					      WLAN_REASON_DEAUTH_LEAVING);
+}
+
+
+/**
+ * wpas_dbus_handler_remove_all_networks - Remove all configured networks
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL on success or dbus error on failure
+ *
+ * Handler function for "RemoveAllNetworks" method call of a network interface.
+ */
+DBusMessage * wpas_dbus_handler_remove_all_networks(
+	DBusMessage *message, struct wpa_supplicant *wpa_s)
+{
+	/* NB: could check for failure and return an error */
+	wpa_config_foreach_network(wpa_s->conf, remove_network, wpa_s);
+	return NULL;
+}
+
+
 /**
  * wpas_dbus_handler_select_network - Attempt association with a network
  * @message: Pointer to incoming dbus message
@@ -1466,14 +1587,16 @@ DBusMessage * wpas_dbus_handler_select_network(DBusMessage *message,
 
 	/* Extract the network ID and ensure the network */
 	/* is actually a child of this interface */
-	iface = wpas_dbus_new_decompose_object_path(op, &net_id, NULL);
-	if (iface == NULL || os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
+	iface = wpas_dbus_new_decompose_object_path(op, 0, &net_id, NULL);
+	if (iface == NULL || net_id == NULL ||
+	    os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
 		reply = wpas_dbus_error_invalid_args(message, op);
 		goto out;
 	}
 
+	errno = 0;
 	id = strtoul(net_id, NULL, 10);
-	if (errno == EINVAL) {
+	if (errno != 0) {
 		reply = wpas_dbus_error_invalid_args(message, op);
 		goto out;
 	}
@@ -1491,6 +1614,72 @@ out:
 	os_free(iface);
 	os_free(net_id);
 	return reply;
+}
+
+
+/**
+ * wpas_dbus_handler_network_reply - Reply to a NetworkRequest signal
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL on success or dbus error on failure
+ *
+ * Handler function for "NetworkReply" method call of network interface.
+ */
+DBusMessage * wpas_dbus_handler_network_reply(DBusMessage *message,
+					      struct wpa_supplicant *wpa_s)
+{
+#ifdef IEEE8021X_EAPOL
+	DBusMessage *reply = NULL;
+	const char *op, *field, *value;
+	char *iface = NULL, *net_id = NULL;
+	int id;
+	struct wpa_ssid *ssid;
+
+	if (!dbus_message_get_args(message, NULL,
+	                           DBUS_TYPE_OBJECT_PATH, &op,
+	                           DBUS_TYPE_STRING, &field,
+	                           DBUS_TYPE_STRING, &value,
+			           DBUS_TYPE_INVALID))
+		return wpas_dbus_error_invalid_args(message, NULL);
+
+	/* Extract the network ID and ensure the network */
+	/* is actually a child of this interface */
+	iface = wpas_dbus_new_decompose_object_path(op, 0, &net_id, NULL);
+	if (iface == NULL || net_id == NULL ||
+	    os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
+		reply = wpas_dbus_error_invalid_args(message, op);
+		goto out;
+	}
+
+	errno = 0;
+	id = strtoul(net_id, NULL, 10);
+	if (errno != 0) {
+		reply = wpas_dbus_error_invalid_args(message, net_id);
+		goto out;
+	}
+
+	ssid = wpa_config_get_network(wpa_s->conf, id);
+	if (ssid == NULL) {
+		reply = wpas_dbus_error_network_unknown(message);
+		goto out;
+	}
+
+	if (wpa_supplicant_ctrl_iface_ctrl_rsp_handle(wpa_s, ssid,
+						      field, value) < 0)
+		reply = wpas_dbus_error_invalid_args(message, field);
+	else {
+		/* Tell EAP to retry immediately */
+		eapol_sm_notify_ctrl_response(wpa_s->eapol);
+	}
+
+out:
+	os_free(iface);
+	os_free(net_id);
+	return reply;
+#else /* IEEE8021X_EAPOL */
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE: 802.1X not included");
+	return wpas_dbus_error_unknown_error(message, "802.1X not included");
+#endif /* IEEE8021X_EAPOL */
 }
 
 
@@ -1658,37 +1847,99 @@ DBusMessage * wpas_dbus_handler_remove_blob(DBusMessage *message,
 
 }
 
+/*
+ * wpas_dbus_handler_flush_bss - Flush the BSS cache
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "FlushBSS" method call of network interface.
+ */
+DBusMessage * wpas_dbus_handler_flush_bss(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s)
+{
+	dbus_uint32_t age;
+
+	dbus_message_get_args(message, NULL, DBUS_TYPE_UINT32, &age,
+			      DBUS_TYPE_INVALID);
+
+	if (age == 0)
+		wpa_bss_flush(wpa_s);
+	else
+		wpa_bss_flush_by_age(wpa_s, age);
+
+	return NULL;
+}
+
+
+#ifdef CONFIG_AUTOSCAN
+/**
+ * wpas_dbus_handler_autoscan - Set autoscan parameters for the interface
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "AutoScan" method call of network interface.
+ */
+DBusMessage * wpas_dbus_handler_autoscan(DBusMessage *message,
+					 struct wpa_supplicant *wpa_s)
+{
+	DBusMessage *reply = NULL;
+	enum wpa_states state = wpa_s->wpa_state;
+	char *arg;
+
+	dbus_message_get_args(message, NULL, DBUS_TYPE_STRING, &arg,
+			      DBUS_TYPE_INVALID);
+
+	if (arg != NULL && os_strlen(arg) > 0) {
+		char *tmp;
+		tmp = os_strdup(arg);
+		if (tmp == NULL) {
+			reply = dbus_message_new_error(message,
+						       DBUS_ERROR_NO_MEMORY,
+						       NULL);
+		} else {
+			os_free(wpa_s->conf->autoscan);
+			wpa_s->conf->autoscan = tmp;
+			if (state == WPA_DISCONNECTED || state == WPA_INACTIVE)
+				autoscan_init(wpa_s, 1);
+			else if (state == WPA_SCANNING)
+				wpa_supplicant_reinit_autoscan(wpa_s);
+		}
+	} else if (arg != NULL && os_strlen(arg) == 0) {
+		os_free(wpa_s->conf->autoscan);
+		wpa_s->conf->autoscan = NULL;
+		autoscan_deinit(wpa_s);
+	} else
+		reply = dbus_message_new_error(message,
+					       DBUS_ERROR_INVALID_ARGS,
+					       NULL);
+
+	return reply;
+}
+#endif /* CONFIG_AUTOSCAN */
+
 
 /**
  * wpas_dbus_getter_capabilities - Return interface capabilities
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a dict of strings
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Capabilities" property of an interface.
  */
-DBusMessage * wpas_dbus_getter_capabilities(DBusMessage *message,
-					    struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_capabilities(DBusMessageIter *iter,
+					  DBusError *error, void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	struct wpa_driver_capa capa;
 	int res;
-	DBusMessageIter iter, iter_dict;
-	DBusMessageIter iter_dict_entry, iter_dict_val, iter_array,
+	DBusMessageIter iter_dict, iter_dict_entry, iter_dict_val, iter_array,
 		variant_iter;
 	const char *scans[] = { "active", "passive", "ssid" };
-	const char *modes[] = { "infrastructure", "ad-hoc", "ap" };
-	int n = sizeof(modes) / sizeof(char *);
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
-	if (!reply)
-		goto nomem;
-
-	dbus_message_iter_init_append(reply, &iter);
-	if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
 					      "a{sv}", &variant_iter))
 		goto nomem;
 
@@ -1714,6 +1965,12 @@ DBusMessage * wpas_dbus_getter_capabilities(DBusMessage *message,
 		if (capa.enc & WPA_DRIVER_CAPA_ENC_CCMP) {
 			if (!wpa_dbus_dict_string_array_add_element(
 				    &iter_array, "ccmp"))
+				goto nomem;
+		}
+
+		if (capa.enc & WPA_DRIVER_CAPA_ENC_GCMP) {
+			if (!wpa_dbus_dict_string_array_add_element(
+				    &iter_array, "gcmp"))
 				goto nomem;
 		}
 
@@ -1755,6 +2012,12 @@ DBusMessage * wpas_dbus_getter_capabilities(DBusMessage *message,
 		if (capa.enc & WPA_DRIVER_CAPA_ENC_CCMP) {
 			if (!wpa_dbus_dict_string_array_add_element(
 				    &iter_array, "ccmp"))
+				goto nomem;
+		}
+
+		if (capa.enc & WPA_DRIVER_CAPA_ENC_GCMP) {
+			if (!wpa_dbus_dict_string_array_add_element(
+				    &iter_array, "gcmp"))
 				goto nomem;
 		}
 
@@ -1949,41 +2212,78 @@ DBusMessage * wpas_dbus_getter_capabilities(DBusMessage *message,
 		goto nomem;
 
 	/***** Modes */
-	if (res < 0 || !(capa.flags & WPA_DRIVER_FLAGS_AP))
-		n--; /* exclude ap mode if it is not supported by the driver */
-	if (!wpa_dbus_dict_append_string_array(&iter_dict, "Modes", modes, n))
+	if (!wpa_dbus_dict_begin_string_array(&iter_dict, "Modes",
+					      &iter_dict_entry,
+					      &iter_dict_val,
+					      &iter_array))
 		goto nomem;
+
+	if (!wpa_dbus_dict_string_array_add_element(
+			    &iter_array, "infrastructure"))
+		goto nomem;
+
+	if (!wpa_dbus_dict_string_array_add_element(
+			    &iter_array, "ad-hoc"))
+		goto nomem;
+
+	if (res >= 0) {
+		if (capa.flags & (WPA_DRIVER_FLAGS_AP)) {
+			if (!wpa_dbus_dict_string_array_add_element(
+				    &iter_array, "ap"))
+				goto nomem;
+		}
+
+		if (capa.flags & (WPA_DRIVER_FLAGS_P2P_CAPABLE)) {
+			if (!wpa_dbus_dict_string_array_add_element(
+				    &iter_array, "p2p"))
+				goto nomem;
+		}
+	}
+
+	if (!wpa_dbus_dict_end_string_array(&iter_dict,
+					    &iter_dict_entry,
+					    &iter_dict_val,
+					    &iter_array))
+		goto nomem;
+	/***** Modes end */
+
+	if (res >= 0) {
+		dbus_int32_t max_scan_ssid = capa.max_scan_ssids;
+
+		if (!wpa_dbus_dict_append_int32(&iter_dict, "MaxScanSSID",
+						max_scan_ssid))
+			goto nomem;
+	}
 
 	if (!wpa_dbus_dict_close_write(&variant_iter, &iter_dict))
 		goto nomem;
-	if (!dbus_message_iter_close_container(&iter, &variant_iter))
+	if (!dbus_message_iter_close_container(iter, &variant_iter))
 		goto nomem;
 
-	return reply;
+	return TRUE;
 
 nomem:
-	if (reply)
-		dbus_message_unref(reply);
-
-	return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY, NULL);
+	dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+	return FALSE;
 }
 
 
 /**
  * wpas_dbus_getter_state - Get interface state
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a STRING representing the current
- *          interface state
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "State" property.
  */
-DBusMessage * wpas_dbus_getter_state(DBusMessage *message,
-				     struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_state(DBusMessageIter *iter, DBusError *error,
+				   void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	const char *str_state;
 	char *state_ls, *tmp;
+	dbus_bool_t success = FALSE;
 
 	str_state = wpa_supplicant_state_txt(wpa_s->wpa_state);
 
@@ -1991,141 +2291,436 @@ DBusMessage * wpas_dbus_getter_state(DBusMessage *message,
 	 */
 	state_ls = tmp = os_strdup(str_state);
 	if (!tmp) {
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 	while (*tmp) {
 		*tmp = tolower(*tmp);
 		tmp++;
 	}
 
-	reply = wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						 &state_ls);
+	success = wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &state_ls, error);
 
 	os_free(state_ls);
 
-	return reply;
+	return success;
 }
 
 
 /**
  * wpas_dbus_new_iface_get_scanning - Get interface scanning state
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing whether the interface is scanning
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "scanning" property.
  */
-DBusMessage * wpas_dbus_getter_scanning(DBusMessage *message,
-					struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_scanning(DBusMessageIter *iter, DBusError *error,
+                                      void *user_data)
 {
+	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t scanning = wpa_s->scanning ? TRUE : FALSE;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&scanning);
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&scanning, error);
 }
 
 
 /**
  * wpas_dbus_getter_ap_scan - Control roaming mode
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A message containong value of ap_scan variable
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter function for "ApScan" property.
  */
-DBusMessage * wpas_dbus_getter_ap_scan(DBusMessage *message,
-				       struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_ap_scan(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
+	struct wpa_supplicant *wpa_s = user_data;
 	dbus_uint32_t ap_scan = wpa_s->conf->ap_scan;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_UINT32,
-						&ap_scan);
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_UINT32,
+						&ap_scan, error);
 }
 
 
 /**
  * wpas_dbus_setter_ap_scan - Control roaming mode
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: NULL
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter function for "ApScan" property.
  */
-DBusMessage * wpas_dbus_setter_ap_scan(DBusMessage *message,
-				       struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_setter_ap_scan(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	dbus_uint32_t ap_scan;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_UINT32,
-						 &ap_scan);
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_UINT32,
+					      &ap_scan))
+		return FALSE;
 
 	if (wpa_supplicant_set_ap_scan(wpa_s, ap_scan)) {
-		return wpas_dbus_error_invalid_args(
-			message, "ap_scan must equal 0, 1 or 2");
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "ap_scan must be 0, 1, or 2");
+		return FALSE;
 	}
-	return NULL;
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_getter_fast_reauth - Control fast
+ * reauthentication (TLS session resumption)
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter function for "FastReauth" property.
+ */
+dbus_bool_t wpas_dbus_getter_fast_reauth(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_bool_t fast_reauth = wpa_s->conf->fast_reauth ? TRUE : FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&fast_reauth, error);
+}
+
+
+/**
+ * wpas_dbus_setter_fast_reauth - Control fast
+ * reauthentication (TLS session resumption)
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Setter function for "FastReauth" property.
+ */
+dbus_bool_t wpas_dbus_setter_fast_reauth(DBusMessageIter *iter,
+				     DBusError *error,
+				     void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_bool_t fast_reauth;
+
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
+					      &fast_reauth))
+		return FALSE;
+
+	wpa_s->conf->fast_reauth = fast_reauth;
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_getter_disconnect_reason - Get most recent reason for disconnect
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "DisconnectReason" property.  The reason is negative if it is
+ * locally generated.
+ */
+dbus_bool_t wpas_dbus_getter_disconnect_reason(DBusMessageIter *iter,
+					       DBusError *error,
+					       void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_int32_t reason = wpa_s->disconnect_reason;
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_INT32,
+						&reason, error);
+}
+
+
+/**
+ * wpas_dbus_getter_bss_expire_age - Get BSS entry expiration age
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter function for "BSSExpireAge" property.
+ */
+dbus_bool_t wpas_dbus_getter_bss_expire_age(DBusMessageIter *iter,
+					    DBusError *error,
+					    void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_uint32_t expire_age = wpa_s->conf->bss_expiration_age;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_UINT32,
+						&expire_age, error);
+}
+
+
+/**
+ * wpas_dbus_setter_bss_expire_age - Control BSS entry expiration age
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Setter function for "BSSExpireAge" property.
+ */
+dbus_bool_t wpas_dbus_setter_bss_expire_age(DBusMessageIter *iter,
+					    DBusError *error,
+					    void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_uint32_t expire_age;
+
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_UINT32,
+					      &expire_age))
+		return FALSE;
+
+	if (wpa_supplicant_set_bss_expiration_age(wpa_s, expire_age)) {
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "BSSExpireAge must be >= 10");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_getter_bss_expire_count - Get BSS entry expiration scan count
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter function for "BSSExpireCount" property.
+ */
+dbus_bool_t wpas_dbus_getter_bss_expire_count(DBusMessageIter *iter,
+					      DBusError *error,
+					      void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_uint32_t expire_count = wpa_s->conf->bss_expiration_scan_count;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_UINT32,
+						&expire_count, error);
+}
+
+
+/**
+ * wpas_dbus_setter_bss_expire_count - Control BSS entry expiration scan count
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Setter function for "BSSExpireCount" property.
+ */
+dbus_bool_t wpas_dbus_setter_bss_expire_count(DBusMessageIter *iter,
+					      DBusError *error,
+					      void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_uint32_t expire_count;
+
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_UINT32,
+					      &expire_count))
+		return FALSE;
+
+	if (wpa_supplicant_set_bss_expiration_count(wpa_s, expire_count)) {
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "BSSExpireCount must be > 0");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_getter_country - Control country code
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter function for "Country" property.
+ */
+dbus_bool_t wpas_dbus_getter_country(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	char country[3];
+	char *str = country;
+
+	country[0] = wpa_s->conf->country[0];
+	country[1] = wpa_s->conf->country[1];
+	country[2] = '\0';
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&str, error);
+}
+
+
+/**
+ * wpas_dbus_setter_country - Control country code
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Setter function for "Country" property.
+ */
+dbus_bool_t wpas_dbus_setter_country(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *country;
+
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_STRING,
+					      &country))
+		return FALSE;
+
+	if (!country[0] || !country[1]) {
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "invalid country code");
+		return FALSE;
+	}
+
+	if (wpa_s->drv_priv != NULL && wpa_drv_set_country(wpa_s, country)) {
+		wpa_printf(MSG_DEBUG, "Failed to set country");
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "failed to set country code");
+		return FALSE;
+	}
+
+	wpa_s->conf->country[0] = country[0];
+	wpa_s->conf->country[1] = country[1];
+	return TRUE;
+}
+
+
+/**
+ * wpas_dbus_getter_scan_interval - Get scan interval
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter function for "ScanInterval" property.
+ */
+dbus_bool_t wpas_dbus_getter_scan_interval(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_int32_t scan_interval = wpa_s->scan_interval;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_INT32,
+						&scan_interval, error);
+}
+
+
+/**
+ * wpas_dbus_setter_scan_interval - Control scan interval
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Setter function for "ScanInterval" property.
+ */
+dbus_bool_t wpas_dbus_setter_scan_interval(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	dbus_int32_t scan_interval;
+
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_INT32,
+					      &scan_interval))
+		return FALSE;
+
+	if (wpa_supplicant_set_scan_interval(wpa_s, scan_interval)) {
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "scan_interval must be >= 0");
+		return FALSE;
+	}
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_getter_ifname - Get interface name
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a name of network interface
- * associated with with wpa_s
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Ifname" property.
  */
-DBusMessage * wpas_dbus_getter_ifname(DBusMessage *message,
-				      struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_ifname(DBusMessageIter *iter, DBusError *error,
+				    void *user_data)
 {
+	struct wpa_supplicant *wpa_s = user_data;
 	const char *ifname = wpa_s->ifname;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						&ifname);
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&ifname, error);
 }
 
 
 /**
  * wpas_dbus_getter_driver - Get interface name
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a name of network interface
- * driver associated with with wpa_s
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Driver" property.
  */
-DBusMessage * wpas_dbus_getter_driver(DBusMessage *message,
-				      struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_driver(DBusMessageIter *iter, DBusError *error,
+				    void *user_data)
 {
+	struct wpa_supplicant *wpa_s = user_data;
 	const char *driver;
 
 	if (wpa_s->driver == NULL || wpa_s->driver->name == NULL) {
 		wpa_printf(MSG_DEBUG, "wpas_dbus_getter_driver[dbus]: "
 			   "wpa_s has no driver set");
-		return wpas_dbus_error_unknown_error(message, NULL);
+		dbus_set_error(error, DBUS_ERROR_FAILED, "%s: no driver set",
+			       __func__);
+		return FALSE;
 	}
 
 	driver = wpa_s->driver->name;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						&driver);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&driver, error);
 }
 
 
 /**
  * wpas_dbus_getter_current_bss - Get current bss object path
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a DBus object path to
- * current BSS
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "CurrentBSS" property.
  */
-DBusMessage * wpas_dbus_getter_current_bss(DBusMessage *message,
-					   struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_current_bss(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data)
 {
-	DBusMessage *reply;
+	struct wpa_supplicant *wpa_s = user_data;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *bss_obj_path = path_buf;
 
 	if (wpa_s->current_bss)
@@ -2135,27 +2730,25 @@ DBusMessage * wpas_dbus_getter_current_bss(DBusMessage *message,
 	else
 		os_snprintf(bss_obj_path, WPAS_DBUS_OBJECT_PATH_MAX, "/");
 
-	reply = wpas_dbus_simple_property_getter(message,
-						 DBUS_TYPE_OBJECT_PATH,
-						 &bss_obj_path);
-
-	return reply;
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_OBJECT_PATH,
+						&bss_obj_path, error);
 }
 
 
 /**
  * wpas_dbus_getter_current_network - Get current network object path
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a DBus object path to
- * current network
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "CurrentNetwork" property.
  */
-DBusMessage * wpas_dbus_getter_current_network(DBusMessage *message,
-					       struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_current_network(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data)
 {
-	DBusMessage *reply;
+	struct wpa_supplicant *wpa_s = user_data;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *net_obj_path = path_buf;
 
 	if (wpa_s->current_ssid)
@@ -2165,70 +2758,98 @@ DBusMessage * wpas_dbus_getter_current_network(DBusMessage *message,
 	else
 		os_snprintf(net_obj_path, WPAS_DBUS_OBJECT_PATH_MAX, "/");
 
-	reply = wpas_dbus_simple_property_getter(message,
-						 DBUS_TYPE_OBJECT_PATH,
-						 &net_obj_path);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_OBJECT_PATH,
+						&net_obj_path, error);
+}
 
-	return reply;
+
+/**
+ * wpas_dbus_getter_current_auth_mode - Get current authentication type
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "CurrentAuthMode" property.
+ */
+dbus_bool_t wpas_dbus_getter_current_auth_mode(DBusMessageIter *iter,
+					       DBusError *error,
+					       void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *eap_mode;
+	const char *auth_mode;
+	char eap_mode_buf[WPAS_DBUS_AUTH_MODE_MAX];
+
+	if (wpa_s->wpa_state != WPA_COMPLETED) {
+		auth_mode = "INACTIVE";
+	} else if (wpa_s->key_mgmt == WPA_KEY_MGMT_IEEE8021X ||
+	    wpa_s->key_mgmt == WPA_KEY_MGMT_IEEE8021X_NO_WPA) {
+		eap_mode = wpa_supplicant_get_eap_mode(wpa_s);
+		os_snprintf(eap_mode_buf, WPAS_DBUS_AUTH_MODE_MAX,
+			    "EAP-%s", eap_mode);
+		auth_mode = eap_mode_buf;
+
+	} else {
+		auth_mode = wpa_key_mgmt_txt(wpa_s->key_mgmt,
+					     wpa_s->current_ssid->proto);
+	}
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&auth_mode, error);
 }
 
 
 /**
  * wpas_dbus_getter_bridge_ifname - Get interface name
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: A dbus message containing a name of bridge network
- * interface associated with with wpa_s
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "BridgeIfname" property.
  */
-DBusMessage * wpas_dbus_getter_bridge_ifname(DBusMessage *message,
-					     struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_bridge_ifname(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data)
 {
-	const char *bridge_ifname = NULL;
-
-	bridge_ifname = wpa_s->bridge_ifname;
-	if (bridge_ifname == NULL) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bridge_ifname[dbus]: "
-			   "wpa_s has no bridge interface name set");
-		return wpas_dbus_error_unknown_error(message, NULL);
-	}
-
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						&bridge_ifname);
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *bridge_ifname = wpa_s->bridge_ifname;
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&bridge_ifname, error);
 }
 
 
 /**
  * wpas_dbus_getter_bsss - Get array of BSSs objects
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: a dbus message containing an array of all known BSS objects
- * dbus paths
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "BSSs" property.
  */
-DBusMessage * wpas_dbus_getter_bsss(DBusMessage *message,
-				    struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_bsss(DBusMessageIter *iter, DBusError *error,
+				  void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	struct wpa_bss *bss;
 	char **paths;
 	unsigned int i = 0;
+	dbus_bool_t success = FALSE;
 
-	paths = os_zalloc(wpa_s->num_bss * sizeof(char *));
+	paths = os_calloc(wpa_s->num_bss, sizeof(char *));
 	if (!paths) {
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
 	/* Loop through scan results and append each result's object path */
 	dl_list_for_each(bss, &wpa_s->bss_id, struct wpa_bss, list_id) {
 		paths[i] = os_zalloc(WPAS_DBUS_OBJECT_PATH_MAX);
 		if (paths[i] == NULL) {
-			reply = dbus_message_new_error(message,
-						       DBUS_ERROR_NO_MEMORY,
-						       NULL);
+			dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY,
+					     "no memory");
 			goto out;
 		}
 		/* Construct the object path for this BSS. */
@@ -2237,57 +2858,62 @@ DBusMessage * wpas_dbus_getter_bsss(DBusMessage *message,
 			    wpa_s->dbus_new_path, bss->id);
 	}
 
-	reply = wpas_dbus_simple_array_property_getter(message,
-						       DBUS_TYPE_OBJECT_PATH,
-						       paths, wpa_s->num_bss);
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_OBJECT_PATH,
+							 paths, wpa_s->num_bss,
+							 error);
 
 out:
 	while (i)
 		os_free(paths[--i]);
 	os_free(paths);
-	return reply;
+	return success;
 }
 
 
 /**
  * wpas_dbus_getter_networks - Get array of networks objects
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: a dbus message containing an array of all configured
- * networks dbus object paths.
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Networks" property.
  */
-DBusMessage * wpas_dbus_getter_networks(DBusMessage *message,
-					struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_networks(DBusMessageIter *iter, DBusError *error,
+				      void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	struct wpa_ssid *ssid;
 	char **paths;
 	unsigned int i = 0, num = 0;
+	dbus_bool_t success = FALSE;
 
 	if (wpa_s->conf == NULL) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_networks[dbus]: "
-			   "An error occurred getting networks list.");
-		return wpas_dbus_error_unknown_error(message, NULL);
+		wpa_printf(MSG_ERROR, "%s[dbus]: An error occurred getting "
+			   "networks list.", __func__);
+		dbus_set_error(error, DBUS_ERROR_FAILED, "%s: an error "
+			       "occurred getting the networks list", __func__);
+		return FALSE;
 	}
 
 	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next)
-		num++;
+		if (!network_is_persistent_group(ssid))
+			num++;
 
-	paths = os_zalloc(num * sizeof(char *));
+	paths = os_calloc(num, sizeof(char *));
 	if (!paths) {
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
 	/* Loop through configured networks and append object path of each */
 	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next) {
+		if (network_is_persistent_group(ssid))
+			continue;
 		paths[i] = os_zalloc(WPAS_DBUS_OBJECT_PATH_MAX);
 		if (paths[i] == NULL) {
-			reply = dbus_message_new_error(message,
-						       DBUS_ERROR_NO_MEMORY,
-						       NULL);
+			dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
 			goto out;
 		}
 
@@ -2297,50 +2923,40 @@ DBusMessage * wpas_dbus_getter_networks(DBusMessage *message,
 			    wpa_s->dbus_new_path, ssid->id);
 	}
 
-	reply = wpas_dbus_simple_array_property_getter(message,
-						       DBUS_TYPE_OBJECT_PATH,
-						       paths, num);
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_OBJECT_PATH,
+							 paths, num, error);
 
 out:
 	while (i)
 		os_free(paths[--i]);
 	os_free(paths);
-	return reply;
+	return success;
 }
 
 
 /**
  * wpas_dbus_getter_blobs - Get all blobs defined for this interface
- * @message: Pointer to incoming dbus message
- * @wpa_s: wpa_supplicant structure for a network interface
- * Returns: a dbus message containing a dictionary of pairs (blob_name, blob)
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Blobs" property.
  */
-DBusMessage * wpas_dbus_getter_blobs(DBusMessage *message,
-				     struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_blobs(DBusMessageIter *iter, DBusError *error,
+				   void *user_data)
 {
-	DBusMessage *reply = NULL;
-	DBusMessageIter iter, variant_iter, dict_iter, entry_iter, array_iter;
+	struct wpa_supplicant *wpa_s = user_data;
+	DBusMessageIter variant_iter, dict_iter, entry_iter, array_iter;
 	struct wpa_config_blob *blob;
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
-	if (!reply)
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
-
-	dbus_message_iter_init_append(reply, &iter);
-
-	if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
 					      "a{say}", &variant_iter) ||
 	    !dbus_message_iter_open_container(&variant_iter, DBUS_TYPE_ARRAY,
 					      "{say}", &dict_iter)) {
-		dbus_message_unref(reply);
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
 	blob = wpa_s->conf->blobs;
@@ -2363,176 +2979,196 @@ DBusMessage * wpas_dbus_getter_blobs(DBusMessage *message,
 						       &array_iter) ||
 		    !dbus_message_iter_close_container(&dict_iter,
 						       &entry_iter)) {
-			dbus_message_unref(reply);
-			return dbus_message_new_error(message,
-						      DBUS_ERROR_NO_MEMORY,
-						      NULL);
+			dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY,
+					     "no memory");
+			return FALSE;
 		}
 
 		blob = blob->next;
 	}
 
 	if (!dbus_message_iter_close_container(&variant_iter, &dict_iter) ||
-	    !dbus_message_iter_close_container(&iter, &variant_iter)) {
-		dbus_message_unref(reply);
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+	    !dbus_message_iter_close_container(iter, &variant_iter)) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
-	return reply;
+	return TRUE;
+}
+
+
+static struct wpa_bss * get_bss_helper(struct bss_handler_args *args,
+				       DBusError *error, const char *func_name)
+{
+	struct wpa_bss *res = wpa_bss_get_id(args->wpa_s, args->id);
+
+	if (!res) {
+		wpa_printf(MSG_ERROR, "%s[dbus]: no bss with id %d found",
+		           func_name, args->id);
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: BSS %d not found",
+			       func_name, args->id);
+	}
+
+	return res;
 }
 
 
 /**
  * wpas_dbus_getter_bss_bssid - Return the BSSID of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the bssid for the requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "BSSID" property.
  */
-DBusMessage * wpas_dbus_getter_bss_bssid(DBusMessage *message,
-					 struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_bssid(DBusMessageIter *iter, DBusError *error,
+				       void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_bssid[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
-	return wpas_dbus_simple_array_property_getter(message, DBUS_TYPE_BYTE,
-						      res->bssid, ETH_ALEN);
+	return wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_BYTE,
+						      res->bssid, ETH_ALEN,
+						      error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_ssid - Return the SSID of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the ssid for the requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "SSID" property.
  */
-DBusMessage * wpas_dbus_getter_bss_ssid(DBusMessage *message,
-					      struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_ssid(DBusMessageIter *iter, DBusError *error,
+				      void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_ssid[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
-	return wpas_dbus_simple_array_property_getter(message, DBUS_TYPE_BYTE,
-						      res->ssid,
-						      res->ssid_len);
+	return wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_BYTE,
+						      res->ssid, res->ssid_len,
+						      error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_privacy - Return the privacy flag of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the privacy flag value of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Privacy" property.
  */
-DBusMessage * wpas_dbus_getter_bss_privacy(DBusMessage *message,
-					   struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_privacy(DBusMessageIter *iter,
+					 DBusError *error, void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 	dbus_bool_t privacy;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_privacy[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
 	privacy = (res->caps & IEEE80211_CAP_PRIVACY) ? TRUE : FALSE;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&privacy);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&privacy, error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_mode - Return the mode of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the mode of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Mode" property.
  */
-DBusMessage * wpas_dbus_getter_bss_mode(DBusMessage *message,
-					struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_mode(DBusMessageIter *iter, DBusError *error,
+				      void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 	const char *mode;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_mode[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
 	if (res->caps & IEEE80211_CAP_IBSS)
 		mode = "ad-hoc";
 	else
 		mode = "infrastructure";
 
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_STRING,
-						&mode);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						&mode, error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_level - Return the signal strength of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the signal strength of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Level" property.
  */
-DBusMessage * wpas_dbus_getter_bss_signal(DBusMessage *message,
-					  struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_signal(DBusMessageIter *iter,
+					DBusError *error, void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
+	s16 level;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_signal[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_INT16,
-						&res->level);
+	level = (s16) res->level;
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_INT16,
+						&level, error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_frequency - Return the frequency of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the frequency of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Frequency" property.
  */
-DBusMessage * wpas_dbus_getter_bss_frequency(DBusMessage *message,
-					     struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_frequency(DBusMessageIter *iter,
+					   DBusError *error, void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
+	u16 freq;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_frequency[dbus]: "
-			   "no bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_UINT16,
-						&res->freq);
+	freq = (u16) res->freq;
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_UINT16,
+						&freq, error);
 }
 
 
@@ -2544,72 +3180,64 @@ static int cmp_u8s_desc(const void *a, const void *b)
 
 /**
  * wpas_dbus_getter_bss_rates - Return available bit rates of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing sorted array of bit rates
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Rates" property.
  */
-DBusMessage * wpas_dbus_getter_bss_rates(DBusMessage *message,
-					    struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_rates(DBusMessageIter *iter,
+				       DBusError *error, void *user_data)
 {
-	DBusMessage *reply;
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 	u8 *ie_rates = NULL;
 	u32 *real_rates;
 	int rates_num, i;
+	dbus_bool_t success = FALSE;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_rates[dbus]: "
-			   "no bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
 	rates_num = wpa_bss_get_bit_rates(res, &ie_rates);
 	if (rates_num < 0)
-		return NULL;
+		return FALSE;
 
 	qsort(ie_rates, rates_num, 1, cmp_u8s_desc);
 
 	real_rates = os_malloc(sizeof(u32) * rates_num);
 	if (!real_rates) {
 		os_free(ie_rates);
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
 	for (i = 0; i < rates_num; i++)
 		real_rates[i] = ie_rates[i] * 500000;
 
-	reply = wpas_dbus_simple_array_property_getter(message,
-						       DBUS_TYPE_UINT32,
-						       real_rates, rates_num);
+	success = wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_UINT32,
+							 real_rates, rates_num,
+							 error);
 
 	os_free(ie_rates);
 	os_free(real_rates);
-	return reply;
+	return success;
 }
 
 
-static DBusMessage * wpas_dbus_get_bss_security_prop(
-	DBusMessage *message, struct wpa_ie_data *ie_data)
+static dbus_bool_t wpas_dbus_get_bss_security_prop(DBusMessageIter *iter,
+						   struct wpa_ie_data *ie_data,
+						   DBusError *error)
 {
-	DBusMessage *reply;
-	DBusMessageIter iter, iter_dict, variant_iter;
+	DBusMessageIter iter_dict, variant_iter;
 	const char *group;
-	const char *pairwise[2]; /* max 2 pairwise ciphers is supported */
+	const char *pairwise[3]; /* max 3 pairwise ciphers is supported */
 	const char *key_mgmt[7]; /* max 7 key managements may be supported */
 	int n;
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
-	if (!reply)
-		goto nomem;
-
-	dbus_message_iter_init_append(reply, &iter);
-	if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
 					      "a{sv}", &variant_iter))
 		goto nomem;
 
@@ -2648,6 +3276,9 @@ static DBusMessage * wpas_dbus_get_bss_security_prop(
 	case WPA_CIPHER_CCMP:
 		group = "ccmp";
 		break;
+	case WPA_CIPHER_GCMP:
+		group = "gcmp";
+		break;
 	case WPA_CIPHER_WEP104:
 		group = "wep104";
 		break;
@@ -2665,6 +3296,8 @@ static DBusMessage * wpas_dbus_get_bss_security_prop(
 		pairwise[n++] = "tkip";
 	if (ie_data->pairwise_cipher & WPA_CIPHER_CCMP)
 		pairwise[n++] = "ccmp";
+	if (ie_data->pairwise_cipher & WPA_CIPHER_GCMP)
+		pairwise[n++] = "gcmp";
 
 	if (!wpa_dbus_dict_append_string_array(&iter_dict, "Pairwise",
 					       pairwise, n))
@@ -2690,152 +3323,209 @@ static DBusMessage * wpas_dbus_get_bss_security_prop(
 
 	if (!wpa_dbus_dict_close_write(&variant_iter, &iter_dict))
 		goto nomem;
-	if (!dbus_message_iter_close_container(&iter, &variant_iter))
+	if (!dbus_message_iter_close_container(iter, &variant_iter))
 		goto nomem;
 
-	return reply;
+	return TRUE;
 
 nomem:
-	if (reply)
-		dbus_message_unref(reply);
-
-	return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY, NULL);
+	dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+	return FALSE;
 }
 
 
 /**
  * wpas_dbus_getter_bss_wpa - Return the WPA options of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the WPA options of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "WPA" property.
  */
-DBusMessage * wpas_dbus_getter_bss_wpa(DBusMessage *message,
-				       struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_wpa(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 	struct wpa_ie_data wpa_data;
 	const u8 *ie;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_wpa[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
 	os_memset(&wpa_data, 0, sizeof(wpa_data));
 	ie = wpa_bss_get_vendor_ie(res, WPA_IE_VENDOR_TYPE);
 	if (ie) {
-		if (wpa_parse_wpa_ie(ie, 2 + ie[1], &wpa_data) < 0)
-			return wpas_dbus_error_unknown_error(message,
-							     "invalid WPA IE");
+		if (wpa_parse_wpa_ie(ie, 2 + ie[1], &wpa_data) < 0) {
+			dbus_set_error_const(error, DBUS_ERROR_FAILED,
+					     "failed to parse WPA IE");
+			return FALSE;
+		}
 	}
 
-	return wpas_dbus_get_bss_security_prop(message, &wpa_data);
+	return wpas_dbus_get_bss_security_prop(iter, &wpa_data, error);
 }
 
 
 /**
  * wpas_dbus_getter_bss_rsn - Return the RSN options of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing the RSN options of requested bss
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "RSN" property.
  */
-DBusMessage * wpas_dbus_getter_bss_rsn(DBusMessage *message,
-				       struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_rsn(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 	struct wpa_ie_data wpa_data;
 	const u8 *ie;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_rsn[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
 	os_memset(&wpa_data, 0, sizeof(wpa_data));
 	ie = wpa_bss_get_ie(res, WLAN_EID_RSN);
 	if (ie) {
-		if (wpa_parse_wpa_ie(ie, 2 + ie[1], &wpa_data) < 0)
-			return wpas_dbus_error_unknown_error(message,
-							     "invalid RSN IE");
+		if (wpa_parse_wpa_ie(ie, 2 + ie[1], &wpa_data) < 0) {
+			dbus_set_error_const(error, DBUS_ERROR_FAILED,
+					     "failed to parse RSN IE");
+			return FALSE;
+		}
 	}
 
-	return wpas_dbus_get_bss_security_prop(message, &wpa_data);
+	return wpas_dbus_get_bss_security_prop(iter, &wpa_data, error);
+}
+
+
+/**
+ * wpas_dbus_getter_bss_wps - Return the WPS options of a BSS
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "WPS" property.
+ */
+dbus_bool_t wpas_dbus_getter_bss_wps(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
+{
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
+#ifdef CONFIG_WPS
+	struct wpabuf *wps_ie;
+#endif /* CONFIG_WPS */
+	DBusMessageIter iter_dict, variant_iter;
+	const char *type = "";
+
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
+
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT,
+					      "a{sv}", &variant_iter))
+		goto nomem;
+
+	if (!wpa_dbus_dict_open_write(&variant_iter, &iter_dict))
+		goto nomem;
+
+#ifdef CONFIG_WPS
+	wps_ie = wpa_bss_get_vendor_ie_multi(res, WPS_IE_VENDOR_TYPE);
+	if (wps_ie) {
+		if (wps_is_selected_pbc_registrar(wps_ie))
+			type = "pbc";
+		else if (wps_is_selected_pin_registrar(wps_ie))
+			type = "pin";
+	}
+#endif /* CONFIG_WPS */
+
+	if (!wpa_dbus_dict_append_string(&iter_dict, "Type", type))
+		goto nomem;
+
+	if (!wpa_dbus_dict_close_write(&variant_iter, &iter_dict))
+		goto nomem;
+	if (!dbus_message_iter_close_container(iter, &variant_iter))
+		goto nomem;
+
+	return TRUE;
+
+nomem:
+	dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+	return FALSE;
 }
 
 
 /**
  * wpas_dbus_getter_bss_ies - Return all IEs of a BSS
- * @message: Pointer to incoming dbus message
- * @bss: a pair of interface describing structure and bss's id
- * Returns: a dbus message containing IEs byte array
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "IEs" property.
  */
-DBusMessage * wpas_dbus_getter_bss_ies(DBusMessage *message,
-				       struct bss_handler_args *bss)
+dbus_bool_t wpas_dbus_getter_bss_ies(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
-	struct wpa_bss *res = wpa_bss_get_id(bss->wpa_s, bss->id);
+	struct bss_handler_args *args = user_data;
+	struct wpa_bss *res;
 
-	if (!res) {
-		wpa_printf(MSG_ERROR, "wpas_dbus_getter_bss_ies[dbus]: no "
-			   "bss with id %d found", bss->id);
-		return NULL;
-	}
+	res = get_bss_helper(args, error, __func__);
+	if (!res)
+		return FALSE;
 
-	return wpas_dbus_simple_array_property_getter(message, DBUS_TYPE_BYTE,
-						      res + 1, res->ie_len);
+	return wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_BYTE,
+						      res + 1, res->ie_len,
+						      error);
 }
 
 
 /**
  * wpas_dbus_getter_enabled - Check whether network is enabled or disabled
- * @message: Pointer to incoming dbus message
- * @wpas_dbus_setter_enabled: wpa_supplicant structure for a network interface
- * and wpa_ssid structure for a configured network
- * Returns: DBus message with boolean indicating state of configured network
- * or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "enabled" property of a configured network.
  */
-DBusMessage * wpas_dbus_getter_enabled(DBusMessage *message,
-				       struct network_handler_args *net)
+dbus_bool_t wpas_dbus_getter_enabled(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
+	struct network_handler_args *net = user_data;
 	dbus_bool_t enabled = net->ssid->disabled ? FALSE : TRUE;
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&enabled);
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&enabled, error);
 }
 
 
 /**
  * wpas_dbus_setter_enabled - Mark a configured network as enabled or disabled
- * @message: Pointer to incoming dbus message
- * @wpas_dbus_setter_enabled: wpa_supplicant structure for a network interface
- * and wpa_ssid structure for a configured network
- * Returns: NULL indicating success or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "Enabled" property of a configured network.
  */
-DBusMessage * wpas_dbus_setter_enabled(DBusMessage *message,
-				       struct network_handler_args *net)
+dbus_bool_t wpas_dbus_setter_enabled(DBusMessageIter *iter, DBusError *error,
+				     void *user_data)
 {
-	DBusMessage *reply = NULL;
-
+	struct network_handler_args *net = user_data;
 	struct wpa_supplicant *wpa_s;
 	struct wpa_ssid *ssid;
-
 	dbus_bool_t enable;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_BOOLEAN,
-						 &enable);
-
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
+					      &enable))
+		return FALSE;
 
 	wpa_s = net->wpa_s;
 	ssid = net->ssid;
@@ -2845,48 +3535,38 @@ DBusMessage * wpas_dbus_setter_enabled(DBusMessage *message,
 	else
 		wpa_supplicant_disable_network(wpa_s, ssid);
 
-	return NULL;
+	return TRUE;
 }
 
 
 /**
  * wpas_dbus_getter_network_properties - Get options for a configured network
- * @message: Pointer to incoming dbus message
- * @net: wpa_supplicant structure for a network interface and
- * wpa_ssid structure for a configured network
- * Returns: DBus message with network properties or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "Properties" property of a configured network.
  */
-DBusMessage * wpas_dbus_getter_network_properties(
-	DBusMessage *message, struct network_handler_args *net)
+dbus_bool_t wpas_dbus_getter_network_properties(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data)
 {
-	DBusMessage *reply = NULL;
-	DBusMessageIter	iter, variant_iter, dict_iter;
+	struct network_handler_args *net = user_data;
+	DBusMessageIter	variant_iter, dict_iter;
 	char **iterator;
-	char **props = wpa_config_get_all(net->ssid, 0);
-	if (!props)
-		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					      NULL);
+	char **props = wpa_config_get_all(net->ssid, 1);
+	dbus_bool_t success = FALSE;
 
-	if (message == NULL)
-		reply = dbus_message_new(DBUS_MESSAGE_TYPE_SIGNAL);
-	else
-		reply = dbus_message_new_method_return(message);
-	if (!reply) {
-		reply = dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					       NULL);
-		goto out;
+	if (!props) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
 	}
 
-	dbus_message_iter_init_append(reply, &iter);
-
-	if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
-			"a{sv}", &variant_iter) ||
+	if (!dbus_message_iter_open_container(iter, DBUS_TYPE_VARIANT, "a{sv}",
+					      &variant_iter) ||
 	    !wpa_dbus_dict_open_write(&variant_iter, &dict_iter)) {
-		dbus_message_unref(reply);
-		reply = dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					       NULL);
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
 		goto out;
 	}
 
@@ -2894,10 +3574,8 @@ DBusMessage * wpas_dbus_getter_network_properties(
 	while (*iterator) {
 		if (!wpa_dbus_dict_append_string(&dict_iter, *iterator,
 						 *(iterator + 1))) {
-			dbus_message_unref(reply);
-			reply = dbus_message_new_error(message,
-						       DBUS_ERROR_NO_MEMORY,
-						       NULL);
+			dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY,
+					     "no memory");
 			goto out;
 		}
 		iterator += 2;
@@ -2905,12 +3583,12 @@ DBusMessage * wpas_dbus_getter_network_properties(
 
 
 	if (!wpa_dbus_dict_close_write(&variant_iter, &dict_iter) ||
-	    !dbus_message_iter_close_container(&iter, &variant_iter)) {
-		dbus_message_unref(reply);
-		reply = dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
-					       NULL);
+	    !dbus_message_iter_close_container(iter, &variant_iter)) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
 		goto out;
 	}
+
+	success = TRUE;
 
 out:
 	iterator = props;
@@ -2919,39 +3597,163 @@ out:
 		iterator++;
 	}
 	os_free(props);
-	return reply;
+	return success;
 }
 
 
 /**
  * wpas_dbus_setter_network_properties - Set options for a configured network
- * @message: Pointer to incoming dbus message
- * @net: wpa_supplicant structure for a network interface and
- * wpa_ssid structure for a configured network
- * Returns: NULL indicating success or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "Properties" property of a configured network.
  */
-DBusMessage * wpas_dbus_setter_network_properties(
-	DBusMessage *message, struct network_handler_args *net)
+dbus_bool_t wpas_dbus_setter_network_properties(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data)
 {
+	struct network_handler_args *net = user_data;
 	struct wpa_ssid *ssid = net->ssid;
+	DBusMessageIter	variant_iter;
 
-	DBusMessage *reply = NULL;
-	DBusMessageIter	iter, variant_iter;
-
-	dbus_message_iter_init(message, &iter);
-
-	dbus_message_iter_next(&iter);
-	dbus_message_iter_next(&iter);
-
-	dbus_message_iter_recurse(&iter, &variant_iter);
-
-	reply = set_network_properties(message, net->wpa_s, ssid,
-				       &variant_iter);
-	if (reply)
-		wpa_printf(MSG_DEBUG, "dbus control interface couldn't set "
-			   "network properties");
-
-	return reply;
+	dbus_message_iter_recurse(iter, &variant_iter);
+	return set_network_properties(net->wpa_s, ssid, &variant_iter, error);
 }
+
+
+#ifdef CONFIG_AP
+
+DBusMessage * wpas_dbus_handler_subscribe_preq(
+	DBusMessage *message, struct wpa_supplicant *wpa_s)
+{
+	struct wpas_dbus_priv *priv = wpa_s->global->dbus;
+	char *name;
+
+	if (wpa_s->preq_notify_peer != NULL) {
+		if (os_strcmp(dbus_message_get_sender(message),
+			      wpa_s->preq_notify_peer) == 0)
+			return NULL;
+
+		return dbus_message_new_error(message,
+			WPAS_DBUS_ERROR_SUBSCRIPTION_IN_USE,
+			"Another application is already subscribed");
+	}
+
+	name = os_strdup(dbus_message_get_sender(message));
+	if (!name)
+		return dbus_message_new_error(message, DBUS_ERROR_NO_MEMORY,
+					      "out of memory");
+
+	wpa_s->preq_notify_peer = name;
+
+	/* Subscribe to clean up if application closes socket */
+	wpas_dbus_subscribe_noc(priv);
+
+	/*
+	 * Double-check it's still alive to make sure that we didn't
+	 * miss the NameOwnerChanged signal, e.g. while strdup'ing.
+	 */
+	if (!dbus_bus_name_has_owner(priv->con, name, NULL)) {
+		/*
+		 * Application no longer exists, clean up.
+		 * The return value is irrelevant now.
+		 *
+		 * Need to check if the NameOwnerChanged handling
+		 * already cleaned up because we have processed
+		 * DBus messages while checking if the name still
+		 * has an owner.
+		 */
+		if (!wpa_s->preq_notify_peer)
+			return NULL;
+		os_free(wpa_s->preq_notify_peer);
+		wpa_s->preq_notify_peer = NULL;
+		wpas_dbus_unsubscribe_noc(priv);
+	}
+
+	return NULL;
+}
+
+
+DBusMessage * wpas_dbus_handler_unsubscribe_preq(
+	DBusMessage *message, struct wpa_supplicant *wpa_s)
+{
+	struct wpas_dbus_priv *priv = wpa_s->global->dbus;
+
+	if (!wpa_s->preq_notify_peer)
+		return dbus_message_new_error(message,
+			WPAS_DBUS_ERROR_NO_SUBSCRIPTION,
+			"Not subscribed");
+
+	if (os_strcmp(wpa_s->preq_notify_peer,
+		      dbus_message_get_sender(message)))
+		return dbus_message_new_error(message,
+			WPAS_DBUS_ERROR_SUBSCRIPTION_EPERM,
+			"Can't unsubscribe others");
+
+	os_free(wpa_s->preq_notify_peer);
+	wpa_s->preq_notify_peer = NULL;
+	wpas_dbus_unsubscribe_noc(priv);
+	return NULL;
+}
+
+
+void wpas_dbus_signal_preq(struct wpa_supplicant *wpa_s,
+			   const u8 *addr, const u8 *dst, const u8 *bssid,
+			   const u8 *ie, size_t ie_len, u32 ssi_signal)
+{
+	DBusMessage *msg;
+	DBusMessageIter iter, dict_iter;
+	struct wpas_dbus_priv *priv = wpa_s->global->dbus;
+
+	/* Do nothing if the control interface is not turned on */
+	if (priv == NULL)
+		return;
+
+	if (wpa_s->preq_notify_peer == NULL)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "ProbeRequest");
+	if (msg == NULL)
+		return;
+
+	dbus_message_set_destination(msg, wpa_s->preq_notify_peer);
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!wpa_dbus_dict_open_write(&iter, &dict_iter))
+		goto fail;
+	if (addr && !wpa_dbus_dict_append_byte_array(&dict_iter, "addr",
+						     (const char *) addr,
+						     ETH_ALEN))
+		goto fail;
+	if (dst && !wpa_dbus_dict_append_byte_array(&dict_iter, "dst",
+						    (const char *) dst,
+						    ETH_ALEN))
+		goto fail;
+	if (bssid && !wpa_dbus_dict_append_byte_array(&dict_iter, "bssid",
+						      (const char *) bssid,
+						      ETH_ALEN))
+		goto fail;
+	if (ie && ie_len && !wpa_dbus_dict_append_byte_array(&dict_iter, "ies",
+							     (const char *) ie,
+							     ie_len))
+		goto fail;
+	if (ssi_signal && !wpa_dbus_dict_append_int32(&dict_iter, "signal",
+						      ssi_signal))
+		goto fail;
+	if (!wpa_dbus_dict_close_write(&iter, &dict_iter))
+		goto fail;
+
+	dbus_connection_send(priv->con, msg, NULL);
+	goto out;
+fail:
+	wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+out:
+	dbus_message_unref(msg);
+}
+
+#endif /* CONFIG_AP */

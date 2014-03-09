@@ -92,6 +92,11 @@ TUNABLE_INT("kern.geom.raid.idle_threshold", &g_raid_idle_threshold);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RW,
     &g_raid_idle_threshold, 1000000,
     "Time in microseconds to consider a volume idle.");
+static u_int ar_legacy_aliases = 1;
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, legacy_aliases, CTLFLAG_RW,
+           &ar_legacy_aliases, 0, "Create aliases named as the legacy ataraid style.");
+TUNABLE_INT("kern.geom_raid.legacy_aliases", &ar_legacy_aliases);
+
 
 #define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
@@ -163,6 +168,8 @@ g_raid_disk_state2str(int state)
 		return ("NONE");
 	case G_RAID_DISK_S_OFFLINE:
 		return ("OFFLINE");
+	case G_RAID_DISK_S_DISABLED:
+		return ("DISABLED");
 	case G_RAID_DISK_S_FAILED:
 		return ("FAILED");
 	case G_RAID_DISK_S_STALE_FAILED:
@@ -535,7 +542,9 @@ g_raid_report_disk_state(struct g_raid_disk *disk)
 
 	if (disk->d_consumer == NULL)
 		return;
-	if (disk->d_state == G_RAID_DISK_S_FAILED ||
+	if (disk->d_state == G_RAID_DISK_S_DISABLED) {
+		s = G_STATE_ACTIVE; /* XXX */
+	} else if (disk->d_state == G_RAID_DISK_S_FAILED ||
 	    disk->d_state == G_RAID_DISK_S_STALE_FAILED) {
 		s = G_STATE_FAILED;
 	} else {
@@ -783,6 +792,7 @@ g_raid_open_consumer(struct g_raid_softc *sc, const char *name)
 	if (pp == NULL)
 		return (NULL);
 	cp = g_new_consumer(sc->sc_geom);
+	cp->flags |= G_CF_DIRECT_RECEIVE;
 	if (g_attach(cp, pp) != 0) {
 		g_destroy_consumer(cp);
 		return (NULL);
@@ -984,20 +994,15 @@ g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -1630,10 +1635,13 @@ static void
 g_raid_launch_provider(struct g_raid_volume *vol)
 {
 	struct g_raid_disk *disk;
+	struct g_raid_subdisk *sd;
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
+	char   announce_buf[80], buf1[32];
 	off_t off;
+	int i;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
@@ -1646,7 +1654,35 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 		/* Otherwise use sequential volume number. */
 		snprintf(name, sizeof(name), "raid/r%d", vol->v_global_id);
 	}
+
+	/*
+	 * Create a /dev/ar%d that the old ataraid(4) stack once
+	 * created as an alias for /dev/raid/r%d if requested.
+	 * This helps going from stable/7 ataraid devices to newer
+	 * FreeBSD releases. sbruno 07 MAY 2013
+	 */
+
+        if (ar_legacy_aliases) {
+		snprintf(announce_buf, sizeof(announce_buf),
+                        "kern.devalias.%s", name);
+                snprintf(buf1, sizeof(buf1),
+                        "ar%d", vol->v_global_id);
+                setenv(announce_buf, buf1);
+        }
+
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
+	pp->flags |= G_PF_DIRECT_RECEIVE;
+	if (vol->v_tr->tro_class->trc_accept_unmapped) {
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+		for (i = 0; i < vol->v_disks_count; i++) {
+			sd = &vol->v_subdisks[i];
+			if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+				continue;
+			if ((sd->sd_disk->d_consumer->provider->flags &
+			    G_PF_ACCEPT_UNMAPPED) == 0)
+				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+		}
+	}
 	pp->private = vol;
 	pp->mediasize = vol->v_mediasize;
 	pp->sectorsize = vol->v_sectorsize;
@@ -1835,6 +1871,11 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 	/* Deny new opens while dying. */
 	if (sc->sc_stopping != 0 && (acr > 0 || acw > 0 || ace > 0)) {
 		error = ENXIO;
+		goto out;
+	}
+	/* Deny write opens for read-only volumes. */
+	if (vol->v_read_only && acw > 0) {
+		error = EROFS;
 		goto out;
 	}
 	if (dcw == 0)
@@ -2145,7 +2186,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 int
 g_raid_destroy(struct g_raid_softc *sc, int how)
 {
-	int opens;
+	int error, opens;
 
 	g_topology_assert_not();
 	if (sc == NULL)
@@ -2162,11 +2203,13 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 			G_RAID_DEBUG1(1, sc,
 			    "%d volumes are still open.",
 			    opens);
+			sx_xunlock(&sc->sc_lock);
 			return (EBUSY);
 		case G_RAID_DESTROY_DELAYED:
 			G_RAID_DEBUG1(1, sc,
 			    "Array will be destroyed on last close.");
 			sc->sc_stopping = G_RAID_DESTROY_DELAYED;
+			sx_xunlock(&sc->sc_lock);
 			return (EBUSY);
 		case G_RAID_DESTROY_HARD:
 			G_RAID_DEBUG1(1, sc,
@@ -2180,9 +2223,9 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	/* Wake up worker to let it selfdestruct. */
 	g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	/* Sleep until node destroyed. */
-	sx_sleep(&sc->sc_stopping, &sc->sc_lock,
-	    PRIBIO | PDROP, "r:destroy", 0);
-	return (0);
+	error = sx_sleep(&sc->sc_stopping, &sc->sc_lock,
+	    PRIBIO | PDROP, "r:destroy", hz * 3);
+	return (error == EWOULDBLOCK ? EBUSY : 0);
 }
 
 static void
@@ -2214,6 +2257,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 */
 	gp->orphan = g_raid_taste_orphan;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 
 	geom = NULL;
@@ -2277,8 +2321,6 @@ g_raid_destroy_geom(struct gctl_req *req __unused,
 	sx_xlock(&sc->sc_lock);
 	g_cancel_event(sc);
 	error = g_raid_destroy(gp->softc, G_RAID_DESTROY_SOFT);
-	if (error != 0)
-		sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
 	return (error);
 }
@@ -2331,6 +2373,10 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		vol = pp->private;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		sbuf_printf(sb, "%s<descr>%s %s volume</descr>\n", indent,
+		    sc->sc_md->mdo_class->name,
+		    g_raid_volume_level2str(vol->v_raid_level,
+		    vol->v_raid_level_qualifier));
 		sbuf_printf(sb, "%s<Label>%s</Label>\n", indent,
 		    vol->v_name);
 		sbuf_printf(sb, "%s<RAIDLevel>%s</RAIDLevel>\n", indent,
@@ -2439,7 +2485,6 @@ g_raid_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
-	int error;
 
 	mp = arg;
 	DROP_GIANT();
@@ -2453,9 +2498,7 @@ g_raid_shutdown_post_sync(void *arg, int howto)
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next)
 			g_raid_clean(vol, -1);
 		g_cancel_event(sc);
-		error = g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
-		if (error != 0)
-			sx_xunlock(&sc->sc_lock);
+		g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
 		g_topology_lock();
 	}
 	g_topology_unlock();

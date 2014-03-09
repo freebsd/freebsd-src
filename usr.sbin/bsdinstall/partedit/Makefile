@@ -2,9 +2,11 @@
 
 BINDIR= /usr/libexec/bsdinstall
 PROG=	partedit
-LINKS= ${BINDIR}/partedit ${BINDIR}/autopart
+LINKS= ${BINDIR}/partedit ${BINDIR}/autopart \
+       ${BINDIR}/partedit ${BINDIR}/scriptedpart
 SYMLINKS= ${BINDIR}/partedit /usr/sbin/sade
-LDADD=	-lgeom -lncursesw -lutil -ldialog -lm
+DPADD=	${LIBGEOM} ${LIBUTIL} ${LIBDIALOG} ${LIBM}
+LDADD=	-lgeom -lutil -ldialog -lm
 
 PARTEDIT_ARCH= ${MACHINE}
 .if ${MACHINE} == "i386" || ${MACHINE} == "amd64"
@@ -15,9 +17,19 @@ PARTEDIT_ARCH= generic
 .endif
 
 SRCS=	diskeditor.c partedit.c gpart_ops.c partedit_${PARTEDIT_ARCH}.c \
-	part_wizard.c
+	part_wizard.c scripted.c
 
 WARNS?=	3
 MAN= sade.8
+
+.include <bsd.own.mk>
+
+.if ${MK_NCURSESW} == "no"
+DPADD+=	${LIBNCURSES}
+LDADD+=	-lncurses
+.else
+DPADD+=	${LIBNCURSESW}
+LDADD+=	-lncursesw
+.endif
 
 .include <bsd.prog.mk>

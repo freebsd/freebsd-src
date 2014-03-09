@@ -12,9 +12,15 @@
 
 #include "clang/Basic/LLVM.h"
 
+namespace llvm {
+namespace opt {
+  class ArgList;
+}
+}
+
 namespace clang {
 namespace driver {
-  class ArgList;
+
   class Compilation;
   class InputInfo;
   class Job;
@@ -50,13 +56,15 @@ public:
   virtual bool hasIntegratedAssembler() const { return false; }
   virtual bool hasIntegratedCPP() const = 0;
   virtual bool isLinkJob() const { return false; }
+  virtual bool isDsymutilJob() const { return false; }
 
   /// \brief Does this tool have "good" standardized diagnostics, or should the
   /// driver add an additional "command failed" diagnostic on failures.
   virtual bool hasGoodDiagnostics() const { return false; }
 
   /// ConstructJob - Construct jobs to perform the action \p JA,
-  /// writing to \p Output and with \p Inputs.
+  /// writing to \p Output and with \p Inputs, and add the jobs to
+  /// \p C.
   ///
   /// \param TCArgs - The argument list for this toolchain, with any
   /// tool chain specific translations applied.
@@ -65,7 +73,7 @@ public:
   virtual void ConstructJob(Compilation &C, const JobAction &JA,
                             const InputInfo &Output,
                             const InputInfoList &Inputs,
-                            const ArgList &TCArgs,
+                            const llvm::opt::ArgList &TCArgs,
                             const char *LinkingOutput) const = 0;
 };
 

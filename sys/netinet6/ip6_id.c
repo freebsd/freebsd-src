@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -221,7 +222,7 @@ initid(struct randomtab *p)
 	p->ru_g = pmod(p->ru_gen, j, p->ru_n);
 	p->ru_counter = 0;
 
-	p->ru_reseed = time_second + p->ru_out;
+	p->ru_reseed = time_uptime + p->ru_out;
 	p->ru_msb = p->ru_msb ? 0 : (1U << (p->ru_bits - 1));
 }
 
@@ -231,7 +232,7 @@ randomid(struct randomtab *p)
 	int i, n;
 	u_int32_t tmp;
 
-	if (p->ru_counter >= p->ru_max || time_second > p->ru_reseed)
+	if (p->ru_counter >= p->ru_max || time_uptime > p->ru_reseed)
 		initid(p);
 
 	tmp = arc4random();

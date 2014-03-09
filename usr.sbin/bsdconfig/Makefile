@@ -1,15 +1,15 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \
 	dot \
 	examples \
 	include \
+	includes \
 	mouse \
 	networking \
+	packages \
 	password \
 	security \
 	share \

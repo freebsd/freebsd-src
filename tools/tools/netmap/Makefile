@@ -3,23 +3,30 @@
 #
 # For multiple programs using a single source file each,
 # we can just define 'progs' and create custom targets.
-PROGS	=	pkt-gen bridge testpcap libnetmap.so
+PROGS	=	pkt-gen bridge vale-ctl
 
-CLEANFILES = $(PROGS) pcap.o
+CLEANFILES = $(PROGS) *.o
 NO_MAN=
-CFLAGS += -Werror -Wall -nostdinc -I/usr/include -I../../../sys
+CFLAGS += -Werror -Wall # -nostdinc -I/usr/include -I../../../sys
 CFLAGS += -Wextra
 
-LDFLAGS += -lpthread -lpcap
+LDFLAGS += -lpthread
+.ifdef WITHOUT_PCAP
+CFLAGS += -DNO_PCAP
+.else
+LDFLAGS += -lpcap
+.endif
 
 .include <bsd.prog.mk>
 .include <bsd.lib.mk>
 
 all: $(PROGS)
 
-testpcap: pcap.c libnetmap.so
-	$(CC) $(CFLAGS) -L. -lnetmap -o ${.TARGET} pcap.c
-	
-libnetmap.so:	pcap.c
-	$(CC) $(CFLAGS) -fpic -c ${.ALLSRC}
-	$(CC) -shared -o ${.TARGET} ${.ALLSRC:.c=.o}
+pkt-gen: pkt-gen.o
+	$(CC) $(CFLAGS) -o pkt-gen pkt-gen.o $(LDFLAGS)
+
+bridge: bridge.o
+	$(CC) $(CFLAGS) -o bridge bridge.o
+
+vale-ctl: vale-ctl.o
+	$(CC) $(CFLAGS) -o vale-ctl vale-ctl.o

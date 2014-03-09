@@ -21,13 +21,13 @@
 
 #define DEBUG_TYPE "scheduler"
 #include "llvm/CodeGen/ResourcePriorityQueue.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -42,11 +42,11 @@ static cl::opt<signed> RegPressureThreshold(
 
 ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS) :
   Picker(this),
-  InstrItins(IS->getTargetLowering().getTargetMachine().getInstrItineraryData())
+ InstrItins(IS->getTargetLowering()->getTargetMachine().getInstrItineraryData())
 {
-   TII = IS->getTargetLowering().getTargetMachine().getInstrInfo();
-   TRI = IS->getTargetLowering().getTargetMachine().getRegisterInfo();
-   TLI = &IS->getTargetLowering();
+   TII = IS->getTargetLowering()->getTargetMachine().getInstrInfo();
+   TRI = IS->getTargetLowering()->getTargetMachine().getRegisterInfo();
+   TLI = IS->getTargetLowering();
 
    const TargetMachine &tm = (*IS->MF).getTarget();
    ResourcesModel = tm.getInstrInfo()->CreateTargetScheduleState(&tm,NULL);
@@ -94,9 +94,9 @@ ResourcePriorityQueue::numberRCValPredInSU(SUnit *SU, unsigned RCId) {
       continue;
 
     for (unsigned i = 0, e = ScegN->getNumValues(); i != e; ++i) {
-      EVT VT = ScegN->getValueType(i);
+      MVT VT = ScegN->getSimpleValueType(i);
       if (TLI->isTypeLegal(VT)
-         && (TLI->getRegClassFor(VT)->getID() == RCId)) {
+          && (TLI->getRegClassFor(VT)->getID() == RCId)) {
         NumberDeps++;
         break;
       }
@@ -132,9 +132,9 @@ unsigned ResourcePriorityQueue::numberRCValSuccInSU(SUnit *SU,
 
     for (unsigned i = 0, e = ScegN->getNumOperands(); i != e; ++i) {
       const SDValue &Op = ScegN->getOperand(i);
-      EVT VT = Op.getNode()->getValueType(Op.getResNo());
+      MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
       if (TLI->isTypeLegal(VT)
-         && (TLI->getRegClassFor(VT)->getID() == RCId)) {
+          && (TLI->getRegClassFor(VT)->getID() == RCId)) {
         NumberDeps++;
         break;
       }
@@ -332,7 +332,7 @@ signed ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
 
   // Gen estimate.
   for (unsigned i = 0, e = SU->getNode()->getNumValues(); i != e; ++i) {
-      EVT VT = SU->getNode()->getValueType(i);
+      MVT VT = SU->getNode()->getSimpleValueType(i);
       if (TLI->isTypeLegal(VT)
           && TLI->getRegClassFor(VT)
           && TLI->getRegClassFor(VT)->getID() == RCId)
@@ -341,7 +341,7 @@ signed ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
   // Kill estimate.
   for (unsigned i = 0, e = SU->getNode()->getNumOperands(); i != e; ++i) {
       const SDValue &Op = SU->getNode()->getOperand(i);
-      EVT VT = Op.getNode()->getValueType(Op.getResNo());
+      MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
       if (isa<ConstantSDNode>(Op.getNode()))
         continue;
 
@@ -389,10 +389,9 @@ signed ResourcePriorityQueue::regPressureDelta(SUnit *SU, bool RawPressure) {
 // Constants used to denote relative importance of
 // heuristic components for cost computation.
 static const unsigned PriorityOne = 200;
-static const unsigned PriorityTwo = 100;
-static const unsigned PriorityThree = 50;
-static const unsigned PriorityFour = 15;
-static const unsigned PriorityFive = 5;
+static const unsigned PriorityTwo = 50;
+static const unsigned PriorityThree = 15;
+static const unsigned PriorityFour = 5;
 static const unsigned ScaleOne = 20;
 static const unsigned ScaleTwo = 10;
 static const unsigned ScaleThree = 5;
@@ -449,7 +448,7 @@ signed ResourcePriorityQueue::SUSchedulingCost(SUnit *SU) {
     if (N->isMachineOpcode()) {
       const MCInstrDesc &TID = TII->get(N->getMachineOpcode());
       if (TID.isCall())
-        ResCount += (PriorityThree + (ScaleThree*N->getNumValues()));
+        ResCount += (PriorityTwo + (ScaleThree*N->getNumValues()));
     }
     else
       switch (N->getOpcode()) {
@@ -457,11 +456,11 @@ signed ResourcePriorityQueue::SUSchedulingCost(SUnit *SU) {
       case ISD::TokenFactor:
       case ISD::CopyFromReg:
       case ISD::CopyToReg:
-        ResCount += PriorityFive;
+        ResCount += PriorityFour;
         break;
 
       case ISD::INLINEASM:
-        ResCount += PriorityFour;
+        ResCount += PriorityThree;
         break;
       }
   }
@@ -485,7 +484,7 @@ void ResourcePriorityQueue::scheduledNode(SUnit *SU) {
   if (ScegN->isMachineOpcode()) {
     // Estimate generated regs.
     for (unsigned i = 0, e = ScegN->getNumValues(); i != e; ++i) {
-      EVT VT = ScegN->getValueType(i);
+      MVT VT = ScegN->getSimpleValueType(i);
 
       if (TLI->isTypeLegal(VT)) {
         const TargetRegisterClass *RC = TLI->getRegClassFor(VT);
@@ -496,7 +495,7 @@ void ResourcePriorityQueue::scheduledNode(SUnit *SU) {
     // Estimate killed regs.
     for (unsigned i = 0, e = ScegN->getNumOperands(); i != e; ++i) {
       const SDValue &Op = ScegN->getOperand(i);
-      EVT VT = Op.getNode()->getValueType(Op.getResNo());
+      MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
 
       if (TLI->isTypeLegal(VT)) {
         const TargetRegisterClass *RC = TLI->getRegClassFor(VT);
@@ -604,10 +603,8 @@ SUnit *ResourcePriorityQueue::pop() {
   std::vector<SUnit *>::iterator Best = Queue.begin();
   if (!DisableDFASched) {
     signed BestCost = SUSchedulingCost(*Best);
-    for (std::vector<SUnit *>::iterator I = Queue.begin(),
+    for (std::vector<SUnit *>::iterator I = llvm::next(Queue.begin()),
            E = Queue.end(); I != E; ++I) {
-      if (*I == *Best)
-        continue;
 
       if (SUSchedulingCost(*I) > BestCost) {
         BestCost = SUSchedulingCost(*I);

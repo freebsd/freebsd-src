@@ -27,7 +27,6 @@
  */
 
 #include "opt_witness.h"
-#include "opt_kdtrace.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
@@ -63,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, , , lwp_exit, lwp-exit);
+SDT_PROBE_DEFINE(proc, , , lwp__exit);
 
 
 /*
@@ -748,10 +747,10 @@ stopme:
  * P_SINGLE_EXIT | return_instead == 0| return_instead != 0
  *---------------+--------------------+---------------------
  *       0       | returns 0          |   returns 0 or 1
- *               | when ST ends       |   immediatly
+ *               | when ST ends       |   immediately
  *---------------+--------------------+---------------------
  *       1       | thread exits       |   returns 1
- *               |                    |  immediatly
+ *               |                    |  immediately
  * 0 = thread_exit() or suspension ok,
  * other = return error instead of stopping the thread.
  *
@@ -793,6 +792,17 @@ thread_suspend_check(int return_instead)
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
 			return (ERESTART);
+
+		/*
+		 * Ignore suspend requests for stop signals if they
+		 * are deferred.
+		 */
+		if (P_SHOULDSTOP(p) == P_STOPPED_SIG &&
+		    td->td_flags & TDF_SBDRY) {
+			KASSERT(return_instead,
+			    ("TDF_SBDRY set for unsafe thread_suspend_check"));
+			return (0);
+		}
 
 		/*
 		 * If the process is waiting for us to exit,

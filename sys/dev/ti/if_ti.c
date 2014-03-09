@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -3157,24 +3158,6 @@ ti_start_locked(struct ifnet *ifp)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
-
-		/*
-		 * XXX
-		 * safety overkill.  If this is a fragmented packet chain
-		 * with delayed TCP/UDP checksums, then only encapsulate
-		 * it if we have enough descriptors to handle the entire
-		 * chain at once.
-		 * (paranoia -- may not actually be needed)
-		 */
-		if (m_head->m_flags & M_FIRSTFRAG &&
-		    m_head->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
-			if ((TI_TX_RING_CNT - sc->ti_txcnt) <
-			    m_head->m_pkthdr.csum_data + 16) {
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				break;
-			}
-		}
 
 		/*
 		 * Pack the data into the transmit ring. If we

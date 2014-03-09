@@ -20,6 +20,7 @@
  */
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2013 Voxer Inc. All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -144,7 +145,8 @@ dtrace_dof_init(void)
 	Lmid_t lmid;
 #else
 	u_long lmid = 0;
-	dof_sec_t *sec;
+	dof_sec_t *sec, *secstart, *dofstrtab, *dofprobes;
+	dof_provider_t *dofprovider;
 	size_t i;
 #endif
 	int fd;
@@ -152,14 +154,15 @@ dtrace_dof_init(void)
 #if !defined(sun)
 	Elf *e;
 	Elf_Scn *scn = NULL;
-	Elf_Data *symtabdata = NULL, *dynsymdata = NULL;
+	Elf_Data *symtabdata = NULL, *dynsymdata = NULL, *dofdata = NULL;
+	dof_hdr_t *dof_next = NULL;
 	GElf_Shdr shdr;
 	int efd, nprobes;
 	char *s;
+	char *dofstrtabraw;
 	size_t shstridx, symtabidx = 0, dynsymidx = 0;
-	unsigned char *dofstrtab = NULL;
 	unsigned char *buf;
-	int fixedprobes = 0;
+	int fixedprobes;
 #endif
 
 	if (getenv("DTRACE_DOF_INIT_DISABLE") != NULL)
@@ -209,7 +212,8 @@ dtrace_dof_init(void)
 		} else if (shdr.sh_type == SHT_PROGBITS) {
 			s = elf_strptr(e, shstridx, shdr.sh_name);
 			if  (s && strcmp(s, ".SUNW_dof") == 0) {
-				dof = elf_getdata(scn, NULL)->d_buf;
+				dofdata = elf_getdata(scn, NULL);
+				dof = dofdata->d_buf;
 			}
 		}
 	}
@@ -219,6 +223,10 @@ dtrace_dof_init(void)
 		close(efd);
 		return;
 	}
+
+	while ((char *) dof < (char *) dofdata->d_buf + dofdata->d_size) {
+		fixedprobes = 0;
+		dof_next = (void *) ((char *) dof + dof->dofh_filesz);
 #endif
 
 	if (dof->dofh_ident[DOF_ID_MAG0] != DOF_MAG_MAG0 ||
@@ -290,34 +298,49 @@ dtrace_dof_init(void)
 	 * We are assuming the number of probes is less than the number of
 	 * symbols (libc can have 4k symbols, for example).
 	 */
-	sec = (dof_sec_t *)(dof + 1);
+	secstart = sec = (dof_sec_t *)(dof + 1);
 	buf = (char *)dof;
 	for (i = 0; i < dof->dofh_secnum; i++, sec++) {
-		if (sec->dofs_type == DOF_SECT_STRTAB)
-			dofstrtab = (unsigned char *)(buf + sec->dofs_offset);
-		else if (sec->dofs_type == DOF_SECT_PROBES && dofstrtab)
+		if (sec->dofs_type != DOF_SECT_PROVIDER)
+			continue;
+
+		dofprovider = (void *) (buf + sec->dofs_offset);
+		dofstrtab = secstart + dofprovider->dofpv_strtab;
+		dofprobes = secstart + dofprovider->dofpv_probes;
+
+		if (dofstrtab->dofs_type != DOF_SECT_STRTAB) {
+			fprintf(stderr, "WARNING: expected STRTAB section, but got %d\n",
+					dofstrtab->dofs_type);
 			break;
-	
-	}
-	nprobes = sec->dofs_size / sec->dofs_entsize;
-	fixsymbol(e, symtabdata, symtabidx, nprobes, buf, sec, &fixedprobes,
-	    dofstrtab);
-	if (fixedprobes != nprobes) {
-		/*
-		 * If we haven't fixed all the probes using the
-		 * symtab section, look inside the dynsym
-		 * section.
-		 */
-		fixsymbol(e, dynsymdata, dynsymidx, nprobes, buf, sec,
-		    &fixedprobes, dofstrtab);
-	}
-	if (fixedprobes != nprobes) {
-		fprintf(stderr, "WARNING: number of probes "
-		    "fixed does not match the number of "
-		    "defined probes (%d != %d, "
-		    "respectively)\n", fixedprobes, nprobes);
-		fprintf(stderr, "WARNING: some probes might "
-		    "not fire or your program might crash\n");
+		}
+		if (dofprobes->dofs_type != DOF_SECT_PROBES) {
+			fprintf(stderr, "WARNING: expected PROBES section, but got %d\n",
+			    dofprobes->dofs_type);
+			break;
+		}
+
+		dprintf(1, "found provider %p\n", dofprovider);
+		dofstrtabraw = (char *)(buf + dofstrtab->dofs_offset);
+		nprobes = dofprobes->dofs_size / dofprobes->dofs_entsize;
+		fixsymbol(e, symtabdata, symtabidx, nprobes, buf, dofprobes, &fixedprobes,
+				dofstrtabraw);
+		if (fixedprobes != nprobes) {
+			/*
+			 * If we haven't fixed all the probes using the
+			 * symtab section, look inside the dynsym
+			 * section.
+			 */
+			fixsymbol(e, dynsymdata, dynsymidx, nprobes, buf, dofprobes,
+					&fixedprobes, dofstrtabraw);
+		}
+		if (fixedprobes != nprobes) {
+			fprintf(stderr, "WARNING: number of probes "
+			    "fixed does not match the number of "
+			    "defined probes (%d != %d, "
+			    "respectively)\n", fixedprobes, nprobes);
+			fprintf(stderr, "WARNING: some probes might "
+			    "not fire or your program might crash\n");
+		}
 	}
 #endif
 	if ((gen = ioctl(fd, DTRACEHIOC_ADDDOF, &dh)) == -1)
@@ -330,7 +353,12 @@ dtrace_dof_init(void)
 	}
 
 	(void) close(fd);
+
 #if !defined(sun)
+		/* End of while loop */
+		dof = dof_next;
+	}
+
 	elf_end(e);
 	(void) close(efd);
 #endif

@@ -303,7 +303,7 @@ static device_method_t acpi_ibm_methods[] = {
 	DEVMETHOD(device_detach, acpi_ibm_detach),
 	DEVMETHOD(device_resume, acpi_ibm_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_ibm_driver = {

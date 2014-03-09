@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
@@ -586,17 +587,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = frame.sf_sc.sc_eflags;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF))
+	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
 		return(EINVAL);
 
 	/*
@@ -688,17 +679,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = context->sc_eflags;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF))
+	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
 		return(EINVAL);
 
 	/*
@@ -867,7 +848,6 @@ exec_linux_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Do full restore on return so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }
 

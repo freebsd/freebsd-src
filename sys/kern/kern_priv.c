@@ -28,8 +28,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -52,7 +50,7 @@ __FBSDID("$FreeBSD$");
  * uid 0 is offered no special privilege in the kernel security policy.
  * Setting it to zero may seriously impact the functionality of many existing
  * userland programs, and should not be done without careful consideration of
- * the consequences. 
+ * the consequences.
  */
 static int	suser_enabled = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
@@ -65,8 +63,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_mlock, CTLFLAG_RW|CTLFLAG_TUN,
 TUNABLE_INT("security.bsd.unprivileged_mlock", &unprivileged_mlock);
 
 SDT_PROVIDER_DEFINE(priv);
-SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_ok, priv-ok, "int");
-SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_err, priv-err, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__ok, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__err, "int");
 
 /*
  * Check a credential for privilege.  Lots of good reasons to deny privilege;
@@ -104,10 +102,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 		 * mlockall(2)/munlockall(2).
 		 */
 		switch (priv) {
-			case PRIV_VM_MLOCK:
-			case PRIV_VM_MUNLOCK:
-				error = 0;
-				goto out;
+		case PRIV_VM_MLOCK:
+		case PRIV_VM_MUNLOCK:
+			error = 0;
+			goto out;
 		}
 	}
 
@@ -132,7 +130,6 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 				goto out;
 			}
 			break;
-
 		default:
 			if (cred->cr_uid == 0) {
 				error = 0;
@@ -140,6 +137,16 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 			}
 			break;
 		}
+	}
+
+	/*
+	 * Writes to kernel/physical memory are a typical root-only operation,
+	 * but non-root users are expected to be able to read it (provided they
+	 * have permission to access /dev/[k]mem).
+	 */
+	if (priv == PRIV_KMEM_READ) {
+		error = 0;
+		goto out;
 	}
 
 	/*
@@ -159,13 +166,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	 */
 	error = EPERM;
 out:
-	if (error) {
-		SDT_PROBE(priv, kernel, priv_check, priv_err, priv, 0, 0, 0,
-		    0);
-	} else {
-		SDT_PROBE(priv, kernel, priv_check, priv_ok, priv, 0, 0, 0,
-		    0);
-	}
+	if (error)
+		SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
+	else
+		SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
 	return (error);
 }
 

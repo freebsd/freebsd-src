@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
- * Copyright (c) 2009-2012 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2013 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,12 +83,13 @@ static struct mtx vesa_lock;
 static int vesa_state;
 static void *vesa_state_buf;
 static uint32_t vesa_state_buf_offs;
-static ssize_t vesa_state_buf_size;
+static size_t vesa_state_buf_size;
 
 static u_char *vesa_palette;
 static uint32_t vesa_palette_offs;
 
 static void *vesa_vmem_buf;
+static size_t vesa_vmem_max;
 
 static void *vesa_bios;
 static uint32_t vesa_bios_offs;
@@ -206,7 +207,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
-static ssize_t vesa_bios_state_buf_size(int);
+static size_t vesa_bios_state_buf_size(int);
 static int vesa_bios_save_restore(int code, void *p);
 #ifdef MODE_TABLE_BROKEN
 static int vesa_bios_get_line_length(void);
@@ -504,7 +505,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	return (regs.R_AX != 0x004f);
 }
 
-static ssize_t
+static size_t
 vesa_bios_state_buf_size(int state)
 {
 	x86regs_t regs;
@@ -928,6 +929,8 @@ vesa_bios_init(void)
 #endif
 			continue;
 		}
+		if (bsize > vesa_vmem_max)
+			vesa_vmem_max = bsize;
 
 		/* expand the array if necessary */
 		if (modes >= vesa_vmode_max) {
@@ -1298,8 +1301,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			}
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
-				pmap_unmapdev(adp->va_buffer,
-				    vesa_adp_info->v_memsize * 64 * 1024);
+				pmap_unmapdev(adp->va_buffer, vesa_vmem_max);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1337,8 +1339,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		adp->va_flags |= V_ADP_DAC8;
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		pmap_unmapdev(adp->va_buffer,
-		    vesa_adp_info->v_memsize * 64 * 1024);
+		pmap_unmapdev(adp->va_buffer, vesa_vmem_max);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
@@ -1373,7 +1374,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #endif
 		vesa_adp->va_buffer =
 		    (vm_offset_t)pmap_mapdev_attr(info.vi_buffer,
-		    vesa_adp_info->v_memsize * 64 * 1024, PAT_WRITE_COMBINING);
+		    vesa_vmem_max, PAT_WRITE_COMBINING);
 		vesa_adp->va_window = vesa_adp->va_buffer;
 		vesa_adp->va_window_size = info.vi_buffer_size / info.vi_planes;
 		vesa_adp->va_window_gran = info.vi_buffer_size / info.vi_planes;
@@ -1462,7 +1463,7 @@ vesa_set_border(video_adapter_t *adp, int color)
 static int
 vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 {
-	vm_offset_t buf;
+	void *buf;
 	size_t bsize;
 
 	if (adp != vesa_adp || (size == 0 && vesa_state_buf_size == 0))
@@ -1474,19 +1475,19 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 	if (vesa_state_buf_size > 0 && size < bsize)
 		return (EINVAL);
 
-	if (VESA_MODE(adp->va_mode) && adp->va_buffer != 0) {
-		buf = adp->va_buffer;
-		bsize = adp->va_buffer_size;
-	} else {
-		buf = adp->va_window;
-		bsize = adp->va_window_size;
-	}
-	if (buf != 0) {
-		vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
-		if (vesa_vmem_buf != NULL)
-			bcopy((void *)buf, vesa_vmem_buf, bsize);
-	} else
+	if (vesa_vmem_buf != NULL) {
+		free(vesa_vmem_buf, M_DEVBUF);
 		vesa_vmem_buf = NULL;
+	}
+	if (VESA_MODE(adp->va_mode)) {
+		buf = (void *)adp->va_buffer;
+		if (buf != NULL) {
+			bsize = adp->va_buffer_size;
+			vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
+			if (vesa_vmem_buf != NULL)
+				bcopy(buf, vesa_vmem_buf, bsize);
+		}
+	}
 	if (vesa_state_buf_size == 0)
 		return ((*prevvidsw->save_state)(adp, p, size));
 	((adp_state_t *)p)->sig = V_STATE_SIG;
@@ -1496,7 +1497,7 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
-	vm_offset_t buf;
+	void *buf;
 	size_t bsize;
 	int error, mode;
 
@@ -1505,24 +1506,20 @@ vesa_load_state(video_adapter_t *adp, void *p)
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
+	bsize = adp->va_buffer_size;
 	mode = adp->va_mode;
 	error = vesa_set_mode(adp, adp->va_initial_mode);
 	if (mode != adp->va_initial_mode)
 		error = vesa_set_mode(adp, mode);
 
 	if (vesa_vmem_buf != NULL) {
-		if (error == 0) {
-			if (VESA_MODE(mode) && adp->va_buffer != 0) {
-				buf = adp->va_buffer;
-				bsize = adp->va_buffer_size;
-			} else {
-				buf = adp->va_window;
-				bsize = adp->va_window_size;
-			}
-			if (buf != 0)
-				bcopy(vesa_vmem_buf, (void *)buf, bsize);
+		if (error == 0 && VESA_MODE(mode)) {
+			buf = (void *)adp->va_buffer;
+			if (buf != NULL)
+				bcopy(vesa_vmem_buf, buf, bsize);
 		}
 		free(vesa_vmem_buf, M_DEVBUF);
+		vesa_vmem_buf = NULL;
 	}
 	if (((adp_state_t *)p)->sig != V_STATE_SIG)
 		return ((*prevvidsw->load_state)(adp, p));

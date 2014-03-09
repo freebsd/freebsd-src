@@ -89,7 +89,7 @@ static device_method_t acpi_smbat_methods[] = {
 	DEVMETHOD(acpi_batt_get_status, acpi_smbat_get_bst),
 	DEVMETHOD(acpi_batt_get_info, acpi_smbat_get_bif),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_smbat_driver = {

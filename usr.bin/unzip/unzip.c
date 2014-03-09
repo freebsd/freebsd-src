@@ -926,7 +926,7 @@ unzip(const char *fn)
 	}
 
 	ac(archive_read_close(a));
-	(void)archive_read_finish(a);
+	(void)archive_read_free(a);
 
 	if (t_opt) {
 		if (error_count > 0) {

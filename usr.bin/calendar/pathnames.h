@@ -32,5 +32,4 @@
 
 #include <paths.h>
 
-#define	_PATH_CPP	"/usr/bin/cpp"
 #define	_PATH_INCLUDE	"/usr/share/calendar"

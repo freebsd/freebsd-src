@@ -12,10 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ModuleUtils.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 
 using namespace llvm;
 
@@ -61,4 +62,21 @@ void llvm::appendToGlobalCtors(Module &M, Function *F, int Priority) {
 
 void llvm::appendToGlobalDtors(Module &M, Function *F, int Priority) {
   appendToGlobalArray("llvm.global_dtors", M, F, Priority);
+}
+
+GlobalVariable *
+llvm::collectUsedGlobalVariables(Module &M, SmallPtrSet<GlobalValue *, 8> &Set,
+                                 bool CompilerUsed) {
+  const char *Name = CompilerUsed ? "llvm.compiler.used" : "llvm.used";
+  GlobalVariable *GV = M.getGlobalVariable(Name);
+  if (!GV || !GV->hasInitializer())
+    return GV;
+
+  const ConstantArray *Init = cast<ConstantArray>(GV->getInitializer());
+  for (unsigned I = 0, E = Init->getNumOperands(); I != E; ++I) {
+    Value *Op = Init->getOperand(I);
+    GlobalValue *G = cast<GlobalValue>(Op->stripPointerCastsNoFollowAliases());
+    Set.insert(G);
+  }
+  return GV;
 }

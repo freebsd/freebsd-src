@@ -84,6 +84,7 @@ static driver_t isci_pci_driver = {
 };
 
 DRIVER_MODULE(isci, pci, isci_pci_driver, isci_devclass, 0, 0);
+MODULE_DEPEND(isci, cam, 1, 1, 1);
 
 static struct _pcsid
 {

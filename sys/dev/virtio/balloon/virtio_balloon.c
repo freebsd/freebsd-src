@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ struct vtballoon_softc {
 	uint32_t		 vtballoon_current_npages;
 	TAILQ_HEAD(,vm_page)	 vtballoon_pages;
 
-	struct proc		*vtballoon_kproc;
+	struct thread		*vtballoon_td;
 	uint32_t		*vtballoon_page_frames;
 	int			 vtballoon_timeout;
 };
@@ -90,7 +90,7 @@ static int	vtballoon_config_change(device_t);
 static void	vtballoon_negotiate_features(struct vtballoon_softc *);
 static int	vtballoon_alloc_virtqueues(struct vtballoon_softc *);
 
-static int	vtballoon_vq_intr(void *);
+static void	vtballoon_vq_intr(void *);
 
 static void	vtballoon_inflate(struct vtballoon_softc *, int);
 static void	vtballoon_deflate(struct vtballoon_softc *, int);
@@ -127,9 +127,9 @@ CTASSERT(VTBALLOON_PAGES_PER_REQUEST * sizeof(uint32_t) <= PAGE_SIZE);
 
 #define VTBALLOON_MTX(_sc)		&(_sc)->vtballoon_mtx
 #define VTBALLOON_LOCK_INIT(_sc, _name)	mtx_init(VTBALLOON_MTX((_sc)), _name, \
-					    "VirtIO Balloon Lock", MTX_SPIN)
-#define VTBALLOON_LOCK(_sc)		mtx_lock_spin(VTBALLOON_MTX((_sc)))
-#define VTBALLOON_UNLOCK(_sc)		mtx_unlock_spin(VTBALLOON_MTX((_sc)))
+					    "VirtIO Balloon Lock", MTX_DEF)
+#define VTBALLOON_LOCK(_sc)		mtx_lock(VTBALLOON_MTX((_sc)))
+#define VTBALLOON_UNLOCK(_sc)		mtx_unlock(VTBALLOON_MTX((_sc)))
 #define VTBALLOON_LOCK_DESTROY(_sc)	mtx_destroy(VTBALLOON_MTX((_sc)))
 
 static device_method_t vtballoon_methods[] = {
@@ -206,10 +206,10 @@ vtballoon_attach(device_t dev)
 		goto fail;
 	}
 
-	error = kproc_create(vtballoon_thread, sc, &sc->vtballoon_kproc,
+	error = kthread_add(vtballoon_thread, sc, NULL, &sc->vtballoon_td,
 	    0, 0, "virtio_balloon");
 	if (error) {
-		device_printf(dev, "cannot create balloon kproc\n");
+		device_printf(dev, "cannot create balloon kthread\n");
 		goto fail;
 	}
 
@@ -230,15 +230,14 @@ vtballoon_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->vtballoon_kproc != NULL) {
+	if (sc->vtballoon_td != NULL) {
 		VTBALLOON_LOCK(sc);
 		sc->vtballoon_flags |= VTBALLOON_FLAG_DETACH;
 		wakeup_one(sc);
-		msleep_spin(sc->vtballoon_kproc, VTBALLOON_MTX(sc),
-		    "vtbdth", 0);
+		msleep(sc->vtballoon_td, VTBALLOON_MTX(sc), 0, "vtbdth", 0);
 		VTBALLOON_UNLOCK(sc);
 
-		sc->vtballoon_kproc = NULL;
+		sc->vtballoon_td = NULL;
 	}
 
 	if (device_is_attached(dev)) {
@@ -300,7 +299,7 @@ vtballoon_alloc_virtqueues(struct vtballoon_softc *sc)
 	return (virtio_alloc_virtqueues(dev, 0, nvqs, vq_info));
 }
 
-static int
+static void
 vtballoon_vq_intr(void *xsc)
 {
 	struct vtballoon_softc *sc;
@@ -310,8 +309,6 @@ vtballoon_vq_intr(void *xsc)
 	VTBALLOON_LOCK(sc);
 	wakeup_one(sc);
 	VTBALLOON_UNLOCK(sc);
-
-	return (1);
 }
 
 static void
@@ -322,28 +319,26 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 	int i;
 
 	vq = sc->vtballoon_inflate_vq;
-	m = NULL;
 
 	if (npages > VTBALLOON_PAGES_PER_REQUEST)
 		npages = VTBALLOON_PAGES_PER_REQUEST;
-	KASSERT(npages > 0, ("balloon doesn't need inflating?"));
 
 	for (i = 0; i < npages; i++) {
-		if ((m = vtballoon_alloc_page(sc)) == NULL)
+		if ((m = vtballoon_alloc_page(sc)) == NULL) {
+			sc->vtballoon_timeout = VTBALLOON_LOWMEM_TIMEOUT;
 			break;
+		}
 
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
 
-		KASSERT(m->queue == PQ_NONE, ("allocated page on queue"));
-		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, pageq);
+		KASSERT(m->queue == PQ_NONE,
+		    ("%s: allocated page %p on queue", __func__, m));
+		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, plinks.q);
 	}
 
 	if (i > 0)
 		vtballoon_send_page_frames(sc, vq, i);
-
-	if (m == NULL)
-		sc->vtballoon_timeout = VTBALLOON_LOWMEM_TIMEOUT;
 }
 
 static void
@@ -359,17 +354,16 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 
 	if (npages > VTBALLOON_PAGES_PER_REQUEST)
 		npages = VTBALLOON_PAGES_PER_REQUEST;
-	KASSERT(npages > 0, ("balloon doesn't need deflating?"));
 
 	for (i = 0; i < npages; i++) {
 		m = TAILQ_FIRST(&sc->vtballoon_pages);
-		KASSERT(m != NULL, ("no more pages to deflate"));
+		KASSERT(m != NULL, ("%s: no more pages to deflate", __func__));
 
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
 
-		TAILQ_REMOVE(&sc->vtballoon_pages, m, pageq);
-		TAILQ_INSERT_TAIL(&free_pages, m, pageq);
+		TAILQ_REMOVE(&sc->vtballoon_pages, m, plinks.q);
+		TAILQ_INSERT_TAIL(&free_pages, m, plinks.q);
 	}
 
 	if (i > 0) {
@@ -377,7 +371,7 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 		vtballoon_send_page_frames(sc, vq, i);
 
 		while ((m = TAILQ_FIRST(&free_pages)) != NULL) {
-			TAILQ_REMOVE(&free_pages, m, pageq);
+			TAILQ_REMOVE(&free_pages, m, plinks.q);
 			vtballoon_free_page(sc, m);
 		}
 	}
@@ -385,7 +379,9 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 	KASSERT((TAILQ_EMPTY(&sc->vtballoon_pages) &&
 	    sc->vtballoon_current_npages == 0) ||
 	    (!TAILQ_EMPTY(&sc->vtballoon_pages) &&
-	    sc->vtballoon_current_npages != 0), ("balloon empty?"));
+	    sc->vtballoon_current_npages != 0),
+	    ("%s: bogus page count %d", __func__,
+	    sc->vtballoon_current_npages));
 }
 
 static void
@@ -413,7 +409,7 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 	 */
 	VTBALLOON_LOCK(sc);
 	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
-		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbspf", 0);
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbspf", 0);
 	VTBALLOON_UNLOCK(sc);
 
 	KASSERT(c == vq, ("unexpected balloon operation response"));
@@ -512,7 +508,7 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 		if (current < desired && timeout == 0)
 			break;
 
-		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbslp", timeout);
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", timeout);
 	}
 	VTBALLOON_UNLOCK(sc);
 
@@ -544,7 +540,7 @@ vtballoon_thread(void *xsc)
 		}
 	}
 
-	kproc_exit(0);
+	kthread_exit();
 }
 
 static void

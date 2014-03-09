@@ -245,7 +245,7 @@ int cvmx_usbd_initialize(cvmx_usbd_state_t *usb,
     if (cvmx_unlikely(flags & CVMX_USBD_INITIALIZE_FLAGS_DEBUG))
         cvmx_dprintf("%s: Called\n", __FUNCTION__);
 
-    memset(usb, 0, sizeof(usb));
+    memset(usb, 0, sizeof(*usb));
     usb->init_flags = flags;
     usb->index = usb_port_number;
 

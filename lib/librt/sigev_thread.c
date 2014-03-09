@@ -28,13 +28,13 @@
  */
 
 #include <sys/types.h>
-#include <machine/atomic.h>
 
 #include "namespace.h"
 #include <err.h>
 #include <errno.h>
 #include <ucontext.h>
 #include <sys/thr.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +51,7 @@ LIST_HEAD(sigev_list_head, sigev_node);
 static struct sigev_list_head	sigev_hash[HASH_QUEUES];
 static struct sigev_list_head	sigev_all;
 static LIST_HEAD(,sigev_thread)	sigev_threads;
-static unsigned int		sigev_generation;
+static atomic_int		sigev_generation;
 static pthread_mutex_t		*sigev_list_mtx;
 static pthread_once_t		sigev_once = PTHREAD_ONCE_INIT;
 static pthread_once_t		sigev_once_default = PTHREAD_ONCE_INIT;
@@ -196,7 +196,8 @@ __sigev_alloc(int type, const struct sigevent *evp, struct sigev_node *prev,
 	if (sn != NULL) {
 		sn->sn_value = evp->sigev_value;
 		sn->sn_func  = evp->sigev_notify_function;
-		sn->sn_gen   = atomic_fetchadd_int(&sigev_generation, 1);
+		sn->sn_gen   = atomic_fetch_add_explicit(&sigev_generation, 1,
+		    memory_order_relaxed);
 		sn->sn_type  = type;
 		_pthread_attr_init(&sn->sn_attr);
 		_pthread_attr_setdetachstate(&sn->sn_attr, PTHREAD_CREATE_DETACHED);

@@ -27,13 +27,17 @@ protected:
 
 public:
   explicit MSP430FrameLowering(const MSP430Subtarget &sti)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 2, -2), STI(sti) {
-  }
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 2, -2, 2),
+      STI(sti) {}
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+
+  void eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
@@ -46,7 +50,8 @@ public:
 
   bool hasFP(const MachineFunction &MF) const;
   bool hasReservedCallFrame(const MachineFunction &MF) const;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                       RegScavenger *RS = NULL) const;
 };
 
 } // End llvm namespace

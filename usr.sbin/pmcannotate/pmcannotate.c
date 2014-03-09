@@ -118,8 +118,6 @@ isasminline(const char *str)
 	void *ptr;
 	int nbytes;
 
-	if (isxdigit(str[1]) == 0)
-		return (0);
 	if (sscanf(str, " %p%n", &ptr, &nbytes) != 1)
 		return (0);
 	if (str[nbytes] != ':' || isspace(str[nbytes + 1]) == 0)

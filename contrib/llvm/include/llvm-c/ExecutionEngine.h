@@ -21,6 +21,7 @@
 
 #include "llvm-c/Core.h"
 #include "llvm-c/Target.h"
+#include "llvm-c/TargetMachine.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,10 +35,20 @@ extern "C" {
  */
 
 void LLVMLinkInJIT(void);
+void LLVMLinkInMCJIT(void);
 void LLVMLinkInInterpreter(void);
 
 typedef struct LLVMOpaqueGenericValue *LLVMGenericValueRef;
 typedef struct LLVMOpaqueExecutionEngine *LLVMExecutionEngineRef;
+typedef struct LLVMOpaqueMCJITMemoryManager *LLVMMCJITMemoryManagerRef;
+
+struct LLVMMCJITCompilerOptions {
+  unsigned OptLevel;
+  LLVMCodeModel CodeModel;
+  LLVMBool NoFramePointerElim;
+  LLVMBool EnableFastISel;
+  LLVMMCJITMemoryManagerRef MCJMM;
+};
 
 /*===-- Operations on generic values --------------------------------------===*/
 
@@ -74,6 +85,31 @@ LLVMBool LLVMCreateJITCompilerForModule(LLVMExecutionEngineRef *OutJIT,
                                         LLVMModuleRef M,
                                         unsigned OptLevel,
                                         char **OutError);
+
+void LLVMInitializeMCJITCompilerOptions(
+  struct LLVMMCJITCompilerOptions *Options, size_t SizeOfOptions);
+
+/**
+ * Create an MCJIT execution engine for a module, with the given options. It is
+ * the responsibility of the caller to ensure that all fields in Options up to
+ * the given SizeOfOptions are initialized. It is correct to pass a smaller
+ * value of SizeOfOptions that omits some fields. The canonical way of using
+ * this is:
+ *
+ * LLVMMCJITCompilerOptions options;
+ * LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
+ * ... fill in those options you care about
+ * LLVMCreateMCJITCompilerForModule(&jit, mod, &options, sizeof(options),
+ *                                  &error);
+ *
+ * Note that this is also correct, though possibly suboptimal:
+ *
+ * LLVMCreateMCJITCompilerForModule(&jit, mod, 0, 0, &error);
+ */
+LLVMBool LLVMCreateMCJITCompilerForModule(
+  LLVMExecutionEngineRef *OutJIT, LLVMModuleRef M,
+  struct LLVMMCJITCompilerOptions *Options, size_t SizeOfOptions,
+  char **OutError);
 
 /** Deprecated: Use LLVMCreateExecutionEngineForModule instead. */
 LLVMBool LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
@@ -123,7 +159,8 @@ LLVMBool LLVMRemoveModuleProvider(LLVMExecutionEngineRef EE,
 LLVMBool LLVMFindFunction(LLVMExecutionEngineRef EE, const char *Name,
                           LLVMValueRef *OutFn);
 
-void *LLVMRecompileAndRelinkFunction(LLVMExecutionEngineRef EE, LLVMValueRef Fn);
+void *LLVMRecompileAndRelinkFunction(LLVMExecutionEngineRef EE,
+                                     LLVMValueRef Fn);
 
 LLVMTargetDataRef LLVMGetExecutionEngineTargetData(LLVMExecutionEngineRef EE);
 
@@ -132,32 +169,44 @@ void LLVMAddGlobalMapping(LLVMExecutionEngineRef EE, LLVMValueRef Global,
 
 void *LLVMGetPointerToGlobal(LLVMExecutionEngineRef EE, LLVMValueRef Global);
 
+/*===-- Operations on memory managers -------------------------------------===*/
+
+typedef uint8_t *(*LLVMMemoryManagerAllocateCodeSectionCallback)(
+  void *Opaque, uintptr_t Size, unsigned Alignment, unsigned SectionID,
+  const char *SectionName);
+typedef uint8_t *(*LLVMMemoryManagerAllocateDataSectionCallback)(
+  void *Opaque, uintptr_t Size, unsigned Alignment, unsigned SectionID,
+  const char *SectionName, LLVMBool IsReadOnly);
+typedef LLVMBool (*LLVMMemoryManagerFinalizeMemoryCallback)(
+  void *Opaque, char **ErrMsg);
+typedef void (*LLVMMemoryManagerDestroyCallback)(void *Opaque);
+
+/**
+ * Create a simple custom MCJIT memory manager. This memory manager can
+ * intercept allocations in a module-oblivious way. This will return NULL
+ * if any of the passed functions are NULL.
+ *
+ * @param Opaque An opaque client object to pass back to the callbacks.
+ * @param AllocateCodeSection Allocate a block of memory for executable code.
+ * @param AllocateDataSection Allocate a block of memory for data.
+ * @param FinalizeMemory Set page permissions and flush cache. Return 0 on
+ *   success, 1 on error.
+ */
+LLVMMCJITMemoryManagerRef LLVMCreateSimpleMCJITMemoryManager(
+  void *Opaque,
+  LLVMMemoryManagerAllocateCodeSectionCallback AllocateCodeSection,
+  LLVMMemoryManagerAllocateDataSectionCallback AllocateDataSection,
+  LLVMMemoryManagerFinalizeMemoryCallback FinalizeMemory,
+  LLVMMemoryManagerDestroyCallback Destroy);
+
+void LLVMDisposeMCJITMemoryManager(LLVMMCJITMemoryManagerRef MM);
+
 /**
  * @}
  */
 
 #ifdef __cplusplus
 }
-
-namespace llvm {
-  struct GenericValue;
-  class ExecutionEngine;
-  
-  #define DEFINE_SIMPLE_CONVERSION_FUNCTIONS(ty, ref)   \
-    inline ty *unwrap(ref P) {                          \
-      return reinterpret_cast<ty*>(P);                  \
-    }                                                   \
-                                                        \
-    inline ref wrap(const ty *P) {                      \
-      return reinterpret_cast<ref>(const_cast<ty*>(P)); \
-    }
-  
-  DEFINE_SIMPLE_CONVERSION_FUNCTIONS(GenericValue,    LLVMGenericValueRef   )
-  DEFINE_SIMPLE_CONVERSION_FUNCTIONS(ExecutionEngine, LLVMExecutionEngineRef)
-  
-  #undef DEFINE_SIMPLE_CONVERSION_FUNCTIONS
-}
-  
 #endif /* defined(__cplusplus) */
 
 #endif

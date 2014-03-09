@@ -8,18 +8,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "Internals.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/Basic/DiagnosticCategories.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/Utils.h"
-#include "clang/AST/ASTConsumer.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Sema/SemaDiagnostic.h"
-#include "clang/Basic/DiagnosticCategories.h"
-#include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Support/MemoryBuffer.h"
 using namespace clang;
 using namespace arcmt;
 
@@ -39,8 +40,9 @@ bool CapturedDiagList::clearDiagnostic(ArrayRef<unsigned> IDs,
            diagLoc.isBeforeInTranslationUnitThan(range.getEnd()))) {
       cleared = true;
       ListTy::iterator eraseS = I++;
-      while (I != List.end() && I->getLevel() == DiagnosticsEngine::Note)
-        ++I;
+      if (eraseS->getLevel() != DiagnosticsEngine::Note)
+        while (I != List.end() && I->getLevel() == DiagnosticsEngine::Note)
+          ++I;
       // Clear the diagnostic and any notes following it.
       I = List.erase(eraseS, I);
       continue;
@@ -130,18 +132,13 @@ public:
                                 const Diagnostic &Info) {
     if (DiagnosticIDs::isARCDiagnostic(Info.getID()) ||
         level >= DiagnosticsEngine::Error || level == DiagnosticsEngine::Note) {
-      CapturedDiags.push_back(StoredDiagnostic(level, Info));
+      if (Info.getLocation().isValid())
+        CapturedDiags.push_back(StoredDiagnostic(level, Info));
       return;
     }
 
     // Non-ARC warnings are ignored.
     Diags.setLastDiagnosticIgnored();
-  }
-  
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    // Just drop any diagnostics that come from cloned consumers; they'll
-    // have different source managers anyway.
-    return new IgnoringDiagConsumer();
   }
 };
 
@@ -153,7 +150,7 @@ static bool HasARCRuntime(CompilerInvocation &origCI) {
   // and avoid unrelated complications.
   llvm::Triple triple(origCI.getTargetOpts().Triple);
 
-  if (triple.getOS() == llvm::Triple::IOS)
+  if (triple.isiOS())
     return triple.getOSMajorVersion() >= 5;
 
   if (triple.getOS() == llvm::Triple::Darwin)
@@ -172,8 +169,24 @@ static CompilerInvocation *
 createInvocationForMigration(CompilerInvocation &origCI) {
   OwningPtr<CompilerInvocation> CInvok;
   CInvok.reset(new CompilerInvocation(origCI));
-  CInvok->getPreprocessorOpts().ImplicitPCHInclude = std::string();
-  CInvok->getPreprocessorOpts().ImplicitPTHInclude = std::string();
+  PreprocessorOptions &PPOpts = CInvok->getPreprocessorOpts();
+  if (!PPOpts.ImplicitPCHInclude.empty()) {
+    // We can't use a PCH because it was likely built in non-ARC mode and we
+    // want to parse in ARC. Include the original header.
+    FileManager FileMgr(origCI.getFileSystemOpts());
+    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
+        new DiagnosticsEngine(DiagID, &origCI.getDiagnosticOpts(),
+                              new IgnoringDiagConsumer()));
+    std::string OriginalFile =
+        ASTReader::getOriginalSourceFile(PPOpts.ImplicitPCHInclude,
+                                         FileMgr, *Diags);
+    if (!OriginalFile.empty())
+      PPOpts.Includes.insert(PPOpts.Includes.begin(), OriginalFile);
+    PPOpts.ImplicitPCHInclude.clear();
+  }
+  // FIXME: Get the original header of a PTH as well.
+  CInvok->getPreprocessorOpts().ImplicitPTHInclude.clear();
   std::string define = getARCMTMacroName();
   define += '=';
   CInvok->getPreprocessorOpts().addMacroDef(define);
@@ -295,7 +308,8 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
   std::vector<SourceLocation> ARCMTMacroLocs;
 
   TransformActions testAct(*Diags, capturedDiags, Ctx, Unit->getPreprocessor());
-  MigrationPass pass(Ctx, OrigGCMode, Unit->getSema(), testAct, ARCMTMacroLocs);
+  MigrationPass pass(Ctx, OrigGCMode, Unit->getSema(), testAct, capturedDiags,
+                     ARCMTMacroLocs);
   pass.setNSAllocReallocError(NoNSAllocReallocError);
   pass.setNoFinalizeRemoval(NoFinalizeRemoval);
 
@@ -306,10 +320,6 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
 
   DiagClient->EndSourceFile();
   errRec.FinishCapture();
-
-  // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-  // to remove it so that we don't get errors from normal compilation.
-  origCI.getLangOpts()->ObjCAutoRefCount = false;
 
   return capturedDiags.hasErrors() || testAct.hasReportedErrors();
 }
@@ -360,9 +370,6 @@ static bool applyTransforms(CompilerInvocation &origCI,
     origCI.getLangOpts()->ObjCAutoRefCount = true;
     return migration.getRemapper().overwriteOriginal(*Diags);
   } else {
-    // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-    // to remove it so that we don't get errors from normal compilation.
-    origCI.getLangOpts()->ObjCAutoRefCount = false;
     return migration.getRemapper().flushToDisk(outputDir, *Diags);
   }
 }
@@ -416,8 +423,8 @@ bool arcmt::getFileRemappingsFromFileList(
   bool hasErrorOccurred = false;
   llvm::StringMap<bool> Uniquer;
 
-  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
+  IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+  IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
       new DiagnosticsEngine(DiagID, new DiagnosticOptions,
                             DiagClient, /*ShouldOwnClient=*/false));
 
@@ -461,8 +468,8 @@ public:
   ARCMTMacroTrackerPPCallbacks(std::vector<SourceLocation> &ARCMTMacroLocs)
     : ARCMTMacroLocs(ARCMTMacroLocs) { }
 
-  virtual void MacroExpands(const Token &MacroNameTok, const MacroInfo *MI,
-                            SourceRange Range) {
+  virtual void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+                            SourceRange Range, const MacroArgs *Args) {
     if (MacroNameTok.getIdentifierInfo()->getName() == getARCMTMacroName())
       ARCMTMacroLocs.push_back(MacroNameTok.getLocation());
   }
@@ -531,7 +538,7 @@ MigrationProcess::RewriteListener::~RewriteListener() { }
 MigrationProcess::MigrationProcess(const CompilerInvocation &CI,
                                    DiagnosticConsumer *diagClient,
                                    StringRef outputDir)
-  : OrigCI(CI), DiagClient(diagClient) {
+  : OrigCI(CI), DiagClient(diagClient), HadARCErrors(false) {
   if (!outputDir.empty()) {
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
@@ -574,6 +581,8 @@ bool MigrationProcess::applyTransform(TransformFn trans,
   }
   Unit->setOwnsRemappedFileBuffers(false); // FileRemapper manages that.
 
+  HadARCErrors = HadARCErrors || capturedDiags.hasErrors();
+
   // Don't filter diagnostics anymore.
   Diags->setClient(DiagClient, /*ShouldOwnClient=*/false);
 
@@ -598,7 +607,7 @@ bool MigrationProcess::applyTransform(TransformFn trans,
   Rewriter rewriter(Ctx.getSourceManager(), Ctx.getLangOpts());
   TransformActions TA(*Diags, capturedDiags, Ctx, Unit->getPreprocessor());
   MigrationPass pass(Ctx, OrigCI.getLangOpts()->getGC(),
-                     Unit->getSema(), TA, ARCMTMacroLocs);
+                     Unit->getSema(), TA, capturedDiags, ARCMTMacroLocs);
 
   trans(pass);
 

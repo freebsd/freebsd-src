@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_llc.h>
@@ -234,7 +235,7 @@ bstp_transmit_tcn(struct bstp_state *bs, struct bstp_port *bp)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 
@@ -348,7 +349,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 

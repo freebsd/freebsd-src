@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/altivec.h>	/* For save_vec() */
 #include <machine/bus.h>
 #include <machine/cpu.h>
+#include <machine/fpu.h>	/* For save_fpu() */
 #include <machine/hid.h>
 #include <machine/platformvar.h>
 #include <machine/pmap.h>
+#include <machine/setjmp.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
 
@@ -51,22 +54,23 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-#ifdef SMP
 extern void *ap_pcpu;
-#endif
 
 static int powermac_probe(platform_t);
-void powermac_mem_regions(platform_t, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz);
+static int powermac_attach(platform_t);
+void powermac_mem_regions(platform_t, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz);
 static u_long powermac_timebase_freq(platform_t, struct cpuref *cpuref);
 static int powermac_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int powermac_smp_start_cpu(platform_t, struct pcpu *cpu);
 static void powermac_reset(platform_t);
+static void powermac_sleep(platform_t);
 
 static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		powermac_probe),
+	PLATFORMMETHOD(platform_attach,		powermac_attach),
 	PLATFORMMETHOD(platform_mem_regions,	powermac_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	powermac_timebase_freq),
 	
@@ -76,8 +80,9 @@ static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_smp_start_cpu,	powermac_smp_start_cpu),
 
 	PLATFORMMETHOD(platform_reset,		powermac_reset),
+	PLATFORMMETHOD(platform_sleep,		powermac_sleep),
 
-	{ 0, 0 }
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t powermac_platform = {
@@ -91,17 +96,110 @@ PLATFORM_DEF(powermac_platform);
 static int
 powermac_probe(platform_t plat)
 {
-	if (OF_finddevice("/memory") != -1 || OF_finddevice("/memory@0") != -1)
-		return (BUS_PROBE_GENERIC);
+	char compat[255];
+	ssize_t compatlen;
+	char *curstr;
+	phandle_t root;
+
+	root = OF_peer(0);
+	if (root == 0)
+		return (ENXIO);
+
+	compatlen = OF_getprop(root, "compatible", compat, sizeof(compat));
+	
+	for (curstr = compat; curstr < compat + compatlen;
+	    curstr += strlen(curstr) + 1) {
+		if (strncmp(curstr, "MacRISC", 7) == 0)
+			return (BUS_PROBE_SPECIFIC);
+	}
 
 	return (ENXIO);
 }
 
 void
-powermac_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz)
 {
-	ofw_mem_regions(phys,physsz,avail,availsz);
+	phandle_t memory;
+	cell_t memoryprop[PHYS_AVAIL_SZ * 2];
+	ssize_t propsize, i, j;
+	int physacells = 1;
+
+	memory = OF_finddevice("/memory");
+
+	/* "reg" has variable #address-cells, but #size-cells is always 1 */
+	OF_getprop(OF_parent(memory), "#address-cells", &physacells,
+	    sizeof(physacells));
+
+	propsize = OF_getprop(memory, "reg", memoryprop, sizeof(memoryprop));
+	propsize /= sizeof(cell_t);
+	for (i = 0, j = 0; i < propsize; i += physacells+1, j++) {
+		phys[j].mr_start = memoryprop[i];
+		if (physacells == 2) {
+#ifndef __powerpc64__
+			/* On 32-bit PPC, ignore regions starting above 4 GB */
+			if (memoryprop[i] != 0) {
+				j--;
+				continue;
+			}
+#else
+			phys[j].mr_start <<= 32;
+#endif
+			phys[j].mr_start |= memoryprop[i+1];
+		}
+		phys[j].mr_size = memoryprop[i + physacells];
+	}
+	*physsz = j;
+
+	/* "available" always has #address-cells = 1 */
+	propsize = OF_getprop(memory, "available", memoryprop,
+	    sizeof(memoryprop));
+	propsize /= sizeof(cell_t);
+	for (i = 0, j = 0; i < propsize; i += 2, j++) {
+		avail[j].mr_start = memoryprop[i];
+		avail[j].mr_size = memoryprop[i + 1];
+	}
+
+#ifdef __powerpc64__
+	/* Add in regions above 4 GB to the available list */
+	for (i = 0; i < *physsz; i++) {
+		if (phys[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
+			avail[j].mr_start = phys[i].mr_start;
+			avail[j].mr_size = phys[i].mr_size;
+			j++;
+		}
+	}
+#endif
+	*availsz = j;
+}
+
+static int
+powermac_attach(platform_t plat)
+{
+	phandle_t rootnode;
+	char model[32];
+
+
+	/*
+	 * Quiesce Open Firmware on PowerMac11,2 and 12,1. It is
+	 * necessary there to shut down a background thread doing fan
+	 * management, and is harmful on other machines (it will make OF
+	 * shut off power to various system components it had turned on).
+	 *
+	 * Note: we don't need to worry about which OF module we are
+	 * using since this is called only from very early boot, within
+	 * OF's boot context.
+	 */
+
+	rootnode = OF_finddevice("/");
+	if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
+		if (strcmp(model, "PowerMac11,2") == 0 ||
+		    strcmp(model, "PowerMac12,1") == 0) {
+			ofw_quiesce();
+		}
+	}
+
+	return (0);
 }
 
 static u_long
@@ -124,7 +222,8 @@ powermac_timebase_freq(platform_t plat, struct cpuref *cpuref)
 static int
 powermac_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 {
-	cell_t cpuid, res;
+	cell_t cpuid;
+	int res;
 
 	cpuref->cr_hwref = cpu;
 	res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
@@ -284,5 +383,13 @@ static void
 powermac_reset(platform_t platform)
 {
 	OF_reboot();
+}
+
+void
+powermac_sleep(platform_t platform)
+{
+
+	*(unsigned long *)0x80 = 0x100;
+	cpu_sleep();
 }
 

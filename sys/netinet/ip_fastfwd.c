@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -97,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -488,8 +490,7 @@ passout:
 	 * Check if route is dampned (when ARP is unable to resolve)
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
-	    (ro.ro_rt->rt_rmx.rmx_expire == 0 ||
-	    time_uptime < ro.ro_rt->rt_rmx.rmx_expire)) {
+	    (ro.ro_rt->rt_expire == 0 || time_uptime < ro.ro_rt->rt_expire)) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
@@ -517,16 +518,21 @@ passout:
 	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
-	if (ro.ro_rt->rt_rmx.rmx_mtu)
-		mtu = min(ro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+	if (ro.ro_rt->rt_mtu)
+		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
 	else
 		mtu = ifp->if_mtu;
 
 	if (ip_len <= mtu ||
 	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip_off & IP_DF) == 0)) {
 		/*
+		 * Avoid confusing lower layers.
+		 */
+		m_clrprotoflags(m);
+		/*
 		 * Send off the packet via outgoing interface
 		 */
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, &ro);
 	} else {
@@ -553,7 +559,12 @@ passout:
 			do {
 				m0 = m->m_nextpkt;
 				m->m_nextpkt = NULL;
+				/*
+				 * Avoid confusing lower layers.
+				 */
+				m_clrprotoflags(m);
 
+				IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 				error = (*ifp->if_output)(ifp, m,
 					(struct sockaddr *)dst, &ro);
 				if (error)
@@ -573,7 +584,7 @@ passout:
 	if (error != 0)
 		IPSTAT_INC(ips_odropped);
 	else {
-		ro.ro_rt->rt_rmx.rmx_pksent++;
+		counter_u64_add(ro.ro_rt->rt_pksent, 1);
 		IPSTAT_INC(ips_forward);
 		IPSTAT_INC(ips_fastforward);
 	}

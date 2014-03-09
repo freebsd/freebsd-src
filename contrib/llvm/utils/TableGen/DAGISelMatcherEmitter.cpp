@@ -13,12 +13,12 @@
 
 #include "DAGISelMatcher.h"
 #include "CodeGenDAGPatterns.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/TableGen/Record.h"
 using namespace llvm;
 
 enum {
@@ -132,7 +132,7 @@ static uint64_t EmitVBRValue(uint64_t Val, raw_ostream &OS) {
   return NumBytes+1;
 }
 
-/// EmitMatcherOpcodes - Emit bytes for the specified matcher and return
+/// EmitMatcher - Emit bytes for the specified matcher and return
 /// the number of bytes emitted.
 unsigned MatcherTableEmitter::
 EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
@@ -242,6 +242,12 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
        << cast<CheckSameMatcher>(N)->getMatchNumber() << ",\n";
     return 2;
 
+  case Matcher::CheckChildSame:
+    OS << "OPC_CheckChild"
+       << cast<CheckChildSameMatcher>(N)->getChildNo() << "Same, "
+       << cast<CheckChildSameMatcher>(N)->getMatchNumber() << ",\n";
+    return 2;
+
   case Matcher::CheckPatternPredicate: {
     StringRef Pred =cast<CheckPatternPredicateMatcher>(N)->getPredicate();
     OS << "OPC_CheckPatternPredicate, " << getPatternPredicate(Pred) << ',';
@@ -315,10 +321,12 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
       assert(ChildSize != 0 && "Should not have a zero-sized child!");
 
       if (i != 0) {
+        if (!OmitComments)
+          OS << "/*" << CurrentIdx << "*/";
         OS.PadToColumn(Indent*2);
         if (!OmitComments)
-        OS << (isa<SwitchOpcodeMatcher>(N) ?
-                   "/*SwitchOpcode*/ " : "/*SwitchType*/ ");
+          OS << (isa<SwitchOpcodeMatcher>(N) ?
+                     "/*SwitchOpcode*/ " : "/*SwitchType*/ ");
       }
 
       // Emit the VBR.
@@ -340,6 +348,8 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
     }
 
     // Emit the final zero to terminate the switch.
+    if (!OmitComments)
+      OS << "/*" << CurrentIdx << "*/";
     OS.PadToColumn(Indent*2) << "0, ";
     if (!OmitComments)
       OS << (isa<SwitchOpcodeMatcher>(N) ?
@@ -749,6 +759,7 @@ void MatcherTableEmitter::EmitHistogram(const Matcher *M,
     case Matcher::MoveChild: OS << "OPC_MoveChild"; break;
     case Matcher::MoveParent: OS << "OPC_MoveParent"; break;
     case Matcher::CheckSame: OS << "OPC_CheckSame"; break;
+    case Matcher::CheckChildSame: OS << "OPC_CheckChildSame"; break;
     case Matcher::CheckPatternPredicate:
       OS << "OPC_CheckPatternPredicate"; break;
     case Matcher::CheckPredicate: OS << "OPC_CheckPredicate"; break;

@@ -835,6 +835,22 @@ au_to_process_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    tid));
 }
 
+token_t *
+au_to_rights(cap_rights_t *rightsp)
+{
+	token_t *t;
+	u_char *dptr;
+	int i;
+
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(*rightsp));
+
+	ADD_U_CHAR(dptr, AUT_RIGHTS);
+	for (i = 0; i < nitems(rightsp->cr_rights); i++)
+		ADD_U_INT64(dptr, rightsp->cr_rights[i]);
+
+	return (t);
+}
+
 /*
  * token ID                1 byte
  * error status            1 byte

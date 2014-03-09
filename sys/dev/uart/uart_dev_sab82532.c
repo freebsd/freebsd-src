@@ -365,6 +365,8 @@ static int sab82532_bus_probe(struct uart_softc *);
 static int sab82532_bus_receive(struct uart_softc *);
 static int sab82532_bus_setsig(struct uart_softc *, int);
 static int sab82532_bus_transmit(struct uart_softc *);
+static void sab82532_bus_grab(struct uart_softc *);
+static void sab82532_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t sab82532_methods[] = {
 	KOBJMETHOD(uart_attach,		sab82532_bus_attach),
@@ -378,6 +380,8 @@ static kobj_method_t sab82532_methods[] = {
 	KOBJMETHOD(uart_receive,	sab82532_bus_receive),
 	KOBJMETHOD(uart_setsig,		sab82532_bus_setsig),
 	KOBJMETHOD(uart_transmit,	sab82532_bus_transmit),
+	KOBJMETHOD(uart_grab,		sab82532_bus_grab),
+	KOBJMETHOD(uart_ungrab,		sab82532_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -406,9 +410,6 @@ sab82532_bus_attach(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	if (sc->sc_sysdev == NULL)
 		sab82532_init(bas, 9600, 8, 1, UART_PARITY_NONE);
-
-	sc->sc_rxfifosz = 32;
-	sc->sc_txfifosz = 32;
 
 	imr0 = SAB_IMR0_TCD|SAB_IMR0_TIME|SAB_IMR0_CDSC|SAB_IMR0_RFO|
 	    SAB_IMR0_RPF;
@@ -592,6 +593,9 @@ sab82532_bus_probe(struct uart_softc *sc)
 	if (error)
 		return (error);
 
+	sc->sc_rxfifosz = 32;
+	sc->sc_txfifosz = 32;
+
 	ch = sc->sc_bas.chan - 1 + 'A';
 
 	switch (uart_getreg(&sc->sc_bas, SAB_VSTR) & SAB_VSTR_VMASK) {
@@ -723,4 +727,33 @@ sab82532_bus_transmit(struct uart_softc *sc)
 	sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+static void
+sab82532_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+	uint8_t imr0;
+
+	bas = &sc->sc_bas;
+	imr0 = SAB_IMR0_TIME|SAB_IMR0_CDSC|SAB_IMR0_RFO; /* No TCD or RPF */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, SAB_IMR0, 0xff & ~imr0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+sab82532_bus_ungrab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+	uint8_t imr0;
+
+	bas = &sc->sc_bas;
+	imr0 = SAB_IMR0_TCD|SAB_IMR0_TIME|SAB_IMR0_CDSC|SAB_IMR0_RFO|
+	    SAB_IMR0_RPF;
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, SAB_IMR0, 0xff & ~imr0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }

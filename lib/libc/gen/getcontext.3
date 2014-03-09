@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2011
+.Dd March 13, 2013
 .Dt GETCONTEXT 3
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@
 .In ucontext.h
 .Ft int
 .Fn getcontext "ucontext_t *ucp"
+.Ft ucontext_t *
+.Fn getcontextx "void"
 .Ft int
 .Fn setcontext "const ucontext_t *ucp"
 .Sh DESCRIPTION

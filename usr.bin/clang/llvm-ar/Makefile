@@ -1,12 +1,13 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=llvm-ar
 
 SRCDIR=	tools/llvm-ar
 SRCS=	llvm-ar.cpp
-LLVM_REQUIRES_EH=
 
-LIBDEPS=llvmarchive \
+LIBDEPS=llvmobject \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

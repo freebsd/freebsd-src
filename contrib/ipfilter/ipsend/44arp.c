@@ -13,9 +13,6 @@
 #endif
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#if defined(__FreeBSD__)
-# include "radix_ipf.h"
-#endif
 #ifndef __osf__
 # include <net/route.h>
 #endif
@@ -44,7 +41,7 @@
  * (4 bytes)
  */
 int	resolve(host, address)
-char	*host, *address;
+	char	*host, *address;
 {
         struct	hostent	*hp;
         u_long	add;
@@ -66,13 +63,13 @@ char	*host, *address;
 
 
 int	arp(addr, eaddr)
-char	*addr, *eaddr;
+	char	*addr, *eaddr;
 {
 	int	mib[6];
 	size_t	needed;
 	char	*lim, *buf, *next;
 	struct	rt_msghdr	*rtm;
-	struct	sockaddr_inarp	*sin;
+	struct	sockaddr_in	*sin;
 	struct	sockaddr_dl	*sdl;
 
 #ifdef	IPSEND
@@ -113,7 +110,7 @@ char	*addr, *eaddr;
 	for (next = buf; next < lim; next += rtm->rtm_msglen)
 	    {
 		rtm = (struct rt_msghdr *)next;
-		sin = (struct sockaddr_inarp *)(rtm + 1);
+		sin = (struct sockaddr_in *)(rtm + 1);
 		sdl = (struct sockaddr_dl *)(sin + 1);
 		if (!bcmp(addr, (char *)&sin->sin_addr,
 			  sizeof(struct in_addr)))

@@ -15,10 +15,10 @@
 #ifndef LLVM_TARGET_TARGETLOWERINGOBJECTFILE_H
 #define LLVM_TARGET_TARGETLOWERINGOBJECTFILE_H
 
-#include "llvm/Module.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/SectionKind.h"
-#include "llvm/ADT/ArrayRef.h"
 
 namespace llvm {
   class MachineModuleInfo;
@@ -27,6 +27,7 @@ namespace llvm {
   class MCExpr;
   class MCSection;
   class MCSymbol;
+  class MCSymbolRefExpr;
   class MCStreamer;
   class GlobalValue;
   class TargetMachine;
@@ -108,13 +109,17 @@ public:
     return 0;
   }
   
-  /// getExprForDwarfGlobalReference - Return an MCExpr to use for a reference
+  /// getTTypeGlobalReference - Return an MCExpr to use for a reference
   /// to the specified global variable from exception handling information.
   ///
   virtual const MCExpr *
-  getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                                 MachineModuleInfo *MMI, unsigned Encoding,
-                                 MCStreamer &Streamer) const;
+  getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
+                          MachineModuleInfo *MMI, unsigned Encoding,
+                          MCStreamer &Streamer) const;
+
+  /// Return the MCSymbol for the specified global value.  This symbol is the
+  /// main label that is the address of the global
+  MCSymbol *getSymbol(Mangler &M, const GlobalValue *GV) const;
 
   // getCFIPersonalitySymbol - The symbol that gets passed to .cfi_personality.
   virtual MCSymbol *
@@ -123,8 +128,8 @@ public:
 
   /// 
   const MCExpr *
-  getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
-                           MCStreamer &Streamer) const;
+  getTTypeReference(const MCSymbolRefExpr *Sym, unsigned Encoding,
+                    MCStreamer &Streamer) const;
 
   virtual const MCSection *
   getStaticCtorSection(unsigned Priority = 65535) const {
@@ -136,6 +141,10 @@ public:
     (void)Priority;
     return StaticDtorSection;
   }
+
+  /// \brief Create a symbol reference to describe the given TLS variable when
+  /// emitting the address in debug info.
+  virtual const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const;
 
 protected:
   virtual const MCSection *

@@ -1,7 +1,7 @@
-/* $Id: bsd-cygwin_util.h,v 1.15 2012/08/28 09:57:19 dtucker Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.17 2014/01/18 10:04:00 dtucker Exp $ */
 
 /*
- * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
+ * Copyright (c) 2000, 2001, 2011, 2013 Corinna Vinschen <vinschen@redhat.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,24 +36,27 @@
 
 #undef ERROR
 
-#define WIN32_LEAN_AND_MEAN
+/* Avoid including windows headers. */
+typedef void *HANDLE;
+#define INVALID_HANDLE_VALUE ((HANDLE) -1)
 
-#include <windows.h>
+/* Cygwin functions for which declarations are only available when including
+   windows headers, so we have to define them here explicitely. */
+extern HANDLE cygwin_logon_user (const struct passwd *, const char *);
+extern void cygwin_set_impersonation_token (const HANDLE);
+
 #include <sys/cygwin.h>
 #include <io.h>
 
-/* Make sure _WIN32 isn't defined later in the code, otherwise headers from
-   other packages might get the wrong idea about the target system. */
-#ifdef _WIN32
-#undef _WIN32
-#endif
 
 int binary_open(const char *, int , ...);
 int check_ntsec(const char *);
 char **fetch_windows_environment(void);
 void free_windows_environment(char **);
 
+#ifndef NO_BINARY_OPEN
 #define open binary_open
+#endif
 
 #endif /* HAVE_CYGWIN */
 

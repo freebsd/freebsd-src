@@ -6,13 +6,13 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)seq.h	10.3 (Berkeley) 3/6/96
+ *	$Id: seq.h,v 10.4 2011/12/11 21:43:39 zy Exp $
  */
 
 /*
  * Map and abbreviation structures.
  *
- * The map structure is doubly linked list, sorted by input string and by
+ * The map structure is singly linked list, sorted by input string and by
  * input length within the string.  (The latter is necessary so that short
  * matches will happen before long matches when the list is searched.)
  * Additionally, there is a bitmap which has bits set if there are entries
@@ -27,7 +27,7 @@
  * things, though, so it's probably not a big deal.
  */
 struct _seq {
-	LIST_ENTRY(_seq) q;		/* Linked list of all sequences. */
+	SLIST_ENTRY(_seq) q;		/* Linked list of all sequences. */
 	seq_t	 stype;			/* Sequence type. */
 	CHAR_T	*name;			/* Sequence name (if any). */
 	size_t	 nlen;			/* Name length. */

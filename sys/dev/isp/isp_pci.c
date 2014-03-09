@@ -706,13 +706,10 @@ isp_pci_attach(device_t dev)
 	pcs->irq = pcs->regs = NULL;
 	pcs->rgd = pcs->rtp = pcs->iqd = 0;
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (cmd & m1) {
-		pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	}
-	if (pcs->regs == NULL && (cmd & m2)) {
+	pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+	pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+	pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
+	if (pcs->regs == NULL) {
 		pcs->rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		pcs->rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
 		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
@@ -891,6 +888,7 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
 	if (IS_2300(isp)) {	/* per QLogic errata */
 		cmd &= ~PCIM_CMD_INVEN;
@@ -1434,6 +1432,15 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 	case BIU2400_GPIOE:
 	case BIU2400_HSEMA:
 		BXW4(isp, IspVirt2Off(isp, regoff), val);
+#ifdef MEMORYBARRIERW
+		if (regoff == BIU2400_REQINP ||
+		    regoff == BIU2400_RSPOUTP ||
+		    regoff == BIU2400_PRI_REQINP ||
+		    regoff == BIU2400_ATIO_RSPOUTP)
+			MEMORYBARRIERW(isp, SYNC_REG,
+			    IspVirt2Off(isp, regoff), 4, -1)
+		else
+#endif
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4, -1);
 		break;
 	default:
@@ -1922,6 +1929,7 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mush_t mush, *mp;
 	void (*eptr)(void *, bus_dma_segment_t *, int, int);
 	void (*eptr2)(void *, bus_dma_segment_t *, int, bus_size_t, int);
+	int error;
 
 	mp = &mush;
 	mp->isp = isp;
@@ -1942,70 +1950,17 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	}
 
 
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE || (csio->dxfer_len == 0)) {
-		(*eptr)(mp, NULL, 0, 0);
-	} else if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
-		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-			int error;
-			error = bus_dmamap_load(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, csio->data_ptr, csio->dxfer_len, eptr, mp, 0);
-#if 0
-			xpt_print(csio->ccb_h.path, "%s: bus_dmamap_load " "ptr %p len %d returned %d\n", __func__, csio->data_ptr, csio->dxfer_len, error);
-#endif
-
-			if (error == EINPROGRESS) {
-				bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
-				mp->error = EINVAL;
-				isp_prt(isp, ISP_LOGERR, "deferred dma allocation not supported");
-			} else if (error && mp->error == 0) {
+	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
+	    (union ccb *)csio, eptr, mp, 0);
+	if (error == EINPROGRESS) {
+		bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
+		mp->error = EINVAL;
+		isp_prt(isp, ISP_LOGERR, "deferred dma allocation not supported");
+	} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
-				isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
+		isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
 #endif
-				mp->error = error;
-			}
-		} else {
-			/* Pointer to physical buffer */
-			struct bus_dma_segment seg;
-			seg.ds_addr = (bus_addr_t)(vm_offset_t)csio->data_ptr;
-			seg.ds_len = csio->dxfer_len;
-			(*eptr)(mp, &seg, 1, 0);
-		}
-	} else {
-		struct bus_dma_segment *segs;
-
-		if ((csio->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-			isp_prt(isp, ISP_LOGERR, "Physical segment pointers unsupported");
-			mp->error = EINVAL;
-		} else if ((csio->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			struct uio sguio;
-			int error;
-
-			/*
-			 * We're taking advantage of the fact that
-			 * the pointer/length sizes and layout of the iovec
-			 * structure are the same as the bus_dma_segment
-			 * structure.  This might be a little dangerous,
-			 * but only if they change the structures, which
-			 * seems unlikely.
-			 */
-			KASSERT((sizeof (sguio.uio_iov) == sizeof (csio->data_ptr) &&
-			    sizeof (sguio.uio_iovcnt) >= sizeof (csio->sglist_cnt) &&
-			    sizeof (sguio.uio_resid) >= sizeof (csio->dxfer_len)), ("Ken's assumption failed"));
-			sguio.uio_iov = (struct iovec *)csio->data_ptr;
-			sguio.uio_iovcnt = csio->sglist_cnt;
-			sguio.uio_resid = csio->dxfer_len;
-			sguio.uio_segflg = UIO_SYSSPACE;
-
-			error = bus_dmamap_load_uio(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, &sguio, eptr2, mp, 0);
-
-			if (error != 0 && mp->error == 0) {
-				isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
-				mp->error = error;
-			}
-		} else {
-			/* Just use the segments provided */
-			segs = (struct bus_dma_segment *) csio->data_ptr;
-			(*eptr)(mp, segs, csio->sglist_cnt, 0);
-		}
+		mp->error = error;
 	}
 	if (mp->error) {
 		int retval = CMD_COMPLETE;

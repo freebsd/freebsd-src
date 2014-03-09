@@ -57,7 +57,8 @@ NANO_PACKAGE_LIST="*"
 # default is ${NANO_OBJ}
 #NANO_DISKIMGDIR=""
 
-# Parallel Make
+# Make & parallel Make
+NANO_MAKE="make"
 NANO_PMAKE="make -j 3"
 
 # The default name for any image we create.
@@ -254,7 +255,7 @@ install_world ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
+	${NANO_MAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.iw 2>&1
 	chflags -R noschg ${NANO_WORLDDIR}
@@ -267,7 +268,7 @@ install_etc ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
+	${NANO_MAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
 	# make.conf doesn't get created by default, but some ports need it
@@ -288,7 +289,7 @@ install_kernel ( ) (
 	fi
 
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
+	env TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
 		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
 		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
@@ -359,8 +360,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	rmdir tmp || true
-	rm tmp || true
+	test -d tmp && rmdir tmp || rm -f tmp
 	ln -s var/tmp tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
@@ -413,12 +413,13 @@ populate_slice ( ) (
 	dir=$2
 	mnt=$3
 	lbl=$4
-	test -z $2 && dir=${NANO_WORLDDIR}/var/empty
-	test -d $dir || dir=${NANO_WORLDDIR}/var/empty
-	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
-	newfs_part $dev $mnt $lbl
-	cd ${dir}
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	echo "Creating ${dev} (mounting on ${mnt})"
+	newfs_part ${dev} ${mnt} ${lbl}
+	if [ -n "${dir}" -a -d "${dir}" ]; then
+		echo "Populating ${lbl} from ${dir}"
+		cd ${dir}
+		find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	fi
 	df -i ${mnt}
 	umount ${mnt}
 )
@@ -540,7 +541,7 @@ create_i386_diskimage ( ) (
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
@@ -564,12 +565,12 @@ create_i386_diskimage ( ) (
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
 		echo "Writing out ${NANO_IMGNAME}..."
-		dd if=/dev/${MD} of=${IMG} bs=64k
+		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
 	if ${do_copyout_partition} ; then
 		echo "Writing out _.disk.image..."
-		dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+		dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	fi
 	mdconfig -d -u $MD
 
@@ -588,6 +589,7 @@ last_orders () (
 	# after the build completed, for instance to copy the finished
 	# image to a more convenient place:
 	# cp ${NANO_DISKIMGDIR}/_.disk.image /home/ftp/pub/nanobsd.disk
+	true
 )
 
 #######################################################################
@@ -721,6 +723,77 @@ cust_pkg () (
 		echo "==="
 
 
+		if [ $now -eq $todo ] ; then
+			echo "DONE $now packages"
+			break
+		elif [ $now -eq $have ] ; then
+			echo "FAILED: Nothing happened on this pass"
+			exit 2
+		fi
+	done
+	rm -rf ${NANO_WORLDDIR}/Pkg
+)
+
+cust_pkgng () (
+
+	# If the package directory doesn't exist, we're done.
+	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
+		echo "DONE 0 packages"
+		return 0
+	fi
+
+	# Find a pkg-* package
+	for x in `find -s ${NANO_PACKAGE_DIR} -iname 'pkg-*'`; do
+		_NANO_PKG_PACKAGE=`basename "$x"`
+	done
+	if [ -z "${_NANO_PKG_PACKAGE}" -o ! -f "${NANO_PACKAGE_DIR}/${_NANO_PKG_PACKAGE}" ]; then
+		echo "FAILED: need a pkg/ package for bootstrapping"
+		exit 2
+	fi
+
+	# Copy packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/Pkg
+	(
+		cd ${NANO_PACKAGE_DIR}
+		find ${NANO_PACKAGE_LIST} -print |
+		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
+	)
+
+	#Bootstrap pkg
+	chroot ${NANO_WORLDDIR} sh -c \
+		"env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}"
+	chroot ${NANO_WORLDDIR} sh -c "pkg -N >/dev/null 2>&1;"
+	if [ "$?" -ne "0" ]; then
+		echo "FAILED: pkg bootstrapping faied"
+		exit 2
+	fi
+	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+
+	# Count & report how many we have to install
+	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
+	todo=$(expr $todo + 1) # add one for pkg since it is installed already
+	echo "=== TODO: $todo"
+	ls ${NANO_WORLDDIR}/Pkg
+	echo "==="
+	while true
+	do
+		# Record how many we have now
+		have=`chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+
+		# Attempt to install more packages
+		# ...but no more than 200 at a time due to (XXX still the case?) pkg_add's internal
+		# limitations.
+		chroot ${NANO_WORLDDIR} sh -c \
+			'ls Pkg/*txz | xargs -n 200 env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
+
+		# See what that got us
+		now=`chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+		echo "=== NOW $now"
+		chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info'
+		echo "==="
 		if [ $now -eq $todo ] ; then
 			echo "DONE $now packages"
 			break
@@ -877,6 +950,7 @@ fi
 if $do_clean ; then
 	true
 else
+	NANO_MAKE="${NANO_MAKE} -DNO_CLEAN"
 	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 fi
 
@@ -896,6 +970,7 @@ export NANO_DRIVE
 export NANO_HEADS
 export NANO_IMAGES
 export NANO_IMGNAME
+export NANO_MAKE
 export NANO_MAKE_CONF_BUILD
 export NANO_MAKE_CONF_INSTALL
 export NANO_MEDIASIZE

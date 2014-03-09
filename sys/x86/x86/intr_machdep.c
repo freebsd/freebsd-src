@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -78,7 +75,7 @@ static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
 static struct mtx intr_table_lock;
 static struct mtx intrcnt_lock;
-static STAILQ_HEAD(, pic) pics;
+static TAILQ_HEAD(pics_head, pic) pics;
 
 #ifdef SMP
 static int assign_cpu;
@@ -102,7 +99,7 @@ intr_pic_registered(struct pic *pic)
 {
 	struct pic *p;
 
-	STAILQ_FOREACH(p, &pics, pics) {
+	TAILQ_FOREACH(p, &pics, pics) {
 		if (p == pic)
 			return (1);
 	}
@@ -124,7 +121,7 @@ intr_register_pic(struct pic *pic)
 	if (intr_pic_registered(pic))
 		error = EBUSY;
 	else {
-		STAILQ_INSERT_TAIL(&pics, pic, pics);
+		TAILQ_INSERT_TAIL(&pics, pic, pics);
 		error = 0;
 	}
 	mtx_unlock(&intr_table_lock);
@@ -279,7 +276,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 }
 
 void
-intr_resume(void)
+intr_resume(bool suspend_cancelled)
 {
 	struct pic *pic;
 
@@ -287,9 +284,9 @@ intr_resume(void)
 	atpic_reset();
 #endif
 	mtx_lock(&intr_table_lock);
-	STAILQ_FOREACH(pic, &pics, pics) {
+	TAILQ_FOREACH(pic, &pics, pics) {
 		if (pic->pic_resume != NULL)
-			pic->pic_resume(pic);
+			pic->pic_resume(pic, suspend_cancelled);
 	}
 	mtx_unlock(&intr_table_lock);
 }
@@ -300,7 +297,7 @@ intr_suspend(void)
 	struct pic *pic;
 
 	mtx_lock(&intr_table_lock);
-	STAILQ_FOREACH(pic, &pics, pics) {
+	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics) {
 		if (pic->pic_suspend != NULL)
 			pic->pic_suspend(pic);
 	}
@@ -381,7 +378,7 @@ intr_init(void *dummy __unused)
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
-	STAILQ_INIT(&pics);
+	TAILQ_INIT(&pics);
 	mtx_init(&intr_table_lock, "intr sources", NULL, MTX_DEF);
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }

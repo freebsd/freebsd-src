@@ -73,19 +73,14 @@ __FBSDID("$FreeBSD$");
 static int pl310_enabled = 1;
 TUNABLE_INT("pl310.enabled", &pl310_enabled);
 
-void omap4_l2cache_wbinv_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_inv_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_wb_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_wbinv_all(void);
-void omap4_l2cache_inv_all(void);
-void omap4_l2cache_wb_all(void);
-
 static uint32_t g_l2cache_way_mask;
 
 static const uint32_t g_l2cache_line_size = 32;
 static const uint32_t g_l2cache_align_mask = (32 - 1);
 
 static uint32_t g_l2cache_size;
+static uint32_t g_way_size;
+static uint32_t g_ways_assoc;
 
 static struct pl310_softc *pl310_softc;
 
@@ -135,7 +130,7 @@ pl310_cache_sync(void)
 		return;
 
 #ifdef PL310_ERRATA_753970
-	if (sc->sc_rtl_release == CACHE_ID_RELEASE_r3p0)
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		/* Write uncached PL310 register */
 		pl310_write4(pl310_softc, 0x740, 0xffffffff);
 	else
@@ -153,16 +148,29 @@ pl310_wbinv_all(void)
 
 	PL310_LOCK(pl310_softc);
 #ifdef PL310_ERRATA_727915
-	if (sc->sc_rtl_release == CACHE_ID_RELEASE_r2p0 ||
-	    sc->sc_rtl_release == CACHE_ID_RELEASE_r3p0)
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r2p0) {
+		int i, j;
+
+		for (i = 0; i < g_ways_assoc; i++) {
+			for (j = 0; j < g_way_size / g_l2cache_line_size; j++) {
+				pl310_write4(pl310_softc, 
+				    PL310_CLEAN_INV_LINE_IDX,
+				    (i << 28 | j << 5));
+			}
+		}
+		pl310_cache_sync();
+		PL310_UNLOCK(pl310_softc);
+		return;
+
+	}
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	pl310_write4(pl310_softc, PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
 	pl310_wait_background_op(PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
 	pl310_cache_sync();
 #ifdef PL310_ERRATA_727915
-	if (sc->sc_rtl_release == CACHE_ID_RELEASE_r2p0 ||
-	    sc->sc_rtl_release == CACHE_ID_RELEASE_r3p0)
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		platform_pl310_write_debug(pl310_softc, 0);
 #endif
 	PL310_UNLOCK(pl310_softc);
@@ -187,13 +195,11 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 
 
 #ifdef PL310_ERRATA_727915
-	if (sc->sc_rtl_release == CACHE_ID_RELEASE_r2p0 ||
-	    sc->sc_rtl_release == CACHE_ID_RELEASE_r3p0)
-		platform_pl310_write_debug(pl310_softc, 3);
+	platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
-		if (sc->sc_rtl_release <= CACHE_ID_RELEASE_r1p0) {
+		if (pl310_softc->sc_rtl_revision <= CACHE_ID_RELEASE_r1p0) {
 			/* 
 			 * Errata 588369 says that clean + inv may keep the 
 			 * cache line if it was clean, the recommanded
@@ -210,9 +216,7 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size -= g_l2cache_line_size;
 	}
 #ifdef PL310_ERRATA_727915
-	if (sc->sc_rtl_release == CACHE_ID_RELEASE_r2p0 ||
-	    sc->sc_rtl_release == CACHE_ID_RELEASE_r3p0)
-		platform_pl310_write_debug(pl310_softc, 0);
+	platform_pl310_write_debug(pl310_softc, 0);
 #endif
 
 	pl310_cache_sync();
@@ -277,6 +281,9 @@ static int
 pl310_probe(device_t dev)
 {
 	
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,pl310"))
 		return (ENXIO);
 	device_set_desc(dev, "PL310 L2 cache controller");
@@ -289,8 +296,6 @@ pl310_attach(device_t dev)
 	struct pl310_softc *sc = device_get_softc(dev);
 	int rid = 0;
 	uint32_t aux_value;
-	uint32_t way_size;
-	uint32_t ways_assoc;
 	uint32_t ctrl_value;
 	uint32_t cache_id;
 
@@ -317,30 +322,35 @@ pl310_attach(device_t dev)
 				pl310_filter, NULL, sc, &sc->sc_irq_h);
 
 	cache_id = pl310_read4(sc, PL310_CACHE_ID);
-	sc->sc_rtl_release = (cache_id >> CACHE_ID_RELEASE_SHIFT) &
+	sc->sc_rtl_revision = (cache_id >> CACHE_ID_RELEASE_SHIFT) &
 	    CACHE_ID_RELEASE_MASK;
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
 	aux_value = pl310_read4(sc, PL310_AUX_CTRL);
-	way_size = (aux_value & AUX_CTRL_WAY_SIZE_MASK) >>
+	g_way_size = (aux_value & AUX_CTRL_WAY_SIZE_MASK) >>
 	    AUX_CTRL_WAY_SIZE_SHIFT;
-	way_size = 1 << (way_size + 13);
+	g_way_size = 1 << (g_way_size + 13);
 	if (aux_value & (1 << AUX_CTRL_ASSOCIATIVITY_SHIFT))
-		ways_assoc = 16;
+		g_ways_assoc = 16;
 	else
-		ways_assoc = 8;
-	g_l2cache_way_mask = (1 << ways_assoc) - 1;
-	g_l2cache_size = way_size * ways_assoc;
+		g_ways_assoc = 8;
+	g_l2cache_way_mask = (1 << g_ways_assoc) - 1;
+	g_l2cache_size = g_way_size * g_ways_assoc;
 	/* Print the information */
 	device_printf(dev, "L2 Cache: %uKB/%dB %d ways\n", (g_l2cache_size / 1024),
-	       g_l2cache_line_size, ways_assoc);
+	       g_l2cache_line_size, g_ways_assoc);
 
 	ctrl_value = pl310_read4(sc, PL310_CTRL);
 
 	if (sc->sc_enabled && !(ctrl_value & CTRL_ENABLED)) {
+		/* invalidate current content */
+		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
+		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
+
 		/* Enable the L2 cache if disabled */
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
+		device_printf(dev, "L2 Cache enabled\n");
 	} 
 
 	if (!sc->sc_enabled && (ctrl_value & CTRL_ENABLED)) {
@@ -373,6 +383,7 @@ pl310_attach(device_t dev)
 		    EVENT_COUNTER_CTRL_C0_RESET | 
 		    EVENT_COUNTER_CTRL_C1_RESET);
 
+		device_printf(dev, "L2 Cache disabled\n");
 	}
 
 	if (sc->sc_enabled)

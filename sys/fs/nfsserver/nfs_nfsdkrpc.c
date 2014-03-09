@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <nfs/nfs_fha.h>
+#include <fs/nfsserver/nfs_fha_new.h>
+
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
@@ -51,7 +54,7 @@ struct nfsv4lock nfsd_suspend_lock;
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
-static int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
+int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 	NFSPROC_NULL,
 	NFSPROC_GETATTR,
 	NFSPROC_SETATTR,
@@ -94,8 +97,8 @@ static int	nfs_maxvers = NFS_VER4;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
     &nfs_maxvers, 0, "The highest version of NFS handled by the server");
 
-static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
-    u_int64_t, struct nfsrvcache **);
+static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
+    struct nfsrvcache **);
 
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
@@ -147,7 +150,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);
@@ -248,8 +251,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			}
 		}
 
-		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
-		    xprt->xp_sockref, &rp);
+		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt, &rp);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsd_suspend_lock);
 		NFSUNLOCKV4ROOTMUTEX();
@@ -284,8 +286,10 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq)) {
 		svcerr_systemerr(rqst);
 	}
-	if (rp != NULL)
-		nfsrvd_sentcache(rp, xprt->xp_socket, 0);
+	if (rp != NULL) {
+		nfsrvd_sentcache(rp, (rqst->rq_reply_seq != 0 ||
+		    SVC_ACK(xprt, NULL)), rqst->rq_reply_seq);
+	}
 	svc_freereq(rqst);
 
 out:
@@ -297,11 +301,12 @@ out:
  * Return the appropriate cache response.
  */
 static int
-nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
-    u_int64_t sockref, struct nfsrvcache **rpp)
+nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
+    struct nfsrvcache **rpp)
 {
 	struct thread *td = curthread;
 	int cacherep = RC_DOIT, isdgram;
+	uint32_t ack;
 
 	*rpp = NULL;
 	if (nd->nd_nam2 == NULL) {
@@ -310,7 +315,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	} else {
 		isdgram = 1;
 	}
-	NFSGETTIME(&nd->nd_starttime);
 
 	/*
 	 * Two cases:
@@ -334,8 +338,11 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 			nd->nd_flag |= ND_SAMETCPCONN;
 		nd->nd_retxid = xid;
 		nd->nd_tcpconntime = NFSD_MONOSEC;
-		nd->nd_sockref = sockref;
-		cacherep = nfsrvd_getcache(nd, so);
+		nd->nd_sockref = xprt->xp_sockref;
+		cacherep = nfsrvd_getcache(nd);
+		ack = 0;
+		SVC_ACK(xprt, &ack);
+		nfsrc_trimcache(xprt->xp_sockref, ack, 0);
 	}
 
 	/*
@@ -350,11 +357,21 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 			cacherep = RC_DROPIT;
 		else
 			cacherep = RC_REPLY;
-		*rpp = nfsrvd_updatecache(nd, so);
+		*rpp = nfsrvd_updatecache(nd);
 	}
 
 	NFSEXITCODE2(0, nd);
 	return (cacherep);
+}
+
+static void
+nfssvc_loss(SVCXPRT *xprt)
+{
+	uint32_t ack;
+
+	ack = 0;
+	SVC_ACK(xprt, &ack);
+	nfsrc_trimcache(xprt->xp_sockref, ack, 1);
 }
 
 /*
@@ -397,6 +414,8 @@ nfsrvd_addsock(struct file *fp)
 		if (nfs_maxvers >= NFS_VER4)
 			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
 			    NULL);
+		if (so->so_type == SOCK_STREAM)
+			svc_loss_reg(xprt, nfssvc_loss);
 		SVC_RELEASE(xprt);
 	}
 
@@ -492,8 +511,8 @@ nfsrvd_init(int terminating)
 
 	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = NULL;
-	nfsrvd_pool->sp_done = NULL;
+	nfsrvd_pool->sp_assign = fhanew_assign;
+	nfsrvd_pool->sp_done = fha_nd_complete;
 
 	NFSD_LOCK();
 }

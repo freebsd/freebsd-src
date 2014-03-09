@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
@@ -94,7 +95,8 @@ static void psycho_intr_clear(void *);
 static driver_filter_t psycho_ue;
 static driver_filter_t psycho_ce;
 static driver_filter_t psycho_pci_bus;
-static driver_filter_t psycho_powerfail;
+static driver_filter_t psycho_powerdebug;
+static driver_intr_t psycho_powerdown;
 static driver_intr_t psycho_overtemp;
 #ifdef PSYCHO_MAP_WAKEUP
 static driver_filter_t psycho_wakeup;
@@ -159,8 +161,15 @@ static devclass_t psycho_devclass;
 
 DEFINE_CLASS_0(pcib, psycho_driver, psycho_methods,
     sizeof(struct psycho_softc));
-EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0,
+EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, NULL, NULL,
     BUS_PASS_BUS);
+
+static SYSCTL_NODE(_hw, OID_AUTO, psycho, CTLFLAG_RD, 0, "psycho parameters");
+
+static u_int psycho_powerfail = 1;
+TUNABLE_INT("hw.psycho.powerfail", &psycho_powerfail);
+SYSCTL_UINT(_hw_psycho, OID_AUTO, powerfail, CTLFLAG_RDTUN, &psycho_powerfail,
+    0, "powerfail action (0: none, 1: shutdown (default), 2: debugger)");
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
@@ -191,7 +200,7 @@ struct psycho_icarg {
  * "Sabre" is the UltraSPARC IIi onboard UPA to PCI bridge.  It manages a
  * single PCI bus and does not have a streaming buffer.  It often has an APB
  * (advanced PCI bridge) connected to it, which was designed specifically for
- * the IIi.  The APB let's the IIi handle two independednt PCI buses, and
+ * the IIi.  The APB lets the IIi handle two independent PCI buses, and
  * appears as two "Simba"'s underneath the Sabre.
  *
  * "Hummingbird" is the UltraSPARC IIe onboard UPA to PCI bridge. It's
@@ -564,12 +573,10 @@ psycho_attach(device_t dev)
 	}
 
 	/* Allocate our tags. */
-	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res), PCI_IO_BUS_SPACE, NULL);
+	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, PCI_IO_BUS_SPACE);
 	if (sc->sc_pci_iot == NULL)
 		panic("%s: could not allocate PCI I/O tag", __func__);
-	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res), PCI_CONFIG_BUS_SPACE, NULL);
+	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, PCI_CONFIG_BUS_SPACE);
 	if (sc->sc_pci_cfgt == NULL)
 		panic("%s: could not allocate PCI configuration space tag",
 		    __func__);
@@ -612,13 +619,18 @@ psycho_attach(device_t dev)
 		 */
 		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
 		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
-#ifdef DEBUGGER_ON_POWERFAIL
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, psycho_powerfail,
-		    NULL);
-#else
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
-		    (driver_intr_t *)psycho_powerfail);
-#endif
+		switch (psycho_powerfail) {
+		case 0:
+			break;
+		case 2:
+			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
+			    psycho_powerdebug, NULL);
+			break;
+		default:
+			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
+			    psycho_powerdown);
+			break;
+		}
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 			/*
 			 * Hummingbirds/Sabres do not have the following two
@@ -629,8 +641,8 @@ psycho_attach(device_t dev)
 			 * The spare hardware interrupt is used for the
 			 * over-temperature interrupt.
 			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
-			    NULL, psycho_overtemp);
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, NULL,
+			    psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
 			 * psycho_wakeup() doesn't do anything useful right
@@ -837,27 +849,28 @@ psycho_pci_bus(void *arg)
 }
 
 static int
-psycho_powerfail(void *arg)
+psycho_powerdebug(void *arg __unused)
 {
-#ifdef DEBUGGER_ON_POWERFAIL
-	struct psycho_softc *sc = arg;
 
 	kdb_enter(KDB_WHY_POWERFAIL, "powerfail");
-#else
-	static int shutdown;
-
-	/* As the interrupt is cleared we may be called multiple times. */
-	if (shutdown != 0)
-		return (FILTER_HANDLED);
-	shutdown++;
-	printf("Power Failure Detected: Shutting down NOW.\n");
-	shutdown_nice(0);
-#endif
 	return (FILTER_HANDLED);
 }
 
 static void
-psycho_overtemp(void *arg)
+psycho_powerdown(void *arg __unused)
+{
+	static int shutdown;
+
+	/* As the interrupt is cleared we may be called multiple times. */
+	if (shutdown != 0)
+		return;
+	shutdown++;
+	printf("Power Failure Detected: Shutting down NOW.\n");
+	shutdown_nice(RB_POWEROFF);
+}
+
+static void
+psycho_overtemp(void *arg __unused)
 {
 	static int shutdown;
 
@@ -1033,13 +1046,12 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	struct ofw_pci_register reg;
 	bus_addr_t intrmap;
 	ofw_pci_intr_t pintr, mintr;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bridge);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
 	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    NULL, maskbuf))
+	    NULL))
 		return (mintr);
 	/*
 	 * If this is outside of the range for an intpin, it's likely a full
@@ -1221,8 +1233,7 @@ psycho_activate_resource(device_t bus, device_t child, int type, int rid,
 		return (bus_generic_activate_resource(bus, child, type, rid,
 		    r));
 	case SYS_RES_MEMORY:
-		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
-		    sc->sc_mem_res), PCI_MEMORY_BUS_SPACE, NULL);
+		tag = sparc64_alloc_bus_tag(r, PCI_MEMORY_BUS_SPACE);
 		if (tag == NULL)
 			return (ENOMEM);
 		rman_set_bustag(r, tag);

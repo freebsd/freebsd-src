@@ -28,7 +28,7 @@
 .\"	@(#)head.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd March 16, 2013
 .Dt HEAD 1
 .Os
 .Sh NAME
@@ -57,6 +57,19 @@ where
 is the name of the file.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+To display the first 500 lines of the file
+.Ar foo :
+.Pp
+.Dl $ head -n 500 foo
+.Pp
+.Nm
+can be used in conjunction with
+.Xr tail 1
+in the following way to, for example, display only line 500 from the file
+.Ar foo :
+.Pp
+.Dl $ head -n 500 foo | tail -n 1
 .Sh SEE ALSO
 .Xr tail 1
 .Sh HISTORY

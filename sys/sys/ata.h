@@ -189,10 +189,10 @@ struct ata_params {
 	} __packed support, enabled;
 
 /*088*/ u_int16_t       udmamodes;              /* UltraDMA modes */
-/*089*/ u_int16_t       erase_time;
-/*090*/ u_int16_t       enhanced_erase_time;
+/*089*/ u_int16_t       erase_time;             /* time req'd in 2min units */
+/*090*/ u_int16_t       enhanced_erase_time;    /* time req'd in 2min units */
 /*091*/ u_int16_t       apm_value;
-/*092*/ u_int16_t       master_passwd_revision;
+/*092*/ u_int16_t       master_passwd_revision; /* password revision code */
 /*093*/ u_int16_t       hwres;
 #define ATA_CABLE_ID                    0x2000
 
@@ -214,6 +214,8 @@ struct ata_params {
 #define ATA_PSS_LSPPS			0x000F
 #define ATA_PSS_LSSABOVE512		0x1000
 #define ATA_PSS_MULTLS			0x2000
+#define ATA_PSS_VALID_MASK		0xC000
+#define ATA_PSS_VALID_VALUE		0x4000
 /*107*/ u_int16_t       isd;
 /*108*/ u_int16_t       wwn[4];
 	u_int16_t       reserved112[5];
@@ -229,6 +231,14 @@ struct ata_params {
 	u_int16_t       reserved121[6];
 /*127*/ u_int16_t       removable_status;
 /*128*/ u_int16_t       security_status;
+#define ATA_SECURITY_LEVEL		0x0100	/* 0: high, 1: maximum */
+#define ATA_SECURITY_ENH_SUPP		0x0020	/* enhanced erase supported */
+#define ATA_SECURITY_COUNT_EXP		0x0010	/* count expired */
+#define ATA_SECURITY_FROZEN		0x0008	/* security config is frozen */
+#define ATA_SECURITY_LOCKED		0x0004	/* drive is locked */
+#define ATA_SECURITY_ENABLED		0x0002	/* ATA Security is enabled */
+#define ATA_SECURITY_SUPPORTED		0x0001	/* ATA Security is supported */
+
 	u_int16_t       reserved129[31];
 /*160*/ u_int16_t       cfa_powermode1;
 	u_int16_t       reserved161;
@@ -251,6 +261,8 @@ struct ata_params {
 /*215*/ u_int16_t       nv_cache_size_1;
 	u_int16_t       nv_cache_size_2;
 /*217*/ u_int16_t       media_rotation_rate;
+#define ATA_RATE_NOT_REPORTED		0x0000
+#define ATA_RATE_NON_ROTATING		0x0001
 	u_int16_t       reserved218;
 /*219*/ u_int16_t       nv_cache_opt;
 /*220*/ u_int16_t       wrv_mode;
@@ -260,6 +272,12 @@ struct ata_params {
 	u_int16_t       reserved224[31];
 /*255*/ u_int16_t       integrity;
 } __packed;
+
+/* ATA Dataset Management */
+#define ATA_DSM_BLK_SIZE	512
+#define ATA_DSM_BLK_RANGES	64
+#define ATA_DSM_RANGE_SIZE	8
+#define ATA_DSM_RANGE_MAX	65535
 
 /*
  * ATA Device Register
@@ -275,6 +293,23 @@ struct ata_params {
 #define ATA_DEV_SLAVE		0x10
 #define ATA_DEV_LBA		0x40
 
+/* ATA limits */
+#define ATA_MAX_28BIT_LBA	268435455UL
+
+/* ATA Status Register */
+#define ATA_STATUS_ERROR	0x01
+#define ATA_STATUS_DEVICE_FAULT	0x20
+
+/* ATA Error Register */
+#define ATA_ERROR_ABORT		0x04
+#define ATA_ERROR_ID_NOT_FOUND	0x10
+
+/* ATA HPA Features */
+#define ATA_HPA_FEAT_MAX_ADDR	0x00
+#define ATA_HPA_FEAT_SET_PWD	0x01
+#define ATA_HPA_FEAT_LOCK	0x02
+#define ATA_HPA_FEAT_UNLOCK	0x03
+#define ATA_HPA_FEAT_FREEZE	0x04
 
 /* ATA transfer modes */
 #define ATA_MODE_MASK           0x0f
@@ -371,7 +406,12 @@ struct ata_params {
 #define         ATA_SF_DIS_RELIRQ       0xdd    /* disable release interrupt */
 #define         ATA_SF_ENAB_SRVIRQ      0x5e    /* enable service interrupt */
 #define         ATA_SF_DIS_SRVIRQ       0xde    /* disable service interrupt */
-#define ATA_SECURITY_FREEE_LOCK         0xf5    /* freeze security config */
+#define ATA_SECURITY_SET_PASSWORD       0xf1    /* set drive password */
+#define ATA_SECURITY_UNLOCK             0xf2    /* unlock drive using passwd */
+#define ATA_SECURITY_ERASE_PREPARE      0xf3    /* prepare to erase drive */
+#define ATA_SECURITY_ERASE_UNIT         0xf4    /* erase all blocks on drive */
+#define ATA_SECURITY_FREEZE_LOCK        0xf5    /* freeze security config */
+#define ATA_SECURITY_DISABLE_PASSWORD   0xf6    /* disable drive password */
 #define ATA_READ_NATIVE_MAX_ADDRESS     0xf8    /* read native max address */
 #define ATA_SET_MAX_ADDRESS             0xf9    /* set max address */
 
@@ -515,6 +555,20 @@ struct ata_ioc_request {
 
     int                 timeout;
     int                 error;
+};
+
+struct ata_security_password {
+	u_int16_t		ctrl;
+#define ATA_SECURITY_PASSWORD_USER	0x0000
+#define ATA_SECURITY_PASSWORD_MASTER	0x0001
+#define ATA_SECURITY_ERASE_NORMAL	0x0000
+#define ATA_SECURITY_ERASE_ENHANCED	0x0002
+#define ATA_SECURITY_LEVEL_HIGH		0x0000
+#define ATA_SECURITY_LEVEL_MAXIMUM	0x0100
+
+	u_int8_t		password[32];
+	u_int16_t		revision;
+	u_int16_t		reserved[238];
 };
 
 /* pr device ATA ioctl calls */

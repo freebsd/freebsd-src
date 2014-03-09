@@ -3,8 +3,25 @@
 .include <bsd.own.mk>
 
 .if !make(install)
+.if !defined(EARLY_BUILD)
+.if defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+_libclangstaticanalyzer= \
+	libclangstaticanalyzercheckers \
+	libclangstaticanalyzercore \
+	libclangstaticanalyzerfrontend
+_libclangarcmigrate= \
+	libclangarcmigrate
+.endif # MK_CLANG_FULL
+.if (defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no") || \
+    (defined(MK_LLDB) && ${MK_LLDB} != "no")
+_libclangrewriter= \
+	libclangrewritecore \
+	libclangrewritefrontend
+.endif # (MK_CLANG_FULL || MK_LLDB)
+.endif # !EARLY_BUILD
+
 SUBDIR=	libclanganalysis \
-	libclangarcmigrate \
+	${_libclangarcmigrate} \
 	libclangast \
 	libclangbasic \
 	libclangcodegen \
@@ -14,16 +31,12 @@ SUBDIR=	libclanganalysis \
 	libclangfrontendtool \
 	libclanglex \
 	libclangparse \
-	libclangrewritecore \
-	libclangrewritefrontend \
+	${_libclangrewriter} \
 	libclangsema \
 	libclangserialization \
-	libclangstaticanalyzercheckers \
-	libclangstaticanalyzercore \
-	libclangstaticanalyzerfrontend \
+	${_libclangstaticanalyzer} \
 	\
 	libllvmanalysis \
-	libllvmarchive \
 	libllvmasmparser \
 	libllvmasmprinter \
 	libllvmbitreader \
@@ -34,10 +47,13 @@ SUBDIR=	libclanganalysis \
 	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
+	libllvmirreader \
 	libllvmlinker \
 	libllvmmc \
 	libllvmmcparser \
+	libllvmobjcarcopts \
 	libllvmobject \
+	libllvmoption \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
@@ -58,10 +74,17 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
+	libllvmpowerpcasmparser \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \
 	libllvmpowerpcinstprinter \
+	libllvmsparcasmparser \
+	libllvmsparccodegen \
+	libllvmsparcdesc \
+	libllvmsparcdisassembler \
+	libllvmsparcinfo \
+	libllvmsparcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
 	libllvmx86desc \
@@ -71,15 +94,56 @@ SUBDIR=	libclanganalysis \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmdebuginfo \
-	libllvmexecutionengine \
+SUBDIR+=libllvmdebuginfo
+.endif # MK_CLANG_EXTRAS
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
+SUBDIR+=libllvmexecutionengine \
 	libllvminterpreter \
 	libllvmjit \
 	libllvmmcdisassembler \
 	libllvmmcjit \
 	libllvmruntimedyld
-.endif
-.endif
+.endif # MK_CLANG_EXTRAS | LLDB
+
+.if !defined(EARLY_BUILD) && ${MK_LLDB} != "no"
+SUBDIR+=liblldb \
+	\
+	liblldbAPI \
+	liblldbBreakpoint \
+	liblldbCommands \
+	liblldbCore \
+	liblldbDataFormatters \
+	liblldbExpression \
+	liblldbHostCommon \
+	liblldbHostFreeBSD \
+	liblldbInterpreter \
+	liblldbSymbol \
+	liblldbTarget \
+	liblldbUtility \
+	\
+	liblldbPluginABISysV_x86_64 \
+	liblldbPluginCXXItaniumABI \
+	liblldbPluginDisassemblerLLVM \
+	liblldbPluginDynamicLoaderStatic \
+	liblldbPluginDynamicLoaderPosixDYLD \
+	liblldbPluginInstructionARM \
+	liblldbPluginObjectContainerBSDArchive \
+	liblldbPluginObjectFileELF \
+	liblldbPluginPlatformFreeBSD \
+	liblldbPluginPlatformGDB \
+	liblldbPluginProcessElfCore \
+	liblldbPluginProcessFreeBSD \
+	liblldbPluginProcessGDBRemote \
+	liblldbPluginProcessPOSIX \
+	liblldbPluginProcessUtility \
+	liblldbPluginSymbolFileDWARF \
+	liblldbPluginSymbolFileSymtab \
+	liblldbPluginSymbolVendorELF \
+	liblldbPluginUnwindAssemblyInstEmulation \
+	liblldbPluginUnwindAssemblyX86
+.endif # !EARLY_BUILD && MK_LLDB
+
+.endif # !make(install)
 
 SUBDIR+= include
 

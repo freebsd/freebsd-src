@@ -22,6 +22,7 @@
 
 #ifndef __CXXABI_H_
 #define __CXXABI_H_
+#include <stddef.h>
 #include <stdint.h>
 #include "unwind.h"
 namespace std 
@@ -192,6 +193,8 @@ __cxa_eh_globals *__cxa_get_globals(void);
  * been called at least once by this thread.
  */
 __cxa_eh_globals *__cxa_get_globals_fast(void);
+
+std::type_info * __cxa_current_exception_type();
 
 /**
  * Throws an exception returned by __cxa_current_primary_exception().  This

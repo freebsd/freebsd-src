@@ -1,8 +1,14 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/llvm/tools/clang/lib/Headers
+.include <bsd.own.mk>
 
-INCSDIR=${INCLUDEDIR}/clang/3.2
+LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
+
+.include "../clang.build.mk"
+
+.PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
+
+INCSDIR=${INCLUDEDIR}/clang/3.4
 
 INCS=	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
@@ -26,12 +32,19 @@ INCS=	__wmmintrin_aes.h \
 	nmmintrin.h \
 	pmmintrin.h \
 	popcntintrin.h \
+	prfchwintrin.h \
+	rdseedintrin.h \
 	rtmintrin.h \
+	shaintrin.h \
 	smmintrin.h \
+	tbmintrin.h \
 	tmmintrin.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
-	xopintrin.h
+	xopintrin.h \
+	${GENINCS}
+GENINCS= arm_neon.h
+CLEANFILES= ${GENINCS}
 
 .include <bsd.prog.mk>

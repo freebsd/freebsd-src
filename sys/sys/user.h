@@ -61,6 +61,7 @@
 #ifndef _SYS_SOCKET_VAR_H_
 #include <sys/socket.h>
 #endif
+#include <sys/caprights.h>
 
 /*
  * KERN_PROC subtype ops return arrays of selected proc structure entries:
@@ -83,7 +84,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	9
+#define	KI_NSPARE_INT	7
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	6
 
@@ -186,6 +187,8 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	int	ki_flag2;		/* P2_* flags */
+	int	ki_fibnum;		/* Default FIB number */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
@@ -251,8 +254,7 @@ struct user {
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
-/* no KF_TYPE_CAPABILITY (11), since capabilities wrap other file objects */
-#define	KF_TYPE_PROCDESC	12
+#define	KF_TYPE_PROCDESC	11
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -288,7 +290,6 @@ struct user {
 #define	KF_FLAG_TRUNC		0x00001000
 #define	KF_FLAG_EXCL		0x00002000
 #define	KF_FLAG_EXEC		0x00004000
-#define	KF_FLAG_CAPABILITY	0x00008000
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
@@ -319,6 +320,12 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
+/*
+ * This size should never be changed. If you really need to, you must provide
+ * backward ABI compatibility by allocating a new sysctl MIB that will return
+ * the new structure. The current structure has to be returned by the current
+ * sysctl MIB. See how it is done for the kinfo_ofile structure.
+ */
 #define	KINFO_FILE_SIZE	1392
 #endif
 
@@ -367,6 +374,10 @@ struct kinfo_file {
 			uint32_t	kf_file_pad1;
 		} kf_file;
 		struct {
+			uint32_t	kf_sem_value;
+			uint16_t	kf_sem_mode;
+		} kf_sem;
+		struct {
 			uint64_t	kf_pipe_addr;
 			uint64_t	kf_pipe_peer;
 			uint32_t	kf_pipe_buffer_cnt;
@@ -386,7 +397,7 @@ struct kinfo_file {
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
 	cap_rights_t	kf_cap_rights;		/* Capability rights. */
-	int		_kf_ispare[4];		/* Space for more stuff. */
+	uint64_t	_kf_cap_spare;		/* Space for future cap_rights_t. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };
@@ -403,6 +414,7 @@ struct kinfo_file {
 #define	KVME_TYPE_PHYS		5
 #define	KVME_TYPE_DEAD		6
 #define	KVME_TYPE_SG		7
+#define	KVME_TYPE_MGTDEVICE	8
 #define	KVME_TYPE_UNKNOWN	255
 
 #define	KVME_PROT_READ		0x00000001
@@ -492,7 +504,32 @@ struct kinfo_kstack {
 	int	 _kkst_ispare[16];		/* Space for more stuff. */
 };
 
+struct kinfo_sigtramp {
+	void	*ksigtramp_start;
+	void	*ksigtramp_end;
+	void	*ksigtramp_spare[4];
+};
+
 #ifdef _KERNEL
+/* Flags for kern_proc_out function. */
+#define KERN_PROC_NOTHREADS	0x1
+#define KERN_PROC_MASK32	0x2
+
+struct sbuf;
+
+/*
+ * The kern_proc out functions are helper functions to dump process
+ * miscellaneous kinfo structures to sbuf.  The main consumers are KERN_PROC
+ * sysctls but they may also be used by other kernel subsystems.
+ *
+ * The functions manipulate the process locking state and expect the process
+ * to be locked on enter.  On return the process is unlocked.
+ */
+
+int	kern_proc_filedesc_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
+int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
+int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb);
+
 int	vntype_to_kinfo(int vtype);
 #endif /* !_KERNEL */
 

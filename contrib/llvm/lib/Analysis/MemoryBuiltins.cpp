@@ -8,35 +8,36 @@
 //===----------------------------------------------------------------------===//
 //
 // This family of functions identifies calls to builtin functions that allocate
-// or free memory.  
+// or free memory.
 //
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "memory-builtins"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Metadata.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 enum AllocType {
-  MallocLike         = 1<<0, // allocates
-  CallocLike         = 1<<1, // allocates + bzero
-  ReallocLike        = 1<<2, // reallocates
-  StrDupLike         = 1<<3,
+  OpNewLike          = 1<<0, // allocates; never returns null
+  MallocLike         = 1<<1 | OpNewLike, // allocates; may return null
+  CallocLike         = 1<<2, // allocates + bzero
+  ReallocLike        = 1<<3, // reallocates
+  StrDupLike         = 1<<4,
   AllocLike          = MallocLike | CallocLike | StrDupLike,
-  AnyAlloc           = MallocLike | CallocLike | ReallocLike | StrDupLike
+  AnyAlloc           = AllocLike | ReallocLike
 };
 
 struct AllocFnsTy {
@@ -52,20 +53,20 @@ struct AllocFnsTy {
 static const AllocFnsTy AllocationFnData[] = {
   {LibFunc::malloc,              MallocLike,  1, 0,  -1},
   {LibFunc::valloc,              MallocLike,  1, 0,  -1},
-  {LibFunc::Znwj,                MallocLike,  1, 0,  -1}, // new(unsigned int)
+  {LibFunc::Znwj,                OpNewLike,   1, 0,  -1}, // new(unsigned int)
   {LibFunc::ZnwjRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new(unsigned int, nothrow)
-  {LibFunc::Znwm,                MallocLike,  1, 0,  -1}, // new(unsigned long)
+  {LibFunc::Znwm,                OpNewLike,   1, 0,  -1}, // new(unsigned long)
   {LibFunc::ZnwmRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new(unsigned long, nothrow)
-  {LibFunc::Znaj,                MallocLike,  1, 0,  -1}, // new[](unsigned int)
+  {LibFunc::Znaj,                OpNewLike,   1, 0,  -1}, // new[](unsigned int)
   {LibFunc::ZnajRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new[](unsigned int, nothrow)
-  {LibFunc::Znam,                MallocLike,  1, 0,  -1}, // new[](unsigned long)
+  {LibFunc::Znam,                OpNewLike,   1, 0,  -1}, // new[](unsigned long)
   {LibFunc::ZnamRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new[](unsigned long, nothrow)
-  {LibFunc::posix_memalign,      MallocLike,  3, 2,  -1},
   {LibFunc::calloc,              CallocLike,  2, 0,   1},
   {LibFunc::realloc,             ReallocLike, 2, 1,  -1},
   {LibFunc::reallocf,            ReallocLike, 2, 1,  -1},
   {LibFunc::strdup,              StrDupLike,  1, -1, -1},
   {LibFunc::strndup,             StrDupLike,  2, 1,  -1}
+  // TODO: Handle "int posix_memalign(void **, size_t, size_t)"
 };
 
 
@@ -75,6 +76,9 @@ static Function *getCalledFunction(const Value *V, bool LookThroughBitCast) {
 
   CallSite CS(const_cast<Value*>(V));
   if (!CS.getInstruction())
+    return 0;
+
+  if (CS.isNoBuiltin())
     return 0;
 
   Function *Callee = CS.getCalledFunction();
@@ -88,6 +92,10 @@ static Function *getCalledFunction(const Value *V, bool LookThroughBitCast) {
 static const AllocFnsTy *getAllocationData(const Value *V, AllocType AllocTy,
                                            const TargetLibraryInfo *TLI,
                                            bool LookThroughBitCast = false) {
+  // Skip intrinsics
+  if (isa<IntrinsicInst>(V))
+    return 0;
+
   Function *Callee = getCalledFunction(V, LookThroughBitCast);
   if (!Callee)
     return 0;
@@ -110,7 +118,7 @@ static const AllocFnsTy *getAllocationData(const Value *V, AllocType AllocTy,
     return 0;
 
   const AllocFnsTy *FnData = &AllocationFnData[i];
-  if ((FnData->AllocTy & AllocTy) == 0)
+  if ((FnData->AllocTy & AllocTy) != FnData->AllocTy)
     return 0;
 
   // Check function prototype.
@@ -132,7 +140,7 @@ static const AllocFnsTy *getAllocationData(const Value *V, AllocType AllocTy,
 
 static bool hasNoAliasAttr(const Value *V, bool LookThroughBitCast) {
   ImmutableCallSite CS(LookThroughBitCast ? V->stripPointerCasts() : V);
-  return CS && CS.hasFnAttr(Attributes::NoAlias);
+  return CS && CS.hasFnAttr(Attribute::NoAlias);
 }
 
 
@@ -182,6 +190,13 @@ bool llvm::isReallocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
   return getAllocationData(V, ReallocLike, TLI, LookThroughBitCast);
 }
 
+/// \brief Tests if a value is a call or invoke to a library function that
+/// allocates memory and never returns null (such as operator new).
+bool llvm::isOperatorNewLikeFn(const Value *V, const TargetLibraryInfo *TLI,
+                               bool LookThroughBitCast) {
+  return getAllocationData(V, OpNewLike, TLI, LookThroughBitCast);
+}
+
 /// extractMallocCall - Returns the corresponding CallInst if the instruction
 /// is a malloc call.  Since CallInst::CreateMalloc() only creates calls, we
 /// ignore InvokeInst here.
@@ -190,47 +205,47 @@ const CallInst *llvm::extractMallocCall(const Value *I,
   return isMallocLikeFn(I, TLI) ? dyn_cast<CallInst>(I) : 0;
 }
 
-static Value *computeArraySize(const CallInst *CI, const DataLayout *TD,
+static Value *computeArraySize(const CallInst *CI, const DataLayout *DL,
                                const TargetLibraryInfo *TLI,
                                bool LookThroughSExt = false) {
   if (!CI)
-    return NULL;
+    return 0;
 
   // The size of the malloc's result type must be known to determine array size.
   Type *T = getMallocAllocatedType(CI, TLI);
-  if (!T || !T->isSized() || !TD)
-    return NULL;
+  if (!T || !T->isSized() || !DL)
+    return 0;
 
-  unsigned ElementSize = TD->getTypeAllocSize(T);
+  unsigned ElementSize = DL->getTypeAllocSize(T);
   if (StructType *ST = dyn_cast<StructType>(T))
-    ElementSize = TD->getStructLayout(ST)->getSizeInBytes();
+    ElementSize = DL->getStructLayout(ST)->getSizeInBytes();
 
   // If malloc call's arg can be determined to be a multiple of ElementSize,
   // return the multiple.  Otherwise, return NULL.
   Value *MallocArg = CI->getArgOperand(0);
-  Value *Multiple = NULL;
+  Value *Multiple = 0;
   if (ComputeMultiple(MallocArg, ElementSize, Multiple,
                       LookThroughSExt))
     return Multiple;
 
-  return NULL;
+  return 0;
 }
 
-/// isArrayMalloc - Returns the corresponding CallInst if the instruction 
+/// isArrayMalloc - Returns the corresponding CallInst if the instruction
 /// is a call to malloc whose array size can be determined and the array size
 /// is not constant 1.  Otherwise, return NULL.
 const CallInst *llvm::isArrayMalloc(const Value *I,
-                                    const DataLayout *TD,
+                                    const DataLayout *DL,
                                     const TargetLibraryInfo *TLI) {
   const CallInst *CI = extractMallocCall(I, TLI);
-  Value *ArraySize = computeArraySize(CI, TD, TLI);
+  Value *ArraySize = computeArraySize(CI, DL, TLI);
 
-  if (ArraySize &&
-      ArraySize != ConstantInt::get(CI->getArgOperand(0)->getType(), 1))
-    return CI;
+  if (ConstantInt *ConstSize = dyn_cast_or_null<ConstantInt>(ArraySize))
+    if (ConstSize->isOne())
+      return CI;
 
   // CI is a non-array malloc or we can't figure out that it is an array malloc.
-  return NULL;
+  return 0;
 }
 
 /// getMallocType - Returns the PointerType resulting from the malloc call.
@@ -241,8 +256,8 @@ const CallInst *llvm::isArrayMalloc(const Value *I,
 PointerType *llvm::getMallocType(const CallInst *CI,
                                  const TargetLibraryInfo *TLI) {
   assert(isMallocLikeFn(CI, TLI) && "getMallocType and not malloc call");
-  
-  PointerType *MallocType = NULL;
+
+  PointerType *MallocType = 0;
   unsigned NumOfBitCastUses = 0;
 
   // Determine if CallInst has a bitcast use.
@@ -262,7 +277,7 @@ PointerType *llvm::getMallocType(const CallInst *CI,
     return cast<PointerType>(CI->getType());
 
   // Type could not be determined.
-  return NULL;
+  return 0;
 }
 
 /// getMallocAllocatedType - Returns the Type allocated by malloc call.
@@ -273,19 +288,19 @@ PointerType *llvm::getMallocType(const CallInst *CI,
 Type *llvm::getMallocAllocatedType(const CallInst *CI,
                                    const TargetLibraryInfo *TLI) {
   PointerType *PT = getMallocType(CI, TLI);
-  return PT ? PT->getElementType() : NULL;
+  return PT ? PT->getElementType() : 0;
 }
 
-/// getMallocArraySize - Returns the array size of a malloc call.  If the 
+/// getMallocArraySize - Returns the array size of a malloc call.  If the
 /// argument passed to malloc is a multiple of the size of the malloced type,
 /// then return that multiple.  For non-array mallocs, the multiple is
 /// constant 1.  Otherwise, return NULL for mallocs whose array size cannot be
 /// determined.
-Value *llvm::getMallocArraySize(CallInst *CI, const DataLayout *TD,
+Value *llvm::getMallocArraySize(CallInst *CI, const DataLayout *DL,
                                 const TargetLibraryInfo *TLI,
                                 bool LookThroughSExt) {
   assert(isMallocLikeFn(CI, TLI) && "getMallocArraySize and not malloc call");
-  return computeArraySize(CI, TD, TLI, LookThroughSExt);
+  return computeArraySize(CI, DL, TLI, LookThroughSExt);
 }
 
 
@@ -300,7 +315,7 @@ const CallInst *llvm::extractCallocCall(const Value *I,
 /// isFreeCall - Returns non-null if the value is a call to the builtin free()
 const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
   const CallInst *CI = dyn_cast<CallInst>(I);
-  if (!CI)
+  if (!CI || isa<IntrinsicInst>(CI))
     return 0;
   Function *Callee = CI->getCalledFunction();
   if (Callee == 0 || !Callee->isDeclaration())
@@ -311,18 +326,24 @@ const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
   if (!TLI || !TLI->getLibFunc(FnName, TLIFn) || !TLI->has(TLIFn))
     return 0;
 
-  if (TLIFn != LibFunc::free &&
-      TLIFn != LibFunc::ZdlPv && // operator delete(void*)
-      TLIFn != LibFunc::ZdaPv)   // operator delete[](void*)
+  unsigned ExpectedNumParams;
+  if (TLIFn == LibFunc::free ||
+      TLIFn == LibFunc::ZdlPv || // operator delete(void*)
+      TLIFn == LibFunc::ZdaPv)   // operator delete[](void*)
+    ExpectedNumParams = 1;
+  else if (TLIFn == LibFunc::ZdlPvRKSt9nothrow_t || // delete(void*, nothrow)
+           TLIFn == LibFunc::ZdaPvRKSt9nothrow_t)   // delete[](void*, nothrow)
+    ExpectedNumParams = 2;
+  else
     return 0;
 
   // Check free prototype.
-  // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin 
+  // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin
   // attribute will exist.
   FunctionType *FTy = Callee->getFunctionType();
   if (!FTy->getReturnType()->isVoidTy())
     return 0;
-  if (FTy->getNumParams() != 1)
+  if (FTy->getNumParams() != ExpectedNumParams)
     return 0;
   if (FTy->getParamType(0) != Type::getInt8PtrTy(Callee->getContext()))
     return 0;
@@ -341,12 +362,12 @@ const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
 /// object size in Size if successful, and false otherwise.
 /// If RoundToAlign is true, then Size is rounded up to the aligment of allocas,
 /// byval arguments, and global variables.
-bool llvm::getObjectSize(const Value *Ptr, uint64_t &Size, const DataLayout *TD,
+bool llvm::getObjectSize(const Value *Ptr, uint64_t &Size, const DataLayout *DL,
                          const TargetLibraryInfo *TLI, bool RoundToAlign) {
-  if (!TD)
+  if (!DL)
     return false;
 
-  ObjectSizeOffsetVisitor Visitor(TD, TLI, Ptr->getContext(), RoundToAlign);
+  ObjectSizeOffsetVisitor Visitor(DL, TLI, Ptr->getContext(), RoundToAlign);
   SizeOffsetType Data = Visitor.compute(const_cast<Value*>(Ptr));
   if (!Visitor.bothKnown(Data))
     return false;
@@ -373,12 +394,12 @@ APInt ObjectSizeOffsetVisitor::align(APInt Size, uint64_t Align) {
   return Size;
 }
 
-ObjectSizeOffsetVisitor::ObjectSizeOffsetVisitor(const DataLayout *TD,
+ObjectSizeOffsetVisitor::ObjectSizeOffsetVisitor(const DataLayout *DL,
                                                  const TargetLibraryInfo *TLI,
                                                  LLVMContext &Context,
                                                  bool RoundToAlign)
-: TD(TD), TLI(TLI), RoundToAlign(RoundToAlign) {
-  IntegerType *IntTy = TD->getIntPtrType(Context);
+: DL(DL), TLI(TLI), RoundToAlign(RoundToAlign) {
+  IntegerType *IntTy = DL->getIntPtrType(Context);
   IntTyBits = IntTy->getBitWidth();
   Zero = APInt::getNullValue(IntTyBits);
 }
@@ -399,6 +420,8 @@ SizeOffsetType ObjectSizeOffsetVisitor::compute(Value *V) {
     return visitArgument(*A);
   if (ConstantPointerNull *P = dyn_cast<ConstantPointerNull>(V))
     return visitConstantPointerNull(*P);
+  if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V))
+    return visitGlobalAlias(*GA);
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
     return visitGlobalVariable(*GV);
   if (UndefValue *UV = dyn_cast<UndefValue>(V))
@@ -419,7 +442,7 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitAllocaInst(AllocaInst &I) {
   if (!I.getAllocatedType()->isSized())
     return unknown();
 
-  APInt Size(IntTyBits, TD->getTypeAllocSize(I.getAllocatedType()));
+  APInt Size(IntTyBits, DL->getTypeAllocSize(I.getAllocatedType()));
   if (!I.isArrayAllocation())
     return std::make_pair(align(Size, I.getAlignment()), Zero);
 
@@ -438,7 +461,7 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitArgument(Argument &A) {
     return unknown();
   }
   PointerType *PT = cast<PointerType>(A.getType());
-  APInt Size(IntTyBits, TD->getTypeAllocSize(PT->getElementType()));
+  APInt Size(IntTyBits, DL->getTypeAllocSize(PT->getElementType()));
   return std::make_pair(align(Size, A.getParamAlignment()), Zero);
 }
 
@@ -510,19 +533,24 @@ ObjectSizeOffsetVisitor::visitExtractValueInst(ExtractValueInst&) {
 
 SizeOffsetType ObjectSizeOffsetVisitor::visitGEPOperator(GEPOperator &GEP) {
   SizeOffsetType PtrData = compute(GEP.getPointerOperand());
-  if (!bothKnown(PtrData) || !GEP.hasAllConstantIndices())
+  APInt Offset(IntTyBits, 0);
+  if (!bothKnown(PtrData) || !GEP.accumulateConstantOffset(*DL, Offset))
     return unknown();
 
-  SmallVector<Value*, 8> Ops(GEP.idx_begin(), GEP.idx_end());
-  APInt Offset(IntTyBits,TD->getIndexedOffset(GEP.getPointerOperandType(),Ops));
   return std::make_pair(PtrData.first, PtrData.second + Offset);
+}
+
+SizeOffsetType ObjectSizeOffsetVisitor::visitGlobalAlias(GlobalAlias &GA) {
+  if (GA.mayBeOverridden())
+    return unknown();
+  return compute(GA.getAliasee());
 }
 
 SizeOffsetType ObjectSizeOffsetVisitor::visitGlobalVariable(GlobalVariable &GV){
   if (!GV.hasDefinitiveInitializer())
     return unknown();
 
-  APInt Size(IntTyBits, TD->getTypeAllocSize(GV.getType()->getElementType()));
+  APInt Size(IntTyBits, DL->getTypeAllocSize(GV.getType()->getElementType()));
   return std::make_pair(align(Size, GV.getAlignment()), Zero);
 }
 
@@ -558,12 +586,13 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitInstruction(Instruction &I) {
   return unknown();
 }
 
-
-ObjectSizeOffsetEvaluator::ObjectSizeOffsetEvaluator(const DataLayout *TD,
-                                                   const TargetLibraryInfo *TLI,
-                                                     LLVMContext &Context)
-: TD(TD), TLI(TLI), Context(Context), Builder(Context, TargetFolder(TD)) {
-  IntTy = TD->getIntPtrType(Context);
+ObjectSizeOffsetEvaluator::ObjectSizeOffsetEvaluator(const DataLayout *DL,
+                                                     const TargetLibraryInfo *TLI,
+                                                     LLVMContext &Context,
+                                                     bool RoundToAlign)
+: DL(DL), TLI(TLI), Context(Context), Builder(Context, TargetFolder(DL)),
+  RoundToAlign(RoundToAlign) {
+  IntTy = DL->getIntPtrType(Context);
   Zero = ConstantInt::get(IntTy, 0);
 }
 
@@ -587,7 +616,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute(Value *V) {
 }
 
 SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
-  ObjectSizeOffsetVisitor Visitor(TD, TLI, Context);
+  ObjectSizeOffsetVisitor Visitor(DL, TLI, Context, RoundToAlign);
   SizeOffsetType Const = Visitor.compute(V);
   if (Visitor.bothKnown(Const))
     return std::make_pair(ConstantInt::get(Context, Const.first),
@@ -606,19 +635,22 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
   if (Instruction *I = dyn_cast<Instruction>(V))
     Builder.SetInsertPoint(I);
 
-  // record the pointers that were handled in this run, so that they can be
-  // cleaned later if something fails
-  SeenVals.insert(V);
-
   // now compute the size and offset
   SizeOffsetEvalType Result;
-  if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
+
+  // Record the pointers that were handled in this run, so that they can be
+  // cleaned later if something fails. We also use this set to break cycles that
+  // can occur in dead code.
+  if (!SeenVals.insert(V)) {
+    Result = unknown();
+  } else if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
     Result = visitGEPOperator(*GEP);
   } else if (Instruction *I = dyn_cast<Instruction>(V)) {
     Result = visit(*I);
   } else if (isa<Argument>(V) ||
              (isa<ConstantExpr>(V) &&
               cast<ConstantExpr>(V)->getOpcode() == Instruction::IntToPtr) ||
+             isa<GlobalAlias>(V) ||
              isa<GlobalVariable>(V)) {
     // ignore values where we cannot do more than what ObjectSizeVisitor can
     Result = unknown();
@@ -644,7 +676,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitAllocaInst(AllocaInst &I) {
   assert(I.isArrayAllocation());
   Value *ArraySize = I.getArraySize();
   Value *Size = ConstantInt::get(ArraySize->getType(),
-                                 TD->getTypeAllocSize(I.getAllocatedType()));
+                                 DL->getTypeAllocSize(I.getAllocatedType()));
   Size = Builder.CreateMul(Size, ArraySize);
   return std::make_pair(Size, Zero);
 }
@@ -696,7 +728,7 @@ ObjectSizeOffsetEvaluator::visitGEPOperator(GEPOperator &GEP) {
   if (!bothKnown(PtrData))
     return unknown();
 
-  Value *Offset = EmitGEPOffset(&Builder, *TD, &GEP, /*NoAssumptions=*/true);
+  Value *Offset = EmitGEPOffset(&Builder, *DL, &GEP, /*NoAssumptions=*/true);
   Offset = Builder.CreateAdd(PtrData.second, Offset);
   return std::make_pair(PtrData.first, Offset);
 }

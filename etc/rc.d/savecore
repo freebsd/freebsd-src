@@ -23,6 +23,9 @@ savecore_prestart()
 		return 1
 		;;
 	[Aa][Uu][Tt][Oo])
+		if [ ! -L /dev/dumpdev ]; then
+			return 1
+		fi
 		dumpdev=`/bin/realpath /dev/dumpdev`
 		;;
 	esac
@@ -67,6 +70,7 @@ savecore_start()
 		if checkyesno crashinfo_enable; then
 			${crashinfo_program} -d ${dumpdir}
 		fi
+		sync
 	else
 		check_startmsgs && echo 'No core dumps found.'
 	fi

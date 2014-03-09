@@ -91,6 +91,15 @@ RB_GENERATE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 	
 
 void
+pmap_advise(pmap_t pmap, vm_offset_t start, vm_offset_t end, int advice)
+{
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %d)", __func__, pmap, start, end,
+	    advice);
+	MMU_ADVISE(mmu_obj, pmap, start, end, advice);
+}
+
+void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
 
@@ -104,14 +113,6 @@ pmap_clear_modify(vm_page_t m)
 
 	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 	MMU_CLEAR_MODIFY(mmu_obj, m);
-}
-
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_CLEAR_REFERENCE(mmu_obj, m);
 }
 
 void
@@ -130,6 +131,16 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 
 	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, src, dst);
 	MMU_COPY_PAGE(mmu_obj, src, dst);
+}
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %#x, %#x)", __func__, ma,
+	    a_offset, mb, b_offset, xfersize);
+	MMU_COPY_PAGES(mmu_obj, ma, a_offset, mb, b_offset, xfersize);
 }
 
 void
@@ -564,3 +575,5 @@ pmap_mmu_install(char *name, int prio)
 
 	return (FALSE);
 }
+
+int unmapped_buf_allowed;

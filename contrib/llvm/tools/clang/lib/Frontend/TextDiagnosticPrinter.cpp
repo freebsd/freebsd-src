@@ -17,10 +17,10 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/TextDiagnostic.h"
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/ADT/SmallString.h"
 #include <algorithm>
 using namespace clang;
 
@@ -132,7 +132,8 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
   // diagnostics in a context that lacks language options, a source manager, or
   // other infrastructure necessary when emitting more rich diagnostics.
   if (!Info.getLocation().isValid()) {
-    TextDiagnostic::printDiagnosticLevel(OS, Level, DiagOpts->ShowColors);
+    TextDiagnostic::printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
+                                         DiagOpts->CLFallbackMode);
     TextDiagnostic::printDiagnosticMessage(OS, Level, DiagMessageStream.str(),
                                            OS.tell() - StartOfLocationInfo,
                                            DiagOpts->MessageLength,
@@ -154,9 +155,4 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
                            &Info.getSourceManager());
 
   OS.flush();
-}
-
-DiagnosticConsumer *
-TextDiagnosticPrinter::clone(DiagnosticsEngine &Diags) const {
-  return new TextDiagnosticPrinter(OS, &*DiagOpts, /*OwnsOutputStream=*/false);
 }

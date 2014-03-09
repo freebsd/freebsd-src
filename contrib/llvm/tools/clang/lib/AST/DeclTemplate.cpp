@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTMutationListener.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/TypeLoc.h"
-#include "clang/AST/ASTMutationListener.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
@@ -128,33 +128,34 @@ static void AdoptTemplateParameterList(TemplateParameterList *Params,
 // RedeclarableTemplateDecl Implementation
 //===----------------------------------------------------------------------===//
 
-RedeclarableTemplateDecl::CommonBase *RedeclarableTemplateDecl::getCommonPtr() {
-  if (!Common) {
-    // Walk the previous-declaration chain until we either find a declaration
-    // with a common pointer or we run out of previous declarations.
-    llvm::SmallVector<RedeclarableTemplateDecl *, 2> PrevDecls;
-    for (RedeclarableTemplateDecl *Prev = getPreviousDecl(); Prev;
-         Prev = Prev->getPreviousDecl()) {
-      if (Prev->Common) {
-        Common = Prev->Common;
-        break;
-      }
-      
-      PrevDecls.push_back(Prev);
+RedeclarableTemplateDecl::CommonBase *RedeclarableTemplateDecl::getCommonPtr() const {
+  if (Common)
+    return Common;
+
+  // Walk the previous-declaration chain until we either find a declaration
+  // with a common pointer or we run out of previous declarations.
+  SmallVector<const RedeclarableTemplateDecl *, 2> PrevDecls;
+  for (const RedeclarableTemplateDecl *Prev = getPreviousDecl(); Prev;
+       Prev = Prev->getPreviousDecl()) {
+    if (Prev->Common) {
+      Common = Prev->Common;
+      break;
     }
 
-    // If we never found a common pointer, allocate one now.
-    if (!Common) {
-      // FIXME: If any of the declarations is from an AST file, we probably
-      // need an update record to add the common data.
-      
-      Common = newCommon(getASTContext());
-    }
-    
-    // Update any previous declarations we saw with the common pointer.
-    for (unsigned I = 0, N = PrevDecls.size(); I != N; ++I)
-      PrevDecls[I]->Common = Common;
+    PrevDecls.push_back(Prev);
   }
+
+  // If we never found a common pointer, allocate one now.
+  if (!Common) {
+    // FIXME: If any of the declarations is from an AST file, we probably
+    // need an update record to add the common data.
+
+    Common = newCommon(getASTContext());
+  }
+
+  // Update any previous declarations we saw with the common pointer.
+  for (unsigned I = 0, N = PrevDecls.size(); I != N; ++I)
+    PrevDecls[I]->Common = Common;
 
   return Common;
 }
@@ -184,9 +185,8 @@ static void GenerateInjectedTemplateArgs(ASTContext &Context,
     if (TemplateTypeParmDecl *TTP = dyn_cast<TemplateTypeParmDecl>(*Param)) {
       QualType ArgType = Context.getTypeDeclType(TTP);
       if (TTP->isParameterPack())
-        ArgType = Context.getPackExpansionType(ArgType, 
-                                               llvm::Optional<unsigned>());
-      
+        ArgType = Context.getPackExpansionType(ArgType, None);
+
       Arg = TemplateArgument(ArgType);
     } else if (NonTypeTemplateParmDecl *NTTP =
                dyn_cast<NonTypeTemplateParmDecl>(*Param)) {
@@ -197,13 +197,12 @@ static void GenerateInjectedTemplateArgs(ASTContext &Context,
       
       if (NTTP->isParameterPack())
         E = new (Context) PackExpansionExpr(Context.DependentTy, E,
-                                            NTTP->getLocation(),
-                                            llvm::Optional<unsigned>());
+                                            NTTP->getLocation(), None);
       Arg = TemplateArgument(E);
     } else {
       TemplateTemplateParmDecl *TTP = cast<TemplateTemplateParmDecl>(*Param);
       if (TTP->isParameterPack())
-        Arg = TemplateArgument(TemplateName(TTP), llvm::Optional<unsigned>());
+        Arg = TemplateArgument(TemplateName(TTP), Optional<unsigned>());
       else
         Arg = TemplateArgument(TemplateName(TTP));
     }
@@ -241,10 +240,27 @@ FunctionTemplateDecl *FunctionTemplateDecl::CreateDeserialized(ASTContext &C,
 }
 
 RedeclarableTemplateDecl::CommonBase *
-FunctionTemplateDecl::newCommon(ASTContext &C) {
+FunctionTemplateDecl::newCommon(ASTContext &C) const {
   Common *CommonPtr = new (C) Common;
   C.AddDeallocation(DeallocateCommon, CommonPtr);
   return CommonPtr;
+}
+
+void FunctionTemplateDecl::LoadLazySpecializations() const {
+  Common *CommonPtr = getCommonPtr();
+  if (CommonPtr->LazySpecializations) {
+    ASTContext &Context = getASTContext();
+    uint32_t *Specs = CommonPtr->LazySpecializations;
+    CommonPtr->LazySpecializations = 0;
+    for (uint32_t I = 0, N = *Specs++; I != N; ++I)
+      (void)Context.getExternalSource()->GetExternalDecl(Specs[I]);
+  }
+}
+
+llvm::FoldingSetVector<FunctionTemplateSpecializationInfo> &
+FunctionTemplateDecl::getSpecializations() const {
+  LoadLazySpecializations();
+  return getCommonPtr()->Specializations;
 }
 
 FunctionDecl *
@@ -263,18 +279,17 @@ void FunctionTemplateDecl::addSpecialization(
     L->AddedCXXTemplateSpecialization(this, Info->Function);
 }
 
-std::pair<const TemplateArgument *, unsigned> 
-FunctionTemplateDecl::getInjectedTemplateArgs() {
+ArrayRef<TemplateArgument> FunctionTemplateDecl::getInjectedTemplateArgs() {
   TemplateParameterList *Params = getTemplateParameters();
   Common *CommonPtr = getCommonPtr();
   if (!CommonPtr->InjectedArgs) {
     CommonPtr->InjectedArgs
-      = new (getASTContext()) TemplateArgument [Params->size()];
-    GenerateInjectedTemplateArgs(getASTContext(), Params, 
+      = new (getASTContext()) TemplateArgument[Params->size()];
+    GenerateInjectedTemplateArgs(getASTContext(), Params,
                                  CommonPtr->InjectedArgs);
   }
-  
-  return std::make_pair(CommonPtr->InjectedArgs, Params->size());
+
+  return llvm::makeArrayRef(CommonPtr->InjectedArgs, Params->size());
 }
 
 //===----------------------------------------------------------------------===//
@@ -294,7 +309,7 @@ ClassTemplateDecl *ClassTemplateDecl::Create(ASTContext &C,
                                              ClassTemplateDecl *PrevDecl) {
   AdoptTemplateParameterList(Params, cast<DeclContext>(Decl));
   ClassTemplateDecl *New = new (C) ClassTemplateDecl(DC, L, Name, Params, Decl);
-  New->setPreviousDeclaration(PrevDecl);
+  New->setPreviousDecl(PrevDecl);
   return New;
 }
 
@@ -304,7 +319,7 @@ ClassTemplateDecl *ClassTemplateDecl::CreateDeserialized(ASTContext &C,
   return new (Mem) ClassTemplateDecl(EmptyShell());
 }
 
-void ClassTemplateDecl::LoadLazySpecializations() {
+void ClassTemplateDecl::LoadLazySpecializations() const {
   Common *CommonPtr = getCommonPtr();
   if (CommonPtr->LazySpecializations) {
     ASTContext &Context = getASTContext();
@@ -316,7 +331,7 @@ void ClassTemplateDecl::LoadLazySpecializations() {
 }
 
 llvm::FoldingSetVector<ClassTemplateSpecializationDecl> &
-ClassTemplateDecl::getSpecializations() {
+ClassTemplateDecl::getSpecializations() const {
   LoadLazySpecializations();
   return getCommonPtr()->Specializations;
 }  
@@ -328,7 +343,7 @@ ClassTemplateDecl::getPartialSpecializations() {
 }  
 
 RedeclarableTemplateDecl::CommonBase *
-ClassTemplateDecl::newCommon(ASTContext &C) {
+ClassTemplateDecl::newCommon(ASTContext &C) const {
   Common *CommonPtr = new (C) Common;
   C.AddDeallocation(DeallocateCommon, CommonPtr);
   return CommonPtr;
@@ -383,13 +398,11 @@ void ClassTemplateDecl::getPartialSpecializations(
   llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl> &PartialSpecs
     = getPartialSpecializations();
   PS.clear();
-  PS.resize(PartialSpecs.size());
+  PS.reserve(PartialSpecs.size());
   for (llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl>::iterator
        P = PartialSpecs.begin(), PEnd = PartialSpecs.end();
-       P != PEnd; ++P) {
-    assert(!PS[P->getSequenceNumber()]);
-    PS[P->getSequenceNumber()] = P->getMostRecentDecl();
-  }
+       P != PEnd; ++P)
+    PS.push_back(P->getMostRecentDecl());
 }
 
 ClassTemplatePartialSpecializationDecl *
@@ -620,7 +633,7 @@ TemplateTemplateParmDecl::Create(const ASTContext &C, DeclContext *DC,
                                  SourceLocation L, unsigned D, unsigned P,
                                  IdentifierInfo *Id,
                                  TemplateParameterList *Params,
-                            llvm::ArrayRef<TemplateParameterList*> Expansions) {
+                                 ArrayRef<TemplateParameterList *> Expansions) {
   void *Mem = C.Allocate(sizeof(TemplateTemplateParmDecl) +
                          sizeof(TemplateParameterList*) * Expansions.size());
   return new (Mem) TemplateTemplateParmDecl(DC, L, D, P, Id, Params,
@@ -728,6 +741,8 @@ ClassTemplateSpecializationDecl::Create(ASTContext &Context, TagKind TK,
                                                    SpecializedTemplate,
                                                    Args, NumArgs,
                                                    PrevDecl);
+  Result->MayHaveOutOfDateDef = false;
+
   Context.getTypeDeclType(Result, PrevDecl);
   return Result;
 }
@@ -737,20 +752,19 @@ ClassTemplateSpecializationDecl::CreateDeserialized(ASTContext &C,
                                                     unsigned ID) {
   void *Mem = AllocateDeserializedDecl(C, ID, 
                                        sizeof(ClassTemplateSpecializationDecl));
-  return new (Mem) ClassTemplateSpecializationDecl(ClassTemplateSpecialization);
+  ClassTemplateSpecializationDecl *Result =
+    new (Mem) ClassTemplateSpecializationDecl(ClassTemplateSpecialization);
+  Result->MayHaveOutOfDateDef = false;
+  return Result;
 }
 
-void
-ClassTemplateSpecializationDecl::getNameForDiagnostic(std::string &S,
-                                                  const PrintingPolicy &Policy,
-                                                      bool Qualified) const {
-  NamedDecl::getNameForDiagnostic(S, Policy, Qualified);
+void ClassTemplateSpecializationDecl::getNameForDiagnostic(
+    raw_ostream &OS, const PrintingPolicy &Policy, bool Qualified) const {
+  NamedDecl::getNameForDiagnostic(OS, Policy, Qualified);
 
   const TemplateArgumentList &TemplateArgs = getTemplateArgs();
-  S += TemplateSpecializationType::PrintTemplateArgumentList(
-                                                          TemplateArgs.data(),
-                                                          TemplateArgs.size(),
-                                                             Policy);
+  TemplateSpecializationType::PrintTemplateArgumentList(
+      OS, TemplateArgs.data(), TemplateArgs.size(), Policy);
 }
 
 ClassTemplateDecl *
@@ -814,19 +828,16 @@ ClassTemplatePartialSpecializationDecl(ASTContext &Context, TagKind TK,
                                        ClassTemplateDecl *SpecializedTemplate,
                                        const TemplateArgument *Args,
                                        unsigned NumArgs,
-                                       TemplateArgumentLoc *ArgInfos,
-                                       unsigned NumArgInfos,
-                               ClassTemplatePartialSpecializationDecl *PrevDecl,
-                                       unsigned SequenceNumber)
+                               const ASTTemplateArgumentListInfo *ArgInfos,
+                               ClassTemplatePartialSpecializationDecl *PrevDecl)
   : ClassTemplateSpecializationDecl(Context,
                                     ClassTemplatePartialSpecialization,
                                     TK, DC, StartLoc, IdLoc,
                                     SpecializedTemplate,
                                     Args, NumArgs, PrevDecl),
     TemplateParams(Params), ArgsAsWritten(ArgInfos),
-    NumArgsAsWritten(NumArgInfos), SequenceNumber(SequenceNumber),
     InstantiatedFromMember(0, false)
-{ 
+{
   AdoptTemplateParameterList(Params, this);
 }
 
@@ -840,12 +851,9 @@ Create(ASTContext &Context, TagKind TK,DeclContext *DC,
        unsigned NumArgs,
        const TemplateArgumentListInfo &ArgInfos,
        QualType CanonInjectedType,
-       ClassTemplatePartialSpecializationDecl *PrevDecl,
-       unsigned SequenceNumber) {
-  unsigned N = ArgInfos.size();
-  TemplateArgumentLoc *ClonedArgs = new (Context) TemplateArgumentLoc[N];
-  for (unsigned I = 0; I != N; ++I)
-    ClonedArgs[I] = ArgInfos[I];
+       ClassTemplatePartialSpecializationDecl *PrevDecl) {
+  const ASTTemplateArgumentListInfo *ASTArgInfos =
+    ASTTemplateArgumentListInfo::Create(Context, ArgInfos);
 
   ClassTemplatePartialSpecializationDecl *Result
     = new (Context)ClassTemplatePartialSpecializationDecl(Context, TK, DC,
@@ -853,10 +861,10 @@ Create(ASTContext &Context, TagKind TK,DeclContext *DC,
                                                           Params,
                                                           SpecializedTemplate,
                                                           Args, NumArgs,
-                                                          ClonedArgs, N,
-                                                          PrevDecl,
-                                                          SequenceNumber);
+                                                          ASTArgInfos,
+                                                          PrevDecl);
   Result->setSpecializationKind(TSK_ExplicitSpecialization);
+  Result->MayHaveOutOfDateDef = false;
 
   Context.getInjectedClassNameType(Result, CanonInjectedType);
   return Result;
@@ -867,7 +875,10 @@ ClassTemplatePartialSpecializationDecl::CreateDeserialized(ASTContext &C,
                                                            unsigned ID) {
   void *Mem = AllocateDeserializedDecl(C, ID, 
                 sizeof(ClassTemplatePartialSpecializationDecl));
-  return new (Mem) ClassTemplatePartialSpecializationDecl();
+  ClassTemplatePartialSpecializationDecl *Result
+    = new (Mem) ClassTemplatePartialSpecializationDecl();
+  Result->MayHaveOutOfDateDef = false;
+  return Result;
 }
 
 //===----------------------------------------------------------------------===//
@@ -919,7 +930,7 @@ void TypeAliasTemplateDecl::DeallocateCommon(void *Ptr) {
   static_cast<Common *>(Ptr)->~Common();
 }
 RedeclarableTemplateDecl::CommonBase *
-TypeAliasTemplateDecl::newCommon(ASTContext &C) {
+TypeAliasTemplateDecl::newCommon(ASTContext &C) const {
   Common *CommonPtr = new (C) Common;
   C.AddDeallocation(DeallocateCommon, CommonPtr);
   return CommonPtr;
@@ -938,4 +949,253 @@ ClassScopeFunctionSpecializationDecl::CreateDeserialized(ASTContext &C,
                 sizeof(ClassScopeFunctionSpecializationDecl));
   return new (Mem) ClassScopeFunctionSpecializationDecl(0, SourceLocation(), 0,
                                              false, TemplateArgumentListInfo());
+}
+
+//===----------------------------------------------------------------------===//
+// VarTemplateDecl Implementation
+//===----------------------------------------------------------------------===//
+
+void VarTemplateDecl::DeallocateCommon(void *Ptr) {
+  static_cast<Common *>(Ptr)->~Common();
+}
+
+VarTemplateDecl *VarTemplateDecl::getDefinition() {
+  VarTemplateDecl *CurD = this;
+  while (CurD) {
+    if (CurD->isThisDeclarationADefinition())
+      return CurD;
+    CurD = CurD->getPreviousDecl();
+  }
+  return 0;
+}
+
+VarTemplateDecl *VarTemplateDecl::Create(ASTContext &C, DeclContext *DC,
+                                         SourceLocation L, DeclarationName Name,
+                                         TemplateParameterList *Params,
+                                         NamedDecl *Decl,
+                                         VarTemplateDecl *PrevDecl) {
+  VarTemplateDecl *New = new (C) VarTemplateDecl(DC, L, Name, Params, Decl);
+  New->setPreviousDecl(PrevDecl);
+  return New;
+}
+
+VarTemplateDecl *VarTemplateDecl::CreateDeserialized(ASTContext &C,
+                                                     unsigned ID) {
+  void *Mem = AllocateDeserializedDecl(C, ID, sizeof(VarTemplateDecl));
+  return new (Mem) VarTemplateDecl(EmptyShell());
+}
+
+// TODO: Unify accross class, function and variable templates?
+//       May require moving this and Common to RedeclarableTemplateDecl.
+void VarTemplateDecl::LoadLazySpecializations() const {
+  Common *CommonPtr = getCommonPtr();
+  if (CommonPtr->LazySpecializations) {
+    ASTContext &Context = getASTContext();
+    uint32_t *Specs = CommonPtr->LazySpecializations;
+    CommonPtr->LazySpecializations = 0;
+    for (uint32_t I = 0, N = *Specs++; I != N; ++I)
+      (void)Context.getExternalSource()->GetExternalDecl(Specs[I]);
+  }
+}
+
+llvm::FoldingSetVector<VarTemplateSpecializationDecl> &
+VarTemplateDecl::getSpecializations() const {
+  LoadLazySpecializations();
+  return getCommonPtr()->Specializations;
+}
+
+llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl> &
+VarTemplateDecl::getPartialSpecializations() {
+  LoadLazySpecializations();
+  return getCommonPtr()->PartialSpecializations;
+}
+
+RedeclarableTemplateDecl::CommonBase *
+VarTemplateDecl::newCommon(ASTContext &C) const {
+  Common *CommonPtr = new (C) Common;
+  C.AddDeallocation(DeallocateCommon, CommonPtr);
+  return CommonPtr;
+}
+
+VarTemplateSpecializationDecl *
+VarTemplateDecl::findSpecialization(const TemplateArgument *Args,
+                                    unsigned NumArgs, void *&InsertPos) {
+  return findSpecializationImpl(getSpecializations(), Args, NumArgs, InsertPos);
+}
+
+void VarTemplateDecl::AddSpecialization(VarTemplateSpecializationDecl *D,
+                                        void *InsertPos) {
+  if (InsertPos)
+    getSpecializations().InsertNode(D, InsertPos);
+  else {
+    VarTemplateSpecializationDecl *Existing =
+        getSpecializations().GetOrInsertNode(D);
+    (void)Existing;
+    assert(Existing->isCanonicalDecl() && "Non-canonical specialization?");
+  }
+  if (ASTMutationListener *L = getASTMutationListener())
+    L->AddedCXXTemplateSpecialization(this, D);
+}
+
+VarTemplatePartialSpecializationDecl *
+VarTemplateDecl::findPartialSpecialization(const TemplateArgument *Args,
+                                           unsigned NumArgs, void *&InsertPos) {
+  return findSpecializationImpl(getPartialSpecializations(), Args, NumArgs,
+                                InsertPos);
+}
+
+void VarTemplateDecl::AddPartialSpecialization(
+    VarTemplatePartialSpecializationDecl *D, void *InsertPos) {
+  if (InsertPos)
+    getPartialSpecializations().InsertNode(D, InsertPos);
+  else {
+    VarTemplatePartialSpecializationDecl *Existing =
+        getPartialSpecializations().GetOrInsertNode(D);
+    (void)Existing;
+    assert(Existing->isCanonicalDecl() && "Non-canonical specialization?");
+  }
+
+  if (ASTMutationListener *L = getASTMutationListener())
+    L->AddedCXXTemplateSpecialization(this, D);
+}
+
+void VarTemplateDecl::getPartialSpecializations(
+    SmallVectorImpl<VarTemplatePartialSpecializationDecl *> &PS) {
+  llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl> &PartialSpecs =
+      getPartialSpecializations();
+  PS.clear();
+  PS.reserve(PartialSpecs.size());
+  for (llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl>::iterator
+           P = PartialSpecs.begin(),
+           PEnd = PartialSpecs.end();
+       P != PEnd; ++P)
+    PS.push_back(P->getMostRecentDecl());
+}
+
+VarTemplatePartialSpecializationDecl *
+VarTemplateDecl::findPartialSpecInstantiatedFromMember(
+    VarTemplatePartialSpecializationDecl *D) {
+  Decl *DCanon = D->getCanonicalDecl();
+  for (llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl>::iterator
+           P = getPartialSpecializations().begin(),
+           PEnd = getPartialSpecializations().end();
+       P != PEnd; ++P) {
+    if (P->getInstantiatedFromMember()->getCanonicalDecl() == DCanon)
+      return P->getMostRecentDecl();
+  }
+
+  return 0;
+}
+
+//===----------------------------------------------------------------------===//
+// VarTemplateSpecializationDecl Implementation
+//===----------------------------------------------------------------------===//
+VarTemplateSpecializationDecl::VarTemplateSpecializationDecl(
+    ASTContext &Context, Kind DK, DeclContext *DC, SourceLocation StartLoc,
+    SourceLocation IdLoc, VarTemplateDecl *SpecializedTemplate, QualType T,
+    TypeSourceInfo *TInfo, StorageClass S, const TemplateArgument *Args,
+    unsigned NumArgs)
+    : VarDecl(DK, DC, StartLoc, IdLoc, SpecializedTemplate->getIdentifier(), T,
+              TInfo, S),
+      SpecializedTemplate(SpecializedTemplate), ExplicitInfo(0),
+      TemplateArgs(TemplateArgumentList::CreateCopy(Context, Args, NumArgs)),
+      SpecializationKind(TSK_Undeclared) {}
+
+VarTemplateSpecializationDecl::VarTemplateSpecializationDecl(Kind DK)
+    : VarDecl(DK, 0, SourceLocation(), SourceLocation(), 0, QualType(), 0,
+              SC_None),
+      ExplicitInfo(0), SpecializationKind(TSK_Undeclared) {}
+
+VarTemplateSpecializationDecl *VarTemplateSpecializationDecl::Create(
+    ASTContext &Context, DeclContext *DC, SourceLocation StartLoc,
+    SourceLocation IdLoc, VarTemplateDecl *SpecializedTemplate, QualType T,
+    TypeSourceInfo *TInfo, StorageClass S, const TemplateArgument *Args,
+    unsigned NumArgs) {
+  VarTemplateSpecializationDecl *Result = new (Context)
+      VarTemplateSpecializationDecl(Context, VarTemplateSpecialization, DC,
+                                    StartLoc, IdLoc, SpecializedTemplate, T,
+                                    TInfo, S, Args, NumArgs);
+  return Result;
+}
+
+VarTemplateSpecializationDecl *
+VarTemplateSpecializationDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  void *Mem =
+      AllocateDeserializedDecl(C, ID, sizeof(VarTemplateSpecializationDecl));
+  VarTemplateSpecializationDecl *Result =
+      new (Mem) VarTemplateSpecializationDecl(VarTemplateSpecialization);
+  return Result;
+}
+
+void VarTemplateSpecializationDecl::getNameForDiagnostic(
+    raw_ostream &OS, const PrintingPolicy &Policy, bool Qualified) const {
+  NamedDecl::getNameForDiagnostic(OS, Policy, Qualified);
+
+  const TemplateArgumentList &TemplateArgs = getTemplateArgs();
+  TemplateSpecializationType::PrintTemplateArgumentList(
+      OS, TemplateArgs.data(), TemplateArgs.size(), Policy);
+}
+
+VarTemplateDecl *VarTemplateSpecializationDecl::getSpecializedTemplate() const {
+  if (SpecializedPartialSpecialization *PartialSpec =
+          SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization *>())
+    return PartialSpec->PartialSpecialization->getSpecializedTemplate();
+  return SpecializedTemplate.get<VarTemplateDecl *>();
+}
+
+void VarTemplateSpecializationDecl::setTemplateArgsInfo(
+    const TemplateArgumentListInfo &ArgsInfo) {
+  unsigned N = ArgsInfo.size();
+  TemplateArgsInfo.setLAngleLoc(ArgsInfo.getLAngleLoc());
+  TemplateArgsInfo.setRAngleLoc(ArgsInfo.getRAngleLoc());
+  for (unsigned I = 0; I != N; ++I)
+    TemplateArgsInfo.addArgument(ArgsInfo[I]);
+}
+
+//===----------------------------------------------------------------------===//
+// VarTemplatePartialSpecializationDecl Implementation
+//===----------------------------------------------------------------------===//
+void VarTemplatePartialSpecializationDecl::anchor() {}
+
+VarTemplatePartialSpecializationDecl::VarTemplatePartialSpecializationDecl(
+    ASTContext &Context, DeclContext *DC, SourceLocation StartLoc,
+    SourceLocation IdLoc, TemplateParameterList *Params,
+    VarTemplateDecl *SpecializedTemplate, QualType T, TypeSourceInfo *TInfo,
+    StorageClass S, const TemplateArgument *Args, unsigned NumArgs,
+    const ASTTemplateArgumentListInfo *ArgInfos)
+    : VarTemplateSpecializationDecl(Context, VarTemplatePartialSpecialization,
+                                    DC, StartLoc, IdLoc, SpecializedTemplate, T,
+                                    TInfo, S, Args, NumArgs),
+      TemplateParams(Params), ArgsAsWritten(ArgInfos),
+      InstantiatedFromMember(0, false) {
+  // TODO: The template parameters should be in DC by now. Verify.
+  // AdoptTemplateParameterList(Params, DC);
+}
+
+VarTemplatePartialSpecializationDecl *
+VarTemplatePartialSpecializationDecl::Create(
+    ASTContext &Context, DeclContext *DC, SourceLocation StartLoc,
+    SourceLocation IdLoc, TemplateParameterList *Params,
+    VarTemplateDecl *SpecializedTemplate, QualType T, TypeSourceInfo *TInfo,
+    StorageClass S, const TemplateArgument *Args, unsigned NumArgs,
+    const TemplateArgumentListInfo &ArgInfos) {
+  const ASTTemplateArgumentListInfo *ASTArgInfos
+    = ASTTemplateArgumentListInfo::Create(Context, ArgInfos);
+
+  VarTemplatePartialSpecializationDecl *Result =
+      new (Context) VarTemplatePartialSpecializationDecl(
+          Context, DC, StartLoc, IdLoc, Params, SpecializedTemplate, T, TInfo,
+          S, Args, NumArgs, ASTArgInfos);
+  Result->setSpecializationKind(TSK_ExplicitSpecialization);
+  return Result;
+}
+
+VarTemplatePartialSpecializationDecl *
+VarTemplatePartialSpecializationDecl::CreateDeserialized(ASTContext &C,
+                                                         unsigned ID) {
+  void *Mem = AllocateDeserializedDecl(
+      C, ID, sizeof(VarTemplatePartialSpecializationDecl));
+  VarTemplatePartialSpecializationDecl *Result =
+      new (Mem) VarTemplatePartialSpecializationDecl();
+  return Result;
 }

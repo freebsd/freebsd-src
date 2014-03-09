@@ -63,11 +63,17 @@ namespace llvm {
       // Corresponds to MACCS instruction
       MACCS,
 
+      // Corresponds to CRC8 instruction
+      CRC8,
+
       // Jumptable branch.
       BR_JT,
 
       // Jumptable branch using long branches for each entry.
-      BR_JT32
+      BR_JT32,
+
+      // Memory barrier.
+      MEMBARRIER
     };
   }
 
@@ -80,8 +86,12 @@ namespace llvm {
 
     explicit XCoreTargetLowering(XCoreTargetMachine &TM);
 
+    using TargetLowering::isZExtFree;
+    virtual bool isZExtFree(SDValue Val, EVT VT2) const;
+
+
     virtual unsigned getJumpTableEncoding() const;
-    virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
+    virtual MVT getScalarShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
@@ -112,7 +122,7 @@ namespace llvm {
                               CallingConv::ID CallConv,
                               bool isVarArg,
                               const SmallVectorImpl<ISD::InputArg> &Ins,
-                              DebugLoc dl, SelectionDAG &DAG,
+                              SDLoc dl, SelectionDAG &DAG,
                               SmallVectorImpl<SDValue> &InVals) const;
     SDValue LowerCCCCallTo(SDValue Chain, SDValue Callee,
                            CallingConv::ID CallConv, bool isVarArg,
@@ -120,16 +130,19 @@ namespace llvm {
                            const SmallVectorImpl<ISD::OutputArg> &Outs,
                            const SmallVectorImpl<SDValue> &OutVals,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
-                           DebugLoc dl, SelectionDAG &DAG,
+                           SDLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
-                            DebugLoc dl, SelectionDAG &DAG,
+                            SDLoc dl, SelectionDAG &DAG,
                             SmallVectorImpl<SDValue> &InVals) const;
     SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
     SDValue getGlobalAddressWrapper(SDValue GA, const GlobalValue *GV,
                                     SelectionDAG &DAG) const;
+    SDValue lowerLoadWordFromAlignedBasePlusOffset(SDLoc DL, SDValue Chain,
+                                                   SDValue Base, int64_t Offset,
+                                                   SelectionDAG &DAG) const;
 
     // Lower Operand specifics
     SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
@@ -147,11 +160,13 @@ namespace llvm {
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG) const;
 
     // Inline asm support
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint,
-                                 EVT VT) const;
+                                 MVT VT) const;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -170,7 +185,7 @@ namespace llvm {
                            CallingConv::ID CallConv,
                            bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
-                           DebugLoc dl, SelectionDAG &DAG,
+                           SDLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
@@ -182,7 +197,7 @@ namespace llvm {
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
                   const SmallVectorImpl<SDValue> &OutVals,
-                  DebugLoc dl, SelectionDAG &DAG) const;
+                  SDLoc dl, SelectionDAG &DAG) const;
 
     virtual bool
       CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,

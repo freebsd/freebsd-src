@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.h,v 1.2 2011/03/30 22:03:49 sjg Exp $ */
+/*      $NetBSD: meta.h,v 1.3 2013/03/23 05:31:29 sjg Exp $ */
 
 /*
  * Things needed for 'meta' mode.
@@ -41,7 +41,8 @@ typedef struct BuildMon {
 extern Boolean useMeta;
 
 struct Job;				/* not defined yet */
-void meta_init(const char *);
+void meta_init(void);
+void meta_mode_init(const char *);
 void meta_job_start(struct Job *, GNode *);
 void meta_job_child(struct Job *);
 void meta_job_error(struct Job *, GNode *, int, int);

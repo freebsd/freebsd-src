@@ -212,7 +212,7 @@ DEFINE_TEST(test_read_format_isorr_ce)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */

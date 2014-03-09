@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_EVENTHANDLER_H
-#define SYS_EVENTHANDLER_H
+#ifndef _SYS_EVENTHANDLER_H_
+#define _SYS_EVENTHANDLER_H_
 
 #include <sys/lock.h>
 #include <sys/ktr.h>
@@ -192,18 +192,16 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 typedef void (*mountroot_handler_t)(void *);
 EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);
 
-/* VLAN state change events */
-struct ifnet;
-typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
-typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
-EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
-EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
-
-/* BPF attach/detach events */
-struct ifnet;
-typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
-    int /* 1 =>'s attach */);
-EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
+/* File system mount events */
+struct mount;
+struct vnode;
+struct thread;
+typedef void (*vfs_mounted_notify_fn)(void *, struct mount *, struct vnode *,
+    struct thread *);
+typedef void (*vfs_unmounted_notify_fn)(void *, struct mount *,
+    struct thread *);
+EVENTHANDLER_DECLARE(vfs_mounted, vfs_mounted_notify_fn);
+EVENTHANDLER_DECLARE(vfs_unmounted, vfs_unmounted_notify_fn);
 
 /*
  * Process events
@@ -231,7 +229,6 @@ EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 /*
  * application dump event
  */
-struct thread;
 typedef void (*app_coredump_start_fn)(void *, struct thread *, char *name);
 typedef void (*app_coredump_progress_fn)(void *, struct thread *td, int byte_count);
 typedef void (*app_coredump_finish_fn)(void *, struct thread *td);
@@ -256,4 +253,20 @@ EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(nmbufs_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
-#endif /* SYS_EVENTHANDLER_H */
+/* Kernel linker file load and unload events */
+struct linker_file;
+typedef void (*kld_load_fn)(void *, struct linker_file *);
+typedef void (*kld_unload_fn)(void *, const char *, caddr_t, size_t);
+typedef void (*kld_unload_try_fn)(void *, struct linker_file *, int *);
+EVENTHANDLER_DECLARE(kld_load, kld_load_fn);
+EVENTHANDLER_DECLARE(kld_unload, kld_unload_fn);
+EVENTHANDLER_DECLARE(kld_unload_try, kld_unload_try_fn);
+
+/* Generic graphics framebuffer interface */
+struct fb_info;
+typedef void (*register_framebuffer_fn)(void *, struct fb_info *);
+typedef void (*unregister_framebuffer_fn)(void *, struct fb_info *);
+EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
+EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
+
+#endif /* _SYS_EVENTHANDLER_H_ */

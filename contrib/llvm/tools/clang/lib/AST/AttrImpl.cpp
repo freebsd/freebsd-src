@@ -13,8 +13,9 @@
 
 #include "clang/AST/Attr.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/Type.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/Type.h"
+#include "llvm/ADT/StringSwitch.h"
 using namespace clang;
 
 Attr::~Attr() { }
@@ -22,5 +23,7 @@ Attr::~Attr() { }
 void InheritableAttr::anchor() { }
 
 void InheritableParamAttr::anchor() { }
+
+void MSInheritanceAttr::anchor() { }
 
 #include "clang/AST/AttrImpl.inc"

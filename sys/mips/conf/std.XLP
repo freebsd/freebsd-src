@@ -81,7 +81,6 @@ device		siis
 device		da
 device		scbus
 #device		ata
-#device		atadisk
 
 # USB
 device		usb			# USB Bus (required)

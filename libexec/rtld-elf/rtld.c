@@ -116,6 +116,7 @@ static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
+static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
@@ -145,9 +146,8 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
-static int origin_subst_one(char **, const char *, const char *,
-  const char *, char *);
-static char *origin_subst(const char *, const char *);
+static char *origin_subst_one(char *, const char *, const char *, bool);
+static char *origin_subst(char *, const char *);
 static void preinit_main(void);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
@@ -231,6 +231,7 @@ char **main_argv;
 size_t tls_last_offset;		/* Static TLS offset of last module */
 size_t tls_last_size;		/* Static TLS size of last module */
 size_t tls_static_space;	/* Static TLS space allocated */
+size_t tls_static_max_align;
 int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
 int tls_max_index = 1;		/* Largest module index allocated */
 
@@ -324,6 +325,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Objlist_Entry *entry;
     Obj_Entry *obj;
     Obj_Entry **preload_tail;
+    Obj_Entry *last_interposer;
     Objlist initlist;
     RtldLockState lockstate;
     char *library_path_rpath;
@@ -538,8 +540,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	die();
 
     /* Make a list of all objects loaded at startup. */
+    last_interposer = obj_main;
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	objlist_push_tail(&list_main, obj);
+	if (obj->z_interpose && obj != obj_main) {
+	    objlist_put_after(&list_main, last_interposer, obj);
+	    last_interposer = obj;
+	} else {
+	    objlist_push_tail(&list_main, obj);
+	}
     	obj->refcount++;
     }
 
@@ -748,79 +756,81 @@ basename(const char *name)
 
 static struct utsname uts;
 
-static int
-origin_subst_one(char **res, const char *real, const char *kw, const char *subst,
-    char *may_free)
+static char *
+origin_subst_one(char *real, const char *kw, const char *subst,
+    bool may_free)
 {
-    const char *p, *p1;
-    char *res1;
-    int subst_len;
-    int kw_len;
+	char *p, *p1, *res, *resp;
+	int subst_len, kw_len, subst_count, old_len, new_len;
 
-    res1 = *res = NULL;
-    p = real;
-    subst_len = kw_len = 0;
-    for (;;) {
-	 p1 = strstr(p, kw);
-	 if (p1 != NULL) {
-	     if (subst_len == 0) {
-		 subst_len = strlen(subst);
-		 kw_len = strlen(kw);
-	     }
-	     if (*res == NULL) {
-		 *res = xmalloc(PATH_MAX);
-		 res1 = *res;
-	     }
-	     if ((res1 - *res) + subst_len + (p1 - p) >= PATH_MAX) {
-		 _rtld_error("Substitution of %s in %s cannot be performed",
-		     kw, real);
-		 if (may_free != NULL)
-		     free(may_free);
-		 free(res);
-		 return (false);
-	     }
-	     memcpy(res1, p, p1 - p);
-	     res1 += p1 - p;
-	     memcpy(res1, subst, subst_len);
-	     res1 += subst_len;
-	     p = p1 + kw_len;
-	 } else {
-	    if (*res == NULL) {
-		if (may_free != NULL)
-		    *res = may_free;
-		else
-		    *res = xstrdup(real);
-		return (true);
-	    }
-	    *res1 = '\0';
-	    if (may_free != NULL)
-		free(may_free);
-	    if (strlcat(res1, p, PATH_MAX - (res1 - *res)) >= PATH_MAX) {
-		free(res);
-		return (false);
-	    }
-	    return (true);
-	 }
-    }
+	kw_len = strlen(kw);
+
+	/*
+	 * First, count the number of the keyword occurences, to
+	 * preallocate the final string.
+	 */
+	for (p = real, subst_count = 0;; p = p1 + kw_len, subst_count++) {
+		p1 = strstr(p, kw);
+		if (p1 == NULL)
+			break;
+	}
+
+	/*
+	 * If the keyword is not found, just return.
+	 */
+	if (subst_count == 0)
+		return (may_free ? real : xstrdup(real));
+
+	/*
+	 * There is indeed something to substitute.  Calculate the
+	 * length of the resulting string, and allocate it.
+	 */
+	subst_len = strlen(subst);
+	old_len = strlen(real);
+	new_len = old_len + (subst_len - kw_len) * subst_count;
+	res = xmalloc(new_len + 1);
+
+	/*
+	 * Now, execute the substitution loop.
+	 */
+	for (p = real, resp = res, *resp = '\0';;) {
+		p1 = strstr(p, kw);
+		if (p1 != NULL) {
+			/* Copy the prefix before keyword. */
+			memcpy(resp, p, p1 - p);
+			resp += p1 - p;
+			/* Keyword replacement. */
+			memcpy(resp, subst, subst_len);
+			resp += subst_len;
+			*resp = '\0';
+			p = p1 + kw_len;
+		} else
+			break;
+	}
+
+	/* Copy to the end of string and finish. */
+	strcat(resp, p);
+	if (may_free)
+		free(real);
+	return (res);
 }
 
 static char *
-origin_subst(const char *real, const char *origin_path)
+origin_subst(char *real, const char *origin_path)
 {
-    char *res1, *res2, *res3, *res4;
+	char *res1, *res2, *res3, *res4;
 
-    if (uts.sysname[0] == '\0') {
-	if (uname(&uts) != 0) {
-	    _rtld_error("utsname failed: %d", errno);
-	    return (NULL);
+	if (uts.sysname[0] == '\0') {
+		if (uname(&uts) != 0) {
+			_rtld_error("utsname failed: %d", errno);
+			return (NULL);
+		}
 	}
-    }
-    if (!origin_subst_one(&res1, real, "$ORIGIN", origin_path, NULL) ||
-	!origin_subst_one(&res2, res1, "$OSNAME", uts.sysname, res1) ||
-	!origin_subst_one(&res3, res2, "$OSREL", uts.release, res2) ||
-	!origin_subst_one(&res4, res3, "$PLATFORM", uts.machine, res3))
-	    return (NULL);
-    return (res4);
+	res1 = origin_subst_one(real, "$ORIGIN", origin_path, false);
+	res2 = origin_subst_one(res1, "$OSNAME", uts.sysname, true);
+	res3 = origin_subst_one(res2, "$OSREL", uts.release, true);
+	res4 = origin_subst_one(res3, "$PLATFORM", uts.machine, true);
+	return (res4);
 }
 
 static void
@@ -1110,11 +1120,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		break;
 
 	case DT_MIPS_RLD_MAP:
-#ifdef notyet
-		if (!early)
-			dbg("Filling in DT_DEBUG entry");
-		((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
-#endif
+		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
 		break;
 #endif
 
@@ -1131,6 +1137,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_nodelete = true;
 		if (dynp->d_un.d_val & DF_1_LOADFLTR)
 		    obj->z_loadfltr = true;
+		if (dynp->d_un.d_val & DF_1_INTERPOSE)
+		    obj->z_interpose = true;
 		if (dynp->d_un.d_val & DF_1_NODEFLIB)
 		    obj->z_nodeflib = true;
 	    break;
@@ -1438,10 +1446,12 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	if (objgiven && refobj->z_origin)
-	    return origin_subst(xname, refobj->origin_path);
-	else
-	    return xstrdup(xname);
+	if (objgiven && refobj->z_origin) {
+		return (origin_subst(__DECONST(char *, xname),
+		    refobj->origin_path));
+	} else {
+		return (xstrdup(xname));
+	}
     }
 
     if (libmap_disable || !objgiven ||
@@ -1977,6 +1987,7 @@ static int
 load_preload_objects(void)
 {
     char *p = ld_preload;
+    Obj_Entry *obj;
     static const char delim[] = " \t:;";
 
     if (p == NULL)
@@ -1989,8 +2000,10 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, -1, NULL, 0) == NULL)
+	obj = load_object(p, -1, NULL, 0);
+	if (obj == NULL)
 	    return -1;	/* XXX - cleanup */
+	obj->z_interpose = true;
 	p[len] = savech;
 	p += len;
 	p += strspn(p, delim);
@@ -2379,6 +2392,23 @@ objlist_push_tail(Objlist *list, Obj_Entry *obj)
 }
 
 static void
+objlist_put_after(Objlist *list, Obj_Entry *listobj, Obj_Entry *obj)
+{
+	Objlist_Entry *elm, *listelm;
+
+	STAILQ_FOREACH(listelm, list, link) {
+		if (listelm->obj == listobj)
+			break;
+	}
+	elm = NEW(Objlist_Entry);
+	elm->obj = obj;
+	if (listelm != NULL)
+		STAILQ_INSERT_AFTER(list, listelm, elm, link);
+	else
+		STAILQ_INSERT_TAIL(list, elm, link);
+}
+
+static void
 objlist_remove(Objlist *list, Obj_Entry *obj)
 {
     Objlist_Entry *elm;
@@ -2578,12 +2608,14 @@ rtld_exit(void)
     lock_release(rtld_bind_lock, &lockstate);
 }
 
+/*
+ * Iterate over a search path, translate each element, and invoke the
+ * callback on the result.
+ */
 static void *
 path_enumerate(const char *path, path_enum_proc callback, void *arg)
 {
-#ifdef COMPAT_32BIT
     const char *trans;
-#endif
     if (path == NULL)
 	return (NULL);
 
@@ -2593,13 +2625,11 @@ path_enumerate(const char *path, path_enum_proc callback, void *arg)
 	char  *res;
 
 	len = strcspn(path, ":;");
-#ifdef COMPAT_32BIT
 	trans = lm_findn(NULL, path, len);
 	if (trans)
 	    res = callback(trans, strlen(trans), arg);
 	else
-#endif
-	res = callback(path, len, arg);
+	    res = callback(path, len, arg);
 
 	if (res != NULL)
 	    return (res);
@@ -3240,6 +3270,11 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 		break;
 
     }
+    if (error == 0) {
+	rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
+	error = callback(&phdr_info, sizeof(phdr_info), param);
+    }
+
     lock_release(rtld_bind_lock, &bind_lockstate);
     lock_release(rtld_phdr_lock, &phdr_lockstate);
 
@@ -4247,19 +4282,22 @@ void *
 allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 {
     Obj_Entry *obj;
-    size_t size;
+    size_t size, ralign;
     char *tls;
     Elf_Addr *dtv, *olddtv;
     Elf_Addr segbase, oldsegbase, addr;
     int i;
 
-    size = round(tls_static_space, tcbalign);
+    ralign = tcbalign;
+    if (tls_static_max_align > ralign)
+	    ralign = tls_static_max_align;
+    size = round(tls_static_space, ralign) + round(tcbsize, ralign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = xcalloc(1, size + tcbsize);
+    tls = malloc_aligned(size, ralign);
     dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
-    segbase = (Elf_Addr)(tls + size);
+    segbase = (Elf_Addr)(tls + round(tls_static_space, ralign));
     ((Elf_Addr*)segbase)[0] = segbase;
     ((Elf_Addr*)segbase)[1] = (Elf_Addr) dtv;
 
@@ -4311,8 +4349,8 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 void
 free_tls(void *tls, size_t tcbsize, size_t tcbalign)
 {
-    size_t size;
     Elf_Addr* dtv;
+    size_t size, ralign;
     int dtvsize, i;
     Elf_Addr tlsstart, tlsend;
 
@@ -4320,19 +4358,22 @@ free_tls(void *tls, size_t tcbsize, size_t tcbalign)
      * Figure out the size of the initial TLS block so that we can
      * find stuff which ___tls_get_addr() allocated dynamically.
      */
-    size = round(tls_static_space, tcbalign);
+    ralign = tcbalign;
+    if (tls_static_max_align > ralign)
+	    ralign = tls_static_max_align;
+    size = round(tls_static_space, ralign);
 
     dtv = ((Elf_Addr**)tls)[1];
     dtvsize = dtv[1];
     tlsend = (Elf_Addr) tls;
     tlsstart = tlsend - size;
     for (i = 0; i < dtvsize; i++) {
-	if (dtv[i+2] && (dtv[i+2] < tlsstart || dtv[i+2] > tlsend)) {
-	    free((void*) dtv[i+2]);
+	if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart || dtv[i + 2] > tlsend)) {
+		free_aligned((void *)dtv[i + 2]);
 	}
     }
 
-    free((void*) tlsstart);
+    free_aligned((void *)tlsstart);
     free((void*) dtv);
 }
 
@@ -4356,11 +4397,7 @@ allocate_module_tls(int index)
 	die();
     }
 
-    p = malloc(obj->tlssize);
-    if (p == NULL) {
-	_rtld_error("Cannot allocate TLS block for index %d", index);
-	die();
-    }
+    p = malloc_aligned(obj->tlssize, obj->tlsalign);
     memcpy(p, obj->tlsinit, obj->tlsinitsize);
     memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
 
@@ -4392,9 +4429,11 @@ allocate_tls_offset(Obj_Entry *obj)
      * leave a small amount of space spare to be used for dynamically
      * loading modules which use static TLS.
      */
-    if (tls_static_space) {
+    if (tls_static_space != 0) {
 	if (calculate_tls_end(off, obj->tlssize) > tls_static_space)
 	    return false;
+    } else if (obj->tlsalign > tls_static_max_align) {
+	    tls_static_max_align = obj->tlsalign;
     }
 
     tls_last_offset = obj->tlsoffset = off;

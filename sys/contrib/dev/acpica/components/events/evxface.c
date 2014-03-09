@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -435,6 +435,169 @@ ACPI_EXPORT_SYMBOL (AcpiInstallExceptionHandler)
 #if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiInstallSciHandler
+ *
+ * PARAMETERS:  Address             - Address of the handler
+ *              Context             - Value passed to the handler on each SCI
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install a handler for a System Control Interrupt.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiInstallSciHandler (
+    ACPI_SCI_HANDLER        Address,
+    void                    *Context)
+{
+    ACPI_SCI_HANDLER_INFO   *NewSciHandler;
+    ACPI_SCI_HANDLER_INFO   *SciHandler;
+    ACPI_CPU_FLAGS          Flags;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiInstallSciHandler);
+
+
+    if (!Address)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /* Allocate and init a handler object */
+
+    NewSciHandler = ACPI_ALLOCATE (sizeof (ACPI_SCI_HANDLER_INFO));
+    if (!NewSciHandler)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    NewSciHandler->Address = Address;
+    NewSciHandler->Context = Context;
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Exit;
+    }
+
+    /* Lock list during installation */
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+    SciHandler = AcpiGbl_SciHandlerList;
+
+    /* Ensure handler does not already exist */
+
+    while (SciHandler)
+    {
+        if (Address == SciHandler->Address)
+        {
+            Status = AE_ALREADY_EXISTS;
+            goto UnlockAndExit;
+        }
+
+        SciHandler = SciHandler->Next;
+    }
+
+    /* Install the new handler into the global list (at head) */
+
+    NewSciHandler->Next = AcpiGbl_SciHandlerList;
+    AcpiGbl_SciHandlerList = NewSciHandler;
+
+
+UnlockAndExit:
+
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+Exit:
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (NewSciHandler);
+    }
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiRemoveSciHandler
+ *
+ * PARAMETERS:  Address             - Address of the handler
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove a handler for a System Control Interrupt.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiRemoveSciHandler (
+    ACPI_SCI_HANDLER        Address)
+{
+    ACPI_SCI_HANDLER_INFO   *PrevSciHandler;
+    ACPI_SCI_HANDLER_INFO   *NextSciHandler;
+    ACPI_CPU_FLAGS          Flags;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiRemoveSciHandler);
+
+
+    if (!Address)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Remove the SCI handler with lock */
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+
+    PrevSciHandler = NULL;
+    NextSciHandler = AcpiGbl_SciHandlerList;
+    while (NextSciHandler)
+    {
+        if (NextSciHandler->Address == Address)
+        {
+            /* Unlink and free the SCI handler info block */
+
+            if (PrevSciHandler)
+            {
+                PrevSciHandler->Next = NextSciHandler->Next;
+            }
+            else
+            {
+                AcpiGbl_SciHandlerList = NextSciHandler->Next;
+            }
+
+            AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+            ACPI_FREE (NextSciHandler);
+            goto UnlockAndExit;
+        }
+
+        PrevSciHandler = NextSciHandler;
+        NextSciHandler = NextSciHandler->Next;
+    }
+
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    Status = AE_NOT_EXIST;
+
+
+UnlockAndExit:
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiInstallGlobalEventHandler
  *
  * PARAMETERS:  Handler         - Pointer to the global event handler function
@@ -534,9 +697,9 @@ AcpiInstallFixedEventHandler (
         return_ACPI_STATUS (Status);
     }
 
-    /* Don't allow two handlers. */
+    /* Do not allow multiple handlers */
 
-    if (NULL != AcpiGbl_FixedEventHandlers[Event].Handler)
+    if (AcpiGbl_FixedEventHandlers[Event].Handler)
     {
         Status = AE_ALREADY_EXISTS;
         goto Cleanup;
@@ -550,7 +713,9 @@ AcpiInstallFixedEventHandler (
     Status = AcpiEnableEvent (Event, 0);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_WARNING ((AE_INFO, "Could not enable fixed event 0x%X", Event));
+        ACPI_WARNING ((AE_INFO,
+            "Could not enable fixed event - %s (%u)",
+            AcpiUtGetEventName (Event), Event));
 
         /* Remove the handler */
 
@@ -560,7 +725,8 @@ AcpiInstallFixedEventHandler (
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Enabled fixed event %X, Handler=%p\n", Event, Handler));
+            "Enabled fixed event %s (%X), Handler=%p\n",
+            AcpiUtGetEventName (Event), Event, Handler));
     }
 
 
@@ -621,11 +787,14 @@ AcpiRemoveFixedEventHandler (
     if (ACPI_FAILURE (Status))
     {
         ACPI_WARNING ((AE_INFO,
-            "Could not write to fixed event enable register 0x%X", Event));
+            "Could not disable fixed event - %s (%u)",
+            AcpiUtGetEventName (Event), Event));
     }
     else
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Disabled fixed event %X\n", Event));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Disabled fixed event - %s (%X)\n",
+            AcpiUtGetEventName (Event), Event));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);

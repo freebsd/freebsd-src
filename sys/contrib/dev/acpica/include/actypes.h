@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -295,7 +295,7 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 /*
  * Some compilers complain about unused variables. Sometimes we don't want to
  * use all the variables (for example, _AcpiModuleName). This allows us
- * to to tell the compiler in a per-variable manner that a variable
+ * to tell the compiler in a per-variable manner that a variable
  * is unused
  */
 #ifndef ACPI_UNUSED_VAR
@@ -308,6 +308,14 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
  */
 #ifndef ACPI_EXPORT_SYMBOL
 #define ACPI_EXPORT_SYMBOL(Symbol)
+#endif
+
+/*
+ * Compiler/Clibrary-dependent debug initialization. Used for ACPICA
+ * utilities only.
+ */
+#ifndef ACPI_DEBUG_INITIALIZE
+#define ACPI_DEBUG_INITIALIZE()
 #endif
 
 
@@ -346,7 +354,7 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 
 /* PM Timer ticks per second (HZ) */
 
-#define PM_TIMER_FREQUENCY              3579545
+#define ACPI_PM_TIMER_FREQUENCY         3579545
 
 
 /*******************************************************************************
@@ -379,6 +387,22 @@ typedef UINT32                          ACPI_STATUS;    /* All ACPI Exceptions *
 typedef UINT32                          ACPI_NAME;      /* 4-byte ACPI name */
 typedef char *                          ACPI_STRING;    /* Null terminated ASCII string */
 typedef void *                          ACPI_HANDLE;    /* Actually a ptr to a NS Node */
+
+
+/* Time constants for timer calculations */
+
+#define ACPI_MSEC_PER_SEC               1000L
+
+#define ACPI_USEC_PER_MSEC              1000L
+#define ACPI_USEC_PER_SEC               1000000L
+
+#define ACPI_100NSEC_PER_USEC           10L
+#define ACPI_100NSEC_PER_MSEC           10000L
+#define ACPI_100NSEC_PER_SEC            10000000L
+
+#define ACPI_NSEC_PER_USEC              1000L
+#define ACPI_NSEC_PER_MSEC              1000000L
+#define ACPI_NSEC_PER_SEC               1000000000L
 
 
 /* Owner IDs are used to track namespace nodes for selective deletion */
@@ -463,6 +487,11 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_COMPARE_NAME(a,b)          (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_CAST_PTR (char, (b)), ACPI_NAME_SIZE))
 #define ACPI_MOVE_NAME(dest,src)        (ACPI_STRNCPY (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
 #endif
+
+/* Support for the special RSDP signature (8 characters) */
+
+#define ACPI_VALIDATE_RSDP_SIG(a)       (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
+#define ACPI_MAKE_RSDP_SIG(dest)        (ACPI_MEMCPY (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
 
 
 /*******************************************************************************
@@ -596,7 +625,7 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
 
 /*
  * These are special object types that never appear in
- * a Namespace node, only in an ACPI_OPERAND_OBJECT
+ * a Namespace node, only in an object of ACPI_OPERAND_OBJECT
  */
 #define ACPI_TYPE_LOCAL_EXTRA           0x1C
 #define ACPI_TYPE_LOCAL_DATA            0x1D
@@ -655,13 +684,6 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_EVENT_FLAG_ENABLED         (ACPI_EVENT_STATUS) 0x01
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (ACPI_EVENT_STATUS) 0x02
 #define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x04
-
-/*
- * General Purpose Events (GPE)
- */
-#define ACPI_GPE_INVALID                0xFF
-#define ACPI_GPE_MAX                    0xFF
-#define ACPI_NUM_GPE                    256
 
 /* Actions for AcpiSetGpe, AcpiGpeWakeup, AcpiHwLowSetGpe */
 
@@ -904,6 +926,10 @@ typedef struct acpi_buffer
 
 } ACPI_BUFFER;
 
+/* Free a buffer created in an ACPI_BUFFER via ACPI_ALLOCATE_LOCAL_BUFFER */
+
+#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.Pointer)
+
 
 /*
  * NameType for AcpiGetName
@@ -984,6 +1010,10 @@ typedef void
 /*
  * Various handlers and callback procedures
  */
+typedef
+UINT32 (*ACPI_SCI_HANDLER) (
+    void                            *Context);
+
 typedef
 void (*ACPI_GBL_EVENT_HANDLER) (
     UINT32                          EventType,
@@ -1206,7 +1236,6 @@ typedef struct acpi_memory_list
     UINT16                          ObjectSize;
     UINT16                          MaxDepth;
     UINT16                          CurrentDepth;
-    UINT16                          LinkOffset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
@@ -1222,6 +1251,34 @@ typedef struct acpi_memory_list
 #endif
 
 } ACPI_MEMORY_LIST;
+
+
+/* Definitions of _OSI support */
+
+#define ACPI_VENDOR_STRINGS                 0x01
+#define ACPI_FEATURE_STRINGS                0x02
+#define ACPI_ENABLE_INTERFACES              0x00
+#define ACPI_DISABLE_INTERFACES             0x04
+
+#define ACPI_DISABLE_ALL_VENDOR_STRINGS     (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_DISABLE_ALL_FEATURE_STRINGS    (ACPI_DISABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_DISABLE_ALL_STRINGS            (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_VENDOR_STRINGS      (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_ENABLE_ALL_FEATURE_STRINGS     (ACPI_ENABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_STRINGS             (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
+#define ACPI_OSI_WIN_8                  0x0C
 
 
 #endif /* __ACTYPES_H__ */

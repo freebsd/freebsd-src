@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/MultiplexConsumer.h"
-
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/DeclGroup.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
@@ -95,8 +94,12 @@ public:
   virtual void AddedCXXImplicitMember(const CXXRecordDecl *RD, const Decl *D);
   virtual void AddedCXXTemplateSpecialization(const ClassTemplateDecl *TD,
                                     const ClassTemplateSpecializationDecl *D);
+  virtual void
+  AddedCXXTemplateSpecialization(const VarTemplateDecl *TD,
+                                 const VarTemplateSpecializationDecl *D);
   virtual void AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
                                               const FunctionDecl *D);
+  virtual void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType);
   virtual void CompletedImplicitDefinition(const FunctionDecl *D);
   virtual void StaticDataMemberInstantiated(const VarDecl *D);
   virtual void AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
@@ -104,6 +107,8 @@ public:
   virtual void AddedObjCPropertyInClassExtension(const ObjCPropertyDecl *Prop,
                                             const ObjCPropertyDecl *OrigProp,
                                             const ObjCCategoryDecl *ClassExt);
+  void DeclarationMarkedUsed(const Decl *D) LLVM_OVERRIDE;
+
 private:
   std::vector<ASTMutationListener*> Listeners;
 };
@@ -135,9 +140,19 @@ void MultiplexASTMutationListener::AddedCXXTemplateSpecialization(
     Listeners[i]->AddedCXXTemplateSpecialization(TD, D);
 }
 void MultiplexASTMutationListener::AddedCXXTemplateSpecialization(
+    const VarTemplateDecl *TD, const VarTemplateSpecializationDecl *D) {
+  for (size_t i = 0, e = Listeners.size(); i != e; ++i)
+    Listeners[i]->AddedCXXTemplateSpecialization(TD, D);
+}
+void MultiplexASTMutationListener::AddedCXXTemplateSpecialization(
     const FunctionTemplateDecl *TD, const FunctionDecl *D) {
   for (size_t i = 0, e = Listeners.size(); i != e; ++i)
     Listeners[i]->AddedCXXTemplateSpecialization(TD, D);
+}
+void MultiplexASTMutationListener::DeducedReturnType(const FunctionDecl *FD,
+                                                     QualType ReturnType) {
+  for (size_t i = 0, e = Listeners.size(); i != e; ++i)
+    Listeners[i]->DeducedReturnType(FD, ReturnType);
 }
 void MultiplexASTMutationListener::CompletedImplicitDefinition(
                                                         const FunctionDecl *D) {
@@ -161,6 +176,10 @@ void MultiplexASTMutationListener::AddedObjCPropertyInClassExtension(
                                              const ObjCCategoryDecl *ClassExt) {
   for (size_t i = 0, e = Listeners.size(); i != e; ++i)
     Listeners[i]->AddedObjCPropertyInClassExtension(Prop, OrigProp, ClassExt);
+}
+void MultiplexASTMutationListener::DeclarationMarkedUsed(const Decl *D) {
+  for (size_t i = 0, e = Listeners.size(); i != e; ++i)
+    Listeners[i]->DeclarationMarkedUsed(D);
 }
 
 }  // end namespace clang

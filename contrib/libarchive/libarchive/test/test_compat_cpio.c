@@ -90,7 +90,7 @@ test_compat_cpio_1(void)
 	assertEqualInt(0100644, archive_entry_mode(ae));
 
 	/* Verify that the format detection worked. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_NONE);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));

@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.48 2011/03/29 18:54:17 stevesk Exp $ */
+/* $OpenBSD: misc.h,v 1.50 2013/10/14 23:28:23 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -36,6 +36,9 @@ char	*tohex(const void *, size_t);
 void	 sanitise_stdfd(void);
 void	 ms_subtract_diff(struct timeval *, int *);
 void	 ms_to_timeval(struct timeval *, int);
+time_t	 monotime(void);
+void	 lowercase(char *s);
+
 void	 sock_set_v6only(int);
 void	 sock_get_rcvbuf(int *, int);
 

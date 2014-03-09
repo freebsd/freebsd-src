@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
+#include "test-utils.h"
+
 #define	N(i)	(sizeof(i) / sizeof((i)[0]))
 
 /*
@@ -63,23 +65,6 @@ _csqrt(long double complex d)
 #pragma	STDC CX_LIMITED_RANGE	off
 
 /*
- * XXX gcc implements complex multiplication incorrectly. In
- * particular, it implements it as if the CX_LIMITED_RANGE pragma
- * were ON. Consequently, we need this function to form numbers
- * such as x + INFINITY * I, since gcc evalutes INFINITY * I as
- * NaN + INFINITY * I.
- */
-static inline long double complex
-cpackl(long double x, long double y)
-{
-	long double complex z;
-
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
-}
-
-/*
  * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
  * Fail an assertion if they differ.
  */
@@ -87,20 +72,7 @@ static void
 assert_equal(long double complex d1, long double complex d2)
 {
 
-	if (isnan(creall(d1))) {
-		assert(isnan(creall(d2)));
-	} else {
-		assert(creall(d1) == creall(d2));
-		assert(copysignl(1.0, creall(d1)) ==
-		       copysignl(1.0, creall(d2)));
-	}
-	if (isnan(cimagl(d1))) {
-		assert(isnan(cimagl(d2)));
-	} else {
-		assert(cimagl(d1) == cimagl(d2));
-		assert(copysignl(1.0, cimagl(d1)) ==
-		       copysignl(1.0, cimagl(d2)));
-	}
+	assert(cfpequal(d1, d2));
 }
 
 /*
@@ -161,7 +133,7 @@ test_finite()
 			b = tests[i + 1] * mults[j] * mults[j];
 			x = tests[i + 2] * mults[j];
 			y = tests[i + 3] * mults[j];
-			assert(t_csqrt(cpackl(a, b)) == cpackl(x, y));
+			assert(t_csqrt(CMPLXL(a, b)) == CMPLXL(x, y));
 		}
 	}
 
@@ -174,10 +146,10 @@ static void
 test_zeros()
 {
 
-	assert_equal(t_csqrt(cpackl(0.0, 0.0)), cpackl(0.0, 0.0));
-	assert_equal(t_csqrt(cpackl(-0.0, 0.0)), cpackl(0.0, 0.0));
-	assert_equal(t_csqrt(cpackl(0.0, -0.0)), cpackl(0.0, -0.0));
-	assert_equal(t_csqrt(cpackl(-0.0, -0.0)), cpackl(0.0, -0.0));
+	assert_equal(t_csqrt(CMPLXL(0.0, 0.0)), CMPLXL(0.0, 0.0));
+	assert_equal(t_csqrt(CMPLXL(-0.0, 0.0)), CMPLXL(0.0, 0.0));
+	assert_equal(t_csqrt(CMPLXL(0.0, -0.0)), CMPLXL(0.0, -0.0));
+	assert_equal(t_csqrt(CMPLXL(-0.0, -0.0)), CMPLXL(0.0, -0.0));
 }
 
 /*
@@ -199,15 +171,15 @@ test_infinities()
 
 	for (i = 0; i < N(vals); i++) {
 		if (isfinite(vals[i])) {
-			assert_equal(t_csqrt(cpackl(-INFINITY, vals[i])),
-			    cpackl(0.0, copysignl(INFINITY, vals[i])));
-			assert_equal(t_csqrt(cpackl(INFINITY, vals[i])),
-			    cpackl(INFINITY, copysignl(0.0, vals[i])));
+			assert_equal(t_csqrt(CMPLXL(-INFINITY, vals[i])),
+			    CMPLXL(0.0, copysignl(INFINITY, vals[i])));
+			assert_equal(t_csqrt(CMPLXL(INFINITY, vals[i])),
+			    CMPLXL(INFINITY, copysignl(0.0, vals[i])));
 		}
-		assert_equal(t_csqrt(cpackl(vals[i], INFINITY)),
-		    cpackl(INFINITY, INFINITY));
-		assert_equal(t_csqrt(cpackl(vals[i], -INFINITY)),
-		    cpackl(INFINITY, -INFINITY));
+		assert_equal(t_csqrt(CMPLXL(vals[i], INFINITY)),
+		    CMPLXL(INFINITY, INFINITY));
+		assert_equal(t_csqrt(CMPLXL(vals[i], -INFINITY)),
+		    CMPLXL(INFINITY, -INFINITY));
 	}
 }
 
@@ -218,26 +190,26 @@ static void
 test_nans()
 {
 
-	assert(creall(t_csqrt(cpackl(INFINITY, NAN))) == INFINITY);
-	assert(isnan(cimagl(t_csqrt(cpackl(INFINITY, NAN)))));
+	assert(creall(t_csqrt(CMPLXL(INFINITY, NAN))) == INFINITY);
+	assert(isnan(cimagl(t_csqrt(CMPLXL(INFINITY, NAN)))));
 
-	assert(isnan(creall(t_csqrt(cpackl(-INFINITY, NAN)))));
-	assert(isinf(cimagl(t_csqrt(cpackl(-INFINITY, NAN)))));
+	assert(isnan(creall(t_csqrt(CMPLXL(-INFINITY, NAN)))));
+	assert(isinf(cimagl(t_csqrt(CMPLXL(-INFINITY, NAN)))));
 
-	assert_equal(t_csqrt(cpackl(NAN, INFINITY)),
-		     cpackl(INFINITY, INFINITY));
-	assert_equal(t_csqrt(cpackl(NAN, -INFINITY)),
-		     cpackl(INFINITY, -INFINITY));
+	assert_equal(t_csqrt(CMPLXL(NAN, INFINITY)),
+		     CMPLXL(INFINITY, INFINITY));
+	assert_equal(t_csqrt(CMPLXL(NAN, -INFINITY)),
+		     CMPLXL(INFINITY, -INFINITY));
 
-	assert_equal(t_csqrt(cpackl(0.0, NAN)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(-0.0, NAN)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(42.0, NAN)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(-42.0, NAN)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(NAN, 0.0)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(NAN, -0.0)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(NAN, 42.0)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(NAN, -42.0)), cpackl(NAN, NAN));
-	assert_equal(t_csqrt(cpackl(NAN, NAN)), cpackl(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(0.0, NAN)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(-0.0, NAN)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(42.0, NAN)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(-42.0, NAN)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(NAN, 0.0)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(NAN, -0.0)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(NAN, 42.0)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(NAN, -42.0)), CMPLXL(NAN, NAN));
+	assert_equal(t_csqrt(CMPLXL(NAN, NAN)), CMPLXL(NAN, NAN));
 }
 
 /*
@@ -254,7 +226,7 @@ test_overflow(int maxexp)
 
 	a = ldexpl(115 * 0x1p-8, maxexp);
 	b = ldexpl(252 * 0x1p-8, maxexp);
-	result = t_csqrt(cpackl(a, b));
+	result = t_csqrt(CMPLXL(a, b));
 	assert(creall(result) == ldexpl(14 * 0x1p-4, maxexp / 2));
 	assert(cimagl(result) == ldexpl(9 * 0x1p-4, maxexp / 2));
 }

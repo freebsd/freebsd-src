@@ -210,10 +210,11 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     };
 
   // Note: assumes long is at least 32 bits.
-  enum { _S_num_primes = 28 };
+  enum { _S_num_primes = 29 };
 
   static const unsigned long __stl_prime_list[_S_num_primes] =
     {
+      5ul,          // 5ul mini size is a Google addition
       53ul,         97ul,         193ul,       389ul,       769ul,
       1543ul,       3079ul,       6151ul,      12289ul,     24593ul,
       49157ul,      98317ul,      196613ul,    393241ul,    786433ul,
@@ -1076,6 +1077,10 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     hashtable<_Val, _Key, _HF, _Ex, _Eq, _All>::
     clear()
     {
+      // Google addition: do not iterate over buckets when empty
+      if (_M_num_elements == 0)
+        return;
+
       for (size_type __i = 0; __i < _M_buckets.size(); ++__i)
 	{
 	  _Node* __cur = _M_buckets[__i];

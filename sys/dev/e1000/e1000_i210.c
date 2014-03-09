@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -38,13 +38,10 @@
 static s32 e1000_acquire_nvm_i210(struct e1000_hw *hw);
 static void e1000_release_nvm_i210(struct e1000_hw *hw);
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw);
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw);
 static s32 e1000_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 				u16 *data);
 static s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw);
 static s32 e1000_valid_led_default_i210(struct e1000_hw *hw, u16 *data);
-static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data);
 
 /**
  *  e1000_acquire_nvm_i210 - Request for access to EEPROM
@@ -105,13 +102,14 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 		}
 
 		swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-		if (!(swfw_sync & fwmask))
+		if (!(swfw_sync & (fwmask | swmask)))
 			break;
 
 		/*
 		 * Firmware currently using resource (fwmask)
+		 * or other software thread using resource (swmask)
 		 */
-		e1000_put_hw_semaphore_i210(hw);
+		e1000_put_hw_semaphore_generic(hw);
 		msec_delay_irq(5);
 		i++;
 	}
@@ -125,7 +123,7 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 
 out:
 	return ret_val;
@@ -152,7 +150,7 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync &= ~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 }
 
 /**
@@ -164,11 +162,43 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
 	s32 timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
 
 	DEBUGFUNC("e1000_get_hw_semaphore_i210");
+
+	/* Get the SW semaphore */
+	while (i < timeout) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+
+		usec_delay(50);
+		i++;
+	}
+
+	if (i == timeout) {
+		/* In rare circumstances, the SW semaphore may already be held
+		 * unintentionally. Clear the semaphore once before giving up.
+		 */
+		if (hw->dev_spec._82575.clear_semaphore_once) {
+			hw->dev_spec._82575.clear_semaphore_once = FALSE;
+			e1000_put_hw_semaphore_generic(hw);
+			for (i = 0; i < timeout; i++) {
+				swsm = E1000_READ_REG(hw, E1000_SWSM);
+				if (!(swsm & E1000_SWSM_SMBI))
+					break;
+
+				usec_delay(50);
+			}
+		}
+
+		/* If we do not have the semaphore here, we have to give up. */
+		if (i == timeout) {
+			DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
+			return -E1000_ERR_NVM;
+		}
+	}
 
 	/* Get the FW semaphore. */
 	for (i = 0; i < timeout; i++) {
@@ -186,31 +216,10 @@ static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 		/* Release semaphores */
 		e1000_put_hw_semaphore_generic(hw);
 		DEBUGOUT("Driver can't access the NVM\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
+		return -E1000_ERR_NVM;
 	}
 
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_put_hw_semaphore_i210 - Release hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Release hardware semaphore used to access the PHY or NVM
- **/
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	DEBUGFUNC("e1000_put_hw_semaphore_i210");
-
-	swsm = E1000_READ_REG(hw, E1000_SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
-	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
+	return E1000_SUCCESS;
 }
 
 /**
@@ -356,62 +365,7 @@ out:
 	return ret_val;
 }
 
-/**
- *  e1000_read_nvm_i211 - Read NVM wrapper function for I211
- *  @hw: pointer to the HW structure
- *  @address: the word address (aka eeprom offset) to read
- *  @data: pointer to the data read
- *
- *  Wrapper function to return data formerly found in the NVM.
- **/
-static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data)
-{
-	s32 ret_val = E1000_SUCCESS;
-
-	DEBUGFUNC("e1000_read_nvm_i211");
-
-	/* Only the MAC addr is required to be present in the iNVM */
-	switch (offset) {
-	case NVM_MAC_ADDR:
-		ret_val = e1000_read_invm_i211(hw, (u8)offset, &data[0]);
-		ret_val |= e1000_read_invm_i211(hw, (u8)offset+1, &data[1]);
-		ret_val |= e1000_read_invm_i211(hw, (u8)offset+2, &data[2]);
-		if (ret_val != E1000_SUCCESS)
-			DEBUGOUT("MAC Addr not found in iNVM\n");
-		break;
-	case NVM_ID_LED_SETTINGS:
-	case NVM_INIT_CTRL_2:
-	case NVM_INIT_CTRL_4:
-	case NVM_LED_1_CFG:
-	case NVM_LED_0_2_CFG:
-		e1000_read_invm_i211(hw, (u8)offset, data);
-		break;
-	case NVM_COMPAT:
-		*data = ID_LED_DEFAULT_I210;
-		break;
-	case NVM_SUB_DEV_ID:
-		*data = hw->subsystem_device_id;
-		break;
-	case NVM_SUB_VEN_ID:
-		*data = hw->subsystem_vendor_id;
-		break;
-	case NVM_DEV_ID:
-		*data = hw->device_id;
-		break;
-	case NVM_VEN_ID:
-		*data = hw->vendor_id;
-		break;
-	default:
-		DEBUGOUT1("NVM word 0x%02x is not mapped.\n", offset);
-		*data = NVM_RESERVED_WORD;
-		break;
-	}
-	return ret_val;
-}
-
-/**
- *  e1000_read_invm_i211 - Reads OTP
+/** e1000_read_invm_word_i210 - Reads OTP
  *  @hw: pointer to the HW structure
  *  @address: the word address (aka eeprom offset) to read
  *  @data: pointer to the data read
@@ -419,14 +373,14 @@ static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
  *  Reads 16-bit words from the OTP. Return error when the word is not
  *  stored in OTP.
  **/
-s32 e1000_read_invm_i211(struct e1000_hw *hw, u8 address, u16 *data)
+static s32 e1000_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 {
 	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
 	u32 invm_dword;
 	u16 i;
 	u8 record_type, word_address;
 
-	DEBUGFUNC("e1000_read_invm_i211");
+	DEBUGFUNC("e1000_read_invm_word_i210");
 
 	for (i = 0; i < E1000_INVM_SIZE; i++) {
 		invm_dword = E1000_READ_REG(hw, E1000_INVM_DATA_REG(i));
@@ -452,6 +406,86 @@ s32 e1000_read_invm_i211(struct e1000_hw *hw, u8 address, u16 *data)
 	if (status != E1000_SUCCESS)
 		DEBUGOUT1("Requested word 0x%02x not found in OTP\n", address);
 	return status;
+}
+
+/** e1000_read_invm_i210 - Read invm wrapper function for I210/I211
+ *  @hw: pointer to the HW structure
+ *  @address: the word address (aka eeprom offset) to read
+ *  @data: pointer to the data read
+ *
+ *  Wrapper function to return data formerly found in the NVM.
+ **/
+static s32 e1000_read_invm_i210(struct e1000_hw *hw, u16 offset,
+				u16 E1000_UNUSEDARG words, u16 *data)
+{
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_read_invm_i210");
+
+	/* Only the MAC addr is required to be present in the iNVM */
+	switch (offset) {
+	case NVM_MAC_ADDR:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, &data[0]);
+		ret_val |= e1000_read_invm_word_i210(hw, (u8)offset+1,
+						     &data[1]);
+		ret_val |= e1000_read_invm_word_i210(hw, (u8)offset+2,
+						     &data[2]);
+		if (ret_val != E1000_SUCCESS)
+			DEBUGOUT("MAC Addr not found in iNVM\n");
+		break;
+	case NVM_INIT_CTRL_2:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_INIT_CTRL_4:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_1_CFG:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_1_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_0_2_CFG:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_ID_LED_SETTINGS:
+		ret_val = e1000_read_invm_word_i210(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = ID_LED_RESERVED_FFFF;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_SUB_DEV_ID:
+		*data = hw->subsystem_device_id;
+		break;
+	case NVM_SUB_VEN_ID:
+		*data = hw->subsystem_vendor_id;
+		break;
+	case NVM_DEV_ID:
+		*data = hw->device_id;
+		break;
+	case NVM_VEN_ID:
+		*data = hw->vendor_id;
+		break;
+	default:
+		DEBUGOUT1("NVM word 0x%02x is not mapped.\n", offset);
+		*data = NVM_RESERVED_WORD;
+		break;
+	}
+	return ret_val;
 }
 
 /**
@@ -559,7 +593,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  **/
-static bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
+bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
 {
 	u32 eec = 0;
 	bool ret_val = FALSE;
@@ -633,7 +667,7 @@ s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw)
  *  e1000_init_nvm_params_i210 - Initialize i210 NVM function pointers
  *  @hw: pointer to the HW structure
  *
- *  Initialize the i210 NVM parameters and function pointers.
+ *  Initialize the i210/i211 NVM parameters and function pointers.
  **/
 static s32 e1000_init_nvm_params_i210(struct e1000_hw *hw)
 {
@@ -643,39 +677,23 @@ static s32 e1000_init_nvm_params_i210(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_init_nvm_params_i210");
 
 	ret_val = e1000_init_nvm_params_82575(hw);
-
 	nvm->ops.acquire = e1000_acquire_nvm_i210;
 	nvm->ops.release = e1000_release_nvm_i210;
-	nvm->ops.read    = e1000_read_nvm_srrd_i210;
-	nvm->ops.write   = e1000_write_nvm_srwr_i210;
 	nvm->ops.valid_led_default = e1000_valid_led_default_i210;
-	nvm->ops.validate = e1000_validate_nvm_checksum_i210;
-	nvm->ops.update   = e1000_update_nvm_checksum_i210;
-
+	if (e1000_get_flash_presence_i210(hw)) {
+		hw->nvm.type = e1000_nvm_flash_hw;
+		nvm->ops.read    = e1000_read_nvm_srrd_i210;
+		nvm->ops.write   = e1000_write_nvm_srwr_i210;
+		nvm->ops.validate = e1000_validate_nvm_checksum_i210;
+		nvm->ops.update   = e1000_update_nvm_checksum_i210;
+	} else {
+		hw->nvm.type = e1000_nvm_invm;
+		nvm->ops.read     = e1000_read_invm_i210;
+		nvm->ops.write    = e1000_null_write_nvm;
+		nvm->ops.validate = e1000_null_ops_generic;
+		nvm->ops.update   = e1000_null_ops_generic;
+	}
 	return ret_val;
-}
-
-/**
- *  e1000_init_nvm_params_i211 - Initialize i211 NVM function pointers
- *  @hw: pointer to the HW structure
- *
- *  Initialize the NVM parameters and function pointers for i211.
- **/
-static s32 e1000_init_nvm_params_i211(struct e1000_hw *hw)
-{
-	struct e1000_nvm_info *nvm = &hw->nvm;
-
-	DEBUGFUNC("e1000_init_nvm_params_i211");
-
-	nvm->ops.acquire  = e1000_acquire_nvm_i210;
-	nvm->ops.release  = e1000_release_nvm_i210;
-	nvm->ops.read     = e1000_read_nvm_i211;
-	nvm->ops.valid_led_default = e1000_valid_led_default_i210;
-	nvm->ops.write    = e1000_null_write_nvm;
-	nvm->ops.validate = e1000_null_ops_generic;
-	nvm->ops.update   = e1000_null_ops_generic;
-
-	return E1000_SUCCESS;
 }
 
 /**
@@ -687,20 +705,8 @@ static s32 e1000_init_nvm_params_i211(struct e1000_hw *hw)
 void e1000_init_function_pointers_i210(struct e1000_hw *hw)
 {
 	e1000_init_function_pointers_82575(hw);
+	hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
 
-	switch (hw->mac.type) {
-	case e1000_i210:
-		if (e1000_get_flash_presence_i210(hw))
-			hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
-		else
-			hw->nvm.ops.init_params = e1000_init_nvm_params_i211;
-		break;
-	case e1000_i211:
-		hw->nvm.ops.init_params = e1000_init_nvm_params_i211;
-		break;
-	default:
-		break;
-	}
 	return;
 }
 
@@ -737,4 +743,75 @@ static s32 e1000_valid_led_default_i210(struct e1000_hw *hw, u16 *data)
 	}
 out:
 	return ret_val;
+}
+
+/**
+ *  __e1000_access_xmdio_reg - Read/write XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @address: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: pointer to value to read/write from/to the XMDIO address
+ *  @read: boolean flag to indicate read or write
+ **/
+static s32 __e1000_access_xmdio_reg(struct e1000_hw *hw, u16 address,
+				    u8 dev_addr, u16 *data, bool read)
+{
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("__e1000_access_xmdio_reg");
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, dev_addr);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAAD, address);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, E1000_MMDAC_FUNC_DATA |
+							 dev_addr);
+	if (ret_val)
+		return ret_val;
+
+	if (read)
+		ret_val = hw->phy.ops.read_reg(hw, E1000_MMDAAD, data);
+	else
+		ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAAD, *data);
+	if (ret_val)
+		return ret_val;
+
+	/* Recalibrate the device back to 0 */
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, 0);
+	if (ret_val)
+		return ret_val;
+
+	return ret_val;
+}
+
+/**
+ *  e1000_read_xmdio_reg - Read XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @addr: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: value to be read from the EMI address
+ **/
+s32 e1000_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 *data)
+{
+	DEBUGFUNC("e1000_read_xmdio_reg");
+
+	return __e1000_access_xmdio_reg(hw, addr, dev_addr, data, TRUE);
+}
+
+/**
+ *  e1000_write_xmdio_reg - Write XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @addr: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: value to be written to the XMDIO address
+ **/
+s32 e1000_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data)
+{
+	DEBUGFUNC("e1000_read_xmdio_reg");
+
+	return __e1000_access_xmdio_reg(hw, addr, dev_addr, &data, FALSE);
 }

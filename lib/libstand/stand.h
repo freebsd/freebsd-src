@@ -261,6 +261,7 @@ extern u_long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
+extern unsigned long	strtoul(const char *, char **, int);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);

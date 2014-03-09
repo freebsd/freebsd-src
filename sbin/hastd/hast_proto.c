@@ -112,7 +112,7 @@ hast_proto_send(const struct hast_resource *res, struct proto_conn *conn,
 	if (eb == NULL)
 		goto end;
 
-	hdr.version = HAST_PROTO_VERSION;
+	hdr.version = res != NULL ? res->hr_version : HAST_PROTO_VERSION;
 	hdr.size = htole32((uint32_t)ebuf_size(eb));
 	if (ebuf_add_head(eb, &hdr, sizeof(hdr)) == -1)
 		goto end;
@@ -144,7 +144,7 @@ hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 	if (proto_recv(conn, &hdr, sizeof(hdr)) == -1)
 		goto fail;
 
-	if (hdr.version != HAST_PROTO_VERSION) {
+	if (hdr.version > HAST_PROTO_VERSION) {
 		errno = ERPCMISMATCH;
 		goto fail;
 	}

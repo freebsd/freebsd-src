@@ -19,11 +19,11 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	printf.h proc_service.h pthread.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
-	signal.h spawn.h stab.h stdalign.h stdatomic.h stdbool.h stddef.h \
+	signal.h spawn.h stab.h stdalign.h stdbool.h stddef.h \
 	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
-	ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h \
+	uchar.h ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h \
 	wchar.h wctype.h wordexp.h xlocale.h
 
 .PATH: ${.CURDIR}/../contrib/libc-vis
@@ -33,21 +33,22 @@ MHDRS=	float.h floatingpoint.h stdarg.h
 
 PHDRS=	sched.h _semaphore.h
 
-LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
-	ucontext.h
+LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
+	syslog.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm \
+	netipsec ${_netipx} netnatm netsmb \
 	nfs nfsclient nfsserver \
 	sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
-	dev/acpica dev/an dev/bktr dev/ciss dev/filemon dev/firewire dev/hwpmc \
+	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
+	dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
-	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
+	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
-	fs/procfs fs/udf fs/unionfs \
+	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
@@ -71,17 +72,20 @@ _dev_ieee488=	dev/ieee488
 INCS+=	hesiod.h
 .endif
 
-.if ${MK_ICONV} != "no"
-INCS+=	iconv.h
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
+# XXX unconditionally needed by <netsmb/netbios.h>
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
 #.endif
+
+# Handle the #define aliases for libiconv
+.if ${MK_ICONV} == "yes"
+INCS+=		iconv.h
+.endif
+	
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -92,19 +96,18 @@ SHARED?=	copies
 
 INCS+=	osreldate.h
 
-osreldate.h: ${.CURDIR}/../sys/conf/newvers.sh ${.CURDIR}/../sys/sys/param.h \
-    ${.CURDIR}/Makefile
-	@${ECHO} creating osreldate.h from newvers.sh
-	@MAKE=${MAKE}; \
-	PARAMFILE=${.CURDIR}/../sys/sys/param.h; \
-	. ${.CURDIR}/../sys/conf/newvers.sh; \
-	echo "$$COPYRIGHT" > osreldate.h; \
-	echo "#ifdef _KERNEL" >> osreldate.h; \
-	echo "#error \"<osreldate.h> cannot be used in the kernel, use <sys/param.h>\"" >> osreldate.h; \
-	echo "#else" >> osreldate.h; \
-	echo "#undef __FreeBSD_version" >> osreldate.h; \
-	echo "#define __FreeBSD_version $$RELDATE" >> osreldate.h; \
-	echo "#endif" >> osreldate.h
+SYSDIR=			${.CURDIR}/../sys
+NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
+PARAM_H=		${SYSDIR}/sys/param.h
+MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
+
+osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env ECHO="${ECHO}" \
+	    MAKE="${MAKE}" \
+	    NEWVERS_SH=${NEWVERS_SH} \
+	    PARAM_H=${PARAM_H} \
+	    SYSDIR=${SYSDIR} \
+	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
@@ -138,11 +141,6 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
-	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
-.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
@@ -154,7 +152,7 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
@@ -162,6 +160,9 @@ copies:
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
+	cd ${.CURDIR}/../sys/dev/agp; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/agp
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
@@ -172,6 +173,9 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
+	cd ${.CURDIR}/../sys/dev/pci; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/pci
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
@@ -182,6 +186,11 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
+.endif
+.if ${MK_PF} != "no"
+	cd ${.CURDIR}/../sys/netpfil/pf; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/netpfil/pf
 .endif
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
@@ -216,6 +225,9 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
+	cd ${.CURDIR}/../sys/teken; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
+	    ${DESTDIR}${INCLUDEDIR}/teken
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -225,7 +237,7 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -235,6 +247,11 @@ symlinks:
 	for h in acpiio.h; do \
 		ln -fs ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
+	done
+	cd ${.CURDIR}/../sys/dev/agp; \
+	for h in agpreg.h; do \
+		ln -fs ../../../../sys/dev/agp/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/agp; \
 	done
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	for h in ioctl_*.h; do \
@@ -248,6 +265,11 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
+	cd ${.CURDIR}/../sys/dev/pci; \
+	for h in pcireg.h; do \
+		ln -fs ../../../../sys/dev/pci/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/pci; \
+	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
@@ -264,6 +286,13 @@ symlinks:
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
+	done
+.endif
+.if ${MK_PF} != "no"
+	cd ${.CURDIR}/../sys/netpfil/pf; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/netpfil/pf/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/netpfil/pf; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/crypto; \

@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
@@ -140,12 +140,11 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
         << Name << "' must be a C array of pointer-sized values, not '"
         << Arg->getType().getAsString() << "'";
 
-    SourceRange R = Arg->getSourceRange();
     PathDiagnosticLocation CELoc =
         PathDiagnosticLocation::createBegin(CE, BR.getSourceManager(), AC);
     BR.EmitBasicReport(AC->getDecl(),
                        OsName.str(), categories::CoreFoundationObjectiveC,
-                       Os.str(), CELoc, &R, 1);
+                       Os.str(), CELoc, Arg->getSourceRange());
   }
 
   // Recurse and check children.

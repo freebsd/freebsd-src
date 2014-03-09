@@ -61,6 +61,8 @@ Commands:
                   files and directories.
   update       -- Update ports tree to match current snapshot, replacing
                   files and directories which have changed.
+  auto         -- Fetch updates, and either extract a new ports tree or
+                  update an existing tree.
 EOF
 	exit 0
 }
@@ -147,11 +149,14 @@ parse_cmdline() {
 			if [ ! -z "${SERVERNAME}" ]; then usage; fi
 			shift; SERVERNAME="$1"
 			;;
-		cron | extract | fetch | update | alfred)
+		cron | extract | fetch | update | auto)
 			COMMANDS="${COMMANDS} $1"
 			;;
 		up)
 			COMMANDS="${COMMANDS} update"
+			;;
+		alfred)
+			COMMANDS="${COMMANDS} auto"
 			;;
 		*)
 			if [ $# -gt 1 ]; then usage; fi
@@ -864,8 +869,8 @@ fetch_update() {
 	echo "done."
 
 # Remove files which are no longer needed
-	cut -f 2 -d '|' tINDEX INDEX | sort > oldfiles
-	cut -f 2 -d '|' tINDEX.new INDEX.new | sort | comm -13 - oldfiles |
+	cut -f 2 -d '|' tINDEX INDEX | sort -u > oldfiles
+	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u | comm -13 - oldfiles |
 	    lam -s "files/" - -s ".gz" | xargs rm -f
 	rm patchlist filelist oldfiles
 
@@ -947,7 +952,7 @@ extract_run() {
 			cat ${WORKDIR}/INDEX
 		fi | while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
-		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
+		if ! [ -s "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
 			return 1
 		fi
@@ -991,7 +996,7 @@ update_run_extract() {
 	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
 	    while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
-		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
+		if ! [ -s "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
 			return 1
 		fi
@@ -1104,16 +1109,16 @@ cmd_update() {
 	update_run || exit 1
 }
 
-# Alfred command.  Run 'fetch' or 'cron' depending on
+# Auto command.  Run 'fetch' or 'cron' depending on
 # whether stdin is a terminal; then run 'update' or
 # 'extract' depending on whether ${PORTSDIR} exists.
-cmd_alfred() {
+cmd_auto() {
 	if [ "${INTERACTIVE}" = "YES" ]; then
 		cmd_fetch
 	else
 		cmd_cron
 	fi
-	if [ -d ${PORTSDIR} ]; then
+	if [ -r ${PORTSDIR}/.portsnap.INDEX ]; then
 		cmd_update
 	else
 		cmd_extract

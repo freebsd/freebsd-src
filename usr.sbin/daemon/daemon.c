@@ -53,16 +53,16 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct pidfh *pfh = NULL;
+	struct pidfh  *ppfh, *pfh;
 	sigset_t mask, oldmask;
-	int ch, nochdir, noclose, restart;
-	const char *pidfile, *user;
+	int ch, nochdir, noclose, restart, serrno;
+	const char *pidfile, *ppidfile,  *user;
 	pid_t otherpid, pid;
 
 	nochdir = noclose = 1;
 	restart = 0;
-	pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "cfp:ru:")) != -1) {
+	ppidfile = pidfile = user = NULL;
+	while ((ch = getopt(argc, argv, "cfp:P:ru:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -72,6 +72,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pidfile = optarg;
+			break;
+		case 'P':
+			ppidfile = optarg;
 			break;
 		case 'r':
 			restart = 1;
@@ -89,7 +92,7 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	pfh = NULL;
+	ppfh = pfh = NULL;
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
@@ -104,9 +107,27 @@ main(int argc, char *argv[])
 			err(2, "pidfile ``%s''", pidfile);
 		}
 	}
+	/* Do the same for actual daemon process. */
+	if (ppidfile != NULL) {
+		ppfh = pidfile_open(ppidfile, 0600, &otherpid);
+		if (ppfh == NULL) {
+			serrno = errno;
+			pidfile_remove(pfh);
+			errno = serrno;
+			if (errno == EEXIST) {
+				errx(3, "process already running, pid: %d",
+				     otherpid);
+			}
+			err(2, "ppidfile ``%s''", ppidfile);
+		}
+	}
 
-	if (daemon(nochdir, noclose) == -1)
-		err(1, NULL);
+	if (daemon(nochdir, noclose) == -1) {
+		warn("daemon");
+		goto exit;
+	}
+	/* Write out parent pidfile if needed. */
+	pidfile_write(ppfh);
 
 	/*
 	 * If the pidfile or restart option is specified the daemon
@@ -123,22 +144,28 @@ main(int argc, char *argv[])
 		 * Restore default action for SIGTERM in case the
 		 * parent process decided to ignore it.
 		 */
-		if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
-			err(1, "signal");
+		if (signal(SIGTERM, SIG_DFL) == SIG_ERR) {
+			warn("signal");
+			goto exit;
+		}
 		/*
 		 * Because SIGCHLD is ignored by default, setup dummy handler
 		 * for it, so we can mask it.
 		 */
-		if (signal(SIGCHLD, dummy_sighandler) == SIG_ERR)
-			err(1, "signal");
+		if (signal(SIGCHLD, dummy_sighandler) == SIG_ERR) {
+			warn("signal");
+			goto exit;
+		}
 		/*
 		 * Block interesting signals.
 		 */
 		sigemptyset(&mask);
 		sigaddset(&mask, SIGTERM);
 		sigaddset(&mask, SIGCHLD);
-		if (sigprocmask(SIG_SETMASK, &mask, &oldmask) == -1)
-			err(1, "sigprocmask");
+		if (sigprocmask(SIG_SETMASK, &mask, &oldmask) == -1) {
+			warn("sigprocmask");
+			goto exit;
+		}
 		/*
 		 * Try to protect against pageout kill. Ignore the
 		 * error, madvise(2) will fail only if a process does
@@ -152,8 +179,8 @@ restart:
 		 */
 		pid = fork();
 		if (pid == -1) {
-			pidfile_remove(pfh);
-			err(1, "fork");
+			warn("fork");
+			goto exit;
 		}
 	}
 	if (pid <= 0) {
@@ -176,13 +203,16 @@ restart:
 		 */
 		err(1, "%s", argv[0]);
 	}
+
 	setproctitle("%s[%d]", argv[0], pid);
 	if (wait_child(pid, &mask) == 0 && restart) {
 		sleep(1);
 		goto restart;
 	}
+exit:
 	pidfile_remove(pfh);
-	exit(0); /* Exit status does not matter. */
+	pidfile_remove(ppfh);
+	exit(1); /* If daemon(3) succeeded exit status does not matter. */
 }
 
 static void
@@ -240,7 +270,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cfr] [-p pidfile] [-u user] command "
-		"arguments ...\n");
+	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile] "
+	    "[-u user]\n              command arguments ...\n");
 	exit(1);
 }

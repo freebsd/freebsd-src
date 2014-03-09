@@ -218,9 +218,32 @@ Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 # no times are set
 #
 # Macquarie
-# permanent occupation (scientific station) since 1948;
-# sealing and penguin oil station operated 1888/1917
-# like Australia/Hobart
+# Permanent occupation (scientific station) 1911-1915 and since 25 March 1948;
+# sealing and penguin oil station operated Nov 1899 to Apr 1919.  See the
+# Tasmania Parks & Wildlife Service history of sealing at Macquarie Island
+# <http://www.parks.tas.gov.au/index.aspx?base=1828>
+# <http://www.parks.tas.gov.au/index.aspx?base=1831>.
+# Guess that it was like Australia/Hobart while inhabited before 2010.
+#
+# From Steffen Thorsen (2010-03-10):
+# We got these changes from the Australian Antarctic Division:
+# - Macquarie Island will stay on UTC+11 for winter and therefore not
+# switch back from daylight savings time when other parts of Australia do
+# on 4 April.
+#
+# From Arthur David Olson (2013-05-23):
+# The 1919 transition is overspecified below so pre-2013 zics
+# will produce a binary file with an EST-type as the first 32-bit type;
+# this is required for correct handling of times before 1916 by
+# pre-2013 versions of localtime.
+Zone Antarctica/Macquarie 0	-	zzz	1899 Nov
+			10:00	-	EST	1916 Oct 1 2:00
+			10:00	1:00	EST	1917 Feb
+			10:00	Aus	EST	1919 Apr 1 0:00s
+			0	-	zzz	1948 Mar 25
+			10:00	Aus	EST	1967
+			10:00	AT	EST	2010 Apr 4 3:00
+			11:00	-	MIST	# Macquarie I Standard Time
 
 # Christmas
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -246,6 +269,9 @@ Zone	Indian/Cocos	6:27:40	-	LMT	1900
 			6:30	-	CCT	# Cocos Islands Time
 
 # Fiji
+
+# Milne gives 11:55:44 for Suva.
+
 # From Alexander Krivenyshev (2009-11-10):
 # According to Fiji Broadcasting Corporation,  Fiji plans to re-introduce DST
 # from November 29th 2009  to April 25th 2010.
@@ -326,20 +352,29 @@ Zone	Indian/Cocos	6:27:40	-	LMT	1900
 # today confirmed that Fiji will start daylight savings at 2 am on Sunday 21st
 # October 2012 and end at 3 am on Sunday 20th January 2013.
 # http://www.fiji.gov.fj/index.php?option=com_content&view=article&id=6702&catid=71&Itemid=155
+
+# From the Fijian Government Media Center (2013-08-30) via David Wheeler:
+# Fiji will start daylight savings on Sunday 27th October, 2013 and end at 3am
+# on Sunday 19th January, 2014....  move clocks forward by one hour from 2am
+# http://www.fiji.gov.fj/Media-Center/Press-Releases/DAYLIGHT-SAVING-STARTS-ON-SUNDAY,-27th-OCTOBER-201.aspx
 #
-# From Paul Eggert (2012-08-31):
-# For now, guess a pattern of the penultimate Sundays in October and January.
+# From Paul Eggert (2013-09-09):
+# For now, guess that Fiji springs forward the Sunday before the fourth
+# Monday in October.  This matches both recent practice and
+# timeanddate.com's current spring-forward prediction.
+# For the January 2014 transition we guessed right while timeanddate.com
+# guessed wrong, so leave the fall-back prediction alone.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Fiji	1998	1999	-	Nov	Sun>=1	2:00	1:00	S
 Rule	Fiji	1999	2000	-	Feb	lastSun	3:00	0	-
 Rule	Fiji	2009	only	-	Nov	29	2:00	1:00	S
 Rule	Fiji	2010	only	-	Mar	lastSun	3:00	0	-
-Rule	Fiji	2010	max	-	Oct	Sun>=18	2:00	1:00	S
+Rule	Fiji	2010	max	-	Oct	Sun>=21	2:00	1:00	S
 Rule	Fiji	2011	only	-	Mar	Sun>=1	3:00	0	-
 Rule	Fiji	2012	max	-	Jan	Sun>=18	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
+Zone	Pacific/Fiji	11:55:44 -	LMT	1915 Oct 26	# Suva
 			12:00	Fiji	FJ%sT	# Fiji Time
 
 # French Polynesia
@@ -461,6 +496,7 @@ Zone Pacific/Auckland	11:39:04 -	LMT	1868 Nov  2
 Zone Pacific/Chatham	12:13:48 -	LMT	1957 Jan  1
 			12:45	Chatham	CHA%sT
 
+Link Pacific/Auckland Antarctica/McMurdo
 
 # Auckland Is
 # uninhabited; Maori and Moriori, colonial settlers, pastoralists, sealers,
@@ -710,7 +746,7 @@ Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 # 1886-1891; Baker was similar but exact dates are not known.
 # Inhabited by civilians 1935-1942; U.S. military bases 1943-1944;
 # uninhabited thereafter.
-# Howland observed Hawaii Standard Time (UTC-10:30) in 1937;
+# Howland observed Hawaii Standard Time (UT-10:30) in 1937;
 # see page 206 of Elgen M. Long and Marie K. Long,
 # Amelia Earhart: the Mystery Solved, Simon & Schuster (2000).
 # So most likely Howland and Baker observed Hawaii Time from 1935
@@ -723,8 +759,17 @@ Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 # no information; was probably like Pacific/Kiritimati
 
 # Johnston
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Pacific/Johnston	-10:00	-	HST
+#
+# From Paul Eggert (2013-09-03):
+# In his memoirs of June 6th to October 4, 1945
+# <http://www.315bw.org/Herb_Bach.htm> (2005), Herbert C. Bach writes,
+# "We started our letdown to Kwajalein Atoll and landed there at 5:00 AM
+# Johnston time, 1:30 AM Kwajalein time."  This was in June 1945, and
+# confirms that Johnston kept the same time as Honolulu in summer 1945.
+# We have no better information, so for now, assume this has been true
+# indefinitely into the past.
+#
+# See 'northamerica' for Pacific/Johnston.
 
 # Kingman
 # uninhabited
@@ -782,7 +827,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # go ahead and edit the file (and please send any changes to
 # tz@iana.org for general use in the future).
 
-# From Paul Eggert (2006-03-22):
+# From Paul Eggert (2013-02-21):
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
 # San Diego: ACS Publications, Inc. (2003).
@@ -799,6 +844,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Another source occasionally used is Edward W. Whitman, World Time Differences,
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
 # I found in the UCLA library.
+#
+# For data circa 1899, a common source is:
+# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94
+# <http://www.jstor.org/stable/1774359>.
 #
 # A reliable and entertaining source about time zones is
 # Derek Howse, Greenwich time and longitude, Philip Wilson Publishers (1997).
@@ -1451,12 +1500,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # From Paul Eggert (2000-01-08):
 # IATA SSIM (1999-09) says DST ends 0100 local time.  Go with McDow.
 
-# From the BBC World Service (1998-10-31 11:32 UTC):
+# From the BBC World Service in
+# http://news.bbc.co.uk/2/hi/asia-pacific/205226.stm (1998-10-31 16:03 UTC):
 # The Fijiian government says the main reasons for the time change is to
-# improve productivity and reduce road accidents.  But correspondents say it
-# also hopes the move will boost Fiji's ability to compete with other pacific
-# islands in the effort to attract tourists to witness the dawning of the new
-# millenium.
+# improve productivity and reduce road accidents.... [T]he move is also
+# intended to boost Fiji's ability to attract tourists to witness the dawning
+# of the new millennium.
 
 # http://www.fiji.gov.fj/press/2000_09/2000_09_13-05.shtml (2000-09-13)
 # reports that Fiji has discontinued DST.
@@ -1601,7 +1650,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Shanks & Pottenger say the transition was on 1968-10-01; go with Mundell.
 
 # From Eric Ulevik (1999-05-03):
-# Tonga's director of tourism, who is also secretary of the National Millenium
+# Tonga's director of tourism, who is also secretary of the National Millennium
 # Committee, has a plan to get Tonga back in front.
 # He has proposed a one-off move to tropical daylight saving for Tonga from
 # October to March, which has won approval in principle from the Tongan

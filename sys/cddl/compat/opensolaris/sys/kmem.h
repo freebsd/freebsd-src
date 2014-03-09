@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/vmem.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -45,8 +46,8 @@ MALLOC_DECLARE(M_SOLARIS);
 #define	KM_SLEEP		M_WAITOK
 #define	KM_PUSHPAGE		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
-#define	KM_ZERO			M_ZERO
 #define	KM_NODEBUG		M_NODUMP
+#define	KM_NORMALPRI		0
 #define	KMC_NODEBUG		UMA_ZONE_NODUMP
 #define	KMC_NOTOUCH		0
 
@@ -61,8 +62,6 @@ typedef struct kmem_cache {
 	void		(*kc_destructor)(void *, void *);
 	void		*kc_private;
 } kmem_cache_t;
-
-#define vmem_t	void
 
 void *zfs_kmem_alloc(size_t size, int kmflags);
 void zfs_kmem_free(void *buf, size_t size);

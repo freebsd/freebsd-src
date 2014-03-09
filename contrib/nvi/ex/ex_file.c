@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_file.c	10.12 (Berkeley) 7/12/96";
+static const char sccsid[] = "$Id: ex_file.c,v 10.14 2001/06/25 15:19:16 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <errno.h>
@@ -32,12 +33,12 @@ static const char sccsid[] = "@(#)ex_file.c	10.12 (Berkeley) 7/12/96";
  * PUBLIC: int ex_file __P((SCR *, EXCMD *));
  */
 int
-ex_file(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_file(SCR *sp, EXCMD *cmdp)
 {
-	CHAR_T *p;
+	char *p;
 	FREF *frp;
+	char *np;
+	size_t nlen;
 
 	NEEDFILE(sp, cmdp);
 
@@ -48,8 +49,9 @@ ex_file(sp, cmdp)
 		frp = sp->frp;
 
 		/* Make sure can allocate enough space. */
-		if ((p = v_strdup(sp,
-		    cmdp->argv[0]->bp, cmdp->argv[0]->len)) == NULL)
+		INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, 
+			    np, nlen);
+		if ((p = v_strdup(sp, np, nlen - 1)) == NULL)
 			return (1);
 
 		/* If already have a file name, it becomes the alternate. */

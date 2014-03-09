@@ -72,17 +72,10 @@ arswitch_split_setpage(device_t dev, uint32_t addr, uint16_t *phy,
 	*phy = (((addr) >> 6) & 0x07) | 0x10;
 	*reg = ((addr) >> 1) & 0x1f;
 
-	/*
-	 * The earlier code would only switch the page
-	 * over if the page were different.  Experiments have
-	 * shown that this is unstable.
-	 *
-	 * Hence, the page is always set here.
-	 *
-	 * See PR kern/172968
-	 */
-	MDIO_WRITEREG(device_get_parent(dev), 0x18, 0, page);
-	sc->page = page;
+	if (sc->page != page) {
+		MDIO_WRITEREG(device_get_parent(dev), 0x18, 0, page);
+		sc->page = page;
+	}
 }
 
 /*
@@ -116,6 +109,16 @@ arswitch_writedbg(device_t dev, int phy, uint16_t dbg_addr,
 	    MII_ATH_DBG_ADDR, dbg_addr);
 	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
 	    MII_ATH_DBG_DATA, dbg_data);
+}
+
+void
+arswitch_writemmd(device_t dev, int phy, uint16_t dbg_addr,
+    uint16_t dbg_data)
+{
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_ADDR, dbg_addr);
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_DATA, dbg_data);
 }
 
 /*
@@ -169,10 +172,21 @@ arswitch_readreg(device_t dev, int addr)
 int
 arswitch_writereg(device_t dev, int addr, int value)
 {
+	struct arswitch_softc *sc;
+	int r;
+
+	sc = device_get_softc(dev);
 
 	/* XXX Check the first write too? */
-	arswitch_writereg_lsb(dev, addr, value);
-	return (arswitch_writereg_msb(dev, addr, value));
+	if (sc->mii_lo_first) {
+		r = arswitch_writereg_lsb(dev, addr, value);
+		r |= arswitch_writereg_msb(dev, addr, value);
+	} else {
+		r = arswitch_writereg_msb(dev, addr, value);
+		r |= arswitch_writereg_lsb(dev, addr, value);
+	}
+
+	return r;
 }
 
 int
@@ -184,4 +198,25 @@ arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 	value &= ~mask;
 	value |= set;
 	return (arswitch_writereg(dev, addr, value));
+}
+
+int
+arswitch_waitreg(device_t dev, int addr, int mask, int val, int timeout)
+{
+	int err, v;
+
+	err = -1;
+	while (1) {
+		v = arswitch_readreg(dev, addr);
+		v &= mask;
+		if (v == val) {
+			err = 0;
+			break;
+		}
+		if (!timeout)
+			break;
+		DELAY(1);
+		timeout--;
+	}
+	return (err);
 }

@@ -1,0 +1,61 @@
+#
+# GXEMUL "oldtestmips" sample kernel configuration.
+#
+# $FreeBSD$
+#
+
+ident		GXEMUL
+
+machine		mips mips
+cpu		CPU_MIPS4KC
+
+options 	HZ=100
+
+makeoptions 	KERNLOADADDR=0x80100000
+
+include		"../gxemul/std.gxemul"
+
+hints		"GXEMUL.hints"		#Default places to look for devices.
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+makeoptions	MODULES_OVERRIDE=""
+
+options 	DDB
+options 	KDB
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
+
+options 	SCHED_ULE
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+
+options 	FFS			#Berkeley Fast Filesystem
+
+# Debugging for use in -current
+#options 	DEADLKRES		#Enable the deadlock resolver
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			#Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+
+options 	ROOTDEVNAME=\"ufs:gxemul_disk0\"
+
+device		gxemul_cons
+device		gxemul_disk
+device		gxemul_ether
+
+# Pseudo devices.
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		tun		# Packet tunnel.
+device		md		# Memory "disks"
+device		gif		# IPv6 and IPv4 tunneling
+device		faith		# IPv6-to-IPv4 relaying (translation)
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter

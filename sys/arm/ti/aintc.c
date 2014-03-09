@@ -81,6 +81,10 @@ static struct ti_aintc_softc *ti_aintc_sc = NULL;
 static int
 ti_aintc_probe(device_t dev)
 {
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+
 	if (!ofw_bus_is_compatible(dev, "ti,aintc"))
 		return (ENXIO);
 	device_set_desc(dev, "TI AINTC Interrupt Controller");
@@ -157,6 +161,7 @@ arm_get_next_irq(int last_irq)
 	if ((active_irq & 0xffffff80)) {
 		device_printf(ti_aintc_sc->sc_dev,
 			"Spurious interrupt detected (0x%08x)\n", active_irq);
+		aintc_write_4(INTC_SIR_IRQ, 0);
 		return -1;
 	}
 

@@ -14,12 +14,12 @@
 #ifndef LLVM_CLANG_ANALYSES_DATAFLOW_SOLVER
 #define LLVM_CLANG_ANALYSES_DATAFLOW_SOLVER
 
+#include "functional" // STL
 #include "clang/Analysis/CFG.h"
-#include "clang/Analysis/ProgramPoint.h"
 #include "clang/Analysis/FlowSensitive/DataflowValues.h"
+#include "clang/Analysis/ProgramPoint.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
-#include "functional" // STL
 
 namespace clang {
 
@@ -45,8 +45,7 @@ public:
   /// dequeue - Remove a block from the worklist.
   const CFGBlock *dequeue() {
     assert(!BlockQueue.empty());
-    const CFGBlock *B = BlockQueue.back();
-    BlockQueue.pop_back();
+    const CFGBlock *B = BlockQueue.pop_back_val();
     BlockSet[B] = 0;
     return B;
   }

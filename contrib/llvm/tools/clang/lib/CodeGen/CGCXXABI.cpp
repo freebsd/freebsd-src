@@ -1,4 +1,4 @@
-//===----- CGCXXABI.cpp - Interface to C++ ABIs -----------------*- C++ -*-===//
+//===----- CGCXXABI.cpp - Interface to C++ ABIs ---------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,8 +19,7 @@ using namespace CodeGen;
 
 CGCXXABI::~CGCXXABI() { }
 
-static void ErrorUnsupportedABI(CodeGenFunction &CGF,
-                                StringRef S) {
+void CGCXXABI::ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S) {
   DiagnosticsEngine &Diags = CGF.CGM.getDiags();
   unsigned DiagID = Diags.getCustomDiagID(DiagnosticsEngine::Error,
                                           "cannot yet compile %0 in this ABI");
@@ -29,8 +28,7 @@ static void ErrorUnsupportedABI(CodeGenFunction &CGF,
     << S;
 }
 
-static llvm::Constant *GetBogusMemberPointer(CodeGenModule &CGM,
-                                             QualType T) {
+llvm::Constant *CGCXXABI::GetBogusMemberPointer(QualType T) {
   return llvm::Constant::getNullValue(CGM.getTypes().ConvertType(T));
 }
 
@@ -67,12 +65,12 @@ llvm::Value *CGCXXABI::EmitMemberPointerConversion(CodeGenFunction &CGF,
                                                    const CastExpr *E,
                                                    llvm::Value *Src) {
   ErrorUnsupportedABI(CGF, "member function pointer conversions");
-  return GetBogusMemberPointer(CGM, E->getType());
+  return GetBogusMemberPointer(E->getType());
 }
 
 llvm::Constant *CGCXXABI::EmitMemberPointerConversion(const CastExpr *E,
                                                       llvm::Constant *Src) {
-  return GetBogusMemberPointer(CGM, E->getType());
+  return GetBogusMemberPointer(E->getType());
 }
 
 llvm::Value *
@@ -95,22 +93,22 @@ CGCXXABI::EmitMemberPointerIsNotNull(CodeGenFunction &CGF,
 
 llvm::Constant *
 CGCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
-  return GetBogusMemberPointer(CGM, QualType(MPT, 0));
+  return GetBogusMemberPointer(QualType(MPT, 0));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
-  return GetBogusMemberPointer(CGM,
+  return GetBogusMemberPointer(
                          CGM.getContext().getMemberPointerType(MD->getType(),
                                          MD->getParent()->getTypeForDecl()));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberDataPointer(const MemberPointerType *MPT,
                                                 CharUnits offset) {
-  return GetBogusMemberPointer(CGM, QualType(MPT, 0));
+  return GetBogusMemberPointer(QualType(MPT, 0));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberPointer(const APValue &MP, QualType MPT) {
-  return GetBogusMemberPointer(CGM, MPT);
+  return GetBogusMemberPointer(MPT);
 }
 
 bool CGCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
@@ -214,18 +212,15 @@ llvm::Value *CGCXXABI::readArrayCookieImpl(CodeGenFunction &CGF,
   return llvm::ConstantInt::get(CGF.SizeTy, 0);
 }
 
-void CGCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
-                               const VarDecl &D,
-                               llvm::GlobalVariable *GV,
-                               bool PerformInit) {
-  ErrorUnsupportedABI(CGF, "static local variable initialization");
-}
-
 void CGCXXABI::registerGlobalDtor(CodeGenFunction &CGF,
+                                  const VarDecl &D,
                                   llvm::Constant *dtor,
                                   llvm::Constant *addr) {
+  if (D.getTLSKind())
+    CGM.ErrorUnsupported(&D, "non-trivial TLS destruction");
+
   // The default behavior is to use atexit.
-  CGF.registerGlobalDtorWithAtExit(dtor, addr);
+  CGF.registerGlobalDtorWithAtExit(D, dtor, addr);
 }
 
 /// Returns the adjustment, in bytes, required for the given
@@ -247,4 +242,51 @@ llvm::Constant *CGCXXABI::getMemberPointerAdjustment(const CastExpr *E) {
   return CGM.GetNonVirtualBaseClassOffset(derivedClass,
                                           E->path_begin(),
                                           E->path_end());
+}
+
+CharUnits CGCXXABI::getMemberPointerPathAdjustment(const APValue &MP) {
+  // TODO: Store base specifiers in APValue member pointer paths so we can
+  // easily reuse CGM.GetNonVirtualBaseClassOffset().
+  const ValueDecl *MPD = MP.getMemberPointerDecl();
+  CharUnits ThisAdjustment = CharUnits::Zero();
+  ArrayRef<const CXXRecordDecl*> Path = MP.getMemberPointerPath();
+  bool DerivedMember = MP.isMemberPointerToDerivedMember();
+  const CXXRecordDecl *RD = cast<CXXRecordDecl>(MPD->getDeclContext());
+  for (unsigned I = 0, N = Path.size(); I != N; ++I) {
+    const CXXRecordDecl *Base = RD;
+    const CXXRecordDecl *Derived = Path[I];
+    if (DerivedMember)
+      std::swap(Base, Derived);
+    ThisAdjustment +=
+      getContext().getASTRecordLayout(Derived).getBaseClassOffset(Base);
+    RD = Path[I];
+  }
+  if (DerivedMember)
+    ThisAdjustment = -ThisAdjustment;
+  return ThisAdjustment;
+}
+
+llvm::BasicBlock *
+CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
+                                        const CXXRecordDecl *RD) {
+  if (CGM.getTarget().getCXXABI().hasConstructorVariants())
+    llvm_unreachable("shouldn't be called in this ABI");
+
+  ErrorUnsupportedABI(CGF, "complete object detection in ctor");
+  return 0;
+}
+
+void CGCXXABI::EmitThreadLocalInitFuncs(
+    llvm::ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
+    llvm::Function *InitFunc) {
+}
+
+LValue CGCXXABI::EmitThreadLocalDeclRefExpr(CodeGenFunction &CGF,
+                                          const DeclRefExpr *DRE) {
+  ErrorUnsupportedABI(CGF, "odr-use of thread_local global");
+  return LValue();
+}
+
+bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {
+  return false;
 }

@@ -81,6 +81,9 @@ extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
 extern int nfscl_debuglevel;
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
+extern struct mtx ncl_iod_mutex;
 NFSCLSTATEMUTEX;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
@@ -117,6 +120,7 @@ static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
+static vfs_purge_t nfs_purge;
 
 /*
  * nfs vfs operations.
@@ -131,8 +135,9 @@ static struct vfsops nfs_vfsops = {
 	.vfs_uninit =		ncl_uninit,
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
+	.vfs_purge =		nfs_purge,
 };
-VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
+VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK | VFCF_SBDRY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs, 1);
@@ -589,12 +594,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 	}
 
-	/* Clear NFSMNT_RESVPORT for NFSv4, since it is not required. */
-	if ((argp->flags & NFSMNT_NFSV4) != 0) {
-		argp->flags &= ~NFSMNT_RESVPORT;
-		nmp->nm_flag &= ~NFSMNT_RESVPORT;
-	}
-
 	/* Re-bind if rsrvd port requested and wasn't on one */
 	adjsock = !(nmp->nm_flag & NFSMNT_RESVPORT)
 		  && (argp->flags & NFSMNT_RESVPORT);
@@ -720,7 +719,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minorversion",
-    "nametimeo", "negnametimeo", "nocto", "pnfs", "wcommitsize",
+    "nametimeo", "negnametimeo", "nocto", "noncontigwr", "pnfs",
+    "wcommitsize",
     NULL };
 
 /*
@@ -841,6 +841,8 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_ALLGSSNAME;
 	if (vfs_getopt(mp->mnt_optnew, "nocto", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCTO;
+	if (vfs_getopt(mp->mnt_optnew, "noncontigwr", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NONCONTIGWR;
 	if (vfs_getopt(mp->mnt_optnew, "pnfs", NULL, NULL) == 0)
 		args.flags |= NFSMNT_PNFS;
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
@@ -1449,6 +1451,8 @@ bad:
 		nfscl_clientrelease(clp);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
+	if (nmp->nm_sockreq.nr_auth != NULL)
+		AUTH_DESTROY(nmp->nm_sockreq.nr_auth);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
 	if (nmp->nm_clp != NULL) {
@@ -1472,7 +1476,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct thread *td;
 	struct nfsmount *nmp;
-	int error, flags = 0, trycnt = 0;
+	int error, flags = 0, i, trycnt = 0;
 	struct nfsclds *dsp, *tdsp;
 
 	td = curthread;
@@ -1508,10 +1512,19 @@ nfs_unmount(struct mount *mp, int mntflags)
 	 */
 	if ((mntflags & MNT_FORCE) == 0)
 		nfscl_umount(nmp, td);
+	/* Make sure no nfsiods are assigned to this mount. */
+	mtx_lock(&ncl_iod_mutex);
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+		if (ncl_iodmount[i] == nmp) {
+			ncl_iodwant[i] = NFSIOD_AVAILABLE;
+			ncl_iodmount[i] = NULL;
+		}
+	mtx_unlock(&ncl_iod_mutex);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	FREE(nmp->nm_nam, M_SONAME);
-
+	if (nmp->nm_sockreq.nr_auth != NULL)
+		AUTH_DESTROY(nmp->nm_sockreq.nr_auth);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
 	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
@@ -1668,6 +1681,19 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 }
 
 /*
+ * Purge any RPCs in progress, so that they will all return errors.
+ * This allows dounmount() to continue as far as VFS_UNMOUNT() for a
+ * forced dismount.
+ */
+static void
+nfs_purge(struct mount *mp)
+{
+	struct nfsmount *nmp = VFSTONFS(mp);
+
+	newnfs_nmcancelreqs(nmp);
+}
+
+/*
  * Extract the information needed by the nlm from the nfs vnode.
  */
 static void
@@ -1769,6 +1795,8 @@ void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
 	    &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) != 0, ",nocto", &buf,
 	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NONCONTIGWR) != 0,
+	    ",noncontigwr", &buf, &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
 	    0, ",lockd", &buf, &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==

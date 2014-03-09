@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -173,7 +174,7 @@ static u_char *ctxmith;
 /* Functions for the lp# interface */
 static int lpinittables(void);
 static int lpioctl(struct ifnet *, u_long, caddr_t);
-static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int lpoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
        struct route *);
 static void lpstop(struct lp_data *);
 static void lp_intr(void *);
@@ -410,7 +411,6 @@ lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error;
 
 	switch (cmd) {
-	case SIOCSIFDSTADDR:
 	case SIOCAIFADDR:
 	case SIOCSIFADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
@@ -682,7 +682,7 @@ lpoutbyte(u_char byte, int spin, device_t ppbus)
 }
 
 static int
-lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+lpoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct lp_data *sc = ifp->if_softc;

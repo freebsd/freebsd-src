@@ -1,11 +1,18 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.45 2012/06/20 22:43:41 sjg Exp $
+dnl	$Id: configure.in,v 1.51 2014/01/02 22:20:52 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
-AC_INIT([bmake], [20120620], [sjg@NetBSD.org])
+AC_PREREQ(2.50)
+AC_INIT([bmake], [20140101], [sjg@NetBSD.org])
 AC_CONFIG_HEADER(config.h)
+
+dnl make srcdir absolute
+case "$srcdir" in
+/*) ;;
+*) srcdir=`cd $srcdir && pwd`;;
+esac
 
 dnl
 AC_ARG_WITH(defshell,
@@ -71,16 +78,18 @@ AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl
-
 dnl
-dnl Check if /bin/sh will pass .MAKE.LEVEL
-echo $ECHO_N "checking if sh will pass .MAKE. variables... $ECHO_C" >&6
-ok=`env .MAKE.LEVEL=1 /bin/sh -c env | grep LEVEL=`
-case "$ok" in
-"") echo no >&6; CPPFLAGS="${CPPFLAGS} -DNEED_MAKE_LEVEL_SAFE";;
-*) echo yes >&6;;
-esac
-
+dnl Hurd refuses to define PATH_MAX or MAXPATHLEN
+if test -x /usr/bin/getconf; then
+   bmake_path_max=`getconf PATH_MAX / 2> /dev/null`
+fi
+bmake_path_max=${bmake_path_max:-1024}
+if test $bmake_path_max -gt 1024; then
+   # this is all we expect
+   bmake_path_max=1024
+fi
+echo "Using: BMAKE_PATH_MAX=$bmake_path_max" >&6
+AC_SUBST(bmake_path_max)dnl
 dnl
 dnl AC_C_CROSS
 dnl
@@ -101,6 +110,7 @@ AC_CHECK_HEADERS( \
 	sys/mman.h \
 	sys/select.h \
 	sys/socket.h \
+	sys/sysctl.h \
 	sys/time.h \
 	sys/uio.h \
 	unistd.h \
@@ -162,6 +172,7 @@ AC_CHECK_FUNCS( \
 	strsep \
 	strtod \
 	strtol \
+	sysctl \
 	unsetenv \
 	vsnprintf \
 	wait3 \
@@ -357,7 +368,7 @@ AC_SUBST(GCC)
 AC_SUBST(diff_u)
 AC_SUBST(use_meta)
 AC_SUBST(filemon_h)
-AC_OUTPUT(Makefile make-bootstrap.sh unit-tests/Makefile)
+AC_OUTPUT(makefile Makefile.config make-bootstrap.sh unit-tests/Makefile)
 
 cat <<EOF
 

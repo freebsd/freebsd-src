@@ -24,13 +24,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <ctype.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/queue.h>
+#endif
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -71,6 +75,8 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
+#define	dummy_get_port_path (void *)dummy_int
+#define	dummy_get_power_usage (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
@@ -718,6 +724,24 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 }
 
 int
+libusb20_dev_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize)
+{
+	return (pdev->methods->get_port_path(pdev, buf, bufsize));
+}
+
+uint16_t
+libusb20_dev_get_power_usage(struct libusb20_device *pdev)
+{
+	int error;
+	uint16_t power_usage;
+
+	error = pdev->methods->get_power_usage(pdev, &power_usage);
+	if (error)
+		power_usage = 0;
+	return (power_usage);
+}
+
+int
 libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t ifaceIndex, uint8_t altIndex)
 {
 	int error;
@@ -1178,27 +1202,13 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 struct libusb20_backend *
 libusb20_be_alloc_linux(void)
 {
-	struct libusb20_backend *pbe;
-
-#ifdef __linux__
-	pbe = libusb20_be_alloc(&libusb20_linux_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (NULL);
 }
 
 struct libusb20_backend *
 libusb20_be_alloc_ugen20(void)
 {
-	struct libusb20_backend *pbe;
-
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-	pbe = libusb20_be_alloc(&libusb20_ugen20_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (libusb20_be_alloc(&libusb20_ugen20_backend));
 }
 
 struct libusb20_backend *
@@ -1206,10 +1216,12 @@ libusb20_be_alloc_default(void)
 {
 	struct libusb20_backend *pbe;
 
+#ifdef __linux__
 	pbe = libusb20_be_alloc_linux();
 	if (pbe) {
 		return (pbe);
 	}
+#endif
 	pbe = libusb20_be_alloc_ugen20();
 	if (pbe) {
 		return (pbe);

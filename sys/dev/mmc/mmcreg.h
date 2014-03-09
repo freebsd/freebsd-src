@@ -353,6 +353,7 @@ struct mmc_request {
 #define	MMC_OCR_VOLTAGE	0x3fffffffU	/* Vdd Voltage mask */
 #define	MMC_OCR_LOW_VOLTAGE (1u << 7)	/* Low Voltage Range -- tbd */
 #define	MMC_OCR_200_210	(1U << 8)	/* Vdd voltage 2.00 ~ 2.10 */
+#define	MMC_OCR_MIN_VOLTAGE_SHIFT	8
 #define	MMC_OCR_210_220	(1U << 9)	/* Vdd voltage 2.10 ~ 2.20 */
 #define	MMC_OCR_220_230	(1U << 10)	/* Vdd voltage 2.20 ~ 2.30 */
 #define	MMC_OCR_230_240	(1U << 11)	/* Vdd voltage 2.30 ~ 2.40 */
@@ -368,6 +369,7 @@ struct mmc_request {
 #define	MMC_OCR_330_340	(1U << 21)	/* Vdd voltage 3.30 ~ 3.40 */
 #define	MMC_OCR_340_350	(1U << 22)	/* Vdd voltage 3.40 ~ 3.50 */
 #define	MMC_OCR_350_360	(1U << 23)	/* Vdd voltage 3.50 ~ 3.60 */
+#define	MMC_OCR_MAX_VOLTAGE_SHIFT	23
 #define	MMC_OCR_CCS	(1u << 30)	/* Card Capacity status (SD vs SDHC) */
 #define	MMC_OCR_CARD_BUSY (1U << 31)	/* Card Power up status */
 

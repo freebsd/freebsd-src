@@ -38,8 +38,8 @@ const char *const CommonOptionsParser::HelpMessage =
     "\tFor example, it can be a CMake build directory in which a file named\n"
     "\tcompile_commands.json exists (use -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\n"
     "\tCMake option to get this output). When no build path is specified,\n"
-    "\tclang-check will attempt to locate it automatically using all parent\n"
-    "\tpaths of the first input file. See:\n"
+    "\ta search for compile_commands.json will be attempted through all\n"
+    "\tparent paths of the first input file . See:\n"
     "\thttp://clang.llvm.org/docs/HowToSetupToolingForLLVM.html for an\n"
     "\texample of setting up Clang Tooling on a source tree.\n"
     "\n"
@@ -53,7 +53,8 @@ const char *const CommonOptionsParser::HelpMessage =
     "\tsuffix of a path in the compile command database.\n"
     "\n";
 
-CommonOptionsParser::CommonOptionsParser(int &argc, const char **argv) {
+CommonOptionsParser::CommonOptionsParser(int &argc, const char **argv,
+                                         const char *Overview) {
   static cl::opt<std::string> BuildPath(
       "p", cl::desc("Build path"), cl::Optional);
 
@@ -62,7 +63,7 @@ CommonOptionsParser::CommonOptionsParser(int &argc, const char **argv) {
 
   Compilations.reset(FixedCompilationDatabase::loadFromCommandLine(argc,
                                                                    argv));
-  cl::ParseCommandLineOptions(argc, argv);
+  cl::ParseCommandLineOptions(argc, argv, Overview);
   SourcePathList = SourcePaths;
   if (!Compilations) {
     std::string ErrorMessage;

@@ -1386,7 +1386,7 @@ static char *ncr_name (ncb_p np)
  * Kernel variables referenced in the scripts.
  * THESE MUST ALL BE ALIGNED TO A 4-BYTE BOUNDARY.
  */
-static void *script_kvars[] =
+static volatile void *script_kvars[] =
 	{ &time_second, &ticks, &ncr_cache };
 
 static	struct script script0 = {
@@ -3622,8 +3622,8 @@ ncr_attach (device_t dev)
 			pci_write_config(dev, PCIR_CACHELNSZ, cachelnsz, 1);
 		}
 
-		if (!(command & (1<<4))) {
-			command |= (1<<4);
+		if (!(command & PCIM_CMD_MWRICEN)) {
+			command |= PCIM_CMD_MWRICEN;
 			printf("%s: setting PCI command write and invalidate.\n",
 				ncr_name(np));
 			pci_write_config(dev, PCIR_COMMAND, command, 2);
@@ -4857,7 +4857,7 @@ static void ncr_getsync(ncb_p np, u_char sfac, u_char *fakp, u_char *scntl3p)
 	*/
 	fak = (kpc - 1) / div_10M[div] + 1;
 
-#if 0	/* You can #if 1 if you think this optimization is usefull */
+#if 0	/* You can #if 1 if you think this optimization is useful */
 
 	per = (fak * div_10M[div]) / clk;
 
@@ -5544,7 +5544,6 @@ static void ncr_exception (ncb_p np)
 	**	Freeze system to be able to read the messages.
 	*/
 	printf ("ncr: fatal error: system halted - press reset to reboot ...");
-	(void) splhigh();
 	for (;;);
 #endif
 
@@ -6397,12 +6396,8 @@ static	nccb_p ncr_get_nccb
 	(ncb_p np, u_long target, u_long lun)
 {
 	lcb_p lp;
-	int s;
 	nccb_p cp = NULL;
 
-	/* Keep our timeout handler out */
-	s = splsoftclock();
-	
 	/*
 	**	Lun structure available ?
 	*/
@@ -6430,12 +6425,10 @@ static	nccb_p ncr_get_nccb
 	if (cp != NULL) {
 		if (cp->magic) {
 			printf("%s: Bogus free cp found\n", ncr_name(np));
-			splx(s);
 			return (NULL);
 		}
 		cp->magic = 1;
 	}
-	splx(s);
 	return (cp);
 }
 

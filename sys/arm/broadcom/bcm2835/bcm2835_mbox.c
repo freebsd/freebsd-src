@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -49,7 +48,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
+
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
+
+#include "mbox_if.h"
 
 #define	REG_READ	0x00
 #define	REG_POL		0x10
@@ -65,12 +67,12 @@ __FBSDID("$FreeBSD$");
 #define	MBOX_CHAN(msg)		((msg) & 0xf)
 #define	MBOX_DATA(msg)		((msg) & ~0xf)
 
-#define	MBOX_LOCK	do {		\
-	mtx_lock(&bcm_mbox_sc->lock);	\
+#define	MBOX_LOCK(sc)	do {	\
+	mtx_lock(&(sc)->lock);	\
 } while(0)
 
-#define	MBOX_UNLOCK	do {		\
-	mtx_unlock(&bcm_mbox_sc->lock);	\
+#define	MBOX_UNLOCK(sc)	do {		\
+	mtx_unlock(&(sc)->lock);	\
 } while(0)
 
 #ifdef  DEBUG
@@ -90,12 +92,10 @@ struct bcm_mbox_softc {
 	int			msg[BCM2835_MBOX_CHANS];
 };
 
-static struct bcm_mbox_softc *bcm_mbox_sc = NULL;
-
-#define	mbox_read_4(reg)		\
-    bus_space_read_4(bcm_mbox_sc->bst, bcm_mbox_sc->bsh, reg)
-#define	mbox_write_4(reg, val)		\
-    bus_space_write_4(bcm_mbox_sc->bst, bcm_mbox_sc->bsh, reg, val)
+#define	mbox_read_4(sc, reg)		\
+    bus_space_read_4((sc)->bst, (sc)->bsh, reg)
+#define	mbox_write_4(sc, reg, val)		\
+    bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
 
 static void
 bcm_mbox_intr(void *arg)
@@ -105,9 +105,9 @@ bcm_mbox_intr(void *arg)
 	uint32_t data;
 	uint32_t msg;
 
-	MBOX_LOCK;
-	while (!(mbox_read_4(REG_STATUS) & STATUS_EMPTY)) {
-		msg = mbox_read_4(REG_READ);
+	MBOX_LOCK(sc);
+	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY)) {
+		msg = mbox_read_4(sc, REG_READ);
 		dprintf("bcm_mbox_intr: raw data %08x\n", msg);
 		chan = MBOX_CHAN(msg);
 		data = MBOX_DATA(msg);
@@ -121,12 +121,15 @@ bcm_mbox_intr(void *arg)
 		wakeup(&sc->msg[chan]);
 		
 	}
-	MBOX_UNLOCK;
+	MBOX_UNLOCK(sc);
 }
 
 static int
 bcm_mbox_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-mbox")) {
 		device_set_desc(dev, "BCM2835 VideoCore Mailbox");
@@ -142,9 +145,6 @@ bcm_mbox_attach(device_t dev)
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
 	int i;
 	int rid = 0;
-
-	if (bcm_mbox_sc != NULL)
-		return (EINVAL);
 
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
@@ -163,27 +163,68 @@ bcm_mbox_attach(device_t dev)
 	}
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
-			NULL, bcm_mbox_intr, sc,
-			&sc->intr_hl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid,
-			sc->irq_res);
+	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC, 
+	    NULL, bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
 		return (ENXIO);
 	}
 
-	mtx_init(&sc->lock, "vcio mbox", MTX_DEF, 0);
+	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->valid[0] = 0;
 		sc->msg[0] = 0;
 	}
 
-	bcm_mbox_sc = sc;
 	/* Read all pending messages */
 	bcm_mbox_intr(sc);
 
-	/* Should be called after bcm_mbox_sc initialization */
-	mbox_write_4(REG_CONFIG, CONFIG_DATA_IRQ);
+	mbox_write_4(sc, REG_CONFIG, CONFIG_DATA_IRQ);
+
+	return (0);
+}
+
+/* 
+ * Mailbox API
+ */
+static int
+bcm_mbox_write(device_t dev, int chan, uint32_t data)
+{
+	int limit = 20000;
+	struct bcm_mbox_softc *sc = device_get_softc(dev);
+
+	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
+	MBOX_LOCK(sc);
+
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && limit--) {
+		DELAY(2);
+	}
+
+	if (limit == 0) {
+		printf("bcm_mbox_write: STATUS_FULL stuck");
+		MBOX_UNLOCK(sc);
+		return (EAGAIN);
+	}
+	
+	mbox_write_4(sc, REG_WRITE, MBOX_MSG(chan, data));
+
+	MBOX_UNLOCK(sc);
+	return (0);
+}
+
+static int
+bcm_mbox_read(device_t dev, int chan, uint32_t *data)
+{
+	struct bcm_mbox_softc *sc = device_get_softc(dev);
+
+	dprintf("bcm_mbox_read: chan %d\n", chan);
+	MBOX_LOCK(sc);
+	while (!sc->valid[chan])
+		msleep(&sc->msg[chan], &sc->lock, PZERO, "vcio mbox read", 0);
+	*data = sc->msg[chan];
+	sc->valid[chan] = 0;
+	MBOX_UNLOCK(sc);
+	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
 
 	return (0);
 }
@@ -191,7 +232,11 @@ bcm_mbox_attach(device_t dev)
 static device_method_t bcm_mbox_methods[] = {
 	DEVMETHOD(device_probe,		bcm_mbox_probe),
 	DEVMETHOD(device_attach,	bcm_mbox_attach),
-	{ 0, 0 }
+
+	DEVMETHOD(mbox_read,		bcm_mbox_read),
+	DEVMETHOD(mbox_write,		bcm_mbox_write),
+
+	DEVMETHOD_END
 };
 
 static driver_t bcm_mbox_driver = {
@@ -204,46 +249,3 @@ static devclass_t bcm_mbox_devclass;
 
 DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
 
-/* 
- * Mailbox API
- */
-int
-bcm_mbox_write(int chan, uint32_t data)
-{
-	int limit = 20000;
-
-	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
-	MBOX_LOCK;
-
-	while ((mbox_read_4(REG_STATUS) & STATUS_FULL) && limit--) {
-		DELAY(2);
-	}
-
-	if (limit == 0) {
-		printf("bcm_mbox_write: STATUS_FULL stuck");
-		MBOX_UNLOCK;
-		return (EAGAIN);
-	}
-	
-	mbox_write_4(REG_WRITE, MBOX_MSG(chan, data));
-
-	MBOX_UNLOCK;
-	return (0);
-}
-
-int
-bcm_mbox_read(int chan, uint32_t *data)
-{
-	struct bcm_mbox_softc *sc = bcm_mbox_sc;
-
-	dprintf("bcm_mbox_read: chan %d\n", chan);
-	MBOX_LOCK;
-	while (!sc->valid[chan])
-		msleep(&sc->msg[chan], &sc->lock, PZERO, "vcio mbox read", 0);
-	*data = bcm_mbox_sc->msg[chan];
-	bcm_mbox_sc->valid[chan] = 0;
-	MBOX_UNLOCK;
-	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
-
-	return (0);
-}

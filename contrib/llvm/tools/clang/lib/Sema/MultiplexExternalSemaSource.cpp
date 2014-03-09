@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Sema/MultiplexExternalSemaSource.h"
-
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/Sema/Lookup.h"
 
@@ -82,19 +81,12 @@ CXXBaseSpecifier *MultiplexExternalSemaSource::GetExternalCXXBaseSpecifiers(
   return 0; 
 }
 
-DeclContextLookupResult MultiplexExternalSemaSource::
+bool MultiplexExternalSemaSource::
 FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name) {
-  StoredDeclsList DeclsFound;
-  DeclContextLookupResult lookup;
-  for(size_t i = 0; i < Sources.size(); ++i) {
-    lookup = Sources[i]->FindExternalVisibleDeclsByName(DC, Name);
-    while(lookup.first != lookup.second) {
-      if (!DeclsFound.HandleRedeclaration(*lookup.first))
-        DeclsFound.AddSubsequentDecl(*lookup.first);
-      lookup.first++;
-    }
-  }
-  return DeclsFound.getLookupResult(); 
+  bool AnyDeclsFound = false;
+  for (size_t i = 0; i < Sources.size(); ++i)
+    AnyDeclsFound |= Sources[i]->FindExternalVisibleDeclsByName(DC, Name);
+  return AnyDeclsFound;
 }
 
 void MultiplexExternalSemaSource::completeVisibleDeclsMap(const DeclContext *DC){
@@ -201,6 +193,12 @@ void MultiplexExternalSemaSource::ReadKnownNamespaces(
   for(size_t i = 0; i < Sources.size(); ++i)
     Sources[i]->ReadKnownNamespaces(Namespaces);
 }
+
+void MultiplexExternalSemaSource::ReadUndefinedButUsed(
+                         llvm::DenseMap<NamedDecl*, SourceLocation> &Undefined){
+  for(size_t i = 0; i < Sources.size(); ++i)
+    Sources[i]->ReadUndefinedButUsed(Undefined);
+}
   
 bool MultiplexExternalSemaSource::LookupUnqualified(LookupResult &R, Scope *S){ 
   for(size_t i = 0; i < Sources.size(); ++i)
@@ -239,10 +237,10 @@ void MultiplexExternalSemaSource::ReadDynamicClasses(
     Sources[i]->ReadDynamicClasses(Decls);
 }
 
-void MultiplexExternalSemaSource::ReadLocallyScopedExternalDecls(
+void MultiplexExternalSemaSource::ReadLocallyScopedExternCDecls(
                                            SmallVectorImpl<NamedDecl*> &Decls) {
   for(size_t i = 0; i < Sources.size(); ++i)
-    Sources[i]->ReadLocallyScopedExternalDecls(Decls);
+    Sources[i]->ReadLocallyScopedExternCDecls(Decls);
 }
 
 void MultiplexExternalSemaSource::ReadReferencedSelectors(
@@ -268,4 +266,35 @@ void MultiplexExternalSemaSource::ReadPendingInstantiations(
                                                    SourceLocation> > &Pending) {
   for(size_t i = 0; i < Sources.size(); ++i)
     Sources[i]->ReadPendingInstantiations(Pending);
+}
+
+void MultiplexExternalSemaSource::ReadLateParsedTemplates(
+    llvm::DenseMap<const FunctionDecl *, LateParsedTemplate *> &LPTMap) {
+  for (size_t i = 0; i < Sources.size(); ++i)
+    Sources[i]->ReadLateParsedTemplates(LPTMap);
+}
+
+TypoCorrection MultiplexExternalSemaSource::CorrectTypo(
+                                     const DeclarationNameInfo &Typo,
+                                     int LookupKind, Scope *S, CXXScopeSpec *SS,
+                                     CorrectionCandidateCallback &CCC,
+                                     DeclContext *MemberContext,
+                                     bool EnteringContext,
+                                     const ObjCObjectPointerType *OPT) {
+  for (size_t I = 0, E = Sources.size(); I < E; ++I) {
+    if (TypoCorrection C = Sources[I]->CorrectTypo(Typo, LookupKind, S, SS, CCC,
+                                                   MemberContext,
+                                                   EnteringContext, OPT))
+      return C;
+  }
+  return TypoCorrection();
+}
+
+bool MultiplexExternalSemaSource::MaybeDiagnoseMissingCompleteType(
+    SourceLocation Loc, QualType T) {
+  for (size_t I = 0, E = Sources.size(); I < E; ++I) {
+    if (Sources[I]->MaybeDiagnoseMissingCompleteType(Loc, T))
+      return true;
+  }
+  return false;
 }

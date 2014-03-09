@@ -6,7 +6,6 @@
 FILES=	\
 	bsd.README \
 	bsd.arch.inc.mk \
-	bsd.compat.mk \
 	bsd.compiler.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
@@ -44,8 +43,10 @@ FILES=	\
 NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 FILES+=	atf.test.mk
+FILES+=	plain.test.mk
+FILES+=	tap.test.mk
 .endif
 
 .include <bsd.prog.mk>

@@ -149,12 +149,12 @@ mount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'` 
-    if [ ! -e "${PARTDEV}" ]
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    if [ ! -e "${PARTDEV}" -a "${PARTFS}" != "ZFS" ]
     then
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
 
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
@@ -186,12 +186,12 @@ mount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`
-    if [ ! -e "${PARTDEV}" ]
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    if [ ! -e "${PARTDEV}" -a "${PARTFS}" != "ZFS" ]
     then
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 

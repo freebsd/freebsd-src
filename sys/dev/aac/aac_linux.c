@@ -75,11 +75,13 @@ MODULE_DEPEND(aac_linux, linux, 1, 1, 1);
 static int
 aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
+	cap_rights_t rights;
 	struct file *fp;
 	u_long cmd;
 	int error;
 
-	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
+	error = fget(td, args->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0)
 		return (error);
 	cmd = args->cmd;
 

@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -56,6 +59,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*------------------------------------------------------------------------*
  *	device_set_usb_desc
@@ -71,6 +75,7 @@ device_set_usb_desc(device_t dev)
 	struct usb_interface *iface;
 	char *temp_p;
 	usb_error_t err;
+	uint8_t do_unlock;
 
 	if (dev == NULL) {
 		/* should not happen */
@@ -92,19 +97,26 @@ device_set_usb_desc(device_t dev)
 		err = 0;
 	}
 
-	temp_p = (char *)udev->bus->scratch[0].data;
+	/* Protect scratch area */
+	do_unlock = usbd_enum_lock(udev);
 
-	if (!err) {
+	temp_p = (char *)udev->scratch.data;
+
+	if (err == 0) {
 		/* try to get the interface string ! */
-		err = usbd_req_get_string_any
-		    (udev, NULL, temp_p,
-		    sizeof(udev->bus->scratch), iface->idesc->iInterface);
+		err = usbd_req_get_string_any(udev, NULL, temp_p,
+		    sizeof(udev->scratch.data),
+		    iface->idesc->iInterface);
 	}
-	if (err) {
+	if (err != 0) {
 		/* use default description */
 		usb_devinfo(udev, temp_p,
-		    sizeof(udev->bus->scratch));
+		    sizeof(udev->scratch.data));
 	}
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));

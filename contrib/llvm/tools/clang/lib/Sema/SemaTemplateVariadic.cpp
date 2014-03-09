@@ -10,14 +10,15 @@
 //===----------------------------------------------------------------------===/
 
 #include "clang/Sema/Sema.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Template.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/TypeLoc.h"
+#include "TypeLocBuilder.h"
 
 using namespace clang;
 
@@ -179,10 +180,14 @@ namespace {
       // If any capture names a function parameter pack, that pack is expanded
       // when the lambda is expanded.
       for (LambdaExpr::capture_iterator I = Lambda->capture_begin(),
-                                        E = Lambda->capture_end(); I != E; ++I)
-        if (VarDecl *VD = I->getCapturedVar())
+                                        E = Lambda->capture_end();
+           I != E; ++I) {
+        if (I->capturesVariable()) {
+          VarDecl *VD = I->getCapturedVar();
           if (VD->isParameterPack())
             Unexpanded.push_back(std::make_pair(VD, I->getLocation()));
+        }
+      }
 
       inherited::TraverseLambdaExpr(Lambda);
 
@@ -443,39 +448,34 @@ TypeResult Sema::ActOnPackExpansion(ParsedType Type,
   if (!TSInfo)
     return true;
 
-  TypeSourceInfo *TSResult = CheckPackExpansion(TSInfo, EllipsisLoc,
-                                                llvm::Optional<unsigned>());
+  TypeSourceInfo *TSResult = CheckPackExpansion(TSInfo, EllipsisLoc, None);
   if (!TSResult)
     return true;
   
   return CreateParsedType(TSResult->getType(), TSResult);
 }
 
-TypeSourceInfo *Sema::CheckPackExpansion(TypeSourceInfo *Pattern,
-                                         SourceLocation EllipsisLoc,
-                                       llvm::Optional<unsigned> NumExpansions) {
+TypeSourceInfo *
+Sema::CheckPackExpansion(TypeSourceInfo *Pattern, SourceLocation EllipsisLoc,
+                         Optional<unsigned> NumExpansions) {
   // Create the pack expansion type and source-location information.
   QualType Result = CheckPackExpansion(Pattern->getType(), 
                                        Pattern->getTypeLoc().getSourceRange(),
                                        EllipsisLoc, NumExpansions);
   if (Result.isNull())
     return 0;
-  
-  TypeSourceInfo *TSResult = Context.CreateTypeSourceInfo(Result);
-  PackExpansionTypeLoc TL = cast<PackExpansionTypeLoc>(TSResult->getTypeLoc());
+
+  TypeLocBuilder TLB;
+  TLB.pushFullCopy(Pattern->getTypeLoc());
+  PackExpansionTypeLoc TL = TLB.push<PackExpansionTypeLoc>(Result);
   TL.setEllipsisLoc(EllipsisLoc);
-  
-  // Copy over the source-location information from the type.
-  memcpy(TL.getNextTypeLoc().getOpaqueData(),
-         Pattern->getTypeLoc().getOpaqueData(),
-         Pattern->getTypeLoc().getFullDataSize());
-  return TSResult;
+
+  return TLB.getTypeSourceInfo(Context, Result);
 }
 
-QualType Sema::CheckPackExpansion(QualType Pattern,
-                                  SourceRange PatternRange,
+QualType Sema::CheckPackExpansion(QualType Pattern, SourceRange PatternRange,
                                   SourceLocation EllipsisLoc,
-                                  llvm::Optional<unsigned> NumExpansions) {
+                                  Optional<unsigned> NumExpansions) {
   // C++0x [temp.variadic]p5:
   //   The pattern of a pack expansion shall name one or more
   //   parameter packs that are not expanded by a nested pack
@@ -490,11 +490,11 @@ QualType Sema::CheckPackExpansion(QualType Pattern,
 }
 
 ExprResult Sema::ActOnPackExpansion(Expr *Pattern, SourceLocation EllipsisLoc) {
-  return CheckPackExpansion(Pattern, EllipsisLoc, llvm::Optional<unsigned>());
+  return CheckPackExpansion(Pattern, EllipsisLoc, None);
 }
 
 ExprResult Sema::CheckPackExpansion(Expr *Pattern, SourceLocation EllipsisLoc,
-                                    llvm::Optional<unsigned> NumExpansions) {
+                                    Optional<unsigned> NumExpansions) {
   if (!Pattern)
     return ExprError();
   
@@ -526,13 +526,11 @@ getDepthAndIndex(NamedDecl *ND) {
   return std::make_pair(TTP->getDepth(), TTP->getIndex());
 }
 
-bool Sema::CheckParameterPacksForExpansion(SourceLocation EllipsisLoc,
-                                           SourceRange PatternRange,
-                                   ArrayRef<UnexpandedParameterPack> Unexpanded,
-                             const MultiLevelTemplateArgumentList &TemplateArgs,
-                                           bool &ShouldExpand,
-                                           bool &RetainExpansion,
-                                     llvm::Optional<unsigned> &NumExpansions) {                                        
+bool Sema::CheckParameterPacksForExpansion(
+    SourceLocation EllipsisLoc, SourceRange PatternRange,
+    ArrayRef<UnexpandedParameterPack> Unexpanded,
+    const MultiLevelTemplateArgumentList &TemplateArgs, bool &ShouldExpand,
+    bool &RetainExpansion, Optional<unsigned> &NumExpansions) {
   ShouldExpand = true;
   RetainExpansion = false;
   std::pair<IdentifierInfo *, SourceLocation> FirstPack;
@@ -636,13 +634,13 @@ bool Sema::CheckParameterPacksForExpansion(SourceLocation EllipsisLoc,
   return false;
 }
 
-llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
+Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
                           const MultiLevelTemplateArgumentList &TemplateArgs) {
   QualType Pattern = cast<PackExpansionType>(T)->getPattern();
   SmallVector<UnexpandedParameterPack, 2> Unexpanded;
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseType(Pattern);
 
-  llvm::Optional<unsigned> Result;
+  Optional<unsigned> Result;
   for (unsigned I = 0, N = Unexpanded.size(); I != N; ++I) {
     // Compute the depth and index for this parameter pack.
     unsigned Depth;
@@ -664,7 +662,7 @@ llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
         if (Instantiation->is<Decl*>())
           // The pattern refers to an unexpanded pack. We're not ready to expand
           // this pack yet.
-          return llvm::Optional<unsigned>();
+          return None;
 
         unsigned Size = Instantiation->get<DeclArgumentPack *>()->size();
         assert((!Result || *Result == Size) && "inconsistent pack sizes");
@@ -678,7 +676,7 @@ llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
         !TemplateArgs.hasTemplateArgument(Depth, Index))
       // The pattern refers to an unknown template argument. We're not ready to
       // expand this pack yet.
-      return llvm::Optional<unsigned>();
+      return None;
     
     // Determine the size of the argument pack.
     unsigned Size = TemplateArgs(Depth, Index).pack_size();
@@ -730,7 +728,16 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_interface:
   case TST_class:
   case TST_auto:
+  case TST_decltype_auto:
   case TST_unknown_anytype:
+  case TST_image1d_t:
+  case TST_image1d_array_t:
+  case TST_image1d_buffer_t:
+  case TST_image2d_t:
+  case TST_image2d_array_t:
+  case TST_image3d_t:
+  case TST_sampler_t:
+  case TST_event_t:
   case TST_error:
     break;
   }
@@ -812,16 +819,12 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
     if (TypoCorrection Corrected = CorrectTypo(R.getLookupNameInfo(),
                                                R.getLookupKind(), S, 0,
                                                Validator)) {
-      std::string CorrectedQuotedStr(Corrected.getQuoted(getLangOpts()));
+      diagnoseTypo(Corrected,
+                   PDiag(diag::err_sizeof_pack_no_pack_name_suggest) << &Name,
+                   PDiag(diag::note_parameter_pack_here));
       ParameterPack = Corrected.getCorrectionDecl();
-      Diag(NameLoc, diag::err_sizeof_pack_no_pack_name_suggest)
-        << &Name << CorrectedQuotedStr
-        << FixItHint::CreateReplacement(
-            NameLoc, Corrected.getAsString(getLangOpts()));
-      Diag(ParameterPack->getLocation(), diag::note_parameter_pack_here)
-        << CorrectedQuotedStr;
     }
-      
+
   case LookupResult::FoundOverloaded:
   case LookupResult::FoundUnresolvedValue:
     break;
@@ -837,8 +840,68 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
     return ExprError();
   }
 
-  MarkAnyDeclReferenced(OpLoc, ParameterPack);
+  MarkAnyDeclReferenced(OpLoc, ParameterPack, true);
 
   return new (Context) SizeOfPackExpr(Context.getSizeType(), OpLoc, 
                                       ParameterPack, NameLoc, RParenLoc);
+}
+
+TemplateArgumentLoc
+Sema::getTemplateArgumentPackExpansionPattern(
+      TemplateArgumentLoc OrigLoc,
+      SourceLocation &Ellipsis, Optional<unsigned> &NumExpansions) const {
+  const TemplateArgument &Argument = OrigLoc.getArgument();
+  assert(Argument.isPackExpansion());
+  switch (Argument.getKind()) {
+  case TemplateArgument::Type: {
+    // FIXME: We shouldn't ever have to worry about missing
+    // type-source info!
+    TypeSourceInfo *ExpansionTSInfo = OrigLoc.getTypeSourceInfo();
+    if (!ExpansionTSInfo)
+      ExpansionTSInfo = Context.getTrivialTypeSourceInfo(Argument.getAsType(),
+                                                         Ellipsis);
+    PackExpansionTypeLoc Expansion =
+        ExpansionTSInfo->getTypeLoc().castAs<PackExpansionTypeLoc>();
+    Ellipsis = Expansion.getEllipsisLoc();
+
+    TypeLoc Pattern = Expansion.getPatternLoc();
+    NumExpansions = Expansion.getTypePtr()->getNumExpansions();
+
+    // We need to copy the TypeLoc because TemplateArgumentLocs store a
+    // TypeSourceInfo.
+    // FIXME: Find some way to avoid the copy?
+    TypeLocBuilder TLB;
+    TLB.pushFullCopy(Pattern);
+    TypeSourceInfo *PatternTSInfo =
+        TLB.getTypeSourceInfo(Context, Pattern.getType());
+    return TemplateArgumentLoc(TemplateArgument(Pattern.getType()),
+                               PatternTSInfo);
+  }
+
+  case TemplateArgument::Expression: {
+    PackExpansionExpr *Expansion
+      = cast<PackExpansionExpr>(Argument.getAsExpr());
+    Expr *Pattern = Expansion->getPattern();
+    Ellipsis = Expansion->getEllipsisLoc();
+    NumExpansions = Expansion->getNumExpansions();
+    return TemplateArgumentLoc(Pattern, Pattern);
+  }
+
+  case TemplateArgument::TemplateExpansion:
+    Ellipsis = OrigLoc.getTemplateEllipsisLoc();
+    NumExpansions = Argument.getNumTemplateExpansions();
+    return TemplateArgumentLoc(Argument.getPackExpansionPattern(),
+                               OrigLoc.getTemplateQualifierLoc(),
+                               OrigLoc.getTemplateNameLoc());
+
+  case TemplateArgument::Declaration:
+  case TemplateArgument::NullPtr:
+  case TemplateArgument::Template:
+  case TemplateArgument::Integral:
+  case TemplateArgument::Pack:
+  case TemplateArgument::Null:
+    return TemplateArgumentLoc();
+  }
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }

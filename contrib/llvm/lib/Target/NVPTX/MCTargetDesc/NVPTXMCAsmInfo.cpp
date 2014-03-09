@@ -17,27 +17,23 @@
 
 using namespace llvm;
 
-bool CompileForDebugging;
-
 // -debug-compile - Command line option to inform opt and llc passes to
 // compile for debugging
-static cl::opt<bool, true>
-Debug("debug-compile", cl::desc("Compile for debugging"), cl::Hidden,
-      cl::location(CompileForDebugging),
-      cl::init(false));
+static cl::opt<bool> CompileForDebugging("debug-compile",
+                                         cl::desc("Compile for debugging"),
+                                         cl::Hidden, cl::init(false));
 
-void NVPTXMCAsmInfo::anchor() { }
+void NVPTXMCAsmInfo::anchor() {}
 
-NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Target &T, const StringRef &TT) {
+NVPTXMCAsmInfo::NVPTXMCAsmInfo(const StringRef &TT) {
   Triple TheTriple(TT);
-  if (TheTriple.getArch() == Triple::nvptx64)
-    PointerSize = 8;
+  if (TheTriple.getArch() == Triple::nvptx64) {
+    PointerSize = CalleeSaveStackSlotSize = 8;
+  }
 
   CommentString = "//";
 
   PrivateGlobalPrefix = "$L__";
-
-  AllowPeriodsInName = false;
 
   HasSetDirective = false;
 
@@ -54,7 +50,7 @@ NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Target &T, const StringRef &TT) {
   Data32bitsDirective = " .b32 ";
   Data64bitsDirective = " .b64 ";
   PrivateGlobalPrefix = "";
-  ZeroDirective =  " .b8";
+  ZeroDirective = " .b8";
   AsciiDirective = " .b8";
   AscizDirective = " .b8";
 

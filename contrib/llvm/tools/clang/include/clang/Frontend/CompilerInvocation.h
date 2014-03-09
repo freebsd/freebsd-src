@@ -10,33 +10,34 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H_
 #define LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H_
 
+#include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
-#include "clang/Basic/FileSystemOptions.h"
-#include "clang/Basic/DiagnosticOptions.h"
-#include "clang/Lex/HeaderSearchOptions.h"
-#include "clang/Lex/PreprocessorOptions.h"
-#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
-#include "clang/Frontend/MigratorOptions.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/LangStandard.h"
+#include "clang/Frontend/MigratorOptions.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
+#include "clang/Lex/HeaderSearchOptions.h"
+#include "clang/Lex/PreprocessorOptions.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include <string>
 #include <vector>
 
-namespace clang {
-
-class CompilerInvocation;
-class DiagnosticsEngine;
-
-namespace driver {
+namespace llvm {
+namespace opt {
 class ArgList;
 }
+}
+
+namespace clang {
+class CompilerInvocation;
+class DiagnosticsEngine;
 
 /// \brief Fill out Opts based on the options given in Args.
 ///
@@ -45,9 +46,9 @@ class ArgList;
 ///
 /// When errors are encountered, return false and, if Diags is non-null,
 /// report the error(s).
-bool ParseDiagnosticArgs(DiagnosticOptions &Opts, driver::ArgList &Args,
+bool ParseDiagnosticArgs(DiagnosticOptions &Opts, llvm::opt::ArgList &Args,
                          DiagnosticsEngine *Diags = 0);
-  
+
 class CompilerInvocationBase : public RefCountedBase<CompilerInvocation> {
 protected:
   /// Options controlling the language variant.

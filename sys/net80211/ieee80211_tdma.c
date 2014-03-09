@@ -744,7 +744,7 @@ tdma_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 	if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
-		return EOPNOTSUPP;
+		return ENOSYS;
 
 	switch (ireq->i_type) {
 	case IEEE80211_IOC_TDMA_SLOT:
@@ -772,7 +772,7 @@ tdma_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 	if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
-		return EOPNOTSUPP;
+		return ENOSYS;
 
 	switch (ireq->i_type) {
 	case IEEE80211_IOC_TDMA_SLOT:

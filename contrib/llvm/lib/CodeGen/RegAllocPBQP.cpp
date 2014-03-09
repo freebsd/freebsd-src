@@ -31,24 +31,26 @@
 
 #define DEBUG_TYPE "regalloc"
 
-#include "Spiller.h"
-#include "VirtRegMap.h"
+#include "llvm/CodeGen/RegAllocPBQP.h"
 #include "RegisterCoalescer.h"
-#include "llvm/Module.h"
+#include "Spiller.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
-#include "llvm/CodeGen/RegAllocPBQP.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/PBQP/HeuristicSolver.h"
 #include "llvm/CodeGen/PBQP/Graph.h"
+#include "llvm/CodeGen/PBQP/HeuristicSolver.h"
 #include "llvm/CodeGen/PBQP/Heuristics/Briggs.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
+#include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -89,13 +91,11 @@ public:
   static char ID;
 
   /// Construct a PBQP register allocator.
-  RegAllocPBQP(std::auto_ptr<PBQPBuilder> b, char *cPassID=0)
-      : MachineFunctionPass(ID), builder(b), customPassID(cPassID) {
+  RegAllocPBQP(OwningPtr<PBQPBuilder> &b, char *cPassID=0)
+      : MachineFunctionPass(ID), builder(b.take()), customPassID(cPassID) {
     initializeSlotIndexesPass(*PassRegistry::getPassRegistry());
     initializeLiveIntervalsPass(*PassRegistry::getPassRegistry());
-    initializeCalculateSpillWeightsPass(*PassRegistry::getPassRegistry());
     initializeLiveStacksPass(*PassRegistry::getPassRegistry());
-    initializeMachineLoopInfoPass(*PassRegistry::getPassRegistry());
     initializeVirtRegMapPass(*PassRegistry::getPassRegistry());
   }
 
@@ -121,7 +121,7 @@ private:
   typedef std::set<unsigned> RegSet;
 
 
-  std::auto_ptr<PBQPBuilder> builder;
+  OwningPtr<PBQPBuilder> builder;
 
   char *customPassID;
 
@@ -129,10 +129,10 @@ private:
   const TargetMachine *tm;
   const TargetRegisterInfo *tri;
   const TargetInstrInfo *tii;
-  const MachineLoopInfo *loopInfo;
   MachineRegisterInfo *mri;
+  const MachineBlockFrequencyInfo *mbfi;
 
-  std::auto_ptr<Spiller> spiller;
+  OwningPtr<Spiller> spiller;
   LiveIntervals *lis;
   LiveStacks *lss;
   VirtRegMap *vrm;
@@ -157,13 +157,13 @@ char RegAllocPBQP::ID = 0;
 
 } // End anonymous namespace.
 
-unsigned PBQPRAProblem::getVRegForNode(PBQP::Graph::ConstNodeItr node) const {
+unsigned PBQPRAProblem::getVRegForNode(PBQP::Graph::NodeId node) const {
   Node2VReg::const_iterator vregItr = node2VReg.find(node);
   assert(vregItr != node2VReg.end() && "No vreg for node.");
   return vregItr->second;
 }
 
-PBQP::Graph::NodeItr PBQPRAProblem::getNodeForVReg(unsigned vreg) const {
+PBQP::Graph::NodeId PBQPRAProblem::getNodeForVReg(unsigned vreg) const {
   VReg2Node::const_iterator nodeItr = vreg2Node.find(vreg);
   assert(nodeItr != vreg2Node.end() && "No node for vreg.");
   return nodeItr->second;
@@ -186,16 +186,15 @@ unsigned PBQPRAProblem::getPRegForOption(unsigned vreg, unsigned option) const {
   return allowedSet[option - 1];
 }
 
-std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
-                                                const LiveIntervals *lis,
-                                                const MachineLoopInfo *loopInfo,
-                                                const RegSet &vregs) {
+PBQPRAProblem *PBQPBuilder::build(MachineFunction *mf, const LiveIntervals *lis,
+                                  const MachineBlockFrequencyInfo *mbfi,
+                                  const RegSet &vregs) {
 
   LiveIntervals *LIS = const_cast<LiveIntervals*>(lis);
   MachineRegisterInfo *mri = &mf->getRegInfo();
   const TargetRegisterInfo *tri = mf->getTarget().getRegisterInfo();
 
-  std::auto_ptr<PBQPRAProblem> p(new PBQPRAProblem());
+  OwningPtr<PBQPRAProblem> p(new PBQPRAProblem());
   PBQP::Graph &g = p->getGraph();
   RegSet pregs;
 
@@ -247,7 +246,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
     }
 
     // Construct the node.
-    PBQP::Graph::NodeItr node =
+    PBQP::Graph::NodeId node =
       g.addNode(PBQP::Vector(vrAllowed.size() + 1, 0));
 
     // Record the mapping and allowed set in the problem.
@@ -273,7 +272,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
 
       assert(!l2.empty() && "Empty interval in vreg set?");
       if (l1.overlaps(l2)) {
-        PBQP::Graph::EdgeItr edge =
+        PBQP::Graph::EdgeId edge =
           g.addEdge(p->getNodeForVReg(vr1), p->getNodeForVReg(vr2),
                     PBQP::Matrix(vr1Allowed.size()+1, vr2Allowed.size()+1, 0));
 
@@ -282,7 +281,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
     }
   }
 
-  return p;
+  return p.take();
 }
 
 void PBQPBuilder::addSpillCosts(PBQP::Vector &costVec,
@@ -311,13 +310,12 @@ void PBQPBuilder::addInterferenceCosts(
   }
 }
 
-std::auto_ptr<PBQPRAProblem> PBQPBuilderWithCoalescing::build(
-                                                MachineFunction *mf,
+PBQPRAProblem *PBQPBuilderWithCoalescing::build(MachineFunction *mf,
                                                 const LiveIntervals *lis,
-                                                const MachineLoopInfo *loopInfo,
+                                                const MachineBlockFrequencyInfo *mbfi,
                                                 const RegSet &vregs) {
 
-  std::auto_ptr<PBQPRAProblem> p = PBQPBuilder::build(mf, lis, loopInfo, vregs);
+  OwningPtr<PBQPRAProblem> p(PBQPBuilder::build(mf, lis, mbfi, vregs));
   PBQP::Graph &g = p->getGraph();
 
   const TargetMachine &tm = mf->getTarget();
@@ -351,7 +349,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilderWithCoalescing::build(
 
       PBQP::PBQPNum cBenefit =
         copyFactor * LiveIntervals::getSpillWeight(false, true,
-                                                   loopInfo->getLoopDepth(mbb));
+                                                   mbfi->getBlockFreq(mbb));
 
       if (cp.isPhys()) {
         if (!mf->getRegInfo().isAllocatable(dst)) {
@@ -365,16 +363,16 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilderWithCoalescing::build(
         }
         if (pregOpt < allowed.size()) {
           ++pregOpt; // +1 to account for spill option.
-          PBQP::Graph::NodeItr node = p->getNodeForVReg(src);
+          PBQP::Graph::NodeId node = p->getNodeForVReg(src);
           addPhysRegCoalesce(g.getNodeCosts(node), pregOpt, cBenefit);
         }
       } else {
         const PBQPRAProblem::AllowedSet *allowed1 = &p->getAllowedSet(dst);
         const PBQPRAProblem::AllowedSet *allowed2 = &p->getAllowedSet(src);
-        PBQP::Graph::NodeItr node1 = p->getNodeForVReg(dst);
-        PBQP::Graph::NodeItr node2 = p->getNodeForVReg(src);
-        PBQP::Graph::EdgeItr edge = g.findEdge(node1, node2);
-        if (edge == g.edgesEnd()) {
+        PBQP::Graph::NodeId node1 = p->getNodeForVReg(dst);
+        PBQP::Graph::NodeId node2 = p->getNodeForVReg(src);
+        PBQP::Graph::EdgeId edge = g.findEdge(node1, node2);
+        if (edge == g.invalidEdgeId()) {
           edge = g.addEdge(node1, node2, PBQP::Matrix(allowed1->size() + 1,
                                                       allowed2->size() + 1,
                                                       0));
@@ -391,7 +389,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilderWithCoalescing::build(
     }
   }
 
-  return p;
+  return p.take();
 }
 
 void PBQPBuilderWithCoalescing::addPhysRegCoalesce(PBQP::Vector &costVec,
@@ -433,13 +431,14 @@ void RegAllocPBQP::getAnalysisUsage(AnalysisUsage &au) const {
   //au.addRequiredID(SplitCriticalEdgesID);
   if (customPassID)
     au.addRequiredID(*customPassID);
-  au.addRequired<CalculateSpillWeights>();
   au.addRequired<LiveStacks>();
   au.addPreserved<LiveStacks>();
-  au.addRequired<MachineDominatorTree>();
-  au.addPreserved<MachineDominatorTree>();
+  au.addRequired<MachineBlockFrequencyInfo>();
+  au.addPreserved<MachineBlockFrequencyInfo>();
   au.addRequired<MachineLoopInfo>();
   au.addPreserved<MachineLoopInfo>();
+  au.addRequired<MachineDominatorTree>();
+  au.addPreserved<MachineDominatorTree>();
   au.addRequired<VirtRegMap>();
   au.addPreserved<VirtRegMap>();
   MachineFunctionPass::getAnalysisUsage(au);
@@ -476,11 +475,11 @@ bool RegAllocPBQP::mapPBQPToRegAlloc(const PBQPRAProblem &problem,
   const PBQP::Graph &g = problem.getGraph();
   // Iterate over the nodes mapping the PBQP solution to a register
   // assignment.
-  for (PBQP::Graph::ConstNodeItr node = g.nodesBegin(),
-                                 nodeEnd = g.nodesEnd();
-       node != nodeEnd; ++node) {
-    unsigned vreg = problem.getVRegForNode(node);
-    unsigned alloc = solution.getSelection(node);
+  for (PBQP::Graph::NodeItr nodeItr = g.nodesBegin(),
+                            nodeEnd = g.nodesEnd();
+       nodeItr != nodeEnd; ++nodeItr) {
+    unsigned vreg = problem.getVRegForNode(*nodeItr);
+    unsigned alloc = solution.getSelection(*nodeItr);
 
     if (problem.isPRegOption(vreg, alloc)) {
       unsigned preg = problem.getPRegForOption(vreg, alloc);
@@ -490,7 +489,7 @@ bool RegAllocPBQP::mapPBQPToRegAlloc(const PBQPRAProblem &problem,
       vrm->assignVirt2Phys(vreg, preg);
     } else if (problem.isSpillOption(vreg, alloc)) {
       vregsToAlloc.erase(vreg);
-      SmallVector<LiveInterval*, 8> newSpills;
+      SmallVector<unsigned, 8> newSpills;
       LiveRangeEdit LRE(&lis->getInterval(vreg), newSpills, *mf, *lis, vrm);
       spiller->spill(LRE);
 
@@ -501,9 +500,10 @@ bool RegAllocPBQP::mapPBQPToRegAlloc(const PBQPRAProblem &problem,
       // allocate.
       for (LiveRangeEdit::iterator itr = LRE.begin(), end = LRE.end();
            itr != end; ++itr) {
-        assert(!(*itr)->empty() && "Empty spill range.");
-        DEBUG(dbgs() << PrintReg((*itr)->reg, tri) << " ");
-        vregsToAlloc.insert((*itr)->reg);
+        LiveInterval &li = lis->getInterval(*itr);
+        assert(!li.empty() && "Empty spill range.");
+        DEBUG(dbgs() << PrintReg(li.reg, tri) << " ");
+        vregsToAlloc.insert(li.reg);
       }
 
       DEBUG(dbgs() << ")\n");
@@ -526,7 +526,7 @@ void RegAllocPBQP::finalizeAlloc() const {
          itr != end; ++itr) {
     LiveInterval *li = &lis->getInterval(*itr);
 
-    unsigned physReg = vrm->getRegAllocPref(li->reg);
+    unsigned physReg = mri->getSimpleHint(li->reg);
 
     if (physReg == 0) {
       const TargetRegisterClass *liRC = mri->getRegClass(li->reg);
@@ -547,7 +547,10 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
 
   lis = &getAnalysis<LiveIntervals>();
   lss = &getAnalysis<LiveStacks>();
-  loopInfo = &getAnalysis<MachineLoopInfo>();
+  mbfi = &getAnalysis<MachineBlockFrequencyInfo>();
+
+  calculateSpillWeightsAndHints(*lis, MF, getAnalysis<MachineLoopInfo>(),
+                                *mbfi);
 
   vrm = &getAnalysis<VirtRegMap>();
   spiller.reset(createInlineSpiller(*this, MF, *vrm));
@@ -584,8 +587,8 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
     while (!pbqpAllocComplete) {
       DEBUG(dbgs() << "  PBQP Regalloc round " << round << ":\n");
 
-      std::auto_ptr<PBQPRAProblem> problem =
-        builder->build(mf, lis, loopInfo, vregsToAlloc);
+      OwningPtr<PBQPRAProblem> problem(
+        builder->build(mf, lis, mbfi, vregsToAlloc));
 
 #ifndef NDEBUG
       if (pbqpDumpGraphs) {
@@ -621,18 +624,18 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
 }
 
 FunctionPass* llvm::createPBQPRegisterAllocator(
-                                           std::auto_ptr<PBQPBuilder> builder,
+                                           OwningPtr<PBQPBuilder> &builder,
                                            char *customPassID) {
   return new RegAllocPBQP(builder, customPassID);
 }
 
 FunctionPass* llvm::createDefaultPBQPRegisterAllocator() {
-  if (pbqpCoalescing) {
-    return createPBQPRegisterAllocator(
-             std::auto_ptr<PBQPBuilder>(new PBQPBuilderWithCoalescing()));
-  } // else
-  return createPBQPRegisterAllocator(
-           std::auto_ptr<PBQPBuilder>(new PBQPBuilder()));
+  OwningPtr<PBQPBuilder> Builder;
+  if (pbqpCoalescing)
+    Builder.reset(new PBQPBuilderWithCoalescing());
+  else
+    Builder.reset(new PBQPBuilder());
+  return createPBQPRegisterAllocator(Builder);
 }
 
 #undef DEBUG_TYPE

@@ -342,19 +342,11 @@ static unsigned char tls12_sigalgs[] = {
 #ifndef OPENSSL_NO_SHA
 	tlsext_sigalg(TLSEXT_hash_sha1)
 #endif
-#ifndef OPENSSL_NO_MD5
-	tlsext_sigalg_rsa(TLSEXT_hash_md5)
-#endif
 };
 
 int tls12_get_req_sig_algs(SSL *s, unsigned char *p)
 	{
 	size_t slen = sizeof(tls12_sigalgs);
-#ifdef OPENSSL_FIPS
-	/* If FIPS mode don't include MD5 which is last */
-	if (FIPS_mode())
-		slen -= 2;
-#endif
 	if (p)
 		memcpy(p, tls12_sigalgs, slen);
 	return (int)slen;
@@ -649,6 +641,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		}
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if(SSL_get_srtp_profiles(s))
                 {
                 int el;
@@ -667,6 +660,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 			}
                 ret += el;
                 }
+#endif
 
 	if ((extdatalen = ret-p-2)== 0) 
 		return p;
@@ -781,6 +775,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		}
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if(s->srtp_profile)
                 {
                 int el;
@@ -799,6 +794,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 			}
                 ret+=el;
                 }
+#endif
 
 	if (((s->s3->tmp.new_cipher->id & 0xFFFF)==0x80 || (s->s3->tmp.new_cipher->id & 0xFFFF)==0x81) 
 		&& (SSL_get_options(s) & SSL_OP_CRYPTOPRO_TLSEXT_BUG))
@@ -862,6 +858,89 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 	return ret;
 	}
 
+#ifndef OPENSSL_NO_EC
+/* ssl_check_for_safari attempts to fingerprint Safari using OS X
+ * SecureTransport using the TLS extension block in |d|, of length |n|.
+ * Safari, since 10.6, sends exactly these extensions, in this order:
+ *   SNI,
+ *   elliptic_curves
+ *   ec_point_formats
+ *
+ * We wish to fingerprint Safari because they broke ECDHE-ECDSA support in 10.8,
+ * but they advertise support. So enabling ECDHE-ECDSA ciphers breaks them.
+ * Sadly we cannot differentiate 10.6, 10.7 and 10.8.4 (which work), from
+ * 10.8..10.8.3 (which don't work).
+ */
+static void ssl_check_for_safari(SSL *s, const unsigned char *data, const unsigned char *d, int n) {
+	unsigned short type, size;
+	static const unsigned char kSafariExtensionsBlock[] = {
+		0x00, 0x0a,  /* elliptic_curves extension */
+		0x00, 0x08,  /* 8 bytes */
+		0x00, 0x06,  /* 6 bytes of curve ids */
+		0x00, 0x17,  /* P-256 */
+		0x00, 0x18,  /* P-384 */
+		0x00, 0x19,  /* P-521 */
+
+		0x00, 0x0b,  /* ec_point_formats */
+		0x00, 0x02,  /* 2 bytes */
+		0x01,        /* 1 point format */
+		0x00,        /* uncompressed */
+	};
+
+	/* The following is only present in TLS 1.2 */
+	static const unsigned char kSafariTLS12ExtensionsBlock[] = {
+		0x00, 0x0d,  /* signature_algorithms */
+		0x00, 0x0c,  /* 12 bytes */
+		0x00, 0x0a,  /* 10 bytes */
+		0x05, 0x01,  /* SHA-384/RSA */
+		0x04, 0x01,  /* SHA-256/RSA */
+		0x02, 0x01,  /* SHA-1/RSA */
+		0x04, 0x03,  /* SHA-256/ECDSA */
+		0x02, 0x03,  /* SHA-1/ECDSA */
+	};
+
+	if (data >= (d+n-2))
+		return;
+	data += 2;
+
+	if (data > (d+n-4))
+		return;
+	n2s(data,type);
+	n2s(data,size);
+
+	if (type != TLSEXT_TYPE_server_name)
+		return;
+
+	if (data+size > d+n)
+		return;
+	data += size;
+
+	if (TLS1_get_client_version(s) >= TLS1_2_VERSION)
+		{
+		const size_t len1 = sizeof(kSafariExtensionsBlock);
+		const size_t len2 = sizeof(kSafariTLS12ExtensionsBlock);
+
+		if (data + len1 + len2 != d+n)
+			return;
+		if (memcmp(data, kSafariExtensionsBlock, len1) != 0)
+			return;
+		if (memcmp(data + len1, kSafariTLS12ExtensionsBlock, len2) != 0)
+			return;
+		}
+	else
+		{
+		const size_t len = sizeof(kSafariExtensionsBlock);
+
+		if (data + len != d+n)
+			return;
+		if (memcmp(data, kSafariExtensionsBlock, len) != 0)
+			return;
+		}
+
+	s->s3->is_probably_safari = 1;
+}
+#endif /* !OPENSSL_NO_EC */
+
 int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, int n, int *al)
 	{
 	unsigned short type;
@@ -881,6 +960,11 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 	s->tlsext_heartbeat &= ~(SSL_TLSEXT_HB_ENABLED |
 	                       SSL_TLSEXT_HB_DONT_SEND_REQUESTS);
 #endif
+
+#ifndef OPENSSL_NO_EC
+	if (s->options & SSL_OP_SAFARI_ECDHE_ECDSA_BUG)
+		ssl_check_for_safari(s, data, d, n);
+#endif /* !OPENSSL_NO_EC */
 
 	if (data >= (d+n-2))
 		goto ri_check;
@@ -1077,7 +1161,8 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			int ellipticcurvelist_length = (*(sdata++) << 8);
 			ellipticcurvelist_length += (*(sdata++));
 
-			if (ellipticcurvelist_length != size - 2)
+			if (ellipticcurvelist_length != size - 2 ||
+				ellipticcurvelist_length < 1)
 				{
 				*al = TLS1_AD_DECODE_ERROR;
 				return 0;
@@ -1328,12 +1413,14 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 #endif
 
 		/* session ticket processed earlier */
+#ifndef OPENSSL_NO_SRTP
 		else if (type == TLSEXT_TYPE_use_srtp)
-                        {
+			{
 			if(ssl_parse_clienthello_use_srtp_ext(s, data, size,
 							      al))
 				return 0;
-                        }
+			}
+#endif
 
 		data+=size;
 		}
@@ -1433,7 +1520,8 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			unsigned char *sdata = data;
 			int ecpointformatlist_length = *(sdata++);
 
-			if (ecpointformatlist_length != size - 1)
+			if (ecpointformatlist_length != size - 1 || 
+				ecpointformatlist_length < 1)
 				{
 				*al = TLS1_AD_DECODE_ERROR;
 				return 0;
@@ -1527,7 +1615,7 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			unsigned char selected_len;
 
 			/* We must have requested it. */
-			if ((s->ctx->next_proto_select_cb == NULL))
+			if (s->ctx->next_proto_select_cb == NULL)
 				{
 				*al = TLS1_AD_UNSUPPORTED_EXTENSION;
 				return 0;
@@ -1577,12 +1665,14 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				}
 			}
 #endif
+#ifndef OPENSSL_NO_SRTP
 		else if (type == TLSEXT_TYPE_use_srtp)
-                        {
+			{
                         if(ssl_parse_serverhello_use_srtp_ext(s, data, size,
 							      al))
                                 return 0;
-                        }
+			}
+#endif
 
 		data+=size;		
 		}
@@ -1763,7 +1853,7 @@ int ssl_prepare_serverhello_tlsext(SSL *s)
 	return 1;
 	}
 
-int ssl_check_clienthello_tlsext(SSL *s)
+int ssl_check_clienthello_tlsext_early(SSL *s)
 	{
 	int ret=SSL_TLSEXT_ERR_NOACK;
 	int al = SSL_AD_UNRECOGNIZED_NAME;
@@ -1782,42 +1872,12 @@ int ssl_check_clienthello_tlsext(SSL *s)
 	else if (s->initial_ctx != NULL && s->initial_ctx->tlsext_servername_callback != 0) 		
 		ret = s->initial_ctx->tlsext_servername_callback(s, &al, s->initial_ctx->tlsext_servername_arg);
 
-	/* If status request then ask callback what to do.
- 	 * Note: this must be called after servername callbacks in case 
- 	 * the certificate has changed.
- 	 */
-	if ((s->tlsext_status_type != -1) && s->ctx && s->ctx->tlsext_status_cb)
-		{
-		int r;
-		r = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
-		switch (r)
-			{
-			/* We don't want to send a status request response */
-			case SSL_TLSEXT_ERR_NOACK:
-				s->tlsext_status_expected = 0;
-				break;
-			/* status request response should be sent */
-			case SSL_TLSEXT_ERR_OK:
-				if (s->tlsext_ocsp_resp)
-					s->tlsext_status_expected = 1;
-				else
-					s->tlsext_status_expected = 0;
-				break;
-			/* something bad happened */
-			case SSL_TLSEXT_ERR_ALERT_FATAL:
-				ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-				al = SSL_AD_INTERNAL_ERROR;
-				goto err;
-			}
-		}
-	else
-		s->tlsext_status_expected = 0;
-
 #ifdef TLSEXT_TYPE_opaque_prf_input
  	{
 		/* This sort of belongs into ssl_prepare_serverhello_tlsext(),
 		 * but we might be sending an alert in response to the client hello,
-		 * so this has to happen here in ssl_check_clienthello_tlsext(). */
+		 * so this has to happen here in
+		 * ssl_check_clienthello_tlsext_early(). */
 
 		int r = 1;
 	
@@ -1869,8 +1929,8 @@ int ssl_check_clienthello_tlsext(SSL *s)
 			}
 	}
 
-#endif
  err:
+#endif
 	switch (ret)
 		{
 		case SSL_TLSEXT_ERR_ALERT_FATAL:
@@ -1885,6 +1945,71 @@ int ssl_check_clienthello_tlsext(SSL *s)
 			s->servername_done=0;
 			default:
 		return 1;
+		}
+	}
+
+int ssl_check_clienthello_tlsext_late(SSL *s)
+	{
+	int ret = SSL_TLSEXT_ERR_OK;
+	int al;
+
+	/* If status request then ask callback what to do.
+ 	 * Note: this must be called after servername callbacks in case 
+ 	 * the certificate has changed, and must be called after the cipher
+	 * has been chosen because this may influence which certificate is sent
+ 	 */
+	if ((s->tlsext_status_type != -1) && s->ctx && s->ctx->tlsext_status_cb)
+		{
+		int r;
+		CERT_PKEY *certpkey;
+		certpkey = ssl_get_server_send_pkey(s);
+		/* If no certificate can't return certificate status */
+		if (certpkey == NULL)
+			{
+			s->tlsext_status_expected = 0;
+			return 1;
+			}
+		/* Set current certificate to one we will use so
+		 * SSL_get_certificate et al can pick it up.
+		 */
+		s->cert->key = certpkey;
+		r = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
+		switch (r)
+			{
+			/* We don't want to send a status request response */
+			case SSL_TLSEXT_ERR_NOACK:
+				s->tlsext_status_expected = 0;
+				break;
+			/* status request response should be sent */
+			case SSL_TLSEXT_ERR_OK:
+				if (s->tlsext_ocsp_resp)
+					s->tlsext_status_expected = 1;
+				else
+					s->tlsext_status_expected = 0;
+				break;
+			/* something bad happened */
+			case SSL_TLSEXT_ERR_ALERT_FATAL:
+				ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+				al = SSL_AD_INTERNAL_ERROR;
+				goto err;
+			}
+		}
+	else
+		s->tlsext_status_expected = 0;
+
+ err:
+	switch (ret)
+		{
+		case SSL_TLSEXT_ERR_ALERT_FATAL:
+			ssl3_send_alert(s,SSL3_AL_FATAL,al); 
+			return -1;
+
+		case SSL_TLSEXT_ERR_ALERT_WARNING:
+			ssl3_send_alert(s,SSL3_AL_WARNING,al);
+			return 1; 
+
+		default:
+			return 1;
 		}
 	}
 
@@ -2189,7 +2314,7 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick, int eticklen,
 	HMAC_Update(&hctx, etick, eticklen);
 	HMAC_Final(&hctx, tick_hmac, NULL);
 	HMAC_CTX_cleanup(&hctx);
-	if (memcmp(tick_hmac, etick + eticklen, mlen))
+	if (CRYPTO_memcmp(tick_hmac, etick + eticklen, mlen))
 		return 2;
 	/* Attempt to decrypt session data */
 	/* Move p after IV to start of encrypted ticket, update length */
@@ -2319,14 +2444,6 @@ const EVP_MD *tls12_get_hash(unsigned char hash_alg)
 	{
 	switch(hash_alg)
 		{
-#ifndef OPENSSL_NO_MD5
-		case TLSEXT_hash_md5:
-#ifdef OPENSSL_FIPS
-		if (FIPS_mode())
-			return NULL;
-#endif
-		return EVP_md5();
-#endif
 #ifndef OPENSSL_NO_SHA
 		case TLSEXT_hash_sha1:
 		return EVP_sha1();
@@ -2414,7 +2531,7 @@ int tls1_process_sigalgs(SSL *s, const unsigned char *data, int dsize)
 	 */
 #ifndef OPENSSL_NO_DSA
 	if (!c->pkeys[SSL_PKEY_DSA_SIGN].digest)
-		c->pkeys[SSL_PKEY_DSA_SIGN].digest = EVP_dss1();
+		c->pkeys[SSL_PKEY_DSA_SIGN].digest = EVP_sha1();
 #endif
 #ifndef OPENSSL_NO_RSA
 	if (!c->pkeys[SSL_PKEY_RSA_SIGN].digest)
@@ -2425,7 +2542,7 @@ int tls1_process_sigalgs(SSL *s, const unsigned char *data, int dsize)
 #endif
 #ifndef OPENSSL_NO_ECDSA
 	if (!c->pkeys[SSL_PKEY_ECC].digest)
-		c->pkeys[SSL_PKEY_ECC].digest = EVP_ecdsa();
+		c->pkeys[SSL_PKEY_ECC].digest = EVP_sha1();
 #endif
 	return 1;
 	}

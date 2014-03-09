@@ -20,15 +20,16 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/PBQP/Graph.h"
 #include "llvm/CodeGen/PBQP/Solution.h"
-
 #include <map>
 #include <set>
 
 namespace llvm {
 
   class LiveIntervals;
+  class MachineBlockFrequencyInfo;
   class MachineFunction;
-  class MachineLoopInfo;
+  class TargetRegisterInfo;
+  template<class T> class OwningPtr;
 
   /// This class wraps up a PBQP instance representing a register allocation
   /// problem, plus the structures necessary to map back from the PBQP solution
@@ -51,22 +52,22 @@ namespace llvm {
     /// PBQPBuilder you are unlikely to need this: Nodes and options for all
     /// vregs will already have been set up for you by the base class. 
     template <typename AllowedRegsItr>
-    void recordVReg(unsigned vreg, PBQP::Graph::NodeItr node,
+    void recordVReg(unsigned vreg, PBQP::Graph::NodeId nodeId,
                     AllowedRegsItr arBegin, AllowedRegsItr arEnd) {
-      assert(node2VReg.find(node) == node2VReg.end() && "Re-mapping node.");
+      assert(node2VReg.find(nodeId) == node2VReg.end() && "Re-mapping node.");
       assert(vreg2Node.find(vreg) == vreg2Node.end() && "Re-mapping vreg.");
       assert(allowedSets[vreg].empty() && "vreg already has pregs.");
 
-      node2VReg[node] = vreg;
-      vreg2Node[vreg] = node;
+      node2VReg[nodeId] = vreg;
+      vreg2Node[vreg] = nodeId;
       std::copy(arBegin, arEnd, std::back_inserter(allowedSets[vreg]));
     }
 
     /// Get the virtual register corresponding to the given PBQP node.
-    unsigned getVRegForNode(PBQP::Graph::ConstNodeItr node) const;
+    unsigned getVRegForNode(PBQP::Graph::NodeId nodeId) const;
 
     /// Get the PBQP node corresponding to the given virtual register.
-    PBQP::Graph::NodeItr getNodeForVReg(unsigned vreg) const;
+    PBQP::Graph::NodeId getNodeForVReg(unsigned vreg) const;
 
     /// Returns true if the given PBQP option represents a physical register,
     /// false otherwise.
@@ -91,9 +92,8 @@ namespace llvm {
 
   private:
 
-    typedef std::map<PBQP::Graph::ConstNodeItr, unsigned,
-                     PBQP::NodeItrComparator>  Node2VReg;
-    typedef DenseMap<unsigned, PBQP::Graph::NodeItr> VReg2Node;
+    typedef std::map<PBQP::Graph::NodeId, unsigned>  Node2VReg;
+    typedef DenseMap<unsigned, PBQP::Graph::NodeId> VReg2Node;
     typedef DenseMap<unsigned, AllowedSet> AllowedSetMap;
 
     PBQP::Graph graph;
@@ -123,11 +123,9 @@ namespace llvm {
 
     /// Build a PBQP instance to represent the register allocation problem for
     /// the given MachineFunction.
-    virtual std::auto_ptr<PBQPRAProblem> build(
-                                              MachineFunction *mf,
-                                              const LiveIntervals *lis,
-                                              const MachineLoopInfo *loopInfo,
-                                              const RegSet &vregs);
+    virtual PBQPRAProblem *build(MachineFunction *mf, const LiveIntervals *lis,
+                                 const MachineBlockFrequencyInfo *mbfi,
+                                 const RegSet &vregs);
   private:
 
     void addSpillCosts(PBQP::Vector &costVec, PBQP::PBQPNum spillCost);
@@ -144,11 +142,9 @@ namespace llvm {
  
     /// Build a PBQP instance to represent the register allocation problem for
     /// the given MachineFunction.
-    virtual std::auto_ptr<PBQPRAProblem> build(
-                                              MachineFunction *mf,
-                                              const LiveIntervals *lis,
-                                              const MachineLoopInfo *loopInfo,
-                                              const RegSet &vregs);   
+    virtual PBQPRAProblem *build(MachineFunction *mf, const LiveIntervals *lis,
+                                 const MachineBlockFrequencyInfo *mbfi,
+                                 const RegSet &vregs);   
 
   private:
 
@@ -161,7 +157,7 @@ namespace llvm {
                             PBQP::PBQPNum benefit);
   };
 
-  FunctionPass* createPBQPRegisterAllocator(std::auto_ptr<PBQPBuilder> builder,
+  FunctionPass* createPBQPRegisterAllocator(OwningPtr<PBQPBuilder> &builder,
                                             char *customPassID=0);
 }
 

@@ -20,6 +20,7 @@
 #ifndef LLVM_SUPPORT_ELF_H
 #define LLVM_SUPPORT_ELF_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cstring>
 
@@ -271,11 +272,11 @@ enum {
   EM_SLE9X         = 179, // Infineon Technologies SLE9X core
   EM_L10M          = 180, // Intel L10M
   EM_K10M          = 181, // Intel K10M
+  EM_AARCH64       = 183, // ARM AArch64
   EM_AVR32         = 185, // Atmel Corporation 32-bit microprocessor family
   EM_STM8          = 186, // STMicroeletronics STM8 8-bit microcontroller
   EM_TILE64        = 187, // Tilera TILE64 multicore architecture family
   EM_TILEPRO       = 188, // Tilera TILEPro multicore architecture family
-  EM_MICROBLAZE    = 189, // Xilinx MicroBlaze 32-bit RISC soft processor core
   EM_CUDA          = 190, // NVIDIA CUDA architecture
   EM_TILEGX        = 191, // Tilera TILE-Gx multicore architecture family
   EM_CLOUDSHIELD   = 192, // CloudShield architecture family
@@ -286,8 +287,7 @@ enum {
   EM_RL78          = 197, // Renesas RL78 family
   EM_VIDEOCORE5    = 198, // Broadcom VideoCore V processor
   EM_78KOR         = 199, // Renesas 78KOR family
-  EM_56800EX       = 200, // Freescale 56800EX Digital Signal Controller (DSC)
-  EM_MBLAZE        = 47787 // Xilinx MicroBlaze
+  EM_56800EX       = 200  // Freescale 56800EX Digital Signal Controller (DSC)
 };
 
 // Object file classes.
@@ -309,7 +309,8 @@ enum {
   ELFOSABI_NONE = 0,          // UNIX System V ABI
   ELFOSABI_HPUX = 1,          // HP-UX operating system
   ELFOSABI_NETBSD = 2,        // NetBSD
-  ELFOSABI_LINUX = 3,         // GNU/Linux
+  ELFOSABI_GNU = 3,           // GNU/Linux
+  ELFOSABI_LINUX = 3,         // Historical alias for ELFOSABI_GNU.
   ELFOSABI_HURD = 4,          // GNU/Hurd
   ELFOSABI_SOLARIS = 6,       // Solaris
   ELFOSABI_AIX = 7,           // AIX
@@ -366,7 +367,8 @@ enum {
   R_X86_64_SIZE64     = 33,
   R_X86_64_GOTPC32_TLSDESC = 34,
   R_X86_64_TLSDESC_CALL    = 35,
-  R_X86_64_TLSDESC    = 36
+  R_X86_64_TLSDESC    = 36,
+  R_X86_64_IRELATIVE  = 37
 };
 
 // i386 relocations.
@@ -415,32 +417,6 @@ enum {
   R_386_NUM           = 43
 };
 
-// MBlaze relocations.
-enum {
-  R_MICROBLAZE_NONE           = 0,
-  R_MICROBLAZE_32             = 1,
-  R_MICROBLAZE_32_PCREL       = 2,
-  R_MICROBLAZE_64_PCREL       = 3,
-  R_MICROBLAZE_32_PCREL_LO    = 4,
-  R_MICROBLAZE_64             = 5,
-  R_MICROBLAZE_32_LO          = 6,
-  R_MICROBLAZE_SRO32          = 7,
-  R_MICROBLAZE_SRW32          = 8,
-  R_MICROBLAZE_64_NONE        = 9,
-  R_MICROBLAZE_32_SYM_OP_SYM  = 10,
-  R_MICROBLAZE_GNU_VTINHERIT  = 11,
-  R_MICROBLAZE_GNU_VTENTRY    = 12,
-  R_MICROBLAZE_GOTPC_64       = 13,
-  R_MICROBLAZE_GOT_64         = 14,
-  R_MICROBLAZE_PLT_64         = 15,
-  R_MICROBLAZE_REL            = 16,
-  R_MICROBLAZE_JUMP_SLOT      = 17,
-  R_MICROBLAZE_GLOB_DAT       = 18,
-  R_MICROBLAZE_GOTOFF_64      = 19,
-  R_MICROBLAZE_GOTOFF_32      = 20,
-  R_MICROBLAZE_COPY           = 21
-};
-
 // ELF Relocation types for PPC32
 enum {
   R_PPC_NONE                  = 0,      /* No relocation. */
@@ -457,27 +433,235 @@ enum {
   R_PPC_REL14                 = 11,
   R_PPC_REL14_BRTAKEN         = 12,
   R_PPC_REL14_BRNTAKEN        = 13,
+  R_PPC_GOT16                 = 14,
+  R_PPC_GOT16_LO              = 15,
+  R_PPC_GOT16_HI              = 16,
+  R_PPC_GOT16_HA              = 17,
   R_PPC_REL32                 = 26,
+  R_PPC_TLS                   = 67,
+  R_PPC_DTPMOD32              = 68,
+  R_PPC_TPREL16               = 69,
   R_PPC_TPREL16_LO            = 70,
-  R_PPC_TPREL16_HA            = 72
+  R_PPC_TPREL16_HI            = 71,
+  R_PPC_TPREL16_HA            = 72,
+  R_PPC_TPREL32               = 73,
+  R_PPC_DTPREL16              = 74,
+  R_PPC_DTPREL16_LO           = 75,
+  R_PPC_DTPREL16_HI           = 76,
+  R_PPC_DTPREL16_HA           = 77,
+  R_PPC_DTPREL32              = 78,
+  R_PPC_GOT_TLSGD16           = 79,
+  R_PPC_GOT_TLSGD16_LO        = 80,
+  R_PPC_GOT_TLSGD16_HI        = 81,
+  R_PPC_GOT_TLSGD16_HA        = 82,
+  R_PPC_GOT_TLSLD16           = 83,
+  R_PPC_GOT_TLSLD16_LO        = 84,
+  R_PPC_GOT_TLSLD16_HI        = 85,
+  R_PPC_GOT_TLSLD16_HA        = 86,
+  R_PPC_GOT_TPREL16           = 87,
+  R_PPC_GOT_TPREL16_LO        = 88,
+  R_PPC_GOT_TPREL16_HI        = 89,
+  R_PPC_GOT_TPREL16_HA        = 90,
+  R_PPC_GOT_DTPREL16          = 91,
+  R_PPC_GOT_DTPREL16_LO       = 92,
+  R_PPC_GOT_DTPREL16_HI       = 93,
+  R_PPC_GOT_DTPREL16_HA       = 94,
+  R_PPC_TLSGD                 = 95,
+  R_PPC_TLSLD                 = 96,
+  R_PPC_REL16                 = 249,
+  R_PPC_REL16_LO              = 250,
+  R_PPC_REL16_HI              = 251,
+  R_PPC_REL16_HA              = 252
 };
 
 // ELF Relocation types for PPC64
 enum {
+  R_PPC64_NONE                = 0,
+  R_PPC64_ADDR32              = 1,
+  R_PPC64_ADDR24              = 2,
+  R_PPC64_ADDR16              = 3,
   R_PPC64_ADDR16_LO           = 4,
   R_PPC64_ADDR16_HI           = 5,
+  R_PPC64_ADDR16_HA           = 6,
   R_PPC64_ADDR14              = 7,
+  R_PPC64_ADDR14_BRTAKEN      = 8,
+  R_PPC64_ADDR14_BRNTAKEN     = 9,
   R_PPC64_REL24               = 10,
+  R_PPC64_REL14               = 11,
+  R_PPC64_REL14_BRTAKEN       = 12,
+  R_PPC64_REL14_BRNTAKEN      = 13,
+  R_PPC64_GOT16               = 14,
+  R_PPC64_GOT16_LO            = 15,
+  R_PPC64_GOT16_HI            = 16,
+  R_PPC64_GOT16_HA            = 17,
+  R_PPC64_REL32               = 26,
   R_PPC64_ADDR64              = 38,
   R_PPC64_ADDR16_HIGHER       = 39,
+  R_PPC64_ADDR16_HIGHERA      = 40,
   R_PPC64_ADDR16_HIGHEST      = 41,
+  R_PPC64_ADDR16_HIGHESTA     = 42,
+  R_PPC64_REL64               = 44,
   R_PPC64_TOC16               = 47,
+  R_PPC64_TOC16_LO            = 48,
+  R_PPC64_TOC16_HI            = 49,
+  R_PPC64_TOC16_HA            = 50,
   R_PPC64_TOC                 = 51,
-  R_PPC64_TOC16_DS            = 63
+  R_PPC64_ADDR16_DS           = 56,
+  R_PPC64_ADDR16_LO_DS        = 57,
+  R_PPC64_GOT16_DS            = 58,
+  R_PPC64_GOT16_LO_DS         = 59,
+  R_PPC64_TOC16_DS            = 63,
+  R_PPC64_TOC16_LO_DS         = 64,
+  R_PPC64_TLS                 = 67,
+  R_PPC64_DTPMOD64            = 68,
+  R_PPC64_TPREL16             = 69,
+  R_PPC64_TPREL16_LO          = 70,
+  R_PPC64_TPREL16_HI          = 71,
+  R_PPC64_TPREL16_HA          = 72,
+  R_PPC64_TPREL64             = 73,
+  R_PPC64_DTPREL16            = 74,
+  R_PPC64_DTPREL16_LO         = 75,
+  R_PPC64_DTPREL16_HI         = 76,
+  R_PPC64_DTPREL16_HA         = 77,
+  R_PPC64_DTPREL64            = 78,
+  R_PPC64_GOT_TLSGD16         = 79,
+  R_PPC64_GOT_TLSGD16_LO      = 80,
+  R_PPC64_GOT_TLSGD16_HI      = 81,
+  R_PPC64_GOT_TLSGD16_HA      = 82,
+  R_PPC64_GOT_TLSLD16         = 83,
+  R_PPC64_GOT_TLSLD16_LO      = 84,
+  R_PPC64_GOT_TLSLD16_HI      = 85,
+  R_PPC64_GOT_TLSLD16_HA      = 86,
+  R_PPC64_GOT_TPREL16_DS      = 87,
+  R_PPC64_GOT_TPREL16_LO_DS   = 88,
+  R_PPC64_GOT_TPREL16_HI      = 89,
+  R_PPC64_GOT_TPREL16_HA      = 90,
+  R_PPC64_GOT_DTPREL16_DS     = 91,
+  R_PPC64_GOT_DTPREL16_LO_DS  = 92,
+  R_PPC64_GOT_DTPREL16_HI     = 93,
+  R_PPC64_GOT_DTPREL16_HA     = 94,
+  R_PPC64_TPREL16_DS          = 95,
+  R_PPC64_TPREL16_LO_DS       = 96,
+  R_PPC64_TPREL16_HIGHER      = 97,
+  R_PPC64_TPREL16_HIGHERA     = 98,
+  R_PPC64_TPREL16_HIGHEST     = 99,
+  R_PPC64_TPREL16_HIGHESTA    = 100,
+  R_PPC64_DTPREL16_DS         = 101,
+  R_PPC64_DTPREL16_LO_DS      = 102,
+  R_PPC64_DTPREL16_HIGHER     = 103,
+  R_PPC64_DTPREL16_HIGHERA    = 104,
+  R_PPC64_DTPREL16_HIGHEST    = 105,
+  R_PPC64_DTPREL16_HIGHESTA   = 106,
+  R_PPC64_TLSGD               = 107,
+  R_PPC64_TLSLD               = 108,
+  R_PPC64_REL16               = 249,
+  R_PPC64_REL16_LO            = 250,
+  R_PPC64_REL16_HI            = 251,
+  R_PPC64_REL16_HA            = 252
+};
+
+// ELF Relocation types for AArch64
+
+enum {
+  R_AARCH64_NONE                        = 0x100,
+
+  R_AARCH64_ABS64                       = 0x101,
+  R_AARCH64_ABS32                       = 0x102,
+  R_AARCH64_ABS16                       = 0x103,
+  R_AARCH64_PREL64                      = 0x104,
+  R_AARCH64_PREL32                      = 0x105,
+  R_AARCH64_PREL16                      = 0x106,
+
+  R_AARCH64_MOVW_UABS_G0                = 0x107,
+  R_AARCH64_MOVW_UABS_G0_NC             = 0x108,
+  R_AARCH64_MOVW_UABS_G1                = 0x109,
+  R_AARCH64_MOVW_UABS_G1_NC             = 0x10a,
+  R_AARCH64_MOVW_UABS_G2                = 0x10b,
+  R_AARCH64_MOVW_UABS_G2_NC             = 0x10c,
+  R_AARCH64_MOVW_UABS_G3                = 0x10d,
+  R_AARCH64_MOVW_SABS_G0                = 0x10e,
+  R_AARCH64_MOVW_SABS_G1                = 0x10f,
+  R_AARCH64_MOVW_SABS_G2                = 0x110,
+
+  R_AARCH64_LD_PREL_LO19                = 0x111,
+  R_AARCH64_ADR_PREL_LO21               = 0x112,
+  R_AARCH64_ADR_PREL_PG_HI21            = 0x113,
+  R_AARCH64_ADD_ABS_LO12_NC             = 0x115,
+  R_AARCH64_LDST8_ABS_LO12_NC           = 0x116,
+
+  R_AARCH64_TSTBR14                     = 0x117,
+  R_AARCH64_CONDBR19                    = 0x118,
+  R_AARCH64_JUMP26                      = 0x11a,
+  R_AARCH64_CALL26                      = 0x11b,
+
+  R_AARCH64_LDST16_ABS_LO12_NC          = 0x11c,
+  R_AARCH64_LDST32_ABS_LO12_NC          = 0x11d,
+  R_AARCH64_LDST64_ABS_LO12_NC          = 0x11e,
+
+  R_AARCH64_LDST128_ABS_LO12_NC         = 0x12b,
+
+  R_AARCH64_ADR_GOT_PAGE                = 0x137,
+  R_AARCH64_LD64_GOT_LO12_NC            = 0x138,
+
+  R_AARCH64_TLSLD_MOVW_DTPREL_G2        = 0x20b,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G1        = 0x20c,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC     = 0x20d,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G0        = 0x20e,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC     = 0x20f,
+  R_AARCH64_TLSLD_ADD_DTPREL_HI12       = 0x210,
+  R_AARCH64_TLSLD_ADD_DTPREL_LO12       = 0x211,
+  R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC    = 0x212,
+  R_AARCH64_TLSLD_LDST8_DTPREL_LO12     = 0x213,
+  R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC  = 0x214,
+  R_AARCH64_TLSLD_LDST16_DTPREL_LO12    = 0x215,
+  R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC = 0x216,
+  R_AARCH64_TLSLD_LDST32_DTPREL_LO12    = 0x217,
+  R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC = 0x218,
+  R_AARCH64_TLSLD_LDST64_DTPREL_LO12    = 0x219,
+  R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC = 0x21a,
+
+  R_AARCH64_TLSIE_MOVW_GOTTPREL_G1      = 0x21b,
+  R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC   = 0x21c,
+  R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21   = 0x21d,
+  R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC = 0x21e,
+  R_AARCH64_TLSIE_LD_GOTTPREL_PREL19    = 0x21f,
+
+  R_AARCH64_TLSLE_MOVW_TPREL_G2         = 0x220,
+  R_AARCH64_TLSLE_MOVW_TPREL_G1         = 0x221,
+  R_AARCH64_TLSLE_MOVW_TPREL_G1_NC      = 0x222,
+  R_AARCH64_TLSLE_MOVW_TPREL_G0         = 0x223,
+  R_AARCH64_TLSLE_MOVW_TPREL_G0_NC      = 0x224,
+  R_AARCH64_TLSLE_ADD_TPREL_HI12        = 0x225,
+  R_AARCH64_TLSLE_ADD_TPREL_LO12        = 0x226,
+  R_AARCH64_TLSLE_ADD_TPREL_LO12_NC     = 0x227,
+  R_AARCH64_TLSLE_LDST8_TPREL_LO12      = 0x228,
+  R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC   = 0x229,
+  R_AARCH64_TLSLE_LDST16_TPREL_LO12     = 0x22a,
+  R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC  = 0x22b,
+  R_AARCH64_TLSLE_LDST32_TPREL_LO12     = 0x22c,
+  R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC  = 0x22d,
+  R_AARCH64_TLSLE_LDST64_TPREL_LO12     = 0x22e,
+  R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC  = 0x22f,
+
+  R_AARCH64_TLSDESC_ADR_PAGE            = 0x232,
+  R_AARCH64_TLSDESC_LD64_LO12_NC        = 0x233,
+  R_AARCH64_TLSDESC_ADD_LO12_NC         = 0x234,
+
+  R_AARCH64_TLSDESC_CALL                = 0x239
 };
 
 // ARM Specific e_flags
-enum { EF_ARM_EABIMASK = 0xFF000000U };
+enum LLVM_ENUM_INT_TYPE(unsigned) {
+  EF_ARM_SOFT_FLOAT =     0x00000200U,
+  EF_ARM_VFP_FLOAT =      0x00000400U,
+  EF_ARM_EABI_UNKNOWN =   0x00000000U,
+  EF_ARM_EABI_VER1 =      0x01000000U,
+  EF_ARM_EABI_VER2 =      0x02000000U,
+  EF_ARM_EABI_VER3 =      0x03000000U,
+  EF_ARM_EABI_VER4 =      0x04000000U,
+  EF_ARM_EABI_VER5 =      0x05000000U,
+  EF_ARM_EABIMASK =       0xFF000000U
+};
 
 // ELF Relocation types for ARM
 // Meets 2.08 ABI Specs.
@@ -617,10 +801,17 @@ enum {
 };
 
 // Mips Specific e_flags
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
   EF_MIPS_PIC       = 0x00000002, // Position independent code
   EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
+  EF_MIPS_ABI_O32   = 0x00001000, // This file follows the first MIPS 32 bit ABI
+
+  //ARCH_ASE
+  EF_MIPS_MICROMIPS = 0x02000000, // microMIPS
+  EF_MIPS_ARCH_ASE_M16 =
+                      0x04000000, // Has Mips-16 ISA extensions
+  //ARCH
   EF_MIPS_ARCH_1    = 0x00000000, // MIPS1 instruction set
   EF_MIPS_ARCH_2    = 0x10000000, // MIPS2 instruction set
   EF_MIPS_ARCH_3    = 0x20000000, // MIPS3 instruction set
@@ -650,6 +841,8 @@ enum {
   R_MIPS_PC16              = 10,
   R_MIPS_CALL16            = 11,
   R_MIPS_GPREL32           = 12,
+  R_MIPS_UNUSED1           = 13,
+  R_MIPS_UNUSED2           = 14,
   R_MIPS_SHIFT5            = 16,
   R_MIPS_SHIFT6            = 17,
   R_MIPS_64                = 18,
@@ -688,7 +881,25 @@ enum {
   R_MIPS_GLOB_DAT          = 51,
   R_MIPS_COPY              = 126,
   R_MIPS_JUMP_SLOT         = 127,
+  R_MICROMIPS_26_S1        = 133,
+  R_MICROMIPS_HI16         = 134,
+  R_MICROMIPS_LO16         = 135,
+  R_MICROMIPS_GOT16        = 138,
+  R_MICROMIPS_PC16_S1      = 141,
+  R_MICROMIPS_CALL16       = 142,
+  R_MICROMIPS_GOT_DISP     = 145,
+  R_MICROMIPS_GOT_PAGE     = 146,
+  R_MICROMIPS_GOT_OFST     = 147,
+  R_MICROMIPS_TLS_DTPREL_HI16 = 164,
+  R_MICROMIPS_TLS_DTPREL_LO16 = 165,
+  R_MICROMIPS_TLS_TPREL_HI16  = 169,
+  R_MICROMIPS_TLS_TPREL_LO16  = 170,
   R_MIPS_NUM               = 218
+};
+
+// Special values for the st_other field in the symbol table entry for MIPS.
+enum {
+  STO_MIPS_MICROMIPS       = 0x80 // MIPS Specific ISA for MicroMips
 };
 
 // Hexagon Specific e_flags
@@ -710,14 +921,14 @@ enum {
 };
 
 // Hexagon specific Section indexes for common small data
-// Release 5 ABI 
+// Release 5 ABI
 enum {
   SHN_HEXAGON_SCOMMON     = 0xff00,       // Other access sizes
   SHN_HEXAGON_SCOMMON_1   = 0xff01,       // Byte-sized access
   SHN_HEXAGON_SCOMMON_2   = 0xff02,       // Half-word-sized access
   SHN_HEXAGON_SCOMMON_4   = 0xff03,       // Word-sized access
   SHN_HEXAGON_SCOMMON_8   = 0xff04        // Double-word-size access
-};   
+};
 
 // ELF Relocation types for Hexagon
 // Release 5 ABI
@@ -810,6 +1021,160 @@ enum {
   R_HEX_TPREL_11_X        =  85
 };
 
+// ELF Relocation types for S390/zSeries
+enum {
+  R_390_NONE        =  0,
+  R_390_8           =  1,
+  R_390_12          =  2,
+  R_390_16          =  3,
+  R_390_32          =  4,
+  R_390_PC32        =  5,
+  R_390_GOT12       =  6,
+  R_390_GOT32       =  7,
+  R_390_PLT32       =  8,
+  R_390_COPY        =  9,
+  R_390_GLOB_DAT    = 10,
+  R_390_JMP_SLOT    = 11,
+  R_390_RELATIVE    = 12,
+  R_390_GOTOFF      = 13,
+  R_390_GOTPC       = 14,
+  R_390_GOT16       = 15,
+  R_390_PC16        = 16,
+  R_390_PC16DBL     = 17,
+  R_390_PLT16DBL    = 18,
+  R_390_PC32DBL     = 19,
+  R_390_PLT32DBL    = 20,
+  R_390_GOTPCDBL    = 21,
+  R_390_64          = 22,
+  R_390_PC64        = 23,
+  R_390_GOT64       = 24,
+  R_390_PLT64       = 25,
+  R_390_GOTENT      = 26,
+  R_390_GOTOFF16    = 27,
+  R_390_GOTOFF64    = 28,
+  R_390_GOTPLT12    = 29,
+  R_390_GOTPLT16    = 30,
+  R_390_GOTPLT32    = 31,
+  R_390_GOTPLT64    = 32,
+  R_390_GOTPLTENT   = 33,
+  R_390_PLTOFF16    = 34,
+  R_390_PLTOFF32    = 35,
+  R_390_PLTOFF64    = 36,
+  R_390_TLS_LOAD    = 37,
+  R_390_TLS_GDCALL  = 38,
+  R_390_TLS_LDCALL  = 39,
+  R_390_TLS_GD32    = 40,
+  R_390_TLS_GD64    = 41,
+  R_390_TLS_GOTIE12 = 42,
+  R_390_TLS_GOTIE32 = 43,
+  R_390_TLS_GOTIE64 = 44,
+  R_390_TLS_LDM32   = 45,
+  R_390_TLS_LDM64   = 46,
+  R_390_TLS_IE32    = 47,
+  R_390_TLS_IE64    = 48,
+  R_390_TLS_IEENT   = 49,
+  R_390_TLS_LE32    = 50,
+  R_390_TLS_LE64    = 51,
+  R_390_TLS_LDO32   = 52,
+  R_390_TLS_LDO64   = 53,
+  R_390_TLS_DTPMOD  = 54,
+  R_390_TLS_DTPOFF  = 55,
+  R_390_TLS_TPOFF   = 56,
+  R_390_20          = 57,
+  R_390_GOT20       = 58,
+  R_390_GOTPLT20    = 59,
+  R_390_TLS_GOTIE20 = 60,
+  R_390_IRELATIVE   = 61
+};
+
+// ELF Relocation type for Sparc.
+enum {
+  R_SPARC_NONE        = 0,
+  R_SPARC_8           = 1,
+  R_SPARC_16          = 2,
+  R_SPARC_32          = 3,
+  R_SPARC_DISP8       = 4,
+  R_SPARC_DISP16      = 5,
+  R_SPARC_DISP32      = 6,
+  R_SPARC_WDISP30     = 7,
+  R_SPARC_WDISP22     = 8,
+  R_SPARC_HI22        = 9,
+  R_SPARC_22          = 10,
+  R_SPARC_13          = 11,
+  R_SPARC_LO10        = 12,
+  R_SPARC_GOT10       = 13,
+  R_SPARC_GOT13       = 14,
+  R_SPARC_GOT22       = 15,
+  R_SPARC_PC10        = 16,
+  R_SPARC_PC22        = 17,
+  R_SPARC_WPLT30      = 18,
+  R_SPARC_COPY        = 19,
+  R_SPARC_GLOB_DAT    = 20,
+  R_SPARC_JMP_SLOT    = 21,
+  R_SPARC_RELATIVE    = 22,
+  R_SPARC_UA32        = 23,
+  R_SPARC_PLT32       = 24,
+  R_SPARC_HIPLT22     = 25,
+  R_SPARC_LOPLT10     = 26,
+  R_SPARC_PCPLT32     = 27,
+  R_SPARC_PCPLT22     = 28,
+  R_SPARC_PCPLT10     = 29,
+  R_SPARC_10          = 30,
+  R_SPARC_11          = 31,
+  R_SPARC_64          = 32,
+  R_SPARC_OLO10       = 33,
+  R_SPARC_HH22        = 34,
+  R_SPARC_HM10        = 35,
+  R_SPARC_LM22        = 36,
+  R_SPARC_PC_HH22     = 37,
+  R_SPARC_PC_HM10     = 38,
+  R_SPARC_PC_LM22     = 39,
+  R_SPARC_WDISP16     = 40,
+  R_SPARC_WDISP19     = 41,
+  R_SPARC_7           = 43,
+  R_SPARC_5           = 44,
+  R_SPARC_6           = 45,
+  R_SPARC_DISP64      = 46,
+  R_SPARC_PLT64       = 47,
+  R_SPARC_HIX22       = 48,
+  R_SPARC_LOX10       = 49,
+  R_SPARC_H44         = 50,
+  R_SPARC_M44         = 51,
+  R_SPARC_L44         = 52,
+  R_SPARC_REGISTER    = 53,
+  R_SPARC_UA64        = 54,
+  R_SPARC_UA16        = 55,
+  R_SPARC_TLS_GD_HI22   = 56,
+  R_SPARC_TLS_GD_LO10   = 57,
+  R_SPARC_TLS_GD_ADD    = 58,
+  R_SPARC_TLS_GD_CALL   = 59,
+  R_SPARC_TLS_LDM_HI22  = 60,
+  R_SPARC_TLS_LDM_LO10  = 61,
+  R_SPARC_TLS_LDM_ADD   = 62,
+  R_SPARC_TLS_LDM_CALL  = 63,
+  R_SPARC_TLS_LDO_HIX22 = 64,
+  R_SPARC_TLS_LDO_LOX10 = 65,
+  R_SPARC_TLS_LDO_ADD   = 66,
+  R_SPARC_TLS_IE_HI22   = 67,
+  R_SPARC_TLS_IE_LO10   = 68,
+  R_SPARC_TLS_IE_LD     = 69,
+  R_SPARC_TLS_IE_LDX    = 70,
+  R_SPARC_TLS_IE_ADD    = 71,
+  R_SPARC_TLS_LE_HIX22  = 72,
+  R_SPARC_TLS_LE_LOX10  = 73,
+  R_SPARC_TLS_DTPMOD32  = 74,
+  R_SPARC_TLS_DTPMOD64  = 75,
+  R_SPARC_TLS_DTPOFF32  = 76,
+  R_SPARC_TLS_DTPOFF64  = 77,
+  R_SPARC_TLS_TPOFF32   = 78,
+  R_SPARC_TLS_TPOFF64   = 79,
+  R_SPARC_GOTDATA_HIX22 = 80,
+  R_SPARC_GOTDATA_LOX22 = 81,
+  R_SPARC_GOTDATA_OP_HIX22 = 82,
+  R_SPARC_GOTDATA_OP_LOX22 = 83,
+  R_SPARC_GOTDATA_OP    = 84
+};
+
 // Section header.
 struct Elf32_Shdr {
   Elf32_Word sh_name;      // Section name (index into string table)
@@ -853,7 +1218,7 @@ enum {
 };
 
 // Section types.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   SHT_NULL          = 0,  // No associated section (inactive entry).
   SHT_PROGBITS      = 1,  // Program-defined contents.
   SHT_SYMTAB        = 2,  // Symbol table.
@@ -878,7 +1243,7 @@ enum {
   SHT_GNU_verneed   = 0x6ffffffe, // GNU version references.
   SHT_GNU_versym    = 0x6fffffff, // GNU symbol versions table.
   SHT_HIOS          = 0x6fffffff, // Highest operating system-specific type.
-  SHT_LOPROC        = 0x70000000, // Lowest processor architecture-specific type.
+  SHT_LOPROC        = 0x70000000, // Lowest processor arch-specific type.
   // Fixme: All this is duplicated in MCSectionELF. Why??
   // Exception Index table
   SHT_ARM_EXIDX           = 0x70000001U,
@@ -888,16 +1253,20 @@ enum {
   SHT_ARM_ATTRIBUTES      = 0x70000003U,
   SHT_ARM_DEBUGOVERLAY    = 0x70000004U,
   SHT_ARM_OVERLAYSECTION  = 0x70000005U,
-
+  SHT_HEX_ORDERED         = 0x70000000, // Link editor is to sort the entries in
+                                        // this section based on their sizes
   SHT_X86_64_UNWIND       = 0x70000001, // Unwind information
 
-  SHT_HIPROC        = 0x7fffffff, // Highest processor architecture-specific type.
+  SHT_MIPS_REGINFO        = 0x70000006, // Register usage information
+  SHT_MIPS_OPTIONS        = 0x7000000d, // General options
+
+  SHT_HIPROC        = 0x7fffffff, // Highest processor arch-specific type.
   SHT_LOUSER        = 0x80000000, // Lowest type reserved for applications.
   SHT_HIUSER        = 0xffffffff  // Highest type reserved for applications.
 };
 
 // Section flags.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   // Section data should be writable during execution.
   SHF_WRITE = 0x1,
 
@@ -929,6 +1298,9 @@ enum {
   // This section holds Thread-Local Storage.
   SHF_TLS = 0x400U,
 
+  // This section is excluded from the final executable or shared library.
+  SHF_EXCLUDE = 0x80000000U,
+
   // Start of target-specific flags.
 
   /// XCORE_SHF_CP_SECTION - All sections with the "c" flag are grouped
@@ -953,11 +1325,40 @@ enum {
   // sets this flag besides being able to refer to data in a section that does
   // not set it; likewise, a small code model object can refer only to code in a
   // section that does not set this flag.
-  SHF_X86_64_LARGE = 0x10000000
+  SHF_X86_64_LARGE = 0x10000000,
+
+  // All sections with the GPREL flag are grouped into a global data area
+  // for faster accesses
+  SHF_HEX_GPREL = 0x10000000,
+
+  // Section contains text/data which may be replicated in other sections.
+  // Linker must retain only one copy.
+  SHF_MIPS_NODUPES = 0x01000000,
+
+  // Linker must generate implicit hidden weak names.
+  SHF_MIPS_NAMES   = 0x02000000,
+
+  // Section data local to process.
+  SHF_MIPS_LOCAL   = 0x04000000,
+
+  // Do not strip this section.
+  SHF_MIPS_NOSTRIP = 0x08000000,
+
+  // Section must be part of global data area.
+  SHF_MIPS_GPREL   = 0x10000000,
+
+  // This section should be merged.
+  SHF_MIPS_MERGE   = 0x20000000,
+
+  // Address size to be inferred from section entry size.
+  SHF_MIPS_ADDR    = 0x40000000,
+
+  // Section data is string data by default.
+  SHF_MIPS_STRING  = 0x80000000
 };
 
 // Section Group Flags
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   GRP_COMDAT = 0x1,
   GRP_MASKOS = 0x0ff00000,
   GRP_MASKPROC = 0xf0000000
@@ -988,7 +1389,7 @@ struct Elf64_Sym {
   Elf64_Word      st_name;  // Symbol name (index into string table)
   unsigned char   st_info;  // Symbol's type and binding attributes
   unsigned char   st_other; // Must be zero; reserved
-  Elf64_Half      st_shndx; // Which section (header table index) it's defined in
+  Elf64_Half      st_shndx; // Which section (header tbl index) it's defined in
   Elf64_Addr      st_value; // Value or address associated with the symbol
   Elf64_Xword     st_size;  // Size of the symbol
 
@@ -1043,6 +1444,11 @@ enum {
   STV_PROTECTED = 3   // Visible in other components but not preemptable
 };
 
+// Symbol number.
+enum {
+  STN_UNDEF = 0
+};
+
 // Relocation entry, without explicit addend.
 struct Elf32_Rel {
   Elf32_Addr r_offset; // Location (file byte offset, or program virtual addr)
@@ -1083,14 +1489,14 @@ struct Elf64_Rel {
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
-  Elf64_Xword getSymbol() const { return (r_info >> 32); }
-  unsigned char getType() const {
-    return (unsigned char) (r_info & 0xffffffffL);
+  Elf64_Word getSymbol() const { return (r_info >> 32); }
+  Elf64_Word getType() const {
+    return (Elf64_Word) (r_info & 0xffffffffL);
   }
-  void setSymbol(Elf32_Word s) { setSymbolAndType(s, getType()); }
-  void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
-  void setSymbolAndType(Elf64_Xword s, unsigned char t) {
-    r_info = (s << 32) + (t&0xffffffffL);
+  void setSymbol(Elf64_Word s) { setSymbolAndType(s, getType()); }
+  void setType(Elf64_Word t) { setSymbolAndType(getSymbol(), t); }
+  void setSymbolAndType(Elf64_Word s, Elf64_Word t) {
+    r_info = ((Elf64_Xword)s << 32) + (t&0xffffffffL);
   }
 };
 
@@ -1102,14 +1508,14 @@ struct Elf64_Rela {
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
-  Elf64_Xword getSymbol() const { return (r_info >> 32); }
-  unsigned char getType() const {
-    return (unsigned char) (r_info & 0xffffffffL);
+  Elf64_Word getSymbol() const { return (r_info >> 32); }
+  Elf64_Word getType() const {
+    return (Elf64_Word) (r_info & 0xffffffffL);
   }
-  void setSymbol(Elf64_Xword s) { setSymbolAndType(s, getType()); }
-  void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
-  void setSymbolAndType(Elf64_Xword s, unsigned char t) {
-    r_info = (s << 32) + (t&0xffffffffL);
+  void setSymbol(Elf64_Word s) { setSymbolAndType(s, getType()); }
+  void setType(Elf64_Word t) { setSymbolAndType(getSymbol(), t); }
+  void setSymbolAndType(Elf64_Word s, Elf64_Word t) {
+    r_info = ((Elf64_Xword)s << 32) + (t&0xffffffffL);
   }
 };
 
@@ -1131,7 +1537,7 @@ struct Elf64_Phdr {
   Elf64_Word   p_flags;  // Segment flags
   Elf64_Off    p_offset; // File offset where segment is located, in bytes
   Elf64_Addr   p_vaddr;  // Virtual address of beginning of segment
-  Elf64_Addr   p_paddr;  // Physical address of beginning of segment (OS-specific)
+  Elf64_Addr   p_paddr;  // Physical addr of beginning of segment (OS-specific)
   Elf64_Xword  p_filesz; // Num. of bytes in file image of segment (may be zero)
   Elf64_Xword  p_memsz;  // Num. of bytes in mem image of segment (may be zero)
   Elf64_Xword  p_align;  // Segment alignment constraint
@@ -1162,14 +1568,19 @@ enum {
   PT_GNU_RELRO  = 0x6474e552, // Read-only after relocation.
 
   // ARM program header types.
-  PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility information
+  PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility info
   // These all contain stack unwind tables.
   PT_ARM_EXIDX   = 0x70000001,
-  PT_ARM_UNWIND  = 0x70000001
+  PT_ARM_UNWIND  = 0x70000001,
+
+  // MIPS program header types.
+  PT_MIPS_REGINFO  = 0x70000000,  // Register usage information.
+  PT_MIPS_RTPROC   = 0x70000001,  // Runtime procedure table.
+  PT_MIPS_OPTIONS  = 0x70000002   // Options segment.
 };
 
 // Segment flag bits.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   PF_X        = 1,         // Execute
   PF_W        = 2,         // Write
   PF_R        = 4,         // Read
@@ -1247,10 +1658,85 @@ enum {
   DT_RELCOUNT     = 0x6FFFFFFA, // ELF32_Rel count.
 
   DT_FLAGS_1      = 0X6FFFFFFB, // Flags_1.
+  DT_VERSYM       = 0x6FFFFFF0, // The address of .gnu.version section.
   DT_VERDEF       = 0X6FFFFFFC, // The address of the version definition table.
   DT_VERDEFNUM    = 0X6FFFFFFD, // The number of entries in DT_VERDEF.
   DT_VERNEED      = 0X6FFFFFFE, // The address of the version Dependency table.
-  DT_VERNEEDNUM   = 0X6FFFFFFF  // The number of entries in DT_VERNEED.
+  DT_VERNEEDNUM   = 0X6FFFFFFF, // The number of entries in DT_VERNEED.
+
+  // Mips specific dynamic table entry tags.
+  DT_MIPS_RLD_VERSION   = 0x70000001, // 32 bit version number for runtime
+                                      // linker interface.
+  DT_MIPS_TIME_STAMP    = 0x70000002, // Time stamp.
+  DT_MIPS_ICHECKSUM     = 0x70000003, // Checksum of external strings
+                                      // and common sizes.
+  DT_MIPS_IVERSION      = 0x70000004, // Index of version string
+                                      // in string table.
+  DT_MIPS_FLAGS         = 0x70000005, // 32 bits of flags.
+  DT_MIPS_BASE_ADDRESS  = 0x70000006, // Base address of the segment.
+  DT_MIPS_MSYM          = 0x70000007, // Address of .msym section.
+  DT_MIPS_CONFLICT      = 0x70000008, // Address of .conflict section.
+  DT_MIPS_LIBLIST       = 0x70000009, // Address of .liblist section.
+  DT_MIPS_LOCAL_GOTNO   = 0x7000000a, // Number of local global offset
+                                      // table entries.
+  DT_MIPS_CONFLICTNO    = 0x7000000b, // Number of entries
+                                      // in the .conflict section.
+  DT_MIPS_LIBLISTNO     = 0x70000010, // Number of entries
+                                      // in the .liblist section.
+  DT_MIPS_SYMTABNO      = 0x70000011, // Number of entries
+                                      // in the .dynsym section.
+  DT_MIPS_UNREFEXTNO    = 0x70000012, // Index of first external dynamic symbol
+                                      // not referenced locally.
+  DT_MIPS_GOTSYM        = 0x70000013, // Index of first dynamic symbol
+                                      // in global offset table.
+  DT_MIPS_HIPAGENO      = 0x70000014, // Number of page table entries
+                                      // in global offset table.
+  DT_MIPS_RLD_MAP       = 0x70000016, // Address of run time loader map,
+                                      // used for debugging.
+  DT_MIPS_DELTA_CLASS       = 0x70000017, // Delta C++ class definition.
+  DT_MIPS_DELTA_CLASS_NO    = 0x70000018, // Number of entries
+                                          // in DT_MIPS_DELTA_CLASS.
+  DT_MIPS_DELTA_INSTANCE    = 0x70000019, // Delta C++ class instances.
+  DT_MIPS_DELTA_INSTANCE_NO = 0x7000001A, // Number of entries
+                                          // in DT_MIPS_DELTA_INSTANCE.
+  DT_MIPS_DELTA_RELOC       = 0x7000001B, // Delta relocations.
+  DT_MIPS_DELTA_RELOC_NO    = 0x7000001C, // Number of entries
+                                          // in DT_MIPS_DELTA_RELOC.
+  DT_MIPS_DELTA_SYM         = 0x7000001D, // Delta symbols that Delta
+                                          // relocations refer to.
+  DT_MIPS_DELTA_SYM_NO      = 0x7000001E, // Number of entries
+                                          // in DT_MIPS_DELTA_SYM.
+  DT_MIPS_DELTA_CLASSSYM    = 0x70000020, // Delta symbols that hold
+                                          // class declarations.
+  DT_MIPS_DELTA_CLASSSYM_NO = 0x70000021, // Number of entries
+                                          // in DT_MIPS_DELTA_CLASSSYM.
+  DT_MIPS_CXX_FLAGS         = 0x70000022, // Flags indicating information
+                                          // about C++ flavor.
+  DT_MIPS_PIXIE_INIT        = 0x70000023, // Pixie information.
+  DT_MIPS_SYMBOL_LIB        = 0x70000024, // Address of .MIPS.symlib
+  DT_MIPS_LOCALPAGE_GOTIDX  = 0x70000025, // The GOT index of the first PTE
+                                          // for a segment
+  DT_MIPS_LOCAL_GOTIDX      = 0x70000026, // The GOT index of the first PTE
+                                          // for a local symbol
+  DT_MIPS_HIDDEN_GOTIDX     = 0x70000027, // The GOT index of the first PTE
+                                          // for a hidden symbol
+  DT_MIPS_PROTECTED_GOTIDX  = 0x70000028, // The GOT index of the first PTE
+                                          // for a protected symbol
+  DT_MIPS_OPTIONS           = 0x70000029, // Address of `.MIPS.options'.
+  DT_MIPS_INTERFACE         = 0x7000002A, // Address of `.interface'.
+  DT_MIPS_DYNSTR_ALIGN      = 0x7000002B, // Unknown.
+  DT_MIPS_INTERFACE_SIZE    = 0x7000002C, // Size of the .interface section.
+  DT_MIPS_RLD_TEXT_RESOLVE_ADDR = 0x7000002D, // Size of rld_text_resolve
+                                              // function stored in the GOT.
+  DT_MIPS_PERF_SUFFIX       = 0x7000002E, // Default suffix of DSO to be added
+                                          // by rld on dlopen() calls.
+  DT_MIPS_COMPACT_SIZE      = 0x7000002F, // Size of compact relocation
+                                          // section (O32).
+  DT_MIPS_GP_VALUE          = 0x70000030, // GP value for auxiliary GOTs.
+  DT_MIPS_AUX_DYNAMIC       = 0x70000031, // Address of auxiliary .dynamic.
+  DT_MIPS_PLTGOT            = 0x70000032, // Address of the base of the PLTGOT.
+  DT_MIPS_RWPLT             = 0x70000034  // Points to the base
+                                          // of a writable PLT.
 };
 
 // DT_FLAGS values.
@@ -1281,6 +1767,31 @@ enum {
   DF_1_ENDFILTEE  = 0x00004000, // Filtee terminates filters search.
   DF_1_DISPRELDNE = 0x00008000, // Disp reloc applied at build time.
   DF_1_DISPRELPND = 0x00010000  // Disp reloc applied at run-time.
+};
+
+// DT_MIPS_FLAGS values.
+enum {
+  RHF_NONE                    = 0x00000000, // No flags.
+  RHF_QUICKSTART              = 0x00000001, // Uses shortcut pointers.
+  RHF_NOTPOT                  = 0x00000002, // Hash size is not a power of two.
+  RHS_NO_LIBRARY_REPLACEMENT  = 0x00000004, // Ignore LD_LIBRARY_PATH.
+  RHF_NO_MOVE                 = 0x00000008, // DSO address may not be relocated.
+  RHF_SGI_ONLY                = 0x00000010, // SGI specific features.
+  RHF_GUARANTEE_INIT          = 0x00000020, // Guarantee that .init will finish
+                                            // executing before any non-init
+                                            // code in DSO is called.
+  RHF_DELTA_C_PLUS_PLUS       = 0x00000040, // Contains Delta C++ code.
+  RHF_GUARANTEE_START_INIT    = 0x00000080, // Guarantee that .init will start
+                                            // executing before any non-init
+                                            // code in DSO is called.
+  RHF_PIXIE                   = 0x00000100, // Generated by pixie.
+  RHF_DEFAULT_DELAY_LOAD      = 0x00000200, // Delay-load DSO by default.
+  RHF_REQUICKSTART            = 0x00000400, // Object may be requickstarted
+  RHF_REQUICKSTARTED          = 0x00000800, // Object has been requickstarted
+  RHF_CORD                    = 0x00001000, // Generated by cord.
+  RHF_NO_UNRES_UNDEF          = 0x00002000, // Object contains no unresolved
+                                            // undef symbols.
+  RHF_RLD_ORDER_SAFE          = 0x00004000  // Symbol table is in a safe order.
 };
 
 // ElfXX_VerDef structure version (GNU versioning)

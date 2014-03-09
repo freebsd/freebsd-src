@@ -19,12 +19,14 @@ CFLAGS+= -I${.CURDIR}/../../contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
 DPADD=	${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBUMEM} ${LIBZPOOL} \
-	${LIBPTHREAD} ${LIBAVL} ${LIBZFS} ${LIBUUTIL}
-LDADD=	-lgeom -lm -lnvpair -lumem -lzpool -lpthread -lavl -lzfs -luutil
+	${LIBPTHREAD} ${LIBAVL} ${LIBZFS_CORE} ${LIBZFS} ${LIBUUTIL}
+LDADD=	-lgeom -lm -lnvpair -lumem -lzpool -lpthread -lavl -lzfs_core -lzfs \
+	-luutil
 
 CSTD=	c99
 
-CFLAGS+= -DDEBUG=1
-#DEBUG_FLAGS+=	-g
+# Since there are many asserts in this program, it makes no sense to compile
+# it without debugging.
+CFLAGS+= -g -DDEBUG=1
 
 .include <bsd.prog.mk>

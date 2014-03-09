@@ -8,13 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ToolChains.h"
-
-#include "clang/Driver/Arg.h"
-#include "clang/Driver/ArgList.h"
+#include "clang/Basic/CharInfo.h"
+#include "clang/Basic/Version.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
-#include "clang/Basic/Version.h"
+#include "llvm/Option/Arg.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
 
@@ -30,50 +31,22 @@
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
 using namespace clang;
+using namespace llvm::opt;
 
-Windows::Windows(const Driver &D, const llvm::Triple& Triple)
-  : ToolChain(D, Triple) {
+Windows::Windows(const Driver &D, const llvm::Triple& Triple,
+                 const ArgList &Args)
+  : ToolChain(D, Triple, Args) {
 }
 
-Tool &Windows::SelectTool(const Compilation &C, const JobAction &JA,
-                          const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *Windows::buildLinker() const {
+  return new tools::visualstudio::Link(*this);
+}
 
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::InputClass:
-    case Action::BindArchClass:
-    case Action::LipoJobClass:
-    case Action::DsymutilJobClass:
-    case Action::VerifyJobClass:
-      llvm_unreachable("Invalid tool kind.");
-    case Action::PreprocessJobClass:
-    case Action::PrecompileJobClass:
-    case Action::AnalyzeJobClass:
-    case Action::MigrateJobClass:
-    case Action::CompileJobClass:
-      T = new tools::Clang(*this); break;
-    case Action::AssembleJobClass:
-      if (!UseIntegratedAs && getTriple().getEnvironment() == llvm::Triple::MachO)
-        T = new tools::darwin::Assemble(*this);
-      else
-        T = new tools::ClangAs(*this);
-      break;
-    case Action::LinkJobClass:
-      T = new tools::visualstudio::Link(*this); break;
-    }
-  }
-
-  return *T;
+Tool *Windows::buildAssembler() const {
+  if (getTriple().getEnvironment() == llvm::Triple::MachO)
+    return new tools::darwin::Assemble(*this);
+  getDriver().Diag(clang::diag::err_no_external_assembler);
+  return NULL;
 }
 
 bool Windows::IsIntegratedAssemblerDefault() const {
@@ -86,6 +59,10 @@ bool Windows::IsUnwindTablesDefault() const {
 
 bool Windows::isPICDefault() const {
   return getArch() == llvm::Triple::x86_64;
+}
+
+bool Windows::isPIEDefault() const {
+  return false;
 }
 
 bool Windows::isPICDefaultForced() const {
@@ -149,7 +126,8 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
     strncpy(partialKey, subKey, partialKeyLength);
     partialKey[partialKeyLength] = '\0';
     HKEY hTopKey = NULL;
-    lResult = RegOpenKeyEx(hRootKey, partialKey, 0, KEY_READ, &hTopKey);
+    lResult = RegOpenKeyEx(hRootKey, partialKey, 0, KEY_READ | KEY_WOW64_32KEY,
+                           &hTopKey);
     if (lResult == ERROR_SUCCESS) {
       char keyName[256];
       int bestIndex = -1;
@@ -158,43 +136,44 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
       for (index = 0; RegEnumKeyEx(hTopKey, index, keyName, &size, NULL,
           NULL, NULL, NULL) == ERROR_SUCCESS; index++) {
         const char *sp = keyName;
-        while (*sp && !isdigit(*sp))
+        while (*sp && !isDigit(*sp))
           sp++;
         if (!*sp)
           continue;
         const char *ep = sp + 1;
-        while (*ep && (isdigit(*ep) || (*ep == '.')))
+        while (*ep && (isDigit(*ep) || (*ep == '.')))
           ep++;
         char numBuf[32];
         strncpy(numBuf, sp, sizeof(numBuf) - 1);
         numBuf[sizeof(numBuf) - 1] = '\0';
-        double value = strtod(numBuf, NULL);
-        if (value > bestValue) {
-          bestIndex = (int)index;
-          bestValue = value;
+        double dvalue = strtod(numBuf, NULL);
+        if (dvalue > bestValue) {
+          // Test that InstallDir is indeed there before keeping this index.
+          // Open the chosen key path remainder.
           strcpy(bestName, keyName);
+          // Append rest of key.
+          strncat(bestName, nextKey, sizeof(bestName) - 1);
+          bestName[sizeof(bestName) - 1] = '\0';
+          lResult = RegOpenKeyEx(hTopKey, bestName, 0,
+                                 KEY_READ | KEY_WOW64_32KEY, &hKey);
+          if (lResult == ERROR_SUCCESS) {
+            lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
+              (LPBYTE)value, &valueSize);
+            if (lResult == ERROR_SUCCESS) {
+              bestIndex = (int)index;
+              bestValue = dvalue;
+              returnValue = true;
+            }
+            RegCloseKey(hKey);
+          }
         }
         size = sizeof(keyName) - 1;
-      }
-      // If we found the highest versioned key, open the key and get the value.
-      if (bestIndex != -1) {
-        // Append rest of key.
-        strncat(bestName, nextKey, sizeof(bestName) - 1);
-        bestName[sizeof(bestName) - 1] = '\0';
-        // Open the chosen key path remainder.
-        lResult = RegOpenKeyEx(hTopKey, bestName, 0, KEY_READ, &hKey);
-        if (lResult == ERROR_SUCCESS) {
-          lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
-            (LPBYTE)value, &valueSize);
-          if (lResult == ERROR_SUCCESS)
-            returnValue = true;
-          RegCloseKey(hKey);
-        }
       }
       RegCloseKey(hTopKey);
     }
   } else {
-    lResult = RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ, &hKey);
+    lResult = RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ | KEY_WOW64_32KEY,
+                           &hKey);
     if (lResult == ERROR_SUCCESS) {
       lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
         (LPBYTE)value, &valueSize);
@@ -306,8 +285,8 @@ void Windows::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     return;
 
   if (!DriverArgs.hasArg(options::OPT_nobuiltininc)) {
-    llvm::sys::Path P(getDriver().ResourceDir);
-    P.appendComponent("include");
+    SmallString<128> P(getDriver().ResourceDir);
+    llvm::sys::path::append(P, "include");
     addSystemInclude(DriverArgs, CC1Args, P.str());
   }
 

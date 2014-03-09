@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -335,6 +335,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF  /* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
 
+#pragma pack(1)
 
 /*
  * Information structure for ACPI predefined names.
@@ -347,7 +348,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 typedef struct acpi_name_info
 {
     char                        Name[ACPI_NAME_SIZE];
-    UINT8                       ParamCount;
+    UINT16                      ArgumentList;
     UINT8                       ExpectedBtypes;
 
 } ACPI_NAME_INFO;
@@ -372,7 +373,7 @@ typedef struct acpi_package_info
     UINT8                       Count1;
     UINT8                       ObjectType2;
     UINT8                       Count2;
-    UINT8                       Reserved;
+    UINT16                      Reserved;
 
 } ACPI_PACKAGE_INFO;
 
@@ -383,6 +384,7 @@ typedef struct acpi_package_info2
     UINT8                       Type;
     UINT8                       Count;
     UINT8                       ObjectType[4];
+    UINT8                       Reserved;
 
 } ACPI_PACKAGE_INFO2;
 
@@ -394,7 +396,7 @@ typedef struct acpi_package_info3
     UINT8                       Count;
     UINT8                       ObjectType[2];
     UINT8                       TailObjectType;
-    UINT8                       Reserved;
+    UINT16                      Reserved;
 
 } ACPI_PACKAGE_INFO3;
 
@@ -407,24 +409,25 @@ typedef union acpi_predefined_info
 
 } ACPI_PREDEFINED_INFO;
 
+/* Reset to default packing */
 
-/* Data block used during object validation */
+#pragma pack()
 
-typedef struct acpi_predefined_data
+
+/* Return object auto-repair info */
+
+typedef ACPI_STATUS (*ACPI_OBJECT_CONVERTER) (
+    union acpi_operand_object   *OriginalObject,
+    union acpi_operand_object   **ConvertedObject);
+
+typedef struct acpi_simple_repair_info
 {
-    char                        *Pathname;
-    const ACPI_PREDEFINED_INFO  *Predefined;
-    union acpi_operand_object   *ParentPackage;
-    ACPI_NAMESPACE_NODE         *Node;
-    UINT32                      Flags;
-    UINT8                       NodeFlags;
+    char                        Name[ACPI_NAME_SIZE];
+    UINT32                      UnexpectedBtypes;
+    UINT32                      PackageIndex;
+    ACPI_OBJECT_CONVERTER       ObjectConverter;
 
-} ACPI_PREDEFINED_DATA;
-
-/* Defines for Flags field above */
-
-#define ACPI_OBJECT_REPAIRED    1
-#define ACPI_OBJECT_WRAPPED     2
+} ACPI_SIMPLE_REPAIR_INFO;
 
 
 /*
@@ -449,6 +452,16 @@ typedef struct acpi_predefined_data
  * Event typedefs and structs
  *
  ****************************************************************************/
+
+/* Dispatch info for each host-installed SCI handler */
+
+typedef struct acpi_sci_handler_info
+{
+    struct acpi_sci_handler_info    *Next;
+    ACPI_SCI_HANDLER                Address;        /* Address of handler */
+    void                            *Context;       /* Context to be passed to handler */
+
+} ACPI_SCI_HANDLER_INFO;
 
 /* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
@@ -1097,19 +1110,6 @@ typedef struct acpi_bit_register_info
 
 /* Structs and definitions for _OSI support and I/O port validation */
 
-#define ACPI_OSI_WIN_2000               0x01
-#define ACPI_OSI_WIN_XP                 0x02
-#define ACPI_OSI_WIN_XP_SP1             0x03
-#define ACPI_OSI_WINSRV_2003            0x04
-#define ACPI_OSI_WIN_XP_SP2             0x05
-#define ACPI_OSI_WINSRV_2003_SP1        0x06
-#define ACPI_OSI_WIN_VISTA              0x07
-#define ACPI_OSI_WINSRV_2008            0x08
-#define ACPI_OSI_WIN_VISTA_SP1          0x09
-#define ACPI_OSI_WIN_VISTA_SP2          0x0A
-#define ACPI_OSI_WIN_7                  0x0B
-#define ACPI_OSI_WIN_8                  0x0C
-
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
 typedef struct acpi_interface_info
@@ -1123,6 +1123,9 @@ typedef struct acpi_interface_info
 
 #define ACPI_OSI_INVALID                0x01
 #define ACPI_OSI_DYNAMIC                0x02
+#define ACPI_OSI_FEATURE                0x04
+#define ACPI_OSI_DEFAULT_INVALID        0x08
+#define ACPI_OSI_OPTIONAL_FEATURE       (ACPI_OSI_FEATURE | ACPI_OSI_DEFAULT_INVALID | ACPI_OSI_INVALID)
 
 typedef struct acpi_port_info
 {
@@ -1217,12 +1220,15 @@ typedef struct acpi_external_list
     UINT16                      Length;
     UINT8                       Type;
     UINT8                       Flags;
+    BOOLEAN                     Resolved;
+    BOOLEAN                     Emitted;
 
 } ACPI_EXTERNAL_LIST;
 
 /* Values for Flags field above */
 
-#define ACPI_IPATH_ALLOCATED    0x01
+#define ACPI_IPATH_ALLOCATED        0x01
+#define ACPI_FROM_REFERENCE_FILE    0x02
 
 
 typedef struct acpi_external_file

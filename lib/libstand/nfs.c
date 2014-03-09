@@ -1465,8 +1465,9 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 	d->d_name[d->d_namlen] = '\0';
 
 	pos = roundup(d->d_namlen, sizeof(uint32_t)) / sizeof(uint32_t);
-	fp->off = cookie = ((uint64_t)ntohl(rent->nameplus[pos++]) << 32) |
-	    ntohl(rent->nameplus[pos++]);
+	fp->off = cookie = ((uint64_t)ntohl(rent->nameplus[pos]) << 32) |
+	    ntohl(rent->nameplus[pos + 1]);
+	pos += 2;
 	buf = (u_char *)&rent->nameplus[pos];
 	return (0);
 }

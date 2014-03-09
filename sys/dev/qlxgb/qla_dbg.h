@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without

@@ -218,6 +218,7 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 				}
 				mbufcp = NFSMTOD(mp, caddr_t);
 				len = mbuf_len(mp);
+				KASSERT(len > 0, ("len %d", len));
 			}
 			xfer = (left > len) ? len : left;
 #ifdef notdef
@@ -270,7 +271,7 @@ out:
  * cases.
  */
 APPLESTATIC void *
-nfsm_dissct(struct nfsrv_descript *nd, int siz)
+nfsm_dissct(struct nfsrv_descript *nd, int siz, int how)
 {
 	mbuf_t mp2;
 	int siz2, xfer;
@@ -295,7 +296,9 @@ nfsm_dissct(struct nfsrv_descript *nd, int siz)
 	} else if (siz > ncl_mbuf_mhlen) {
 		panic("nfs S too big");
 	} else {
-		NFSMGET(mp2);
+		MGET(mp2, MT_DATA, how);
+		if (mp2 == NULL)
+			return (NULL);
 		mbuf_setnext(mp2, mbuf_next(nd->nd_md));
 		mbuf_setnext(nd->nd_md, mp2);
 		mbuf_setlen(nd->nd_md, mbuf_len(nd->nd_md) - left);
@@ -758,21 +761,21 @@ nfsrv_getattrbits(struct nfsrv_descript *nd, nfsattrbit_t *attrbitp, int *cntp,
 		error = NFSERR_BADXDR;
 		goto nfsmout;
 	}
-	if (cnt > NFSATTRBIT_MAXWORDS) {
+	if (cnt > NFSATTRBIT_MAXWORDS)
 		outcnt = NFSATTRBIT_MAXWORDS;
-		if (retnotsupp)
-			*retnotsupp = NFSERR_ATTRNOTSUPP;
-	} else {
+	else
 		outcnt = cnt;
-	}
 	NFSZERO_ATTRBIT(attrbitp);
 	if (outcnt > 0) {
 		NFSM_DISSECT(tl, u_int32_t *, outcnt * NFSX_UNSIGNED);
 		for (i = 0; i < outcnt; i++)
 			attrbitp->bits[i] = fxdr_unsigned(u_int32_t, *tl++);
 	}
-	if (cnt > outcnt)
-		error = nfsm_advance(nd, (cnt - outcnt) * NFSX_UNSIGNED, -1);
+	for (i = 0; i < (cnt - outcnt); i++) {
+		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+		if (retnotsupp != NULL && *tl != 0)
+			*retnotsupp = NFSERR_ATTRNOTSUPP;
+	}
 	if (cntp)
 		*cntp = NFSX_UNSIGNED + (cnt * NFSX_UNSIGNED);
 nfsmout:
@@ -1998,7 +2001,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct statfs fs;
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
-	struct timeval curtime;
 	NFSACL_T *aclp, *naclp = NULL;
 #ifdef QUOTA
 	struct dqblk dqb;
@@ -2009,7 +2011,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 * First, set the bits that can be filled and get fsinfo.
 	 */
 	NFSSET_ATTRBIT(retbitp, attrbitp);
-	/* If p and cred are NULL, it is a client side call */
+	/*
+	 * If both p and cred are NULL, it is a client side setattr call.
+	 * If both p and cred are not NULL, it is a server side reply call.
+	 * If p is not NULL and cred is NULL, it is a client side callback
+	 * reply call.
+	 */
 	if (p == NULL && cred == NULL) {
 		NFSCLRNOTSETABLE_ATTRBIT(retbitp);
 		aclp = saclp;
@@ -2412,8 +2419,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEACCESSSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_atime, tl);
@@ -2442,8 +2448,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEMODIFYSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_mtime, tl);
@@ -3693,8 +3698,8 @@ nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
  * Generate the xdr for an NFSv4.1 Sequence Operation.
  */
 APPLESTATIC void
-nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
-    int dont_replycache)
+nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
+    struct nfsclsession *sep, int dont_replycache)
 {
 	uint32_t *tl, slotseq = 0;
 	int i, maxslot, slotpos;
@@ -3717,9 +3722,21 @@ nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
 			}
 			bitval <<= 1;
 		}
-		if (slotpos == -1)
+		if (slotpos == -1) {
+			/*
+			 * If a forced dismount is in progress, just return.
+			 * This RPC attempt will fail when it calls
+			 * newnfs_request().
+			 */
+			if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
+			    != 0) {
+				mtx_unlock(&sep->nfsess_mtx);
+				return;
+			}
+			/* Wake up once/sec, to check for a forced dismount. */
 			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
-			    PZERO, "nfsclseq", 0);
+			    PZERO, "nfsclseq", hz);
+		}
 	} while (slotpos == -1);
 	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
 	bitval = 1;

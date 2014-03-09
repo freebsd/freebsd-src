@@ -148,7 +148,7 @@ ether_ntohost(char *hostname, const struct ether_addr *e)
 	char *yp_domain;
 #endif
 
-	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+	if ((fp = fopen(_PATH_ETHERS, "re")) == NULL)
 		return (1);
 	while (fgets(buf,BUFSIZ,fp)) {
 		if (buf[0] == '#')
@@ -197,7 +197,7 @@ ether_hostton(const char *hostname, struct ether_addr *e)
 	char *yp_domain;
 #endif
 
-	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+	if ((fp = fopen(_PATH_ETHERS, "re")) == NULL)
 		return (1);
 	while (fgets(buf,BUFSIZ,fp)) {
 		if (buf[0] == '#')

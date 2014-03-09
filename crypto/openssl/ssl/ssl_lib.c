@@ -597,8 +597,10 @@ void SSL_free(SSL *s)
 		OPENSSL_free(s->next_proto_negotiated);
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if (s->srtp_profiles)
             sk_SRTP_PROTECTION_PROFILE_free(s->srtp_profiles);
+#endif
 
 	OPENSSL_free(s);
 	}
@@ -1795,7 +1797,9 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_CTX, ret, &ret->ex_data);
 
 	ret->extra_certs=NULL;
-	ret->comp_methods=SSL_COMP_get_compression_methods();
+	/* No compression for DTLS */
+	if (meth->version != DTLS1_VERSION)
+		ret->comp_methods=SSL_COMP_get_compression_methods();
 
 	ret->max_send_fragment = SSL3_RT_MAX_PLAIN_LENGTH;
 
@@ -1952,8 +1956,10 @@ void SSL_CTX_free(SSL_CTX *a)
 	a->comp_methods = NULL;
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if (a->srtp_profiles)
                 sk_SRTP_PROTECTION_PROFILE_free(a->srtp_profiles);
+#endif
 
 #ifndef OPENSSL_NO_PSK
 	if (a->psk_identity_hint)
@@ -2287,7 +2293,7 @@ int ssl_check_srvr_ecc_cert_and_alg(X509 *x, SSL *s)
 #endif
 
 /* THIS NEEDS CLEANING UP */
-X509 *ssl_get_server_send_cert(SSL *s)
+CERT_PKEY *ssl_get_server_send_pkey(const SSL *s)
 	{
 	unsigned long alg_k,alg_a;
 	CERT *c;
@@ -2342,12 +2348,20 @@ X509 *ssl_get_server_send_cert(SSL *s)
 		i=SSL_PKEY_GOST01;
 	else /* if (alg_a & SSL_aNULL) */
 		{
-		SSLerr(SSL_F_SSL_GET_SERVER_SEND_CERT,ERR_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL_GET_SERVER_SEND_PKEY,ERR_R_INTERNAL_ERROR);
 		return(NULL);
 		}
-	if (c->pkeys[i].x509 == NULL) return(NULL);
 
-	return(c->pkeys[i].x509);
+	return c->pkeys + i;
+	}
+
+X509 *ssl_get_server_send_cert(const SSL *s)
+	{
+	CERT_PKEY *cpk;
+	cpk = ssl_get_server_send_pkey(s);
+	if (!cpk)
+		return NULL;
+	return cpk->x509;
 	}
 
 EVP_PKEY *ssl_get_sign_pkey(SSL *s,const SSL_CIPHER *cipher, const EVP_MD **pmd)
@@ -2608,7 +2622,7 @@ const char *SSL_get_version(const SSL *s)
 		return("TLSv1.2");
 	else if (s->version == TLS1_1_VERSION)
 		return("TLSv1.1");
-	if (s->version == TLS1_VERSION)
+	else if (s->version == TLS1_VERSION)
 		return("TLSv1");
 	else if (s->version == SSL3_VERSION)
 		return("SSLv3");

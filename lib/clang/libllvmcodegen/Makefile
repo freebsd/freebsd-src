@@ -1,22 +1,25 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmcodegen
 
 SRCDIR=	lib/CodeGen
 SRCS=	AggressiveAntiDepBreaker.cpp \
 	AllocationOrder.cpp \
 	Analysis.cpp \
+	BasicTargetTransformInfo.cpp \
 	BranchFolding.cpp \
 	CalcSpillWeights.cpp \
 	CallingConvLower.cpp \
 	CodeGen.cpp \
-	CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DFAPacketizer.cpp \
 	DeadMachineInstructionElim.cpp \
 	DwarfEHPrepare.cpp \
 	EarlyIfConversion.cpp \
 	EdgeBundles.cpp \
+	ErlangGC.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
@@ -38,6 +41,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveRangeCalc.cpp \
 	LiveRangeEdit.cpp \
 	LiveRegMatrix.cpp \
+	LiveRegUnits.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
@@ -57,7 +61,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineInstrBundle.cpp \
 	MachineLICM.cpp \
 	MachineLoopInfo.cpp \
-	MachineLoopRanges.cpp \
 	MachineModuleInfo.cpp \
 	MachineModuleInfoImpls.cpp \
 	MachinePassRegistry.cpp \
@@ -92,21 +95,22 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ScheduleDAGPrinter.cpp \
 	ScoreboardHazardRecognizer.cpp \
 	ShadowStackGC.cpp \
-	ShrinkWrapping.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	SpillPlacement.cpp \
 	Spiller.cpp \
 	SplitKit.cpp \
 	StackColoring.cpp \
+	StackMaps.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
-	StrongPHIElimination.cpp \
 	TailDuplication.cpp \
 	TargetFrameLoweringImpl.cpp \
-	TargetInstrInfoImpl.cpp \
+	TargetInstrInfo.cpp \
+	TargetLoweringBase.cpp \
 	TargetLoweringObjectFileImpl.cpp \
 	TargetOptionsImpl.cpp \
+	TargetRegisterInfo.cpp \
 	TargetSchedule.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \

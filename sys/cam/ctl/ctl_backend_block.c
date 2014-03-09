@@ -42,8 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_kdtrace.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -512,6 +510,7 @@ ctl_be_block_biodone(struct bio *bio)
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_lun *be_lun;
 	union ctl_io *io;
+	int error;
 
 	beio = bio->bio_caller1;
 	be_lun = beio->lun;
@@ -519,8 +518,9 @@ ctl_be_block_biodone(struct bio *bio)
 
 	DPRINTF("entered\n");
 
+	error = bio->bio_error;
 	mtx_lock(&be_lun->lock);
-	if (bio->bio_error != 0)
+	if (error != 0)
 		beio->num_errors++;
 
 	beio->num_bios_done++;
@@ -552,7 +552,9 @@ ctl_be_block_biodone(struct bio *bio)
 	 * entire I/O with a medium error.
 	 */
 	if (beio->num_errors > 0) {
-		if (beio->bio_cmd == BIO_FLUSH) {
+		if (error == EOPNOTSUPP) {
+			ctl_set_invalid_opcode(&io->scsiio);
+		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
 						 /*sks_valid*/ 1,
@@ -630,10 +632,10 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	ctl_complete_beio(beio);
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_start, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_start, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_done, file_done,"uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_done, file_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, read, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, write, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, read, file_done,"uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, write, file_done, "uint64_t");
 
 static void
 ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
@@ -950,6 +952,7 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
+		beio->bio_cmd = BIO_FLUSH;
 		beio->ds_trans_type = DEVSTAT_NO_DATA;
 		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
 		beio->io_len = 0;
@@ -961,10 +964,10 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	}
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, start, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, start, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, alloc_done, alloc_done, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, alloc_done, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, read, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, write, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, read, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, kernel, write, alloc_done, "uint64_t");
 
 static void
 ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
@@ -1484,6 +1487,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_FILE:
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1502,6 +1506,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			}
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1588,7 +1593,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	} else {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s is not a disk or file", be_lun->dev_path);
+			 "%s is not a disk or plain file", be_lun->dev_path);
 	}
 	VOP_UNLOCK(be_lun->vn, 0);
 
@@ -1601,18 +1606,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	be_lun->size_blocks = be_lun->size_bytes >> be_lun->blocksize_shift;
 
 	return (0);
-}
-
-static int
-ctl_be_block_mem_ctor(void *mem, int size, void *arg, int flags)
-{
-	return (0);
-}
-
-static void
-ctl_be_block_mem_dtor(void *mem, int size, void *arg)
-{
-	bzero(mem, size);
 }
 
 static int
@@ -1638,12 +1631,12 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	STAILQ_INIT(&be_lun->input_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
 	STAILQ_INIT(&be_lun->datamove_queue);
+	STAILQ_INIT(&be_lun->ctl_be_lun.options);
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, MAXPHYS, 
-	    ctl_be_block_mem_ctor, ctl_be_block_mem_dtor, NULL, NULL,
-	    /*align*/ 0, /*flags*/0);
+	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
 
 	if (be_lun->lun_zone == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
@@ -1658,7 +1651,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
 		for (i = 0; i < req->num_be_args; i++) {
-			if (strcmp(req->kern_be_args[i].name, "file") == 0) {
+			if (strcmp(req->kern_be_args[i].kname, "file") == 0) {
 				file_arg = &req->kern_be_args[i];
 				break;
 			}
@@ -1673,7 +1666,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->dev_path = malloc(file_arg->vallen, M_CTLBLK,
 					  M_WAITOK | M_ZERO);
 
-		strlcpy(be_lun->dev_path, (char *)file_arg->value,
+		strlcpy(be_lun->dev_path, (char *)file_arg->kvalue,
 			file_arg->vallen);
 
 		retval = ctl_be_block_open(softc, be_lun, req);
@@ -1712,7 +1705,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * the loop above,
 	 */
 	for (i = 0; i < req->num_be_args; i++) {
-		if (strcmp(req->kern_be_args[i].name, "num_threads") == 0) {
+		if (strcmp(req->kern_be_args[i].kname, "num_threads") == 0) {
 			struct ctl_be_arg *thread_arg;
 			char num_thread_str[16];
 			int tmp_num_threads;
@@ -1720,7 +1713,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 			thread_arg = &req->kern_be_args[i];
 
-			strlcpy(num_thread_str, (char *)thread_arg->value,
+			strlcpy(num_thread_str, (char *)thread_arg->kvalue,
 				min(thread_arg->vallen,
 				sizeof(num_thread_str)));
 
@@ -1739,6 +1732,16 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			}
 
 			num_threads = tmp_num_threads;
+		} else if (strcmp(req->kern_be_args[i].kname, "file") != 0 &&
+		    strcmp(req->kern_be_args[i].kname, "dev") != 0) {
+			struct ctl_be_lun_option *opt;
+
+			opt = malloc(sizeof(*opt), M_CTLBLK, M_WAITOK);
+			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_CTLBLK, M_WAITOK);
+			strcpy(opt->name, req->kern_be_args[i].kname);
+			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_CTLBLK, M_WAITOK);
+			strcpy(opt->value, req->kern_be_args[i].kvalue);
+			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
 		}
 	}
 

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inopts.3x,v 1.13 2005/05/15 16:18:07 tom Exp $
+.\" $Id: curs_inopts.3x,v 1.18 2013/07/20 19:42:02 tom Exp $
 .TH curs_inopts 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .na
 .hy 0
 .SH NAME
@@ -47,7 +51,7 @@
 \fBqiflush\fR,
 \fBtimeout\fR,
 \fBwtimeout\fR,
-\fBtypeahead\fR - \fBcurses\fR input options
+\fBtypeahead\fR \- \fBcurses\fR input options
 .ad
 .hy
 .SH SYNOPSIS
@@ -188,16 +192,18 @@ Hence, these routines provide the same functionality as \fBnodelay\fR,
 plus the additional capability of being able to block for only
 \fIdelay\fR milliseconds (where \fIdelay\fR is positive).
 .PP
-The \fBcurses\fR library does ``line-breakout optimization'' by looking for
-typeahead periodically while updating the screen.  If input is found,
-and it is coming from a tty, the current update is postponed until
-\fBrefresh\fR or \fBdoupdate\fR is called again.  This allows faster
-response to commands typed in advance.  Normally, the input FILE
+The \fBcurses\fR library does \*(``line-breakout optimization\*(''
+by looking for typeahead periodically while updating the screen.
+If input is found, and it is coming from a tty,
+the current update is postponed until
+\fBrefresh\fR or \fBdoupdate\fR is called again.
+This allows faster response to commands typed in advance.
+Normally, the input FILE
 pointer passed to \fBnewterm\fR, or \fBstdin\fR in the case that
 \fBinitscr\fR was used, will be used to do this typeahead checking.
 The \fBtypeahead\fR routine specifies that the file descriptor
 \fIfd\fR is to be used to check for typeahead instead.  If \fIfd\fR is
--1, then no typeahead checking is done.
+\-1, then no typeahead checking is done.
 .SH RETURN VALUE
 All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
 specifies only "an integer value other than \fBERR\fR") upon successful
@@ -223,6 +229,42 @@ initializes the terminal state.  BSD curses differed from this slightly; it
 left the echo bit on at initialization, but the BSD \fBraw\fR call turned it
 off as a side-effect.  For best portability, set echo or noecho explicitly
 just after initialization, even if your program remains in cooked mode.
+.PP
+When \fBkeypad\fP is first enabled,
+ncurses loads the key-definitions for the current terminal description.
+If the terminal description includes extended string capabilities,
+e.g., from using the \fB\-x\fP option of @TIC@,
+then ncurses also defines keys for the capabilities whose names
+begin with "k".
+The corresponding keycodes are generated and (depending on previous
+loads of terminal descriptions) may differ from one execution of a
+program to the next.
+The generated keycodes are recognized by the \fBkeyname\fP function
+(which will then return a name beginning with "k" denoting the
+terminfo capability name rather than "K", used for curses key-names).
+On the other hand, an application can use \fBdefine_key\fP to establish
+a specific keycode for a given string.
+This makes it possible for an application to check for an extended
+capability's presence with \fItigetstr\fP,
+and reassign the keycode to match its own needs.
+.PP
+Low-level applications can use \fBtigetstr\fP to obtain the definition
+of any particular string capability.
+Higher-level applications which use the curses \fBwgetch\fP
+and similar functions to return keycodes rely upon the order in which
+the strings are loaded.
+If more than one key definition has the same string value,
+then \fBwgetch\fP can return only one keycode.
+Most curses implementations (including ncurses)
+load key definitions in the order
+defined by the array of string capability names.
+The last key to be loaded determines the keycode which will be returned.
+In ncurses, you may also have extended capabilities interpreted as
+key definitions.
+These are loaded after the predefined keys,
+and if a capability's value is the same as a previously-loaded
+key definition,
+the later definition is the one used.
 .SH NOTES
 Note that \fBecho\fR, \fBnoecho\fR, \fBhalfdelay\fR, \fBintrflush\fR,
 \fBmeta\fR, \fBnodelay\fR, \fBnotimeout\fR, \fBnoqiflush\fR,
@@ -233,10 +275,9 @@ they attempt to restore to normal (`cooked') mode from raw and cbreak modes
 respectively.  Mixing raw/noraw and cbreak/nocbreak calls leads to tty driver
 control states that are hard to predict or understand; it is not recommended.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_getch\fR(3X), \fBcurs_initscr\fR(3X), \fBtermio\fR(7)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_getch\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_util\fR(3X),
+\fBdefine_key\fR(3X),
+\fBtermio\fR(7)

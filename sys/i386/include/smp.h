@@ -22,7 +22,7 @@
 #include <sys/bus.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/pcb.h>
 
 /* global data in mpboot.s */
@@ -84,11 +84,6 @@ void	smp_masked_invltlb(cpuset_t mask);
 
 #ifdef XEN
 void ipi_to_irq_init(void);
-
-#define RESCHEDULE_VECTOR	0
-#define CALL_FUNCTION_VECTOR	1
-#define NR_IPIS			2
-
 #endif
 #endif /* !LOCORE */
 #endif /* SMP */

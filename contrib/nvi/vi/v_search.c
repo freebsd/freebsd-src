@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_search.c	10.18 (Berkeley) 9/19/96";
+static const char sccsid[] = "$Id: v_search.c,v 10.31 2012/02/08 07:26:59 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -29,7 +29,7 @@ static const char sccsid[] = "@(#)v_search.c	10.18 (Berkeley) 9/19/96";
 #include "vi.h"
 
 static int v_exaddr __P((SCR *, VICMD *, dir_t));
-static int v_search __P((SCR *, VICMD *, char *, size_t, u_int, dir_t));
+static int v_search __P((SCR *, VICMD *, CHAR_T *, size_t, u_int, dir_t));
 
 /*
  * v_srch -- [count]?RE[? offset]
@@ -38,9 +38,7 @@ static int v_search __P((SCR *, VICMD *, char *, size_t, u_int, dir_t));
  * PUBLIC: int v_searchb __P((SCR *, VICMD *));
  */
 int
-v_searchb(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_searchb(SCR *sp, VICMD *vp)
 {
 	return (v_exaddr(sp, vp, BACKWARD));
 }
@@ -52,9 +50,7 @@ v_searchb(sp, vp)
  * PUBLIC: int v_searchf __P((SCR *, VICMD *));
  */
 int
-v_searchf(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_searchf(SCR *sp, VICMD *vp)
 {
 	return (v_exaddr(sp, vp, FORWARD));
 }
@@ -64,19 +60,19 @@ v_searchf(sp, vp)
  *	Do a vi search (which is really an ex address).
  */
 static int
-v_exaddr(sp, vp, dir)
-	SCR *sp;
-	VICMD *vp;
-	dir_t dir;
+v_exaddr(SCR *sp, VICMD *vp, dir_t dir)
 {
-	static EXCMDLIST fake = { "search" };
+	static EXCMDLIST fake = { L("search") };
 	EXCMD *cmdp;
 	GS *gp;
 	TEXT *tp;
 	recno_t s_lno;
 	size_t len, s_cno, tlen;
 	int err, nb, type;
-	char *cmd, *t, buf[20];
+	char buf[20];
+	CHAR_T *cmd, *t;
+	CHAR_T *w;
+	size_t wlen;
 
 	/*
 	 * !!!
@@ -93,7 +89,7 @@ v_exaddr(sp, vp, dir)
 	    (O_ISSET(sp, O_SEARCHINCR) ? TXT_SEARCHINCR : 0)))
 		return (1);
 
-	tp = sp->tiq.cqh_first;
+	tp = TAILQ_FIRST(sp->tiq);
 
 	/* If the user backspaced over the prompt, do nothing. */
 	if (tp->term == TERM_BS)
@@ -245,7 +241,7 @@ v_exaddr(sp, vp, dir)
 
 		/* Default to z+. */
 		if (!type &&
-		    v_event_push(sp, NULL, "+", 1, CH_NOMAP | CH_QUOTED))
+		    v_event_push(sp, NULL, L("+"), 1, CH_NOMAP | CH_QUOTED))
 			return (1);
 
 		/* Push the user's command. */
@@ -255,7 +251,8 @@ v_exaddr(sp, vp, dir)
 		/* Push line number so get correct z display. */
 		tlen = snprintf(buf,
 		    sizeof(buf), "%lu", (u_long)vp->m_stop.lno);
-		if (v_event_push(sp, NULL, buf, tlen, CH_NOMAP | CH_QUOTED))
+		CHAR2INT(sp, buf, tlen, w, wlen);
+		if (v_event_push(sp, NULL, w, wlen, CH_NOMAP | CH_QUOTED))
 			return (1);
 		 
 		/* Don't refresh until after 'z' happens. */
@@ -284,9 +281,7 @@ err2:	vp->m_final.lno = s_lno;
  * PUBLIC: int v_searchN __P((SCR *, VICMD *));
  */
 int
-v_searchN(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_searchN(SCR *sp, VICMD *vp)
 {
 	dir_t dir;
 
@@ -311,12 +306,33 @@ v_searchN(sp, vp)
  * PUBLIC: int v_searchn __P((SCR *, VICMD *));
  */
 int
-v_searchn(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_searchn(SCR *sp, VICMD *vp)
 {
 	return (v_search(sp, vp, NULL, 0, SEARCH_PARSE, sp->searchdir));
 }
+
+/*
+ * is_special --
+ *	Test if the character is special in a basic RE.
+ */
+static int
+is_special(CHAR_T c)
+{
+	/*
+	 * !!!
+	 * `*' and `$' are ordinary when appear at the beginning of a RE,
+	 * but it's safe to distinguish them from the ordinary characters.
+	 * The tilde is vi-specific, of course.
+	 */
+	return (STRCHR(L(".[*\\^$~"), c) && c);
+}
+
+/*
+ * Rear delimiter for word search when the keyword ends in
+ * (i.e., consists of) a non-word character.  See v_searchw below.
+ */
+#define RE_NWSTOP	L("([^[:alnum:]_]|$)")
+#define RE_NWSTOP_LEN	(SIZE(RE_NWSTOP) - 1)
 
 /*
  * v_searchw -- [count]^A
@@ -325,21 +341,47 @@ v_searchn(sp, vp)
  * PUBLIC: int v_searchw __P((SCR *, VICMD *));
  */
 int
-v_searchw(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_searchw(SCR *sp, VICMD *vp)
 {
 	size_t blen, len;
 	int rval;
-	char *bp;
+	CHAR_T *bp, *p;
 
-	len = VIP(sp)->klen + sizeof(RE_WSTART) + sizeof(RE_WSTOP);
-	GET_SPACE_RET(sp, bp, blen, len);
-	len = snprintf(bp, blen, "%s%s%s", RE_WSTART, VIP(sp)->keyw, RE_WSTOP);
+	/* An upper bound for the SIZE of the RE under construction. */
+	len = VIP(sp)->klen + MAX(RE_WSTART_LEN, 1)
+	    + MAX(RE_WSTOP_LEN, RE_NWSTOP_LEN);
+	GET_SPACE_RETW(sp, bp, blen, len);
+	p = bp;
 
+	/* Only the first character can be non-word, see v_curword. */
+	if (inword(VIP(sp)->keyw[0])) {
+		MEMCPY(p, RE_WSTART, RE_WSTART_LEN);
+		p += RE_WSTART_LEN;
+	} else if (is_special(VIP(sp)->keyw[0])) {
+		MEMCPY(p, L("\\"), 1);
+		p += 1;
+	}
+
+	MEMCPY(p, VIP(sp)->keyw, VIP(sp)->klen);
+	p += VIP(sp)->klen;
+
+	if (inword(p[-1])) {
+		MEMCPY(p, RE_WSTOP, RE_WSTOP_LEN);
+		p += RE_WSTOP_LEN;
+	} else {
+		/*
+		 * The keyword is a single non-word character.
+		 * We want it to stay the same when typing ^A several times
+		 * in a row, just the way the other cases behave.
+		 */
+		MEMCPY(p, RE_NWSTOP, RE_NWSTOP_LEN);
+		p += RE_NWSTOP_LEN;
+	}
+
+	len = p - bp;
 	rval = v_search(sp, vp, bp, len, SEARCH_SET, FORWARD);
 
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }
 
@@ -348,13 +390,7 @@ v_searchw(sp, vp)
  *	The search commands.
  */
 static int
-v_search(sp, vp, ptrn, plen, flags, dir)
-	SCR *sp;
-	VICMD *vp;
-	u_int flags;
-	char *ptrn;
-	size_t plen;
-	dir_t dir;
+v_search(SCR *sp, VICMD *vp, CHAR_T *ptrn, size_t plen, u_int flags, dir_t dir)
 {
 	/* Display messages. */
 	LF_SET(SEARCH_MSG);
@@ -417,10 +453,7 @@ v_search(sp, vp, ptrn, plen, flags, dir)
  * PUBLIC: int v_correct __P((SCR *, VICMD *, int));
  */
 int
-v_correct(sp, vp, isdelta)
-	SCR *sp;
-	VICMD *vp;
-	int isdelta;
+v_correct(SCR *sp, VICMD *vp, int isdelta)
 {
 	dir_t dir;
 	MARK m;
@@ -462,8 +495,8 @@ v_correct(sp, vp, isdelta)
 	 * because of the wrapscan option.
 	 */
 	if (vp->m_start.lno > vp->m_stop.lno ||
-	    vp->m_start.lno == vp->m_stop.lno &&
-	    vp->m_start.cno > vp->m_stop.cno) {
+	    (vp->m_start.lno == vp->m_stop.lno &&
+	    vp->m_start.cno > vp->m_stop.cno)) {
 		m = vp->m_start;
 		vp->m_start = vp->m_stop;
 		vp->m_stop = m;

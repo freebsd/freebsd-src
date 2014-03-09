@@ -35,7 +35,12 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
+#include <sys/sx.h>
+#include <vm/uma.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/bus.h>
@@ -43,15 +48,13 @@
 #include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
 #include "offload.h"
 #include "firmware/t4fw_interface.h"
-
-#define T4_CFGNAME "t4fw_cfg"
-#define T4_FWNAME "t4fw"
 
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
@@ -131,11 +134,10 @@ enum {
 
 	RX_FL_ESIZE = EQ_ESIZE,	/* 8 64bit addresses */
 #if MJUMPAGESIZE != MCLBYTES
-	FL_BUF_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
+	FL_BUF_SIZES_MAX = 5,	/* cluster, jumbop, jumbo9k, jumbo16k, extra */
 #else
-	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
+	FL_BUF_SIZES_MAX = 4,	/* cluster, jumbo9k, jumbo16k, extra */
 #endif
-	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -144,17 +146,21 @@ enum {
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
 
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
-#define RX_COPY_THRESHOLD MINCLSIZE
-#endif
-
 enum {
 	/* adapter intr_type */
 	INTR_INTX	= (1 << 0),
 	INTR_MSI 	= (1 << 1),
 	INTR_MSIX	= (1 << 2)
+};
+
+enum {
+	/* flags understood by begin_synchronized_op */
+	HOLD_LOCK	= (1 << 0),
+	SLEEP_OK	= (1 << 1),
+	INTR_OK		= (1 << 2),
+
+	/* flags understood by end_synchronized_op */
+	LOCK_HELD	= HOLD_LOCK,
 };
 
 enum {
@@ -165,6 +171,7 @@ enum {
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
 	TOM_INIT_DONE	= (1 << 5),
+	BUF_PACKING_OK	= (1 << 6),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -172,13 +179,14 @@ enum {
 	DOOMED		= (1 << 0),
 	PORT_INIT_DONE	= (1 << 1),
 	PORT_SYSCTL_CTX	= (1 << 2),
+	HAS_TRACEQ	= (1 << 3),
 };
 
-#define IS_DOOMED(pi)	(pi->flags & DOOMED)
-#define SET_DOOMED(pi)	do {pi->flags |= DOOMED;} while (0)
-#define IS_BUSY(sc)	(sc->flags & CXGBE_BUSY)
-#define SET_BUSY(sc)	do {sc->flags |= CXGBE_BUSY;} while (0)
-#define CLR_BUSY(sc)	do {sc->flags &= ~CXGBE_BUSY;} while (0)
+#define IS_DOOMED(pi)	((pi)->flags & DOOMED)
+#define SET_DOOMED(pi)	do {(pi)->flags |= DOOMED;} while (0)
+#define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
+#define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
 
 struct port_info {
 	device_t dev;
@@ -192,6 +200,7 @@ struct port_info {
 	unsigned long flags;
 	int if_flags;
 
+	uint16_t *rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -201,10 +210,12 @@ struct port_info {
 	uint8_t  mod_type;
 	uint8_t  port_id;
 	uint8_t  tx_chan;
+	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
 
 	/* These need to be int as they are used in sysctl */
 	int ntxq;	/* # of tx queues */
 	int first_txq;	/* index of first tx queue */
+	int rsrv_noflowq; /* Reserve queue 0 for non-flowid packets */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
 #ifdef TCP_OFFLOAD
@@ -218,6 +229,7 @@ struct port_info {
 	int qsize_rxq;
 	int qsize_txq;
 
+	int linkdnrc;
 	struct link_config link_cfg;
 	struct port_stats stats;
 
@@ -230,12 +242,11 @@ struct port_info {
 };
 
 struct fl_sdesc {
-	struct mbuf *m;
 	bus_dmamap_t map;
 	caddr_t cl;
-	uint8_t tag_idx;	/* the sc->fl_tag this map comes from */
+	uint8_t tag_idx;	/* the fl->tag entry this map comes from */
 #ifdef INVARIANTS
-	__be64 ba_tag;
+	__be64 ba_hwtag;
 #endif
 };
 
@@ -317,6 +328,9 @@ enum {
 	EQ_STALLED	= (1 << 6),	/* out of hw descriptors or dmamaps */
 };
 
+/* Listed in order of preference.  Update t4_sysctls too if you change these */
+enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
+
 /*
  * Egress Queue: driver is producer, T4 is consumer.
  *
@@ -334,6 +348,9 @@ struct sge_eq {
 	struct tx_desc *desc;	/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
 	struct sge_qstat *spg;	/* status page, for convenience */
+	int doorbells;
+	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
+	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t cap;		/* max # of desc, for convenience */
 	uint16_t avail;		/* available descriptors, for convenience */
 	uint16_t qsize;		/* size (# of entries) of the queue */
@@ -351,9 +368,22 @@ struct sge_eq {
 	uint32_t unstalled;	/* recovered from stall */
 };
 
+struct fl_buf_info {
+	u_int size;
+	int type;
+	int hwtag:4;	/* tag in low 4 bits of the pa. */
+	uma_zone_t zone;
+};
+#define FL_BUF_SIZES(sc)	(sc->sge.fl_buf_sizes)
+#define FL_BUF_SIZE(sc, x)	(sc->sge.fl_buf_info[x].size)
+#define FL_BUF_TYPE(sc, x)	(sc->sge.fl_buf_info[x].type)
+#define FL_BUF_HWTAG(sc, x)	(sc->sge.fl_buf_info[x].hwtag)
+#define FL_BUF_ZONE(sc, x)	(sc->sge.fl_buf_info[x].zone)
+
 enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
+	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
 };
 
 #define FL_RUNNING_LOW(fl)	(fl->cap - fl->needed <= fl->lowat)
@@ -362,7 +392,8 @@ enum {
 struct sge_fl {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
-	bus_dma_tag_t tag[FL_BUF_SIZES];
+	bus_dma_tag_t tag[FL_BUF_SIZES_MAX]; /* only first FL_BUF_SIZES(sc) are
+						valid */
 	uint8_t tag_idx;
 	struct mtx fl_lock;
 	char lockname[16];
@@ -375,11 +406,13 @@ struct sge_fl {
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t cntxt_id;	/* SGE context id for the freelist */
 	uint32_t cidx;		/* consumer idx (buffer idx, NOT hw desc idx) */
+	uint32_t rx_offset;	/* offset in fl buf (when buffer packing) */
 	uint32_t pidx;		/* producer idx (buffer idx, NOT hw desc idx) */
 	uint32_t needed;	/* # of buffers needed to fill up fl. */
 	uint32_t lowat;		/* # of buffers <= this means fl needs help */
 	uint32_t pending;	/* # of bufs allocated since last doorbell */
-	unsigned int dmamap_failed;
+	u_int dmamap_failed;
+	struct mbuf *mstash[8];
 	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
 };
 
@@ -486,6 +519,9 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
+	int fl_starve_threshold2;
+	int eq_s_qpp;
+	int iq_s_qpp;
 
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
@@ -510,6 +546,9 @@ struct sge {
 	int eq_start;
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
+
+	u_int fl_buf_sizes __aligned(CACHE_LINE_SIZE);
+	struct fl_buf_info fl_buf_info[FL_BUF_SIZES_MAX];
 };
 
 struct rss_header;
@@ -531,6 +570,9 @@ struct adapter {
 	bus_space_handle_t bh;
 	bus_space_tag_t bt;
 	bus_size_t mmio_len;
+	int udbs_rid;
+	struct resource *udbs_res;
+	volatile uint8_t *udbs_base;
 
 	unsigned int pf;
 	unsigned int mbox;
@@ -547,27 +589,38 @@ struct adapter {
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
 	struct sge sge;
+	int lro_timeout;
 
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
-	uint32_t filter_mode;
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
+	void *iwarp_softc;	/* (struct c4iw_dev *) */
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
+	int doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
 	int offload_map;
 #endif
 	int flags;
 
+	char ifp_lockname[16];
+	struct mtx ifp_lock;
+	struct ifnet *ifp;	/* tracer ifp */
+	struct ifmedia media;
+	int traceq;		/* iq used by all tracers, -1 if none */
+	int tracer_valid;	/* bitmap of valid tracers */
+	int tracer_enabled;	/* bitmap of enabled tracers */
+
 	char fw_version[32];
-	unsigned int cfcsum;
+	char cfg_file[32];
+	u_int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 
@@ -589,14 +642,27 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
+
+#ifdef INVARIANTS
+	const char *last_op;
+	const void *last_op_thr;
+#endif
+
+	int sc_do_rxcopy;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
 #define ADAPTER_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
+
+/* XXX: not bulletproof, but much better than nothing */
+#define ASSERT_SYNCHRONIZED_OP(sc)	\
+    KASSERT(IS_BUSY(sc) && \
+	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
+	("%s: operation not synchronized.", __func__))
 
 #define PORT_LOCK(pi)			mtx_lock(&(pi)->pi_lock)
 #define PORT_UNLOCK(pi)			mtx_unlock(&(pi)->pi_lock)
@@ -626,18 +692,18 @@ struct adapter {
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
 
-#define for_each_txq(pi, iter, txq) \
-	txq = &pi->adapter->sge.txq[pi->first_txq]; \
-	for (iter = 0; iter < pi->ntxq; ++iter, ++txq)
-#define for_each_rxq(pi, iter, rxq) \
-	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
-	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
-#define for_each_ofld_txq(pi, iter, ofld_txq) \
-	ofld_txq = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
-	for (iter = 0; iter < pi->nofldtxq; ++iter, ++ofld_txq)
-#define for_each_ofld_rxq(pi, iter, ofld_rxq) \
-	ofld_rxq = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
-	for (iter = 0; iter < pi->nofldrxq; ++iter, ++ofld_rxq)
+#define for_each_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
+	    iter < pi->ntxq; ++iter, ++q)
+#define for_each_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.rxq[pi->first_rxq], iter = 0; \
+	    iter < pi->nrxq; ++iter, ++q)
+#define for_each_ofld_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq], iter = 0; \
+	    iter < pi->nofldtxq; ++iter, ++q)
+#define for_each_ofld_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq], iter = 0; \
+	    iter < pi->nofldrxq; ++iter, ++q)
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
@@ -726,13 +792,22 @@ t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
 	bcopy(hw_addr, sc->port[idx]->hw_addr, ETHER_ADDR_LEN);
 }
 
-static inline bool is_10G_port(const struct port_info *pi)
+static inline bool
+is_10G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
-static inline int tx_resume_threshold(struct sge_eq *eq)
+static inline bool
+is_40G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline int
+tx_resume_threshold(struct sge_eq *eq)
 {
 
 	return (eq->qsize / 4);
@@ -745,17 +820,23 @@ int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
-void t4_os_link_changed(struct adapter *, int, int);
+void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
 int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int begin_synchronized_op(struct adapter *, struct port_info *, int, char *);
+void end_synchronized_op(struct adapter *, int);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
-int t4_sge_init(struct adapter *);
+void t4_init_sge_cpl_handlers(struct adapter *);
+void t4_tweak_chip_settings(struct adapter *);
+int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
+void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
@@ -771,6 +852,16 @@ void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 int can_resume_tx(struct sge_eq *);
+
+/* t4_tracer.c */
+struct t4_tracer;
+void t4_tracer_modload(void);
+void t4_tracer_modunload(void);
+void t4_tracer_port_detach(struct adapter *);
+int t4_get_tracer(struct adapter *, struct t4_tracer *);
+int t4_set_tracer(struct adapter *, struct t4_tracer *);
+int t4_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t5_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)

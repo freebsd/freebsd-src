@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
-#include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/Rewrite/Core/HTMLRewrite.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Rewrite/Core/HTMLRewrite.h"
+#include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -36,7 +36,7 @@ using namespace ento;
 namespace {
 
 class HTMLDiagnostics : public PathDiagnosticConsumer {
-  llvm::sys::Path Directory, FilePrefix;
+  std::string Directory;
   bool createdDir, noDir;
   const Preprocessor &PP;
 public:
@@ -70,13 +70,11 @@ public:
 
 HTMLDiagnostics::HTMLDiagnostics(const std::string& prefix,
                                  const Preprocessor &pp)
-  : Directory(prefix), FilePrefix(prefix), createdDir(false), noDir(false),
-    PP(pp) {
-  // All html files begin with "report"
-  FilePrefix.appendComponent("report");
+  : Directory(prefix), createdDir(false), noDir(false), PP(pp) {
 }
 
-void ento::createHTMLDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                        PathDiagnosticConsumers &C,
                                         const std::string& prefix,
                                         const Preprocessor &PP) {
   C.push_back(new HTMLDiagnostics(prefix, PP));
@@ -101,15 +99,11 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   // Create the HTML directory if it is missing.
   if (!createdDir) {
     createdDir = true;
-    std::string ErrorMsg;
-    Directory.createDirectoryOnDisk(true, &ErrorMsg);
-
-    bool IsDirectory;
-    if (llvm::sys::fs::is_directory(Directory.str(), IsDirectory) ||
-        !IsDirectory) {
+    bool existed;
+    if (llvm::error_code ec =
+            llvm::sys::fs::create_directories(Directory, existed)) {
       llvm::errs() << "warning: could not create directory '"
-                   << Directory.str() << "'\n"
-                   << "reason: " << ErrorMsg << '\n';
+                   << Directory << "': " << ec.message() << '\n';
 
       noDir = true;
 
@@ -164,11 +158,11 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   // working directory if we have no directory information.  This is
   // a work in progress.
 
-  std::string DirName = "";
+  llvm::SmallString<0> DirName;
 
   if (llvm::sys::path::is_relative(Entry->getName())) {
-    llvm::sys::Path P = llvm::sys::Path::GetCurrentDirectory();
-    DirName = P.str() + "/";
+    llvm::sys::fs::current_path(DirName);
+    DirName += '/';
   }
 
   // Add the name of the file as an <h1> tag.
@@ -227,6 +221,10 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
        << path.back()->getLocation().asLocation().getExpansionLineNumber()
        << " -->\n";
 
+    os << "\n<!-- BUGCOLUMN "
+      << path.back()->getLocation().asLocation().getExpansionColumnNumber()
+      << " -->\n";
+
     os << "\n<!-- BUGPATHLENGTH " << path.size() << " -->\n";
 
     // Mark the end of the tags.
@@ -249,26 +247,22 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   }
 
   // Create a path for the target HTML file.
-  llvm::sys::Path F(FilePrefix);
-  F.makeUnique(false, NULL);
+  int FD;
+  SmallString<128> Model, ResultPath;
+  llvm::sys::path::append(Model, Directory, "report-%%%%%%.html");
 
-  // Rename the file with an HTML extension.
-  llvm::sys::Path H(F);
-  H.appendSuffix("html");
-  F.renamePathOnDisk(H, NULL);
-
-  std::string ErrorMsg;
-  llvm::raw_fd_ostream os(H.c_str(), ErrorMsg);
-
-  if (!ErrorMsg.empty()) {
-    llvm::errs() << "warning: could not create file '" << F.str()
-                 << "'\n";
+  if (llvm::error_code EC =
+          llvm::sys::fs::createUniqueFile(Model.str(), FD, ResultPath)) {
+    llvm::errs() << "warning: could not create file in '" << Directory
+                 << "': " << EC.message() << '\n';
     return;
   }
 
-  if (filesMade) {
-    filesMade->addDiagnostic(D, getName(), llvm::sys::path::filename(H.str()));
-  }
+  llvm::raw_fd_ostream os(FD, true);
+
+  if (filesMade)
+    filesMade->addDiagnostic(D, getName(),
+                             llvm::sys::path::filename(ResultPath));
 
   // Emit the HTML to disk.
   for (RewriteBuffer::iterator I = Buf->begin(), E = Buf->end(); I!=E; ++I)

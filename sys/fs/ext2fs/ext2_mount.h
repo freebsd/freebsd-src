@@ -31,7 +31,7 @@
  */
 
 #ifndef _FS_EXT2FS_EXT2_MOUNT_H_
-#define _FS_EXT2FS_EXT2_MOUNT_H_
+#define	_FS_EXT2FS_EXT2_MOUNT_H_
 
 #ifdef _KERNEL
 
@@ -48,7 +48,6 @@ struct ext2mount {
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
 	struct	m_ext2fs *um_e2fs;		/* EXT2FS */
-#define em_e2fsb um_e2fs->e2fs
 
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
@@ -60,18 +59,18 @@ struct ext2mount {
 	struct bufobj *um_bo;
 };
 
-#define EXT2_LOCK(aa)		mtx_lock(&(aa)->um_lock)
-#define EXT2_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)
-#define EXT2_MTX(aa)		(&(aa)->um_lock)
+#define	EXT2_LOCK(aa)		mtx_lock(&(aa)->um_lock)
+#define	EXT2_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)
+#define	EXT2_MTX(aa)		(&(aa)->um_lock)
 
 /* Convert mount ptr to ext2fsmount ptr. */
-#define VFSTOEXT2(mp)	((struct ext2mount *)((mp)->mnt_data))
+#define	VFSTOEXT2(mp)	((struct ext2mount *)((mp)->mnt_data))
 
 /*
  * Macros to access file system parameters in the ufsmount structure.
  * Used by ufs_bmap.
  */
-#define MNINDIR(ump)			((ump)->um_nindir)
+#define	MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
 #endif /* _KERNEL */

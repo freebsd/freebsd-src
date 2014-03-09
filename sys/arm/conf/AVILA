@@ -24,7 +24,6 @@ include		"../xscale/ixp425/std.ixp425"
 # NB: memory mapping is defined in std.avila
 include		"../xscale/ixp425/std.avila"
 options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
-#options 	ARM_USE_SMALL_ALLOC
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"AVILA.hints"		#Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
@@ -48,6 +47,9 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	NFSCL			#New Network Filesystem Client
@@ -93,7 +95,6 @@ device		avila_gpio	# GPIO pins on J8
 
 device		ata
 device		avila_ata	# Gateworks CF/IDE support
-options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw

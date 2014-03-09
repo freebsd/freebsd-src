@@ -27,30 +27,29 @@ class Type;
 
 struct SparcRegisterInfo : public SparcGenRegisterInfo {
   SparcSubtarget &Subtarget;
-  const TargetInstrInfo &TII;
 
-  SparcRegisterInfo(SparcSubtarget &st, const TargetInstrInfo &tii);
+  SparcRegisterInfo(SparcSubtarget &st);
 
   /// Code Generation virtual methods...
   const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const uint32_t* getCallPreservedMask(CallingConv::ID CC) const;
+
+  const uint32_t* getRTCallPreservedMask(CallingConv::ID CC) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  const TargetRegisterClass *getPointerRegClass(const MachineFunction &MF,
+                                                unsigned Kind) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = NULL) const;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                       RegScavenger *RS = NULL) const;
 
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;
-
-  // Exception handling queries.
-  unsigned getEHExceptionRegister() const;
-  unsigned getEHHandlerRegister() const;
 };
 
 } // end namespace llvm

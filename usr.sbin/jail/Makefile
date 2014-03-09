@@ -9,6 +9,8 @@ SRCS=	jail.c command.c config.c state.c jailp.h jaillex.l jailparse.y y.tab.h
 DPADD=	${LIBJAIL} ${LIBKVM} ${LIBUTIL} ${LIBL}
 LDADD=	-ljail -lkvm -lutil -ll
 
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
 

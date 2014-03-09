@@ -72,6 +72,7 @@
 #define TW_OSLI_REQ_FLAGS_PASSTHRU	(1<<5)	/* pass through request */
 #define TW_OSLI_REQ_FLAGS_SLEEPING	(1<<6)	/* owner sleeping on this cmd */
 #define TW_OSLI_REQ_FLAGS_FAILED	(1<<7)	/* bus_dmamap_load() failed */
+#define TW_OSLI_REQ_FLAGS_CCB		(1<<8)	/* req is ccb. */
 
 
 #ifdef TW_OSL_DEBUG

@@ -119,8 +119,16 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	USLCOM_FLOW_RTS_HS      0x00000080 /* RTS handshake */
 
 /* USLCOM_VENDOR_SPECIFIC values */
+#define	USLCOM_GET_PARTNUM	0x370B
 #define	USLCOM_WRITE_LATCH	0x37E1
 #define	USLCOM_READ_LATCH	0x00C2
+
+/* USLCOM_GET_PARTNUM values from hardware */
+#define	USLCOM_PARTNUM_CP2101	1
+#define	USLCOM_PARTNUM_CP2102	2
+#define	USLCOM_PARTNUM_CP2103	3
+#define	USLCOM_PARTNUM_CP2104	4
+#define	USLCOM_PARTNUM_CP2105	5
 
 enum {
 	USLCOM_BULK_DT_WR,
@@ -141,6 +149,7 @@ struct uslcom_softc {
 	uint8_t		 sc_msr;
 	uint8_t		 sc_lsr;
 	uint8_t		 sc_iface_no;
+	uint8_t		 sc_partnum;
 };
 
 static device_probe_t uslcom_probe;
@@ -155,6 +164,7 @@ static usb_callback_t uslcom_control_callback;
 static void	uslcom_free(struct ucom_softc *);
 static void uslcom_open(struct ucom_softc *);
 static void uslcom_close(struct ucom_softc *);
+static uint8_t uslcom_get_partnum(struct uslcom_softc *);
 static void uslcom_set_dtr(struct ucom_softc *, uint8_t);
 static void uslcom_set_rts(struct ucom_softc *, uint8_t);
 static void uslcom_set_break(struct ucom_softc *, uint8_t);
@@ -242,15 +252,37 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(JABLOTRON, PC60B),
     USLCOM_DEV(KAMSTRUP, OPTICALEYE),
     USLCOM_DEV(KAMSTRUP, MBUS_250D),
+    USLCOM_DEV(LAKESHORE, 121),
+    USLCOM_DEV(LAKESHORE, 218A),
+    USLCOM_DEV(LAKESHORE, 219),
+    USLCOM_DEV(LAKESHORE, 233),
+    USLCOM_DEV(LAKESHORE, 235),
+    USLCOM_DEV(LAKESHORE, 335),
+    USLCOM_DEV(LAKESHORE, 336),
+    USLCOM_DEV(LAKESHORE, 350),
+    USLCOM_DEV(LAKESHORE, 371),
+    USLCOM_DEV(LAKESHORE, 411),
+    USLCOM_DEV(LAKESHORE, 425),
+    USLCOM_DEV(LAKESHORE, 455A),
+    USLCOM_DEV(LAKESHORE, 465),
+    USLCOM_DEV(LAKESHORE, 475A),
+    USLCOM_DEV(LAKESHORE, 625A),
+    USLCOM_DEV(LAKESHORE, 642A),
+    USLCOM_DEV(LAKESHORE, 648),
+    USLCOM_DEV(LAKESHORE, 737),
+    USLCOM_DEV(LAKESHORE, 776),
     USLCOM_DEV(LINKINSTRUMENTS, MSO19),
     USLCOM_DEV(LINKINSTRUMENTS, MSO28),
     USLCOM_DEV(LINKINSTRUMENTS, MSO28_2),
     USLCOM_DEV(MEI, CASHFLOW_SC),
     USLCOM_DEV(MEI, S2000),
+    USLCOM_DEV(NETGEAR, M4100),
     USLCOM_DEV(OWEN, AC4),
+    USLCOM_DEV(OWL, CM_160),
     USLCOM_DEV(PHILIPS, ACE1001),
     USLCOM_DEV(PLX, CA42),
     USLCOM_DEV(RENESAS, RX610),
+    USLCOM_DEV(SEL, C662),
     USLCOM_DEV(SILABS, AC_SERV_CAN),
     USLCOM_DEV(SILABS, AC_SERV_CIS),
     USLCOM_DEV(SILABS, AC_SERV_IBUS),
@@ -283,6 +315,7 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, HELICOM),
     USLCOM_DEV(SILABS, IMS_USB_RS422),
     USLCOM_DEV(SILABS, INFINITY_MIC),
+    USLCOM_DEV(SILABS, INGENI_ZIGBEE),
     USLCOM_DEV(SILABS, INSYS_MODEM),
     USLCOM_DEV(SILABS, IRZ_SG10),
     USLCOM_DEV(SILABS, KYOCERA_GPS),
@@ -290,6 +323,7 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, LIPOWSKY_JTAG),
     USLCOM_DEV(SILABS, LIPOWSKY_LIN),
     USLCOM_DEV(SILABS, MC35PU),
+    USLCOM_DEV(SILABS, MMB_ZIGBEE),
     USLCOM_DEV(SILABS, MJS_TOSLINK),
     USLCOM_DEV(SILABS, MSD_DASHHAWK),
     USLCOM_DEV(SILABS, MULTIPLEX_RC),
@@ -306,6 +340,7 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(SILABS, USBPULSE100),
     USLCOM_DEV(SILABS, USBSCOPE50),
     USLCOM_DEV(SILABS, USBWAVE12),
+    USLCOM_DEV(SILABS, V_PREON32),
     USLCOM_DEV(SILABS, VSTABI),
     USLCOM_DEV(SILABS, WAVIT),
     USLCOM_DEV(SILABS, WMRBATT),
@@ -320,6 +355,7 @@ static const STRUCT_USB_HOST_ID uslcom_devs[] = {
     USLCOM_DEV(VAISALA, CABLE),
     USLCOM_DEV(WAGO, SERVICECABLE),
     USLCOM_DEV(WAVESENSE, JAZZ),
+    USLCOM_DEV(WESTMOUNTAIN, RIGBLASTER_ADVANTAGE),
     USLCOM_DEV(WIENERPLEINBAUS, PL512),
     USLCOM_DEV(WIENERPLEINBAUS, RCM),
     USLCOM_DEV(WIENERPLEINBAUS, MPOD),
@@ -407,6 +443,8 @@ uslcom_attach(device_t dev)
 	usbd_xfer_set_stall(sc->sc_xfer[USLCOM_BULK_DT_WR]);
 	usbd_xfer_set_stall(sc->sc_xfer[USLCOM_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
+
+	sc->sc_partnum = uslcom_get_partnum(sc);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uslcom_callback, &sc->sc_mtx);
@@ -498,6 +536,28 @@ uslcom_close(struct ucom_softc *ucom)
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("UART disable failed (ignored)\n");
 	}
+}
+
+static uint8_t
+uslcom_get_partnum(struct uslcom_softc *sc)
+{
+	struct usb_device_request req;
+	uint8_t partnum;
+
+	/* Find specific chip type */
+	partnum = 0;
+	req.bmRequestType = USLCOM_READ;
+	req.bRequest = USLCOM_VENDOR_SPECIFIC;
+	USETW(req.wValue, USLCOM_GET_PARTNUM);
+	USETW(req.wIndex, sc->sc_iface_no);
+	USETW(req.wLength, sizeof(partnum));
+
+	if (usbd_do_request_flags(sc->sc_udev, NULL,
+	    &req, &partnum, 0, NULL, 1000)) {
+		DPRINTF("GET_PARTNUM failed\n");
+	}
+
+	return(partnum);
 }
 
 static void
@@ -679,10 +739,14 @@ uslcom_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 
 	switch (cmd) {
 	case USB_GET_GPIO:
+		if (sc->sc_partnum < USLCOM_PARTNUM_CP2103) {
+			error = ENODEV;
+			break;
+		}
 		req.bmRequestType = USLCOM_READ;
 		req.bRequest = USLCOM_VENDOR_SPECIFIC;
 		USETW(req.wValue, USLCOM_READ_LATCH);
-		USETW(req.wIndex, 0);
+		USETW(req.wIndex, sc->sc_iface_no);
 		USETW(req.wLength, sizeof(latch));
 
 		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
@@ -694,17 +758,23 @@ uslcom_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 		break;
 
 	case USB_SET_GPIO:
-		req.bmRequestType = USLCOM_WRITE;
-		req.bRequest = USLCOM_VENDOR_SPECIFIC;
-		USETW(req.wValue, USLCOM_WRITE_LATCH);
-		USETW(req.wIndex, (*(int *)data));
-		USETW(req.wLength, 0);
-		
-		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
-		    &req, NULL, 0, 1000)) {
-			DPRINTF("Set LATCH failed\n");
-			error = EIO;
-		}
+		if (sc->sc_partnum < USLCOM_PARTNUM_CP2103)
+			error = ENODEV;
+		else if ((sc->sc_partnum == USLCOM_PARTNUM_CP2103) ||
+		    (sc->sc_partnum == USLCOM_PARTNUM_CP2104)) {
+			req.bmRequestType = USLCOM_WRITE;
+			req.bRequest = USLCOM_VENDOR_SPECIFIC;
+			USETW(req.wValue, USLCOM_WRITE_LATCH);
+			USETW(req.wIndex, (*(int *)data));
+			USETW(req.wLength, 0);
+
+			if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+			    &req, NULL, 0, 1000)) {
+				DPRINTF("Set LATCH failed\n");
+				error = EIO;
+			}
+		} else
+			error = ENODEV;	/* Not yet */
 		break;
 
 	default:

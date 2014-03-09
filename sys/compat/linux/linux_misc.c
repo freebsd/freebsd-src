@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/blist.h>
@@ -410,8 +409,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 		/* get anon user mapping, read+write+execute */
 		error = vm_map_find(&td->td_proc->p_vmspace->vm_map, NULL, 0,
-		    &vmaddr, a_out->a_text + a_out->a_data, FALSE, VM_PROT_ALL,
-		    VM_PROT_ALL, 0);
+		    &vmaddr, a_out->a_text + a_out->a_data, 0, VMFS_NO_SPACE,
+		    VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error)
 			goto cleanup;
 
@@ -455,7 +454,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 		/* allocate some 'anon' space */
 		error = vm_map_find(&td->td_proc->p_vmspace->vm_map, NULL, 0,
-		    &vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		    &vmaddr, bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL,
+		    VM_PROT_ALL, 0);
 		if (error)
 			goto cleanup;
 	}
@@ -467,7 +467,7 @@ cleanup:
 
 	/* Release the temporary mapping. */
 	if (a_out)
-		kmem_free_wakeup(exec_map, (vm_offset_t)a_out, PAGE_SIZE);
+		kmap_free_wakeup(exec_map, (vm_offset_t)a_out, PAGE_SIZE);
 
 	return (error);
 }

@@ -60,7 +60,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 #include "opt_turnstile_profiling.h"
 #include "opt_sched.h"
 
@@ -170,8 +169,8 @@ static int	turnstile_init(void *mem, int size, int flags);
 static void	turnstile_fini(void *mem, int size);
 
 SDT_PROVIDER_DECLARE(sched);
-SDT_PROBE_DEFINE(sched, , , sleep, sleep);
-SDT_PROBE_DEFINE2(sched, , , wakeup, wakeup, "struct thread *", 
+SDT_PROBE_DEFINE(sched, , , sleep);
+SDT_PROBE_DEFINE2(sched, , , wakeup, "struct thread *", 
     "struct proc *");
 
 /*
@@ -215,10 +214,9 @@ propagate_priority(struct thread *td)
 
 		/*
 		 * If the thread is asleep, then we are probably about
-		 * to deadlock.  To make debugging this easier, just
-		 * panic and tell the user which thread misbehaved so
-		 * they can hopefully get a stack trace from the truly
-		 * misbehaving thread.
+		 * to deadlock.  To make debugging this easier, show
+		 * backtrace of misbehaving thread and panic to not
+		 * leave the kernel deadlocked.
 		 */
 		if (TD_IS_SLEEPING(td)) {
 			printf(

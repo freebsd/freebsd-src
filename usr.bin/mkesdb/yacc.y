@@ -114,7 +114,7 @@ int
 yyerror(const char *s)
 {
 
-	fprintf(stderr, "%s in %d\n", s, line_number);
+	fprintf(stderr, "%s in %d\n", s, linenumber);
 
 	return (0);
 }

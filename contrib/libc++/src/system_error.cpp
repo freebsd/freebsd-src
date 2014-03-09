@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define	_LIBCPP_BUILDING_SYSTEM_ERROR
 #include "system_error"
 #include "string"
 #include "cstring"
@@ -195,6 +196,9 @@ __throw_system_error(int ev, const char* what_arg)
 {
 #ifndef _LIBCPP_NO_EXCEPTIONS
     throw system_error(error_code(ev, system_category()), what_arg);
+#else
+    (void)ev;
+    (void)what_arg;
 #endif
 }
 

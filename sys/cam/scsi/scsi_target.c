@@ -236,23 +236,21 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	{
 		struct ioc_enable_lun	*new_lun;
 		struct cam_path		*path;
-		struct cam_sim		*sim;
 
 		new_lun = (struct ioc_enable_lun *)addr;
-		status = xpt_create_path_unlocked(&path, /*periph*/NULL,
-						  new_lun->path_id,
-						  new_lun->target_id,
-						  new_lun->lun_id);
+		status = xpt_create_path(&path, /*periph*/NULL,
+					  new_lun->path_id,
+					  new_lun->target_id,
+					  new_lun->lun_id);
 		if (status != CAM_REQ_CMP) {
 			printf("Couldn't create path, status %#x\n", status);
 			break;
 		}
-		sim = xpt_path_sim(path);
-		mtx_lock(sim->mtx);
+		xpt_path_lock(path);
 		status = targenable(softc, path, new_lun->grp6_len,
 				    new_lun->grp7_len);
+		xpt_path_unlock(path);
 		xpt_free_path(path);
-		mtx_unlock(sim->mtx);
 		break;
 	}
 	case TARGIOCDISABLE:
@@ -278,13 +276,10 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			cdbg.flags = CAM_DEBUG_PERIPH;
 		else
 			cdbg.flags = CAM_DEBUG_NONE;
-		cam_periph_lock(softc->periph);
 		xpt_setup_ccb(&cdbg.ccb_h, softc->path, CAM_PRIORITY_NORMAL);
 		cdbg.ccb_h.func_code = XPT_DEBUG;
 		cdbg.ccb_h.cbfcnp = targdone;
-
 		xpt_action((union ccb *)&cdbg);
-		cam_periph_unlock(softc->periph);
 		status = cdbg.ccb_h.status & CAM_STATUS_MASK;
 		break;
 	}
@@ -551,6 +546,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		switch (func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			cam_periph_lock(softc->periph);
 			ccb = targgetccb(softc, func_code, priority);
 			descr = (struct targ_cmd_descr *)ccb->ccb_h.targ_descr;
@@ -726,21 +722,8 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 	ccb_h->cbfcnp = targdone;
 	ccb_h->targ_descr = descr;
 
-	/*
-	 * We only attempt to map the user memory into kernel space
-	 * if they haven't passed in a physical memory pointer,
-	 * and if there is actually an I/O operation to perform.
-	 * Right now cam_periph_mapmem() only supports SCSI and device
-	 * match CCBs.  For the SCSI CCBs, we only pass the CCB in if
-	 * there's actually data to map.  cam_periph_mapmem() will do the
-	 * right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurance (e.g. test unit
-	 * ready), it will save a few cycles if we check for it here.
-	 */
-	if (((ccb_h->flags & CAM_DATA_PHYS) == 0)
-	 && (((ccb_h->func_code == XPT_CONT_TARGET_IO)
-	    && ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE))
-	  || (ccb_h->func_code == XPT_DEV_MATCH))) {
+	if ((ccb_h->func_code == XPT_CONT_TARGET_IO) ||
+	    (ccb_h->func_code == XPT_DEV_MATCH)) {
 
 		error = cam_periph_mapmem(ccb, mapinfo);
 
@@ -794,6 +777,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (done_ccb->ccb_h.func_code) {
 	/* All FC_*_QUEUED CCBs go back to userland */
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 		TAILQ_INSERT_TAIL(&softc->user_ccb_queue, &done_ccb->ccb_h,
@@ -834,7 +818,7 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 	user_descr = TAILQ_FIRST(abort_queue);
 	while (ccb_h == NULL && user_descr == NULL) {
 		if ((ioflag & IO_NDELAY) == 0) {
-			error = msleep(user_queue, softc->periph->sim->mtx,
+			error = cam_periph_sleep(softc->periph, user_queue,
 			    PRIBIO | PCATCH, "targrd", 0);
 			ccb_h = TAILQ_FIRST(user_queue);
 			user_descr = TAILQ_FIRST(abort_queue);
@@ -974,6 +958,7 @@ targfreeccb(struct targ_softc *softc, union ccb *ccb)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 		CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH, ("freeing ccb %p\n", ccb));
 		free(ccb, M_TARG);
 		break;
@@ -1029,7 +1014,6 @@ abort_all_pending(struct targ_softc *softc)
 	struct targ_cmd_descr   *descr;
 	struct ccb_abort	 cab;
 	struct ccb_hdr		*ccb_h;
-	struct cam_sim		*sim;
 
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("abort_all_pending\n"));
 
@@ -1062,8 +1046,7 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted at least one pending CCB ok, wait for it. */
 	if (cab.ccb_h.status == CAM_REQ_CMP) {
-		sim = xpt_path_sim(softc->path);
-		msleep(&softc->pending_ccb_queue, sim->mtx,
+		cam_periph_sleep(softc->periph, &softc->pending_ccb_queue,
 		       PRIBIO | PCATCH, "tgabrt", 0);
 	}
 
@@ -1143,6 +1126,9 @@ targccblen(xpt_opcode func_code)
 		break;
 	case XPT_IMMED_NOTIFY:
 		len = sizeof(struct ccb_immed_notify);
+		break;
+	case XPT_IMMEDIATE_NOTIFY:
+		len = sizeof(struct ccb_immediate_notify);
 		break;
 	case XPT_REL_SIMQ:
 		len = sizeof(struct ccb_relsim);

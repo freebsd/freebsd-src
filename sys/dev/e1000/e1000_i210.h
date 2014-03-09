@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -35,6 +35,7 @@
 #ifndef _E1000_I210_H_
 #define _E1000_I210_H_
 
+bool e1000_get_flash_presence_i210(struct e1000_hw *hw);
 s32 e1000_update_flash_i210(struct e1000_hw *hw);
 s32 e1000_update_nvm_checksum_i210(struct e1000_hw *hw);
 s32 e1000_validate_nvm_checksum_i210(struct e1000_hw *hw);
@@ -42,11 +43,12 @@ s32 e1000_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 s32 e1000_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-s32 e1000_read_invm_i211(struct e1000_hw *hw, u8 address, u16 *data);
-s32 e1000_check_for_copper_link_i210(struct e1000_hw *hw);
-s32 e1000_set_ltr_i210(struct e1000_hw *hw, bool link);
 s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
+s32 e1000_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			 u16 *data);
+s32 e1000_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			  u16 data);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -69,12 +71,26 @@ enum E1000_INVM_STRUCTURE_TYPE {
 
 #define E1000_INVM_RSA_KEY_SHA256_DATA_SIZE_IN_DWORDS	8
 #define E1000_INVM_CSR_AUTOLOAD_DATA_SIZE_IN_DWORDS	1
+#define E1000_INVM_ULT_BYTES_SIZE	8
+#define E1000_INVM_RECORD_SIZE_IN_BYTES	4
+#define E1000_INVM_VER_FIELD_ONE	0x1FF8
+#define E1000_INVM_VER_FIELD_TWO	0x7FE000
+#define E1000_INVM_IMGTYPE_FIELD	0x1F800000
+
+#define E1000_INVM_MAJOR_MASK	0x3F0
+#define E1000_INVM_MINOR_MASK	0xF
+#define E1000_INVM_MAJOR_SHIFT	4
 
 #define ID_LED_DEFAULT_I210		((ID_LED_OFF1_ON2  << 8) | \
 					 (ID_LED_DEF1_DEF2 <<  4) | \
 					 (ID_LED_OFF1_OFF2))
 #define ID_LED_DEFAULT_I210_SERDES	((ID_LED_DEF1_DEF2 << 8) | \
 					 (ID_LED_DEF1_DEF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_OFF1_ON2))
 
+/* NVM offset defaults for I211 devices */
+#define NVM_INIT_CTRL_2_DEFAULT_I211	0X7243
+#define NVM_INIT_CTRL_4_DEFAULT_I211	0x00C1
+#define NVM_LED_1_CFG_DEFAULT_I211	0x0184
+#define NVM_LED_0_2_CFG_DEFAULT_I211	0x200C
 #endif

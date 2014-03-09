@@ -92,10 +92,6 @@ struct linker_file {
      */
     int			nenabled;	/* number of enabled probes. */
     int			fbt_nentries;	/* number of fbt entries created. */
-    void		*sdt_probes;
-    int			sdt_nentries;
-    size_t		sdt_nprobes;
-    size_t		sdt_size;
 };
 
 /*

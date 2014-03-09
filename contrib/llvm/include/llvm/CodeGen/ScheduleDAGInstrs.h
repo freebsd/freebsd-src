@@ -12,24 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SCHEDULEDAGINSTRS_H
-#define SCHEDULEDAGINSTRS_H
+#ifndef LLVM_CODEGEN_SCHEDULEDAGINSTRS_H
+#define LLVM_CODEGEN_SCHEDULEDAGINSTRS_H
 
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/ADT/SparseSet.h"
+#include "llvm/ADT/SparseMultiSet.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SparseSet.h"
-#include <map>
 
 namespace llvm {
+  class MachineFrameInfo;
   class MachineLoopInfo;
   class MachineDominatorTree;
   class LiveIntervals;
   class RegPressureTracker;
+  class PressureDiffs;
 
   /// An individual mapping from virtual register number to SUnit.
   struct VReg2SUnit {
@@ -48,61 +47,29 @@ namespace llvm {
   struct PhysRegSUOper {
     SUnit *SU;
     int OpIdx;
+    unsigned Reg;
 
-    PhysRegSUOper(SUnit *su, int op): SU(su), OpIdx(op) {}
+    PhysRegSUOper(SUnit *su, int op, unsigned R): SU(su), OpIdx(op), Reg(R) {}
+
+    unsigned getSparseSetIndex() const { return Reg; }
   };
 
-  /// Combine a SparseSet with a 1x1 vector to track physical registers.
-  /// The SparseSet allows iterating over the (few) live registers for quickly
-  /// comparing against a regmask or clearing the set.
-  ///
-  /// Storage for the map is allocated once for the pass. The map can be
-  /// cleared between scheduling regions without freeing unused entries.
-  class Reg2SUnitsMap {
-    SparseSet<unsigned> PhysRegSet;
-    std::vector<std::vector<PhysRegSUOper> > SUnits;
-  public:
-    typedef SparseSet<unsigned>::const_iterator const_iterator;
-
-    // Allow iteration over register numbers (keys) in the map. If needed, we
-    // can provide an iterator over SUnits (values) as well.
-    const_iterator reg_begin() const { return PhysRegSet.begin(); }
-    const_iterator reg_end() const { return PhysRegSet.end(); }
-
-    /// Initialize the map with the number of registers.
-    /// If the map is already large enough, no allocation occurs.
-    /// For simplicity we expect the map to be empty().
-    void setRegLimit(unsigned Limit);
-
-    /// Returns true if the map is empty.
-    bool empty() const { return PhysRegSet.empty(); }
-
-    /// Clear the map without deallocating storage.
-    void clear();
-
-    bool contains(unsigned Reg) const { return PhysRegSet.count(Reg); }
-
-    /// If this register is mapped, return its existing SUnits vector.
-    /// Otherwise map the register and return an empty SUnits vector.
-    std::vector<PhysRegSUOper> &operator[](unsigned Reg) {
-      bool New = PhysRegSet.insert(Reg).second;
-      assert((!New || SUnits[Reg].empty()) && "stale SUnits vector");
-      (void)New;
-      return SUnits[Reg];
-    }
-
-    /// Erase an existing element without freeing memory.
-    void erase(unsigned Reg) {
-      PhysRegSet.erase(Reg);
-      SUnits[Reg].clear();
-    }
-  };
+  /// Use a SparseMultiSet to track physical registers. Storage is only
+  /// allocated once for the pass. It can be cleared in constant time and reused
+  /// without any frees.
+  typedef SparseMultiSet<PhysRegSUOper, llvm::identity<unsigned>, uint16_t>
+  Reg2SUnitsMap;
 
   /// Use SparseSet as a SparseMap by relying on the fact that it never
   /// compares ValueT's, only unsigned keys. This allows the set to be cleared
   /// between scheduling regions in constant time as long as ValueT does not
   /// require a destructor.
   typedef SparseSet<VReg2SUnit, VirtReg2IndexFunctor> VReg2SUnitMap;
+
+  /// Track local uses of virtual registers. These uses are gathered by the DAG
+  /// builder and may be consulted by the scheduler to avoid iterating an entire
+  /// vreg use list.
+  typedef SparseMultiSet<VReg2SUnit, VirtReg2IndexFunctor> VReg2UseMap;
 
   /// ScheduleDAGInstrs - A ScheduleDAG subclass for scheduling lists of
   /// MachineInstrs.
@@ -120,10 +87,6 @@ namespace llvm {
 
     /// isPostRA flag indicates vregs cannot be present.
     bool IsPostRA;
-
-    /// UnitLatencies (misnamed) flag avoids computing def-use latencies, using
-    /// the def-side latency only.
-    bool UnitLatencies;
 
     /// The standard DAG builder does not normally include terminators as DAG
     /// nodes because it does not create the necessary dependencies to prevent
@@ -144,12 +107,17 @@ namespace llvm {
     /// The end of the range to be scheduled.
     MachineBasicBlock::iterator RegionEnd;
 
-    /// The index in BB of RegionEnd.
-    unsigned EndIndex;
+    /// Instructions in this region (distance(RegionBegin, RegionEnd)).
+    unsigned NumRegionInstrs;
 
     /// After calling BuildSchedGraph, each machine instruction in the current
     /// scheduling region is mapped to an SUnit.
     DenseMap<MachineInstr*, SUnit*> MISUnitMap;
+
+    /// After calling BuildSchedGraph, each vreg used in the scheduling region
+    /// is mapped to a set of SUnits. These include all local vreg uses, not
+    /// just the uses for a singly defined vreg.
+    VReg2UseMap VRegUses;
 
     /// State internal to DAG building.
     /// -------------------------------
@@ -161,7 +129,7 @@ namespace llvm {
     Reg2SUnitsMap Defs;
     Reg2SUnitsMap Uses;
 
-    /// Track the last instructon in this region defining each virtual register.
+    /// Track the last instruction in this region defining each virtual register.
     VReg2SUnitMap VRegDefs;
 
     /// PendingLoads - Remember where unknown loads are after the most recent
@@ -186,12 +154,15 @@ namespace llvm {
 
     virtual ~ScheduleDAGInstrs() {}
 
+    /// \brief Expose LiveIntervals for use in DAG mutators and such.
+    LiveIntervals *getLIS() const { return LIS; }
+
     /// \brief Get the machine model for instruction scheduling.
     const TargetSchedModel *getSchedModel() const { return &SchedModel; }
 
     /// \brief Resolve and cache a resolved scheduling class for an SUnit.
     const MCSchedClassDesc *getSchedClass(SUnit *SU) const {
-      if (!SU->SchedClass)
+      if (!SU->SchedClass && SchedModel.hasInstrSchedModel())
         SU->SchedClass = SchedModel.resolveSchedClass(SU->getInstr());
       return SU->SchedClass;
     }
@@ -218,14 +189,15 @@ namespace llvm {
     virtual void enterRegion(MachineBasicBlock *bb,
                              MachineBasicBlock::iterator begin,
                              MachineBasicBlock::iterator end,
-                             unsigned endcount);
+                             unsigned regioninstrs);
 
     /// Notify that the scheduler has finished scheduling the current region.
     virtual void exitRegion();
 
     /// buildSchedGraph - Build SUnits from the MachineBasicBlock that we are
     /// input.
-    void buildSchedGraph(AliasAnalysis *AA, RegPressureTracker *RPTracker = 0);
+    void buildSchedGraph(AliasAnalysis *AA, RegPressureTracker *RPTracker = 0,
+                         PressureDiffs *PDiffs = 0);
 
     /// addSchedBarrierDeps - Add dependencies from instructions in the current
     /// list of instructions being scheduled to scheduling barrier. We want to

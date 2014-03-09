@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
 
@@ -289,7 +290,7 @@ igmp_save_context(struct mbuf *m, struct ifnet *ifp)
 {
 
 #ifdef VIMAGE
-	m->m_pkthdr.header = ifp->if_vnet;
+	m->m_pkthdr.PH_loc.ptr = ifp->if_vnet;
 #endif /* VIMAGE */
 	m->m_pkthdr.flowid = ifp->if_index;
 }
@@ -298,7 +299,7 @@ static __inline void
 igmp_scrub_context(struct mbuf *m)
 {
 
-	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.PH_loc.ptr = NULL;
 	m->m_pkthdr.flowid = 0;
 }
 
@@ -326,7 +327,7 @@ igmp_restore_context(struct mbuf *m)
 
 #ifdef notyet
 #if defined(VIMAGE) && defined(INVARIANTS)
-	KASSERT(curvnet == (m->m_pkthdr.header),
+	KASSERT(curvnet == (m->m_pkthdr.PH_loc.ptr),
 	    ("%s: called when curvnet was not restored", __func__));
 #endif
 #endif
@@ -523,7 +524,7 @@ igmp_ra_alloc(void)
 	struct mbuf	*m;
 	struct ipoption	*p;
 
-	MGET(m, M_NOWAIT, MT_DATA);
+	m = m_get(M_WAITOK, MT_DATA);
 	p = mtod(m, struct ipoption *);
 	p->ipopt_dst.s_addr = INADDR_ANY;
 	p->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
@@ -2121,6 +2122,7 @@ igmp_v1v2_process_querier_timers(struct igmp_ifinfo *igi)
 				    __func__, igi->igi_version, IGMP_VERSION_2,
 				    igi->igi_ifp, igi->igi_ifp->if_xname);
 				igi->igi_version = IGMP_VERSION_2;
+				igmp_v3_cancel_link_timers(igi);
 			}
 		}
 	} else if (igi->igi_v1_timer > 0) {
@@ -2203,7 +2205,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ifp = inm->inm_ifp;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOMEM);
 	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
@@ -3402,7 +3404,7 @@ igmp_intr(struct mbuf *m)
 	 * indexes to guard against interface detach, they are
 	 * unique to each VIMAGE and must be retrieved.
 	 */
-	CURVNET_SET((struct vnet *)(m->m_pkthdr.header));
+	CURVNET_SET((struct vnet *)(m->m_pkthdr.PH_loc.ptr));
 	ifindex = igmp_restore_context(m);
 
 	/*
@@ -3449,7 +3451,7 @@ igmp_intr(struct mbuf *m)
 	}
 
 	igmp_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 #ifdef MAC
 	mac_netinet_igmp_send(ifp, m0);

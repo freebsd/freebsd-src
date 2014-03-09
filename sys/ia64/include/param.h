@@ -69,6 +69,10 @@
 #define MAXCPU		1
 #endif
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)
 /*
@@ -100,6 +104,11 @@
 #define	KSTACK_PAGES	4		/* pages of kernel stack */
 #endif
 #define	KSTACK_GUARD_PAGES 0		/* pages of kstack guard; 0 disables */
+
+/* The default size of identity mappings in region 6 & 7. */
+#ifndef LOG2_ID_PAGE_SIZE
+#define	LOG2_ID_PAGE_SIZE	16
+#endif
 
 /*
  * Mach derived conversion macros

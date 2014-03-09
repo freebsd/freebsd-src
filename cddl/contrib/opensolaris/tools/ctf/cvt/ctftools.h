@@ -159,7 +159,7 @@ typedef struct ardef {
 /* Auxiliary structure for structure/union tdesc_t */
 typedef struct mlist {
 	int	ml_offset;	/* Offset from start of structure (in bits) */
-	int	ml_size;	/* Member size (in bits) */
+	uint_t	ml_size;	/* Member size (in bits) */
 	char	*ml_name;	/* Member name */
 	struct	tdesc *ml_type;	/* Member type */
 	struct	mlist *ml_next;	/* Next member */

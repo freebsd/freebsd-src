@@ -22,17 +22,41 @@ namespace llvm {
   class SparcSubtarget;
 
 class SparcFrameLowering : public TargetFrameLowering {
+  const SparcSubtarget &SubTarget;
 public:
-  explicit SparcFrameLowering(const SparcSubtarget &/*sti*/)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8, 0) {
-  }
+  explicit SparcFrameLowering(const SparcSubtarget &ST)
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
+                          ST.is64Bit() ? 16 : 8, 0, ST.is64Bit() ? 16 : 8),
+      SubTarget(ST) {}
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
-  bool hasFP(const MachineFunction &MF) const { return false; }
+  void eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
+
+  bool hasReservedCallFrame(const MachineFunction &MF) const;
+  bool hasFP(const MachineFunction &MF) const;
+  void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
+                                            RegScavenger *RS = NULL) const;
+
+private:
+  // Remap input registers to output registers for leaf procedure.
+  void remapRegsForLeafProc(MachineFunction &MF) const;
+
+  // Returns true if MF is a leaf procedure.
+  bool isLeafProc(MachineFunction &MF) const;
+
+
+  // Emits code for adjusting SP in function prologue/epilogue.
+  void emitSPAdjustment(MachineFunction &MF,
+                        MachineBasicBlock &MBB,
+                        MachineBasicBlock::iterator MBBI,
+                        int NumBytes, unsigned ADDrr, unsigned ADDri) const;
+
 };
 
 } // End llvm namespace

@@ -31,19 +31,18 @@
 #ifndef LLVM_CODEGEN_MACHINEMODULEINFO_H
 #define LLVM_CODEGEN_MACHINEMODULEINFO_H
 
-#include "llvm/Pass.h"
-#include "llvm/GlobalValue.h"
-#include "llvm/Metadata.h"
-#include "llvm/MC/MachineLocation.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/Support/Dwarf.h"
-#include "llvm/Support/DebugLoc.h"
-#include "llvm/Support/ValueHandle.h"
-#include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MachineLocation.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/DebugLoc.h"
+#include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
 
@@ -107,9 +106,9 @@ class MachineModuleInfo : public ImmutablePass {
   /// want.
   MachineModuleInfoImpl *ObjFileMMI;
 
-  /// FrameMoves - List of moves done by a function's prolog.  Used to construct
-  /// frame maps by debug and exception handling consumers.
-  std::vector<MachineMove> FrameMoves;
+  /// List of moves done by a function's prolog.  Used to construct frame maps
+  /// by debug and exception handling consumers.
+  std::vector<MCCFIInstruction> FrameInstructions;
 
   /// CompactUnwindEncoding - If the target supports it, this is the compact
   /// unwind encoding. It replaces a function's CIE and FDE.
@@ -180,8 +179,9 @@ public:
                     const MCObjectFileInfo *MOFI);
   ~MachineModuleInfo();
 
-  bool doInitialization();
-  bool doFinalization();
+  // Initialization and Finalization
+  virtual bool doInitialization(Module &);
+  virtual bool doFinalization(Module &);
 
   /// EndFunction - Discard function meta information.
   ///
@@ -231,10 +231,16 @@ public:
     UsesVAFloatArgument = b;
   }
 
-  /// getFrameMoves - Returns a reference to a list of moves done in the current
+  /// \brief Returns a reference to a list of cfi instructions in the current
   /// function's prologue.  Used to construct frame maps for debug and exception
   /// handling comsumers.
-  std::vector<MachineMove> &getFrameMoves() { return FrameMoves; }
+  const std::vector<MCCFIInstruction> &getFrameInstructions() const {
+    return FrameInstructions;
+  }
+
+  void addFrameInst(const MCCFIInstruction &Inst) {
+    FrameInstructions.push_back(Inst);
+  }
 
   /// getCompactUnwindEncoding - Returns the compact unwind encoding for a
   /// function if the target supports the encoding. This encoding replaces a
@@ -295,7 +301,7 @@ public:
   /// isUsedFunction - Return true if the functions in the llvm.used list.  This
   /// does not return true for things in llvm.compiler.used unless they are also
   /// in llvm.used.
-  bool isUsedFunction(const Function *F) {
+  bool isUsedFunction(const Function *F) const {
     return UsedFunctions.count(F);
   }
 
@@ -372,7 +378,7 @@ public:
 
   /// getCurrentCallSite - Get the call site currently being processed, if any.
   /// return zero if none.
-  unsigned getCurrentCallSite(void) { return CurCallSite; }
+  unsigned getCurrentCallSite() { return CurCallSite; }
 
   /// getTypeInfos - Return a reference to the C++ typeinfo for the current
   /// function.

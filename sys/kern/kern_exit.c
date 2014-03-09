@@ -38,9 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,8 +92,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
-SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
@@ -266,7 +263,7 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
-	p->p_flag &= ~(P_TRACED | P_PPWAIT);
+	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently
@@ -297,7 +294,7 @@ exit1(struct thread *td, int rv)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
-	fdfree(td);
+	fdescfree(td);
 
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
@@ -388,10 +385,8 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Release our limits structure.
 	 */
-	PROC_LOCK(p);
 	plim = p->p_limit;
 	p->p_limit = NULL;
-	PROC_UNLOCK(p);
 	lim_free(plim);
 
 	tidhash_remove(td);
@@ -502,9 +497,7 @@ exit1(struct thread *td, int rv)
 	 * procdesc_exit() to serialize concurrent calls to close() and
 	 * exit().
 	 */
-#ifdef PROCDESC
 	if (p->p_procdesc == NULL || procdesc_exit(p)) {
-#endif
 		/*
 		 * Notify parent that we're gone.  If parent has the
 		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
@@ -541,10 +534,8 @@ exit1(struct thread *td, int rv)
 			else	/* LINUX thread */
 				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
-#ifdef PROCDESC
 	} else
 		PROC_LOCK(p->p_pptr);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -809,10 +800,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	clear_orphan(p);
 	PROC_UNLOCK(p);
 	leavepgrp(p);
-#ifdef PROCDESC
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -918,8 +907,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		}
 		break;
 	case P_JAILID:
-		if (p->p_ucred->cr_prison == NULL ||
-		    (p->p_ucred->cr_prison->pr_id != (int)id)) {
+		if (p->p_ucred->cr_prison->pr_id != (int)id) {
 			PROC_UNLOCK(p);
 			return (0);
 		}
@@ -976,16 +964,19 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		 *  This is still a rough estimate.  We will fix the
 		 *  cases TRAPPED, STOPPED, and CONTINUED later.
 		 */
-		if (WCOREDUMP(p->p_xstat))
+		if (WCOREDUMP(p->p_xstat)) {
 			siginfo->si_code = CLD_DUMPED;
-		else if (WIFSIGNALED(p->p_xstat))
+			siginfo->si_status = WTERMSIG(p->p_xstat);
+		} else if (WIFSIGNALED(p->p_xstat)) {
 			siginfo->si_code = CLD_KILLED;
-		else
+			siginfo->si_status = WTERMSIG(p->p_xstat);
+		} else {
 			siginfo->si_code = CLD_EXITED;
+			siginfo->si_status = WEXITSTATUS(p->p_xstat);
+		}
 
 		siginfo->si_pid = p->p_pid;
 		siginfo->si_uid = p->p_ucred->cr_uid;
-		siginfo->si_status = p->p_xstat;
 
 		/*
 		 * The si_addr field would be useful additional
@@ -1024,20 +1015,18 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
 	struct __wrusage wru, *wrup;
-	struct proc *q;
 	idtype_t idtype;
 	id_t id;
 	int ret;
 
+	/*
+	 * Translate the special pid values into the (idtype, pid)
+	 * pair for kern_wait6.  The WAIT_MYPGRP case is handled by
+	 * kern_wait6() on its own.
+	 */
 	if (pid == WAIT_ANY) {
 		idtype = P_ALL;
 		id = 0;
-	} else if (pid == WAIT_MYPGRP) {
-		idtype = P_PGID;
-		q = td->td_proc;
-		PROC_LOCK(q);
-		id = (id_t)q->p_pgid;
-		PROC_UNLOCK(q);
 	} else if (pid < 0) {
 		idtype = P_PGID;
 		id = (id_t)-pid;
@@ -1045,10 +1034,12 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		idtype = P_PID;
 		id = (id_t)pid;
 	}
+
 	if (rusage != NULL)
 		wrup = &wru;
 	else
 		wrup = NULL;
+
 	/*
 	 * For backward compatibility we implicitly add flags WEXITED
 	 * and WTRAPPED here.
@@ -1074,7 +1065,9 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	q = td->td_proc;
 
 	if ((pid_t)id == WAIT_MYPGRP && (idtype == P_PID || idtype == P_PGID)) {
+		PROC_LOCK(q);
 		id = (id_t)q->p_pgid;
+		PROC_UNLOCK(q);
 		idtype = P_PGID;
 	}
 

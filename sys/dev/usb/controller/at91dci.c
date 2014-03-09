@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2007-2008 Hans Petter Selasky. All rights reserved.
  *
@@ -44,6 +42,9 @@ __FBSDID("$FreeBSD$");
  * endpoints, Function-address and more.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -79,6 +80,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/at91dci.h>
 
 #define	AT9100_DCI_BUS2SC(bus) \
@@ -100,11 +103,11 @@ SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods at91dci_bus_methods;
-struct usb_pipe_methods at91dci_device_bulk_methods;
-struct usb_pipe_methods at91dci_device_ctrl_methods;
-struct usb_pipe_methods at91dci_device_intr_methods;
-struct usb_pipe_methods at91dci_device_isoc_fs_methods;
+static const struct usb_bus_methods at91dci_bus_methods;
+static const struct usb_pipe_methods at91dci_device_bulk_methods;
+static const struct usb_pipe_methods at91dci_device_ctrl_methods;
+static const struct usb_pipe_methods at91dci_device_intr_methods;
+static const struct usb_pipe_methods at91dci_device_isoc_fs_methods;
 
 static at91dci_cmd_t at91dci_setup_rx;
 static at91dci_cmd_t at91dci_data_rx;
@@ -1512,7 +1515,7 @@ at91dci_device_bulk_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_bulk_methods =
+static const struct usb_pipe_methods at91dci_device_bulk_methods =
 {
 	.open = at91dci_device_bulk_open,
 	.close = at91dci_device_bulk_close,
@@ -1549,7 +1552,7 @@ at91dci_device_ctrl_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_ctrl_methods =
+static const struct usb_pipe_methods at91dci_device_ctrl_methods =
 {
 	.open = at91dci_device_ctrl_open,
 	.close = at91dci_device_ctrl_close,
@@ -1586,7 +1589,7 @@ at91dci_device_intr_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_intr_methods =
+static const struct usb_pipe_methods at91dci_device_intr_methods =
 {
 	.open = at91dci_device_intr_open,
 	.close = at91dci_device_intr_close,
@@ -1668,7 +1671,7 @@ at91dci_device_isoc_fs_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_isoc_fs_methods =
+static const struct usb_pipe_methods at91dci_device_isoc_fs_methods =
 {
 	.open = at91dci_device_isoc_fs_open,
 	.close = at91dci_device_isoc_fs_close,
@@ -1737,18 +1740,12 @@ static const struct usb_hub_descriptor_min at91dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'T', 0, 'M', 0, 'E', 0, 'L', 0
+  "A\0T\0M\0E\0L"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, at91dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, at91dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, at91dci_product);
 
@@ -1950,8 +1947,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(at91dci_langtab);
-			ptr = (const void *)&at91dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2321,7 +2318,7 @@ at91dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods at91dci_bus_methods =
+static const struct usb_bus_methods at91dci_bus_methods =
 {
 	.endpoint_init = &at91dci_ep_init,
 	.xfer_setup = &at91dci_xfer_setup,

@@ -12,9 +12,9 @@
 
 #include "XCoreTargetMachine.h"
 #include "XCore.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
@@ -32,7 +32,8 @@ XCoreTargetMachine::XCoreTargetMachine(const Target &T, StringRef TT,
     InstrInfo(),
     FrameLowering(Subtarget),
     TLInfo(*this),
-    TSInfo(*this), STTI(&TLInfo), VTTI(&TLInfo) {
+    TSInfo(*this) {
+  initAsmInfo();
 }
 
 namespace {
@@ -46,12 +47,18 @@ public:
     return getTM<XCoreTargetMachine>();
   }
 
+  virtual bool addPreISel();
   virtual bool addInstSelector();
 };
 } // namespace
 
 TargetPassConfig *XCoreTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new XCorePassConfig(this, PM);
+}
+
+bool XCorePassConfig::addPreISel() {
+  addPass(createXCoreLowerThreadLocalPass());
+  return false;
 }
 
 bool XCorePassConfig::addInstSelector() {
@@ -62,4 +69,12 @@ bool XCorePassConfig::addInstSelector() {
 // Force static initialization.
 extern "C" void LLVMInitializeXCoreTarget() {
   RegisterTargetMachine<XCoreTargetMachine> X(TheXCoreTarget);
+}
+
+void XCoreTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
+  // Add first the target-independent BasicTTI pass, then our XCore pass. This
+  // allows the XCore pass to delegate to the target independent layer when
+  // appropriate.
+  PM.add(createBasicTargetTransformInfoPass(this));
+  PM.add(createXCoreTargetTransformInfoPass(this));
 }

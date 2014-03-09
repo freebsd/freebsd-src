@@ -44,7 +44,7 @@ void X86MCAsmInfoDarwin::anchor() { }
 X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
   bool is64Bit = T.getArch() == Triple::x86_64;
   if (is64Bit)
-    PointerSize = 8;
+    PointerSize = CalleeSaveStackSlotSize = 8;
 
   AssemblerDialect = AsmWriterFlavor;
 
@@ -59,10 +59,8 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
   // for .S files on other systems.  Perhaps this is because the file system
   // wasn't always case preserving or something.
   CommentString = "##";
-  PCSymbol = ".";
 
   SupportsDebugInformation = true;
-  DwarfUsesInlineInfoSection = true;
   UseDataRegionDirectives = MarkedJTDataRegions;
 
   // Exceptions handling
@@ -76,16 +74,22 @@ X86_64MCAsmInfoDarwin::X86_64MCAsmInfoDarwin(const Triple &Triple)
 void X86ELFMCAsmInfo::anchor() { }
 
 X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
-  if (T.getArch() == Triple::x86_64)
-    PointerSize = 8;
+  bool is64Bit = T.getArch() == Triple::x86_64;
+  bool isX32 = T.getEnvironment() == Triple::GNUX32;
+
+  // For ELF, x86-64 pointer size depends on the ABI.
+  // For x86-64 without the x32 ABI, pointer size is 8. For x86 and for x86-64
+  // with the x32 ABI, pointer size remains the default 4.
+  PointerSize = (is64Bit && !isX32) ? 8 : 4;
+
+  // OTOH, stack slot size is always 8 for x86-64, even with the x32 ABI.
+  CalleeSaveStackSlotSize = is64Bit ? 8 : 4;
 
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
 
   PrivateGlobalPrefix = ".L";
-  WeakRefDirective = "\t.weak\t";
-  PCSymbol = ".";
 
   // Set up DWARF directives
   HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
@@ -131,6 +135,8 @@ X86MCAsmInfoMicrosoft::X86MCAsmInfoMicrosoft(const Triple &Triple) {
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
+
+  AllowAtInName = true;
 }
 
 void X86MCAsmInfoGNUCOFF::anchor() { }

@@ -2,7 +2,8 @@
 
 .include <bsd.own.mk>
 
-FILES=	999.local
+FILES=	450.status-security \
+	999.local
 
 # NB: keep these sorted by MK_* knobs
 

@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -625,7 +626,7 @@ sis_miibus_statchg(device_t dev)
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
 
-	if (sc->sis_type == SIS_TYPE_83816) {
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
 		/*
 		 * MPII03.D: Half Duplex Excessive Collisions.
 		 * Also page 49 in 83816 manual
@@ -1989,7 +1990,7 @@ sis_initl(struct sis_softc *sc)
 		return;
 	}
 
-	if (sc->sis_type == SIS_TYPE_83815 || sc->sis_type == SIS_TYPE_83816) {
+	if (sc->sis_type == SIS_TYPE_83815) {
 		if (sc->sis_manual_pad != 0)
 			sc->sis_flags |= SIS_FLAG_MANUAL_PAD;
 		else

@@ -1,6 +1,6 @@
 //===---- ObjectBuffer.h - Utility class to wrap object image memory -----===//
 //
-//                     The LLVM Compiler Infrastructure
+//		       The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
@@ -15,10 +15,10 @@
 #ifndef LLVM_EXECUTIONENGINE_OBJECTBUFFER_H
 #define LLVM_EXECUTIONENGINE_OBJECTBUFFER_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
@@ -30,6 +30,7 @@ namespace llvm {
 /// ObjectFile) as needed, but the MemoryBuffer instance returned does not own the
 /// actual memory it points to.
 class ObjectBuffer {
+  virtual void anchor();
 public:
   ObjectBuffer() {}
   ObjectBuffer(MemoryBuffer* Buf) : Buffer(Buf) {}
@@ -44,6 +45,7 @@ public:
 
   const char *getBufferStart() const { return Buffer->getBufferStart(); }
   size_t getBufferSize() const { return Buffer->getBufferSize(); }
+  StringRef getBuffer() const { return Buffer->getBuffer(); }
 
 protected:
   // The memory contained in an ObjectBuffer
@@ -55,6 +57,7 @@ protected:
 /// while providing a common ObjectBuffer interface for access to the
 /// memory once the object has been generated.
 class ObjectBufferStream : public ObjectBuffer {
+  virtual void anchor();
 public:
   ObjectBufferStream() : OS(SV) {}
   virtual ~ObjectBufferStream() {}
@@ -66,13 +69,13 @@ public:
 
     // Make the data accessible via the ObjectBuffer::Buffer
     Buffer.reset(MemoryBuffer::getMemBuffer(StringRef(SV.data(), SV.size()),
-                                            "",
-                                            false));
+					    "",
+					    false));
   }
 
 protected:
   SmallVector<char, 4096> SV; // Working buffer into which we JIT.
-  raw_svector_ostream     OS; // streaming wrapper
+  raw_svector_ostream	  OS; // streaming wrapper
 };
 
 } // namespace llvm

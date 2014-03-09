@@ -2,14 +2,8 @@
  * EAP server method registration
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -167,6 +161,8 @@ void eap_server_unregister_methods(void)
 const char * eap_server_get_name(int vendor, EapType type)
 {
 	struct eap_method *m;
+	if (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_EXPANDED)
+		return "expanded";
 	for (m = eap_methods; m; m = m->next) {
 		if (m->vendor == vendor && m->method == type)
 			return m->name;

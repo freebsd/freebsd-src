@@ -17,8 +17,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFunction.h"
 #include "CGCleanup.h"
+#include "CodeGenFunction.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -52,7 +52,8 @@ DominatingValue<RValue>::saved_type::save(CodeGenFunction &CGF, RValue rv) {
       llvm::StructType::get(V.first->getType(), V.second->getType(),
                             (void*) 0);
     llvm::Value *addr = CGF.CreateTempAlloca(ComplexTy, "saved-complex");
-    CGF.StoreComplexToAddr(V, addr, /*volatile*/ false);
+    CGF.Builder.CreateStore(V.first, CGF.Builder.CreateStructGEP(addr, 0));
+    CGF.Builder.CreateStore(V.second, CGF.Builder.CreateStructGEP(addr, 1));
     return saved_type(addr, ComplexAddress);
   }
 
@@ -79,8 +80,13 @@ RValue DominatingValue<RValue>::saved_type::restore(CodeGenFunction &CGF) {
     return RValue::getAggregate(Value);
   case AggregateAddress:
     return RValue::getAggregate(CGF.Builder.CreateLoad(Value));
-  case ComplexAddress:
-    return RValue::getComplex(CGF.LoadComplexFromAddr(Value, false));
+  case ComplexAddress: {
+    llvm::Value *real =
+      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 0));
+    llvm::Value *imag =
+      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 1));
+    return RValue::getComplex(real, imag);
+  }
   }
 
   llvm_unreachable("bad saved r-value kind");
@@ -379,6 +385,33 @@ void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old) {
 
     PopCleanupBlock(FallThroughIsBranchThrough);
   }
+}
+
+/// Pops cleanup blocks until the given savepoint is reached, then add the
+/// cleanups from the given savepoint in the lifetime-extended cleanups stack.
+void
+CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
+                                  size_t OldLifetimeExtendedSize) {
+  PopCleanupBlocks(Old);
+
+  // Move our deferred cleanups onto the EH stack.
+  for (size_t I = OldLifetimeExtendedSize,
+              E = LifetimeExtendedCleanupStack.size(); I != E; /**/) {
+    // Alignment should be guaranteed by the vptrs in the individual cleanups.
+    assert((I % llvm::alignOf<LifetimeExtendedCleanupHeader>() == 0) &&
+           "misaligned cleanup stack entry");
+
+    LifetimeExtendedCleanupHeader &Header =
+        reinterpret_cast<LifetimeExtendedCleanupHeader&>(
+            LifetimeExtendedCleanupStack[I]);
+    I += sizeof(Header);
+
+    EHStack.pushCopyOfCleanup(Header.getKind(),
+                              &LifetimeExtendedCleanupStack[I],
+                              Header.getSize());
+    I += Header.getSize();
+  }
+  LifetimeExtendedCleanupStack.resize(OldLifetimeExtendedSize);
 }
 
 static llvm::BasicBlock *CreateNormalEntry(CodeGenFunction &CGF,
@@ -827,6 +860,9 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
+    if (CGDebugInfo *DI = getDebugInfo())
+      DI->EmitLocation(Builder, CurEHLocation);
+
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 
     EmitBlock(EHEntry);
@@ -834,6 +870,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
     // We only actually emit the cleanup code if the cleanup is either
     // active or was used before it was deactivated.
     if (EHActiveFlag || IsActive) {
+
       cleanupFlags.setIsForEHCleanup();
       EmitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
     }

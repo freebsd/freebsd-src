@@ -6,9 +6,10 @@ FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
 	200.backup-passwd \
+	210.backup-aliases \
 	330.news \
 	400.status-disks \
-	405.status-ata-raid \
+	401.status-graid \
 	406.status-gmirror \
 	407.status-graid3 \
 	408.status-gstripe \
@@ -23,10 +24,6 @@ FILES=	100.clean-disks \
 FILES+=	310.accounting
 .endif
 
-.if ${MK_BIND_NAMED} != "no"
-FILES+=	470.status-named
-.endif
-
 .if ${MK_CALENDAR} != "no"
 FILES+=	300.calendar
 .endif
@@ -39,11 +36,6 @@ FILES+=	130.clean-msgs
 FILES+=	480.status-ntpd
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	220.backup-pkgdb \
-	490.status-pkg-changes
-.endif
-
 .if ${MK_RCMDS} != "no"
 FILES+=	140.clean-rwho \
 	430.status-rwho
@@ -51,7 +43,6 @@ FILES+=	140.clean-rwho \
 
 .if ${MK_SENDMAIL} != "no"
 FILES+=	150.clean-hoststat \
-	210.backup-aliases \
 	440.status-mailq \
 	460.status-mail-rejects \
 	500.queuerun

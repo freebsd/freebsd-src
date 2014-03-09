@@ -49,6 +49,7 @@
 #include <fcntl.h>
 #include <libutil.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -269,7 +270,7 @@ aio_write_test(struct aio_context *ac)
 	if (len != ac->ac_buflen) {
 		aio_cleanup(ac);
 		errx(-1, "FAIL: %s: aio_write_test: aio_waitcomplete: short "
-		    "write (%d)", ac->ac_test, len);
+		    "write (%jd)", ac->ac_test, (intmax_t)len);
 	}
 }
 
@@ -329,7 +330,7 @@ aio_read_test(struct aio_context *ac)
 	if (len != ac->ac_buflen) {
 		aio_cleanup(ac);
 		errx(-1, "FAIL: %s: aio_read_test: aio_waitcomplete: short "
-		    "read (%d)", ac->ac_test, len);
+		    "read (%jd)", ac->ac_test, (intmax_t)len);
 	}
 
 	if (aio_test_buffer(ac->ac_buffer, ac->ac_buflen, ac->ac_seed) == 0) {
@@ -366,7 +367,7 @@ aio_file_cleanup(void *arg)
 
 #define	FILE_LEN	GLOBAL_MAX
 #define	FILE_TIMEOUT	30
-static int
+static void
 aio_file_test(void)
 {
 	char pathname[PATH_MAX];
@@ -414,7 +415,7 @@ aio_fifo_cleanup(void *arg)
 
 #define	FIFO_LEN	256
 #define	FIFO_TIMEOUT	30
-static int
+static void
 aio_fifo_test(void)
 {
 	int error, read_fd = -1, write_fd = -1;
@@ -481,7 +482,7 @@ aio_unix_socketpair_cleanup(void *arg)
 
 #define	UNIX_SOCKETPAIR_LEN	256
 #define	UNIX_SOCKETPAIR_TIMEOUT	30
-static int
+static void
 aio_unix_socketpair_test(void)
 {
 	struct aio_unix_socketpair_arg arg;
@@ -515,13 +516,14 @@ aio_pty_cleanup(void *arg)
 {
 	struct aio_pty_arg *apa;
 
+	apa = arg;
 	close(apa->apa_read_fd);
 	close(apa->apa_write_fd);
 };
 
 #define	PTY_LEN		256
 #define	PTY_TIMEOUT	30
-static int
+static void
 aio_pty_test(void)
 {
 	struct aio_pty_arg arg;
@@ -573,7 +575,7 @@ aio_pipe_cleanup(void *arg)
 
 #define	PIPE_LEN	256
 #define	PIPE_TIMEOUT	30
-static int
+static void
 aio_pipe_test(void)
 {	
 	struct aio_context ac;
@@ -628,7 +630,7 @@ aio_md_cleanup(void *arg)
 
 #define	MD_LEN		GLOBAL_MAX
 #define	MD_TIMEOUT	30
-static int
+static void
 aio_md_test(void)
 {
 	int error, fd, i, mdctl_fd, unit;

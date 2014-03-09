@@ -33,6 +33,8 @@
 #include <machine/psl.h>
 #include <machine/cpufunc.h>
 
+#define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
+
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {

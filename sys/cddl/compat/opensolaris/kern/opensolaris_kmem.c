@@ -62,6 +62,8 @@ static struct mtx kmem_items_mtx;
 MTX_SYSINIT(kmem_items_mtx, &kmem_items_mtx, "kmem_items", MTX_DEF);
 #endif	/* KMEM_DEBUG */
 
+#include <sys/vmem.h>
+
 void *
 zfs_kmem_alloc(size_t size, int kmflags)
 {
@@ -135,7 +137,7 @@ uint64_t
 kmem_used(void)
 {
 
-	return (kmem_map->size);
+	return (vmem_size(kmem_arena, VMEM_ALLOC));
 }
 
 static int

@@ -136,8 +136,8 @@ typedef	__pid_t		pid_t;
 
 #ifdef _KERNEL
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
-#define	FFLAGS(oflags)	((oflags) + 1)
-#define	OFLAGS(fflags)	((fflags) - 1)
+#define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
+#define	OFLAGS(fflags)	((fflags) & O_EXEC ? (fflags) : (fflags) - 1)
 
 /* bits to save after open */
 #define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT|FEXEC)

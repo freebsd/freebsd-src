@@ -117,8 +117,8 @@ DEFINE_TEST(test_read_format_cpio_svr4_gzip_rpm)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
   
 	/* Verify that the format detection worked. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_GZIP);
-	assertEqualString(archive_compression_name(a), "gzip");
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_GZIP);
+	assertEqualString(archive_filter_name(a, 0), "gzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
  
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));

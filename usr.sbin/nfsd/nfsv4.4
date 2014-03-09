@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2012
+.Dd July 1, 2013
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -233,6 +233,20 @@ plus set ``tcp'' and
 The
 .Xr nfsuserd 8
 must be running, as above.
+Also, since an
+.Nm
+mount uses the host uuid to identify the client uniquely to the server,
+you cannot safely do an
+.Nm
+mount when
+.sp
+.Bd -literal -offset indent -compact
+hostid_enable="NO"
+.Ed
+.sp
+is set in
+.Xr rc.conf 5 .
+.sp
 If the
 .Nm
 server that is being mounted on supports delegations, you can start the
@@ -287,6 +301,13 @@ and
 daemons at boot time via the ``nfsuserd_flags'' and ``nfscbd_flags''
 .Xr rc.conf 5
 variables.
+.Pp
+NFSv4 mount(s) against exported volume(s) on the same host are not recommended,
+since this can result in a hung NFS server.
+It occurs when an nfsd thread tries to do an NFSv4 VOP_RECLAIM()/Close RPC
+as part of acquiring a new vnode.
+If all other nfsd threads are blocked waiting for lock(s) held by this nfsd
+thread, then there isn't an nfsd thread to service the Close RPC.
 .Sh FILES
 .Bl -tag -width /var/db/nfs-stablerestart.bak -compact
 .It Pa /var/db/nfs-stablerestart

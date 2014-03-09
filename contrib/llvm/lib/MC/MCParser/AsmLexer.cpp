@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCParser/AsmLexer.h"
-#include "llvm/Support/SMLoc.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SMLoc.h"
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
@@ -91,9 +91,56 @@ AsmToken AsmLexer::LexFloatLiteral() {
                   StringRef(TokStart, CurPtr - TokStart));
 }
 
-/// LexIdentifier: [a-zA-Z_.][a-zA-Z0-9_$.@]*
+/// LexHexFloatLiteral matches essentially (.[0-9a-fA-F]*)?[pP][+-]?[0-9a-fA-F]+
+/// while making sure there are enough actual digits around for the constant to
+/// be valid.
+///
+/// The leading "0x[0-9a-fA-F]*" (i.e. integer part) has already been consumed
+/// before we get here.
+AsmToken AsmLexer::LexHexFloatLiteral(bool NoIntDigits) {
+  assert((*CurPtr == 'p' || *CurPtr == 'P' || *CurPtr == '.') &&
+         "unexpected parse state in floating hex");
+  bool NoFracDigits = true;
+
+  // Skip the fractional part if there is one
+  if (*CurPtr == '.') {
+    ++CurPtr;
+
+    const char *FracStart = CurPtr;
+    while (isxdigit(*CurPtr))
+      ++CurPtr;
+
+    NoFracDigits = CurPtr == FracStart;
+  }
+
+  if (NoIntDigits && NoFracDigits)
+    return ReturnError(TokStart, "invalid hexadecimal floating-point constant: "
+                                 "expected at least one significand digit");
+
+  // Make sure we do have some kind of proper exponent part
+  if (*CurPtr != 'p' && *CurPtr != 'P')
+    return ReturnError(TokStart, "invalid hexadecimal floating-point constant: "
+                                 "expected exponent part 'p'");
+  ++CurPtr;
+
+  if (*CurPtr == '+' || *CurPtr == '-')
+    ++CurPtr;
+
+  // N.b. exponent digits are *not* hex
+  const char *ExpStart = CurPtr;
+  while (isdigit(*CurPtr))
+    ++CurPtr;
+
+  if (CurPtr == ExpStart)
+    return ReturnError(TokStart, "invalid hexadecimal floating-point constant: "
+                                 "expected at least one exponent digit");
+
+  return AsmToken(AsmToken::Real, StringRef(TokStart, CurPtr - TokStart));
+}
+
+/// LexIdentifier: [a-zA-Z_.][a-zA-Z0-9_$.@?]*
 static bool IsIdentifierChar(char c) {
-  return isalnum(c) || c == '_' || c == '$' || c == '.' || c == '@';
+  return isalnum(c) || c == '_' || c == '$' || c == '.' || c == '@' || c == '?';
 }
 AsmToken AsmLexer::LexIdentifier() {
   // Check for floating point literals.
@@ -156,10 +203,36 @@ AsmToken AsmLexer::LexLineComment() {
 }
 
 static void SkipIgnoredIntegerSuffix(const char *&CurPtr) {
-  if (CurPtr[0] == 'L' && CurPtr[1] == 'L')
-    CurPtr += 2;
-  if (CurPtr[0] == 'U' && CurPtr[1] == 'L' && CurPtr[2] == 'L')
-    CurPtr += 3;
+  // Skip ULL, UL, U, L and LL suffices.
+  if (CurPtr[0] == 'U')
+    ++CurPtr;
+  if (CurPtr[0] == 'L')
+    ++CurPtr;
+  if (CurPtr[0] == 'L')
+    ++CurPtr;
+}
+
+// Look ahead to search for first non-hex digit, if it's [hH], then we treat the
+// integer as a hexadecimal, possibly with leading zeroes.
+static unsigned doLookAhead(const char *&CurPtr, unsigned DefaultRadix) {
+  const char *FirstHex = 0;
+  const char *LookAhead = CurPtr;
+  while (1) {
+    if (isdigit(*LookAhead)) {
+      ++LookAhead;
+    } else if (isxdigit(*LookAhead)) {
+      if (!FirstHex)
+        FirstHex = LookAhead;
+      ++LookAhead;
+    } else {
+      break;
+    }
+  }
+  bool isHex = *LookAhead == 'h' || *LookAhead == 'H';
+  CurPtr = isHex || !FirstHex ? LookAhead : FirstHex;
+  if (isHex)
+    return 16;
+  return DefaultRadix;
 }
 
 /// LexDigit: First character is [0-9].
@@ -167,16 +240,15 @@ static void SkipIgnoredIntegerSuffix(const char *&CurPtr) {
 ///   Forward/Backward Label: [0-9][fb]
 ///   Binary integer: 0b[01]+
 ///   Octal integer: 0[0-7]+
-///   Hex integer: 0x[0-9a-fA-F]+
+///   Hex integer: 0x[0-9a-fA-F]+ or [0x]?[0-9][0-9a-fA-F]*[hH]
 ///   Decimal integer: [1-9][0-9]*
 AsmToken AsmLexer::LexDigit() {
   // Decimal integer: [1-9][0-9]*
   if (CurPtr[-1] != '0' || CurPtr[0] == '.') {
-    while (isdigit(*CurPtr))
-      ++CurPtr;
-
+    unsigned Radix = doLookAhead(CurPtr, 10);
+    bool isHex = Radix == 16;
     // Check for floating point literals.
-    if (*CurPtr == '.' || *CurPtr == 'e') {
+    if (!isHex && (*CurPtr == '.' || *CurPtr == 'e')) {
       ++CurPtr;
       return LexFloatLiteral();
     }
@@ -184,17 +256,22 @@ AsmToken AsmLexer::LexDigit() {
     StringRef Result(TokStart, CurPtr - TokStart);
 
     long long Value;
-    if (Result.getAsInteger(10, Value)) {
+    if (Result.getAsInteger(Radix, Value)) {
       // Allow positive values that are too large to fit into a signed 64-bit
       // integer, but that do fit in an unsigned one, we just convert them over.
       unsigned long long UValue;
-      if (Result.getAsInteger(10, UValue))
-        return ReturnError(TokStart, "invalid decimal number");
+      if (Result.getAsInteger(Radix, UValue))
+        return ReturnError(TokStart, !isHex ? "invalid decimal number" :
+                           "invalid hexdecimal number");
       Value = (long long)UValue;
     }
 
-    // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
-    // suffixes on integer literals.
+    // Consume the [bB][hH].
+    if (Radix == 2 || Radix == 16)
+      ++CurPtr;
+
+    // The darwin/x86 (and x86-64) assembler accepts and ignores type
+    // suffices on integer literals.
     SkipIgnoredIntegerSuffix(CurPtr);
 
     return AsmToken(AsmToken::Integer, Result, Value);
@@ -235,13 +312,22 @@ AsmToken AsmLexer::LexDigit() {
     while (isxdigit(CurPtr[0]))
       ++CurPtr;
 
-    // Requires at least one hex digit.
+    // "0x.0p0" is valid, and "0x0p0" (but not "0xp0" for example, which will be
+    // diagnosed by LexHexFloatLiteral).
+    if (CurPtr[0] == '.' || CurPtr[0] == 'p' || CurPtr[0] == 'P')
+      return LexHexFloatLiteral(NumStart == CurPtr);
+
+    // Otherwise requires at least one hex digit.
     if (CurPtr == NumStart)
       return ReturnError(CurPtr-2, "invalid hexadecimal number");
 
     unsigned long long Result;
     if (StringRef(TokStart, CurPtr - TokStart).getAsInteger(0, Result))
       return ReturnError(TokStart, "invalid hexadecimal number");
+
+    // Consume the optional [hH].
+    if (*CurPtr == 'h' || *CurPtr == 'H')
+      ++CurPtr;
 
     // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
     // suffixes on integer literals.
@@ -251,14 +337,18 @@ AsmToken AsmLexer::LexDigit() {
                     (int64_t)Result);
   }
 
-  // Must be an octal number, it starts with 0.
-  while (*CurPtr >= '0' && *CurPtr <= '9')
-    ++CurPtr;
-
-  StringRef Result(TokStart, CurPtr - TokStart);
+  // Either octal or hexadecimal.
   long long Value;
-  if (Result.getAsInteger(8, Value))
-    return ReturnError(TokStart, "invalid octal number");
+  unsigned Radix = doLookAhead(CurPtr, 8);
+  bool isHex = Radix == 16;
+  StringRef Result(TokStart, CurPtr - TokStart);
+  if (Result.getAsInteger(Radix, Value))
+    return ReturnError(TokStart, !isHex ? "invalid octal number" :
+                       "invalid hexdecimal number");
+
+  // Consume the [hH].
+  if (Radix == 16)
+    ++CurPtr;
 
   // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
   // suffixes on integer literals.

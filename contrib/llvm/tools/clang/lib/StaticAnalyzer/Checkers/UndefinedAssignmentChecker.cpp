@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -37,6 +37,14 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
                                            CheckerContext &C) const {
   if (!val.isUndef())
     return;
+
+  // Do not report assignments of uninitialized values inside swap functions.
+  // This should allow to swap partially uninitialized structs
+  // (radar://14129997)
+  if (const FunctionDecl *EnclosingFunctionDecl =
+      dyn_cast<FunctionDecl>(C.getStackFrame()->getDecl()))
+    if (C.getCalleeName(EnclosingFunctionDecl) == "swap")
+      return;
 
   ExplodedNode *N = C.generateSink();
 

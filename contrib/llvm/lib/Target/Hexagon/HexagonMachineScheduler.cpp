@@ -15,8 +15,8 @@
 #define DEBUG_TYPE "misched"
 
 #include "HexagonMachineScheduler.h"
-
-#include <queue>
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/IR/Function.h"
 
 using namespace llvm;
 
@@ -153,7 +153,16 @@ void VLIWMachineScheduler::schedule() {
   // Postprocess the DAG to add platform specific artificial dependencies.
   postprocessDAG();
 
+  SmallVector<SUnit*, 8> TopRoots, BotRoots;
+  findRootsAndBiasEdges(TopRoots, BotRoots);
+
+  // Initialize the strategy before modifying the DAG.
+  SchedImpl->initialize(this);
+
   // To view Height/Depth correctly, they should be accessed at least once.
+  //
+  // FIXME: SUnit::dumpAll always recompute depth and height now. The max
+  // depth/height could be computed directly from the roots and leaves.
   DEBUG(unsigned maxH = 0;
         for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
           if (SUnits[su].getHeight() > maxH)
@@ -167,7 +176,7 @@ void VLIWMachineScheduler::schedule() {
   DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
           SUnits[su].dumpAll(this));
 
-  initQueues();
+  initQueues(TopRoots, BotRoots);
 
   bool IsTopNode = false;
   while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
@@ -186,7 +195,7 @@ void VLIWMachineScheduler::schedule() {
 void ConvergingVLIWScheduler::initialize(ScheduleDAGMI *dag) {
   DAG = static_cast<VLIWMachineScheduler*>(dag);
   SchedModel = DAG->getSchedModel();
-  TRI = DAG->TRI;
+
   Top.init(DAG, SchedModel);
   Bot.init(DAG, SchedModel);
 
@@ -194,9 +203,13 @@ void ConvergingVLIWScheduler::initialize(ScheduleDAGMI *dag) {
   // are disabled, then these HazardRecs will be disabled.
   const InstrItineraryData *Itin = DAG->getSchedModel()->getInstrItineraries();
   const TargetMachine &TM = DAG->MF.getTarget();
+  delete Top.HazardRec;
+  delete Bot.HazardRec;
   Top.HazardRec = TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
   Bot.HazardRec = TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
 
+  delete Top.ResourceModel;
+  delete Bot.ResourceModel;
   Top.ResourceModel = new VLIWResourceModel(TM, DAG->getSchedModel());
   Bot.ResourceModel = new VLIWResourceModel(TM, DAG->getSchedModel());
 
@@ -211,7 +224,7 @@ void ConvergingVLIWScheduler::releaseTopNode(SUnit *SU) {
   for (SUnit::succ_iterator I = SU->Preds.begin(), E = SU->Preds.end();
        I != E; ++I) {
     unsigned PredReadyCycle = I->getSUnit()->TopReadyCycle;
-    unsigned MinLatency = I->getMinLatency();
+    unsigned MinLatency = I->getLatency();
 #ifndef NDEBUG
     Top.MaxMinLatency = std::max(MinLatency, Top.MaxMinLatency);
 #endif
@@ -230,7 +243,7 @@ void ConvergingVLIWScheduler::releaseBottomNode(SUnit *SU) {
   for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
        I != E; ++I) {
     unsigned SuccReadyCycle = I->getSUnit()->BotReadyCycle;
-    unsigned MinLatency = I->getMinLatency();
+    unsigned MinLatency = I->getLatency();
 #ifndef NDEBUG
     Bot.MaxMinLatency = std::max(MinLatency, Bot.MaxMinLatency);
 #endif
@@ -394,11 +407,11 @@ SUnit *ConvergingVLIWScheduler::SchedBoundary::pickOnlyChoice() {
 #ifndef NDEBUG
 void ConvergingVLIWScheduler::traceCandidate(const char *Label,
                                              const ReadyQueue &Q,
-                                             SUnit *SU, PressureElement P) {
+                                             SUnit *SU, PressureChange P) {
   dbgs() << Label << " " << Q.getName() << " ";
   if (P.isValid())
-    dbgs() << TRI->getRegPressureSetName(P.PSetID) << ":" << P.UnitIncrease
-           << " ";
+    dbgs() << DAG->TRI->getRegPressureSetName(P.getPSet()) << ":"
+           << P.getUnitInc() << " ";
   else
     dbgs() << "     ";
   SU->dump(DAG);
@@ -444,9 +457,7 @@ static SUnit *getSingleUnscheduledSucc(SUnit *SU) {
 // Constants used to denote relative importance of
 // heuristic components for cost computation.
 static const unsigned PriorityOne = 200;
-static const unsigned PriorityTwo = 100;
-static const unsigned PriorityThree = 50;
-static const unsigned PriorityFour = 20;
+static const unsigned PriorityTwo = 50;
 static const unsigned ScaleTwo = 10;
 static const unsigned FactorOne = 2;
 
@@ -504,8 +515,8 @@ int ConvergingVLIWScheduler::SchedulingCost(ReadyQueue &Q, SUnit *SU,
   ResCount += (NumNodesBlocking * ScaleTwo);
 
   // Factor in reg pressure as a heuristic.
-  ResCount -= (Delta.Excess.UnitIncrease*PriorityThree);
-  ResCount -= (Delta.CriticalMax.UnitIncrease*PriorityThree);
+  ResCount -= (Delta.Excess.getUnitInc()*PriorityTwo);
+  ResCount -= (Delta.CriticalMax.getUnitInc()*PriorityTwo);
 
   DEBUG(if (verbose) dbgs() << " Total(" << ResCount << ")");
 
@@ -678,4 +689,3 @@ void ConvergingVLIWScheduler::schedNode(SUnit *SU, bool IsTopNode) {
     Bot.bumpNode(SU);
   }
 }
-

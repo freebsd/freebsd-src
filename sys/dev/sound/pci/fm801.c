@@ -573,7 +573,6 @@ fm801_init(struct fm801_info *fm801)
 static int
 fm801_pci_attach(device_t dev)
 {
-	u_int32_t 		data;
 	struct ac97_info 	*codec = 0;
 	struct fm801_info 	*fm801;
 	int 			i;
@@ -583,10 +582,7 @@ fm801_pci_attach(device_t dev)
 	fm801 = malloc(sizeof(*fm801), M_DEVBUF, M_WAITOK | M_ZERO);
 	fm801->type = pci_get_devid(dev);
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
 		fm801->regid = PCIR_BAR(i);

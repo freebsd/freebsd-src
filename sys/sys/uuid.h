@@ -58,6 +58,9 @@ struct sbuf;
 
 struct uuid *kern_uuidgen(struct uuid *, size_t);
 
+int uuid_ether_add(const uint8_t *);
+int uuid_ether_del(const uint8_t *);
+
 int snprintf_uuid(char *, size_t, struct uuid *);
 int printf_uuid(struct uuid *);
 int sbuf_printf_uuid(struct sbuf *, struct uuid *);

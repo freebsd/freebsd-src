@@ -91,6 +91,20 @@
  */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
 #define	MAP_PREFAULT_READ 0x00040000 /* prefault mapping for reading */
+#ifdef __LP64__
+#define	MAP_32BIT	 0x00080000 /* map in the low 2GB of address space */
+#endif
+
+/*
+ * Request specific alignment (n == log2 of the desired alignment).
+ *
+ * MAP_ALIGNED_SUPER requests optimal superpage alignment, but does
+ * not enforce a specific alignment.
+ */
+#define	MAP_ALIGNED(n)	 ((n) << MAP_ALIGNMENT_SHIFT)
+#define	MAP_ALIGNMENT_SHIFT	24
+#define	MAP_ALIGNMENT_MASK	MAP_ALIGNED(0xff)
+#define	MAP_ALIGNED_SUPER	MAP_ALIGNED(1) /* align on a superpage */
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 199309
@@ -179,6 +193,10 @@ typedef	__size_t	size_t;
 #endif
 
 #if defined(_KERNEL) || defined(_WANT_FILE)
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/rangelock.h>
 #include <vm/vm.h>
 
 struct file;
@@ -203,6 +221,9 @@ struct shmfd {
 
 	struct label	*shm_label;		/* MAC label */
 	const char	*shm_path;
+
+	struct rangelock shm_rl;
+	struct mtx	shm_mtx;
 };
 #endif
 

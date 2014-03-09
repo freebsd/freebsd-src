@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
  *        a FreeBSD domain to other domains.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -70,14 +68,13 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 
 #include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
+#include <xen/xen-os.h>
 #include <xen/blkif.h>
-#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/xen_intr.h>
 
@@ -231,7 +228,7 @@ struct xbb_xen_reqlist {
 	int			 num_children;
 
 	/**
-	 * Number of I/O requests dispatched to the backend.
+	 * Number of I/O requests still pending on the backend.
 	 */
 	int			 pendcnt;
 
@@ -326,13 +323,6 @@ struct xbb_xen_req {
 	 * The number of 512 byte sectors comprising this requests.
 	 */
 	int			  nr_512b_sectors;
-
-	/**
-	 * The number of struct bio requests still outstanding for this
-	 * request on the backend device.  This field is only used for	
-	 * device (rather than file) backed I/O.
-	 */
-	int			  pendcnt;
 
 	/**
 	 * BLKIF_OP code for this request.
@@ -682,7 +672,7 @@ struct xbb_softc {
 	blkif_back_rings_t	  rings;
 
 	/** IRQ mapping for the communication ring event channel. */
-	int			  irq;
+	xen_intr_handle_t	  xen_intr_handle;
 
 	/**
 	 * \brief Backend access mode flags (e.g. write, or read-only).
@@ -1240,6 +1230,8 @@ xbb_get_resources(struct xbb_softc *xbb, struct xbb_xen_reqlist **reqlist,
 
 	nreq->reqlist = *reqlist;
 	nreq->req_ring_idx = ring_idx;
+	nreq->id = ring_req->id;
+	nreq->operation = ring_req->operation;
 
 	if (xbb->abi != BLKIF_PROTOCOL_NATIVE) {
 		bcopy(ring_req, &nreq->ring_req_storage, sizeof(*ring_req));
@@ -1347,7 +1339,7 @@ xbb_send_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
 
 	if (notify)
-		notify_remote_via_irq(xbb->irq);
+		xen_intr_signal(xbb->xen_intr_handle);
 }
 
 /**
@@ -1609,15 +1601,14 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 		req_ring_idx	      = nreq->req_ring_idx;
 		nr_sects              = 0;
 		nseg                  = ring_req->nr_segments;
-		nreq->id              = ring_req->id;
 		nreq->nr_pages        = nseg;
 		nreq->nr_512b_sectors = 0;
 		req_seg_idx	      = 0;
 		sg	              = NULL;
 
 		/* Check that number of segments is sane. */
-		if (unlikely(nseg == 0)
-		 || unlikely(nseg > xbb->max_request_segments)) {
+		if (__predict_false(nseg == 0)
+		 || __predict_false(nseg > xbb->max_request_segments)) {
 			DPRINTF("Bad number of segments in request (%d)\n",
 				nseg);
 			reqlist->status = BLKIF_RSP_ERROR;
@@ -1734,7 +1725,7 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 	for (seg_idx = 0, map = xbb->maps; seg_idx < reqlist->nr_segments;
 	     seg_idx++, map++){
 
-		if (unlikely(map->status != 0)) {
+		if (__predict_false(map->status != 0)) {
 			DPRINTF("invalid buffer -- could not remap "
 			        "it (%d)\n", map->status);
 			DPRINTF("Mapping(%d): Host Addr 0x%lx, flags "
@@ -2026,21 +2017,23 @@ xbb_run_queue(void *context, int pending)
  * \param arg  Callback argument registerd during event channel
  *             binding - the xbb_softc for this instance.
  */
-static void
-xbb_intr(void *arg)
+static int
+xbb_filter(void *arg)
 {
 	struct xbb_softc *xbb;
 
-	/* Defer to kernel thread. */
+	/* Defer to taskqueue thread. */
 	xbb = (struct xbb_softc *)arg;
 	taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
+
+	return (FILTER_HANDLED);
 }
 
 SDT_PROVIDER_DEFINE(xbb);
-SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_dev, flush, flush, "int");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, read, read, "int", "uint64_t",
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_dev, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, read, "int", "uint64_t",
 		  "uint64_t");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, write, write, "int",
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, write, "int",
 		  "uint64_t", "uint64_t");
 
 /*----------------------------- Backend Handlers -----------------------------*/
@@ -2061,7 +2054,6 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 {
 	struct xbb_dev_data *dev_data;
 	struct bio          *bios[XBB_MAX_SEGMENTS_PER_REQLIST];
-	struct xbb_xen_req  *nreq;
 	off_t                bio_offset;
 	struct bio          *bio;
 	struct xbb_sg       *xbb_sg;
@@ -2079,9 +2071,8 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	bio_idx    = 0;
 
 	if (operation == BIO_FLUSH) {
-		nreq = STAILQ_FIRST(&reqlist->contig_req_list);
 		bio = g_new_bio();
-		if (unlikely(bio == NULL)) {
+		if (__predict_false(bio == NULL)) {
 			DPRINTF("Unable to allocate bio for BIO_FLUSH\n");
 			error = ENOMEM;
 			return (error);
@@ -2093,10 +2084,10 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		bio->bio_offset	 = 0;
 		bio->bio_data	 = 0;
 		bio->bio_done	 = xbb_bio_done;
-		bio->bio_caller1 = nreq;
+		bio->bio_caller1 = reqlist;
 		bio->bio_pblkno	 = 0;
 
-		nreq->pendcnt	 = 1;
+		reqlist->pendcnt = 1;
 
 		SDT_PROBE1(xbb, kernel, xbb_dispatch_dev, flush,
 			   device_get_unit(xbb->dev));
@@ -2143,7 +2134,7 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 			}
 
 			bio = bios[nbio++] = g_new_bio();
-			if (unlikely(bio == NULL)) {
+			if (__predict_false(bio == NULL)) {
 				error = ENOMEM;
 				goto fail_free_bios;
 			}
@@ -2218,10 +2209,10 @@ fail_free_bios:
 	return (error);
 }
 
-SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_file, flush, flush, "int");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, read, read, "int", "uint64_t",
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_file, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, read, "int", "uint64_t",
 		  "uint64_t");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, write, write, "int",
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, write, "int",
 		  "uint64_t", "uint64_t");
 
 /**
@@ -2775,7 +2766,7 @@ xbb_free_communication_mem(struct xbb_softc *xbb)
 {
 	if (xbb->kva != 0) {
 #ifndef XENHVM
-		kmem_free(kernel_map, xbb->kva, xbb->kva_size);
+		kva_free(xbb->kva, xbb->kva_size);
 #else
 		if (xbb->pseudo_phys_res != NULL) {
 			bus_release_resource(xbb->dev, SYS_RES_MEMORY,
@@ -2811,10 +2802,7 @@ xbb_disconnect(struct xbb_softc *xbb)
 	if ((xbb->flags & XBBF_RING_CONNECTED) == 0)
 		return (0);
 
-	if (xbb->irq != 0) {
-		unbind_from_irqhandler(xbb->irq);
-		xbb->irq = 0;
-	}
+	xen_intr_unbind(&xbb->xen_intr_handle);
 
 	mtx_unlock(&xbb->lock);
 	taskqueue_drain(xbb->io_taskqueue, &xbb->io_task); 
@@ -2966,13 +2954,14 @@ xbb_connect_ring(struct xbb_softc *xbb)
 
 	xbb->flags |= XBBF_RING_CONNECTED;
 
-	error =
-	    bind_interdomain_evtchn_to_irqhandler(xbb->otherend_id,
-						  xbb->ring_config.evtchn,
-						  device_get_nameunit(xbb->dev),
-						  xbb_intr, /*arg*/xbb,
-						  INTR_TYPE_BIO | INTR_MPSAFE,
-						  &xbb->irq);
+	error = xen_intr_bind_remote_port(xbb->dev,
+					  xbb->otherend_id,
+					  xbb->ring_config.evtchn,
+					  xbb_filter,
+					  /*ithread_handler*/NULL,
+					  /*arg*/xbb,
+					  INTR_TYPE_BIO | INTR_MPSAFE,
+					  &xbb->xen_intr_handle);
 	if (error) {
 		(void)xbb_disconnect(xbb);
 		xenbus_dev_fatal(xbb->dev, error, "binding event channel");
@@ -3014,7 +3003,7 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 		device_get_nameunit(xbb->dev), xbb->kva_size,
 		xbb->reqlist_kva_size);
 #ifndef XENHVM
-	xbb->kva = kmem_alloc_nofault(kernel_map, xbb->kva_size);
+	xbb->kva = kva_alloc(xbb->kva_size);
 	if (xbb->kva == 0)
 		return (ENOMEM);
 	xbb->gnt_base_addr = xbb->kva;
@@ -3791,9 +3780,10 @@ xbb_attach(device_t dev)
 	 * Create a taskqueue for doing work that must occur from a
 	 * thread context.
 	 */
-	xbb->io_taskqueue = taskqueue_create(device_get_nameunit(dev), M_NOWAIT,
-					     taskqueue_thread_enqueue,
-					     /*context*/&xbb->io_taskqueue);
+	xbb->io_taskqueue = taskqueue_create_fast(device_get_nameunit(dev),
+						  M_NOWAIT,
+						  taskqueue_thread_enqueue,
+						  /*contxt*/&xbb->io_taskqueue);
 	if (xbb->io_taskqueue == NULL) {
 		xbb_attach_failed(xbb, error, "Unable to create taskqueue");
 		return (ENOMEM);

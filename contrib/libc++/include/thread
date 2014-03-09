@@ -144,9 +144,11 @@ template <class _Tp>
 __thread_specific_ptr<_Tp>::__thread_specific_ptr()
 {
     int __ec = pthread_key_create(&__key_, &__thread_specific_ptr::__at_thread_exit);
+#ifndef _LIBCPP_NO_EXCEPTIONS
     if (__ec)
         throw system_error(error_code(__ec, system_category()),
                            "__thread_specific_ptr construction failed");
+#endif
 }
 
 template <class _Tp>
@@ -173,8 +175,8 @@ __thread_specific_ptr<_Tp>::reset(pointer __p)
     delete __p_old;
 }
 
-class _LIBCPP_VISIBLE thread;
-class _LIBCPP_VISIBLE __thread_id;
+class _LIBCPP_TYPE_VIS thread;
+class _LIBCPP_TYPE_VIS __thread_id;
 
 namespace this_thread
 {
@@ -183,10 +185,9 @@ _LIBCPP_INLINE_VISIBILITY __thread_id get_id() _NOEXCEPT;
 
 }  // this_thread
 
-class _LIBCPP_VISIBLE __thread_id;
-template<> struct _LIBCPP_VISIBLE hash<__thread_id>;
+template<> struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>;
 
-class _LIBCPP_VISIBLE __thread_id
+class _LIBCPP_TYPE_VIS_ONLY __thread_id
 {
     // FIXME: pthread_t is a pointer on Darwin but a long on Linux.
     // NULL is the no-thread value on Darwin.  Someone needs to check
@@ -228,12 +229,12 @@ private:
     __thread_id(pthread_t __id) : __id_(__id) {}
 
     friend __thread_id this_thread::get_id() _NOEXCEPT;
-    friend class _LIBCPP_VISIBLE thread;
-    friend struct _LIBCPP_VISIBLE hash<__thread_id>;
+    friend class _LIBCPP_TYPE_VIS thread;
+    friend struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>;
 };
 
 template<>
-struct _LIBCPP_VISIBLE hash<__thread_id>
+struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>
     : public unary_function<__thread_id, size_t>
 {
     _LIBCPP_INLINE_VISIBILITY
@@ -255,7 +256,7 @@ get_id() _NOEXCEPT
 
 }  // this_thread
 
-class _LIBCPP_VISIBLE thread
+class _LIBCPP_TYPE_VIS thread
 {
     pthread_t __t_;
 
@@ -305,7 +306,7 @@ class __assoc_sub_state;
 
 class _LIBCPP_HIDDEN __thread_struct_imp;
 
-class __thread_struct
+class _LIBCPP_TYPE_VIS __thread_struct
 {
     __thread_struct_imp* __p_;
 
@@ -319,14 +320,14 @@ public:
     void __make_ready_at_thread_exit(__assoc_sub_state*);
 };
 
-__thread_specific_ptr<__thread_struct>& __thread_local_data();
+_LIBCPP_FUNC_VIS __thread_specific_ptr<__thread_struct>& __thread_local_data();
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
 template <class _Fp, class ..._Args, size_t ..._Indices>
 inline _LIBCPP_INLINE_VISIBILITY
 void
-__threaad_execute(tuple<_Fp, _Args...>& __t, __tuple_indices<_Indices...>)
+__thread_execute(tuple<_Fp, _Args...>& __t, __tuple_indices<_Indices...>)
 {
     __invoke(_VSTD::move(_VSTD::get<0>(__t)), _VSTD::move(_VSTD::get<_Indices>(__t))...);
 }
@@ -338,7 +339,7 @@ __thread_proxy(void* __vp)
     __thread_local_data().reset(new __thread_struct);
     std::unique_ptr<_Fp> __p(static_cast<_Fp*>(__vp));
     typedef typename __make_tuple_indices<tuple_size<_Fp>::value, 1>::type _Index;
-    __threaad_execute(*__p, _Index());
+    __thread_execute(*__p, _Index());
     return nullptr;
 }
 
@@ -403,7 +404,7 @@ void swap(thread& __x, thread& __y) _NOEXCEPT {__x.swap(__y);}
 namespace this_thread
 {
 
-void sleep_for(const chrono::nanoseconds& ns);
+_LIBCPP_FUNC_VIS void sleep_for(const chrono::nanoseconds& ns);
 
 template <class _Rep, class _Period>
 void

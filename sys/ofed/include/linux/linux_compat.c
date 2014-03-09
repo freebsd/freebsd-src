@@ -37,6 +37,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -211,7 +212,8 @@ linux_file_dtor(void *cdp)
 	struct linux_file *filp;
 
 	filp = cdp;
-	filp->f_op->release(curthread->td_fpop->f_vnode, filp);
+	filp->f_op->release(filp->f_vnode, filp);
+	vdrop(filp->f_vnode);
 	kfree(filp);
 }
 
@@ -231,6 +233,8 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_op = ldev->ops;
 	filp->f_flags = file->f_flag;
+	vhold(file->f_vnode);
+	filp->f_vnode = file->f_vnode;
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -263,6 +267,8 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+        devfs_clear_cdevpriv();
+        
 
 	return (0);
 }
@@ -561,6 +567,7 @@ struct fileops linuxfileops = {
 	.fo_ioctl = linux_file_ioctl,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 /*
@@ -643,7 +650,7 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	size_t size;
 
 	size = count * PAGE_SIZE;
-	off = kmem_alloc_nofault(kernel_map, size);
+	off = kva_alloc(size);
 	if (off == 0)
 		return (NULL);
 	vmmap_add((void *)off, size);
@@ -661,7 +668,7 @@ vunmap(void *addr)
 	if (vmmap == NULL)
 		return;
 	pmap_qremove((vm_offset_t)addr, vmmap->vm_size / PAGE_SIZE);
-	kmem_free(kernel_map, (vm_offset_t)addr, vmmap->vm_size);
+	kva_free((vm_offset_t)addr, vmmap->vm_size);
 	kfree(vmmap);
 }
 

@@ -14,16 +14,13 @@
 
 #define DEBUG_TYPE "jit"
 #include "ARM.h"
-#include "ARMConstantPoolValue.h"
 #include "ARMBaseInstrInfo.h"
+#include "ARMConstantPoolValue.h"
 #include "ARMRelocations.h"
 #include "ARMSubtarget.h"
 #include "ARMTargetMachine.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/PassManager.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -31,7 +28,10 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -166,6 +166,8 @@ namespace {
     unsigned NEONThumb2LoadStorePostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
     unsigned NEONThumb2DupPostEncoder(const MachineInstr &MI,unsigned Val)
+      const { return 0; }
+    unsigned NEONThumb2V8PostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
     unsigned VFPThumb2PostEncoder(const MachineInstr&MI, unsigned Val)
       const { return 0; }
@@ -371,12 +373,16 @@ FunctionPass *llvm::createARMJITCodeEmitterPass(ARMBaseTargetMachine &TM,
 }
 
 bool ARMCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
-  assert((MF.getTarget().getRelocationModel() != Reloc::Default ||
-          MF.getTarget().getRelocationModel() != Reloc::Static) &&
+  TargetMachine &Target = const_cast<TargetMachine&>(MF.getTarget());
+
+  assert((Target.getRelocationModel() != Reloc::Default ||
+          Target.getRelocationModel() != Reloc::Static) &&
          "JIT relocation model must be set to static or default!");
-  JTI = ((ARMBaseTargetMachine &)MF.getTarget()).getJITInfo();
-  II = (const ARMBaseInstrInfo *)MF.getTarget().getInstrInfo();
-  TD = MF.getTarget().getDataLayout();
+
+  JTI = static_cast<ARMJITInfo*>(Target.getJITInfo());
+  II = static_cast<const ARMBaseInstrInfo*>(Target.getInstrInfo());
+  TD = Target.getDataLayout();
+
   Subtarget = &TM.getSubtarget<ARMSubtarget>();
   MCPEs = &MF.getConstantPool()->getConstants();
   MJTEs = 0;
@@ -1040,8 +1046,8 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
       return;
   } else if ((MCID.Opcode == ARM::BFC) || (MCID.Opcode == ARM::BFI)) {
       uint32_t v = ~MI.getOperand(2).getImm();
-      int32_t lsb = CountTrailingZeros_32(v);
-      int32_t msb = (32 - CountLeadingZeros_32(v)) - 1;
+      int32_t lsb = countTrailingZeros(v);
+      int32_t msb = (32 - countLeadingZeros(v)) - 1;
       // Instr{20-16} = msb, Instr{11-7} = lsb
       Binary |= (msb & 0x1F) << 16;
       Binary |= (lsb & 0x1F) << 7;

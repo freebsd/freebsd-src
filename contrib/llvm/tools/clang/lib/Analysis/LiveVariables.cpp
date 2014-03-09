@@ -1,15 +1,25 @@
+//=- LiveVariables.cpp - Live Variable Analysis for Source CFGs ----------*-==//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file implements Live Variables analysis for source-level CFGs.
+//
+//===----------------------------------------------------------------------===//
+
 #include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Analyses/PostOrderCFGView.h"
-
 #include "clang/AST/Stmt.h"
-#include "clang/Analysis/CFG.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/StmtVisitor.h"
-
-#include "llvm/ADT/PostOrderIterator.h"
+#include "clang/Analysis/Analyses/PostOrderCFGView.h"
+#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/CFG.h"
 #include "llvm/ADT/DenseMap.h"
-
-#include <deque>
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <vector>
 
@@ -77,8 +87,7 @@ void DataflowWorklist::sortWorklist() {
 const CFGBlock *DataflowWorklist::dequeue() {
   if (worklist.empty())
     return 0;
-  const CFGBlock *b = worklist.back();
-  worklist.pop_back();
+  const CFGBlock *b = worklist.pop_back_val();
   enqueuedBlocks[b->getBlockID()] = false;
   return b;
 }
@@ -464,15 +473,16 @@ LiveVariablesImpl::runOnBlock(const CFGBlock *block,
        ei = block->rend(); it != ei; ++it) {
     const CFGElement &elem = *it;
 
-    if (const CFGAutomaticObjDtor *Dtor = dyn_cast<CFGAutomaticObjDtor>(&elem)){
+    if (Optional<CFGAutomaticObjDtor> Dtor =
+            elem.getAs<CFGAutomaticObjDtor>()) {
       val.liveDecls = DSetFact.add(val.liveDecls, Dtor->getVarDecl());
       continue;
     }
 
-    if (!isa<CFGStmt>(elem))
+    if (!elem.getAs<CFGStmt>())
       continue;
     
-    const Stmt *S = cast<CFGStmt>(elem).getStmt();
+    const Stmt *S = elem.castAs<CFGStmt>().getStmt();
     TF.Visit(const_cast<Stmt*>(S));
     stmtsToLiveness[S] = val;
   }
@@ -524,8 +534,9 @@ LiveVariables::computeLiveness(AnalysisDeclContext &AC,
     if (killAtAssign)
       for (CFGBlock::const_iterator bi = block->begin(), be = block->end();
            bi != be; ++bi) {
-        if (const CFGStmt *cs = bi->getAs<CFGStmt>()) {
-          if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(cs->getStmt())) {
+        if (Optional<CFGStmt> cs = bi->getAs<CFGStmt>()) {
+          if (const BinaryOperator *BO =
+                  dyn_cast<BinaryOperator>(cs->getStmt())) {
             if (BO->getOpcode() == BO_Assign) {
               if (const DeclRefExpr *DR =
                     dyn_cast<DeclRefExpr>(BO->getLHS()->IgnoreParens())) {

@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)delete.c	10.12 (Berkeley) 10/23/96";
+static const char sccsid[] = "$Id: delete.c,v 10.18 2012/02/11 15:52:33 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <errno.h>
@@ -32,14 +33,15 @@ static const char sccsid[] = "@(#)delete.c	10.12 (Berkeley) 10/23/96";
  * PUBLIC: int del __P((SCR *, MARK *, MARK *, int));
  */
 int
-del(sp, fm, tm, lmode)
-	SCR *sp;
-	MARK *fm, *tm;
-	int lmode;
+del(
+	SCR *sp,
+	MARK *fm,
+	MARK *tm,
+	int lmode)
 {
 	recno_t lno;
 	size_t blen, len, nlen, tlen;
-	char *bp, *p;
+	CHAR_T *bp, *p;
 	int eof, rval;
 
 	bp = NULL;
@@ -66,7 +68,7 @@ del(sp, fm, tm, lmode)
 		if (tm->lno == lno) {
 			if (db_get(sp, lno, DBG_FATAL, &p, &len))
 				return (1);
-			eof = tm->cno >= len ? 1 : 0;
+			eof = tm->cno != ENTIRE_LINE && tm->cno >= len ? 1 : 0;
 		} else
 			eof = 1;
 		if (eof) {
@@ -80,8 +82,8 @@ del(sp, fm, tm, lmode)
 			}
 			if (db_get(sp, fm->lno, DBG_FATAL, &p, &len))
 				return (1);
-			GET_SPACE_RET(sp, bp, blen, fm->cno);
-			memcpy(bp, p, fm->cno);
+			GET_SPACE_RETW(sp, bp, blen, fm->cno);
+			MEMCPY(bp, p, fm->cno);
 			if (db_set(sp, fm->lno, bp, fm->cno))
 				return (1);
 			goto done;
@@ -92,10 +94,11 @@ del(sp, fm, tm, lmode)
 	if (tm->lno == fm->lno) {
 		if (db_get(sp, fm->lno, DBG_FATAL, &p, &len))
 			return (1);
-		GET_SPACE_RET(sp, bp, blen, len);
+		GET_SPACE_RETW(sp, bp, blen, len);
 		if (fm->cno != 0)
-			memcpy(bp, p, fm->cno);
-		memcpy(bp + fm->cno, p + (tm->cno + 1), len - (tm->cno + 1));
+			MEMCPY(bp, p, fm->cno);
+		MEMCPY(bp + fm->cno, p + (tm->cno + 1), 
+			len - (tm->cno + 1));
 		if (db_set(sp, fm->lno,
 		    bp, len - ((tm->cno - fm->cno) + 1)))
 			goto err;
@@ -110,8 +113,8 @@ del(sp, fm, tm, lmode)
 	if ((tlen = fm->cno) != 0) {
 		if (db_get(sp, fm->lno, DBG_FATAL, &p, NULL))
 			return (1);
-		GET_SPACE_RET(sp, bp, blen, tlen + 256);
-		memcpy(bp, p, tlen);
+		GET_SPACE_RETW(sp, bp, blen, tlen + 256);
+		MEMCPY(bp, p, tlen);
 	}
 
 	/* Copy the end partial line into place. */
@@ -130,11 +133,11 @@ del(sp, fm, tm, lmode)
 			goto err;
 		}
 		if (tlen == 0) {
-			GET_SPACE_RET(sp, bp, blen, nlen);
+			GET_SPACE_RETW(sp, bp, blen, nlen);
 		} else
-			ADD_SPACE_RET(sp, bp, blen, nlen);
+			ADD_SPACE_RETW(sp, bp, blen, nlen);
 
-		memcpy(bp + tlen, p + (tm->cno + 1), len - (tm->cno + 1));
+		MEMCPY(bp + tlen, p + (tm->cno + 1), len - (tm->cno + 1));
 		tlen += len - (tm->cno + 1);
 	}
 
@@ -155,6 +158,6 @@ done:	rval = 0;
 	if (0)
 err:		rval = 1;
 	if (bp != NULL)
-		FREE_SPACE(sp, bp, blen);
+		FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }

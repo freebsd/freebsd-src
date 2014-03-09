@@ -103,13 +103,6 @@
 #define	VM_NFREEORDER		16
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -181,12 +174,13 @@
 /* user/kernel map constants */
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION)
-#define	VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
-#define	VM_MAX_KERNEL_ADDRESS	\
-		(VM_MIN_KERNEL_ADDRESS + IA64_REGION_GAP_START - 1)
+#define	VM_MIN_KERNEL_ADDRESS	VM_MAXUSER_ADDRESS
+#define	VM_INIT_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
+#define	VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(IA64_VM_MINKERN_REGION + 2) - 1)
 #define	VM_MAX_ADDRESS		~0UL
 
-#define	KERNBASE		VM_MAXUSER_ADDRESS
+/* We link the kernel at IA64_PBVM_BASE. */
+#define	KERNBASE		IA64_PBVM_BASE
 
 /*
  * USRSTACK is the top (end) of the user stack.  Immediately above the user
@@ -195,19 +189,11 @@
 #define	USRSTACK		VM_MAXUSER_ADDRESS
 #define	IA64_BACKINGSTORE	(USRSTACK - (2 * MAXSSIZ) - PAGE_SIZE)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(4) /* XXX 8192 byte pages */
+#define	VM_KMEM_SIZE_SCALE	(4)
 #endif
 
 /* initial pagein size of beginning of executable file */

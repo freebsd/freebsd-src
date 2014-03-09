@@ -26,7 +26,6 @@ namespace frontend {
   enum ActionKind {
     ASTDeclList,            ///< Parse ASTs and list Decl nodes.
     ASTDump,                ///< Parse ASTs and dump them.
-    ASTDumpXML,             ///< Parse ASTs and dump them in XML.
     ASTPrint,               ///< Parse ASTs and print them.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
     DumpRawTokens,          ///< Dump out raw tokens.
@@ -43,6 +42,7 @@ namespace frontend {
     GeneratePCH,            ///< Generate pre-compiled header.
     GeneratePTH,            ///< Generate pre-tokenized header.
     InitOnly,               ///< Only execute frontend initialization.
+    ModuleFileInfo,         ///< Dump information about a module file.
     ParseSyntaxOnly,        ///< Parse and perform semantic analysis.
     PluginAction,           ///< Run a plugin action, \see ActionName.
     PrintDeclContext,       ///< Print DeclContext and their Decls.
@@ -137,6 +137,12 @@ public:
                                            /// speed up parsing in cases you do
                                            /// not need them (e.g. with code
                                            /// completion).
+  unsigned UseGlobalModuleIndex : 1;       ///< Whether we can use the
+                                           ///< global module index if available.
+  unsigned GenerateGlobalModuleIndex : 1;  ///< Whether we can generate the
+                                           ///< global module index if needed.
+  unsigned ASTDumpLookups : 1;             ///< Whether we include lookup table
+                                           ///< dumps in AST dumps.
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -152,9 +158,35 @@ public:
     /// \brief Enable migration to modern ObjC literals.
     ObjCMT_Literals = 0x1,
     /// \brief Enable migration to modern ObjC subscripting.
-    ObjCMT_Subscripting = 0x2
+    ObjCMT_Subscripting = 0x2,
+    /// \brief Enable migration to modern ObjC readonly property.
+    ObjCMT_ReadonlyProperty = 0x4,
+    /// \brief Enable migration to modern ObjC readwrite property.
+    ObjCMT_ReadwriteProperty = 0x8,
+    /// \brief Enable migration to modern ObjC property.
+    ObjCMT_Property = (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty),
+    /// \brief Enable annotation of ObjCMethods of all kinds.
+    ObjCMT_Annotation = 0x10,
+    /// \brief Enable migration of ObjC methods to 'instancetype'.
+    ObjCMT_Instancetype = 0x20,
+    /// \brief Enable migration to NS_ENUM/NS_OPTIONS macros.
+    ObjCMT_NsMacros = 0x40,
+    /// \brief Enable migration to add conforming protocols.
+    ObjCMT_ProtocolConformance = 0x80,
+    /// \brief prefer 'atomic' property over 'nonatomic'.
+    ObjCMT_AtomicProperty = 0x100,
+    /// \brief annotate property with NS_RETURNS_INNER_POINTER
+    ObjCMT_ReturnsInnerPointerProperty = 0x200,
+    /// \brief use NS_NONATOMIC_IOSONLY for property 'atomic' attribute
+    ObjCMT_NsAtomicIOSOnlyProperty = 0x400,
+    ObjCMT_MigrateDecls = (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty |
+                           ObjCMT_Annotation | ObjCMT_Instancetype |
+                           ObjCMT_NsMacros | ObjCMT_ProtocolConformance |
+                           ObjCMT_NsAtomicIOSOnlyProperty),
+    ObjCMT_MigrateAll = (ObjCMT_Literals | ObjCMT_Subscripting | ObjCMT_MigrateDecls)
   };
   unsigned ObjCMTAction;
+  std::string ObjCMTWhiteListPath;
 
   std::string MTMigrateDir;
   std::string ARCMTMigrateReportOut;
@@ -204,20 +236,16 @@ public:
   std::string OverrideRecordLayoutsFile;
   
 public:
-  FrontendOptions() {
-    DisableFree = 0;
-    ProgramAction = frontend::ParseSyntaxOnly;
-    ActionName = "";
-    RelocatablePCH = 0;
-    ShowHelp = 0;
-    ShowStats = 0;
-    ShowTimers = 0;
-    ShowVersion = 0;
-    ARCMTAction = ARCMT_None;
-    ARCMTMigrateEmitARCErrors = 0;
-    SkipFunctionBodies = 0;
-    ObjCMTAction = ObjCMT_None;
-  }
+  FrontendOptions() :
+    DisableFree(false), RelocatablePCH(false), ShowHelp(false),
+    ShowStats(false), ShowTimers(false), ShowVersion(false),
+    FixWhatYouCan(false), FixOnlyWarnings(false), FixAndRecompile(false),
+    FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
+    SkipFunctionBodies(false), UseGlobalModuleIndex(true),
+    GenerateGlobalModuleIndex(true), ASTDumpLookups(false),
+    ARCMTAction(ARCMT_None), ObjCMTAction(ObjCMT_None),
+    ProgramAction(frontend::ParseSyntaxOnly)
+  {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return IK_C.

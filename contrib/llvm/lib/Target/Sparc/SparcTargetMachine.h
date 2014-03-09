@@ -14,15 +14,15 @@
 #ifndef SPARCTARGETMACHINE_H
 #define SPARCTARGETMACHINE_H
 
-#include "SparcInstrInfo.h"
-#include "SparcISelLowering.h"
 #include "SparcFrameLowering.h"
+#include "SparcISelLowering.h"
+#include "SparcInstrInfo.h"
+#include "SparcJITInfo.h"
 #include "SparcSelectionDAGInfo.h"
 #include "SparcSubtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/DataLayout.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -33,8 +33,7 @@ class SparcTargetMachine : public LLVMTargetMachine {
   SparcTargetLowering TLInfo;
   SparcSelectionDAGInfo TSInfo;
   SparcFrameLowering FrameLowering;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
+  SparcJITInfo JITInfo;
 public:
   SparcTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS, const TargetOptions &Options,
@@ -55,16 +54,14 @@ public:
   virtual const SparcSelectionDAGInfo* getSelectionDAGInfo() const {
     return &TSInfo;
   }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
+  virtual SparcJITInfo *getJITInfo() {
+    return &JITInfo;
   }
   virtual const DataLayout       *getDataLayout() const { return &DL; }
 
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+  virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE);
 };
 
 /// SparcV8TargetMachine - Sparc 32-bit target machine

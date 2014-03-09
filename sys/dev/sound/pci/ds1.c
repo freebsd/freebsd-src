@@ -365,7 +365,7 @@ ds_allocpslot(struct sc_info *sc)
 }
 
 static int
-ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t rate, bus_addr_t base, u_int32_t len)
+ds_initpbank(volatile struct pbank *pb, int ch, int stereo, int b16, u_int32_t rate, bus_addr_t base, u_int32_t len)
 {
 	u_int32_t lv[] = {1, 1, 0, 0, 0};
 	u_int32_t rv[] = {1, 0, 1, 0, 0};
@@ -941,7 +941,6 @@ ds_pci_probe(device_t dev)
 static int
 ds_pci_attach(device_t dev)
 {
-	u_int32_t	data;
 	u_int32_t subdev, i;
 	struct sc_info *sc;
 	struct ac97_info *codec = NULL;
@@ -954,10 +953,7 @@ ds_pci_attach(device_t dev)
 	sc->type = ds_finddev(pci_get_devid(dev), subdev);
 	sc->rev = pci_get_revid(dev);
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	sc->regid = PCIR_BAR(0);
 	sc->reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->regid,

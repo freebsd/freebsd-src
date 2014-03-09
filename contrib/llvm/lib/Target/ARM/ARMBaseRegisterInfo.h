@@ -72,9 +72,16 @@ static inline bool isARMArea3Register(unsigned Reg, bool isIOS) {
   }
 }
 
+static inline bool isCalleeSavedRegister(unsigned Reg,
+                                         const MCPhysReg *CSRegs) {
+  for (unsigned i = 0; CSRegs[i]; ++i)
+    if (Reg == CSRegs[i])
+      return true;
+  return false;
+}
+
 class ARMBaseRegisterInfo : public ARMGenRegisterInfo {
 protected:
-  const ARMBaseInstrInfo &TII;
   const ARMSubtarget &STI;
 
   /// FramePtr - ARM physical register used as frame ptr.
@@ -86,8 +93,7 @@ protected:
   unsigned BasePtr;
 
   // Can be only subclassed.
-  explicit ARMBaseRegisterInfo(const ARMBaseInstrInfo &tii,
-                               const ARMSubtarget &STI);
+  explicit ARMBaseRegisterInfo(const ARMSubtarget &STI);
 
   // Return the opcode that implements 'Op', or 0 if no opcode
   unsigned getOpcode(int Op) const;
@@ -98,6 +104,16 @@ public:
   const uint32_t *getCallPreservedMask(CallingConv::ID) const;
   const uint32_t *getNoPreservedMask() const;
 
+  /// getThisReturnPreservedMask - Returns a call preserved mask specific to the
+  /// case that 'returned' is on an i32 first argument if the calling convention
+  /// is one that can (partially) model this attribute with a preserved mask
+  /// (i.e. it is a calling convention that uses the same register for the first
+  /// i32 argument and an i32 return value)
+  ///
+  /// Should return NULL in the case that the calling convention does not have
+  /// this property
+  const uint32_t *getThisReturnPreservedMask(CallingConv::ID) const;
+  
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
   const TargetRegisterClass*
@@ -111,12 +127,11 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const;
 
-  ArrayRef<uint16_t> getRawAllocationOrder(const TargetRegisterClass *RC,
-                                           unsigned HintType, unsigned HintReg,
-                                           const MachineFunction &MF) const;
-
-  unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
-                               const MachineFunction &MF) const;
+  void getRegAllocationHints(unsigned VirtReg,
+                             ArrayRef<MCPhysReg> Order,
+                             SmallVectorImpl<MCPhysReg> &Hints,
+                             const MachineFunction &MF,
+                             const VirtRegMap *VRM) const;
 
   void UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const;
@@ -142,10 +157,6 @@ public:
   unsigned getFrameRegister(const MachineFunction &MF) const;
   unsigned getBaseRegister() const { return BasePtr; }
 
-  // Exception handling queries.
-  unsigned getEHExceptionRegister() const;
-  unsigned getEHHandlerRegister() const;
-
   bool isLowRegister(unsigned Reg) const;
 
 
@@ -169,17 +180,9 @@ public:
 
   virtual bool requiresVirtualBaseRegisters(const MachineFunction &MF) const;
 
-  virtual void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                           MachineBasicBlock &MBB,
-                                           MachineBasicBlock::iterator I) const;
-
   virtual void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                   int SPAdj, RegScavenger *RS = NULL) const;
-
-private:
-  unsigned getRegisterPairEven(unsigned Reg, const MachineFunction &MF) const;
-
-  unsigned getRegisterPairOdd(unsigned Reg, const MachineFunction &MF) const;
+                                   int SPAdj, unsigned FIOperandNum,
+                                   RegScavenger *RS = NULL) const;
 };
 
 } // end namespace llvm

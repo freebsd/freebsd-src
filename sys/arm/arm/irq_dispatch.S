@@ -89,6 +89,7 @@ AST_LOCALS
 ASENTRY_NP(irq_entry)
 	sub	lr, lr, #0x00000004	/* Adjust the lr */
 	PUSHFRAMEINSVC			/* Push an interrupt frame */
+	UNWINDSVCFRAME
 	mov	r0, sp			/* arg for dispatcher */
 
 	mov	r1, #0
@@ -97,6 +98,7 @@ ASENTRY_NP(irq_entry)
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 	movs	pc, lr			/* Exit */
+END(irq_entry)
 
 	.data
 	.align	0

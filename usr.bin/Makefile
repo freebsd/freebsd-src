@@ -67,6 +67,7 @@ SUBDIR=	alias \
 	id \
 	ipcrm \
 	ipcs \
+	iscsictl \
 	join \
 	jot \
 	${_kdump} \
@@ -123,12 +124,14 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	patch \
 	pathchk \
 	perror \
 	pr \
 	printenv \
 	printf \
 	procstat \
+	protect \
 	rctl \
 	renice \
 	rev \
@@ -146,7 +149,6 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
-	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
@@ -157,6 +159,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
+	${_tests} \
 	tftp \
 	time \
 	tip \
@@ -207,19 +210,8 @@ SUBDIR=	alias \
 SUBDIR+=	at
 .endif
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
-.endif
-
-.if ${MK_BIND_UTILS} != "no"
-SUBDIR+=	dig
-SUBDIR+=	host
-SUBDIR+=	nslookup
-SUBDIR+=	nsupdate
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
@@ -236,6 +228,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_GPL_DTC} != "yes"
+SUBDIR+=	dtc
 .endif
 
 .if ${MK_GROFF} != "no"
@@ -259,6 +255,11 @@ SUBDIR+=        truss
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 SUBDIR+=	compile_et
+.endif
+
+.if ${MK_LDNS_UTILS} != "no"
+SUBDIR+=	drill
+SUBDIR+=	host
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -301,6 +302,10 @@ SUBDIR+=	ypmatch
 SUBDIR+=	ypwhich
 .endif
 
+.if ${MK_OPENSSH} != "no"
+SUBDIR+=	ssh-copy-id
+.endif
+
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	bc
 SUBDIR+=	chkey
@@ -325,6 +330,11 @@ SUBDIR+=	vacation
 
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_TEXTPROC} != "no"
@@ -359,6 +369,10 @@ SUBDIR+=	usbhidctl
 SUBDIR+=	last
 SUBDIR+=	users
 SUBDIR+=	who
+.endif
+
+.if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
+SUBDIR+=	svn
 .endif
 
 .include <bsd.arch.inc.mk>

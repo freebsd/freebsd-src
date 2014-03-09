@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+machine	arm armv6
+cpu	CPU_ARM1176
+
+files	"../broadcom/bcm2835/files.bcm2835"
+

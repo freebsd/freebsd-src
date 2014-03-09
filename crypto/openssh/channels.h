@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.111 2012/04/11 13:16:19 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.113 2013/06/07 15:37:52 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -56,7 +56,8 @@
 #define SSH_CHANNEL_ZOMBIE		14	/* Almost dead. */
 #define SSH_CHANNEL_MUX_LISTENER	15	/* Listener for mux conn. */
 #define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux slave */
-#define SSH_CHANNEL_MAX_TYPE		17
+#define SSH_CHANNEL_ABANDONED		17	/* Abandoned session, eg mux */
+#define SSH_CHANNEL_MAX_TYPE		18
 
 #define CHANNEL_CANCEL_PORT_STATIC	-1
 
@@ -103,7 +104,9 @@ struct Channel {
 	int     sock;		/* sock fd */
 	int     ctl_chan;	/* control channel (multiplexed connections) */
 	int     isatty;		/* rfd is a tty */
+#ifdef _AIX
 	int     wfd_isatty;	/* wfd is a tty */
+#endif
 	int	client_tty;	/* (client) TTY has been requested */
 	int     force_drain;	/* force close on iEOF */
 	time_t	notbefore;	/* Pause IO until deadline (time_t) */
@@ -111,7 +114,7 @@ struct Channel {
 				 * channels are delayed until the first call
 				 * to a matching pre-select handler. 
 				 * this way post-select handlers are not
-				 * accidenly called if a FD gets reused */
+				 * accidentally called if a FD gets reused */
 	Buffer  input;		/* data read from socket, to be sent over
 				 * encrypted connection */
 	Buffer  output;		/* data received over encrypted connection for

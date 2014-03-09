@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h> 
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -251,6 +253,7 @@ ath_pci_attach(device_t dev)
 	ATH_PCU_LOCK_INIT(sc);
 	ATH_RX_LOCK_INIT(sc);
 	ATH_TX_LOCK_INIT(sc);
+	ATH_TX_IC_LOCK_INIT(sc);
 	ATH_TXSTATUS_LOCK_INIT(sc);
 
 	error = ath_attach(pci_get_device(dev), sc);
@@ -260,6 +263,7 @@ ath_pci_attach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
@@ -302,6 +306,7 @@ ath_pci_detach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 

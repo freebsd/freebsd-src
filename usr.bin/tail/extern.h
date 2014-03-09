@@ -67,5 +67,6 @@ void ierr(const char *);
 void oerr(void);
 int mapprint(struct mapinfo *, off_t, off_t);
 int maparound(struct mapinfo *, off_t);
+void printfn(const char *, int);
 
 extern int Fflag, fflag, qflag, rflag, rval, no_files;

@@ -88,7 +88,7 @@ static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	    struct sockaddr *dst, struct route *ro);
+	    const struct sockaddr *dst, struct route *ro);
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -1073,6 +1073,8 @@ ipoib_remove_one(struct ib_device *device)
 		if (rdma_port_get_link_layer(device, priv->port) != IB_LINK_LAYER_INFINIBAND)
 			continue;
 
+		ipoib_stop(priv);
+
 		ib_unregister_event_handler(&priv->event_handler);
 
 		/* dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP); */
@@ -1252,7 +1254,7 @@ ipoib_cleanup_module(void)
  */
 static int
 ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
 	struct llentry *lle = NULL;
@@ -1442,7 +1444,7 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 	 * Strip off Infiniband header.
 	 */
 	m->m_flags &= ~M_VLANTAG;
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m_adj(m, IPOIB_HEADER_LEN);
 
 	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
@@ -1488,14 +1490,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_INFINIBAND;
+		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
 		ip_ib_mc_map(sin->sin_addr.s_addr, ifp->if_broadcastaddr,
@@ -1515,14 +1510,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			return EADDRNOTAVAIL;
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_INFINIBAND;
+		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
 		ipv6_ib_mc_map(&sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);
@@ -1537,3 +1525,20 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
+
+#undef MODULE_VERSION
+#include <sys/module.h>
+static int
+ipoib_evhand(module_t mod, int event, void *arg)
+{
+	                return (0);
+}
+
+static moduledata_t ipoib_mod = {
+	                .name = "ipoib",
+			                .evhand = ipoib_evhand,
+};
+
+DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
+

@@ -15,9 +15,21 @@ namespace comments {
 
 #include "clang/AST/CommentCommandInfo.inc"
 
-CommandTraits::CommandTraits(llvm::BumpPtrAllocator &Allocator) :
-    NextID(llvm::array_lengthof(Commands)), Allocator(Allocator)
-{ }
+CommandTraits::CommandTraits(llvm::BumpPtrAllocator &Allocator,
+                             const CommentOptions &CommentOptions) :
+    NextID(llvm::array_lengthof(Commands)), Allocator(Allocator) {
+  registerCommentOptions(CommentOptions);
+}
+
+void CommandTraits::registerCommentOptions(
+    const CommentOptions &CommentOptions) {
+  for (CommentOptions::BlockCommandNamesTy::const_iterator
+           I = CommentOptions.BlockCommandNames.begin(),
+           E = CommentOptions.BlockCommandNames.end();
+       I != E; I++) {
+    registerBlockCommand(*I);
+  }
+}
 
 const CommandInfo *CommandTraits::getCommandInfoOrNULL(StringRef Name) const {
   if (const CommandInfo *Info = getBuiltinCommandInfo(Name))
@@ -31,7 +43,50 @@ const CommandInfo *CommandTraits::getCommandInfo(unsigned CommandID) const {
   return getRegisteredCommandInfo(CommandID);
 }
 
-const CommandInfo *CommandTraits::registerUnknownCommand(StringRef CommandName) {
+static void
+HelperTypoCorrectCommandInfo(SmallVectorImpl<const CommandInfo *> &BestCommand,
+                             StringRef Typo, const CommandInfo *Command) {
+  const unsigned MaxEditDistance = 1;
+  unsigned BestEditDistance = MaxEditDistance + 1;
+  StringRef Name = Command->Name;
+  
+  unsigned MinPossibleEditDistance = abs((int)Name.size() - (int)Typo.size());
+  if (MinPossibleEditDistance > 0 &&
+      Typo.size() / MinPossibleEditDistance < 1)
+    return;
+  unsigned EditDistance = Typo.edit_distance(Name, true, MaxEditDistance);
+  if (EditDistance > MaxEditDistance)
+    return;
+  if (EditDistance == BestEditDistance)
+    BestCommand.push_back(Command);
+  else if (EditDistance < BestEditDistance) {
+    BestCommand.clear();
+    BestCommand.push_back(Command);
+    BestEditDistance = EditDistance;
+  }
+}
+
+const CommandInfo *
+CommandTraits::getTypoCorrectCommandInfo(StringRef Typo) const {
+  // single character command impostures, such as \t or \n must not go
+  // through the fixit logic.
+  if (Typo.size() <= 1)
+    return NULL;
+  
+  SmallVector<const CommandInfo *, 2> BestCommand;
+  
+  const int NumOfCommands = llvm::array_lengthof(Commands);
+  for (int i = 0; i < NumOfCommands; i++)
+    HelperTypoCorrectCommandInfo(BestCommand, Typo, &Commands[i]);
+  
+  for (unsigned i = 0, e = RegisteredCommands.size(); i != e; ++i)
+    if (!RegisteredCommands[i]->IsUnknownCommand)
+      HelperTypoCorrectCommandInfo(BestCommand, Typo, RegisteredCommands[i]);
+  
+  return (BestCommand.size() != 1) ? NULL : BestCommand[0];
+}
+
+CommandInfo *CommandTraits::createCommandInfoWithName(StringRef CommandName) {
   char *Name = Allocator.Allocate<char>(CommandName.size() + 1);
   memcpy(Name, CommandName.data(), CommandName.size());
   Name[CommandName.size()] = '\0';
@@ -40,10 +95,22 @@ const CommandInfo *CommandTraits::registerUnknownCommand(StringRef CommandName) 
   CommandInfo *Info = new (Allocator) CommandInfo();
   Info->Name = Name;
   Info->ID = NextID++;
-  Info->IsUnknownCommand = true;
 
   RegisteredCommands.push_back(Info);
 
+  return Info;
+}
+
+const CommandInfo *CommandTraits::registerUnknownCommand(
+                                                  StringRef CommandName) {
+  CommandInfo *Info = createCommandInfoWithName(CommandName);
+  Info->IsUnknownCommand = true;
+  return Info;
+}
+
+const CommandInfo *CommandTraits::registerBlockCommand(StringRef CommandName) {
+  CommandInfo *Info = createCommandInfoWithName(CommandName);
+  Info->IsBlockCommand = true;
   return Info;
 }
 

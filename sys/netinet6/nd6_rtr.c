@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -282,7 +283,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		dr0.rtlifetime = 0;
 	else
 		dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
-	dr0.expire = time_second + dr0.rtlifetime;
+	dr0.expire = time_uptime + dr0.rtlifetime;
 	dr0.ifp = ifp;
 	/* unspecified or not? (RFC 2461 6.3.4) */
 	if (advreachable) {
@@ -857,7 +858,6 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 {
 	struct nd_prefix *new = NULL;
 	int error = 0;
-	int i;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	new = (struct nd_prefix *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
@@ -874,7 +874,7 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 		free(new, M_IP6NDP);
 		return(error);
 	}
-	new->ndpr_lastupdate = time_second;
+	new->ndpr_lastupdate = time_uptime;
 	if (newp != NULL)
 		*newp = new;
 
@@ -882,9 +882,7 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	LIST_INIT(&new->ndpr_advrtrs);
 	in6_prefixlen2mask(&new->ndpr_mask, new->ndpr_plen);
 	/* make prefix in the canonical form */
-	for (i = 0; i < 4; i++)
-		new->ndpr_prefix.sin6_addr.s6_addr32[i] &=
-		    new->ndpr_mask.s6_addr32[i];
+	IN6_MASK_ADDR(&new->ndpr_prefix.sin6_addr, &new->ndpr_mask);
 
 	/* link ndpr_entry to nd_prefix list */
 	LIST_INSERT_HEAD(&V_nd_prefix, new, ndpr_entry);
@@ -998,7 +996,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			pr->ndpr_vltime = new->ndpr_vltime;
 			pr->ndpr_pltime = new->ndpr_pltime;
 			(void)in6_init_prefix_ltimes(pr); /* XXX error case? */
-			pr->ndpr_lastupdate = time_second;
+			pr->ndpr_lastupdate = time_uptime;
 		}
 
 		if (new->ndpr_raf_onlink &&
@@ -1136,7 +1134,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 
 		if (lt6_tmp.ia6t_vltime == ND6_INFINITE_LIFETIME)
 			remaininglifetime = ND6_INFINITE_LIFETIME;
-		else if (time_second - ifa6->ia6_updatetime >
+		else if (time_uptime - ifa6->ia6_updatetime >
 			 lt6_tmp.ia6t_vltime) {
 			/*
 			 * The case of "invalid" address.  We should usually
@@ -1145,7 +1143,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			remaininglifetime = 0;
 		} else
 			remaininglifetime = lt6_tmp.ia6t_vltime -
-			    (time_second - ifa6->ia6_updatetime);
+			    (time_uptime - ifa6->ia6_updatetime);
 
 		/* when not updating, keep the current stored lifetime. */
 		lt6_tmp.ia6t_vltime = remaininglifetime;
@@ -1181,18 +1179,18 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			u_int32_t maxvltime, maxpltime;
 
 			if (V_ip6_temp_valid_lifetime >
-			    (u_int32_t)((time_second - ifa6->ia6_createtime) +
+			    (u_int32_t)((time_uptime - ifa6->ia6_createtime) +
 			    V_ip6_desync_factor)) {
 				maxvltime = V_ip6_temp_valid_lifetime -
-				    (time_second - ifa6->ia6_createtime) -
+				    (time_uptime - ifa6->ia6_createtime) -
 				    V_ip6_desync_factor;
 			} else
 				maxvltime = 0;
 			if (V_ip6_temp_preferred_lifetime >
-			    (u_int32_t)((time_second - ifa6->ia6_createtime) +
+			    (u_int32_t)((time_uptime - ifa6->ia6_createtime) +
 			    V_ip6_desync_factor)) {
 				maxpltime = V_ip6_temp_preferred_lifetime -
-				    (time_second - ifa6->ia6_createtime) -
+				    (time_uptime - ifa6->ia6_createtime) -
 				    V_ip6_desync_factor;
 			} else
 				maxpltime = 0;
@@ -1207,7 +1205,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			}
 		}
 		ifa6->ia6_lifetime = lt6_tmp;
-		ifa6->ia6_updatetime = time_second;
+		ifa6->ia6_updatetime = time_uptime;
 	}
 	IF_ADDR_RUNLOCK(ifp);
 	if (ia6_match == NULL && new->ndpr_vltime) {
@@ -1720,6 +1718,7 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		}
 	}
 	error = a_failure;
+	a_failure = 1;
 	if (error == 0) {
 		pr->ndpr_stateflags &= ~NDPRF_ONLINK;
 
@@ -1758,7 +1757,8 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 						&opr->ndpr_prefix.sin6_addr),
 					    opr->ndpr_plen, if_name(ifp),
 					    if_name(opr->ndpr_ifp), e));
-				}
+				} else
+					a_failure = 0;
 			}
 		}
 	} else {
@@ -1769,6 +1769,10 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		    ip6_sprintf(ip6buf, &sa6.sin6_addr), pr->ndpr_plen,
 		    if_name(ifp), error));
 	}
+
+	if (a_failure)
+		lltable_prefix_free(AF_INET6, (struct sockaddr *)&sa6,
+		    (struct sockaddr *)&mask6, LLE_STATIC);
 
 	return (error);
 }
@@ -1825,22 +1829,9 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	}
 
 	/* make ifaddr */
+	in6_prepare_ifra(&ifra, &pr->ndpr_prefix.sin6_addr, &mask);
 
-	bzero(&ifra, sizeof(ifra));
-	/*
-	 * in6_update_ifa() does not use ifra_name, but we accurately set it
-	 * for safety.
-	 */
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr.sin6_family = AF_INET6;
-	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
-	/* prefix */
-	ifra.ifra_addr.sin6_addr = pr->ndpr_prefix.sin6_addr;
-	ifra.ifra_addr.sin6_addr.s6_addr32[0] &= mask.s6_addr32[0];
-	ifra.ifra_addr.sin6_addr.s6_addr32[1] &= mask.s6_addr32[1];
-	ifra.ifra_addr.sin6_addr.s6_addr32[2] &= mask.s6_addr32[2];
-	ifra.ifra_addr.sin6_addr.s6_addr32[3] &= mask.s6_addr32[3];
-
+	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);
 	/* interface ID */
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[0] & ~mask.s6_addr32[0]);
@@ -1851,12 +1842,6 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
 	ifa_free(ifa);
-
-	/* new prefix mask. */
-	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-	ifra.ifra_prefixmask.sin6_family = AF_INET6;
-	bcopy(&mask, &ifra.ifra_prefixmask.sin6_addr,
-	    sizeof(ifra.ifra_prefixmask.sin6_addr));
 
 	/* lifetimes. */
 	ifra.ifra_lifetime.ia6t_vltime = pr->ndpr_vltime;
@@ -1914,24 +1899,21 @@ int
 in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 {
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
-	struct in6_ifaddr *newia, *ia;
+	struct in6_ifaddr *newia;
 	struct in6_aliasreq ifra;
-	int i, error;
+	int error;
 	int trylimit = 3;	/* XXX: adhoc value */
 	int updateflags;
 	u_int32_t randid[2];
 	time_t vltime0, pltime0;
 
-	bzero(&ifra, sizeof(ifra));
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr = ia0->ia_addr;
-	/* copy prefix mask */
-	ifra.ifra_prefixmask = ia0->ia_prefixmask;
+	in6_prepare_ifra(&ifra, &ia0->ia_addr.sin6_addr,
+	    &ia0->ia_prefixmask.sin6_addr);
+
+	ifra.ifra_addr = ia0->ia_addr;	/* XXX: do we need this ? */
 	/* clear the old IFID */
-	for (i = 0; i < 4; i++) {
-		ifra.ifra_addr.sin6_addr.s6_addr32[i] &=
-		    ifra.ifra_prefixmask.sin6_addr.s6_addr32[i];
-	}
+	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr,
+	    &ifra.ifra_prefixmask.sin6_addr);
 
   again:
 	if (in6_get_tmpifid(ifp, (u_int8_t *)randid,
@@ -1951,26 +1933,18 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	 * there may be a time lag between generation of the ID and generation
 	 * of the address.  So, we'll do one more sanity check.
 	 */
-	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
-		    &ifra.ifra_addr.sin6_addr)) {
-			if (trylimit-- == 0) {
-				IN6_IFADDR_RUNLOCK();
-				/*
-				 * Give up.  Something strange should have
-				 * happened.
-				 */
-				nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
-				    "find a unique random IFID\n"));
-				return (EEXIST);
-			}
-			IN6_IFADDR_RUNLOCK();
+
+	if (in6_localip(&ifra.ifra_addr.sin6_addr) != 0) {
+		if (trylimit-- > 0) {
 			forcegen = 1;
 			goto again;
 		}
+
+		/* Give up.  Something strange should have happened.  */
+		nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
+		    "find a unique random IFID\n"));
+		return (EEXIST);
 	}
-	IN6_IFADDR_RUNLOCK();
 
 	/*
 	 * The Valid Lifetime is the lower of the Valid Lifetime of the
@@ -1982,7 +1956,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	if (ia0->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
 		vltime0 = IFA6_IS_INVALID(ia0) ? 0 :
 		    (ia0->ia6_lifetime.ia6t_vltime -
-		    (time_second - ia0->ia6_updatetime));
+		    (time_uptime - ia0->ia6_updatetime));
 		if (vltime0 > V_ip6_temp_valid_lifetime)
 			vltime0 = V_ip6_temp_valid_lifetime;
 	} else
@@ -1990,7 +1964,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	if (ia0->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
 		pltime0 = IFA6_IS_DEPRECATED(ia0) ? 0 :
 		    (ia0->ia6_lifetime.ia6t_pltime -
-		    (time_second - ia0->ia6_updatetime));
+		    (time_uptime - ia0->ia6_updatetime));
 		if (pltime0 > V_ip6_temp_preferred_lifetime - V_ip6_desync_factor){
 			pltime0 = V_ip6_temp_preferred_lifetime -
 			    V_ip6_desync_factor;
@@ -2048,11 +2022,11 @@ in6_init_prefix_ltimes(struct nd_prefix *ndpr)
 	if (ndpr->ndpr_pltime == ND6_INFINITE_LIFETIME)
 		ndpr->ndpr_preferred = 0;
 	else
-		ndpr->ndpr_preferred = time_second + ndpr->ndpr_pltime;
+		ndpr->ndpr_preferred = time_uptime + ndpr->ndpr_pltime;
 	if (ndpr->ndpr_vltime == ND6_INFINITE_LIFETIME)
 		ndpr->ndpr_expire = 0;
 	else
-		ndpr->ndpr_expire = time_second + ndpr->ndpr_vltime;
+		ndpr->ndpr_expire = time_uptime + ndpr->ndpr_vltime;
 
 	return 0;
 }
@@ -2064,7 +2038,7 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 	if (lt6->ia6t_vltime == ND6_INFINITE_LIFETIME)
 		lt6->ia6t_expire = 0;
 	else {
-		lt6->ia6t_expire = time_second;
+		lt6->ia6t_expire = time_uptime;
 		lt6->ia6t_expire += lt6->ia6t_vltime;
 	}
 
@@ -2072,7 +2046,7 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 	if (lt6->ia6t_pltime == ND6_INFINITE_LIFETIME)
 		lt6->ia6t_preferred = 0;
 	else {
-		lt6->ia6t_preferred = time_second;
+		lt6->ia6t_preferred = time_uptime;
 		lt6->ia6t_preferred += lt6->ia6t_pltime;
 	}
 }

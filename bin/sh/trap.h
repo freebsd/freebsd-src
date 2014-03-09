@@ -33,9 +33,9 @@
  * $FreeBSD$
  */
 
-extern int pendingsigs;
+extern volatile sig_atomic_t pendingsig;
+extern volatile sig_atomic_t pendingsig_waitcmd;
 extern int in_dotrap;
-extern volatile sig_atomic_t gotwinch;
 
 void clear_traps(void);
 int have_traps(void);

@@ -171,7 +171,7 @@ drm_edid_block_valid(u8 *raw_edid)
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
 	if (csum) {
-		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		DRM_DEBUG("EDID checksum is invalid, remainder is %d\n", csum);
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] != 0x02)
@@ -253,6 +253,8 @@ drm_do_probe_ddc_edid(device_t adapter, unsigned char *buf,
 		      int block, int len)
 {
 	unsigned char start = block * EDID_LENGTH;
+	unsigned char segment = block >> 1;
+	unsigned char xfers = segment ? 3 : 2;
 	int ret, retries = 5;
 
 	/* The core i2c driver will automatically retry the transfer if the
@@ -264,18 +266,29 @@ drm_do_probe_ddc_edid(device_t adapter, unsigned char *buf,
 	do {
 		struct iic_msg msgs[] = {
 			{
-				.slave	= DDC_ADDR,
+				.slave  = DDC_SEGMENT_ADDR << 1,
+				.flags  = 0,
+				.len    = 1,
+				.buf    = &segment,
+			}, {
+				.slave	= DDC_ADDR << 1,
 				.flags	= IIC_M_WR,
 				.len	= 1,
 				.buf	= &start,
 			}, {
-				.slave	= DDC_ADDR,
+				.slave	= DDC_ADDR << 1,
 				.flags	= IIC_M_RD,
 				.len	= len,
 				.buf	= buf,
 			}
 		};
-		ret = iicbus_transfer(adapter, msgs, 2);
+
+	/*
+	 * Avoid sending the segment addr to not upset non-compliant ddc
+	 * monitors.
+	 */
+		ret = iicbus_transfer(adapter, &msgs[3 - xfers], xfers);
+
 		if (ret != 0)
 			DRM_DEBUG_KMS("iicbus_transfer countdown %d error %d\n",
 			    retries, ret);

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmx86info
 
 SRCDIR=	lib/Target/X86/TargetInfo

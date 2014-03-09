@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2012
+.Dd October 12, 2013
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -545,6 +545,14 @@ This permission is effective only together with
 and if
 .Va enforce_statfs
 is set to a value lower than 2.
+.It Va allow.mount.tmpfs
+privileged users inside the jail will be able to mount and unmount the
+tmpfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.mount.zfs
 privileged users inside the jail will be able to mount and unmount the
 ZFS file system.
@@ -674,7 +682,7 @@ to.
 An alias for each address will be added to the interface before the
 prison is created, and will be removed from the interface after the
 prison is removed.
-.It Op Va ip4.addr
+.It Va ip4.addr
 In addition to the IP addresses that are passed to the kernel, and
 interface and/or a netmask may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask .
@@ -683,7 +691,7 @@ will be added to that interface, as it is with the
 .Va interface
 parameter.  If a netmask in either dotted-quad or CIDR form is given
 after IP address, it will be used when adding the IP alias.
-.It Op Va ip6.addr
+.It Va ip6.addr
 In addition to the IP addresses that are passed to the kernel,
 and interface and/or a prefix may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix .
@@ -714,11 +722,19 @@ An
 format file containing filesystems to mount before creating a jail.
 .It Va mount.devfs
 Mount a
-.Xr devfs
-filesystem on the chrooted /dev directory, and apply the ruleset in the
+.Xr devfs 5
+filesystem on the chrooted
+.Pa /dev
+directory, and apply the ruleset in the
 .Va devfs_ruleset
 parameter (or a default of ruleset 4: devfsrules_jail)
 to restrict the devices visible inside the prison.
+.It Va mount.fdescfs
+Mount a
+.Xr fdescfs 5
+filesystem on the chrooted
+.Pa /dev/fd
+directory.
 .It Va allow.dying
 Allow making changes to a
 .Va dying
@@ -1157,6 +1173,8 @@ environment of the first jail.
 .Xr ps 1 ,
 .Xr quota 1 ,
 .Xr jail_set 2 ,
+.Xr devfs 5 ,
+.Xr fdescfs 5 ,
 .Xr jail.conf 5 ,
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,

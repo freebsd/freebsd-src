@@ -12,10 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Memory.h"
 #include "llvm/Support/Recycler.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Memory.h"
 #include <cstring>
 
 namespace llvm {
@@ -24,6 +25,10 @@ BumpPtrAllocator::BumpPtrAllocator(size_t size, size_t threshold,
                                    SlabAllocator &allocator)
     : SlabSize(size), SizeThreshold(std::min(size, threshold)),
       Allocator(allocator), CurSlab(0), BytesAllocated(0) { }
+
+BumpPtrAllocator::BumpPtrAllocator(size_t size, size_t threshold)
+    : SlabSize(size), SizeThreshold(std::min(size, threshold)),
+      Allocator(DefaultSlabAllocator), CurSlab(0), BytesAllocated(0) { }
 
 BumpPtrAllocator::~BumpPtrAllocator() {
   DeallocateSlabs(CurSlab);
@@ -82,6 +87,7 @@ void BumpPtrAllocator::Reset() {
   CurSlab->NextPtr = 0;
   CurPtr = (char*)(CurSlab + 1);
   End = ((char*)CurSlab) + CurSlab->Size;
+  BytesAllocated = 0;
 }
 
 /// Allocate - Allocate space at the specified alignment.
@@ -102,6 +108,10 @@ void *BumpPtrAllocator::Allocate(size_t Size, size_t Alignment) {
   // Check if we can hold it.
   if (Ptr + Size <= End) {
     CurPtr = Ptr + Size;
+    // Update the allocation point of this memory block in MemorySanitizer.
+    // Without this, MemorySanitizer messages for values originated from here
+    // will point to the allocation of the entire slab.
+    __msan_allocated_memory(Ptr, Size);
     return Ptr;
   }
 
@@ -117,6 +127,7 @@ void *BumpPtrAllocator::Allocate(size_t Size, size_t Alignment) {
 
     Ptr = AlignPtr((char*)(NewSlab + 1), Alignment);
     assert((uintptr_t)Ptr + Size <= (uintptr_t)NewSlab + NewSlab->Size);
+    __msan_allocated_memory(Ptr, Size);
     return Ptr;
   }
 
@@ -125,6 +136,7 @@ void *BumpPtrAllocator::Allocate(size_t Size, size_t Alignment) {
   Ptr = AlignPtr(CurPtr, Alignment);
   CurPtr = Ptr + Size;
   assert(CurPtr <= End && "Unable to allocate memory!");
+  __msan_allocated_memory(Ptr, Size);
   return Ptr;
 }
 
@@ -158,9 +170,6 @@ void BumpPtrAllocator::PrintStats() const {
          << "Bytes wasted: " << (TotalMemory - BytesAllocated)
          << " (includes alignment, etc)\n";
 }
-
-MallocSlabAllocator BumpPtrAllocator::DefaultSlabAllocator =
-  MallocSlabAllocator();
 
 SlabAllocator::~SlabAllocator() { }
 

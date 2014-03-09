@@ -1,14 +1,29 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	ssh-add
 SRCS+=	ssh-add.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
-# required when linking with a dynamic libssh 
+.if !defined(NO_SHARED)
+# required when linking with a dynamic libssh
 SRCS+=	roaming_dummy.c
+.endif
 
-DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+DPADD=	${LIBSSH}
+LDADD=	-lssh
+USEPRIVATELIB= ssh
+
+.if ${MK_LDNS} != "no"
+CFLAGS+=	-DHAVE_LDNS=1
+#DPADD+=	${LIBLDNS}
+#LDADD+=	-lldns
+#USEPRIVATELIB+= ldns
+.endif
+
+DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
+LDADD+= -lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 

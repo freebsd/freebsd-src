@@ -28,7 +28,7 @@
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 31, 2013
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In unistd.h
 .Ft pid_t
 .Fn fork void
@@ -74,6 +73,17 @@ are set to 0; see
 .It
 All interval timers are cleared; see
 .Xr setitimer 2 .
+.It
+The child process has only one thread,
+corresponding to the calling thread in the parent process.
+If the process has more than one thread,
+locks and other resources held by the other threads are not released
+and therefore only async-signal-safe functions
+(see
+.Xr sigaction 2 )
+are guaranteed to work in the child process until a call to
+.Xr execve 2
+or a similar function.
 .El
 .Sh RETURN VALUES
 Upon successful completion,
@@ -125,6 +135,7 @@ There is insufficient swap space for the new process.
 .Xr rfork 2 ,
 .Xr setitimer 2 ,
 .Xr setrlimit 2 ,
+.Xr sigaction 2 ,
 .Xr vfork 2 ,
 .Xr wait 2
 .Sh HISTORY

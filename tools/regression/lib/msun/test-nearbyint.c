@@ -40,14 +40,21 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
 
 static int testnum;
 
 static const int rmodes[] = {
 	FE_TONEAREST, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO,
 };
+
+/* Make sure we're testing the library, not some broken compiler built-ins. */
+double (*libnearbyint)(double) = nearbyint;
+float (*libnearbyintf)(float) = nearbyintf;
+long double (*libnearbyintl)(long double) = nearbyintl;
+#define nearbyintf libnearbyintf
+#define nearbyint libnearbyint
+#define nearbyintl libnearbyintl
 
 static const struct {
 	float in;
@@ -63,19 +70,6 @@ static const struct {
 };
 
 static const int ntests = sizeof(tests) / sizeof(tests[0]);
-
-/*
- * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
- * Fail an assertion if they differ.
- */
-static int
-fpequal(long double d1, long double d2)
-{
-
-	if (d1 != d2)
-		return (isnan(d1) && isnan(d2));
-	return (copysignl(1.0, d1) == copysignl(1.0, d2));
-}
 
 /* Get the appropriate result for the current rounding mode. */
 static float
@@ -107,7 +101,7 @@ test_nearby(int testindex)
 
 		in = tests[testindex].in;
 		out = get_output(testindex, i, 0);
-		assert(fpequal(out, nearbyintf(in)));
+		assert(fpequal(out, libnearbyintf(in)));
 		assert(fpequal(out, nearbyint(in)));
 		assert(fpequal(out, nearbyintl(in)));
 		assert(fetestexcept(ALL_STD_EXCEPT) == 0);

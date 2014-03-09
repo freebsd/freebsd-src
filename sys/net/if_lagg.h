@@ -21,8 +21,6 @@
 #ifndef _NET_LAGG_H
 #define _NET_LAGG_H
 
-#include <sys/sysctl.h>
-
 /*
  * Global definitions
  */
@@ -137,6 +135,9 @@ struct lagg_reqflags {
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
 
 #ifdef _KERNEL
+
+#include <sys/counter.h>
+
 /*
  * Internal kernel part
  */
@@ -186,14 +187,23 @@ struct lagg_llq {
 
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
-	struct rwlock			sc_mtx;
+	struct rmlock			sc_mtx;
+	struct mtx			sc_call_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
+	u_int				sc_active;	/* active port count */
+	u_int				sc_flapping;	/* number of flapping
+							 * events */
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
 	caddr_t				sc_psc;		/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
+
+	counter_u64_t			sc_ipackets;
+	counter_u64_t			sc_opackets;
+	counter_u64_t			sc_ibytes;
+	counter_u64_t			sc_obytes;
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
@@ -215,12 +225,13 @@ struct lagg_softc {
 	void	(*sc_lladdr)(struct lagg_softc *);
 	void	(*sc_req)(struct lagg_softc *, caddr_t);
 	void	(*sc_portreq)(struct lagg_port *, caddr_t);
-#if __FreeBSD_version >= 800000
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
-#endif
+	struct callout			sc_callout;
 	struct sysctl_ctx_list		ctx;		/* sysctl variables */
+	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
 	int				use_flowid;	/* use M_FLOWID */
+	int				flowid_shift;	/* shift the flowid */
 };
 
 struct lagg_port {
@@ -240,26 +251,33 @@ struct lagg_port {
 
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
-	int	(*lp_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct route *);
+	int	(*lp_output)(struct ifnet *, struct mbuf *,
+		     const struct sockaddr *, struct route *);
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
 
-#define	LAGG_LOCK_INIT(_sc)	rw_init(&(_sc)->sc_mtx, "if_lagg rwlock")
-#define	LAGG_LOCK_DESTROY(_sc)	rw_destroy(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK(_sc)		rw_rlock(&(_sc)->sc_mtx)
-#define	LAGG_WLOCK(_sc)		rw_wlock(&(_sc)->sc_mtx)
-#define	LAGG_RUNLOCK(_sc)	rw_runlock(&(_sc)->sc_mtx)
-#define	LAGG_WUNLOCK(_sc)	rw_wunlock(&(_sc)->sc_mtx)
-#define	LAGG_RLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_RLOCKED)
-#define	LAGG_WLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_WLOCKED)
+#define	LAGG_LOCK_INIT(_sc)	rm_init(&(_sc)->sc_mtx, "if_lagg rmlock")
+#define	LAGG_LOCK_DESTROY(_sc)	rm_destroy(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK(_sc, _p)	rm_rlock(&(_sc)->sc_mtx, (_p))
+#define	LAGG_WLOCK(_sc)		rm_wlock(&(_sc)->sc_mtx)
+#define	LAGG_RUNLOCK(_sc, _p)	rm_runlock(&(_sc)->sc_mtx, (_p))
+#define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
+#define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
+
+#define	LAGG_CALLOUT_LOCK_INIT(_sc)					\
+	    mtx_init(&(_sc)->sc_call_mtx, "if_lagg callout mutex", NULL,\
+	    MTX_DEF)
+#define	LAGG_CALLOUT_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_call_mtx)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
 uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
+
+SYSCTL_DECL(_net_link_lagg);
 
 #endif /* _KERNEL */
 

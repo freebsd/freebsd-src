@@ -13,11 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Driver/Arg.h"
-#include "clang/Driver/ArgList.h"
-#include "clang/Driver/Options.h"
+#include "llvm/Option/Arg.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/OptTable.h"
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -25,26 +23,37 @@
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/FrontendTool/Utils.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/LinkAllPasses.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Option/OptTable.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/LinkAllPasses.h"
 #include <cstdio>
 using namespace clang;
+using namespace llvm::opt;
 
 //===----------------------------------------------------------------------===//
 // Main driver
 //===----------------------------------------------------------------------===//
 
-static void LLVMErrorHandler(void *UserData, const std::string &Message) {
+static void LLVMErrorHandler(void *UserData, const std::string &Message,
+                             bool GenCrashDiag) {
   DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine*>(UserData);
 
   Diags.Report(diag::err_fe_error_backend) << Message;
 
-  // We cannot recover from llvm errors.
-  exit(1);
+  // Run the interrupt handlers to make sure any special cleanups get done, in
+  // particular that we remove files registered with RemoveFileOnSignal.
+  llvm::sys::RunInterruptHandlers();
+
+  // We cannot recover from llvm errors.  When reporting a fatal error, exit
+  // with status 70 to generate crash diagnostics.  For BSD systems this is
+  // defined as an internal software error.  Otherwise, exit with status 1.
+  exit(GenCrashDiag ? 70 : 1);
 }
 
 int cc1_main(const char **ArgBegin, const char **ArgEnd,
@@ -74,7 +83,7 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
       CompilerInvocation::GetResourcesPath(Argv0, MainAddr);
 
   // Create the actual diagnostics engine.
-  Clang->createDiagnostics(ArgEnd - ArgBegin, const_cast<char**>(ArgBegin));
+  Clang->createDiagnostics();
   if (!Clang->hasDiagnostics())
     return 1;
 

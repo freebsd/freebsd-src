@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_args.c	10.16 (Berkeley) 7/13/96";
+static const char sccsid[] = "$Id: ex_args.c,v 10.19 2011/12/16 16:18:10 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -42,14 +42,16 @@ static int ex_N_next __P((SCR *, EXCMD *));
  * PUBLIC: int ex_next __P((SCR *, EXCMD *));
  */
 int
-ex_next(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_next(SCR *sp, EXCMD *cmdp)
 {
 	ARGS **argv;
 	FREF *frp;
 	int noargs;
 	char **ap;
+	CHAR_T *wp;
+	size_t wlen;
+	char *np;
+	size_t nlen;
 
 	/* Check for file to move to. */
 	if (cmdp->argc == 0 && (sp->cargv == NULL || sp->cargv[1] == NULL)) {
@@ -60,8 +62,9 @@ ex_next(sp, cmdp)
 	if (F_ISSET(cmdp, E_NEWSCREEN)) {
 		/* By default, edit the next file in the old argument list. */
 		if (cmdp->argc == 0) {
-			if (argv_exp0(sp,
-			    cmdp, sp->cargv[1], strlen(sp->cargv[1])))
+			CHAR2INT(sp, sp->cargv[1], strlen(sp->cargv[1]) + 1,
+					   wp, wlen);
+			if (argv_exp0(sp, cmdp, wp, wlen - 1))
 				return (1);
 			return (ex_edit(sp, cmdp));
 		}
@@ -88,10 +91,11 @@ ex_next(sp, cmdp)
 		CALLOC_RET(sp,
 		    sp->argv, char **, cmdp->argc + 1, sizeof(char *));
 		for (ap = sp->argv,
-		    argv = cmdp->argv; argv[0]->len != 0; ++ap, ++argv)
-			if ((*ap =
-			    v_strdup(sp, argv[0]->bp, argv[0]->len)) == NULL)
+		    argv = cmdp->argv; argv[0]->len != 0; ++ap, ++argv) {
+			INT2CHAR(sp, argv[0]->bp, argv[0]->len, np, nlen);
+			if ((*ap = v_strdup(sp, np, nlen)) == NULL)
 				return (1);
+		}
 		*ap = NULL;
 
 		/* Switch to the first file. */
@@ -125,12 +129,12 @@ ex_next(sp, cmdp)
  *	New screen version of ex_next.
  */
 static int
-ex_N_next(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_N_next(SCR *sp, EXCMD *cmdp)
 {
 	SCR *new;
 	FREF *frp;
+	char *np;
+	size_t nlen;
 
 	/* Get a new screen. */
 	if (screen_init(sp->gp, sp, &new))
@@ -141,7 +145,8 @@ ex_N_next(sp, cmdp)
 	}
 
 	/* Get a backing file. */
-	if ((frp = file_add(new, cmdp->argv[0]->bp)) == NULL ||
+	INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, np, nlen);
+	if ((frp = file_add(new, np)) == NULL ||
 	    file_init(new, frp, NULL,
 	    (FL_ISSET(cmdp->iflags, E_C_FORCE) ? FS_FORCE : 0))) {
 		(void)vs_discard(new, NULL);
@@ -169,11 +174,11 @@ ex_N_next(sp, cmdp)
  * PUBLIC: int ex_prev __P((SCR *, EXCMD *));
  */
 int
-ex_prev(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_prev(SCR *sp, EXCMD *cmdp)
 {
 	FREF *frp;
+	size_t wlen;
+	CHAR_T *wp;
 
 	if (sp->cargv == sp->argv) {
 		msgq(sp, M_ERR, "112|No previous files to edit");
@@ -181,7 +186,9 @@ ex_prev(sp, cmdp)
 	}
 
 	if (F_ISSET(cmdp, E_NEWSCREEN)) {
-		if (argv_exp0(sp, cmdp, sp->cargv[-1], strlen(sp->cargv[-1])))
+		CHAR2INT(sp, sp->cargv[-1], strlen(sp->cargv[-1]) + 1,
+				   wp, wlen);
+		if (argv_exp0(sp, cmdp, wp, wlen - 1))
 			return (1);
 		return (ex_edit(sp, cmdp));
 	}
@@ -216,9 +223,7 @@ ex_prev(sp, cmdp)
  * PUBLIC: int ex_rew __P((SCR *, EXCMD *));
  */
 int
-ex_rew(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_rew(SCR *sp, EXCMD *cmdp)
 {
 	FREF *frp;
 
@@ -256,9 +261,7 @@ ex_rew(sp, cmdp)
  * PUBLIC: int ex_args __P((SCR *, EXCMD *));
  */
 int
-ex_args(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_args(SCR *sp, EXCMD *cmdp)
 {
 	GS *gp;
 	int cnt, col, len, sep;
@@ -299,14 +302,13 @@ ex_args(sp, cmdp)
  * PUBLIC: char **ex_buildargv __P((SCR *, EXCMD *, char *));
  */
 char **
-ex_buildargv(sp, cmdp, name)
-	SCR *sp;
-	EXCMD *cmdp;
-	char *name;
+ex_buildargv(SCR *sp, EXCMD *cmdp, char *name)
 {
 	ARGS **argv;
 	int argc;
 	char **ap, **s_argv;
+	char *np;
+	size_t nlen;
 
 	argc = cmdp == NULL ? 1 : cmdp->argc;
 	CALLOC(sp, s_argv, char **, argc + 1, sizeof(char *));
@@ -318,10 +320,11 @@ ex_buildargv(sp, cmdp, name)
 			return (NULL);
 		++ap;
 	} else
-		for (argv = cmdp->argv; argv[0]->len != 0; ++ap, ++argv)
-			if ((*ap =
-			    v_strdup(sp, argv[0]->bp, argv[0]->len)) == NULL)
+		for (argv = cmdp->argv; argv[0]->len != 0; ++ap, ++argv) {
+			INT2CHAR(sp, argv[0]->bp, argv[0]->len, np, nlen);
+			if ((*ap = v_strdup(sp, np, nlen)) == NULL)
 				return (NULL);
+		}
 	*ap = NULL;
 	return (s_argv);
 }

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
@@ -56,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
 
 #if defined(SOC_MV_ARMADAXP)
-#define MV_CLOCK_SRC		get_l2clk()
+#define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
 #else
 #define MV_CLOCK_SRC		get_tclk()
 #endif
@@ -93,7 +92,7 @@ static void	mv_watchdog_enable(void);
 static void	mv_watchdog_disable(void);
 static void	mv_watchdog_event(void *, unsigned int, int *);
 static int	mv_timer_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period);
+    sbintime_t first, sbintime_t period);
 static int	mv_timer_stop(struct eventtimer *et);
 static void	mv_setup_timers(void);
 
@@ -108,6 +107,9 @@ static struct timecounter mv_timer_timecounter = {
 static int
 mv_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "mrvl,timer"))
 		return (ENXIO);
@@ -168,12 +170,8 @@ mv_timer_attach(device_t dev)
 	sc->et.et_quality = 1000;
 
 	sc->et.et_frequency = MV_CLOCK_SRC;
-	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
-	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
-	sc->et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = mv_timer_start;
 	sc->et.et_stop = mv_timer_stop;
 	sc->et.et_priv = sc;
@@ -223,13 +221,6 @@ mv_timer_get_timecount(struct timecounter *tc)
 {
 
 	return (INITIAL_TIMECOUNTER - mv_get_timer(1));
-}
-
-void
-cpu_initclocks(void)
-{
-
-	cpu_initclocks_bsp();
 }
 
 void
@@ -327,6 +318,9 @@ mv_watchdog_enable(void)
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
+#if defined(SOC_MV_ARMADAXP)
+	val |= CPU_TIMER_WD_25MHZ_EN;
+#endif
 	mv_set_timer_control(val);
 }
 
@@ -394,25 +388,20 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 }
 
 static int
-mv_timer_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+mv_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct	mv_timer_softc *sc;
 	uint32_t val, val1;
 
 	/* Calculate dividers. */
 	sc = (struct mv_timer_softc *)et->et_priv;
-	if (period != NULL) {
-		val = (sc->et.et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			val += sc->et.et_frequency * period->sec;
-	} else
+	if (period != 0)
+		val = ((uint32_t)sc->et.et_frequency * period) >> 32;
+	else
 		val = 0;
-	if (first != NULL) {
-		val1 = (sc->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			val1 += sc->et.et_frequency * first->sec;
-	} else
+	if (first != 0)
+		val1 = ((uint32_t)sc->et.et_frequency * first) >> 32;
+	else
 		val1 = val;
 
 	/* Apply configuration. */
@@ -420,7 +409,7 @@ mv_timer_start(struct eventtimer *et,
 	mv_set_timer(0, val1);
 	val = mv_get_timer_control();
 	val |= CPU_TIMER0_EN;
-	if (period != NULL)
+	if (period != 0)
 		val |= CPU_TIMER0_AUTO;
 	else
 		val &= ~CPU_TIMER0_AUTO;
@@ -449,6 +438,10 @@ mv_setup_timers(void)
 	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
+#if defined(SOC_MV_ARMADAXP)
+	/* Enable 25MHz mode */
+	val |= CPU_TIMER0_25MHZ_EN | CPU_TIMER1_25MHZ_EN;
+#endif
 	mv_set_timer_control(val);
 	timers_initialized = 1;
 }

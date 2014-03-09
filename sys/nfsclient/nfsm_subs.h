@@ -53,34 +53,6 @@ struct vnode;
  * First define what the actual subs. return
  */
 u_int32_t nfs_xid_gen(void);
-struct mbuf *nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz);
-
-#define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMINOFF(m) \
-	do { \
-		if (M_HASCL(m)) \
-			(m)->m_data = (m)->m_ext.ext_buf; \
-		else if ((m)->m_flags & M_PKTHDR) \
-			(m)->m_data = (m)->m_pktdat; \
-		else \
-			(m)->m_data = (m)->m_dat; \
-	} while (0)
-#define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: \
-				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
-
-/*
- * Now for the macros that do the simple stuff and call the functions
- * for the hard stuff.
- * These macros use several vars. declared in nfsm_reqhead and these
- * vars. must not be used elsewhere unless you are careful not to corrupt
- * them. The vars. starting with pN and tN (N=1,2,3,..) are temporaries
- * that may be used so long as the value is not expected to retained
- * after a macro.
- * I know, this is kind of dorkey, but it makes the actual op functions
- * fairly clean and deals with the mess caused by the xdr discriminating
- * unions.
- */
-
 
 /* *********************************** */
 /* Request generation phase macros */

@@ -75,6 +75,7 @@ struct smbmount {
 	mode_t 			sm_dir_mode;
 	struct mount * 		sm_mp;
 	struct smbnode *	sm_root;
+	struct smb_dev *	sm_dev;
 	struct ucred *		sm_owner;
 	uint64_t		sm_flags;
 	long			sm_nextino;

@@ -51,7 +51,16 @@ struct usb_bus_stat {
 struct usb_bus {
 	struct usb_bus_stat stats_err;
 	struct usb_bus_stat stats_ok;
+#if USB_HAVE_ROOT_MOUNT_HOLD
 	struct root_hold_token *bus_roothold;
+#endif
+
+#if USB_HAVE_PER_BUS_PROCESS
+#define	USB_BUS_GIANT_PROC(bus) (&(bus)->giant_callback_proc)
+#define	USB_BUS_NON_GIANT_PROC(bus) (&(bus)->non_giant_callback_proc)
+#define	USB_BUS_EXPLORE_PROC(bus) (&(bus)->explore_proc)
+#define	USB_BUS_CONTROL_XFER_PROC(bus) (&(bus)->control_xfer_proc)
+
 	/*
 	 * There are two callback processes. One for Giant locked
 	 * callbacks. One for non-Giant locked callbacks. This should
@@ -65,12 +74,14 @@ struct usb_bus {
 
 	/* Control request process */
 	struct usb_process control_xfer_proc;
+#endif
 
 	struct usb_bus_msg explore_msg[2];
 	struct usb_bus_msg detach_msg[2];
 	struct usb_bus_msg attach_msg[2];
 	struct usb_bus_msg suspend_msg[2];
 	struct usb_bus_msg resume_msg[2];
+	struct usb_bus_msg reset_msg[2];
 	struct usb_bus_msg shutdown_msg[2];
 	/*
 	 * This mutex protects the USB hardware:
@@ -86,7 +97,7 @@ struct usb_bus {
 	struct usb_dma_parent_tag dma_parent_tag[1];
 	struct usb_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
 #endif
-	struct usb_bus_methods *methods;	/* filled by HC driver */
+	const struct usb_bus_methods *methods;	/* filled by HC driver */
 	struct usb_device **devices;
 
 	struct ifnet *ifp;	/* only for USB Packet Filter */
@@ -103,16 +114,6 @@ struct usb_bus {
 	uint8_t	devices_max;		/* maximum number of USB devices */
 	uint8_t	do_probe;		/* set if USB should be re-probed */
 	uint8_t no_explore;		/* don't explore USB ports */
-
-	/* 
-	 * The scratch area can only be used inside the explore thread
-	 * belonging to the give serial bus.
-	 */
-	union {
-		struct usb_hw_ep_scratch hw_ep_scratch[1];
-		struct usb_temp_setup temp_setup[1];
-		uint8_t	data[255];
-	}	scratch[1];
 };
 
 #endif					/* _USB_BUS_H_ */

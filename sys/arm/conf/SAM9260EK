@@ -1,4 +1,4 @@
-# Kernel configuration for Ethernut 5 boards
+# Kernel configuration for Atmel SAM9260-EK eval board
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -25,6 +25,7 @@ include "../at91/std.sam9260ek"
 hints		"SAM9260EK.hints"
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	MODULES_OVERRIDE=""
 
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
@@ -37,14 +38,18 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_DIRHASH		# Improve performance on big directories
 #options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 #options 	MD_ROOT			# MD is a potential root device
+options 	NANDFS			# NAND file system
 options 	NFSCL			# New Network Filesystem Client
 #options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options		TMPFS			#Efficient memory filesystem
 #options 	MSDOSFS			# MSDOS Filesystem
 #options 	CD9660			# ISO 9660 Filesystem
 #options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 #options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
 #options 	GEOM_PART_GPT		# GUID Partition Tables.
 #options 	GEOM_LABEL		# Provides labelization
 #options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
@@ -164,3 +169,15 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 
 # watchdog
 device		at91_wdt	# Atmel AT91 Watchdog Timer
+
+# NAND Flash - Reference design has Samsung 256MB but others possible
+device		nand			# NAND interface on CS3
+
+# Coming soon, but not yet
+#options 	FDT
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=sam9260ek.dts
+
+options 	EARLY_PRINTF
+options  	SOCDEV_PA=0xfc000000
+options 	SOCDEV_VA=0xdc000000

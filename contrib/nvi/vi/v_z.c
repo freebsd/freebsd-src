@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_z.c	10.10 (Berkeley) 5/16/96";
+static const char sccsid[] = "$Id: v_z.c,v 10.13 2011/12/02 17:26:59 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -31,12 +31,10 @@ static const char sccsid[] = "@(#)v_z.c	10.10 (Berkeley) 5/16/96";
  * PUBLIC: int v_z __P((SCR *, VICMD *));
  */
 int
-v_z(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_z(SCR *sp, VICMD *vp)
 {
 	recno_t lno;
-	u_int value;
+	e_key_t value;
 
 	/*
 	 * The first count is the line to use.  If the value doesn't
@@ -136,9 +134,7 @@ v_z(sp, vp)
  * PUBLIC: int vs_crel __P((SCR *, long));
  */
 int
-vs_crel(sp, count)
-	SCR *sp;
-	long count;
+vs_crel(SCR *sp, long int count)
 {
 	sp->t_minrows = sp->t_rows = count;
 	if (sp->t_rows > sp->rows - 1)

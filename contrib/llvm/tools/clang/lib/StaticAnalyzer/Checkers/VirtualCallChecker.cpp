@@ -15,11 +15,12 @@
 #include "ClangSACheckers.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtVisitor.h"
-#include "llvm/Support/SaveAndRestore.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/SaveAndRestore.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -190,7 +191,7 @@ void WalkAST::ReportVirtualCall(const CallExpr *CE, bool isPure) {
                        "Call pure virtual function during construction or "
                        "Destruction",
                        "Cplusplus",
-                       os.str(), CELoc, &R, 1);
+                       os.str(), CELoc, R);
     return;
   }
   else {
@@ -200,7 +201,7 @@ void WalkAST::ReportVirtualCall(const CallExpr *CE, bool isPure) {
                        "Call virtual function during construction or "
                        "Destruction",
                        "Cplusplus",
-                       os.str(), CELoc, &R, 1);
+                       os.str(), CELoc, R);
     return;
   }
 }

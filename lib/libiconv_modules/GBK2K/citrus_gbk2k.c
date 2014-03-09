@@ -80,6 +80,7 @@ _citrus_GBK2K_init_state(_GBK2KEncodingInfo * __restrict ei __unused,
 	memset(s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_GBK2K_pack_state(_GBK2KEncodingInfo * __restrict ei __unused,
@@ -97,6 +98,7 @@ _citrus_GBK2K_unpack_state(_GBK2KEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static  __inline bool
 _mb_singlebyte(int c)
@@ -147,10 +149,10 @@ _mb_count(wchar_t v)
 
 static int
 _citrus_GBK2K_mbrtowc_priv(_GBK2KEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _GBK2KState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0, *s1;
+	const char *s0, *s1;
 	wchar_t wc;
 	int chlenbak, len;
 

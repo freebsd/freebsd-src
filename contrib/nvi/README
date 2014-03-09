@@ -1,31 +1,32 @@
-#	@(#)README	8.147 (Berkeley) 10/19/96
+#	$Id: README,v 9.1 2013/11/02 02:50:23 zy Exp $
 
-This is the README for nex/nvi, a freely redistributable implementation
-of the ex/vi text editors originally distributed as part of the Fourth
-Berkeley Software Distribution (4BSD), by the University of California,
-Berkeley.
+This is version 2.1.2 (2012-11-02) of nex/nvi, a reimplementation of the ex/vi
+text editors originally distributed as part of the Fourth Berkeley
+Software Distribution (4BSD), by the University of California, Berkeley.
 
-The source code for nex/nvi can be retrieved by using anonymous ftp to
-ftp.cs.berkeley.edu.  The file ucb/4bsd/nvi.tar.gz is the gzip'd archive,
-of version 1.71 of nex/nvi.  This version is believed to be stable and
-problem free.  The file ucb/4bsd/nvi-###.ALPHA.tar.gz is a gzip'd archive
-of the current alpha-test release of nex/nvi.  This version reflects the
-current development tree, and will be more likely to have problems.
+The directory layout is as follows:
 
-See the file:
-	build/README	for information on building nvi.
-	LAYOUT		for a description of where everything is.
-	LICENSE		for the copyright and redistribution terms.
+    LICENSE ....... Copyright, use and redistribution information.
+    README ........ This file.
+    build ......... Build directory.
+    catalog ....... Message catalogs; see catalog/README.
+    cl ............ Vi interface to the curses(3) library.
+    common ........ Code shared by ex and vi.
+    docs .......... Ex/vi documentation, both current and historic.
+    ex ............ Ex source code.
+    regex ......... Modified regex library with wide character support.
+    vi ............ Vi source code.
 
-If you have any questions about nex/nvi, problems with it, or concerns
-about the conditions for redistribution, please contact me:
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-	Keith Bostic		+1-508-287-4781
-	394 E. Riding Dr.	bostic@bostic.com
-	Carlisle, MA 01741
-	USA
+o Nvi was written by Keith Bostic, and the last version is 1.79.  After that,
 
-Keith Bostic
+	Sven Verdoolaege added the iconv support and the DB3 locking.
+
+	Jun-ichiro itojun Hagino developed the file encoding detection
+	techniques in his nvi-m17n.
+
+The following acknowledgments were written by Keith Bostic:
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 o This software is several years old and is the product of many folks' work.  
@@ -63,51 +64,3 @@ o From the original vi acknowledgements, by William Joy and Mark Horton:
 o And...
 	The financial support of UUNET Communications Services is gratefully
 	acknowledged.
-
-=-=-=-=-=-=-=-=-=-=-=
-o Status:
-
-This software is in beta test, and it's pretty stable.  Almost all of the
-historic functionality in ex/vi is there, the only major missing pieces
-are open mode and the lisp edit option.
-
-Nvi is largely 8-bit clean.  This isn't difficult to fix, and was left in
-during initial development to keep things simple.  Wide character support
-will be integrated at the same time that it is made fully 8-bit clean.
-
-There aren't a lot of new features in nex/nvi, but there are a few things
-you might like.  The "Additional Features" section of the reference work
-(docs/USD.doc/vi.ref/vi.ref.txt, docs/USD.doc/vi.ref/vi.ref.ps) has more
-information.
-
-=-=-=-=-=-=-=-=-=-=-=
-o Debugging:
-
-Code fixes are greatly appreciated, of course, but if you can't provide
-them, please email me as much information as you can as to how I might
-reproduce the bug, and I'll try to fix it locally.  Stack traces of core
-dumps are only rarely helpful -- an example file with a set of keystrokes
-that causes the problem is almost invariably necessary.  I know it's
-annoying, but simply playing with the bug until you can reproduce it at
-will, with minimal keystrokes, is immensely helpful to me.
-
-Please include the following in the bug report;
-
-	o The version of nvi you're running (use :version to get it).
-	o The row/column dimensions of the screen (80 x 32).
-	o Unless you're confident that they're not part of the problem,
-	  your startup files (.exrc, .nexrc) and the environment variable
-	  (EXINIT, NEXINIT) values.  (Cutting and pasting the output
-	  of ":set all" is usually sufficient.)
-
-If you want to do your own debugging, recompile the program with DEBUG
-defined.  (Configuring with --enable-debug will do this for you.)  This
-turns on the additional command-line option -D, that takes either s or w
-as an argument.  The option -Ds causes nvi to ignore the EXINIT and
-.exrc files on startup, and -Dw causes nvi to print out the process id
-and wait for you to enter a <carriage-return> to continue.
-
-If you're running a memory checker (e.g. Purify) on nvi, you will first
-want to  recompile everything with "-DPURIFY" set in the CFLAGS.  This
-initializes allocated pages in the DB code, and free's allocated memory
-at the end of the nvi execution.

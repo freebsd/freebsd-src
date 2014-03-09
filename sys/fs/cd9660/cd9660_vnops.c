@@ -329,7 +329,7 @@ cd9660_read(ap)
 			if (lblktosize(imp, rablock) < ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 					 lbn, size, NOCRED, uio->uio_resid,
-					 (ap->a_ioflag >> 16), &bp);
+					 (ap->a_ioflag >> 16), 0, &bp);
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		} else {

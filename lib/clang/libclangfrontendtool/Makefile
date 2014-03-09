@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangfrontendtool
 
 SRCDIR=	tools/clang/lib/FrontendTool

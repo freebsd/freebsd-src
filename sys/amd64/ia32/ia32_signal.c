@@ -101,7 +101,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 	 * for now, it should be irrelevant for most applications.
 	 */
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 	if (!use_xsave || xfpusave_len == 0)
@@ -112,7 +112,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 		len = max_len;
 		bzero(xfpusave + max_len, len - max_len);
 	}
-	mcp->mc_flags |= _MC_HASFPXSTATE;
+	mcp->mc_flags |= _MC_IA32_HASFPXSTATE;
 	mcp->mc_xfpustate_len = len;
 	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
@@ -187,7 +187,6 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_xfpustate = 0;
 	mcp->mc_xfpustate_len = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -720,7 +719,7 @@ ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
 		return (error);
 	scp = &sc;
 	eflags = scp->sc_eflags;
-	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+	if (!EFL_SECURE(eflags, regs->tf_rflags)) {
 		return (EINVAL);
 	}
 	if (!CS_SECURE(scp->sc_cs)) {
@@ -788,17 +787,7 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	/*
 	 * Don't allow users to change privileged or reserved flags.
 	 */
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.
-	 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-	 * should sometimes set it there too.  tf_eflags is kept in
-	 * the signal context during signal handling and there is no
-	 * other place to remember it, so the PSL_RF bit may be
-	 * corrupted by the signal handler without us knowing.
-	 * Corruption of the PSL_RF bit at worst causes one more or
-	 * one less debugger trap, so allowing it is fairly harmless.
-	 */
-	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+	if (!EFL_SECURE(eflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): freebsd4_freebsd32_sigreturn eflags = 0x%x\n",
 		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
@@ -874,17 +863,7 @@ freebsd32_sigreturn(td, uap)
 	/*
 	 * Don't allow users to change privileged or reserved flags.
 	 */
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.
-	 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-	 * should sometimes set it there too.  tf_eflags is kept in
-	 * the signal context during signal handling and there is no
-	 * other place to remember it, so the PSL_RF bit may be
-	 * corrupted by the signal handler without us knowing.
-	 * Corruption of the PSL_RF bit at worst causes one more or
-	 * one less debugger trap, so allowing it is fairly harmless.
-	 */
-	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+	if (!EFL_SECURE(eflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): freebsd32_sigreturn eflags = 0x%x\n",
 		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
@@ -1001,6 +980,5 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Return via doreti so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }

@@ -13,15 +13,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Path.h"
-#include "llvm/Support/system_error.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <cctype>
 using namespace llvm;
 
 static bool isSignedChar(char C) {
@@ -87,9 +87,9 @@ static bool CompareNumbers(const char *&F1P, const char *&F2P,
 
   // If one of the positions is at a space and the other isn't, chomp up 'til
   // the end of the space.
-  while (isspace(*F1P) && F1P != F1End)
+  while (isspace(static_cast<unsigned char>(*F1P)) && F1P != F1End)
     ++F1P;
-  while (isspace(*F2P) && F2P != F2End)
+  while (isspace(static_cast<unsigned char>(*F2P)) && F2P != F2End)
     ++F2P;
 
   // If we stop on numbers, compare their difference.
@@ -171,43 +171,20 @@ static bool CompareNumbers(const char *&F1P, const char *&F2P,
 /// error occurs, allowing the caller to distinguish between a failed diff and a
 /// file system error.
 ///
-int llvm::DiffFilesWithTolerance(const sys::PathWithStatus &FileA,
-                                 const sys::PathWithStatus &FileB,
+int llvm::DiffFilesWithTolerance(StringRef NameA,
+                                 StringRef NameB,
                                  double AbsTol, double RelTol,
                                  std::string *Error) {
-  const sys::FileStatus *FileAStat = FileA.getFileStatus(false, Error);
-  if (!FileAStat)
-    return 2;
-  const sys::FileStatus *FileBStat = FileB.getFileStatus(false, Error);
-  if (!FileBStat)
-    return 2;
-
-  // Check for zero length files because some systems croak when you try to
-  // mmap an empty file.
-  size_t A_size = FileAStat->getSize();
-  size_t B_size = FileBStat->getSize();
-
-  // If they are both zero sized then they're the same
-  if (A_size == 0 && B_size == 0)
-    return 0;
-
-  // If only one of them is zero sized then they can't be the same
-  if ((A_size == 0 || B_size == 0)) {
-    if (Error)
-      *Error = "Files differ: one is zero-sized, the other isn't";
-    return 1;
-  }
-
   // Now its safe to mmap the files into memory because both files
   // have a non-zero size.
   OwningPtr<MemoryBuffer> F1;
-  if (error_code ec = MemoryBuffer::getFile(FileA.c_str(), F1)) {
+  if (error_code ec = MemoryBuffer::getFile(NameA, F1)) {
     if (Error)
       *Error = ec.message();
     return 2;
   }
   OwningPtr<MemoryBuffer> F2;
-  if (error_code ec = MemoryBuffer::getFile(FileB.c_str(), F2)) {
+  if (error_code ec = MemoryBuffer::getFile(NameB, F2)) {
     if (Error)
       *Error = ec.message();
     return 2;
@@ -220,6 +197,8 @@ int llvm::DiffFilesWithTolerance(const sys::PathWithStatus &FileA,
   const char *File2End = F2->getBufferEnd();
   const char *F1P = File1Start;
   const char *F2P = File2Start;
+  uint64_t A_size = F1->getBufferSize();
+  uint64_t B_size = F2->getBufferSize();
 
   // Are the buffers identical?  Common case: Handle this efficiently.
   if (A_size == B_size &&

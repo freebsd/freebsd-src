@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/frame.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -155,13 +154,17 @@ ti_scm_padconf_set_internal(struct ti_scm_softc *sc,
 	}
 
 	/* couldn't find the mux mode */
-	if (mode >= 8)
+	if (mode >= 8) {
+		printf("Invalid mode \"%s\"\n", muxmode);
 		return (EINVAL);
+	}
 
 	/* set the mux mode */
 	reg_val |= (uint16_t)(mode & ti_scm_dev.padconf_muxmode_mask);
 	
-	printf("setting internal %x for %s\n", reg_val, muxmode);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "setting internal %x for %s\n", 
+		    reg_val, muxmode);
 	/* write the register value (16-bit writes) */
 	ti_scm_write_2(sc, padconf->reg_off, reg_val);
 	
@@ -391,13 +394,16 @@ ti_scm_padconf_init_from_fdt(struct ti_scm_softc *sc)
 				while (padstates->state != NULL) {
 					if (strcmp(padstates->state, padstate) == 0) {
 						err = ti_scm_padconf_set_internal(sc,
-							padconf, muxname, padstates->reg);
+						    padconf, muxname, padstates->reg);
 					}
 					padstates++;
 				}
 				if (err)
-					device_printf(sc->sc_dev, "err: failed to configure"
-						"pin \"%s\"\n", padconf->ballname);
+					device_printf(sc->sc_dev,
+					    "err: failed to configure "
+					    "pin \"%s\" as \"%s\"\n",
+					    padconf->ballname,
+					    muxname);
 			}
 			padconf++;
 		}
@@ -412,6 +418,10 @@ ti_scm_padconf_init_from_fdt(struct ti_scm_softc *sc)
 static int
 ti_scm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,scm"))
 		return (ENXIO);
 

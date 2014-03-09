@@ -13,16 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "Disassembler.h"
-#include "../../lib/MC/MCDisassembler/EDDisassembler.h"
-#include "../../lib/MC/MCDisassembler/EDInst.h"
-#include "../../lib/MC/MCDisassembler/EDOperand.h"
-#include "../../lib/MC/MCDisassembler/EDToken.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/SourceMgr.h"
@@ -55,7 +51,7 @@ public:
 static bool PrintInsts(const MCDisassembler &DisAsm,
                        const ByteArrayTy &Bytes,
                        SourceMgr &SM, raw_ostream &Out,
-                       MCStreamer &Streamer) {
+                       MCStreamer &Streamer, bool InAtomicBlock) {
   // Wrap the vector in a MemoryObject.
   VectorMemoryObject memoryObject(Bytes);
 
@@ -74,8 +70,13 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
       SM.PrintMessage(SMLoc::getFromPointer(Bytes[Index].second),
                       SourceMgr::DK_Warning,
                       "invalid instruction encoding");
+      // Don't try to resynchronise the stream in a block
+      if (InAtomicBlock)
+        return true;
+
       if (Size == 0)
         Size = 1; // skip illegible bytes
+
       break;
 
     case MCDisassembler::SoftFail:
@@ -93,14 +94,11 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
   return false;
 }
 
-static bool ByteArrayFromString(ByteArrayTy &ByteArray,
-                                StringRef &Str,
-                                SourceMgr &SM) {
-  while (!Str.empty()) {
-    // Strip horizontal whitespace.
-    if (size_t Pos = Str.find_first_not_of(" \t\r")) {
+static bool SkipToToken(StringRef &Str) {
+  while (!Str.empty() && Str.find_first_not_of(" \t\r\n#,") != 0) {
+    // Strip horizontal whitespace and commas.
+    if (size_t Pos = Str.find_first_not_of(" \t\r,")) {
       Str = Str.substr(Pos);
-      continue;
     }
 
     // If this is the end of a line or start of a comment, remove the rest of
@@ -117,9 +115,22 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
       }
       continue;
     }
+  }
+
+  return !Str.empty();
+}
+
+
+static bool ByteArrayFromString(ByteArrayTy &ByteArray,
+                                StringRef &Str,
+                                SourceMgr &SM) {
+  while (SkipToToken(Str)) {
+    // Handled by higher level
+    if (Str[0] == '[' || Str[0] == ']')
+      return false;
 
     // Get the current token.
-    size_t Next = Str.find_first_of(" \t\n\r#");
+    size_t Next = Str.find_first_of(" \t\n\r,#[]");
     StringRef Value = Str.substr(0, Next);
 
     // Convert to a byte and add to the byte vector.
@@ -161,183 +172,44 @@ int Disassembler::disassemble(const Target &T,
   // Convert the input to a vector for disassembly.
   ByteArrayTy ByteArray;
   StringRef Str = Buffer.getBuffer();
+  bool InAtomicBlock = false;
 
-  ErrorOccurred |= ByteArrayFromString(ByteArray, Str, SM);
+  while (SkipToToken(Str)) {
+    ByteArray.clear();
 
-  if (!ByteArray.empty())
-    ErrorOccurred |= PrintInsts(*DisAsm, ByteArray, SM, Out, Streamer);
+    if (Str[0] == '[') {
+      if (InAtomicBlock) {
+        SM.PrintMessage(SMLoc::getFromPointer(Str.data()), SourceMgr::DK_Error,
+                        "nested atomic blocks make no sense");
+        ErrorOccurred = true;
+      }
+      InAtomicBlock = true;
+      Str = Str.drop_front();
+      continue;
+    } else if (Str[0] == ']') {
+      if (!InAtomicBlock) {
+        SM.PrintMessage(SMLoc::getFromPointer(Str.data()), SourceMgr::DK_Error,
+                        "attempt to close atomic block without opening");
+        ErrorOccurred = true;
+      }
+      InAtomicBlock = false;
+      Str = Str.drop_front();
+      continue;
+    }
+
+    // It's a real token, get the bytes and emit them
+    ErrorOccurred |= ByteArrayFromString(ByteArray, Str, SM);
+
+    if (!ByteArray.empty())
+      ErrorOccurred |= PrintInsts(*DisAsm, ByteArray, SM, Out, Streamer,
+                                  InAtomicBlock);
+  }
+
+  if (InAtomicBlock) {
+    SM.PrintMessage(SMLoc::getFromPointer(Str.data()), SourceMgr::DK_Error,
+                    "unclosed atomic block");
+    ErrorOccurred = true;
+  }
 
   return ErrorOccurred;
-}
-
-static int byteArrayReader(uint8_t *B, uint64_t A, void *Arg) {
-  ByteArrayTy &ByteArray = *((ByteArrayTy*)Arg);
-
-  if (A >= ByteArray.size())
-    return -1;
-
-  *B = ByteArray[A].first;
-
-  return 0;
-}
-
-static int verboseEvaluator(uint64_t *V, unsigned R, void *Arg) {
-  EDDisassembler &disassembler = *(EDDisassembler *)((void **)Arg)[0];
-  raw_ostream &Out = *(raw_ostream *)((void **)Arg)[1];
-
-  if (const char *regName = disassembler.nameWithRegisterID(R))
-    Out << "[" << regName << "/" << R << "]";
-
-  if (disassembler.registerIsStackPointer(R))
-    Out << "(sp)";
-  if (disassembler.registerIsProgramCounter(R))
-    Out << "(pc)";
-
-  *V = 0;
-  return 0;
-}
-
-int Disassembler::disassembleEnhanced(const std::string &TS,
-                                      MemoryBuffer &Buffer,
-                                      SourceMgr &SM,
-                                      raw_ostream &Out) {
-  ByteArrayTy ByteArray;
-  StringRef Str = Buffer.getBuffer();
-
-  if (ByteArrayFromString(ByteArray, Str, SM)) {
-    return -1;
-  }
-
-  Triple T(TS);
-  EDDisassembler::AssemblySyntax AS;
-
-  switch (T.getArch()) {
-  default:
-    errs() << "error: no default assembly syntax for " << TS.c_str() << "\n";
-    return -1;
-  case Triple::arm:
-  case Triple::thumb:
-    AS = EDDisassembler::kEDAssemblySyntaxARMUAL;
-    break;
-  case Triple::x86:
-  case Triple::x86_64:
-    AS = EDDisassembler::kEDAssemblySyntaxX86ATT;
-    break;
-  }
-
-  OwningPtr<EDDisassembler>
-    disassembler(EDDisassembler::getDisassembler(TS.c_str(), AS));
-
-  if (disassembler == 0) {
-    errs() << "error: couldn't get disassembler for " << TS << '\n';
-    return -1;
-  }
-
-  while (ByteArray.size()) {
-    OwningPtr<EDInst>
-      inst(disassembler->createInst(byteArrayReader, 0, &ByteArray));
-
-    if (inst == 0) {
-      errs() << "error: Didn't get an instruction\n";
-      return -1;
-    }
-
-    ByteArray.erase (ByteArray.begin(), ByteArray.begin() + inst->byteSize());
-
-    unsigned numTokens = inst->numTokens();
-    if ((int)numTokens < 0) {
-      errs() << "error: couldn't count the instruction's tokens\n";
-      return -1;
-    }
-
-    for (unsigned tokenIndex = 0; tokenIndex != numTokens; ++tokenIndex) {
-      EDToken *token;
-
-      if (inst->getToken(token, tokenIndex)) {
-        errs() << "error: Couldn't get token\n";
-        return -1;
-      }
-
-      const char *buf;
-      if (token->getString(buf)) {
-        errs() << "error: Couldn't get string for token\n";
-        return -1;
-      }
-
-      Out << '[';
-      int operandIndex = token->operandID();
-
-      if (operandIndex >= 0)
-        Out << operandIndex << "-";
-
-      switch (token->type()) {
-      case EDToken::kTokenWhitespace: Out << "w"; break;
-      case EDToken::kTokenPunctuation: Out << "p"; break;
-      case EDToken::kTokenOpcode: Out << "o"; break;
-      case EDToken::kTokenLiteral: Out << "l"; break;
-      case EDToken::kTokenRegister: Out << "r"; break;
-      }
-
-      Out << ":" << buf;
-
-      if (token->type() == EDToken::kTokenLiteral) {
-        Out << "=";
-        if (token->literalSign())
-          Out << "-";
-        uint64_t absoluteValue;
-        if (token->literalAbsoluteValue(absoluteValue)) {
-          errs() << "error: Couldn't get the value of a literal token\n";
-          return -1;
-        }
-        Out << absoluteValue;
-      } else if (token->type() == EDToken::kTokenRegister) {
-        Out << "=";
-        unsigned regID;
-        if (token->registerID(regID)) {
-          errs() << "error: Couldn't get the ID of a register token\n";
-          return -1;
-        }
-        Out << "r" << regID;
-      }
-
-      Out << "]";
-    }
-
-    Out << " ";
-
-    if (inst->isBranch())
-      Out << "<br> ";
-    if (inst->isMove())
-      Out << "<mov> ";
-
-    unsigned numOperands = inst->numOperands();
-
-    if ((int)numOperands < 0) {
-      errs() << "error: Couldn't count operands\n";
-      return -1;
-    }
-
-    for (unsigned operandIndex = 0; operandIndex != numOperands;
-         ++operandIndex) {
-      Out << operandIndex << ":";
-
-      EDOperand *operand;
-      if (inst->getOperand(operand, operandIndex)) {
-        errs() << "error: couldn't get operand\n";
-        return -1;
-      }
-
-      uint64_t evaluatedResult;
-      void *Arg[] = { disassembler.get(), &Out };
-      if (operand->evaluate(evaluatedResult, verboseEvaluator, Arg)) {
-        errs() << "error: Couldn't evaluate an operand\n";
-        return -1;
-      }
-      Out << "=" << evaluatedResult << " ";
-    }
-
-    Out << '\n';
-  }
-
-  return 0;
 }

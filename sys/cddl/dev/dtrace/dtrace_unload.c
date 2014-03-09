@@ -67,6 +67,8 @@ dtrace_unload()
 	}
 
 	dtrace_provider = NULL;
+	EVENTHANDLER_DEREGISTER(kld_load, dtrace_kld_load_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload_try, dtrace_kld_unload_try_tag);
 
 	if ((state = dtrace_anon_grab()) != NULL) {
 		/*
@@ -121,10 +123,11 @@ dtrace_unload()
 	mutex_destroy(&dtrace_meta_lock);
 	mutex_destroy(&dtrace_provider_lock);
 	mutex_destroy(&dtrace_lock);
+#ifdef DEBUG
 	mutex_destroy(&dtrace_errlock);
+#endif
 
-	/* XXX Hack */
-	mutex_destroy(&mod_lock);
+	taskq_destroy(dtrace_taskq);
 
 	/* Reset our hook for exceptions. */
 	dtrace_invop_uninit();

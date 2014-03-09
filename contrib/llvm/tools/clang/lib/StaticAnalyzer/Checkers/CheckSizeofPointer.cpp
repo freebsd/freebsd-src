@@ -14,8 +14,8 @@
 
 #include "ClangSACheckers.h"
 #include "clang/AST/StmtVisitor.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 
 using namespace clang;
@@ -60,15 +60,14 @@ void WalkAST::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
     if (!isa<DeclRefExpr>(ArgEx->IgnoreParens()))
       return;
 
-    SourceRange R = ArgEx->getSourceRange();
     PathDiagnosticLocation ELoc =
       PathDiagnosticLocation::createBegin(E, BR.getSourceManager(), AC);
     BR.EmitBasicReport(AC->getDecl(),
                        "Potential unintended use of sizeof() on pointer type",
-                       "Logic",
+                       categories::LogicError,
                        "The code calls sizeof() on a pointer type. "
                        "This can produce an unexpected result.",
-                       ELoc, &R, 1);
+                       ELoc, ArgEx->getSourceRange());
   }
 }
 

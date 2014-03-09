@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/_cpuset.h>
 
+#include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>

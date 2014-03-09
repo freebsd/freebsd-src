@@ -20,10 +20,10 @@
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 class BumpPtrAllocator;
@@ -49,7 +49,10 @@ public:
               MetadataKind,
               BEGIN_SYMBOLS = RegionValueKind,
               END_SYMBOLS = MetadataKind,
-              SymIntKind, IntSymKind, SymSymKind, CastSymbolKind };
+              SymIntKind, IntSymKind, SymSymKind,
+              BEGIN_BINARYSYMEXPRS = SymIntKind,
+              END_BINARYSYMEXPRS = SymSymKind,
+              CastSymbolKind };
 private:
   Kind K;
 
@@ -96,7 +99,7 @@ public:
 };
 
 typedef const SymExpr* SymbolRef;
-typedef llvm::SmallVector<SymbolRef, 2> SymbolRefSmallVectorTy;
+typedef SmallVector<SymbolRef, 2> SymbolRefSmallVectorTy;
 
 typedef unsigned SymbolID;
 /// \brief A symbol representing data which can be stored in a memory location
@@ -341,23 +344,38 @@ public:
   }
 };
 
-/// SymIntExpr - Represents symbolic expression like 'x' + 3.
-class SymIntExpr : public SymExpr {
-  const SymExpr *LHS;
+/// \brief Represents a symbolic expression involving a binary operator 
+class BinarySymExpr : public SymExpr {
   BinaryOperator::Opcode Op;
-  const llvm::APSInt& RHS;
   QualType T;
 
-public:
-  SymIntExpr(const SymExpr *lhs, BinaryOperator::Opcode op,
-             const llvm::APSInt& rhs, QualType t)
-    : SymExpr(SymIntKind), LHS(lhs), Op(op), RHS(rhs), T(t) {}
+protected:
+  BinarySymExpr(Kind k, BinaryOperator::Opcode op, QualType t)
+    : SymExpr(k), Op(op), T(t) {}
 
+public:
   // FIXME: We probably need to make this out-of-line to avoid redundant
   // generation of virtual functions.
   QualType getType() const { return T; }
 
   BinaryOperator::Opcode getOpcode() const { return Op; }
+
+  // Implement isa<T> support.
+  static inline bool classof(const SymExpr *SE) {
+    Kind k = SE->getKind();
+    return k >= BEGIN_BINARYSYMEXPRS && k <= END_BINARYSYMEXPRS;
+  }
+};
+
+/// \brief Represents a symbolic expression like 'x' + 3.
+class SymIntExpr : public BinarySymExpr {
+  const SymExpr *LHS;
+  const llvm::APSInt& RHS;
+
+public:
+  SymIntExpr(const SymExpr *lhs, BinaryOperator::Opcode op,
+             const llvm::APSInt& rhs, QualType t)
+    : BinarySymExpr(SymIntKind, op, t), LHS(lhs), RHS(rhs) {}
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -375,7 +393,7 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) {
-    Profile(ID, LHS, Op, RHS, T);
+    Profile(ID, LHS, getOpcode(), RHS, getType());
   }
 
   // Implement isa<T> support.
@@ -384,21 +402,15 @@ public:
   }
 };
 
-/// IntSymExpr - Represents symbolic expression like 3 - 'x'.
-class IntSymExpr : public SymExpr {
+/// \brief Represents a symbolic expression like 3 - 'x'.
+class IntSymExpr : public BinarySymExpr {
   const llvm::APSInt& LHS;
-  BinaryOperator::Opcode Op;
   const SymExpr *RHS;
-  QualType T;
 
 public:
   IntSymExpr(const llvm::APSInt& lhs, BinaryOperator::Opcode op,
              const SymExpr *rhs, QualType t)
-    : SymExpr(IntSymKind), LHS(lhs), Op(op), RHS(rhs), T(t) {}
-
-  QualType getType() const { return T; }
-
-  BinaryOperator::Opcode getOpcode() const { return Op; }
+    : BinarySymExpr(IntSymKind, op, t), LHS(lhs), RHS(rhs) {}
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -416,7 +428,7 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) {
-    Profile(ID, LHS, Op, RHS, T);
+    Profile(ID, LHS, getOpcode(), RHS, getType());
   }
 
   // Implement isa<T> support.
@@ -425,25 +437,18 @@ public:
   }
 };
 
-/// SymSymExpr - Represents symbolic expression like 'x' + 'y'.
-class SymSymExpr : public SymExpr {
+/// \brief Represents a symbolic expression like 'x' + 'y'.
+class SymSymExpr : public BinarySymExpr {
   const SymExpr *LHS;
-  BinaryOperator::Opcode Op;
   const SymExpr *RHS;
-  QualType T;
 
 public:
   SymSymExpr(const SymExpr *lhs, BinaryOperator::Opcode op, const SymExpr *rhs,
              QualType t)
-    : SymExpr(SymSymKind), LHS(lhs), Op(op), RHS(rhs), T(t) {}
+    : BinarySymExpr(SymSymKind, op, t), LHS(lhs), RHS(rhs) {}
 
-  BinaryOperator::Opcode getOpcode() const { return Op; }
   const SymExpr *getLHS() const { return LHS; }
   const SymExpr *getRHS() const { return RHS; }
-
-  // FIXME: We probably need to make this out-of-line to avoid redundant
-  // generation of virtual functions.
-  QualType getType() const { return T; }
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -457,7 +462,7 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) {
-    Profile(ID, LHS, Op, RHS, T);
+    Profile(ID, LHS, getOpcode(), RHS, getType());
   }
 
   // Implement isa<T> support.

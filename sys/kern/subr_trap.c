@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -100,9 +99,6 @@ void
 userret(struct thread *td, struct trapframe *frame)
 {
 	struct proc *p = td->td_proc;
-#ifdef	RACCT
-	int sig;
-#endif
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             td->td_name);
@@ -156,14 +152,19 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held", td->td_locks));
+	KASSERT(td->td_rw_rlocks == 0,
+	    ("userret: Returning with %d rwlocks held in read mode",
+	    td->td_rw_rlocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
-	KASSERT((td->td_pflags & TDP_NOSLEEPING) == 0,
+	KASSERT(td->td_no_sleeping == 0,
 	    ("userret: Returning with sleep disabled"));
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
 	    ("userret: Returning with with pinned thread"));
 	KASSERT(td->td_vp_reserv == 0,
 	    ("userret: Returning while holding vnode reservation"));
+	KASSERT((td->td_flags & TDF_SBDRY) == 0,
+	    ("userret: Returning with stop signals deferred"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
@@ -173,12 +174,8 @@ userret(struct thread *td, struct trapframe *frame)
 #endif
 #ifdef	RACCT
 	PROC_LOCK(p);
-	while (p->p_throttled == 1) {
-		sig = msleep(p->p_racct, &p->p_mtx, PCATCH | PBDRY, "racct",
-		    hz);
-		if ((sig == EINTR) || (sig == ERESTART))
-			break;
-	}
+	while (p->p_throttled == 1)
+		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
 	PROC_UNLOCK(p);
 #endif
 }
@@ -272,7 +269,7 @@ ast(struct trapframe *framep)
 	    !SIGISEMPTY(p->p_siglist)) {
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0)
+		while ((sig = cursig(td)) != 0)
 			postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);

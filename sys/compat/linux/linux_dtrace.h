@@ -48,34 +48,29 @@
     LINUX_DTRACE, a, b, c)
 
 #define	_LIN_SDT_PROBE_DEFINE0(a, b, c, d)		SDT_PROBE_DEFINE(a, \
-    b, c, d, d)
+    b, c, d)
 #define	LIN_SDT_PROBE_DEFINE0(a, b, c)			_LIN_SDT_PROBE_DEFINE0(\
     LINUX_DTRACE, a, b, c)
 #define	_LIN_SDT_PROBE_DEFINE1(a, b, c, d, e)		SDT_PROBE_DEFINE1(a, \
-    b, c, d, d, e)
+    b, c, d, e)
 #define	LIN_SDT_PROBE_DEFINE1(a, b, c, d)		_LIN_SDT_PROBE_DEFINE1(\
     LINUX_DTRACE, a, b, c, d)
 #define	_LIN_SDT_PROBE_DEFINE2(a, b, c, d, e, f)	SDT_PROBE_DEFINE2(a, \
-    b, c, d, d, e, f)
+    b, c, d, e, f)
 #define	LIN_SDT_PROBE_DEFINE2(a, b, c, d, e)		_LIN_SDT_PROBE_DEFINE2(\
     LINUX_DTRACE, a, b, c, d, e)
 #define	_LIN_SDT_PROBE_DEFINE3(a, b, c, d, e, f, g)	SDT_PROBE_DEFINE3(a, \
-    b, c, d, d, e, f, g)
+    b, c, d, e, f, g)
 #define	LIN_SDT_PROBE_DEFINE3(a, b, c, d, e, f)		_LIN_SDT_PROBE_DEFINE3(\
     LINUX_DTRACE, a, b, c, d, e, f)
 #define	_LIN_SDT_PROBE_DEFINE4(a, b, c, d, e, f, g, h)	SDT_PROBE_DEFINE4(a, \
-    b, c, d, d, e, f, g, h)
+    b, c, d, e, f, g, h)
 #define	LIN_SDT_PROBE_DEFINE4(a, b, c, d, e, f, g)	_LIN_SDT_PROBE_DEFINE4(\
     LINUX_DTRACE, a, b, c, d, e, f, g)
 #define	_LIN_SDT_PROBE_DEFINE5(a, b, c, d, e, f, g, h, i) \
-    SDT_PROBE_DEFINE5(a, b, c, d, d, e, f, g, h, i)
+    SDT_PROBE_DEFINE5(a, b, c, d, e, f, g, h, i)
 #define	LIN_SDT_PROBE_DEFINE5(a, b, c, d, e, f, g, h)	_LIN_SDT_PROBE_DEFINE5(\
     LINUX_DTRACE, a, b, c, d, e, f, g, h)
-
-#define	_LIN_SDT_PROBE_ARGTYPE(a, b, c, d, e, f)	SDT_PROBE_ARGTYPE(a, b,\
-    c, d, e, f)
-#define LIN_SDT_PROBE_ARGTYPE(a, b, c, d, e)	_LIN_SDT_PROBE_ARGTYPE( \
-    LINUX_DTRACE, a, b, c, d, e)
 
 #define	LIN_SDT_PROBE0(a, b, c)			SDT_PROBE1(LINUX_DTRACE, a, b, \
     c, 0)

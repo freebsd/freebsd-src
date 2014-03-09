@@ -52,7 +52,7 @@ __END_DECLS
  */
 static __inline int
 _citrus_iconv_convert(struct _citrus_iconv * __restrict cv,
-    char * __restrict * __restrict in, size_t * __restrict inbytes,
+    const char * __restrict * __restrict in, size_t * __restrict inbytes,
     char * __restrict * __restrict out, size_t * __restrict outbytes,
     uint32_t flags, size_t * __restrict nresults)
 {

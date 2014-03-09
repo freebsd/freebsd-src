@@ -1,4 +1,4 @@
-.\" Copyright (C) 2012 Emulex
+.\" Copyright (C) 2013 Emulex
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,7 @@ Firmware can be updated by following the steps below:
 .It
 Copy the below code to a Makefile:
 .Bd -literal -offset indent
-\&.KMOD=elxflash
+KMOD=elxflash
 FIRMWS=imagename.ufi:elxflash
 \&.include <bsd.kmod.mk>
 .Ed

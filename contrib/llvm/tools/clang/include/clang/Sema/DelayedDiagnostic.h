@@ -6,16 +6,17 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the DelayedDiagnostic class, which is used to
-// record diagnostics that are being conditionally produced during
-// declarator parsing.  Certain kinds of diagnostics --- notably
-// deprecation and access control --- are suppressed based on
-// semantic properties of the parsed declaration that aren't known
-// until it is fully parsed.
-//
-// This file also defines AccessedEntity.
-//
+///
+/// \file
+/// \brief Defines the classes clang::DelayedDiagnostic and 
+/// clang::AccessedEntity.
+///
+/// DelayedDiangostic is used to record diagnostics that are being
+/// conditionally produced during declarator parsing.  Certain kinds of
+/// diagnostics -- notably deprecation and access control -- are suppressed
+/// based on semantic properties of the parsed declaration that aren't known
+/// until it is fully parsed.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SEMA_DELAYED_DIAGNOSTIC_H
@@ -199,39 +200,42 @@ public:
   }
   
 private:
-  union {
-    /// Deprecation.
-    struct {
-      const NamedDecl *Decl;
-      const ObjCInterfaceDecl *UnknownObjCClass;
-      const ObjCPropertyDecl  *ObjCProperty;
-      const char *Message;
-      size_t MessageLen;
-    } DeprecationData;
 
-    struct {
-      unsigned Diagnostic;
-      unsigned Argument;
-      void *OperandType;
-    } ForbiddenTypeData;
+  struct DD {
+    const NamedDecl *Decl;
+    const ObjCInterfaceDecl *UnknownObjCClass;
+    const ObjCPropertyDecl  *ObjCProperty;
+    const char *Message;
+    size_t MessageLen;
+  };
+
+  struct FTD {
+    unsigned Diagnostic;
+    unsigned Argument;
+    void *OperandType;
+  };
+
+  union {
+    /// Deprecation
+    struct DD DeprecationData;
+    struct FTD ForbiddenTypeData;
 
     /// Access control.
     char AccessData[sizeof(AccessedEntity)];
   };
 };
 
-/// DelayedDiagnosticPool - A collection of diagnostics which were
-/// delayed.
+/// \brief A collection of diagnostics which were delayed.
 class DelayedDiagnosticPool {
   const DelayedDiagnosticPool *Parent;
-  llvm::SmallVector<DelayedDiagnostic, 4> Diagnostics;
+  SmallVector<DelayedDiagnostic, 4> Diagnostics;
 
   DelayedDiagnosticPool(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
   void operator=(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
 public:
   DelayedDiagnosticPool(const DelayedDiagnosticPool *parent) : Parent(parent) {}
   ~DelayedDiagnosticPool() {
-    for (llvm::SmallVectorImpl<DelayedDiagnostic>::iterator
+    for (SmallVectorImpl<DelayedDiagnostic>::iterator
            i = Diagnostics.begin(), e = Diagnostics.end(); i != e; ++i)
       i->Destroy();
   }
@@ -260,8 +264,7 @@ public:
     pool.Diagnostics.clear();
   }
 
-  typedef llvm::SmallVectorImpl<DelayedDiagnostic>::const_iterator
-    pool_iterator;
+  typedef SmallVectorImpl<DelayedDiagnostic>::const_iterator pool_iterator;
   pool_iterator pool_begin() const { return Diagnostics.begin(); }
   pool_iterator pool_end() const { return Diagnostics.end(); }
   bool pool_empty() const { return Diagnostics.empty(); }

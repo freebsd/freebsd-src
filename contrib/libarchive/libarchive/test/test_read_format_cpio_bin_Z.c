@@ -44,10 +44,10 @@ DEFINE_TEST(test_read_format_cpio_bin_Z)
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
-	failure("archive_compression_name(a)=\"%s\"",
-	    archive_compression_name(a));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
-	assertEqualString(archive_compression_name(a), "compress (.Z)");
+	failure("archive_filter_name(a, 0)=\"%s\"",
+	    archive_filter_name(a, 0));
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
+	assertEqualString(archive_filter_name(a, 0), "compress (.Z)");
 	failure("archive_format_name(a)=\"%s\"",
 	    archive_format_name(a));
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);

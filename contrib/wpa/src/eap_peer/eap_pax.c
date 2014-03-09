@@ -2,19 +2,14 @@
  * EAP peer method: EAP-PAX (RFC 4746)
  * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/random.h"
 #include "eap_common/eap_pax_common.h"
 #include "eap_i.h"
 
@@ -174,7 +169,7 @@ static struct wpabuf * eap_pax_process_std_1(struct eap_pax_data *data,
 			    pos, left);
 	}
 
-	if (os_get_random(data->rand.r.y, EAP_PAX_RAND_LEN)) {
+	if (random_get_bytes(data->rand.r.y, EAP_PAX_RAND_LEN)) {
 		wpa_printf(MSG_ERROR, "EAP-PAX: Failed to get random data");
 		ret->ignore = TRUE;
 		return NULL;

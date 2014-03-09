@@ -34,12 +34,47 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2006
+.Dd September 10, 2013
 .Dt GEOM 4
 .Os
 .Sh NAME
 .Nm GEOM
 .Nd "modular disk I/O request transformation framework"
+.Sh SYNOPSIS
+.Cd options GEOM_AES
+.Cd options GEOM_BDE
+.Cd options GEOM_BSD
+.Cd options GEOM_CACHE
+.Cd options GEOM_CONCAT
+.Cd options GEOM_ELI
+.Cd options GEOM_FOX
+.Cd options GEOM_GATE
+.Cd options GEOM_JOURNAL
+.Cd options GEOM_LABEL
+.Cd options GEOM_LINUX_LVM
+.Cd options GEOM_MBR
+.Cd options GEOM_MIRROR
+.Cd options GEOM_MULTIPATH
+.Cd options GEOM_NOP
+.Cd options GEOM_PART_APM
+.Cd options GEOM_PART_BSD
+.Cd options GEOM_PART_EBR
+.Cd options GEOM_PART_EBR_COMPAT
+.Cd options GEOM_PART_GPT
+.Cd options GEOM_PART_LDM
+.Cd options GEOM_PART_MBR
+.Cd options GEOM_PART_PC98
+.Cd options GEOM_PART_VTOC8
+.Cd options GEOM_PC98
+.Cd options GEOM_RAID
+.Cd options GEOM_RAID3
+.Cd options GEOM_SHSEC
+.Cd options GEOM_STRIPE
+.Cd options GEOM_SUNLABEL
+.Cd options GEOM_UZIP
+.Cd options GEOM_VIRSTOR
+.Cd options GEOM_VOL
+.Cd options GEOM_ZERO
 .Sh DESCRIPTION
 The
 .Nm
@@ -319,24 +354,6 @@ only be done with their cooperation.
 Finally: the spoiling only happens when the write count goes from
 zero to non-zero and the retasting happens only when the write count goes
 from non-zero to zero.
-.It Em INSERT/DELETE
-are very special operations which allow a new geom
-to be instantiated between a consumer and a provider attached to
-each other and to remove it again.
-.Pp
-To understand the utility of this, imagine a provider
-being mounted as a file system.
-Between the DEVFS geom's consumer and its provider we insert
-a mirror module which configures itself with one mirror
-copy and consequently is transparent to the I/O requests
-on the path.
-We can now configure yet a mirror copy on the mirror geom,
-request a synchronization, and finally drop the first mirror
-copy.
-We have now, in essence, moved a mounted file system from one
-disk to another while it was being used.
-At this point the mirror geom can be deleted from the path
-again; it has served its purpose.
 .It Em CONFIGURE
 is the process where the administrator issues instructions
 for a particular class to instantiate itself.

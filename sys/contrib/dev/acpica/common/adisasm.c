@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,11 +69,11 @@ extern int                  AslCompilerdebug;
 #endif
 
 ACPI_STATUS
-LsDisplayNamespace (
+NsDisplayNamespace (
     void);
 
 void
-LsSetupNsList (
+NsSetupNamespaceListing (
     void                    *Handle);
 
 
@@ -341,6 +341,10 @@ AdAmlDisassemble (
         {
             AcpiDmClearExternalList ();
         }
+
+        /* Load any externals defined in the optional external ref file */
+
+        AcpiDmGetExternalsFromFile ();
     }
     else
     {
@@ -372,7 +376,7 @@ AdAmlDisassemble (
     }
 
     /*
-     * Output:  ASL code. Redirect to a file if requested
+     * Output: ASL code. Redirect to a file if requested
      */
     if (OutToFile)
     {
@@ -429,8 +433,8 @@ AdAmlDisassemble (
         {
             AcpiOsPrintf ("/**** Before second load\n");
 
-            LsSetupNsList (File);
-            LsDisplayNamespace ();
+            NsSetupNamespaceListing (File);
+            NsDisplayNamespace ();
             AcpiOsPrintf ("*****/\n");
         }
 
@@ -498,8 +502,8 @@ AdAmlDisassemble (
             if (AslCompilerdebug)
             {
                 AcpiOsPrintf ("/**** After second load and resource conversion\n");
-                LsSetupNsList (File);
-                LsDisplayNamespace ();
+                NsSetupNamespaceListing (File);
+                NsDisplayNamespace ();
                 AcpiOsPrintf ("*****/\n");
 
                 AcpiDmDumpTree (AcpiGbl_ParseOpRoot);
@@ -540,17 +544,12 @@ Cleanup:
         ACPI_FREE (Table);
     }
 
-    if (DisasmFilename)
-    {
-        ACPI_FREE (DisasmFilename);
-    }
-
     if (OutToFile && File)
     {
         if (AslCompilerdebug) /* Display final namespace, with transforms */
         {
-            LsSetupNsList (File);
-            LsDisplayNamespace ();
+            NsSetupNamespaceListing (File);
+            NsDisplayNamespace ();
         }
 
         fclose (File);
@@ -633,10 +632,12 @@ AdCreateTableHeader (
     switch (Table->Revision)
     {
     case 0:
+
         AcpiOsPrintf (" **** Invalid Revision");
         break;
 
     case 1:
+
         /* Revision of DSDT controls the ACPI integer width */
 
         if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_DSDT))
@@ -646,6 +647,7 @@ AdCreateTableHeader (
         break;
 
     default:
+
         break;
     }
     AcpiOsPrintf ("\n");
@@ -667,7 +669,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *     OEM Revision     0x%8.8X (%u)\n", Table->OemRevision, Table->OemRevision);
     AcpiOsPrintf (" *     Compiler ID      \"%.4s\"\n",     Table->AslCompilerId);
     AcpiOsPrintf (" *     Compiler Version 0x%8.8X (%u)\n", Table->AslCompilerRevision, Table->AslCompilerRevision);
-    AcpiOsPrintf (" */\n\n");
+    AcpiOsPrintf (" */\n");
 
     /* Create AML output filename based on input filename */
 

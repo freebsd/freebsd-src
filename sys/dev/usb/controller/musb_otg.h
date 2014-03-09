@@ -32,7 +32,7 @@
 #ifndef _MUSB2_OTG_H_
 #define	_MUSB2_OTG_H_
 
-#define	MUSB2_MAX_DEVICES (USB_MIN_DEVICES + 1)
+#define	MUSB2_MAX_DEVICES USB_MAX_DEVICES
 
 /* Common registers */
 
@@ -105,7 +105,8 @@
 #define	MUSB2_MASK_CSRL_TXSENTSTALL 0x20/* Device Mode */
 #define	MUSB2_MASK_CSRL_TXSTALLED 0x20	/* Host Mode */
 #define	MUSB2_MASK_CSRL_TXDT_CLR 0x40
-#define	MUSB2_MASK_CSRL_TXINCOMP 0x80
+#define	MUSB2_MASK_CSRL_TXINCOMP 0x80 /* Device mode */
+#define	MUSB2_MASK_CSRL_TXNAKTO 0x80 /* Host mode */
 
 /* Device Side Mode */
 #define	MUSB2_MASK_CSR0L_RXPKTRDY 0x01
@@ -118,6 +119,7 @@
 #define	MUSB2_MASK_CSR0L_SETUPEND_CLR 0x80
 
 /* Host Side Mode */
+#define	MUSB2_MASK_CSR0L_TXFIFONEMPTY 0x02
 #define	MUSB2_MASK_CSR0L_RXSTALL 0x04
 #define	MUSB2_MASK_CSR0L_SETUPPKT 0x08
 #define	MUSB2_MASK_CSR0L_ERROR 0x10
@@ -127,7 +129,7 @@
 
 #define	MUSB2_REG_TXCSRH (0x0003 + MUSB2_REG_INDEXED_CSR)
 #define	MUSB2_MASK_CSRH_TXDT_VAL 0x01	/* Host Mode */
-#define	MUSB2_MASK_CSRH_TXDT_WR 0x02	/* Host Mode */
+#define	MUSB2_MASK_CSRH_TXDT_WREN 0x02	/* Host Mode */
 #define	MUSB2_MASK_CSRH_TXDMAREQMODE 0x04
 #define	MUSB2_MASK_CSRH_TXDT_SWITCH 0x08
 #define	MUSB2_MASK_CSRH_TXDMAREQENA 0x10
@@ -138,14 +140,16 @@
 
 #define	MUSB2_MASK_CSR0H_FFLUSH 0x01	/* Device Side flush FIFO */
 #define	MUSB2_MASK_CSR0H_DT 0x02	/* Host Side data toggle */
-#define	MUSB2_MASK_CSR0H_DT_SET 0x04	/* Host Side */
+#define	MUSB2_MASK_CSR0H_DT_WREN 0x04	/* Host Side */
 #define	MUSB2_MASK_CSR0H_PING_DIS 0x08	/* Host Side */
 
 #define	MUSB2_REG_RXCSRL (0x0006 + MUSB2_REG_INDEXED_CSR)
 #define	MUSB2_MASK_CSRL_RXPKTRDY 0x01
 #define	MUSB2_MASK_CSRL_RXFIFOFULL 0x02
-#define	MUSB2_MASK_CSRL_RXOVERRUN 0x04
-#define	MUSB2_MASK_CSRL_RXDATAERR 0x08
+#define	MUSB2_MASK_CSRL_RXOVERRUN 0x04 /* Device Mode */
+#define	MUSB2_MASK_CSRL_RXERROR 0x04 /* Host Mode */
+#define	MUSB2_MASK_CSRL_RXDATAERR 0x08 /* Device Mode */
+#define	MUSB2_MASK_CSRL_RXNAKTO 0x08 /* Host Mode */
 #define	MUSB2_MASK_CSRL_RXFFLUSH 0x10
 #define	MUSB2_MASK_CSRL_RXSENDSTALL 0x20/* Device Mode */
 #define	MUSB2_MASK_CSRL_RXREQPKT 0x20	/* Host Mode */
@@ -156,7 +160,7 @@
 #define	MUSB2_REG_RXCSRH (0x0007 + MUSB2_REG_INDEXED_CSR)
 #define	MUSB2_MASK_CSRH_RXINCOMP 0x01
 #define	MUSB2_MASK_CSRH_RXDT_VAL 0x02	/* Host Mode */
-#define	MUSB2_MASK_CSRH_RXDT_SET 0x04	/* Host Mode */
+#define	MUSB2_MASK_CSRH_RXDT_WREN 0x04	/* Host Mode */
 #define	MUSB2_MASK_CSRH_RXDMAREQMODE 0x08
 #define	MUSB2_MASK_CSRH_RXNYET 0x10
 #define	MUSB2_MASK_CSRH_RXDMAREQENA 0x20
@@ -273,9 +277,12 @@
 #define	MUSB2_REG_TXHUBPORT(n) (0x0083 + (8*(n)))
 #define	MUSB2_REG_RXFADDR(n) (0x0084 + (8*(n)))
 #define	MUSB2_REG_RXHADDR(n) (0x0086 + (8*(n)))
-#define	MUSB2_REG_RXHPORT(n) (0x0087 + (8*(n)))
+#define	MUSB2_REG_RXHUBPORT(n) (0x0087 + (8*(n)))
 
 #define	MUSB2_EP_MAX 16			/* maximum number of endpoints */
+
+#define	MUSB2_DEVICE_MODE	0
+#define	MUSB2_HOST_MODE		1
 
 #define	MUSB2_READ_2(sc, reg) \
   bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -309,13 +316,21 @@ struct musbotg_td {
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_frame_size;	/* packet_size * mult */
+	uint16_t reg_max_packet;
 	uint8_t	ep_no;
+	uint8_t	transfer_type;
 	uint8_t	error:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	support_multi_buffer:1;
 	uint8_t	did_stall:1;
 	uint8_t	dma_enabled:1;
+	uint8_t	transaction_started:1;
+	uint8_t dev_addr;
+	uint8_t toggle;
+	int8_t channel;
+	uint8_t haddr;
+	uint8_t hport;
 };
 
 struct musbotg_std_temp {
@@ -333,6 +348,11 @@ struct musbotg_std_temp {
          */
 	uint8_t	setup_alt_next;
 	uint8_t did_stall;
+	uint8_t dev_addr;
+	int8_t channel;
+	uint8_t haddr;
+	uint8_t hport;
+	uint8_t	transfer_type;
 };
 
 struct musbotg_config_desc {
@@ -349,6 +369,9 @@ union musbotg_hub_temp {
 struct musbotg_flags {
 	uint8_t	change_connect:1;
 	uint8_t	change_suspend:1;
+	uint8_t	change_reset:1;
+	uint8_t	change_over_current:1;
+	uint8_t	change_enabled:1;
 	uint8_t	status_suspend:1;	/* set if suspended */
 	uint8_t	status_vbus:1;		/* set if present */
 	uint8_t	status_bus_reset:1;	/* set if reset complete */
@@ -358,6 +381,7 @@ struct musbotg_flags {
 	uint8_t	clocks_off:1;
 	uint8_t	port_powered:1;
 	uint8_t	port_enabled:1;
+	uint8_t	port_over_current:1;
 	uint8_t	d_pulled_up:1;
 };
 
@@ -376,6 +400,7 @@ struct musbotg_softc {
 
 	void    (*sc_clocks_on) (void *arg);
 	void    (*sc_clocks_off) (void *arg);
+	void    (*sc_ep_int_set) (struct musbotg_softc *sc, int ep, int on);
 	void   *sc_clocks_arg;
 
 	uint32_t sc_bounce_buf[(1024 * 3) / 4];	/* bounce buffer */
@@ -390,15 +415,21 @@ struct musbotg_softc {
 	uint8_t	sc_conf_data;		/* copy of hardware register */
 
 	uint8_t	sc_hub_idata[1];
+	uint16_t sc_channel_mask;	/* 16 endpoints */
 
 	struct musbotg_flags sc_flags;
+	uint8_t	sc_id;
+	uint8_t	sc_mode;
+	void *sc_platform_data;
 };
 
 /* prototypes */
 
 usb_error_t musbotg_init(struct musbotg_softc *sc);
 void	musbotg_uninit(struct musbotg_softc *sc);
-void	musbotg_interrupt(struct musbotg_softc *sc);
+void	musbotg_interrupt(struct musbotg_softc *sc,
+    uint16_t rxstat, uint16_t txstat, uint8_t stat);
 void	musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on);
+void	musbotg_connect_interrupt(struct musbotg_softc *sc);
 
 #endif					/* _MUSB2_OTG_H_ */

@@ -17,12 +17,14 @@
 
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/LLVM.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/FileSystem.h"
 // FIXME: Enhance libsystem to support inode and other fields in stat.
 #include <sys/types.h>
 
@@ -34,7 +36,6 @@ struct stat;
 
 namespace llvm {
 class MemoryBuffer;
-namespace sys { class Path; }
 }
 
 namespace clang {
@@ -62,9 +63,9 @@ class FileEntry {
   time_t ModTime;             // Modification time of file.
   const DirectoryEntry *Dir;  // Directory file lives in.
   unsigned UID;               // A unique (small) ID for the file.
-  dev_t Device;               // ID for the device containing the file.
-  ino_t Inode;                // Inode number for the file.
-  mode_t FileMode;            // The file mode as returned by 'stat'.
+  llvm::sys::fs::UniqueID UniqueID;
+  bool IsNamedPipe;
+  bool InPCH;
 
   /// FD - The file descriptor for the file entry if it is opened and owned
   /// by the FileEntry.  If not, this is set to -1.
@@ -72,10 +73,12 @@ class FileEntry {
   friend class FileManager;
 
 public:
-  FileEntry(dev_t device, ino_t inode, mode_t m)
-    : Name(0), Device(device), Inode(inode), FileMode(m), FD(-1) {}
+  FileEntry(llvm::sys::fs::UniqueID UniqueID, bool IsNamedPipe, bool InPCH)
+      : Name(0), UniqueID(UniqueID), IsNamedPipe(IsNamedPipe), InPCH(InPCH),
+        FD(-1) {}
   // Add a default constructor for use with llvm::StringMap
-  FileEntry() : Name(0), Device(0), Inode(0), FileMode(0), FD(-1) {}
+  FileEntry()
+      : Name(0), UniqueID(0, 0), IsNamedPipe(false), InPCH(false), FD(-1) {}
 
   FileEntry(const FileEntry &FE) {
     memcpy(this, &FE, sizeof(FE));
@@ -92,22 +95,21 @@ public:
   const char *getName() const { return Name; }
   off_t getSize() const { return Size; }
   unsigned getUID() const { return UID; }
-  ino_t getInode() const { return Inode; }
-  dev_t getDevice() const { return Device; }
+  const llvm::sys::fs::UniqueID &getUniqueID() const { return UniqueID; }
+  bool isInPCH() const { return InPCH; }
   time_t getModificationTime() const { return ModTime; }
-  mode_t getFileMode() const { return FileMode; }
 
   /// \brief Return the directory the file lives in.
   const DirectoryEntry *getDir() const { return Dir; }
 
-  bool operator<(const FileEntry &RHS) const {
-    return Device < RHS.Device || (Device == RHS.Device && Inode < RHS.Inode);
-  }
+  bool operator<(const FileEntry &RHS) const { return UniqueID < RHS.UniqueID; }
 
   /// \brief Check whether the file is a named pipe (and thus can't be opened by
   /// the native FileManager methods).
-  bool isNamedPipe() const;
+  bool isNamedPipe() const { return IsNamedPipe; }
 };
+
+struct FileData;
 
 /// \brief Implements support for file system lookup, file system caching,
 /// and directory search management.
@@ -152,6 +154,12 @@ class FileManager : public RefCountedBase<FileManager> {
   /// \see SeenDirEntries
   llvm::StringMap<FileEntry*, llvm::BumpPtrAllocator> SeenFileEntries;
 
+  /// \brief The canonical names of directories.
+  llvm::DenseMap<const DirectoryEntry *, llvm::StringRef> CanonicalDirNames;
+
+  /// \brief Storage for canonical names that we have computed.
+  llvm::BumpPtrAllocator CanonicalNameStorage;
+
   /// \brief Each FileEntry we create is assigned a unique ID #.
   ///
   unsigned NextFileUID;
@@ -163,7 +171,7 @@ class FileManager : public RefCountedBase<FileManager> {
   // Caching.
   OwningPtr<FileSystemStatCache> StatCache;
 
-  bool getStatValue(const char *Path, struct stat &StatBuf,
+  bool getStatValue(const char *Path, FileData &Data, bool isFile,
                     int *FileDescriptor);
 
   /// Add all ancestors of the given path (pointing to either a file
@@ -237,7 +245,8 @@ public:
   ///
   /// If the path is relative, it will be resolved against the WorkingDir of the
   /// FileManager's FileSystemOptions.
-  bool getNoncachedStatValue(StringRef Path, struct stat &StatBuf);
+  bool getNoncachedStatValue(StringRef Path,
+                             llvm::sys::fs::file_status &Result);
 
   /// \brief Remove the real file \p Entry from the cache.
   void invalidateCache(const FileEntry *Entry);
@@ -256,6 +265,13 @@ public:
   /// FileEntry. Use with caution.
   static void modifyFileEntry(FileEntry *File, off_t Size,
                               time_t ModificationTime);
+
+  /// \brief Retrieve the canonical name for a given directory.
+  ///
+  /// This is a very expensive operation, despite its results being cached,
+  /// and should only be used when the physical layout of the file system is
+  /// required, which is (almost) never.
+  StringRef getCanonicalName(const DirectoryEntry *Dir);
 
   void PrintStats() const;
 };

@@ -13,8 +13,8 @@
 
 #define DEBUG_TYPE "x86-selectiondag-info"
 #include "X86TargetMachine.h"
-#include "llvm/DerivedTypes.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/IR/DerivedTypes.h"
 using namespace llvm;
 
 X86SelectionDAGInfo::X86SelectionDAGInfo(const X86TargetMachine &TM) :
@@ -27,7 +27,7 @@ X86SelectionDAGInfo::~X86SelectionDAGInfo() {
 }
 
 SDValue
-X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
+X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                                              SDValue Chain,
                                              SDValue Dst, SDValue Src,
                                              SDValue Size, unsigned Align,
@@ -46,8 +46,6 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
       !ConstantSize ||
       ConstantSize->getZExtValue() >
         Subtarget->getMaxInlineSizeThreshold()) {
-    SDValue InFlag(0, 0);
-
     // Check to see if there is a specialized entry-point for memory zeroing.
     ConstantSDNode *V = dyn_cast<ConstantSDNode>(Src);
 
@@ -175,7 +173,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
 }
 
 SDValue
-X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
+X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                         SDValue Chain, SDValue Dst, SDValue Src,
                                         SDValue Size, unsigned Align,
                                         bool isVolatile, bool AlwaysInline,
@@ -200,6 +198,14 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
   // If to a segment-relative address space, use the default lowering.
   if (DstPtrInfo.getAddrSpace() >= 256 ||
       SrcPtrInfo.getAddrSpace() >= 256)
+    return SDValue();
+
+  // ESI might be used as a base pointer, in that case we can't simply overwrite
+  // the register.  Fall back to generic code.
+  const X86RegisterInfo *TRI =
+      static_cast<const X86RegisterInfo *>(DAG.getTarget().getRegisterInfo());
+  if (TRI->hasBasePointer(DAG.getMachineFunction()) &&
+      TRI->getBaseRegister() == X86::ESI)
     return SDValue();
 
   MVT AVT;

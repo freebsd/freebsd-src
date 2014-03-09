@@ -118,6 +118,7 @@ static struct g_part_mbr_alias {
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
 	{ DOSPTYP_EXT,		G_PART_ALIAS_EBR },
 	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT16,	G_PART_ALIAS_MS_FAT16 },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
 	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
 	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
@@ -335,8 +336,15 @@ g_part_mbr_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_mbr_entry *entry;
+	struct g_provider *pp;
 	uint32_t size, sectors;
 
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+		    UINT32_MAX) - 1;
+		return (0);
+	}
 	sectors = basetable->gpt_sectors;
 	size = gpp->gpp_size;
 
@@ -496,6 +504,8 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_mbr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 

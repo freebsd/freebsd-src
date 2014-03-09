@@ -2,14 +2,8 @@
  * EAP peer/server: EAP-SIM/AKA/AKA' shared routines
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -20,6 +14,7 @@
 #include "crypto/crypto.h"
 #include "crypto/sha1.h"
 #include "crypto/sha256.h"
+#include "crypto/random.h"
 #include "eap_common/eap_defs.h"
 #include "eap_common/eap_sim_common.h"
 
@@ -1121,8 +1116,8 @@ int eap_sim_msg_add_encr_start(struct eap_sim_msg *msg, u8 attr_iv,
 	if (pos == NULL)
 		return -1;
 	msg->iv = (pos - wpabuf_head_u8(msg->buf)) + 4;
-	if (os_get_random(wpabuf_mhead_u8(msg->buf) + msg->iv,
-			  EAP_SIM_IV_LEN)) {
+	if (random_get_bytes(wpabuf_mhead_u8(msg->buf) + msg->iv,
+			     EAP_SIM_IV_LEN)) {
 		msg->iv = 0;
 		return -1;
 	}

@@ -65,6 +65,10 @@ public:
   StoreManagerCreator getStoreManagerCreator() {
     return CreateStoreMgr;
   }
+  
+  AnalyzerOptions& getAnalyzerOptions() {
+    return options;
+  }
 
   ConstraintManagerCreator getConstraintManagerCreator() {
     return CreateConstraintMgr;
@@ -100,7 +104,7 @@ public:
   }
 
   bool shouldInlineCall() const {
-    return options.IPAMode != None;
+    return options.getIPAMode() != IPAK_None;
   }
 
   CFG *getCFG(Decl const *D) {

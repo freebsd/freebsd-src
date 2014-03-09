@@ -10,11 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-#if 0
-static const char sccsid[] = "@(#)vs_refresh.c	10.44 (Berkeley) 10/13/96";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "$Id: vs_refresh.c,v 10.53 2013/11/01 11:57:36 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -44,9 +40,9 @@ static int	vs_paint __P((SCR *, u_int));
  * PUBLIC: int vs_repaint __P((SCR *, EVENT *));
  */
 int
-vs_repaint(sp, evp)
-	SCR *sp;
-	EVENT *evp;
+vs_repaint(
+	SCR *sp,
+	EVENT *evp)
 {
 	SMAP *smp;
 
@@ -66,13 +62,13 @@ vs_repaint(sp, evp)
  * PUBLIC: int vs_refresh __P((SCR *, int));
  */
 int
-vs_refresh(sp, forcepaint)
-	SCR *sp;
-	int forcepaint;
+vs_refresh(
+	SCR *sp,
+	int forcepaint)
 {
 	GS *gp;
 	SCR *tsp;
-	int need_refresh;
+	int need_refresh = 0;
 	u_int priv_paint, pub_paint;
 
 	gp = sp->gp;
@@ -84,8 +80,7 @@ vs_refresh(sp, forcepaint)
 	 * that we can find, including status lines.
 	 */
 	if (F_ISSET(sp, SC_SCR_REDRAW))
-		for (tsp = gp->dq.cqh_first;
-		    tsp != (void *)&gp->dq; tsp = tsp->q.cqe_next)
+		TAILQ_FOREACH(tsp, gp->dq, q)
 			if (tsp != sp)
 				F_SET(tsp, SC_SCR_REDRAW | SC_STATUS);
 
@@ -102,8 +97,7 @@ vs_refresh(sp, forcepaint)
 	priv_paint = VIP_CUR_INVALID | VIP_N_REFRESH;
 	if (O_ISSET(sp, O_NUMBER))
 		priv_paint |= VIP_N_RENUMBER;
-	for (tsp = gp->dq.cqh_first;
-	    tsp != (void *)&gp->dq; tsp = tsp->q.cqe_next)
+	TAILQ_FOREACH(tsp, gp->dq, q)
 		if (tsp != sp && !F_ISSET(tsp, SC_EXIT | SC_EXIT_FORCE) &&
 		    (F_ISSET(tsp, pub_paint) ||
 		    F_ISSET(VIP(tsp), priv_paint))) {
@@ -138,8 +132,7 @@ vs_refresh(sp, forcepaint)
 	 * And, finally, if we updated any status lines, make sure the cursor
 	 * gets back to where it belongs.
 	 */
-	for (need_refresh = 0, tsp = gp->dq.cqh_first;
-	    tsp != (void *)&gp->dq; tsp = tsp->q.cqe_next)
+	TAILQ_FOREACH(tsp, gp->dq, q)
 		if (F_ISSET(tsp, SC_STATUS)) {
 			need_refresh = 1;
 			vs_resolve(tsp, sp, 0);
@@ -166,17 +159,17 @@ vs_refresh(sp, forcepaint)
  *	what you're doing.  It's subtle and quick to anger.
  */
 static int
-vs_paint(sp, flags)
-	SCR *sp;
-	u_int flags;
+vs_paint(
+	SCR *sp,
+	u_int flags)
 {
 	GS *gp;
 	SMAP *smp, tmp;
 	VI_PRIVATE *vip;
 	recno_t lastline, lcnt;
 	size_t cwtotal, cnt, len, notused, off, y;
-	int ch, didpaint, isempty, leftright_warp;
-	char *p;
+	int ch = 0, didpaint, isempty, leftright_warp;
+	CHAR_T *p;
 
 #define	 LNO	sp->lno			/* Current file line. */
 #define	OLNO	vip->olno		/* Remembered file line. */
@@ -338,7 +331,8 @@ small_fill:			(void)gp->scr_move(sp, LASTLINE(sp), 0);
 				if (vs_sm_1down(sp))
 					return (1);
 			goto adjust;
-		}
+		} else
+			goto top;	/* XXX No such line. */
 
 		/*
 		 * If less than a half screen from the bottom of the file,
@@ -474,7 +468,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 #ifdef DEBUG
 	/* Sanity checking. */
 	if (CNO >= len && len != 0) {
-		msgq(sp, M_ERR, "Error: %s/%d: cno (%u) >= len (%u)",
+		msgq(sp, M_ERR, "Error: %s/%d: cno (%zu) >= len (%zu)",
 		     tail(__FILE__), __LINE__, CNO, len);
 		return (1);
 	}
@@ -511,8 +505,8 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 		 * Count up the widths of the characters.  If it's a tab
 		 * character, go do it the the slow way.
 		 */
-		for (cwtotal = 0; cnt--; cwtotal += KEY_LEN(sp, ch))
-			if ((ch = *(u_char *)p--) == '\t')
+		for (cwtotal = 0; cnt--; cwtotal += KEY_COL(sp, ch))
+			if ((ch = *(UCHAR_T *)p--) == '\t')
 				goto slow;
 
 		/*
@@ -525,8 +519,8 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 		 * If we're moving left, and there's a wide character in the
 		 * current position, go to the end of the character.
 		 */
-		if (KEY_LEN(sp, ch) > 1)
-			cwtotal -= KEY_LEN(sp, ch) - 1;
+		if (KEY_COL(sp, ch) > 1)
+			cwtotal -= KEY_COL(sp, ch) - 1;
 
 		/*
 		 * If the new column moved us off of the current logical line,
@@ -551,9 +545,9 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 		 * screen boundary, we can quit.
 		 */
 		for (cwtotal = SCNO; cnt--;) {
-			if ((ch = *(u_char *)p++) == '\t')
+			if ((ch = *(UCHAR_T *)p++) == '\t')
 				goto slow;
-			if ((cwtotal += KEY_LEN(sp, ch)) >= SCREEN_COLS(sp))
+			if ((cwtotal += KEY_COL(sp, ch)) >= SCREEN_COLS(sp))
 				break;
 		}
 
@@ -617,8 +611,8 @@ slow:	for (smp = HMAP; smp->lno != LNO; ++smp);
 		}
 
 		/* Adjust the window towards the end of the line. */
-		if (off == 0 && off + SCREEN_COLS(sp) < cnt ||
-		    off != 0 && off + sp->cols < cnt) {
+		if ((off == 0 && off + SCREEN_COLS(sp) < cnt) ||
+		    (off != 0 && off + sp->cols < cnt)) {
 			do {
 				off += O_VAL(sp, O_SIDESCROLL);
 			} while (off + sp->cols < cnt);
@@ -767,8 +761,7 @@ number:	if (O_ISSET(sp, O_NUMBER) &&
  *	Update the mode line.
  */
 static void
-vs_modeline(sp)
-	SCR *sp;
+vs_modeline(SCR *sp)
 {
 	static char * const modes[] = {
 		"215|Append",			/* SM_APPEND */
@@ -779,9 +772,9 @@ vs_modeline(sp)
 	};
 	GS *gp;
 	size_t cols, curcol, curlen, endpoint, len, midpoint;
-	const char *t;
+	const char *t = NULL;
 	int ellipsis;
-	char *p, buf[20];
+	char buf[20];
 
 	gp = sp->gp;
 
@@ -803,19 +796,23 @@ vs_modeline(sp)
 	/* If more than one screen in the display, show the file name. */
 	curlen = 0;
 	if (IS_SPLIT(sp)) {
-		for (p = sp->frp->name; *p != '\0'; ++p);
-		for (ellipsis = 0, cols = sp->cols / 2; --p > sp->frp->name;) {
+		CHAR_T *wp, *p;
+		size_t l;
+
+		CHAR2INT(sp, sp->frp->name, strlen(sp->frp->name) + 1, wp, l);
+		p = wp + l;
+		for (ellipsis = 0, cols = sp->cols / 2; --p > wp;) {
 			if (*p == '/') {
 				++p;
 				break;
 			}
-			if ((curlen += KEY_LEN(sp, *p)) > cols) {
+			if ((curlen += KEY_COL(sp, *p)) > cols) {
 				ellipsis = 3;
 				curlen +=
 				    KEY_LEN(sp, '.') * 3 + KEY_LEN(sp, ' ');
 				while (curlen > cols) {
 					++p;
-					curlen -= KEY_LEN(sp, *p);
+					curlen -= KEY_COL(sp, *p);
 				}
 				break;
 			}
@@ -829,7 +826,7 @@ vs_modeline(sp)
 		}
 		for (; *p != '\0'; ++p)
 			(void)gp->scr_addstr(sp,
-			    KEY_NAME(sp, *p), KEY_LEN(sp, *p));
+			    KEY_NAME(sp, *p), KEY_COL(sp, *p));
 	}
 
 	/* Clear the rest of the line. */

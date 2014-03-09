@@ -2,14 +2,8 @@
  * wpa_supplicant/hostapd control interface library
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -18,7 +12,18 @@
 
 #ifdef CONFIG_CTRL_IFACE_UNIX
 #include <sys/un.h>
+#include <unistd.h>
+#include <fcntl.h>
 #endif /* CONFIG_CTRL_IFACE_UNIX */
+#ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
+#include <netdb.h>
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+
+#ifdef ANDROID
+#include <dirent.h>
+#include <cutils/sockets.h>
+#include "private/android_filesystem_config.h"
+#endif /* ANDROID */
 
 #include "wpa_ctrl.h"
 #include "common.h"
@@ -44,6 +49,8 @@ struct wpa_ctrl {
 	struct sockaddr_in local;
 	struct sockaddr_in dest;
 	char *cookie;
+	char *remote_ifname;
+	char *remote_ip;
 #endif /* CONFIG_CTRL_IFACE_UDP */
 #ifdef CONFIG_CTRL_IFACE_UNIX
 	int s;
@@ -58,6 +65,14 @@ struct wpa_ctrl {
 
 #ifdef CONFIG_CTRL_IFACE_UNIX
 
+#ifndef CONFIG_CTRL_IFACE_CLIENT_DIR
+#define CONFIG_CTRL_IFACE_CLIENT_DIR "/tmp"
+#endif /* CONFIG_CTRL_IFACE_CLIENT_DIR */
+#ifndef CONFIG_CTRL_IFACE_CLIENT_PREFIX
+#define CONFIG_CTRL_IFACE_CLIENT_PREFIX "wpa_ctrl_"
+#endif /* CONFIG_CTRL_IFACE_CLIENT_PREFIX */
+
+
 struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 {
 	struct wpa_ctrl *ctrl;
@@ -65,6 +80,7 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	int ret;
 	size_t res;
 	int tries = 0;
+	int flags;
 
 	ctrl = os_malloc(sizeof(*ctrl));
 	if (ctrl == NULL)
@@ -81,7 +97,9 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	counter++;
 try_again:
 	ret = os_snprintf(ctrl->local.sun_path, sizeof(ctrl->local.sun_path),
-			  "/tmp/wpa_ctrl_%d-%d", getpid(), counter);
+			  CONFIG_CTRL_IFACE_CLIENT_DIR "/"
+			  CONFIG_CTRL_IFACE_CLIENT_PREFIX "%d-%d",
+			  (int) getpid(), counter);
 	if (ret < 0 || (size_t) ret >= sizeof(ctrl->local.sun_path)) {
 		close(ctrl->s);
 		os_free(ctrl);
@@ -105,6 +123,31 @@ try_again:
 		return NULL;
 	}
 
+#ifdef ANDROID
+	chmod(ctrl->local.sun_path, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+	chown(ctrl->local.sun_path, AID_SYSTEM, AID_WIFI);
+	/*
+	 * If the ctrl_path isn't an absolute pathname, assume that
+	 * it's the name of a socket in the Android reserved namespace.
+	 * Otherwise, it's a normal UNIX domain socket appearing in the
+	 * filesystem.
+	 */
+	if (ctrl_path != NULL && *ctrl_path != '/') {
+		char buf[21];
+		os_snprintf(buf, sizeof(buf), "wpa_%s", ctrl_path);
+		if (socket_local_client_connect(
+			    ctrl->s, buf,
+			    ANDROID_SOCKET_NAMESPACE_RESERVED,
+			    SOCK_DGRAM) < 0) {
+			close(ctrl->s);
+			unlink(ctrl->local.sun_path);
+			os_free(ctrl);
+			return NULL;
+		}
+		return ctrl;
+	}
+#endif /* ANDROID */
+
 	ctrl->dest.sun_family = AF_UNIX;
 	res = os_strlcpy(ctrl->dest.sun_path, ctrl_path,
 			 sizeof(ctrl->dest.sun_path));
@@ -121,16 +164,82 @@ try_again:
 		return NULL;
 	}
 
+	/*
+	 * Make socket non-blocking so that we don't hang forever if
+	 * target dies unexpectedly.
+	 */
+	flags = fcntl(ctrl->s, F_GETFL);
+	if (flags >= 0) {
+		flags |= O_NONBLOCK;
+		if (fcntl(ctrl->s, F_SETFL, flags) < 0) {
+			perror("fcntl(ctrl->s, O_NONBLOCK)");
+			/* Not fatal, continue on.*/
+		}
+	}
+
 	return ctrl;
 }
 
 
 void wpa_ctrl_close(struct wpa_ctrl *ctrl)
 {
+	if (ctrl == NULL)
+		return;
 	unlink(ctrl->local.sun_path);
-	close(ctrl->s);
+	if (ctrl->s >= 0)
+		close(ctrl->s);
 	os_free(ctrl);
 }
+
+
+#ifdef ANDROID
+/**
+ * wpa_ctrl_cleanup() - Delete any local UNIX domain socket files that
+ * may be left over from clients that were previously connected to
+ * wpa_supplicant. This keeps these files from being orphaned in the
+ * event of crashes that prevented them from being removed as part
+ * of the normal orderly shutdown.
+ */
+void wpa_ctrl_cleanup(void)
+{
+	DIR *dir;
+	struct dirent entry;
+	struct dirent *result;
+	size_t dirnamelen;
+	int prefixlen = os_strlen(CONFIG_CTRL_IFACE_CLIENT_PREFIX);
+	size_t maxcopy;
+	char pathname[PATH_MAX];
+	char *namep;
+
+	if ((dir = opendir(CONFIG_CTRL_IFACE_CLIENT_DIR)) == NULL)
+		return;
+
+	dirnamelen = (size_t) os_snprintf(pathname, sizeof(pathname), "%s/",
+					  CONFIG_CTRL_IFACE_CLIENT_DIR);
+	if (dirnamelen >= sizeof(pathname)) {
+		closedir(dir);
+		return;
+	}
+	namep = pathname + dirnamelen;
+	maxcopy = PATH_MAX - dirnamelen;
+	while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
+		if (os_strncmp(entry.d_name, CONFIG_CTRL_IFACE_CLIENT_PREFIX,
+			       prefixlen) == 0) {
+			if (os_strlcpy(namep, entry.d_name, maxcopy) < maxcopy)
+				unlink(pathname);
+		}
+	}
+	closedir(dir);
+}
+#endif /* ANDROID */
+
+#else /* CONFIG_CTRL_IFACE_UNIX */
+
+#ifdef ANDROID
+void wpa_ctrl_cleanup(void)
+{
+}
+#endif /* ANDROID */
 
 #endif /* CONFIG_CTRL_IFACE_UNIX */
 
@@ -142,6 +251,9 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	struct wpa_ctrl *ctrl;
 	char buf[128];
 	size_t len;
+#ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
+	struct hostent *h;
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 
 	ctrl = os_malloc(sizeof(*ctrl));
 	if (ctrl == NULL)
@@ -156,7 +268,11 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	}
 
 	ctrl->local.sin_family = AF_INET;
+#ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
+	ctrl->local.sin_addr.s_addr = INADDR_ANY;
+#else /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 	ctrl->local.sin_addr.s_addr = htonl((127 << 24) | 1);
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 	if (bind(ctrl->s, (struct sockaddr *) &ctrl->local,
 		 sizeof(ctrl->local)) < 0) {
 		close(ctrl->s);
@@ -167,10 +283,48 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 	ctrl->dest.sin_family = AF_INET;
 	ctrl->dest.sin_addr.s_addr = htonl((127 << 24) | 1);
 	ctrl->dest.sin_port = htons(WPA_CTRL_IFACE_PORT);
+
+#ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
+	if (ctrl_path) {
+		char *port, *name;
+		int port_id;
+
+		name = os_strdup(ctrl_path);
+		if (name == NULL) {
+			close(ctrl->s);
+			os_free(ctrl);
+			return NULL;
+		}
+		port = os_strchr(name, ':');
+
+		if (port) {
+			port_id = atoi(&port[1]);
+			port[0] = '\0';
+		} else
+			port_id = WPA_CTRL_IFACE_PORT;
+
+		h = gethostbyname(name);
+		ctrl->remote_ip = os_strdup(name);
+		os_free(name);
+		if (h == NULL) {
+			perror("gethostbyname");
+			close(ctrl->s);
+			os_free(ctrl->remote_ip);
+			os_free(ctrl);
+			return NULL;
+		}
+		ctrl->dest.sin_port = htons(port_id);
+		os_memcpy(h->h_addr, (char *) &ctrl->dest.sin_addr.s_addr,
+			  h->h_length);
+	} else
+		ctrl->remote_ip = os_strdup("localhost");
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+
 	if (connect(ctrl->s, (struct sockaddr *) &ctrl->dest,
 		    sizeof(ctrl->dest)) < 0) {
 		perror("connect");
 		close(ctrl->s);
+		os_free(ctrl->remote_ip);
 		os_free(ctrl);
 		return NULL;
 	}
@@ -181,7 +335,22 @@ struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path)
 		ctrl->cookie = os_strdup(buf);
 	}
 
+	if (wpa_ctrl_request(ctrl, "IFNAME", 6, buf, &len, NULL) == 0) {
+		buf[len] = '\0';
+		ctrl->remote_ifname = os_strdup(buf);
+	}
+
 	return ctrl;
+}
+
+
+char * wpa_ctrl_get_remote_ifname(struct wpa_ctrl *ctrl)
+{
+#define WPA_CTRL_MAX_PS_NAME 100
+	static char ps[WPA_CTRL_MAX_PS_NAME] = {};
+	os_snprintf(ps, WPA_CTRL_MAX_PS_NAME, "%s/%s",
+		    ctrl->remote_ip, ctrl->remote_ifname);
+	return ps;
 }
 
 
@@ -189,6 +358,8 @@ void wpa_ctrl_close(struct wpa_ctrl *ctrl)
 {
 	close(ctrl->s);
 	os_free(ctrl->cookie);
+	os_free(ctrl->remote_ifname);
+	os_free(ctrl->remote_ip);
 	os_free(ctrl);
 }
 
@@ -201,6 +372,7 @@ int wpa_ctrl_request(struct wpa_ctrl *ctrl, const char *cmd, size_t cmd_len,
 		     void (*msg_cb)(char *msg, size_t len))
 {
 	struct timeval tv;
+	struct os_time started_at;
 	int res;
 	fd_set rfds;
 	const char *_cmd;
@@ -227,18 +399,43 @@ int wpa_ctrl_request(struct wpa_ctrl *ctrl, const char *cmd, size_t cmd_len,
 		_cmd_len = cmd_len;
 	}
 
+	errno = 0;
+	started_at.sec = 0;
+	started_at.usec = 0;
+retry_send:
 	if (send(ctrl->s, _cmd, _cmd_len, 0) < 0) {
+		if (errno == EAGAIN || errno == EBUSY || errno == EWOULDBLOCK)
+		{
+			/*
+			 * Must be a non-blocking socket... Try for a bit
+			 * longer before giving up.
+			 */
+			if (started_at.sec == 0)
+				os_get_time(&started_at);
+			else {
+				struct os_time n;
+				os_get_time(&n);
+				/* Try for a few seconds. */
+				if (n.sec > started_at.sec + 5)
+					goto send_err;
+			}
+			os_sleep(1, 0);
+			goto retry_send;
+		}
+	send_err:
 		os_free(cmd_buf);
 		return -1;
 	}
 	os_free(cmd_buf);
 
 	for (;;) {
-		tv.tv_sec = 2;
+		tv.tv_sec = 10;
 		tv.tv_usec = 0;
 		FD_ZERO(&rfds);
 		FD_SET(ctrl->s, &rfds);
 		res = select(ctrl->s + 1, &rfds, NULL, NULL, &tv);
+		if (res < 0)
+			return res;
 		if (FD_ISSET(ctrl->s, &rfds)) {
 			res = recv(ctrl->s, reply, *reply_len, 0);
 			if (res < 0)

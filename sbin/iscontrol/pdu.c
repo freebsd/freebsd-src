@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <camlib.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static void	pukeText(char *it, pdu_t *pp);

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -69,7 +70,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	if (ip6a) {
 		/* XXX reject home-address option before rthdr */
 		if (ip6a->ip6a_flags & IP6A_SWAP) {
-			V_ip6stat.ip6s_badoptions++;
+			IP6STAT_INC(ip6s_badoptions);
 			m_freem(m);
 			return IPPROTO_DONE;
 		}
@@ -84,7 +85,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	ip6 = mtod(m, struct ip6_hdr *);
 	IP6_EXTHDR_GET(rh, struct ip6_rthdr *, m, off, sizeof(*rh));
 	if (rh == NULL) {
-		V_ip6stat.ip6s_tooshort++;
+		IP6STAT_INC(ip6s_tooshort);
 		return IPPROTO_DONE;
 	}
 #endif
@@ -100,7 +101,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 			rhlen = (rh->ip6r_len + 1) << 3;
 			break;	/* Final dst. Just ignore the header. */
 		}
-		V_ip6stat.ip6s_badoptions++;
+		IP6STAT_INC(ip6s_badoptions);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
 		return (IPPROTO_DONE);

@@ -1,6 +1,6 @@
 //===---- ObjectImage.h - Format independent executuable object image -----===//
 //
-//                     The LLVM Compiler Infrastructure
+//		       The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
@@ -14,8 +14,8 @@
 #ifndef LLVM_EXECUTIONENGINE_OBJECTIMAGE_H
 #define LLVM_EXECUTIONENGINE_OBJECTIMAGE_H
 
-#include "llvm/Object/ObjectFile.h"
 #include "llvm/ExecutionEngine/ObjectBuffer.h"
+#include "llvm/Object/ObjectFile.h"
 
 namespace llvm {
 
@@ -25,6 +25,7 @@ namespace llvm {
 class ObjectImage {
   ObjectImage() LLVM_DELETED_FUNCTION;
   ObjectImage(const ObjectImage &other) LLVM_DELETED_FUNCTION;
+  virtual void anchor();
 
 protected:
   OwningPtr<ObjectBuffer> Buffer;
@@ -44,11 +45,13 @@ public:
   // Subclasses can override these methods to update the image with loaded
   // addresses for sections and common symbols
   virtual void updateSectionAddress(const object::SectionRef &Sec,
-                                    uint64_t Addr) = 0;
+				    uint64_t Addr) = 0;
   virtual void updateSymbolAddress(const object::SymbolRef &Sym,
-                                   uint64_t Addr) = 0;
+				   uint64_t Addr) = 0;
 
   virtual StringRef getData() const = 0;
+
+  virtual object::ObjectFile* getObjectFile() const = 0;
 
   // Subclasses can override these methods to provide JIT debugging support
   virtual void registerWithDebugger() = 0;
@@ -57,5 +60,5 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_RUNTIMEDYLD_OBJECT_IMAGE_H
+#endif // LLVM_EXECUTIONENGINE_OBJECTIMAGE_H
 

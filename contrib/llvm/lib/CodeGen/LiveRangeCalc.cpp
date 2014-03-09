@@ -18,10 +18,11 @@
 
 using namespace llvm;
 
-void LiveRangeCalc::reset(const MachineFunction *MF,
+void LiveRangeCalc::reset(const MachineFunction *mf,
                           SlotIndexes *SI,
                           MachineDominatorTree *MDT,
                           VNInfo::Allocator *VNIA) {
+  MF = mf;
   MRI = &MF->getRegInfo();
   Indexes = SI;
   DomTree = MDT;
@@ -35,11 +36,11 @@ void LiveRangeCalc::reset(const MachineFunction *MF,
 }
 
 
-void LiveRangeCalc::createDeadDefs(LiveInterval *LI, unsigned Reg) {
+void LiveRangeCalc::createDeadDefs(LiveRange &LR, unsigned Reg) {
   assert(MRI && Indexes && "call reset() first");
 
   // Visit all def operands. If the same instruction has multiple defs of Reg,
-  // LI->createDeadDef() will deduplicate.
+  // LR.createDeadDef() will deduplicate.
   for (MachineRegisterInfo::def_iterator
        I = MRI->def_begin(Reg), E = MRI->def_end(); I != E; ++I) {
     const MachineInstr *MI = &*I;
@@ -53,13 +54,13 @@ void LiveRangeCalc::createDeadDefs(LiveInterval *LI, unsigned Reg) {
       Idx = Indexes->getInstructionIndex(MI)
         .getRegSlot(I.getOperand().isEarlyClobber());
 
-    // Create the def in LI. This may find an existing def.
-    LI->createDeadDef(Idx, *Alloc);
+    // Create the def in LR. This may find an existing def.
+    LR.createDeadDef(Idx, *Alloc);
   }
 }
 
 
-void LiveRangeCalc::extendToUses(LiveInterval *LI, unsigned Reg) {
+void LiveRangeCalc::extendToUses(LiveRange &LR, unsigned Reg) {
   assert(MRI && Indexes && "call reset() first");
 
   // Visit all operands that read Reg. This may include partial defs.
@@ -98,43 +99,40 @@ void LiveRangeCalc::extendToUses(LiveInterval *LI, unsigned Reg) {
           Idx = Idx.getRegSlot(true);
       }
     }
-    extend(LI, Idx, Reg);
+    extend(LR, Idx, Reg);
   }
 }
 
 
 // Transfer information from the LiveIn vector to the live ranges.
-void LiveRangeCalc::updateLiveIns(VNInfo *OverrideVNI) {
+void LiveRangeCalc::updateLiveIns() {
+  LiveRangeUpdater Updater;
   for (SmallVectorImpl<LiveInBlock>::iterator I = LiveIn.begin(),
          E = LiveIn.end(); I != E; ++I) {
     if (!I->DomNode)
       continue;
     MachineBasicBlock *MBB = I->DomNode->getBlock();
-
-    VNInfo *VNI = OverrideVNI ? OverrideVNI : I->Value;
-    assert(VNI && "No live-in value found");
-
+    assert(I->Value && "No live-in value found");
     SlotIndex Start, End;
     tie(Start, End) = Indexes->getMBBRange(MBB);
 
     if (I->Kill.isValid())
-      I->LI->addRange(LiveRange(Start, I->Kill, VNI));
+      // Value is killed inside this block.
+      End = I->Kill;
     else {
-      I->LI->addRange(LiveRange(Start, End, VNI));
-      // The value is live-through, update LiveOut as well.  Defer the Domtree
-      // lookup until it is needed.
+      // The value is live-through, update LiveOut as well.
+      // Defer the Domtree lookup until it is needed.
       assert(Seen.test(MBB->getNumber()));
-      LiveOut[MBB] = LiveOutPair(VNI, (MachineDomTreeNode *)0);
+      LiveOut[MBB] = LiveOutPair(I->Value, (MachineDomTreeNode *)0);
     }
+    Updater.setDest(&I->LR);
+    Updater.add(Start, End, I->Value);
   }
   LiveIn.clear();
 }
 
 
-void LiveRangeCalc::extend(LiveInterval *LI,
-                           SlotIndex Kill,
-                           unsigned PhysReg) {
-  assert(LI && "Missing live range");
+void LiveRangeCalc::extend(LiveRange &LR, SlotIndex Kill, unsigned PhysReg) {
   assert(Kill.isValid() && "Invalid SlotIndex");
   assert(Indexes && "Missing SlotIndexes");
   assert(DomTree && "Missing dominator tree");
@@ -143,20 +141,18 @@ void LiveRangeCalc::extend(LiveInterval *LI,
   assert(KillMBB && "No MBB at Kill");
 
   // Is there a def in the same MBB we can extend?
-  if (LI->extendInBlock(Indexes->getMBBStartIdx(KillMBB), Kill))
+  if (LR.extendInBlock(Indexes->getMBBStartIdx(KillMBB), Kill))
     return;
 
   // Find the single reaching def, or determine if Kill is jointly dominated by
   // multiple values, and we may need to create even more phi-defs to preserve
   // VNInfo SSA form.  Perform a search for all predecessor blocks where we
   // know the dominating VNInfo.
-  VNInfo *VNI = findReachingDefs(LI, KillMBB, Kill, PhysReg);
+  if (findReachingDefs(LR, *KillMBB, Kill, PhysReg))
+    return;
 
   // When there were multiple different values, we may need new PHIs.
-  if (!VNI)
-    updateSSA();
-
-  updateLiveIns(VNI);
+  calculateValues();
 }
 
 
@@ -167,16 +163,16 @@ void LiveRangeCalc::calculateValues() {
   assert(Indexes && "Missing SlotIndexes");
   assert(DomTree && "Missing dominator tree");
   updateSSA();
-  updateLiveIns(0);
+  updateLiveIns();
 }
 
 
-VNInfo *LiveRangeCalc::findReachingDefs(LiveInterval *LI,
-                                        MachineBasicBlock *KillMBB,
-                                        SlotIndex Kill,
-                                        unsigned PhysReg) {
-  // Blocks where LI should be live-in.
-  SmallVector<MachineBasicBlock*, 16> WorkList(1, KillMBB);
+bool LiveRangeCalc::findReachingDefs(LiveRange &LR, MachineBasicBlock &KillMBB,
+                                     SlotIndex Kill, unsigned PhysReg) {
+  unsigned KillMBBNum = KillMBB.getNumber();
+
+  // Block numbers where LR should be live-in.
+  SmallVector<unsigned, 16> WorkList(1, KillMBBNum);
 
   // Remember if we have seen more than one value.
   bool UniqueVNI = true;
@@ -184,7 +180,7 @@ VNInfo *LiveRangeCalc::findReachingDefs(LiveInterval *LI,
 
   // Using Seen as a visited set, perform a BFS for all reaching defs.
   for (unsigned i = 0; i != WorkList.size(); ++i) {
-    MachineBasicBlock *MBB = WorkList[i];
+    MachineBasicBlock *MBB = MF->getBlockNumbered(WorkList[i]);
 
 #ifndef NDEBUG
     if (MBB->pred_empty()) {
@@ -202,7 +198,7 @@ VNInfo *LiveRangeCalc::findReachingDefs(LiveInterval *LI,
 #endif
 
     for (MachineBasicBlock::pred_iterator PI = MBB->pred_begin(),
-           PE = MBB->pred_end(); PI != PE; ++PI) {
+         PE = MBB->pred_end(); PI != PE; ++PI) {
        MachineBasicBlock *Pred = *PI;
 
        // Is this a known live-out block?
@@ -220,7 +216,7 @@ VNInfo *LiveRangeCalc::findReachingDefs(LiveInterval *LI,
 
        // First time we see Pred.  Try to determine the live-out value, but set
        // it as null if Pred is live-through with an unknown value.
-       VNInfo *VNI = LI->extendInBlock(Start, End);
+       VNInfo *VNI = LR.extendInBlock(Start, End);
        setLiveOutValue(Pred, VNI);
        if (VNI) {
          if (TheVNI && TheVNI != VNI)
@@ -230,26 +226,51 @@ VNInfo *LiveRangeCalc::findReachingDefs(LiveInterval *LI,
        }
 
        // No, we need a live-in value for Pred as well
-       if (Pred != KillMBB)
-          WorkList.push_back(Pred);
+       if (Pred != &KillMBB)
+          WorkList.push_back(Pred->getNumber());
        else
           // Loopback to KillMBB, so value is really live through.
          Kill = SlotIndex();
     }
   }
 
-  // Transfer WorkList to LiveInBlocks in reverse order.
-  // This ordering works best with updateSSA().
   LiveIn.clear();
+
+  // Both updateSSA() and LiveRangeUpdater benefit from ordered blocks, but
+  // neither require it. Skip the sorting overhead for small updates.
+  if (WorkList.size() > 4)
+    array_pod_sort(WorkList.begin(), WorkList.end());
+
+  // If a unique reaching def was found, blit in the live ranges immediately.
+  if (UniqueVNI) {
+    LiveRangeUpdater Updater(&LR);
+    for (SmallVectorImpl<unsigned>::const_iterator I = WorkList.begin(),
+         E = WorkList.end(); I != E; ++I) {
+       SlotIndex Start, End;
+       tie(Start, End) = Indexes->getMBBRange(*I);
+       // Trim the live range in KillMBB.
+       if (*I == KillMBBNum && Kill.isValid())
+         End = Kill;
+       else
+         LiveOut[MF->getBlockNumbered(*I)] =
+           LiveOutPair(TheVNI, (MachineDomTreeNode *)0);
+       Updater.add(Start, End, TheVNI);
+    }
+    return true;
+  }
+
+  // Multiple values were found, so transfer the work list to the LiveIn array
+  // where UpdateSSA will use it as a work list.
   LiveIn.reserve(WorkList.size());
-  while(!WorkList.empty())
-    addLiveInBlock(LI, DomTree->getNode(WorkList.pop_back_val()));
+  for (SmallVectorImpl<unsigned>::const_iterator
+       I = WorkList.begin(), E = WorkList.end(); I != E; ++I) {
+    MachineBasicBlock *MBB = MF->getBlockNumbered(*I);
+    addLiveInBlock(LR, DomTree->getNode(MBB));
+    if (MBB == &KillMBB)
+      LiveIn.back().Kill = Kill;
+  }
 
-  // The kill block may not be live-through.
-  assert(LiveIn.back().DomNode->getBlock() == KillMBB);
-  LiveIn.back().Kill = Kill;
-
-  return UniqueVNI ? TheVNI : 0;
+  return false;
 }
 
 
@@ -322,16 +343,17 @@ void LiveRangeCalc::updateSSA() {
         assert(Alloc && "Need VNInfo allocator to create PHI-defs");
         SlotIndex Start, End;
         tie(Start, End) = Indexes->getMBBRange(MBB);
-        VNInfo *VNI = I->LI->getNextValue(Start, *Alloc);
+        LiveRange &LR = I->LR;
+        VNInfo *VNI = LR.getNextValue(Start, *Alloc);
         I->Value = VNI;
         // This block is done, we know the final value.
         I->DomNode = 0;
 
         // Add liveness since updateLiveIns now skips this node.
         if (I->Kill.isValid())
-          I->LI->addRange(LiveRange(Start, I->Kill, VNI));
+          LR.addSegment(LiveInterval::Segment(Start, I->Kill, VNI));
         else {
-          I->LI->addRange(LiveRange(Start, End, VNI));
+          LR.addSegment(LiveInterval::Segment(Start, End, VNI));
           LOP = LiveOutPair(VNI, Node);
         }
       } else if (IDomValue.first) {

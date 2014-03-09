@@ -16,13 +16,19 @@
 
 .MAIN: all
 
-.if defined(PROGS)
+.if defined(PROGS) || defined(PROGS_CXX)
+# we really only use PROGS below...
+PROGS += ${PROGS_CXX}
 
 # In meta mode, we can capture dependenices for _one_ of the progs.
 # if makefile doesn't nominate one, we use the first.
+.if defined(.PARSEDIR)
 .ifndef UPDATE_DEPENDFILE_PROG
 UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
+.endif
+.else
+UPDATE_DEPENDFILE_PROG?= no
 .endif
 
 .ifndef PROG
@@ -36,13 +42,17 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
+PROG_VARS += BINDIR CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
 .for v in ${PROG_VARS:O:u}
+.if defined(${v}.${PROG}) || defined(${v}_${PROG})
 $v += ${${v}_${PROG}:U${${v}.${PROG}}}
+.else
+$v ?=
+.endif
 .endfor
 
 # for meta mode, there can be only one!
-.if ${PROG} == ${UPDATE_DEPENDFILE_PROG:Uno}
+.if ${PROG} == ${UPDATE_DEPENDFILE_PROG}
 UPDATE_DEPENDFILE ?= yes
 .endif
 UPDATE_DEPENDFILE ?= NO
@@ -61,10 +71,11 @@ UPDATE_DEPENDFILE = NO
 .endif
 
 # handle being called [bsd.]progs.mk
-.include <${.PARSEFILE:S,progs,prog,}>
+.include <bsd.prog.mk>
 
-.ifndef PROG
-PROGS_TARGETS += clean
+.ifndef _RECURSING_PROGS
+# tell progs.mk we might want to install things
+PROGS_TARGETS+= cleandepend cleandir cleanobj depend install
 
 .for p in ${PROGS}
 .if defined(PROGS_CXX) && !empty(PROGS_CXX:M$p)
@@ -73,16 +84,32 @@ x.$p= PROG_CXX=$p
 .endif
 
 $p ${p}_p: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} ${@:E})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
+.endfor
+
+SCRIPTS_TARGETS+= cleandepend cleandir cleanobj depend install
+
+.for p in ${SCRIPTS}
+.for t in ${SCRIPTS_TARGETS:O:u}
+$p.$t: .PHONY .MAKE
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= SCRIPT=$p ${x.$p} ${@:E})
+.endfor
+.endfor
+
+.for t in ${SCRIPTS_TARGETS:O:u}
+$t: ${SCRIPTS:%=%.$t}
 .endfor
 
 .endif

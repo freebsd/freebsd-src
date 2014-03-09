@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2011
+.Dd March 19, 2013
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -189,6 +189,11 @@ tells
 .Xr login 1
 not to let anyone log in
 .El
+.Sh EXAMPLES
+Reboot the system in 30 minutes and display a warning message on the terminals
+of all users currently logged in:
+.Pp
+.Dl # shutdown -r +30 \&"System will reboot\&"
 .Sh COMPATIBILITY
 The hours and minutes in the second time format may be separated by
 a colon (``:'') for backward compatibility.

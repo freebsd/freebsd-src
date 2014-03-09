@@ -73,9 +73,7 @@ tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags,
             break;
         case TWS_IOCTL_SCAN_BUS :
             TWS_TRACE_DEBUG(sc, "scan-bus", 0, 0);
-            mtx_lock(&sc->sim_lock);
             error = tws_bus_scan(sc);
-            mtx_unlock(&sc->sim_lock);
             break;
         default :
             TWS_TRACE_DEBUG(sc, "ioctl-aen", cmd, buf);
@@ -105,8 +103,7 @@ tws_passthru(struct tws_softc *sc, void *buf)
     do {
         req = tws_get_request(sc, TWS_REQ_TYPE_PASSTHRU);
         if ( !req ) {
-            sc->chan = (void *)sc;
-            error = tsleep(sc->chan,  0, "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
+            error = tsleep(sc,  0, "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
             if ( error == EWOULDBLOCK ) {
                 return(ETIMEDOUT);
             }
@@ -205,7 +202,7 @@ out_data:
     //
     req->state = TWS_REQ_STATE_FREE;
 
-    wakeup_one(sc->chan);
+    wakeup_one(sc);
 
     return(error);
 }

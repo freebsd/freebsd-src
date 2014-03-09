@@ -101,11 +101,11 @@ extern int EastLongitude;
 					 * program wrong.
 					 */
 
-/* 
+/*
  * All the astronomical calculations are carried out for the meridian 120
  * degrees east of Greenwich.
  */
-#define UTCOFFSET_CNY		8.0		
+#define UTCOFFSET_CNY		8.0
 
 extern int	debug;		/* show parsing of the input */
 extern int	year1, year2;
@@ -165,7 +165,12 @@ void	dodebug(char *type);
 /* io.c */
 void	cal(void);
 void	closecal(FILE *);
-FILE	*opencal(void);
+FILE	*opencalin(void);
+FILE	*opencalout(void);
+
+/* calcpp.c */
+void	initcpp(void);
+FILE	*fincludegets(char *buf, int size, FILE *fp);
 
 /* ostern.c / paskha.c */
 int	paskha(int);
@@ -174,7 +179,7 @@ int	j2g(int);
 
 /* dates.c */
 extern int cumdaytab[][14];
-extern int mondaytab[][14];
+extern int monthdaytab[][14];
 extern int debug_remember;
 void	generatedates(struct tm *tp1, struct tm *tp2);
 void	dumpdates(void);

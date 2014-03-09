@@ -1,4 +1,4 @@
-/* $Id: platform.c,v 1.18 2011/01/11 06:02:25 djm Exp $ */
+/* $Id: platform.c,v 1.21 2014/01/21 01:59:29 tim Exp $ */
 
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
@@ -51,6 +51,14 @@ platform_pre_fork(void)
 {
 #ifdef USE_SOLARIS_PROCESS_CONTRACTS
 	solaris_contract_pre_fork();
+#endif
+}
+
+void
+platform_pre_restart(void)
+{
+#ifdef LINUX_OOM_ADJUST
+	oom_adjust_restore();
 #endif
 }
 
@@ -156,12 +164,6 @@ platform_setusercontext_post_groups(struct passwd *pw)
 	aix_usrinfo(pw);
 #endif /* _AIX */
 
-#if !defined(HAVE_LOGIN_CAP) && defined(USE_LIBIAF)
-	if (set_id(pw->pw_name) != 0) {
-		exit(1);
-	}
-# endif /* USE_LIBIAF */
-
 #ifdef HAVE_SETPCRED
 	/*
 	 * If we have a chroot directory, we set all creds except real
@@ -193,4 +195,20 @@ platform_krb5_get_principal_name(const char *pw_name)
 #else
 	return NULL;
 #endif
+}
+
+/*
+ * return 1 if the specified uid is a uid that may own a system directory
+ * otherwise 0.
+ */
+int
+platform_sys_dir_uid(uid_t uid)
+{
+	if (uid == 0)
+		return 1;
+#ifdef PLATFORM_SYS_DIR_UID
+	if (uid == PLATFORM_SYS_DIR_UID)
+		return 1;
+#endif
+	return 0;
 }

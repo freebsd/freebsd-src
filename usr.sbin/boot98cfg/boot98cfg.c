@@ -271,7 +271,7 @@ write_boot(const char *disk, u_char *boot)
 	warnx("%s: %s", disk, q);
 	gctl_free(grq);
 
-	for (i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < PC98_NPARTS; i++) {
 		snprintf(buf, sizeof(buf), "%ss%d", disk, i + 1);
 		fd = open(buf, O_RDONLY);
 		if (fd < 0)

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_POST_DOMINATORS_H
-#define LLVM_ANALYSIS_POST_DOMINATORS_H
+#ifndef LLVM_ANALYSIS_POSTDOMINATORS_H
+#define LLVM_ANALYSIS_POSTDOMINATORS_H
 
 #include "llvm/Analysis/Dominators.h"
 
@@ -71,6 +71,11 @@ struct PostDominatorTree : public FunctionPass {
   }
 
   inline BasicBlock *findNearestCommonDominator(BasicBlock *A, BasicBlock *B) {
+    return DT->findNearestCommonDominator(A, B);
+  }
+
+  inline const BasicBlock *findNearestCommonDominator(const BasicBlock *A,
+                                                      const BasicBlock *B) {
     return DT->findNearestCommonDominator(A, B);
   }
 

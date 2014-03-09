@@ -28,12 +28,12 @@
 .\"     @(#)getdtablesize.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 24, 2013
 .Dt GETDTABLESIZE 2
 .Os
 .Sh NAME
 .Nm getdtablesize
-.Nd get descriptor table size
+.Nd get file descriptor limit
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -41,18 +41,20 @@
 .Ft int
 .Fn getdtablesize void
 .Sh DESCRIPTION
-Each process has a fixed size descriptor table,
-which is guaranteed to have at least 20 slots.
-The entries in
-the descriptor table are numbered with small integers starting at 0.
 The
 .Fn getdtablesize
-system call returns the size of this table.
+system call returns the maximum number of file descriptors
+that the current process may open.
+The maximum file descriptor number that the system may assign
+is the return value minus one.
+Existing file descriptor numbers may be higher
+if the limit was lowered after they were opened.
 .Sh SEE ALSO
 .Xr close 2 ,
+.Xr closefrom 2 ,
 .Xr dup 2 ,
-.Xr open 2 ,
-.Xr select 2
+.Xr getrlimit 2 ,
+.Xr sysconf 2
 .Sh HISTORY
 The
 .Fn getdtablesize

@@ -394,6 +394,7 @@ read_thread_wait(void)
 
 	mtx_lock(&adist_remote_mtx);
 	if (adhost->adh_reset) {
+reset:
 		adhost->adh_reset = false;
 		if (trail_filefd(adist_trail) != -1)
 			trail_close(adist_trail);
@@ -408,6 +409,14 @@ read_thread_wait(void)
 	while (trail_filefd(adist_trail) == -1) {
 		newfile = true;
 		wait_for_dir();
+		/*
+		 * We may have been disconnected and reconnected in the
+		 * meantime, check if reset is set.
+		 */
+		mtx_lock(&adist_remote_mtx);
+		if (adhost->adh_reset)
+			goto reset;
+		mtx_unlock(&adist_remote_mtx);
 		if (trail_filefd(adist_trail) == -1)
 			trail_next(adist_trail);
 	}

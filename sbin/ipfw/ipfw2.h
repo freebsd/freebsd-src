@@ -203,6 +203,7 @@ enum tokens {
 	TOK_SETFIB,
 	TOK_LOOKUP,
 	TOK_SOCKARG,
+	TOK_SETDSCP,
 };
 /*
  * the following macro returns an error message if we run out of
@@ -226,6 +227,8 @@ int match_token(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
 
 int do_cmd(int optname, void *optval, uintptr_t optlen);
+
+uint32_t ipfw_get_tables_max(void);
 
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
@@ -265,11 +268,14 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 
+#ifdef PF
 /* altq.c */
 void altq_set_enabled(int enabled);
 u_int32_t altq_name_to_qid(const char *name);
-
 void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
+#else
+#define NO_ALTQ
+#endif
 
 /* dummynet.c */
 void dummynet_list(int ac, char *av[], int show_counters);
@@ -283,10 +289,10 @@ void print_flow6id(struct _ipfw_insn_u32 *cmd);
 void print_icmp6types(struct _ipfw_insn_u32 *cmd);
 void print_ext6hdr(struct _ipfw_insn *cmd );
 
-struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av);
-struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av);
+struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen);
+struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen);
 
-void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av );
+void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
 void fill_unreach6_code(u_short *codep, char *str);
-void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av);
+void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);

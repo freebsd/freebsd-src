@@ -88,7 +88,8 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 
 	params->tcp_rss = tcp_rss;
 	params->udp_rss = udp_rss;
-	if (params->udp_rss && !mdev->dev->caps.udp_rss) {
+        if (params->udp_rss && !(mdev->dev->caps.flags
+                                        & MLX4_DEV_CAP_FLAG_UDP_RSS)) {
 		mlx4_warn(mdev, "UDP RSS is not supported on this device.\n");
 		params->udp_rss = 0;
 	}
@@ -116,18 +117,17 @@ static void *get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
 }
 
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
-			  enum mlx4_dev_event event, int port)
+			  enum mlx4_dev_event event, unsigned long port)
 {
 	struct mlx4_en_dev *mdev = (struct mlx4_en_dev *) endev_ptr;
 	struct mlx4_en_priv *priv;
 
-	if (!mdev->pndev[port])
-		return;
-
-	priv = netdev_priv(mdev->pndev[port]);
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
 	case MLX4_DEV_EVENT_PORT_DOWN:
+		if (!mdev->pndev[port])
+			return;
+		priv = netdev_priv(mdev->pndev[port]);
 		/* To prevent races, we poll the link state in a separate
 		  task rather than changing it here */
 		priv->link_state = event;
@@ -139,7 +139,11 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		break;
 
 	default:
-		mlx4_warn(mdev, "Unhandled event: %d\n", event);
+		if (port < 1 || port > dev->caps.num_ports ||
+		    !mdev->pndev[port])
+			return;
+		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event,
+			  (int) port);
 	}
 }
 
@@ -351,8 +355,8 @@ static struct mlx4_interface mlx4_en_interface = {
 	.remove	= mlx4_en_remove,
 	.event	= mlx4_en_event,
 	.query  = mlx4_en_query,
-	.get_prot_dev	= get_netdev,
-	.protocol	= MLX4_PROT_EN,
+	.get_dev	= get_netdev,
+	.protocol	= MLX4_PROT_ETH,
 };
 
 static int __init mlx4_en_init(void)

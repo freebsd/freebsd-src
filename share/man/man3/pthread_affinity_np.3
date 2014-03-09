@@ -49,7 +49,7 @@ allow the manipulation of sets of CPUs available to the specified thread.
 Masks of type
 .Ft cpuset_t
 are composed using the
-.Xr CPU_SET 3
+.Dv CPU_SET
 macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
@@ -123,7 +123,6 @@ operation.
 .Xr cpuset 2 ,
 .Xr cpuset_getid 2 ,
 .Xr cpuset_setid 2 ,
-.Xr CPU_SET 3 ,
 .Xr pthread 3 ,
 .Xr pthread_attr_getaffinity_np 3 ,
 .Xr pthread_attr_setaffinity_np 3

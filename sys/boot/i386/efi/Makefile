@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 NO_MAN=
-WITHOUT_SSP=
 BUILDING_EFI=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG=		loader.sym
 INTERNALPROG=
@@ -36,7 +36,7 @@ FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/ldscript.i386
-LDFLAGS=	-Wl,-T${LDSCRIPT} -shared -symbolic
+LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 ${PROG}:	${LDSCRIPT}
 
@@ -60,6 +60,7 @@ loader.efi: loader.sym
 	    --target=efi-app-ia32 ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../libi386
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 

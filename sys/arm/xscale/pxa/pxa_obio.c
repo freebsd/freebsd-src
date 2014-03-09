@@ -92,7 +92,7 @@ pxa_probe(device_t dev)
 {
 
 	device_set_desc(dev, "XScale PXA On-board IO");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 int

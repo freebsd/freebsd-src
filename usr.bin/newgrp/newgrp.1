@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2002
+.Dd February 8, 2013
 .Dt NEWGRP 1
 .Os
 .Sh NAME
@@ -90,6 +90,15 @@ A
 utility appeared in
 .At v6 .
 .Sh BUGS
+For security reasons, the
+.Nm
+utility is normally installed without the setuid bit.
+To enable it, run the following command:
+.Bd -literal -offset indent
+chmod u+s /usr/bin/newgrp
+.Ed
+.Pp
 Group passwords are inherently insecure as there is no way to stop
-users obtaining the crypted passwords from the group database.
+users obtaining the password hash from the group database.
 Their use is discouraged.
+Instead, users should simply be added to the necessary groups.

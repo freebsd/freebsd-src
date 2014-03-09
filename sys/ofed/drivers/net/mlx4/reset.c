@@ -121,7 +121,7 @@ int mlx4_reset(struct mlx4_dev *dev)
 	iounmap(reset);
 
 	/* Docs say to wait one second before accessing device */
-	msleep(1000);
+	msleep(2000);
 
 	end = jiffies + MLX4_RESET_TIMEOUT_JIFFIES;
 	do {
@@ -139,11 +139,12 @@ int mlx4_reset(struct mlx4_dev *dev)
 		goto out;
 	}
 
+
 	/* Now restore the PCI headers */
 	if (pcie_cap) {
 		devctl = hca_header[(pcie_cap + PCI_EXP_DEVCTL) / 4];
 		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_DEVCTL,
-					   devctl)) {
+					       devctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "
 				 "Device Control register, aborting.\n");
@@ -151,7 +152,7 @@ int mlx4_reset(struct mlx4_dev *dev)
 		}
 		linkctl = hca_header[(pcie_cap + PCI_EXP_LNKCTL) / 4];
 		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_LNKCTL,
-					   linkctl)) {
+					       linkctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "
 				 "Link control register, aborting.\n");

@@ -43,6 +43,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_llc.h>
@@ -75,7 +76,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 };
 
 static int
-firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct fw_com *fc = IFP2FWC(ifp);

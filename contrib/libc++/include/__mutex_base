@@ -20,19 +20,9 @@
 #pragma GCC system_header
 #endif
 
-#ifdef _LIBCPP_SHARED_LOCK
-
-namespace ting {
-template <class _Mutex> class shared_lock;
-template <class _Mutex> class upgrade_lock;
-}
-
-#endif  // _LIBCPP_SHARED_LOCK
-
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-class _LIBCPP_VISIBLE mutex
+class _LIBCPP_TYPE_VIS mutex
 {
     pthread_mutex_t __m_;
 
@@ -58,9 +48,9 @@ public:
     _LIBCPP_INLINE_VISIBILITY native_handle_type native_handle() {return &__m_;}
 };
 
-struct _LIBCPP_VISIBLE defer_lock_t {};
-struct _LIBCPP_VISIBLE try_to_lock_t {};
-struct _LIBCPP_VISIBLE adopt_lock_t {};
+struct _LIBCPP_TYPE_VIS defer_lock_t {};
+struct _LIBCPP_TYPE_VIS try_to_lock_t {};
+struct _LIBCPP_TYPE_VIS adopt_lock_t {};
 
 #if defined(_LIBCPP_HAS_NO_CONSTEXPR) || defined(_LIBCPP_BUILDING_MUTEX)
 
@@ -77,7 +67,7 @@ constexpr adopt_lock_t  adopt_lock  = adopt_lock_t();
 #endif
 
 template <class _Mutex>
-class _LIBCPP_VISIBLE lock_guard
+class _LIBCPP_TYPE_VIS_ONLY lock_guard
 {
 public:
     typedef _Mutex mutex_type;
@@ -101,7 +91,7 @@ private:
 };
 
 template <class _Mutex>
-class _LIBCPP_VISIBLE unique_lock
+class _LIBCPP_TYPE_VIS_ONLY unique_lock
 {
 public:
     typedef _Mutex mutex_type;
@@ -161,27 +151,6 @@ public:
             __u.__owns_ = false;
             return *this;
         }
-
-#ifdef _LIBCPP_SHARED_LOCK
-
-    unique_lock(ting::shared_lock<mutex_type>&&, try_to_lock_t);
-    template <class _Clock, class _Duration>
-        unique_lock(ting::shared_lock<mutex_type>&&,
-                    const chrono::time_point<_Clock, _Duration>&);
-    template <class _Rep, class _Period>
-        unique_lock(ting::shared_lock<mutex_type>&&,
-                    const chrono::duration<_Rep, _Period>&);
-
-    explicit unique_lock(ting::upgrade_lock<mutex_type>&&);
-    unique_lock(ting::upgrade_lock<mutex_type>&&, try_to_lock_t);
-    template <class _Clock, class _Duration>
-        unique_lock(ting::upgrade_lock<mutex_type>&&,
-                    const chrono::time_point<_Clock, _Duration>&);
-    template <class _Rep, class _Period>
-        unique_lock(ting::upgrade_lock<mutex_type>&&,
-                    const chrono::duration<_Rep, _Period>&);
-
-#endif  // _LIBCPP_SHARED_LOCK
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
@@ -285,7 +254,7 @@ void
 swap(unique_lock<_Mutex>& __x, unique_lock<_Mutex>& __y) _NOEXCEPT
     {__x.swap(__y);}
 
-struct _LIBCPP_VISIBLE cv_status
+struct _LIBCPP_TYPE_VIS cv_status
 {
     enum __lx {
         no_timeout,
@@ -299,7 +268,7 @@ struct _LIBCPP_VISIBLE cv_status
 
 };
 
-class _LIBCPP_VISIBLE condition_variable
+class _LIBCPP_TYPE_VIS condition_variable
 {
     pthread_cond_t __cv_;
 public:

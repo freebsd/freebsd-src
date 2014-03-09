@@ -245,6 +245,8 @@ static int quicc_bus_probe(struct uart_softc *);
 static int quicc_bus_receive(struct uart_softc *);
 static int quicc_bus_setsig(struct uart_softc *, int);
 static int quicc_bus_transmit(struct uart_softc *);
+static void quicc_bus_grab(struct uart_softc *);
+static void quicc_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t quicc_methods[] = {
 	KOBJMETHOD(uart_attach,		quicc_bus_attach),
@@ -258,6 +260,8 @@ static kobj_method_t quicc_methods[] = {
 	KOBJMETHOD(uart_receive,	quicc_bus_receive),
 	KOBJMETHOD(uart_setsig,		quicc_bus_setsig),
 	KOBJMETHOD(uart_transmit,	quicc_bus_transmit),
+	KOBJMETHOD(uart_grab,		quicc_bus_grab),
+	KOBJMETHOD(uart_ungrab,		quicc_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -292,9 +296,6 @@ quicc_bus_attach(struct uart_softc *sc)
 	} else {
 		quicc_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
 	}
-
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
 
 	/* Enable interrupts on the receive buffer. */
 	rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(bas->chan - 1));
@@ -417,6 +418,9 @@ quicc_bus_probe(struct uart_softc *sc)
 	if (error)
 		return (error);
 
+	sc->sc_rxfifosz = 1;
+	sc->sc_txfifosz = 1;
+
 	snprintf(buf, sizeof(buf), "quicc, channel %d", sc->sc_bas.chan);
 	device_set_desc_copy(sc->sc_dev, buf);
 	return (0);
@@ -485,3 +489,34 @@ quicc_bus_transmit(struct uart_softc *sc)
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
+
+static void
+quicc_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+	uint16_t st, rb;
+
+	/* Disable interrupts on the receive buffer. */
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(bas->chan - 1));
+	st = quicc_read2(bas, rb);
+	quicc_write2(bas, rb, st & ~0x9000);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+quicc_bus_ungrab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+	uint16_t st, rb;
+
+	/* Enable interrupts on the receive buffer. */
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(bas->chan - 1));
+	st = quicc_read2(bas, rb);
+	quicc_write2(bas, rb, st | 0x9000);
+	uart_unlock(sc->sc_hwmtx);
+}
+

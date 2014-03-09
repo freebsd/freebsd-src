@@ -11,12 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/GlobalAlias.h"
-#include "llvm/GlobalValue.h"
-#include "llvm/GlobalVariable.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
@@ -59,6 +61,29 @@ TargetMachine::TargetMachine(const Target &T,
 TargetMachine::~TargetMachine() {
   delete CodeGenInfo;
   delete AsmInfo;
+}
+
+/// \brief Reset the target options based on the function's attributes.
+void TargetMachine::resetTargetOptions(const MachineFunction *MF) const {
+  const Function *F = MF->getFunction();
+  TargetOptions &TO = MF->getTarget().Options;
+  
+#define RESET_OPTION(X, Y)                                              \
+  do {                                                                  \
+    if (F->hasFnAttribute(Y))                                           \
+      TO.X =                                                            \
+        (F->getAttributes().                                            \
+           getAttribute(AttributeSet::FunctionIndex,                    \
+                        Y).getValueAsString() == "true");               \
+  } while (0)
+
+  RESET_OPTION(NoFramePointerElim, "no-frame-pointer-elim");
+  RESET_OPTION(LessPreciseFPMADOption, "less-precise-fpmad");
+  RESET_OPTION(UnsafeFPMath, "unsafe-fp-math");
+  RESET_OPTION(NoInfsFPMath, "no-infs-fp-math");
+  RESET_OPTION(NoNaNsFPMath, "no-nans-fp-math");
+  RESET_OPTION(UseSoftFloat, "use-soft-float");
+  RESET_OPTION(DisableTailCalls, "disable-tail-calls");
 }
 
 /// getRelocationModel - Returns the code generation relocation model. The
@@ -137,6 +162,11 @@ CodeGenOpt::Level TargetMachine::getOptLevel() const {
   if (!CodeGenInfo)
     return CodeGenOpt::Default;
   return CodeGenInfo->getOptLevel();
+}
+
+void TargetMachine::setOptLevel(CodeGenOpt::Level Level) const {
+  if (CodeGenInfo)
+    CodeGenInfo->setOptLevel(Level);
 }
 
 bool TargetMachine::getAsmVerbosityDefault() {

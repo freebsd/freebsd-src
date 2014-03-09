@@ -1,15 +1,9 @@
 /*
  * EAPOL supplicant state machines
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -145,46 +139,6 @@ struct eapol_sm {
 };
 
 
-#define IEEE8021X_REPLAY_COUNTER_LEN 8
-#define IEEE8021X_KEY_SIGN_LEN 16
-#define IEEE8021X_KEY_IV_LEN 16
-
-#define IEEE8021X_KEY_INDEX_FLAG 0x80
-#define IEEE8021X_KEY_INDEX_MASK 0x03
-
-#ifdef _MSC_VER
-#pragma pack(push, 1)
-#endif /* _MSC_VER */
-
-struct ieee802_1x_eapol_key {
-	u8 type;
-	/* Note: key_length is unaligned */
-	u8 key_length[2];
-	/* does not repeat within the life of the keying material used to
-	 * encrypt the Key field; 64-bit NTP timestamp MAY be used here */
-	u8 replay_counter[IEEE8021X_REPLAY_COUNTER_LEN];
-	u8 key_iv[IEEE8021X_KEY_IV_LEN]; /* cryptographically random number */
-	u8 key_index; /* key flag in the most significant bit:
-		       * 0 = broadcast (default key),
-		       * 1 = unicast (key mapping key); key index is in the
-		       * 7 least significant bits */
-	/* HMAC-MD5 message integrity check computed with MS-MPPE-Send-Key as
-	 * the key */
-	u8 key_signature[IEEE8021X_KEY_SIGN_LEN];
-
-	/* followed by key: if packet body length = 44 + key length, then the
-	 * key field (of key_length bytes) contains the key in encrypted form;
-	 * if packet body length = 44, key field is absent and key_length
-	 * represents the number of least significant octets from
-	 * MS-MPPE-Send-Key attribute to be used as the keying material;
-	 * RC4 key used in encryption = Key-IV + MS-MPPE-Recv-Key */
-} STRUCT_PACKED;
-
-#ifdef _MSC_VER
-#pragma pack(pop)
-#endif /* _MSC_VER */
-
-
 static void eapol_sm_txLogoff(struct eapol_sm *sm);
 static void eapol_sm_txStart(struct eapol_sm *sm);
 static void eapol_sm_processKey(struct eapol_sm *sm);
@@ -268,6 +222,15 @@ SM_STATE(SUPP_PAE, DISCONNECTED)
 
 	sm->unicast_key_received = FALSE;
 	sm->broadcast_key_received = FALSE;
+
+	/*
+	 * IEEE Std 802.1X-2004 does not clear heldWhile here, but doing so
+	 * allows the timer tick to be stopped more quickly when the port is
+	 * not enabled. Since this variable is used only within HELD state,
+	 * clearing it on initialization does not change actual state machine
+	 * behavior.
+	 */
+	sm->heldWhile = 0;
 }
 
 
@@ -535,6 +498,15 @@ SM_STATE(SUPP_BE, INITIALIZE)
 	SM_ENTRY(SUPP_BE, INITIALIZE);
 	eapol_sm_abortSupp(sm);
 	sm->suppAbort = FALSE;
+
+	/*
+	 * IEEE Std 802.1X-2004 does not clear authWhile here, but doing so
+	 * allows the timer tick to be stopped more quickly when the port is
+	 * not enabled. Since this variable is used only within RECEIVE state,
+	 * clearing it on initialization does not change actual state machine
+	 * behavior.
+	 */
+	sm->authWhile = 0;
 }
 
 
@@ -561,7 +533,7 @@ SM_STEP(SUPP_BE)
 		 * IEEE Std 802.1X-2004 has transitions from REQUEST to FAIL
 		 * and SUCCESS based on eapFail and eapSuccess, respectively.
 		 * However, IEEE Std 802.1X-2004 is also specifying that
-		 * eapNoResp should be set in conjuction with eapSuccess and
+		 * eapNoResp should be set in conjunction with eapSuccess and
 		 * eapFail which would mean that more than one of the
 		 * transitions here would be activated at the same time.
 		 * Skipping RESPONSE and/or RECEIVE states in these cases can
@@ -652,6 +624,7 @@ struct eap_key_data {
 
 static void eapol_sm_processKey(struct eapol_sm *sm)
 {
+#ifndef CONFIG_FIPS
 	struct ieee802_1x_hdr *hdr;
 	struct ieee802_1x_eapol_key *key;
 	struct eap_key_data keydata;
@@ -659,6 +632,7 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 	u8 ekey[IEEE8021X_KEY_IV_LEN + IEEE8021X_ENCR_KEY_LEN];
 	int key_len, res, sign_key_len, encr_key_len;
 	u16 rx_key_length;
+	size_t plen;
 
 	wpa_printf(MSG_DEBUG, "EAPOL: processKey");
 	if (sm->last_rx_key == NULL)
@@ -671,9 +645,12 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		return;
 	}
 
+	if (sm->last_rx_key_len < sizeof(*hdr) + sizeof(*key))
+		return;
 	hdr = (struct ieee802_1x_hdr *) sm->last_rx_key;
 	key = (struct ieee802_1x_eapol_key *) (hdr + 1);
-	if (sizeof(*hdr) + be_to_host16(hdr->length) > sm->last_rx_key_len) {
+	plen = be_to_host16(hdr->length);
+	if (sizeof(*hdr) + plen > sm->last_rx_key_len || plen < sizeof(*key)) {
 		wpa_printf(MSG_WARNING, "EAPOL: Too short EAPOL-Key frame");
 		return;
 	}
@@ -739,7 +716,7 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 	}
 	wpa_printf(MSG_DEBUG, "EAPOL: EAPOL-Key key signature verified");
 
-	key_len = be_to_host16(hdr->length) - sizeof(*key);
+	key_len = plen - sizeof(*key);
 	if (key_len > 32 || rx_key_length > 32) {
 		wpa_printf(MSG_WARNING, "EAPOL: Too long key data length %d",
 			   key_len ? key_len : rx_key_length);
@@ -810,6 +787,7 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 				sm->ctx->eapol_done_cb(sm->ctx->ctx);
 		}
 	}
+#endif /* CONFIG_FIPS */
 }
 
 
@@ -1026,6 +1004,21 @@ void eapol_sm_configure(struct eapol_sm *sm, int heldPeriod, int authPeriod,
 		sm->startPeriod = startPeriod;
 	if (maxStart >= 0)
 		sm->maxStart = maxStart;
+}
+
+
+/**
+ * eapol_sm_get_method_name - Get EAPOL method name
+ * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
+ * Returns: Static string containing name of current eap method or NULL
+ */
+const char * eapol_sm_get_method_name(struct eapol_sm *sm)
+{
+	if (sm->SUPP_PAE_state != SUPP_PAE_AUTHENTICATED ||
+	    sm->suppPortStatus != Authorized)
+		return NULL;
+
+	return eap_sm_get_method_name(sm->eap);
 }
 
 
@@ -1476,10 +1469,7 @@ void eapol_sm_notify_cached(struct eapol_sm *sm)
 	if (sm == NULL)
 		return;
 	wpa_printf(MSG_DEBUG, "EAPOL: PMKSA caching was used - skip EAPOL");
-	sm->SUPP_PAE_state = SUPP_PAE_AUTHENTICATED;
-	sm->suppPortStatus = Authorized;
-	eapol_sm_set_port_authorized(sm);
-	sm->portValid = TRUE;
+	sm->eapSuccess = TRUE;
 	eap_notify_success(sm->eap);
 	eapol_sm_step(sm);
 }
@@ -1751,7 +1741,8 @@ static void eapol_sm_set_int(void *ctx, enum eapol_int_var variable,
 	switch (variable) {
 	case EAPOL_idleWhile:
 		sm->idleWhile = value;
-		eapol_enable_timer_tick(sm);
+		if (sm->idleWhile > 0)
+			eapol_enable_timer_tick(sm);
 		break;
 	}
 }
@@ -1798,7 +1789,7 @@ static void eapol_sm_notify_pending(void *ctx)
 
 
 #if defined(CONFIG_CTRL_IFACE) || !defined(CONFIG_NO_STDOUT_DEBUG)
-static void eapol_sm_eap_param_needed(void *ctx, const char *field,
+static void eapol_sm_eap_param_needed(void *ctx, enum wpa_ctrl_req_type field,
 				      const char *txt)
 {
 	struct eapol_sm *sm = ctx;
@@ -1809,6 +1800,35 @@ static void eapol_sm_eap_param_needed(void *ctx, const char *field,
 #else /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
 #define eapol_sm_eap_param_needed NULL
 #endif /* CONFIG_CTRL_IFACE || !CONFIG_NO_STDOUT_DEBUG */
+
+static void eapol_sm_notify_cert(void *ctx, int depth, const char *subject,
+				 const char *cert_hash,
+				 const struct wpabuf *cert)
+{
+	struct eapol_sm *sm = ctx;
+	if (sm->ctx->cert_cb)
+		sm->ctx->cert_cb(sm->ctx->ctx, depth, subject,
+				 cert_hash, cert);
+}
+
+
+static void eapol_sm_notify_status(void *ctx, const char *status,
+				   const char *parameter)
+{
+	struct eapol_sm *sm = ctx;
+
+	if (sm->ctx->status_cb)
+		sm->ctx->status_cb(sm->ctx->ctx, status, parameter);
+}
+
+
+static void eapol_sm_set_anon_id(void *ctx, const u8 *id, size_t len)
+{
+	struct eapol_sm *sm = ctx;
+
+	if (sm->ctx->set_anon_id)
+		sm->ctx->set_anon_id(sm->ctx->ctx, id, len);
+}
 
 
 static struct eapol_callbacks eapol_cb =
@@ -1822,7 +1842,10 @@ static struct eapol_callbacks eapol_cb =
 	eapol_sm_set_config_blob,
 	eapol_sm_get_config_blob,
 	eapol_sm_notify_pending,
-	eapol_sm_eap_param_needed
+	eapol_sm_eap_param_needed,
+	eapol_sm_notify_cert,
+	eapol_sm_notify_status,
+	eapol_sm_set_anon_id
 };
 
 
@@ -1858,6 +1881,7 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 	conf.pkcs11_engine_path = ctx->pkcs11_engine_path;
 	conf.pkcs11_module_path = ctx->pkcs11_module_path;
 	conf.wps = ctx->wps;
+	conf.cert_in_cb = ctx->cert_in_cb;
 
 	sm->eap = eap_peer_sm_init(sm, &eapol_cb, sm->ctx->msg_ctx, &conf);
 	if (sm->eap == NULL) {
@@ -1895,4 +1919,20 @@ void eapol_sm_deinit(struct eapol_sm *sm)
 	wpabuf_free(sm->eapReqData);
 	os_free(sm->ctx);
 	os_free(sm);
+}
+
+
+void eapol_sm_set_ext_pw_ctx(struct eapol_sm *sm,
+			     struct ext_password_data *ext)
+{
+	if (sm && sm->eap)
+		eap_sm_set_ext_pw_ctx(sm->eap, ext);
+}
+
+
+int eapol_sm_failed(struct eapol_sm *sm)
+{
+	if (sm == NULL)
+		return 0;
+	return !sm->eapSuccess && sm->eapFail;
 }

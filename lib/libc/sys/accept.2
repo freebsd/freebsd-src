@@ -28,11 +28,12 @@
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd October 1, 2013
 .Dt ACCEPT 2
 .Os
 .Sh NAME
-.Nm accept
+.Nm accept ,
+.Nm accept4
 .Nd accept a connection on a socket
 .Sh LIBRARY
 .Lb libc
@@ -41,6 +42,8 @@
 .In sys/socket.h
 .Ft int
 .Fn accept "int s" "struct sockaddr * restrict addr" "socklen_t * restrict addrlen"
+.Ft int
+.Fn accept4 "int s" "struct sockaddr * restrict addr" "socklen_t * restrict addrlen" "int flags"
 .Sh DESCRIPTION
 The argument
 .Fa s
@@ -57,8 +60,34 @@ queue of pending connections, creates a new socket,
 and allocates a new file descriptor for the socket which
 inherits the state of the
 .Dv O_NONBLOCK
-property from the original socket
+and
+.Dv O_ASYNC
+properties and the destination of
+.Dv SIGIO
+and
+.Dv SIGURG
+signals from the original socket
 .Fa s .
+.Pp
+The
+.Fn accept4
+system call is similar,
+but the
+.Dv O_NONBLOCK
+property of the new socket is instead determined by the
+.Dv SOCK_NONBLOCK
+flag in the
+.Fa flags
+argument,
+the
+.Dv O_ASYNC
+property is cleared,
+the signal destination is cleared
+and the close-on-exec flag on the new file descriptor can be set via the
+.Dv SOCK_CLOEXEC
+flag in the
+.Fa flags
+argument.
 .Pp
 If no pending connections are
 present on the queue, and the original socket
@@ -127,17 +156,30 @@ For some applications, performance may be enhanced by using an
 .Xr accept_filter 9
 to pre-process incoming connections.
 .Pp
-Portable programs should not rely on the
+When using
+.Fn accept ,
+portable programs should not rely on the
 .Dv O_NONBLOCK
-property being inherited.
+and
+.Dv O_ASYNC
+properties and the signal destination being inherited,
+but should set them explicitly using
+.Xr fcntl 2 ;
+.Fn accept4
+sets these properties consistently,
+but may not be fully portable across
+.Ux
+platforms.
 .Sh RETURN VALUES
-The call returns \-1 on error.
-If it succeeds, it returns a non-negative
+These calls return \-1 on error.
+If they succeed, they return a non-negative
 integer that is a descriptor for the accepted socket.
 .Sh ERRORS
 The
 .Fn accept
-system call will fail if:
+and
+.Fn accept4
+system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is invalid.
@@ -154,10 +196,6 @@ The descriptor references a file, not a socket.
 .It Bq Er EINVAL
 .Xr listen 2
 has not been called on the socket descriptor.
-.It Bq Er EINVAL
-The
-.Fa addrlen
-argument is negative.
 .It Bq Er EFAULT
 The
 .Fa addr
@@ -169,6 +207,16 @@ are present to be accepted.
 .It Bq Er ECONNABORTED
 A connection arrived, but it was closed while waiting
 on the listen queue.
+.El
+.Pp
+The
+.Fn accept4
+system call will also fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is invalid.
 .El
 .Sh SEE ALSO
 .Xr bind 2 ,
@@ -184,3 +232,8 @@ The
 .Fn accept
 system call appeared in
 .Bx 4.2 .
+.Pp
+The
+.Fn accept4
+system call appeared in
+.Fx 10.0 .

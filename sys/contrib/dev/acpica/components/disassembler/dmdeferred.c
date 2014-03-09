@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ AcpiDmParseDeferredOps (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_NAME (DmParseDeferredOps);
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Traverse the entire parse tree */
@@ -128,6 +128,7 @@ AcpiDmParseDeferredOps (
             break;
 
         default:
+
             ACPI_ERROR ((AE_INFO, "Unhandled deferred AML opcode [0x%.4X]",
                  Op->Common.AmlOpcode));
             break;
@@ -265,6 +266,7 @@ AcpiDmDeferredParse (
         break;
 
     default:
+
         break;
     }
 

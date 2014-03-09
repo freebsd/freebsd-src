@@ -148,7 +148,7 @@ usb_dev_add(pcap_if_t** alldevsp, int n, char *err_str)
 }
 
 int 
-usb_platform_finddevs(pcap_if_t **alldevsp, char *err_str)
+usb_findalldevs(pcap_if_t **alldevsp, char *err_str)
 {
 	struct dirent* data;
 	int ret = 0;
@@ -284,9 +284,39 @@ probe_devices(int bus)
 }
 
 pcap_t *
-usb_create(const char *device, char *ebuf)
+usb_create(const char *device, char *ebuf, int *is_ours)
 {
+	const char *cp;
+	char *cpend;
+	long devnum;
 	pcap_t *p;
+
+	/* Does this look like a USB monitoring device? */
+	cp = strrchr(device, '/');
+	if (cp == NULL)
+		cp = device;
+	/* Does it begin with USB_IFACE? */
+	if (strncmp(cp, USB_IFACE, sizeof USB_IFACE - 1) != 0) {
+		/* Nope, doesn't begin with USB_IFACE */
+		*is_ours = 0;
+		return NULL;
+	}
+	/* Yes - is USB_IFACE followed by a number? */
+	cp += sizeof USB_IFACE - 1;
+	devnum = strtol(cp, &cpend, 10);
+	if (cpend == cp || *cpend != '\0') {
+		/* Not followed by a number. */
+		*is_ours = 0;
+		return NULL;
+	}
+	if (devnum < 0) {
+		/* Followed by a non-valid number. */
+		*is_ours = 0;
+		return NULL;
+	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)

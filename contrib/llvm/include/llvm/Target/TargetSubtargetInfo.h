@@ -19,11 +19,13 @@
 
 namespace llvm {
 
+class MachineFunction;
 class MachineInstr;
 class SDep;
 class SUnit;
 class TargetRegisterClass;
 class TargetSchedModel;
+struct MachineSchedPolicy;
 template <typename T> class SmallVectorImpl;
 
 //===----------------------------------------------------------------------===//
@@ -54,6 +56,26 @@ public:
     return 0;
   }
 
+  /// \brief Temporary API to test migration to MI scheduler.
+  bool useMachineScheduler() const;
+
+  /// \brief True if the subtarget should run MachineScheduler after aggressive
+  /// coalescing.
+  ///
+  /// This currently replaces the SelectionDAG scheduler with the "source" order
+  /// scheduler. It does not yet disable the postRA scheduler.
+  virtual bool enableMachineScheduler() const;
+
+  /// \brief Override generic scheduling policy within a region.
+  ///
+  /// This is a convenient way for targets that don't provide any custom
+  /// scheduling heuristics (no custom MachineSchedStrategy) to make
+  /// changes to the generic scheduling policy.
+  virtual void overrideSchedPolicy(MachineSchedPolicy &Policy,
+                                   MachineInstr *begin,
+                                   MachineInstr *end,
+                                   unsigned NumRegionInstrs) const {}
+
   // enablePostRAScheduler - If the target can benefit from post-regalloc
   // scheduling and the specified optimization level meets the requirement
   // return true to enable post-register-allocation scheduling. In
@@ -66,6 +88,13 @@ public:
   // the latency of a schedule dependency.
   virtual void adjustSchedDependency(SUnit *def, SUnit *use,
                                      SDep& dep) const { }
+
+  /// \brief Enable use of alias analysis during code generation (during MI
+  /// scheduling, DAGCombine, etc.).
+  virtual bool useAA() const;
+
+  /// \brief Reset the features for the subtarget.
+  virtual void resetSubtargetFeatures(const MachineFunction *MF) { }
 };
 
 } // End llvm namespace

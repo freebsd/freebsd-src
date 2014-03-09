@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2012 Devin Teske
+.\" Copyright (c) 2011-2013 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 24, 2012
+.Dd Nov 20, 2013
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -32,13 +32,13 @@
 .Nd safely edit system rc files
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDeFhinNqvx
+.Op Fl cdDeFhinNqvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Ar name Ns Op = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl dDeFhinNqvx
+.Op Fl cdDeFhinNqvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Fl a | A
@@ -57,6 +57,12 @@ Dump a list of all non-default configuration variables.
 .It Fl A
 Dump a list of all configuration variables
 .Pq incl. defaults .
+.It Fl c
+Check if the value will change when assigning a new value.
+If verbose
+.Pq see Dq Fl v
+prints a message stating whether a change would occur.
+Exits with success if no change is necessary, else returns error status.
 .It Fl d
 Print a description of the given variable.
 .It Fl D
@@ -64,10 +70,13 @@ Show default value(s) only (this is the same as setting RC_CONFS to NULL or
 passing `-f' with a NULL file-argument).
 .It Fl e
 Print query results as
-.Ql var=value
-.Pq useful for producing output to be fed back in .
-Ignored if
-.Fl n
+.Xr sh 1
+compatible syntax
+.Pq for example, Ql var=value .
+Ignored if either
+.Ql Fl n
+or
+.Ql Fl F
 is specified.
 .It Fl f Ar file
 Operate on the specified file(s) instead of the files obtained by reading the
@@ -99,10 +108,9 @@ Show only variable values, not their names.
 Show only variable names, not their values.
 .It Fl q
 Quiet.
-Ignore previous
+Ignore previous occurrences of
 .Fl v
-and/or
-.Ev SYSRC_VERBOSE .
+flag.
 .It Fl R Ar dir
 Operate within the root directory
 .Pq Sq Ar dir
@@ -113,6 +121,8 @@ Verbose.
 Print the pathname of the specific
 .Xr rc.conf 5
 file where the directive was found.
+.It Fl -version
+Print version information to stdout and exit.
 .It Fl x
 Remove variable(s) from specified file(s).
 .El
@@ -175,7 +185,7 @@ be called repeatedly).
 .Sh ENVIRONMENT
 The following environment variables are referenced by
 .Nm :
-.Bl -tag -width ".Ev SYSRC_VERBOSE"
+.Bl -tag -width ".Ev RC_DEFAULTS"
 .It Ev RC_CONFS
 Override default
 .Ql rc_conf_files
@@ -184,9 +194,6 @@ Override default
 Location of
 .Ql /etc/defaults/rc.conf
 file.
-.It Ev SYSRC_VERBOSE
-Default verbosity.
-Set to non-NULL to enable.
 .El
 .Sh DEPENDENCIES
 The following standard commands are required by
@@ -292,7 +299,7 @@ This will be corrected by a future enhancement.
 A
 .Nm
 utility first appeared in
-.Fx 10.0 .
+.Fx 9.2 .
 .Sh AUTHORS
 .An Devin Teske Aq dteske@FreeBSD.org
 .Sh THANKS TO

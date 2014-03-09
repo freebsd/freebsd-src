@@ -1,15 +1,9 @@
 /*
  * hostapd / Station table
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
@@ -17,27 +11,36 @@
 #include "utils/common.h"
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_ctrl.h"
 #include "radius/radius.h"
 #include "radius/radius_client.h"
 #include "drivers/driver.h"
+#include "p2p/p2p.h"
 #include "hostapd.h"
 #include "accounting.h"
 #include "ieee802_1x.h"
 #include "ieee802_11.h"
+#include "ieee802_11_auth.h"
 #include "wpa_auth.h"
 #include "preauth_auth.h"
 #include "ap_config.h"
 #include "beacon.h"
 #include "ap_mlme.h"
 #include "vlan_init.h"
+#include "p2p_hostapd.h"
+#include "ap_drv_ops.h"
+#include "gas_serv.h"
 #include "sta_info.h"
 
 static void ap_sta_remove_in_other_bss(struct hostapd_data *hapd,
 				       struct sta_info *sta);
 static void ap_handle_session_timer(void *eloop_ctx, void *timeout_ctx);
+static void ap_sta_deauth_cb_timeout(void *eloop_ctx, void *timeout_ctx);
+static void ap_sta_disassoc_cb_timeout(void *eloop_ctx, void *timeout_ctx);
 #ifdef CONFIG_IEEE80211W
 static void ap_sa_query_timer(void *eloop_ctx, void *timeout_ctx);
 #endif /* CONFIG_IEEE80211W */
+static int ap_sta_remove(struct hostapd_data *hapd, struct sta_info *sta);
 
 int ap_for_each_sta(struct hostapd_data *hapd,
 		    int (*cb)(struct hostapd_data *hapd, struct sta_info *sta,
@@ -121,11 +124,14 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 
 	accounting_sta_stop(hapd, sta);
 
+	/* just in case */
+	ap_sta_set_authorized(hapd, sta, 0);
+
 	if (sta->flags & WLAN_STA_WDS)
-		hapd->drv.set_wds_sta(hapd, sta->addr, sta->aid, 0);
+		hostapd_set_wds_sta(hapd, sta->addr, sta->aid, 0);
 
 	if (!(sta->flags & WLAN_STA_PREAUTH))
-		hapd->drv.sta_remove(hapd, sta->addr);
+		hostapd_drv_sta_remove(hapd, sta->addr);
 
 	ap_sta_hash_del(hapd, sta);
 	ap_sta_list_del(hapd, sta);
@@ -173,6 +179,15 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 		hapd->iface->num_sta_ht_20mhz--;
 	}
 
+#ifdef CONFIG_P2P
+	if (sta->no_p2p_set) {
+		sta->no_p2p_set = 0;
+		hapd->num_sta_no_p2p--;
+		if (hapd->num_sta_no_p2p == 0)
+			hostapd_p2p_non_p2p_sta_disconnected(hapd);
+	}
+#endif /* CONFIG_P2P */
+
 #if defined(NEED_AP_MLME) && defined(CONFIG_IEEE80211N)
 	if (hostapd_ht_operation_update(hapd->iface) > 0)
 		set_beacon++;
@@ -181,8 +196,12 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	if (set_beacon)
 		ieee802_11_set_beacons(hapd->iface);
 
+	wpa_printf(MSG_DEBUG, "%s: cancel ap_handle_timer for " MACSTR,
+		   __func__, MAC2STR(sta->addr));
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
 	eloop_cancel_timeout(ap_handle_session_timer, hapd, sta);
+	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
+	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
 
 	ieee802_1x_free_station(sta);
 	wpa_auth_sta_deinit(sta->wpa_sm);
@@ -199,9 +218,27 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	eloop_cancel_timeout(ap_sa_query_timer, hapd, sta);
 #endif /* CONFIG_IEEE80211W */
 
+#ifdef CONFIG_P2P
+	p2p_group_notif_disassoc(hapd->p2p_group, sta->addr);
+#endif /* CONFIG_P2P */
+
+#ifdef CONFIG_INTERWORKING
+	if (sta->gas_dialog) {
+		int i;
+		for (i = 0; i < GAS_DIALOG_MAX; i++)
+			gas_serv_dialog_clear(&sta->gas_dialog[i]);
+		os_free(sta->gas_dialog);
+	}
+#endif /* CONFIG_INTERWORKING */
+
 	wpabuf_free(sta->wps_ie);
+	wpabuf_free(sta->p2p_ie);
+	wpabuf_free(sta->hs20_ie);
 
 	os_free(sta->ht_capabilities);
+	hostapd_free_psk_list(sta->psk);
+	os_free(sta->identity);
+	os_free(sta->radius_cui);
 
 	os_free(sta);
 }
@@ -241,6 +278,9 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	struct sta_info *sta = timeout_ctx;
 	unsigned long next_time = 0;
 
+	wpa_printf(MSG_DEBUG, "%s: " MACSTR " flags=0x%x timeout_next=%d",
+		   __func__, MAC2STR(sta->addr), sta->flags,
+		   sta->timeout_next);
 	if (sta->timeout_next == STA_REMOVE) {
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
@@ -253,27 +293,51 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	    (sta->timeout_next == STA_NULLFUNC ||
 	     sta->timeout_next == STA_DISASSOC)) {
 		int inactive_sec;
-		wpa_printf(MSG_DEBUG, "Checking STA " MACSTR " inactivity:",
-			   MAC2STR(sta->addr));
-		inactive_sec = hapd->drv.get_inact_sec(hapd, sta->addr);
+		/*
+		 * Add random value to timeout so that we don't end up bouncing
+		 * all stations at the same time if we have lots of associated
+		 * stations that are idle (but keep re-associating).
+		 */
+		int fuzz = os_random() % 20;
+		inactive_sec = hostapd_drv_get_inact_sec(hapd, sta->addr);
 		if (inactive_sec == -1) {
-			wpa_printf(MSG_DEBUG, "Could not get station info "
-				   "from kernel driver for " MACSTR ".",
-				   MAC2STR(sta->addr));
+			wpa_msg(hapd->msg_ctx, MSG_DEBUG,
+				"Check inactivity: Could not "
+				"get station info from kernel driver for "
+				MACSTR, MAC2STR(sta->addr));
+			/*
+			 * The driver may not support this functionality.
+			 * Anyway, try again after the next inactivity timeout,
+			 * but do not disconnect the station now.
+			 */
+			next_time = hapd->conf->ap_max_inactivity + fuzz;
 		} else if (inactive_sec < hapd->conf->ap_max_inactivity &&
 			   sta->flags & WLAN_STA_ASSOC) {
 			/* station activity detected; reset timeout state */
-			wpa_printf(MSG_DEBUG, "  Station has been active");
+			wpa_msg(hapd->msg_ctx, MSG_DEBUG,
+				"Station " MACSTR " has been active %is ago",
+				MAC2STR(sta->addr), inactive_sec);
 			sta->timeout_next = STA_NULLFUNC;
-			next_time = hapd->conf->ap_max_inactivity -
+			next_time = hapd->conf->ap_max_inactivity + fuzz -
 				inactive_sec;
+		} else {
+			wpa_msg(hapd->msg_ctx, MSG_DEBUG,
+				"Station " MACSTR " has been "
+				"inactive too long: %d sec, max allowed: %d",
+				MAC2STR(sta->addr), inactive_sec,
+				hapd->conf->ap_max_inactivity);
+
+			if (hapd->conf->skip_inactivity_poll)
+				sta->timeout_next = STA_DISASSOC;
 		}
 	}
 
 	if ((sta->flags & WLAN_STA_ASSOC) &&
 	    sta->timeout_next == STA_DISASSOC &&
-	    !(sta->flags & WLAN_STA_PENDING_POLL)) {
-		wpa_printf(MSG_DEBUG, "  Station has ACKed data poll");
+	    !(sta->flags & WLAN_STA_PENDING_POLL) &&
+	    !hapd->conf->skip_inactivity_poll) {
+		wpa_msg(hapd->msg_ctx, MSG_DEBUG, "Station " MACSTR
+			" has ACKed data poll", MAC2STR(sta->addr));
 		/* data nullfunc frame poll did not produce TX errors; assume
 		 * station ACKed it */
 		sta->timeout_next = STA_NULLFUNC;
@@ -281,6 +345,9 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	if (next_time) {
+		wpa_printf(MSG_DEBUG, "%s: register ap_handle_timer timeout "
+			   "for " MACSTR " (%lu seconds)",
+			   __func__, MAC2STR(sta->addr), next_time);
 		eloop_register_timeout(next_time, 0, ap_handle_timer, hapd,
 				       sta);
 		return;
@@ -288,52 +355,24 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 
 	if (sta->timeout_next == STA_NULLFUNC &&
 	    (sta->flags & WLAN_STA_ASSOC)) {
-#ifndef CONFIG_NATIVE_WINDOWS
-		/* send data frame to poll STA and check whether this frame
-		 * is ACKed */
-		struct ieee80211_hdr hdr;
-
-		wpa_printf(MSG_DEBUG, "  Polling STA with data frame");
+		wpa_printf(MSG_DEBUG, "  Polling STA");
 		sta->flags |= WLAN_STA_PENDING_POLL;
-
-		os_memset(&hdr, 0, sizeof(hdr));
-		if (hapd->driver &&
-		    os_strcmp(hapd->driver->name, "hostap") == 0) {
-			/*
-			 * WLAN_FC_STYPE_NULLFUNC would be more appropriate,
-			 * but it is apparently not retried so TX Exc events
-			 * are not received for it.
-			 */
-			hdr.frame_control =
-				IEEE80211_FC(WLAN_FC_TYPE_DATA,
-					     WLAN_FC_STYPE_DATA);
-		} else {
-			hdr.frame_control =
-				IEEE80211_FC(WLAN_FC_TYPE_DATA,
-					     WLAN_FC_STYPE_NULLFUNC);
-		}
-
-		hdr.frame_control |= host_to_le16(WLAN_FC_FROMDS);
-		os_memcpy(hdr.IEEE80211_DA_FROMDS, sta->addr, ETH_ALEN);
-		os_memcpy(hdr.IEEE80211_BSSID_FROMDS, hapd->own_addr,
-			  ETH_ALEN);
-		os_memcpy(hdr.IEEE80211_SA_FROMDS, hapd->own_addr, ETH_ALEN);
-
-		if (hapd->drv.send_mgmt_frame(hapd, &hdr, sizeof(hdr)) < 0)
-			perror("ap_handle_timer: send");
-#endif /* CONFIG_NATIVE_WINDOWS */
+		hostapd_drv_poll_client(hapd, hapd->own_addr, sta->addr,
+					sta->flags & WLAN_STA_WMM);
 	} else if (sta->timeout_next != STA_REMOVE) {
 		int deauth = sta->timeout_next == STA_DEAUTH;
 
-		wpa_printf(MSG_DEBUG, "Sending %s info to STA " MACSTR,
-			   deauth ? "deauthentication" : "disassociation",
-			   MAC2STR(sta->addr));
+		wpa_dbg(hapd->msg_ctx, MSG_DEBUG,
+			"Timeout, sending %s info to STA " MACSTR,
+			deauth ? "deauthentication" : "disassociation",
+			MAC2STR(sta->addr));
 
 		if (deauth) {
-			hapd->drv.sta_deauth(hapd, sta->addr,
-					     WLAN_REASON_PREV_AUTH_NOT_VALID);
+			hostapd_drv_sta_deauth(
+				hapd, sta->addr,
+				WLAN_REASON_PREV_AUTH_NOT_VALID);
 		} else {
-			hapd->drv.sta_disassoc(
+			hostapd_drv_sta_disassoc(
 				hapd, sta->addr,
 				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
 		}
@@ -342,10 +381,14 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	switch (sta->timeout_next) {
 	case STA_NULLFUNC:
 		sta->timeout_next = STA_DISASSOC;
+		wpa_printf(MSG_DEBUG, "%s: register ap_handle_timer timeout "
+			   "for " MACSTR " (%d seconds - AP_DISASSOC_DELAY)",
+			   __func__, MAC2STR(sta->addr), AP_DISASSOC_DELAY);
 		eloop_register_timeout(AP_DISASSOC_DELAY, 0, ap_handle_timer,
 				       hapd, sta);
 		break;
 	case STA_DISASSOC:
+		ap_sta_set_authorized(hapd, sta, 0);
 		sta->flags &= ~WLAN_STA_ASSOC;
 		ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
 		if (!sta->acct_terminate_cause)
@@ -357,6 +400,9 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 			       HOSTAPD_LEVEL_INFO, "disassociated due to "
 			       "inactivity");
 		sta->timeout_next = STA_DEAUTH;
+		wpa_printf(MSG_DEBUG, "%s: register ap_handle_timer timeout "
+			   "for " MACSTR " (%d seconds - AP_DEAUTH_DELAY)",
+			   __func__, MAC2STR(sta->addr), AP_DEAUTH_DELAY);
 		eloop_register_timeout(AP_DEAUTH_DELAY, 0, ap_handle_timer,
 				       hapd, sta);
 		mlme_disassociate_indication(
@@ -366,7 +412,7 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 	case STA_REMOVE:
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
-			       "inactivity");
+			       "inactivity (timer DEAUTH/REMOVE)");
 		if (!sta->acct_terminate_cause)
 			sta->acct_terminate_cause =
 				RADIUS_ACCT_TERMINATE_CAUSE_IDLE_TIMEOUT;
@@ -385,8 +431,14 @@ static void ap_handle_session_timer(void *eloop_ctx, void *timeout_ctx)
 	struct sta_info *sta = timeout_ctx;
 	u8 addr[ETH_ALEN];
 
-	if (!(sta->flags & WLAN_STA_AUTH))
+	if (!(sta->flags & WLAN_STA_AUTH)) {
+		if (sta->flags & WLAN_STA_GAS) {
+			wpa_printf(MSG_DEBUG, "GAS: Remove temporary STA "
+				   "entry " MACSTR, MAC2STR(sta->addr));
+			ap_free_sta(hapd, sta);
+		}
 		return;
+	}
 
 	mlme_deauthenticate_indication(hapd, sta,
 				       WLAN_REASON_PREV_AUTH_NOT_VALID);
@@ -397,7 +449,7 @@ static void ap_handle_session_timer(void *eloop_ctx, void *timeout_ctx)
 		RADIUS_ACCT_TERMINATE_CAUSE_SESSION_TIMEOUT;
 	os_memcpy(addr, sta->addr, ETH_ALEN);
 	ap_free_sta(hapd, sta);
-	hapd->drv.sta_deauth(hapd, addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
+	hostapd_drv_sta_deauth(hapd, addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 
@@ -441,8 +493,13 @@ struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 		return NULL;
 	}
 	sta->acct_interim_interval = hapd->conf->acct_interim_interval;
+	accounting_sta_get_id(hapd, sta);
 
 	/* initialize STA info data */
+	wpa_printf(MSG_DEBUG, "%s: register ap_handle_timer timeout "
+		   "for " MACSTR " (%d seconds - ap_max_inactivity)",
+		   __func__, MAC2STR(addr),
+		   hapd->conf->ap_max_inactivity);
 	eloop_register_timeout(hapd->conf->ap_max_inactivity, 0,
 			       ap_handle_timer, hapd, sta);
 	os_memcpy(sta->addr, addr, ETH_ALEN);
@@ -463,7 +520,7 @@ static int ap_sta_remove(struct hostapd_data *hapd, struct sta_info *sta)
 
 	wpa_printf(MSG_DEBUG, "Removing STA " MACSTR " from kernel driver",
 		   MAC2STR(sta->addr));
-	if (hapd->drv.sta_remove(hapd, sta->addr) &&
+	if (hostapd_drv_sta_remove(hapd, sta->addr) &&
 	    sta->flags & WLAN_STA_ASSOC) {
 		wpa_printf(MSG_DEBUG, "Could not remove station " MACSTR
 			   " from kernel driver.", MAC2STR(sta->addr));
@@ -498,21 +555,51 @@ static void ap_sta_remove_in_other_bss(struct hostapd_data *hapd,
 }
 
 
+static void ap_sta_disassoc_cb_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct sta_info *sta = timeout_ctx;
+
+	ap_sta_remove(hapd, sta);
+	mlme_disassociate_indication(hapd, sta, sta->disassoc_reason);
+}
+
+
 void ap_sta_disassociate(struct hostapd_data *hapd, struct sta_info *sta,
 			 u16 reason)
 {
 	wpa_printf(MSG_DEBUG, "%s: disassociate STA " MACSTR,
 		   hapd->conf->iface, MAC2STR(sta->addr));
 	sta->flags &= ~WLAN_STA_ASSOC;
-	ap_sta_remove(hapd, sta);
+	ap_sta_set_authorized(hapd, sta, 0);
 	sta->timeout_next = STA_DEAUTH;
+	wpa_printf(MSG_DEBUG, "%s: reschedule ap_handle_timer timeout "
+		   "for " MACSTR " (%d seconds - "
+		   "AP_MAX_INACTIVITY_AFTER_DISASSOC)",
+		   __func__, MAC2STR(sta->addr),
+		   AP_MAX_INACTIVITY_AFTER_DISASSOC);
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
 	eloop_register_timeout(AP_MAX_INACTIVITY_AFTER_DISASSOC, 0,
 			       ap_handle_timer, hapd, sta);
 	accounting_sta_stop(hapd, sta);
 	ieee802_1x_free_station(sta);
 
-	mlme_disassociate_indication(hapd, sta, reason);
+	sta->disassoc_reason = reason;
+	sta->flags |= WLAN_STA_PENDING_DISASSOC_CB;
+	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
+	eloop_register_timeout(hapd->iface->drv_flags &
+			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
+			       ap_sta_disassoc_cb_timeout, hapd, sta);
+}
+
+
+static void ap_sta_deauth_cb_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct sta_info *sta = timeout_ctx;
+
+	ap_sta_remove(hapd, sta);
+	mlme_deauthenticate_indication(hapd, sta, sta->deauth_reason);
 }
 
 
@@ -522,16 +609,43 @@ void ap_sta_deauthenticate(struct hostapd_data *hapd, struct sta_info *sta,
 	wpa_printf(MSG_DEBUG, "%s: deauthenticate STA " MACSTR,
 		   hapd->conf->iface, MAC2STR(sta->addr));
 	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
-	ap_sta_remove(hapd, sta);
+	ap_sta_set_authorized(hapd, sta, 0);
 	sta->timeout_next = STA_REMOVE;
+	wpa_printf(MSG_DEBUG, "%s: reschedule ap_handle_timer timeout "
+		   "for " MACSTR " (%d seconds - "
+		   "AP_MAX_INACTIVITY_AFTER_DEAUTH)",
+		   __func__, MAC2STR(sta->addr),
+		   AP_MAX_INACTIVITY_AFTER_DEAUTH);
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
 	eloop_register_timeout(AP_MAX_INACTIVITY_AFTER_DEAUTH, 0,
 			       ap_handle_timer, hapd, sta);
 	accounting_sta_stop(hapd, sta);
 	ieee802_1x_free_station(sta);
 
-	mlme_deauthenticate_indication(hapd, sta, reason);
+	sta->deauth_reason = reason;
+	sta->flags |= WLAN_STA_PENDING_DEAUTH_CB;
+	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
+	eloop_register_timeout(hapd->iface->drv_flags &
+			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
+			       ap_sta_deauth_cb_timeout, hapd, sta);
 }
+
+
+#ifdef CONFIG_WPS
+int ap_sta_wps_cancel(struct hostapd_data *hapd,
+		      struct sta_info *sta, void *ctx)
+{
+	if (sta && (sta->flags & WLAN_STA_WPS)) {
+		ap_sta_deauthenticate(hapd, sta,
+				      WLAN_REASON_PREV_AUTH_NOT_VALID);
+		wpa_printf(MSG_DEBUG, "WPS: %s: Deauth sta=" MACSTR,
+			   __func__, MAC2STR(sta->addr));
+		return 1;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_WPS */
 
 
 int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
@@ -636,7 +750,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 	if (wpa_auth_sta_set_vlan(sta->wpa_sm, sta->vlan_id) < 0)
 		wpa_printf(MSG_INFO, "Failed to update VLAN-ID for WPA");
 
-	ret = hapd->drv.set_sta_vlan(iface, hapd, sta->addr, sta->vlan_id);
+	ret = hostapd_drv_set_sta_vlan(iface, hapd, sta->addr, sta->vlan_id);
 	if (ret < 0) {
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG, "could not bind the STA "
@@ -686,8 +800,9 @@ static void ap_sa_query_timer(void *eloop_ctx, void *timeout_ctx)
 	    ap_check_sa_query_timeout(hapd, sta))
 		return;
 
-	nbuf = os_realloc(sta->sa_query_trans_id,
-			  (sta->sa_query_count + 1) * WLAN_SA_QUERY_TR_ID_LEN);
+	nbuf = os_realloc_array(sta->sa_query_trans_id,
+				sta->sa_query_count + 1,
+				WLAN_SA_QUERY_TR_ID_LEN);
 	if (nbuf == NULL)
 		return;
 	if (sta->sa_query_count == 0) {
@@ -709,9 +824,7 @@ static void ap_sa_query_timer(void *eloop_ctx, void *timeout_ctx)
 		       HOSTAPD_LEVEL_DEBUG,
 		       "association SA Query attempt %d", sta->sa_query_count);
 
-#ifdef NEED_AP_MLME
 	ieee802_11_send_sa_query_req(hapd, sta->addr, trans_id);
-#endif /* NEED_AP_MLME */
 }
 
 
@@ -732,6 +845,73 @@ void ap_sta_stop_sa_query(struct hostapd_data *hapd, struct sta_info *sta)
 #endif /* CONFIG_IEEE80211W */
 
 
+void ap_sta_set_authorized(struct hostapd_data *hapd, struct sta_info *sta,
+			   int authorized)
+{
+	const u8 *dev_addr = NULL;
+#ifdef CONFIG_P2P
+	u8 addr[ETH_ALEN];
+#endif /* CONFIG_P2P */
+
+	if (!!authorized == !!(sta->flags & WLAN_STA_AUTHORIZED))
+		return;
+
+#ifdef CONFIG_P2P
+	if (hapd->p2p_group == NULL) {
+		if (sta->p2p_ie != NULL &&
+		    p2p_parse_dev_addr_in_p2p_ie(sta->p2p_ie, addr) == 0)
+			dev_addr = addr;
+	} else
+		dev_addr = p2p_group_get_dev_addr(hapd->p2p_group, sta->addr);
+#endif /* CONFIG_P2P */
+
+	if (authorized) {
+		if (dev_addr)
+			wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED
+				MACSTR " p2p_dev_addr=" MACSTR,
+				MAC2STR(sta->addr), MAC2STR(dev_addr));
+		else
+			wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED
+				MACSTR, MAC2STR(sta->addr));
+		if (hapd->msg_ctx_parent &&
+		    hapd->msg_ctx_parent != hapd->msg_ctx && dev_addr)
+			wpa_msg(hapd->msg_ctx_parent, MSG_INFO,
+				AP_STA_CONNECTED MACSTR " p2p_dev_addr="
+				MACSTR,
+				MAC2STR(sta->addr), MAC2STR(dev_addr));
+		else if (hapd->msg_ctx_parent &&
+			 hapd->msg_ctx_parent != hapd->msg_ctx)
+			wpa_msg(hapd->msg_ctx_parent, MSG_INFO,
+				AP_STA_CONNECTED MACSTR, MAC2STR(sta->addr));
+
+		sta->flags |= WLAN_STA_AUTHORIZED;
+	} else {
+		if (dev_addr)
+			wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_DISCONNECTED
+				MACSTR " p2p_dev_addr=" MACSTR,
+				MAC2STR(sta->addr), MAC2STR(dev_addr));
+		else
+			wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_DISCONNECTED
+				MACSTR, MAC2STR(sta->addr));
+		if (hapd->msg_ctx_parent &&
+		    hapd->msg_ctx_parent != hapd->msg_ctx && dev_addr)
+			wpa_msg(hapd->msg_ctx_parent, MSG_INFO,
+				AP_STA_DISCONNECTED MACSTR " p2p_dev_addr="
+				MACSTR, MAC2STR(sta->addr), MAC2STR(dev_addr));
+		else if (hapd->msg_ctx_parent &&
+			 hapd->msg_ctx_parent != hapd->msg_ctx)
+			wpa_msg(hapd->msg_ctx_parent, MSG_INFO,
+				AP_STA_DISCONNECTED MACSTR,
+				MAC2STR(sta->addr));
+		sta->flags &= ~WLAN_STA_AUTHORIZED;
+	}
+
+	if (hapd->sta_authorized_cb)
+		hapd->sta_authorized_cb(hapd->sta_authorized_cb_ctx,
+					sta->addr, authorized, dev_addr);
+}
+
+
 void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 		       const u8 *addr, u16 reason)
 {
@@ -740,12 +920,52 @@ void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 		sta = ap_get_sta(hapd, addr);
 
 	if (addr)
-		hapd->drv.sta_deauth(hapd, addr, reason);
+		hostapd_drv_sta_deauth(hapd, addr, reason);
 
 	if (sta == NULL)
 		return;
-	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_AUTHORIZED);
+	ap_sta_set_authorized(hapd, sta, 0);
+	wpa_auth_sm_event(sta->wpa_sm, WPA_DEAUTH);
+	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
+	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
+	wpa_printf(MSG_DEBUG, "%s: reschedule ap_handle_timer timeout "
+		   "for " MACSTR " (%d seconds - "
+		   "AP_MAX_INACTIVITY_AFTER_DEAUTH)",
+		   __func__, MAC2STR(sta->addr),
+		   AP_MAX_INACTIVITY_AFTER_DEAUTH);
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
-	eloop_register_timeout(0, 0, ap_handle_timer, hapd, sta);
+	eloop_register_timeout(AP_MAX_INACTIVITY_AFTER_DEAUTH, 0,
+			       ap_handle_timer, hapd, sta);
 	sta->timeout_next = STA_REMOVE;
+
+	sta->deauth_reason = reason;
+	sta->flags |= WLAN_STA_PENDING_DEAUTH_CB;
+	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
+	eloop_register_timeout(hapd->iface->drv_flags &
+			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
+			       ap_sta_deauth_cb_timeout, hapd, sta);
+}
+
+
+void ap_sta_deauth_cb(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	if (!(sta->flags & WLAN_STA_PENDING_DEAUTH_CB)) {
+		wpa_printf(MSG_DEBUG, "Ignore deauth cb for test frame");
+		return;
+	}
+	sta->flags &= ~WLAN_STA_PENDING_DEAUTH_CB;
+	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
+	ap_sta_deauth_cb_timeout(hapd, sta);
+}
+
+
+void ap_sta_disassoc_cb(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	if (!(sta->flags & WLAN_STA_PENDING_DISASSOC_CB)) {
+		wpa_printf(MSG_DEBUG, "Ignore disassoc cb for test frame");
+		return;
+	}
+	sta->flags &= ~WLAN_STA_PENDING_DISASSOC_CB;
+	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
+	ap_sta_disassoc_cb_timeout(hapd, sta);
 }

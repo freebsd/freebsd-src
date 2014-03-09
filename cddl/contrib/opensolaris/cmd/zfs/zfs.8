@@ -1,5 +1,5 @@
 '\" te
-.\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2013, Martin Matuska <mm@FreeBSD.org>.
 .\" All Rights Reserved.
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -18,16 +18,19 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2012 by Delphix. All rights reserved.
-.\" Copyright (c) 2012 Nexenta Systems, Inc. All Rights Reserved.
-.\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
+.\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2012
+.Dd January 2, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -39,14 +42,12 @@
 .Nm
 .Cm create
 .Op Fl pu
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ... filesystem
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ... Ar filesystem
 .Nm
 .Cm create
 .Op Fl ps
 .Op Fl b Ar blocksize
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ...
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Fl V
 .Ar size volume
 .Nm
@@ -57,15 +58,21 @@
 .Cm destroy
 .Op Fl dnpRrv
 .Sm off
-.Ar snapshot
-.Op % Ns Ar snapname
-.Op , Ns Ar ...
+.Ar filesystem Ns | Ns volume
+.Ns @snap
+.Op % Ns Ar snap
+.Op , Ns Ar snap Op % Ns Ar snap
+.Op , Ns ...
 .Sm on
 .Nm
-.Cm snapshot
+.Cm destroy
+.Ar filesystem Ns | Ns Ar volume Ns # Ns Ar bookmark
+.Nm
+.Cm snapshot Ns | Ns Cm snap
 .Op Fl r
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ... filesystem@snapname Ns | Ns Ar volume@snapname
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
+.Ar filesystem@snapname Ns | Ns Ar volume@snapname
+.Ar filesystem@snapname Ns | Ns Ar volume@snapname Ns ...
 .Nm
 .Cm rollback
 .Op Fl rRf
@@ -73,8 +80,8 @@
 .Nm
 .Cm clone
 .Op Fl p
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ... snapshot filesystem Ns | Ns Ar volume
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
+.Ar snapshot filesystem Ns | Ns Ar volume
 .Nm
 .Cm promote
 .Ar clone-filesystem
@@ -101,32 +108,30 @@
 .Nm
 .Cm list
 .Op Fl r Ns | Ns Fl d Ar depth
-.Op Fl H
-.Op Fl o Ar property Ns Op , Ns Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
-.Op Fl s Ar property
-.Ar ...
-.Op Fl S Ar property
-.Ar ...
+.Op Fl Hp
+.Op Fl o Ar property Ns Oo , Ns property Ns Oc Ns ...
+.Op Fl t Ar type Ns Oo , Ns type Ns Oc Ns ...
+.Oo Fl s Ar property Oc Ns ...
+.Oo Fl S Ar property Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm set
 .Ar property Ns = Ns Ar value
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Nm
 .Cm get
 .Op Fl r Ns | Ns Fl d Ar depth
 .Op Fl Hp
-.Op Fl o Ar all | field Ns Op , Ns Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
-.Op Fl s Ar source Ns Op , Ns Ar ...
-.Ar all | property Ns Op , Ns Ar ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Op Fl o Ar all | field Ns Oo , Ns Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo Ns , Ar type Oc Ns ...
+.Op Fl s Ar source Ns Oo Ns , Ns Ar source Oc Ns ...
+.Ar all | property Ns Oo Ns , Ns Ar property Oc Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Nm
 .Cm inherit
 .Op Fl rS
 .Ar property
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Nm
 .Cm upgrade
 .Op Fl v
@@ -138,32 +143,28 @@
 .Nm
 .Cm userspace
 .Op Fl Hinp
-.Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl s Ar field
-.Ar ...
-.Op Fl S Ar field
-.Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
+.Op Fl o Ar field Ns Oo , Ns Ar field Oc Ns ...
+.Oo Fl s Ar field Oc Ns ...
+.Oo Fl S Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo Ns , Ns Ar type Oc Ns ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Nm
 .Cm groupspace
 .Op Fl Hinp
-.Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl s Ar field
-.Ar ...
-.Op Fl S Ar field
-.Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
+.Op Fl o Ar field Ns Oo , Ns field Oc Ns ...
+.Oo Fl s Ar field Oc Ns ...
+.Oo Fl S Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo Ns , Ns Ar type Oc Ns ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Nm
 .Cm mount
 .Nm
 .Cm mount
 .Op Fl vO
-.Op Fl o Ar property Ns Op , Ns Ar ...
+.Op Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 .Fl a | Ar filesystem
 .Nm
-.Cm unmount
+.Cm unmount Ns | Ns Cm umount
 .Op Fl f
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
@@ -173,16 +174,24 @@
 .Cm unshare
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
+.Cm bookmark
+.Ar snapshot
+.Ar bookmark
+.Nm
 .Cm send
 .Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
-.Cm receive
+.Cm send
+.Op Fl i Ar snapshot Ns | Ns bookmark
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Nm
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
 .Ar filesystem
@@ -192,63 +201,71 @@
 .Nm
 .Cm allow
 .Op Fl ldug
-.Cm everyone Ns | Ns Ar user Ns | Ns Ar group Ns Op , Ns Ar ...
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar user Ns | Ns Ar group Ns Oo Ns , Ns Ar user Ns | Ns Ar group Oc Ns ...
+.Ar perm Ns | Ns Ar @setname Ns
+.Oo Ns , Ns Ar perm Ns | Ns Ar @setname Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm allow
 .Op Fl ld
-.Fl e
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Fl e Ns | Ns Cm everyone
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm allow
 .Fl c
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm allow
 .Fl s
 .Ar @setname
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm unallow
 .Op Fl rldug
-.Cm everyone Ns | Ns Ar user Ns | Ns Ar group Ns Op , Ns Ar ...
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar user Ns | Ns Ar group Ns Oo Ns , Ns Ar user Ns | Ns Ar group Oc Ns ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm unallow
 .Op Fl rld
-.Fl e
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Fl e Ns | Ns Cm everyone
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm unallow
 .Op Fl r
 .Fl c
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm unallow
 .Op Fl r
 .Fl s
 .Ar @setname
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm hold
 .Op Fl r
-.Ar tag snapshot ...
+.Ar tag snapshot Ns ...
 .Nm
 .Cm holds
 .Op Fl r
-.Ar snapshot ...
+.Ar snapshot Ns ...
 .Nm
 .Cm release
 .Op Fl r
-.Ar tag snapshot ...
+.Ar tag snapshot Ns ...
 .Nm
 .Cm diff
 .Op Fl FHt
@@ -525,6 +542,39 @@ if the snapshot has been marked for deferred destroy by using the
 .Qq Nm Cm destroy -d
 command. Otherwise, the property is
 .Cm off .
+.It Sy logicalreferenced
+The amount of space that is
+.Qq logically
+accessible by this dataset.
+See the
+.Sy referenced
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+However, it does include space consumed by metadata.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lrefer .
+.It Sy logicalused
+The amount of space that is
+.Qq logically
+consumed by this dataset and all its descendents.
+See the
+.Sy used
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lused .
 .It Sy mounted
 For file systems, indicates whether the file system is currently mounted. This
 property can be either
@@ -856,17 +906,24 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,
 .Cm fletcher4 ,
 but this may change in future releases). The value
 .Cm off
-disables integrity checking on user data. Disabling checksums is
+disables integrity checking on user data.
+The value
+.Cm noparity
+not only
+disables integrity but also disables maintaining parity for user data.  This
+setting is used internally by a dump device residing on a RAID-Z pool and should
+not be used by any other dataset.
+Disabling checksums is
 .Em NOT
 a recommended practice.
-.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle
+.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
 Controls the compression algorithm used for this dataset. The
 .Cm lzjb
 compression algorithm is optimized for performance while providing decent data
@@ -893,6 +950,26 @@ is equivalent to
 The
 .Cm zle
 compression algorithm compresses runs of zeros.
+.Pp
+The
+.Sy lz4
+compression algorithm is a high-performance replacement
+for the
+.Sy lzjb
+algorithm. It features significantly faster
+compression and decompression, as well as a moderately higher
+compression ratio than
+.Sy lzjb ,
+but can only be used on pools with
+the
+.Sy lz4_compress
+feature set to
+.Sy enabled .
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy lz4_compress
+feature.
 .Pp
 This property can also be referred to by its shortened column name
 .Cm compress .
@@ -1144,7 +1221,7 @@ When the
 .Sy sharenfs
 property is changed for a dataset, the
 .Xr mountd 8
-dameon is reloaded.
+daemon is reloaded.
 .It Sy logbias Ns = Ns Cm latency | throughput
 Provide a hint to
 .Tn ZFS
@@ -1390,8 +1467,8 @@ Displays a help message.
 .Nm
 .Cm create
 .Op Fl pu
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ... filesystem
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
+.Ar filesystem
 .Xc
 .Pp
 Creates a new
@@ -1428,8 +1505,7 @@ options.
 .Cm create
 .Op Fl ps
 .Op Fl b Ar blocksize
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ...
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Fl V
 .Ar size volume
 .Xc
@@ -1529,7 +1605,7 @@ behavior for mounted file systems in use.
 .Sm off
 .Ar snapshot
 .Op % Ns Ar snapname
-.Op , Ns Ar ...
+.Op , Ns ...
 .Sm on
 .Xc
 .Pp
@@ -1564,7 +1640,11 @@ multiple snapshots.
 Destroy (or mark for deferred deletion) all snapshots with this name in
 descendent file systems.
 .It Fl R
-Recursively destroy all dependents.
+Recursively destroy all clones of these snapshots, including the clones,
+snapshots, and children.
+If this flag is specified, the
+.Op fl d
+flag will have no effect.
 .It Fl n
 Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
 conjunction with the
@@ -1588,22 +1668,29 @@ options, as they can destroy large portions of a pool and cause unexpected
 behavior for mounted file systems in use.
 .It Xo
 .Nm
-.Cm snapshot
-.Op Fl r
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ...
-.Ar filesystem@snapname Ns | Ns volume@snapname
+.Cm destroy
+.Ar filesystem Ns | Ns Ar volume Ns # Ns Ar bookmark
 .Xc
 .Pp
-Creates a snapshot with the given name. All previous modifications by
-successful system calls to the file system are part of the snapshot. See the
+The given bookmark is destroyed.
+.It Xo
+.Nm
+.Cm snapshot Ns | Ns Cm snap
+.Op Fl r
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
+.Ar filesystem@snapname Ns | Ns volume@snapname
+.Ar filesystem@snapname Ns | Ns volume@snapname Ns ...
+.Xc
+.Pp
+Creates snapshots with the given names. All previous modifications by
+successful system calls to the file system are part of the snapshots.
+Snapshots are taken atomically, so that all snapshots correspond to the same
+moment in time. See the
 .Qq Sx Snapshots
 section for details.
 .Bl -tag -width indent
 .It Fl r
-Recursively create snapshots of all descendent datasets. Snapshots are taken
-atomically, so that all recursive snapshots correspond to the same moment in
-time.
+Recursively create snapshots of all descendent datasets
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property; see
 .Qq Nm Cm create
@@ -1620,14 +1707,24 @@ Roll back the given dataset to a previous snapshot. When a dataset is rolled
 back, all data that has changed since the snapshot is discarded, and the
 dataset reverts to the state at the time of the snapshot. By default, the
 command refuses to roll back to a snapshot other than the most recent one. In
-order to do so, all intermediate snapshots must be destroyed by specifying the
+order to do so, all intermediate snapshots and bookmarks must be destroyed
+by specifying the
 .Fl r
 option.
+.Pp
+The
+.Fl rR
+options do not recursively destroy the child snapshots of a
+recursive snapshot.
+Only direct snapshots of the specified filesystem
+are destroyed by either of these options.
+To completely roll back a
+recursive snapshot, you must rollback the individual child snapshots.
 .Bl -tag -width indent
 .It Fl r
-Recursively destroy any snapshots more recent than the one specified.
+Destroy any snapshots and bookmarks more recent than the one specified.
 .It Fl R
-Recursively destroy any more recent snapshots, as well as any clones of those
+Destroy any more recent snapshots and bookmarks, as well as any clones of those
 snapshots.
 .It Fl f
 Used with the
@@ -1638,8 +1735,8 @@ option to force an unmount of any clone file systems that are to be destroyed.
 .Nm
 .Cm clone
 .Op Fl p
-.Op Fl o Ar property Ns = Ns Ar value
-.Ar ... snapshot filesystem Ns | Ns Ar volume
+.Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
+.Ar snapshot filesystem Ns | Ns Ar volume
 .Xc
 .Pp
 Creates a clone of the given snapshot. See the
@@ -1741,14 +1838,12 @@ only dataset that can be renamed recursively.
 .Nm
 .Cm list
 .Op Fl r Ns | Ns Fl d Ar depth
-.Op Fl H
-.Op Fl o Ar property Ns Op , Ns Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
-.Op Fl s Ar property
-.Ar ...
-.Op Fl S Ar property
-.Ar ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Op Fl Hp
+.Op Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
+.Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
+.Oo Fl s Ar property Oc Ns ...
+.Oo Fl S Ar property Oc Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 .Pp
 Lists the property information for the given datasets in tabular form. If
@@ -1774,7 +1869,9 @@ will display only the dataset and its direct children.
 .It Fl H
 Used for scripting mode. Do not print headers and separate fields by a single
 tab instead of arbitrary white space.
-.It Fl o Ar property Ns Op , Ns Ar ...
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 A comma-separated list of properties to display. The property must be:
 .Bl -bullet -offset 2n
 .It
@@ -1798,11 +1895,11 @@ shortcut for specifying
 .Sy filesystem,volume
 syntax.
 .El
-.It Fl t Ar type Ns Op , Ns Ar ...
+.It Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 A comma-separated list of types to display, where
 .Ar type
 is one of
-.Sy filesystem , snapshot , volume , No or Sy all .
+.Sy filesystem , snapshot , snap , volume , bookmark , No or Sy all .
 For example, specifying
 .Fl t Cm snapshot
 displays only snapshots.
@@ -1861,11 +1958,11 @@ section.
 .Cm get
 .Op Fl r Ns | Ns Fl d Ar depth
 .Op Fl Hp
-.Op Fl o Ar all | field Ns Op , Ns Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
-.Op Fl s Ar source Ns Op , Ns Ar ...
-.Ar all | property Ns Op , Ns Ar ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Op Fl o Ar all | field Ns Oo , Ns Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
+.Op Fl s Ar source Ns Oo , Ns Ar source Oc Ns ...
+.Ar all | property Ns Oo , Ns Ar property Oc Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 .Pp
 Displays properties for the given datasets. If no datasets are specified, then
@@ -1899,7 +1996,7 @@ sections.
 The special value
 .Cm all
 can be used to display all properties that apply to the given dataset's type
-(filesystem, volume, or snapshot).
+(filesystem, volume, snapshot, or bookmark).
 .Bl -tag -width indent
 .It Fl r
 Recursively display properties for any children.
@@ -1914,8 +2011,8 @@ Display output in a form more easily parsed by scripts. Any headers are
 omitted, and fields are explicitly separated by a single tab instead of an
 arbitrary amount of space.
 .It Fl p
-Display numbers in parseable (exact) values.
-.It Fl o Cm all | Ar field Ns Op , Ns Ar ...
+Display numbers in parsable (exact) values.
+.It Fl o Cm all | Ar field Ns Oo , Ns Ar field Oc Ns ...
 A comma-separated list of columns to display. Supported values are
 .Sy name,property,value,received,source .
 Default values are
@@ -1923,7 +2020,7 @@ Default values are
 The keyword
 .Cm all
 specifies all columns.
-.It Fl t Ar type Ns Op , Ns Ar ...
+.It Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 A comma-separated list of types to display, where
 .Ar type
 is one of
@@ -1931,7 +2028,7 @@ is one of
 For example, specifying
 .Fl t Cm snapshot
 displays only snapshots.
-.It Fl s Ar source Ns Op , Ns Ar ...
+.It Fl s Ar source Ns Oo , Ns Ar source Oc Ns ...
 A comma-separated list of sources to display. Those properties coming from a
 source other than those in this list are ignored. Each source must be one of
 the following:
@@ -1943,7 +2040,7 @@ The default value is all sources.
 .Cm inherit
 .Op Fl rS
 .Ar property
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 .Pp
 Clears the specified property, causing it to be inherited from an ancestor. If
@@ -2018,12 +2115,10 @@ Upgrade the specified file system.
 .Nm
 .Cm userspace
 .Op Fl Hinp
-.Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl s Ar field
-.Ar ...
-.Op Fl S Ar field
-.Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
+.Op Fl o Ar field Ns Oo , Ns Ar field Oc Ns ...
+.Oo Fl s Ar field Oc Ns ...
+.Oo Fl S Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Xc
 .Pp
@@ -2040,7 +2135,7 @@ Print numeric ID instead of user/group name.
 Do not print headers, use tab-delimited output.
 .It Fl p
 Use exact (parsable) numeric output.
-.It Fl o Ar field Ns Op , Ns Ar ...
+.It Fl o Ar field Ns Oo , Ns Ar field Oc Ns ...
 Display only the specified fields from the following set:
 .Sy type,name,used,quota .
 The default is to display all fields.
@@ -2055,7 +2150,7 @@ another. The default is
 .It Fl S Ar field
 Sort by this field in reverse order. See
 .Fl s .
-.It Fl t Ar type Ns Op , Ns Ar ...
+.It Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 Print only the specified types from the following set:
 .Sy all,posixuser,smbuser,posixgroup,smbgroup .
 .Pp
@@ -2071,12 +2166,10 @@ Translate SID to POSIX ID. This flag currently has no effect on
 .Nm
 .Cm groupspace
 .Op Fl Hinp
-.Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl s Ar field
-.Ar ...
-.Op Fl S Ar field
-.Ar ...
-.Op Fl t Ar type Ns Op , Ns Ar ...
+.Op Fl o Ar field Ns Oo , Ns Ar field Oc Ns ...
+.Oo Fl s Ar field Oc Ns ...
+.Oo Fl S Ar field Oc Ns ...
+.Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Xc
 .Pp
@@ -2100,7 +2193,7 @@ file systems currently mounted.
 .Nm
 .Cm mount
 .Op Fl vO
-.Op Fl o Ar property Ns Op , Ns Ar ...
+.Op Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 .Fl a | Ar filesystem
 .Xc
 .Pp
@@ -2113,7 +2206,7 @@ Report mount progress.
 .It Fl O
 Perform an overlay mount. Overlay mounts are not supported on
 .Fx .
-.It Fl o Ar property Ns Op , Ns Ar ...
+.It Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 An optional, comma-separated list of mount options to use temporarily for the
 duration of the mount. See the
 .Qq Sx Temporary Mount Point Properties
@@ -2135,7 +2228,7 @@ Mount the specified filesystem.
 .El
 .It Xo
 .Nm
-.Cm unmount
+.Cm unmount Ns | Ns Cm umount
 .Op Fl f
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Xc
@@ -2221,6 +2314,26 @@ file system shared on the system.
 .El
 .It Xo
 .Nm
+.Cm bookmark
+.Ar snapshot
+.Ar bookmark
+.Xc
+.Pp
+Creates a bookmark of the given snapshot.
+Bookmarks mark the point in time
+when the snapshot was created, and can be used as the incremental source for
+a
+.Qq Nm Cm send
+command.
+.Pp
+This feature must be enabled to be used.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy bookmark
+feature.
+.It Xo
+.Nm
 .Cm send
 .Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
@@ -2239,17 +2352,15 @@ a file or to a different system (for example, using
 By default, a full stream is generated.
 .Bl -tag -width indent
 .It Fl i Ar snapshot
-Generate an incremental stream from the
-.Fl i Ar snapshot
-to the last
-.Ar snapshot .
-The incremental source (the
-.Fl i Ar snapshot )
-can be specified as the last component of the snapshot name (for example, the
-part after the
-.Sy @ ) ,
-and it is assumed to be from the same file system as the last
-.Ar snapshot .
+Generate an incremental stream from the first
+.Ar snapshot Pq the incremental source
+to the second
+.Ar snapshot Pq the incremental target .
+The incremental source can be specified as the last component of the
+snapshot name
+.Pq the Em @ No character and following
+and
+it is assumed to be from the same file system as the incremental target.
 .Pp
 If the destination is a clone, the source may be the origin snapshot, which
 must be fully specified (for example,
@@ -2257,15 +2368,16 @@ must be fully specified (for example,
 not just
 .Cm @origin ) .
 .It Fl I Ar snapshot
-Generate a stream package that sends all intermediary snapshots from the
-.Fl I Ar snapshot
-to the last
+Generate a stream package that sends all intermediary snapshots from the first
+.Ar snapshot
+to the second
 .Ar snapshot .
 For example,
 .Ic -I @a fs@d
 is similar to
 .Ic -i @a fs@b; -i @b fs@c; -i @c fs@d .
-The incremental source snapshot may be specified as with the
+The incremental
+source may be specified as with the
 .Fl i
 option.
 .It Fl R
@@ -2318,13 +2430,42 @@ on future versions of
 .Tn ZFS .
 .It Xo
 .Nm
-.Cm receive
+.Cm send
+.Op Fl i Ar snapshot Ns | Ns Ar bookmark
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Xc
+.Pp
+Generate a send stream, which may be of a filesystem, and may be
+incremental from a bookmark.
+If the destination is a filesystem or volume,
+the pool must be read-only, or the filesystem must not be mounted.
+When the
+stream generated from a filesystem or volume is received, the default snapshot
+name will be
+.Pq --head-- .
+.Bl -tag -width indent
+.It Fl i Ar snapshot Ns | Ns bookmark
+Generate an incremental send stream.
+The incremental source must be an earlier
+snapshot in the destination's history.
+It will commonly be an earlier
+snapshot in the destination's filesystem, in which case it can be
+specified as the last component of the name
+.Pq the Em # No or Em @ No character and following .
+.Pp
+If the incremental target is a clone, the incremental source can
+be the origin snapshot, or an earlier snapshot in the origin's filesystem,
+or the origin's origin, etc.
+.El
+.It Xo
+.Nm
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
 .Ar filesystem
@@ -2415,7 +2556,7 @@ option to verify the name the receive operation would use.
 Force a rollback of the file system to the most recent snapshot before
 performing the receive operation. If receiving an incremental replication
 stream (for example, one generated by
-.Qq Nm Cm send Fl R Fi iI ) ,
+.Qq Nm Cm send Fl R Bro Fl i | Fl I Brc ) ,
 destroy snapshots and file systems that do not exist on the sending side.
 .El
 .It Xo
@@ -2432,16 +2573,18 @@ for more information.
 .Nm
 .Cm allow
 .Op Fl ldug
-.Cm everyone Ns | Ns Ar user Ns | Ns Ar group Ns Op , Ns Ar ...
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar user Ns | Ns Ar group Ns Oo Ns , Ns Ar user Ns | Ns Ar group Oc Ns ...
+.Ar perm Ns | Ns Ar @setname Ns
+.Oo Ns , Ns Ar perm Ns | Ns Ar @setname Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .It Xo
 .Nm
 .Cm allow
 .Op Fl ld
-.Fl e
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Fl e Ns | Ns Cm everyone
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -2451,26 +2594,31 @@ administration permission for the file systems to non-privileged users.
 .Bl -tag -width indent
 .It Xo
 .Op Fl ug
-.Cm everyone Ns | Ns Ar user Ns | Ns Ar group Ns Op , Ns Ar ...
+.Ar user Ns | Ns Ar group Ns Oo , Ar user Ns | Ns Ar group Oc Ns ...
 .Xc
 Specifies to whom the permissions are delegated. Multiple entities can be
 specified as a comma-separated list. If neither of the
 .Fl ug
 options are specified, then the argument is interpreted preferentially as the
-keyword "everyone", then as a user name, and lastly as a group name. To specify
-a user or group named "everyone", use the
+keyword
+.Cm everyone ,
+then as a user name, and lastly as a group name. To specify
+a user or group named
+.Qq everyone ,
+use the
 .Fl u
 or
 .Fl g
 options. To specify a group with the same name as a user, use the
 .Fl g
 option.
+.It Op Fl e Ns | Ns Cm everyone
+Specifies that the permissions be delegated to
+.Qq everyone .
 .It Xo
-.Op Fl e
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar perm Ns | Ns Ar @setname Ns Oo , Ns Ar perm Ns | Ns Ar @setname Oc Ns ...
 .Xc
-Specifies that the permissions be delegated to "everyone".
-Multiple permissions
+The permissions to delegate. Multiple permissions
 may be specified as a comma-separated list. Permission names are the same as
 .Tn ZFS
 subcommand and property names. See the property list below. Property set names,
@@ -2577,7 +2725,8 @@ protocol
 .Nm
 .Cm allow
 .Fl c
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -2588,7 +2737,8 @@ creator of any newly-created descendent file system.
 .Cm allow
 .Fl s
 .Ar @setname
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar perm Ns | Ns Ar @setname Ns Op Ns , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ...
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -2604,16 +2754,18 @@ and can be no more than 64 characters long.
 .Nm
 .Cm unallow
 .Op Fl rldug
-.Cm everyone Ns | Ns Ar user Ns | Ns Ar group Ns Op , Ns Ar ...
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Ar user Ns | Ns Ar group Ns Oo Ns , Ns Ar user Ns | Ns Ar group Oc Ns ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .It Xo
 .Nm
 .Cm unallow
 .Op Fl rld
-.Fl e
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Fl e Ns | Ns Cm everyone
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .It Xo
@@ -2621,7 +2773,8 @@ and can be no more than 64 characters long.
 .Cm unallow
 .Op Fl r
 .Fl c
-.Op Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -2630,10 +2783,12 @@ Removes permissions that were granted with the
 command. No permissions are explicitly denied, so other permissions granted are
 still in effect. For example, if the permission is granted by an ancestor. If
 no permissions are specified, then all permissions for the specified
-.Ar user , group , No or Ar everyone
-are removed. Specifying "everyone" (or using the
-.Fl e
-option) only removes the permissions that were granted to "everyone",
+.Ar user , group , No or everyone
+are removed. Specifying
+.Cm everyone
+.Po or using the Fl e
+option
+.Pc only removes the permissions that were granted to everyone ,
 not all permissions for every user and group. See the
 .Qq Nm Cm allow
 command for a description of the
@@ -2649,7 +2804,8 @@ Recursively remove the permissions from this file system and all descendents.
 .Op Fl r
 .Fl s
 .Ar @setname
-.Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
+.Oo Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar perm Ns | Ns Ar @setname Ns
+.Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -2659,7 +2815,7 @@ then all permissions are removed, thus removing the set entirely.
 .Nm
 .Cm hold
 .Op Fl r
-.Ar tag snapshot ...
+.Ar tag snapshot Ns ...
 .Xc
 .Pp
 Adds a single reference, named with the
@@ -2680,7 +2836,7 @@ snapshots of all descendent file systems.
 .Nm
 .Cm holds
 .Op Fl r
-.Ar snapshot ...
+.Ar snapshot Ns ...
 .Xc
 .Pp
 Lists all existing user references for the given snapshot or snapshots.
@@ -2693,7 +2849,7 @@ listing the holds on the named snapshot.
 .Nm
 .Cm release
 .Op Fl r
-.Ar tag snapshot ...
+.Ar tag snapshot Ns ...
 .Xc
 .Pp
 Removes a single reference, named with the
@@ -2745,7 +2901,7 @@ option of
 .It \&P Ta event port (not supported on Fx )
 .El
 .It Fl H
-Give more parseable tab-separated output, without header lines and without
+Give more parsable tab-separated output, without header lines and without
 arrows.
 .It Fl t
 Display the path's inode change time as the first column of output.

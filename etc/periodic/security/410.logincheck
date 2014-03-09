@@ -35,8 +35,12 @@ then
     source_periodic_confs
 fi
 
-case "$daily_status_security_logincheck_enable" in
-    [Yy][Ee][Ss])
+security_daily_compat_var security_status_logincheck_enable
+
+rc=0
+
+if check_yesno_period security_status_logincheck_enable
+then
 	echo ""
 	echo 'Checking login.conf permissions:'
 	if [ -G /etc/login.conf -a -O /etc/login.conf ]; then
@@ -45,8 +49,7 @@ case "$daily_status_security_logincheck_enable" in
 	    echo "Bad ownership of /etc/login.conf"
 	    n=1
 	fi
-	[ $n -gt 0 ] && rc=1 || rc=0;;
-    *)	rc=0;;
-esac
+	[ $n -gt 0 ] && rc=1 || rc=0
+fi
 
 exit "$rc"

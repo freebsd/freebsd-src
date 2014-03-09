@@ -14,16 +14,16 @@ def err_fe_unable_to_read_pch_file : Error<
 def err_fe_not_a_pch_file : Error<
     "input is not a PCH file: '%0'">;
 def err_fe_pch_malformed : Error<
-    "malformed or corrupted PCH file: '%0'">, DefaultFatal;
+    "malformed or corrupted AST file: '%0'">, DefaultFatal;
 def err_fe_pch_malformed_block : Error<
     "malformed block record in PCH file: '%0'">, DefaultFatal;
-def err_fe_pch_error_at_end_block : Error<
-    "error at end of module block in PCH file: '%0'">, DefaultFatal;
 def err_fe_pch_file_modified : Error<
-    "file '%0' has been modified since the precompiled header was built">,
+    "file '%0' has been modified since the precompiled header '%1' was built">,
     DefaultFatal;
 def err_fe_pch_file_overridden : Error<
     "file '%0' from the precompiled header has been overridden">;
+def note_module_cache_path : Note<
+    "after modifying system headers, please delete the module cache at '%0'">;
 
 def err_pch_targetopt_mismatch : Error<
     "PCH file was compiled for the %0 '%1' but the current translation "
@@ -46,24 +46,34 @@ def warn_pch_different_branch : Error<
 def err_pch_with_compiler_errors : Error<
     "PCH file contains compiler errors">;
     
-    
+def warn_module_conflict : Warning<
+    "module '%0' conflicts with already-imported module '%1': %2">, 
+    InGroup<ModuleConflict>;
+
 def err_pch_macro_def_undef : Error<
     "macro '%0' was %select{defined|undef'd}1 in the precompiled header but "
     "%select{undef'd|defined}1 on the command line">;
 def err_pch_macro_def_conflict : Error<
     "definition of macro '%0' differs between the precompiled header ('%1') "
     "and the command line ('%2')">;
-def err_pch_include_opt_missing : Error<
-    "precompiled header depends on '%select{-include|-imacros}0 %1' option "
-    "that is missing from the command line">;
-def err_pch_include_opt_conflict : Error<
-    "precompiled header option '%select{-include|-imacros}0 %1' conflicts with "
-    "corresponding option '%select{-include|-imacros}0 %2' on command line">;
 def err_pch_undef : Error<
     "%select{command line contains|precompiled header was built with}0 "
     "'-undef' but %select{precompiled header was not built with it|"
     "it is not present on the command line}0">;
+def err_pch_pp_detailed_record : Error<
+    "%select{command line contains|precompiled header was built with}0 "
+    "'-detailed-preprocessing-record' but %select{precompiled header was not "
+    "built with it|it is not present on the command line}0">;
 
 def err_not_a_pch_file : Error<
     "'%0' does not appear to be a precompiled header file">, DefaultFatal;
+
+def err_module_odr_violation_missing_decl : Error<
+  "%q0 from module '%1' is not present in definition of %q2"
+  "%select{ in module '%4'| provided earlier}3">, NoSFINAE;
+def note_module_odr_violation_no_possible_decls : Note<
+  "definition has no member %0">;
+def note_module_odr_violation_possible_decl : Note<
+  "declaration of %0 does not match">;
+
 }

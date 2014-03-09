@@ -331,10 +331,12 @@ ibcs2_ioctl(td, uap)
 	struct ibcs2_ioctl_args *uap;
 {
 	struct proc *p = td->td_proc;
+	cap_rights_t rights;
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0) {
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0) {
 		DPRINTF(("ibcs2_ioctl(%d): bad fd %d ", p->p_pid,
 			 uap->fd));
 		return EBADF;

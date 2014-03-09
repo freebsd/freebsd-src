@@ -2,14 +2,8 @@
  * EAP peer state machines internal structures (RFC 4137)
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_I_H
@@ -323,6 +317,7 @@ struct eap_sm {
 	void *msg_ctx;
 	void *scard_ctx;
 	void *ssl_ctx;
+	void *ssl_ctx2;
 
 	unsigned int workaround;
 
@@ -335,6 +330,9 @@ struct eap_sm {
 	struct wps_context *wps;
 
 	int prev_failure;
+
+	struct ext_password_data *ext_pw;
+	struct wpabuf *ext_pw_buf;
 };
 
 const u8 * eap_get_config_identity(struct eap_sm *sm, size_t *len);
@@ -345,6 +343,7 @@ const u8 * eap_get_config_otp(struct eap_sm *sm, size_t *len);
 void eap_clear_config_otp(struct eap_sm *sm);
 const char * eap_get_config_phase1(struct eap_sm *sm);
 const char * eap_get_config_phase2(struct eap_sm *sm);
+int eap_get_config_fragment_size(struct eap_sm *sm);
 struct eap_peer_config * eap_get_config(struct eap_sm *sm);
 void eap_set_config_blob(struct eap_sm *sm, struct wpa_config_blob *blob);
 const struct wpa_config_blob *

@@ -9,9 +9,9 @@
 
 #include "clang/Driver/Action.h"
 #include "llvm/Support/ErrorHandling.h"
-
 #include <cassert>
 using namespace clang::driver;
+using namespace llvm::opt;
 
 Action::~Action() {
   if (OwnsInputs) {

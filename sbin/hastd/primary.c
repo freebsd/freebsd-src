@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/bio.h>
 #include <sys/disk.h>
-#include <sys/refcount.h>
 #include <sys/stat.h>
 
 #include <geom/gate/g_gate.h>
@@ -65,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include "metadata.h"
 #include "proto.h"
 #include "pjdlog.h"
+#include "refcnt.h"
 #include "subr.h"
 #include "synch.h"
 
@@ -78,7 +78,7 @@ struct hio {
 	 * kernel. Each component has to decrease this counter by one
 	 * even on failure.
 	 */
-	unsigned int		 hio_countdown;
+	refcnt_t		 hio_countdown;
 	/*
 	 * Each component has a place to store its own error.
 	 * Once the request is handled by all components we can decide if the
@@ -94,6 +94,15 @@ struct hio {
 	 */
 	bool			 hio_done;
 	/*
+	 * Number of components we are still waiting before sending write
+	 * completion ack to GEOM Gate. Used for memsync.
+	 */
+	refcnt_t		 hio_writecount;
+	/*
+	 * Memsync request was acknowleged by remote.
+	 */
+	bool			 hio_memsyncacked;
+	/*
 	 * Remember replication from the time the request was initiated,
 	 * so we won't get confused when replication changes on reload.
 	 */
@@ -108,6 +117,7 @@ struct hio {
  * until some in-progress requests are freed.
  */
 static TAILQ_HEAD(, hio) hio_free_list;
+static size_t hio_free_list_size;
 static pthread_mutex_t hio_free_list_lock;
 static pthread_cond_t hio_free_list_cond;
 /*
@@ -116,20 +126,26 @@ static pthread_cond_t hio_free_list_cond;
  * responsible for managing his own send list.
  */
 static TAILQ_HEAD(, hio) *hio_send_list;
+static size_t *hio_send_list_size;
 static pthread_mutex_t *hio_send_list_lock;
 static pthread_cond_t *hio_send_list_cond;
+#define	hio_send_local_list_size	hio_send_list_size[0]
+#define	hio_send_remote_list_size	hio_send_list_size[1]
 /*
  * There is one recv list for every component, although local components don't
  * use recv lists as local requests are done synchronously.
  */
 static TAILQ_HEAD(, hio) *hio_recv_list;
+static size_t *hio_recv_list_size;
 static pthread_mutex_t *hio_recv_list_lock;
 static pthread_cond_t *hio_recv_list_cond;
+#define	hio_recv_remote_list_size	hio_recv_list_size[1]
 /*
  * Request is placed on done list by the slowest component (the one that
  * decreased hio_countdown from 1 to 0).
  */
 static TAILQ_HEAD(, hio) hio_done_list;
+static size_t hio_done_list_size;
 static pthread_mutex_t hio_done_list_lock;
 static pthread_cond_t hio_done_list_cond;
 /*
@@ -164,25 +180,21 @@ static pthread_mutex_t metadata_lock;
 	((res)->hr_remotein != NULL && (res)->hr_remoteout != NULL)
 
 #define	QUEUE_INSERT1(hio, name, ncomp)	do {				\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock[(ncomp)]);			\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list[(ncomp)]);		\
+	if (TAILQ_EMPTY(&hio_##name##_list[(ncomp)]))			\
+		cv_broadcast(&hio_##name##_list_cond[(ncomp)]);		\
 	TAILQ_INSERT_TAIL(&hio_##name##_list[(ncomp)], (hio),		\
 	    hio_next[(ncomp)]);						\
-	mtx_unlock(&hio_##name##_list_lock[ncomp]);			\
-	if (_wakeup)							\
-		cv_signal(&hio_##name##_list_cond[(ncomp)]);		\
+	hio_##name##_list_size[(ncomp)]++;				\
+	mtx_unlock(&hio_##name##_list_lock[(ncomp)]);			\
 } while (0)
 #define	QUEUE_INSERT2(hio, name)	do {				\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock);				\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	if (TAILQ_EMPTY(&hio_##name##_list))				\
+		cv_broadcast(&hio_##name##_list_cond);			\
 	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_##name##_next);\
+	hio_##name##_list_size++;					\
 	mtx_unlock(&hio_##name##_list_lock);				\
-	if (_wakeup)							\
-		cv_signal(&hio_##name##_list_cond);			\
 } while (0)
 #define	QUEUE_TAKE1(hio, name, ncomp, timeout)	do {			\
 	bool _last;							\
@@ -196,6 +208,8 @@ static pthread_mutex_t metadata_lock;
 			_last = true;					\
 	}								\
 	if (hio != NULL) {						\
+		PJDLOG_ASSERT(hio_##name##_list_size[(ncomp)] != 0);	\
+		hio_##name##_list_size[(ncomp)]--;			\
 		TAILQ_REMOVE(&hio_##name##_list[(ncomp)], (hio),	\
 		    hio_next[(ncomp)]);					\
 	}								\
@@ -207,9 +221,15 @@ static pthread_mutex_t metadata_lock;
 		cv_wait(&hio_##name##_list_cond,			\
 		    &hio_##name##_list_lock);				\
 	}								\
+	PJDLOG_ASSERT(hio_##name##_list_size != 0);			\
+	hio_##name##_list_size--;					\
 	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_##name##_next);	\
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
+
+#define ISFULLSYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_FULLSYNC)
+#define ISMEMSYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_MEMSYNC)
+#define ISASYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_ASYNC)
 
 #define	SYNCREQ(hio)		do {					\
 	(hio)->hio_ggio.gctl_unit = -1;					\
@@ -218,6 +238,9 @@ static pthread_mutex_t metadata_lock;
 #define	ISSYNCREQ(hio)		((hio)->hio_ggio.gctl_unit == -1)
 #define	SYNCREQDONE(hio)	do { (hio)->hio_ggio.gctl_unit = -2; } while (0)
 #define	ISSYNCREQDONE(hio)	((hio)->hio_ggio.gctl_unit == -2)
+
+#define ISMEMSYNCWRITE(hio)	(ISMEMSYNC(hio) &&			\
+	    (hio)->hio_ggio.gctl_cmd == BIO_WRITE && !ISSYNCREQ(hio))
 
 static struct hast_resource *gres;
 
@@ -237,6 +260,22 @@ static void *remote_recv_thread(void *arg);
 static void *ggate_send_thread(void *arg);
 static void *sync_thread(void *arg);
 static void *guard_thread(void *arg);
+
+static void
+output_status_aux(struct nv *nvout)
+{
+
+	nv_add_uint64(nvout, (uint64_t)hio_free_list_size,
+	    "idle_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_send_local_list_size,
+	    "local_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_send_remote_list_size,
+	    "send_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_recv_remote_list_size,
+	    "recv_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_done_list_size,
+	    "done_queue_size");
+}
 
 static void
 cleanup(struct hast_resource *res)
@@ -291,21 +330,28 @@ primary_exitx(int exitcode, const char *fmt, ...)
 	exit(exitcode);
 }
 
+/* Expects res->hr_amp locked, returns unlocked. */
 static int
 hast_activemap_flush(struct hast_resource *res)
 {
 	const unsigned char *buf;
 	size_t size;
+	int ret;
 
+	mtx_lock(&res->hr_amp_diskmap_lock);
 	buf = activemap_bitmap(res->hr_amp, &size);
+	mtx_unlock(&res->hr_amp_lock);
 	PJDLOG_ASSERT(buf != NULL);
 	PJDLOG_ASSERT((size % res->hr_local_sectorsize) == 0);
+	ret = 0;
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
 		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
-		return (-1);
+		res->hr_stat_activemap_write_error++;
+		ret = -1;
 	}
-	if (res->hr_metaflush == 1 && g_flush(res->hr_localfd) == -1) {
+	if (ret == 0 && res->hr_metaflush == 1 &&
+	    g_flush(res->hr_localfd) == -1) {
 		if (errno == EOPNOTSUPP) {
 			pjdlog_warning("The %s provider doesn't support flushing write cache. Disabling it.",
 			    res->hr_localpath);
@@ -313,10 +359,12 @@ hast_activemap_flush(struct hast_resource *res)
 		} else {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to flush disk cache on activemap update");
-			return (-1);
+			res->hr_stat_activemap_flush_error++;
+			ret = -1;
 		}
 	}
-	return (0);
+	mtx_unlock(&res->hr_amp_diskmap_lock);
+	return (ret);
 }
 
 static bool
@@ -346,6 +394,12 @@ init_environment(struct hast_resource *res __unused)
 		    "Unable to allocate %zu bytes of memory for send lists.",
 		    sizeof(hio_send_list[0]) * ncomps);
 	}
+	hio_send_list_size = malloc(sizeof(hio_send_list_size[0]) * ncomps);
+	if (hio_send_list_size == NULL) {
+		primary_exitx(EX_TEMPFAIL,
+		    "Unable to allocate %zu bytes of memory for send list counters.",
+		    sizeof(hio_send_list_size[0]) * ncomps);
+	}
 	hio_send_list_lock = malloc(sizeof(hio_send_list_lock[0]) * ncomps);
 	if (hio_send_list_lock == NULL) {
 		primary_exitx(EX_TEMPFAIL,
@@ -363,6 +417,12 @@ init_environment(struct hast_resource *res __unused)
 		primary_exitx(EX_TEMPFAIL,
 		    "Unable to allocate %zu bytes of memory for recv lists.",
 		    sizeof(hio_recv_list[0]) * ncomps);
+	}
+	hio_recv_list_size = malloc(sizeof(hio_recv_list_size[0]) * ncomps);
+	if (hio_recv_list_size == NULL) {
+		primary_exitx(EX_TEMPFAIL,
+		    "Unable to allocate %zu bytes of memory for recv list counters.",
+		    sizeof(hio_recv_list_size[0]) * ncomps);
 	}
 	hio_recv_list_lock = malloc(sizeof(hio_recv_list_lock[0]) * ncomps);
 	if (hio_recv_list_lock == NULL) {
@@ -384,16 +444,18 @@ init_environment(struct hast_resource *res __unused)
 	}
 
 	/*
-	 * Initialize lists, their locks and theirs condition variables.
+	 * Initialize lists, their counters, locks and condition variables.
 	 */
 	TAILQ_INIT(&hio_free_list);
 	mtx_init(&hio_free_list_lock);
 	cv_init(&hio_free_list_cond);
 	for (ii = 0; ii < HAST_NCOMPONENTS; ii++) {
 		TAILQ_INIT(&hio_send_list[ii]);
+		hio_send_list_size[ii] = 0;
 		mtx_init(&hio_send_list_lock[ii]);
 		cv_init(&hio_send_list_cond[ii]);
 		TAILQ_INIT(&hio_recv_list[ii]);
+		hio_recv_list_size[ii] = 0;
 		mtx_init(&hio_recv_list_lock[ii]);
 		cv_init(&hio_recv_list_cond[ii]);
 		rw_init(&hio_remote_lock[ii]);
@@ -413,7 +475,7 @@ init_environment(struct hast_resource *res __unused)
 			    "Unable to allocate %zu bytes of memory for hio request.",
 			    sizeof(*hio));
 		}
-		hio->hio_countdown = 0;
+		refcnt_init(&hio->hio_countdown, 0);
 		hio->hio_errors = malloc(sizeof(hio->hio_errors[0]) * ncomps);
 		if (hio->hio_errors == NULL) {
 			primary_exitx(EX_TEMPFAIL,
@@ -436,6 +498,7 @@ init_environment(struct hast_resource *res __unused)
 		hio->hio_ggio.gctl_length = MAXPHYS;
 		hio->hio_ggio.gctl_error = 0;
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_free_next);
+		hio_free_list_size++;
 	}
 }
 
@@ -543,7 +606,7 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 
 	return (0);
 }
- 
+
 /*
  * Function instructs GEOM_GATE to handle reads directly from within the kernel.
  */
@@ -577,6 +640,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	int32_t extentsize;
 	int64_t datasize;
 	uint32_t mapsize;
+	uint8_t version;
 	size_t size;
 	int error;
 
@@ -597,6 +661,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	 */
 	nvout = nv_alloc();
 	nv_add_string(nvout, res->hr_name, "resource");
+	nv_add_uint8(nvout, HAST_PROTO_VERSION, "version");
 	if (nv_error(nvout) != 0) {
 		pjdlog_common(LOG_WARNING, 0, nv_error(nvout),
 		    "Unable to allocate header for connection with %s",
@@ -626,6 +691,20 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		nv_free(nvin);
 		goto close;
 	}
+	version = nv_get_uint8(nvin, "version");
+	if (version == 0) {
+		/*
+		 * If no version is sent, it means this is protocol version 1.
+		 */
+		version = 1;
+	}
+	if (version > HAST_PROTO_VERSION) {
+		pjdlog_warning("Invalid version received (%hhu).", version);
+		nv_free(nvin);
+		goto close;
+	}
+	res->hr_version = version;
+	pjdlog_debug(1, "Negotiated protocol version %d.", res->hr_version);
 	token = nv_get_uint8_array(nvin, &size, "token");
 	if (token == NULL) {
 		pjdlog_warning("Handshake header from %s has no 'token' field.",
@@ -756,6 +835,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 			free(map);
 			goto close;
 		}
+		mtx_lock(&res->hr_amp_lock);
 		/*
 		 * Merge local and remote bitmaps.
 		 */
@@ -776,6 +856,16 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 #endif
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
+	if (res->hr_original_replication == HAST_REPLICATION_MEMSYNC &&
+	    res->hr_version < 2) {
+		pjdlog_warning("The 'memsync' replication mode is not supported by the remote node, falling back to 'fullsync' mode.");
+		res->hr_replication = HAST_REPLICATION_FULLSYNC;
+	} else if (res->hr_replication != res->hr_original_replication) {
+		/*
+		 * This is in case hastd disconnected and was upgraded.
+		 */
+		res->hr_replication = res->hr_original_replication;
+	}
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
 		*outp = out;
@@ -927,6 +1017,7 @@ hastd_primary(struct hast_resource *res)
 	}
 
 	gres = res;
+	res->output_status_aux = output_status_aux;
 	mode = pjdlog_mode_get();
 	debuglevel = pjdlog_debug_get();
 
@@ -1009,7 +1100,8 @@ hastd_primary(struct hast_resource *res)
 }
 
 static void
-reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio, const char *fmt, ...)
+reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio,
+    const char *fmt, ...)
 {
 	char msg[1024];
 	va_list ap;
@@ -1020,21 +1112,18 @@ reqlog(int loglevel, int debuglevel, struct g_gate_ctl_io *ggio, const char *fmt
 	switch (ggio->gctl_cmd) {
 	case BIO_READ:
 		(void)snprlcat(msg, sizeof(msg), "READ(%ju, %ju).",
-		    (uintmax_t)ggio->gctl_offset,
-		    (uintmax_t)ggio->gctl_length);
+		    (uintmax_t)ggio->gctl_offset, (uintmax_t)ggio->gctl_length);
 		break;
 	case BIO_DELETE:
 		(void)snprlcat(msg, sizeof(msg), "DELETE(%ju, %ju).",
-		    (uintmax_t)ggio->gctl_offset,
-		    (uintmax_t)ggio->gctl_length);
+		    (uintmax_t)ggio->gctl_offset, (uintmax_t)ggio->gctl_length);
 		break;
 	case BIO_FLUSH:
 		(void)snprlcat(msg, sizeof(msg), "FLUSH.");
 		break;
 	case BIO_WRITE:
 		(void)snprlcat(msg, sizeof(msg), "WRITE(%ju, %ju).",
-		    (uintmax_t)ggio->gctl_offset,
-		    (uintmax_t)ggio->gctl_length);
+		    (uintmax_t)ggio->gctl_offset, (uintmax_t)ggio->gctl_length);
 		break;
 	default:
 		(void)snprlcat(msg, sizeof(msg), "UNKNOWN(%u).",
@@ -1262,8 +1351,13 @@ ggate_recv_thread(void *arg)
 			    ggio->gctl_offset, ggio->gctl_length)) {
 				res->hr_stat_activemap_update++;
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
+			if (ISMEMSYNC(hio)) {
+				hio->hio_memsyncacked = false;
+				refcnt_init(&hio->hio_writecount, ncomps);
+			}
 			break;
 		case BIO_DELETE:
 			res->hr_stat_delete++;
@@ -1274,8 +1368,8 @@ ggate_recv_thread(void *arg)
 		}
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Moving request to the send queues.", hio);
-		refcount_init(&hio->hio_countdown, ncomps);
-		for (ii = ncomp; ii < ncomp + ncomps; ii++)
+		refcnt_init(&hio->hio_countdown, ncomps);
+		for (ii = ncomp; ii < ncomps; ii++)
 			QUEUE_INSERT1(hio, send, ii);
 	}
 	/* NOTREACHED */
@@ -1345,9 +1439,7 @@ local_send_thread(void *arg)
 				    ret, (intmax_t)ggio->gctl_length);
 			} else {
 				hio->hio_errors[ncomp] = 0;
-				if (hio->hio_replication ==
-				    HAST_REPLICATION_ASYNC &&
-				    !ISSYNCREQ(hio)) {
+				if (ISASYNC(hio)) {
 					ggio->gctl_error = 0;
 					write_complete(res, hio);
 				}
@@ -1385,7 +1477,12 @@ local_send_thread(void *arg)
 			}
 			break;
 		}
-		if (!refcount_release(&hio->hio_countdown))
+		if (ISMEMSYNCWRITE(hio)) {
+			if (refcnt_release(&hio->hio_writecount) == 0) {
+				write_complete(res, hio);
+			}
+		}
+		if (refcnt_release(&hio->hio_countdown) > 0)
 			continue;
 		if (ISSYNCREQ(hio)) {
 			mtx_lock(&sync_lock);
@@ -1508,6 +1605,8 @@ remote_send_thread(void *arg)
 		nv_add_uint64(nv, (uint64_t)ggio->gctl_seq, "seq");
 		nv_add_uint64(nv, offset, "offset");
 		nv_add_uint64(nv, length, "length");
+		if (ISMEMSYNCWRITE(hio))
+			nv_add_uint8(nv, 1, "memsync");
 		if (nv_error(nv) != 0) {
 			hio->hio_errors[ncomp] = nv_error(nv);
 			pjdlog_debug(2,
@@ -1539,6 +1638,7 @@ remote_send_thread(void *arg)
 		mtx_lock(&hio_recv_list_lock[ncomp]);
 		wakeup = TAILQ_EMPTY(&hio_recv_list[ncomp]);
 		TAILQ_INSERT_TAIL(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
+		hio_recv_list_size[ncomp]++;
 		mtx_unlock(&hio_recv_list_lock[ncomp]);
 		if (hast_proto_send(res, res->hr_remoteout, nv, data,
 		    data != NULL ? length : 0) == -1) {
@@ -1550,17 +1650,9 @@ remote_send_thread(void *arg)
 			    "Unable to send request (%s): ",
 			    strerror(hio->hio_errors[ncomp]));
 			remote_close(res, ncomp);
-			/*
-			 * Take request back from the receive queue and move
-			 * it immediately to the done queue.
-			 */
-			mtx_lock(&hio_recv_list_lock[ncomp]);
-			TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
-			    hio_next[ncomp]);
-			mtx_unlock(&hio_recv_list_lock[ncomp]);
-			goto done_queue;
+		} else {
+			rw_unlock(&hio_remote_lock[ncomp]);
 		}
-		rw_unlock(&hio_remote_lock[ncomp]);
 		nv_free(nv);
 		if (wakeup)
 			cv_signal(&hio_recv_list_cond[ncomp]);
@@ -1568,7 +1660,7 @@ remote_send_thread(void *arg)
 done_queue:
 		nv_free(nv);
 		if (ISSYNCREQ(hio)) {
-			if (!refcount_release(&hio->hio_countdown))
+			if (refcnt_release(&hio->hio_countdown) > 0)
 				continue;
 			mtx_lock(&sync_lock);
 			SYNCREQDONE(hio);
@@ -1581,10 +1673,17 @@ done_queue:
 			if (activemap_need_sync(res->hr_amp, ggio->gctl_offset,
 			    ggio->gctl_length)) {
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
+			if (ISMEMSYNCWRITE(hio)) {
+				if (refcnt_release(&hio->hio_writecount) == 0) {
+					if (hio->hio_errors[0] == 0)
+						write_complete(res, hio);
+				}
+			}
 		}
-		if (!refcount_release(&hio->hio_countdown))
+		if (refcnt_release(&hio->hio_countdown) > 0)
 			continue;
 		pjdlog_debug(2,
 		    "remote_send: (%p) Moving request to the done queue.",
@@ -1608,6 +1707,7 @@ remote_recv_thread(void *arg)
 	struct nv *nv;
 	unsigned int ncomp;
 	uint64_t seq;
+	bool memsyncack;
 	int error;
 
 	/* Remote component is 1 for now. */
@@ -1623,6 +1723,8 @@ remote_recv_thread(void *arg)
 		}
 		mtx_unlock(&hio_recv_list_lock[ncomp]);
 
+		memsyncack = false;
+
 		rw_rlock(&hio_remote_lock[ncomp]);
 		if (!ISCONNECTED(res, ncomp)) {
 			rw_unlock(&hio_remote_lock[ncomp]);
@@ -1635,7 +1737,9 @@ remote_recv_thread(void *arg)
 			PJDLOG_ASSERT(hio != NULL);
 			TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
 			    hio_next[ncomp]);
+			hio_recv_list_size[ncomp]--;
 			mtx_unlock(&hio_recv_list_lock[ncomp]);
+			hio->hio_errors[ncomp] = ENOTCONN;
 			goto done_queue;
 		}
 		if (hast_proto_recv_hdr(res->hr_remotein, &nv) == -1) {
@@ -1652,11 +1756,13 @@ remote_recv_thread(void *arg)
 			nv_free(nv);
 			continue;
 		}
+		memsyncack = nv_exists(nv, "received");
 		mtx_lock(&hio_recv_list_lock[ncomp]);
 		TAILQ_FOREACH(hio, &hio_recv_list[ncomp], hio_next[ncomp]) {
 			if (hio->hio_ggio.gctl_seq == seq) {
 				TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
 				    hio_next[ncomp]);
+				hio_recv_list_size[ncomp]--;
 				break;
 			}
 		}
@@ -1707,7 +1813,33 @@ remote_recv_thread(void *arg)
 		hio->hio_errors[ncomp] = 0;
 		nv_free(nv);
 done_queue:
-		if (!refcount_release(&hio->hio_countdown))
+		if (ISMEMSYNCWRITE(hio)) {
+			if (!hio->hio_memsyncacked) {
+				PJDLOG_ASSERT(memsyncack ||
+				    hio->hio_errors[ncomp] != 0);
+				/* Remote ack arrived. */
+				if (refcnt_release(&hio->hio_writecount) == 0) {
+					if (hio->hio_errors[0] == 0)
+						write_complete(res, hio);
+				}
+				hio->hio_memsyncacked = true;
+				if (hio->hio_errors[ncomp] == 0) {
+					pjdlog_debug(2,
+					    "remote_recv: (%p) Moving request "
+					    "back to the recv queue.", hio);
+					mtx_lock(&hio_recv_list_lock[ncomp]);
+					TAILQ_INSERT_TAIL(&hio_recv_list[ncomp],
+					    hio, hio_next[ncomp]);
+					hio_recv_list_size[ncomp]++;
+					mtx_unlock(&hio_recv_list_lock[ncomp]);
+					continue;
+				}
+			} else {
+				PJDLOG_ASSERT(!memsyncack);
+				/* Remote final reply arrived. */
+			}
+		}
+		if (refcnt_release(&hio->hio_countdown) > 0)
 			continue;
 		if (ISSYNCREQ(hio)) {
 			mtx_lock(&sync_lock);
@@ -1771,8 +1903,9 @@ ggate_send_thread(void *arg)
 			    ggio->gctl_offset, ggio->gctl_length)) {
 				res->hr_stat_activemap_update++;
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
 		}
 		if (ggio->gctl_cmd == BIO_WRITE) {
 			/*
@@ -1790,6 +1923,22 @@ ggate_send_thread(void *arg)
 			if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) == -1) {
 				primary_exit(EX_OSERR,
 				    "G_GATE_CMD_DONE failed");
+			}
+		}
+		if (hio->hio_errors[0]) {
+			switch (ggio->gctl_cmd) {
+			case BIO_READ:
+				res->hr_stat_read_error++;
+				break;
+			case BIO_WRITE:
+				res->hr_stat_write_error++;
+				break;
+			case BIO_DELETE:
+				res->hr_stat_delete_error++;
+				break;
+			case BIO_FLUSH:
+				res->hr_stat_flush_error++;
+				break;
 			}
 		}
 		pjdlog_debug(2,
@@ -1852,8 +2001,11 @@ sync_thread(void *arg __unused)
 			 */
 			if (activemap_extent_complete(res->hr_amp, syncext))
 				(void)hast_activemap_flush(res);
+			else
+				mtx_unlock(&res->hr_amp_lock);
+		} else {
+			mtx_unlock(&res->hr_amp_lock);
 		}
-		mtx_unlock(&res->hr_amp_lock);
 		if (dorewind) {
 			dorewind = false;
 			if (offset == -1)
@@ -1977,7 +2129,7 @@ sync_thread(void *arg __unused)
 			ncomp = 1;
 		}
 		mtx_unlock(&metadata_lock);
-		refcount_init(&hio->hio_countdown, 1);
+		refcnt_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
 
 		/*
@@ -2027,7 +2179,7 @@ sync_thread(void *arg __unused)
 
 		pjdlog_debug(2, "sync: (%p) Moving request to the send queue.",
 		    hio);
-		refcount_init(&hio->hio_countdown, 1);
+		refcnt_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
 
 		/*

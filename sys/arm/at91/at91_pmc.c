@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -42,13 +44,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
 
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 static struct at91_pmc_softc {
 	bus_space_tag_t		sc_st;
@@ -227,23 +234,18 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	struct at91_pmc_softc *sc = pmc_softc;
 	uint32_t value;
 
-	if (on) {
-		on = PMC_IER_LOCKB;
-		value = pllb_init;
-	} else
-		value = 0;
+	value = on ? pllb_init : 0;
 
-	/* Workaround RM9200 Errata #26 */
-	if (at91_is_rm92() &&
-	   ((value ^ RD4(sc, CKGR_PLLBR)) & 0x03f0ff) != 0) {
-		WR4(sc, CKGR_PLLBR, value ^ 1);
-		while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
+	/*
+	 * Only write to the register if the value is changing.  Besides being
+	 * good common sense, this works around RM9200 Errata #26 (CKGR_PLL[AB]R
+	 * must not be written with the same value currently in the register).
+	 */
+	if (RD4(sc, CKGR_PLLBR) != value) {
+		WR4(sc, CKGR_PLLBR, value);
+		while (on && (RD4(sc, PMC_SR) & PMC_IER_LOCKB) != PMC_IER_LOCKB)
 			continue;
 	}
-
-	WR4(sc, CKGR_PLLBR, value);
-	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
-		continue;
 }
 
 static void
@@ -532,6 +534,8 @@ at91_pmc_init_clock(void)
 	uint32_t mckr;
 	uint32_t mdiv;
 
+	soc_info.soc_data->soc_clock_init();
+
 	main_clock = at91_pmc_sense_main_clock();
 
 	if (at91_is_sam9() || at91_is_sam9xe()) {
@@ -577,7 +581,6 @@ at91_pmc_init_clock(void)
 		WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
 	} else
 		WR4(sc, PMC_SCDR, PMC_SCER_UHP_SAM9 | PMC_SCER_UDP_SAM9);
-	WR4(sc, CKGR_PLLBR, 0);
 
 	/*
 	 * MCK and PCU derive from one of the primary clocks.  Initialize
@@ -657,7 +660,10 @@ errout:
 static int
 at91_pmc_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-pmc"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "PMC");
 	return (0);
 }
@@ -702,5 +708,10 @@ static driver_t at91_pmc_driver = {
 };
 static devclass_t at91_pmc_devclass;
 
+#ifdef FDT
+DRIVER_MODULE(at91_pmc, simplebus, at91_pmc_driver, at91_pmc_devclass, NULL,
+    NULL);
+#else
 DRIVER_MODULE(at91_pmc, atmelarm, at91_pmc_driver, at91_pmc_devclass, NULL,
     NULL);
+#endif

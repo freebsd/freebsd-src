@@ -93,6 +93,8 @@ static int g_part_ebr_setunset(struct g_part_table *, struct g_part_entry *,
 static const char *g_part_ebr_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ebr_write(struct g_part_table *, struct g_consumer *);
+static int g_part_ebr_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_ebr_add),
@@ -108,6 +110,7 @@ static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_precheck,	g_part_ebr_precheck),
 	KOBJMETHOD(g_part_probe,	g_part_ebr_probe),
 	KOBJMETHOD(g_part_read,		g_part_ebr_read),
+	KOBJMETHOD(g_part_resize,	g_part_ebr_resize),
 	KOBJMETHOD(g_part_setunset,	g_part_ebr_setunset),
 	KOBJMETHOD(g_part_type,		g_part_ebr_type),
 	KOBJMETHOD(g_part_write,	g_part_ebr_write),
@@ -377,6 +380,20 @@ g_part_ebr_modify(struct g_part_table *basetable,
 	return (0);
 }
 
+static int
+g_part_ebr_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_provider *pp;
+
+	if (baseentry != NULL)
+		return (EOPNOTSUPP);
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+	basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+	    UINT32_MAX) - 1;
+	return (0);
+}
+
 static const char *
 g_part_ebr_name(struct g_part_table *table, struct g_part_entry *entry,
     char *buf, size_t bufsz)
@@ -540,6 +557,8 @@ g_part_ebr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_ebr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 

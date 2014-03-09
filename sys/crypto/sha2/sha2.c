@@ -1,4 +1,4 @@
-/*	$KAME: sha2.c,v 1.8 2001/11/08 01:07:52 itojun Exp $	*/
+/*	$KAME: sha2.c,v 1.11 2004/06/02 09:52:45 itojun Exp $	*/
 
 /*
  * sha2.c
@@ -32,6 +32,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
@@ -67,8 +68,10 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#if defined(__bsdi__) || defined(__FreeBSD__)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 #define assert(x)
+#else
+#include <assert.h>
 #endif
 
 
@@ -1049,4 +1052,3 @@ char* SHA384_Data(const sha2_byte* data, size_t len, char digest[SHA384_DIGEST_S
 	SHA384_Update(&context, data, len);
 	return SHA384_End(&context, digest);
 }
-

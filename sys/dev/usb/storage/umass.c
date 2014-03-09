@@ -698,7 +698,8 @@ static device_method_t umass_methods[] = {
 	DEVMETHOD(device_probe, umass_probe),
 	DEVMETHOD(device_attach, umass_attach),
 	DEVMETHOD(device_detach, umass_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t umass_driver = {
@@ -1320,10 +1321,12 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 			sc->cbw.bCDBLength = sc->sc_transfer.cmd_len;
 
+			/* copy SCSI command data */
 			memcpy(sc->cbw.CBWCDB, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
-			memset(sc->sc_transfer.cmd_data +
+			/* clear remaining command area */
+			memset(sc->cbw.CBWCDB +
 			    sc->sc_transfer.cmd_len, 0,
 			    sizeof(sc->cbw.CBWCDB) -
 			    sc->sc_transfer.cmd_len);
@@ -2116,10 +2119,9 @@ umass_cam_attach(struct umass_softc *sc)
 #ifndef USB_DEBUG
 	if (bootverbose)
 #endif
-		printf("%s:%d:%d:%d: Attached to scbus%d\n",
+		printf("%s:%d:%d: Attached to scbus%d\n",
 		    sc->sc_name, cam_sim_path(sc->sc_sim),
-		    sc->sc_unit, CAM_LUN_WILDCARD,
-		    cam_sim_path(sc->sc_sim));
+		    sc->sc_unit, cam_sim_path(sc->sc_sim));
 }
 
 /* umass_cam_detach
@@ -2170,19 +2172,19 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 				cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_bytes);
 			}
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SCSI_IO: "
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SCSI_IO: "
 			    "cmd: 0x%02x, flags: 0x%02x, "
 			    "%db cmd/%db data/%db sense\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun, cmd[0],
+			    (uintmax_t)ccb->ccb_h.target_lun, cmd[0],
 			    ccb->ccb_h.flags & CAM_DIR_MASK, ccb->csio.cdb_len,
 			    ccb->csio.dxfer_len, ccb->csio.sense_len);
 
 			if (sc->sc_transfer.ccb) {
-				DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SCSI_IO: "
+				DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SCSI_IO: "
 				    "I/O in progress, deferring\n",
 				    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-				    ccb->ccb_h.target_lun);
+				    (uintmax_t)ccb->ccb_h.target_lun);
 				ccb->ccb_h.status = CAM_SCSI_BUSY;
 				xpt_done(ccb);
 				goto done;
@@ -2251,8 +2253,11 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 							/*ascq*/ 0x00,
 							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
-						    CAM_AUTOSNS_VALID;
+						ccb->ccb_h.status =
+						    CAM_SCSI_STATUS_ERROR |
+						    CAM_AUTOSNS_VALID |
+						    CAM_DEV_QFRZN;
+						xpt_freeze_devq(ccb->ccb_h.path, 1);
 						xpt_done(ccb);
 						goto done;
 					}
@@ -2297,9 +2302,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		{
 			struct ccb_pathinq *cpi = &ccb->cpi;
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_PATH_INQ:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_PATH_INQ:.\n",
 			    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			/* host specific information */
 			cpi->version_num = 1;
@@ -2352,9 +2357,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_RESET_DEV:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_RESET_DEV:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_RESET_DEV:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			umass_reset(sc);
 
@@ -2366,9 +2371,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		{
 			struct ccb_trans_settings *cts = &ccb->cts;
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_GET_TRAN_SETTINGS:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_GET_TRAN_SETTINGS:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
@@ -2382,9 +2387,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_SET_TRAN_SETTINGS:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SET_TRAN_SETTINGS:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SET_TRAN_SETTINGS:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			xpt_done(ccb);
@@ -2398,19 +2403,19 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_NOOP:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_NOOP:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_NOOP:.\n",
 			    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
 			break;
 		}
 	default:
-		DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:func_code 0x%04x: "
+		DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:func_code 0x%04x: "
 		    "Not implemented\n",
 		    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->ccb_h.func_code);
+		    (uintmax_t)ccb->ccb_h.target_lun, ccb->ccb_h.func_code);
 
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		xpt_done(ccb);
@@ -2512,7 +2517,8 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		 * recovered. We return an error to CAM and let CAM
 		 * retry the command if necessary.
 		 */
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		break;
 	}
@@ -2575,8 +2581,9 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			 * usual.
 			 */
 
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
+			    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 
 #if 0
@@ -2587,18 +2594,23 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 			/* the rest of the command was filled in at attach */
 
-			if (umass_std_transform(sc, ccb,
+			if ((sc->sc_transform)(sc,
 			    &sc->cam_scsi_test_unit_ready.opcode,
-			    sizeof(sc->cam_scsi_test_unit_ready))) {
+			    sizeof(sc->cam_scsi_test_unit_ready)) == 1) {
 				umass_command_start(sc, DIR_NONE, NULL, 0,
 				    ccb->ccb_h.timeout,
 				    &umass_cam_quirk_cb, ccb);
+				break;
 			}
-			break;
 		} else {
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
-			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+			if (key >= 0) {
+				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
+				    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
+				ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			} else
+				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL
+				    | CAM_DEV_QFRZN;
 		}
 		xpt_done(ccb);
 		break;
@@ -2606,15 +2618,16 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);
-		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 	}
 }
 
 /*
  * This completion code just handles the fact that we sent a test-unit-ready
- * after having previously failed a READ CAPACITY with CHECK_COND.  Even
- * though this command succeeded, we have to tell CAM to retry.
+ * after having previously failed a READ CAPACITY with CHECK_COND.  The CCB
+ * status for CAM is already set earlier.
  */
 static void
 umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
@@ -2623,9 +2636,6 @@ umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	DPRINTF(sc, UDMASS_SCSI, "Test unit ready "
 	    "returned status %d\n", status);
 
-	ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-	    | CAM_AUTOSNS_VALID;
-	ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 	xpt_done(ccb);
 }
 
@@ -2914,7 +2924,8 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 		xpt_done(ccb);
 		return (0);
 	} else if (retval == 0) {
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		return (0);
 	}

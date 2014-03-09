@@ -7,6 +7,7 @@
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
+	bhyve \
 	bootforth \
 	csh \
 	cvsup \
@@ -42,6 +43,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	FreeBSD_version/Makefile \
 	FreeBSD_version/README \
 	IPv6/USAGE \
+	bhyve/vmrun.sh \
 	bootforth/README \
 	bootforth/boot.4th \
 	bootforth/frames.4th \
@@ -52,9 +54,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	csh/dot.cshrc \
 	cvsup/README \
 	cvsup/cvs-supfile \
-	cvsup/ports-supfile \
-	cvsup/refuse \
-	cvsup/refuse.README \
 	cvsup/stable-supfile \
 	cvsup/standard-supfile \
 	diskless/ME \
@@ -108,8 +107,8 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/syscall/test/call.c \
 	libusb20/Makefile \
 	libusb20/README \
-	libusb20/aux.c \
-	libusb20/aux.h \
+	libusb20/util.c \
+	libusb20/util.h \
 	libusb20/bulk.c \
 	libusb20/control.c \
 	libvgl/Makefile \
@@ -241,15 +240,17 @@ etc-examples:
 .endif
 
 .if ${SHARED} != "symlinks"
-.if ${MK_ATF} != "no"
-SUBDIR+=atf
-.endif
+SUBDIR=	smbfs
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=ipfilter
 .endif
 .if ${MK_PF} != "no"
 SUBDIR+=pf
 .endif
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=tests
 .endif
 
 .include <bsd.subdir.mk>

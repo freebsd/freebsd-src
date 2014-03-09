@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_TOKEN_H
 #define LLVM_CLANG_TOKEN_H
 
+#include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TokenKinds.h"
-#include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/OperatorKinds.h"
 #include <cstdlib>
 
 namespace clang {
@@ -71,12 +71,16 @@ public:
 
   // Various flags set per token:
   enum TokenFlags {
-    StartOfLine   = 0x01,  // At start of line or only after whitespace.
-    LeadingSpace  = 0x02,  // Whitespace exists before this token.
+    StartOfLine   = 0x01,  // At start of line or only after whitespace
+                           // (considering the line after macro expansion).
+    LeadingSpace  = 0x02,  // Whitespace exists before this token (considering 
+                           // whitespace after macro expansion).
     DisableExpand = 0x04,  // This identifier may never be macro expanded.
-    NeedsCleaning = 0x08,   // Contained an escaped newline or trigraph.
+    NeedsCleaning = 0x08,  // Contained an escaped newline or trigraph.
     LeadingEmptyMacro = 0x10, // Empty macro exists before this token.
-    HasUDSuffix = 0x20     // This string or character literal has a ud-suffix.
+    HasUDSuffix = 0x20,    // This string or character literal has a ud-suffix.
+    HasUCN = 0x40,         // This identifier contains a UCN.
+    IgnoredComma = 0x80    // This comma is not a macro argument separator (MS).
   };
 
   tok::TokenKind getKind() const { return (tok::TokenKind)Kind; }
@@ -257,6 +261,9 @@ public:
   /// \brief Return true if this token is a string or character literal which
   /// has a ud-suffix.
   bool hasUDSuffix() const { return (Flags & HasUDSuffix) ? true : false; }
+
+  /// Returns true if this token contains a universal character name.
+  bool hasUCN() const { return (Flags & HasUCN) ? true : false; }
 };
 
 /// \brief Information about the conditional stack (\#if directives)

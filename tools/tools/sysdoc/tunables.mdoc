@@ -1093,6 +1093,13 @@ line programs.
 kern.quantum
 
 ---
+kern.random.adaptors
+str
+
+Displays registered PRNG adaptors.
+This is a read-only variable.
+
+---
 kern.random.sys.burst
 
 ---
@@ -2257,9 +2264,6 @@ int
 
 Displays the number of swap devices available
 to the system.  This is a read-only variable.
-
----
-vm.pageout_algorithm
 
 ---
 vm.pageout_full_stats_interval

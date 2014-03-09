@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd December 25, 2013
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -62,16 +62,12 @@ see
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
-(created by
-.Xr sysinstall 8 )
 .It Pa /compat/
 normally a link to
 .Pa /usr/compat .
 If not, then the
 .Pa /usr/compat
 comments apply
-(created by
-.Xr sysinstall 8 )
 .It Pa /dev/
 device special files managed by
 .Xr devfs 5
@@ -84,9 +80,6 @@ see
 .It Pa net/
 network devices
 .El
-.It Pa /dist/
-mount point used by
-.Xr sysinstall 8
 .It Pa /etc/
 system configuration files and scripts
 .Pp
@@ -111,10 +104,6 @@ Sendmail control files
 mtree configuration files;
 see
 .Xr mtree 8
-.It Pa namedb/
-named configuration files;
-see
-.Xr named 8
 .It Pa pam.d/
 configuration files for the Pluggable Authentication Modules (PAM)
 library
@@ -190,8 +179,6 @@ common utilities, programming tools, and applications
 .It Pa compat/
 files needed to support binary compatibility with other operating systems,
 such as Linux
-(created by
-.Xr sysinstall 8 )
 .It Pa games/
 useful and semi-frivolous programs
 .It Pa include/
@@ -396,6 +383,9 @@ a.out backward compatibility libraries
 DTrace library scripts
 .It Pa engines/
 OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
+.It Pa private/
+Private system libraries not for use by third-party programs.
+ABI and API stability are not guaranteed.
 .El
 .Pp
 .It Pa libdata/
@@ -443,15 +433,31 @@ local executables, libraries, etc.
 Also used as the default destination for the
 .Fx
 ports framework.
-Within local/, the general layout sketched out by
+Within
+.Pa local/ ,
+the general layout sketched out by
 .Nm
-for /usr
+for
+.Pa /usr
 should be used.
-Exceptions are the man directory (directly under local/
-rather than under local/share/), ports documentation (in share/doc/<port>/),
-and /usr/local/etc (mimics /etc).
+Exceptions are the
+.Pa man
+directory
+.Po directly under
+.Pa local/
+rather than under
+.Pa local/share/ Ns Pc ,
+ports documentation
+.Po in
+.Pa share/doc/<port>/ Ns Pc ,
+and
+.Pa /usr/local/etc
+.Po mimics
+.Pa /etc Ns Pc .
 .It Pa obj/
-architecture-specific target tree produced by building the /usr/src tree
+architecture-specific target tree produced by building the
+.Pa /usr/src
+tree
 .It Pa ports/
 The
 .Fx
@@ -540,6 +546,16 @@ ASCII text files used by various games
 device description file for device name
 .It Pa info/
 GNU Info hypertext system
+.It Pa keys/
+known trusted and revoked keys.
+.Bl -tag -width ".Pa keys/pkg/" -compact
+.It Pa keys/pkg/
+fingerprints for
+.Xr pkg 7
+and
+.Xr pkg 8
+.El
+.Pp
 .It Pa locale/
 localization files;
 see
@@ -642,39 +658,57 @@ source code for contributed software
 .It Pa crypto/
 source code for contributed cryptography software
 .It Pa etc/
-source code for files in /etc
+source code for files in
+.Pa /etc
 .It Pa games/
-source code for files in /usr/games
+source code for files in
+.Pa /usr/games
 .It Pa gnu/
 Utilities covered by the GNU General Public License
 .It Pa include/
-source code for files in /usr/include
+source code for files in
+.Pa /usr/include
 .It Pa kerberos5/
 build infrastructure for kerberos version 5
 .It Pa lib/
-source code for files in /usr/lib
+source code for files in
+.Pa /usr/lib
 .It Pa libexec/
-source code for files in /usr/libexec
+source code for files in
+.Pa /usr/libexec
 .It Pa release/
 files required to produce a
 .Fx
 release
 .It Pa sbin/
-source code for files in /sbin
+source code for files in
+.Pa /sbin
 .It Pa secure/
-build directory for files in /usr/src/crypto
+build directory for files in
+.Pa /usr/src/crypto
 .It Pa share/
-source for files in /usr/share
+source for files in
+.Pa /usr/share
 .It Pa sys/
 kernel source code
 .It Pa tools/
 tools used for maintenance and testing of
 .Fx
 .It Pa usr.bin/
-source code for files in /usr/bin
+source code for files in
+.Pa /usr/bin
 .It Pa usr.sbin/
-source code for files in /usr/sbin
+source code for files in
+.Pa /usr/sbin
 .El
+.Pp
+.It Pa tests/
+The
+.Fx
+test suite.
+See
+.Xr tests 7
+for more details.
 .El
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
@@ -703,6 +737,14 @@ directory containing output spool files
 .Pp
 .It Pa backups/
 miscellaneous backup files
+.It Pa cache/
+miscellaneous cached files
+.Bl -tag -width ".Pa pkg/" -compact
+.It Pa pkg/
+cached packages for
+.Xr pkg 8
+.El
+.Pp
 .It Pa crash/
 default directory to store kernel crash dumps; see
 .Xr crash 8
@@ -763,11 +805,6 @@ system information files describing various info about
 system since it was booted
 .Pp
 .Bl -tag -width Fl -compact
-.It Pa named/
-writable by the
-.Dq bind
-user; see
-.Xr named 8
 .It Pa ppp/
 writable by the
 .Dq network

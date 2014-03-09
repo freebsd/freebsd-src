@@ -14,12 +14,11 @@
 
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
-#include "llvm/ADT/FoldingSet.h"
+#include "clang/Basic/CharInfo.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <cctype>
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 
 using namespace clang;
@@ -65,7 +64,7 @@ namespace {
   };
 }
 
-IdentifierIterator *IdentifierInfoLookup::getIdentifiers() const {
+IdentifierIterator *IdentifierInfoLookup::getIdentifiers() {
   return new EmptyLookupIterator();
 }
 
@@ -82,7 +81,7 @@ IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
       
 
   // Add the '_experimental_modules_import' contextual keyword.
-  get("__experimental_modules_import").setModulesImport(true);
+  get("import").setModulesImport(true);
 }
 
 //===----------------------------------------------------------------------===//
@@ -94,7 +93,7 @@ namespace {
   enum {
     KEYC99 = 0x1,
     KEYCXX = 0x2,
-    KEYCXX0X = 0x4,
+    KEYCXX11 = 0x4,
     KEYGNU = 0x8,
     KEYMS = 0x10,
     BOOLSUPPORT = 0x20,
@@ -124,7 +123,7 @@ static void AddKeyword(StringRef Keyword,
   unsigned AddResult = 0;
   if (Flags == KEYALL) AddResult = 2;
   else if (LangOpts.CPlusPlus && (Flags & KEYCXX)) AddResult = 2;
-  else if (LangOpts.CPlusPlus0x && (Flags & KEYCXX0X)) AddResult = 2;
+  else if (LangOpts.CPlusPlus11 && (Flags & KEYCXX11)) AddResult = 2;
   else if (LangOpts.C99 && (Flags & KEYC99)) AddResult = 2;
   else if (LangOpts.GNUKeywords && (Flags & KEYGNU)) AddResult = 1;
   else if (LangOpts.MicrosoftExt && (Flags & KEYMS)) AddResult = 1;
@@ -138,7 +137,7 @@ static void AddKeyword(StringRef Keyword,
   // We treat bridge casts as objective-C keywords so we can warn on them
   // in non-arc mode.
   else if (LangOpts.ObjC2 && (Flags & KEYARC)) AddResult = 2;
-  else if (LangOpts.CPlusPlus && (Flags & KEYCXX0X)) AddResult = 3;
+  else if (LangOpts.CPlusPlus && (Flags & KEYCXX11)) AddResult = 3;
 
   // Don't add this keyword under MicrosoftMode.
   if (LangOpts.MicrosoftMode && (Flags & KEYNOMS))
@@ -404,9 +403,8 @@ std::string Selector::getAsString() const {
 /// given "word", which is assumed to end in a lowercase letter.
 static bool startsWithWord(StringRef name, StringRef word) {
   if (name.size() < word.size()) return false;
-  return ((name.size() == word.size() ||
-           !islower(name[word.size()]))
-          && name.startswith(word));
+  return ((name.size() == word.size() || !isLowercase(name[word.size()])) &&
+          name.startswith(word));
 }
 
 ObjCMethodFamily Selector::getMethodFamilyImpl(Selector sel) {
@@ -454,6 +452,32 @@ ObjCMethodFamily Selector::getMethodFamilyImpl(Selector sel) {
   return OMF_None;
 }
 
+ObjCInstanceTypeFamily Selector::getInstTypeMethodFamily(Selector sel) {
+  IdentifierInfo *first = sel.getIdentifierInfoForSlot(0);
+  if (!first) return OIT_None;
+  
+  StringRef name = first->getName();
+  
+  if (name.empty()) return OIT_None;
+  switch (name.front()) {
+    case 'a':
+      if (startsWithWord(name, "array")) return OIT_Array;
+      break;
+    case 'd':
+      if (startsWithWord(name, "default")) return OIT_ReturnsSelf;
+      if (startsWithWord(name, "dictionary")) return OIT_Dictionary;
+      break;
+    case 's':
+      if (startsWithWord(name, "shared")) return OIT_ReturnsSelf;
+      if (startsWithWord(name, "standard")) return OIT_Singleton;
+    case 'i':
+      if (startsWithWord(name, "init")) return OIT_Init;
+    default:
+      break;
+  }
+  return OIT_None;
+}
+
 namespace {
   struct SelectorTableImpl {
     llvm::FoldingSet<MultiKeywordSelector> Table;
@@ -465,15 +489,20 @@ static SelectorTableImpl &getSelectorTableImpl(void *P) {
   return *static_cast<SelectorTableImpl*>(P);
 }
 
-/*static*/ Selector
-SelectorTable::constructSetterName(IdentifierTable &Idents,
-                                   SelectorTable &SelTable,
-                                   const IdentifierInfo *Name) {
-  SmallString<100> SelectorName;
-  SelectorName = "set";
-  SelectorName += Name->getName();
-  SelectorName[3] = toupper(SelectorName[3]);
-  IdentifierInfo *SetterName = &Idents.get(SelectorName);
+SmallString<64>
+SelectorTable::constructSetterName(StringRef Name) {
+  SmallString<64> SetterName("set");
+  SetterName += Name;
+  SetterName[3] = toUppercase(SetterName[3]);
+  return SetterName;
+}
+
+Selector
+SelectorTable::constructSetterSelector(IdentifierTable &Idents,
+                                       SelectorTable &SelTable,
+                                       const IdentifierInfo *Name) {
+  IdentifierInfo *SetterName =
+    &Idents.get(constructSetterName(Name->getName()));
   return SelTable.getUnarySelector(SetterName);
 }
 

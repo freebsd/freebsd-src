@@ -62,7 +62,7 @@ altera_jtag_uart_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Altera JTAG UART");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -136,8 +136,6 @@ static driver_t altera_jtag_uart_nexus_driver = {
 	altera_jtag_uart_nexus_methods,
 	sizeof(struct altera_jtag_uart_softc),
 };
-
-static devclass_t altera_jtag_uart_devclass;
 
 DRIVER_MODULE(altera_jtag_uart, nexus, altera_jtag_uart_nexus_driver,
     altera_jtag_uart_devclass, 0, 0);

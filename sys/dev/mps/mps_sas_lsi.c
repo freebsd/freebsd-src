@@ -191,7 +191,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 	struct mpssas_softc *sassc;
 	sassc = sc->sassc;
 
-	mps_dprint(sc, MPS_INFO, "(%d)->(%s) Working on  Event: [%x]\n",
+	mps_dprint(sc, MPS_EVENT, "(%d)->(%s) Working on  Event: [%x]\n",
 			event_count++,__func__,fw_event->event);
 	switch (fw_event->event) {
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST: 
@@ -374,24 +374,24 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		/*
 		 * Informational only.
 		 */
-		mps_dprint(sc, MPS_INFO, "Received IR Volume event:\n");
+		mps_dprint(sc, MPS_EVENT, "Received IR Volume event:\n");
 		switch (event_data->ReasonCode) {
 		case MPI2_EVENT_IR_VOLUME_RC_SETTINGS_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Volume Settings "
+  			mps_dprint(sc, MPS_EVENT, "   Volume Settings "
   			    "changed from 0x%x to 0x%x for Volome with "
  			    "handle 0x%x", le32toh(event_data->PreviousValue),
  			    le32toh(event_data->NewValue),
  			    le16toh(event_data->VolDevHandle));
 			break;
 		case MPI2_EVENT_IR_VOLUME_RC_STATUS_FLAGS_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Volume Status "
+  			mps_dprint(sc, MPS_EVENT, "   Volume Status "
   			    "changed from 0x%x to 0x%x for Volome with "
  			    "handle 0x%x", le32toh(event_data->PreviousValue),
  			    le32toh(event_data->NewValue),
  			    le16toh(event_data->VolDevHandle));
 			break;
 		case MPI2_EVENT_IR_VOLUME_RC_STATE_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Volume State "
+  			mps_dprint(sc, MPS_EVENT, "   Volume State "
   			    "changed from 0x%x to 0x%x for Volome with "
  			    "handle 0x%x", le32toh(event_data->PreviousValue),
  			    le32toh(event_data->NewValue),
@@ -440,10 +440,10 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		/*
 		 * Informational only.
 		 */
-		mps_dprint(sc, MPS_INFO, "Received IR Phys Disk event:\n");
+		mps_dprint(sc, MPS_EVENT, "Received IR Phys Disk event:\n");
 		switch (event_data->ReasonCode) {
 		case MPI2_EVENT_IR_PHYSDISK_RC_SETTINGS_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Phys Disk Settings "
+  			mps_dprint(sc, MPS_EVENT, "   Phys Disk Settings "
   			    "changed from 0x%x to 0x%x for Phys Disk Number "
   			    "%d and handle 0x%x at Enclosure handle 0x%x, Slot "
  			    "%d", le32toh(event_data->PreviousValue),
@@ -453,7 +453,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
  			    le16toh(event_data->EnclosureHandle), le16toh(event_data->Slot));
 			break;
 		case MPI2_EVENT_IR_PHYSDISK_RC_STATUS_FLAGS_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Phys Disk Status changed "
+  			mps_dprint(sc, MPS_EVENT, "   Phys Disk Status changed "
   			    "from 0x%x to 0x%x for Phys Disk Number %d and "
   			    "handle 0x%x at Enclosure handle 0x%x, Slot %d",
  				le32toh(event_data->PreviousValue),
@@ -462,7 +462,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
  			    le16toh(event_data->EnclosureHandle), le16toh(event_data->Slot));
 			break;
 		case MPI2_EVENT_IR_PHYSDISK_RC_STATE_CHANGED:
-  			mps_dprint(sc, MPS_INFO, "   Phys Disk State changed "
+  			mps_dprint(sc, MPS_EVENT, "   Phys Disk State changed "
   			    "from 0x%x to 0x%x for Phys Disk Number %d and "
   			    "handle 0x%x at Enclosure handle 0x%x, Slot %d",
  				le32toh(event_data->PreviousValue),
@@ -518,8 +518,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		/*
 		 * Informational only.
 		 */
-		mps_dprint(sc, MPS_INFO, "Received IR Op Status event:\n");
-		mps_dprint(sc, MPS_INFO, "   RAID Operation of %d is %d "
+		mps_dprint(sc, MPS_EVENT, "Received IR Op Status event:\n");
+		mps_dprint(sc, MPS_EVENT, "   RAID Operation of %d is %d "
 		    "percent complete for Volume with handle 0x%x",
 		    event_data->RAIDOperation, event_data->PercentComplete,
 		    le16toh(event_data->VolDevHandle));
@@ -577,7 +577,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		break;
 
 	}
-	mps_dprint(sc, MPS_INFO, "(%d)->(%s) Event Free: [%x]\n",event_count,__func__, fw_event->event);
+	mps_dprint(sc, MPS_EVENT, "(%d)->(%s) Event Free: [%x]\n",event_count,__func__, fw_event->event);
 	mpssas_fw_event_free(sc, fw_event);
 }
 
@@ -669,7 +669,14 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		error = ENXIO;
 		goto out;
 	}
-	mps_dprint(sc, MPS_INFO, "SAS Address from SAS device page0 = %jx\n",
+
+	if (mpssas_check_id(sassc, id) != 0) {
+		device_printf(sc->mps_dev, "Excluding target id %d\n", id);
+		error = ENXIO;
+		goto out;
+	}
+
+	mps_dprint(sc, MPS_MAPPING, "SAS Address from SAS device page0 = %jx\n",
 	    sas_address);
 	targ = &sassc->targets[id];
 	targ->devinfo = device_info;
@@ -696,12 +703,15 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	SLIST_INIT(&targ->luns);
 
 	mps_describe_devinfo(targ->devinfo, devstring, 80);
-	mps_dprint(sc, MPS_INFO, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
+	mps_dprint(sc, MPS_MAPPING, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
 	    mps_describe_table(mps_linkrate_names, targ->linkrate),
 	    targ->handle, targ->encl_handle, targ->encl_slot);
+
+#if __FreeBSD_version < 1000039
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
-	mps_dprint(sc, MPS_INFO, "Target id 0x%x added\n", targ->tid);
+	mps_dprint(sc, MPS_MAPPING, "Target id 0x%x added\n", targ->tid);
 out:
 	mpssas_startup_decrement(sassc);
 	return (error);
@@ -734,11 +744,11 @@ mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
 	    (try_count < 5));
 
 	if (rc == 0 && !ioc_status && !sas_status) {
-		mps_dprint(sc, MPS_INFO, "%s: got SATA identify successfully "
+		mps_dprint(sc, MPS_MAPPING, "%s: got SATA identify successfully "
 			   "for handle = 0x%x with try_count = %d\n",
 			   __func__, handle, try_count);
 	} else {
-		mps_dprint(sc, MPS_INFO, "%s: handle = 0x%x failed\n",
+		mps_dprint(sc, MPS_MAPPING, "%s: handle = 0x%x failed\n",
 			   __func__, handle);
 		return -1;
 	}
@@ -818,12 +828,15 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = buffer;
 	cm->cm_length = htole32(sz);
-	error = mps_request_polled(sc, cm);
+ 	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
 	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
-		/* If the poll returns error then we need to do diag reset */ 
-		printf("%s: poll for page completed with error %d",
+ 		/*
+ 		 * If the request returns an error then we need to do a diag
+ 		 * reset
+ 		 */ 
+ 		printf("%s: request for page completed with error %d",
 		    __func__, error);
 		error = ENXIO;
 		goto out;
@@ -885,9 +898,11 @@ mpssas_volume_add(struct mps_softc *sc, u16 handle)
 		free(lun, M_MPT2);
 	}
 	SLIST_INIT(&targ->luns);
+#if __FreeBSD_version < 1000039
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
-	mps_dprint(sc, MPS_INFO, "RAID target id %d added (WWID = 0x%jx)\n",
+	mps_dprint(sc, MPS_MAPPING, "RAID target id %d added (WWID = 0x%jx)\n",
 	    targ->tid, wwid);
 out:
 	mpssas_startup_decrement(sassc);
@@ -955,7 +970,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mps_lock(sc);
-	mps_request_polled(sc, cm);
+ 	mps_wait_command(sc, cm, 5, CAN_SLEEP);
 	mps_unlock(sc);
 
 	/*

@@ -24,7 +24,7 @@ SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
 all:
 	@echo '1..16'
-	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
+	@${SMAKE} C_check || { ${MAKE} -C ${.CURDIR} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || \

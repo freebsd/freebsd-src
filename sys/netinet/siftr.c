@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/alq.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
 
 #include <netinet/in.h>
@@ -1314,7 +1316,7 @@ siftr_manage_ops(uint8_t action)
 		 * flow seen and freeing any malloc'd memory.
 		 * The hash consists of an array of LISTs (man 3 queue).
 		 */
-		for (i = 0; i < siftr_hashmask; i++) {
+		for (i = 0; i <= siftr_hashmask; i++) {
 			LIST_FOREACH_SAFE(counter, counter_hash + i, nodes,
 			    tmp_counter) {
 				key = counter->key;

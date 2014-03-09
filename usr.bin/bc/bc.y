@@ -1023,7 +1023,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-chlqv] [-e expression] [file ...]\n",
+	fprintf(stderr, "usage: %s [-chlv] [-e expression] [file ...]\n",
 	    __progname);
 	exit(1);
 }

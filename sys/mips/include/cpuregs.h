@@ -149,6 +149,11 @@
 #define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
 #endif
 
+#if defined(CPU_MIPS74KC)
+#define	MIPS_CCA_UNCACHED	0x02
+#define	MIPS_CCA_CACHED		0x00
+#endif
+
 #ifndef	MIPS_CCA_UNCACHED
 #define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
 #endif
@@ -204,12 +209,14 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
+#elif defined(CPU_MIPS74KC)
+#define	COP0_SYNC	 .word 0xc0	/* ehb */
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the
  * "CP0 Hazards" chapter of MIPS Architecture Book Vol III.
  */
-#define	COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop
+#define	COP0_SYNC  ssnop; ssnop; ssnop; ssnop; .word 0xc0;
 #endif
 #define	COP0_HAZARD_FPUENABLE	nop; nop; nop; nop;
 
@@ -521,7 +528,6 @@
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
-#define	MIPS_MAX_TLB_ENTRIES		128
 
 #define MIPS_CONFIG1_IS_MASK		0x01C00000	/* bits 24..22 icache sets per way */
 #define MIPS_CONFIG1_IS_SHIFT		22

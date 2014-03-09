@@ -38,8 +38,8 @@ namespace clang {
     TST_void,
     TST_char,
     TST_wchar,        // C++ wchar_t
-    TST_char16,       // C++0x char16_t
-    TST_char32,       // C++0x char32_t
+    TST_char16,       // C++11 char16_t
+    TST_char32,       // C++11 char32_t
     TST_int,
     TST_int128,
     TST_half,         // OpenCL half, ARM NEON __fp16
@@ -57,18 +57,27 @@ namespace clang {
     TST_typename,     // Typedef, C++ class-name or enum name, etc.
     TST_typeofType,
     TST_typeofExpr,
-    TST_decltype,     // C++0x decltype
-    TST_underlyingType, // __underlying_type for C++0x
-    TST_auto,         // C++0x auto
-    TST_unknown_anytype, // __unknown_anytype extension
-    TST_atomic,       // C11 _Atomic
+    TST_decltype,         // C++11 decltype
+    TST_underlyingType,   // __underlying_type for C++11
+    TST_auto,             // C++11 auto
+    TST_decltype_auto,    // C++1y decltype(auto)
+    TST_unknown_anytype,  // __unknown_anytype extension
+    TST_atomic,           // C11 _Atomic
+    TST_image1d_t,        // OpenCL image1d_t
+    TST_image1d_array_t,  // OpenCL image1d_array_t
+    TST_image1d_buffer_t, // OpenCL image1d_buffer_t
+    TST_image2d_t,        // OpenCL image2d_t
+    TST_image2d_array_t,  // OpenCL image2d_array_t
+    TST_image3d_t,        // OpenCL image3d_t
+    TST_sampler_t,        // OpenCL sampler_t
+    TST_event_t,          // OpenCL event_t
     TST_error         // erroneous type
   };
   
   /// \brief Structure that packs information about the type specifiers that
   /// were written in a particular type specifier sequence.
   struct WrittenBuiltinSpecs {
-    /*DeclSpec::TST*/ unsigned Type  : 5;
+    /*DeclSpec::TST*/ unsigned Type  : 6;
     /*DeclSpec::TSS*/ unsigned Sign  : 2;
     /*DeclSpec::TSW*/ unsigned Width : 2;
     bool ModeAttr : 1;
@@ -122,8 +131,8 @@ namespace clang {
     OK_ObjCSubscript
   };
 
-  // \brief Describes the kind of template specialization that a
-  // particular template specialization declaration represents.
+  /// \brief Describes the kind of template specialization that a
+  /// particular template specialization declaration represents.
   enum TemplateSpecializationKind {
     /// This template specialization was formed from a template-id but
     /// has not yet been declared, defined, or instantiated.
@@ -137,12 +146,32 @@ namespace clang {
     TSK_ExplicitSpecialization,
     /// This template specialization was instantiated from a template
     /// due to an explicit instantiation declaration request
-    /// (C++0x [temp.explicit]).
+    /// (C++11 [temp.explicit]).
     TSK_ExplicitInstantiationDeclaration,
     /// This template specialization was instantiated from a template
     /// due to an explicit instantiation definition request
     /// (C++ [temp.explicit]).
     TSK_ExplicitInstantiationDefinition
+  };
+
+  /// \brief Determine whether this template specialization kind refers
+  /// to an instantiation of an entity (as opposed to a non-template or
+  /// an explicit specialization).
+  inline bool isTemplateInstantiation(TemplateSpecializationKind Kind) {
+    return Kind != TSK_Undeclared && Kind != TSK_ExplicitSpecialization;
+  }
+
+  /// \brief Thread storage-class-specifier.
+  enum ThreadStorageClassSpecifier {
+    TSCS_unspecified,
+    /// GNU __thread.
+    TSCS___thread,
+    /// C++11 thread_local. Implies 'static' at block scope, but not at
+    /// class scope.
+    TSCS_thread_local,
+    /// C11 _Thread_local. Must be combined with either 'static' or 'extern'
+    /// if used at block scope.
+    TSCS__Thread_local
   };
 
   /// \brief Storage classes.
@@ -178,17 +207,40 @@ namespace clang {
 
   /// \brief CallingConv - Specifies the calling convention that a function uses.
   enum CallingConv {
-    CC_Default,
     CC_C,           // __attribute__((cdecl))
     CC_X86StdCall,  // __attribute__((stdcall))
     CC_X86FastCall, // __attribute__((fastcall))
     CC_X86ThisCall, // __attribute__((thiscall))
     CC_X86Pascal,   // __attribute__((pascal))
+    CC_X86_64Win64, // __attribute__((ms_abi))
+    CC_X86_64SysV,  // __attribute__((sysv_abi))
     CC_AAPCS,       // __attribute__((pcs("aapcs")))
     CC_AAPCS_VFP,   // __attribute__((pcs("aapcs-vfp")))
-    CC_PnaclCall    // __attribute__((pnaclcall))
+    CC_PnaclCall,   // __attribute__((pnaclcall))
+    CC_IntelOclBicc // __attribute__((intel_ocl_bicc))
   };
 
+  /// \brief Checks whether the given calling convention is callee-cleanup.
+  inline bool isCalleeCleanup(CallingConv CC) {
+    switch (CC) {
+    case CC_X86StdCall:
+    case CC_X86FastCall:
+    case CC_X86ThisCall:
+    case CC_X86Pascal:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  /// \brief The storage duration for an object (per C++ [basic.stc]).
+  enum StorageDuration {
+    SD_FullExpression, ///< Full-expression storage duration (for temporaries).
+    SD_Automatic,      ///< Automatic storage duration (most local variables).
+    SD_Thread,         ///< Thread storage duration.
+    SD_Static,         ///< Static storage duration.
+    SD_Dynamic         ///< Dynamic storage duration.
+  };
 } // end namespace clang
 
 #endif // LLVM_CLANG_BASIC_SPECIFIERS_H

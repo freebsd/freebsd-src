@@ -16,12 +16,12 @@
 #include "MipsInstrInfo.h"
 #include "MipsRelocations.h"
 #include "MipsSubtarget.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Memory.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdlib>
 using namespace llvm;
 
@@ -218,9 +218,9 @@ void *MipsJITInfo::emitFunctionStub(const Function *F, void *Fn,
     Hi++;
   int Lo = (int)(EmittedAddr & 0xffff);
 
-  // lui t9, %hi(EmittedAddr)
-  // addiu t9, t9, %lo(EmittedAddr)
-  // jalr t8, t9
+  // lui $t9, %hi(EmittedAddr)
+  // addiu $t9, $t9, %lo(EmittedAddr)
+  // jalr $t8, $t9
   // nop
   if (IsLittleEndian) {
     JCE.emitWordLE(0xf << 26 | 25 << 16 | Hi);

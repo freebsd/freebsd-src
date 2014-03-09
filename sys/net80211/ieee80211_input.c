@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
@@ -250,7 +251,10 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+#if __FreeBSD_version >= 1000046
+	m_clrprotoflags(m);
+#endif
 
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
@@ -323,13 +327,13 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 		IEEE80211_ADDR_COPY(eh->ether_shost, wh.i_addr4);
 		break;
 	}
-#ifdef ALIGNED_POINTER
+#ifndef __NO_STRICT_ALIGNMENT
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
 		m = ieee80211_realign(vap, m, sizeof(*eh));
 		if (m == NULL)
 			return NULL;
 	}
-#endif /* ALIGNED_POINTER */
+#endif /* !__NO_STRICT_ALIGNMENT */
 	if (llc != NULL) {
 		eh = mtod(m, struct ether_header *);
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
@@ -776,6 +780,10 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			/* verify something */
 			break;
 		case IEEE80211_ACTION_MESH_GANN:
+			IEEE80211_VERIFY_LENGTH(efrm - frm,
+			    sizeof(struct ieee80211_meshgann_ie),
+			    return EINVAL);
+			break;
 		case IEEE80211_ACTION_MESH_CC:
 		case IEEE80211_ACTION_MESH_MCCA_SREQ:
 		case IEEE80211_ACTION_MESH_MCCA_SREP:

@@ -12,16 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/IntrinsicLowering.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Module.h"
-#include "llvm/Type.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 using namespace llvm;
 
 template <class ArgIt>
@@ -453,6 +453,12 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     CI->replaceAllUsesWith(ConstantInt::get(CI->getType(), 1));
     break;
 
+  case Intrinsic::annotation:
+  case Intrinsic::ptr_annotation:
+    // Just drop the annotation, but forward the value
+    CI->replaceAllUsesWith(CI->getOperand(0));
+    break;
+
   case Intrinsic::var_annotation:
     break;   // Strip out annotate intrinsic
     
@@ -479,11 +485,12 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     break;
   }
   case Intrinsic::memset: {
-    Type *IntPtr = TD.getIntPtrType(Context);
+    Value *Op0 = CI->getArgOperand(0);
+    Type *IntPtr = TD.getIntPtrType(Op0->getType());
     Value *Size = Builder.CreateIntCast(CI->getArgOperand(2), IntPtr,
                                         /* isSigned */ false);
     Value *Ops[3];
-    Ops[0] = CI->getArgOperand(0);
+    Ops[0] = Op0;
     // Extend the amount to i32.
     Ops[1] = Builder.CreateIntCast(CI->getArgOperand(1),
                                    Type::getInt32Ty(Context),

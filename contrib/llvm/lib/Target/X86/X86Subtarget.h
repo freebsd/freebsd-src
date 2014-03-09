@@ -14,8 +14,8 @@
 #ifndef X86SUBTARGET_H
 #define X86SUBTARGET_H
 
-#include "llvm/CallingConv.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
 
@@ -42,7 +42,7 @@ enum Style {
 class X86Subtarget : public X86GenSubtargetInfo {
 protected:
   enum X86SSEEnum {
-    NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, AVX, AVX2
+    NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, AVX, AVX2, AVX512F
   };
 
   enum X863DNowEnum {
@@ -50,7 +50,7 @@ protected:
   };
 
   enum X86ProcFamilyEnum {
-    Others, IntelAtom
+    Others, IntelAtom, IntelSLM
   };
 
   /// X86ProcFamily - X86 processor family: Intel Atom, and others
@@ -97,6 +97,9 @@ protected:
   /// HasXOP - Target has XOP instructions
   bool HasXOP;
 
+  /// HasTBM - Target has TBM instructions.
+  bool HasTBM;
+
   /// HasMOVBE - True if the processor has the MOVBE instruction.
   bool HasMOVBE;
 
@@ -120,6 +123,21 @@ protected:
 
   /// HasRTM - Processor has RTM instructions.
   bool HasRTM;
+
+  /// HasHLE - Processor has HLE.
+  bool HasHLE;
+
+  /// HasADX - Processor has ADX instructions.
+  bool HasADX;
+
+  /// HasSHA - Processor has SHA instructions.
+  bool HasSHA;
+
+  /// HasPRFCHW - Processor has PRFCHW instructions.
+  bool HasPRFCHW;
+
+  /// HasRDSEED - Processor has RDSEED instructions.
+  bool HasRDSEED;
 
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
@@ -146,6 +164,26 @@ protected:
   /// PostRAScheduler - True if using post-register-allocation scheduler.
   bool PostRAScheduler;
 
+  /// PadShortFunctions - True if the short functions should be padded to prevent
+  /// a stall when returning too early.
+  bool PadShortFunctions;
+
+  /// CallRegIndirect - True if the Calls with memory reference should be converted
+  /// to a register-based indirect call.
+  bool CallRegIndirect;
+  /// LEAUsesAG - True if the LEA instruction inputs have to be ready at
+  ///             address generation (AG) time.
+  bool LEAUsesAG;
+
+  /// Processor has AVX-512 PreFetch Instructions
+  bool HasPFI;
+  
+  /// Processor has AVX-512 Exponential and Reciprocal Instructions
+  bool HasERI;
+  
+  /// Processor has AVX-512 Conflict Detection Instructions
+  bool HasCDI;
+  
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
   unsigned stackAlignment;
@@ -161,11 +199,13 @@ protected:
   InstrItineraryData InstrItins;
 
 private:
+  /// StackAlignOverride - Override the stack alignment.
+  unsigned StackAlignOverride;
+
   /// In64BitMode - True if compiling for 64-bit, false for 32-bit.
   bool In64BitMode;
 
 public:
-
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
@@ -190,7 +230,26 @@ public:
   /// instruction.
   void AutoDetectSubtargetFeatures();
 
-  bool is64Bit() const { return In64BitMode; }
+  /// \brief Reset the features for the X86 target.
+  virtual void resetSubtargetFeatures(const MachineFunction *MF);
+private:
+  void initializeEnvironment();
+  void resetSubtargetFeatures(StringRef CPU, StringRef FS);
+public:
+  /// Is this x86_64? (disregarding specific ABI / programming model)
+  bool is64Bit() const {
+    return In64BitMode;
+  }
+
+  /// Is this x86_64 with the ILP32 programming model (x32 ABI)?
+  bool isTarget64BitILP32() const {
+    return In64BitMode && (TargetTriple.getEnvironment() == Triple::GNUX32);
+  }
+
+  /// Is this x86_64 with the LP64 programming model (standard AMD64, no x32)?
+  bool isTarget64BitLP64() const {
+    return In64BitMode && (TargetTriple.getEnvironment() != Triple::GNUX32);
+  }
 
   PICStyles::Style getPICStyle() const { return PICStyle; }
   void setPICStyle(PICStyles::Style Style)  { PICStyle = Style; }
@@ -205,6 +264,9 @@ public:
   bool hasSSE42() const { return X86SSELevel >= SSE42; }
   bool hasAVX() const { return X86SSELevel >= AVX; }
   bool hasAVX2() const { return X86SSELevel >= AVX2; }
+  bool hasAVX512() const { return X86SSELevel >= AVX512F; }
+  bool hasFp256() const { return hasAVX(); }
+  bool hasInt256() const { return hasAVX2(); }
   bool hasSSE4A() const { return HasSSE4A; }
   bool has3DNow() const { return X863DNowLevel >= ThreeDNow; }
   bool has3DNowA() const { return X863DNowLevel >= ThreeDNowA; }
@@ -215,6 +277,7 @@ public:
   // FIXME: Favor FMA when both are enabled. Is this the right thing to do?
   bool hasFMA4() const { return HasFMA4 && !HasFMA; }
   bool hasXOP() const { return HasXOP; }
+  bool hasTBM() const { return HasTBM; }
   bool hasMOVBE() const { return HasMOVBE; }
   bool hasRDRAND() const { return HasRDRAND; }
   bool hasF16C() const { return HasF16C; }
@@ -223,12 +286,23 @@ public:
   bool hasBMI() const { return HasBMI; }
   bool hasBMI2() const { return HasBMI2; }
   bool hasRTM() const { return HasRTM; }
+  bool hasHLE() const { return HasHLE; }
+  bool hasADX() const { return HasADX; }
+  bool hasSHA() const { return HasSHA; }
+  bool hasPRFCHW() const { return HasPRFCHW; }
+  bool hasRDSEED() const { return HasRDSEED; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
   bool hasVectorUAMem() const { return HasVectorUAMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
   bool useLeaForSP() const { return UseLeaForSP; }
   bool hasSlowDivide() const { return HasSlowDivide; }
+  bool padShortFunctions() const { return PadShortFunctions; }
+  bool callRegIndirect() const { return CallRegIndirect; }
+  bool LEAusesAG() const { return LEAUsesAG; }
+  bool hasCDI() const { return HasCDI; }
+  bool hasPFI() const { return HasPFI; }
+  bool hasERI() const { return HasERI; }
 
   bool isAtom() const { return X86ProcFamily == IntelAtom; }
 
@@ -245,10 +319,8 @@ public:
     return (TargetTriple.getEnvironment() == Triple::ELF ||
             TargetTriple.isOSBinFormatELF());
   }
-  bool isTargetLinux() const { return TargetTriple.getOS() == Triple::Linux; }
-  bool isTargetNaCl() const {
-    return TargetTriple.getOS() == Triple::NativeClient;
-  }
+  bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
+  bool isTargetNaCl() const { return TargetTriple.isOSNaCl(); }
   bool isTargetNaCl32() const { return isTargetNaCl() && !is64Bit(); }
   bool isTargetNaCl64() const { return isTargetNaCl() && is64Bit(); }
   bool isTargetWindows() const { return TargetTriple.getOS() == Triple::Win32; }
@@ -261,15 +333,14 @@ public:
   }
   bool isTargetEnvMacho() const { return TargetTriple.isEnvironmentMachO(); }
 
+  bool isOSWindows() const { return TargetTriple.isOSWindows(); }
+
   bool isTargetWin64() const {
-    // FIXME: x86_64-cygwin has not been released yet.
     return In64BitMode && TargetTriple.isOSWindows();
   }
 
   bool isTargetWin32() const {
-    // FIXME: Cygwin is included for isTargetWin64 -- should it be included
-    // here too?
-    return !In64BitMode && (isTargetMingw() || isTargetWindows());
+    return !In64BitMode && (isTargetCygMing() || isTargetWindows());
   }
 
   bool isPICStyleSet() const { return PICStyle != PICStyles::None; }
@@ -285,7 +356,13 @@ public:
   }
   bool isPICStyleStubAny() const {
     return PICStyle == PICStyles::StubDynamicNoPIC ||
-           PICStyle == PICStyles::StubPIC; }
+           PICStyle == PICStyles::StubPIC;
+  }
+
+  bool isCallingConvWin64(CallingConv::ID CC) const {
+    return (isTargetWin64() && CC != CallingConv::X86_64_SysV) ||
+           CC == CallingConv::X86_64_Win64;
+  }
 
   /// ClassifyGlobalReference - Classify a global variable reference for the
   /// current subtarget according to how we should reference it in a non-pcrel
@@ -308,6 +385,13 @@ public:
   /// memset with zero passed as the second argument. Otherwise it
   /// returns null.
   const char *getBZeroEntry() const;
+
+  /// This function returns true if the target has sincos() routine in its
+  /// compiler runtime or math libraries.
+  bool hasSinCos() const;
+
+  /// Enable the MachineScheduler pass for all X86 subtargets.
+  bool enableMachineScheduler() const LLVM_OVERRIDE { return true; }
 
   /// enablePostRAScheduler - run for Atom optimization.
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,

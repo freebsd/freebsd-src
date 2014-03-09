@@ -51,7 +51,7 @@ struct domain {
 	void	(*dom_destroy)		/* cleanup structures / state */
 		(void);
 	int	(*dom_externalize)	/* externalize access rights */
-		(struct mbuf *, struct mbuf **);
+		(struct mbuf *, struct mbuf **, int);
 	void	(*dom_dispose)		/* dispose of internalized rights */
 		(struct mbuf *);
 	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;

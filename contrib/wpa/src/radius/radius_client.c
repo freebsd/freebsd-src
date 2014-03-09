@@ -2,14 +2,8 @@
  * RADIUS client
  * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -287,8 +281,8 @@ int radius_client_register(struct radius_client_data *radius,
 		num = &radius->num_auth_handlers;
 	}
 
-	newh = os_realloc(*handlers,
-			  (*num + 1) * sizeof(struct radius_rx_handler));
+	newh = os_realloc_array(*handlers, *num + 1,
+				sizeof(struct radius_rx_handler));
 	if (newh == NULL)
 		return -1;
 
@@ -511,7 +505,7 @@ static void radius_client_update_timeout(struct radius_client_data *radius)
 			       NULL);
 	hostapd_logger(radius->ctx, NULL, HOSTAPD_MODULE_RADIUS,
 		       HOSTAPD_LEVEL_DEBUG, "Next RADIUS client retransmit in"
-		       " %ld seconds\n", (long int) (first - now.sec));
+		       " %ld seconds", (long int) (first - now.sec));
 }
 
 
@@ -684,7 +678,7 @@ int radius_client_send(struct radius_client_data *radius,
 	radius_client_list_add(radius, msg, msg_type, shared_secret,
 			       shared_secret_len, addr);
 
-	return res;
+	return 0;
 }
 
 
@@ -1488,4 +1482,12 @@ int radius_client_get_mib(struct radius_client_data *radius, char *buf,
 	}
 
 	return count;
+}
+
+
+void radius_client_reconfig(struct radius_client_data *radius,
+			    struct hostapd_radius_servers *conf)
+{
+	if (radius)
+		radius->conf = conf;
 }

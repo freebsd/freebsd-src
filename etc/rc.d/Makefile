@@ -21,15 +21,17 @@ FILES=	DAEMON \
 	auditd \
 	auditdistd \
 	bgfsck \
-	bluetooth \
+	${_bluetooth} \
 	bootparams \
 	bridge \
 	bsnmpd \
-	bthidd \
+	${_bthidd} \
+	${_casperd} \
 	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
+	ctld \
 	ddb \
 	defaultroute \
 	devd \
@@ -37,7 +39,6 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	encswap \
 	faith \
 	fsck \
 	ftp-proxy \
@@ -48,7 +49,7 @@ FILES=	DAEMON \
 	gptboot \
 	gssd \
 	hastd \
-	hcsecd \
+	${_hcsecd} \
 	hostapd \
 	hostid \
 	hostid_save \
@@ -63,6 +64,8 @@ FILES=	DAEMON \
 	ipnat \
 	ipsec \
 	${_ipxrouted} \
+	iscsictl \
+	iscsid \
 	jail \
 	kadmind \
 	kerberos \
@@ -88,7 +91,6 @@ FILES=	DAEMON \
 	mroute6d \
 	mrouted \
 	msgs \
-	named \
 	natd \
 	netif \
 	netoptions \
@@ -139,7 +141,8 @@ FILES=	DAEMON \
 	static_arp \
 	static_ndp \
 	stf \
-	swap1 \
+	swap \
+	swaplate \
 	syscons \
 	sysctl \
 	syslogd \
@@ -147,6 +150,7 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
+	${_unbound} \
 	${_utx} \
 	var \
 	virecover \
@@ -178,7 +182,18 @@ _nscd=		nscd
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
+_bluetooth=	bluetooth
+_bthidd=	bthidd
+_hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_CASPER} != "no"
+_casperd=	casperd
+.endif
+
+.if ${MK_UNBOUND} != "no"
+_unbound=	local_unbound
 .endif
 
 .if ${MK_UTMPX} != "no"

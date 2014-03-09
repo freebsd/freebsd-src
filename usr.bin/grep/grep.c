@@ -481,7 +481,7 @@ main(int argc, char *argv[])
 		case 'e':
 			{
 				char *token;
-				char *string = strdup(optarg);
+				char *string = optarg;
 
 				while ((token = strsep(&string, "\n")) != NULL)
 					add_pattern(token, strlen(token));
@@ -675,7 +675,7 @@ main(int argc, char *argv[])
 	/* Process patterns from command line */
 	if (aargc != 0 && needpattern) {
 		char *token;
-		char *string = strdup(*aargv);
+		char *string = *aargv;
 
 		while ((token = strsep(&string, "\n")) != NULL)
 			add_pattern(token, strlen(token));

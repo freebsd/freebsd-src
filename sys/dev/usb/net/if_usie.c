@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -43,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/taskqueue.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <machine/bus.h>
 
@@ -121,7 +125,8 @@ static void usie_if_sync_cb(void *, int);
 static void usie_if_status_cb(void *, int);
 
 static void usie_if_start(struct ifnet *);
-static int usie_if_output(struct ifnet *, struct mbuf *, struct sockaddr *, struct route *);
+static int usie_if_output(struct ifnet *, struct mbuf *,
+	const struct sockaddr *, struct route *);
 static void usie_if_init(void *);
 static void usie_if_stop(struct usie_softc *);
 static int usie_if_ioctl(struct ifnet *, u_long, caddr_t);
@@ -1181,7 +1186,7 @@ usie_if_start(struct ifnet *ifp)
 }
 
 static int
-usie_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+usie_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	int err;
@@ -1323,7 +1328,6 @@ usie_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFADDR:
-	case SIOCSIFDSTADDR:
 		break;
 
 	default:

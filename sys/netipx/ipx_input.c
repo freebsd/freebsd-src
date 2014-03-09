@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/netisr.h>
 
@@ -454,7 +455,7 @@ ipx_do_route(struct ipx_addr *src, struct route *ro)
 	if (ro->ro_rt == NULL || ro->ro_rt->rt_ifp == NULL) {
 		return (0);
 	}
-	ro->ro_rt->rt_use++;
+	counter_u64_add(ro->ro_rt->rt_pksent, 1);
 	return (1);
 }
 

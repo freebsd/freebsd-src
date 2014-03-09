@@ -1449,6 +1449,9 @@ static struct flag {
 	{ "nouunlnk",	L"nouunlnk",		UF_NOUNLINK,	0 },
 	{ "nouunlink",	L"nouunlink",		UF_NOUNLINK,	0 },
 #endif
+#ifdef UF_COMPRESSED
+	{ "nocompressed",L"nocompressed",	UF_COMPRESSED,	0 },
+#endif
 #ifdef EXT2_UNRM_FL
         { "nouunlink",	L"nouunlink",		EXT2_UNRM_FL,	0},
 #endif

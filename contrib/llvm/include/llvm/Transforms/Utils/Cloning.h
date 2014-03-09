@@ -18,9 +18,9 @@
 #ifndef LLVM_TRANSFORMS_UTILS_CLONING_H
 #define LLVM_TRANSFORMS_UTILS_CLONING_H
 
-#include "llvm/ADT/ValueMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/ValueMap.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
@@ -131,7 +131,8 @@ void CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
                        SmallVectorImpl<ReturnInst*> &Returns,
                        const char *NameSuffix = "", 
                        ClonedCodeInfo *CodeInfo = 0,
-                       ValueMapTypeRemapper *TypeMapper = 0);
+                       ValueMapTypeRemapper *TypeMapper = 0,
+                       ValueMaterializer *Materializer = 0);
 
 /// CloneAndPruneFunctionInto - This works exactly like CloneFunctionInto,
 /// except that it does some simple constant prop and DCE on the fly.  The

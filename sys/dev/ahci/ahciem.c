@@ -85,8 +85,10 @@ ahci_em_attach(device_t dev)
 	mtx_init(&enc->mtx, "AHCI enclosure lock", NULL, MTX_DEF);
 	rid = 0;
 	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE)))
+	    &rid, RF_ACTIVE))) {
+		mtx_destroy(&enc->mtx);
 		return (ENXIO);
+	}
 	enc->capsem = ATA_INL(enc->r_memc, 0);
 	rid = 1;
 	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -104,7 +106,10 @@ ahci_em_attach(device_t dev)
 	} else
 		enc->r_memr = NULL;
 	mtx_lock(&enc->mtx);
-	ahci_em_reset(dev);
+	if (ahci_em_reset(dev) != 0) {
+	    error = ENXIO;
+	    goto err1;
+	}
 	rid = ATA_IRQ_RID;
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(1);

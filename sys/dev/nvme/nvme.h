@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,21 @@
 #include <sys/types.h>
 #endif
 
-#define	NVME_IDENTIFY_CONTROLLER	_IOR('n', 0, struct nvme_controller_data)
-#define	NVME_IDENTIFY_NAMESPACE		_IOR('n', 1, struct nvme_namespace_data)
-#define	NVME_IO_TEST			_IOWR('n', 2, struct nvme_io_test)
-#define	NVME_BIO_TEST			_IOWR('n', 4, struct nvme_io_test)
+#include <sys/param.h>
+
+#define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
+#define	NVME_RESET_CONTROLLER		_IO('n', 1)
+
+#define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
+#define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
 /*
  * Use to mark a command to apply to all namespaces, or to retrieve global
  *  log pages.
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
+
+#define NVME_MAX_XFER_SIZE		MAXPHYS
 
 union cap_lo_register {
 	uint32_t	raw;
@@ -165,27 +170,30 @@ struct nvme_registers
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
 
-	uint32_t	vs;		/* version */
-	uint32_t	intms;		/* interrupt mask set */
-	uint32_t	intmc;		/* interrupt mask clear */
+	uint32_t		vs;	/* version */
+	uint32_t		intms;	/* interrupt mask set */
+	uint32_t		intmc;	/* interrupt mask clear */
 
 	/** controller configuration */
 	union cc_register	cc;
 
-	uint32_t	reserved1;
-	uint32_t	csts;		/* controller status */
-	uint32_t	reserved2;
+	uint32_t		reserved1;
+
+	/** controller status */
+	union csts_register	csts;
+
+	uint32_t		reserved2;
 
 	/** admin queue attributes */
 	union aqa_register	aqa;
 
-	uint64_t	asq;		/* admin submission queue base addr */
-	uint64_t	acq;		/* admin completion queue base addr */
-	uint32_t	reserved3[0x3f2];
+	uint64_t		asq;	/* admin submission queue base addr */
+	uint64_t		acq;	/* admin completion queue base addr */
+	uint32_t		reserved3[0x3f2];
 
 	struct {
-	    uint32_t	sq_tdbl;	/* submission queue tail doorbell */
-	    uint32_t	cq_hdbl;	/* completion queue head doorbell */
+	    uint32_t		sq_tdbl; /* submission queue tail doorbell */
+	    uint32_t		cq_hdbl; /* completion queue head doorbell */
 	} doorbell[1] __packed;
 } __packed;
 
@@ -222,26 +230,31 @@ struct nvme_command
 	uint32_t cdw15;		/* command-specific */
 } __packed;
 
+struct nvme_status {
+
+	uint16_t p	:  1;	/* phase tag */
+	uint16_t sc	:  8;	/* status code */
+	uint16_t sct	:  3;	/* status code type */
+	uint16_t rsvd2	:  2;
+	uint16_t m	:  1;	/* more */
+	uint16_t dnr	:  1;	/* do not retry */
+} __packed;
+
 struct nvme_completion {
 
 	/* dword 0 */
-	uint32_t cdw0;		/* command-specific */
+	uint32_t		cdw0;	/* command-specific */
 
 	/* dword 1 */
-	uint32_t rsvd1;
+	uint32_t		rsvd1;
 
 	/* dword 2 */
-	uint16_t sqhd;		/* submission queue head pointer */
-	uint16_t sqid;		/* submission queue identifier */
+	uint16_t		sqhd;	/* submission queue head pointer */
+	uint16_t		sqid;	/* submission queue identifier */
 
 	/* dword 3 */
-	uint16_t cid;		/* command identifier */
-	uint16_t p	:  1;	/* phase tag */
-	uint16_t sf_sc	:  8;	/* status field - status code */
-	uint16_t sf_sct	:  3;	/* status field - status code type */
-	uint16_t rsvd2	:  2;
-	uint16_t sf_m	:  1;	/* status field - more */
-	uint16_t sf_dnr	:  1;	/* status field - do not retry */
+	uint16_t		cid;	/* command identifier */
+	struct nvme_status	status;
 } __packed;
 
 struct nvme_dsm_range {
@@ -360,7 +373,7 @@ enum nvme_feature {
 	NVME_FEAT_INTERRUPT_COALESCING		= 0x08,
 	NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION = 0x09,
 	NVME_FEAT_WRITE_ATOMICITY		= 0x0A,
-	NVME_FEAT_ASYNCHRONOUS_EVENT_CONFIGURATION = 0x0B,
+	NVME_FEAT_ASYNC_EVENT_CONFIGURATION	= 0x0B,
 	/* 0x0C-0x7F - reserved */
 	NVME_FEAT_SOFTWARE_PROGRESS_MARKER	= 0x80,
 	/* 0x81-0xBF - command set specific (reserved) */
@@ -373,6 +386,16 @@ enum nvme_dsm_attribute {
 	NVME_DSM_ATTR_DEALLOCATE		= 0x4,
 };
 
+enum nvme_activate_action {
+	NVME_AA_REPLACE_NO_ACTIVATE		= 0x0,
+	NVME_AA_REPLACE_ACTIVATE		= 0x1,
+	NVME_AA_ACTIVATE			= 0x2,
+};
+
+#define NVME_SERIAL_NUMBER_LENGTH	20
+#define NVME_MODEL_NUMBER_LENGTH	40
+#define NVME_FIRMWARE_REVISION_LENGTH	8
+
 struct nvme_controller_data {
 
 	/* bytes 0-255: controller capabilities and features */
@@ -384,13 +407,13 @@ struct nvme_controller_data {
 	uint16_t		ssvid;
 
 	/** serial number */
-	int8_t			sn[20];
+	uint8_t			sn[NVME_SERIAL_NUMBER_LENGTH];
 
 	/** model number */
-	int8_t			mn[40];
+	uint8_t			mn[NVME_MODEL_NUMBER_LENGTH];
 
 	/** firmware revision */
-	uint8_t			fr[8];
+	uint8_t			fr[NVME_FIRMWARE_REVISION_LENGTH];
 
 	/** recommended arbitration burst */
 	uint8_t			rab;
@@ -512,7 +535,7 @@ struct nvme_controller_data {
 	uint8_t			reserved6[1024];
 
 	/* bytes 3072-4095: vendor specific */
-	uint8_t			reserved7[1024];
+	uint8_t			vs[1024];
 } __packed __aligned(4);
 
 struct nvme_namespace_data {
@@ -616,6 +639,19 @@ enum nvme_log_page {
 	/* 0xC0-0xFF - vendor specific */
 };
 
+struct nvme_error_information_entry {
+
+	uint64_t		error_count;
+	uint16_t		sqid;
+	uint16_t		cid;
+	struct nvme_status	status;
+	uint16_t		error_location;
+	uint64_t		lba;
+	uint32_t		nsid;
+	uint8_t			vendor_specific;
+	uint8_t			reserved[35];
+} __packed __aligned(4);
+
 union nvme_critical_warning_state {
 
 	uint8_t		raw;
@@ -663,6 +699,18 @@ struct nvme_health_information_page {
 	uint8_t			reserved2[320];
 } __packed __aligned(4);
 
+struct nvme_firmware_page {
+
+	struct {
+		uint8_t	slot		: 3; /* slot for current FW */
+		uint8_t	reserved	: 5;
+	} __packed afi;
+
+	uint8_t			reserved[7];
+	uint64_t		revision[7]; /* revisions for 7 slots */
+	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
 #define NVME_TEST_MAX_THREADS	128
 
 struct nvme_io_test {
@@ -672,7 +720,7 @@ struct nvme_io_test {
 	uint32_t		time;	/* in seconds */
 	uint32_t		num_threads;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 enum nvme_io_test_flags {
@@ -685,28 +733,115 @@ enum nvme_io_test_flags {
 	NVME_TEST_FLAG_REFTHREAD =	0x1,
 };
 
+struct nvme_pt_command {
+
+	/*
+	 * cmd is used to specify a passthrough command to a controller or
+	 *  namespace.
+	 *
+	 * The following fields from cmd may be specified by the caller:
+	 *	* opc  (opcode)
+	 *	* nsid (namespace id) - for admin commands only
+	 *	* cdw10-cdw15
+	 *
+	 * Remaining fields must be set to 0 by the caller.
+	 */
+	struct nvme_command	cmd;
+
+	/*
+	 * cpl returns completion status for the passthrough command
+	 *  specified by cmd.
+	 *
+	 * The following fields will be filled out by the driver, for
+	 *  consumption by the caller:
+	 *	* cdw0
+	 *	* status (except for phase)
+	 *
+	 * Remaining fields will be set to 0 by the driver.
+	 */
+	struct nvme_completion	cpl;
+
+	/* buf is the data buffer associated with this passthrough command. */
+	void *			buf;
+
+	/*
+	 * len is the length of the data buffer associated with this
+	 *  passthrough command.
+	 */
+	uint32_t		len;
+
+	/*
+	 * is_read = 1 if the passthrough command will read data into the
+	 *  supplied buffer from the controller.
+	 *
+	 * is_read = 0 if the passthrough command will write data from the
+	 *  supplied buffer to the controller.
+	 */
+	uint32_t		is_read;
+
+	/*
+	 * driver_lock is used by the driver only.  It must be set to 0
+	 *  by the caller.
+	 */
+	struct mtx *		driver_lock;
+};
+
+#define nvme_completion_is_error(cpl)					\
+	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
+
+void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
+
 #ifdef _KERNEL
 
 struct bio;
 
 struct nvme_namespace;
+struct nvme_controller;
 struct nvme_consumer;
 
 typedef void (*nvme_cb_fn_t)(void *, const struct nvme_completion *);
-typedef void (*nvme_consumer_cb_fn_t)(void *, struct nvme_namespace *);
+
+typedef void *(*nvme_cons_ns_fn_t)(struct nvme_namespace *, void *);
+typedef void *(*nvme_cons_ctrlr_fn_t)(struct nvme_controller *);
+typedef void (*nvme_cons_async_fn_t)(void *, const struct nvme_completion *,
+				     uint32_t, void *, uint32_t);
+typedef void (*nvme_cons_fail_fn_t)(void *);
 
 enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
 	NVME_NS_FLUSH_SUPPORTED		= 0x2,
 };
 
+int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
+				   struct nvme_pt_command *pt,
+				   uint32_t nsid, int is_user_buffer,
+				   int is_admin_cmd);
+
+/* Admin functions */
+void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,
+				   uint8_t feature, uint32_t cdw11,
+				   void *payload, uint32_t payload_size,
+				   nvme_cb_fn_t cb_fn, void *cb_arg);
+void	nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr,
+				   uint8_t feature, uint32_t cdw11,
+				   void *payload, uint32_t payload_size,
+				   nvme_cb_fn_t cb_fn, void *cb_arg);
+void	nvme_ctrlr_cmd_get_log_page(struct nvme_controller *ctrlr,
+				    uint8_t log_page, uint32_t nsid,
+				    void *payload, uint32_t payload_size,
+				    nvme_cb_fn_t cb_fn, void *cb_arg);
+
 /* NVM I/O functions */
 int	nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload,
 			  uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
+int	nvme_ns_cmd_write_bio(struct nvme_namespace *ns, struct bio *bp,
+			      nvme_cb_fn_t cb_fn, void *cb_arg);
 int	nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload,
 			 uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			 void *cb_arg);
+int	nvme_ns_cmd_read_bio(struct nvme_namespace *ns, struct bio *bp,
+			      nvme_cb_fn_t cb_fn, void *cb_arg);
 int	nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 			       uint8_t num_ranges, nvme_cb_fn_t cb_fn,
 			       void *cb_arg);
@@ -714,9 +849,16 @@ int	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
 
 /* Registration functions */
-struct nvme_consumer *	nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn,
-					       void *cb_arg);
+struct nvme_consumer *	nvme_register_consumer(nvme_cons_ns_fn_t    ns_fn,
+					       nvme_cons_ctrlr_fn_t ctrlr_fn,
+					       nvme_cons_async_fn_t async_fn,
+					       nvme_cons_fail_fn_t  fail_fn);
 void		nvme_unregister_consumer(struct nvme_consumer *consumer);
+
+/* Controller helper functions */
+device_t	nvme_ctrlr_get_device(struct nvme_controller *ctrlr);
+const struct nvme_controller_data *
+		nvme_ctrlr_get_data(struct nvme_controller *ctrlr);
 
 /* Namespace helper functions */
 uint32_t	nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns);
@@ -726,6 +868,8 @@ uint64_t	nvme_ns_get_size(struct nvme_namespace *ns);
 uint32_t	nvme_ns_get_flags(struct nvme_namespace *ns);
 const char *	nvme_ns_get_serial_number(struct nvme_namespace *ns);
 const char *	nvme_ns_get_model_number(struct nvme_namespace *ns);
+const struct nvme_namespace_data *
+		nvme_ns_get_data(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);

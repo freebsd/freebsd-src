@@ -10,7 +10,6 @@ include "../at91/std.atmel"
 
 # Typical values for most SoCs and board configurations.  Will not work for
 # at91sam9g45 or on some boards with non u-boot boot loaders.
-options 	STARTUP_PAGETABLE_ADDR=0x20800000
 makeoptions	KERNPHYSADDR=0x20000000
 makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNPHYSADDR=0x20000000
@@ -49,10 +48,13 @@ options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
@@ -150,7 +152,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# Enclosure Services (SES and SAF-TE)
-device		ctl		# CAM Target Layer
+#device		ctl		# CAM Target Layer
 
 # Serial (COM) ports
 device		uart		# Multi-uart driver
@@ -174,3 +176,6 @@ device		at91_wdt	# Atmel AT91 Watchdog Timer
 device		at91_rtc
 device		at91_ssc
 #device		at91_tc		# missing?
+
+# NAND Flash - Reference design has Samsung 256MB but others possible
+device		nand			# NAND interface on CS3

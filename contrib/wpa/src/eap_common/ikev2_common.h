@@ -2,14 +2,8 @@
  * IKEv2 definitions
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef IKEV2_COMMON_H
@@ -139,7 +133,7 @@ enum {
 	IKEV2_TRANSFORM_ESN = 5
 };
 
-/* IKEv2 Tranform Type 1 (Encryption Algorithm) */
+/* IKEv2 Transform Type 1 (Encryption Algorithm) */
 enum {
 	ENCR_DES_IV64 = 1,
 	ENCR_DES = 2,

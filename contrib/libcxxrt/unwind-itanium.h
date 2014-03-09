@@ -80,7 +80,7 @@ struct _Unwind_Exception
     _Unwind_Exception_Cleanup_Fn exception_cleanup;
     unsigned long private_1;
     unsigned long private_2;
-  } __attribute__((__aligned__));
+  } ;
 
 extern _Unwind_Reason_Code _Unwind_RaiseException (struct _Unwind_Exception *);
 extern _Unwind_Reason_Code _Unwind_ForcedUnwind (struct _Unwind_Exception *,

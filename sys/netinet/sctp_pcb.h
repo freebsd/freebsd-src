@@ -323,6 +323,7 @@ struct sctp_pcb {
 	int auto_close_time;
 	uint32_t initial_sequence_debug;
 	uint32_t adaptation_layer_indicator;
+	uint8_t adaptation_layer_indicator_provided;
 	uint32_t store_at;
 	uint32_t max_burst;
 	uint32_t fr_max_burst;
@@ -387,8 +388,8 @@ struct sctp_inpcb {
 
 	/* back pointer to our socket */
 	struct socket *sctp_socket;
+	uint64_t sctp_features;	/* Feature flags */
 	uint32_t sctp_flags;	/* INP state flag set */
-	uint32_t sctp_features;	/* Feature flags */
 	uint32_t sctp_mobility_features;	/* Mobility  Feature flags */
 	struct sctp_pcb sctp_ep;/* SCTP ep data */
 	/* head of the hash of all associations */

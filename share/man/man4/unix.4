@@ -32,7 +32,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2012
+.Dd March 19, 2013
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -153,13 +153,15 @@ plus the size of the array of file descriptors.
 .Pp
 The received descriptor is a
 .Em duplicate
-of the sender's descriptor, as if it were created with a call to
-.Xr dup 2 .
-Per-process descriptor flags, set with
-.Xr fcntl 2 ,
-are
-.Em not
-passed to a receiver.
+of the sender's descriptor, as if it were created via
+.Li dup(fd)
+or
+.Li fcntl(fd, F_DUPFD_CLOEXEC, 0)
+depending on whether
+.Dv MSG_CMSG_CLOEXEC
+is passed in the
+.Xr recvmsg 2
+call.
 Descriptors that are awaiting delivery, or that are
 purposely not received, are automatically closed by the system
 when the destination socket is closed.

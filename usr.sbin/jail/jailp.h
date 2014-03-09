@@ -50,6 +50,7 @@
 #define PF_BOOL		0x10	/* Boolean parameter */
 #define PF_INT		0x20	/* Integer parameter */
 #define PF_CONV		0x40	/* Parameter duplicated in converted form */
+#define PF_REV		0x80	/* Run commands in reverse order on stopping */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */
@@ -94,6 +95,7 @@ enum intparam {
 #endif
 	IP_MOUNT,		/* Mount points in fstab(5) form */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
+	IP_MOUNT_FDESCFS,	/* Mount /dev/fd under prison root */
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */

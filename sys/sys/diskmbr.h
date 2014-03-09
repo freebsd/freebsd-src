@@ -45,12 +45,14 @@
 #define	DOSMAGIC	0xAA55
 
 #define	DOSPTYP_EXT	0x05	/* DOS extended partition */
+#define	DOSPTYP_FAT16	0x06	/* FAT16 partition */
 #define	DOSPTYP_NTFS	0x07	/* NTFS partition */
 #define	DOSPTYP_FAT32	0x0b	/* FAT32 partition */
 #define	DOSPTYP_EXTLBA	0x0f	/* DOS extended partition */
 #define	DOSPTYP_PPCBOOT	0x41	/* PReP/CHRP boot partition */
 #define	DOSPTYP_LDM	0x42	/* Win2k dynamic extended partition */
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	DOSPTYP_HFS	0xaf	/* HFS/HFS+ partition type */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
 #define	DOSPTYP_LINLVM	0x8e	/* Linux LVM partition */

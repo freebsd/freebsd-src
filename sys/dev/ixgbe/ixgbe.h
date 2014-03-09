@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -49,8 +49,10 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sockio.h>
+#include <sys/eventhandler.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -213,6 +215,7 @@
 #define IXGBE_BULK_LATENCY	1200
 #define IXGBE_LINK_ITR		2000
 
+
 /*
  *****************************************************************************
  * vendor_info_array
@@ -229,6 +232,7 @@ typedef struct _ixgbe_vendor_info_t {
 	unsigned int    subdevice_id;
 	unsigned int    index;
 } ixgbe_vendor_info_t;
+
 
 /* This is used to get SFP+ module data */
 struct ixgbe_i2c_req {
@@ -456,6 +460,7 @@ struct adapter {
 	/* Multicast array memory */
 	u8			*mta;
 
+
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;
 	unsigned long   	mbuf_defrag_failed;
@@ -466,6 +471,7 @@ struct adapter {
 
 	struct ixgbe_hw_stats 	stats;
 };
+
 
 /* Precision Time Sync (IEEE 1588) defines */
 #define ETHERTYPE_IEEE1588      0x88F7
@@ -489,6 +495,10 @@ struct adapter {
 #define IXGBE_CORE_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define IXGBE_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
+/* For backward compatibility */
+#if !defined(PCIER_LINK_STA)
+#define PCIER_LINK_STA PCIR_EXPRESS_LINK_STA
+#endif
 
 static inline bool
 ixgbe_is_sfp(struct ixgbe_hw *hw)

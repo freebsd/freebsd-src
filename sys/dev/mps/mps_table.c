@@ -205,17 +205,17 @@ mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	MPS_PRINTFIELD(sc, facts, IOCNumber, %d);
 	MPS_PRINTFIELD(sc, facts, IOCExceptions, 0x%x);
 	MPS_PRINTFIELD(sc, facts, MaxChainDepth, %d);
-	mps_dprint_field(sc, MPS_INFO, "WhoInit: %s\n",
+	mps_dprint_field(sc, MPS_XINFO, "WhoInit: %s\n",
 	    mps_describe_table(mps_whoinit_names, facts->WhoInit));
 	MPS_PRINTFIELD(sc, facts, NumberOfPorts, %d);
 	MPS_PRINTFIELD(sc, facts, RequestCredit, %d);
 	MPS_PRINTFIELD(sc, facts, ProductID, 0x%x);
-	mps_dprint_field(sc, MPS_INFO, "IOCCapabilities: %b\n",
+	mps_dprint_field(sc, MPS_XINFO, "IOCCapabilities: %b\n",
 	    facts->IOCCapabilities, "\20" "\3ScsiTaskFull" "\4DiagTrace"
 	    "\5SnapBuf" "\6ExtBuf" "\7EEDP" "\10BiDirTarg" "\11Multicast"
 	    "\14TransRetry" "\15IR" "\16EventReplay" "\17RaidAccel"
 	    "\20MSIXIndex" "\21HostDisc");
-	mps_dprint_field(sc, MPS_INFO, "FWVersion= %d-%d-%d-%d\n",
+	mps_dprint_field(sc, MPS_XINFO, "FWVersion= %d-%d-%d-%d\n",
 	    facts->FWVersion.Struct.Major,
 	    facts->FWVersion.Struct.Minor,
 	    facts->FWVersion.Struct.Unit,
@@ -225,7 +225,7 @@ mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	MPS_PRINTFIELD(sc, facts, MaxTargets, %d);
 	MPS_PRINTFIELD(sc, facts, MaxSasExpanders, %d);
 	MPS_PRINTFIELD(sc, facts, MaxEnclosures, %d);
-	mps_dprint_field(sc, MPS_INFO, "ProtocolFlags: %b\n",
+	mps_dprint_field(sc, MPS_XINFO, "ProtocolFlags: %b\n",
 	    facts->ProtocolFlags, "\20" "\1ScsiTarg" "\2ScsiInit");
 	MPS_PRINTFIELD(sc, facts, HighPriorityCredit, %d);
 	MPS_PRINTFIELD(sc, facts, MaxReplyDescriptorPostQueueDepth, %d);
@@ -263,7 +263,7 @@ mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 	MPS_PRINTFIELD_START(sc, "SAS Device Page 0");
 	MPS_PRINTFIELD(sc, buf, Slot, %d);
 	MPS_PRINTFIELD(sc, buf, EnclosureHandle, 0x%x);
-	mps_dprint_field(sc, MPS_INFO, "SASAddress: 0x%jx\n",
+	mps_dprint_field(sc, MPS_XINFO, "SASAddress: 0x%jx\n",
 	    mps_to_u64(&buf->SASAddress));
 	MPS_PRINTFIELD(sc, buf, ParentDevHandle, 0x%x);
 	MPS_PRINTFIELD(sc, buf, PhyNum, %d);
@@ -271,7 +271,7 @@ mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 	MPS_PRINTFIELD(sc, buf, DevHandle, 0x%x);
 	MPS_PRINTFIELD(sc, buf, AttachedPhyIdentifier, 0x%x);
 	MPS_PRINTFIELD(sc, buf, ZoneGroup, %d);
-	mps_dprint_field(sc, MPS_INFO, "DeviceInfo: %b,%s\n", buf->DeviceInfo,
+	mps_dprint_field(sc, MPS_XINFO, "DeviceInfo: %b,%s\n", buf->DeviceInfo,
 	    "\20" "\4SataHost" "\5SmpInit" "\6StpInit" "\7SspInit"
 	    "\10SataDev" "\11SmpTarg" "\12StpTarg" "\13SspTarg" "\14Direct"
 	    "\15LsiDev" "\16AtapiDev" "\17SepDev",
@@ -279,7 +279,7 @@ mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 	MPS_PRINTFIELD(sc, buf, Flags, 0x%x);
 	MPS_PRINTFIELD(sc, buf, PhysicalPort, %d);
 	MPS_PRINTFIELD(sc, buf, MaxPortConnections, %d);
-	mps_dprint_field(sc, MPS_INFO, "DeviceName: 0x%jx\n",
+	mps_dprint_field(sc, MPS_XINFO, "DeviceName: 0x%jx\n",
 	    mps_to_u64(&buf->DeviceName));
 	MPS_PRINTFIELD(sc, buf, PortGroups, %d);
 	MPS_PRINTFIELD(sc, buf, DmaGroup, %d);
@@ -390,17 +390,17 @@ mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 	MPS_PRINTFIELD(sc, buf, NumPhys, %d);
 	MPS_PRINTFIELD(sc, buf, Phy, %d);
 	MPS_PRINTFIELD(sc, buf, NumTableEntriesProgrammed, %d);
-	mps_dprint_field(sc, MPS_INFO, "ProgrammedLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "ProgrammedLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    (buf->ProgrammedLinkRate >> 4) & 0xf), buf->ProgrammedLinkRate);
-	mps_dprint_field(sc, MPS_INFO, "HwLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "HwLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    (buf->HwLinkRate >> 4) & 0xf), buf->HwLinkRate);
 	MPS_PRINTFIELD(sc, buf, AttachedDevHandle, 0x%04x);
-	mps_dprint_field(sc, MPS_INFO, "PhyInfo Reason: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "PhyInfo Reason: %s (0x%x)\n",
 	    mps_describe_table(mps_phyinfo_reason_names,
 	    (buf->PhyInfo >> 16) & 0xf), buf->PhyInfo);
-	mps_dprint_field(sc, MPS_INFO, "AttachedDeviceInfo: %b,%s\n",
+	mps_dprint_field(sc, MPS_XINFO, "AttachedDeviceInfo: %b,%s\n",
 	    buf->AttachedDeviceInfo, "\20" "\4SATAhost" "\5SMPinit" "\6STPinit"
 	    "\7SSPinit" "\10SATAdev" "\11SMPtarg" "\12STPtarg" "\13SSPtarg"
 	    "\14Direct" "\15LSIdev" "\16ATAPIdev" "\17SEPdev",
@@ -408,14 +408,14 @@ mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 	    buf->AttachedDeviceInfo & 0x03));
 	MPS_PRINTFIELD(sc, buf, ExpanderDevHandle, 0x%04x);
 	MPS_PRINTFIELD(sc, buf, ChangeCount, %d);
-	mps_dprint_field(sc, MPS_INFO, "NegotiatedLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "NegotiatedLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    buf->NegotiatedLinkRate & 0xf), buf->NegotiatedLinkRate);
 	MPS_PRINTFIELD(sc, buf, PhyIdentifier, %d);
 	MPS_PRINTFIELD(sc, buf, AttachedPhyIdentifier, %d);
 	MPS_PRINTFIELD(sc, buf, DiscoveryInfo, 0x%x);
 	MPS_PRINTFIELD(sc, buf, AttachedPhyInfo, 0x%x);
-	mps_dprint_field(sc, MPS_INFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
 	    mps_describe_table(mps_phyinfo_reason_names,
 	    buf->AttachedPhyInfo & 0xf), buf->AttachedPhyInfo);
 	MPS_PRINTFIELD(sc, buf, ZoneGroup, %d);
@@ -429,21 +429,21 @@ mps_print_sasphy0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
 	MPS_PRINTFIELD(sc, buf, OwnerDevHandle, 0x%04x);
 	MPS_PRINTFIELD(sc, buf, AttachedDevHandle, 0x%04x);
 	MPS_PRINTFIELD(sc, buf, AttachedPhyIdentifier, %d);
-	mps_dprint_field(sc, MPS_INFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
 	    mps_describe_table(mps_phyinfo_reason_names,
 	    buf->AttachedPhyInfo & 0xf), buf->AttachedPhyInfo);
-	mps_dprint_field(sc, MPS_INFO, "ProgrammedLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "ProgrammedLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    (buf->ProgrammedLinkRate >> 4) & 0xf), buf->ProgrammedLinkRate);
-	mps_dprint_field(sc, MPS_INFO, "HwLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "HwLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    (buf->HwLinkRate >> 4) & 0xf), buf->HwLinkRate);
 	MPS_PRINTFIELD(sc, buf, ChangeCount, %d);
 	MPS_PRINTFIELD(sc, buf, Flags, 0x%x);
-	mps_dprint_field(sc, MPS_INFO, "PhyInfo Reason: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "PhyInfo Reason: %s (0x%x)\n",
 	    mps_describe_table(mps_phyinfo_reason_names,
 	    (buf->PhyInfo >> 16) & 0xf), buf->PhyInfo);
-	mps_dprint_field(sc, MPS_INFO, "NegotiatedLinkRate: %s (0x%x)\n",
+	mps_dprint_field(sc, MPS_XINFO, "NegotiatedLinkRate: %s (0x%x)\n",
 	    mps_describe_table(mps_linkrate_names,
 	    buf->NegotiatedLinkRate & 0xf), buf->NegotiatedLinkRate);
 }

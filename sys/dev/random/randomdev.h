@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+#define SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+
 /* This header contains only those definitions that are global
  * and non algorithm-specific for the entropy processor
  */
@@ -34,24 +37,26 @@ typedef void random_init_func_t(void);
 typedef void random_deinit_func_t(void);
 typedef int random_block_func_t(int);
 typedef int random_read_func_t(void *, int);
-typedef void random_write_func_t(void *, int);
 typedef int random_poll_func_t(int, struct thread *);
 typedef void random_reseed_func_t(void);
 
-struct random_systat {
+struct random_adaptor {
 	struct selinfo		rsel;
 	const char		*ident;
 	int			seeded;
+	unsigned		priority;
 	random_init_func_t	*init;
 	random_deinit_func_t	*deinit;
 	random_block_func_t	*block;
 	random_read_func_t	*read;
-	random_write_func_t	*write;
 	random_poll_func_t	*poll;
 	random_reseed_func_t	*reseed;
 };
 
-extern struct random_systat random_systat;
+struct random_hardware_source {
+	const char		*ident;
+	enum esource		source;
+	random_read_func_t	*read;
+};
 
-extern void random_ident_hardware(struct random_systat *);
-extern void random_null_func(void);
+#endif

@@ -10,13 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_read.c	10.38 (Berkeley) 8/12/96";
+static const char sccsid[] = "$Id: ex_read.c,v 10.44 2001/06/25 15:19:19 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -40,20 +39,20 @@ static const char sccsid[] = "@(#)ex_read.c	10.38 (Berkeley) 8/12/96";
  * PUBLIC: int ex_read __P((SCR *, EXCMD *));
  */
 int
-ex_read(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_read(SCR *sp, EXCMD *cmdp)
 {
 	enum { R_ARG, R_EXPANDARG, R_FILTER } which;
 	struct stat sb;
-	CHAR_T *arg, *name;
+	CHAR_T *arg = NULL;
+	char *name = NULL;
+	size_t nlen;
 	EX_PRIVATE *exp;
 	FILE *fp;
 	FREF *frp;
 	GS *gp;
 	MARK rm;
 	recno_t nlines;
-	size_t arglen;
+	size_t arglen = 0;
 	int argc, rval;
 	char *p;
 
@@ -77,7 +76,7 @@ ex_read(sp, cmdp)
 
 			/* Secure means no shell access. */
 			if (O_ISSET(sp, O_SECURE)) {
-				ex_emsg(sp, cmdp->cmd->name, EXM_SECURE_F);
+				ex_wemsg(sp, cmdp->cmd->name, EXM_SECURE_F);
 				return (1);
 			}
 		} else
@@ -116,7 +115,8 @@ ex_read(sp, cmdp)
 		if (exp->lastbcomm != NULL)
 			free(exp->lastbcomm);
 		if ((exp->lastbcomm =
-		    strdup(cmdp->argv[argc]->bp)) == NULL) {
+		    v_wstrdup(sp, cmdp->argv[argc]->bp,
+				cmdp->argv[argc]->len)) == NULL) {
 			msgq(sp, M_SYSERR, NULL);
 			return (1);
 		}
@@ -132,7 +132,7 @@ ex_read(sp, cmdp)
 		} else {
 			if (F_ISSET(cmdp, E_MODIFY))
 				(void)ex_printf(sp,
-				    "!%s\n", cmdp->argv[argc]->bp);
+				    "!"WS"\n", cmdp->argv[argc]->bp);
 			else
 				(void)ex_puts(sp, "!\n");
 			(void)ex_fflush(sp);
@@ -157,7 +157,7 @@ ex_read(sp, cmdp)
 		 */
 		if (F_ISSET(sp, SC_VI)) {
 			if (gp->scr_screen(sp, SC_EX)) {
-				ex_emsg(sp, cmdp->cmd->name, EXM_NOCANON_F);
+				ex_wemsg(sp, cmdp->cmd->name, EXM_NOCANON_F);
 				return (1);
 			}
 			/*
@@ -207,7 +207,8 @@ ex_read(sp, cmdp)
 			abort();
 			/* NOTREACHED */
 		case 2:
-			name = cmdp->argv[1]->bp;
+			INT2CHAR(sp, cmdp->argv[1]->bp, cmdp->argv[1]->len + 1, 
+				 name, nlen);
 			/*
 			 * !!!
 			 * Historically, the read and write commands renamed
@@ -216,8 +217,7 @@ ex_read(sp, cmdp)
 			 */
 			if (F_ISSET(sp->frp, FR_TMPFILE) &&
 			    !F_ISSET(sp->frp, FR_EXNAMED)) {
-				if ((p = v_strdup(sp, cmdp->argv[1]->bp,
-				    cmdp->argv[1]->len)) != NULL) {
+				if ((p = strdup(name)) != NULL) {
 					free(sp->frp->name);
 					sp->frp->name = p;
 				}
@@ -230,11 +230,14 @@ ex_read(sp, cmdp)
 
 				/* Notify the screen. */
 				(void)sp->gp->scr_rename(sp, sp->frp->name, 1);
-			} else
+				name = sp->frp->name;
+			} else {
 				set_alt_name(sp, name);
+				name = sp->alt_name;
+			}
 			break;
 		default:
-			ex_emsg(sp, cmdp->argv[0]->bp, EXM_FILECOUNT);
+			ex_wemsg(sp, cmdp->argv[0]->bp, EXM_FILECOUNT);
 			return (1);
 		
 		}
@@ -261,7 +264,7 @@ ex_read(sp, cmdp)
 	}
 
 	/* Try and get a lock. */
-	if (file_lock(sp, NULL, NULL, fileno(fp), 0) == LOCK_UNAVAIL)
+	if (file_lock(sp, NULL, fileno(fp), 0) == LOCK_UNAVAIL)
 		msgq(sp, M_ERR, "146|%s: read lock was unavailable", name);
 
 	rval = ex_readfp(sp, name, fp, &cmdp->addr1, &nlines, 0);
@@ -291,13 +294,7 @@ ex_read(sp, cmdp)
  * PUBLIC: int ex_readfp __P((SCR *, char *, FILE *, MARK *, recno_t *, int));
  */
 int
-ex_readfp(sp, name, fp, fm, nlinesp, silent)
-	SCR *sp;
-	char *name;
-	FILE *fp;
-	MARK *fm;
-	recno_t *nlinesp;
-	int silent;
+ex_readfp(SCR *sp, char *name, FILE *fp, MARK *fm, recno_t *nlinesp, int silent)
 {
 	EX_PRIVATE *exp;
 	GS *gp;
@@ -306,6 +303,8 @@ ex_readfp(sp, name, fp, fm, nlinesp, silent)
 	u_long ccnt;			/* XXX: can't print off_t portably. */
 	int nf, rval;
 	char *p;
+	size_t wlen;
+	CHAR_T *wp;
 
 	gp = sp->gp;
 	exp = EXP(sp);
@@ -327,7 +326,8 @@ ex_readfp(sp, name, fp, fm, nlinesp, silent)
 				p = NULL;
 			}
 		}
-		if (db_append(sp, 1, lno, exp->ibp, len))
+		FILE2INT5(sp, exp->ibcw, exp->ibp, len, wp, wlen);
+		if (db_append(sp, 1, lno, wp, wlen))
 			goto err;
 		ccnt += len;
 	}
@@ -342,7 +342,8 @@ ex_readfp(sp, name, fp, fm, nlinesp, silent)
 	if (!silent) {
 		p = msg_print(sp, name, &nf);
 		msgq(sp, M_INFO,
-		    "148|%s: %lu lines, %lu characters", p, lcnt, ccnt);
+		    "148|%s: %lu lines, %lu characters", p,
+		    (u_long)lcnt, ccnt);
 		if (nf)
 			FREE_SPACE(sp, p, 0);
 	}

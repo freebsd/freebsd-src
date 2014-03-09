@@ -16,9 +16,10 @@
 #ifndef LLVM_CLANG_GR_BASICVALUEFACTORY_H
 #define LLVM_CLANG_GR_BASICVALUEFACTORY_H
 
+#include "clang/AST/ASTContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 
 namespace clang {
 namespace ento {
@@ -92,7 +93,7 @@ public:
 
   /// Returns the type of the APSInt used to store values of the given QualType.
   APSIntType getAPSIntType(QualType T) const {
-    assert(T->isIntegerType() || Loc::isLocType(T));
+    assert(T->isIntegralOrEnumerationType() || Loc::isLocType(T));
     return APSIntType(Ctx.getTypeSize(T),
                       !T->isSignedIntegerOrEnumerationType());
   }

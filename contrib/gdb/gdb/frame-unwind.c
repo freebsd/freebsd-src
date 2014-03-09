@@ -27,6 +27,8 @@
 
 static struct gdbarch_data *frame_unwind_data;
 
+frame_unwind_sniffer_ftype *kgdb_sniffer_kluge;
+
 struct frame_unwind_table
 {
   frame_unwind_sniffer_ftype **sniffer;
@@ -49,6 +51,8 @@ frame_unwind_init (struct gdbarch *gdbarch)
 {
   struct frame_unwind_table *table = XCALLOC (1, struct frame_unwind_table);
   append_predicate (table, dummy_frame_sniffer);
+  if (kgdb_sniffer_kluge != NULL)
+    append_predicate (table, kgdb_sniffer_kluge);
   return table;
 }
 

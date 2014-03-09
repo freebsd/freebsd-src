@@ -95,10 +95,11 @@ CFLAGS+= -Wa,-mppc64bridge
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
 # where to get libstand from
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} -lstand
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
 
 SC_DFLT_FONT=cp437
 
@@ -108,7 +109,7 @@ font.h:
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.ps3
+loader.help: help.common help.ps3 ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 

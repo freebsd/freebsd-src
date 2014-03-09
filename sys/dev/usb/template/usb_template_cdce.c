@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2007 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
@@ -31,6 +29,9 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB templates for a CDC USB ethernet device.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -52,9 +53,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
 	STRING_LANG_INDEX,
@@ -68,61 +71,31 @@ enum {
 	STRING_ETH_MAX,
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_MAC \
-  '2', 0, 'A', 0, '2', 0, '3', 0, \
-  '4', 0, '5', 0, '6', 0, '7', 0, \
-  '8', 0, '9', 0, 'A', 0, 'B', 0,
+  "2\0A\0002\0003\0004\0005\0006\0007\08\09\0A\0B"
 
 #define	STRING_ETH_CONTROL \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'E', 0, 't', 0, 'h', 0, 'e', 0, \
-  'r', 0, 'n', 0, 'e', 0, 't', 0, \
-  ' ', 0, 'C', 0, 'o', 0, 'm', 0, \
-  'm', 0, ' ', 0, 'i', 0, 'n', 0, \
-  't', 0, 'e', 0, 'r', 0, 'f', 0, \
-  'a', 0, 'c', 0, 'e', 0,
+  "U\0S\0B\0 \0E\0t\0h\0e\0r\0n\0e\0t\0 " \
+  "\0C\0o\0m\0m\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_ETH_DATA \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'E', 0, 't', 0, 'h', 0, 'e', 0, \
-  'r', 0, 'n', 0, 'e', 0, 't', 0, \
-  ' ', 0, 'D', 0, 'a', 0, 't', 0, \
-  'a', 0, ' ', 0, 'i', 0, 'n', 0, \
-  't', 0, 'e', 0, 'r', 0, 'f', 0, \
-  'a', 0, 'c', 0, 'e', 0,
+  "U\0S\0B\0 \0E\0t\0h\0e\0r\0n\0e\0t\0 \0D\0a\0t\0a\0 " \
+  "\0I\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_ETH_CONFIG \
-  'D', 0, 'e', 0, 'f', 0, 'a', 0, \
-  'u', 0, 'l', 0, 't', 0, ' ', 0, \
-  'c', 0, 'o', 0, 'n', 0, 'f', 0, \
-  'i', 0, 'g', 0,
+  "D\0e\0f\0a\0u\0l\0t\0 \0c\0o\0n\0f\0i\0g"
 
 #define	STRING_ETH_VENDOR \
-  'F', 0, 'r', 0, 'e', 0, 'e', 0, \
-  'B', 0, 'S', 0, 'D', 0, ' ', 0, \
-  'f', 0, 'o', 0, 'u', 0, 'n', 0, \
-  'd', 0, 'a', 0, 't', 0, 'i', 0, \
-  'o', 0, 'n', 0,
+  "F\0r\0e\0e\0B\0S\0D\0 \0f\0o\0u\0n\0d\0a\0t\0i\0o\0n"
 
 #define	STRING_ETH_PRODUCT \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'E', 0, 't', 0, 'h', 0, 'e', 0, \
-  'r', 0, 'n', 0, 'e', 0, 't', 0, \
-  ' ', 0, 'A', 0, 'd', 0, 'a', 0, \
-  'p', 0, 't', 0, 'e', 0, 'r', 0,
+  "U\0S\0B\0 \0E\0t\0h\0e\0r\0n\0e\0t\0 \0A\0d\0a\0p\0t\0e\0r"
 
 #define	STRING_ETH_SERIAL \
-  'D', 0, 'e', 0, 'c', 0, 'e', 0, \
-  'm', 0, 'b', 0, 'e', 0, 'r', 0, \
-  ' ', 0, '2', 0, '0', 0, '0', 0, \
-  '7', 0,
+  "D\0e\0c\0e\0m\0b\0e\0r\0 \0002\0000\0000\0007"
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MAC, string_mac);
 USB_MAKE_STRING_DESC(STRING_ETH_CONTROL, string_eth_control);
 USB_MAKE_STRING_DESC(STRING_ETH_DATA, string_eth_data);
@@ -286,7 +259,7 @@ static const void *
 eth_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[STRING_ETH_MAX] = {
-		[STRING_LANG_INDEX] = &string_lang,
+		[STRING_LANG_INDEX] = &usb_string_lang_en,
 		[STRING_MAC_INDEX] = &string_mac,
 		[STRING_ETH_CONTROL_INDEX] = &string_eth_control,
 		[STRING_ETH_DATA_INDEX] = &string_eth_data,
@@ -297,7 +270,7 @@ eth_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	};
 
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

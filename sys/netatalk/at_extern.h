@@ -46,16 +46,16 @@ struct socket;
 void		 aarpintr(struct mbuf *);
 void		 aarpprobe(void *arg);
 int		 aarpresolve(struct ifnet *, struct mbuf *,
-		    struct sockaddr_at *, u_char *);
+		    const struct sockaddr_at *, u_char *);
 void		 aarp_clean(void);
 void		 at1intr(struct mbuf *);
 void		 at2intr(struct mbuf *);
-int		 at_broadcast(struct sockaddr_at  *);
+int		 at_broadcast(const struct sockaddr_at  *);
 u_short		 at_cksum(struct mbuf *m, int skip);
 int		 at_control(struct socket *so, u_long cmd, caddr_t data,
 		    struct ifnet *ifp, struct thread *td);
-struct at_ifaddr	*at_ifawithnet(struct sockaddr_at *);
-struct at_ifaddr	*at_ifawithnet_locked(struct sockaddr_at  *sat);
+struct at_ifaddr	*at_ifawithnet(const struct sockaddr_at *);
+struct at_ifaddr	*at_ifawithnet_locked(const struct sockaddr_at  *sat);
 
 int		 at_inithead(void**, int);
 void		 ddp_init(void);

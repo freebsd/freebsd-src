@@ -16,8 +16,9 @@
 
 #include "CGCall.h"
 #include "clang/AST/GlobalDecl.h"
-#include "llvm/Module.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/IR/Module.h"
 #include <vector>
 
 namespace llvm {
@@ -58,15 +59,17 @@ namespace CodeGen {
 /// CodeGenTypes - This class organizes the cross-module state that is used
 /// while lowering AST types to LLVM types.
 class CodeGenTypes {
+  CodeGenModule &CGM;
   // Some of this stuff should probably be left on the CGM.
   ASTContext &Context;
-  const TargetInfo &Target;
   llvm::Module &TheModule;
   const llvm::DataLayout &TheDataLayout;
-  const ABIInfo &TheABIInfo;
+  const TargetInfo &Target;
   CGCXXABI &TheCXXABI;
-  const CodeGenOptions &CodeGenOpts;
-  CodeGenModule &CGM;
+
+  // This should not be moved earlier, since its initialization depends on some
+  // of the previous reference members being already initialized
+  const ABIInfo &TheABIInfo;
 
   /// The opaque type map for Objective-C interfaces. All direct
   /// manipulation is done by the runtime interfaces, which are
@@ -105,14 +108,13 @@ private:
   llvm::DenseMap<const Type *, llvm::Type *> TypeCache;
 
 public:
-  CodeGenTypes(CodeGenModule &CGM);
+  CodeGenTypes(CodeGenModule &cgm);
   ~CodeGenTypes();
 
   const llvm::DataLayout &getDataLayout() const { return TheDataLayout; }
-  const TargetInfo &getTarget() const { return Target; }
   ASTContext &getContext() const { return Context; }
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
-  const CodeGenOptions &getCodeGenOpts() const { return CodeGenOpts; }
+  const TargetInfo &getTarget() const { return Target; }
   CGCXXABI &getCXXABI() const { return TheCXXABI; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }
 
@@ -195,6 +197,8 @@ public:
                                                 const CallArgList &args,
                                                 FunctionType::ExtInfo info,
                                                 RequiredArgs required);
+  const CGFunctionInfo &arrangeBlockFunctionCall(const CallArgList &args,
+                                                 const FunctionType *type);
 
   const CGFunctionInfo &arrangeCXXMethodCall(const CallArgList &args,
                                              const FunctionProtoType *type,

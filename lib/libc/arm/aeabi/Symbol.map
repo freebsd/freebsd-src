@@ -1,0 +1,47 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * This only needs to contain AEABI symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSDprivate_1.0 {
+	__aeabi_atexit;
+
+	__aeabi_dcmpeq;
+	__aeabi_dcmplt;
+	__aeabi_dcmple;
+	__aeabi_dcmpge;
+	__aeabi_dcmpgt;
+	__aeabi_dcmpun;
+
+	__aeabi_d2iz;
+	__aeabi_d2f;
+
+	__aeabi_dadd;
+	__aeabi_ddiv;
+	__aeabi_dmul;
+	__aeabi_dsub;
+
+
+	__aeabi_fcmpeq;
+	__aeabi_fcmplt;
+	__aeabi_fcmple;
+	__aeabi_fcmpge;
+	__aeabi_fcmpgt;
+	__aeabi_fcmpun;
+
+	__aeabi_f2iz;
+	__aeabi_f2d;
+
+	__aeabi_fadd;
+	__aeabi_fdiv;
+	__aeabi_fmul;
+	__aeabi_fsub;
+
+
+	__aeabi_i2d;
+	__aeabi_i2f;
+};

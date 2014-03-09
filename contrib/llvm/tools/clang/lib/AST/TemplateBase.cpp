@@ -23,8 +23,8 @@
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <cctype>
 
 using namespace clang;
 
@@ -55,8 +55,8 @@ static void printIntegral(const TemplateArgument &TemplArg,
 //===----------------------------------------------------------------------===//
 
 TemplateArgument::TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value,
-                                   QualType Type)
-  : Kind(Integral) {
+                                   QualType Type) {
+  Integer.Kind = Integral;
   // Copy the APSInt value into our decomposed form.
   Integer.BitWidth = Value.getBitWidth();
   Integer.IsUnsigned = Value.isUnsigned();
@@ -224,23 +224,27 @@ bool TemplateArgument::containsUnexpandedParameterPack() const {
   return false;
 }
 
-llvm::Optional<unsigned> TemplateArgument::getNumTemplateExpansions() const {
-  assert(Kind == TemplateExpansion);
+Optional<unsigned> TemplateArgument::getNumTemplateExpansions() const {
+  assert(getKind() == TemplateExpansion);
   if (TemplateArg.NumExpansions)
     return TemplateArg.NumExpansions - 1;
   
-  return llvm::Optional<unsigned>();
+  return None; 
 }
 
 void TemplateArgument::Profile(llvm::FoldingSetNodeID &ID,
                                const ASTContext &Context) const {
-  ID.AddInteger(Kind);
-  switch (Kind) {
+  ID.AddInteger(getKind());
+  switch (getKind()) {
   case Null:
     break;
 
   case Type:
     getAsType().Profile(ID);
+    break;
+
+  case NullPtr:
+    getNullPtrType().Profile(ID);
     break;
 
   case Declaration:
@@ -291,7 +295,7 @@ bool TemplateArgument::structurallyEquals(const TemplateArgument &Other) const {
   case Template:
   case TemplateExpansion:
   case NullPtr:
-    return TypeOrValue == Other.TypeOrValue;
+    return TypeOrValue.V == Other.TypeOrValue.V;
 
   case Declaration:
     return getAsDecl() == Other.getAsDecl() && 
@@ -347,17 +351,16 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
   case Type: {
     PrintingPolicy SubPolicy(Policy);
     SubPolicy.SuppressStrongLifetime = true;
-    std::string TypeStr;
-    getAsType().getAsStringInternal(TypeStr, SubPolicy);
-    Out << TypeStr;
+    getAsType().print(Out, SubPolicy);
     break;
   }
     
   case Declaration: {
     NamedDecl *ND = cast<NamedDecl>(getAsDecl());
+    Out << '&';
     if (ND->getDeclName()) {
       // FIXME: distinguish between pointer and reference args?
-      Out << *ND;
+      ND->printQualifiedName(Out);
     } else {
       Out << "<anonymous>";
     }
@@ -446,69 +449,6 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return SourceRange();
-  }
-
-  llvm_unreachable("Invalid TemplateArgument Kind!");
-}
-
-TemplateArgumentLoc 
-TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
-                                       llvm::Optional<unsigned> &NumExpansions,
-                                             ASTContext &Context) const {
-  assert(Argument.isPackExpansion());
-  
-  switch (Argument.getKind()) {
-  case TemplateArgument::Type: {
-    // FIXME: We shouldn't ever have to worry about missing
-    // type-source info!
-    TypeSourceInfo *ExpansionTSInfo = getTypeSourceInfo();
-    if (!ExpansionTSInfo)
-      ExpansionTSInfo = Context.getTrivialTypeSourceInfo(
-                                                     getArgument().getAsType(),
-                                                         Ellipsis);
-    PackExpansionTypeLoc Expansion
-      = cast<PackExpansionTypeLoc>(ExpansionTSInfo->getTypeLoc());
-    Ellipsis = Expansion.getEllipsisLoc();
-    
-    TypeLoc Pattern = Expansion.getPatternLoc();
-    NumExpansions = Expansion.getTypePtr()->getNumExpansions();
-    
-    // FIXME: This is horrible. We know where the source location data is for
-    // the pattern, and we have the pattern's type, but we are forced to copy
-    // them into an ASTContext because TypeSourceInfo bundles them together
-    // and TemplateArgumentLoc traffics in TypeSourceInfo pointers.
-    TypeSourceInfo *PatternTSInfo
-      = Context.CreateTypeSourceInfo(Pattern.getType(),
-                                     Pattern.getFullDataSize());
-    memcpy(PatternTSInfo->getTypeLoc().getOpaqueData(), 
-           Pattern.getOpaqueData(), Pattern.getFullDataSize());
-    return TemplateArgumentLoc(TemplateArgument(Pattern.getType()),
-                               PatternTSInfo);
-  }
-      
-  case TemplateArgument::Expression: {
-    PackExpansionExpr *Expansion
-      = cast<PackExpansionExpr>(Argument.getAsExpr());
-    Expr *Pattern = Expansion->getPattern();
-    Ellipsis = Expansion->getEllipsisLoc();
-    NumExpansions = Expansion->getNumExpansions();
-    return TemplateArgumentLoc(Pattern, Pattern);
-  }
-
-  case TemplateArgument::TemplateExpansion:
-    Ellipsis = getTemplateEllipsisLoc();
-    NumExpansions = Argument.getNumTemplateExpansions();
-    return TemplateArgumentLoc(Argument.getPackExpansionPattern(),
-                               getTemplateQualifierLoc(),
-                               getTemplateNameLoc());
-    
-  case TemplateArgument::Declaration:
-  case TemplateArgument::NullPtr:
-  case TemplateArgument::Template:
-  case TemplateArgument::Integral:
-  case TemplateArgument::Pack:
-  case TemplateArgument::Null:
-    return TemplateArgumentLoc();
   }
 
   llvm_unreachable("Invalid TemplateArgument Kind!");

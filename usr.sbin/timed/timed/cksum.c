@@ -49,9 +49,7 @@ static const char rcsid[] =
  * worry about carries except at the end.
  */
 int
-in_cksum(addr, len)
-	u_short *addr;
-	int len;
+in_cksum(u_short *addr, int len)
 {
 	register int nleft = len;
 	register u_short *w = addr;

@@ -38,7 +38,6 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #endif
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -119,7 +118,7 @@ LIN_SDT_PROBE_DEFINE1(futex, futex_sleep, return, "int");
 LIN_SDT_PROBE_DEFINE3(futex, futex_wake, entry, "struct futex *", "int",
     "uint32_t");
 LIN_SDT_PROBE_DEFINE3(futex, futex_wake, iterate, "uint32_t",
-    "struct waiting_proc *", "uin32_t");
+    "struct waiting_proc *", "uint32_t");
 LIN_SDT_PROBE_DEFINE1(futex, futex_wake, wakeup, "struct waiting_proc *");
 LIN_SDT_PROBE_DEFINE1(futex, futex_wake, return, "int");
 LIN_SDT_PROBE_DEFINE4(futex, futex_requeue, entry, "struct futex *", "int",
@@ -1203,7 +1202,7 @@ release_futexes(struct proc *p)
 
 		if (entry != pending)
 			if (handle_futex_death(p,
-			    (uint32_t *)entry + futex_offset, pi)) {
+			    (uint32_t *)((caddr_t)entry + futex_offset), pi)) {
 				LIN_SDT_PROBE0(futex, release_futexes, return);
 				return;
 			}
@@ -1222,7 +1221,7 @@ release_futexes(struct proc *p)
 	}
 
 	if (pending)
-		handle_futex_death(p, (uint32_t *)pending + futex_offset, pip);
+		handle_futex_death(p, (uint32_t *)((caddr_t)pending + futex_offset), pip);
 
 	LIN_SDT_PROBE0(futex, release_futexes, return);
 }

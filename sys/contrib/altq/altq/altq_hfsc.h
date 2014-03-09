@@ -218,16 +218,6 @@ struct runtime_sc {
 	u_int64_t	ism2;	/* scaled inverse-slope of the 2nd segment */
 };
 
-/* for TAILQ based ellist and actlist implementation */
-struct hfsc_class;
-typedef TAILQ_HEAD(_eligible, hfsc_class) ellist_t;
-typedef TAILQ_ENTRY(hfsc_class) elentry_t;
-typedef TAILQ_HEAD(_active, hfsc_class) actlist_t;
-typedef TAILQ_ENTRY(hfsc_class) actentry_t;
-#define	ellist_first(s)		TAILQ_FIRST(s)
-#define	actlist_first(s)	TAILQ_FIRST(s)
-#define	actlist_last(s)		TAILQ_LAST(s, _active)
-
 struct hfsc_class {
 	u_int		cl_id;		/* class id (just for debug) */
 	u_int32_t	cl_handle;	/* class handle */
@@ -277,10 +267,10 @@ struct hfsc_class {
 	u_int		cl_vtperiod;	/* vt period sequence no */
 	u_int		cl_parentperiod;  /* parent's vt period seqno */
 	int		cl_nactive;	/* number of active children */
-	actlist_t	*cl_actc;	/* active children list */
 
-	actentry_t	cl_actlist;	/* active children list entry */
-	elentry_t	cl_ellist;	/* eligible list entry */
+	TAILQ_HEAD(acthead, hfsc_class) cl_actc; /* active children list */
+	TAILQ_ENTRY(hfsc_class)	cl_actlist;	/* active children list entry */
+	TAILQ_ENTRY(hfsc_class)	cl_ellist;	/* eligible list entry */
 
 	struct {
 		struct pktcntr	xmit_cnt;
@@ -304,7 +294,7 @@ struct hfsc_if {
 	u_int	hif_packets;			/* # of packets in the tree */
 	u_int	hif_classid;			/* class id sequence number */
 
-	ellist_t *hif_eligible;			/* eligible list */
+	TAILQ_HEAD(elighead, hfsc_class) hif_eligible; /* eligible list */
 
 #ifdef ALTQ3_CLFIER_COMPAT
 	struct acc_classifier	hif_classifier;

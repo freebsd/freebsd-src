@@ -306,7 +306,7 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 
 	/*
 	 * There still might be channels (in OPEN state?) that
-	 * did not submit any commands, so diconnect them
+	 * did not submit any commands, so disconnect them
 	 */
 
 	LIST_FOREACH(ch, &l2cap->chan_list, next)

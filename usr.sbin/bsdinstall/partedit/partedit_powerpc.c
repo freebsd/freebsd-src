@@ -59,7 +59,8 @@ is_scheme_bootable(const char *part_type) {
 		return (1);
 	if (strcmp(platform, "ps3") == 0 && strcmp(part_type, "GPT") == 0)
 		return (1);
-	if (strcmp(platform, "chrp") == 0 && strcmp(part_type, "MBR") == 0)
+	if (strcmp(platform, "chrp") == 0 &&
+	    (strcmp(part_type, "MBR") == 0 || strcmp(part_type, "BSD") == 0))
 		return (1);
 
 	return (0);

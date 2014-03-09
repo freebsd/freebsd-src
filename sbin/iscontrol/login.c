@@ -39,15 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#if __FreeBSD_version < 500000
-#include <sys/time.h>
-#endif
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static char *status_class1[] = {

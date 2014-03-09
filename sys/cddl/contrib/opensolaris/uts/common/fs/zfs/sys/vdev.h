@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_H
@@ -46,7 +46,7 @@ typedef enum vdev_dtl_type {
 } vdev_dtl_type_t;
 
 extern boolean_t zfs_nocacheflush;
-extern boolean_t zfs_notrim;
+extern boolean_t zfs_trim_enabled;
 
 extern int vdev_open(vdev_t *);
 extern void vdev_open_children(vdev_t *);
@@ -78,8 +78,10 @@ extern void vdev_rele(vdev_t *);
 extern int vdev_metaslab_init(vdev_t *vd, uint64_t txg);
 extern void vdev_metaslab_fini(vdev_t *vd);
 extern void vdev_metaslab_set_size(vdev_t *);
+extern void vdev_ashift_optimize(vdev_t *);
 extern void vdev_expand(vdev_t *vd, uint64_t txg);
 extern void vdev_split(vdev_t *vd);
+extern void vdev_deadman(vdev_t *vd);
 
 
 extern void vdev_get_stats(vdev_t *vd, vdev_stat_t *vs);
@@ -110,7 +112,7 @@ extern boolean_t vdev_accessible(vdev_t *vd, zio_t *zio);
 
 extern void vdev_cache_init(vdev_t *vd);
 extern void vdev_cache_fini(vdev_t *vd);
-extern int vdev_cache_read(zio_t *zio);
+extern boolean_t vdev_cache_read(zio_t *zio);
 extern void vdev_cache_write(zio_t *zio);
 extern void vdev_cache_purge(vdev_t *vd);
 
@@ -118,6 +120,9 @@ extern void vdev_queue_init(vdev_t *vd);
 extern void vdev_queue_fini(vdev_t *vd);
 extern zio_t *vdev_queue_io(zio_t *zio);
 extern void vdev_queue_io_done(zio_t *zio);
+extern int vdev_queue_length(vdev_t *vd);
+extern uint64_t vdev_queue_lastoffset(vdev_t *vd);
+extern void vdev_queue_register_lastoffset(vdev_t *vd, zio_t *zio);
 
 extern void vdev_config_dirty(vdev_t *vd);
 extern void vdev_config_clean(vdev_t *vd);

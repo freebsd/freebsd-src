@@ -13,12 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/IdentifierResolver.h"
-#include "clang/Sema/Scope.h"
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclObjC.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Scope.h"
 
 using namespace clang;
 
@@ -79,19 +78,6 @@ void IdentifierResolver::IdDeclInfo::RemoveDecl(NamedDecl *D) {
   llvm_unreachable("Didn't find this decl on its identifier's chain!");
 }
 
-bool
-IdentifierResolver::IdDeclInfo::ReplaceDecl(NamedDecl *Old, NamedDecl *New) {
-  for (DeclsTy::iterator I = Decls.end(); I != Decls.begin(); --I) {
-    if (Old == *(I-1)) {
-      *(I - 1) = New;
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
 //===----------------------------------------------------------------------===//
 // IdentifierResolver Implementation
 //===----------------------------------------------------------------------===//
@@ -108,15 +94,13 @@ IdentifierResolver::~IdentifierResolver() {
 /// isDeclInScope - If 'Ctx' is a function/method, isDeclInScope returns true
 /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
 /// true if 'D' belongs to the given declaration context.
-bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx,
-                                       ASTContext &Context, Scope *S,
+bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S,
                              bool ExplicitInstantiationOrSpecialization) const {
   Ctx = Ctx->getRedeclContext();
 
   if (Ctx->isFunctionOrMethod() || S->isFunctionPrototypeScope()) {
     // Ignore the scopes associated within transparent declaration contexts.
-    while (S->getEntity() &&
-           ((DeclContext *)S->getEntity())->isTransparentContext())
+    while (S->getEntity() && S->getEntity()->isTransparentContext())
       S = S->getParent();
 
     if (S->isDeclScope(D))
@@ -237,30 +221,6 @@ void IdentifierResolver::RemoveDecl(NamedDecl *D) {
   return toIdDeclInfo(Ptr)->RemoveDecl(D);
 }
 
-bool IdentifierResolver::ReplaceDecl(NamedDecl *Old, NamedDecl *New) {
-  assert(Old->getDeclName() == New->getDeclName() &&
-         "Cannot replace a decl with another decl of a different name");
-
-  DeclarationName Name = Old->getDeclName();
-  if (IdentifierInfo *II = Name.getAsIdentifierInfo())
-    updatingIdentifier(*II);
-
-  void *Ptr = Name.getFETokenInfo<void>();
-
-  if (!Ptr)
-    return false;
-
-  if (isDeclPtr(Ptr)) {
-    if (Ptr == Old) {
-      Name.setFETokenInfo(New);
-      return true;
-    }
-    return false;
-  }
-
-  return toIdDeclInfo(Ptr)->ReplaceDecl(Old, New);
-}
-
 /// begin - Returns an iterator for decls with name 'Name'.
 IdentifierResolver::iterator
 IdentifierResolver::begin(DeclarationName Name) {
@@ -304,6 +264,14 @@ static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
 
   // If the declarations are redeclarations of each other, keep the newest one.
   if (Existing->getCanonicalDecl() == New->getCanonicalDecl()) {
+    // If either of these is the most recent declaration, use it.
+    Decl *MostRecent = Existing->getMostRecentDecl();
+    if (Existing == MostRecent)
+      return DMK_Ignore;
+
+    if (New == MostRecent)
+      return DMK_Replace;
+
     // If the existing declaration is somewhere in the previous declaration
     // chain of the new declaration, then prefer the new declaration.
     for (Decl::redecl_iterator RD = New->redecls_begin(), 

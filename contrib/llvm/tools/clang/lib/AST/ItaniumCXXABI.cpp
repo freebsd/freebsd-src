@@ -19,24 +19,43 @@
 
 #include "CXXABI.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/MangleNumberingContext.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/TargetInfo.h"
 
 using namespace clang;
 
 namespace {
+
+/// \brief Keeps track of the mangled names of lambda expressions and block
+/// literals within a particular context.
+class ItaniumNumberingContext : public MangleNumberingContext {
+  llvm::DenseMap<IdentifierInfo*, unsigned> VarManglingNumbers;
+
+public:
+  /// Variable decls are numbered by identifier.
+  virtual unsigned getManglingNumber(const VarDecl *VD) {
+    return ++VarManglingNumbers[VD->getIdentifier()];
+  }
+};
+
 class ItaniumCXXABI : public CXXABI {
 protected:
   ASTContext &Context;
 public:
   ItaniumCXXABI(ASTContext &Ctx) : Context(Ctx) { }
 
-  unsigned getMemberPointerSize(const MemberPointerType *MPT) const {
-    QualType Pointee = MPT->getPointeeType();
-    if (Pointee->isFunctionType()) return 2;
-    return 1;
+  std::pair<uint64_t, unsigned>
+  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const {
+    const TargetInfo &Target = Context.getTargetInfo();
+    TargetInfo::IntType PtrDiff = Target.getPtrDiffType(0);
+    uint64_t Width = Target.getTypeWidth(PtrDiff);
+    unsigned Align = Target.getTypeAlign(PtrDiff);
+    if (MPT->getPointeeType()->isFunctionType())
+      Width = 2 * Width;
+    return std::make_pair(Width, Align);
   }
 
   CallingConv getDefaultMethodCallConv(bool isVariadic) const {
@@ -55,6 +74,10 @@ public:
     CharUnits PointerSize = 
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
     return Layout.getNonVirtualSize() == PointerSize;
+  }
+
+  virtual MangleNumberingContext *createMangleNumberingContext() const {
+    return new ItaniumNumberingContext();
   }
 };
 

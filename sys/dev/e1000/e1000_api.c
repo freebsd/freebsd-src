@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -289,6 +289,12 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_PCH2_LV_V:
 		mac->type = e1000_pch2lan;
 		break;
+	case E1000_DEV_ID_PCH_LPT_I217_LM:
+	case E1000_DEV_ID_PCH_LPT_I217_V:
+	case E1000_DEV_ID_PCH_LPTLP_I218_LM:
+	case E1000_DEV_ID_PCH_LPTLP_I218_V:
+		mac->type = e1000_pch_lpt;
+		break;
 	case E1000_DEV_ID_82575EB_COPPER:
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
@@ -323,6 +329,8 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_I350_DA4:
 		mac->type = e1000_i350;
 		break;
+	case E1000_DEV_ID_I210_COPPER_FLASHLESS:
+	case E1000_DEV_ID_I210_SERDES_FLASHLESS:
 	case E1000_DEV_ID_I210_COPPER:
 	case E1000_DEV_ID_I210_COPPER_OEM1:
 	case E1000_DEV_ID_I210_COPPER_IT:
@@ -332,13 +340,21 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 		mac->type = e1000_i210;
 		break;
 	case E1000_DEV_ID_I211_COPPER:
-	mac->type = e1000_i211;
-	break;
+		mac->type = e1000_i211;
+		break;
 	case E1000_DEV_ID_82576_VF:
+	case E1000_DEV_ID_82576_VF_HV:
 		mac->type = e1000_vfadapt;
 		break;
 	case E1000_DEV_ID_I350_VF:
+	case E1000_DEV_ID_I350_VF_HV:
 		mac->type = e1000_vfadapt_i350;
+		break;
+
+	case E1000_DEV_ID_I354_BACKPLANE_1GBPS:
+	case E1000_DEV_ID_I354_SGMII:
+	case E1000_DEV_ID_I354_BACKPLANE_2_5GBPS:
+		mac->type = e1000_i354;
 		break;
 	default:
 		/* Should never have loaded on this device */
@@ -428,12 +444,14 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		e1000_init_function_pointers_ich8lan(hw);
 		break;
 	case e1000_82575:
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 		e1000_init_function_pointers_82575(hw);
 		break;
 	case e1000_i210:
@@ -873,11 +891,7 @@ bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
 s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
 			    u16 offset, u8 *sum)
 {
-	if (hw->mac.ops.mng_host_if_write)
-		return hw->mac.ops.mng_host_if_write(hw, buffer, length,
-						     offset, sum);
-
-	return E1000_NOT_IMPLEMENTED;
+	return e1000_mng_host_if_write_generic(hw, buffer, length, offset, sum);
 }
 
 /**
@@ -890,10 +904,7 @@ s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
 s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
 			       struct e1000_host_mng_command_header *hdr)
 {
-	if (hw->mac.ops.mng_write_cmd_header)
-		return hw->mac.ops.mng_write_cmd_header(hw, hdr);
-
-	return E1000_NOT_IMPLEMENTED;
+	return e1000_mng_write_cmd_header_generic(hw, hdr);
 }
 
 /**
@@ -908,23 +919,20 @@ s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
  **/
 s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 {
-	if (hw->mac.ops.mng_enable_host_if)
-		return hw->mac.ops.mng_enable_host_if(hw);
-
-	return E1000_NOT_IMPLEMENTED;
+	return e1000_mng_enable_host_if_generic(hw);
 }
 
 /**
- *  e1000_wait_autoneg - Waits for autonegotiation completion
+ *  e1000_set_obff_timer - Set Optimized Buffer Flush/Fill timer
  *  @hw: pointer to the HW structure
+ *  @itr: u32 indicating itr value
  *
- *  Waits for autoneg to complete. Currently no func pointer exists and all
- *  implementations are handled in the generic version of this function.
+ *  Set the OBFF timer based on the given interrupt rate.
  **/
-s32 e1000_wait_autoneg(struct e1000_hw *hw)
+s32 e1000_set_obff_timer(struct e1000_hw *hw, u32 itr)
 {
-	if (hw->mac.ops.wait_autoneg)
-		return hw->mac.ops.wait_autoneg(hw);
+	if (hw->mac.ops.set_obff_timer)
+		return hw->mac.ops.set_obff_timer(hw, itr);
 
 	return E1000_SUCCESS;
 }

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
 
@@ -147,6 +148,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM3, BCM5720C),
 	MII_PHY_DESC(BROADCOM3, BCM57765),
 	MII_PHY_DESC(BROADCOM3, BCM57780),
+	MII_PHY_DESC(BROADCOM4, BCM5725C),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5906),
 	MII_PHY_END
 };
@@ -313,10 +315,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	case MII_POLLSTAT:
 		break;
 	case MII_MEDIACHG:
-		/* If the interface is not up, don't do anything. */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		/* Todo: Why is this here?  Is it really needed? */
 		PHY_RESET(sc);	/* XXX hardware bug work-around */
 
@@ -336,11 +334,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		}
 		break;
 	case MII_TICK:
-		/* Bail if the interface isn't up. */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
-
 		/* Bail if autoneg isn't in process. */
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
@@ -932,6 +925,8 @@ brgphy_reset(struct mii_softc *sc)
 			return;
 		}
 		break;
+	case MII_OUI_BROADCOM4:
+		return;
 	}
 
 	ifp = sc->mii_pdata->mii_ifp;

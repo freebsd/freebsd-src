@@ -222,6 +222,7 @@ static int finish_vt_acq(scr_stat *scp);
 static void exchange_scr(sc_softc_t *sc);
 static void update_cursor_image(scr_stat *scp);
 static void change_cursor_shape(scr_stat *scp, int flags, int base, int height);
+static void update_font(scr_stat *);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
@@ -253,11 +254,13 @@ static struct ttydevsw sc_ttydevsw = {
 };
 
 static d_ioctl_t	consolectl_ioctl;
+static d_close_t	consolectl_close;
 
 static struct cdevsw consolectl_devsw = {
 	.d_version	= D_VERSION,
-	.d_flags	= D_NEEDGIANT,
+	.d_flags	= D_NEEDGIANT | D_TRACKCLOSE,
 	.d_ioctl	= consolectl_ioctl,
+	.d_close	= consolectl_close,
 	.d_name		= "consolectl",
 };
 
@@ -504,6 +507,8 @@ sc_attach_unit(int unit, int flags)
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
+    callout_init(&sc->ctimeout, 0);
+    callout_init(&sc->cblink, 0);
     scp = sc_get_stat(sc->dev[0]);
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
@@ -1561,6 +1566,23 @@ consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	return sctty_ioctl(dev->si_drv1, cmd, data, td);
 }
 
+static int
+consolectl_close(struct cdev *dev, int flags, int mode, struct thread *td)
+{
+#ifndef SC_NO_SYSMOUSE
+	mouse_info_t info;
+	memset(&info, 0, sizeof(info));
+	info.operation = MOUSE_ACTION;
+
+	/*
+	 * Make sure all buttons are released when moused and other
+	 * console daemons exit, so that no buttons are left pressed.
+	 */
+	(void) sctty_ioctl(dev->si_drv1, CONS_MOUSECTL, (caddr_t)&info, td);
+#endif
+	return (0);
+}
+
 static void
 sc_cnprobe(struct consdev *cp)
 {
@@ -1812,13 +1834,11 @@ static void
 scrn_timer(void *arg)
 {
 #ifndef PC98
-    static int kbd_interval = 0;
+    static time_t kbd_time_stamp = 0;
 #endif
-    struct timeval tv;
     sc_softc_t *sc;
     scr_stat *scp;
-    int again;
-    int s;
+    int again, rate;
 
     again = (arg != NULL);
     if (arg != NULL)
@@ -1828,18 +1848,18 @@ scrn_timer(void *arg)
     else
 	return;
 
+    /* find the vty to update */
+    scp = sc->cur_scp;
+
     /* don't do anything when we are performing some I/O operations */
-    if (suspend_in_progress || sc->font_loading_in_progress) {
-	if (again)
-	    timeout(scrn_timer, sc, hz / 10);
-	return;
-    }
-    s = spltty();
+    if (suspend_in_progress || sc->font_loading_in_progress)
+	goto done;
 
 #ifndef PC98
     if ((sc->kbd == NULL) && (sc->config & SC_AUTODETECT_KBD)) {
 	/* try to allocate a keyboard automatically */
-	if (++kbd_interval >= 25) {
+	if (kbd_time_stamp != time_uptime) {
+	    kbd_time_stamp = time_uptime;
 	    sc->keyboard = sc_allocate_keyboard(sc, -1);
 	    if (sc->keyboard >= 0) {
 		sc->kbd = kbd_get_keyboard(sc->keyboard);
@@ -1848,25 +1868,20 @@ scrn_timer(void *arg)
 		update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				 LOCK_MASK);
 	    }
-	    kbd_interval = 0;
 	}
     }
 #endif /* PC98 */
 
-    /* find the vty to update */
-    scp = sc->cur_scp;
-
     /* should we stop the screen saver? */
-    getmicrouptime(&tv);
     if (debugger > 0 || panicstr || shutdown_in_progress)
 	sc_touch_scrn_saver();
     if (run_scrn_saver) {
-	if (tv.tv_sec > sc->scrn_time_stamp + scrn_blank_time)
+	if (time_uptime > sc->scrn_time_stamp + scrn_blank_time)
 	    sc->flags |= SC_SCRN_IDLE;
 	else
 	    sc->flags &= ~SC_SCRN_IDLE;
     } else {
-	sc->scrn_time_stamp = tv.tv_sec;
+	sc->scrn_time_stamp = time_uptime;
 	sc->flags &= ~SC_SCRN_IDLE;
 	if (scrn_blank_time > 0)
 	    run_scrn_saver = TRUE;
@@ -1879,12 +1894,8 @@ scrn_timer(void *arg)
 
     /* should we just return ? */
     if (sc->blink_in_progress || sc->switch_in_progress
-	|| sc->write_in_progress) {
-	if (again)
-	    timeout(scrn_timer, sc, hz / 10);
-	splx(s);
-	return;
-    }
+	|| sc->write_in_progress)
+	goto done;
 
     /* Update the screen */
     scp = sc->cur_scp;		/* cur_scp may have changed... */
@@ -1898,9 +1909,19 @@ scrn_timer(void *arg)
 	    (*current_saver)(sc, TRUE);
 #endif
 
-    if (again)
-	timeout(scrn_timer, sc, hz / 25);
-    splx(s);
+done:
+    if (again) {
+	/*
+	 * Use reduced "refresh" rate if we are in graphics and that is not a
+	 * graphical screen saver.  In such case we just have nothing to do.
+	 */
+	if (ISGRAPHSC(scp) && !(sc->flags & SC_SCRN_BLANKED))
+	    rate = 2;
+	else
+	    rate = 30;
+	callout_reset_sbt(&sc->ctimeout, SBT_1S / rate, 0,
+	    scrn_timer, sc, C_PREL(1));
+    }
 }
 
 static int
@@ -3122,7 +3143,7 @@ scresume(__unused void *arg)
 
 	suspend_in_progress = FALSE;
 	if (sc_susp_scr < 0) {
-		mark_all(sc_console->sc->cur_scp);
+		update_font(sc_console->sc->cur_scp);
 		return;
 	}
 	sc_switch_scr(sc_console->sc, sc_susp_scr);
@@ -3379,7 +3400,7 @@ next_code:
 	sc_touch_scrn_saver();
 
     if (!(flags & SCGETC_CN))
-	random_harvest(&c, sizeof(c), 1, 0, RANDOM_KEYBOARD);
+	random_harvest(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
     if (scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
@@ -3627,6 +3648,37 @@ sctty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
     return vidd_mmap(scp->sc->adp, offset, paddr, nprot, memattr);
 }
 
+static void
+update_font(scr_stat *scp)
+{
+#ifndef SC_NO_FONT_LOADING
+    /* load appropriate font */
+    if (!(scp->status & GRAPHICS_MODE)) {
+	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
+	    if (scp->font_size < 14) {
+		if (scp->sc->fonts_loaded & FONT_8)
+		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
+	    } else if (scp->font_size >= 16) {
+		if (scp->sc->fonts_loaded & FONT_16)
+		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
+	    } else {
+		if (scp->sc->fonts_loaded & FONT_14)
+		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
+	    }
+	    /*
+	     * FONT KLUDGE:
+	     * This is an interim kludge to display correct font.
+	     * Always use the font page #0 on the video plane 2.
+	     * Somehow we cannot show the font in other font pages on
+	     * some video cards... XXX
+	     */ 
+	    sc_show_font(scp, 0);
+	}
+	mark_all(scp);
+    }
+#endif /* !SC_NO_FONT_LOADING */
+}
+
 static int
 save_kbd_state(scr_stat *scp)
 {
@@ -3699,32 +3751,7 @@ set_mode(scr_stat *scp)
 		(void *)scp->sc->adp->va_window, FALSE);
 #endif
 
-#ifndef SC_NO_FONT_LOADING
-    /* load appropriate font */
-    if (!(scp->status & GRAPHICS_MODE)) {
-	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
-	    if (scp->font_size < 14) {
-		if (scp->sc->fonts_loaded & FONT_8)
-		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
-	    } else if (scp->font_size >= 16) {
-		if (scp->sc->fonts_loaded & FONT_16)
-		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
-	    } else {
-		if (scp->sc->fonts_loaded & FONT_14)
-		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
-	    }
-	    /*
-	     * FONT KLUDGE:
-	     * This is an interim kludge to display correct font.
-	     * Always use the font page #0 on the video plane 2.
-	     * Somehow we cannot show the font in other font pages on
-	     * some video cards... XXX
-	     */ 
-	    sc_show_font(scp, 0);
-	}
-	mark_all(scp);
-    }
-#endif /* !SC_NO_FONT_LOADING */
+    update_font(scp);
 
     sc_set_border(scp, scp->border);
     sc_set_cursor_image(scp);
@@ -3844,7 +3871,8 @@ blink_screen(void *arg)
 	(*scp->rndr->draw)(scp, 0, scp->xsize*scp->ysize, 
 			   scp->sc->blink_in_progress & 1);
 	scp->sc->blink_in_progress--;
-	timeout(blink_screen, scp, hz / 10);
+	callout_reset_sbt(&scp->sc->cblink, SBT_1S / 15, 0,
+	    blink_screen, scp, C_PREL(0));
     }
 }
 

@@ -21,19 +21,14 @@ namespace llvm {
 class MipsSEInstrInfo;
 
 class MipsSERegisterInfo : public MipsRegisterInfo {
-  const MipsSEInstrInfo &TII;
-
 public:
-  MipsSERegisterInfo(const MipsSubtarget &Subtarget,
-                     const MipsSEInstrInfo &TII);
+  MipsSERegisterInfo(const MipsSubtarget &Subtarget);
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
 
   bool requiresFrameIndexScavenging(const MachineFunction &MF) const;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  virtual const TargetRegisterClass *intRegClass(unsigned Size) const;
 
 private:
   virtual void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,

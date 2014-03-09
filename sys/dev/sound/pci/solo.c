@@ -949,15 +949,9 @@ static int
 ess_resume(device_t dev)
 {
 	uint16_t ddma;
-	uint32_t data;
 	struct ess_info *sc = pcm_getdevinfo(dev);
 	
 	ess_lock(sc);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-
 	ddma = rman_get_start(sc->vc) | 1;
 	pci_write_config(dev, ESS_PCI_LEGACYCONTROL, 0x805f, 2);
 	pci_write_config(dev, ESS_PCI_DDMACONTROL, ddma, 2);
@@ -988,13 +982,9 @@ ess_attach(device_t dev)
     	struct ess_info *sc;
     	char status[SND_STATUSLEN];
 	u_int16_t ddma;
-	u_int32_t data;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
     	if (ess_alloc_resources(sc, dev))
 		goto no;

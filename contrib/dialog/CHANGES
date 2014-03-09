@@ -1,8 +1,257 @@
--- $Id: CHANGES,v 1.360 2011/07/07 23:35:10 tom Exp $
+-- $Id: CHANGES,v 1.476 2013/09/24 00:06:47 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2013/09/23
+	+ fix samples/inputbox6-utf8, which had depended unnecessarily on bash.
+	+ improve memory caching for wide-character manipulation in gauge
+	  widget (report by Devin Teske).
+	+ add dlg_reallocate_gauge (discussion with Devin Teske).
+	+ updated configure macros to use msys changes from ncurses.
+	+ update config.guess, config.sub
+
+2013/09/02
+	+ modify makefile rule to make the ".png" filenames created by groff
+	  predictable.
+	+ add option --help-tags to allow scripts to get the item's tag field
+	  consistently from help- and help-item button results rather than
+	  getting the item's text for the latter (discussion with Florent
+	  Rougon).
+	+ correct manpage discussion of DIALOG_ITEM_HELP versus --item-help,
+	  as well as --help-button return status (report by Florent Rougon).
+	+ correct limit used for --hline option (report by Devin Teske,
+	  cf: 2011/06/30).
+	+ do not print empty "[]" if a --hline option was given with an empty
+	  value (report by Devin Teske).
+	+ miscellaneous configure script fixes/updates.  In particular, add
+	  option --with-shared which builds shared libraries without a libtool
+	  dependency.
+	+ add FreeBSD port-files for test-builds.
+	+ update lt.po, add fa.po from
+		http://translationproject.org/latest/dialog/
+	+ update config.guess, config.sub
+
+2013/05/23
+	+ modify ifdef in arrows.c to work around packages which use the
+	  wide-character ncursesw headers with the ncurses library (report
+	  by Aleksey Cheusov).
+	+ correct workaround for xterm alternate-screen to work with/without
+	  the fix made in ncurses that makes putp() always write to the
+	  standard output (Debian #708829).
+	+ improve limit-checks for checklist, in case the dialog is resized
+	  (report by Ilya A Arkhipov).
+	+ add --last-key option (adapted from patch by Jordi Pujol, Debian
+	  #697607).
+
+2013/03/15
+	+ update zh_TW.po, add an.po from
+		http://translationproject.org/latest/dialog/
+
+2012/12/30 - release 1.2
+	+ improve some older changelog entries to help with HTML'izing content.
+	+ various fixes/improvments for scrollbar appearance.
+	+ add mappings for some equivalent options provided by whiptail;
+	  add configure option --disable-whiptail to allow suppressing these.
+	+ add configure option --disable-Xdialog2 to allow suppressing the
+	  newer features, i.e., for cdialog 1.2
+	+ add --no-items option, for consistency.
+	+ add --no-tags option, like Xdialog.
+	+ add buildlist, rangebox and treeview dialogs, like Xdialog.
+	+ remove obsolete workaround for ncurses 4.2 scrolling in checklist
+	  and menubox.
+	+ improve dialog_helpfile() by preventing it from showing extra buttons
+	  (suggested by xDog Walker).
+	+ correct logic in formbox's scroll_next() function (report by xDog
+	  Walker).
+	+ fix a case with inputbox widget where preset input text is not shown
+	  until moving the cursor within the text (report by xDog Walker).
+	+ handle SIGCHLD in dialog_prgbox() to eliminate defunct processes
+	  (report by xDog Walker).
+	+ improve the way "hotkeys" are assigned to widget buttons by checking
+	  if a given key has already been used in the row of buttons (Debian
+	  #684933).
+	+ amend fix for --trace parsing from 2012/07/03, which sometimes
+	  skipped a parameter (report by xDog Walker).
+	+ drop copismall and install files from samples, which were essentially
+	  nonfunctional.
+	+ correct secondary border colors in samples/slackware.rc and
+	  samples/whiptail.rc
+	+ update gl.po, add ia.po from
+		http://translationproject.org/latest/dialog/
+	+ fix various issues reported by coverity scan.
+	+ miscellaneous configure script fixes/updates:
+	  + require autoconf 2.52+patches
+	  + support --datarootdir option
+	  + check for clang compiler
+	  + check for tinfo library when looking for ncurses
+	  + add 3rd parameter to AC_DEFINE for autoheader
+	  + remove unused macros from aclocal.m4
+	+ update config.guess, config.sub
+
+2012/07/06
+	+ modify samples/setup-tempfile to work with Tru64's shell.
+	+ modify inputmenu sample scripts to make them more portable:
+	  + use "id" rather than "$GROUPS", use sed to work with Solaris.
+	  + use sed to split-up the rename results to work with HPUX.
+	+ fix regression in msgbox (ArchLinux #30574)
+
+2012/07/03
+	+ modify prgbox widget to work with --extra-button, etc.
+	+ add case values to several widgets to allow for mouse-clicks with
+	"--extra-button" and "--help-button" additions.
+	+ correct timebox widget's exit code for "--extra-button" when handing
+	  the "enter" key.
+	+ modify msgbox widget to honor "--extra-button".
+	+ corrected processing of "--trace" option, which did not update the
+	  index into command-line to point past its value.
+	+ add a check in dialog program for valid characters used in option,
+	  e.g., to generate an error if a script attempts to add option value
+	  using "=" rather than with whitespace.
+	+ add new command-line option --default-button and library function
+	  dlg_default_button() to retrieve the value set by the option
+	  to provide a way to set the default button directly rather than
+	  by combining --nook, etc. (patch by Zoltan Kelemen).
+	+ amend include of unctrl.h to apply only to the case where curses.h
+	  is included, to avoid conflict of ncurses' unctrl.h with a system
+	  implementation (report by Martin Roedlach)
+	+ add limit-check to dlg_toupper() in non-wide curses mode to work
+	  when non-character values such as arrow-key codes are passed to
+	  it (patch by Zoltan Kelemen).
+	+ override timeout value, e.g., as set via --timeout command-line
+	  option in pause widget because that interferes with pause's behavior
+	  (report by Jan Spitalnik).
+	+ modify samples/inputmenu* to allow ":" in renamed text (report by
+	  Andreas Stoewing).
+	+ modify double-quoting to make it more consistent, i.e., checklist
+	  output is quoted only when needed.  This fixes the case where
+	  single-quotes were used whether or not needed, but also modifies
+	  older checklist behavior for double-quoting which always added those
+	  (Debian #663664).
+	+ correct exit-code used in inputmenu for "rename" button (Debian
+	  #673041, forwarded from Ubuntu #333909, patch by Lebedev Vadim).
+	+ update el.po and hr.po from
+		http://translationproject.org/latest/dialog/
+	+ use checkbashisms to clean up sample scripts.
+
+2012/02/15
+	+ modify menubox.c to use the same improvement as in checklist.c
+	+ improve auto width computation for checklist widget by using
+	  dlg_calc_list_width as in the non-auto case (Edho Arief).
+	+ eliminate some bashisms in the sample scripts (Pedro Giffuni).
+	+ makefile fixes from FreeBSD ports (Li-Wen Hsu):
+	  + make --with-package option of configure script work.
+	  + get LIBTOOL_VERSION from configure script, needed by
+	    ${LIBTOOL_VERSION} in LIBTOOL_CREATE (LIB_CREATE in configure and
+	    aclocal.m4)
+	+ update cs.po and sr.po from
+		http://translationproject.org/latest/dialog/
+	+ updated configure script macros, improving CF_XOPEN_SOURCE among
+	  other fixes.
+
+2011/10/20
+	+ fix --analyze warnings for clang versions 2.8, 2.9.
+	+ add configure check for lint program.
+	+ add check in dlg_getc() in case its window is freed as a side effect
+	  of removing callbacks.
+	+ fix logic in freeing subwindows (report by xDog Walker).
+	+ fix a regression in logic distinguishing between inputmenu and menu
+	  widgets (report by xDog Walker).
+	+ minor fixes to library manpage.
+
+2011/10/18
+	+ modify header-sh.in to work around limit on sed script length on
+	  HPUX.
+	+ add a special case of parameter parsing for "--trace" to the
+	  initialization done before calling init_dialog(), to allow users to
+	  capture the initial state of the parameter list before any options
+	  are processed and removed.  This is only done if "--trace" is the
+	  first option, otherwise it is handled in the common options as before
+	  (report by xDog Walker).
+	+ modify samples/testdata-8bit, discarding $1 from the parameter list
+	  if it was used, so that the source'ing scripts can consistently use
+	  "$@" to insert parameters before the widget, e.g., as an alternative
+	  to using $DIALOGOPTS (report by xDog Walker).
+	+ modify treatment of function pointers in menubox.c, make
+	  dlg_renamed_menutext() and dlg_dummy_menutext() visible to library
+	  users (request by xDog Walker).
+	+ add dlg_count_real_columns(), use to modify centering for "--hline"
+	  text to account for "\Z"s (report by xDog Walker).
+	+ improve check in dlg_draw_arrows2() for conflict between the window
+	  title and up-arrow marker to take into account that the given window
+	  may not be the top-level window of the widget.
+	+ change width of page up/down mouse areas in fselect panes to use the
+	  full width of the panes rather than only the portion from the left
+	  margin to the up/down arrow.
+	+ add/use dlg_draw_box2() and dlg_draw_bottom_box2() to use the
+	  secondary borders.
+	+ modify rc-file read/write to accept/generate color values that refer
+	  to previously-processed items in the color table.  This reduces the
+	  number of distinct colors that must be specified to set up a color
+	  scheme.
+	+ add color table entries for secondary borders, i.e., the ones that
+	  are normally drawn with the dialog's text-colors (Debian #641168).
+	+ modify fselect.c to scan the current directory if the input field
+	  happens to be empty (Debian #640905).
+	+ repeated the discussion of environment variables that can override
+	  the exit-status values in the manpage's return-codes section
+	  (Debian #642105).
+	+ add an example to the manpage showing how to override the form
+	  widget's keys used for field/button traversal (Debian #642108).
+	+ modify call to dlg_register_window() in formbox.c so that the editing
+	  bindings are attached to the form sub-window rather than the
+	  top-level dialog window.  Also change the name by which the editing
+	  bindings are bound for editbox.c, fselect.c and inputbox.c, so that
+	  the editing and navigation bindings can be different.
+	+ correct logic in dlg_lookup_key() so that it matches the widget name
+	  before using a binding from .dialogrc, allowing the inner/outer
+	  windows of form and other editing widgets to have different bindings.
+	+ modify dlg_register_window() to call dlg_dump_window_keys() after
+	  its updates, via the --trace output, to supplement the manpage
+	  description of key bindings (Debian #642108).
+	+ add DLGK_FORM_PREV and DLGK_FORM_NEXT key-bindings to form.c, to
+	  allow binding a single key to traverse both form-fields and buttons
+	  (Debian #642108).
+	+ modify dlg_parse_rc() to check for error return from
+	  dlg_parse_bindkey().
+	+ add function dlg_dump_window_keys(), to help with debugging widgets.
+	+ add CR, LF, TAB, FF and ESC to table of curses names to help make
+	  key bindings more readable.
+	+ update table of dialog key-names so that helpfile and trace are
+	  dumped properly.
+	+ correct dlg_dump_keys(), which was showing only the first item in
+	  the matched binding table.
+	+ save/restore window current position in dlg_update_mixedgauge().
+	+ pass return-code from pause_for_ok() from dlg_progressbox() when
+	  pauseopt is set, rather than only DLG_OK.
+	+ call setlocale() in init_dialog() rather than relying on on-demand
+	  use within inputstr.c, since there are paths in textbox widget which
+	  do not exercise the latter (report by xDog Walker).
+	+ fix some places where checks for "\Z" were done without also checking
+	  dialog_vars.colors (report by Moray Henderson).
+	+ correct logic for DIALOGOPTS parsing so that the parse happens only
+	  once unless memory leak checking is enabled (report by xDog Walker).
+	+ remove an incorrect free() call in dlg_free_gauge() (report by xDog
+	  Walker).
+	+ modify dlg_trace_win() to log wide-characters (report by xDog Walker).
+	+ make traces shorter by skipping repeated ERR's, but showing the
+	  number skipped (report by xDog Walker).
+	+ improve description in manpage to distinguish program box and
+	  progress box from tailboxes (adapted from email by xDog Walker).
+	+ modify dlg_trace_win() so that it looks for the topmost window in a
+	  dialog.  Because subwindows share space with the top window, tracing
+	  the latter shows the whole widget (report by xDog Walker).
+	+ expand tracing so that each window is traced before soliciting input,
+	  making the ^T feature to print a window on demand partly redundant
+	  (suggested by xDog Walker).
+	+ cosmetic change in dialog.h to avoid "*/*" strings from comments next
+	  to "*" (report by xDog Walker).
+	+ ensure result from dlg_align_columns() has trailing null on each
+	  string.  Analysis was hindered by libc6's continuance of libc5's
+	  early-1990s misfeature of clearing the result from malloc, noting
+	  that libc6's documentation incorrectly claims that it does not do
+	  this (report by xDog Walker).
 
 2011/07/07
 	+ modify util.c to work better with old versions of ncurses:
@@ -78,7 +327,7 @@ to it:
 	    separate ncurses' header files.
 	  + CF_DISABLE_RPATH_HACK, fix garbled message
 	  + CF_LD_RPATH_OPT, add mirbsd
-	  + CF_MAKEFLAGS, filter out GNU make's entering/leaving messages. 
+	  + CF_MAKEFLAGS, filter out GNU make's entering/leaving messages.
 	    This only appeared when using the macro in a dpkg script, though it
 	    should have in other cases.
 	  + CF_RPATH_HACK, add a check for libraries not found, e.g., from
@@ -87,7 +336,7 @@ to it:
 	  + CF_XOPEN_SOURCE, workaround for cygwin to get ncurses' configure
 	    script to define _XOPEN_SOURCE_EXTENDED (cygwin's features.h
 	    doesn't do anything, so it needs a crutch).
-	+ updated config.guess, config.sub
+	+ update config.guess, config.sub
 
 2011/03/02
 	+ add --prgbox and --programbox (adapted from patch by David Boyd).
@@ -155,7 +404,7 @@ to it:
 	    CF_ADD_LIBDIR for the curses-directory here, from
 	    CF_NCURSES_CPPFLAGS and CF_NCURSES_LDFLAGS, so it will work even
 	    with the default checking, e.g., no --with-ncurses, etc.
-	+ updated config.guess, config.sub
+	+ update config.guess, config.sub
 
 2010/04/28
 	+ several improvements to configure script:
@@ -250,7 +499,7 @@ to it:
 	    libutf8 and libiconv.
 	+ update da.po, ru.po from
 		http://translationproject.org/latest/dialog/
-	+ updated config.guess, config.sub
+	+ update config.guess, config.sub
 
 2008/08/19
 	+ amend changes to quoting; by default, the checklist widget quotes its
@@ -333,7 +582,7 @@ to it:
 	  ESC to be returned, quitting dialog (report by Reiner Huober).
 	+ add extern "C" declarations to dlg_keys.h so the corresponding
 	  function declarations are exported to C++ as C symbols.
-	+ updated config.guess, config.sub
+	+ update config.guess, config.sub
 
 2007/06/04
 	+ fix a memory leak in editbox.c
@@ -395,7 +644,8 @@ to it:
 	+ use $(INSTALL_SCRIPT) for installing dialog-config (report by
 	  Santiago Vila).
 
-2007/02/27
+2007/02/27 - release 1.1
+	+ mark as "dialog 1.1"
 	+ add dialog-config script, which provides applications with compile-
 	  and link-information for using the dialog library.
 	+ move calls to dlg_trim_string() out of loop in dialog.c, so each
@@ -436,7 +686,7 @@ to it:
 	  CF_CURSES_LIBS, CF_INCLUDE_DIRS, CF_LARGEFILE, CF_MAKEFLAGS,
 	  CF_PATH_SYNTAX, CF_SUBDIR_PATH, CF_SUBST, CF_WITH_DBMALLOC,
 	  CF_WITH_DMALLOC, CF_WITH_LIBTOOL and CF_XOPEN_SOURCE.
-	+ updated config.guess, config.sub
+	+ update config.guess, config.sub
 	> adapted fixes from SuSE package (Werner Fink):
 	  + add some limit-checks in dlg_draw_shadow().
 	  + make shadows resizable, using new dlg_move_window() in msgbox.c
@@ -628,8 +878,7 @@ to it:
 	+ modify tailboxbg by resetting tty modes at the point where it forks a
 	  process to update the screen, rather than waiting until that process
 	  exits.  This improves user feedback by making it apparent that dialog
-	  is no longer processing input after that point (Redhat Bugzilla
-	  #142538).
+	  is no longer processing input after that point (Redhat #142538).
 	+ minor updates to some .po files using Babel Fish, comparing with lynx.
 	+ update es.po (Santiago Vila).
 	+ work around bug in NetBSD 1.6 curses which seems to be confused by
@@ -815,8 +1064,7 @@ to it:
 	  before dialog is invoked (Debian #244746).
 	+ correct dlg_match_char() function, which was broken during rewrite
 	  to support wide-characters (Debian #244777).
-	+ improved ru.po, uses UTF-8 charset (Leonid Kanter, Redhat Bugzilla
-	  #119200).
+	+ improved ru.po, uses UTF-8 charset (Leonid Kanter, Redhat #119200).
 	+ correct position of shadow drawn for dialogs, which appeared to work
 	  for most versions of curses (other than NetBSD) but would have been
 	  visible for certain color schemes (discussion with Julian Coleman).
@@ -1147,7 +1395,7 @@ to it:
 	  the --stdout option does not work on HPUX but otherwise dialog works.
 	+ updated el.po (patch by kromJx <kromJx@crosswinds.net>).
 
-2002/05/19
+2002/05/19 - release 0.9b
 	+ add --no-collapse option to allow one to retain tabs and repeated
 	  blanks in a message box (request by Roberto Simoni).
 	+ use DLG_EXIT_ESC constant rather than -1's in several places.  This
@@ -1615,15 +1863,15 @@ to it:
 	  Santiago Vila <sanvila@ctv.es>:
 
 	  1999/10/07
-		+ add a password dialog box.
+		+ add a password dialog box (Debian #45964, patch by Joey Hess).
 		+ implement "--defaultno" option to specify if the default for
-		  the yes/no box is "No".
+		  the yes/no box is "No" (Debian #46076, patch by Joey Hess).
 	  1999/03/10
 		+ modify input.c to clear the input field to the right of the
-		  given string (unclear:  this seems redundant, since the
-		  dialog is drawn in a new window).
+		  given string, to help with screen-refresh
 	  1998/12/08
-		+ check for list_height less than one in checklist.c
+		+ check for list_height less than one in checklist.c (Debian
+		  #22239).
 	  1998/10/21
 		+ use function wscrl() in preference to scroll() in checklist.c
 		  and menubox.c (unclear: in ncurses, scroll() is a macro that
@@ -1633,12 +1881,14 @@ to it:
 		  that directory.
 	  1998/09/12
 		+ simplify menubox.c using new functions print_arrows() and
-		  print_items().
-		+ add logic to handle KEY_NPAGE and KEY_PPAGE.
-		+ change sample scripts to use Debian tempfile utility rather
-		  than putting files into /tmp.
-		+ change sample scripts to use 'dialog' from user's path rather
-		  than in the parent directory as in the build directory.
+		  print_items().  add logic to handle KEY_NPAGE and KEY_PPAGE
+		  (Debian #26326).
+		+ modifications to provide sample scripts (Debian #26211):
+		  + change sample scripts to use Debian tempfile utility rather
+		    than putting files into /tmp.
+		  + change sample scripts to use 'dialog' from user's path
+		    rather than in the parent directory as in the build
+		    directory.
 		+ use the system copy of GPL rather than that in the build
 		  directory as an example for the textbox script.
 
@@ -1664,16 +1914,16 @@ The relevant portions of the Debian change log for the original version
 1998/05/24
 
 	+ Replaced guage.c by the one in dialog 0.6z, which is known to work.
-	  Fixes Bug #18284: unstable dialog.
+	  Fixes Debian #18284: unstable dialog.
 
 1997/12/16
 
 	+ dialog.c:  dialog_input_result printed with "%s" format.  This was
-	  Bug #9913, fixed by Bill Mitchell, but the change was lost.
+	  Debian #9913, fixed by Bill Mitchell, but the change was lost.
 	+ Pristine source, .depend is not removed in clean target.  Instead, it
-	  is made zero lenght (otherwise it would not work *without* fakeroot).
-	+ Added '^U' support in input box (Bug #9915, patch by joey@debian.org).
-	+ Wrote patch to fix core-dumping problem (Bug #13170).  Sven Rudolph
+	  is made zero length (otherwise it would not work *without* fakeroot).
+	+ Added '^U' support in input box (Debian #9915, patch by Joey Hess).
+	+ Wrote patch to fix core-dumping problem (Debian #13170).  Sven Rudolph
 	  <sr1@inf.tu-dresden.de>:
 
 -- vile:fk=8bit

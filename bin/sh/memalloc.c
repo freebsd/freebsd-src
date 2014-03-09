@@ -98,9 +98,11 @@ char *
 savestr(const char *s)
 {
 	char *p;
+	size_t len;
 
-	p = ckmalloc(strlen(s) + 1);
-	scopy(s, p);
+	len = strlen(s);
+	p = ckmalloc(len + 1);
+	memcpy(p, s, len + 1);
 	return p;
 }
 
@@ -124,7 +126,6 @@ struct stack_block {
 #define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
 static struct stack_block *stackp;
-static struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
 char *sstrend;
@@ -186,8 +187,9 @@ setstackmark(struct stackmark *mark)
 	mark->stackp = stackp;
 	mark->stacknxt = stacknxt;
 	mark->stacknleft = stacknleft;
-	mark->marknext = markp;
-	markp = mark;
+	/* Ensure this block stays in place. */
+	if (stackp != NULL && stacknxt == SPACE(stackp))
+		stalloc(1);
 }
 
 
@@ -197,7 +199,6 @@ popstackmark(struct stackmark *mark)
 	struct stack_block *sp;
 
 	INTOFF;
-	markp = mark->marknext;
 	while (stackp != mark->stackp) {
 		sp = stackp;
 		stackp = sp->prev;
@@ -229,11 +230,11 @@ growstackblock(int min)
 	int oldlen;
 	struct stack_block *sp;
 	struct stack_block *oldstackp;
-	struct stackmark *xmark;
 
 	if (min < stacknleft)
 		min = stacknleft;
-	if (min >= INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
+	if ((unsigned int)min >=
+	    INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
 		error("Out of space");
 	min += stacknleft;
 	min += ALIGN(sizeof(struct stack_block));
@@ -253,18 +254,6 @@ growstackblock(int min)
 		stacknxt = SPACE(sp);
 		stacknleft = newlen - (stacknxt - (char*)sp);
 		sstrend = stacknxt + stacknleft;
-
-		/*
-		 * Stack marks pointing to the start of the old block
-		 * must be relocated to point to the new block
-		 */
-		xmark = markp;
-		while (xmark != NULL && xmark->stackp == oldstackp) {
-			xmark->stackp = stackp;
-			xmark->stacknxt = stacknxt;
-			xmark->stacknleft = stacknleft;
-			xmark = xmark->marknext;
-		}
 		INTON;
 	} else {
 		newlen -= ALIGN(sizeof(struct stack_block));
@@ -327,7 +316,7 @@ makestrspace(int min, char *p)
 
 
 char *
-stputbin(const char *data, int len, char *p)
+stputbin(const char *data, size_t len, char *p)
 {
 	CHECKSTRSPACE(len, p);
 	memcpy(p, data, len);

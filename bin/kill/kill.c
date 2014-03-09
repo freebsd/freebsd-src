@@ -156,7 +156,7 @@ signame_to_signum(const char *sig)
 {
 	int n;
 
-	if (!strncasecmp(sig, "SIG", (size_t)3))
+	if (strncasecmp(sig, "SIG", 3) == 0)
 		sig += 3;
 	for (n = 1; n < sys_nsig; n++) {
 		if (!strcasecmp(sys_signame[n], sig))

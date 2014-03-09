@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -65,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -799,8 +796,8 @@ tftp_xmitfile(int peer, const char *mode)
 	tftp_send(peer, &block, &ts);
 	read_close();
 	if (debug&DEBUG_SIMPLE)
-		tftp_log(LOG_INFO, "Sent %d bytes in %d seconds",
-		    ts.amount, time(NULL) - now);
+		tftp_log(LOG_INFO, "Sent %jd bytes in %jd seconds",
+		    (intmax_t)ts.amount, (intmax_t)time(NULL) - now);
 }
 
 static void
@@ -832,8 +829,8 @@ tftp_recvfile(int peer, const char *mode)
 		f = now2.tv_sec - now1.tv_sec +
 		    (now2.tv_usec - now1.tv_usec) / 100000.0;
 		tftp_log(LOG_INFO,
-		    "Download of %d bytes in %d blocks completed after %0.1f seconds\n",
-		    ts.amount, block, f);
+		    "Download of %jd bytes in %d blocks completed after %0.1f seconds\n",
+		    (intmax_t)ts.amount, block, f);
 	}
 
 	return;

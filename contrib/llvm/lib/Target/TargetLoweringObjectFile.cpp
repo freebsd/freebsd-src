@@ -13,21 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -97,10 +97,20 @@ static bool IsNullTerminatedString(const Constant *C) {
   return false;
 }
 
+/// Return the MCSymbol for the specified global value.  This
+/// symbol is the main label that is the address of the global.
+MCSymbol *TargetLoweringObjectFile::getSymbol(Mangler &M, 
+                                              const GlobalValue *GV) const {
+  SmallString<60> NameStr;
+  M.getNameWithPrefix(NameStr, GV, false);
+  return Ctx->GetOrCreateSymbol(NameStr.str());
+}
+
+
 MCSymbol *TargetLoweringObjectFile::
 getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
                         MachineModuleInfo *MMI) const {
-  return Mang->getSymbol(GV);
+  return getSymbol(*Mang, GV);
 }
 
 void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
@@ -285,35 +295,41 @@ TargetLoweringObjectFile::getSectionForConstant(SectionKind Kind) const {
   return DataSection;
 }
 
-/// getExprForDwarfGlobalReference - Return an MCExpr to use for a
+/// getTTypeGlobalReference - Return an MCExpr to use for a
 /// reference to the specified global variable from exception
 /// handling information.
 const MCExpr *TargetLoweringObjectFile::
-getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                               MachineModuleInfo *MMI, unsigned Encoding,
-                               MCStreamer &Streamer) const {
-  const MCSymbol *Sym = Mang->getSymbol(GV);
-  return getExprForDwarfReference(Sym, Encoding, Streamer);
+getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
+                        MachineModuleInfo *MMI, unsigned Encoding,
+                        MCStreamer &Streamer) const {
+  const MCSymbolRefExpr *Ref =
+    MCSymbolRefExpr::Create(getSymbol(*Mang, GV), getContext());
+
+  return getTTypeReference(Ref, Encoding, Streamer);
 }
 
 const MCExpr *TargetLoweringObjectFile::
-getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
-                         MCStreamer &Streamer) const {
-  const MCExpr *Res = MCSymbolRefExpr::Create(Sym, getContext());
-
+getTTypeReference(const MCSymbolRefExpr *Sym, unsigned Encoding,
+                  MCStreamer &Streamer) const {
   switch (Encoding & 0x70) {
   default:
     report_fatal_error("We do not support this DWARF encoding yet!");
   case dwarf::DW_EH_PE_absptr:
     // Do nothing special
-    return Res;
+    return Sym;
   case dwarf::DW_EH_PE_pcrel: {
     // Emit a label to the streamer for the current position.  This gives us
     // .-foo addressing.
     MCSymbol *PCSym = getContext().CreateTempSymbol();
     Streamer.EmitLabel(PCSym);
     const MCExpr *PC = MCSymbolRefExpr::Create(PCSym, getContext());
-    return MCBinaryExpr::CreateSub(Res, PC, getContext());
+    return MCBinaryExpr::CreateSub(Sym, PC, getContext());
   }
   }
+}
+
+const MCExpr *TargetLoweringObjectFile::getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
+  // FIXME: It's not clear what, if any, default this should have - perhaps a
+  // null return could mean 'no location' & we should just do that here.
+  return MCSymbolRefExpr::Create(Sym, *Ctx);
 }

@@ -317,8 +317,8 @@ cambria_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (pin >= GPIO_PINS)
 		return (EINVAL);
 
-	/* Filter out unwanted flags */
-	if ((flags &= sc->sc_pins[pin].gp_caps) != flags)
+	/* Check for unwanted flags. */
+	if ((flags & sc->sc_pins[pin].gp_caps) != flags)
 		return (EINVAL);
 
 	/* Can't mix input/output together */

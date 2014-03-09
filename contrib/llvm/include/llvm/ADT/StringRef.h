@@ -11,7 +11,6 @@
 #define LLVM_ADT_STRINGREF_H
 
 #include "llvm/Support/type_traits.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -20,7 +19,7 @@
 #include <utility>
 
 namespace llvm {
-  template<typename T>
+  template <typename T>
   class SmallVectorImpl;
   class APInt;
   class hash_code;
@@ -58,14 +57,14 @@ namespace llvm {
     // integer works around this bug.
     static size_t min(size_t a, size_t b) { return a < b ? a : b; }
     static size_t max(size_t a, size_t b) { return a > b ? a : b; }
-    
+
     // Workaround memcmp issue with null pointers (undefined behavior)
     // by providing a specialized version
     static int compareMemory(const char *Lhs, const char *Rhs, size_t Length) {
       if (Length == 0) { return 0; }
       return ::memcmp(Lhs,Rhs,Length);
     }
-    
+
   public:
     /// @name Constructors
     /// @{
@@ -176,7 +175,7 @@ namespace llvm {
     /// transform one of the given strings into the other. If zero,
     /// the strings are identical.
     unsigned edit_distance(StringRef Other, bool AllowReplacements = true,
-                           unsigned MaxEditDistance = 0);
+                           unsigned MaxEditDistance = 0) const;
 
     /// str - Get the contents as an std::string.
     std::string str() const {
@@ -211,11 +210,17 @@ namespace llvm {
              compareMemory(Data, Prefix.Data, Prefix.Length) == 0;
     }
 
+    /// Check if this string starts with the given \p Prefix, ignoring case.
+    bool startswith_lower(StringRef Prefix) const;
+
     /// Check if this string ends with the given \p Suffix.
     bool endswith(StringRef Suffix) const {
       return Length >= Suffix.Length &&
         compareMemory(end() - Suffix.Length, Suffix.Data, Suffix.Length) == 0;
     }
+
+    /// Check if this string ends with the given \p Suffix, ignoring case.
+    bool endswith_lower(StringRef Suffix) const;
 
     /// @}
     /// @name String Searching
@@ -261,7 +266,7 @@ namespace llvm {
 
     /// Find the first character in the string that is \p C, or npos if not
     /// found. Same as find.
-    size_type find_first_of(char C, size_t From = 0) const {
+    size_t find_first_of(char C, size_t From = 0) const {
       return find(C, From);
     }
 
@@ -269,21 +274,21 @@ namespace llvm {
     /// not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_first_of(StringRef Chars, size_t From = 0) const;
+    size_t find_first_of(StringRef Chars, size_t From = 0) const;
 
     /// Find the first character in the string that is not \p C or npos if not
     /// found.
-    size_type find_first_not_of(char C, size_t From = 0) const;
+    size_t find_first_not_of(char C, size_t From = 0) const;
 
     /// Find the first character in the string that is not in the string
     /// \p Chars, or npos if not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_first_not_of(StringRef Chars, size_t From = 0) const;
+    size_t find_first_not_of(StringRef Chars, size_t From = 0) const;
 
     /// Find the last character in the string that is \p C, or npos if not
     /// found.
-    size_type find_last_of(char C, size_t From = npos) const {
+    size_t find_last_of(char C, size_t From = npos) const {
       return rfind(C, From);
     }
 
@@ -291,17 +296,17 @@ namespace llvm {
     /// found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_last_of(StringRef Chars, size_t From = npos) const;
+    size_t find_last_of(StringRef Chars, size_t From = npos) const;
 
     /// Find the last character in the string that is not \p C, or npos if not
     /// found.
-    size_type find_last_not_of(char C, size_t From = npos) const;
+    size_t find_last_not_of(char C, size_t From = npos) const;
 
     /// Find the last character in the string that is not in \p Chars, or
     /// npos if not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_last_not_of(StringRef Chars, size_t From = npos) const;
+    size_t find_last_not_of(StringRef Chars, size_t From = npos) const;
 
     /// @}
     /// @name Helpful Algorithms
@@ -388,17 +393,17 @@ namespace llvm {
       Start = min(Start, Length);
       return StringRef(Data + Start, min(N, Length - Start));
     }
-    
+
     /// Return a StringRef equal to 'this' but with the first \p N elements
     /// dropped.
-    StringRef drop_front(unsigned N = 1) const {
+    StringRef drop_front(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(N);
     }
 
     /// Return a StringRef equal to 'this' but with the last \p N elements
     /// dropped.
-    StringRef drop_back(unsigned N = 1) const {
+    StringRef drop_back(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(0, size()-N);
     }
@@ -536,7 +541,7 @@ namespace llvm {
     return LHS.compare(RHS) != -1;
   }
 
-  inline std::string &operator+=(std::string &buffer, llvm::StringRef string) {
+  inline std::string &operator+=(std::string &buffer, StringRef string) {
     return buffer.append(string.data(), string.size());
   }
 
@@ -549,6 +554,10 @@ namespace llvm {
   template <typename T> struct isPodLike;
   template <> struct isPodLike<StringRef> { static const bool value = true; };
 
+  /// Construct a string ref from a boolean.
+  inline StringRef toStringRef(bool B) {
+    return StringRef(B ? "true" : "false");
+  }
 }
 
 #endif

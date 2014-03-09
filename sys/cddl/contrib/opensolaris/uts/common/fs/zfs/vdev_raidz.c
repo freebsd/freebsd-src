@@ -21,16 +21,23 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_impl.h>
+#ifdef illumos
+#include <sys/vdev_disk.h>
+#endif
+#include <sys/vdev_file.h>
+#include <sys/vdev_raidz.h>
 #include <sys/zio.h>
 #include <sys/zio_checksum.h>
 #include <sys/fs/zfs.h>
 #include <sys/fm/fs/zfs.h>
+#include <sys/bio.h>
 
 /*
  * Virtual device vector for RAID-Z.
@@ -60,6 +67,7 @@
  *   o addition (+) is represented by a bitwise XOR
  *   o subtraction (-) is therefore identical to addition: A + B = A - B
  *   o multiplication of A by 2 is defined by the following bitwise expression:
+ *
  *	(A * 2)_7 = A_6
  *	(A * 2)_6 = A_5
  *	(A * 2)_5 = A_4
@@ -118,7 +126,7 @@ typedef struct raidz_map {
 	uint64_t rm_missingparity;	/* Count of missing parity devices */
 	uint64_t rm_firstdatacol;	/* First data column/parity count */
 	uint64_t rm_nskip;		/* Skipped sectors for padding */
-	uint64_t rm_skipstart;	/* Column index of padding start */
+	uint64_t rm_skipstart;		/* Column index of padding start */
 	void *rm_datacopy;		/* rm_asize-buffer of copied data */
 	uintptr_t rm_reports;		/* # of referencing checksum reports */
 	uint8_t	rm_freed;		/* map no longer has referencing ZIO */
@@ -153,15 +161,14 @@ typedef struct raidz_map {
 	VDEV_RAIDZ_64MUL_2((x), mask); \
 }
 
+#define	VDEV_LABEL_OFFSET(x)	(x + VDEV_LABEL_START_SIZE)
+
 /*
  * Force reconstruction to use the general purpose method.
  */
 int vdev_raidz_default_to_general;
 
-/*
- * These two tables represent powers and logs of 2 in the Galois field defined
- * above. These values were computed by repeatedly multiplying by 2 as above.
- */
+/* Powers of 2 in the Galois field defined above. */
 static const uint8_t vdev_raidz_pow2[256] = {
 	0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 	0x1d, 0x3a, 0x74, 0xe8, 0xcd, 0x87, 0x13, 0x26,
@@ -196,6 +203,7 @@ static const uint8_t vdev_raidz_pow2[256] = {
 	0x2c, 0x58, 0xb0, 0x7d, 0xfa, 0xe9, 0xcf, 0x83,
 	0x1b, 0x36, 0x6c, 0xd8, 0xad, 0x47, 0x8e, 0x01
 };
+/* Logs of 2 in the Galois field defined above. */
 static const uint8_t vdev_raidz_log2[256] = {
 	0x00, 0x00, 0x01, 0x19, 0x02, 0x32, 0x1a, 0xc6,
 	0x03, 0xdf, 0x33, 0xee, 0x1b, 0x68, 0xc7, 0x4b,
@@ -433,23 +441,50 @@ static const zio_vsd_ops_t vdev_raidz_vsd_ops = {
 	vdev_raidz_cksum_report
 };
 
+/*
+ * Divides the IO evenly across all child vdevs; usually, dcols is
+ * the number of children in the target vdev.
+ */
 static raidz_map_t *
-vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
-    uint64_t nparity)
+vdev_raidz_map_alloc(caddr_t data, uint64_t size, uint64_t offset, boolean_t dofree,
+    uint64_t unit_shift, uint64_t dcols, uint64_t nparity)
 {
 	raidz_map_t *rm;
-	uint64_t b = zio->io_offset >> unit_shift;
-	uint64_t s = zio->io_size >> unit_shift;
+	/* The starting RAIDZ (parent) vdev sector of the block. */
+	uint64_t b = offset >> unit_shift;
+	/* The zio's size in units of the vdev's minimum sector size. */
+	uint64_t s = size >> unit_shift;
+	/* The first column for this stripe. */
 	uint64_t f = b % dcols;
+	/* The starting byte offset on each child vdev. */
 	uint64_t o = (b / dcols) << unit_shift;
 	uint64_t q, r, c, bc, col, acols, scols, coff, devidx, asize, tot;
 
+	/*
+	 * "Quotient": The number of data sectors for this stripe on all but
+	 * the "big column" child vdevs that also contain "remainder" data.
+	 */
 	q = s / (dcols - nparity);
+
+	/*
+	 * "Remainder": The number of partial stripe data sectors in this I/O.
+	 * This will add a sector to some, but not all, child vdevs.
+	 */
 	r = s - q * (dcols - nparity);
+
+	/* The number of "big columns" - those which contain remainder data. */
 	bc = (r == 0 ? 0 : r + nparity);
+
+	/*
+	 * The total number of data and parity sectors associated with
+	 * this I/O.
+	 */
 	tot = s + nparity * (q + (r == 0 ? 0 : 1));
 
+	/* acols: The columns that will be accessed. */
+	/* scols: The columns that will be accessed or skipped. */
 	if (q == 0) {
+		/* Our I/O request doesn't span all child vdevs. */
 		acols = bc;
 		scols = MIN(dcols, roundup(bc, nparity + 1));
 	} else {
@@ -506,13 +541,13 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 	ASSERT3U(rm->rm_asize - asize, ==, rm->rm_nskip << unit_shift);
 	ASSERT3U(rm->rm_nskip, <=, nparity);
 
-	if (zio->io_type != ZIO_TYPE_FREE) {
+	if (!dofree) {
 		for (c = 0; c < rm->rm_firstdatacol; c++) {
 			rm->rm_col[c].rc_data =
 			    zio_buf_alloc(rm->rm_col[c].rc_size);
 		}
 
-		rm->rm_col[c].rc_data = zio->io_data;
+		rm->rm_col[c].rc_data = data;
 
 		for (c = c + 1; c < acols; c++) {
 			rm->rm_col[c].rc_data =
@@ -544,7 +579,7 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 	ASSERT(rm->rm_cols >= 2);
 	ASSERT(rm->rm_col[0].rc_size == rm->rm_col[1].rc_size);
 
-	if (rm->rm_firstdatacol == 1 && (zio->io_offset & (1ULL << 20))) {
+	if (rm->rm_firstdatacol == 1 && (offset & (1ULL << 20))) {
 		devidx = rm->rm_col[0].rc_devidx;
 		o = rm->rm_col[0].rc_offset;
 		rm->rm_col[0].rc_devidx = rm->rm_col[1].rc_devidx;
@@ -556,8 +591,6 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 			rm->rm_skipstart = 1;
 	}
 
-	zio->io_vsd = rm;
-	zio->io_vsd_ops = &vdev_raidz_vsd_ops;
 	return (rm);
 }
 
@@ -967,12 +1000,9 @@ vdev_raidz_reconstruct_pq(raidz_map_t *rm, int *tgts, int ntgts)
  *           ~~                               ~~
  *           __                               __
  *           |  1   1   1   1   1   1   1   1  |
- *           | 128  64  32  16  8   4   2   1  |
  *           |  19 205 116  29  64  16  4   1  |
  *           |  1   0   0   0   0   0   0   0  |
- *           |  0   1   0   0   0   0   0   0  |
- *  (V|I)' = |  0   0   1   0   0   0   0   0  |
- *           |  0   0   0   1   0   0   0   0  |
+ *  (V|I)' = |  0   0   0   1   0   0   0   0  |
  *           |  0   0   0   0   1   0   0   0  |
  *           |  0   0   0   0   0   1   0   0  |
  *           |  0   0   0   0   0   0   1   0  |
@@ -1198,7 +1228,8 @@ vdev_raidz_matrix_reconstruct(raidz_map_t *rm, int n, int nmissing,
 	uint64_t ccount;
 	uint8_t *dst[VDEV_RAIDZ_MAXPARITY];
 	uint64_t dcount[VDEV_RAIDZ_MAXPARITY];
-	uint8_t log, val;
+	uint8_t log = 0;
+	uint8_t val;
 	int ll;
 	uint8_t *invlog[VDEV_RAIDZ_MAXPARITY];
 	uint8_t *p, *pp;
@@ -1451,7 +1482,7 @@ vdev_raidz_reconstruct(raidz_map_t *rm, int *t, int nt)
 
 static int
 vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
-    uint64_t *ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
 	vdev_t *cvd;
 	uint64_t nparity = vd->vdev_nparity;
@@ -1464,7 +1495,7 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 	if (nparity > VDEV_RAIDZ_MAXPARITY ||
 	    vd->vdev_children < nparity + 1) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	vdev_open_children(vd);
@@ -1480,7 +1511,9 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
 		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
-		*ashift = MAX(*ashift, cvd->vdev_ashift);
+		*logical_ashift = MAX(*logical_ashift, cvd->vdev_ashift);
+		*physical_ashift = MAX(*physical_ashift,
+		    cvd->vdev_physical_ashift);
 	}
 
 	*asize *= vd->vdev_children;
@@ -1502,6 +1535,154 @@ vdev_raidz_close(vdev_t *vd)
 	for (c = 0; c < vd->vdev_children; c++)
 		vdev_close(vd->vdev_child[c]);
 }
+
+#ifdef illumos
+/*
+ * Handle a read or write I/O to a RAID-Z dump device.
+ *
+ * The dump device is in a unique situation compared to other ZFS datasets:
+ * writing to this device should be as simple and fast as possible.  In
+ * addition, durability matters much less since the dump will be extracted
+ * once the machine reboots.  For that reason, this function eschews parity for
+ * performance and simplicity.  The dump device uses the checksum setting
+ * ZIO_CHECKSUM_NOPARITY to indicate that parity is not maintained for this
+ * dataset.
+ *
+ * Blocks of size 128 KB have been preallocated for this volume.  I/Os less than
+ * 128 KB will not fill an entire block; in addition, they may not be properly
+ * aligned.  In that case, this function uses the preallocated 128 KB block and
+ * omits reading or writing any "empty" portions of that block, as opposed to
+ * allocating a fresh appropriately-sized block.
+ *
+ * Looking at an example of a 32 KB I/O to a RAID-Z vdev with 5 child vdevs:
+ *
+ *     vdev_raidz_io_start(data, size: 32 KB, offset: 64 KB)
+ *
+ * If this were a standard RAID-Z dataset, a block of at least 40 KB would be
+ * allocated which spans all five child vdevs.  8 KB of data would be written to
+ * each of four vdevs, with the fifth containing the parity bits.
+ *
+ *       parity    data     data     data     data
+ *     |   PP   |   XX   |   XX   |   XX   |   XX   |
+ *         ^        ^        ^        ^        ^
+ *         |        |        |        |        |
+ *   8 KB parity    ------8 KB data blocks------
+ *
+ * However, when writing to the dump device, the behavior is different:
+ *
+ *     vdev_raidz_physio(data, size: 32 KB, offset: 64 KB)
+ *
+ * Unlike the normal RAID-Z case in which the block is allocated based on the
+ * I/O size, reads and writes here always use a 128 KB logical I/O size.  If the
+ * I/O size is less than 128 KB, only the actual portions of data are written.
+ * In this example the data is written to the third data vdev since that vdev
+ * contains the offset [64 KB, 96 KB).
+ *
+ *       parity    data     data     data     data
+ *     |        |        |        |   XX   |        |
+ *                                    ^
+ *                                    |
+ *                             32 KB data block
+ *
+ * As a result, an individual I/O may not span all child vdevs; moreover, a
+ * small I/O may only operate on a single child vdev.
+ *
+ * Note that since there are no parity bits calculated or written, this format
+ * remains the same no matter how many parity bits are used in a normal RAID-Z
+ * stripe.  On a RAID-Z3 configuration with seven child vdevs, the example above
+ * would look like:
+ *
+ *       parity   parity   parity    data     data     data     data
+ *     |        |        |        |        |        |   XX   |        |
+ *                                                      ^
+ *                                                      |
+ *                                               32 KB data block
+ */
+int
+vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
+    uint64_t offset, uint64_t origoffset, boolean_t doread, boolean_t isdump)
+{
+	vdev_t *tvd = vd->vdev_top;
+	vdev_t *cvd;
+	raidz_map_t *rm;
+	raidz_col_t *rc;
+	int c, err = 0;
+
+	uint64_t start, end, colstart, colend;
+	uint64_t coloffset, colsize, colskip;
+
+	int flags = doread ? BIO_READ : BIO_WRITE;
+
+#ifdef	_KERNEL
+
+	/*
+	 * Don't write past the end of the block
+	 */
+	VERIFY3U(offset + size, <=, origoffset + SPA_MAXBLOCKSIZE);
+
+	start = offset;
+	end = start + size;
+
+	/*
+	 * Allocate a RAID-Z map for this block.  Note that this block starts
+	 * from the "original" offset, this is, the offset of the extent which
+	 * contains the requisite offset of the data being read or written.
+	 *
+	 * Even if this I/O operation doesn't span the full block size, let's
+	 * treat the on-disk format as if the only blocks are the complete 128
+	 * KB size.
+	 */
+	rm = vdev_raidz_map_alloc(data - (offset - origoffset),
+	    SPA_MAXBLOCKSIZE, origoffset, B_FALSE, tvd->vdev_ashift, vd->vdev_children,
+	    vd->vdev_nparity);
+
+	coloffset = origoffset;
+
+	for (c = rm->rm_firstdatacol; c < rm->rm_cols;
+	    c++, coloffset += rc->rc_size) {
+		rc = &rm->rm_col[c];
+		cvd = vd->vdev_child[rc->rc_devidx];
+
+		/*
+		 * Find the start and end of this column in the RAID-Z map,
+		 * keeping in mind that the stated size and offset of the
+		 * operation may not fill the entire column for this vdev.
+		 *
+		 * If any portion of the data spans this column, issue the
+		 * appropriate operation to the vdev.
+		 */
+		if (coloffset + rc->rc_size <= start)
+			continue;
+		if (coloffset >= end)
+			continue;
+
+		colstart = MAX(coloffset, start);
+		colend = MIN(end, coloffset + rc->rc_size);
+		colsize = colend - colstart;
+		colskip = colstart - coloffset;
+
+		VERIFY3U(colsize, <=, rc->rc_size);
+		VERIFY3U(colskip, <=, rc->rc_size);
+
+		/*
+		 * Note that the child vdev will have a vdev label at the start
+		 * of its range of offsets, hence the need for
+		 * VDEV_LABEL_OFFSET().  See zio_vdev_child_io() for another
+		 * example of why this calculation is needed.
+		 */
+		if ((err = vdev_disk_physio(cvd,
+		    ((char *)rc->rc_data) + colskip, colsize,
+		    VDEV_LABEL_OFFSET(rc->rc_offset) + colskip,
+		    flags, isdump)) != 0)
+			break;
+	}
+
+	vdev_raidz_map_free(rm);
+#endif	/* KERNEL */
+
+	return (err);
+}
+#endif
 
 static uint64_t
 vdev_raidz_asize(vdev_t *vd, uint64_t psize)
@@ -1528,6 +1709,23 @@ vdev_raidz_child_done(zio_t *zio)
 	rc->rc_skipped = 0;
 }
 
+/*
+ * Start an IO operation on a RAIDZ VDev
+ *
+ * Outline:
+ * - For write operations:
+ *   1. Generate the parity data
+ *   2. Create child zio write operations to each column's vdev, for both
+ *      data and parity.
+ *   3. If the column skips any sectors for padding, create optional dummy
+ *      write zio children for those areas to improve aggregation continuity.
+ * - For read operations:
+ *   1. Create child zio read operations to each data column's vdev to read
+ *      the range of data required for zio.
+ *   2. If this is a scrub or resilver operation, or if any of the data
+ *      vdevs have had errors, then create zio read operations to the parity
+ *      columns' VDevs as well.
+ */
 static int
 vdev_raidz_io_start(zio_t *zio)
 {
@@ -1538,8 +1736,13 @@ vdev_raidz_io_start(zio_t *zio)
 	raidz_col_t *rc;
 	int c, i;
 
-	rm = vdev_raidz_map_alloc(zio, tvd->vdev_ashift, vd->vdev_children,
+	rm = vdev_raidz_map_alloc(zio->io_data, zio->io_size, zio->io_offset,
+	    zio->io_type == ZIO_TYPE_FREE,
+	    tvd->vdev_ashift, vd->vdev_children,
 	    vd->vdev_nparity);
+
+	zio->io_vsd = rm;
+	zio->io_vsd_ops = &vdev_raidz_vsd_ops;
 
 	ASSERT3U(rm->rm_asize, ==, vdev_psize_to_asize(vd, zio->io_size));
 
@@ -1601,7 +1804,7 @@ vdev_raidz_io_start(zio_t *zio)
 				rm->rm_missingdata++;
 			else
 				rm->rm_missingparity++;
-			rc->rc_error = ENXIO;
+			rc->rc_error = SET_ERROR(ENXIO);
 			rc->rc_tried = 1;	/* don't even try */
 			rc->rc_skipped = 1;
 			continue;
@@ -1611,7 +1814,7 @@ vdev_raidz_io_start(zio_t *zio)
 				rm->rm_missingdata++;
 			else
 				rm->rm_missingparity++;
-			rc->rc_error = ESTALE;
+			rc->rc_error = SET_ERROR(ESTALE);
 			rc->rc_skipped = 1;
 			continue;
 		}
@@ -1683,6 +1886,13 @@ raidz_parity_verify(zio_t *zio, raidz_map_t *rm)
 	int c, ret = 0;
 	raidz_col_t *rc;
 
+	blkptr_t *bp = zio->io_bp;
+	enum zio_checksum checksum = (bp == NULL ? zio->io_prop.zp_checksum :
+	    (BP_IS_GANG(bp) ? ZIO_CHECKSUM_GANG_HEADER : BP_GET_CHECKSUM(bp)));
+
+	if (checksum == ZIO_CHECKSUM_NOPARITY)
+		return (ret);
+
 	for (c = 0; c < rm->rm_firstdatacol; c++) {
 		rc = &rm->rm_col[c];
 		if (!rc->rc_tried || rc->rc_error != 0)
@@ -1699,7 +1909,7 @@ raidz_parity_verify(zio_t *zio, raidz_map_t *rm)
 			continue;
 		if (bcmp(orig[c], rc->rc_data, rc->rc_size) != 0) {
 			raidz_checksum_error(zio, rc, orig[c]);
-			rc->rc_error = ECKSUM;
+			rc->rc_error = SET_ERROR(ECKSUM);
 			ret++;
 		}
 		zio_buf_free(orig[c], rc->rc_size);
@@ -1823,7 +2033,7 @@ vdev_raidz_combrec(zio_t *zio, int total_errors, int data_errors)
 					if (rc->rc_tried)
 						raidz_checksum_error(zio, rc,
 						    orig[i]);
-					rc->rc_error = ECKSUM;
+					rc->rc_error = SET_ERROR(ECKSUM);
 				}
 
 				ret = code;
@@ -1880,6 +2090,27 @@ done:
 	return (ret);
 }
 
+/*
+ * Complete an IO operation on a RAIDZ VDev
+ *
+ * Outline:
+ * - For write operations:
+ *   1. Check for errors on the child IOs.
+ *   2. Return, setting an error code if too few child VDevs were written
+ *      to reconstruct the data later.  Note that partial writes are
+ *      considered successful if they can be reconstructed at all.
+ * - For read operations:
+ *   1. Check for errors on the child IOs.
+ *   2. If data errors occurred:
+ *      a. Try to reassemble the data from the parity available.
+ *      b. If we haven't yet read the parity drives, read them now.
+ *      c. If all parity drives have been read but the data still doesn't
+ *         reassemble with a correct checksum, then try combinatorial
+ *         reconstruction.
+ *      d. If that doesn't work, return an error.
+ *   3. If there were unexpected errors or this is a resilver operation,
+ *      rewrite the vdevs that had errors.
+ */
 static void
 vdev_raidz_io_done(zio_t *zio)
 {
@@ -2101,7 +2332,7 @@ vdev_raidz_io_done(zio_t *zio)
 		 * Start checksum ereports for all children which haven't
 		 * failed, and the IO wasn't speculative.
 		 */
-		zio->io_error = ECKSUM;
+		zio->io_error = SET_ERROR(ECKSUM);
 
 		if (!(zio->io_flags & ZIO_FLAG_SPECULATIVE)) {
 			for (c = 0; c < rm->rm_cols; c++) {
@@ -2139,7 +2370,7 @@ done:
 
 			zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
 			    rc->rc_offset, rc->rc_data, rc->rc_size,
-			    ZIO_TYPE_WRITE, zio->io_priority,
+			    ZIO_TYPE_WRITE, ZIO_PRIORITY_ASYNC_WRITE,
 			    ZIO_FLAG_IO_REPAIR | (unexpected_errors ?
 			    ZIO_FLAG_SELF_HEAL : 0), NULL, NULL));
 		}

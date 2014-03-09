@@ -46,14 +46,13 @@ int newcycle;
 int oldcycle;
 #endif /* DEBUG */
 
+int topcmp(const void *, const void *);
+
     /*
      *	add (or just increment) an arc
      */
 void
-addarc( parentp , childp , count )
-    nltype	*parentp;
-    nltype	*childp;
-    long	count;
+addarc(nltype *parentp, nltype *childp, long count)
 {
     arctype		*arcp;
 
@@ -106,15 +105,16 @@ addarc( parentp , childp , count )
 nltype	**topsortnlp;
 
 int
-topcmp( npp1 , npp2 )
-    nltype	**npp1;
-    nltype	**npp2;
+topcmp(const void *v1, const void *v2)
 {
+    const nltype **npp1 = (const nltype **)v1;
+    const nltype **npp2 = (const nltype **)v2;
+
     return (*npp1) -> toporder - (*npp2) -> toporder;
 }
 
 nltype **
-doarcs()
+doarcs(void)
 {
     nltype	*parentp, **timesortnlp;
     arctype	*arcp;
@@ -252,7 +252,7 @@ doarcs()
 }
 
 void
-dotime()
+dotime(void)
 {
     int	index;
 
@@ -263,8 +263,7 @@ dotime()
 }
 
 void
-timepropagate( parentp )
-    nltype	*parentp;
+timepropagate(nltype *parentp)
 {
     arctype	*arcp;
     nltype	*childp;
@@ -352,7 +351,7 @@ timepropagate( parentp )
 }
 
 void
-cyclelink()
+cyclelink(void)
 {
     register nltype	*nlp;
     register nltype	*cyclenlp;
@@ -445,7 +444,7 @@ cyclelink()
      *	analyze cycles to determine breakup
      */
 bool
-cycleanalyze()
+cycleanalyze(void)
 {
     arctype	**cyclestack;
     arctype	**stkp;
@@ -521,10 +520,7 @@ cycleanalyze()
 }
 
 bool
-descend( node , stkstart , stkp )
-    nltype	*node;
-    arctype	**stkstart;
-    arctype	**stkp;
+descend(nltype *node, arctype **stkstart, arctype **stkp)
 {
     arctype	*arcp;
     bool	ret;
@@ -556,9 +552,7 @@ descend( node , stkstart , stkp )
 }
 
 bool
-addcycle( stkstart , stkend )
-    arctype	**stkstart;
-    arctype	**stkend;
+addcycle(arctype **stkstart, arctype **stkend)
 {
     arctype	**arcpp;
     arctype	**stkloc;
@@ -632,7 +626,7 @@ addcycle( stkstart , stkend )
 }
 
 void
-compresslist()
+compresslist(void)
 {
     cltype	*clp;
     cltype	**prev;
@@ -748,8 +742,7 @@ compresslist()
 
 #ifdef DEBUG
 void
-printsubcycle( clp )
-    cltype	*clp;
+printsubcycle(cltype *clp)
 {
     arctype	**arcpp;
     arctype	**endlist;
@@ -764,7 +757,7 @@ printsubcycle( clp )
 #endif /* DEBUG */
 
 void
-cycletime()
+cycletime(void)
 {
     int			cycle;
     nltype		*cyclenlp;
@@ -794,7 +787,7 @@ cycletime()
      *	and while we're here, sum time for functions.
      */
 void
-doflags()
+doflags(void)
 {
     int		index;
     nltype	*childp;
@@ -889,8 +882,7 @@ doflags()
      *	similarly, deal with propagation fractions from parents.
      */
 void
-inheritflags( childp )
-    nltype	*childp;
+inheritflags(nltype *childp)
 {
     nltype	*headp;
     arctype	*arcp;

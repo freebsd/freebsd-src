@@ -77,7 +77,7 @@ Let's examine a typical .mc file:
 
 	divert(-1)
 	#
-	# Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+	# Copyright (c) 1998-2005 Proofpoint, Inc. and its suppliers.
 	#	All rights reserved.
 	# Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 	# Copyright (c) 1988, 1993
@@ -1402,6 +1402,9 @@ preserve_local_plus_detail
 		that address will be looked up in the alias file; user+* and
 		user will not be looked up).  Only use if the local
 		delivery agent in use supports +detail addressing.
+		Moreover, this will most likely not work if the 'w' flag
+		for the local mailer is set as the entire local address
+		including +detail is passed to the user lookup function.
 
 compat_check	Enable ruleset check_compat to look up pairs of addresses
 		with the Compat: tag --	Compat:sender<@>recipient -- in the
@@ -4701,4 +4704,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.728 $, Last updated $Date: 2012/09/07 16:29:13 $
+$Revision: 8.730 $, Last updated $Date: 2014/01/16 15:55:51 $

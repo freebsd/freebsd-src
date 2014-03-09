@@ -142,7 +142,11 @@
 /*
  * Power Control
  */
+#if defined(SOC_MV_KIRKWOOD)
+#define CPU_PM_CTRL		0x18
+#else
 #define CPU_PM_CTRL		0x1C
+#endif
 #define CPU_PM_CTRL_NONE	0
 #define CPU_PM_CTRL_ALL		~0x0
 
@@ -215,6 +219,10 @@
 #define CPU_TIMER1_AUTO		0x00000008
 #define CPU_TIMER_WD_EN		0x00000010
 #define CPU_TIMER_WD_AUTO	0x00000020
+/* 25MHz mode is Armada XP - specific */
+#define CPU_TIMER_WD_25MHZ_EN	0x00000400
+#define CPU_TIMER0_25MHZ_EN	0x00000800
+#define CPU_TIMER1_25MHZ_EN	0x00001000
 #define CPU_TIMER0_REL		0x10
 #define CPU_TIMER0		0x14
 

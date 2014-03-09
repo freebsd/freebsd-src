@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -52,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);

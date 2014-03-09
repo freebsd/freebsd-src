@@ -104,6 +104,7 @@ svr4_sys_read(td, uap)
      struct svr4_sys_read_args *uap;
 {
      struct read_args ra;
+     cap_rights_t rights;
      struct file *fp;
      struct socket *so = NULL;
      int so_state;
@@ -114,7 +115,7 @@ svr4_sys_read(td, uap)
      ra.buf = uap->buf;
      ra.nbyte = uap->nbyte;
 
-     if (fget(td, uap->fd, CAP_READ, &fp) != 0) {
+     if (fget(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp) != 0) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
        return EBADF;
      }
@@ -197,22 +198,24 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 	u_long cmd;
 	caddr_t data;
 {
-	int error;
-	int num;
 	struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedescent *fde;
+	int error, num;
 
 	*retval = 0;
 
 	switch (cmd) {
 	case SVR4_FIOCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+		fde = &fdp->fd_ofiles[fd];
+		fde->fde_flags |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return 0;
 
 	case SVR4_FIONCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
+		fde = &fdp->fd_ofiles[fd];
+		fde->fde_flags &= ~UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return 0;
 

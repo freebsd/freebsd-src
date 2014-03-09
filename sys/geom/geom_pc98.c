@@ -56,7 +56,7 @@ FEATURE(geom_pc98, "GEOM NEC PC9800 partitioning support");
 
 struct g_pc98_softc {
 	u_int fwsectors, fwheads, sectorsize;
-	int type[NDOSPART];
+	int type[PC98_NPARTS];
 	u_char sec[8192];
 };
 
@@ -84,8 +84,8 @@ static int
 g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec, int len __unused)
 {
 	int i, error;
-	off_t s[NDOSPART], l[NDOSPART];
-	struct pc98_partition dp[NDOSPART];
+	off_t s[PC98_NPARTS], l[PC98_NPARTS];
+	struct pc98_partition dp[PC98_NPARTS];
 
 	g_topology_assert();
 	
@@ -114,11 +114,11 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec, int len _
 		return (EBUSY);
 #endif
 
-	for (i = 0; i < NDOSPART; i++)
+	for (i = 0; i < PC98_NPARTS; i++)
 		pc98_partition_dec(
 			sec + 512 + i * sizeof(struct pc98_partition), &dp[i]);
 
-	for (i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < PC98_NPARTS; i++) {
 		/* If start and end are identical it's bogus */
 		if (dp[i].dp_ssect == dp[i].dp_esect &&
 		    dp[i].dp_shd == dp[i].dp_ehd &&
@@ -146,7 +146,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec, int len _
 			return (error);
 	}
 
-	for (i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < PC98_NPARTS; i++) {
 		ms->type[i] = (dp[i].dp_sid << 8) | dp[i].dp_mid;
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET, s[i], l[i],
 			       ms->sectorsize, "%ss%d", gp->name, i + 1);
@@ -269,7 +269,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, PC98_CLASS_NAME))
 		return (NULL);
-	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_pc98_start);
+	gp = g_slice_new(mp, PC98_NPARTS, pp, &cp, &ms, sizeof *ms,
+	    g_pc98_start);
 	if (gp == NULL)
 		return (NULL);
 	g_topology_unlock();

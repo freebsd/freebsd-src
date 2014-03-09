@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_abbrev.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_abbrev.c,v 10.10 2001/12/16 18:18:54 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,9 +34,7 @@ static const char sccsid[] = "@(#)ex_abbrev.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int ex_abbr __P((SCR *, EXCMD *));
  */
 int
-ex_abbr(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_abbr(SCR *sp, EXCMD *cmdp)
 {
 	CHAR_T *p;
 	size_t len;
@@ -71,7 +69,7 @@ ex_abbr(sp, cmdp)
 			return (1);
 	}
 	for (p = cmdp->argv[0]->bp; *p != '\0'; ++p)
-		if (isblank(p[0])) {
+		if (ISBLANK(p[0])) {
 			msgq(sp, M_ERR,
 			    "107|Abbreviations may not contain tabs or spaces");
 			return (1);
@@ -100,16 +98,14 @@ ex_abbr(sp, cmdp)
  * PUBLIC: int ex_unabbr __P((SCR *, EXCMD *));
  */
 int
-ex_unabbr(sp, cmdp)
-	SCR *sp;
-        EXCMD *cmdp;
+ex_unabbr(SCR *sp, EXCMD *cmdp)
 {
 	ARGS *ap;
 
 	ap = cmdp->argv[0];
 	if (!F_ISSET(sp->gp, G_ABBREV) ||
 	    seq_delete(sp, ap->bp, ap->len, SEQ_ABBREV)) {
-		msgq_str(sp, M_ERR, ap->bp,
+		msgq_wstr(sp, M_ERR, ap->bp,
 		    "109|\"%s\" is not an abbreviation");
 		return (1);
 	}

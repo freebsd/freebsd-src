@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)mark.c	10.13 (Berkeley) 7/19/96";
+static const char sccsid[] = "$Id: mark.c,v 10.14 2011/07/04 14:42:58 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <errno.h>
@@ -28,7 +29,7 @@ static const char sccsid[] = "@(#)mark.c	10.13 (Berkeley) 7/19/96";
 static LMARK *mark_find __P((SCR *, ARG_CHAR_T));
 
 /*
- * Marks are maintained in a key sorted doubly linked list.  We can't
+ * Marks are maintained in a key sorted singly linked list.  We can't
  * use arrays because we have no idea how big an index key could be.
  * The underlying assumption is that users don't have more than, say,
  * 10 marks at any one time, so this will be is fast enough.
@@ -65,9 +66,9 @@ static LMARK *mark_find __P((SCR *, ARG_CHAR_T));
  * PUBLIC: int mark_init __P((SCR *, EXF *));
  */
 int
-mark_init(sp, ep)
-	SCR *sp;
-	EXF *ep;
+mark_init(
+	SCR *sp,
+	EXF *ep)
 {
 	/*
 	 * !!!
@@ -75,7 +76,7 @@ mark_init(sp, ep)
 	 *
 	 * Set up the marks.
 	 */
-	LIST_INIT(&ep->marks);
+	SLIST_INIT(ep->marks);
 	return (0);
 }
 
@@ -86,9 +87,9 @@ mark_init(sp, ep)
  * PUBLIC: int mark_end __P((SCR *, EXF *));
  */
 int
-mark_end(sp, ep)
-	SCR *sp;
-	EXF *ep;
+mark_end(
+	SCR *sp,
+	EXF *ep)
 {
 	LMARK *lmp;
 
@@ -96,8 +97,8 @@ mark_end(sp, ep)
 	 * !!!
 	 * ep MAY NOT BE THE SAME AS sp->ep, DON'T USE THE LATTER.
 	 */
-	while ((lmp = ep->marks.lh_first) != NULL) {
-		LIST_REMOVE(lmp, q);
+	while ((lmp = SLIST_FIRST(ep->marks)) != NULL) {
+		SLIST_REMOVE_HEAD(ep->marks, q);
 		free(lmp);
 	}
 	return (0);
@@ -110,11 +111,11 @@ mark_end(sp, ep)
  * PUBLIC: int mark_get __P((SCR *, ARG_CHAR_T, MARK *, mtype_t));
  */
 int
-mark_get(sp, key, mp, mtype)
-	SCR *sp;
-	ARG_CHAR_T key;
-	MARK *mp;
-	mtype_t mtype;
+mark_get(
+	SCR *sp,
+	ARG_CHAR_T key,
+	MARK *mp,
+	mtype_t mtype)
 {
 	LMARK *lmp;
 
@@ -155,11 +156,11 @@ mark_get(sp, key, mp, mtype)
  * PUBLIC: int mark_set __P((SCR *, ARG_CHAR_T, MARK *, int));
  */
 int
-mark_set(sp, key, value, userset)
-	SCR *sp;
-	ARG_CHAR_T key;
-	MARK *value;
-	int userset;
+mark_set(
+	SCR *sp,
+	ARG_CHAR_T key,
+	MARK *value,
+	int userset)
 {
 	LMARK *lmp, *lmt;
 
@@ -176,9 +177,9 @@ mark_set(sp, key, value, userset)
 	if (lmp == NULL || lmp->name != key) {
 		MALLOC_RET(sp, lmt, LMARK *, sizeof(LMARK));
 		if (lmp == NULL) {
-			LIST_INSERT_HEAD(&sp->ep->marks, lmt, q);
+			SLIST_INSERT_HEAD(sp->ep->marks, lmt, q);
 		} else
-			LIST_INSERT_AFTER(lmp, lmt, q);
+			SLIST_INSERT_AFTER(lmp, lmt, q);
 		lmp = lmt;
 	} else if (!userset &&
 	    !F_ISSET(lmp, MARK_DELETED) && F_ISSET(lmp, MARK_USERSET))
@@ -197,20 +198,21 @@ mark_set(sp, key, value, userset)
  *	where it would go.
  */
 static LMARK *
-mark_find(sp, key)
-	SCR *sp;
-	ARG_CHAR_T key;
+mark_find(
+	SCR *sp,
+	ARG_CHAR_T key)
 {
-	LMARK *lmp, *lastlmp;
+	LMARK *lmp, *lastlmp = NULL;
 
 	/*
 	 * Return the requested mark or the slot immediately before
 	 * where it should go.
 	 */
-	for (lastlmp = NULL, lmp = sp->ep->marks.lh_first;
-	    lmp != NULL; lastlmp = lmp, lmp = lmp->q.le_next)
+	SLIST_FOREACH(lmp, sp->ep->marks, q) {
 		if (lmp->name >= key)
 			return (lmp->name == key ? lmp : lastlmp);
+		lastlmp = lmp;
+	}
 	return (lastlmp);
 }
 
@@ -221,10 +223,10 @@ mark_find(sp, key)
  * PUBLIC: int mark_insdel __P((SCR *, lnop_t, recno_t));
  */
 int
-mark_insdel(sp, op, lno)
-	SCR *sp;
-	lnop_t op;
-	recno_t lno;
+mark_insdel(
+	SCR *sp,
+	lnop_t op,
+	recno_t lno)
 {
 	LMARK *lmp;
 	recno_t lline;
@@ -234,8 +236,7 @@ mark_insdel(sp, op, lno)
 		/* All insert/append operations are done as inserts. */
 		abort();
 	case LINE_DELETE:
-		for (lmp = sp->ep->marks.lh_first;
-		    lmp != NULL; lmp = lmp->q.le_next)
+		SLIST_FOREACH(lmp, sp->ep->marks, q)
 			if (lmp->lno >= lno)
 				if (lmp->lno == lno) {
 					F_SET(lmp, MARK_DELETED);
@@ -265,8 +266,7 @@ mark_insdel(sp, op, lno)
 				return (0);
 		}
 
-		for (lmp = sp->ep->marks.lh_first;
-		    lmp != NULL; lmp = lmp->q.le_next)
+		SLIST_FOREACH(lmp, sp->ep->marks, q)
 			if (lmp->lno >= lno)
 				++lmp->lno;
 		break;

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _ARM_ARCH_6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURPCB)
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
@@ -492,7 +492,7 @@ ENTRY(copyin)
 	ldrbt	ip, [r0]
 	strb	ip, [r1]
 	RET
-
+END(copyin)
 
 /*
  * r0 = kernel space address
@@ -935,3 +935,5 @@ ENTRY(copyout)
 	ldrb	ip, [r0]
 	strbt	ip, [r1]
 	RET
+END(copyout)
+

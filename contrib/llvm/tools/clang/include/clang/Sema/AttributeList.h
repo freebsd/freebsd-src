@@ -15,11 +15,12 @@
 #ifndef LLVM_CLANG_SEMA_ATTRLIST_H
 #define LLVM_CLANG_SEMA_ATTRLIST_H
 
-#include "llvm/Support/Allocator.h"
-#include "llvm/ADT/SmallVector.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/VersionTuple.h"
 #include "clang/Sema/Ownership.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/Support/Allocator.h"
 #include <cassert>
 
 namespace clang {
@@ -44,8 +45,23 @@ struct AvailabilityChange {
   bool isValid() const { return !Version.empty(); }
 };
 
-/// AttributeList - Represents GCC's __attribute__ declaration. There are
-/// 4 forms of this construct...they are:
+/// \brief Wraps an identifier and optional source location for the identifier.
+struct IdentifierLoc {
+  SourceLocation Loc;
+  IdentifierInfo *Ident;
+
+  static IdentifierLoc *create(ASTContext &Ctx, SourceLocation Loc,
+                               IdentifierInfo *Ident);
+};
+
+/// \brief A union of the various pointer types that can be passed to an
+/// AttributeList as an argument.
+typedef llvm::PointerUnion<Expr*, IdentifierLoc*> ArgsUnion;
+typedef llvm::SmallVector<ArgsUnion, 12U> ArgsVector;
+
+/// AttributeList - Represents a syntactic attribute.
+///
+/// For a GNU attribute, there are four forms of this construct:
 ///
 /// 1: __attribute__(( const )). ParmName/Args/NumArgs will all be unused.
 /// 2: __attribute__(( mode(byte) )). ParmName used, Args/NumArgs unused.
@@ -56,20 +72,22 @@ class AttributeList { // TODO: This should really be called ParsedAttribute
 public:
   /// The style used to specify an attribute.
   enum Syntax {
+    /// __attribute__((...))
     AS_GNU,
+    /// [[...]]
     AS_CXX11,
+    /// __declspec(...)
     AS_Declspec,
-    // eg) __w64, __ptr32, etc.  It is implied that an MSTypespec is also
-    // a declspec.
-    AS_MSTypespec   
+    /// __ptr16, alignas(...), etc.
+    AS_Keyword
   };
+
 private:
   IdentifierInfo *AttrName;
   IdentifierInfo *ScopeName;
-  IdentifierInfo *ParmName;
   SourceRange AttrRange;
   SourceLocation ScopeLoc;
-  SourceLocation ParmLoc;
+  SourceLocation EllipsisLoc;
 
   /// The number of expression arguments this attribute has.
   /// The expressions themselves are stored after the object.
@@ -92,6 +110,13 @@ private:
   /// type_tag_for_datatype attribute.
   unsigned IsTypeTagForDatatype : 1;
 
+  /// True if this has extra information associated with a
+  /// Microsoft __delcspec(property) attribute.
+  unsigned IsProperty : 1;
+
+  /// True if this has a ParsedType
+  unsigned HasParsedType : 1;
+
   unsigned AttrKind : 8;
 
   /// \brief The location of the 'unavailable' keyword in an
@@ -106,22 +131,27 @@ private:
   /// The next attribute allocated in the current Pool.
   AttributeList *NextInPool;
 
-  Expr **getArgsBuffer() {
-    return reinterpret_cast<Expr**>(this+1);
+  /// Arguments, if any, are stored immediately following the object.
+  ArgsUnion *getArgsBuffer() {
+    return reinterpret_cast<ArgsUnion*>(this+1);
   }
-  Expr * const *getArgsBuffer() const {
-    return reinterpret_cast<Expr* const *>(this+1);
+  ArgsUnion const *getArgsBuffer() const {
+    return reinterpret_cast<ArgsUnion const *>(this+1);
   }
 
   enum AvailabilitySlot {
     IntroducedSlot, DeprecatedSlot, ObsoletedSlot
   };
 
-  AvailabilityChange &getAvailabilitySlot(AvailabilitySlot index) {
-    return reinterpret_cast<AvailabilityChange*>(this+1)[index];
+  /// Availability information is stored immediately following the arguments,
+  /// if any, at the end of the object.
+  AvailabilityChange &getAvailabilitySlot(AvailabilitySlot index) {    
+    return reinterpret_cast<AvailabilityChange*>(getArgsBuffer()
+                                                 + NumArgs)[index];
   }
   const AvailabilityChange &getAvailabilitySlot(AvailabilitySlot index) const {
-    return reinterpret_cast<const AvailabilityChange*>(this+1)[index];
+    return reinterpret_cast<const AvailabilityChange*>(getArgsBuffer()
+                                                       + NumArgs)[index];
   }
 
 public:
@@ -130,14 +160,45 @@ public:
     unsigned LayoutCompatible : 1;
     unsigned MustBeNull : 1;
   };
+  struct PropertyData {
+    IdentifierInfo *GetterId, *SetterId;
+    PropertyData(IdentifierInfo *getterId, IdentifierInfo *setterId)
+    : GetterId(getterId), SetterId(setterId) {}
+  };
 
 private:
+  /// Type tag information is stored immediately following the arguments, if
+  /// any, at the end of the object.  They are mutually exlusive with
+  /// availability slots.
   TypeTagForDatatypeData &getTypeTagForDatatypeDataSlot() {
-    return *reinterpret_cast<TypeTagForDatatypeData *>(this + 1);
+    return *reinterpret_cast<TypeTagForDatatypeData*>(getArgsBuffer()+NumArgs);
   }
 
   const TypeTagForDatatypeData &getTypeTagForDatatypeDataSlot() const {
-    return *reinterpret_cast<const TypeTagForDatatypeData *>(this + 1);
+    return *reinterpret_cast<const TypeTagForDatatypeData*>(getArgsBuffer()
+                                                            + NumArgs);
+  }
+
+  /// The type buffer immediately follows the object and are mutually exclusive
+  /// with arguments.
+  ParsedType &getTypeBuffer() {
+    return *reinterpret_cast<ParsedType *>(this + 1);
+  }
+
+  const ParsedType &getTypeBuffer() const {
+    return *reinterpret_cast<const ParsedType *>(this + 1);
+  }
+
+  /// The property data immediately follows the object is is mutually exclusive
+  /// with arguments.
+  PropertyData &getPropertyDataBuffer() {
+    assert(IsProperty);
+    return *reinterpret_cast<PropertyData*>(this + 1);
+  }
+
+  const PropertyData &getPropertyDataBuffer() const {
+    assert(IsProperty);
+    return *reinterpret_cast<const PropertyData*>(this + 1);
   }
 
   AttributeList(const AttributeList &) LLVM_DELETED_FUNCTION;
@@ -150,35 +211,34 @@ private:
   /// Constructor for attributes with expression arguments.
   AttributeList(IdentifierInfo *attrName, SourceRange attrRange,
                 IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                IdentifierInfo *parmName, SourceLocation parmLoc,
-                Expr **args, unsigned numArgs,
-                Syntax syntaxUsed)
-    : AttrName(attrName), ScopeName(scopeName), ParmName(parmName),
-      AttrRange(attrRange), ScopeLoc(scopeLoc), ParmLoc(parmLoc),
-      NumArgs(numArgs), SyntaxUsed(syntaxUsed), Invalid(false),
-      UsedAsTypeAttr(false), IsAvailability(false),
-      IsTypeTagForDatatype(false), NextInPosition(0), NextInPool(0) {
-    if (numArgs) memcpy(getArgsBuffer(), args, numArgs * sizeof(Expr*));
+                ArgsUnion *args, unsigned numArgs,
+                Syntax syntaxUsed, SourceLocation ellipsisLoc)
+    : AttrName(attrName), ScopeName(scopeName), AttrRange(attrRange),
+      ScopeLoc(scopeLoc), EllipsisLoc(ellipsisLoc), NumArgs(numArgs),
+      SyntaxUsed(syntaxUsed), Invalid(false), UsedAsTypeAttr(false),
+      IsAvailability(false), IsTypeTagForDatatype(false), IsProperty(false),
+      HasParsedType(false), NextInPosition(0), NextInPool(0) {
+    if (numArgs) memcpy(getArgsBuffer(), args, numArgs * sizeof(ArgsUnion));
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
 
   /// Constructor for availability attributes.
   AttributeList(IdentifierInfo *attrName, SourceRange attrRange,
                 IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                IdentifierInfo *parmName, SourceLocation parmLoc,
-                const AvailabilityChange &introduced,
+                IdentifierLoc *Parm, const AvailabilityChange &introduced,
                 const AvailabilityChange &deprecated,
                 const AvailabilityChange &obsoleted,
                 SourceLocation unavailable, 
                 const Expr *messageExpr,
                 Syntax syntaxUsed)
-    : AttrName(attrName), ScopeName(scopeName), ParmName(parmName),
-      AttrRange(attrRange), ScopeLoc(scopeLoc), ParmLoc(parmLoc),
-      NumArgs(0), SyntaxUsed(syntaxUsed),
+    : AttrName(attrName), ScopeName(scopeName), AttrRange(attrRange),
+      ScopeLoc(scopeLoc), EllipsisLoc(), NumArgs(1), SyntaxUsed(syntaxUsed),
       Invalid(false), UsedAsTypeAttr(false), IsAvailability(true),
-      IsTypeTagForDatatype(false),
+      IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(false),
       UnavailableLoc(unavailable), MessageExpr(messageExpr),
       NextInPosition(0), NextInPool(0) {
+    ArgsUnion PVal(Parm);
+    memcpy(getArgsBuffer(), &PVal, sizeof(ArgsUnion));
     new (&getAvailabilitySlot(IntroducedSlot)) AvailabilityChange(introduced);
     new (&getAvailabilitySlot(DeprecatedSlot)) AvailabilityChange(deprecated);
     new (&getAvailabilitySlot(ObsoletedSlot)) AvailabilityChange(obsoleted);
@@ -188,19 +248,46 @@ private:
   /// Constructor for type_tag_for_datatype attribute.
   AttributeList(IdentifierInfo *attrName, SourceRange attrRange,
                 IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                IdentifierInfo *argumentKindName,
-                SourceLocation argumentKindLoc,
-                ParsedType matchingCType, bool layoutCompatible,
-                bool mustBeNull, Syntax syntaxUsed)
-    : AttrName(attrName), ScopeName(scopeName), ParmName(argumentKindName),
-      AttrRange(attrRange), ScopeLoc(scopeLoc), ParmLoc(argumentKindLoc),
-      NumArgs(0), SyntaxUsed(syntaxUsed),
+                IdentifierLoc *ArgKind, ParsedType matchingCType,
+                bool layoutCompatible, bool mustBeNull, Syntax syntaxUsed)
+    : AttrName(attrName), ScopeName(scopeName), AttrRange(attrRange),
+      ScopeLoc(scopeLoc), EllipsisLoc(), NumArgs(1), SyntaxUsed(syntaxUsed),
       Invalid(false), UsedAsTypeAttr(false), IsAvailability(false),
-      IsTypeTagForDatatype(true), NextInPosition(NULL), NextInPool(NULL) {
+      IsTypeTagForDatatype(true), IsProperty(false), HasParsedType(false),
+      NextInPosition(NULL), NextInPool(NULL) {
+    ArgsUnion PVal(ArgKind);
+    memcpy(getArgsBuffer(), &PVal, sizeof(ArgsUnion));
     TypeTagForDatatypeData &ExtraData = getTypeTagForDatatypeDataSlot();
     new (&ExtraData.MatchingCType) ParsedType(matchingCType);
     ExtraData.LayoutCompatible = layoutCompatible;
     ExtraData.MustBeNull = mustBeNull;
+    AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
+  }
+
+  /// Constructor for attributes with a single type argument.
+  AttributeList(IdentifierInfo *attrName, SourceRange attrRange,
+                IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                ParsedType typeArg, Syntax syntaxUsed)
+      : AttrName(attrName), ScopeName(scopeName), AttrRange(attrRange),
+        ScopeLoc(scopeLoc), EllipsisLoc(), NumArgs(0), SyntaxUsed(syntaxUsed),
+        Invalid(false), UsedAsTypeAttr(false), IsAvailability(false),
+        IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(true),
+        NextInPosition(0), NextInPool(0) {
+    new (&getTypeBuffer()) ParsedType(typeArg);
+    AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
+  }
+
+  /// Constructor for microsoft __declspec(property) attribute.
+  AttributeList(IdentifierInfo *attrName, SourceRange attrRange,
+                IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                IdentifierInfo *getterId, IdentifierInfo *setterId,
+                Syntax syntaxUsed)
+    : AttrName(attrName), ScopeName(scopeName), AttrRange(attrRange),
+      ScopeLoc(scopeLoc), EllipsisLoc(), NumArgs(0), SyntaxUsed(syntaxUsed),
+      Invalid(false), UsedAsTypeAttr(false), IsAvailability(false),
+      IsTypeTagForDatatype(false), IsProperty(true), HasParsedType(false),
+      NextInPosition(0), NextInPool(0) {
+    new (&getPropertyDataBuffer()) PropertyData(getterId, setterId);
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
 
@@ -224,21 +311,32 @@ public:
   IdentifierInfo *getScopeName() const { return ScopeName; }
   SourceLocation getScopeLoc() const { return ScopeLoc; }
   
-  IdentifierInfo *getParameterName() const { return ParmName; }
-  SourceLocation getParameterLoc() const { return ParmLoc; }
+  bool hasParsedType() const { return HasParsedType; }
 
-  /// Returns true if the attribute is a pure __declspec or a synthesized
-  /// declspec representing a type specification (like __w64 or __ptr32).
-  bool isDeclspecAttribute() const { return SyntaxUsed == AS_Declspec ||
-                                            SyntaxUsed == AS_MSTypespec; }
-  bool isCXX0XAttribute() const { return SyntaxUsed == AS_CXX11; }
-  bool isMSTypespecAttribute() const { return SyntaxUsed == AS_MSTypespec; }
+  /// Is this the Microsoft __declspec(property) attribute?
+  bool isDeclspecPropertyAttribute() const  {
+    return IsProperty;
+  }
+
+  bool isAlignasAttribute() const {
+    // FIXME: Use a better mechanism to determine this.
+    return getKind() == AT_Aligned && SyntaxUsed == AS_Keyword;
+  }
+
+  bool isDeclspecAttribute() const { return SyntaxUsed == AS_Declspec; }
+  bool isCXX11Attribute() const {
+    return SyntaxUsed == AS_CXX11 || isAlignasAttribute();
+  }
+  bool isKeywordAttribute() const { return SyntaxUsed == AS_Keyword; }
 
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }
 
   bool isUsedAsTypeAttr() const { return UsedAsTypeAttr; }
   void setUsedAsTypeAttr() { UsedAsTypeAttr = true; }
+
+  bool isPackExpansion() const { return EllipsisLoc.isValid(); }
+  SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
 
   Kind getKind() const { return Kind(AttrKind); }
   static Kind getKind(const IdentifierInfo *Name, const IdentifierInfo *Scope,
@@ -250,21 +348,31 @@ public:
   /// getNumArgs - Return the number of actual arguments to this attribute.
   unsigned getNumArgs() const { return NumArgs; }
 
-  /// hasParameterOrArguments - Return true if this attribute has a parameter,
-  /// or has a non empty argument expression list.
-  bool hasParameterOrArguments() const { return ParmName || NumArgs; }
-
   /// getArg - Return the specified argument.
-  Expr *getArg(unsigned Arg) const {
+  ArgsUnion getArg(unsigned Arg) const {
     assert(Arg < NumArgs && "Arg access out of range!");
     return getArgsBuffer()[Arg];
   }
 
+  bool isArgExpr(unsigned Arg) const {
+    return Arg < NumArgs && getArg(Arg).is<Expr*>();
+  }
+  Expr *getArgAsExpr(unsigned Arg) const {
+    return getArg(Arg).get<Expr*>();
+  }
+
+  bool isArgIdent(unsigned Arg) const {
+    return Arg < NumArgs && getArg(Arg).is<IdentifierLoc*>();
+  }
+  IdentifierLoc *getArgAsIdent(unsigned Arg) const {
+    return getArg(Arg).get<IdentifierLoc*>();
+  }
+
   class arg_iterator {
-    Expr * const *X;
+    ArgsUnion const *X;
     unsigned Idx;
   public:
-    arg_iterator(Expr * const *x, unsigned idx) : X(x), Idx(idx) {}
+    arg_iterator(ArgsUnion const *x, unsigned idx) : X(x), Idx(idx) {}
 
     arg_iterator& operator++() {
       ++Idx;
@@ -281,7 +389,7 @@ public:
       return !operator==(I);
     }
 
-    Expr* operator*() const {
+    ArgsUnion operator*() const {
       return X[Idx];
     }
 
@@ -340,6 +448,25 @@ public:
            "Not a type_tag_for_datatype attribute");
     return getTypeTagForDatatypeDataSlot().MustBeNull;
   }
+
+  const ParsedType &getTypeArg() const {
+    assert(HasParsedType && "Not a type attribute");
+    return getTypeBuffer();
+  }
+
+  const PropertyData &getPropertyData() const {
+    assert(isDeclspecPropertyAttribute() && "Not a __delcspec(property) attribute");
+    return getPropertyDataBuffer();
+  }
+
+  /// \brief Get an index into the attribute spelling list
+  /// defined in Attr.td. This index is used by an attribute
+  /// to pretty print itself.
+  unsigned getAttributeSpellingListIndex() const;
+
+  bool hasCustomParsing() const;
+  unsigned getMinArgs() const;
+  unsigned getMaxArgs() const;
 };
 
 /// A factory, from which one makes pools, from which one creates
@@ -354,11 +481,17 @@ public:
     /// which we want to ensure is a multiple of sizeof(void*).
     AvailabilityAllocSize =
       sizeof(AttributeList)
-      + ((3 * sizeof(AvailabilityChange) + sizeof(void*) - 1)
+      + ((3 * sizeof(AvailabilityChange) + sizeof(void*) +
+         sizeof(ArgsUnion) - 1)
          / sizeof(void*) * sizeof(void*)),
     TypeTagForDatatypeAllocSize =
       sizeof(AttributeList)
-      + (sizeof(AttributeList::TypeTagForDatatypeData) + sizeof(void *) - 1)
+      + (sizeof(AttributeList::TypeTagForDatatypeData) + sizeof(void *) +
+         sizeof(ArgsUnion) - 1)
+        / sizeof(void*) * sizeof(void*),
+    PropertyAllocSize =
+      sizeof(AttributeList)
+      + (sizeof(AttributeList::PropertyData) + sizeof(void *) - 1)
         / sizeof(void*) * sizeof(void*)
   };
 
@@ -446,20 +579,20 @@ public:
 
   AttributeList *create(IdentifierInfo *attrName, SourceRange attrRange,
                         IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                        IdentifierInfo *parmName, SourceLocation parmLoc,
-                        Expr **args, unsigned numArgs,
-                        AttributeList::Syntax syntax) {
+                        ArgsUnion *args, unsigned numArgs,
+                        AttributeList::Syntax syntax,
+                        SourceLocation ellipsisLoc = SourceLocation()) {
     void *memory = allocate(sizeof(AttributeList)
-                            + numArgs * sizeof(Expr*));
+                            + numArgs * sizeof(ArgsUnion));
     return add(new (memory) AttributeList(attrName, attrRange,
                                           scopeName, scopeLoc,
-                                          parmName, parmLoc,
-                                          args, numArgs, syntax));
+                                          args, numArgs, syntax,
+                                          ellipsisLoc));
   }
 
   AttributeList *create(IdentifierInfo *attrName, SourceRange attrRange,
                         IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        IdentifierLoc *Param,
                         const AvailabilityChange &introduced,
                         const AvailabilityChange &deprecated,
                         const AvailabilityChange &obsoleted,
@@ -469,9 +602,9 @@ public:
     void *memory = allocate(AttributeFactory::AvailabilityAllocSize);
     return add(new (memory) AttributeList(attrName, attrRange,
                                           scopeName, scopeLoc,
-                                          parmName, parmLoc,
-                                          introduced, deprecated, obsoleted,
-                                          unavailable, MessageExpr, syntax));
+                                          Param, introduced, deprecated,
+                                          obsoleted, unavailable, MessageExpr,
+                                          syntax));
   }
 
   AttributeList *createIntegerAttribute(ASTContext &C, IdentifierInfo *Name,
@@ -480,16 +613,37 @@ public:
   AttributeList *createTypeTagForDatatype(
                     IdentifierInfo *attrName, SourceRange attrRange,
                     IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                    IdentifierInfo *argumentKindName,
-                    SourceLocation argumentKindLoc,
-                    ParsedType matchingCType, bool layoutCompatible,
-                    bool mustBeNull, AttributeList::Syntax syntax) {
+                    IdentifierLoc *argumentKind, ParsedType matchingCType,
+                    bool layoutCompatible, bool mustBeNull,
+                    AttributeList::Syntax syntax) {
     void *memory = allocate(AttributeFactory::TypeTagForDatatypeAllocSize);
     return add(new (memory) AttributeList(attrName, attrRange,
                                           scopeName, scopeLoc,
-                                          argumentKindName, argumentKindLoc,
-                                          matchingCType, layoutCompatible,
-                                          mustBeNull, syntax));
+                                          argumentKind, matchingCType,
+                                          layoutCompatible, mustBeNull,
+                                          syntax));
+  }
+
+  AttributeList *createTypeAttribute(
+                    IdentifierInfo *attrName, SourceRange attrRange,
+                    IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                    ParsedType typeArg, AttributeList::Syntax syntaxUsed) {
+    void *memory = allocate(sizeof(AttributeList) + sizeof(void *));
+    return add(new (memory) AttributeList(attrName, attrRange,
+                                          scopeName, scopeLoc,
+                                          typeArg, syntaxUsed));
+  }
+
+  AttributeList *createPropertyAttribute(
+                    IdentifierInfo *attrName, SourceRange attrRange,
+                    IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                    IdentifierInfo *getterId, IdentifierInfo *setterId,
+                    AttributeList::Syntax syntaxUsed) {
+    void *memory = allocate(AttributeFactory::PropertyAllocSize);
+    return add(new (memory) AttributeList(attrName, attrRange,
+                                          scopeName, scopeLoc,
+                                          getterId, setterId,
+                                          syntaxUsed));
   }
 };
 
@@ -511,18 +665,18 @@ inline AttributeList *addAttributeLists(AttributeList *Left,
   return Left;
 }
 
-/// CXX0XAttributeList - A wrapper around a C++0x attribute list.
+/// CXX11AttributeList - A wrapper around a C++11 attribute list.
 /// Stores, in addition to the list proper, whether or not an actual list was
 /// (as opposed to an empty list, which may be ill-formed in some places) and
 /// the source range of the list.
-struct CXX0XAttributeList { 
+struct CXX11AttributeList { 
   AttributeList *AttrList;
   SourceRange Range;
   bool HasAttr;
-  CXX0XAttributeList (AttributeList *attrList, SourceRange range, bool hasAttr)
+  CXX11AttributeList (AttributeList *attrList, SourceRange range, bool hasAttr)
     : AttrList(attrList), Range(range), HasAttr (hasAttr) {
   }
-  CXX0XAttributeList ()
+  CXX11AttributeList ()
     : AttrList(0), Range(), HasAttr(false) {
   }
 };
@@ -586,12 +740,12 @@ public:
   /// Add attribute with expression arguments.
   AttributeList *addNew(IdentifierInfo *attrName, SourceRange attrRange,
                         IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                        IdentifierInfo *parmName, SourceLocation parmLoc,
-                        Expr **args, unsigned numArgs,
-                        AttributeList::Syntax syntax) {
+                        ArgsUnion *args, unsigned numArgs,
+                        AttributeList::Syntax syntax,
+                        SourceLocation ellipsisLoc = SourceLocation()) {
     AttributeList *attr =
-      pool.create(attrName, attrRange, scopeName, scopeLoc, parmName, parmLoc,
-                  args, numArgs, syntax);
+      pool.create(attrName, attrRange, scopeName, scopeLoc, args, numArgs,
+                  syntax, ellipsisLoc);
     add(attr);
     return attr;
   }
@@ -599,7 +753,7 @@ public:
   /// Add availability attribute.
   AttributeList *addNew(IdentifierInfo *attrName, SourceRange attrRange,
                         IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                        IdentifierInfo *parmName, SourceLocation parmLoc,
+                        IdentifierLoc *Param,
                         const AvailabilityChange &introduced,
                         const AvailabilityChange &deprecated,
                         const AvailabilityChange &obsoleted,
@@ -607,9 +761,8 @@ public:
                         const Expr *MessageExpr,
                         AttributeList::Syntax syntax) {
     AttributeList *attr =
-      pool.create(attrName, attrRange, scopeName, scopeLoc, parmName, parmLoc,
-                  introduced, deprecated, obsoleted, unavailable,
-                  MessageExpr, syntax);
+      pool.create(attrName, attrRange, scopeName, scopeLoc, Param, introduced,
+                  deprecated, obsoleted, unavailable, MessageExpr, syntax);
     add(attr);
     return attr;
   }
@@ -618,16 +771,39 @@ public:
   AttributeList *addNewTypeTagForDatatype(
                         IdentifierInfo *attrName, SourceRange attrRange,
                         IdentifierInfo *scopeName, SourceLocation scopeLoc,
-                        IdentifierInfo *argumentKindName,
-                        SourceLocation argumentKindLoc,
-                        ParsedType matchingCType, bool layoutCompatible,
-                        bool mustBeNull, AttributeList::Syntax syntax) {
+                        IdentifierLoc *argumentKind, ParsedType matchingCType,
+                        bool layoutCompatible, bool mustBeNull,
+                        AttributeList::Syntax syntax) {
     AttributeList *attr =
       pool.createTypeTagForDatatype(attrName, attrRange,
                                     scopeName, scopeLoc,
-                                    argumentKindName, argumentKindLoc,
-                                    matchingCType, layoutCompatible,
-                                    mustBeNull, syntax);
+                                    argumentKind, matchingCType,
+                                    layoutCompatible, mustBeNull, syntax);
+    add(attr);
+    return attr;
+  }
+
+  /// Add an attribute with a single type argument.
+  AttributeList *
+  addNewTypeAttr(IdentifierInfo *attrName, SourceRange attrRange,
+                 IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                 ParsedType typeArg, AttributeList::Syntax syntaxUsed) {
+    AttributeList *attr =
+        pool.createTypeAttribute(attrName, attrRange, scopeName, scopeLoc,
+                                 typeArg, syntaxUsed);
+    add(attr);
+    return attr;
+  }
+
+  /// Add microsoft __delspec(property) attribute.
+  AttributeList *
+  addNewPropertyAttr(IdentifierInfo *attrName, SourceRange attrRange,
+                 IdentifierInfo *scopeName, SourceLocation scopeLoc,
+                 IdentifierInfo *getterId, IdentifierInfo *setterId,
+                 AttributeList::Syntax syntaxUsed) {
+    AttributeList *attr =
+        pool.createPropertyAttribute(attrName, attrRange, scopeName, scopeLoc,
+                                     getterId, setterId, syntaxUsed);
     add(attr);
     return attr;
   }
@@ -644,6 +820,15 @@ public:
 private:
   mutable AttributePool pool;
   AttributeList *list;
+};
+
+/// These constants match the enumerated choices of
+/// err_attribute_argument_n_type and err_attribute_argument_type.
+enum AttributeArgumentNType {
+  AANT_ArgumentIntOrBool,
+  AANT_ArgumentIntegerConstant,
+  AANT_ArgumentString,
+  AANT_ArgumentIdentifier
 };
 
 }  // end namespace clang

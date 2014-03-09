@@ -459,7 +459,6 @@ int ssl3_connect(SSL *s)
 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
 			if (ret <= 0) goto end;
 
-
 #if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
 			s->state=SSL3_ST_CW_FINISHED_A;
 #else
@@ -656,7 +655,7 @@ int ssl3_client_hello(SSL *s)
 	unsigned char *buf;
 	unsigned char *p,*d;
 	int i;
-	unsigned long Time,l;
+	unsigned long l;
 #ifndef OPENSSL_NO_COMP
 	int j;
 	SSL_COMP *comp;
@@ -681,9 +680,8 @@ int ssl3_client_hello(SSL *s)
 		/* else use the pre-loaded session */
 
 		p=s->s3->client_random;
-		Time=(unsigned long)time(NULL);			/* Time */
-		l2n(Time,p);
-		if (RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4) <= 0)
+
+		if (ssl_fill_hello_random(s, 0, p, SSL3_RANDOM_SIZE) <= 0)
 			goto err;
 
 		/* Do the message type and length last */
@@ -987,7 +985,10 @@ int ssl3_get_server_hello(SSL *s)
 	 * client authentication.
 	 */
 	if (TLS1_get_version(s) < TLS1_2_VERSION && !ssl3_digest_cached_records(s))
+		{
+		al = SSL_AD_INTERNAL_ERROR;
 		goto f_err;
+		}
 	/* lets get the compression algorithm */
 	/* COMPRESSION */
 #ifdef OPENSSL_NO_COMP

@@ -153,7 +153,7 @@ public:
       switchToLarge(new BitVector(*RHS.getPointer()));
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallBitVector(SmallBitVector &&RHS) : X(RHS.X) {
     RHS.X = 1;
   }
@@ -178,9 +178,9 @@ public:
   unsigned count() const {
     if (isSmall()) {
       uintptr_t Bits = getSmallBits();
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
+      if (NumBaseBits == 32)
         return CountPopulation_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
+      if (NumBaseBits == 64)
         return CountPopulation_64(Bits);
       llvm_unreachable("Unsupported!");
     }
@@ -215,10 +215,10 @@ public:
       uintptr_t Bits = getSmallBits();
       if (Bits == 0)
         return -1;
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
-        return CountTrailingZeros_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
-        return CountTrailingZeros_64(Bits);
+      if (NumBaseBits == 32)
+        return countTrailingZeros(Bits);
+      if (NumBaseBits == 64)
+        return countTrailingZeros(Bits);
       llvm_unreachable("Unsupported!");
     }
     return getPointer()->find_first();
@@ -233,10 +233,10 @@ public:
       Bits &= ~uintptr_t(0) << (Prev + 1);
       if (Bits == 0 || Prev + 1 >= getSmallSize())
         return -1;
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
-        return CountTrailingZeros_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
-        return CountTrailingZeros_64(Bits);
+      if (NumBaseBits == 32)
+        return countTrailingZeros(Bits);
+      if (NumBaseBits == 64)
+        return countTrailingZeros(Bits);
       llvm_unreachable("Unsupported!");
     }
     return getPointer()->find_next(Prev);
@@ -426,6 +426,40 @@ public:
     return *this;
   }
 
+  /// reset - Reset bits that are set in RHS. Same as *this &= ~RHS.
+  SmallBitVector &reset(const SmallBitVector &RHS) {
+    if (isSmall() && RHS.isSmall())
+      setSmallBits(getSmallBits() & ~RHS.getSmallBits());
+    else if (!isSmall() && !RHS.isSmall())
+      getPointer()->reset(*RHS.getPointer());
+    else
+      for (unsigned i = 0, e = std::min(size(), RHS.size()); i != e; ++i)
+        if (RHS.test(i))
+          reset(i);
+
+    return *this;
+  }
+
+  /// test - Check if (This - RHS) is zero.
+  /// This is the same as reset(RHS) and any().
+  bool test(const SmallBitVector &RHS) const {
+    if (isSmall() && RHS.isSmall())
+      return (getSmallBits() & ~RHS.getSmallBits()) != 0;
+    if (!isSmall() && !RHS.isSmall())
+      return getPointer()->test(*RHS.getPointer());
+
+    unsigned i, e;
+    for (i = 0, e = std::min(size(), RHS.size()); i != e; ++i)
+      if (test(i) && !RHS.test(i))
+        return true;
+
+    for (e = size(); i != e; ++i)
+      if (test(i))
+        return true;
+
+    return false;
+  }
+
   SmallBitVector &operator|=(const SmallBitVector &RHS) {
     resize(std::max(size(), RHS.size()));
     if (isSmall())
@@ -472,7 +506,7 @@ public:
     return *this;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   const SmallBitVector &operator=(SmallBitVector &&RHS) {
     if (this != &RHS) {
       clear();

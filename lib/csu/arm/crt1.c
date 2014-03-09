@@ -98,10 +98,7 @@ __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
     const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
 {
 
-	environ = env;
-
-	if (argc > 0 && argv[0] != NULL)
-		handle_progname(argv[0]);
+	handle_argv(argc, argv, env);
 
 	if (ps_strings != (struct ps_strings *)0)
 		__ps_strings = ps_strings;
@@ -117,6 +114,20 @@ __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }
+
+static const struct {
+	int32_t	namesz;
+	int32_t	descsz;
+	int32_t	type;
+	char	name[sizeof(NOTE_FREEBSD_VENDOR)];
+	char	desc[sizeof(MACHINE_ARCH)];
+} archtag __attribute__ ((section (NOTE_SECTION), aligned(4))) __used = {
+	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
+	.descsz = sizeof(MACHINE_ARCH),
+	.type = ARCH_NOTETYPE,
+	.name = NOTE_FREEBSD_VENDOR,
+	.desc = MACHINE_ARCH
+};
 
 #ifdef GCRT
 __asm__(".text");

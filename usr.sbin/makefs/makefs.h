@@ -169,6 +169,7 @@ void		cd9660_makefs(const char *, const char *, fsnode *, fsinfo_t *);
 
 
 extern	u_int		debug;
+extern	int		dupsok;
 extern	struct timespec	start_time;
 
 /*
@@ -279,22 +280,6 @@ extern	struct timespec	start_time;
 struct fs;
 void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
 
-/*
- * Declarations for compat routines.
- */
-long long strsuftoll(const char *, const char *, long long, long long);
-long long strsuftollx(const char *, const char *,
-                       long long, long long, char *, size_t);
-
-struct passwd;
-int uid_from_user(const char *, uid_t *);
-int pwcache_userdb(int (*)(int), void (*)(void),
-               struct passwd * (*)(const char *), struct passwd * (*)(uid_t));
-struct group;
-int gid_from_group(const char *, gid_t *);
-int pwcache_groupdb(int (*)(int), void (*)(void),
-               struct group * (*)(const char *), struct group * (*)(gid_t));
-
-int setup_getid(const char *dir);
+fsinode *link_check(fsinode *);
 
 #endif	/* _MAKEFS_H */

@@ -13,8 +13,8 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
-	opt_inet6.h opt_compat.h opt_kdtrace.h opt_posix.h opt_usb.h \
-	vnode_if.h device_if.h bus_if.h assym.s
+	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
+	device_if.h bus_if.h assym.s
 
 # XXX: for assym.s
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
@@ -52,7 +52,7 @@ linux${SFX}_support.o: linux${SFX}_support.s assym.s linux${SFX}_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine
+linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine x86
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
@@ -64,7 +64,3 @@ CFLAGS+=	-DKTR
 .endif
 
 .include <bsd.kmod.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.linux32_locore.s=	${CLANG_NO_IAS}
-CFLAGS+=			${CFLAGS.${.IMPSRC:T}}

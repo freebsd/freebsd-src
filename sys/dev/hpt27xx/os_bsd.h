@@ -135,9 +135,9 @@ INQUIRYDATA, *PINQUIRYDATA;
 #include <dev/hpt27xx/ldm.h>
 
 /* driver parameters */
-extern char driver_name[];
-extern char driver_name_long[];
-extern char driver_ver[];
+extern const char driver_name[];
+extern const char driver_name_long[];
+extern const char driver_ver[];
 extern int  osm_max_targets;
 
 /*
@@ -174,6 +174,7 @@ typedef struct _os_cmdext {
 	struct _os_cmdext *next;
 	union ccb         *ccb;
 	bus_dmamap_t       dma_map;
+	struct callout_handle timeout_ch;
 	SG                 psg[os_max_sg_descriptors];
 }
 OS_CMDEXT, *POS_CMDEXT;

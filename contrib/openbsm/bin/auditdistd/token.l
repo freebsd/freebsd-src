@@ -52,6 +52,7 @@ int depth;
 int lineno;
 
 #define	DP	do { } while (0)
+#define	YY_DECL	int yylex(void)
 %}
 
 %option noinput
@@ -74,7 +75,7 @@ sender			{ DP; return SENDER; }
 source			{ DP; return SOURCE; }
 timeout			{ DP; return TIMEOUT; }
 [0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-\"[a-zA-Z0-9_/ !@#\$%\^\&\*\(\)\+\=\|\;\?\,\.\-\:]*\" { DP; yylval.str = strndup(yytext + 1, strlen(yytext) - 2); return STR; }
+\"[a-zA-Z0-9_/ !@#\$%\^\&\*\(\)\+\=\|\;\?\,\.\[\]\-\:]*\" { DP; yylval.str = strndup(yytext + 1, strlen(yytext) - 2); return STR; }
 \{			{ DP; depth++; return OB; }
 \}			{ DP; depth--; return CB; }
 #.*$			/* ignore comments */;

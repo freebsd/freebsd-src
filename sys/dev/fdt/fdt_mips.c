@@ -49,8 +49,3 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-fdt_pic_decode_t fdt_pic_table[] = {
-	NULL,
-	NULL,
-	NULL
-};

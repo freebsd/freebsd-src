@@ -15,8 +15,8 @@
 #define LLVM_CLANG_AST_APVALUE_H
 
 #include "clang/Basic/LLVM.h"
-#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
 
@@ -167,6 +167,13 @@ public:
   ~APValue() {
     MakeUninit();
   }
+
+  /// \brief Returns whether the object performed allocations.
+  ///
+  /// If APValues are constructed via placement new, \c needsCleanup()
+  /// indicates whether the destructor must be called in order to correctly
+  /// free all allocated memory.
+  bool needsCleanup() const;
 
   /// \brief Swaps the contents of this and the given APValue.
   void swap(APValue &RHS);

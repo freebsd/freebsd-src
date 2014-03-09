@@ -420,7 +420,8 @@ gen_to_words (LITTLENUM_TYPE *words, int precision, long exponent_bits)
 		     - generic_floating_point_number.low);
 
   /* Seek (and forget) 1st significant bit.  */
-  for (exponent_skippage = 0; !next_bits (1); ++exponent_skippage);;
+  for (exponent_skippage = 0; !next_bits (1); ++exponent_skippage)
+	;;
   exponent_1 = (generic_floating_point_number.exponent
 		+ generic_floating_point_number.leader
 		+ 1

@@ -41,6 +41,7 @@ static struct {
 	unsigned long	 fflags;
 } entries[] = {
 	{ "./f1", 	UF_IMMUTABLE | UF_NODUMP },
+	{ "./f11", 	UF_IMMUTABLE | UF_NODUMP },
 	{ "./f2", 	0 },
 	{ "./f3", 	UF_NODUMP },
 	{ NULL, 0 }

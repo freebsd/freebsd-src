@@ -11,16 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Version.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Casting.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
 
@@ -33,7 +34,9 @@ namespace {
     const LangOptions &LangOpts;
     const bool SupportsCrossFileDiagnostics;
   public:
-    PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
+    PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                     const std::string& prefix,
+                     const LangOptions &LangOpts,
                      bool supportsMultipleFiles);
 
     virtual ~PlistDiagnostics() {}
@@ -47,29 +50,34 @@ namespace {
 
     PathGenerationScheme getGenerationScheme() const { return Extensive; }
     bool supportsLogicalOpControlFlow() const { return true; }
-    bool supportsAllBlockEdges() const { return true; }
     virtual bool supportsCrossFileDiagnostics() const {
       return SupportsCrossFileDiagnostics;
     }
   };
 } // end anonymous namespace
 
-PlistDiagnostics::PlistDiagnostics(const std::string& output,
+PlistDiagnostics::PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                                   const std::string& output,
                                    const LangOptions &LO,
                                    bool supportsMultipleFiles)
-  : OutputFile(output), LangOpts(LO),
+  : OutputFile(output),
+    LangOpts(LO),
     SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
-void ento::createPlistDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                         PathDiagnosticConsumers &C,
                                          const std::string& s,
                                          const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), false));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), false));
 }
 
-void ento::createPlistMultiFileDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistMultiFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                                  PathDiagnosticConsumers &C,
                                                   const std::string &s,
                                                   const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), true));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), true));
 }
 
 static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
@@ -206,12 +214,17 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
                         const SourceManager &SM,
                         const LangOptions &LangOpts,
                         unsigned indent,
-                        unsigned depth) {
+                        unsigned depth,
+                        bool isKeyEvent = false) {
 
   Indent(o, indent) << "<dict>\n";
   ++indent;
 
   Indent(o, indent) << "<key>kind</key><string>event</string>\n";
+
+  if (isKeyEvent) {
+    Indent(o, indent) << "<key>key_event</key><true/>\n";
+  }
 
   // Output the location.
   FullSourceLoc L = P.getLocation().asLocation();
@@ -261,7 +274,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow);
+                        bool includeControlFlow,
+                        bool isKeyEvent = false);
 
 static void ReportCall(raw_ostream &o,
                        const PathDiagnosticCallPiece &P,
@@ -274,7 +288,8 @@ static void ReportCall(raw_ostream &o,
     P.getCallEnterEvent();  
 
   if (callEnter)
-    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true);
+    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true,
+                P.isLastInMainSourceFile());
 
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callEnterWithinCaller =
     P.getCallEnterWithinCallerEvent();
@@ -287,6 +302,8 @@ static void ReportCall(raw_ostream &o,
   
   for (PathPieces::const_iterator I = P.path.begin(), E = P.path.end();I!=E;++I)
     ReportPiece(o, **I, FM, SM, LangOpts, indent, depth, true);
+
+  --depth;
   
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callExit =
     P.getCallExitEvent();
@@ -320,7 +337,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow) {
+                        bool includeControlFlow,
+                        bool isKeyEvent) {
   switch (P.getKind()) {
     case PathDiagnosticPiece::ControlFlow:
       if (includeControlFlow)
@@ -333,7 +351,7 @@ static void ReportPiece(raw_ostream &o,
       break;
     case PathDiagnosticPiece::Event:
       ReportEvent(o, cast<PathDiagnosticSpotPiece>(P), FM, SM, LangOpts,
-                  indent, depth);
+                  indent, depth, isKeyEvent);
       break;
     case PathDiagnosticPiece::Macro:
       ReportMacro(o, cast<PathDiagnosticMacroPiece>(P), FM, SM, LangOpts,
@@ -360,15 +378,14 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
     const PathDiagnostic *D = *DI;
 
-    llvm::SmallVector<const PathPieces *, 5> WorkList;
+    SmallVector<const PathPieces *, 5> WorkList;
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
-      const PathPieces &path = *WorkList.back();
-      WorkList.pop_back();
-    
-      for (PathPieces::const_iterator I = path.begin(), E = path.end();
-           I!=E; ++I) {
+      const PathPieces &path = *WorkList.pop_back_val();
+
+      for (PathPieces::const_iterator I = path.begin(), E = path.end(); I != E;
+           ++I) {
         const PathDiagnosticPiece *piece = I->getPtr();
         AddFID(FM, Fids, SM, piece->getLocation().asLocation());
         ArrayRef<SourceRange> Ranges = piece->getRanges();
@@ -486,12 +503,32 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
         // Output the bug hash for issue unique-ing. Currently, it's just an
         // offset from the beginning of the function.
         if (const Stmt *Body = DeclWithIssue->getBody()) {
-          FullSourceLoc Loc(SM->getExpansionLoc(D->getLocation().asLocation()),
+          
+          // If the bug uniqueing location exists, use it for the hash.
+          // For example, this ensures that two leaks reported on the same line
+          // will have different issue_hashes and that the hash will identify
+          // the leak location even after code is added between the allocation
+          // site and the end of scope (leak report location).
+          PathDiagnosticLocation UPDLoc = D->getUniqueingLoc();
+          if (UPDLoc.isValid()) {
+            FullSourceLoc UL(SM->getExpansionLoc(UPDLoc.asLocation()),
+                             *SM);
+            FullSourceLoc UFunL(SM->getExpansionLoc(
+              D->getUniqueingDecl()->getBody()->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << UL.getExpansionLineNumber() - UFunL.getExpansionLineNumber()
+              << "</string>\n";
+
+          // Otherwise, use the location on which the bug is reported.
+          } else {
+            FullSourceLoc L(SM->getExpansionLoc(D->getLocation().asLocation()),
                             *SM);
-          FullSourceLoc FunLoc(SM->getExpansionLoc(Body->getLocStart()), *SM);
-          o << "  <key>issue_hash</key><integer>"
-              << Loc.getExpansionLineNumber() - FunLoc.getExpansionLineNumber()
-              << "</integer>\n";
+            FullSourceLoc FunL(SM->getExpansionLoc(Body->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << L.getExpansionLineNumber() - FunL.getExpansionLineNumber()
+              << "</string>\n";
+          }
+
         }
       }
     }

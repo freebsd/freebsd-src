@@ -305,16 +305,30 @@ smbfs_setattr(ap)
 	int old_n_dosattr;
 
 	SMBVDEBUG("\n");
-	if (vap->va_flags != VNOVAL)
-		return EOPNOTSUPP;
 	isreadonly = (vp->v_mount->mnt_flag & MNT_RDONLY);
 	/*
 	 * Disallow write attempts if the filesystem is mounted read-only.
 	 */
   	if ((vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL || 
 	     vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL ||
-	     vap->va_mode != (mode_t)VNOVAL) && isreadonly)
+	     vap->va_mode != (mode_t)VNOVAL || vap->va_flags != VNOVAL) &&
+	     isreadonly)
 		return EROFS;
+
+	/*
+	 * We only support setting four flags.  Don't allow setting others.
+	 *
+	 * We map UF_READONLY to SMB_FA_RDONLY, unlike the MacOS X version
+	 * of this code, which maps both UF_IMMUTABLE AND SF_IMMUTABLE to
+	 * SMB_FA_RDONLY.  The immutable flags have different semantics
+	 * than readonly, which is the reason for the difference.
+	 */
+	if (vap->va_flags != VNOVAL) {
+		if (vap->va_flags & ~(UF_HIDDEN|UF_SYSTEM|UF_ARCHIVE|
+				      UF_READONLY))
+			return EINVAL;
+	}
+
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, ap->a_cred);
 	if (vap->va_size != VNOVAL) {
@@ -353,12 +367,47 @@ smbfs_setattr(ap)
 			goto out;
 		}
   	}
-	if (vap->va_mode != (mode_t)VNOVAL) {
+	if ((vap->va_flags != VNOVAL) || (vap->va_mode != (mode_t)VNOVAL)) {
 		old_n_dosattr = np->n_dosattr;
-		if (vap->va_mode & S_IWUSR)
-			np->n_dosattr &= ~SMB_FA_RDONLY;
-		else
-			np->n_dosattr |= SMB_FA_RDONLY;
+
+		if (vap->va_mode != (mode_t)VNOVAL) {
+			if (vap->va_mode & S_IWUSR)
+				np->n_dosattr &= ~SMB_FA_RDONLY;
+			else
+				np->n_dosattr |= SMB_FA_RDONLY;
+		}
+
+		if (vap->va_flags != VNOVAL) {
+			if (vap->va_flags & UF_HIDDEN)
+				np->n_dosattr |= SMB_FA_HIDDEN;
+			else
+				np->n_dosattr &= ~SMB_FA_HIDDEN;
+
+			if (vap->va_flags & UF_SYSTEM)
+				np->n_dosattr |= SMB_FA_SYSTEM;
+			else
+				np->n_dosattr &= ~SMB_FA_SYSTEM;
+
+			if (vap->va_flags & UF_ARCHIVE)
+				np->n_dosattr |= SMB_FA_ARCHIVE;
+			else
+				np->n_dosattr &= ~SMB_FA_ARCHIVE;
+
+			/*
+			 * We only support setting the immutable / readonly
+			 * bit for regular files.  According to comments in
+			 * the MacOS X version of this code, supporting the
+			 * readonly bit on directories doesn't do the same
+			 * thing in Windows as in Unix.
+			 */
+			if (vp->v_type == VREG) {
+				if (vap->va_flags & UF_READONLY)
+					np->n_dosattr |= SMB_FA_RDONLY;
+				else
+					np->n_dosattr &= ~SMB_FA_RDONLY;
+			}
+		}
+
 		if (np->n_dosattr != old_n_dosattr) {
 			error = smbfs_smb_setpattr(np, np->n_dosattr, NULL, scred);
 			if (error)
@@ -580,6 +629,7 @@ smbfs_rename(ap)
 	u_int16_t flags = 6;
 	int error=0;
 
+	scred = NULL;
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
@@ -730,7 +780,7 @@ smbfs_mkdir(ap)
 	*ap->a_vpp = vp;
 out:
 	smbfs_free_scred(scred);
-	return 0;
+	return error;
 }
 
 /*
@@ -1203,13 +1253,20 @@ smbfs_lookup(ap)
 	smb_makescred(scred, td, cnp->cn_cred);
 	fap = &fattr;
 	if (flags & ISDOTDOT) {
-		error = smbfs_smb_lookup(VTOSMB(dnp->n_parent), NULL, 0, fap,
-		    scred);
-		SMBVDEBUG("result of dotdot lookup: %d\n", error);
-	} else {
-		fap = &fattr;
+		/*
+		 * In the DOTDOT case, don't go over-the-wire
+		 * in order to request attributes. We already
+		 * know it's a directory and subsequent call to
+		 * smbfs_getattr() will restore consistency.
+		 *
+		 */
+		SMBVDEBUG("smbfs_smb_lookup: dotdot\n");
+	} else if (isdot) {
+		error = smbfs_smb_lookup(dnp, NULL, 0, fap, scred);
+		SMBVDEBUG("result of smbfs_smb_lookup: %d\n", error);
+	}
+	else {
 		error = smbfs_smb_lookup(dnp, name, nmlen, fap, scred);
-/*		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')*/
 		SMBVDEBUG("result of smbfs_smb_lookup: %d\n", error);
 	}
 	if (error && error != ENOENT)
@@ -1274,11 +1331,14 @@ smbfs_lookup(ap)
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 			vfs_rel(mp);
-			if (error)
-				return (ENOENT);
+			if (error) {
+				error = ENOENT;
+				goto out;
+			}
 			if ((dvp->v_iflag & VI_DOOMED) != 0) {
 				vfs_unbusy(mp);
-				return (ENOENT);	
+				error = ENOENT;
+				goto out;
 			}
 		}	
 		VOP_UNLOCK(dvp, 0);

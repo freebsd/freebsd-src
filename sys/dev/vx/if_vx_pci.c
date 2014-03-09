@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 
 #include <machine/bus.h>
@@ -61,7 +62,7 @@ static device_method_t vx_methods[] = {
 	DEVMETHOD(device_attach, vx_pci_attach),
 	DEVMETHOD(device_shutdown, vx_pci_shutdown),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t vx_driver = {

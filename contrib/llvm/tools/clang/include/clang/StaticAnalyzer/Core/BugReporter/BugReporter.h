@@ -16,15 +16,16 @@
 #define LLVM_CLANG_GR_BUGREPORTER
 
 #include "clang/Basic/SourceLocation.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/ImmutableSet.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/ADT/ImmutableSet.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/SmallSet.h"
 
 namespace clang {
 
@@ -75,6 +76,8 @@ protected:
   std::string Description;
   PathDiagnosticLocation Location;
   PathDiagnosticLocation UniqueingLocation;
+  const Decl *UniqueingDecl;
+  
   const ExplodedNode *ErrorNode;
   SmallVector<SourceRange, 4> Ranges;
   ExtraTextList ExtraText;
@@ -87,14 +90,14 @@ protected:
   /// diagnostics to include when constructing the final path diagnostic.
   /// The stack is largely used by BugReporter when generating PathDiagnostics
   /// for multiple PathDiagnosticConsumers.
-  llvm::SmallVector<Symbols *, 2> interestingSymbols;
+  SmallVector<Symbols *, 2> interestingSymbols;
 
   /// A (stack of) set of regions that are registered with this report as being
   /// "interesting", and thus used to help decide which diagnostics
   /// to include when constructing the final path diagnostic.
   /// The stack is largely used by BugReporter when generating PathDiagnostics
   /// for multiple PathDiagnosticConsumers.
-  llvm::SmallVector<Regions *, 2> interestingRegions;
+  SmallVector<Regions *, 2> interestingRegions;
 
   /// A set of location contexts that correspoind to call sites which should be
   /// considered "interesting".
@@ -162,9 +165,10 @@ public:
   /// for uniquing reports. For example, memory leaks checker, could set this to
   /// the allocation site, rather then the location where the bug is reported.
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode,
-            PathDiagnosticLocation LocationToUnique)
+            PathDiagnosticLocation LocationToUnique, const Decl *DeclToUnique)
     : BT(bt), DeclWithIssue(0), Description(desc),
       UniqueingLocation(LocationToUnique),
+      UniqueingDecl(DeclToUnique),
       ErrorNode(errornode), ConfigurationChangeToken(0),
       DoNotPrunePath(false) {}
 
@@ -259,6 +263,16 @@ public:
   ///  location that can be used to identify where the key issue occurred.
   ///  This location is used by clients rendering diagnostics.
   virtual PathDiagnosticLocation getLocation(const SourceManager &SM) const;
+
+  /// \brief Get the location on which the report should be uniqued.
+  PathDiagnosticLocation getUniqueingLocation() const {
+    return UniqueingLocation;
+  }
+  
+  /// \brief Get the declaration containing the uniqueing location.
+  const Decl *getUniqueingDecl() const {
+    return UniqueingDecl;
+  }
 
   const Stmt *getStmt() const;
 
@@ -362,6 +376,7 @@ public:
   virtual ArrayRef<PathDiagnosticConsumer*> getPathDiagnosticConsumers() = 0;
   virtual ASTContext &getASTContext() = 0;
   virtual SourceManager& getSourceManager() = 0;
+  virtual AnalyzerOptions& getAnalyzerOptions() = 0;
 };
 
 /// BugReporter is a utility class for generating PathDiagnostics for analysis.
@@ -392,11 +407,6 @@ private:
   llvm::FoldingSet<BugReportEquivClass> EQClasses;
   /// A vector of BugReports for tracking the allocated pointers and cleanup.
   std::vector<BugReportEquivClass *> EQClassesVector;
-
-  /// A map from PathDiagnosticPiece to the LocationContext of the inlined
-  /// function call it represents.
-  llvm::DenseMap<const PathDiagnosticCallPiece*,
-                 const LocationContext*> LocationContextMap;
 
 protected:
   BugReporter(BugReporterData& d, Kind k) : BugTypes(F.getEmptySet()), kind(k),
@@ -434,14 +444,15 @@ public:
 
   SourceManager& getSourceManager() { return D.getSourceManager(); }
 
+  AnalyzerOptions& getAnalyzerOptions() { return D.getAnalyzerOptions(); }
+
   virtual bool generatePathDiagnostic(PathDiagnostic& pathDiagnostic,
                                       PathDiagnosticConsumer &PC,
                                       ArrayRef<BugReport *> &bugReports) {
     return true;
   }
 
-  bool RemoveUneededCalls(PathPieces &pieces, BugReport *R,
-                          PathDiagnosticCallPiece *CallWithLoc = 0);
+  bool RemoveUnneededCalls(PathPieces &pieces, BugReport *R);
 
   void Register(BugType *BT);
 
@@ -455,25 +466,8 @@ public:
   void EmitBasicReport(const Decl *DeclWithIssue,
                        StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc,
-                       SourceRange* RangeBeg, unsigned NumRanges);
+                       ArrayRef<SourceRange> Ranges = None);
 
-  void EmitBasicReport(const Decl *DeclWithIssue,
-                       StringRef BugName, StringRef BugCategory,
-                       StringRef BugStr, PathDiagnosticLocation Loc) {
-    EmitBasicReport(DeclWithIssue, BugName, BugCategory, BugStr, Loc, 0, 0);
-  }
-
-  void EmitBasicReport(const Decl *DeclWithIssue,
-                       StringRef BugName, StringRef Category,
-                       StringRef BugStr, PathDiagnosticLocation Loc,
-                       SourceRange R) {
-    EmitBasicReport(DeclWithIssue, BugName, Category, BugStr, Loc, &R, 1);
-  }
-
-  void addCallPieceLocationContextPair(const PathDiagnosticCallPiece *C,
-                                       const LocationContext *LC) {
-    LocationContextMap[C] = LC;
-  }
 private:
   llvm::StringMap<BugType *> StrBugTypes;
 

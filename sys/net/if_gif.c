@@ -53,6 +53,7 @@
 #include <machine/cpu.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -152,10 +153,7 @@ static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 #endif
 
 static int
-gif_clone_create(ifc, unit, params)
-	struct if_clone *ifc;
-	int unit;
-	caddr_t params;
+gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct gif_softc *sc;
 
@@ -173,7 +171,7 @@ gif_clone_create(ifc, unit, params)
 	if_initname(GIF2IFP(sc), gifname, unit);
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
-	sc->gif_options = GIF_ACCEPT_REVETHIP;
+	sc->gif_options = 0;
 
 	GIF2IFP(sc)->if_addrlen = 0;
 	GIF2IFP(sc)->if_mtu    = GIF_MTU;
@@ -199,8 +197,7 @@ gif_clone_create(ifc, unit, params)
 }
 
 static void
-gif_clone_destroy(ifp)
-	struct ifnet *ifp;
+gif_clone_destroy(struct ifnet *ifp)
 {
 #if defined(INET) || defined(INET6)
 	int err;
@@ -246,10 +243,7 @@ VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_gif_init,
     NULL);
 
 static int
-gifmodevent(mod, type, data)
-	module_t mod;
-	int type;
-	void *data;
+gifmodevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
@@ -279,11 +273,7 @@ DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_gif, 1);
 
 int
-gif_encapcheck(m, off, proto, arg)
-	const struct mbuf *m;
-	int off;
-	int proto;
-	void *arg;
+gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct gif_softc *sc;
@@ -422,11 +412,8 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
@@ -440,6 +427,11 @@ gif_output(ifp, m, dst, ro)
 		goto end;
 	}
 #endif
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		error = ENETDOWN;
+		m_freem(m);
+		goto end;
+	}
 
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
@@ -482,11 +474,10 @@ gif_output(ifp, m, dst, ro)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-	af = dst->sa_family;
+	else
+		af = dst->sa_family;
 	/* 
 	 * Now save the af in the inbound pkt csum
 	 * data, this is a cheat since we are using
@@ -527,10 +518,7 @@ gif_output(ifp, m, dst, ro)
 }
 
 void
-gif_input(m, af, ifp)
-	struct mbuf *m;
-	int af;
-	struct ifnet *ifp;
+gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 {
 	int isr, n;
 	struct gif_softc *sc;
@@ -553,6 +541,13 @@ gif_input(m, af, ifp)
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int32_t af1 = af;
 		bpf_mtap2(ifp->if_bpf, &af1, sizeof(af1), m);
+	}
+
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		ifp->if_ipackets++;
+		ifp->if_ibytes += m->m_pkthdr.len;
+		m_freem(m);
+		return;
 	}
 
 	if (ng_gif_input_p != NULL) {
@@ -660,10 +655,7 @@ gif_input(m, af, ifp)
 
 /* XXX how should we handle IPv6 scope on SIOC[GS]IFPHYADDR? */
 int
-gif_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct gif_softc *sc  = ifp->if_softc;
 	struct ifreq     *ifr = (struct ifreq*)data;
@@ -679,9 +671,6 @@ gif_ioctl(ifp, cmd, data)
 		ifp->if_flags |= IFF_UP;
 		break;
 		
-	case SIOCSIFDSTADDR:
-		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
@@ -704,7 +693,6 @@ gif_ioctl(ifp, cmd, data)
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif /* INET6 */
-	case SIOCSLIFPHYADDR:
 		switch (cmd) {
 #ifdef INET
 		case SIOCSIFPHYADDR:
@@ -722,12 +710,6 @@ gif_ioctl(ifp, cmd, data)
 				&(((struct in6_aliasreq *)data)->ifra_dstaddr);
 			break;
 #endif
-		case SIOCSLIFPHYADDR:
-			src = (struct sockaddr *)
-				&(((struct if_laddrreq *)data)->addr);
-			dst = (struct sockaddr *)
-				&(((struct if_laddrreq *)data)->dstaddr);
-			break;
 		default:
 			return EINVAL;
 		}
@@ -782,9 +764,6 @@ gif_ioctl(ifp, cmd, data)
 				break;
 			return EAFNOSUPPORT;
 #endif /* INET6 */
-		case SIOCSLIFPHYADDR:
-			/* checks done in the above */
-			break;
 		}
 
 		error = gif_set_tunnel(GIF2IFP(sc), src, dst);
@@ -880,31 +859,6 @@ gif_ioctl(ifp, cmd, data)
 #endif
 		break;
 
-	case SIOCGLIFPHYADDR:
-		if (sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
-			error = EADDRNOTAVAIL;
-			goto bad;
-		}
-
-		/* copy src */
-		src = sc->gif_psrc;
-		dst = (struct sockaddr *)
-			&(((struct if_laddrreq *)data)->addr);
-		size = sizeof(((struct if_laddrreq *)data)->addr);
-		if (src->sa_len > size)
-			return EINVAL;
-		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
-
-		/* copy dst */
-		src = sc->gif_pdst;
-		dst = (struct sockaddr *)
-			&(((struct if_laddrreq *)data)->dstaddr);
-		size = sizeof(((struct if_laddrreq *)data)->dstaddr);
-		if (src->sa_len > size)
-			return EINVAL;
-		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
-		break;
-
 	case SIOCSIFFLAGS:
 		/* if_ioctl() takes care of it */
 		break;
@@ -943,10 +897,7 @@ gif_ioctl(ifp, cmd, data)
  * a mutex.
  */
 int
-gif_set_tunnel(ifp, src, dst)
-	struct ifnet *ifp;
-	struct sockaddr *src;
-	struct sockaddr *dst;
+gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
@@ -1052,8 +1003,7 @@ gif_set_tunnel(ifp, src, dst)
 }
 
 void
-gif_delete_tunnel(ifp)
-	struct ifnet *ifp;
+gif_delete_tunnel(struct ifnet *ifp)
 {
 	struct gif_softc *sc = ifp->if_softc;
 

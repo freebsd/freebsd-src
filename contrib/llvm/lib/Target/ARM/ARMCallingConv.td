@@ -111,8 +111,7 @@ def CC_ARM_AAPCS_Common : CallingConv<[
   // i64 is 8-aligned i32 here, so we may need to eat R1 as a pad register
   // (and the same is true for f64 if VFP is not enabled)
   CCIfType<[i32], CCIfAlign<"8", CCAssignToRegWithShadow<[R0, R2], [R0, R1]>>>,
-  CCIfType<[i32], CCIf<"State.getNextStackOffset() == 0 &&"
-                       "ArgFlags.getOrigAlign() != 8",
+  CCIfType<[i32], CCIf<"ArgFlags.getOrigAlign() != 8",
                        CCAssignToReg<[R0, R1, R2, R3]>>>,
 
   CCIfType<[i32], CCIfAlign<"8", CCAssignToStackWithShadow<4, 8, R3>>>,
@@ -195,12 +194,37 @@ def CSR_NoRegs : CalleeSavedRegs<(add)>;
 def CSR_AAPCS : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6, R5, R4,
                                      (sequence "D%u", 15, 8))>;
 
+// Constructors and destructors return 'this' in the ARM C++ ABI; since 'this'
+// and the pointer return value are both passed in R0 in these cases, this can
+// be partially modelled by treating R0 as a callee-saved register
+// Only the resulting RegMask is used; the SaveList is ignored
+def CSR_AAPCS_ThisReturn : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6,
+                                            R5, R4, (sequence "D%u", 15, 8),
+                                            R0)>;
+
 // iOS ABI deviates from ARM standard ABI. R9 is not a callee-saved register.
 // Also save R7-R4 first to match the stack frame fixed spill areas.
 def CSR_iOS : CalleeSavedRegs<(add LR, R7, R6, R5, R4, (sub CSR_AAPCS, R9))>;
 
-// GHC set of callee saved regs is empty as all those regs are
-// used for passing STG regs around
-// add is a workaround for not being able to compile empty list:
-// def CSR_GHC : CalleeSavedRegs<()>;
-def CSR_GHC : CalleeSavedRegs<(add)>;
+def CSR_iOS_ThisReturn : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
+                                         (sub CSR_AAPCS_ThisReturn, R9))>;
+
+// The "interrupt" attribute is used to generate code that is acceptable in
+// exception-handlers of various kinds. It makes us use a different return
+// instruction (handled elsewhere) and affects which registers we must return to
+// our "caller" in the same state as we receive them.
+
+// For most interrupts, all registers except SP and LR are shared with
+// user-space. We mark LR to be saved anyway, since this is what the ARM backend
+// generally does rather than tracking its liveness as a normal register.
+def CSR_GenericInt : CalleeSavedRegs<(add LR, (sequence "R%u", 12, 0))>;
+
+// The fast interrupt handlers have more private state and get their own copies
+// of R8-R12, in addition to SP and LR. As before, mark LR for saving too.
+
+// FIXME: we mark R11 as callee-saved since it's often the frame-pointer, and
+// current frame lowering expects to encounter it while processing callee-saved
+// registers.
+def CSR_FIQ : CalleeSavedRegs<(add LR, R11, (sequence "R%u", 7, 0))>;
+
+

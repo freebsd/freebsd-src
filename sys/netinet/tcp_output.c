@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
@@ -769,12 +771,13 @@ send:
 			    ("%s: TSO can't do IP options", __func__));
 
 			/*
-			 * Limit a burst to IP_MAXPACKET minus IP,
+			 * Limit a burst to t_tsomax minus IP,
 			 * TCP and options length to keep ip->ip_len
-			 * from overflowing.
+			 * from overflowing or exceeding the maximum
+			 * length allowed by the network interface.
 			 */
-			if (len > IP_MAXPACKET - hdrlen) {
-				len = IP_MAXPACKET - hdrlen;
+			if (len > tp->t_tsomax - hdrlen) {
+				len = tp->t_tsomax - hdrlen;
 				sendalot = 1;
 			}
 
@@ -842,23 +845,20 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-		MGETHDR(m, M_NOWAIT, MT_DATA);
+#ifdef INET6
+		if (MHLEN < hdrlen + max_linkhdr)
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		else
+#endif
+			m = m_gethdr(M_NOWAIT, MT_DATA);
+
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
-#ifdef INET6
-		if (MHLEN < hdrlen + max_linkhdr) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				SOCKBUF_UNLOCK(&so->so_snd);
-				m_freem(m);
-				error = ENOBUFS;
-				goto out;
-			}
-		}
-#endif
+
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 
@@ -878,6 +878,7 @@ send:
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
 				error = ENOBUFS;
+				sack_rxmit = 0;
 				goto out;
 			}
 		}
@@ -902,9 +903,10 @@ send:
 		else
 			TCPSTAT_INC(tcps_sndwinup);
 
-		MGETHDR(m, M_NOWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
 #ifdef INET6
@@ -1127,6 +1129,115 @@ send:
 	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
 #endif
 
+	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
+	hhook_run_tcp_est_out(tp, th, &to, len, tso);
+
+#ifdef TCPDEBUG
+	/*
+	 * Trace.
+	 */
+	if (so->so_options & SO_DEBUG) {
+		u_short save = 0;
+#ifdef INET6
+		if (!isipv6)
+#endif
+		{
+			save = ipov->ih_len;
+			ipov->ih_len = htons(m->m_pkthdr.len /* - hdrlen + (th->th_off << 2) */);
+		}
+		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
+#ifdef INET6
+		if (!isipv6)
+#endif
+		ipov->ih_len = save;
+	}
+#endif /* TCPDEBUG */
+
+	/*
+	 * Fill in IP length and desired time to live and
+	 * send to IP level.  There should be a better way
+	 * to handle ttl and tos; we could keep them in
+	 * the template, but need a way to checksum without them.
+	 */
+	/*
+	 * m->m_pkthdr.len should have been set before cksum calcuration,
+	 * because in6_cksum() need it.
+	 */
+#ifdef INET6
+	if (isipv6) {
+		struct route_in6 ro;
+
+		bzero(&ro, sizeof(ro));
+		/*
+		 * we separately set hoplimit for every segment, since the
+		 * user might want to change the value via setsockopt.
+		 * Also, desired default hop limit might be changed via
+		 * Neighbor Discovery.
+		 */
+		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
+
+		/*
+		 * Set the packet size here for the benefit of DTrace probes.
+		 * ip6_output() will set it properly; it's supposed to include
+		 * the option header lengths as well.
+		 */
+		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+
+		if (tp->t_state == TCPS_SYN_SENT)
+			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
+
+		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
+
+		/* TODO: IPv6 IP6TOS_ECT bit on */
+		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
+		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
+		    NULL, NULL, tp->t_inpcb);
+
+		if (error == EMSGSIZE && ro.ro_rt != NULL)
+			mtu = ro.ro_rt->rt_mtu;
+		RO_RTFREE(&ro);
+	}
+#endif /* INET6 */
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
+    {
+	struct route ro;
+
+	bzero(&ro, sizeof(ro));
+	ip->ip_len = htons(m->m_pkthdr.len);
+#ifdef INET6
+	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
+		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
+#endif /* INET6 */
+	/*
+	 * If we do path MTU discovery, then we set DF on every packet.
+	 * This might not be the best thing to do according to RFC3390
+	 * Section 2. However the tcp hostcache migitates the problem
+	 * so it affects only the first tcp connection with a host.
+	 *
+	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
+	 */
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+		ip->ip_off |= htons(IP_DF);
+
+	if (tp->t_state == TCPS_SYN_SENT)
+		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);
+
+	TCP_PROBE5(send, NULL, tp, ip, tp, th);
+
+	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
+	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
+	    tp->t_inpcb);
+
+	if (error == EMSGSIZE && ro.ro_rt != NULL)
+		mtu = ro.ro_rt->rt_mtu;
+	RO_RTFREE(&ro);
+    }
+#endif /* INET */
+
+out:
 	/*
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
@@ -1196,96 +1307,6 @@ timer:
 			tp->snd_max = tp->snd_nxt + len;
 	}
 
-	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
-	hhook_run_tcp_est_out(tp, th, &to, len, tso);
-
-#ifdef TCPDEBUG
-	/*
-	 * Trace.
-	 */
-	if (so->so_options & SO_DEBUG) {
-		u_short save = 0;
-#ifdef INET6
-		if (!isipv6)
-#endif
-		{
-			save = ipov->ih_len;
-			ipov->ih_len = htons(m->m_pkthdr.len /* - hdrlen + (th->th_off << 2) */);
-		}
-		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
-#ifdef INET6
-		if (!isipv6)
-#endif
-		ipov->ih_len = save;
-	}
-#endif /* TCPDEBUG */
-
-	/*
-	 * Fill in IP length and desired time to live and
-	 * send to IP level.  There should be a better way
-	 * to handle ttl and tos; we could keep them in
-	 * the template, but need a way to checksum without them.
-	 */
-	/*
-	 * m->m_pkthdr.len should have been set before cksum calcuration,
-	 * because in6_cksum() need it.
-	 */
-#ifdef INET6
-	if (isipv6) {
-		struct route_in6 ro;
-
-		bzero(&ro, sizeof(ro));
-		/*
-		 * we separately set hoplimit for every segment, since the
-		 * user might want to change the value via setsockopt.
-		 * Also, desired default hop limit might be changed via
-		 * Neighbor Discovery.
-		 */
-		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
-
-		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
-		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
-		    NULL, NULL, tp->t_inpcb);
-
-		if (error == EMSGSIZE && ro.ro_rt != NULL)
-			mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-		RO_RTFREE(&ro);
-	}
-#endif /* INET6 */
-#if defined(INET) && defined(INET6)
-	else
-#endif
-#ifdef INET
-    {
-	struct route ro;
-
-	bzero(&ro, sizeof(ro));
-	ip->ip_len = htons(m->m_pkthdr.len);
-#ifdef INET6
-	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
-		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
-#endif /* INET6 */
-	/*
-	 * If we do path MTU discovery, then we set DF on every packet.
-	 * This might not be the best thing to do according to RFC3390
-	 * Section 2. However the tcp hostcache migitates the problem
-	 * so it affects only the first tcp connection with a host.
-	 *
-	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
-	 */
-	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
-		ip->ip_off |= htons(IP_DF);
-
-	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
-	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
-	    tp->t_inpcb);
-
-	if (error == EMSGSIZE && ro.ro_rt != NULL)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-	RO_RTFREE(&ro);
-    }
-#endif /* INET */
 	if (error) {
 
 		/*
@@ -1313,7 +1334,6 @@ timer:
 			} else
 				tp->snd_nxt -= len;
 		}
-out:
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
 		case EPERM:

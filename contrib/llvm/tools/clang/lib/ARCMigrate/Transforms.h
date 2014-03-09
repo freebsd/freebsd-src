@@ -1,4 +1,4 @@
-//===-- Transforms.h - Tranformations to ARC mode ---------------*- C++ -*-===//
+//===-- Transforms.h - Transformations to ARC mode --------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,8 +10,8 @@
 #ifndef LLVM_CLANG_LIB_ARCMIGRATE_TRANSFORMS_H
 #define LLVM_CLANG_LIB_ARCMIGRATE_TRANSFORMS_H
 
-#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/ParentMap.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/SaveAndRestore.h"
 
@@ -135,6 +135,11 @@ public:
   virtual void traverseBody(BodyContext &BodyCtx);
 };
 
+class ProtectedScopeTraverser : public ASTTraverser {
+public:
+  virtual void traverseBody(BodyContext &BodyCtx);
+};
+
 // GC transformations
 
 class GCAttrsTraverser : public ASTTraverser {
@@ -156,18 +161,21 @@ bool canApplyWeak(ASTContext &Ctx, QualType type,
                   bool AllowOnUnknownClass = false);
 
 bool isPlusOneAssign(const BinaryOperator *E);
+bool isPlusOne(const Expr *E);
 
 /// \brief 'Loc' is the end of a statement range. This returns the location
 /// immediately after the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
-SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx);
+SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx,
+                                     bool IsDecl = false);
 
-/// \brief \arg Loc is the end of a statement range. This returns the location
+/// \brief 'Loc' is the end of a statement range. This returns the location
 /// of the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
-SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx);
+SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx,
+                                     bool IsDecl = false);
 
 bool hasSideEffects(Expr *E, ASTContext &Ctx);
 bool isGlobalVar(Expr *E);

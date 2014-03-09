@@ -139,8 +139,8 @@ struct de {
     u_int8_t deName[11];		/* name and extension */
     u_int8_t deAttributes;		/* attributes */
     u_int8_t rsvd[10];			/* reserved */
-    u_int8_t deMTime[2];		/* creation time */
-    u_int8_t deMDate[2];		/* creation date */
+    u_int8_t deMTime[2];		/* last-modified time */
+    u_int8_t deMDate[2];		/* last-modified date */
     u_int8_t deStartCluster[2];		/* starting cluster */
     u_int8_t deFileSize[4];		/* size */
 } __packed;
@@ -808,7 +808,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	    struct stat st;
 
 	    if (fstat(fd, &st))
-		err(1, "Cannot get disk size");
+		err(1, "cannot get disk size");
 	    /* create a fake geometry for a file image */
 	    ms = st.st_size;
 	    dlp.d_secsize = 512;
@@ -832,18 +832,18 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
 	    if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
 						  &dlp.d_secsize) == -1)
-		errx(1, "Cannot get sector size, %s", strerror(errno));
+		err(1, "cannot get sector size");
 
 	    dlp.d_secperunit = ms / dlp.d_secsize;
 
 	    if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
 						  &dlp.d_nsectors) == -1) {
-		warnx("Cannot get number of sectors per track, %s", strerror(errno));
+		warn("cannot get number of sectors per track");
 		dlp.d_nsectors = 63;
 	    }
 	    if (bpb->bpbHeads == 0 &&
 	        ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
-		warnx("Cannot get number of heads, %s", strerror(errno));
+		warn("cannot get number of heads");
 		if (dlp.d_secperunit <= 63*1*1024)
 		    dlp.d_ntracks = 1;
 		else if (dlp.d_secperunit <= 63*16*1024)

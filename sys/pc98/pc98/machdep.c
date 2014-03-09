@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mp_watchdog.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -80,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #ifdef SMP
@@ -137,7 +137,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_APIC
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
@@ -772,17 +772,7 @@ osigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 	    		return (EINVAL);
 		}
 
@@ -898,17 +888,7 @@ freebsd4_sigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 			uprintf("pid %d (%s): freebsd4_sigreturn eflags = 0x%x\n",
 			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
@@ -1012,17 +992,7 @@ sys_sigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 			uprintf("pid %d (%s): sigreturn eflags = 0x%x\n",
 			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
@@ -1145,7 +1115,7 @@ SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
 #define	STATE_SLEEPING	0x2
 
 static void
-cpu_idle_hlt(int busy)
+cpu_idle_hlt(sbintime_t sbt)
 {
 	int *state;
 
@@ -1186,7 +1156,7 @@ cpu_idle_hlt(int busy)
 #define	MWAIT_C4	0x30
 
 static void
-cpu_idle_mwait(int busy)
+cpu_idle_mwait(sbintime_t sbt)
 {
 	int *state;
 
@@ -1209,7 +1179,7 @@ cpu_idle_mwait(int busy)
 }
 
 static void
-cpu_idle_spin(int busy)
+cpu_idle_spin(sbintime_t sbt)
 {
 	int *state;
 	int i;
@@ -1229,11 +1199,12 @@ cpu_idle_spin(int busy)
 	}
 }
 
-void (*cpu_idle_fn)(int) = cpu_idle_hlt;
+void (*cpu_idle_fn)(sbintime_t) = cpu_idle_hlt;
 
 void
 cpu_idle(int busy)
 {
+	sbintime_t sbt = -1;
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
@@ -1251,13 +1222,13 @@ cpu_idle(int busy)
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
 		critical_enter();
-		cpu_idleclock();
+		sbt = cpu_idleclock();
 	}
 
 	/* Call main idle method. */
-	cpu_idle_fn(busy);
+	cpu_idle_fn(sbt);
 
-	/* Switch timers mack into active mode. */
+	/* Switch timers back into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
@@ -1356,21 +1327,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
-
-uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
-    atomic_load_acq_64_i386;
-void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
-    atomic_store_rel_64_i386;
-
-static void
-cpu_probe_cmpxchg8b(void)
-{
-
-	if ((cpu_feature & CPUID_CX8) != 0) {
-		atomic_load_acq_64 = atomic_load_acq_64_i586;
-		atomic_store_rel_64 = atomic_store_rel_64_i586;
-	}
-}
 
 /*
  * Reset registers to default values on exec.
@@ -2005,7 +1961,7 @@ getmemsize(int first)
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 	dump_avail[da_indx] = physmap[0];
-	pte = CMAP1;
+	pte = CMAP3;
 
 	/*
 	 * Get dcons buffer address
@@ -2026,7 +1982,7 @@ getmemsize(int first)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR1;
+			int *ptr = (int *)CADDR3;
 
 			full = FALSE;
 			/*
@@ -2420,8 +2376,6 @@ init386(first)
 	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
-
-	cpu_probe_cmpxchg8b();
 }
 
 void
@@ -2477,7 +2431,7 @@ f00f_hack(void *unused)
 
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
-	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
+	tmp = kmem_malloc(kernel_arena, PAGE_SIZE * 2, M_WAITOK | M_ZERO);
 	if (tmp == 0)
 		panic("kmem_alloc returned 0");
 
@@ -2488,9 +2442,7 @@ f00f_hack(void *unused)
 	r_idt.rd_base = (u_int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
-	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
-			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
-		panic("vm_map_protect failed");
+	pmap_protect(kernel_pmap, tmp, tmp + PAGE_SIZE, VM_PROT_READ);
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
@@ -2787,7 +2739,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 #else
 	mcp->mc_ownedfp = npxgetregs(td);
-	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
 #endif

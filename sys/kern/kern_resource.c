@@ -80,6 +80,8 @@ static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
 static void	ruxagg_locked(struct rusage_ext *rux, struct thread *td);
 
+static __inline int	lim_shared(struct plimit *limp);
+
 /*
  * Resource controls and accounting.
  */
@@ -469,8 +471,7 @@ sys_rtprio(td, uap)
 int
 rtp_to_pri(struct rtprio *rtp, struct thread *td)
 {
-	u_char	newpri;
-	u_char	oldpri;
+	u_char  newpri, oldclass, oldpri;
 
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
@@ -493,11 +494,12 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	}
 
 	thread_lock(td);
+	oldclass = td->td_pri_class;
 	sched_class(td, rtp->type);	/* XXX fix */
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
-	if (td->td_user_pri != oldpri && (td == curthread ||
-	    td->td_priority == oldpri || td->td_user_pri <= PRI_MAX_REALTIME))
+	if (td->td_user_pri != oldpri && (oldclass != RTP_PRIO_NORMAL ||
+	    td->td_pri_class != RTP_PRIO_NORMAL))
 		sched_prio(td, td->td_user_pri);
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
 		critical_enter();
@@ -645,7 +647,8 @@ lim_cb(void *arg)
 		}
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
-		callout_reset(&p->p_limco, hz, lim_cb, p);
+		callout_reset_sbt(&p->p_limco, SBT_1S, 0,
+		    lim_cb, p, C_PREL(1));
 }
 
 int
@@ -676,28 +679,37 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	newlim = lim_alloc();
+	newlim = NULL;
 	PROC_LOCK(p);
+	if (lim_shared(p->p_limit)) {
+		PROC_UNLOCK(p);
+		newlim = lim_alloc();
+		PROC_LOCK(p);
+	}
 	oldlim = p->p_limit;
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
-			lim_free(newlim);
+			if (newlim != NULL)
+				lim_free(newlim);
 			return (error);
 		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	lim_copy(newlim, oldlim);
-	alimp = &newlim->pl_rlimit[which];
+	if (newlim != NULL) {
+		lim_copy(newlim, oldlim);
+		alimp = &newlim->pl_rlimit[which];
+	}
 
 	switch (which) {
 
 	case RLIMIT_CPU:
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)
-			callout_reset(&p->p_limco, hz, lim_cb, p);
+			callout_reset_sbt(&p->p_limco, SBT_1S, 0,
+			    lim_cb, p, C_PREL(1));
 		p->p_cpulimit = limp->rlim_cur;
 		break;
 	case RLIMIT_DATA:
@@ -739,9 +751,11 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (p->p_sysent->sv_fixlimit != NULL)
 		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
-	p->p_limit = newlim;
+	if (newlim != NULL)
+		p->p_limit = newlim;
 	PROC_UNLOCK(p);
-	lim_free(oldlim);
+	if (newlim != NULL)
+		lim_free(oldlim);
 
 	if (which == RLIMIT_STACK) {
 		/*
@@ -1127,6 +1141,14 @@ lim_hold(limp)
 	return (limp);
 }
 
+static __inline int
+lim_shared(limp)
+	struct plimit *limp;
+{
+
+	return (limp->pl_refcnt > 1);
+}
+
 void
 lim_fork(struct proc *p1, struct proc *p2)
 {
@@ -1137,7 +1159,8 @@ lim_fork(struct proc *p1, struct proc *p2)
 	p2->p_limit = lim_hold(p1->p_limit);
 	callout_init_mtx(&p2->p_limco, &p2->p_mtx, 0);
 	if (p1->p_cpulimit != RLIM_INFINITY)
-		callout_reset(&p2->p_limco, hz, lim_cb, p2);
+		callout_reset_sbt(&p2->p_limco, SBT_1S, 0,
+		    lim_cb, p2, C_PREL(1));
 }
 
 void
@@ -1159,7 +1182,7 @@ lim_copy(dst, src)
 	struct plimit *dst, *src;
 {
 
-	KASSERT(dst->pl_refcnt == 1, ("lim_copy to shared limit"));
+	KASSERT(!lim_shared(dst), ("lim_copy to shared limit"));
 	bcopy(src->pl_rlimit, dst->pl_rlimit, sizeof(src->pl_rlimit));
 }
 
@@ -1426,6 +1449,24 @@ chgptscnt(uip, diff, max)
 		atomic_add_long(&uip->ui_ptscnt, (long)diff);
 		if (uip->ui_ptscnt < 0)
 			printf("negative ptscnt for uid = %d\n", uip->ui_uid);
+	}
+	return (1);
+}
+
+int
+chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(&uip->ui_kqcnt, (long)diff) +
+		    diff > max) {
+			atomic_subtract_long(&uip->ui_kqcnt, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_kqcnt, (long)diff);
+		if (uip->ui_kqcnt < 0)
+			printf("negative kqcnt for uid = %d\n", uip->ui_uid);
 	}
 	return (1);
 }

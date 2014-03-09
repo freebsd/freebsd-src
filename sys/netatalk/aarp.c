@@ -60,6 +60,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -147,7 +148,7 @@ aarptimer(void *ignored)
  * unlocked variant returns a reference that the caller must dispose of.
  */
 struct at_ifaddr *
-at_ifawithnet_locked(struct sockaddr_at  *sat)
+at_ifawithnet_locked(const struct sockaddr_at  *sat)
 {
 	struct at_ifaddr *aa;
 	struct sockaddr_at *sat2;
@@ -167,7 +168,7 @@ at_ifawithnet_locked(struct sockaddr_at  *sat)
 }
 
 struct at_ifaddr *
-at_ifawithnet(struct sockaddr_at *sat)
+at_ifawithnet(const struct sockaddr_at *sat)
 {
 	struct at_ifaddr *aa;
 
@@ -180,7 +181,7 @@ at_ifawithnet(struct sockaddr_at *sat)
 }
 
 static void
-aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
+aarpwhohas(struct ifnet *ifp, const struct sockaddr_at *sat)
 {
 	struct mbuf *m;
 	struct ether_header *eh;
@@ -267,8 +268,8 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 }
 
 int
-aarpresolve(struct ifnet *ifp, struct mbuf *m, struct sockaddr_at *destsat,
-    u_char *desten)
+aarpresolve(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr_at *destsat, u_char *desten)
 {
 	struct at_ifaddr *aa;
 	struct aarptab *aat;
@@ -567,7 +568,7 @@ aarptfree(struct aarptab *aat)
 }
 
 struct aarptab *
-aarptnew(struct at_addr *addr)
+aarptnew(const struct at_addr *addr)
 {
 	int n;
 	int oldest = -1;

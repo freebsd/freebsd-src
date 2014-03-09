@@ -153,6 +153,11 @@ print_sta_stats(FILE *fd, const u_int8_t macaddr[IEEE80211_ADDR_LEN])
 }
 #endif
 
+void
+usage(void) {
+	printf("wlanstats: [-ah] [-i ifname] [-l] [-o fmt] [interval]\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -167,11 +172,14 @@ main(int argc, char *argv[])
 	if (ifname == NULL)
 		ifname = "wlan0";
 	wf = wlanstats_new(ifname, getfmt("default"));
-	while ((c = getopt(argc, argv, "ai:lm:o:")) != -1) {
+	while ((c = getopt(argc, argv, "ahi:lm:o:")) != -1) {
 		switch (c) {
 		case 'a':
 			allnodes++;
 			break;
+		case 'h':
+			usage();
+			exit(0);
 		case 'i':
 			wf->setifname(wf, optarg);
 			break;
@@ -188,7 +196,8 @@ main(int argc, char *argv[])
 			wf->setfmt(wf, getfmt(optarg));
 			break;
 		default:
-			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
+			usage();
+			exit(1);
 			/*NOTREACHED*/
 		}
 	}

@@ -1,15 +1,9 @@
 /*
  * RADIUS message processing
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2009, 2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef RADIUS_H
@@ -24,7 +18,7 @@
 struct radius_hdr {
 	u8 code;
 	u8 identifier;
-	u16 length; /* including this header */
+	be16 length; /* including this header */
 	u8 authenticator[16];
 	/* followed by length-20 octets of attributes */
 } STRUCT_PACKED;
@@ -37,6 +31,12 @@ enum { RADIUS_CODE_ACCESS_REQUEST = 1,
        RADIUS_CODE_ACCESS_CHALLENGE = 11,
        RADIUS_CODE_STATUS_SERVER = 12,
        RADIUS_CODE_STATUS_CLIENT = 13,
+       RADIUS_CODE_DISCONNECT_REQUEST = 40,
+       RADIUS_CODE_DISCONNECT_ACK = 41,
+       RADIUS_CODE_DISCONNECT_NAK = 42,
+       RADIUS_CODE_COA_REQUEST = 43,
+       RADIUS_CODE_COA_ACK = 44,
+       RADIUS_CODE_COA_NAK = 45,
        RADIUS_CODE_RESERVED = 255
 };
 
@@ -82,13 +82,15 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_NAS_PORT_TYPE = 61,
        RADIUS_ATTR_TUNNEL_TYPE = 64,
        RADIUS_ATTR_TUNNEL_MEDIUM_TYPE = 65,
+       RADIUS_ATTR_TUNNEL_PASSWORD = 69,
        RADIUS_ATTR_CONNECT_INFO = 77,
        RADIUS_ATTR_EAP_MESSAGE = 79,
        RADIUS_ATTR_MESSAGE_AUTHENTICATOR = 80,
        RADIUS_ATTR_TUNNEL_PRIVATE_GROUP_ID = 81,
        RADIUS_ATTR_ACCT_INTERIM_INTERVAL = 85,
        RADIUS_ATTR_CHARGEABLE_USER_IDENTITY = 89,
-       RADIUS_ATTR_NAS_IPV6_ADDRESS = 95
+       RADIUS_ATTR_NAS_IPV6_ADDRESS = 95,
+       RADIUS_ATTR_ERROR_CAUSE = 101
 };
 
 
@@ -197,14 +199,21 @@ int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
 		      size_t secret_len);
 int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 			  size_t secret_len, const u8 *req_authenticator);
+int radius_msg_finish_das_resp(struct radius_msg *msg, const u8 *secret,
+			       size_t secret_len,
+			       const struct radius_hdr *req_hdr);
 void radius_msg_finish_acct(struct radius_msg *msg, const u8 *secret,
 			    size_t secret_len);
+int radius_msg_verify_acct_req(struct radius_msg *msg, const u8 *secret,
+			       size_t secret_len);
+int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
+			       size_t secret_len);
 struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u8 type,
 					     const u8 *data, size_t data_len);
 struct radius_msg * radius_msg_parse(const u8 *data, size_t len);
 int radius_msg_add_eap(struct radius_msg *msg, const u8 *data,
 		       size_t data_len);
-u8 *radius_msg_get_eap(struct radius_msg *msg, size_t *len);
+struct wpabuf * radius_msg_get_eap(struct radius_msg *msg);
 int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
 		      size_t secret_len, struct radius_msg *sent_msg,
 		      int auth);
@@ -231,6 +240,9 @@ radius_msg_add_attr_user_password(struct radius_msg *msg,
 				  const u8 *secret, size_t secret_len);
 int radius_msg_get_attr(struct radius_msg *msg, u8 type, u8 *buf, size_t len);
 int radius_msg_get_vlanid(struct radius_msg *msg);
+char * radius_msg_get_tunnel_password(struct radius_msg *msg, int *keylen,
+				      const u8 *secret, size_t secret_len,
+				      struct radius_msg *sent_msg, size_t n);
 
 static inline int radius_msg_add_attr_int32(struct radius_msg *msg, u8 type,
 					    u32 value)
@@ -269,5 +281,7 @@ struct radius_class_data {
 void radius_free_class(struct radius_class_data *c);
 int radius_copy_class(struct radius_class_data *dst,
 		      const struct radius_class_data *src);
+
+u8 radius_msg_find_unlisted_attr(struct radius_msg *msg, u8 *attrs);
 
 #endif /* RADIUS_H */

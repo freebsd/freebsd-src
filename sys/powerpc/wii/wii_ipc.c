@@ -57,7 +57,7 @@ static device_method_t wiiipc_methods[] = {
 	DEVMETHOD(device_probe,		wiiipc_probe),
 	DEVMETHOD(device_attach,	wiiipc_attach),
 
-        { 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t wiiipc_driver = {

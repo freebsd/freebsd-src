@@ -4,14 +4,8 @@
  * Copyright (c) 2003-2004, Instant802 Networks, Inc.
  * Copyright (c) 2006, Devicescape Software, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
@@ -227,6 +221,7 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 			    struct hostapd_frame_info *fi)
 {
 	struct ap_info *ap;
+	struct os_time now;
 	int new_ap = 0;
 	size_t len;
 	int set_beacon = 0;
@@ -256,23 +251,9 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 		ap->ssid_len = len;
 	}
 
-	os_memset(ap->supported_rates, 0, WLAN_SUPP_RATES_MAX);
-	len = 0;
-	if (elems->supp_rates) {
-		len = elems->supp_rates_len;
-		if (len > WLAN_SUPP_RATES_MAX)
-			len = WLAN_SUPP_RATES_MAX;
-		os_memcpy(ap->supported_rates, elems->supp_rates, len);
-	}
-	if (elems->ext_supp_rates) {
-		int len2;
-		if (len + elems->ext_supp_rates_len > WLAN_SUPP_RATES_MAX)
-			len2 = WLAN_SUPP_RATES_MAX - len;
-		else
-			len2 = elems->ext_supp_rates_len;
-		os_memcpy(ap->supported_rates + len, elems->ext_supp_rates,
-			  len2);
-	}
+	merge_byte_arrays(ap->supported_rates, WLAN_SUPP_RATES_MAX,
+			  elems->supp_rates, elems->supp_rates_len,
+			  elems->ext_supp_rates, elems->ext_supp_rates_len);
 
 	ap->wpa = elems->wpa_ie != NULL;
 
@@ -292,11 +273,10 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 		ap->ht_support = 0;
 
 	ap->num_beacons++;
-	time(&ap->last_beacon);
-	if (fi) {
-		ap->ssi_signal = fi->ssi_signal;
+	os_get_time(&now);
+	ap->last_beacon = now.sec;
+	if (fi)
 		ap->datarate = fi->datarate;
-	}
 
 	if (!new_ap && ap != iface->ap_list) {
 		/* move AP entry into the beginning of the list so that the
@@ -324,14 +304,14 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 #endif /* CONFIG_IEEE80211N */
 
 	if (set_beacon)
-		ieee802_11_set_beacons(iface);
+		ieee802_11_update_beacons(iface);
 }
 
 
 static void ap_list_timer(void *eloop_ctx, void *timeout_ctx)
 {
 	struct hostapd_iface *iface = eloop_ctx;
-	time_t now;
+	struct os_time now;
 	struct ap_info *ap;
 	int set_beacon = 0;
 
@@ -340,12 +320,12 @@ static void ap_list_timer(void *eloop_ctx, void *timeout_ctx)
 	if (!iface->ap_list)
 		return;
 
-	time(&now);
+	os_get_time(&now);
 
 	while (iface->ap_list) {
 		ap = iface->ap_list->prev;
 		if (ap->last_beacon + iface->conf->ap_table_expiration_time >=
-		    now)
+		    now.sec)
 			break;
 
 		ap_free_ap(iface, ap);
@@ -379,7 +359,7 @@ static void ap_list_timer(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	if (set_beacon)
-		ieee802_11_set_beacons(iface);
+		ieee802_11_update_beacons(iface);
 }
 
 

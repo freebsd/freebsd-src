@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 
@@ -99,7 +100,7 @@ static int icprobe(device_t);
 static int icattach(device_t);
 
 static int icioctl(struct ifnet *, u_long, caddr_t);
-static int icoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int icoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
                struct route *);
 
 static int icintr(device_t, int, char *);
@@ -204,7 +205,6 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 
-	case SIOCSIFDSTADDR:
 	case SIOCAIFADDR:
 	case SIOCSIFADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
@@ -351,7 +351,7 @@ icintr(device_t dev, int event, char *ptr)
  * icoutput()
  */
 static int
-icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct ic_softc *sc = ifp->if_softc;

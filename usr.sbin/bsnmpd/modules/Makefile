@@ -10,13 +10,17 @@ _snmp_atm= snmp_atm
 
 SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
+	snmp_hast \
 	snmp_hostres \
 	snmp_mibII \
-	snmp_pf \
 	snmp_target \
 	snmp_usm \
 	snmp_vacm \
 	snmp_wlan
+
+.if ${MK_PF} != "no"
+SUBDIR+=snmp_pf
+.endif
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 SUBDIR+=snmp_netgraph

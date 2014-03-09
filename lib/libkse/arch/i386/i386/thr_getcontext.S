@@ -50,8 +50,7 @@ __FBSDID("$FreeBSD$");
  *
  * Returns 0 if there are no errors; -1 otherwise
  */
-	.weak CNAME(_thr_setcontext)
-	.set CNAME(_thr_setcontext),CNAME(__thr_setcontext)
+	WEAK_REFERENCE(__thr_setcontext, _thr_setcontext)
 ENTRY(__thr_setcontext)
 	movl	4(%esp), %edx		/* get address of mcontext */
 	cmpl	$0, %edx		/* check for null pointer */
@@ -116,8 +115,7 @@ ENTRY(__thr_setcontext)
  * Returns -1 if there is an error, 0 no errors; 1 upon return
  * from a setcontext().
  */
-	.weak CNAME(_thr_getcontext)
-	.set CNAME(_thr_getcontext),CNAME(__thr_getcontext)
+	WEAK_REFERENCE(__thr_getcontext, _thr_getcontext)
 ENTRY(__thr_getcontext)
 	pushl	%edx			/* save edx */
 	movl	8(%esp), %edx		/* get address of mcontext */

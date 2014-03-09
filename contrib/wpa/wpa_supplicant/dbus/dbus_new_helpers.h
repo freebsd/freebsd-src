@@ -3,14 +3,8 @@
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  * Copyright (c) 2009, Witold Sowa <witold.sowa@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPA_DBUS_CTRL_H
@@ -22,8 +16,9 @@ typedef DBusMessage * (* WPADBusMethodHandler)(DBusMessage *message,
 					       void *user_data);
 typedef void (* WPADBusArgumentFreeFunction)(void *handler_arg);
 
-typedef DBusMessage * (* WPADBusPropertyAccessor)(DBusMessage *message,
-						  const void *user_data);
+typedef dbus_bool_t (* WPADBusPropertyAccessor)(DBusMessageIter *iter,
+                                                DBusError *error,
+						void *user_data);
 
 struct wpa_dbus_object_desc {
 	DBusConnection *connection;
@@ -43,8 +38,6 @@ struct wpa_dbus_object_desc {
 	/* function used to free above argument */
 	WPADBusArgumentFreeFunction user_data_free_func;
 };
-
-enum dbus_prop_access { R, W, RW };
 
 enum dbus_arg_direction { ARG_IN, ARG_OUT };
 
@@ -67,7 +60,7 @@ struct wpa_dbus_method_desc {
 	/* method handling function */
 	WPADBusMethodHandler method_handler;
 	/* array of arguments */
-	struct wpa_dbus_argument args[3];
+	struct wpa_dbus_argument args[4];
 };
 
 /**
@@ -79,7 +72,7 @@ struct wpa_dbus_signal_desc {
 	/* signal interface */
 	const char *dbus_interface;
 	/* array of arguments */
-	struct wpa_dbus_argument args[3];
+	struct wpa_dbus_argument args[4];
 };
 
 /**
@@ -96,14 +89,13 @@ struct wpa_dbus_property_desc {
 	WPADBusPropertyAccessor getter;
 	/* property setter function */
 	WPADBusPropertyAccessor setter;
-	/* property access permissions */
-	enum dbus_prop_access access;
 };
 
 
 #define WPAS_DBUS_OBJECT_PATH_MAX 150
 #define WPAS_DBUS_INTERFACE_MAX 150
 #define WPAS_DBUS_METHOD_SIGNAL_PROP_MAX 50
+#define WPAS_DBUS_AUTH_MODE_MAX 64
 
 #define WPA_DBUS_INTROSPECTION_INTERFACE "org.freedesktop.DBus.Introspectable"
 #define WPA_DBUS_INTROSPECTION_METHOD "Introspect"
@@ -127,9 +119,10 @@ int wpa_dbus_unregister_object_per_iface(
 	struct wpas_dbus_priv *ctrl_iface,
 	const char *path);
 
-void wpa_dbus_get_object_properties(struct wpas_dbus_priv *iface,
-				    const char *path, const char *interface,
-				    DBusMessageIter *dict_iter);
+dbus_bool_t wpa_dbus_get_object_properties(struct wpas_dbus_priv *iface,
+					   const char *path,
+					   const char *interface,
+					   DBusMessageIter *iter);
 
 
 void wpa_dbus_flush_all_changed_properties(DBusConnection *con);
@@ -143,5 +136,15 @@ void wpa_dbus_mark_property_changed(struct wpas_dbus_priv *iface,
 
 DBusMessage * wpa_dbus_introspect(DBusMessage *message,
 				  struct wpa_dbus_object_desc *obj_dsc);
+
+char *wpas_dbus_new_decompose_object_path(const char *path,
+					   int p2p_persistent_group,
+					   char **network,
+					   char **bssid);
+
+DBusMessage *wpas_dbus_reply_new_from_error(DBusMessage *message,
+					    DBusError *error,
+					    const char *fallback_name,
+					    const char *fallback_string);
 
 #endif /* WPA_DBUS_CTRL_H */

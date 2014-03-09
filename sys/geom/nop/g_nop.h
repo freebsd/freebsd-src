@@ -44,9 +44,10 @@
 		printf("\n");						\
 	}								\
 } while (0)
-#define	G_NOP_LOGREQ(bp, ...)	do {					\
-	if (g_nop_debug >= 2) {						\
-		printf("GEOM_NOP[2]: ");				\
+#define	G_NOP_LOGREQ(bp, ...)	G_NOP_LOGREQLVL(2, bp, __VA_ARGS__)
+#define G_NOP_LOGREQLVL(lvl, bp, ...) do {				\
+	if (g_nop_debug >= (lvl)) {					\
+		printf("GEOM_NOP[%d]: ", (lvl));			\
 		printf(__VA_ARGS__);					\
 		printf(" ");						\
 		g_print_bio(bp);					\
@@ -64,6 +65,7 @@ struct g_nop_softc {
 	uintmax_t	sc_writes;
 	uintmax_t	sc_readbytes;
 	uintmax_t	sc_wrotebytes;
+	struct mtx	sc_lock;
 };
 #endif	/* _KERNEL */
 

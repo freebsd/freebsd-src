@@ -49,7 +49,7 @@ test_1(void)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_set_format_pax(a));
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_set_compression_none(a));
+		    archive_write_add_filter_none(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_set_bytes_per_block(a, (int)blocksize));
 		assertEqualIntA(a, ARCHIVE_OK,
@@ -85,7 +85,7 @@ test_1(void)
 				ws = 0x81000 - i;
 			assertEqualInt(ws,
 				archive_write_data(a, buff2, ws));
-			i += ws;
+			i += (long)ws;
 		}
 
 		/* Close out the archive. */
@@ -190,7 +190,7 @@ test_2(void)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_format_pax(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_set_compression_none(a));
+	    archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_bytes_per_block(a, (int)blocksize));
 	assertEqualIntA(a, ARCHIVE_OK,

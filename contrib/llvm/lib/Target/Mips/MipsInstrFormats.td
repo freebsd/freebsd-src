@@ -36,6 +36,24 @@ def FrmFR     : Format<4>;
 def FrmFI     : Format<5>;
 def FrmOther  : Format<6>; // Instruction w/ a custom format
 
+class MMRel;
+
+def Std2MicroMips : InstrMapping {
+  let FilterClass = "MMRel";
+  // Instructions with the same BaseOpcode and isNVStore values form a row.
+  let RowFields = ["BaseOpcode"];
+  // Instructions with the same predicate sense form a column.
+  let ColFields = ["Arch"];
+  // The key column is the unpredicated instructions.
+  let KeyCol = ["se"];
+  // Value columns are PredSense=true and PredSense=false
+  let ValueCols = [["se"], ["micromips"]];
+}
+
+class StdArch {
+  string Arch = "se";
+}
+
 // Generic Mips Format
 class MipsInst<dag outs, dag ins, string asmstr, list<dag> pattern,
                InstrItinClass itin, Format f>: Instruction
@@ -74,22 +92,26 @@ class MipsInst<dag outs, dag ins, string asmstr, list<dag> pattern,
 
 // Mips32/64 Instruction Format
 class InstSE<dag outs, dag ins, string asmstr, list<dag> pattern,
-             InstrItinClass itin, Format f>:
+             InstrItinClass itin, Format f, string opstr = ""> :
   MipsInst<outs, ins, asmstr, pattern, itin, f> {
-  let Predicates = [HasStandardEncoding];
+  let Predicates = [HasStdEnc];
+  string BaseOpcode = opstr;
+  string Arch;
 }
 
 // Mips Pseudo Instructions Format
-class MipsPseudo<dag outs, dag ins, string asmstr, list<dag> pattern>:
-  MipsInst<outs, ins, asmstr, pattern, IIPseudo, Pseudo> {
+class MipsPseudo<dag outs, dag ins, list<dag> pattern,
+                 InstrItinClass itin = IIPseudo> :
+  MipsInst<outs, ins, "", pattern, itin, Pseudo> {
   let isCodeGenOnly = 1;
   let isPseudo = 1;
 }
 
 // Mips32/64 Pseudo Instruction Format
-class PseudoSE<dag outs, dag ins, string asmstr, list<dag> pattern>:
-  MipsPseudo<outs, ins, asmstr, pattern> {
-  let Predicates = [HasStandardEncoding];
+class PseudoSE<dag outs, dag ins, list<dag> pattern,
+               InstrItinClass itin = IIPseudo>:
+  MipsPseudo<outs, ins, pattern, itin> {
+  let Predicates = [HasStdEnc];
 }
 
 // Pseudo-instructions for alternate assembly syntax (never used by codegen).
@@ -161,35 +183,359 @@ class BranchBase<bits<6> op, dag outs, dag ins, string asmstr,
 // Format J instruction class in Mips : <|opcode|address|>
 //===----------------------------------------------------------------------===//
 
-class FJ<bits<6> op, dag outs, dag ins, string asmstr, list<dag> pattern,
-         InstrItinClass itin>: InstSE<outs, ins, asmstr, pattern, itin, FrmJ>
+class FJ<bits<6> op> : StdArch
 {
-  bits<26> addr;
+  bits<26> target;
 
-  let Opcode = op;
+  bits<32> Inst;
 
-  let Inst{25-0} = addr;
+  let Inst{31-26} = op;
+  let Inst{25-0}  = target;
 }
 
- //===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 // MFC instruction class in Mips : <|op|mf|rt|rd|0000000|sel|>
 //===----------------------------------------------------------------------===//
-class MFC3OP<bits<6> op, bits<5> _mfmt, dag outs, dag ins, string asmstr>:
-  InstSE<outs, ins, asmstr, [], NoItinerary, FrmFR>
+class MFC3OP_FM<bits<6> op, bits<5> mfmt>
 {
-  bits<5> mfmt;
   bits<5> rt;
   bits<5> rd;
   bits<3> sel;
 
-  let Opcode = op;
-  let mfmt = _mfmt;
+  bits<32> Inst;
 
+  let Inst{31-26} = op;
   let Inst{25-21} = mfmt;
   let Inst{20-16} = rt;
   let Inst{15-11} = rd;
   let Inst{10-3}  = 0;
   let Inst{2-0}   = sel;
+}
+
+class ADD_FM<bits<6> op, bits<6> funct> : StdArch {
+  bits<5> rd;
+  bits<5> rs;
+  bits<5> rt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+class ADDI_FM<bits<6> op> : StdArch {
+  bits<5>  rs;
+  bits<5>  rt;
+  bits<16> imm16;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = imm16;
+}
+
+class SRA_FM<bits<6> funct, bit rotate> : StdArch {
+  bits<5> rd;
+  bits<5> rt;
+  bits<5> shamt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-22} = 0;
+  let Inst{21}    = rotate;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = shamt;
+  let Inst{5-0}   = funct;
+}
+
+class SRLV_FM<bits<6> funct, bit rotate> : StdArch {
+  bits<5> rd;
+  bits<5> rt;
+  bits<5> rs;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-7}  = 0;
+  let Inst{6}     = rotate;
+  let Inst{5-0}   = funct;
+}
+
+class BEQ_FM<bits<6> op> : StdArch {
+  bits<5>  rs;
+  bits<5>  rt;
+  bits<16> offset;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = offset;
+}
+
+class BGEZ_FM<bits<6> op, bits<5> funct> : StdArch {
+  bits<5>  rs;
+  bits<16> offset;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = funct;
+  let Inst{15-0}  = offset;
+}
+
+class SLTI_FM<bits<6> op> : StdArch {
+  bits<5> rt;
+  bits<5> rs;
+  bits<16> imm16;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = imm16;
+}
+
+class MFLO_FM<bits<6> funct> : StdArch {
+  bits<5> rd;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-16} = 0;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+class MTLO_FM<bits<6> funct> : StdArch {
+  bits<5> rs;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+class SEB_FM<bits<5> funct, bits<6> funct2> : StdArch {
+  bits<5> rd;
+  bits<5> rt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x1f;
+  let Inst{25-21} = 0;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = funct;
+  let Inst{5-0}   = funct2;
+}
+
+class CLO_FM<bits<6> funct> : StdArch {
+  bits<5> rd;
+  bits<5> rs;
+  bits<5> rt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x1c;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = funct;
+  let rt = rd;
+}
+
+class LUI_FM : StdArch {
+  bits<5> rt;
+  bits<16> imm16;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0xf;
+  let Inst{25-21} = 0;
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = imm16;
+}
+
+class JALR_FM : StdArch {
+  bits<5> rd;
+  bits<5> rs;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = 0;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = 9;
+}
+
+class BGEZAL_FM<bits<5> funct> : StdArch {
+  bits<5>  rs;
+  bits<16> offset;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 1;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = funct;
+  let Inst{15-0}  = offset;
+}
+
+class SYNC_FM {
+  bits<5> stype;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{10-6}  = stype;
+  let Inst{5-0}   = 0xf;
+}
+
+class MULT_FM<bits<6> op, bits<6> funct> : StdArch {
+  bits<5>  rs;
+  bits<5>  rt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+class EXT_FM<bits<6> funct> : StdArch {
+  bits<5> rt;
+  bits<5> rs;
+  bits<5> pos;
+  bits<5> size;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x1f;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = size;
+  let Inst{10-6}  = pos;
+  let Inst{5-0}   = funct;
+}
+
+class RDHWR_FM {
+  bits<5> rt;
+  bits<5> rd;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x1f;
+  let Inst{25-21} = 0;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = 0x3b;
+}
+
+class TEQ_FM<bits<6> funct> : StdArch {
+  bits<5> rs;
+  bits<5> rt;
+  bits<10> code_;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-6}  = code_;
+  let Inst{5-0}   = funct;
+}
+
+class TEQI_FM<bits<5> funct> : StdArch {
+  bits<5> rs;
+  bits<16> imm16;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 1;
+  let Inst{25-21} = rs;
+  let Inst{20-16}   = funct;
+  let Inst{15-0}  = imm16;
+}
+//===----------------------------------------------------------------------===//
+//  System calls format <op|code_|funct>
+//===----------------------------------------------------------------------===//
+
+class SYS_FM<bits<6> funct>
+{
+  bits<20> code_;
+  bits<32> Inst;
+  let Inst{31-26} = 0x0;
+  let Inst{25-6} = code_;
+  let Inst{5-0}  = funct;
+}
+
+//===----------------------------------------------------------------------===//
+//  Break instruction format <op|code_1|funct>
+//===----------------------------------------------------------------------===//
+
+class BRK_FM<bits<6> funct>
+{
+  bits<10> code_1;
+  bits<10> code_2;
+  bits<32> Inst;
+  let Inst{31-26} = 0x0;
+  let Inst{25-16} = code_1;
+  let Inst{15-6}  = code_2;
+  let Inst{5-0}   = funct;
+}
+
+//===----------------------------------------------------------------------===//
+//  Exception return format <Cop0|1|0|funct>
+//===----------------------------------------------------------------------===//
+
+class ER_FM<bits<6> funct>
+{
+  bits<32> Inst;
+  let Inst{31-26} = 0x10;
+  let Inst{25}    = 1;
+  let Inst{24-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+
+//===----------------------------------------------------------------------===//
+//  Enable/disable interrupt instruction format <Cop0|MFMC0|rt|12|0|sc|0|0>
+//===----------------------------------------------------------------------===//
+
+class EI_FM<bits<1> sc>
+{
+  bits<32> Inst;
+  bits<5> rt;
+  let Inst{31-26} = 0x10;
+  let Inst{25-21} = 0xb;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = 0xc;
+  let Inst{10-6}  = 0;
+  let Inst{5}     = sc;
+  let Inst{4-0}   = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -204,31 +550,6 @@ class MFC3OP<bits<6> op, bits<5> _mfmt, dag outs, dag ins, string asmstr>:
 //  funct   - combined with opcode field give us an operation code.
 //
 //===----------------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
-// Format FR instruction class in Mips : <|opcode|fmt|ft|fs|fd|funct|>
-//===----------------------------------------------------------------------===//
-
-class FFR<bits<6> op, bits<6> _funct, bits<5> _fmt, dag outs, dag ins,
-          string asmstr, list<dag> pattern> :
-  InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmFR>
-{
-  bits<5>  fd;
-  bits<5>  fs;
-  bits<5>  ft;
-  bits<5>  fmt;
-  bits<6>  funct;
-
-  let Opcode = op;
-  let funct  = _funct;
-  let fmt    = _fmt;
-
-  let Inst{25-21} = fmt;
-  let Inst{20-16} = ft;
-  let Inst{15-11} = fs;
-  let Inst{10-6}  = fd;
-  let Inst{5-0}   = funct;
-}
 
 //===----------------------------------------------------------------------===//
 // Format FI instruction class in Mips : <|opcode|base|ft|immediate|>
@@ -248,130 +569,186 @@ class FFI<bits<6> op, dag outs, dag ins, string asmstr, list<dag> pattern>:
   let Inst{15-0}  = imm16;
 }
 
-//===----------------------------------------------------------------------===//
-// Compare instruction class in Mips : <|010001|fmt|ft|fs|0000011|condcode|>
-//===----------------------------------------------------------------------===//
+class ADDS_FM<bits<6> funct, bits<5> fmt> {
+  bits<5> fd;
+  bits<5> fs;
+  bits<5> ft;
 
-class FCC<bits<5> _fmt, dag outs, dag ins, string asmstr, list<dag> pattern> :
-  InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmOther>
-{
-  bits<5>  fs;
-  bits<5>  ft;
-  bits<4>  cc;
-  bits<5>  fmt;
+  bits<32> Inst;
 
-  let Opcode = 0x11;
-  let fmt    = _fmt;
-
+  let Inst{31-26} = 0x11;
   let Inst{25-21} = fmt;
   let Inst{20-16} = ft;
   let Inst{15-11} = fs;
-  let Inst{10-6}  = 0;
-  let Inst{5-4}   = 0b11;
-  let Inst{3-0}   = cc;
+  let Inst{10-6}  = fd;
+  let Inst{5-0}   = funct;
 }
 
+class ABSS_FM<bits<6> funct, bits<5> fmt> {
+  bits<5> fd;
+  bits<5> fs;
 
-class FCMOV<bits<1> _tf, dag outs, dag ins, string asmstr,
-            list<dag> pattern> :
-  InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmOther>
-{
-  bits<5>  rd;
-  bits<5>  rs;
-  bits<3>  cc;
-  bits<1>  tf;
+  bits<32> Inst;
 
-  let Opcode = 0;
-  let tf = _tf;
-
-  let Inst{25-21} = rs;
-  let Inst{20-18} = cc;
-  let Inst{17} = 0;
-  let Inst{16} = tf;
-  let Inst{15-11} = rd;
-  let Inst{10-6}  = 0;
-  let Inst{5-0}   = 1;
-}
-
-class FFCMOV<bits<5> _fmt, bits<1> _tf, dag outs, dag ins, string asmstr,
-             list<dag> pattern> :
-  InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmOther>
-{
-  bits<5>  fd;
-  bits<5>  fs;
-  bits<3>  cc;
-  bits<5>  fmt;
-  bits<1>  tf;
-
-  let Opcode = 17;
-  let fmt = _fmt;
-  let tf = _tf;
-
+  let Inst{31-26} = 0x11;
   let Inst{25-21} = fmt;
-  let Inst{20-18} = cc;
-  let Inst{17} = 0;
-  let Inst{16} = tf;
+  let Inst{20-16} = 0;
   let Inst{15-11} = fs;
   let Inst{10-6}  = fd;
-  let Inst{5-0}   = 17;
+  let Inst{5-0}   = funct;
 }
 
-// FP unary instructions without patterns.
-class FFR1<bits<6> funct, bits<5> fmt, string opstr, string fmtstr,
-           RegisterClass DstRC, RegisterClass SrcRC> :
-  FFR<0x11, funct, fmt, (outs DstRC:$fd), (ins SrcRC:$fs),
-      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs"), []> {
-  let ft = 0;
+class MFC1_FM<bits<5> funct> {
+  bits<5> rt;
+  bits<5> fs;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x11;
+  let Inst{25-21} = funct;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = fs;
+  let Inst{10-0}  = 0;
 }
 
-// FP unary instructions with patterns.
-class FFR1P<bits<6> funct, bits<5> fmt, string opstr, string fmtstr,
-            RegisterClass DstRC, RegisterClass SrcRC, SDNode OpNode> :
-  FFR<0x11, funct, fmt, (outs DstRC:$fd), (ins SrcRC:$fs),
-      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs"),
-      [(set DstRC:$fd, (OpNode SrcRC:$fs))]> {
-  let ft = 0;
+class LW_FM<bits<6> op> : StdArch {
+  bits<5> rt;
+  bits<21> addr;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = op;
+  let Inst{25-21} = addr{20-16};
+  let Inst{20-16} = rt;
+  let Inst{15-0}  = addr{15-0};
 }
 
-class FFR2P<bits<6> funct, bits<5> fmt, string opstr,
-            string fmtstr, RegisterClass RC, SDNode OpNode> :
-  FFR<0x11, funct, fmt, (outs RC:$fd), (ins RC:$fs, RC:$ft),
-      !strconcat(opstr, ".", fmtstr, "\t$fd, $fs, $ft"),
-      [(set RC:$fd, (OpNode RC:$fs, RC:$ft))]>;
-
-// Floating point madd/msub/nmadd/nmsub.
-class FFMADDSUB<bits<3> funct, bits<3> fmt, dag outs, dag ins, string asmstr,
-                list<dag> pattern>
-  : InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmOther> {
+class MADDS_FM<bits<3> funct, bits<3> fmt> {
   bits<5> fd;
   bits<5> fr;
   bits<5> fs;
   bits<5> ft;
 
-  let Opcode = 0x13;
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x13;
   let Inst{25-21} = fr;
   let Inst{20-16} = ft;
   let Inst{15-11} = fs;
-  let Inst{10-6} = fd;
-  let Inst{5-3} = funct;
-  let Inst{2-0} = fmt;
+  let Inst{10-6}  = fd;
+  let Inst{5-3}   = funct;
+  let Inst{2-0}   = fmt;
 }
 
-// FP indexed load/store instructions.
-class FFMemIdx<bits<6> funct, dag outs, dag ins, string asmstr,
-               list<dag> pattern> :
-  InstSE<outs, ins, asmstr, pattern, NoItinerary, FrmOther>
-{
-  bits<5>  base;
-  bits<5>  index;
-  bits<5>  fs;
-  bits<5>  fd;
+class LWXC1_FM<bits<6> funct> {
+  bits<5> fd;
+  bits<5> base;
+  bits<5> index;
 
-  let Opcode = 0x13;
+  bits<32> Inst;
 
+  let Inst{31-26} = 0x13;
+  let Inst{25-21} = base;
+  let Inst{20-16} = index;
+  let Inst{15-11} = 0;
+  let Inst{10-6}  = fd;
+  let Inst{5-0}   = funct;
+}
+
+class SWXC1_FM<bits<6> funct> {
+  bits<5> fs;
+  bits<5> base;
+  bits<5> index;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x13;
   let Inst{25-21} = base;
   let Inst{20-16} = index;
   let Inst{15-11} = fs;
+  let Inst{10-6}  = 0;
+  let Inst{5-0}   = funct;
+}
+
+class BC1F_FM<bit nd, bit tf> {
+  bits<3>  fcc;
+  bits<16> offset;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x11;
+  let Inst{25-21} = 0x8;
+  let Inst{20-18} = fcc;
+  let Inst{17} = nd;
+  let Inst{16} = tf;
+  let Inst{15-0} = offset;
+}
+
+class CEQS_FM<bits<5> fmt> {
+  bits<5> fs;
+  bits<5> ft;
+  bits<4> cond;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x11;
+  let Inst{25-21} = fmt;
+  let Inst{20-16} = ft;
+  let Inst{15-11} = fs;
+  let Inst{10-8} = 0; // cc
+  let Inst{7-4} = 0x3;
+  let Inst{3-0} = cond;
+}
+
+class C_COND_FM<bits<5> fmt, bits<4> c> : CEQS_FM<fmt> {
+  let cond = c;
+}
+
+class CMov_I_F_FM<bits<6> funct, bits<5> fmt> {
+  bits<5> fd;
+  bits<5> fs;
+  bits<5> rt;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x11;
+  let Inst{25-21} = fmt;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = fs;
   let Inst{10-6} = fd;
   let Inst{5-0} = funct;
+}
+
+class CMov_F_I_FM<bit tf> : StdArch {
+  bits<5> rd;
+  bits<5> rs;
+  bits<3> fcc;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-18} = fcc;
+  let Inst{17} = 0;
+  let Inst{16} = tf;
+  let Inst{15-11} = rd;
+  let Inst{10-6} = 0;
+  let Inst{5-0} = 1;
+}
+
+class CMov_F_F_FM<bits<5> fmt, bit tf> {
+  bits<5> fd;
+  bits<5> fs;
+  bits<3> fcc;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x11;
+  let Inst{25-21} = fmt;
+  let Inst{20-18} = fcc;
+  let Inst{17} = 0;
+  let Inst{16} = tf;
+  let Inst{15-11} = fs;
+  let Inst{10-6} = fd;
+  let Inst{5-0} = 0x11;
 }

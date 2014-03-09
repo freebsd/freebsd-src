@@ -6,7 +6,7 @@
 SUBDIR=	adduser \
 	arp \
 	bootparamd \
-	burncd \
+	bsdconfig \
 	bsdinstall \
 	cdcontrol \
 	chkgrp \
@@ -17,6 +17,7 @@ SUBDIR=	adduser \
 	crashinfo \
 	cron \
 	ctladm \
+	ctld \
 	daemon \
 	dconschat \
 	devinfo \
@@ -35,11 +36,10 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
-	isfctl \
+	iscsid \
 	kldxref \
 	mailwrapper \
 	makefs \
-	manctl \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -48,7 +48,7 @@ SUBDIR=	adduser \
 	mountd \
 	mptutil \
 	mtest \
-	mtree \
+	${_mtree} \
 	newsyslog \
 	nfscbd \
 	nfsd \
@@ -57,7 +57,7 @@ SUBDIR=	adduser \
 	nfsuserd \
 	nmtree \
 	nologin \
-	pc-sysinstall \
+	${_pc_sysinstall} \
 	pciconf \
 	periodic \
 	powerd \
@@ -82,6 +82,7 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
+	sysrc \
 	tcpdchk \
 	tcpdmatch \
 	tcpdrop \
@@ -122,35 +123,8 @@ SUBDIR+=	praudit
 SUBDIR+=	authpf
 .endif
 
-.if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
-SUBDIR+=	dnssec-dsfromkey
-SUBDIR+=	dnssec-keyfromlabel
-SUBDIR+=	dnssec-keygen
-SUBDIR+=	dnssec-revoke
-SUBDIR+=	dnssec-settime
-SUBDIR+=	dnssec-signzone
-.endif
-.if ${MK_BIND_NAMED} != "no"
-SUBDIR+=	arpaname
-SUBDIR+=	ddns-confgen
-SUBDIR+=	genrandom
-SUBDIR+=	isc-hmac-fixup
-SUBDIR+=	named
-SUBDIR+=	named-checkconf
-SUBDIR+=	named-checkzone
-SUBDIR+=	named-journalprint
-SUBDIR+=	nsec3hash
-SUBDIR+=	rndc
-SUBDIR+=	rndc-confgen
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
-.endif
-
-.if ${MK_BSDCONFIG} != "no"
-SUBDIR+=	bsdconfig
-SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"
@@ -166,6 +140,10 @@ SUBDIR+=	fdcontrol
 SUBDIR+=	fdformat
 SUBDIR+=	fdread
 SUBDIR+=	fdwrite
+.endif
+
+.if ${MK_FMTREE} != "no"
+SUBDIR+=	mtree
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
@@ -265,16 +243,16 @@ SUBDIR+=	ntp
 SUBDIR+=	keyserv
 .endif
 
+.if ${MK_PC_SYSINSTALL} != "no"
+_pc_sysinstall=	pc-sysinstall
+.endif
+
 .if ${MK_PF} != "no"
 SUBDIR+=	ftp-proxy
 .endif
 
 .if ${MK_PKGBOOTSTRAP} != "no"
 SUBDIR+=	pkg
-.endif
-
-.if ${MK_PKGTOOLS} != "no"
-SUBDIR+=	pkg_install
 .endif
 
 # XXX MK_TOOLCHAIN?
@@ -313,6 +291,10 @@ SUBDIR+=	sendmail
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config
 SUBDIR+=	crunch
+.endif
+
+.if ${MK_UNBOUND} != "no"
+SUBDIR+=	unbound
 .endif
 
 .if ${MK_USB} != "no"

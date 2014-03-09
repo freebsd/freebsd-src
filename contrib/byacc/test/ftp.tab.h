@@ -1,20 +1,20 @@
-#define A 257
-#define B 258
-#define C 259
-#define E 260
-#define F 261
-#define I 262
-#define L 263
-#define N 264
-#define P 265
-#define R 266
-#define S 267
-#define T 268
-#define SP 269
-#define CRLF 270
-#define COMMA 271
-#define STRING 272
-#define NUMBER 273
+#define NUMBER 257
+#define STRING 258
+#define A 259
+#define B 260
+#define C 261
+#define E 262
+#define F 263
+#define I 264
+#define L 265
+#define N 266
+#define P 267
+#define R 268
+#define S 269
+#define T 270
+#define SP 271
+#define CRLF 272
+#define COMMA 273
 #define USER 274
 #define PASS 275
 #define ACCT 276
@@ -61,3 +61,16 @@
 #define IDLE 317
 #define CHMOD 318
 #define LEXERR 319
+#ifdef YYSTYPE
+#undef  YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
+#endif
+#ifndef YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
+typedef union
+{
+	int ival;
+	char *sval;
+} YYSTYPE;
+#endif /* !YYSTYPE_IS_DECLARED */
+extern YYSTYPE ftp_lval;

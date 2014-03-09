@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangsema
 
 SRCDIR=	tools/clang/lib/Sema
@@ -35,6 +37,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaLambda.cpp \
 	SemaLookup.cpp \
 	SemaObjCProperty.cpp \
+	SemaOpenMP.cpp \
 	SemaOverload.cpp \
 	SemaPseudoObject.cpp \
 	SemaStmt.cpp \
@@ -46,13 +49,17 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaTemplateInstantiateDecl.cpp \
 	SemaTemplateVariadic.cpp \
 	SemaType.cpp \
-	TargetAttributesSema.cpp
+	TargetAttributesSema.cpp \
+	TypeLocBuilder.cpp
 
 TGHDRS=	AttrList \
+	AttrParsedAttrImpl \
 	AttrParsedAttrKinds \
 	AttrParsedAttrList \
+	AttrSpellingListIndex \
 	AttrTemplateInstantiate \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \

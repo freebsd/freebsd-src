@@ -29,8 +29,12 @@
  */
 
 #ifndef SOLARIS_BUILD
+#ifdef __FreeBSD__
+#include <sys/socket.h>
+#else
 #define AF_INET_SDP 27			  /* SDP socket protocol family */
 #define AF_INET6_SDP 28                   /* SDP socket protocol family */
+#endif
 #else
 #define AF_INET_SDP 31  /* This is an invalid family on native solaris
                          * and will only work using QuickTransit */

@@ -12,23 +12,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/DataLayout.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/SystemUtils.h"
-#include "llvm/Support/Signals.h"
 #include "llvm/Support/Regex.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SetVector.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/SystemUtils.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Transforms/IPO.h"
 #include <memory>
 using namespace llvm;
 
@@ -52,7 +53,7 @@ static cl::list<std::string>
 ExtractFuncs("func", cl::desc("Specify function to extract"),
              cl::ZeroOrMore, cl::value_desc("function"));
 
-// ExtractRegExpFuncs - The functions, matched via regular expression, to 
+// ExtractRegExpFuncs - The functions, matched via regular expression, to
 // extract from the module.
 static cl::list<std::string>
 ExtractRegExpFuncs("rfunc", cl::desc("Specify function(s) to extract using a "
@@ -99,7 +100,7 @@ int main(int argc, char **argv) {
 
   // Use lazy loading, since we only care about selected global values.
   SMDiagnostic Err;
-  std::auto_ptr<Module> M;
+  OwningPtr<Module> M;
   M.reset(getLazyIRFileModule(InputFilename, Err, Context));
 
   if (M.get() == 0) {
@@ -264,8 +265,7 @@ int main(int argc, char **argv) {
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
   std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo,
-                       raw_fd_ostream::F_Binary);
+  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary);
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;

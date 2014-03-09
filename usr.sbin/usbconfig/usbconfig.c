@@ -33,6 +33,7 @@
 #include <grp.h>
 #include <errno.h>
 #include <ctype.h>
+#include <sys/types.h>
 
 #include <libusb20_desc.h>
 #include <libusb20.h>

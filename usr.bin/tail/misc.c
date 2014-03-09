@@ -113,3 +113,17 @@ maparound(struct mapinfo *mip, off_t offset)
 
 	return (0);
 }
+
+/*
+ * Print the file name without stdio buffering.
+ */
+void
+printfn(const char *fn, int print_nl)
+{
+
+	if (print_nl)
+		WR("\n", 1);
+	WR("==> ", 4);
+	WR(fn, strlen(fn));
+	WR(" <==\n", 5);
+}

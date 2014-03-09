@@ -21,11 +21,9 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/type_traits.h"
-
-#include <vector>
 #include <list>
+#include <vector>
 
 namespace clang {
   class DiagnosticConsumer;
@@ -78,7 +76,7 @@ public:
                                    bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.CodeToInsert = Code;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -91,7 +89,7 @@ public:
                                         bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.InsertFromRange = FromRange;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -280,6 +278,10 @@ private:
   /// \brief Sticky flag set to \c true when an error is emitted.
   bool ErrorOccurred;
 
+  /// \brief Sticky flag set to \c true when an "uncompilable error" occurs.
+  /// I.e. an error that was not upgraded from a warning by -Werror.
+  bool UncompilableErrorOccurred;
+
   /// \brief Sticky flag set to \c true when a fatal error is emitted.
   bool FatalErrorOccurred;
 
@@ -432,8 +434,8 @@ public:
   ///
   /// If this and IgnoreAllWarnings are both set, then that one wins.
   void setEnableAllWarnings(bool Val) { EnableAllWarnings = Val; }
-  bool getEnableAllWarnngs() const { return EnableAllWarnings; }
-  
+  bool getEnableAllWarnings() const { return EnableAllWarnings; }
+
   /// \brief When set to true, any warnings reported are issued as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
   bool getWarningsAsErrors() const { return WarningsAsErrors; }
@@ -487,7 +489,14 @@ public:
       FatalErrorOccurred = true;
     LastDiagLevel = DiagnosticIDs::Ignored;
   }
-  
+
+  /// \brief Determine whether the previous diagnostic was ignored. This can
+  /// be used by clients that want to determine whether notes attached to a
+  /// diagnostic will be suppressed.
+  bool isLastDiagnosticIgnored() const {
+    return LastDiagLevel == DiagnosticIDs::Ignored;
+  }
+
   /// \brief Controls whether otherwise-unmapped extension diagnostics are
   /// mapped onto ignore/warning/error. 
   ///
@@ -559,6 +568,12 @@ public:
                                   SourceLocation Loc = SourceLocation());
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
+
+  /// \brief Errors that actually prevent compilation, not those that are
+  /// upgraded from a warning by -Werror.
+  bool hasUncompilableErrorOccurred() const {
+    return UncompilableErrorOccurred;
+  }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
   
   /// \brief Determine whether any kind of unrecoverable error has occurred.
@@ -574,7 +589,7 @@ public:
 
   /// \brief Return an ID for a diagnostic with the specified message and level.
   ///
-  /// If this is the first request for this diagnosic, it is registered and
+  /// If this is the first request for this diagnostic, it is registered and
   /// created, otherwise the existing ID is returned.
   unsigned getCustomDiagID(Level L, StringRef Message) {
     return Diags->getCustomDiagID((DiagnosticIDs::Level)L, Message);
@@ -596,6 +611,12 @@ public:
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
     ArgToStringFn = Fn;
     ArgToStringCookie = Cookie;
+  }
+
+  /// \brief Note that the prior diagnostic was emitted by some other
+  /// \c DiagnosticsEngine, and we may be attaching a note to that diagnostic.
+  void notePriorDiagnosticFrom(const DiagnosticsEngine &Other) {
+    LastDiagLevel = Other.LastDiagLevel;
   }
 
   /// \brief Reset the state of the diagnostic object to its initial 
@@ -968,6 +989,10 @@ public:
   bool hasMaxRanges() const {
     return NumRanges == DiagnosticsEngine::MaxRanges;
   }
+
+  bool hasMaxFixItHints() const {
+    return NumFixits == DiagnosticsEngine::MaxFixItHints;
+  }
 };
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
@@ -1197,7 +1222,7 @@ public:
   ~StoredDiagnostic();
 
   /// \brief Evaluates true when this object stores a diagnostic.
-  operator bool() const { return Message.size() > 0; }
+  LLVM_EXPLICIT operator bool() const { return Message.size() > 0; }
 
   unsigned getID() const { return ID; }
   DiagnosticsEngine::Level getLevel() const { return Level; }
@@ -1281,10 +1306,6 @@ public:
   /// warnings and errors.
   virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                                 const Diagnostic &Info);
-  
-  /// \brief Clone the diagnostic consumer, producing an equivalent consumer
-  /// that can be used in a different context.
-  virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const = 0;
 };
 
 /// \brief A diagnostic client that ignores all diagnostics.
@@ -1294,9 +1315,24 @@ class IgnoringDiagConsumer : public DiagnosticConsumer {
                         const Diagnostic &Info) {
     // Just ignore it.
   }
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    return new IgnoringDiagConsumer();
-  }
+};
+
+/// \brief Diagnostic consumer that forwards diagnostics along to an
+/// existing, already-initialized diagnostic consumer.
+///
+class ForwardingDiagnosticConsumer : public DiagnosticConsumer {
+  DiagnosticConsumer &Target;
+
+public:
+  ForwardingDiagnosticConsumer(DiagnosticConsumer &Target) : Target(Target) {}
+
+  virtual ~ForwardingDiagnosticConsumer();
+
+  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                                const Diagnostic &Info);
+  virtual void clear();
+
+  virtual bool IncludeInDiagnosticCounts() const;
 };
 
 // Struct used for sending info about how a type should be printed.

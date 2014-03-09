@@ -41,9 +41,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_vlan.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -60,11 +62,17 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/vnet.h>
+
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#endif
 
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
@@ -1036,7 +1044,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
 		ifp->if_oerrors++;
-		return (0);
+		return (ENETDOWN);
 	}
 
 	/*

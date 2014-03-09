@@ -10,18 +10,14 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cl_read.c	10.15 (Berkeley) 9/24/96";
+static const char sccsid[] = "$Id: cl_read.c,v 10.30 2012/07/12 18:28:58 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
-#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
-#include <sys/time.h>
 
 #include <bitstring.h>
-#include <curses.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -35,8 +31,12 @@ static const char sccsid[] = "@(#)cl_read.c	10.15 (Berkeley) 9/24/96";
 #include "../ex/script.h"
 #include "cl.h"
 
+/* Pollution by Solaris curses. */
+#undef columns
+#undef lines  
+
 static input_t	cl_read __P((SCR *,
-    u_int32_t, CHAR_T *, size_t, int *, struct timeval *));
+    u_int32_t, char *, size_t, int *, struct timeval *));
 static int	cl_resize __P((SCR *, size_t, size_t));
 
 /*
@@ -46,16 +46,15 @@ static int	cl_resize __P((SCR *, size_t, size_t));
  * PUBLIC: int cl_event __P((SCR *, EVENT *, u_int32_t, int));
  */
 int
-cl_event(sp, evp, flags, ms)
-	SCR *sp;
-	EVENT *evp;
-	u_int32_t flags;
-	int ms;
+cl_event(SCR *sp, EVENT *evp, u_int32_t flags, int ms)
 {
 	struct timeval t, *tp;
 	CL_PRIVATE *clp;
 	size_t lines, columns;
-	int changed, nr;
+	int changed, nr = 0;
+	CHAR_T *wp;
+	size_t wlen;
+	int rc;
 
 	/*
 	 * Queue signal based events.  We never clear SIGHUP or SIGTERM events,
@@ -102,12 +101,25 @@ retest:	if (LF_ISSET(EC_INTERRUPT) || F_ISSET(clp, CL_SIGINT)) {
 	}
 
 	/* Read input characters. */
+read:
 	switch (cl_read(sp, LF_ISSET(EC_QUOTED | EC_RAW),
-	    clp->ibuf, sizeof(clp->ibuf), &nr, tp)) {
+	    clp->ibuf + clp->skip, SIZE(clp->ibuf) - clp->skip, &nr, tp)) {
 	case INP_OK:
-		evp->e_csp = clp->ibuf;
-		evp->e_len = nr;
+		rc = INPUT2INT5(sp, clp->cw, clp->ibuf, nr + clp->skip, 
+				wp, wlen);
+		evp->e_csp = wp;
+		evp->e_len = wlen;
 		evp->e_event = E_STRING;
+		if (rc < 0) {
+		    int n = -rc;
+		    memmove(clp->ibuf, clp->ibuf + nr + clp->skip - n, n);
+		    clp->skip = n;
+		    if (wlen == 0)
+			goto read;
+		} else if (rc == 0)
+		    clp->skip = 0;
+		else
+		    msgq(sp, M_ERR, "323|Invalid input. Truncated.");
 		break;
 	case INP_EOF:
 		evp->e_event = E_EOF;
@@ -131,19 +143,11 @@ retest:	if (LF_ISSET(EC_INTERRUPT) || F_ISSET(clp, CL_SIGINT)) {
  *	Read characters from the input.
  */
 static input_t
-cl_read(sp, flags, bp, blen, nrp, tp)
-	SCR *sp;
-	u_int32_t flags;
-	CHAR_T *bp;
-	size_t blen;
-	int *nrp;
-	struct timeval *tp;
+cl_read(SCR *sp, u_int32_t flags, char *bp, size_t blen, int *nrp, struct timeval *tp)
 {
 	struct termios term1, term2;
-	struct timeval poll;
 	CL_PRIVATE *clp;
 	GS *gp;
-	SCR *tsp;
 	fd_set rdfd;
 	input_t rval;
 	int maxfd, nr, term_reset;
@@ -175,13 +179,10 @@ cl_read(sp, flags, bp, blen, nrp, tp)
 	 * 2: A read with an associated timeout, e.g., trying to complete
 	 *    a map sequence.  If input exists, we fall into #3.
 	 */
-	FD_ZERO(&rdfd);
-	poll.tv_sec = 0;
-	poll.tv_usec = 0;
 	if (tp != NULL) {
+		FD_ZERO(&rdfd);
 		FD_SET(STDIN_FILENO, &rdfd);
-		switch (select(STDIN_FILENO + 1,
-		    &rdfd, NULL, NULL, tp == NULL ? &poll : tp)) {
+		switch (select(STDIN_FILENO + 1, &rdfd, NULL, NULL, tp)) {
 		case 0:
 			return (INP_TIMEOUT);
 		case -1:
@@ -225,13 +226,11 @@ cl_read(sp, flags, bp, blen, nrp, tp)
 loop:		FD_ZERO(&rdfd);
 		FD_SET(STDIN_FILENO, &rdfd);
 		maxfd = STDIN_FILENO;
-		for (tsp = gp->dq.cqh_first;
-		    tsp != (void *)&gp->dq; tsp = tsp->q.cqe_next)
-			if (F_ISSET(sp, SC_SCRIPT)) {
-				FD_SET(sp->script->sh_master, &rdfd);
-				if (sp->script->sh_master > maxfd)
-					maxfd = sp->script->sh_master;
-			}
+		if (F_ISSET(sp, SC_SCRIPT)) {
+			FD_SET(sp->script->sh_master, &rdfd);
+			if (sp->script->sh_master > maxfd)
+				maxfd = sp->script->sh_master;
+		}
 		switch (select(maxfd + 1, &rdfd, NULL, NULL, NULL)) {
 		case 0:
 			abort();
@@ -309,12 +308,10 @@ err:		if (errno == EINTR)
  *	Reset the options for a resize event.
  */
 static int
-cl_resize(sp, lines, columns)
-	SCR *sp;
-	size_t lines, columns;
+cl_resize(SCR *sp, size_t lines, size_t columns)
 {
 	ARGS *argv[2], a, b;
-	char b1[1024];
+	CHAR_T b1[1024];
 
 	a.bp = b1;
 	b.bp = NULL;
@@ -322,12 +319,10 @@ cl_resize(sp, lines, columns)
 	argv[0] = &a;
 	argv[1] = &b;
 
-	(void)snprintf(b1, sizeof(b1), "lines=%lu", (u_long)lines);
-	a.len = strlen(b1);
+	a.len = SPRINTF(b1, sizeof(b1), L("lines=%lu"), (u_long)lines);
 	if (opts_set(sp, argv, NULL))
 		return (1);
-	(void)snprintf(b1, sizeof(b1), "columns=%lu", (u_long)columns);
-	a.len = strlen(b1);
+	a.len = SPRINTF(b1, sizeof(b1), L("columns=%lu"), (u_long)columns);
 	if (opts_set(sp, argv, NULL))
 		return (1);
 	return (0);

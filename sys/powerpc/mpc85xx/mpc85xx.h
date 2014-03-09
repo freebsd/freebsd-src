@@ -33,6 +33,8 @@
 /*
  * Configuration control and status registers
  */
+extern vm_offset_t		ccsrbar_va;
+#define CCSRBAR_VA		ccsrbar_va
 #define	OCP85XX_CCSRBAR		(CCSRBAR_VA + 0x0)
 #define	OCP85XX_BPTR		(CCSRBAR_VA + 0x20)
 

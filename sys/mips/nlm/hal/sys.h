@@ -95,9 +95,11 @@
 #define	SYS_UCO_S_ECC				0x38
 #define	SYS_UCO_M_ECC				0x39
 #define	SYS_UCO_ADDR				0x3a
+#define	SYS_PLL_DFS_BYP_CTRL			0x3a /* Bx stepping */
 #define	SYS_UCO_INSTR				0x3b
 #define	SYS_MEM_BIST0				0x3c
 #define	SYS_MEM_BIST1				0x3d
+#define	SYS_PLL_DFS_DIV_VALUE			0x3d /* Bx stepping */
 #define	SYS_MEM_BIST2				0x3e
 #define	SYS_MEM_BIST3				0x3f
 #define	SYS_MEM_BIST4				0x40
@@ -139,6 +141,19 @@ enum {
 	DFS_DEVICE_SATA,
 	INVALID_DFS_DEVICE = 0xFF
 };
+
+static __inline
+void nlm_sys_enable_block(uint64_t sys_base, int block)
+{
+	uint32_t dfsdis, mask;
+
+	mask = 1 << block;
+	dfsdis = nlm_read_sys_reg(sys_base, SYS_DFS_DIS_CTRL);
+	if ((dfsdis & mask) == 0)
+		return;			/* already enabled, nothing to do */
+	dfsdis &= ~mask;
+	nlm_write_sys_reg(sys_base, SYS_DFS_DIS_CTRL, dfsdis);
+}
 
 #endif
 #endif

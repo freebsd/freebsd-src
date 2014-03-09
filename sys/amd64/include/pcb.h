@@ -43,6 +43,7 @@
 #include <machine/fpu.h>
 #include <machine/segments.h>
 
+#ifdef __amd64__
 struct pcb {
 	register_t	pcb_r15;
 	register_t	pcb_r14;
@@ -77,7 +78,6 @@ struct pcb {
 #define	PCB_KERNFPU	0x04	/* kernel uses fpu */
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
 #define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
-#define	PCB_GS32BIT	0x20	/* linux gs switch */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
 
 	uint16_t	pcb_initial_fpucw;
@@ -106,6 +106,7 @@ struct pcb {
 
 	uint64_t	pcb_pad[3];
 };
+#endif
 
 #ifdef _KERNEL
 struct trapframe;

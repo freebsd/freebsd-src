@@ -18,10 +18,10 @@
 #define LLVM_MC_DISASSEMBLER_H
 
 #include "llvm-c/Disassembler.h"
-#include <string>
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
+#include <string>
 
 namespace llvm {
 class MCContext;
@@ -73,6 +73,10 @@ private:
   llvm::OwningPtr<const llvm::MCDisassembler> DisAsm;
   // The instruction printer for the target architecture.
   llvm::OwningPtr<llvm::MCInstPrinter> IP;
+  // The options used to set up the disassembler.
+  uint64_t Options;
+  // The CPU string.
+  std::string CPU;
 
 public:
   // Comment stream and backing vector.
@@ -90,6 +94,7 @@ public:
                     MCInstPrinter *iP) : TripleName(tripleName),
                     DisInfo(disInfo), TagType(tagType), GetOpInfo(getOpInfo),
                     SymbolLookUp(symbolLookUp), TheTarget(theTarget),
+                    Options(0),
                     CommentStream(CommentsToEmit) {
     MAI.reset(mAI);
     MRI.reset(mRI);
@@ -109,7 +114,15 @@ public:
   const Target *getTarget() const { return TheTarget; }
   const MCDisassembler *getDisAsm() const { return DisAsm.get(); }
   const MCAsmInfo *getAsmInfo() const { return MAI.get(); }
+  const MCInstrInfo *getInstrInfo() const { return MII.get(); }
+  const MCRegisterInfo *getRegisterInfo() const { return MRI.get(); }
+  const MCSubtargetInfo *getSubtargetInfo() const { return MSI.get(); }
   MCInstPrinter *getIP() { return IP.get(); }
+  void setIP(MCInstPrinter *NewIP) { IP.reset(NewIP); }
+  uint64_t getOptions() const { return Options; }
+  void addOptions(uint64_t Options) { this->Options |= Options; }
+  StringRef getCPU() const { return CPU; }
+  void setCPU(const char *CPU) { this->CPU = CPU; }
 };
 
 } // namespace llvm

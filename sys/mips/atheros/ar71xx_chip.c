@@ -78,6 +78,10 @@ __FBSDID("$FreeBSD$");
 uint32_t u_ar71xx_cpu_freq;
 uint32_t u_ar71xx_ahb_freq;
 uint32_t u_ar71xx_ddr_freq;
+uint32_t u_ar71xx_uart_freq;
+uint32_t u_ar71xx_wdt_freq;
+uint32_t u_ar71xx_refclk;
+uint32_t u_ar71xx_mdio_freq;
 
 static void
 ar71xx_chip_detect_mem_size(void)
@@ -90,6 +94,8 @@ ar71xx_chip_detect_sys_frequency(void)
 	uint32_t pll;
 	uint32_t freq;
 	uint32_t div;
+
+	u_ar71xx_mdio_freq = u_ar71xx_refclk = AR71XX_BASE_FREQ;
 
 	pll = ATH_READ_REG(AR71XX_PLL_REG_CPU_CONFIG);
 
@@ -104,6 +110,8 @@ ar71xx_chip_detect_sys_frequency(void)
 
 	div = (((pll >> AR71XX_AHB_DIV_SHIFT) & AR71XX_AHB_DIV_MASK) + 1) * 2;
 	u_ar71xx_ahb_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_wdt_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_uart_freq = u_ar71xx_cpu_freq / div;
 }
 
 /*

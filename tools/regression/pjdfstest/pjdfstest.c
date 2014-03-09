@@ -82,7 +82,13 @@ enum action {
 	ACTION_MKNOD,
 	ACTION_MKNODAT,
 	ACTION_BIND,
+#ifdef HAS_BINDAT
+	ACTION_BINDAT,
+#endif
 	ACTION_CONNECT,
+#ifdef HAS_CONNECTAT
+	ACTION_CONNECTAT,
+#endif
 	ACTION_CHMOD,
 	ACTION_FCHMOD,
 #ifdef HAS_LCHMOD
@@ -99,6 +105,9 @@ enum action {
 #ifdef HAS_FCHFLAGS
 	ACTION_FCHFLAGS,
 #endif
+#ifdef HAS_CHFLAGSAT
+	ACTION_CHFLAGSAT,
+#endif
 #ifdef HAS_LCHFLAGS
 	ACTION_LCHFLAGS,
 #endif
@@ -110,7 +119,9 @@ enum action {
 	ACTION_FSTATAT,
 	ACTION_PATHCONF,
 	ACTION_FPATHCONF,
+#ifdef HAS_LPATHCONF
 	ACTION_LPATHCONF,
+#endif
 #ifdef HAS_FREEBSD_ACL
 	ACTION_PREPENDACL,
 	ACTION_READACL,
@@ -154,7 +165,13 @@ static struct syscall_desc syscalls[] = {
 	{ "mknod", ACTION_MKNOD, { TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
 	{ "mknodat", ACTION_MKNODAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
 	{ "bind", ACTION_BIND, { TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_BINDAT
+	{ "bindat", ACTION_BINDAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "connect", ACTION_CONNECT, { TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_CONNECTAT
+	{ "connectat", ACTION_CONNECTAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "chmod", ACTION_CHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "fchmod", ACTION_FCHMOD, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NONE } },
 #ifdef HAS_LCHMOD
@@ -171,6 +188,9 @@ static struct syscall_desc syscalls[] = {
 #ifdef HAS_FCHFLAGS
 	{ "fchflags", ACTION_FCHFLAGS, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
 #endif
+#ifdef HAS_CHFLAGSAT
+	{ "chflagsat", ACTION_CHFLAGSAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 #ifdef HAS_LCHFLAGS
 	{ "lchflags", ACTION_LCHFLAGS, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
@@ -182,7 +202,9 @@ static struct syscall_desc syscalls[] = {
 	{ "fstatat", ACTION_FSTATAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "pathconf", ACTION_PATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "fpathconf", ACTION_FPATHCONF, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_LPATHCONF
 	{ "lpathconf", ACTION_LPATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 #ifdef HAS_FREEBSD_ACL
 	{ "prependacl", ACTION_PREPENDACL, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "readacl", ACTION_READACL, { TYPE_STRING, TYPE_NONE } },
@@ -291,6 +313,11 @@ static struct flag unlinkat_flags[] = {
 
 static struct flag linkat_flags[] = {
 	{ AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW" },
+	{ 0, NULL }
+};
+
+static struct flag chflagsat_flags[] = {
+	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
 
@@ -558,13 +585,18 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 					args[i].str = (void *)0xdeadc0de;
 				else
 					args[i].str = argv[i];
-			} else if ((scall->sd_args[i] & TYPE_MASK) == TYPE_NUMBER) {
+			} else if ((scall->sd_args[i] & TYPE_MASK) ==
+			    TYPE_NUMBER) {
 				args[i].num = strtoll(argv[i], &endp, 0);
-				if (*endp != '\0' && !isspace((unsigned char)*endp)) {
-					fprintf(stderr, "invalid argument %u, number expected [%s]\n", i, endp);
+				if (*endp != '\0' &&
+				    !isspace((unsigned char)*endp)) {
+					fprintf(stderr,
+					    "invalid argument %u, number expected [%s]\n",
+					    i, endp);
 					exit(1);
 				}
-			} else if ((scall->sd_args[i] & TYPE_MASK) == TYPE_DESCRIPTOR) {
+			} else if ((scall->sd_args[i] & TYPE_MASK) ==
+			    TYPE_DESCRIPTOR) {
 				if (strcmp(argv[i], "AT_FDCWD") == 0) {
 					args[i].num = AT_FDCWD;
 				} else if (strcmp(argv[i], "BADFD") == 0) {
@@ -577,8 +609,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 					int pos;
 
 					pos = strtoll(argv[i], &endp, 0);
-					if (*endp != '\0' && !isspace((unsigned char)*endp)) {
-						fprintf(stderr, "invalid argument %u, number expected [%s]\n", i, endp);
+					if (*endp != '\0' &&
+					    !isspace((unsigned char)*endp)) {
+						fprintf(stderr,
+						    "invalid argument %u, number expected [%s]\n",
+						    i, endp);
 						exit(1);
 					}
 					args[i].num = descriptor_get(pos);
@@ -617,7 +652,8 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 				fprintf(stderr, "too few arguments\n");
 				exit(1);
 			}
-			rval = openat(NUM(0), STR(1), (int)flags, (mode_t)NUM(3));
+			rval = openat(NUM(0), STR(1), (int)flags,
+			    (mode_t)NUM(3));
 		} else {
 			if (i == 4) {
 				fprintf(stderr, "too many arguments\n");
@@ -693,7 +729,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		}
 
 		dev = makedev(NUM(fa + 3), NUM(fa + 4));
-		if (strcmp(STR(fa + 1), "c") == 0)		/* character device */
+		if (strcmp(STR(fa + 1), "c") == 0)	/* character device */
 			ntype = S_IFCHR;
 		else if (strcmp(STR(fa + 1), "b") == 0)	/* block device */
 			ntype = S_IFBLK;
@@ -732,6 +768,22 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = bind(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
+#ifdef HAS_BINDAT
+	case ACTION_BINDAT:
+	    {
+		struct sockaddr_un sunx;
+
+		sunx.sun_family = AF_UNIX;
+		strncpy(sunx.sun_path, STR(1), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = bindat(NUM(0), rval, (struct sockaddr *)&sunx,
+		    sizeof(sunx));
+		break;
+	    }
+#endif
 	case ACTION_CONNECT:
 	    {
 		struct sockaddr_un sunx;
@@ -745,6 +797,22 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = connect(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
+#ifdef HAS_CONNECTAT
+	case ACTION_CONNECTAT:
+	    {
+		struct sockaddr_un sunx;
+
+		sunx.sun_family = AF_UNIX;
+		strncpy(sunx.sun_path, STR(1), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = connectat(NUM(0), rval, (struct sockaddr *)&sunx,
+		    sizeof(sunx));
+		break;
+	    }
+#endif
 	case ACTION_CHMOD:
 		rval = chmod(STR(0), (mode_t)NUM(1));
 		break;
@@ -785,9 +853,17 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
+#ifdef HAS_CHFLAGSAT
+	case ACTION_CHFLAGSAT:
+		rval = chflagsat(NUM(0), STR(1),
+		    (unsigned long)str2flags(chflags_flags, STR(2)),
+		    (int)str2flags(chflagsat_flags, STR(3)));
+		break;
+#endif
 #ifdef HAS_LCHFLAGS
 	case ACTION_LCHFLAGS:
-		rval = lchflags(STR(0), (int)str2flags(chflags_flags, STR(1)));
+		rval = lchflags(STR(0),
+		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 	case ACTION_TRUNCATE:
@@ -827,7 +903,9 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		break;
 	case ACTION_PATHCONF:
 	case ACTION_FPATHCONF:
+#ifdef HAS_LPATHCONF
 	case ACTION_LPATHCONF:
+#endif
 	    {
 		long lrval;
 
@@ -844,9 +922,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		case ACTION_FPATHCONF:
 			lrval = fpathconf(NUM(0), name);
 			break;
+#ifdef HAS_LPATHCONF
 		case ACTION_LPATHCONF:
 			lrval = lpathconf(STR(0), name);
 			break;
+#endif
 		default:
 			abort();
 		}
@@ -925,7 +1005,8 @@ set_gids(char *gids)
 	assert(ngroups > 0);
 	gidset = malloc(sizeof(*gidset) * ngroups);
 	assert(gidset != NULL);
-	for (i = 0, g = strtok(gids, ","); g != NULL; g = strtok(NULL, ","), i++) {
+	for (i = 0, g = strtok(gids, ","); g != NULL;
+	    g = strtok(NULL, ","), i++) {
 		if (i >= ngroups) {
 			fprintf(stderr, "too many gids\n");
 			exit(1);
@@ -942,7 +1023,8 @@ set_gids(char *gids)
 		exit(1);
 	}
 	if (setegid(gidset[0]) < 0) {
-		fprintf(stderr, "cannot change effective gid: %s\n", strerror(errno));
+		fprintf(stderr, "cannot change effective gid: %s\n",
+		    strerror(errno));
 		exit(1);
 	}
 	free(gidset);
@@ -1012,7 +1094,8 @@ main(int argc, char *argv[])
 	for (;;) {
 		scall = find_syscall(argv[0]);
 		if (scall == NULL) {
-			fprintf(stderr, "syscall '%s' not supported\n", argv[0]);
+			fprintf(stderr, "syscall '%s' not supported\n",
+			    argv[0]);
 			exit(1);
 		}
 		argc++;

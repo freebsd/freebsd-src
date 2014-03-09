@@ -239,7 +239,7 @@ static device_method_t emu_midi_methods[] = {
 	DEVMETHOD(device_attach, emu_midi_attach),
 	DEVMETHOD(device_detach, emu_midi_detach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t emu_midi_driver = {

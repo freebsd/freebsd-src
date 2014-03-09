@@ -1,9 +1,9 @@
 /*
- *  $Id: buttons.c,v 1.86 2011/06/28 10:46:46 tom Exp $
+ *  $Id: buttons.c,v 1.94 2012/12/30 20:51:01 tom Exp $
  *
  *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -28,7 +28,7 @@
 #include <wchar.h>
 #endif
 
-#define MIN_BUTTON (dialog_state.visit_items ? -1 : 0)
+#define MIN_BUTTON (-dialog_state.visit_cols)
 
 static void
 center_label(char *buffer, int longest, const char *label)
@@ -86,11 +86,85 @@ string_to_char(const char **stringp)
     return result;
 }
 
+static size_t
+count_labels(const char **labels)
+{
+    size_t result = 0;
+    if (labels != 0) {
+	while (*labels++ != 0) {
+	    ++result;
+	}
+    }
+    return result;
+}
+
+/*
+ * Check if the latest key should be added to the hotkey list.
+ */
+static int
+was_hotkey(int this_key, int *used_keys, size_t next)
+{
+    int result = FALSE;
+
+    if (next != 0) {
+	size_t n;
+	for (n = 0; n < next; ++n) {
+	    if (used_keys[n] == this_key) {
+		result = TRUE;
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
+/*
+ * Determine the hot-keys for a set of button-labels.  Normally these are
+ * the first uppercase character in each label.  However, if more than one
+ * button has the same first-uppercase, then we will (attempt to) look for
+ * an alternate.
+ *
+ * This allocates data which must be freed by the caller.
+ */
+static int *
+get_hotkeys(const char **labels)
+{
+    int *result = 0;
+    size_t count = count_labels(labels);
+    size_t n;
+
+    if ((result = dlg_calloc(int, count + 1)) != 0) {
+	for (n = 0; n < count; ++n) {
+	    const char *label = labels[n];
+	    const int *indx = dlg_index_wchars(label);
+	    int limit = dlg_count_wchars(label);
+	    int i;
+
+	    for (i = 0; i < limit; ++i) {
+		int first = indx[i];
+		int check = UCH(label[first]);
+#ifdef USE_WIDE_CURSES
+		int last = indx[i + 1];
+		if ((last - first) != 1) {
+		    const char *temp = (label + first);
+		    check = string_to_char(&temp);
+		}
+#endif
+		if (dlg_isupper(check) && !was_hotkey(check, result, n)) {
+		    result[n] = check;
+		    break;
+		}
+	    }
+	}
+    }
+    return result;
+}
+
 /*
  * Print a button
  */
 static void
-print_button(WINDOW *win, char *label, int y, int x, int selected)
+print_button(WINDOW *win, char *label, int hotkey, int y, int x, int selected)
 {
     int i;
     int state = 0;
@@ -104,30 +178,27 @@ print_button(WINDOW *win, char *label, int y, int x, int selected)
 			 : button_label_inactive_attr);
 
     (void) wmove(win, y, x);
-    wattrset(win, selected
-	     ? button_active_attr
-	     : button_inactive_attr);
+    (void) wattrset(win, selected
+		    ? button_active_attr
+		    : button_inactive_attr);
     (void) waddstr(win, "<");
-    wattrset(win, label_attr);
+    (void) wattrset(win, label_attr);
     for (i = 0; i < limit; ++i) {
+	int check;
 	int first = indx[i];
 	int last = indx[i + 1];
 
 	switch (state) {
 	case 0:
+	    check = UCH(label[first]);
 #ifdef USE_WIDE_CURSES
 	    if ((last - first) != 1) {
 		const char *temp = (label + first);
-		int cmp = string_to_char(&temp);
-		if (dlg_isupper(cmp)) {
-		    wattrset(win, key_attr);
-		    state = 1;
-		}
-		break;
+		check = string_to_char(&temp);
 	    }
 #endif
-	    if (dlg_isupper(UCH(label[first]))) {
-		wattrset(win, key_attr);
+	    if (check == hotkey) {
+		(void) wattrset(win, key_attr);
 		state = 1;
 	    }
 	    break;
@@ -138,9 +209,9 @@ print_button(WINDOW *win, char *label, int y, int x, int selected)
 	}
 	waddnstr(win, label + first, last - first);
     }
-    wattrset(win, selected
-	     ? button_active_attr
-	     : button_inactive_attr);
+    (void) wattrset(win, selected
+		    ? button_active_attr
+		    : button_inactive_attr);
     (void) waddstr(win, ">");
     (void) wmove(win, y, x + ((int) strspn(label, " ")) + 1);
 }
@@ -203,22 +274,27 @@ dlg_button_x_step(const char **labels, int limit, int *gap, int *margin, int *st
     int length;
     int unused;
     int used;
+    int result;
 
-    if (count == 0)
-	return 0;
-    dlg_button_sizes(labels, FALSE, &longest, &length);
-    used = (length + (count * 2));
-    unused = limit - used;
+    *margin = 0;
+    if (count != 0) {
+	dlg_button_sizes(labels, FALSE, &longest, &length);
+	used = (length + (count * 2));
+	unused = limit - used;
 
-    if ((*gap = unused / (count + 3)) <= 0) {
-	if ((*gap = unused / (count + 1)) <= 0)
-	    *gap = 1;
-	*margin = *gap;
+	if ((*gap = unused / (count + 3)) <= 0) {
+	    if ((*gap = unused / (count + 1)) <= 0)
+		*gap = 1;
+	    *margin = *gap;
+	} else {
+	    *margin = *gap * 2;
+	}
+	*step = *gap + (used + count - 1) / count;
+	result = (*gap > 0) && (unused >= 0);
     } else {
-	*margin = *gap * 2;
+	result = 0;
     }
-    *step = *gap + (used + count - 1) / count;
-    return (*gap > 0) && (unused >= 0);
+    return result;
 }
 
 /*
@@ -282,35 +358,41 @@ dlg_draw_buttons(WINDOW *win,
      * Allocate a buffer big enough for any label.
      */
     need = (size_t) longest;
-    for (n = 0; labels[n] != 0; ++n) {
-	need += strlen(labels[n]) + 1;
-    }
-    buffer = dlg_malloc(char, need);
-    assert_ptr(buffer, "dlg_draw_buttons");
+    if (need != 0) {
+	int *hotkeys = get_hotkeys(labels);
+	assert_ptr(hotkeys, "dlg_draw_buttons");
 
-    /*
-     * Draw the labels.
-     */
-    for (n = 0; labels[n] != 0; n++) {
-	center_label(buffer, longest, labels[n]);
-	mouse_mkbutton(y, x, dlg_count_columns(buffer), n);
-	print_button(win, buffer, y, x,
-		     (selected == n) || (n == 0 && selected < 0));
-	if (selected == n)
-	    getyx(win, final_y, final_x);
-
-	if (vertical) {
-	    if ((y += step) > limit)
-		break;
-	} else {
-	    if ((x += step) > limit)
-		break;
+	for (n = 0; labels[n] != 0; ++n) {
+	    need += strlen(labels[n]) + 1;
 	}
+	buffer = dlg_malloc(char, need);
+	assert_ptr(buffer, "dlg_draw_buttons");
+
+	/*
+	 * Draw the labels.
+	 */
+	for (n = 0; labels[n] != 0; n++) {
+	    center_label(buffer, longest, labels[n]);
+	    mouse_mkbutton(y, x, dlg_count_columns(buffer), n);
+	    print_button(win, buffer, hotkeys[n], y, x,
+			 (selected == n) || (n == 0 && selected < 0));
+	    if (selected == n)
+		getyx(win, final_y, final_x);
+
+	    if (vertical) {
+		if ((y += step) > limit)
+		    break;
+	    } else {
+		if ((x += step) > limit)
+		    break;
+	    }
+	}
+	(void) wmove(win, final_y, final_x);
+	wrefresh(win);
+	(void) wattrset(win, save);
+	free(buffer);
+	free(hotkeys);
     }
-    (void) wmove(win, final_y, final_x);
-    wrefresh(win);
-    free(buffer);
-    wattrset(win, save);
 }
 
 /*
@@ -364,19 +446,27 @@ dlg_button_to_char(const char *label)
 int
 dlg_char_to_button(int ch, const char **labels)
 {
+    int result = DLG_EXIT_UNKNOWN;
+
     if (labels != 0) {
+	int *hotkeys = get_hotkeys(labels);
 	int j;
 
 	ch = (int) dlg_toupper(dlg_last_getc());
-	for (j = 0; labels[j] != 0; ++j) {
-	    int cmp = dlg_button_to_char(labels[j]);
-	    if (ch == cmp) {
-		dlg_flush_getc();
-		return j;
+
+	if (hotkeys != 0) {
+	    for (j = 0; labels[j] != 0; ++j) {
+		if (ch == hotkeys[j]) {
+		    dlg_flush_getc();
+		    result = j;
+		    break;
+		}
 	    }
+	    free(hotkeys);
 	}
     }
-    return DLG_EXIT_UNKNOWN;
+
+    return result;
 }
 
 static const char *
@@ -488,10 +578,12 @@ dlg_exit_buttoncode(int button)
 const char **
 dlg_ok_label(void)
 {
-    static const char *labels[3];
+    static const char *labels[4];
     int n = 0;
 
     labels[n++] = my_ok_label();
+    if (dialog_vars.extra_button)
+	labels[n++] = my_extra_label();
     if (dialog_vars.help_button)
 	labels[n++] = my_help_label();
     labels[n] = 0;
@@ -537,6 +629,7 @@ dlg_ok_buttoncode(int button)
     } else if (dialog_vars.help_button && (button == n)) {
 	result = DLG_EXIT_HELP;
     }
+    dlg_trace_msg("# dlg_ok_buttoncode(%d) = %d\n", button, result);
     return result;
 }
 
@@ -575,7 +668,7 @@ dlg_prev_ok_buttonindex(int current, int extra)
 /*
  * Find the button-index for the "OK" or "Cancel" button, according to
  * whether --defaultno is given.  If --nocancel was given, we always return
- * the index for "OK".
+ * the index for the first button (usually "OK" unless --nook was used).
  */
 int
 dlg_defaultno_button(void)
@@ -586,6 +679,30 @@ dlg_defaultno_button(void)
 	while (dlg_ok_buttoncode(result) != DLG_EXIT_CANCEL)
 	    ++result;
     }
+    dlg_trace_msg("# dlg_defaultno_button() = %d\n", result);
+    return result;
+}
+
+/*
+ * Find the button-index for a button named with --default-button. If the
+ * option was not specified, or if the selected button does not exist, return
+ * the index of the first button (usually "OK" unless --nook was used).
+ */
+int
+dlg_default_button(void)
+{
+    int i, n;
+    int result = 0;
+
+    if (dialog_vars.default_button >= 0) {
+	for (i = 0; (n = dlg_ok_buttoncode(i)) >= 0; i++) {
+	    if (n == dialog_vars.default_button) {
+		result = i;
+		break;
+	    }
+	}
+    }
+    dlg_trace_msg("# dlg_default_button() = %d\n", result);
     return result;
 }
 
@@ -642,10 +759,14 @@ dlg_yes_buttoncode(int button)
 int
 dlg_next_button(const char **labels, int button)
 {
-    if (labels[button + 1] != 0)
+    if (button < -1)
+	button = -1;
+
+    if (labels[button + 1] != 0) {
 	++button;
-    else
+    } else {
 	button = MIN_BUTTON;
+    }
     return button;
 }
 
@@ -655,9 +776,12 @@ dlg_next_button(const char **labels, int button)
 int
 dlg_prev_button(const char **labels, int button)
 {
-    if (button > MIN_BUTTON)
+    if (button > MIN_BUTTON) {
 	--button;
-    else {
+    } else {
+	if (button < -1)
+	    button = -1;
+
 	while (labels[button + 1] != 0)
 	    ++button;
     }

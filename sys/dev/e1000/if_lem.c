@@ -32,10 +32,11 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
 #endif
 
 #include <sys/param.h>
@@ -59,6 +60,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -85,7 +87,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.5";
+char lem_driver_version[] = "1.0.6";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -262,7 +264,7 @@ static device_method_t lem_methods[] = {
 	DEVMETHOD(device_shutdown, lem_shutdown),
 	DEVMETHOD(device_suspend, lem_suspend),
 	DEVMETHOD(device_resume, lem_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t lem_driver = {
@@ -280,6 +282,9 @@ MODULE_DEPEND(lem, ether, 1, 1, 1);
 
 #define EM_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
+
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
 
 static int lem_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int lem_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
@@ -442,6 +447,11 @@ lem_attach(device_t dev)
 		    &adapter->tx_abs_int_delay,
 		    E1000_REGISTER(&adapter->hw, E1000_TADV),
 		    lem_tx_abs_int_delay_dflt);
+		lem_add_int_delay_sysctl(adapter, "itr",
+		    "interrupt delay limit in usecs/4",
+		    &adapter->tx_itr,
+		    E1000_REGISTER(&adapter->hw, E1000_ITR),
+		    DEFAULT_ITR);
 	}
 
 	/* Sysctls for limiting the amount of work done in the taskqueue */
@@ -1337,12 +1347,16 @@ lem_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		lem_rxeof(adapter, adapter->rx_process_limit, NULL);
+		bool more = lem_rxeof(adapter, adapter->rx_process_limit, NULL);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			lem_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
+		if (more) {
+			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
+			return;
+		}
 	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1856,12 +1870,37 @@ lem_set_promisc(struct adapter *adapter)
 static void
 lem_disable_promisc(struct adapter *adapter)
 {
-	u32	reg_rctl;
+	struct ifnet	*ifp = adapter->ifp;
+	u32		reg_rctl;
+	int		mcnt = 0;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-
 	reg_rctl &=  (~E1000_RCTL_UPE);
-	reg_rctl &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg_rctl &=  (~E1000_RCTL_MPE);
 	reg_rctl &=  (~E1000_RCTL_SBP);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 }
@@ -2081,16 +2120,8 @@ lem_identify_hardware(struct adapter *adapter)
 	device_t dev = adapter->dev;
 
 	/* Make sure our PCI config space has the necessary stuff set */
+	pci_enable_busmaster(dev);
 	adapter->hw.bus.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((adapter->hw.bus.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (adapter->hw.bus.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		device_printf(dev, "Memory Access and/or Bus Master bits "
-		    "were not set!\n");
-		adapter->hw.bus.pci_cmd_word |=
-		(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND,
-		    adapter->hw.bus.pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
@@ -2648,7 +2679,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 			void *addr;
 
 			addr = PNMB(slot + si, &paddr);
-			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
+			adapter->tx_desc_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
 			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}
@@ -2955,10 +2986,8 @@ lem_txeof(struct adapter *adapter)
 	EM_TX_LOCK_ASSERT(adapter);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+	if (netmap_tx_irq(ifp, 0))
 		return;
-	}
 #endif /* DEV_NETMAP */
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
@@ -3154,8 +3183,7 @@ lem_allocate_receive_structures(struct adapter *adapter)
 	}
 
 	/* Create the spare map (used by getbuf) */
-	error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
-	     &adapter->rx_sparemap);
+	error = bus_dmamap_create(adapter->rxtag, 0, &adapter->rx_sparemap);
 	if (error) {
 		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 		    __func__, error);
@@ -3164,8 +3192,7 @@ lem_allocate_receive_structures(struct adapter *adapter)
 
 	rx_buffer = adapter->rx_buffer_area;
 	for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
-		error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
-		    &rx_buffer->map);
+		error = bus_dmamap_create(adapter->rxtag, 0, &rx_buffer->map);
 		if (error) {
 			device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 			    __func__, error);
@@ -3246,8 +3273,6 @@ lem_setup_receive_structures(struct adapter *adapter)
  *  Enable receive unit.
  *
  **********************************************************************/
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
 static void
 lem_initialize_receive_unit(struct adapter *adapter)
@@ -3338,19 +3363,13 @@ lem_initialize_receive_unit(struct adapter *adapter)
 	 * Tail Descriptor Pointers
 	 */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDH(0), 0);
+	rctl = adapter->num_rx_desc - 1; /* default RDT value */
 #ifdef DEV_NETMAP
 	/* preserve buffers already made available to clients */
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(adapter->ifp);
-		struct netmap_kring *kring = &na->rx_rings[0];
-		int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-		if (t >= na->num_rx_desc)
-			t -= na->num_rx_desc;
-		E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), t);
-	} else
+	if (ifp->if_capenable & IFCAP_NETMAP)
+		rctl -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[0]);
 #endif /* DEV_NETMAP */
-	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), adapter->num_rx_desc - 1);
+	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), rctl);
 
 	return;
 }
@@ -3434,12 +3453,9 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	    BUS_DMASYNC_POSTREAD);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[0].si, PI_NET);
+	if (netmap_rx_irq(ifp, 0, &rx_sent)) {
 		EM_RX_UNLOCK(adapter);
-		return (0);
+		return (FALSE);
 	}
 #endif /* DEV_NETMAP */
 
@@ -3782,10 +3798,6 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	reg &= ~E1000_RCTL_CFIEN;
 	reg |= E1000_RCTL_VFE;
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
-
-	/* Update the frame size */
-	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
-	    adapter->max_frame_size + VLAN_TAG_SIZE);
 }
 
 static void
@@ -4588,6 +4600,8 @@ lem_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
+	if (info->offset == E1000_ITR)	/* units are 256ns here */
+		ticks *= 4;
 
 	adapter = info->adapter;
 	

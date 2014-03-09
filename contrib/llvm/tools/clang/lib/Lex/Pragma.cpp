@@ -13,17 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Pragma.h"
-#include "clang/Lex/HeaderSearch.h"
-#include "clang/Lex/LiteralSupport.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/LexDiagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/LiteralSupport.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/Preprocessor.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
 using namespace clang;
+
+#include "llvm/Support/raw_ostream.h"
 
 // Out-of-line destructor to provide a home for the class.
 PragmaHandler::~PragmaHandler() {
@@ -101,7 +105,11 @@ void PragmaNamespace::HandlePragma(Preprocessor &PP,
 
 /// HandlePragmaDirective - The "\#pragma" directive has been parsed.  Lex the
 /// rest of the pragma, passing it to the registered pragma handlers.
-void Preprocessor::HandlePragmaDirective(unsigned Introducer) {
+void Preprocessor::HandlePragmaDirective(SourceLocation IntroducerLoc,
+                                         PragmaIntroducerKind Introducer) {
+  if (Callbacks)
+    Callbacks->PragmaDirective(IntroducerLoc, Introducer);
+
   if (!PragmasEnabled)
     return;
 
@@ -109,7 +117,7 @@ void Preprocessor::HandlePragmaDirective(unsigned Introducer) {
 
   // Invoke the first level of pragma handlers which reads the namespace id.
   Token Tok;
-  PragmaHandlers->HandlePragma(*this, PragmaIntroducerKind(Introducer), Tok);
+  PragmaHandlers->HandlePragma(*this, Introducer, Tok);
 
   // If the pragma handler didn't read the rest of the line, consume it now.
   if ((CurTokenLexer && CurTokenLexer->isParsingPreprocessorDirective()) 
@@ -184,7 +192,7 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
 
   // Read the '"..."'.
   Lex(Tok);
-  if (Tok.isNot(tok::string_literal) && Tok.isNot(tok::wide_string_literal)) {
+  if (!tok::isStringLiteral(Tok.getKind())) {
     Diag(PragmaLoc, diag::err__Pragma_malformed);
     // Skip this token, and the ')', if present.
     if (Tok.isNot(tok::r_paren))
@@ -219,15 +227,51 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
   SourceLocation RParenLoc = Tok.getLocation();
   std::string StrVal = getSpelling(StrTok);
 
-  // The _Pragma is lexically sound.  Destringize according to C99 6.10.9.1:
-  // "The string literal is destringized by deleting the L prefix, if present,
+  // The _Pragma is lexically sound.  Destringize according to C11 6.10.9.1:
+  // "The string literal is destringized by deleting any encoding prefix,
   // deleting the leading and trailing double-quotes, replacing each escape
   // sequence \" by a double-quote, and replacing each escape sequence \\ by a
   // single backslash."
-  if (StrVal[0] == 'L')  // Remove L prefix.
+  if (StrVal[0] == 'L' || StrVal[0] == 'U' ||
+      (StrVal[0] == 'u' && StrVal[1] != '8'))
     StrVal.erase(StrVal.begin());
-  assert(StrVal[0] == '"' && StrVal[StrVal.size()-1] == '"' &&
-         "Invalid string token!");
+  else if (StrVal[0] == 'u')
+    StrVal.erase(StrVal.begin(), StrVal.begin() + 2);
+
+  if (StrVal[0] == 'R') {
+    // FIXME: C++11 does not specify how to handle raw-string-literals here.
+    // We strip off the 'R', the quotes, the d-char-sequences, and the parens.
+    assert(StrVal[1] == '"' && StrVal[StrVal.size() - 1] == '"' &&
+           "Invalid raw string token!");
+
+    // Measure the length of the d-char-sequence.
+    unsigned NumDChars = 0;
+    while (StrVal[2 + NumDChars] != '(') {
+      assert(NumDChars < (StrVal.size() - 5) / 2 &&
+             "Invalid raw string token!");
+      ++NumDChars;
+    }
+    assert(StrVal[StrVal.size() - 2 - NumDChars] == ')');
+
+    // Remove 'R " d-char-sequence' and 'd-char-sequence "'. We'll replace the
+    // parens below.
+    StrVal.erase(0, 2 + NumDChars);
+    StrVal.erase(StrVal.size() - 1 - NumDChars);
+  } else {
+    assert(StrVal[0] == '"' && StrVal[StrVal.size()-1] == '"' &&
+           "Invalid string token!");
+
+    // Remove escaped quotes and escapes.
+    unsigned ResultPos = 1;
+    for (unsigned i = 1, e = StrVal.size() - 1; i != e; ++i) {
+      // Skip escapes.  \\ -> '\' and \" -> '"'.
+      if (StrVal[i] == '\\' && i + 1 < e &&
+          (StrVal[i + 1] == '\\' || StrVal[i + 1] == '"'))
+        ++i;
+      StrVal[ResultPos++] = StrVal[i];
+    }
+    StrVal.erase(StrVal.begin() + ResultPos, StrVal.end() - 1);
+  }
 
   // Remove the front quote, replacing it with a space, so that the pragma
   // contents appear to have a space before them.
@@ -236,16 +280,6 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
   // Replace the terminating quote with a \n.
   StrVal[StrVal.size()-1] = '\n';
 
-  // Remove escaped quotes and escapes.
-  for (unsigned i = 0, e = StrVal.size(); i != e-1; ++i) {
-    if (StrVal[i] == '\\' &&
-        (StrVal[i+1] == '\\' || StrVal[i+1] == '"')) {
-      // \\ -> '\' and \" -> '"'.
-      StrVal.erase(StrVal.begin()+i);
-      --e;
-    }
-  }
-  
   // Plop the string (including the newline and trailing null) into a buffer
   // where we can lex it.
   Token TmpTok;
@@ -261,7 +295,7 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
   EnterSourceFileWithLexer(TL, 0);
 
   // With everything set up, lex this as a #pragma directive.
-  HandlePragmaDirective(PIK__Pragma);
+  HandlePragmaDirective(PragmaLoc, PIK__Pragma);
 
   // Finally, return whatever came after the pragma directive.
   return Lex(Tok);
@@ -310,7 +344,7 @@ void Preprocessor::HandleMicrosoft__pragma(Token &Tok) {
   EnterTokenStream(TokArray, PragmaToks.size(), true, true);
 
   // With everything set up, lex this as a #pragma directive.
-  HandlePragmaDirective(PIK___pragma);
+  HandlePragmaDirective(PragmaLoc, PIK___pragma);
 
   // Finally, return whatever came after the pragma directive.
   return Lex(Tok);
@@ -409,8 +443,9 @@ void Preprocessor::HandlePragmaSystemHeader(Token &SysHeaderTok) {
   // Emit a line marker.  This will change any source locations from this point
   // forward to realize they are in a system header.
   // Create a line note with this information.
-  SourceMgr.AddLineNote(SysHeaderTok.getLocation(), PLoc.getLine(), FilenameID,
-                        false, false, true, false);
+  SourceMgr.AddLineNote(SysHeaderTok.getLocation(), PLoc.getLine()+1,
+                        FilenameID, /*IsEntry=*/false, /*IsExit=*/false,
+                        /*IsSystem=*/true, /*IsExternC=*/false);
 }
 
 /// HandlePragmaDependency - Handle \#pragma GCC dependency "foo" blah.
@@ -439,8 +474,8 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
 
   // Search include directories for this file.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = LookupFile(Filename, isAngled, 0, CurDir, NULL, NULL,
-                                     NULL);
+  const FileEntry *File = LookupFile(FilenameTok.getLocation(), Filename,
+                                     isAngled, 0, CurDir, NULL, NULL, NULL);
   if (File == 0) {
     if (!SuppressIncludeNotFoundError)
       Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
@@ -466,178 +501,7 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
   }
 }
 
-/// \brief Handle the microsoft \#pragma comment extension.
-///
-/// The syntax is:
-/// \code
-///   \#pragma comment(linker, "foo")
-/// \endcode
-/// 'linker' is one of five identifiers: compiler, exestr, lib, linker, user.
-/// "foo" is a string, which is fully macro expanded, and permits string
-/// concatenation, embedded escape characters etc.  See MSDN for more details.
-void Preprocessor::HandlePragmaComment(Token &Tok) {
-  SourceLocation CommentLoc = Tok.getLocation();
-  Lex(Tok);
-  if (Tok.isNot(tok::l_paren)) {
-    Diag(CommentLoc, diag::err_pragma_comment_malformed);
-    return;
-  }
-
-  // Read the identifier.
-  Lex(Tok);
-  if (Tok.isNot(tok::identifier)) {
-    Diag(CommentLoc, diag::err_pragma_comment_malformed);
-    return;
-  }
-
-  // Verify that this is one of the 5 whitelisted options.
-  // FIXME: warn that 'exestr' is deprecated.
-  const IdentifierInfo *II = Tok.getIdentifierInfo();
-  if (!II->isStr("compiler") && !II->isStr("exestr") && !II->isStr("lib") &&
-      !II->isStr("linker") && !II->isStr("user")) {
-    Diag(Tok.getLocation(), diag::err_pragma_comment_unknown_kind);
-    return;
-  }
-
-  // Read the optional string if present.
-  Lex(Tok);
-  std::string ArgumentString;
-  if (Tok.is(tok::comma)) {
-    Lex(Tok); // eat the comma.
-
-    // We need at least one string.
-    if (Tok.isNot(tok::string_literal)) {
-      Diag(Tok.getLocation(), diag::err_pragma_comment_malformed);
-      return;
-    }
-
-    // String concatenation allows multiple strings, which can even come from
-    // macro expansion.
-    // "foo " "bar" "Baz"
-    SmallVector<Token, 4> StrToks;
-    while (Tok.is(tok::string_literal)) {
-      if (Tok.hasUDSuffix())
-        Diag(Tok, diag::err_invalid_string_udl);
-      StrToks.push_back(Tok);
-      Lex(Tok);
-    }
-
-    // Concatenate and parse the strings.
-    StringLiteralParser Literal(&StrToks[0], StrToks.size(), *this);
-    assert(Literal.isAscii() && "Didn't allow wide strings in");
-    if (Literal.hadError)
-      return;
-    if (Literal.Pascal) {
-      Diag(StrToks[0].getLocation(), diag::err_pragma_comment_malformed);
-      return;
-    }
-
-    ArgumentString = Literal.GetString();
-  }
-
-  // FIXME: If the kind is "compiler" warn if the string is present (it is
-  // ignored).
-  // FIXME: 'lib' requires a comment string.
-  // FIXME: 'linker' requires a comment string, and has a specific list of
-  // things that are allowable.
-
-  if (Tok.isNot(tok::r_paren)) {
-    Diag(Tok.getLocation(), diag::err_pragma_comment_malformed);
-    return;
-  }
-  Lex(Tok);  // eat the r_paren.
-
-  if (Tok.isNot(tok::eod)) {
-    Diag(Tok.getLocation(), diag::err_pragma_comment_malformed);
-    return;
-  }
-
-  // If the pragma is lexically sound, notify any interested PPCallbacks.
-  if (Callbacks)
-    Callbacks->PragmaComment(CommentLoc, II, ArgumentString);
-}
-
-/// HandlePragmaMessage - Handle the microsoft and gcc \#pragma message
-/// extension.  The syntax is:
-/// \code
-///   \#pragma message(string)
-/// \endcode
-/// OR, in GCC mode:
-/// \code
-///   \#pragma message string
-/// \endcode
-/// string is a string, which is fully macro expanded, and permits string
-/// concatenation, embedded escape characters, etc... See MSDN for more details.
-void Preprocessor::HandlePragmaMessage(Token &Tok) {
-  SourceLocation MessageLoc = Tok.getLocation();
-  Lex(Tok);
-  bool ExpectClosingParen = false;
-  switch (Tok.getKind()) {
-  case tok::l_paren:
-    // We have a MSVC style pragma message.
-    ExpectClosingParen = true;
-    // Read the string.
-    Lex(Tok);
-    break;
-  case tok::string_literal:
-    // We have a GCC style pragma message, and we just read the string.
-    break;
-  default:
-    Diag(MessageLoc, diag::err_pragma_message_malformed);
-    return;
-  }
-
-  // We need at least one string.
-  if (Tok.isNot(tok::string_literal)) {
-    Diag(Tok.getLocation(), diag::err_pragma_message_malformed);
-    return;
-  }
-
-  // String concatenation allows multiple strings, which can even come from
-  // macro expansion.
-  // "foo " "bar" "Baz"
-  SmallVector<Token, 4> StrToks;
-  while (Tok.is(tok::string_literal)) {
-    if (Tok.hasUDSuffix())
-      Diag(Tok, diag::err_invalid_string_udl);
-    StrToks.push_back(Tok);
-    Lex(Tok);
-  }
-
-  // Concatenate and parse the strings.
-  StringLiteralParser Literal(&StrToks[0], StrToks.size(), *this);
-  assert(Literal.isAscii() && "Didn't allow wide strings in");
-  if (Literal.hadError)
-    return;
-  if (Literal.Pascal) {
-    Diag(StrToks[0].getLocation(), diag::err_pragma_message_malformed);
-    return;
-  }
-
-  StringRef MessageString(Literal.GetString());
-
-  if (ExpectClosingParen) {
-    if (Tok.isNot(tok::r_paren)) {
-      Diag(Tok.getLocation(), diag::err_pragma_message_malformed);
-      return;
-    }
-    Lex(Tok);  // eat the r_paren.
-  }
-
-  if (Tok.isNot(tok::eod)) {
-    Diag(Tok.getLocation(), diag::err_pragma_message_malformed);
-    return;
-  }
-
-  // Output the message.
-  Diag(MessageLoc, diag::warn_pragma_message) << MessageString;
-
-  // If the pragma is lexically sound, notify any interested PPCallbacks.
-  if (Callbacks)
-    Callbacks->PragmaMessage(MessageLoc, MessageString);
-}
-
-/// ParsePragmaPushOrPopMacro - Handle parsing of pragma push_macro/pop_macro.  
+/// ParsePragmaPushOrPopMacro - Handle parsing of pragma push_macro/pop_macro.
 /// Return the IdentifierInfo* associated with the macro to push or pop.
 IdentifierInfo *Preprocessor::ParsePragmaPushOrPopMacro(Token &Tok) {
   // Remember the pragma token location.
@@ -692,7 +556,7 @@ IdentifierInfo *Preprocessor::ParsePragmaPushOrPopMacro(Token &Tok) {
 ///
 /// The syntax is:
 /// \code
-///   \#pragma push_macro("macro")
+///   #pragma push_macro("macro")
 /// \endcode
 void Preprocessor::HandlePragmaPushMacro(Token &PushMacroTok) {
   // Parse the pragma directive and get the macro IdentifierInfo*.
@@ -702,17 +566,13 @@ void Preprocessor::HandlePragmaPushMacro(Token &PushMacroTok) {
   // Get the MacroInfo associated with IdentInfo.
   MacroInfo *MI = getMacroInfo(IdentInfo);
  
-  MacroInfo *MacroCopyToPush = 0;
   if (MI) {
-    // Make a clone of MI.
-    MacroCopyToPush = CloneMacroInfo(*MI);
-    
     // Allow the original MacroInfo to be redefined later.
     MI->setIsAllowRedefinitionsWithoutWarning(true);
   }
 
   // Push the cloned MacroInfo so we can retrieve it later.
-  PragmaPushMacroInfo[IdentInfo].push_back(MacroCopyToPush);
+  PragmaPushMacroInfo[IdentInfo].push_back(MI);
 }
 
 /// \brief Handle \#pragma pop_macro.
@@ -733,10 +593,11 @@ void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
     PragmaPushMacroInfo.find(IdentInfo);
   if (iter != PragmaPushMacroInfo.end()) {
     // Forget the MacroInfo currently associated with IdentInfo.
-    if (MacroInfo *CurrentMI = getMacroInfo(IdentInfo)) {
-      if (CurrentMI->isWarnIfUnused())
-        WarnUnusedMacroLocs.erase(CurrentMI->getDefinitionLoc());
-      UndefineMacro(IdentInfo, CurrentMI, MessageLoc);
+    if (MacroDirective *CurrentMD = getMacroDirective(IdentInfo)) {
+      MacroInfo *MI = CurrentMD->getMacroInfo();
+      if (MI->isWarnIfUnused())
+        WarnUnusedMacroLocs.erase(MI->getDefinitionLoc());
+      appendMacroDirective(IdentInfo, AllocateUndefMacroDirective(MessageLoc));
     }
 
     // Get the MacroInfo we want to reinstall.
@@ -744,9 +605,8 @@ void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
 
     if (MacroToReInstall) {
       // Reinstall the previously pushed macro.
-      setMacroInfo(IdentInfo, MacroToReInstall);
-    } else if (IdentInfo->hasMacroDefinition()) {
-      clearMacroInfo(IdentInfo);
+      appendDefMacroDirective(IdentInfo, MacroToReInstall, MessageLoc,
+                              /*isImported=*/false);
     }
 
     // Pop PragmaPushMacroInfo stack.
@@ -1026,10 +886,40 @@ struct PragmaDebugHandler : public PragmaHandler {
       llvm::CrashRecoveryContext *CRC =llvm::CrashRecoveryContext::GetCurrent();
       if (CRC)
         CRC->HandleCrash();
+    } else if (II->isStr("captured")) {
+      HandleCaptured(PP);
     } else {
       PP.Diag(Tok, diag::warn_pragma_debug_unexpected_command)
         << II->getName();
     }
+
+    PPCallbacks *Callbacks = PP.getPPCallbacks();
+    if (Callbacks)
+      Callbacks->PragmaDebug(Tok.getLocation(), II->getName());
+  }
+
+  void HandleCaptured(Preprocessor &PP) {
+    // Skip if emitting preprocessed output.
+    if (PP.isPreprocessedOutput())
+      return;
+
+    Token Tok;
+    PP.LexUnexpandedToken(Tok);
+
+    if (Tok.isNot(tok::eod)) {
+      PP.Diag(Tok, diag::ext_pp_extra_tokens_at_eol)
+        << "pragma clang __debug captured";
+      return;
+    }
+
+    SourceLocation NameLoc = Tok.getLocation();
+    Token *Toks = PP.getPreprocessorAllocator().Allocate<Token>(1);
+    Toks->startToken();
+    Toks->setKind(tok::annot_pragma_captured);
+    Toks->setLocation(NameLoc);
+
+    PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
+                        /*OwnsTokens=*/false);
   }
 
 // Disable MSVC warning about runtime stack overflow.
@@ -1090,61 +980,155 @@ public:
     }
 
     PP.LexUnexpandedToken(Tok);
+    SourceLocation StringLoc = Tok.getLocation();
 
-    // We need at least one string.
-    if (Tok.isNot(tok::string_literal)) {
-      PP.Diag(Tok.getLocation(), diag::warn_pragma_diagnostic_invalid_token);
+    std::string WarningName;
+    if (!PP.FinishLexStringLiteral(Tok, WarningName, "pragma diagnostic",
+                                   /*MacroExpansion=*/false))
       return;
-    }
-
-    // String concatenation allows multiple strings, which can even come from
-    // macro expansion.
-    // "foo " "bar" "Baz"
-    SmallVector<Token, 4> StrToks;
-    while (Tok.is(tok::string_literal)) {
-      StrToks.push_back(Tok);
-      PP.LexUnexpandedToken(Tok);
-    }
 
     if (Tok.isNot(tok::eod)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_diagnostic_invalid_token);
       return;
     }
 
-    // Concatenate and parse the strings.
-    StringLiteralParser Literal(&StrToks[0], StrToks.size(), PP);
-    assert(Literal.isAscii() && "Didn't allow wide strings in");
-    if (Literal.hadError)
-      return;
-    if (Literal.Pascal) {
-      PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
-      return;
-    }
-
-    StringRef WarningName(Literal.GetString());
-
     if (WarningName.size() < 3 || WarningName[0] != '-' ||
         WarningName[1] != 'W') {
-      PP.Diag(StrToks[0].getLocation(),
-              diag::warn_pragma_diagnostic_invalid_option);
+      PP.Diag(StringLoc, diag::warn_pragma_diagnostic_invalid_option);
       return;
     }
 
     if (PP.getDiagnostics().setDiagnosticGroupMapping(WarningName.substr(2),
                                                       Map, DiagLoc))
-      PP.Diag(StrToks[0].getLocation(),
-              diag::warn_pragma_diagnostic_unknown_warning) << WarningName;
+      PP.Diag(StringLoc, diag::warn_pragma_diagnostic_unknown_warning)
+        << WarningName;
     else if (Callbacks)
       Callbacks->PragmaDiagnostic(DiagLoc, Namespace, Map, WarningName);
   }
 };
 
-/// PragmaCommentHandler - "\#pragma comment ...".
-struct PragmaCommentHandler : public PragmaHandler {
-  PragmaCommentHandler() : PragmaHandler("comment") {}
+// Returns -1 on failure.
+static int LexSimpleInt(Preprocessor &PP, Token &Tok) {
+  assert(Tok.is(tok::numeric_constant));
+  SmallString<8> IntegerBuffer;
+  bool NumberInvalid = false;
+  StringRef Spelling = PP.getSpelling(Tok, IntegerBuffer, &NumberInvalid);
+  if (NumberInvalid)
+    return -1;
+  NumericLiteralParser Literal(Spelling, Tok.getLocation(), PP);
+  if (Literal.hadError || !Literal.isIntegerLiteral() || Literal.hasUDSuffix())
+    return -1;
+  llvm::APInt APVal(32, 0);
+  if (Literal.GetIntegerValue(APVal))
+    return -1;
+  PP.Lex(Tok);
+  return int(APVal.getLimitedValue(INT_MAX));
+}
+
+/// "\#pragma warning(...)".  MSVC's diagnostics do not map cleanly to clang's
+/// diagnostics, so we don't really implement this pragma.  We parse it and
+/// ignore it to avoid -Wunknown-pragma warnings.
+struct PragmaWarningHandler : public PragmaHandler {
+  PragmaWarningHandler() : PragmaHandler("warning") {}
+
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
-                            Token &CommentTok) {
-    PP.HandlePragmaComment(CommentTok);
+                            Token &Tok) {
+    // Parse things like:
+    // warning(push, 1)
+    // warning(pop)
+    // warning(disable : 1 2 3 ; error : 4 5 6 ; suppress : 7 8 9)
+    SourceLocation DiagLoc = Tok.getLocation();
+    PPCallbacks *Callbacks = PP.getPPCallbacks();
+
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::l_paren)) {
+      PP.Diag(Tok, diag::warn_pragma_warning_expected) << "(";
+      return;
+    }
+
+    PP.Lex(Tok);
+    IdentifierInfo *II = Tok.getIdentifierInfo();
+    if (!II) {
+      PP.Diag(Tok, diag::warn_pragma_warning_spec_invalid);
+      return;
+    }
+
+    if (II->isStr("push")) {
+      // #pragma warning( push[ ,n ] )
+      int Level = -1;
+      PP.Lex(Tok);
+      if (Tok.is(tok::comma)) {
+        PP.Lex(Tok);
+        if (Tok.is(tok::numeric_constant))
+          Level = LexSimpleInt(PP, Tok);
+        if (Level < 0 || Level > 4) {
+          PP.Diag(Tok, diag::warn_pragma_warning_push_level);
+          return;
+        }
+      }
+      if (Callbacks)
+        Callbacks->PragmaWarningPush(DiagLoc, Level);
+    } else if (II->isStr("pop")) {
+      // #pragma warning( pop )
+      PP.Lex(Tok);
+      if (Callbacks)
+        Callbacks->PragmaWarningPop(DiagLoc);
+    } else {
+      // #pragma warning( warning-specifier : warning-number-list
+      //                  [; warning-specifier : warning-number-list...] )
+      while (true) {
+        II = Tok.getIdentifierInfo();
+        if (!II) {
+          PP.Diag(Tok, diag::warn_pragma_warning_spec_invalid);
+          return;
+        }
+
+        // Figure out which warning specifier this is.
+        StringRef Specifier = II->getName();
+        bool SpecifierValid =
+            llvm::StringSwitch<bool>(Specifier)
+                .Cases("1", "2", "3", "4", true)
+                .Cases("default", "disable", "error", "once", "suppress", true)
+                .Default(false);
+        if (!SpecifierValid) {
+          PP.Diag(Tok, diag::warn_pragma_warning_spec_invalid);
+          return;
+        }
+        PP.Lex(Tok);
+        if (Tok.isNot(tok::colon)) {
+          PP.Diag(Tok, diag::warn_pragma_warning_expected) << ":";
+          return;
+        }
+
+        // Collect the warning ids.
+        SmallVector<int, 4> Ids;
+        PP.Lex(Tok);
+        while (Tok.is(tok::numeric_constant)) {
+          int Id = LexSimpleInt(PP, Tok);
+          if (Id <= 0) {
+            PP.Diag(Tok, diag::warn_pragma_warning_expected_number);
+            return;
+          }
+          Ids.push_back(Id);
+        }
+        if (Callbacks)
+          Callbacks->PragmaWarning(DiagLoc, Specifier, Ids);
+
+        // Parse the next specifier if there is a semicolon.
+        if (Tok.isNot(tok::semi))
+          break;
+        PP.Lex(Tok);
+      }
+    }
+
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok, diag::warn_pragma_warning_expected) << ")";
+      return;
+    }
+
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::eod))
+      PP.Diag(Tok, diag::ext_pp_extra_tokens_at_eol) << "pragma warning";
   }
 };
 
@@ -1153,16 +1137,92 @@ struct PragmaIncludeAliasHandler : public PragmaHandler {
   PragmaIncludeAliasHandler() : PragmaHandler("include_alias") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &IncludeAliasTok) {
-      PP.HandlePragmaIncludeAlias(IncludeAliasTok);
+    PP.HandlePragmaIncludeAlias(IncludeAliasTok);
   }
 };
 
-/// PragmaMessageHandler - "\#pragma message("...")".
+/// PragmaMessageHandler - Handle the microsoft and gcc \#pragma message
+/// extension.  The syntax is:
+/// \code
+///   #pragma message(string)
+/// \endcode
+/// OR, in GCC mode:
+/// \code
+///   #pragma message string
+/// \endcode
+/// string is a string, which is fully macro expanded, and permits string
+/// concatenation, embedded escape characters, etc... See MSDN for more details.
+/// Also handles \#pragma GCC warning and \#pragma GCC error which take the same
+/// form as \#pragma message.
 struct PragmaMessageHandler : public PragmaHandler {
-  PragmaMessageHandler() : PragmaHandler("message") {}
+private:
+  const PPCallbacks::PragmaMessageKind Kind;
+  const StringRef Namespace;
+
+  static const char* PragmaKind(PPCallbacks::PragmaMessageKind Kind,
+                                bool PragmaNameOnly = false) {
+    switch (Kind) {
+      case PPCallbacks::PMK_Message:
+        return PragmaNameOnly ? "message" : "pragma message";
+      case PPCallbacks::PMK_Warning:
+        return PragmaNameOnly ? "warning" : "pragma warning";
+      case PPCallbacks::PMK_Error:
+        return PragmaNameOnly ? "error" : "pragma error";
+    }
+    llvm_unreachable("Unknown PragmaMessageKind!");
+  }
+
+public:
+  PragmaMessageHandler(PPCallbacks::PragmaMessageKind Kind,
+                       StringRef Namespace = StringRef())
+    : PragmaHandler(PragmaKind(Kind, true)), Kind(Kind), Namespace(Namespace) {}
+
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
-                            Token &CommentTok) {
-    PP.HandlePragmaMessage(CommentTok);
+                            Token &Tok) {
+    SourceLocation MessageLoc = Tok.getLocation();
+    PP.Lex(Tok);
+    bool ExpectClosingParen = false;
+    switch (Tok.getKind()) {
+    case tok::l_paren:
+      // We have a MSVC style pragma message.
+      ExpectClosingParen = true;
+      // Read the string.
+      PP.Lex(Tok);
+      break;
+    case tok::string_literal:
+      // We have a GCC style pragma message, and we just read the string.
+      break;
+    default:
+      PP.Diag(MessageLoc, diag::err_pragma_message_malformed) << Kind;
+      return;
+    }
+
+    std::string MessageString;
+    if (!PP.FinishLexStringLiteral(Tok, MessageString, PragmaKind(Kind),
+                                   /*MacroExpansion=*/true))
+      return;
+
+    if (ExpectClosingParen) {
+      if (Tok.isNot(tok::r_paren)) {
+        PP.Diag(Tok.getLocation(), diag::err_pragma_message_malformed) << Kind;
+        return;
+      }
+      PP.Lex(Tok);  // eat the r_paren.
+    }
+
+    if (Tok.isNot(tok::eod)) {
+      PP.Diag(Tok.getLocation(), diag::err_pragma_message_malformed) << Kind;
+      return;
+    }
+
+    // Output the message.
+    PP.Diag(MessageLoc, (Kind == PPCallbacks::PMK_Error)
+                          ? diag::err_pragma_message
+                          : diag::warn_pragma_message) << MessageString;
+
+    // If the pragma is lexically sound, notify any interested PPCallbacks.
+    if (PPCallbacks *Callbacks = PP.getPPCallbacks())
+      Callbacks->PragmaMessage(MessageLoc, Namespace, Kind, MessageString);
   }
 };
 
@@ -1277,6 +1337,29 @@ struct PragmaARCCFCodeAuditedHandler : public PragmaHandler {
   }
 };
 
+/// \brief Handle "\#pragma region [...]"
+///
+/// The syntax is
+/// \code
+///   #pragma region [optional name]
+///   #pragma endregion [optional comment]
+/// \endcode
+///
+/// \note This is
+/// <a href="http://msdn.microsoft.com/en-us/library/b6xkz944(v=vs.80).aspx">editor-only</a>
+/// pragma, just skipped by compiler.
+struct PragmaRegionHandler : public PragmaHandler {
+  PragmaRegionHandler(const char *pragma) : PragmaHandler(pragma) { }
+
+  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                            Token &NameTok) {
+    // #pragma region: endregion matches can be verified
+    // __pragma(region): no sense, but ignored by msvc
+    // _Pragma is not valid for MSVC, but there isn't any point
+    // to handle a _Pragma differently.
+  }
+};
+
 }  // end anonymous namespace
 
 
@@ -1287,13 +1370,17 @@ void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler(new PragmaMarkHandler());
   AddPragmaHandler(new PragmaPushMacroHandler());
   AddPragmaHandler(new PragmaPopMacroHandler());
-  AddPragmaHandler(new PragmaMessageHandler());
+  AddPragmaHandler(new PragmaMessageHandler(PPCallbacks::PMK_Message));
 
   // #pragma GCC ...
   AddPragmaHandler("GCC", new PragmaPoisonHandler());
   AddPragmaHandler("GCC", new PragmaSystemHeaderHandler());
   AddPragmaHandler("GCC", new PragmaDependencyHandler());
   AddPragmaHandler("GCC", new PragmaDiagnosticHandler("GCC"));
+  AddPragmaHandler("GCC", new PragmaMessageHandler(PPCallbacks::PMK_Warning,
+                                                   "GCC"));
+  AddPragmaHandler("GCC", new PragmaMessageHandler(PPCallbacks::PMK_Error,
+                                                   "GCC"));
   // #pragma clang ...
   AddPragmaHandler("clang", new PragmaPoisonHandler());
   AddPragmaHandler("clang", new PragmaSystemHeaderHandler());
@@ -1308,7 +1395,9 @@ void Preprocessor::RegisterBuiltinPragmas() {
 
   // MS extensions.
   if (LangOpts.MicrosoftExt) {
-    AddPragmaHandler(new PragmaCommentHandler());
+    AddPragmaHandler(new PragmaWarningHandler());
     AddPragmaHandler(new PragmaIncludeAliasHandler());
+    AddPragmaHandler(new PragmaRegionHandler("region"));
+    AddPragmaHandler(new PragmaRegionHandler("endregion"));
   }
 }

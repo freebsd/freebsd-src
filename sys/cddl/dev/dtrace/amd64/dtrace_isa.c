@@ -367,7 +367,27 @@ dtrace_getarg(int arg, int aframes)
 			    sizeof (uintptr_t));
 
 			if (arg <= inreg) {
-				stack = (uintptr_t *)&rp->r_rdi;
+				switch (arg) {
+				case 0:
+					stack = (uintptr_t *)&rp->r_rdi;
+					break;
+				case 1:
+					stack = (uintptr_t *)&rp->r_rsi;
+					break;
+				case 2:
+					stack = (uintptr_t *)&rp->r_rdx;
+					break;
+				case 3:
+					stack = (uintptr_t *)&rp->r_rcx;
+					break;
+				case 4:
+					stack = (uintptr_t *)&rp->r_r8;
+					break;
+				case 5:
+					stack = (uintptr_t *)&rp->r_r9;
+					break;
+				}
+				arg = 0;
 			} else {
 				stack = (uintptr_t *)(rp->r_rsp);
 				arg -= inreg;
@@ -398,7 +418,7 @@ dtrace_getarg(int arg, int aframes)
 	}
 
 	arg -= (inreg + 1);
-	stack = (uintptr_t *)&fp[1];
+	stack = (uintptr_t *)fp + 2;
 
 load:
 	DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);

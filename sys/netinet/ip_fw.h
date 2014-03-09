@@ -218,6 +218,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_FORWARD_IP6,		/* fwd sockaddr_in6             */
 
+	O_DSCP,			/* 2 u32 = DSCP mask */
+	O_SETDSCP,		/* arg1=DSCP value */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 

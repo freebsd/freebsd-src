@@ -57,9 +57,12 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/ofw/ofw_syscons.h>
 
 static int ofwfb_ignore_mmap_checks = 1;
+static int ofwfb_reset_on_switch = 1;
 static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
     &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
+SYSCTL_INT(_hw_ofwfb, OID_AUTO, reset_on_mode_switch, CTLFLAG_RW,
+    &ofwfb_reset_on_switch, 0, "reset the framebuffer driver on mode switch");
 
 extern u_char dflt_font_16[];
 extern u_char dflt_font_14[];
@@ -199,13 +202,18 @@ ofwfb_foreground(uint8_t attr)
 }
 
 static u_int
-ofwfb_pix32(int attr)
+ofwfb_pix32(struct ofwfb_softc *sc, int attr)
 {
 	u_int retval;
 
-	retval = (ofwfb_cmap[attr].blue  << 16) |
-		(ofwfb_cmap[attr].green << 8) |
-		ofwfb_cmap[attr].red;
+	if (sc->sc_tag == &bs_le_tag)
+		retval = (ofwfb_cmap[attr].red << 16) |
+			(ofwfb_cmap[attr].green << 8) |
+			ofwfb_cmap[attr].blue;
+	else
+		retval = (ofwfb_cmap[attr].blue  << 16) |
+			(ofwfb_cmap[attr].green << 8) |
+			ofwfb_cmap[attr].red;
 
 	return (retval);
 }
@@ -221,6 +229,7 @@ ofwfb_configure(int flags)
 	int depth;
 	int disable;
 	int len;
+	int i;
 	char type[16];
 	static int done = 0;
 
@@ -264,24 +273,17 @@ ofwfb_configure(int flags)
 	} else
 		return (0);
 
+	if (OF_getproplen(node, "height") != sizeof(sc->sc_height) ||
+	    OF_getproplen(node, "width") != sizeof(sc->sc_width) ||
+	    OF_getproplen(node, "linebytes") != sizeof(sc->sc_stride))
+		return (0);
+
 	sc->sc_depth = depth;
 	sc->sc_node = node;
 	sc->sc_console = 1;
 	OF_getprop(node, "height", &sc->sc_height, sizeof(sc->sc_height));
 	OF_getprop(node, "width", &sc->sc_width, sizeof(sc->sc_width));
 	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
-
-	/*
-	 * Grab the physical address of the framebuffer, and then map it
-	 * into our memory space. If the MMU is not yet up, it will be
-	 * remapped for us when relocation turns on.
-	 *
-	 * XXX We assume #address-cells is 1 at this point.
-	 */
-	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
-
-	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
-	    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
 
 	/*
 	 * Get the PCI addresses of the adapter. The node may be the
@@ -294,9 +296,53 @@ ofwfb_configure(int flags)
 		len = OF_getprop(OF_parent(node), "assigned-addresses",
 		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
 	}
+	if (len == -1)
+		len = 0;
+	sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
-	if (len != -1) {
-		sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
+	/*
+	 * Grab the physical address of the framebuffer, and then map it
+	 * into our memory space. If the MMU is not yet up, it will be
+	 * remapped for us when relocation turns on.
+	 *
+	 * XXX We assume #address-cells is 1 at this point.
+	 */
+	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
+		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+		sc->sc_tag = &bs_be_tag;
+		bus_space_map(sc->sc_tag, fb_phys, sc->sc_height *
+		    sc->sc_stride, BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+	} else {
+		/*
+		 * Some IBM systems don't have an address property. Try to
+		 * guess the framebuffer region from the assigned addresses.
+		 * This is ugly, but there doesn't seem to be an alternative.
+		 * Linux does the same thing.
+		 */
+
+		fb_phys = sc->sc_num_pciaddrs;
+		for (i = 0; i < sc->sc_num_pciaddrs; i++) {
+			/* If it is too small, not the framebuffer */
+			if (sc->sc_pciaddrs[i].size_lo <
+			    sc->sc_stride*sc->sc_height)
+				continue;
+			/* If it is not memory, it isn't either */
+			if (!(sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_SPACE_MEM32))
+				continue;
+
+			/* This could be the framebuffer */
+			fb_phys = i;
+
+			/* If it is prefetchable, it certainly is */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				break;
+		}
+		if (fb_phys == sc->sc_num_pciaddrs)
+			return (0);
+
+		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr);
 	}
 
 	ofwfb_init(0, &sc->sc_va, 0);
@@ -404,26 +450,28 @@ ofwfb_set_mode(video_adapter_t *adp, int mode)
 
 	sc = (struct ofwfb_softc *)adp;
 
-	/*
-	 * Open the display device, which will initialize it.
-	 */
-
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
-
-	if (sc->sc_depth == 8) {
+	if (ofwfb_reset_on_switch) {
 		/*
-		 * Install the ISO6429 colormap - older OFW systems
-		 * don't do this by default
+		 * Open the display device, which will initialize it.
 		 */
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-				       ofwfb_cmap[i].red,
-				       ofwfb_cmap[i].green,
-				       ofwfb_cmap[i].blue,
-				       i,
-				       &retval);
+
+		memset(name, 0, sizeof(name));
+		OF_package_to_path(sc->sc_node, name, sizeof(name));
+		ih = OF_open(name);
+
+		if (sc->sc_depth == 8) {
+			/*
+			 * Install the ISO6429 colormap - older OFW systems
+			 * don't do this by default
+			 */
+			for (i = 0; i < 16; i++) {
+				OF_call_method("color!", ih, 4, 1,
+						   ofwfb_cmap[i].red,
+						   ofwfb_cmap[i].green,
+						   ofwfb_cmap[i].blue,
+						   i,
+						   &retval);
+			}
 		}
 	}
 
@@ -586,14 +634,22 @@ ofwfb_blank_display8(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	uint8_t *addr;
+	uint32_t *addr;
+	uint32_t color;
+	uint32_t end;
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (uint8_t *) sc->sc_addr;
+	addr = (uint32_t *) sc->sc_addr;
+	end = (sc->sc_stride/4) * sc->sc_height;
 
-	/* Could be done a lot faster e.g. 32-bits, or Altivec'd */
-	for (i = 0; i < sc->sc_stride*sc->sc_height; i++)
-		*(addr + i) = ofwfb_background(SC_NORM_ATTR);
+	/* Splat 4 pixels at once. */
+	color = (ofwfb_background(SC_NORM_ATTR) << 24) |
+	    (ofwfb_background(SC_NORM_ATTR) << 16) |
+	    (ofwfb_background(SC_NORM_ATTR) << 8) |
+	    (ofwfb_background(SC_NORM_ATTR));
+
+	for (i = 0; i < end; i++)
+		*(addr + i) = color;
 
 	return (0);
 }
@@ -603,13 +659,14 @@ ofwfb_blank_display32(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	uint32_t *addr;
+	uint32_t *addr, blank;
 
 	sc = (struct ofwfb_softc *)adp;
 	addr = (uint32_t *) sc->sc_addr;
+	blank = ofwfb_pix32(sc, ofwfb_background(SC_NORM_ATTR));
 
 	for (i = 0; i < (sc->sc_stride/4)*sc->sc_height; i++)
-		*(addr + i) = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+		*(addr + i) = blank;
 
 	return (0);
 }
@@ -807,7 +864,7 @@ ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	int row;
 	int col;
 	int i, j, k;
-	uint32_t *addr;
+	uint32_t *addr, fg, bg;
 	u_char *p;
 
 	sc = (struct ofwfb_softc *)adp;
@@ -817,13 +874,16 @@ ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	addr = (uint32_t *)sc->sc_addr
 		+ (row + sc->sc_ymargin)*(sc->sc_stride/4)
 		+ col + sc->sc_xmargin;
+	
+	fg = ofwfb_pix32(sc, ofwfb_foreground(a));
+	bg = ofwfb_pix32(sc, ofwfb_background(a));
 
 	for (i = 0; i < sc->sc_font_height; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
 			if ((p[i] & (1 << k)) == 0)
-				*(addr + j) = ofwfb_pix32(ofwfb_background(a));
+				*(addr + j) = bg;
 			else
-				*(addr + j) = ofwfb_pix32(ofwfb_foreground(a));
+				*(addr + j) = fg;
 		}
 		addr += (sc->sc_stride/4);
 	}
@@ -914,8 +974,8 @@ ofwfb_putm32(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 		+ (y + sc->sc_ymargin)*(sc->sc_stride/4)
 		+ x + sc->sc_xmargin;
 
-	fg = ofwfb_pix32(ofwfb_foreground(SC_NORM_ATTR));
-	bg = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+	fg = ofwfb_pix32(sc, ofwfb_foreground(SC_NORM_ATTR));
+	bg = ofwfb_pix32(sc, ofwfb_background(SC_NORM_ATTR));
 
 	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
 		for (j = 0, k = width; j < 8; j++, k--) {

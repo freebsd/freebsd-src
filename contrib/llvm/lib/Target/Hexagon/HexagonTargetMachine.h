@@ -14,14 +14,13 @@
 #ifndef HexagonTARGETMACHINE_H
 #define HexagonTARGETMACHINE_H
 
-#include "HexagonInstrInfo.h"
-#include "HexagonSubtarget.h"
-#include "HexagonISelLowering.h"
-#include "HexagonSelectionDAGInfo.h"
 #include "HexagonFrameLowering.h"
+#include "HexagonISelLowering.h"
+#include "HexagonInstrInfo.h"
+#include "HexagonSelectionDAGInfo.h"
+#include "HexagonSubtarget.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetTransformImpl.h"
 
 namespace llvm {
 
@@ -35,8 +34,6 @@ class HexagonTargetMachine : public LLVMTargetMachine {
   HexagonSelectionDAGInfo TSInfo;
   HexagonFrameLowering FrameLowering;
   const InstrItineraryData* InstrItins;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
 
 public:
   HexagonTargetMachine(const Target &T, StringRef TT,StringRef CPU,
@@ -69,14 +66,6 @@ public:
 
   virtual const HexagonSelectionDAGInfo* getSelectionDAGInfo() const {
     return &TSInfo;
-  }
-
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
   }
 
   virtual const DataLayout       *getDataLayout() const { return &DL; }

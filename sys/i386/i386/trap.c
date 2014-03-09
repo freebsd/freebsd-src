@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
-#include "opt_kdtrace.h"
 #include "opt_npx.h"
 #include "opt_trap.h"
 
@@ -123,9 +122,8 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 
 /*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
+ * These hooks are necessary for the pid and usdt providers.
  */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
@@ -139,7 +137,7 @@ void dblfault_handler(void);
 
 extern inthand_t IDTVEC(lcall_syscall);
 
-#define MAX_TRAP_MSG		33
+#define MAX_TRAP_MSG		32
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -174,8 +172,6 @@ static char *trap_msg[] = {
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
 	"",					/* 31 unused (reserved) */
 	"DTrace pid return trap",               /* 32 T_DTRACE_RET */
-	"DTrace fasttrap probe trap",           /* 33 T_DTRACE_PROBE */
-
 };
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -275,15 +271,10 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
-	    type == T_BPTFLT) {
+	if (type == T_DTRACE_RET || type == T_BPTFLT) {
 		struct reg regs;
 
 		fill_frame_regs(frame, &regs);
-		if (type == T_DTRACE_PROBE &&
-		    dtrace_fasttrap_probe_ptr != NULL &&
-		    dtrace_fasttrap_probe_ptr(&regs) == 0)
-			goto out;
 		if (type == T_BPTFLT &&
 		    dtrace_pid_probe_ptr != NULL &&
 		    dtrace_pid_probe_ptr(&regs) == 0)
@@ -767,10 +758,10 @@ trap(struct trapframe *frame)
 	ksi.ksi_trapno = type;
 	if (uprintf_signal) {
 		uprintf("pid %d comm %s: signal %d err %x code %d type %d "
-		    "addr 0x%x eip 0x%08x "
+		    "addr 0x%x esp 0x%08x eip 0x%08x "
 		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
 		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
-		    frame->tf_eip,
+		    frame->tf_esp, frame->tf_eip,
 		    fubyte((void *)(frame->tf_eip + 0)),
 		    fubyte((void *)(frame->tf_eip + 1)),
 		    fubyte((void *)(frame->tf_eip + 2)),
@@ -780,6 +771,7 @@ trap(struct trapframe *frame)
 		    fubyte((void *)(frame->tf_eip + 6)),
 		    fubyte((void *)(frame->tf_eip + 7)));
 	}
+	KASSERT((read_eflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
 #ifdef DEBUG

@@ -127,7 +127,7 @@ struct finst {
 static const struct inst db_inst_0f388x[] = {
 /*80*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invept" },
 /*81*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invvpid" },
-/*82*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*82*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invpcid" },
 /*83*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*84*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*85*/	{ "",	   FALSE, NONE,  0,	      0 },
@@ -1350,6 +1350,16 @@ db_disasm(loc, altfmt)
 			break;
 		case 0xc9:
 			i_name = "mwait";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xca:
+			i_name = "clac";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xcb:
+			i_name = "stac";
 			i_size = NONE;
 			i_mode = 0;
 			break;

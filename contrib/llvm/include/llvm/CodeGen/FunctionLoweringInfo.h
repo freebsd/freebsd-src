@@ -15,19 +15,15 @@
 #ifndef LLVM_CODEGEN_FUNCTIONLOWERINGINFO_H
 #define LLVM_CODEGEN_FUNCTIONLOWERINGINFO_H
 
-#include "llvm/InlineAsm.h"
-#include "llvm/Instructions.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/BranchProbabilityInfo.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <vector>
 
@@ -35,6 +31,7 @@ namespace llvm {
 
 class AllocaInst;
 class BasicBlock;
+class BranchProbabilityInfo;
 class CallInst;
 class Function;
 class GlobalVariable;
@@ -52,8 +49,8 @@ class Value;
 /// function that is used when lowering a region of the function.
 ///
 class FunctionLoweringInfo {
+  const TargetMachine &TM;
 public:
-  const TargetLowering &TLI;
   const Function *Fn;
   MachineFunction *MF;
   MachineRegisterInfo *RegInfo;
@@ -118,7 +115,12 @@ public:
   /// there's no other convenient place for it to live right now.
   std::vector<std::pair<MachineInstr*, unsigned> > PHINodesToUpdate;
 
-  explicit FunctionLoweringInfo(const TargetLowering &TLI);
+  /// If the current MBB is a landing pad, the exception pointer and exception
+  /// selector registers are copied into these virtual registers by
+  /// SelectionDAGISel::PrepareEHLandingPad().
+  unsigned ExceptionPointerVirtReg, ExceptionSelectorVirtReg;
+
+  explicit FunctionLoweringInfo(const TargetMachine &TM) : TM(TM) {}
 
   /// set - Initialize this FunctionLoweringInfo with the given Function
   /// and its associated MachineFunction.
@@ -136,7 +138,7 @@ public:
     return ValueMap.count(V);
   }
 
-  unsigned CreateReg(EVT VT);
+  unsigned CreateReg(MVT VT);
   
   unsigned CreateRegs(Type *Ty);
   

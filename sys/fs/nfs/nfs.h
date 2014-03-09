@@ -335,11 +335,6 @@ struct nfsreferral {
  */
 #define	NFS_NFSSTATS	1		/* struct: struct nfsstats */
 
-#define	FS_NFS_NAMES { 							\
-		       { 0, 0 }, 					\
-		       { "nfsstats", CTLTYPE_STRUCT }, 			\
-}
-
 /*
  * Here is the definition of the attribute bits array and macros that
  * manipulate it.
@@ -466,6 +461,7 @@ struct nfssockreq {
 	u_int32_t	nr_prog;
 	u_int32_t	nr_vers;
 	struct __rpc_client *nr_client;
+	AUTH		*nr_auth;
 };
 
 /*
@@ -523,7 +519,6 @@ struct nfsrv_descript {
 	int			*nd_errp;	/* Pointer to ret status */
 	u_int32_t		nd_retxid;	/* Reply xid */
 	struct nfsrvcache	*nd_rp;		/* Assoc. cache entry */
-	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
 	struct ucred		*nd_cred;	/* Credentials */
 	uid_t			nd_saveduid;	/* Saved uid */

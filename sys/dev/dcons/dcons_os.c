@@ -74,6 +74,10 @@
 #define DCONS_POLL_HZ	25
 #endif
 
+#ifndef DCONS_POLL_IDLE
+#define DCONS_POLL_IDLE	256
+#endif
+
 #ifndef DCONS_BUF_SIZE
 #define DCONS_BUF_SIZE (16*1024)
 #endif
@@ -90,6 +94,7 @@ static char bssbuf[DCONS_BUF_SIZE];	/* buf in bss */
 static struct dcons_global dg;
 struct dcons_global *dcons_conf;
 static int poll_hz = DCONS_POLL_HZ;
+static u_int poll_idle = DCONS_POLL_HZ * DCONS_POLL_IDLE;
 
 static struct dcons_softc sc[DCONS_NPORT];
 
@@ -214,14 +219,17 @@ dcons_timeout(void *v)
 		tp = dc->tty;
 
 		tty_lock(tp);
-		while ((c = dcons_os_checkc_nopoll(dc)) != -1)
+		while ((c = dcons_os_checkc_nopoll(dc)) != -1) {
 			ttydisc_rint(tp, c, 0);
+			poll_idle = 0;
+		}
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	}
-	polltime = hz / poll_hz;
-	if (polltime < 1)
-		polltime = 1;
+	poll_idle++;
+	polltime = hz;
+	if (poll_idle <= (poll_hz * DCONS_POLL_IDLE))
+		polltime /= poll_hz;
 	callout_reset(&dcons_callout, polltime, dcons_timeout, tp);
 }
 
@@ -368,8 +376,6 @@ dcons_attach(void)
 	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
 	callout_init(&dcons_callout, CALLOUT_MPSAFE);
 	polltime = hz / poll_hz;
-	if (polltime < 1)
-		polltime = 1;
 	callout_reset(&dcons_callout, polltime, dcons_timeout, NULL);
 	return(0);
 }

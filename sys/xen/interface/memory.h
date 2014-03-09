@@ -27,6 +27,8 @@
 #ifndef __XEN_PUBLIC_MEMORY_H__
 #define __XEN_PUBLIC_MEMORY_H__
 
+#include "xen.h"
+
 /*
  * Increase or decrease the specified domain's memory reservation. Returns the
  * number of extents successfully allocated or freed.
@@ -48,6 +50,11 @@
 /* NUMA node to allocate from. */
 #define XENMEMF_node(x)     (((x) + 1) << 8)
 #define XENMEMF_get_node(x) ((((x) >> 8) - 1) & 0xffu)
+/* Flag to populate physmap with populate-on-demand entries */
+#define XENMEMF_populate_on_demand (1<<16)
+/* Flag to request allocation only from the node specified */
+#define XENMEMF_exact_node_request  (1<<17)
+#define XENMEMF_exact_node(n) (XENMEMF_node(n) | XENMEMF_exact_node_request)
 #endif
 
 struct xen_memory_reservation {
@@ -201,11 +208,17 @@ struct xen_add_to_physmap {
     /* Which domain to change the mapping for. */
     domid_t domid;
 
+    /* Number of pages to go through for gmfn_range */
+    uint16_t    size;
+
     /* Source mapping space. */
 #define XENMAPSPACE_shared_info 0 /* shared info page */
 #define XENMAPSPACE_grant_table 1 /* grant table page */
-#define XENMAPSPACE_mfn         2 /* usual MFN */
+#define XENMAPSPACE_gmfn        2 /* GMFN */
+#define XENMAPSPACE_gmfn_range  3 /* GMFN range */
     unsigned int space;
+
+#define XENMAPIDX_grant_table_status 0x80000000
 
     /* Index into source mapping space. */
     xen_ulong_t idx;
@@ -232,29 +245,8 @@ struct xen_remove_from_physmap {
 typedef struct xen_remove_from_physmap xen_remove_from_physmap_t;
 DEFINE_XEN_GUEST_HANDLE(xen_remove_from_physmap_t);
 
-/*
- * Translates a list of domain-specific GPFNs into MFNs. Returns a -ve error
- * code on failure. This call only works for auto-translated guests.
- */
-#define XENMEM_translate_gpfn_list  8
-struct xen_translate_gpfn_list {
-    /* Which domain to translate for? */
-    domid_t domid;
-
-    /* Length of list. */
-    xen_ulong_t nr_gpfns;
-
-    /* List of GPFNs to translate. */
-    XEN_GUEST_HANDLE(xen_pfn_t) gpfn_list;
-
-    /*
-     * Output list to contain MFN translations. May be the same as the input
-     * list (in which case each input GPFN is overwritten with the output MFN).
-     */
-    XEN_GUEST_HANDLE(xen_pfn_t) mfn_list;
-};
-typedef struct xen_translate_gpfn_list xen_translate_gpfn_list_t;
-DEFINE_XEN_GUEST_HANDLE(xen_translate_gpfn_list_t);
+/*** REMOVED ***/
+/*#define XENMEM_translate_gpfn_list  8*/
 
 /*
  * Returns the pseudo-physical memory map as it was when the domain
@@ -298,6 +290,114 @@ struct xen_foreign_memory_map {
 };
 typedef struct xen_foreign_memory_map xen_foreign_memory_map_t;
 DEFINE_XEN_GUEST_HANDLE(xen_foreign_memory_map_t);
+
+#define XENMEM_set_pod_target       16
+#define XENMEM_get_pod_target       17
+struct xen_pod_target {
+    /* IN */
+    uint64_t target_pages;
+    /* OUT */
+    uint64_t tot_pages;
+    uint64_t pod_cache_pages;
+    uint64_t pod_entries;
+    /* IN */
+    domid_t domid;
+};
+typedef struct xen_pod_target xen_pod_target_t;
+
+#if defined(__XEN__) || defined(__XEN_TOOLS__)
+
+#ifndef uint64_aligned_t
+#define uint64_aligned_t uint64_t
+#endif
+
+/*
+ * Get the number of MFNs saved through memory sharing.
+ * The call never fails. 
+ */
+#define XENMEM_get_sharing_freed_pages    18
+#define XENMEM_get_sharing_shared_pages   19
+
+#define XENMEM_paging_op                    20
+#define XENMEM_paging_op_nominate           0
+#define XENMEM_paging_op_evict              1
+#define XENMEM_paging_op_prep               2
+
+#define XENMEM_access_op                    21
+#define XENMEM_access_op_resume             0
+
+struct xen_mem_event_op {
+    uint8_t     op;         /* XENMEM_*_op_* */
+    domid_t     domain;
+    
+
+    /* PAGING_PREP IN: buffer to immediately fill page in */
+    uint64_aligned_t    buffer;
+    /* Other OPs */
+    uint64_aligned_t    gfn;           /* IN:  gfn of page being operated on */
+};
+typedef struct xen_mem_event_op xen_mem_event_op_t;
+DEFINE_XEN_GUEST_HANDLE(xen_mem_event_op_t);
+
+#define XENMEM_sharing_op                   22
+#define XENMEM_sharing_op_nominate_gfn      0
+#define XENMEM_sharing_op_nominate_gref     1
+#define XENMEM_sharing_op_share             2
+#define XENMEM_sharing_op_resume            3
+#define XENMEM_sharing_op_debug_gfn         4
+#define XENMEM_sharing_op_debug_mfn         5
+#define XENMEM_sharing_op_debug_gref        6
+#define XENMEM_sharing_op_add_physmap       7
+#define XENMEM_sharing_op_audit             8
+
+#define XENMEM_SHARING_OP_S_HANDLE_INVALID  (-10)
+#define XENMEM_SHARING_OP_C_HANDLE_INVALID  (-9)
+
+/* The following allows sharing of grant refs. This is useful
+ * for sharing utilities sitting as "filters" in IO backends
+ * (e.g. memshr + blktap(2)). The IO backend is only exposed 
+ * to grant references, and this allows sharing of the grefs */
+#define XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG   (1ULL << 62)
+
+#define XENMEM_SHARING_OP_FIELD_MAKE_GREF(field, val)  \
+    (field) = (XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG | val)
+#define XENMEM_SHARING_OP_FIELD_IS_GREF(field)         \
+    ((field) & XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG)
+#define XENMEM_SHARING_OP_FIELD_GET_GREF(field)        \
+    ((field) & (~XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG))
+
+struct xen_mem_sharing_op {
+    uint8_t     op;     /* XENMEM_sharing_op_* */
+    domid_t     domain;
+
+    union {
+        struct mem_sharing_op_nominate {  /* OP_NOMINATE_xxx           */
+            union {
+                uint64_aligned_t gfn;     /* IN: gfn to nominate       */
+                uint32_t      grant_ref;  /* IN: grant ref to nominate */
+            } u;
+            uint64_aligned_t  handle;     /* OUT: the handle           */
+        } nominate;
+        struct mem_sharing_op_share {     /* OP_SHARE/ADD_PHYSMAP */
+            uint64_aligned_t source_gfn;    /* IN: the gfn of the source page */
+            uint64_aligned_t source_handle; /* IN: handle to the source page */
+            uint64_aligned_t client_gfn;    /* IN: the client gfn */
+            uint64_aligned_t client_handle; /* IN: handle to the client page */
+            domid_t  client_domain; /* IN: the client domain id */
+        } share; 
+        struct mem_sharing_op_debug {     /* OP_DEBUG_xxx */
+            union {
+                uint64_aligned_t gfn;      /* IN: gfn to debug          */
+                uint64_aligned_t mfn;      /* IN: mfn to debug          */
+                uint32_t gref;     /* IN: gref to debug         */
+            } u;
+        } debug;
+    } u;
+};
+typedef struct xen_mem_sharing_op xen_mem_sharing_op_t;
+DEFINE_XEN_GUEST_HANDLE(xen_mem_sharing_op_t);
+
+#endif /* defined(__XEN__) || defined(__XEN_TOOLS__) */
 
 #endif /* __XEN_PUBLIC_MEMORY_H__ */
 

@@ -345,8 +345,12 @@ sndstat_prepare(struct sbuf *s)
 	struct snddev_info *d;
     	int i, j;
 
-	sbuf_printf(s, "FreeBSD Audio Driver (newpcm: %ubit %d/%s)\n",
-	    (u_int)sizeof(intpcm32_t) << 3, SND_DRV_VERSION, MACHINE_ARCH);
+	if (snd_verbose > 0) {
+		sbuf_printf(s, "FreeBSD Audio Driver (%ubit %d/%s)\n",
+		    (u_int)sizeof(intpcm32_t) << 3, SND_DRV_VERSION,
+		    MACHINE_ARCH);
+	}
+
 	if (SLIST_EMPTY(&sndstat_devlist)) {
 		sbuf_printf(s, "No devices installed.\n");
 		sbuf_finish(s);

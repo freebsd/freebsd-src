@@ -30,67 +30,32 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <time.h>
 
 #include "timer.h"
 #include "timer_subr.h"
 
-struct timeval *
+struct timespec *
 rtadvd_timer_rest(struct rtadvd_timer *rat)
 {
-	static struct timeval returnval, now;
+	static struct timespec returnval, now;
 
-	gettimeofday(&now, NULL);
-	if (TIMEVAL_LEQ(&rat->rat_tm, &now)) {
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+	if (TS_CMP(&rat->rat_tm, &now, <=)) {
 		syslog(LOG_DEBUG,
 		    "<%s> a timer must be expired, but not yet",
 		    __func__);
-		returnval.tv_sec = returnval.tv_usec = 0;
+		returnval.tv_sec = returnval.tv_nsec = 0;
 	}
 	else
-		TIMEVAL_SUB(&rat->rat_tm, &now, &returnval);
+		TS_SUB(&rat->rat_tm, &now, &returnval);
 
 	return (&returnval);
-}
-
-/* result = a + b */
-void
-TIMEVAL_ADD(struct timeval *a, struct timeval *b, struct timeval *result)
-{
-	long l;
-
-	if ((l = a->tv_usec + b->tv_usec) < MILLION) {
-		result->tv_usec = l;
-		result->tv_sec = a->tv_sec + b->tv_sec;
-	}
-	else {
-		result->tv_usec = l - MILLION;
-		result->tv_sec = a->tv_sec + b->tv_sec + 1;
-	}
-}
-
-/*
- * result = a - b
- * XXX: this function assumes that a >= b.
- */
-void
-TIMEVAL_SUB(struct timeval *a, struct timeval *b, struct timeval *result)
-{
-	long l;
-
-	if ((l = a->tv_usec - b->tv_usec) >= 0) {
-		result->tv_usec = l;
-		result->tv_sec = a->tv_sec - b->tv_sec;
-	}
-	else {
-		result->tv_usec = MILLION + l;
-		result->tv_sec = a->tv_sec - b->tv_sec - 1;
-	}
 }
 
 char *

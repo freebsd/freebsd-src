@@ -91,7 +91,7 @@ what the endianness of the CPU.  VFP is sane.
 -------------------------------------------------------------------------------
 */
 #if defined(SOFTFLOAT_FOR_GCC)
-#if defined(__VFP_FP__) || defined(__ARMEB__)
+#if defined (__ARM_EABI__) || defined(__VFP_FP__) || defined(__ARMEB__)
 #define FLOAT64_DEMANGLE(a)	(a)
 #define FLOAT64_MANGLE(a)	(a)
 #else

@@ -29,21 +29,19 @@
 #ifndef LLVM_CODEGEN_LIVEVARIABLES_H
 #define LLVM_CODEGEN_LIVEVARIABLES_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SparseBitVector.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
 
+class MachineBasicBlock;
 class MachineRegisterInfo;
-class TargetRegisterInfo;
 
 class LiveVariables : public MachineFunctionPass {
 public:
@@ -159,8 +157,8 @@ private:   // Intermediate data structures
 
   void HandlePhysRegUse(unsigned Reg, MachineInstr *MI);
   void HandlePhysRegDef(unsigned Reg, MachineInstr *MI,
-                        SmallVector<unsigned, 4> &Defs);
-  void UpdatePhysRegDefs(MachineInstr *MI, SmallVector<unsigned, 4> &Defs);
+                        SmallVectorImpl<unsigned> &Defs);
+  void UpdatePhysRegDefs(MachineInstr *MI, SmallVectorImpl<unsigned> &Defs);
 
   /// FindLastRefOrPartRef - Return the last reference or partial reference of
   /// the specified register.

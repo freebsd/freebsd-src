@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_DEBUG_H
@@ -49,12 +49,15 @@ extern "C" {
 #endif
 
 extern int zfs_flags;
+extern int zfs_recover;
 
-#define	ZFS_DEBUG_DPRINTF	0x0001
-#define	ZFS_DEBUG_DBUF_VERIFY	0x0002
-#define	ZFS_DEBUG_DNODE_VERIFY	0x0004
-#define	ZFS_DEBUG_SNAPNAMES	0x0008
-#define	ZFS_DEBUG_MODIFY	0x0010
+#define	ZFS_DEBUG_DPRINTF	(1<<0)
+#define	ZFS_DEBUG_DBUF_VERIFY	(1<<1)
+#define	ZFS_DEBUG_DNODE_VERIFY	(1<<2)
+#define	ZFS_DEBUG_SNAPNAMES	(1<<3)
+#define	ZFS_DEBUG_MODIFY	(1<<4)
+#define	ZFS_DEBUG_SPA		(1<<5)
+#define	ZFS_DEBUG_ZIO_FREE	(1<<6)
 
 #ifdef ZFS_DEBUG
 extern void __dprintf(const char *file, const char *func,
@@ -77,6 +80,7 @@ typedef struct zfs_dbgmsg {
 extern void zfs_dbgmsg_init(void);
 extern void zfs_dbgmsg_fini(void);
 extern void zfs_dbgmsg(const char *fmt, ...);
+extern void zfs_dbgmsg_print(const char *tag);
 
 #ifdef illumos
 #ifndef _KERNEL

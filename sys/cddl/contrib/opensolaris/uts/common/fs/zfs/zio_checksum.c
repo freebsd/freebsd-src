@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -77,6 +79,7 @@ zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 	{{fletcher_4_native,	fletcher_4_byteswap},	1, 0, 0, "fletcher4"},
 	{{zio_checksum_SHA256,	zio_checksum_SHA256},	1, 0, 1, "sha256"},
 	{{fletcher_4_native,	fletcher_4_byteswap},	0, 1, 0, "zilog2"},
+	{{zio_checksum_off,	zio_checksum_off},	0, 0, 0, "noparity"},
 };
 
 enum zio_checksum
@@ -201,7 +204,7 @@ zio_checksum_error(zio_t *zio, zio_bad_cksum_t *info)
 	zio_cksum_t actual_cksum, expected_cksum, verifier;
 
 	if (checksum >= ZIO_CHECKSUM_FUNCTIONS || ci->ci_func[0] == NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	if (ci->ci_eck) {
 		zio_eck_t *eck;
@@ -216,10 +219,10 @@ zio_checksum_error(zio_t *zio, zio_bad_cksum_t *info)
 			else if (eck->zec_magic == BSWAP_64(ZEC_MAGIC))
 				nused = BSWAP_64(zilc->zc_nused);
 			else
-				return (ECKSUM);
+				return (SET_ERROR(ECKSUM));
 
 			if (nused > size)
-				return (ECKSUM);
+				return (SET_ERROR(ECKSUM));
 
 			size = P2ROUNDUP_TYPED(nused, ZIL_MIN_BLKSZ, uint64_t);
 		} else {
@@ -261,7 +264,7 @@ zio_checksum_error(zio_t *zio, zio_bad_cksum_t *info)
 	info->zbc_has_cksum = 1;
 
 	if (!ZIO_CHECKSUM_EQUAL(actual_cksum, expected_cksum))
-		return (ECKSUM);
+		return (SET_ERROR(ECKSUM));
 
 	if (zio_injection_enabled && !zio->io_error &&
 	    (error = zio_handle_fault_injection(zio, ECKSUM)) != 0) {

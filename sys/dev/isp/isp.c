@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 static const char fconf[] = "Chan %d PortDB[%d] changed:\n current =(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)\n database=(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)";
 static const char notresp[] = "Not RESPONSE in RESPONSE Queue (type 0x%x) @ idx %d (next %d) nlooked %d";
 static const char topology[] = "Chan %d WWPN 0x%08x%08x PortID 0x%06x N-Port Handle %d, Connection '%s'";
-static const char sc4[] = "NVRAM";
 static const char bun[] = "bad underrun (count %d, resid %d, status %s)";
 static const char lipd[] = "Chan %d LIP destroyed %d active commands";
 static const char sacq[] = "unable to acquire scratch area";
@@ -1422,7 +1421,7 @@ isp_scsi_init(ispsoftc_t *isp)
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			return;
 		}
-		isp->isp_residx = mbs.param[5];
+		isp->isp_residx = isp->isp_resodx = mbs.param[5];
 
 		MBSINIT(&mbs, MBOX_INIT_REQ_QUEUE_A64, MBLOGALL, 0);
 		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
@@ -1446,7 +1445,7 @@ isp_scsi_init(ispsoftc_t *isp)
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			return;
 		}
-		isp->isp_residx = mbs.param[5];
+		isp->isp_residx = isp->isp_resodx = mbs.param[5];
 
 		MBSINIT(&mbs, MBOX_INIT_REQ_QUEUE, MBLOGALL, 0);
 		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
@@ -1709,7 +1708,13 @@ isp_fibre_init(ispsoftc_t *isp)
 	 *
 	 * NB: for the 2300, ICBOPT_EXTENDED is required.
 	 */
-	if (IS_2200(isp) || IS_23XX(isp)) {
+	if (IS_2100(isp)) {
+		/*
+		 * We can't have Fast Posting any more- we now
+		 * have 32 bit handles.
+		 */
+		icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
+	} else if (IS_2200(isp) || IS_23XX(isp)) {
 		icbp->icb_fwoptions |= ICBOPT_EXTENDED;
 
 		icbp->icb_xfwoptions = fcp->isp_xfwoptions;
@@ -1912,6 +1917,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	isp->isp_reqidx = 0;
 	isp->isp_reqodx = 0;
 	isp->isp_residx = 0;
+	isp->isp_resodx = 0;
 
 	/*
 	 * Whatever happens, we're now committed to being here.
@@ -2202,6 +2208,8 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	isp->isp_reqidx = 0;
 	isp->isp_reqodx = 0;
 	isp->isp_residx = 0;
+	isp->isp_resodx = 0;
+	isp->isp_atioodx = 0;
 
 	/*
 	 * Whatever happens, we're now committed to being here.
@@ -2583,7 +2591,7 @@ isp_get_wwn(ispsoftc_t *isp, int chan, int loopid, int nodename)
 		}
 		mbs.param[9] = chan;
 	} else {
-		mbs.ibits = 3;
+		mbs.ibitm = 3;
 		mbs.param[1] = loopid << 8;
 		if (nodename) {
 			mbs.param[1] |= 1;
@@ -5009,7 +5017,6 @@ isp_intr(ispsoftc_t *isp, uint32_t isr, uint16_t sema, uint16_t mbox)
 	int etype, last_etype = 0;
 
 again:
-	optr = isp->isp_residx;
 	/*
 	 * Is this a mailbox related interrupt?
 	 * The mailbox semaphore will be nonzero if so.
@@ -5061,7 +5068,9 @@ again:
 		/*
 		 * Thank you very much!  *Burrrp*!
 		 */
-		ISP_WRITE(isp, isp->isp_respoutrp, ISP_READ(isp, isp->isp_respinrp));
+		isp->isp_residx = ISP_READ(isp, isp->isp_respinrp);
+		isp->isp_resodx = isp->isp_residx;
+		ISP_WRITE(isp, isp->isp_respoutrp, isp->isp_resodx);
 		if (IS_24XX(isp)) {
 			ISP_DISABLE_INTS(isp);
 		}
@@ -5072,9 +5081,11 @@ again:
 	/*
 	 * Check for ATIO Queue entries.
 	 */
-	if (IS_24XX(isp)) {
+	if (IS_24XX(isp) &&
+	    ((isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RSPQ_UPDATE ||
+	     (isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RQST_UPDATE)) {
 		iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
-		optr = ISP_READ(isp, BIU2400_ATIO_RSPOUTP);
+		optr = isp->isp_atioodx;
 
 		while (optr != iptr) {
 			uint8_t qe[QENTRY_LEN];
@@ -5097,9 +5108,11 @@ again:
 				break;
 			}
 			optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
-			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
 		}
-		optr = isp->isp_residx;
+		if (isp->isp_atioodx != optr) {
+			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
+			isp->isp_atioodx = optr;
+		}
 	}
 #endif
 
@@ -5108,18 +5121,19 @@ again:
 	 *
 	 * If we're a 2300 or 2400, we can ask what hardware what it thinks.
 	 */
+#if 0
 	if (IS_23XX(isp) || IS_24XX(isp)) {
 		optr = ISP_READ(isp, isp->isp_respoutrp);
 		/*
 		 * Debug: to be taken out eventually
 		 */
-		if (isp->isp_residx != optr) {
-			isp_prt(isp, ISP_LOGINFO, "isp_intr: hard optr=%x, soft optr %x", optr, isp->isp_residx);
-			isp->isp_residx = optr;
+		if (isp->isp_resodx != optr) {
+			isp_prt(isp, ISP_LOGINFO, "isp_intr: hard optr=%x, soft optr %x", optr, isp->isp_resodx);
+			isp->isp_resodx = optr;
 		}
-	} else {
-		optr = isp->isp_residx;
-	}
+	} else
+#endif
+		optr = isp->isp_resodx;
 
 	/*
 	 * You *must* read the Response Queue In Pointer
@@ -5141,8 +5155,6 @@ again:
 	} else {
 		iptr = ISP_READ(isp, isp->isp_respinrp);
 	}
-	isp->isp_resodx = iptr;
-
 
 	if (optr == iptr && sema == 0) {
 		/*
@@ -5176,7 +5188,7 @@ again:
 			isp_prt(isp, ISP_LOGDEBUG1, "bogus intr- isr %x (%x) iptr %x optr %x", isr, junk, iptr, optr);
 		}
 	}
-	isp->isp_resodx = iptr;
+	isp->isp_residx = iptr;
 
 	while (optr != iptr) {
 		uint8_t qe[QENTRY_LEN];
@@ -5275,7 +5287,6 @@ again:
 				optr = ISP_NXT_QENTRY(tsto, RESULT_QUEUE_LEN(isp));
 			}
 			if (r > 0) {
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				last_etype = etype;
 				continue;
@@ -5310,7 +5321,6 @@ again:
 		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
 				isp_print_bytes(isp, "unexpected continuation segment", QENTRY_LEN, sp);
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				last_etype = etype;
 				continue;
 			}
@@ -5334,7 +5344,6 @@ again:
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
 				isp_print_bytes(isp, "invalid IOCB ordering", QENTRY_LEN, sp);
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				last_etype = etype;
 				continue;
 			}
@@ -5343,7 +5352,6 @@ again:
 		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
 			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			last_etype = etype;
 			continue;
 		}
@@ -5360,7 +5368,6 @@ again:
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			last_etype = etype;
 			continue;
 		}
@@ -5546,13 +5553,9 @@ again:
 	 */
 	if (nlooked) {
 		ISP_WRITE(isp, isp->isp_respoutrp, optr);
-		/*
-		 * While we're at it, read the requst queue out pointer.
-		 */
-		isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
-		if (isp->isp_rscchiwater < ndone) {
+		isp->isp_resodx = optr;
+		if (isp->isp_rscchiwater < ndone)
 			isp->isp_rscchiwater = ndone;
-		}
 	}
 
 out:
@@ -5564,7 +5567,6 @@ out:
 		ISP_WRITE(isp, BIU_SEMA, 0);
 	}
 
-	isp->isp_residx = optr;
 	for (i = 0; i < ndone; i++) {
 		xs = complist[i];
 		if (xs) {
@@ -7356,6 +7358,13 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	 */
 	ibits |= mbp->ibits;
 	obits |= mbp->obits;
+
+	/*
+	 * Mask any bits that the caller wants us to mask
+	 */
+	ibits &= mbp->ibitm;
+	obits &= mbp->obitm;
+
 
 	if (ibits == 0 && obits == 0) {
 		mbp->param[0] = MBOX_COMMAND_PARAM_ERROR;

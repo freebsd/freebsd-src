@@ -237,7 +237,7 @@ dlpromiscon(pcap_t *p, bpf_u_int32 level)
 {
 	int err;
 
-	retv = dlpi_promiscon(p->hd, level);
+	retv = dlpi_promiscon(p->dlpi_hd, level);
 	if (retv != DLPI_SUCCESS) {
 		if (retv == DL_SYSERR &&
 		    (errno == EPERM || errno == EACCES))
@@ -391,7 +391,7 @@ pcap_libdlpi_err(const char *linkname, const char *func, int err, char *errbuf)
 }
 
 pcap_t *
-pcap_create(const char *device, char *ebuf)
+pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *p;
 

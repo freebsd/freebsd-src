@@ -19,6 +19,8 @@
  *
  * CDDL HEADER END
  *
+ * Portions Copyright 2012,2013 Justin Hibbits <jhibbits@freebsd.org>
+ *
  * $FreeBSD$
  */
 /*
@@ -45,14 +47,10 @@
 
 #include "regset.h"
 
-uint8_t dtrace_fuword8_nocheck(void *);
-uint16_t dtrace_fuword16_nocheck(void *);
-uint32_t dtrace_fuword32_nocheck(void *);
-uint64_t dtrace_fuword64_nocheck(void *);
-
 /* Offset to the LR Save word (ppc32) */
 #define RETURN_OFFSET	4
-#define RETURN_OFFSET64	8
+/* Offset to LR Save word (ppc64).  CR Save area sits between back chain and LR */
+#define RETURN_OFFSET64	16
 
 #define INKERNEL(x)	((x) <= VM_MAX_KERNEL_ADDRESS && \
 		(x) >= VM_MIN_KERNEL_ADDRESS)
@@ -83,7 +81,11 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		if (!INKERNEL((long) sp))
 			break;
 
+#ifdef __powerpc64__
+		callpc = *(uintptr_t *)(sp + RETURN_OFFSET64);
+#else
 		callpc = *(uintptr_t *)(sp + RETURN_OFFSET);
+#endif
 
 		if (!INKERNEL(callpc))
 			break;
@@ -348,50 +350,84 @@ zero:
 uint64_t
 dtrace_getarg(int arg, int aframes)
 {
+	uintptr_t val;
+	uintptr_t *fp = (uintptr_t *)dtrace_getfp();
+	uintptr_t *stack;
+	int i;
+
+	/*
+	 * A total of 8 arguments are passed via registers; any argument with
+	 * index of 7 or lower is therefore in a register.
+	 */
+	int inreg = 7;
+
+	for (i = 1; i <= aframes; i++) {
+		fp = (uintptr_t *)*fp;
+
+		/*
+		 * On ppc32 AIM, and booke, trapexit() is the immediately following
+		 * label.  On ppc64 AIM trapexit() follows a nop.
+		 */
+		if (((long)(fp[1]) == (long)trapexit) ||
+				(((long)(fp[1]) + 4 == (long)trapexit))) {
+			/*
+			 * In the case of powerpc, we will use the pointer to the regs
+			 * structure that was pushed when we took the trap.  To get this
+			 * structure, we must increment beyond the frame structure.  If the
+			 * argument that we're seeking is passed on the stack, we'll pull
+			 * the true stack pointer out of the saved registers and decrement
+			 * our argument by the number of arguments passed in registers; if
+			 * the argument we're seeking is passed in regsiters, we can just
+			 * load it directly.
+			 */
+#ifdef __powerpc64__
+			struct reg *rp = (struct reg *)((uintptr_t)fp[0] + 48);
+#else
+			struct reg *rp = (struct reg *)((uintptr_t)fp[0] + 8);
+#endif
+
+			if (arg <= inreg) {
+				stack = &rp->fixreg[3];
+			} else {
+				stack = (uintptr_t *)(rp->fixreg[1]);
+				arg -= inreg;
+			}
+			goto load;
+		}
+
+	}
+
+	/*
+	 * We know that we did not come through a trap to get into
+	 * dtrace_probe() -- the provider simply called dtrace_probe()
+	 * directly.  As this is the case, we need to shift the argument
+	 * that we're looking for:  the probe ID is the first argument to
+	 * dtrace_probe(), so the argument n will actually be found where
+	 * one would expect to find argument (n + 1).
+	 */
+	arg++;
+
+	if (arg <= inreg) {
+		/*
+		 * This shouldn't happen.  If the argument is passed in a
+		 * register then it should have been, well, passed in a
+		 * register...
+		 */
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	}
+
+	arg -= (inreg + 1);
+	stack = fp + 2;
+
+load:
+	DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
+	val = stack[arg];
+	DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
+
+	return (val);
 	return (0);
 }
-
-#ifdef notyet
-{
-	int depth = 0;
-	register_t sp;
-	vm_offset_t callpc;
-	pc_t caller = (pc_t) solaris_cpu[curcpu].cpu_dtrace_caller;
-
-	if (intrpc != 0)
-		pcstack[depth++] = (pc_t) intrpc;
-
-	aframes++;
-
-	sp = dtrace_getfp();
-
-	while (depth < pcstack_limit) {
-		if (!INKERNEL((long) frame))
-			break;
-
-		callpc = *(void **)(sp + RETURN_OFFSET);
-
-		if (!INKERNEL(callpc))
-			break;
-
-		if (aframes > 0) {
-			aframes--;
-			if ((aframes == 0) && (caller != 0)) {
-				pcstack[depth++] = caller;
-			}
-		}
-		else {
-			pcstack[depth++] = callpc;
-		}
-
-		sp = *(void **)sp;
-	}
-
-	for (; depth < pcstack_limit; depth++) {
-		pcstack[depth] = 0;
-	}
-}
-#endif
 
 int
 dtrace_getstackdepth(int aframes)
@@ -462,31 +498,63 @@ dtrace_copyin(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(uaddr, kaddr, size);
+		if (copyin((const void *)uaddr, (void *)kaddr, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 }
 
 void
 dtrace_copyout(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(kaddr, uaddr, size);
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		if (copyout((const void *)kaddr, (void *)uaddr, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
 void
 dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(uaddr, kaddr, size, flags);
+	size_t actual;
+	int    error;
+
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		error = copyinstr((const void *)uaddr, (void *)kaddr,
+		    size, &actual);
+		
+		/* ENAMETOOLONG is not a fault condition. */
+		if (error && error != ENAMETOOLONG) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
+/*
+ * The bulk of this function could be replaced to match dtrace_copyinstr() 
+ * if we ever implement a copyoutstr().
+ */
 void
 dtrace_copyoutstr(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(kaddr, uaddr, size, flags);
+	size_t len;
+
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		len = strlen((const char *)kaddr);
+		if (len > size)
+			len = size;
+
+		if (copyout((const void *)kaddr, (void *)uaddr, len)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
 uint8_t
@@ -497,18 +565,21 @@ dtrace_fuword8(void *uaddr)
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword8_nocheck(uaddr));
+	return (fubyte(uaddr));
 }
 
 uint16_t
 dtrace_fuword16(void *uaddr)
 {
-	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
-		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
-		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
-		return (0);
+	uint16_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 	}
-	return (dtrace_fuword16_nocheck(uaddr));
+	return ret;
 }
 
 uint32_t
@@ -519,16 +590,33 @@ dtrace_fuword32(void *uaddr)
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword32_nocheck(uaddr));
+	return (fuword32(uaddr));
 }
 
 uint64_t
 dtrace_fuword64(void *uaddr)
 {
-	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
-		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
-		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
-		return (0);
+	uint64_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 	}
-	return (dtrace_fuword64_nocheck(uaddr));
+	return ret;
+}
+
+uintptr_t
+dtrace_fulword(void *uaddr)
+{
+	uintptr_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
+	return ret;
 }

@@ -22,8 +22,8 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <string>
 
 namespace llvm {
@@ -37,11 +37,12 @@ class StackFrameContext;
 
 namespace ento {
 
+class CodeTextRegion;
 class MemRegionManager;
 class MemSpaceRegion;
 class SValBuilder;
+class SymbolicRegion;
 class VarRegion;
-class CodeTextRegion;
 
 /// Represent a region's offset within the top level base region.
 class RegionOffset {
@@ -145,6 +146,10 @@ public:
 
   const MemRegion *StripCasts(bool StripBaseCasts = true) const;
 
+  /// \brief If this is a symbolic region, returns the region. Otherwise,
+  /// goes up the base chain looking for the first symbolic base region.
+  const SymbolicRegion *getSymbolicBase() const;
+
   bool hasGlobalsOrParametersStorage() const;
 
   bool hasStackStorage() const;
@@ -168,6 +173,16 @@ public:
 
   /// \brief Print the region for use in diagnostics.
   virtual void printPretty(raw_ostream &os) const;
+
+  /// \brief Returns true if this region's textual representation can be used
+  /// as part of a larger expression.
+  virtual bool canPrintPrettyAsExpr() const;
+
+  /// \brief Print the region as expression.
+  ///
+  /// When this region represents a subexpression, the method is for printing
+  /// an expression containing it.
+  virtual void printPrettyAsExpr(raw_ostream &os) const;
 
   Kind getKind() const { return kind; }
 
@@ -620,12 +635,14 @@ class BlockDataRegion : public TypedRegion {
   friend class MemRegionManager;
   const BlockTextRegion *BC;
   const LocationContext *LC; // Can be null */
+  unsigned BlockCount;
   void *ReferencedVars;
   void *OriginalVars;
 
   BlockDataRegion(const BlockTextRegion *bc, const LocationContext *lc,
-                  const MemRegion *sreg)
+                  unsigned count, const MemRegion *sreg)
   : TypedRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc),
+     BlockCount(count),
     ReferencedVars(0), OriginalVars(0) {}
 
 public:
@@ -642,26 +659,20 @@ public:
     explicit referenced_vars_iterator(const MemRegion * const *r,
                                       const MemRegion * const *originalR)
       : R(r), OriginalR(originalR) {}
-    
-    operator const MemRegion * const *() const {
-      return R;
-    }
-  
-    const MemRegion *getCapturedRegion() const {
-      return *R;
-    }
-    const MemRegion *getOriginalRegion() const {
-      return *OriginalR;
-    }
 
-    const VarRegion* operator*() const {
+    const VarRegion *getCapturedRegion() const {
       return cast<VarRegion>(*R);
     }
-    
+    const VarRegion *getOriginalRegion() const {
+      return cast<VarRegion>(*OriginalR);
+    }
+
     bool operator==(const referenced_vars_iterator &I) const {
+      assert((R == 0) == (I.R == 0));
       return I.R == R;
     }
     bool operator!=(const referenced_vars_iterator &I) const {
+      assert((R == 0) == (I.R == 0));
       return I.R != R;
     }
     referenced_vars_iterator &operator++() {
@@ -670,6 +681,10 @@ public:
       return *this;
     }
   };
+
+  /// Return the original region for a captured region, if
+  /// one exists.
+  const VarRegion *getOriginalRegion(const VarRegion *VR) const;
       
   referenced_vars_iterator referenced_vars_begin() const;
   referenced_vars_iterator referenced_vars_end() const;  
@@ -679,13 +694,16 @@ public:
   void Profile(llvm::FoldingSetNodeID& ID) const;
     
   static void ProfileRegion(llvm::FoldingSetNodeID&, const BlockTextRegion *,
-                            const LocationContext *, const MemRegion *);
+                            const LocationContext *, unsigned,
+                            const MemRegion *);
     
   static bool classof(const MemRegion* R) {
     return R->getKind() == BlockDataRegionKind;
   }
 private:
   void LazyInitializeReferencedVars();
+  std::pair<const VarRegion *, const VarRegion *>
+  getCaptureRegions(const VarDecl *VD);
 };
 
 /// SymbolicRegion - A special, "non-concrete" region. Unlike other region
@@ -874,8 +892,9 @@ public:
     return R->getKind() == VarRegionKind;
   }
 
-  bool canPrintPretty() const;
-  void printPretty(raw_ostream &os) const;
+  bool canPrintPrettyAsExpr() const;
+
+  void printPrettyAsExpr(raw_ostream &os) const;
 };
   
 /// CXXThisRegion - Represents the region for the implicit 'this' parameter
@@ -937,6 +956,8 @@ public:
 
   bool canPrintPretty() const;
   void printPretty(raw_ostream &os) const;
+  bool canPrintPrettyAsExpr() const;
+  void printPrettyAsExpr(raw_ostream &os) const;
 };
 
 class ObjCIvarRegion : public DeclRegion {
@@ -951,6 +972,9 @@ class ObjCIvarRegion : public DeclRegion {
 public:
   const ObjCIvarDecl *getDecl() const;
   QualType getValueType() const;
+
+  bool canPrintPrettyAsExpr() const;
+  void printPrettyAsExpr(raw_ostream &os) const;
 
   void dumpToStream(raw_ostream &os) const;
 
@@ -993,8 +1017,8 @@ class ElementRegion : public TypedValueRegion {
   ElementRegion(QualType elementType, NonLoc Idx, const MemRegion* sReg)
     : TypedValueRegion(sReg, ElementRegionKind),
       ElementType(elementType), Index(Idx) {
-    assert((!isa<nonloc::ConcreteInt>(&Idx) ||
-           cast<nonloc::ConcreteInt>(&Idx)->getValue().isSigned()) &&
+    assert((!Idx.getAs<nonloc::ConcreteInt>() ||
+            Idx.castAs<nonloc::ConcreteInt>().getValue().isSigned()) &&
            "The index must be signed");
   }
 
@@ -1057,16 +1081,18 @@ public:
 class CXXBaseObjectRegion : public TypedValueRegion {
   friend class MemRegionManager;
 
-  const CXXRecordDecl *decl;
+  llvm::PointerIntPair<const CXXRecordDecl *, 1, bool> Data;
 
-  CXXBaseObjectRegion(const CXXRecordDecl *d, const MemRegion *sReg)
-    : TypedValueRegion(sReg, CXXBaseObjectRegionKind), decl(d) {}
+  CXXBaseObjectRegion(const CXXRecordDecl *RD, bool IsVirtual,
+                      const MemRegion *SReg)
+    : TypedValueRegion(SReg, CXXBaseObjectRegionKind), Data(RD, IsVirtual) {}
 
-  static void ProfileRegion(llvm::FoldingSetNodeID &ID,
-                            const CXXRecordDecl *decl, const MemRegion *sReg);
+  static void ProfileRegion(llvm::FoldingSetNodeID &ID, const CXXRecordDecl *RD,
+                            bool IsVirtual, const MemRegion *SReg);
 
 public:
-  const CXXRecordDecl *getDecl() const { return decl; }
+  const CXXRecordDecl *getDecl() const { return Data.getPointer(); }
+  bool isVirtual() const { return Data.getInt(); }
 
   QualType getValueType() const;
 
@@ -1077,6 +1103,10 @@ public:
   static bool classof(const MemRegion *region) {
     return region->getKind() == CXXBaseObjectRegionKind;
   }
+
+  bool canPrintPrettyAsExpr() const;
+  
+  void printPrettyAsExpr(raw_ostream &os) const;
 };
 
 template<typename RegionTy>
@@ -1216,15 +1246,21 @@ public:
   const CXXTempObjectRegion *getCXXTempObjectRegion(Expr const *Ex,
                                                     LocationContext const *LC);
 
-  const CXXBaseObjectRegion *getCXXBaseObjectRegion(const CXXRecordDecl *decl,
-                                                  const MemRegion *superRegion);
+  /// Create a CXXBaseObjectRegion with the given base class for region
+  /// \p Super.
+  ///
+  /// The type of \p Super is assumed be a class deriving from \p BaseClass.
+  const CXXBaseObjectRegion *
+  getCXXBaseObjectRegion(const CXXRecordDecl *BaseClass, const MemRegion *Super,
+                         bool IsVirtual);
 
   /// Create a CXXBaseObjectRegion with the same CXXRecordDecl but a different
   /// super region.
   const CXXBaseObjectRegion *
   getCXXBaseObjectRegionWithSuper(const CXXBaseObjectRegion *baseReg, 
                                   const MemRegion *superRegion) {
-    return getCXXBaseObjectRegion(baseReg->getDecl(), superRegion);
+    return getCXXBaseObjectRegion(baseReg->getDecl(), superRegion,
+                                  baseReg->isVirtual());
   }
 
   const FunctionTextRegion *getFunctionTextRegion(const NamedDecl *FD);
@@ -1237,7 +1273,13 @@ public:
   ///  argument is allowed to be NULL for cases where we have no known
   ///  context.
   const BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
-                                            const LocationContext *lc = NULL);
+                                            const LocationContext *lc,
+                                            unsigned blockCount);
+
+  /// Create a CXXTempObjectRegion for temporaries which are lifetime-extended
+  /// by static references. This differs from getCXXTempObjectRegion in the
+  /// super-region used.
+  const CXXTempObjectRegion *getCXXStaticTempObjectRegion(const Expr *Ex);
 
 private:
   template <typename RegionTy, typename A1>
@@ -1271,6 +1313,39 @@ private:
 inline ASTContext &MemRegion::getContext() const {
   return getMemRegionManager()->getContext();
 }
+
+//===----------------------------------------------------------------------===//
+// Means for storing region/symbol handling traits.
+//===----------------------------------------------------------------------===//
+
+/// Information about invalidation for a particular region/symbol.
+class RegionAndSymbolInvalidationTraits {
+  typedef unsigned char StorageTypeForKinds;
+  llvm::DenseMap<const MemRegion *, StorageTypeForKinds> MRTraitsMap;
+  llvm::DenseMap<SymbolRef, StorageTypeForKinds> SymTraitsMap;
+
+  typedef llvm::DenseMap<const MemRegion *, StorageTypeForKinds>::const_iterator
+      const_region_iterator;
+  typedef llvm::DenseMap<SymbolRef, StorageTypeForKinds>::const_iterator
+      const_symbol_iterator;
+
+public:
+  /// \brief Describes different invalidation traits.
+  enum InvalidationKinds {
+    /// Tells that a region's contents is not changed.
+    TK_PreserveContents = 0x1,
+    /// Suppress pointer-escaping of a region.
+    TK_SuppressEscape = 0x2
+
+    // Do not forget to extend StorageTypeForKinds if number of traits exceed 
+    // the number of bits StorageTypeForKinds can store.
+  };
+
+  void setTrait(SymbolRef Sym, InvalidationKinds IK);
+  void setTrait(const MemRegion *MR, InvalidationKinds IK);
+  bool hasTrait(SymbolRef Sym, InvalidationKinds IK);
+  bool hasTrait(const MemRegion *MR, InvalidationKinds IK);
+};
   
 } // end GR namespace
 

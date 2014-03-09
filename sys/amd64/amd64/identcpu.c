@@ -206,16 +206,16 @@ printcpuinfo(void)
 	}
 	printf("-class CPU)\n");
 	if (*cpu_vendor)
-		printf("  Origin = \"%s\"", cpu_vendor);
+		printf("  Origin=\"%s\"", cpu_vendor);
 	if (cpu_id)
-		printf("  Id = 0x%x", cpu_id);
+		printf("  Id=0x%x", cpu_id);
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		printf("  Family = 0x%x", CPUID_TO_FAMILY(cpu_id));
-		printf("  Model = 0x%x", CPUID_TO_MODEL(cpu_id));
-		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
+		printf("  Family=0x%x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model=0x%x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping=%u", cpu_id & CPUID_STEPPING);
 
 		/*
 		 * AMD CPUID Specification
@@ -366,18 +366,18 @@ printcpuinfo(void)
 				"\017<b14>"
 				"\020LWP"	/* Lightweight Profiling */
 				"\021FMA4"	/* 4-operand FMA instructions */
-				"\022<b17>"
+				"\022TCE"	/* Translation Cache Extension */
 				"\023<b18>"
 				"\024NodeId"	/* NodeId MSR support */
 				"\025<b20>"
 				"\026TBM"	/* Trailing Bit Manipulation */
 				"\027Topology"	/* Topology Extensions */
-				"\030<b23>"
-				"\031<b24>"
+				"\030PCXC"	/* Core perf count */
+				"\031PNXC"	/* NB perf count */
 				"\032<b25>"
-				"\033<b26>"
-				"\034<b27>"
-				"\035<b28>"
+				"\033DBE"	/* Data Breakpoint extension */
+				"\034PTSC"	/* Performance TSC */
+				"\035PL2I"	/* L2I perf count */
 				"\036<b29>"
 				"\037<b30>"
 				"\040<b31>"
@@ -388,11 +388,30 @@ printcpuinfo(void)
 				printf("\n  Standard Extended Features=0x%b",
 				    cpu_stdext_feature,
 				       "\020"
+				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 				       "\001GSFSBASE"
 				       "\002TSCADJ"
+				       /* Bit Manipulation Instructions */
+				       "\004BMI1"
+				       /* Hardware Lock Elision */
+				       "\005HLE"
+				       /* Advanced Vector Instructions 2 */
+				       "\006AVX2"
+				       /* Supervisor Mode Execution Prot. */
 				       "\010SMEP"
+				       /* Bit Manipulation Instructions */
+				       "\011BMI2"
 				       "\012ENHMOVSB"
+				       /* Invalidate Processor Context ID */
 				       "\013INVPCID"
+				       /* Restricted Transactional Memory */
+				       "\014RTM"
+				       /* Enhanced NRBG */
+				       "\023RDSEED"
+				       /* ADCX + ADOX */
+				       "\024ADX"
+				       /* Supervisor Mode Access Prevention */
+				       "\025SMAP"
 				       );
 			}
 
@@ -511,6 +530,13 @@ identify_cpu(void)
 			do_cpuid(0, regs);
 			cpu_high = regs[0];
 		}
+	}
+
+	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
+		do_cpuid(5, regs);
+		cpu_mon_mwait_flags = regs[2];
+		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
+		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
 	}
 
 	if (cpu_high >= 7) {

@@ -42,11 +42,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- * 	This product includes software developed by the University of
- * 	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -200,6 +196,7 @@ static struct	 hostent *_hpmapv6(struct hostent *, int *);
 #endif
 static struct	 hostent *_hpsort(struct hostent *, res_state);
 
+#ifdef INET6
 static struct	 hostent *_hpreorder(struct hostent *);
 static int	 get_addrselectpolicy(struct policyhead *);
 static void	 free_addrselectpolicy(struct policyhead *);
@@ -209,6 +206,7 @@ static void	 set_source(struct hp_order *, struct policyhead *);
 static int	 matchlen(struct sockaddr *, struct sockaddr *);
 static int	 comp_dst(const void *, const void *);
 static int	 gai_addr2scopetype(struct sockaddr *);
+#endif
 
 /*
  * Functions defined in RFC2553
@@ -237,7 +235,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	if (flags & AI_ADDRCONFIG) {
 		int s;
 
-		if ((s = _socket(af, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(af, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
 			return NULL;
 		/*
 		 * TODO:
@@ -285,8 +283,10 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	
 	hp = gethostbyname2(name, af);
 	hp = _hpcopy(hp, errp);
-
 #ifdef INET6
+	if (af == AF_INET6)
+		hp = _hpreorder(hp);
+
 	if (af == AF_INET6 && ((flags & AI_ALL) || hp == NULL) &&
 	    MAPADDRENABLED(flags)) {
 		struct hostent *hp2 = gethostbyname2(name, AF_INET);
@@ -309,7 +309,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		*errp = statp->res_h_errno;
 	
 	statp->options = options;
-	return _hpreorder(_hpsort(hp, statp));
+	return _hpsort(hp, statp);
 }
 
 struct hostent *
@@ -632,6 +632,7 @@ _hpsort(struct hostent *hp, res_state statp)
 	return hp;
 }
 
+#ifdef INET6
 /*
  * _hpreorder: sort address by default address selection
  */
@@ -867,7 +868,8 @@ set_source(struct hp_order *aio, struct policyhead *ph)
 	}
 
 	/* open a socket to get the source address for the given dst */
-	if ((s = _socket(ss.ss_family, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+	if ((s = _socket(ss.ss_family, SOCK_DGRAM | SOCK_CLOEXEC,
+	    IPPROTO_UDP)) < 0)
 		return;		/* give up */
 	if (_connect(s, (struct sockaddr *)&ss, ss.ss_len) < 0)
 		goto cleanup;
@@ -1109,3 +1111,4 @@ gai_addr2scopetype(struct sockaddr *sa)
 		return(-1);
 	}
 }
+#endif

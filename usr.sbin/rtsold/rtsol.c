@@ -35,7 +35,6 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -58,6 +57,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
 #include <err.h>
 #include <errno.h>
 #include <string.h>
@@ -205,7 +205,7 @@ sendpacket(struct ifinfo *ifi)
 	cm->cmsg_level = IPPROTO_IPV6;
 	cm->cmsg_type = IPV6_PKTINFO;
 	cm->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-	pi = (struct in6_pktinfo *)CMSG_DATA(cm);
+	pi = (struct in6_pktinfo *)(void *)CMSG_DATA(cm);
 	memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
 	pi->ipi6_ifindex = ifi->sdl->sdl_index;
 
@@ -237,7 +237,7 @@ sendpacket(struct ifinfo *ifi)
 void
 rtsol_input(int s)
 {
-	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
+	char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	int l, ifindex = 0, *hlimp = NULL;
 	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;
@@ -256,8 +256,8 @@ rtsol_input(int s)
 	size_t len;
 	char nsbuf[INET6_ADDRSTRLEN + 1 + IFNAMSIZ + 1];
 	char dname[NI_MAXHOST];
-	struct timeval now;
-	struct timeval lifetime;
+	struct timespec now;
+	struct timespec lifetime;
 	int newent_rai;
 	int newent_rao;
 
@@ -275,13 +275,13 @@ rtsol_input(int s)
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_PKTINFO &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(struct in6_pktinfo))) {
-			pi = (struct in6_pktinfo *)(CMSG_DATA(cm));
+			pi = (struct in6_pktinfo *)(void *)(CMSG_DATA(cm));
 			ifindex = pi->ipi6_ifindex;
 		}
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_HOPLIMIT &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(int)))
-			hlimp = (int *)CMSG_DATA(cm);
+			hlimp = (int *)(void *)CMSG_DATA(cm);
 	}
 
 	if (ifindex == 0) {
@@ -376,7 +376,7 @@ rtsol_input(int s)
 		ifi->otherconfig = 1;
 		CALL_SCRIPT(OTHER, NULL);
 	}
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	newent_rai = 0;
 	rai = find_rainfo(ifi, &from);
 	if (rai == NULL) {
@@ -417,7 +417,7 @@ rtsol_input(int s)
 				break;
 			}
 
-			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
+			addr = (struct in6_addr *)(void *)(raoptp + sizeof(*rdnss));
 			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
 				if (inet_ntop(AF_INET6, addr, ntopbuf,
 					sizeof(ntopbuf)) == NULL) {
@@ -472,7 +472,7 @@ rtsol_input(int s)
 				memset(&lifetime, 0, sizeof(lifetime));
 				lifetime.tv_sec =
 				    ntohl(rdnss->nd_opt_rdnss_lifetime);
-				timeradd(&now, &lifetime, &rao->rao_expire);
+				TS_ADD(&now, &lifetime, &rao->rao_expire);
 
 				if (newent_rao)
 					TAILQ_INSERT_TAIL(&rai->rai_ra_opt,
@@ -531,7 +531,7 @@ rtsol_input(int s)
 				memset(&lifetime, 0, sizeof(lifetime));
 				lifetime.tv_sec =
 				    ntohl(dnssl->nd_opt_dnssl_lifetime);
-				timeradd(&now, &lifetime, &rao->rao_expire);
+				TS_ADD(&now, &lifetime, &rao->rao_expire);
 
 				if (newent_rao)
 					TAILQ_INSERT_TAIL(&rai->rai_ra_opt,
@@ -574,7 +574,7 @@ ra_opt_handler(struct ifinfo *ifi)
 	struct ra_opt *rao;
 	struct rainfo *rai;
 	struct script_msg *smp1, *smp2, *smp3;
-	struct timeval now;
+	struct timespec now;
 	struct script_msg_head_t sm_rdnss_head =
 	    TAILQ_HEAD_INITIALIZER(sm_rdnss_head);
 	struct script_msg_head_t sm_dnssl_head =
@@ -584,7 +584,7 @@ ra_opt_handler(struct ifinfo *ifi)
 
 	dcount = 0;
 	dlen = strlen(resstr_sh_prefix) + strlen(resstr_nl);
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 
 	/*
 	 * All options from multiple RAs with the same or different
@@ -595,7 +595,7 @@ ra_opt_handler(struct ifinfo *ifi)
 		TAILQ_FOREACH(rao, &rai->rai_ra_opt, rao_next) {
 			switch (rao->rao_type) {
 			case ND_OPT_RDNSS:
-				if (timercmp(&now, &rao->rao_expire, >)) {
+				if (TS_CMP(&now, &rao->rao_expire, >)) {
 					warnmsg(LOG_INFO, __func__,
 					    "expired rdnss entry: %s",
 					    (char *)rao->rao_msg);
@@ -617,7 +617,7 @@ ra_opt_handler(struct ifinfo *ifi)
 
 				break;
 			case ND_OPT_DNSSL:
-				if (timercmp(&now, &rao->rao_expire, >)) {
+				if (TS_CMP(&now, &rao->rao_expire, >)) {
 					warnmsg(LOG_INFO, __func__,
 					    "expired dnssl entry: %s",
 					    (char *)rao->rao_msg);

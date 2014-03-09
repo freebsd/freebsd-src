@@ -58,6 +58,9 @@ extern	u_int	cpu_procinfo;
 extern	u_int	cpu_procinfo2;
 extern	char	cpu_vendor[];
 extern	u_int	cpu_vendor_id;
+extern	u_int	cpu_mon_mwait_flags;
+extern	u_int	cpu_mon_min_size;
+extern	u_int	cpu_mon_max_size;
 extern	char	ctx_switch_xsave[];
 extern	char	kstack[];
 extern	char	sigcode[];
@@ -86,7 +89,6 @@ void	*alloc_fpusave(int flags);
 void	amd64_syscall(struct thread *td, int traced);
 void	busdma_swi(void);
 void	cpu_setregs(void);
-void	ctx_fpusave(void *);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	ld_ds(void) __asm(__STRING(ld_ds));
@@ -117,5 +119,6 @@ void	minidumpsys(struct dumperinfo *);
 struct savefpu *get_pcb_user_save_td(struct thread *td);
 struct savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
 struct pcb *get_pcb_td(struct thread *td);
+void	amd64_db_resume_dbreg(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

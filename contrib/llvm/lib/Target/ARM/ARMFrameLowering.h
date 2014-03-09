@@ -27,7 +27,7 @@ protected:
 
 public:
   explicit ARMFrameLowering(const ARMSubtarget &sti)
-    : TargetFrameLowering(StackGrowsDown, sti.getStackAlignment(), 0, 4),
+    : TargetFrameLowering(StackGrowsDown, sti.getStackAlignment(), 0, 8),
       STI(sti) {
   }
 
@@ -70,6 +70,11 @@ public:
                    unsigned LdrOpc, bool isVarArg, bool NoGap,
                    bool(*Func)(unsigned, bool),
                    unsigned NumAlignedDPRCS2Regs) const;
+
+  virtual void eliminateCallFramePseudoInstr(
+                                    MachineFunction &MF,
+                                    MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator MI) const;
 };
 
 } // End llvm namespace

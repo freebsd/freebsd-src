@@ -15,9 +15,9 @@
 #define LLVM_CLANG_AST_TEMPLATENAME_H
 
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/OperatorKinds.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "clang/Basic/OperatorKinds.h"
 
 namespace clang {
   
@@ -46,16 +46,17 @@ protected:
     SubstTemplateTemplateParmPack
   };
 
-  union {
-    struct {
-      /// \brief A Kind.
-      unsigned Kind : 2;
-      
-      /// \brief The number of stored templates or template arguments,
-      /// depending on which subclass we have.
-      unsigned Size : 30;
-    } Bits;
+  struct BitsTag {
+    /// \brief A Kind.
+    unsigned Kind : 2;
     
+    /// \brief The number of stored templates or template arguments,
+    /// depending on which subclass we have.
+    unsigned Size : 30;
+  };
+
+  union {
+    struct BitsTag Bits;
     void *PointerAlignment;
   };
   
@@ -307,6 +308,9 @@ public:
   /// one).
   void print(raw_ostream &OS, const PrintingPolicy &Policy,
              bool SuppressNNS = false) const;
+
+  /// \brief Debugging aid that dumps the template name.
+  void dump(raw_ostream &OS) const;
 
   /// \brief Debugging aid that dumps the template name to standard
   /// error.

@@ -1168,7 +1168,7 @@ void cx_set_dtr (cx_chan_t *c, int on)
 
 	switch (c->num) {
 	default:
-		/* Channels 4..7 and 12..15 in syncronous mode
+		/* Channels 4..7 and 12..15 in synchronous mode
 		 * have no DTR signal. */
 		break;
 

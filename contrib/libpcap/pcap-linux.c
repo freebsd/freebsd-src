@@ -127,11 +127,13 @@ static const char rcsid[] _U_ =
 #include <fcntl.h>
 #include <string.h>
 #include <limits.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 #include <sys/mman.h>
 #include <linux/if.h>
+#include <linux/if_packet.h>
 #include <netinet/in.h>
 #include <linux/if_ether.h>
 #include <net/if_arp.h>
@@ -141,38 +143,6 @@ static const char rcsid[] _U_ =
 #include "pcap-int.h"
 #include "pcap/sll.h"
 #include "pcap/vlan.h"
-
-#ifdef HAVE_DAG_API
-#include "pcap-dag.h"
-#endif /* HAVE_DAG_API */
-
-#ifdef HAVE_SEPTEL_API
-#include "pcap-septel.h"
-#endif /* HAVE_SEPTEL_API */
-
-#ifdef HAVE_SNF_API
-#include "pcap-snf.h"
-#endif /* HAVE_SNF_API */
-
-#ifdef PCAP_SUPPORT_USB
-#include "pcap-usb-linux.h"
-#endif
-
-#ifdef PCAP_SUPPORT_BT
-#include "pcap-bt-linux.h"
-#endif
-
-#ifdef PCAP_SUPPORT_CAN
-#include "pcap-can-linux.h"
-#endif
-
-#if PCAP_SUPPORT_CANUSB
-#include "pcap-canusb-linux.h"
-#endif
-
-#ifdef PCAP_SUPPORT_NETFILTER
-#include "pcap-netfilter-linux.h"
-#endif
 
 /*
  * If PF_PACKET is defined, we can use {SOCK_RAW,SOCK_DGRAM}/PF_PACKET
@@ -387,65 +357,9 @@ static struct sock_fprog	total_fcode
 #endif /* SO_ATTACH_FILTER */
 
 pcap_t *
-pcap_create(const char *device, char *ebuf)
+pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *handle;
-
-	/*
-	 * A null device name is equivalent to the "any" device.
-	 */
-	if (device == NULL)
-		device = "any";
-
-#ifdef HAVE_DAG_API
-	if (strstr(device, "dag")) {
-		return dag_create(device, ebuf);
-	}
-#endif /* HAVE_DAG_API */
-
-#ifdef HAVE_SEPTEL_API
-	if (strstr(device, "septel")) {
-		return septel_create(device, ebuf);
-	}
-#endif /* HAVE_SEPTEL_API */
-
-#ifdef HAVE_SNF_API
-        handle = snf_create(device, ebuf);
-        if (strstr(device, "snf") || handle != NULL)
-		return handle;
-
-#endif /* HAVE_SNF_API */
-
-#ifdef PCAP_SUPPORT_BT
-	if (strstr(device, "bluetooth")) {
-		return bt_create(device, ebuf);
-	}
-#endif
-
-#if PCAP_SUPPORT_CANUSB
-  if (strstr(device, "canusb")) {
-    return canusb_create(device, ebuf);
-  }
-#endif
-
-#ifdef PCAP_SUPPORT_CAN
-	if ((strncmp(device, "can", 3) == 0 && isdigit(device[3])) ||
-	    (strncmp(device, "vcan", 4) == 0 && isdigit(device[4]))) {
-		return can_create(device, ebuf);
-	}
-#endif
-
-#ifdef PCAP_SUPPORT_USB
-	if (strstr(device, "usbmon")) {
-		return usb_create(device, ebuf);
-	}
-#endif
-
-#ifdef PCAP_SUPPORT_NETFILTER
-	if (strncmp(device, "nflog", strlen("nflog")) == 0) {
-		return nflog_create(device, ebuf);
-	}
-#endif
 
 	handle = pcap_create_common(device, ebuf);
 	if (handle == NULL)
@@ -564,7 +478,7 @@ get_mac80211_phydev(pcap_t *handle, const char *device, char *phydev_path,
 	return 1;
 }
 
-#ifdef HAVE_LIBNL_2_x
+#ifdef HAVE_LIBNL_SOCKETS
 #define get_nl_errmsg	nl_geterror
 #else
 /* libnl 2.x compatibility code */
@@ -595,7 +509,7 @@ __genl_ctrl_alloc_cache(struct nl_handle *h, struct nl_cache **cache)
 	return 0;
 }
 #define genl_ctrl_alloc_cache __genl_ctrl_alloc_cache
-#endif /* !HAVE_LIBNL_2_x */
+#endif /* !HAVE_LIBNL_SOCKETS */
 
 struct nl80211_state {
 	struct nl_sock *nl_sock;
@@ -680,7 +594,7 @@ add_mon_if(pcap_t *handle, int sock_fd, struct nl80211_state *state,
 
 	err = nl_send_auto_complete(state->nl_sock, msg);
 	if (err < 0) {
-#ifdef HAVE_LIBNL_2_x
+#if defined HAVE_LIBNL_NLE
 		if (err == -NLE_FAILURE) {
 #else
 		if (err == -ENFILE) {
@@ -708,7 +622,7 @@ add_mon_if(pcap_t *handle, int sock_fd, struct nl80211_state *state,
 	}
 	err = nl_wait_for_ack(state->nl_sock);
 	if (err < 0) {
-#ifdef HAVE_LIBNL_2_x
+#if defined HAVE_LIBNL_NLE
 		if (err == -NLE_FAILURE) {
 #else
 		if (err == -ENFILE) {
@@ -1618,32 +1532,40 @@ pcap_read_packet(pcap_t *handle, pcap_handler callback, u_char *userdata)
 	}
 
 #if defined(HAVE_PACKET_AUXDATA) && defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		struct tpacket_auxdata *aux;
-		unsigned int len;
-		struct vlan_tag *tag;
+	if (handle->md.vlan_offset != -1) {
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+			struct tpacket_auxdata *aux;
+			unsigned int len;
+			struct vlan_tag *tag;
 
-		if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
-		    cmsg->cmsg_level != SOL_PACKET ||
-		    cmsg->cmsg_type != PACKET_AUXDATA)
-			continue;
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
+			    cmsg->cmsg_level != SOL_PACKET ||
+			    cmsg->cmsg_type != PACKET_AUXDATA)
+				continue;
 
-		aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
-		if (aux->tp_vlan_tci == 0)
-			continue;
+			aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
+#if defined(TP_STATUS_VLAN_VALID)
+			if ((aux->tp_vlan_tci == 0) && !(aux->tp_status & TP_STATUS_VLAN_VALID))
+#else
+			if (aux->tp_vlan_tci == 0) /* this is ambigious but without the
+						TP_STATUS_VLAN_VALID flag, there is
+						nothing that we can do */
+#endif
+				continue;
 
-		len = packet_len > iov.iov_len ? iov.iov_len : packet_len;
-		if (len < 2 * ETH_ALEN)
-			break;
+			len = packet_len > iov.iov_len ? iov.iov_len : packet_len;
+			if (len < (unsigned int) handle->md.vlan_offset)
+				break;
 
-		bp -= VLAN_TAG_LEN;
-		memmove(bp, bp + VLAN_TAG_LEN, 2 * ETH_ALEN);
+			bp -= VLAN_TAG_LEN;
+			memmove(bp, bp + VLAN_TAG_LEN, handle->md.vlan_offset);
 
-		tag = (struct vlan_tag *)(bp + 2 * ETH_ALEN);
-		tag->vlan_tpid = htons(ETH_P_8021Q);
-		tag->vlan_tci = htons(aux->tp_vlan_tci);
+			tag = (struct vlan_tag *)(bp + handle->md.vlan_offset);
+			tag->vlan_tpid = htons(ETH_P_8021Q);
+			tag->vlan_tci = htons(aux->tp_vlan_tci);
 
-		packet_len += VLAN_TAG_LEN;
+			packet_len += VLAN_TAG_LEN;
+		}
 	}
 #endif /* defined(HAVE_PACKET_AUXDATA) && defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) */
 #endif /* HAVE_PF_PACKET_SOCKETS */
@@ -1951,6 +1873,8 @@ scan_sys_class_net(pcap_if_t **devlistp, char *errbuf)
 	DIR *sys_class_net_d;
 	int fd;
 	struct dirent *ent;
+	char subsystem_path[PATH_MAX+1];
+	struct stat statb;
 	char *p;
 	char name[512];	/* XXX - pick a size */
 	char *q, *saveq;
@@ -1995,10 +1919,41 @@ scan_sys_class_net(pcap_if_t **devlistp, char *errbuf)
 		}
 
 		/*
-		 * Ignore directories (".", "..", and any subdirectories).
+		 * Ignore "." and "..".
 		 */
-		if (ent->d_type == DT_DIR)
+		if (strcmp(ent->d_name, ".") == 0 ||
+		    strcmp(ent->d_name, "..") == 0)
 			continue;
+
+		/*
+		 * Ignore plain files; they do not have subdirectories
+		 * and thus have no attributes.
+		 */
+		if (ent->d_type == DT_REG)
+			continue;
+
+		/*
+		 * Is there an "ifindex" file under that name?
+		 * (We don't care whether it's a directory or
+		 * a symlink; older kernels have directories
+		 * for devices, newer kernels have symlinks to
+		 * directories.)
+		 */
+		snprintf(subsystem_path, sizeof subsystem_path,
+		    "/sys/class/net/%s/ifindex", ent->d_name);
+		if (lstat(subsystem_path, &statb) != 0) {
+			/*
+			 * Stat failed.  Either there was an error
+			 * other than ENOENT, and we don't know if
+			 * this is an interface, or it's ENOENT,
+			 * and either some part of "/sys/class/net/{if}"
+			 * disappeared, in which case it probably means
+			 * the interface disappeared, or there's no
+			 * "ifindex" file, which means it's not a
+			 * network interface.
+			 */
+			continue;
+		}
 
 		/*
 		 * Get the interface name.
@@ -2264,56 +2219,6 @@ pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 	 */
 	if (pcap_add_if(alldevsp, "any", 0, any_descr, errbuf) < 0)
 		return (-1);
-
-#ifdef HAVE_DAG_API
-	/*
-	 * Add DAG devices.
-	 */
-	if (dag_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_DAG_API */
-
-#ifdef HAVE_SEPTEL_API
-	/*
-	 * Add Septel devices.
-	 */
-	if (septel_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_SEPTEL_API */
-
-#ifdef HAVE_SNF_API
-	if (snf_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_SNF_API */
-
-#ifdef PCAP_SUPPORT_BT
-	/*
-	 * Add Bluetooth devices.
-	 */
-	if (bt_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif
-
-#ifdef PCAP_SUPPORT_USB
-	/*
-	 * Add USB devices.
-	 */
-	if (usb_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif
-
-#ifdef PCAP_SUPPORT_NETFILTER
-	/*
-	 * Add netfilter devices.
-	 */
-	if (netfilter_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif
-
-#if PCAP_SUPPORT_CANUSB
-  if (canusb_platform_finddevs(alldevsp, errbuf) < 0)
-    return (-1);
-#endif
 
 	return (0);
 }
@@ -3181,6 +3086,24 @@ activate_new(pcap_t *handle)
 	}
 	handle->bufsize = handle->snapshot;
 
+	/*
+	 * Set the offset at which to insert VLAN tags.
+	 */
+	switch (handle->linktype) {
+
+	case DLT_EN10MB:
+		handle->md.vlan_offset = 2 * ETH_ALEN;
+		break;
+
+	case DLT_LINUX_SLL:
+		handle->md.vlan_offset = 14;
+		break;
+
+	default:
+		handle->md.vlan_offset = -1; /* unknown */
+		break;
+	}
+
 	/* Save the socket FD in the pcap structure */
 	handle->fd = sock_fd;
 
@@ -3732,27 +3655,21 @@ pcap_getnonblock_mmap(pcap_t *p, char *errbuf)
 static int
 pcap_setnonblock_mmap(pcap_t *p, int nonblock, char *errbuf)
 {
-	/* map each value to the corresponding 2's complement, to 
-	 * preserve the timeout value provided with pcap_set_timeout */
+	/*
+	 * Map each value to their corresponding negation to
+	 * preserve the timeout value provided with pcap_set_timeout.
+	 */
 	if (nonblock) {
 		if (p->md.timeout >= 0) {
 			/*
-			 * Timeout is non-negative, so we're not already
-			 * in non-blocking mode; set it to the 2's
-			 * complement, to make it negative, as an
-			 * indication that we're in non-blocking mode.
+			 * Indicate that we're switching to
+			 * non-blocking mode.
 			 */
-			p->md.timeout = p->md.timeout*-1 - 1;
+			p->md.timeout = ~p->md.timeout;
 		}
 	} else {
 		if (p->md.timeout < 0) {
-			/*
-			 * Timeout is negative, so we're not already
-			 * in blocking mode; reverse the previous
-			 * operation, to make the timeout non-negative
-			 * again.
-			 */
-			p->md.timeout = (p->md.timeout+1)*-1;
+			p->md.timeout = ~p->md.timeout;
 		}
 	}
 	return 0;
@@ -4020,14 +3937,20 @@ pcap_read_linux_mmap(pcap_t *handle, int max_packets, pcap_handler callback,
 		}
 
 #ifdef HAVE_TPACKET2
-		if (handle->md.tp_version == TPACKET_V2 && h.h2->tp_vlan_tci &&
-		    tp_snaplen >= 2 * ETH_ALEN) {
+		if ((handle->md.tp_version == TPACKET_V2) &&
+#if defined(TP_STATUS_VLAN_VALID)
+		(h.h2->tp_vlan_tci || (h.h2->tp_status & TP_STATUS_VLAN_VALID)) &&
+#else
+		h.h2->tp_vlan_tci &&
+#endif
+		    handle->md.vlan_offset != -1 &&
+		    tp_snaplen >= (unsigned int) handle->md.vlan_offset) {
 			struct vlan_tag *tag;
 
 			bp -= VLAN_TAG_LEN;
-			memmove(bp, bp + VLAN_TAG_LEN, 2 * ETH_ALEN);
+			memmove(bp, bp + VLAN_TAG_LEN, handle->md.vlan_offset);
 
-			tag = (struct vlan_tag *)(bp + 2 * ETH_ALEN);
+			tag = (struct vlan_tag *)(bp + handle->md.vlan_offset);
 			tag->vlan_tpid = htons(ETH_P_8021Q);
 			tag->vlan_tci = htons(h.h2->tp_vlan_tci);
 
@@ -4935,7 +4858,7 @@ iface_ethtool_ioctl(pcap_t *handle, int cmd, const char *cmdname)
 	eval.cmd = cmd;
 	ifr.ifr_data = (caddr_t)&eval;
 	if (ioctl(handle->fd, SIOCETHTOOL, &ifr) == -1) {
-		if (errno == EOPNOTSUPP) {
+		if (errno == EOPNOTSUPP || errno == EINVAL) {
 			/*
 			 * OK, let's just return 0, which, in our
 			 * case, either means "no, what we're asking
@@ -5212,6 +5135,12 @@ activate_old(pcap_t *handle)
 	 * on a 4-byte boundary.
 	 */
 	handle->offset	 = 0;
+
+	/*
+	 * SOCK_PACKET sockets don't supply information from
+	 * stripped VLAN tags.
+	 */
+	handle->md.vlan_offset = -1; /* unknown */
 
 	return 1;
 }

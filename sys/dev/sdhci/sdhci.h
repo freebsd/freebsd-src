@@ -57,6 +57,8 @@
 #define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<11)
 /* SDHCI_CAPABILITIES is invalid */
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
+/* Hardware shifts the 136-bit response, don't do it in software. */
+#define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
 
 /*
  * Controller registers
@@ -102,6 +104,7 @@
 #define  SDHCI_CMD_INHIBIT	0x00000001
 #define  SDHCI_DAT_INHIBIT	0x00000002
 #define  SDHCI_DAT_ACTIVE	0x00000004
+#define  SDHCI_RETUNE_REQUEST	0x00000008
 #define  SDHCI_DOING_WRITE	0x00000100
 #define  SDHCI_DOING_READ	0x00000200
 #define  SDHCI_SPACE_AVAILABLE	0x00000400
@@ -110,8 +113,8 @@
 #define  SDHCI_CARD_STABLE	0x00020000
 #define  SDHCI_CARD_PIN		0x00040000
 #define  SDHCI_WRITE_PROTECT	0x00080000
-#define  SDHCI_STATE_DAT	0x00700000
-#define  SDHCI_STATE_CMD	0x00800000
+#define  SDHCI_STATE_DAT_MASK	0x00f00000
+#define  SDHCI_STATE_CMD	0x01000000
 
 #define SDHCI_HOST_CONTROL 	0x28
 #define  SDHCI_CTRL_LED		0x01
@@ -120,6 +123,8 @@
 #define  SDHCI_CTRL_SDMA	0x08
 #define  SDHCI_CTRL_ADMA2	0x10
 #define  SDHCI_CTRL_ADMA264	0x18
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define  SDHCI_CTRL_8BITBUS	0x20
 #define  SDHCI_CTRL_CARD_DET	0x40
 #define  SDHCI_CTRL_FORCE_CARD	0x80
 
@@ -195,6 +200,7 @@
 #define  SDHCI_CLOCK_BASE_SHIFT	8
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_8BITBUS	0x00040000
 #define  SDHCI_CAN_DO_ADMA2	0x00080000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_DMA	0x00400000
@@ -224,8 +230,9 @@ struct sdhci_slot {
 	device_t	dev;		/* Slot device */
 	u_char		num;		/* Slot number */
 	u_char		opt;		/* Slot options */
+#define SDHCI_HAVE_DMA			1
+#define SDHCI_PLATFORM_TRANSFER		2
 	u_char		version;
-#define SDHCI_HAVE_DMA		1
 	uint32_t	max_clk;	/* Max possible freq */
 	uint32_t	timeout_clk;	/* Timeout freq */
 	bus_dma_tag_t 	dmatag;
@@ -234,6 +241,7 @@ struct sdhci_slot {
 	bus_addr_t	paddr;		/* DMA buffer address */
 	struct task	card_task;	/* Card presence check task */
 	struct callout	card_callout;	/* Card insert delay callout */
+	struct callout	timeout_callout;/* Card command/data response timeout */
 	struct mmc_host host;		/* Host parameters */
 	struct mmc_request *req;	/* Current request */
 	struct mmc_command *curcmd;	/* Current command of current request */
@@ -250,6 +258,7 @@ struct sdhci_slot {
 #define CMD_STARTED		1
 #define STOP_STARTED		2
 #define SDHCI_USE_DMA		4	/* Use DMA for this req. */
+#define PLATFORM_DATA_STARTED	8	/* Data transfer is handled by platform */
 	struct mtx	mtx;		/* Slot mutex */
 };
 
@@ -257,6 +266,8 @@ int sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *
 int sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t value);
 int sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num);
 void sdhci_start_slot(struct sdhci_slot *slot);
+/* performs generic clean-up for platform transfers */
+void sdhci_finish_data(struct sdhci_slot *slot);
 int sdhci_cleanup_slot(struct sdhci_slot *slot);
 int sdhci_generic_suspend(struct sdhci_slot *slot);
 int sdhci_generic_resume(struct sdhci_slot *slot);
@@ -266,5 +277,6 @@ int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
 int sdhci_generic_acquire_host(device_t brdev, device_t reqdev);
 int sdhci_generic_release_host(device_t brdev, device_t reqdev);
 void sdhci_generic_intr(struct sdhci_slot *slot);
+uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
 
 #endif	/* __SDHCI_H__ */

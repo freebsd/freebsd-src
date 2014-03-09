@@ -166,7 +166,7 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC1_RETRY			0x08
 #define	IEEE80211_FC1_PWR_MGT			0x10
 #define	IEEE80211_FC1_MORE_DATA			0x20
-#define	IEEE80211_FC1_WEP			0x40
+#define	IEEE80211_FC1_PROTECTED			0x40
 #define	IEEE80211_FC1_ORDER			0x80
 
 #define	IEEE80211_SEQ_FRAG_MASK			0x000f
@@ -200,11 +200,11 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_QOS_EOSP_S			4
 #define	IEEE80211_QOS_TID			0x0f
 /* qos[1] byte used for all frames sent by mesh STAs in a mesh BSS */
-#define IEEE80211_QOS_MC			0x10	/* Mesh control */
+#define IEEE80211_QOS_MC			0x01	/* Mesh control */
 /* Mesh power save level*/
-#define IEEE80211_QOS_MESH_PSL			0x20
+#define IEEE80211_QOS_MESH_PSL			0x02
 /* Mesh Receiver Service Period Initiated */
-#define IEEE80211_QOS_RSPI			0x40
+#define IEEE80211_QOS_RSPI			0x04
 /* bits 11 to 15 reserved */
 
 /* does frame have QoS sequence control data */
@@ -711,6 +711,7 @@ enum {
 	IEEE80211_ELEMID_IBSSDFS	= 41,
 	IEEE80211_ELEMID_ERP		= 42,
 	IEEE80211_ELEMID_HTCAP		= 45,
+	IEEE80211_ELEMID_QOS		= 46,
 	IEEE80211_ELEMID_RSN		= 48,
 	IEEE80211_ELEMID_XRATES		= 50,
 	IEEE80211_ELEMID_HTINFO		= 61,

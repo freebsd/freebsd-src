@@ -647,8 +647,10 @@ archive_write_pax_header(struct archive_write *a,
 		oname = archive_entry_pathname(entry_original);
 		name_length = strlen(oname);
 		name = malloc(name_length + 3);
-		if (name == NULL) {
+		if (name == NULL || extra == NULL) {
 			/* XXX error message */
+			archive_entry_free(extra);
+			free(name);
 			return (ARCHIVE_FAILED);
 		}
 		strcpy(name, oname);
@@ -687,11 +689,13 @@ archive_write_pax_header(struct archive_write *a,
 
 		/* Recurse to write the special copyfile entry. */
 		r = archive_write_pax_header(a, extra);
+		archive_entry_free(extra);
 		if (r < ARCHIVE_WARN)
 			return (r);
 		if (r < ret)
 			ret = r;
-		r = archive_write_pax_data(a, mac_metadata, mac_metadata_size);
+		r = (int)archive_write_pax_data(a, mac_metadata,
+		    mac_metadata_size);
 		if (r < ARCHIVE_WARN)
 			return (r);
 		if (r < ret)
@@ -1862,7 +1866,7 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 	sb->is_hole = is_hole;
 	sb->offset = offset;
 	sb->remaining = length;
-	if (pax->sparse_list == NULL)
+	if (pax->sparse_list == NULL || pax->sparse_tail == NULL)
 		pax->sparse_list = pax->sparse_tail = sb;
 	else {
 		pax->sparse_tail->next = sb;

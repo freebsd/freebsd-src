@@ -147,8 +147,7 @@ hpet_disable(struct hpet_softc *sc)
 }
 
 static int
-hpet_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct hpet_timer *mt = (struct hpet_timer *)et->et_priv;
 	struct hpet_timer *t;
@@ -156,20 +155,16 @@ hpet_start(struct eventtimer *et,
 	uint32_t fdiv, now;
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
-	if (period != NULL) {
+	if (period != 0) {
 		t->mode = 1;
-		t->div = (sc->freq * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			t->div += sc->freq * period->sec;
+		t->div = (sc->freq * period) >> 32;
 	} else {
 		t->mode = 2;
 		t->div = 0;
 	}
-	if (first != NULL) {
-		fdiv = (sc->freq * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fdiv += sc->freq * first->sec;
-	} else
+	if (first != 0)
+		fdiv = (sc->freq * first) >> 32;
+	else
 		fdiv = t->div;
 	if (t->irq < 0)
 		bus_write_4(sc->mem_res, HPET_ISR, 1 << t->num);
@@ -298,7 +293,7 @@ hpet_find(ACPI_HANDLE handle, UINT32 level, void *context,
 		return (AE_OK);
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &uid)) ||
 	    id == uid)
-		*((int *)status) = 1;
+		*status = acpi_get_device(handle);
 	return (AE_OK);
 }
 
@@ -326,7 +321,7 @@ hpet_identify(driver_t *driver, device_t parent)
 	ACPI_TABLE_HPET *hpet;
 	ACPI_STATUS	status;
 	device_t	child;
-	int 		i, found;
+	int		i;
 
 	/* Only one HPET device can be added. */
 	if (devclass_get_device(hpet_devclass, 0))
@@ -337,12 +332,18 @@ hpet_identify(driver_t *driver, device_t parent)
 		if (ACPI_FAILURE(status))
 			return;
 		/* Search for HPET device with same ID. */
-		found = 0;
+		child = NULL;
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-		    100, hpet_find, NULL, (void *)(uintptr_t)hpet->Sequence, (void *)&found);
+		    100, hpet_find, NULL, (void *)(uintptr_t)hpet->Sequence,
+		    (void *)&child);
 		/* If found - let it be probed in normal way. */
-		if (found)
+		if (child) {
+			if (bus_get_resource(child, SYS_RES_MEMORY, 0,
+			    NULL, NULL) != 0)
+				bus_set_resource(child, SYS_RES_MEMORY, 0,
+				    hpet->Address.Address, HPET_MEM_WIDTH);
 			continue;
+		}
 		/* If not - create it from table info. */
 		child = BUS_ADD_CHILD(parent, 2, "hpet", 0);
 		if (child == NULL) {
@@ -680,16 +681,14 @@ hpet_attach(device_t dev)
 		if (t->pcpu_master >= 0) {
 			t->et.et_flags |= ET_FLAGS_PERCPU;
 			t->et.et_quality += 100;
-		}
+		} else if (mp_ncpus >= 8)
+			t->et.et_quality -= 100;
 		if ((t->caps & HPET_TCAP_PER_INT) == 0)
 			t->et.et_quality -= 10;
 		t->et.et_frequency = sc->freq;
-		t->et.et_min_period.sec = 0;
-		t->et.et_min_period.frac =
-		    (((uint64_t)(HPET_MIN_CYCLES * 2) << 32) / sc->freq) << 32;
-		t->et.et_max_period.sec = 0xfffffffeLLU / sc->freq;
-		t->et.et_max_period.frac =
-		    ((0xfffffffeLLU << 32) / sc->freq) << 32;
+		t->et.et_min_period =
+		    ((uint64_t)(HPET_MIN_CYCLES * 2) << 32) / sc->freq;
+		t->et.et_max_period = (0xfffffffeLLU << 32) / sc->freq;
 		t->et.et_start = hpet_start;
 		t->et.et_stop = hpet_stop;
 		t->et.et_priv = &sc->t[i];
@@ -849,7 +848,7 @@ static device_method_t hpet_methods[] = {
 	DEVMETHOD(bus_remap_intr, hpet_remap_intr),
 #endif
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	hpet_driver = {

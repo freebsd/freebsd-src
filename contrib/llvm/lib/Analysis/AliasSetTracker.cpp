@@ -13,13 +13,13 @@
 
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Pass.h"
-#include "llvm/Type.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
@@ -299,7 +299,6 @@ bool AliasSetTracker::add(Value *Ptr, uint64_t Size, const MDNode *TBAAInfo) {
 bool AliasSetTracker::add(LoadInst *LI) {
   if (LI->getOrdering() > Monotonic) return addUnknown(LI);
   AliasSet::AccessType ATy = AliasSet::Refs;
-  if (!LI->isUnordered()) ATy = AliasSet::ModRef;
   bool NewPtr;
   AliasSet &AS = addPointer(LI->getOperand(0),
                             AA.getTypeStoreSize(LI->getType()),
@@ -312,7 +311,6 @@ bool AliasSetTracker::add(LoadInst *LI) {
 bool AliasSetTracker::add(StoreInst *SI) {
   if (SI->getOrdering() > Monotonic) return addUnknown(SI);
   AliasSet::AccessType ATy = AliasSet::Mods;
-  if (!SI->isUnordered()) ATy = AliasSet::ModRef;
   bool NewPtr;
   Value *Val = SI->getOperand(0);
   AliasSet &AS = addPointer(SI->getOperand(1),

@@ -38,6 +38,7 @@
 
 #include <sys/zfs_context.h>
 #include <sys/types.h>
+#include <sys/param.h>
 
 #define	MATCH_BITS	6
 #define	MATCH_MIN	3
@@ -51,7 +52,8 @@ lzjb_compress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 {
 	uchar_t *src = s_start;
 	uchar_t *dst = d_start;
-	uchar_t *cpy, *copymap;
+	uchar_t *cpy;
+	uchar_t *copymap = NULL;
 	int copymask = 1 << (NBBY - 1);
 	int mlen, offset, hash;
 	uint16_t *hp;
@@ -100,7 +102,8 @@ lzjb_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 	uchar_t *src = s_start;
 	uchar_t *dst = d_start;
 	uchar_t *d_end = (uchar_t *)d_start + d_len;
-	uchar_t *cpy, copymap;
+	uchar_t *cpy;
+	uchar_t copymap = 0;
 	int copymask = 1 << (NBBY - 1);
 
 	while (dst < d_end) {
@@ -114,7 +117,9 @@ lzjb_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 			src += 2;
 			if ((cpy = dst - offset) < (uchar_t *)d_start)
 				return (-1);
-			while (--mlen >= 0 && dst < d_end)
+			if (mlen > (d_end - dst))
+				mlen = d_end - dst;
+			while (--mlen >= 0)
 				*dst++ = *cpy++;
 		} else {
 			*dst++ = *src++;

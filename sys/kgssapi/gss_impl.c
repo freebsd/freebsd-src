@@ -286,6 +286,7 @@ kgssapi_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		rpc_gss_entries.rpc_gss_refresh_auth = rpc_gss_refresh_auth;
 		rpc_gss_entries.rpc_gss_secfind = rpc_gss_secfind;
 		rpc_gss_entries.rpc_gss_secpurge = rpc_gss_secpurge;
 		rpc_gss_entries.rpc_gss_seccreate = rpc_gss_seccreate;

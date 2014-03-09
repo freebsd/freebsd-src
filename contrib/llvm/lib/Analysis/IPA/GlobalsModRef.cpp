@@ -16,20 +16,20 @@
 
 #define DEBUG_TYPE "globalsmodref-aa"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Instructions.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/ADT/SCCIterator.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InstIterator.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/SCCIterator.h"
 #include <set>
 using namespace llvm;
 
@@ -189,7 +189,7 @@ char GlobalsModRef::ID = 0;
 INITIALIZE_AG_PASS_BEGIN(GlobalsModRef, AliasAnalysis,
                 "globalsmodref-aa", "Simple mod/ref analysis for globals",    
                 false, true, false)
-INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_DEPENDENCY(CallGraph)
 INITIALIZE_AG_PASS_END(GlobalsModRef, AliasAnalysis,
                 "globalsmodref-aa", "Simple mod/ref analysis for globals",    
                 false, true, false)

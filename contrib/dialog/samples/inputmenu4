@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: inputmenu4,v 1.8 2010/01/13 10:33:35 tom Exp $
+# $Id: inputmenu4,v 1.9 2012/07/01 01:00:34 tom Exp $
 #
 # "inputmenu1" with a different label for the extra-button
 
@@ -59,7 +59,7 @@ exec 3>&-
 		;;
 	$DIALOG_EXTRA)
 		tag=`echo "$value" |sed -e 's/^RENAMED //' -e 's/:.*//'`
-		item=`echo "$value" |sed -e 's/^.*:[ ]*//' -e 's/[ ]*$//'`
+		item=`echo "$value" |sed -e 's/^[^:]*:[ ]*//' -e 's/[ ]*$//'`
 
 		case "$tag" in
 		Username)

@@ -121,7 +121,7 @@ drm_gem_private_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 	obj->vm_obj = NULL;
 
 	obj->refcount = 1;
-	atomic_set(&obj->handle_count, 0);
+	atomic_store_rel_int(&obj->handle_count, 0);
 	obj->size = size;
 
 	return (0);
@@ -163,7 +163,7 @@ void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
 
-	KASSERT(obj->refcount > 0, ("Dandling obj %p", obj));
+	KASSERT(obj->refcount > 0, ("Dangling obj %p", obj));
 	refcount_acquire(&obj->refcount);
 }
 
@@ -242,24 +242,40 @@ int
 drm_gem_handle_create(struct drm_file *file_priv, struct drm_gem_object *obj,
     uint32_t *handle)
 {
-	int error;
+	struct drm_device *dev = obj->dev;
+	int ret;
 
-	error = drm_gem_name_create(&file_priv->object_names, obj, handle);
-	if (error != 0)
-		return (error);
+	ret = drm_gem_name_create(&file_priv->object_names, obj, handle);
+	if (ret != 0)
+		return (ret);
 	drm_gem_object_handle_reference(obj);
+
+	if (dev->driver->gem_open_object) {
+		ret = dev->driver->gem_open_object(obj, file_priv);
+		if (ret) {
+			drm_gem_handle_delete(file_priv, *handle);
+			return ret;
+		}
+	}
+
 	return (0);
 }
 
 int
 drm_gem_handle_delete(struct drm_file *file_priv, uint32_t handle)
 {
+	struct drm_device *dev;
 	struct drm_gem_object *obj;
 
 	obj = drm_gem_names_remove(&file_priv->object_names, handle);
 	if (obj == NULL)
 		return (EINVAL);
+
+	dev = obj->dev;
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, file_priv);
 	drm_gem_object_handle_unreference_unlocked(obj);
+
 	return (0);
 }
 
@@ -312,9 +328,17 @@ drm_gem_open(struct drm_device *dev, struct drm_file *file_priv)
 static int
 drm_gem_object_release_handle(uint32_t name, void *ptr, void *arg)
 {
+	struct drm_file *file_priv;
 	struct drm_gem_object *obj;
+	struct drm_device *dev;
 
+	file_priv = arg;
 	obj = ptr;
+	dev = obj->dev;
+
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, file_priv);
+
 	drm_gem_object_handle_unreference(obj);
 	return (0);
 }
@@ -324,7 +348,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_priv)
 {
 
 	drm_gem_names_foreach(&file_priv->object_names,
-	    drm_gem_object_release_handle, NULL);
+	    drm_gem_object_release_handle, file_priv);
 	drm_gem_names_fini(&file_priv->object_names);
 }
 
@@ -441,16 +465,12 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 }
 
 int
-drm_gem_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
+drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size,
     struct vm_object **obj_res, int nprot)
 {
-	struct drm_device *dev;
 	struct drm_gem_object *gem_obj;
 	struct vm_object *vm_obj;
 
-	dev = drm_get_device_from_kdev(kdev);
-	if ((dev->driver->driver_features & DRIVER_GEM) == 0)
-		return (ENODEV);
 	DRM_LOCK(dev);
 	gem_obj = drm_gem_object_from_offset(dev, *offset);
 	if (gem_obj == NULL) {

@@ -491,6 +491,7 @@ device		tdfx_linux		# Enable Linuxulator support
 
 device		acpi
 options 	ACPI_DEBUG
+options 	ACPI_DMAR
 
 # ACPI WMI Mapping driver
 device		acpi_wmi
@@ -553,6 +554,8 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -578,14 +581,15 @@ hint.mse.0.irq="5"
 # mlxen: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
-# nve:	nVidia nForce MCP on-board Ethernet Networking
 # sbni: Granch SBNI12-xx ISA and PCI adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
 # Order for ISA/EISA devices is important here
 
+device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ce
 device		cp
 device		cs		# Crystal Semiconductor CS89x0 NIC
@@ -623,12 +627,12 @@ device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlxen		# Mellanox ConnectX HCA Ethernet
 device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
-device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
+device		vmx		# VMware VMXNET3 Ethernet
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
@@ -714,6 +718,10 @@ hint.stg.0.port="11"
 device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
+
 # The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
 # controllers (SmartRAID V and VI and later).
 # These controllers require the CAM infrastructure.
@@ -727,6 +735,10 @@ device		hpt27xx
 #
 # Highpoint RocketRAID 182x.
 device		hptmv
+
+#
+# Highpoint DC7280 and R750.
+device		hptnr
 
 #
 # Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
@@ -770,6 +782,25 @@ device		glxiic		# AMD Geode LX CS5536 System Management Bus
 # Requires 'device crypto'.
 #
 device		glxsb		# AMD Geode LX Security Block
+
+#
+# VirtIO support
+#
+# The virtio entry provides a generic bus for use by the device drivers.
+# It must be combined with an interface that communicates with the host.
+# Multiple such interfaces defined by the VirtIO specification. FreeBSD
+# only has support for PCI. Therefore, virtio_pci must be statically
+# compiled in or loaded as a module for the device drivers to function.
+#
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI Interface
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_random	# VirtIO Entropy device
+
+device 		hyperv		# HyperV drivers
 
 #####################################################################
 
@@ -826,6 +857,9 @@ hint.spic.0.port="0x10a0"
 device		asmc
 #device		si
 device		tpm
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
+device		aesni		# AES-NI OpenCrypto module
 
 #
 # Laptop/Notebook options:

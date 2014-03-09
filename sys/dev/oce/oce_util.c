@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,8 @@ oce_dma_alloc(POCE_SOFTC sc, bus_size_t size, POCE_DMA_MEM dma, int flags)
 	if (rc == 0) {
 		rc = bus_dmamem_alloc(dma->tag,
 				      &dma->ptr,
-				      BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+				      BUS_DMA_NOWAIT | BUS_DMA_COHERENT |
+					BUS_DMA_ZERO,
 				      &dma->map);
 	}
 

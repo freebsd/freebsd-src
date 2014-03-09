@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)util.h	10.5 (Berkeley) 3/16/96
+ *	$Id: util.h,v 10.7 2013/02/24 21:00:10 zy Exp $
  */
 
 /* Macros to init/set/clear/test flags. */
@@ -54,3 +54,40 @@ enum nresult { NUM_ERR, NUM_OK, NUM_OVER, NUM_UNDER };
 	 NUM_OK)
 #define	NADD_USLONG(sp, v1, v2)						\
 	(NPFITS(ULONG_MAX, (v1), (v2)) ? NUM_OK : NUM_OVER)
+
+/* Macros for min/max. */
+#undef	MIN
+#undef	MAX
+#define	MIN(_a,_b)	((_a)<(_b)?(_a):(_b))
+#define	MAX(_a,_b)	((_a)<(_b)?(_b):(_a))
+
+/* Operations on timespecs */
+#undef timespecclear
+#undef timespecisset
+#undef timespeccmp
+#undef timespecadd
+#undef timespecsub
+#define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
+#define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
+#define	timespeccmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define timespecadd(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec += (uvp)->tv_sec;				\
+		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec >= 1000000000) {			\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_nsec -= 1000000000;			\
+		}							\
+	} while (0)
+#define timespecsub(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)

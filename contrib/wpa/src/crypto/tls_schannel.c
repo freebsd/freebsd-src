@@ -2,14 +2,8 @@
  * SSL/TLS interface functions for Microsoft Schannel
  * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 /*
@@ -735,33 +729,4 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 unsigned int tls_capabilities(void *tls_ctx)
 {
 	return 0;
-}
-
-
-int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
-			  int tls_ia)
-{
-	return -1;
-}
-
-
-struct wpabuf * tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final);
-{
-	return NULL;
-}
-
-
-int tls_connection_ia_final_phase_finished(void *tls_ctx,
-					   struct tls_connection *conn)
-{
-	return -1;
-}
-
-
-int tls_connection_ia_permute_inner_secret(void *tls_ctx,
-					   struct tls_connection *conn,
-					   const u8 *key, size_t key_len)
-{
-	return -1;
 }

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
 #include <net/ethernet.h>
@@ -474,7 +475,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -492,7 +493,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -630,7 +631,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "%s", "WEP set but not permitted");
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
@@ -688,6 +689,9 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates;
+#if 0
+	int ht_state_change = 0;
+#endif
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -748,10 +752,42 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				memcpy(ni->ni_tstamp.data, scan.tstamp,
 					sizeof(ni->ni_tstamp));
 			}
+			/*
+			 * This isn't enabled yet - otherwise it would
+			 * update the HT parameters and channel width
+			 * from any node, which could lead to lots of
+			 * strange behaviour if the 11n nodes aren't
+			 * exactly configured to match.
+			 */
+#if 0
+			if (scan.htcap != NULL && scan.htinfo != NULL &&
+			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
+				if (ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo))
+					ht_state_change = 1;
+			}
+#endif
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 				ni->ni_noise = nf;
 			}
+			/*
+			 * Same here - the channel width change should
+			 * be applied to the specific peer node, not
+			 * to the ic.  Ie, the interface configuration
+			 * should stay in its current channel width;
+			 * but it should change the rate control and
+			 * any queued frames for the given node only.
+			 *
+			 * Since there's no (current) way to inform
+			 * the driver that a channel width change has
+			 * occured for a single node, just stub this
+			 * out.
+			 */
+#if 0
+			if (ht_state_change)
+				ieee80211_update_chw(ic);
+#endif
 		}
 		break;
 	}

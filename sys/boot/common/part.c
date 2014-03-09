@@ -181,7 +181,7 @@ gpt_checkhdr(struct gpt_hdr *hdr, uint64_t lba_self, uint64_t lba_last,
 	}
 	hdr->hdr_entries = le32toh(hdr->hdr_entries);
 	hdr->hdr_entsz = le32toh(hdr->hdr_entsz);
-	if (hdr->hdr_entries < 128 ||
+	if (hdr->hdr_entries == 0 ||
 	    hdr->hdr_entsz < sizeof(struct gpt_ent) ||
 	    sectorsize % hdr->hdr_entsz != 0) {
 		DEBUG("invalid entry size or number of entries");
@@ -203,11 +203,14 @@ gpt_checktbl(const struct gpt_hdr *hdr, u_char *tbl, size_t size,
 	int i, cnt;
 
 	cnt = size / hdr->hdr_entsz;
-	/* Check CRC only when buffer size is enough for table. */
-	if (hdr->hdr_entries <= cnt &&
-	    crc32(tbl, size) != hdr->hdr_crc_table) {
-		DEBUG("GPT table's CRC doesn't match");
-		return (-1);
+	if (hdr->hdr_entries <= cnt) {
+		cnt = hdr->hdr_entries;
+		/* Check CRC only when buffer size is enough for table. */
+		if (hdr->hdr_crc_table !=
+		    crc32(tbl, hdr->hdr_entries * hdr->hdr_entsz)) {
+			DEBUG("GPT table's CRC doesn't match");
+			return (-1);
+		}
 	}
 	ent = (struct gpt_ent *)tbl;
 	for (i = 0; i < cnt; i++, ent++) {
@@ -645,9 +648,13 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	/* Do we have some invalid values? */
 	if (i != NDOSPART ||
 	    (table->type == PTABLE_GPT && count > 1)) {
-		table->type = PTABLE_NONE;
-		DEBUG("invalid values detected, ignore partition table");
-		goto out;
+		if (dp[1].dp_typ != DOSPTYP_HFS) {
+			table->type = PTABLE_NONE;
+			DEBUG("invalid values detected, ignore "
+			    "partition table");
+			goto out;
+		}
+		DEBUG("Bootcamp detected");
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {

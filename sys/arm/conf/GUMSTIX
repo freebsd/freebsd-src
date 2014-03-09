@@ -30,7 +30,6 @@ options 	PHYSADDR=0xa0000000
 options 	KERNPHYSADDR=0xa0200000	
 options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 
-options 	STARTUP_PAGETABLE_ADDR=0xa0000000
 include		"../xscale/pxa/std.pxa"
 makeoptions	MODULES_OVERRIDE=""
 
@@ -48,6 +47,9 @@ options 	UFS_DIRHASH		#Improve performance on big directories
 options 	NFSCL			#New Network Filesystem Client
 #options 	NFSD			#New Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)

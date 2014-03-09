@@ -18,12 +18,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PASS_SUPPORT_H
-#define LLVM_PASS_SUPPORT_H
+#ifndef LLVM_PASSSUPPORT_H
+#define LLVM_PASSSUPPORT_H
 
 #include "Pass.h"
-#include "llvm/PassRegistry.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/Support/Atomic.h"
 #include "llvm/Support/Valgrind.h"
 #include <vector>
@@ -305,7 +305,7 @@ struct RegisterAnalysisGroup : public RegisterAGBase {
 /// clients that are interested in which passes get registered and unregistered
 /// at runtime (which can be because of the RegisterPass constructors being run
 /// as the program starts up, or may be because a shared object just got
-/// loaded).  Deriving from the PassRegistationListener class automatically
+/// loaded).  Deriving from the PassRegistrationListener class automatically
 /// registers your object to receive callbacks indicating when passes are loaded
 /// and removed.
 ///

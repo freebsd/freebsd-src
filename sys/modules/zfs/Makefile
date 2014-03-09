@@ -28,6 +28,7 @@ SRCS+=	opensolaris_sysevent.c
 SRCS+=	opensolaris_taskq.c
 SRCS+=	opensolaris_uio.c
 SRCS+=	opensolaris_vfs.c
+SRCS+=	opensolaris_vm.c
 SRCS+=	opensolaris_zone.c
 
 _A=${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic
@@ -94,6 +95,8 @@ CFLAGS+=-mminimal-toc
 #DEBUG_FLAGS=-g
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../cddl/compat/opensolaris/sys/debug_compat.h
 
 CWARNFLAGS+=-Wno-unknown-pragmas
 CWARNFLAGS+=-Wno-missing-prototypes

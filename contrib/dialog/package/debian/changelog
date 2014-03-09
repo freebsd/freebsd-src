@@ -1,3 +1,70 @@
+cdialog (20130923) unstable; urgency=low
+
+  * improved memory-caching for gauge widget
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Sep 2013 09:18:26 -0400
+
+cdialog (20130902) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 01 Sep 2013 19:08:31 -0400
+
+cdialog (20130523) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 23 May 2013 19:25:01 -0400
+
+cdialog (20130315) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 15 Mar 2013 04:41:20 -0400
+
+cdialog (20121230) unstable; urgency=low
+
+  * new widgets
+  * coverity fixes
+  * configure-script updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Oct 2012 09:19:29 -0400
+
+cdialog (20120706) unstable; urgency=high
+
+  * fix regression in msgbox (ArchLinux #30574)
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 06 Jul 2012 12:52:46 -0400
+
+cdialog (20120703) unstable; urgency=low
+
+  * minor fixes
+  * add --default-button
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 30 Jun 2012 10:41:05 -0400
+
+cdialog (20120215) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 15 Feb 2012 19:40:32 -0500
+
+cdialog (20111020) unstable; urgency=high
+
+  * fix regression in menubox.c logic for inputmenu vs menu.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 19 Oct 2011 19:17:40 -0400
+
+cdialog (20111018) unstable; urgency=high
+
+  * improve color configurability
+  * misc bug-fixes.
+  * various improvements to tracing.
+  * remove an incorrect free() call in dlg_free_gauge()
+  * fix missing trailing null from dlg_align_columns
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 07 Sep 2011 20:04:04 -0400
+
 cdialog (20110707) unstable; urgency=high
 
   * fix a regression in dlg_getc() from 20110630 changes.

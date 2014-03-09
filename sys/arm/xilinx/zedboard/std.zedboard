@@ -1,0 +1,8 @@
+#
+# std.zedboard
+#
+# $FreeBSD$
+
+include "../xilinx/std.zynq7"
+files	"../xilinx/zedboard/files.zedboard"
+

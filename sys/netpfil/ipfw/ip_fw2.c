@@ -59,10 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
-#include <net/pf_mtag.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+
+#include <netpfil/pf/pf_mtag.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -141,6 +143,8 @@ VNET_DEFINE(int, verbose_limit);
 
 /* layer3_chain contains the list of rules for layer 3 */
 VNET_DEFINE(struct ip_fw_chain, layer3_chain);
+
+VNET_DEFINE(int, ipfw_nat_ready) = 0;
 
 ipfw_nat_t *ipfw_nat_ptr = NULL;
 struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
@@ -366,7 +370,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 				return(1);
 		}
 	} else {
-#ifdef __FreeBSD__	/* and OSX too ? */
+#if !defined(USERSPACE) && defined(__FreeBSD__)	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -409,7 +413,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
-#ifndef __FreeBSD__
+#if defined(USERSPACE) || !defined(__FreeBSD__)
 	return 0;
 #else
 	struct route ro;
@@ -430,7 +434,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	 * If ifp is provided, check for equality with rtentry.
 	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
 	 * in order to pass packets injected back by if_simloop():
-	 * if useloopback == 1 routing entry (via lo0) for our own address
+	 * routing entry (via lo0) for our own address
 	 * may exist, so we need to handle routing assymetry.
 	 */
 	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
@@ -660,6 +664,9 @@ static int
 check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
     struct ucred **uc)
 {
+#if defined(USERSPACE)
+	return 0;	// not supported in userspace
+#else
 #ifndef __FreeBSD__
 	/* XXX */
 	return cred_check(insn, proto, oif,
@@ -762,6 +769,7 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return (match);
 #endif /* __FreeBSD__ */
+#endif /* not supported in userspace */
 }
 
 /*
@@ -777,6 +785,38 @@ set_match(struct ip_fw_args *args, int slot,
 	args->rule.slot = slot + 1; /* we use 0 as a marker */
 	args->rule.rule_id = 1 + chain->map[slot]->id;
 	args->rule.rulenum = chain->map[slot]->rulenum;
+}
+
+/*
+ * Helper function to enable cached rule lookups using
+ * x_next and next_rule fields in ipfw rule.
+ */
+static int
+jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards)
+{
+	int f_pos;
+
+	/* If possible use cached f_pos (in f->next_rule),
+	 * whose version is written in f->next_rule
+	 * (horrible hacks to avoid changing the ABI).
+	 */
+	if (num != IP_FW_TABLEARG && (uintptr_t)f->x_next == chain->id)
+		f_pos = (uintptr_t)f->next_rule;
+	else {
+		int i = IP_FW_ARG_TABLEARG(num);
+		/* make sure we do not jump backward */
+		if (jump_backwards == 0 && i <= f->rulenum)
+			i = f->rulenum + 1;
+		f_pos = ipfw_find_rule(chain, i, 0);
+		/* update the cache */
+		if (num != IP_FW_TABLEARG) {
+			f->next_rule = (void *)(uintptr_t)f_pos;
+			f->x_next = (void *)(uintptr_t)chain->id;
+		}
+	}
+
+	return (f_pos);
 }
 
 /*
@@ -1203,9 +1243,9 @@ do {								\
 		args->f_id.dst_port = dst_port = ntohs(dst_port);
 	}
 
-	IPFW_RLOCK(chain);
+	IPFW_PF_RLOCK(chain);
 	if (! V_ipfw_vnet_ready) { /* shutting down, leave NOW. */
-		IPFW_RUNLOCK(chain);
+		IPFW_PF_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
 	if (args->rule.slot) {
@@ -1428,6 +1468,7 @@ do {								\
 					    key = htonl(dst_port);
 					else if (v == 3)
 					    key = htonl(src_port);
+#ifndef USERSPACE
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
@@ -1447,6 +1488,7 @@ do {								\
 #endif /* !__FreeBSD__ */
 					    key = htonl(key);
 					} else
+#endif /* !USERSPACE */
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -1622,6 +1664,32 @@ do {								\
 			case O_IPTOS:
 				match = (is_ipv4 &&
 				    flags_match(cmd, ip->ip_tos));
+				break;
+
+			case O_DSCP:
+			    {
+				uint32_t *p;
+				uint16_t x;
+
+				p = ((ipfw_insn_u32 *)cmd)->d;
+
+				if (is_ipv4)
+					x = ip->ip_tos >> 2;
+				else if (is_ipv6) {
+					uint8_t *v;
+					v = &((struct ip6_hdr *)ip)->ip6_vfc;
+					x = (*v & 0x0F) << 2;
+					v++;
+					x |= *v >> 6;
+				} else
+					break;
+
+				/* DSCP bitmask is stored as low_u32 high_u32 */
+				if (x > 32)
+					match = *(p + 1) & (1 << (x - 32));
+				else
+					match = *p & (1 << x);
+			    }
 				break;
 
 			case O_TCPDATALEN:
@@ -1884,6 +1952,7 @@ do {								\
 				break;
 
 			case O_SOCKARG:	{
+#ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
 				
@@ -1924,6 +1993,7 @@ do {								\
 							match = 1;
 					}
 				}
+#endif /* !USERSPACE */
 				break;
 			}
 
@@ -2097,27 +2167,7 @@ do {								\
 
 			case O_SKIPTO:
 			    IPFW_INC_RULE_COUNTER(f, pktlen);
-			    /* If possible use cached f_pos (in f->next_rule),
-			     * whose version is written in f->next_rule
-			     * (horrible hacks to avoid changing the ABI).
-			     */
-			    if (cmd->arg1 != IP_FW_TABLEARG &&
-				    (uintptr_t)f->x_next == chain->id) {
-				f_pos = (uintptr_t)f->next_rule;
-			    } else {
-				int i = IP_FW_ARG_TABLEARG(cmd->arg1);
-				/* make sure we do not jump backward */
-				if (i <= f->rulenum)
-				    i = f->rulenum + 1;
-				f_pos = ipfw_find_rule(chain, i, 0);
-				/* update the cache */
-				if (cmd->arg1 != IP_FW_TABLEARG) {
-				    f->next_rule =
-					(void *)(uintptr_t)f_pos;
-				    f->x_next =
-					(void *)(uintptr_t)chain->id;
-				}
-			    }
+			    f_pos = jump_fast(chain, f, cmd->arg1, tablearg, 0);
 			    /*
 			     * Skip disabled rules, and re-enter
 			     * the inner loop with the correct
@@ -2206,25 +2256,8 @@ do {								\
 				if (IS_CALL) {
 					stack[mtag->m_tag_id] = f->rulenum;
 					mtag->m_tag_id++;
-					if (cmd->arg1 != IP_FW_TABLEARG &&
-					    (uintptr_t)f->x_next == chain->id) {
-						f_pos = (uintptr_t)f->next_rule;
-					} else {
-						jmpto = IP_FW_ARG_TABLEARG(
-						    cmd->arg1);
-						f_pos = ipfw_find_rule(chain,
-						    jmpto, 0);
-						/* update the cache */
-						if (cmd->arg1 !=
-						    IP_FW_TABLEARG) {
-							f->next_rule =
-							    (void *)(uintptr_t)
-							    f_pos;
-							f->x_next =
-							    (void *)(uintptr_t)
-							    chain->id;
-						}
-					}
+			    		f_pos = jump_fast(chain, f, cmd->arg1,
+					    tablearg, 1);
 				} else {	/* `return' action */
 					mtag->m_tag_id--;
 					jmpto = stack[mtag->m_tag_id] + 1;
@@ -2353,39 +2386,62 @@ do {								\
 				break;
 		        }
 
+			case O_SETDSCP: {
+				uint16_t code;
+
+				code = IP_FW_ARG_TABLEARG(cmd->arg1) & 0x3F;
+				l = 0;		/* exit inner loop */
+				if (is_ipv4) {
+					uint16_t a;
+
+					a = ip->ip_tos;
+					ip->ip_tos = (code << 2) | (ip->ip_tos & 0x03);
+					a += ntohs(ip->ip_sum) - ip->ip_tos;
+					ip->ip_sum = htons(a);
+				} else if (is_ipv6) {
+					uint8_t *v;
+
+					v = &((struct ip6_hdr *)ip)->ip6_vfc;
+					*v = (*v & 0xF0) | (code >> 2);
+					v++;
+					*v = (*v & 0x3F) | ((code & 0x03) << 6);
+				} else
+					break;
+
+				IPFW_INC_RULE_COUNTER(f, pktlen);
+				break;
+			}
+
 			case O_NAT:
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
  				if (!IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
-				} else {
-				    struct cfg_nat *t;
-				    int nat_id;
+				    break;
+				}
 
-				    set_match(args, f_pos, chain);
-				    /* Check if this is 'global' nat rule */
-				    if (cmd->arg1 == 0) {
-					    retval = ipfw_nat_ptr(args, NULL, m);
-					    l = 0;
-					    done = 1;
-					    break;
-				    }
-				    t = ((ipfw_insn_nat *)cmd)->nat;
-				    if (t == NULL) {
+				struct cfg_nat *t;
+				int nat_id;
+
+				set_match(args, f_pos, chain);
+				/* Check if this is 'global' nat rule */
+				if (cmd->arg1 == 0) {
+					retval = ipfw_nat_ptr(args, NULL, m);
+					break;
+				}
+				t = ((ipfw_insn_nat *)cmd)->nat;
+				if (t == NULL) {
 					nat_id = IP_FW_ARG_TABLEARG(cmd->arg1);
 					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {
 					    retval = IP_FW_DENY;
-					    l = 0;	/* exit inner loop */
-					    done = 1;	/* exit outer loop */
 					    break;
 					}
 					if (cmd->arg1 != IP_FW_TABLEARG)
 					    ((ipfw_insn_nat *)cmd)->nat = t;
-				    }
-				    retval = ipfw_nat_ptr(args, t, m);
 				}
-				l = 0;          /* exit inner loop */
-				done = 1;       /* exit outer loop */
+				retval = ipfw_nat_ptr(args, t, m);
 				break;
 
 			case O_REASS: {
@@ -2459,7 +2515,7 @@ do {								\
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	}
-	IPFW_RUNLOCK(chain);
+	IPFW_PF_RUNLOCK(chain);
 #ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);
@@ -2610,7 +2666,7 @@ vnet_ipfw_init(const void *unused)
 	rule->set = RESVD_SET;
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	chain->rules = chain->default_rule = chain->map[0] = rule;
+	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
 
 	IPFW_LOCK_INIT(chain);

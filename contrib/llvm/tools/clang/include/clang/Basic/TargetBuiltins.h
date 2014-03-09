@@ -21,6 +21,15 @@
 
 namespace clang {
 
+  /// \brief AArch64 builtins
+  namespace AArch64 {
+    enum {
+      LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsAArch64.def"
+      LastTSBuiltin
+    };
+  }
   /// \brief ARM builtins
   namespace ARM {
     enum {
@@ -81,8 +90,10 @@ namespace clang {
       Int64,
       Poly8,
       Poly16,
+      Poly64,
       Float16,
-      Float32
+      Float32,
+      Float64
     };
 
     NeonTypeFlags(unsigned F) : Flags(F) {}
@@ -118,6 +129,16 @@ namespace clang {
         LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
 #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
 #include "clang/Basic/BuiltinsMips.def"
+        LastTSBuiltin
+    };
+  }
+
+  /// \brief XCore builtins
+  namespace XCore {
+    enum {
+        LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsXCore.def"
         LastTSBuiltin
     };
   }

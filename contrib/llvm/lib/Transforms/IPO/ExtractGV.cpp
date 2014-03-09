@@ -11,15 +11,47 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Constants.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include <algorithm>
 using namespace llvm;
+
+/// Make sure GV is visible from both modules. Delete is true if it is
+/// being deleted from this module.
+/// This also makes sure GV cannot be dropped so that references from
+/// the split module remain valid.
+static void makeVisible(GlobalValue &GV, bool Delete) {
+  bool Local = GV.hasLocalLinkage();
+  if (Local)
+    GV.setVisibility(GlobalValue::HiddenVisibility);
+
+  if (Local || Delete) {
+    GV.setLinkage(GlobalValue::ExternalLinkage);
+    return;
+  }
+
+  if (!GV.hasLinkOnceLinkage()) {
+    assert(!GV.isDiscardableIfUnused());
+    return;
+  }
+
+  // Map linkonce* to weak* so that llvm doesn't drop this GV.
+  switch(GV.getLinkage()) {
+  default:
+    llvm_unreachable("Unexpected linkage");
+  case GlobalValue::LinkOnceAnyLinkage:
+    GV.setLinkage(GlobalValue::WeakAnyLinkage);
+    return;
+  case GlobalValue::LinkOnceODRLinkage:
+    GV.setLinkage(GlobalValue::WeakODRLinkage);
+    return;
+  }
+}
 
 namespace {
   /// @brief A pass to extract specific functions and their dependencies.
@@ -60,12 +92,7 @@ namespace {
             continue;
         }
 
-        bool Local = I->hasLocalLinkage();
-        if (Local)
-          I->setVisibility(GlobalValue::HiddenVisibility);
-
-        if (Local || Delete)
-          I->setLinkage(GlobalValue::ExternalLinkage);
+	makeVisible(*I, Delete);
 
         if (Delete)
           I->setInitializer(0);
@@ -80,12 +107,7 @@ namespace {
             continue;
         }
 
-        bool Local = I->hasLocalLinkage();
-        if (Local)
-          I->setVisibility(GlobalValue::HiddenVisibility);
-
-        if (Local || Delete)
-          I->setLinkage(GlobalValue::ExternalLinkage);
+	makeVisible(*I, Delete);
 
         if (Delete)
           I->deleteBody();
@@ -97,12 +119,10 @@ namespace {
         Module::alias_iterator CurI = I;
         ++I;
 
-        if (CurI->hasLocalLinkage()) {
-          CurI->setVisibility(GlobalValue::HiddenVisibility);
-          CurI->setLinkage(GlobalValue::ExternalLinkage);
-        }
+	bool Delete = deleteStuff == (bool)Named.count(CurI);
+	makeVisible(*CurI, Delete);
 
-        if (deleteStuff == (bool)Named.count(CurI)) {
+        if (Delete) {
           Type *Ty =  CurI->getType()->getElementType();
 
           CurI->removeFromParent();

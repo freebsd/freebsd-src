@@ -178,11 +178,8 @@ typedef void driver_intr_t(void*);
  * spls implicit in names like INTR_TYPE_TTY. In the meantime, don't
  * confuse things by renaming them (Grog, 18 July 2000).
  *
- * We define this in terms of bits because some devices may belong
- * to multiple classes (and therefore need to be included in
- * multiple interrupt masks, which is what this really serves to
- * indicate. Buses which do interrupt remapping will want to
- * change their type to reflect what sort of devices are underneath.
+ * Buses which do interrupt remapping will want to change their type
+ * to reflect what sort of devices are underneath.
  */
 enum intr_type {
 	INTR_TYPE_TTY = 1,
@@ -276,6 +273,9 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+int	resource_list_release_active(struct resource_list *rl,
+				     device_t bus, device_t child,
+				     int type);
 struct resource *
 	resource_list_reserve(struct resource_list *rl,
 			      device_t bus, device_t child,

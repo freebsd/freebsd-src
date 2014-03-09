@@ -18,11 +18,6 @@ CFLAGS+=${SENDMAIL_CFLAGS}
 
 WARNS?=	2
 
-# Unfortunately, clang gives warnings about sendmail code that cannot
-# be turned off yet.  Since this is contrib code, and we don't really
-# care about the warnings, just make them non-fatal for now.
-NO_WERROR.clang=
-
 LIB=	sm
 
 SRCS+=	sm_os.h
@@ -36,7 +31,7 @@ SRCS+=	assert.c debug.c errstring.c exc.c heap.c match.c rpool.c \
 	wbuf.c wsetup.c string.c stringf.c \
 	xtrap.c strto.c test.c path.c strcasecmp.c strrevcmp.c \
 	signal.c clock.c config.c sem.c shm.c mbdb.c strexit.c cf.c ldap.c \
-	niprop.c mpeix.c memstat.c util.c
+	niprop.c mpeix.c memstat.c util.c inet6_ntop.c
 CLEANFILES+=sm_os.h
 
 INTERNALLIB=

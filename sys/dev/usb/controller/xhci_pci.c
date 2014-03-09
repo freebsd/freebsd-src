@@ -99,6 +99,10 @@ xhci_pci_match(device_t self)
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
+	case 0x10421b21:
+		return ("ASMedia ASM1042 USB 3.0 controller");
+
+	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x8c318086:
@@ -129,12 +133,43 @@ xhci_pci_probe(device_t self)
 	}
 }
 
+static int xhci_use_msi = 1;
+TUNABLE_INT("hw.usb.xhci.msi", &xhci_use_msi);
+
+static void
+xhci_interrupt_poll(void *_sc)
+{
+	struct xhci_softc *sc = _sc;
+	USB_BUS_UNLOCK(&sc->sc_bus);
+	xhci_interrupt(sc);
+	USB_BUS_LOCK(&sc->sc_bus);
+	usb_callout_reset(&sc->sc_callout, 1, (void *)&xhci_interrupt_poll, sc);
+}
+
+static int
+xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
+{
+	uint32_t temp;
+
+	temp = pci_read_config(self, PCI_XHCI_INTEL_USB3_PSSEN, 4) |
+	    pci_read_config(self, PCI_XHCI_INTEL_XUSB2PR, 4);
+
+	temp |= set;
+	temp &= ~clear;
+
+	pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp, 4);
+	pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp, 4);
+
+	device_printf(self, "Port routing mask set to 0x%08x\n", temp);
+
+	return (0);
+}
+
 static int
 xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	int err;
-	int rid;
+	int count, err, rid;
 
 	/* XXX check for 64-bit capability */
 
@@ -156,12 +191,25 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
+
+	sc->sc_irq_rid = 0;
+	if (xhci_use_msi) {
+		count = pci_msi_count(self);
+		if (count >= 1) {
+			count = 1;
+			if (pci_alloc_msi(self, &count) == 0) {
+				if (bootverbose)
+					device_printf(self, "MSI enabled\n");
+				sc->sc_irq_rid = 1;
+			}
+		}
+	}
+	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,
+	    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate IRQ\n");
-		goto error;
+		/* goto error; FALLTHROUGH - use polling */
 	}
 	sc->sc_bus.bdev = device_add_child(self, "usbus", -1);
 	if (sc->sc_bus.bdev == NULL) {
@@ -172,18 +220,33 @@ xhci_pci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "0x%04x", pci_get_vendor(self));
 
-#if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
-#else
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
-#endif
-	if (err) {
-		device_printf(self, "Could not setup IRQ, err=%d\n", err);
-		sc->sc_intr_hdl = NULL;
-		goto error;
+	if (sc->sc_irq_res != NULL) {
+		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
+		if (err != 0) {
+			device_printf(self, "Could not setup IRQ, err=%d\n", err);
+			sc->sc_intr_hdl = NULL;
+		}
 	}
+	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL ||
+	    xhci_use_polling() != 0) {
+		device_printf(self, "Interrupt polling at %dHz\n", hz);
+		USB_BUS_LOCK(&sc->sc_bus);
+		xhci_interrupt_poll(sc);
+		USB_BUS_UNLOCK(&sc->sc_bus);
+	}
+
+	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
+	switch (pci_get_devid(self)) {
+	case 0x9c318086:	/* Panther Point */
+	case 0x1e318086:	/* Panther Point */
+	case 0x8c318086:	/* Lynx Point */
+		sc->sc_port_route = &xhci_pci_port_route;
+		break;
+	default:
+		break;
+	}
+
 	xhci_pci_take_controller(self);
 
 	err = xhci_halt_controller(sc);
@@ -219,17 +282,22 @@ xhci_pci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
+	if (sc->sc_io_res) {
+		usb_callout_drain(&sc->sc_callout);
+		xhci_halt_controller(sc);
+	}
+
 	pci_disable_busmaster(self);
 
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
-
-		xhci_halt_controller(sc);
-
 		bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intr_hdl);
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
+		if (sc->sc_irq_rid == 1)
+			pci_release_msi(self);
+		bus_release_resource(self, SYS_RES_IRQ, sc->sc_irq_rid,
+		    sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
@@ -247,7 +315,6 @@ static int
 xhci_pci_take_controller(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	uint32_t device_id = pci_get_devid(self);
 	uint32_t cparams;
 	uint32_t eecp;
 	uint32_t eec;
@@ -287,14 +354,6 @@ xhci_pci_take_controller(device_t self)
 			}
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
-	}
-
-	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
-	if (device_id == 0x1e318086 /* Panther Point */ ||
-	    device_id == 0x8c318086 /* Lynx Point */) {
-		uint32_t temp = xhci_get_port_route();
-		pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp, 4);
-		pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp, 4);
 	}
 	return (0);
 }

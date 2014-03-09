@@ -15,10 +15,11 @@
 #define LLVM_CLANG_AST_DECLCONTEXTINTERNALS_H
 
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclarationName.h"
 #include "clang/AST/DeclCXX.h"
-#include "llvm/ADT/PointerUnion.h"
+#include "clang/AST/DeclarationName.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
 
@@ -26,23 +27,29 @@ namespace clang {
 
 class DependentDiagnostic;
 
-/// StoredDeclsList - This is an array of decls optimized a common case of only
-/// containing one entry.
+/// \brief An array of decls optimized for the common case of only containing
+/// one entry.
 struct StoredDeclsList {
 
-  /// DeclsTy - When in vector form, this is what the Data pointer points to.
+  /// \brief When in vector form, this is what the Data pointer points to.
   typedef SmallVector<NamedDecl *, 4> DeclsTy;
 
+  /// \brief A collection of declarations, with a flag to indicate if we have
+  /// further external declarations.
+  typedef llvm::PointerIntPair<DeclsTy *, 1, bool> DeclsAndHasExternalTy;
+
   /// \brief The stored data, which will be either a pointer to a NamedDecl,
-  /// or a pointer to a vector.
-  llvm::PointerUnion<NamedDecl *, DeclsTy *> Data;
+  /// or a pointer to a vector with a flag to indicate if there are further
+  /// external declarations.
+  llvm::PointerUnion<NamedDecl*, DeclsAndHasExternalTy> Data;
 
 public:
   StoredDeclsList() {}
 
   StoredDeclsList(const StoredDeclsList &RHS) : Data(RHS.Data) {
     if (DeclsTy *RHSVec = RHS.getAsVector())
-      Data = new DeclsTy(*RHSVec);
+      Data = DeclsAndHasExternalTy(new DeclsTy(*RHSVec),
+                                   RHS.hasExternalDecls());
   }
 
   ~StoredDeclsList() {
@@ -56,7 +63,7 @@ public:
       delete Vector;
     Data = RHS.Data;
     if (DeclsTy *RHSVec = RHS.getAsVector())
-      Data = new DeclsTy(*RHSVec);
+      Data = DeclsAndHasExternalTy(new DeclsTy(*RHSVec), hasExternalDecls());
     return *this;
   }
 
@@ -66,8 +73,27 @@ public:
     return Data.dyn_cast<NamedDecl *>();
   }
 
+  DeclsAndHasExternalTy getAsVectorAndHasExternal() const {
+    return Data.dyn_cast<DeclsAndHasExternalTy>();
+  }
+
   DeclsTy *getAsVector() const {
-    return Data.dyn_cast<DeclsTy *>();
+    return getAsVectorAndHasExternal().getPointer();
+  }
+
+  bool hasExternalDecls() const {
+    return getAsVectorAndHasExternal().getInt();
+  }
+
+  void setHasExternalDecls() {
+    if (DeclsTy *Vec = getAsVector())
+      Data = DeclsAndHasExternalTy(Vec, true);
+    else {
+      DeclsTy *VT = new DeclsTy();
+      if (NamedDecl *OldD = getAsDecl())
+        VT->push_back(OldD);
+      Data = DeclsAndHasExternalTy(VT, true);
+    }
   }
 
   void setOnlyValue(NamedDecl *ND) {
@@ -97,6 +123,24 @@ public:
              == Vec.end() && "list still contains decl");
   }
 
+  /// \brief Remove any declarations which were imported from an external
+  /// AST source.
+  void removeExternalDecls() {
+    if (isNull()) {
+      // Nothing to do.
+    } else if (NamedDecl *Singleton = getAsDecl()) {
+      if (Singleton->isFromASTFile())
+        *this = StoredDeclsList();
+    } else {
+      DeclsTy &Vec = *getAsVector();
+      Vec.erase(std::remove_if(Vec.begin(), Vec.end(),
+                               std::mem_fun(&Decl::isFromASTFile)),
+                Vec.end());
+      // Don't have any external decls any more.
+      Data = DeclsAndHasExternalTy(&Vec, false);
+    }
+  }
+
   /// getLookupResult - Return an array of all the decls that this list
   /// represents.
   DeclContext::lookup_result getLookupResult() {
@@ -117,7 +161,7 @@ public:
     DeclsTy &Vector = *getAsVector();
 
     // Otherwise, we have a range result.
-    return DeclContext::lookup_result(&Vector[0], &Vector[0]+Vector.size());
+    return DeclContext::lookup_result(Vector.begin(), Vector.end());
   }
 
   /// HandleRedeclaration - If this is a redeclaration of an existing decl,
@@ -149,12 +193,14 @@ public:
   /// not a redeclaration to merge it into the appropriate place in our list.
   ///
   void AddSubsequentDecl(NamedDecl *D) {
+    assert(!isNull() && "don't AddSubsequentDecl when we have no decls");
+
     // If this is the second decl added to the list, convert this to vector
     // form.
     if (NamedDecl *OldD = getAsDecl()) {
       DeclsTy *VT = new DeclsTy();
       VT->push_back(OldD);
-      Data = VT;
+      Data = DeclsAndHasExternalTy(VT, false);
     }
 
     DeclsTy &Vec = *getAsVector();
@@ -186,7 +232,7 @@ public:
     // All other declarations go at the end of the list, but before any
     // tag declarations.  But we can be clever about tag declarations
     // because there can only ever be one in a scope.
-    } else if (Vec.back()->hasTagIdentifierNamespace()) {
+    } else if (!Vec.empty() && Vec.back()->hasTagIdentifierNamespace()) {
       NamedDecl *TagD = Vec.back();
       Vec.back() = D;
       Vec.push_back(TagD);

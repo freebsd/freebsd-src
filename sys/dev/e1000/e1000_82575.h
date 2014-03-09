@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -245,6 +245,8 @@ union e1000_adv_rx_desc {
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP_EX 0x00000009
 
 /* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_ILMASK	0x000000F0
+#define E1000_RXDADV_PKTTYPE_TLMASK	0x00000F00
 #define E1000_RXDADV_PKTTYPE_NONE	0x00000000
 #define E1000_RXDADV_PKTTYPE_IPV4	0x00000010 /* IPV4 hdr present */
 #define E1000_RXDADV_PKTTYPE_IPV4_EX	0x00000020 /* IPV4 hdr + extensions */
@@ -360,10 +362,13 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_RXCTRL_DESC_DCA_EN	(1 << 5) /* DCA Rx Desc enable */
 #define E1000_DCA_RXCTRL_HEAD_DCA_EN	(1 << 6) /* DCA Rx Desc header ena */
 #define E1000_DCA_RXCTRL_DATA_DCA_EN	(1 << 7) /* DCA Rx Desc payload ena */
+#define E1000_DCA_RXCTRL_DESC_RRO_EN	(1 << 9) /* DCA Rx Desc Relax Order */
 
 #define E1000_DCA_TXCTRL_CPUID_MASK	0x0000001F /* Tx CPUID Mask */
 #define E1000_DCA_TXCTRL_DESC_DCA_EN	(1 << 5) /* DCA Tx Desc enable */
+#define E1000_DCA_TXCTRL_DESC_RRO_EN	(1 << 9) /* Tx rd Desc Relax Order */
 #define E1000_DCA_TXCTRL_TX_WB_RO_EN	(1 << 11) /* Tx Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_DATA_RRO_EN	(1 << 13) /* Tx rd data Relax Order */
 
 #define E1000_DCA_TXCTRL_CPUID_MASK_82576	0xFF000000 /* Tx CPUID Mask */
 #define E1000_DCA_RXCTRL_CPUID_MASK_82576	0xFF000000 /* Rx CPUID Mask */
@@ -379,7 +384,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_ETQF_FILTER_ENABLE	(1 << 26)
 #define E1000_ETQF_IMM_INT		(1 << 29)
 #define E1000_ETQF_1588			(1 << 30)
-#define E1000_ETQF_QUEUE_ENABLE		(1 << 31)
+#define E1000_ETQF_QUEUE_ENABLE		(1U << 31)
 /*
  * ETQF filter list: one static filter per filter consumer. This is
  *                   to avoid filter collisions later. Add new filters
@@ -406,7 +411,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXSWC_LLE_MASK		0x00FF0000 /* Per VF Local LB enables */
 #define E1000_DTXSWC_VLAN_SPOOF_SHIFT	8
 #define E1000_DTXSWC_LLE_SHIFT		16
-#define E1000_DTXSWC_VMDQ_LOOPBACK_EN	(1 << 31)  /* global VF LB enable */
+#define E1000_DTXSWC_VMDQ_LOOPBACK_EN	(1U << 31)  /* global VF LB enable */
 
 /* Easy defines for setting default pool, would normally be left a zero */
 #define E1000_VT_CTL_DEFAULT_POOL_SHIFT	7
@@ -488,7 +493,10 @@ void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type type);
 u16 e1000_rxpbs_adjust_82580(u32 data);
+s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_set_eee_i350(struct e1000_hw *);
+s32 e1000_set_eee_i354(struct e1000_hw *);
+s32 e1000_get_eee_status_i354(struct e1000_hw *, bool *);
 
 /* I2C SDA and SCL timing parameters for standard mode */
 #define E1000_I2C_T_HD_STA	4

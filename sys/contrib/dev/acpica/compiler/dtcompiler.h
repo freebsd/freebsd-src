@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,6 +113,7 @@ typedef struct dt_subtable
     UINT32                  Length;
     UINT32                  TotalLength;
     UINT32                  SizeOfLengthField;
+    UINT16                  Depth;
     UINT8                   Flags;
 
 } DT_SUBTABLE;
@@ -166,6 +167,14 @@ DtScanFile (
 void
 DtOutputBinary (
     DT_SUBTABLE             *RootTable);
+
+void
+DtDumpSubtableList (
+    void);
+
+void
+DtDumpFieldList (
+    DT_FIELD                *Field);
 
 void
 DtWriteFieldToListing (
@@ -387,6 +396,10 @@ DtCompileCpep (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileCsrt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileDmar (
     void                    **PFieldList);
 
@@ -431,6 +444,10 @@ DtCompileMsct (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileMtmr (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompilePmtt (
     void                    **PFieldList);
 
@@ -459,6 +476,10 @@ DtCompileUefi (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileVrtc (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileWdat (
     void                    **PFieldList);
 
@@ -481,6 +502,7 @@ extern const unsigned char  TemplateBoot[];
 extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
 extern const unsigned char  TemplateCpep[];
+extern const unsigned char  TemplateCsrt[];
 extern const unsigned char  TemplateDbgp[];
 extern const unsigned char  TemplateDmar[];
 extern const unsigned char  TemplateEcdt[];
@@ -497,6 +519,7 @@ extern const unsigned char  TemplateMcfg[];
 extern const unsigned char  TemplateMchi[];
 extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
+extern const unsigned char  TemplateMtmr[];
 extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplateRsdt[];
 extern const unsigned char  TemplateS3pt[];
@@ -507,7 +530,9 @@ extern const unsigned char  TemplateSpcr[];
 extern const unsigned char  TemplateSpmi[];
 extern const unsigned char  TemplateSrat[];
 extern const unsigned char  TemplateTcpa[];
+extern const unsigned char  TemplateTpm2[];
 extern const unsigned char  TemplateUefi[];
+extern const unsigned char  TemplateVrtc[];
 extern const unsigned char  TemplateWaet[];
 extern const unsigned char  TemplateWdat[];
 extern const unsigned char  TemplateWddt[];

@@ -116,6 +116,10 @@ int current_function_uses_only_leaf_regs;
    post-instantiation libcalls.  */
 int virtuals_instantiated;
 
+/* APPLE LOCAL begin radar 5732232 - blocks */
+struct block_sema_info *cur_block;
+/* APPLE LOCAL end radar 5732232 - blocks */
+
 /* Assign unique numbers to labels generated for profiling, debugging, etc.  */
 static GTY(()) int funcdef_no;
 
@@ -214,6 +218,8 @@ static void prepare_function_start (tree);
 static void do_clobber_return_reg (rtx, void *);
 static void do_use_return_reg (rtx, void *);
 static void set_insn_locators (rtx, int) ATTRIBUTE_UNUSED;
+/* APPLE LOCAL radar 6163705, Blocks prologues  */
+static rtx find_block_prologue_insns (void);
 
 /* Pointer to chain of `struct function' for containing functions.  */
 struct function *outer_function_chain;
@@ -3813,17 +3819,23 @@ allocate_struct_function (tree fndecl)
   DECL_STRUCT_FUNCTION (fndecl) = cfun;
   cfun->decl = fndecl;
 
-  result = DECL_RESULT (fndecl);
-  if (aggregate_value_p (result, fndecl))
+  /* APPLE LOCAL begin radar 5732232 - blocks */
+  /* We cannot support blocks which return aggregates because at this
+     point we do not have info on the return type. */
+  if (!cur_block)
+  {
+    result = DECL_RESULT (fndecl);
+    if (aggregate_value_p (result, fndecl))
     {
 #ifdef PCC_STATIC_STRUCT_RETURN
       current_function_returns_pcc_struct = 1;
 #endif
       current_function_returns_struct = 1;
     }
-
-  current_function_returns_pointer = POINTER_TYPE_P (TREE_TYPE (result));
-
+    /* This code is not used anywhere ! */
+    current_function_returns_pointer = POINTER_TYPE_P (TREE_TYPE (result));
+  }
+  /* APPLE LOCAL end radar 5732232 - blocks */
   current_function_stdarg
     = (fntype
        && TYPE_ARG_TYPES (fntype) != 0
@@ -5060,6 +5072,140 @@ emit_equiv_load (struct epi_info *p)
 }
 #endif
 
+/* APPLE LOCAL begin radar 6163705, Blocks prologues  */
+
+/* The function should only be called for Blocks functions.
+   
+   On being called, the main instruction list for the Blocks function
+   may contain instructions for setting up the ref_decl and byref_decl
+   variables in the Block.  Those isns really need to go before the
+   function prologue note rather than after.  If such instructions are
+   present, they are identifiable by their source line number, which
+   will be one line preceding the declaration of the function.  If
+   they are present, there will also be a source line note instruction
+   for that line.
+
+   This function does a set of things:
+   - It finds the first such prologue insn.
+   - It finds the last such prologue insn.
+   - It changes the insn locator of all such prologue insns to
+     the prologue locator.
+   - It finds the source line note for the bogus location and
+     removes it.
+   - It decides if it is safe to place the prolgoue end note
+     after the last prologue insn it finds, and if so, returns
+     the last prologue insn (otherwise it returns NULL).
+   
+   This function makes the following checks to determine if it is
+   safe to move the prologue end note to just below the last
+   prologue insn it finds.  If ALL of the checks succeed then it
+   is safe.  If any check fails, this function returns NULL.  The
+   checks it makes are:
+   
+	- There were no INSN_P instructions that occurred before the
+	  first prologue insn.
+	- If there are any non-prologue insns between the first & last
+	  prologue insn, the non-prologue insns do not outnumber the
+	 prologue insns.
+	- The first prologue insn & the last prologue insn are in the
+	  same basic block.
+*/
+
+static rtx
+find_block_prologue_insns (void)
+{
+  rtx first_prologue_insn = NULL;
+  rtx last_prologue_insn = NULL;
+  rtx line_number_note = NULL;
+  rtx tmp_insn;
+  int num_prologue_insns = 0;
+  int total_insns = 0;
+  int prologue_line = DECL_SOURCE_LINE (cfun->decl) - 1;
+  bool other_insns_before_prologue = false;
+  bool start_of_fnbody_found = false;
+
+  /* Go through all the insns and find the first prologue insn, the
+     last prologue insn, the source line location note, and whether or
+     not there are any "real" insns that occur before the first
+     prologue insn.  Re-set the insn locator for prologue insns to the
+     prologue locator.  */
+
+  for (tmp_insn = get_insns(); tmp_insn; tmp_insn = NEXT_INSN (tmp_insn))
+    {
+      if (INSN_P (tmp_insn))
+	{
+	  if (insn_line (tmp_insn) == prologue_line)
+	    {
+	      if (!first_prologue_insn)
+		first_prologue_insn = tmp_insn;
+	      num_prologue_insns++;
+	      last_prologue_insn = tmp_insn;
+	      INSN_LOCATOR (tmp_insn) = prologue_locator;
+	    }
+	  else if (!first_prologue_insn
+		   && start_of_fnbody_found)
+	    other_insns_before_prologue = true;
+	}
+      else if (NOTE_P (tmp_insn)
+	       && NOTE_LINE_NUMBER (tmp_insn) == NOTE_INSN_FUNCTION_BEG)
+	start_of_fnbody_found = true;
+      else if (NOTE_P (tmp_insn)
+	       && (XINT (tmp_insn, 5) == prologue_line))
+	line_number_note = tmp_insn;
+    }
+
+  /* If there were no prologue insns, return now.  */
+
+  if (!first_prologue_insn)
+    return NULL;
+
+  /* If the source location note for the line before the beginning of the
+     function was found, remove it.  */
+
+  if (line_number_note)
+    remove_insn (line_number_note);
+
+  /* If other real insns got moved above the prologue insns, we can't
+     pull out the prologue insns, so return now.  */
+
+  if (other_insns_before_prologue && (optimize > 0))
+    return NULL;
+
+  /* Count the number of insns between the first prologue insn and the
+     last prologue insn; also count the number of non-prologue insns
+     between the first prologue insn and the last prologue insn.  */
+
+  tmp_insn = first_prologue_insn;
+  while (tmp_insn != last_prologue_insn)
+    {
+      total_insns++;
+      tmp_insn = NEXT_INSN (tmp_insn);
+    }
+  total_insns++;
+
+  /* If more than half of the insns between the first & last prologue
+     insns are not prologue insns, then there is too much code that
+     got moved in between prologue insns (by optimizations), so we
+     will not try to pull it out.  */
+  
+  if ((num_prologue_insns * 2) <= total_insns)
+    return NULL;
+
+  /* Make sure all the prologue insns are within one basic block.
+     If the insns cross a basic block boundary, then there is a chance
+     that moving them will cause incorrect code, so don't do it.  */
+
+  gcc_assert (first_prologue_insn != NULL);
+  gcc_assert (last_prologue_insn != NULL);
+
+  if (BLOCK_FOR_INSN (first_prologue_insn) != 
+      BLOCK_FOR_INSN (last_prologue_insn))
+    return NULL;
+
+  return last_prologue_insn;
+}
+/* APPLE LOCAL end radar 6163705, Blocks prologues  */
+
 /* Generate the prologue and epilogue RTL if the machine supports it.  Thread
    this into place with notes indicating where the prologue ends and where
    the epilogue begins.  Update the basic block information when possible.  */
@@ -5083,13 +5229,23 @@ thread_prologue_and_epilogue_insns (rtx f ATTRIBUTE_UNUSED)
 #ifdef HAVE_prologue
   if (HAVE_prologue)
     {
+      /* APPLE LOCAL begin radar 6163705, Blocks prologues  */
+      rtx last_prologue_insn = NULL;
+
+      if (BLOCK_SYNTHESIZED_FUNC (cfun->decl))
+	last_prologue_insn = find_block_prologue_insns();
+      /* APPLE LOCAL end radar 6163705, Blocks prologues  */
+
       start_sequence ();
       seq = gen_prologue ();
       emit_insn (seq);
 
       /* Retain a map of the prologue insns.  */
       record_insns (seq, &prologue);
-      prologue_end = emit_note (NOTE_INSN_PROLOGUE_END);
+      /* APPLE LOCAL begin radar 6163705, Blocks prologues  */
+      if (!last_prologue_insn)
+	prologue_end = emit_note (NOTE_INSN_PROLOGUE_END);
+      /* APPLE LOCAL end radar 6163705, Blocks prologues  */
  
 #ifndef PROFILE_BEFORE_PROLOGUE
       /* Ensure that instructions are not moved into the prologue when
@@ -5110,7 +5266,11 @@ thread_prologue_and_epilogue_insns (rtx f ATTRIBUTE_UNUSED)
 
       insert_insn_on_edge (seq, single_succ_edge (ENTRY_BLOCK_PTR));
       inserted = 1;
-    }
+
+      /* APPLE LOCAL begin radar 6163705, Blocks prologues  */
+      if (last_prologue_insn)
+	emit_note_after (NOTE_INSN_PROLOGUE_END, last_prologue_insn);
+      /* APPLE LOCAL end radar 6163705, Blocks prologues  */    }
 #endif
 
   /* If the exit block has no non-fake predecessors, we don't need

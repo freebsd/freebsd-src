@@ -174,8 +174,11 @@ set_acls(struct archive_entry *ae, struct acl_t *acls, int n)
 }
 
 static int
-acl_match(struct acl_t *acl, int type, int permset, int tag, int qual, const char *name)
+acl_match(struct acl_t *acl, int type, int permset, int tag, int qual,
+    const char *name)
 {
+	if (acl == NULL)
+		return (0);
 	if (type != acl->type)
 		return (0);
 	if (permset != acl->permset)
@@ -193,10 +196,12 @@ acl_match(struct acl_t *acl, int type, int permset, int tag, int qual, const cha
 	if (name == NULL) {
 		if (acl->name == NULL || acl->name[0] == '\0')
 			return (1);
+		return (0);
 	}
 	if (acl->name == NULL) {
 		if (name[0] == '\0')
 			return (1);
+		return (0);
 	}
 	return (0 == strcmp(name, acl->name));
 }

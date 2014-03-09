@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acevents.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -185,14 +186,15 @@ AcpiExLoadTableOp (
         (Operand[1]->String.Length > ACPI_OEM_ID_SIZE) ||
         (Operand[2]->String.Length > ACPI_OEM_TABLE_ID_SIZE))
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_AML_STRING_LIMIT);
     }
 
     /* Find the ACPI table in the RSDT/XSDT */
 
-    Status = AcpiTbFindTable (Operand[0]->String.Pointer,
-                              Operand[1]->String.Pointer,
-                              Operand[2]->String.Pointer, &TableIndex);
+    Status = AcpiTbFindTable (
+                Operand[0]->String.Pointer,
+                Operand[1]->String.Pointer,
+                Operand[2]->String.Pointer, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
         if (Status != AE_NOT_FOUND)
@@ -237,8 +239,8 @@ AcpiExLoadTableOp (
 
     if (Operand[4]->String.Length > 0)
     {
-        if ((Operand[4]->String.Pointer[0] != '\\') &&
-            (Operand[4]->String.Pointer[0] != '^'))
+        if ((Operand[4]->String.Pointer[0] != AML_ROOT_PREFIX) &&
+            (Operand[4]->String.Pointer[0] != AML_PARENT_PREFIX))
         {
             /*
              * Path is not absolute, so it will be relative to the node
@@ -299,7 +301,7 @@ AcpiExLoadTableOp (
     }
 
     *ReturnDesc = DdbHandle;
-    return_ACPI_STATUS  (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -481,7 +483,6 @@ AcpiExLoadOp (
         TableDesc.Address = ObjDesc->Region.Address;
         break;
 
-
     case ACPI_TYPE_BUFFER: /* Buffer or resolved RegionField */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
@@ -524,8 +525,8 @@ AcpiExLoadOp (
         TableDesc.Address = ACPI_TO_INTEGER (TableDesc.Pointer);
         break;
 
-
     default:
+
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
@@ -641,7 +642,7 @@ AcpiExUnloadTable (
         (DdbHandle->Common.Type != ACPI_TYPE_LOCAL_REFERENCE) ||
         (!(DdbHandle->Common.Flags & AOPOBJ_DATA_VALID)))
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
     /* Get the table index from the DdbHandle */

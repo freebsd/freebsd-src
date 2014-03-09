@@ -179,7 +179,7 @@ static void fwohci_task_dma(void *, int);
 #define	OHCI_ATRETRY		0x08
 #define	OHCI_CROMHDR		0x18
 #define	OHCI_BUS_OPT		0x20
-#define	OHCI_BUSIRMC		(1 << 31)
+#define	OHCI_BUSIRMC		(1U << 31)
 #define	OHCI_BUSCMC		(1 << 30)
 #define	OHCI_BUSISC		(1 << 29)
 #define	OHCI_BUSBMC		(1 << 28)
@@ -205,7 +205,7 @@ static void fwohci_task_dma(void *, int);
 
 #define	OHCI_SID_BUF		0x64
 #define	OHCI_SID_CNT		0x68
-#define OHCI_SID_ERR		(1 << 31)
+#define OHCI_SID_ERR		(1U << 31)
 #define OHCI_SID_CNT_MASK	0xffc
 
 #define	OHCI_IT_STAT		0x90

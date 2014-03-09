@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)vs_split.c	10.31 (Berkeley) 10/13/96";
+static const char sccsid[] = "$Id: vs_split.c,v 10.42 2001/06/25 15:19:38 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -27,18 +27,23 @@ static const char sccsid[] = "@(#)vs_split.c	10.31 (Berkeley) 10/13/96";
 #include "../common/common.h"
 #include "vi.h"
 
-static SCR *vs_getbg __P((SCR *, char *));
+typedef enum { HORIZ_FOLLOW, HORIZ_PRECEDE, VERT_FOLLOW, VERT_PRECEDE } jdir_t;
+
+static SCR	*vs_getbg __P((SCR *, char *));
+static void      vs_insert __P((SCR *sp, GS *gp));
+static int	 vs_join __P((SCR *, SCR **, jdir_t *));
 
 /*
  * vs_split --
- *	Create a new screen.
+ *	Create a new screen, horizontally.
  *
  * PUBLIC: int vs_split __P((SCR *, SCR *, int));
  */
 int
-vs_split(sp, new, ccl)
-	SCR *sp, *new;
-	int ccl;		/* Colon-command line split. */
+vs_split(
+	SCR *sp,
+	SCR *new,
+	int ccl)		/* Colon-command line split. */
 {
 	GS *gp;
 	SMAP *smp;
@@ -58,10 +63,6 @@ vs_split(sp, new, ccl)
 	/* Wait for any messages in the screen. */
 	vs_resolve(sp, NULL, 1);
 
-	half = sp->rows / 2;
-	if (ccl && half > 6)
-		half = 6;
-
 	/* Get a new screen map. */
 	CALLOC(sp, _HMAP(new), SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
 	if (_HMAP(new) == NULL)
@@ -70,6 +71,11 @@ vs_split(sp, new, ccl)
 	_HMAP(new)->coff = 0;
 	_HMAP(new)->soff = 1;
 
+	/* Split the screen in half. */
+	half = sp->rows / 2;
+	if (ccl && half > 6)
+		half = 6;
+
 	/*
 	 * Small screens: see vs_refresh.c section 6a.  Set a flag so
 	 * we know to fix the screen up later.
@@ -77,6 +83,7 @@ vs_split(sp, new, ccl)
 	issmallscreen = IS_SMALL(sp);
 
 	/* The columns in the screen don't change. */
+	new->coff = sp->coff;
 	new->cols = sp->cols;
 
 	/*
@@ -93,24 +100,20 @@ vs_split(sp, new, ccl)
 	    !ccl && (vs_sm_cursor(sp, &smp) ? 0 : (smp - HMAP) + 1) >= half;
 	if (splitup) {				/* Old is bottom half. */
 		new->rows = sp->rows - half;	/* New. */
-		new->woff = sp->woff;
+		new->roff = sp->roff;
 		sp->rows = half;		/* Old. */
-		sp->woff += new->rows;
-						/* Link in before old. */
-		CIRCLEQ_INSERT_BEFORE(&gp->dq, sp, new, q);
+		sp->roff += new->rows;
 
 		/*
 		 * If the parent is the bottom half of the screen, shift
 		 * the map down to match on-screen text.
 		 */
-		memmove(_HMAP(sp), _HMAP(sp) + new->rows,
+		memcpy(_HMAP(sp), _HMAP(sp) + new->rows,
 		    (sp->t_maxrows - new->rows) * sizeof(SMAP));
 	} else {				/* Old is top half. */
 		new->rows = half;		/* New. */
 		sp->rows -= half;		/* Old. */
-		new->woff = sp->woff + sp->rows;
-						/* Link in after old. */
-		CIRCLEQ_INSERT_AFTER(&gp->dq, sp, new, q);
+		new->roff = sp->roff + sp->rows;
 	}
 
 	/* Adjust maximum text count. */
@@ -168,6 +171,12 @@ vs_split(sp, new, ccl)
 	if ((new->defscroll = new->t_maxrows / 2) == 0)
 		new->defscroll = 1;
 
+	/* Fit the screen into the logical chain. */
+	vs_insert(new, sp->gp);
+
+	/* Tell the display that we're splitting. */
+	(void)gp->scr_split(sp, new);
+
 	/*
 	 * Initialize the screen flags:
 	 *
@@ -190,6 +199,134 @@ vs_split(sp, new, ccl)
 }
 
 /*
+ * vs_vsplit --
+ *	Create a new screen, vertically.
+ *
+ * PUBLIC: int vs_vsplit __P((SCR *, SCR *));
+ */
+int
+vs_vsplit(SCR *sp, SCR *new)
+{
+	GS *gp;
+	size_t cols;
+
+	gp = sp->gp;
+
+	/* Check to see if it's possible. */
+	if (sp->cols / 2 <= MINIMUM_SCREEN_COLS) {
+		msgq(sp, M_ERR,
+		    "288|Screen must be larger than %d columns to split",
+		    MINIMUM_SCREEN_COLS * 2);
+		return (1);
+	}
+
+	/* Wait for any messages in the screen. */
+	vs_resolve(sp, NULL, 1);
+
+	/* Get a new screen map. */
+	CALLOC(sp, _HMAP(new), SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
+	if (_HMAP(new) == NULL)
+		return (1);
+	_HMAP(new)->lno = sp->lno;
+	_HMAP(new)->coff = 0;
+	_HMAP(new)->soff = 1;
+
+	/*
+	 * Split the screen in half; we have to sacrifice a column to delimit
+	 * the screens.
+	 *
+	 * XXX
+	 * We always split to the right... that makes more sense to me, and
+	 * I don't want to play the stupid games that I play when splitting
+	 * horizontally.
+	 *
+	 * XXX
+	 * We reserve a column for the screen, "knowing" that curses needs
+	 * one.  This should be worked out with the display interface.
+	 */
+	cols = sp->cols / 2;
+	new->cols = sp->cols - cols - 1;
+	sp->cols = cols;
+	new->coff = sp->coff + cols + 1;
+	sp->cno = 0;
+
+	/* Nothing else changes. */
+	new->rows = sp->rows;
+	new->t_rows = sp->t_rows;
+	new->t_maxrows = sp->t_maxrows;
+	new->t_minrows = sp->t_minrows;
+	new->roff = sp->roff;
+	new->defscroll = sp->defscroll;
+	_TMAP(new) = _HMAP(new) + (new->t_rows - 1);
+
+	/* Fit the screen into the logical chain. */
+	vs_insert(new, sp->gp);
+
+	/* Tell the display that we're splitting. */
+	(void)gp->scr_split(sp, new);
+
+	/* Redraw the old screen from scratch. */
+	F_SET(sp, SC_SCR_REFORMAT | SC_STATUS);
+
+	/*
+	 * Initialize the screen flags:
+	 *
+	 * If we're in vi mode in one screen, we don't have to reinitialize.
+	 * This isn't just a cosmetic fix.  The path goes like this:
+	 *
+	 *	return into vi(), SC_SSWITCH set
+	 *	call vs_refresh() with SC_STATUS set
+	 *	call vs_resolve to display the status message
+	 *	call vs_refresh() because the SC_SCR_VI bit isn't set
+	 *
+	 * Things go downhill at this point.
+	 *
+	 * Draw the new screen from scratch, and add a status line.
+	 */
+	F_SET(new,
+	    SC_SCR_REFORMAT | SC_STATUS |
+	    F_ISSET(sp, SC_EX | SC_VI | SC_SCR_VI | SC_SCR_EX));
+	return (0);
+}
+
+/*
+ * vs_insert --
+ *	Insert the new screen into the correct place in the logical
+ *	chain.
+ */
+static void
+vs_insert(SCR *sp, GS *gp)
+{
+	SCR *tsp;
+
+	gp = sp->gp;
+
+	/* Move past all screens with lower row numbers. */
+	TAILQ_FOREACH(tsp, gp->dq, q)
+		if (tsp->roff >= sp->roff)
+			break;
+	/*
+	 * Move past all screens with the same row number and lower
+	 * column numbers.
+	 */
+	for (; tsp != NULL; tsp = TAILQ_NEXT(tsp, q))
+		if (tsp->roff != sp->roff || tsp->coff > sp->coff)
+			break;
+
+	/*
+	 * If we reached the end, this screen goes there.  Otherwise,
+	 * put it before or after the screen where we stopped.
+	 */
+	if (tsp == NULL) {
+		TAILQ_INSERT_TAIL(gp->dq, sp, q);
+	} else if (tsp->roff < sp->roff ||
+	    (tsp->roff == sp->roff && tsp->coff < sp->coff)) {
+		TAILQ_INSERT_AFTER(gp->dq, tsp, sp, q);
+	} else
+		TAILQ_INSERT_BEFORE(tsp, sp, q);
+}
+
+/*
  * vs_discard --
  *	Discard the screen, folding the real-estate into a related screen,
  *	if one exists, and return that screen.
@@ -197,11 +334,13 @@ vs_split(sp, new, ccl)
  * PUBLIC: int vs_discard __P((SCR *, SCR **));
  */
 int
-vs_discard(sp, spp)
-	SCR *sp, **spp;
+vs_discard(SCR *sp, SCR **spp)
 {
-	SCR *nsp;
-	dir_t dir;
+	GS *gp;
+	SCR *tsp, **lp, *list[100];
+	jdir_t jdir;
+
+	gp = sp->gp;
 
 	/*
 	 * Save the old screen's cursor information.
@@ -216,65 +355,253 @@ vs_discard(sp, spp)
 		F_SET(sp->frp, FR_CURSORSET);
 	}
 
-	/*
-	 * Add into a previous screen and then into a subsequent screen, as
-	 * they're the closest to the current screen.  If that doesn't work,
-	 * there was no screen to join.
-	 */
-	if ((nsp = sp->q.cqe_prev) != (void *)&sp->gp->dq) {
-		nsp->rows += sp->rows;
-		sp = nsp;
-		dir = FORWARD;
-	} else if ((nsp = sp->q.cqe_next) != (void *)&sp->gp->dq) {
-		nsp->woff = sp->woff;
-		nsp->rows += sp->rows;
-		sp = nsp;
-		dir = BACKWARD;
-	} else
-		sp = NULL;
+	/* If no other screens to join, we're done. */
+	if (!IS_SPLIT(sp)) {
+		(void)gp->scr_discard(sp, NULL);
 
-	if (spp != NULL)
-		*spp = sp;
-	if (sp == NULL)
+		if (spp != NULL)
+			*spp = NULL;
 		return (0);
-		
-	/*
-	 * Make no effort to clean up the discarded screen's information.  If
-	 * it's not exiting, we'll do the work when the user redisplays it.
-	 *
-	 * Small screens: see vs_refresh.c section 6a.  Adjust text line info,
-	 * unless it's a small screen.
-	 *
-	 * Reset the length of the default scroll.
-	 */
-	if (!IS_SMALL(sp))
-		sp->t_rows = sp->t_minrows = sp->rows - 1;
-	sp->t_maxrows = sp->rows - 1;
-	sp->defscroll = sp->t_maxrows / 2;
-	*(HMAP + (sp->t_rows - 1)) = *TMAP;
-	TMAP = HMAP + (sp->t_rows - 1);
+	}
 
 	/*
-	 * Draw the new screen from scratch, and add a status line.
+	 * Find a set of screens that cover one of the screen's borders.
+	 * Check the vertical axis first, for no particular reason.
 	 *
 	 * XXX
-	 * We could play games with the map, if this were ever to be a
-	 * performance problem, but I wrote the code a few times and it
-	 * was never clean or easy.
+	 * It's possible (I think?), to create a screen that shares no full
+	 * border with any other set of screens, so we can't discard it.  We
+	 * just complain at the user until they clean it up.
 	 */
-	switch (dir) {
-	case FORWARD:
-		vs_sm_fill(sp, OOBLNO, P_TOP);
+	if (vs_join(sp, list, &jdir))
+		return (1);
+
+	/*
+	 * Modify the affected screens.  Redraw the modified screen(s) from
+	 * scratch, setting a status line.  If this is ever a performance
+	 * problem we could play games with the map, but I wrote that code
+	 * before and it was never clean or easy.
+	 *
+	 * Don't clean up the discarded screen's information.  If the screen
+	 * isn't exiting, we'll do the work when the user redisplays it.
+	 */
+	switch (jdir) {
+	case HORIZ_FOLLOW:
+	case HORIZ_PRECEDE:
+		for (lp = &list[0]; (tsp = *lp) != NULL; ++lp) {
+			/*
+			 * Small screens: see vs_refresh.c section 6a.  Adjust
+			 * text line info, unless it's a small screen.
+			 *
+			 * Reset the length of the default scroll.
+			 *
+			 * Reset the map references.
+			 */
+			tsp->rows += sp->rows;
+			if (!IS_SMALL(tsp))
+				tsp->t_rows = tsp->t_minrows = tsp->rows - 1;
+			tsp->t_maxrows = tsp->rows - 1;
+
+			tsp->defscroll = tsp->t_maxrows / 2;
+
+			*(_HMAP(tsp) + (tsp->t_rows - 1)) = *_TMAP(tsp);
+			_TMAP(tsp) = _HMAP(tsp) + (tsp->t_rows - 1);
+
+			switch (jdir) {
+			case HORIZ_FOLLOW:
+				tsp->roff = sp->roff;
+				vs_sm_fill(tsp, OOBLNO, P_TOP);
+				break;
+			case HORIZ_PRECEDE:
+				vs_sm_fill(tsp, OOBLNO, P_BOTTOM);
+				break;
+			default:
+				abort();
+			}
+			F_SET(tsp, SC_STATUS);
+		}
 		break;
-	case BACKWARD:
-		vs_sm_fill(sp, OOBLNO, P_BOTTOM);
+	case VERT_FOLLOW:
+	case VERT_PRECEDE:
+		for (lp = &list[0]; (tsp = *lp) != NULL; ++lp) {
+			if (jdir == VERT_FOLLOW)
+				tsp->coff = sp->coff;
+			tsp->cols += sp->cols + 1;	/* XXX: DIVIDER */
+			vs_sm_fill(tsp, OOBLNO, P_TOP);
+			F_SET(tsp, SC_STATUS);
+		}
 		break;
 	default:
 		abort();
 	}
 
-	F_SET(sp, SC_STATUS);
+	/* Find the closest screen that changed and move to it. */
+	tsp = list[0];
+	if (spp != NULL)
+		*spp = tsp;
+
+	/* Tell the display that we're discarding a screen. */
+	(void)gp->scr_discard(sp, list);
+
 	return (0);
+}
+
+/*
+ * vs_join --
+ *	Find a set of screens that covers a screen's border.
+ */
+static int
+vs_join(SCR *sp, SCR **listp, jdir_t *jdirp)
+{
+	GS *gp;
+	SCR **lp, *tsp;
+	int first;
+	size_t tlen;
+
+	gp = sp->gp;
+
+	/* Check preceding vertical. */
+	for (lp = listp, tlen = sp->rows,
+	    tsp = TAILQ_FIRST(gp->dq);
+	    tsp != NULL; tsp = TAILQ_NEXT(tsp, q)) {
+		if (sp == tsp)
+			continue;
+		/* Test if precedes the screen vertically. */
+		if (tsp->coff + tsp->cols + 1 != sp->coff)
+			continue;
+		/*
+		 * Test if a subset on the vertical axis.  If overlaps the
+		 * beginning or end, we can't join on this axis at all.
+		 */
+		if (tsp->roff > sp->roff + sp->rows)
+			continue;
+		if (tsp->roff < sp->roff) {
+			if (tsp->roff + tsp->rows >= sp->roff)
+				break;
+			continue;
+		}
+		if (tsp->roff + tsp->rows > sp->roff + sp->rows)
+			break;
+#ifdef DEBUG
+		if (tlen < tsp->rows)
+			abort();
+#endif
+		tlen -= tsp->rows;
+		*lp++ = tsp;
+	}
+	if (tlen == 0) {
+		*lp = NULL;
+		*jdirp = VERT_PRECEDE;
+		return (0);
+	}
+
+	/* Check following vertical. */
+	for (lp = listp, tlen = sp->rows,
+	    tsp = TAILQ_FIRST(gp->dq);
+	    tsp != NULL; tsp = TAILQ_NEXT(tsp, q)) {
+		if (sp == tsp)
+			continue;
+		/* Test if follows the screen vertically. */
+		if (tsp->coff != sp->coff + sp->cols + 1)
+			continue;
+		/*
+		 * Test if a subset on the vertical axis.  If overlaps the
+		 * beginning or end, we can't join on this axis at all.
+		 */
+		if (tsp->roff > sp->roff + sp->rows)
+			continue;
+		if (tsp->roff < sp->roff) {
+			if (tsp->roff + tsp->rows >= sp->roff)
+				break;
+			continue;
+		}
+		if (tsp->roff + tsp->rows > sp->roff + sp->rows)
+			break;
+#ifdef DEBUG
+		if (tlen < tsp->rows)
+			abort();
+#endif
+		tlen -= tsp->rows;
+		*lp++ = tsp;
+	}
+	if (tlen == 0) {
+		*lp = NULL;
+		*jdirp = VERT_FOLLOW;
+		return (0);
+	}
+
+	/* Check preceding horizontal. */
+	for (first = 0, lp = listp, tlen = sp->cols,
+	    tsp = TAILQ_FIRST(gp->dq);
+	    tsp != NULL; tsp = TAILQ_NEXT(tsp, q)) {
+		if (sp == tsp)
+			continue;
+		/* Test if precedes the screen horizontally. */
+		if (tsp->roff + tsp->rows != sp->roff)
+			continue;
+		/*
+		 * Test if a subset on the horizontal axis.  If overlaps the
+		 * beginning or end, we can't join on this axis at all.
+		 */
+		if (tsp->coff > sp->coff + sp->cols)
+			continue;
+		if (tsp->coff < sp->coff) {
+			if (tsp->coff + tsp->cols >= sp->coff)
+				break;
+			continue;
+		}
+		if (tsp->coff + tsp->cols > sp->coff + sp->cols)
+			break;
+#ifdef DEBUG
+		if (tlen < tsp->cols)
+			abort();
+#endif
+		tlen -= tsp->cols + first;
+		first = 1;
+		*lp++ = tsp;
+	}
+	if (tlen == 0) {
+		*lp = NULL;
+		*jdirp = HORIZ_PRECEDE;
+		return (0);
+	}
+
+	/* Check following horizontal. */
+	for (first = 0, lp = listp, tlen = sp->cols,
+	    tsp = TAILQ_FIRST(gp->dq);
+	    tsp != NULL; tsp = TAILQ_NEXT(tsp, q)) {
+		if (sp == tsp)
+			continue;
+		/* Test if precedes the screen horizontally. */
+		if (tsp->roff != sp->roff + sp->rows)
+			continue;
+		/*
+		 * Test if a subset on the horizontal axis.  If overlaps the
+		 * beginning or end, we can't join on this axis at all.
+		 */
+		if (tsp->coff > sp->coff + sp->cols)
+			continue;
+		if (tsp->coff < sp->coff) {
+			if (tsp->coff + tsp->cols >= sp->coff)
+				break;
+			continue;
+		}
+		if (tsp->coff + tsp->cols > sp->coff + sp->cols)
+			break;
+#ifdef DEBUG
+		if (tlen < tsp->cols)
+			abort();
+#endif
+		tlen -= tsp->cols + first;
+		first = 1;
+		*lp++ = tsp;
+	}
+	if (tlen == 0) {
+		*lp = NULL;
+		*jdirp = HORIZ_FOLLOW;
+		return (0);
+	}
+	return (1);
 }
 
 /*
@@ -284,26 +611,29 @@ vs_discard(sp, spp)
  * PUBLIC: int vs_fg __P((SCR *, SCR **, CHAR_T *, int));
  */
 int
-vs_fg(sp, nspp, name, newscreen)
-	SCR *sp, **nspp;
-	CHAR_T *name;
-	int newscreen;
+vs_fg(SCR *sp, SCR **nspp, CHAR_T *name, int newscreen)
 {
 	GS *gp;
 	SCR *nsp;
+	char *np;
+	size_t nlen;
 
 	gp = sp->gp;
 
+	if (name)
+	    INT2CHAR(sp, name, STRLEN(name) + 1, np, nlen);
+	else
+	    np = NULL;
 	if (newscreen)
 		/* Get the specified background screen. */
-		nsp = vs_getbg(sp, name);
+		nsp = vs_getbg(sp, np);
 	else
 		/* Swap screens. */
-		if (vs_swap(sp, &nsp, name))
+		if (vs_swap(sp, &nsp, np))
 			return (1);
 
 	if ((*nspp = nsp) == NULL) {
-		msgq_str(sp, M_ERR, name,
+		msgq_wstr(sp, M_ERR, name,
 		    name == NULL ?
 		    "223|There are no background screens" :
 		    "224|There's no background screen editing a file named %s");
@@ -312,17 +642,17 @@ vs_fg(sp, nspp, name, newscreen)
 
 	if (newscreen) {
 		/* Remove the new screen from the background queue. */
-		CIRCLEQ_REMOVE(&gp->hq, nsp, q);
+		TAILQ_REMOVE(gp->hq, nsp, q);
 
 		/* Split the screen; if we fail, hook the screen back in. */
 		if (vs_split(sp, nsp, 0)) {
-			CIRCLEQ_INSERT_TAIL(&gp->hq, nsp, q);
+			TAILQ_INSERT_TAIL(gp->hq, nsp, q);
 			return (1);
 		}
 	} else {
 		/* Move the old screen to the background queue. */
-		CIRCLEQ_REMOVE(&gp->dq, sp, q);
-		CIRCLEQ_INSERT_TAIL(&gp->hq, sp, q);
+		TAILQ_REMOVE(gp->dq, sp, q);
+		TAILQ_INSERT_TAIL(gp->hq, sp, q);
 	}
 	return (0);
 }
@@ -334,8 +664,7 @@ vs_fg(sp, nspp, name, newscreen)
  * PUBLIC: int vs_bg __P((SCR *));
  */
 int
-vs_bg(sp)
-	SCR *sp;
+vs_bg(SCR *sp)
 {
 	GS *gp;
 	SCR *nsp;
@@ -352,8 +681,8 @@ vs_bg(sp)
 	}
 
 	/* Move the old screen to the background queue. */
-	CIRCLEQ_REMOVE(&gp->dq, sp, q);
-	CIRCLEQ_INSERT_TAIL(&gp->hq, sp, q);
+	TAILQ_REMOVE(gp->dq, sp, q);
+	TAILQ_INSERT_TAIL(gp->hq, sp, q);
 
 	/* Toss the screen map. */
 	free(_HMAP(sp));
@@ -373,12 +702,10 @@ vs_bg(sp)
  * PUBLIC: int vs_swap __P((SCR *, SCR **, char *));
  */
 int
-vs_swap(sp, nspp, name)
-	SCR *sp, **nspp;
-	char *name;
+vs_swap(SCR *sp, SCR **nspp, char *name)
 {
 	GS *gp;
-	SCR *nsp;
+	SCR *nsp, *list[2];
 
 	gp = sp->gp;
 
@@ -409,7 +736,7 @@ vs_swap(sp, nspp, name)
 	/* Initialize screen information. */
 	nsp->cols = sp->cols;
 	nsp->rows = sp->rows;	/* XXX: Only place in vi that sets rows. */
-	nsp->woff = sp->woff;
+	nsp->roff = sp->roff;
 
 	/*
 	 * Small screens: see vs_refresh.c, section 6a.
@@ -435,6 +762,7 @@ vs_swap(sp, nspp, name)
 	_TMAP(nsp) = _HMAP(nsp) + (nsp->t_rows - 1);
 
 	/* Fill the map. */
+	nsp->gp = sp->gp;
 	if (vs_sm_fill(nsp, nsp->lno, P_FILL))
 		return (1);
 
@@ -444,8 +772,8 @@ vs_swap(sp, nspp, name)
 	 * the exit will delete the old one, if we're foregrounding, the fg
 	 * code will move the old one to the background queue.
 	 */
-	CIRCLEQ_REMOVE(&gp->hq, nsp, q);
-	CIRCLEQ_INSERT_AFTER(&gp->dq, sp, nsp, q);
+	TAILQ_REMOVE(gp->hq, nsp, q);
+	TAILQ_INSERT_AFTER(gp->dq, sp, nsp, q);
 
 	/*
 	 * Don't change the screen's cursor information other than to
@@ -455,6 +783,10 @@ vs_swap(sp, nspp, name)
 
 	/* Draw the new screen from scratch, and add a status line. */
 	F_SET(nsp, SC_SCR_REDRAW | SC_STATUS);
+
+	list[0] = nsp; list[1] = NULL;
+	(void)gp->scr_discard(sp, list);
+
 	return (0);
 }
 
@@ -465,13 +797,10 @@ vs_swap(sp, nspp, name)
  * PUBLIC: int vs_resize __P((SCR *, long, adj_t));
  */
 int
-vs_resize(sp, count, adj)
-	SCR *sp;
-	long count;
-	adj_t adj;
+vs_resize(SCR *sp, long int count, adj_t adj)
 {
 	GS *gp;
-	SCR *g, *s;
+	SCR *g, *s, *prev, *next, *list[3] = {NULL, NULL, NULL};
 	size_t g_off, s_off;
 
 	gp = sp->gp;
@@ -494,6 +823,23 @@ vs_resize(sp, count, adj)
 		}
 	}
 
+	/* Find first overlapping screen */
+	for (next = TAILQ_NEXT(sp, q); next != NULL &&
+	     (next->coff >= sp->coff + sp->cols ||
+	      next->coff + next->cols <= sp->coff);
+	     next = TAILQ_NEXT(next, q));
+	/* See if we can use it */
+	if (next != NULL &&
+	    (sp->coff != next->coff || sp->cols != next->cols))
+		next = NULL;
+	for (prev = TAILQ_PREV(sp, _dqh, q); prev != NULL &&
+	     (prev->coff >= sp->coff + sp->cols ||
+	      prev->coff + prev->cols <= sp->coff);
+	     prev = TAILQ_PREV(prev, _dqh, q));
+	if (prev != NULL &&
+	    (sp->coff != prev->coff || sp->cols != prev->cols))
+		prev = NULL;
+
 	g_off = s_off = 0;
 	if (adj == A_DECREASE) {
 		if (count < 0)
@@ -501,23 +847,21 @@ vs_resize(sp, count, adj)
 		s = sp;
 		if (s->t_maxrows < MINIMUM_SCREEN_ROWS + count)
 			goto toosmall;
-		if ((g = sp->q.cqe_prev) == (void *)&gp->dq) {
-			if ((g = sp->q.cqe_next) == (void *)&gp->dq)
+		if ((g = prev) == NULL) {
+			if ((g = next) == NULL)
 				goto toobig;
 			g_off = -count;
 		} else
 			s_off = count;
 	} else {
 		g = sp;
-		if ((s = sp->q.cqe_next) != (void *)&gp->dq)
-			if (s->t_maxrows < MINIMUM_SCREEN_ROWS + count)
-				s = NULL;
-			else
+		if ((s = next) != NULL &&
+		    s->t_maxrows >= MINIMUM_SCREEN_ROWS + count)
 				s_off = count;
 		else
 			s = NULL;
 		if (s == NULL) {
-			if ((s = sp->q.cqe_prev) == (void *)&gp->dq) {
+			if ((s = prev) == NULL) {
 toobig:				msgq(sp, M_BERR, adj == A_DECREASE ?
 				    "227|The screen cannot shrink" :
 				    "228|The screen cannot grow");
@@ -539,9 +883,9 @@ toosmall:			msgq(sp, M_BERR,
 	 * to make it worthwhile.
 	 */
 	s->rows += -count;
-	s->woff += s_off;
+	s->roff += s_off;
 	g->rows += count;
-	g->woff += g_off;
+	g->roff += g_off;
 
 	g->t_rows += count;
 	if (g->t_minrows == g->t_maxrows)
@@ -557,6 +901,10 @@ toosmall:			msgq(sp, M_BERR,
 	_TMAP(s) -= count;
 	F_SET(s, SC_SCR_REFORMAT | SC_STATUS);
 
+	/* XXXX */
+	list[0] = g; list[1] = s;
+	gp->scr_discard(0, list);
+
 	return (0);
 }
 
@@ -566,9 +914,7 @@ toosmall:			msgq(sp, M_BERR,
  *	background screen.
  */
 static SCR *
-vs_getbg(sp, name)
-	SCR *sp;
-	char *name;
+vs_getbg(SCR *sp, char *name)
 {
 	GS *gp;
 	SCR *nsp;
@@ -577,22 +923,18 @@ vs_getbg(sp, name)
 	gp = sp->gp;
 
 	/* If name is NULL, return the first background screen on the list. */
-	if (name == NULL) {
-		nsp = gp->hq.cqh_first;
-		return (nsp == (void *)&gp->hq ? NULL : nsp);
-	}
+	if (name == NULL)
+		return (TAILQ_FIRST(gp->hq));
 
 	/* Search for a full match. */
-	for (nsp = gp->hq.cqh_first;
-	    nsp != (void *)&gp->hq; nsp = nsp->q.cqe_next)
+	TAILQ_FOREACH(nsp, gp->hq, q)
 		if (!strcmp(nsp->frp->name, name))
 			break;
-	if (nsp != (void *)&gp->hq)
+	if (nsp != NULL)
 		return (nsp);
 
 	/* Search for a last-component match. */
-	for (nsp = gp->hq.cqh_first;
-	    nsp != (void *)&gp->hq; nsp = nsp->q.cqe_next) {
+	TAILQ_FOREACH(nsp, gp->hq, q) {
 		if ((p = strrchr(nsp->frp->name, '/')) == NULL)
 			p = nsp->frp->name;
 		else
@@ -600,7 +942,7 @@ vs_getbg(sp, name)
 		if (!strcmp(p, name))
 			break;
 	}
-	if (nsp != (void *)&gp->hq)
+	if (nsp != NULL)
 		return (nsp);
 
 	return (NULL);

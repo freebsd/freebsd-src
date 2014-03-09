@@ -40,7 +40,6 @@ struct usb_page_cache;
 struct usb_setup_params;
 struct usb_hw_ep_profile;
 struct usb_fs_isoc_schedule;
-struct usb_config_descriptor;
 struct usb_endpoint_descriptor;
 
 /* typedefs */
@@ -186,56 +185,13 @@ struct usb_hw_ep_profile {
 	uint8_t	support_out:1;		/* OUT-token is supported */
 };
 
-/*
- * The following structure is used when trying to allocate hardware
- * endpoints for an USB configuration in USB device side mode.
- */
-struct usb_hw_ep_scratch_sub {
-	const struct usb_hw_ep_profile *pf;
-	uint16_t max_frame_size;
-	uint8_t	hw_endpoint_out;
-	uint8_t	hw_endpoint_in;
-	uint8_t	needs_ep_type;
-	uint8_t	needs_in:1;
-	uint8_t	needs_out:1;
-};
-
-/*
- * The following structure is used when trying to allocate hardware
- * endpoints for an USB configuration in USB device side mode.
- */
-struct usb_hw_ep_scratch {
-	struct usb_hw_ep_scratch_sub ep[USB_EP_MAX];
-	struct usb_hw_ep_scratch_sub *ep_max;
-	struct usb_config_descriptor *cd;
-	struct usb_device *udev;
-	struct usb_bus_methods *methods;
-	uint8_t	bmOutAlloc[(USB_EP_MAX + 15) / 16];
-	uint8_t	bmInAlloc[(USB_EP_MAX + 15) / 16];
-};
-
-/*
- * The following structure is used when generating USB descriptors
- * from USB templates.
- */
-struct usb_temp_setup {
-	void   *buf;
-	usb_size_t size;
-	enum usb_dev_speed	usb_speed;
-	uint8_t	self_powered;
-	uint8_t	bNumEndpoints;
-	uint8_t	bInterfaceNumber;
-	uint8_t	bAlternateSetting;
-	uint8_t	bConfigurationValue;
-	usb_error_t err;
-};
-
 /* prototypes */
 
 void	usb_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint8_t	usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
 void	usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint16_t usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
+void	usb_bus_reset_async_locked(struct usb_bus *bus);
 #if USB_HAVE_TT_SUPPORT
 uint8_t	usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time);
 #endif

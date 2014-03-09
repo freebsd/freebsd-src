@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/startup/rcconf.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ GLOBALS
 
@@ -49,7 +49,6 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 RCCONF_MAP=
 _RCCONF_MAP=
-RCCONF_MENU_LIST=
 
 #
 # Options
@@ -79,13 +78,10 @@ fi
 #
 dialog_menu_main()
 {
-	local size
-	local hline="$hline_arrows_tab_enter"
-	local prompt=""
-
-	RCCONF_MENU_LIST="
+	local prompt=
+	local menu_list="
 		'X $msg_exit'    '$msg_exit_desc'
-		                  ${SHOW_DESC:+'$msg_exit_help'}
+		                  ${SHOW_DESC:+'$msg_exit_this_menu'}
 		'> $msg_add_new' '$msg_add_new_desc'
 		                  ${SHOW_DESC:+'$msg_add_new_help'}
 		'> $msg_delete'  '$msg_delete_desc'
@@ -95,14 +91,16 @@ dialog_menu_main()
 		                       ${SHOW_DESC:+'$msg_view_details_help'}
 	}
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	if [ ! "$_RCCONF_MAP" ]; then
 		# Genreate RCCONF_MAP of `var desc ...' per-line
 		f_dialog_info "$msg_creating_rcconf_map"
-		RCCONF_MAP=$( f_startup_rcconf_map )
+		f_startup_rcconf_map RCCONF_MAP
 		export RCCONF_MAP
 		# Generate _${var}_desc variables from $RCCONF_MAP
-		f_startup_rcconf_map_expand
+		f_startup_rcconf_map_expand RCCONF_MAP
 		export _RCCONF_MAP=1
 	fi
 
@@ -110,7 +108,7 @@ dialog_menu_main()
 	[ "$SHOW_DEFAULT_VALUE" -o "$SHOW_CONFIGURED" ] &&
 		f_dialog_info "$msg_creating_menu_list"
 
-	RCCONF_MENU_LIST="$RCCONF_MENU_LIST $(
+	menu_list="$menu_list $(
 		. "$RC_DEFAULTS" > /dev/null
 		source_rc_confs > /dev/null
 		var_list=$( f_startup_rcconf_list )
@@ -160,18 +158,25 @@ dialog_menu_main()
 		}'
 	)"
 
-	set -f # noglob
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
 
-	size=$( eval f_dialog_menu_${SHOW_DESC:+with_help_}size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$RCCONF_MENU_LIST      )
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows      \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
@@ -179,12 +184,19 @@ dialog_menu_main()
 		--help-button                      \
 		--help-label \"\$msg_details\"     \
 		${SHOW_DESC:+--item-help}          \
-		--menu \"\$prompt\" $size          \
-		$RCCONF_MENU_LIST                  \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
+
 	return $retval
 }
 
@@ -196,9 +208,9 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -210,10 +222,13 @@ f_dialog_title "$msg_view_edit_startup_configuration"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main
 	retval=$?
-	mtag=$( f_dialog_menutag )
+	f_dialog_menutag_fetch mtag
 
 	if [ "$USE_XDIALOG" ]; then
 		case "$mtag" in
@@ -221,19 +236,17 @@ while :; do
 			f_dialog_input_view_details
 			continue
 		esac
-	elif [ $retval -eq 2 ]; then
+	elif [ $retval -eq $DIALOG_HELP ]; then
 		# The ``Help'' button (labeled "Details") was pressed
 		f_dialog_input_view_details
 		continue
 	fi
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	"X $msg_exit") break ;;
-	"> $msg_add_new")
-		$BSDCFG_LIBE/$APP_DIR/rcadd ${USE_XDIALOG:+-X}
-		;;
+	"> $msg_add_new") $BSDCFG_LIBE/$APP_DIR/rcadd ${USE_XDIALOG:+-X} ;;
 	"> $msg_delete")
 		# rcdelete has a similar interface that can inherit the below:
 		export SHOW_VALUE SHOW_DESC SHOW_DEFAULT_VALUE SHOW_CONFIGURED

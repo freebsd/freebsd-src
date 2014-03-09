@@ -18,4 +18,7 @@ DPADD+= ${LIBM} ${LIBMD} ${LIBUTIL}
 
 WARNS?=	3
 
+LINKS=	${BINDIR}/authpf ${BINDIR}/authpf-noip
+MLINKS=	authpf.8 authpf-noip.8
+
 .include <bsd.prog.mk>

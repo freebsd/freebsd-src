@@ -51,11 +51,6 @@ class IdentifierResolver {
     /// The decl must already be part of the decl chain.
     void RemoveDecl(NamedDecl *D);
 
-    /// Replaces the Old declaration with the New declaration. If the
-    /// replacement is successful, returns true. If the old
-    /// declaration was not found, returns false.
-    bool ReplaceDecl(NamedDecl *Old, NamedDecl *New);
-
     /// \brief Insert the given declaration at the given position in the list.
     void InsertDecl(DeclsTy::iterator Pos, NamedDecl *D) {
       Decls.insert(Pos, D);
@@ -158,8 +153,7 @@ public:
   /// \param ExplicitInstantiationOrSpecialization When true, we are checking
   /// whether the declaration is in scope for the purposes of explicit template
   /// instantiation or specialization. The default is false.
-  bool isDeclInScope(Decl *D, DeclContext *Ctx, ASTContext &Context,
-                     Scope *S = 0,
+  bool isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S = 0,
                      bool ExplicitInstantiationOrSpecialization = false) const;
 
   /// AddDecl - Link the decl to its shadowed decl chain.
@@ -168,11 +162,6 @@ public:
   /// RemoveDecl - Unlink the decl from its shadowed decl chain.
   /// The decl must already be part of the decl chain.
   void RemoveDecl(NamedDecl *D);
-
-  /// Replace the decl Old with the new declaration New on its
-  /// identifier chain. Returns true if the old declaration was found
-  /// (and, therefore, replaced).
-  bool ReplaceDecl(NamedDecl *Old, NamedDecl *New);
 
   /// \brief Insert the given declaration after the given iterator
   /// position.

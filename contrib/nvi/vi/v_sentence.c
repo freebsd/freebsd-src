@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_sentence.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_sentence.c,v 10.9 2001/06/25 15:19:35 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,9 +52,7 @@ static const char sccsid[] = "@(#)v_sentence.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int v_sentencef __P((SCR *, VICMD *));
  */
 int
-v_sentencef(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_sentencef(SCR *sp, VICMD *vp)
 {
 	enum { BLANK, NONE, PERIOD } state;
 	VCS cs;
@@ -74,7 +72,7 @@ v_sentencef(sp, vp)
 	 * This may not handle "  .  " correctly, but it's real unclear
 	 * what correctly means in that case.
 	 */
-	if (cs.cs_flags == CS_EMP || cs.cs_flags == 0 && isblank(cs.cs_ch)) {
+	if (cs.cs_flags == CS_EMP || (cs.cs_flags == 0 && isblank(cs.cs_ch))) {
 		if (cs_fblank(sp, &cs))
 			return (1);
 		if (--cnt == 0) {
@@ -193,9 +191,7 @@ okret:	vp->m_stop.lno = cs.cs_lno;
  * PUBLIC: int v_sentenceb __P((SCR *, VICMD *));
  */
 int
-v_sentenceb(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_sentenceb(SCR *sp, VICMD *vp)
 {
 	VCS cs;
 	recno_t slno;

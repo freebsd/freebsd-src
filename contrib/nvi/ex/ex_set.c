@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_set.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_set.c,v 10.8 2001/06/25 15:19:19 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -29,9 +30,7 @@ static const char sccsid[] = "@(#)ex_set.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int ex_set __P((SCR *, EXCMD *));
  */
 int
-ex_set(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_set(SCR *sp, EXCMD *cmdp)
 {
 	switch(cmdp->argc) {
 	case 0:

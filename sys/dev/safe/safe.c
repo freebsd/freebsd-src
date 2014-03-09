@@ -211,7 +211,7 @@ safe_partname(struct safe_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
+	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -220,28 +220,15 @@ safe_attach(device_t dev)
 {
 	struct safe_softc *sc = device_get_softc(dev);
 	u_int32_t raddr;
-	u_int32_t cmd, i, devinfo;
+	u_int32_t i, devinfo;
 	int rid;
 
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
 
 	/* XXX handle power management */
- 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
-	if (!(cmd & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		goto bad;
-	}
-
-	if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		goto bad;
-	}
+	pci_enable_busmaster(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.

@@ -12,6 +12,8 @@
 
 #include "llvm/MC/MCFixup.h"
 
+#undef PPC
+
 namespace llvm {
 namespace PPC {
 enum Fixups {
@@ -23,27 +25,26 @@ enum Fixups {
   /// branches.
   fixup_ppc_brcond14,
   
-  /// fixup_ppc_lo16 - A 16-bit fixup corresponding to lo16(_foo) for instrs
-  /// like 'li'.
-  fixup_ppc_lo16,
+  /// fixup_ppc_br24abs - 24-bit absolute relocation for direct branches
+  /// like 'ba' and 'bla'.
+  fixup_ppc_br24abs,
+
+  /// fixup_ppc_brcond14abs - 14-bit absolute relocation for conditional
+  /// branches.
+  fixup_ppc_brcond14abs,
+
+  /// fixup_ppc_half16 - A 16-bit fixup corresponding to lo16(_foo)
+  /// or ha16(_foo) for instrs like 'li' or 'addis'.
+  fixup_ppc_half16,
   
-  /// fixup_ppc_ha16 - A 16-bit fixup corresponding to ha16(_foo) for instrs
-  /// like 'lis'.
-  fixup_ppc_ha16,
-  
-  /// fixup_ppc_lo14 - A 14-bit fixup corresponding to lo16(_foo) for instrs
-  /// like 'std'.
-  fixup_ppc_lo14,
+  /// fixup_ppc_half16ds - A 14-bit fixup corresponding to lo16(_foo) with
+  /// implied 2 zero bits for instrs like 'std'.
+  fixup_ppc_half16ds,
 
-  /// fixup_ppc_toc - Insert value of TOC base (.TOC.).
-  fixup_ppc_toc,
-
-  /// fixup_ppc_toc16 - A 16-bit signed fixup relative to the TOC base.
-  fixup_ppc_toc16,
-
-  /// fixup_ppc_toc16_ds - A 14-bit signed fixup relative to the TOC base with
-  /// implied 2 zero bits
-  fixup_ppc_toc16_ds,
+  /// fixup_ppc_nofixup - Not a true fixup, but ties a symbol to a call
+  /// to __tls_get_addr for the TLS general and local dynamic models,
+  /// or inserts the thread-pointer register number.
+  fixup_ppc_nofixup,
   
   // Marker
   LastTargetFixupKind,

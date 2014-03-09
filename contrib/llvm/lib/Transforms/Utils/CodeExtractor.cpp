@@ -14,25 +14,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/CodeExtractor.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
 #include "llvm/Analysis/Verifier.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <algorithm>
 #include <set>
 using namespace llvm;
@@ -276,8 +277,8 @@ void CodeExtractor::splitReturnBlocks() {
 
         DomTreeNode *NewNode = DT->addNewBlock(New, *I);
 
-        for (SmallVector<DomTreeNode*, 8>::iterator I = Children.begin(),
-               E = Children.end(); I != E; ++I) 
+        for (SmallVectorImpl<DomTreeNode *>::iterator I = Children.begin(),
+               E = Children.end(); I != E; ++I)
           DT->changeImmediateDominator(*I, NewNode);
       }
     }
@@ -664,8 +665,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     TheSwitch->setCondition(call);
     TheSwitch->setDefaultDest(TheSwitch->getSuccessor(NumExitBlocks));
     // Remove redundant case
-    SwitchInst::CaseIt ToBeRemoved(TheSwitch, NumExitBlocks-1);
-    TheSwitch->removeCase(ToBeRemoved);
+    TheSwitch->removeCase(SwitchInst::CaseIt(TheSwitch, NumExitBlocks-1));
     break;
   }
 }

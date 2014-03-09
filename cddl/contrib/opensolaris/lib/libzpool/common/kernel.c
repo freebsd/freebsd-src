@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/processor.h>
 #include <sys/zfs_context.h>
+#include <sys/rrwlock.h>
 #include <sys/zmod.h>
 #include <sys/utsname.h>
 #include <sys/systeminfo.h>
@@ -45,6 +46,9 @@ int aok;
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
 char hw_serial[HW_HOSTID_LEN];
+#ifdef illumos
+kmutex_t cpu_lock;
+#endif
 
 struct utsname utsname = {
 	"userland", "libzpool", "1", "1", "na"
@@ -345,6 +349,41 @@ top:
 	return (1);
 }
 
+/*ARGSUSED*/
+clock_t
+cv_timedwait_hires(kcondvar_t *cv, kmutex_t *mp, hrtime_t tim, hrtime_t res,
+    int flag)
+{
+	int error;
+	timestruc_t ts;
+	hrtime_t delta;
+
+	ASSERT(flag == 0);
+
+top:
+	delta = tim - gethrtime();
+	if (delta <= 0)
+		return (-1);
+
+	ts.tv_sec = delta / NANOSEC;
+	ts.tv_nsec = delta % NANOSEC;
+
+	ASSERT(mutex_owner(mp) == curthread);
+	mp->m_owner = NULL;
+	error = pthread_cond_timedwait(cv, &mp->m_lock, &ts);
+	mp->m_owner = curthread;
+
+	if (error == ETIMEDOUT)
+		return (-1);
+
+	if (error == EINTR)
+		goto top;
+
+	ASSERT(error == 0);
+
+	return (1);
+}
+
 void
 cv_signal(kcondvar_t *cv)
 {
@@ -587,6 +626,12 @@ dprintf_setup(int *argc, char **argv)
 		dprintf_print_all = 1;
 }
 
+int
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
+{
+	return (0);
+}
+
 /*
  * =========================================================================
  * debug printfs
@@ -616,7 +661,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%u ", thr_self());
+			(void) printf("%ul ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());
@@ -842,6 +887,28 @@ ddi_strtoull(const char *str, char **nptr, int base, u_longlong_t *result)
 	return (0);
 }
 
+#ifdef illumos
+/* ARGSUSED */
+cyclic_id_t
+cyclic_add(cyc_handler_t *hdlr, cyc_time_t *when)
+{
+	return (1);
+}
+
+/* ARGSUSED */
+void
+cyclic_remove(cyclic_id_t id)
+{
+}
+
+/* ARGSUSED */
+int
+cyclic_reprogram(cyclic_id_t id, hrtime_t expiration)
+{
+	return (1);
+}
+#endif
+
 /*
  * =========================================================================
  * kernel emulation setup & teardown
@@ -860,6 +927,8 @@ umem_out_of_memory(void)
 void
 kernel_init(int mode)
 {
+	extern uint_t rrw_tsd_key;
+
 	umem_nofail_callback(umem_out_of_memory);
 
 	physmem = sysconf(_SC_PHYS_PAGES);
@@ -875,7 +944,13 @@ kernel_init(int mode)
 
 	system_taskq_init();
 
+#ifdef illumos
+	mutex_init(&cpu_lock, NULL, MUTEX_DEFAULT, NULL);
+#endif
+
 	spa_init(mode);
+
+	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
 }
 
 void
@@ -919,6 +994,12 @@ z_compress_level(void *dst, size_t *dstlen, const void *src, size_t srclen,
 
 uid_t
 crgetuid(cred_t *cr)
+{
+	return (0);
+}
+
+uid_t
+crgetruid(cred_t *cr)
 {
 	return (0);
 }
@@ -1042,5 +1123,52 @@ int
 zvol_create_minors(const char *name)
 {
 	return (0);
+}
+#endif
+
+#ifdef illumos
+void
+bioinit(buf_t *bp)
+{
+	bzero(bp, sizeof (buf_t));
+}
+
+void
+biodone(buf_t *bp)
+{
+	if (bp->b_iodone != NULL) {
+		(*(bp->b_iodone))(bp);
+		return;
+	}
+	ASSERT((bp->b_flags & B_DONE) == 0);
+	bp->b_flags |= B_DONE;
+}
+
+void
+bioerror(buf_t *bp, int error)
+{
+	ASSERT(bp != NULL);
+	ASSERT(error >= 0);
+
+	if (error != 0) {
+		bp->b_flags |= B_ERROR;
+	} else {
+		bp->b_flags &= ~B_ERROR;
+	}
+	bp->b_error = error;
+}
+
+
+int
+geterror(struct buf *bp)
+{
+	int error = 0;
+
+	if (bp->b_flags & B_ERROR) {
+		error = bp->b_error;
+		if (!error)
+			error = EIO;
+	}
+	return (error);
 }
 #endif

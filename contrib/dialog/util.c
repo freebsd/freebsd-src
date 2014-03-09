@@ -1,9 +1,9 @@
 /*
- *  $Id: util.c,v 1.227 2011/07/07 23:42:30 tom Exp $
+ *  $Id: util.c,v 1.258 2013/09/22 00:41:40 tom Exp $
  *
  *  util.c -- miscellaneous utilities for dialog
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -26,6 +26,14 @@
 
 #include <dialog.h>
 #include <dlg_keys.h>
+
+#ifdef HAVE_SETLOCALE
+#include <locale.h>
+#endif
+
+#ifdef NEED_WCHAR_H
+#include <wchar.h>
+#endif
 
 #ifdef NCURSES_VERSION
 #if defined(HAVE_NCURSESW_TERM_H)
@@ -55,6 +63,12 @@
 DIALOG_STATE dialog_state;
 DIALOG_VARS dialog_vars;
 
+#if !(defined(HAVE_WGETPARENT) && defined(HAVE_WINDOW__PARENT))
+#define NEED_WGETPARENT 1
+#else
+#undef NEED_WGETPARENT
+#endif
+
 #define concat(a,b) a##b
 
 #ifdef HAVE_RC_FILE
@@ -79,6 +93,7 @@ DIALOG_VARS dialog_vars;
 
 /*
  * Table of color and attribute values, default is for mono display.
+ * The order matches the DIALOG_ATR() values.
  */
 /* *INDENT-OFF* */
 DIALOG_COLORS dlg_color_table[] =
@@ -116,9 +131,55 @@ DIALOG_COLORS dlg_color_table[] =
     DATA(A_BOLD,	FORM_ACTIVE_TEXT,	form_active_text, "Active form text"),
     DATA(A_REVERSE,	FORM_TEXT,		form_text, "Form text"),
     DATA(A_NORMAL,	FORM_ITEM_READONLY,	form_item_readonly, "Readonly form item"),
-    DATA(A_REVERSE,	GAUGE,			gauge, "Dialog box gauge")
+    DATA(A_REVERSE,	GAUGE,			gauge, "Dialog box gauge"),
+    DATA(A_REVERSE,	BORDER2,		border2, "Dialog box border2"),
+    DATA(A_REVERSE,	INPUTBOX_BORDER2,	inputbox_border2, "Input box border2"),
+    DATA(A_REVERSE,	SEARCHBOX_BORDER2,	searchbox_border2, "Search box border2"),
+    DATA(A_REVERSE,	MENUBOX_BORDER2,	menubox_border2, "Menu box border2")
 };
 /* *INDENT-ON* */
+
+/*
+ * Maintain a list of subwindows so that we can delete them to cleanup.
+ * More important, this provides a fallback when wgetparent() is not available.
+ */
+static void
+add_subwindow(WINDOW *parent, WINDOW *child)
+{
+    DIALOG_WINDOWS *p = dlg_calloc(DIALOG_WINDOWS, 1);
+
+    if (p != 0) {
+	p->normal = parent;
+	p->shadow = child;
+	p->next = dialog_state.all_subwindows;
+	dialog_state.all_subwindows = p;
+    }
+}
+
+static void
+del_subwindows(WINDOW *parent)
+{
+    DIALOG_WINDOWS *p = dialog_state.all_subwindows;
+    DIALOG_WINDOWS *q = 0;
+    DIALOG_WINDOWS *r;
+
+    while (p != 0) {
+	if (p->normal == parent) {
+	    delwin(p->shadow);
+	    r = p->next;
+	    if (q == 0) {
+		dialog_state.all_subwindows = r;
+	    } else {
+		q->next = r;
+	    }
+	    free(p);
+	    p = r;
+	} else {
+	    q = p;
+	    p = p->next;
+	}
+    }
+}
 
 /*
  * Display background title if it exists ...
@@ -132,7 +193,7 @@ dlg_put_backtitle(void)
 	chtype attr = A_NORMAL;
 	int backwidth = dlg_count_columns(dialog_vars.backtitle);
 
-	wattrset(stdscr, screen_attr);
+	(void) wattrset(stdscr, screen_attr);
 	(void) wmove(stdscr, 0, 1);
 	dlg_print_text(stdscr, dialog_vars.backtitle, COLS - 2, &attr);
 	for (i = 0; i < COLS - backwidth; i++)
@@ -154,7 +215,7 @@ dlg_attr_clear(WINDOW *win, int height, int width, chtype attr)
 {
     int i, j;
 
-    wattrset(win, attr);
+    (void) wattrset(win, attr);
     for (i = 0; i < height; i++) {
 	(void) wmove(win, i, 0);
 	for (j = 0; j < width; j++)
@@ -210,6 +271,18 @@ open_terminal(char **result, int mode)
     return open(device, mode);
 }
 
+#ifdef NCURSES_VERSION
+static int
+my_putc(int ch)
+{
+    char buffer[2];
+    int fd = fileno(dialog_state.screen_output);
+
+    buffer[0] = (char) ch;
+    return (int) write(fd, buffer, (size_t) 1);
+}
+#endif
+
 /*
  * Do some initialization for dialog.
  *
@@ -225,6 +298,8 @@ init_dialog(FILE *input, FILE *output)
 {
     int fd1, fd2;
     char *device = 0;
+
+    setlocale(LC_ALL, "");
 
     dialog_state.output = output;
     dialog_state.tab_len = TAB_LEN;
@@ -258,16 +333,20 @@ init_dialog(FILE *input, FILE *output)
 	    dialog_state.pipe_input = fdopen(fd2, "r");
 	    if (fileno(stdin) != 0)	/* some functions may read fd #0 */
 		(void) dup2(fileno(stdin), 0);
-	} else
+	} else {
 	    dlg_exiterr("cannot open tty-input");
+	}
+	close(fd1);
     } else if (!isatty(fileno(stdin))) {
-	if ((fd1 = open_terminal(&device, O_RDONLY)) >= 0
-	    && (fd2 = dup(fileno(stdin))) >= 0) {
-	    dialog_state.pipe_input = fdopen(fd2, "r");
-	    if (freopen(device, "r", stdin) == 0)
-		dlg_exiterr("cannot open tty-input");
-	    if (fileno(stdin) != 0)	/* some functions may read fd #0 */
-		(void) dup2(fileno(stdin), 0);
+	if ((fd1 = open_terminal(&device, O_RDONLY)) >= 0) {
+	    if ((fd2 = dup(fileno(stdin))) >= 0) {
+		dialog_state.pipe_input = fdopen(fd2, "r");
+		if (freopen(device, "r", stdin) == 0)
+		    dlg_exiterr("cannot open tty-input");
+		if (fileno(stdin) != 0)		/* some functions may read fd #0 */
+		    (void) dup2(fileno(stdin), 0);
+	    }
+	    close(fd1);
 	}
 	free(device);
     }
@@ -310,19 +389,20 @@ init_dialog(FILE *input, FILE *output)
      * Cancel xterm's alternate-screen mode.
      */
     if (!dialog_vars.keep_tite
-	&& (dialog_state.screen_output != stdout
+	&& (fileno(dialog_state.screen_output) != fileno(stdout)
 	    || isatty(fileno(dialog_state.screen_output)))
 	&& key_mouse != 0	/* xterm and kindred */
 	&& isprivate(enter_ca_mode)
 	&& isprivate(exit_ca_mode)) {
 	/*
-	 * initscr() or newterm() already did putp(enter_ca_mode) as a side
+	 * initscr() or newterm() already wrote enter_ca_mode as a side
 	 * effect of initializing the screen.  It would be nice to not even
 	 * do that, but we do not really have access to the correct copy of
 	 * the terminfo description until those functions have been invoked.
 	 */
-	(void) putp(exit_ca_mode);
-	(void) putp(clear_screen);
+	(void) refresh();
+	(void) tputs(exit_ca_mode, 0, my_putc);
+	(void) tputs(clear_screen, 0, my_putc);
 	/*
 	 * Prevent ncurses from switching "back" to the normal screen when
 	 * exiting from dialog.  That would move the cursor to the original
@@ -506,22 +586,35 @@ end_dialog(void)
 #define ESCAPE_LEN 3
 #define isOurEscape(p) (((p)[0] == '\\') && ((p)[1] == 'Z') && ((p)[2] != 0))
 
+int
+dlg_count_real_columns(const char *text)
+{
+    int result = 0;
+    if (*text) {
+	result = dlg_count_columns(text);
+	if (result && dialog_vars.colors) {
+	    int hidden = 0;
+	    while (*text) {
+		if (dialog_vars.colors && isOurEscape(text)) {
+		    hidden += ESCAPE_LEN;
+		    text += ESCAPE_LEN;
+		} else {
+		    ++text;
+		}
+	    }
+	    result -= hidden;
+	}
+    }
+    return result;
+}
+
 static int
 centered(int width, const char *string)
 {
-    int len = dlg_count_columns(string);
+    int need = dlg_count_real_columns(string);
     int left;
-    int hide = 0;
-    int n;
 
-    if (dialog_vars.colors) {
-	for (n = 0; n < len; ++n) {
-	    if (isOurEscape(string + n)) {
-		hide += ESCAPE_LEN;
-	    }
-	}
-    }
-    left = (width - (len - hide)) / 2 - 1;
+    left = (width - need) / 2 - 1;
     if (left < 0)
 	left = 0;
     return left;
@@ -554,6 +647,58 @@ is_combining(const char *txt, int *combined)
     return result;
 }
 #endif
+
+/*
+ * Print the name (tag) or text from a DIALOG_LISTITEM, highlighting the
+ * first character if selected.
+ */
+void
+dlg_print_listitem(WINDOW *win,
+		   const char *text,
+		   int climit,
+		   bool first,
+		   int selected)
+{
+    chtype attr = A_NORMAL;
+    int limit;
+    const int *cols;
+    chtype attrs[4];
+
+    if (text == 0)
+	text = "";
+
+    if (first) {
+	const int *indx = dlg_index_wchars(text);
+	attrs[3] = tag_key_selected_attr;
+	attrs[2] = tag_key_attr;
+	attrs[1] = tag_selected_attr;
+	attrs[0] = tag_attr;
+
+	(void) wattrset(win, selected ? attrs[3] : attrs[2]);
+	(void) waddnstr(win, text, indx[1]);
+
+	if ((int) strlen(text) > indx[1]) {
+	    limit = dlg_limit_columns(text, climit, 1);
+	    if (limit > 1) {
+		(void) wattrset(win, selected ? attrs[1] : attrs[0]);
+		(void) waddnstr(win,
+				text + indx[1],
+				indx[limit] - indx[1]);
+	    }
+	}
+    } else {
+	attrs[1] = item_selected_attr;
+	attrs[0] = item_attr;
+
+	cols = dlg_index_columns(text);
+	limit = dlg_limit_columns(text, climit, 0);
+
+	if (limit > 0) {
+	    (void) wattrset(win, selected ? attrs[1] : attrs[0]);
+	    dlg_print_text(win, text, cols[limit], &attr);
+	}
+    }
+}
 
 /*
  * Print up to 'cols' columns from 'text', optionally rendering our escape
@@ -647,8 +792,10 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
 	 * more blanks.
 	 */
 	thisTab = (CharOf(*txt) == TAB);
-	if (thisTab)
+	if (thisTab) {
 	    getyx(win, y_before, x_before);
+	    (void) y_before;
+	}
 	(void) waddch(win, CharOf(*txt++) | useattr);
 	getyx(win, y_after, x_after);
 	if (thisTab && (y_after == y_origin))
@@ -676,8 +823,8 @@ dlg_print_line(WINDOW *win,
 	       const char *prompt,
 	       int lm, int rm, int *x)
 {
-    const char *wrap_ptr = prompt;
-    const char *test_ptr = prompt;
+    const char *wrap_ptr;
+    const char *test_ptr;
     const char *hide_ptr = 0;
     const int *cols = dlg_index_columns(prompt);
     const int *indx = dlg_index_wchars(prompt);
@@ -704,7 +851,7 @@ dlg_print_line(WINDOW *win,
 	} else if (*test_ptr == ' ' && n != 0 && prompt[indx[n - 1]] != ' ') {
 	    wrap_inx = n;
 	    *x = cur_x;
-	} else if (isOurEscape(test_ptr)) {
+	} else if (dialog_vars.colors && isOurEscape(test_ptr)) {
 	    hide_ptr = test_ptr;
 	    hidden += ESCAPE_LEN;
 	    n += (ESCAPE_LEN - 1);
@@ -751,7 +898,7 @@ dlg_print_line(WINDOW *win,
 	hidden -= ESCAPE_LEN;
 	test_ptr = wrap_ptr;
 	while (test_ptr < wrap_ptr) {
-	    if (isOurEscape(test_ptr)) {
+	    if (dialog_vars.colors && isOurEscape(test_ptr)) {
 		hidden -= ESCAPE_LEN;
 		test_ptr += ESCAPE_LEN;
 	    } else {
@@ -780,6 +927,7 @@ dlg_print_line(WINDOW *win,
 	test_ptr++;
     if (*test_ptr == '\n')
 	test_ptr++;
+    dlg_finish_string(prompt);
     return (test_ptr);
 }
 
@@ -902,15 +1050,16 @@ dlg_print_scrolled(WINDOW *win,
 #endif
 	dummy = newwin(high, width, 0, 0);
 	if (dummy == 0) {
-	    wattrset(win, dialog_attr);
+	    (void) wattrset(win, dialog_attr);
 	    dlg_print_autowrap(win, prompt, height + 1 + (3 * MARGIN), width);
 	    last = 0;
 	} else {
 	    wbkgdset(dummy, dialog_attr | ' ');
-	    wattrset(dummy, dialog_attr);
+	    (void) wattrset(dummy, dialog_attr);
 	    werase(dummy);
 	    dlg_print_autowrap(dummy, prompt, high, width);
 	    getyx(dummy, y, x);
+	    (void) x;
 
 	    copywin(dummy,	/* srcwin */
 		    win,	/* dstwin */
@@ -937,7 +1086,7 @@ dlg_print_scrolled(WINDOW *win,
 		    (void) sprintf(buffer, "%d%%", percent);
 		    (void) waddstr(win, buffer);
 		    if ((len = (int) strlen(buffer)) < 4) {
-			wattrset(win, border_attr);
+			(void) wattrset(win, border_attr);
 			whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 		    }
 		}
@@ -948,7 +1097,7 @@ dlg_print_scrolled(WINDOW *win,
 #endif
     {
 	(void) offset;
-	wattrset(win, dialog_attr);
+	(void) wattrset(win, dialog_attr);
 	dlg_print_autowrap(win, prompt, height + 1 + (3 * MARGIN), width);
 	last = 0;
     }
@@ -1081,25 +1230,6 @@ longest_word(const char *string)
     return result;
 }
 
-static int
-count_real_columns(const char *text)
-{
-    int result = dlg_count_columns(text);
-    if (result && dialog_vars.colors) {
-	int hidden = 0;
-	while (*text) {
-	    if (isOurEscape(text)) {
-		hidden += ESCAPE_LEN;
-		text += ESCAPE_LEN;
-	    } else {
-		++text;
-	    }
-	}
-	result -= hidden;
-    }
-    return result;
-}
-
 /*
  * if (height or width == -1) Maximize()
  * if (height or width == 0), justify and return actual limits.
@@ -1132,23 +1262,24 @@ real_auto_size(const char *title,
 	high = SLINES - y;
     }
 
-    if (*width > 0) {
-	wide = *width;
-    } else if (prompt != 0) {
-	wide = MAX(title_length, mincols);
-	if (strchr(prompt, '\n') == 0) {
-	    double val = dialog_state.aspect_ratio * count_real_columns(prompt);
-	    double xxx = sqrt(val);
-	    int tmp = (int) xxx;
-	    wide = MAX(wide, tmp);
-	    wide = MAX(wide, longest_word(prompt));
-	    justify_text((WINDOW *) 0, prompt, high, wide, height, width);
+    if (*width <= 0) {
+	if (prompt != 0) {
+	    wide = MAX(title_length, mincols);
+	    if (strchr(prompt, '\n') == 0) {
+		double val = (dialog_state.aspect_ratio *
+			      dlg_count_real_columns(prompt));
+		double xxx = sqrt(val);
+		int tmp = (int) xxx;
+		wide = MAX(wide, tmp);
+		wide = MAX(wide, longest_word(prompt));
+		justify_text((WINDOW *) 0, prompt, high, wide, height, width);
+	    } else {
+		auto_size_preformatted(prompt, height, width);
+	    }
 	} else {
-	    auto_size_preformatted(prompt, height, width);
+	    wide = SCOLS - x;
+	    justify_text((WINDOW *) 0, prompt, high, wide, height, width);
 	}
-    } else {
-	wide = SCOLS - x;
-	justify_text((WINDOW *) 0, prompt, high, wide, height, width);
     }
 
     if (*width < title_length) {
@@ -1291,13 +1422,13 @@ dlg_get_cell_attrs(WINDOW *win)
  * reverse this choice.
  */
 void
-dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
-	     chtype boxchar, chtype borderchar)
+dlg_draw_box2(WINDOW *win, int y, int x, int height, int width,
+	      chtype boxchar, chtype borderchar, chtype borderchar2)
 {
     int i, j;
     chtype save = dlg_get_attrs(win);
 
-    wattrset(win, 0);
+    (void) wattrset(win, 0);
     for (i = 0; i < height; i++) {
 	(void) wmove(win, y + i, x);
 	for (j = 0; j < width; j++)
@@ -1306,21 +1437,28 @@ dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
 	    else if (i == height - 1 && !j)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_LLCORNER));
 	    else if (!i && j == width - 1)
-		(void) waddch(win, boxchar | dlg_boxchar(ACS_URCORNER));
+		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_URCORNER));
 	    else if (i == height - 1 && j == width - 1)
-		(void) waddch(win, boxchar | dlg_boxchar(ACS_LRCORNER));
+		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_LRCORNER));
 	    else if (!i)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_HLINE));
 	    else if (i == height - 1)
-		(void) waddch(win, boxchar | dlg_boxchar(ACS_HLINE));
+		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_HLINE));
 	    else if (!j)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_VLINE));
 	    else if (j == width - 1)
-		(void) waddch(win, boxchar | dlg_boxchar(ACS_VLINE));
+		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_VLINE));
 	    else
 		(void) waddch(win, boxchar | ' ');
     }
-    wattrset(win, save);
+    (void) wattrset(win, save);
+}
+
+void
+dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
+	     chtype boxchar, chtype borderchar)
+{
+    dlg_draw_box2(win, y, x, height, width, boxchar, borderchar, boxchar);
 }
 
 static DIALOG_WINDOWS *
@@ -1454,7 +1592,7 @@ repaint_cell(DIALOG_WINDOWS * dw, bool draw, int y, int x)
 #if USE_WCHGAT
 	wchgat(cellwin, 1,
 	       the_attr & (chtype) (~A_COLOR),
-	       PAIR_NUMBER(the_attr),
+	       (short) PAIR_NUMBER(the_attr),
 	       NULL);
 #else
 	{
@@ -1476,7 +1614,7 @@ repaint_shadow(DIALOG_WINDOWS * dw, bool draw, int y, int x, int height, int wid
     if (UseShadow(dw)) {
 #if !USE_WCHGAT
 	chtype save = dlg_get_attrs(dw->shadow);
-	wattrset(dw->shadow, draw ? shadow_attr : screen_attr);
+	(void) wattrset(dw->shadow, draw ? shadow_attr : screen_attr);
 #endif
 	for (i = 0; i < SHADOW_ROWS; ++i) {
 	    for (j = 0; j < width; ++j) {
@@ -1490,7 +1628,7 @@ repaint_shadow(DIALOG_WINDOWS * dw, bool draw, int y, int x, int height, int wid
 	}
 	(void) wnoutrefresh(dw->shadow);
 #if !USE_WCHGAT
-	wattrset(dw->shadow, save);
+	(void) wattrset(dw->shadow, save);
 #endif
     }
 }
@@ -1732,11 +1870,26 @@ int
 dlg_calc_list_width(int item_no, DIALOG_LISTITEM * items)
 {
     int n, i, len1 = 0, len2 = 0;
+    int bits = ((dialog_vars.no_tags ? 1 : 0)
+		+ (dialog_vars.no_items ? 2 : 0));
+
     for (i = 0; i < item_no; ++i) {
-	if ((n = dlg_count_columns(items[i].name)) > len1)
-	    len1 = n;
-	if ((n = dlg_count_columns(items[i].text)) > len2)
-	    len2 = n;
+	switch (bits) {
+	case 0:
+	    /* FALLTHRU */
+	case 1:
+	    if ((n = dlg_count_columns(items[i].name)) > len1)
+		len1 = n;
+	    if ((n = dlg_count_columns(items[i].text)) > len2)
+		len2 = n;
+	    break;
+	case 2:
+	    /* FALLTHRU */
+	case 3:
+	    if ((n = dlg_count_columns(items[i].name)) > len1)
+		len1 = n;
+	    break;
+	}
     }
     return len1 + len2;
 }
@@ -1836,30 +1989,38 @@ dlg_draw_title(WINDOW *win, const char *title)
 	chtype save = dlg_get_attrs(win);
 	int x = centered(getmaxx(win), title);
 
-	wattrset(win, title_attr);
+	(void) wattrset(win, title_attr);
 	wmove(win, 0, x);
 	dlg_print_text(win, title, getmaxx(win) - x, &attr);
-	wattrset(win, save);
+	(void) wattrset(win, save);
+	dlg_finish_string(title);
     }
 }
 
 void
-dlg_draw_bottom_box(WINDOW *win)
+dlg_draw_bottom_box2(WINDOW *win, chtype on_left, chtype on_right, chtype on_inside)
 {
     int width = getmaxx(win);
     int height = getmaxy(win);
     int i;
 
-    wattrset(win, border_attr);
+    (void) wattrset(win, on_left);
     (void) wmove(win, height - 3, 0);
     (void) waddch(win, dlg_boxchar(ACS_LTEE));
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, dlg_boxchar(ACS_HLINE));
-    wattrset(win, dialog_attr);
+    (void) wattrset(win, on_right);
     (void) waddch(win, dlg_boxchar(ACS_RTEE));
+    (void) wattrset(win, on_inside);
     (void) wmove(win, height - 2, 1);
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, ' ');
+}
+
+void
+dlg_draw_bottom_box(WINDOW *win)
+{
+    dlg_draw_bottom_box2(win, border_attr, dialog_attr, dialog_attr);
 }
 
 /*
@@ -1907,8 +2068,9 @@ dlg_del_window(WINDOW *win)
     if (q) {
 	if (dialog_state.all_windows != 0)
 	    erase_childs_shadow(q);
-	delwin(q->normal);
+	del_subwindows(q->normal);
 	dlg_unregister_window(q->normal);
+	delwin(q->normal);
 	free(q);
     }
     doupdate();
@@ -1934,7 +2096,8 @@ dlg_new_modal_window(WINDOW *parent, int height, int width, int y, int x)
     DIALOG_WINDOWS *p = dlg_calloc(DIALOG_WINDOWS, 1);
 
     (void) parent;
-    if ((win = newwin(height, width, y, x)) == 0) {
+    if (p == 0
+	|| (win = newwin(height, width, y, x)) == 0) {
 	dlg_exiterr("Can't make new window at (%d,%d), size (%d,%d).\n",
 		    y, x, height, width);
     }
@@ -1996,6 +2159,7 @@ dlg_sub_window(WINDOW *parent, int height, int width, int y, int x)
 		    y, x, height, width);
     }
 
+    add_subwindow(parent, win);
     (void) keypad(win, TRUE);
     return win;
 }
@@ -2049,7 +2213,7 @@ dlg_item_help(const char *txt)
 	chtype attr = A_NORMAL;
 	int y, x;
 
-	wattrset(stdscr, itemhelp_attr);
+	(void) wattrset(stdscr, itemhelp_attr);
 	(void) wmove(stdscr, LINES - 1, 0);
 	(void) wclrtoeol(stdscr);
 	(void) addch(' ');
@@ -2057,6 +2221,7 @@ dlg_item_help(const char *txt)
 	if (itemhelp_attr & A_COLOR) {
 	    /* fill the remainder of the line with the window's attributes */
 	    getyx(stdscr, y, x);
+	    (void) y;
 	    while (x < COLS) {
 		(void) addch(' ');
 		++x;
@@ -2340,7 +2505,7 @@ dlg_add_quoted(char *string)
 			    ? FIX_SINGLE
 			    : FIX_DOUBLE);
 
-    if (dialog_vars.quoted || must_quote(string)) {
+    if (must_quote(string)) {
 	temp[1] = '\0';
 	dlg_add_result(my_quote);
 	while (*string != '\0') {
@@ -2392,6 +2557,32 @@ dlg_add_separator(void)
     dlg_add_result(separator);
 }
 
+#define HELP_PREFIX		"HELP "
+
+void
+dlg_add_help_listitem(int *result, char **tag, DIALOG_LISTITEM * item)
+{
+    dlg_add_result(HELP_PREFIX);
+    if (USE_ITEM_HELP(item->help)) {
+	*tag = dialog_vars.help_tags ? item->name : item->help;
+	*result = DLG_EXIT_ITEM_HELP;
+    } else {
+	*tag = item->name;
+    }
+}
+
+void
+dlg_add_help_formitem(int *result, char **tag, DIALOG_FORMITEM * item)
+{
+    dlg_add_result(HELP_PREFIX);
+    if (USE_ITEM_HELP(item->help)) {
+	*tag = dialog_vars.help_tags ? item->name : item->help;
+	*result = DLG_EXIT_ITEM_HELP;
+    } else {
+	*tag = item->name;
+    }
+}
+
 /*
  * Some widgets support only one value of a given variable - save/restore the
  * global dialog_vars so we can override it consistently.
@@ -2432,14 +2623,14 @@ dlg_does_output(void)
  */
 #if !(defined(HAVE_GETBEGX) && defined(HAVE_GETBEGY))
 int
-getbegx(WINDOW *win)
+dlg_getbegx(WINDOW *win)
 {
     int y, x;
     getbegyx(win, y, x);
     return x;
 }
 int
-getbegy(WINDOW *win)
+dlg_getbegy(WINDOW *win)
 {
     int y, x;
     getbegyx(win, y, x);
@@ -2449,14 +2640,14 @@ getbegy(WINDOW *win)
 
 #if !(defined(HAVE_GETCURX) && defined(HAVE_GETCURY))
 int
-getcurx(WINDOW *win)
+dlg_getcurx(WINDOW *win)
 {
     int y, x;
     getyx(win, y, x);
     return x;
 }
 int
-getcury(WINDOW *win)
+dlg_getcury(WINDOW *win)
 {
     int y, x;
     getyx(win, y, x);
@@ -2466,14 +2657,14 @@ getcury(WINDOW *win)
 
 #if !(defined(HAVE_GETMAXX) && defined(HAVE_GETMAXY))
 int
-getmaxx(WINDOW *win)
+dlg_getmaxx(WINDOW *win)
 {
     int y, x;
     getmaxyx(win, y, x);
     return x;
 }
 int
-getmaxy(WINDOW *win)
+dlg_getmaxy(WINDOW *win)
 {
     int y, x;
     getmaxyx(win, y, x);
@@ -2483,17 +2674,35 @@ getmaxy(WINDOW *win)
 
 #if !(defined(HAVE_GETPARX) && defined(HAVE_GETPARY))
 int
-getparx(WINDOW *win)
+dlg_getparx(WINDOW *win)
 {
     int y, x;
     getparyx(win, y, x);
     return x;
 }
 int
-getpary(WINDOW *win)
+dlg_getpary(WINDOW *win)
 {
     int y, x;
     getparyx(win, y, x);
     return y;
+}
+#endif
+
+#ifdef NEED_WGETPARENT
+WINDOW *
+dlg_wgetparent(WINDOW *win)
+{
+#undef wgetparent
+    WINDOW *result = 0;
+    DIALOG_WINDOWS *p;
+
+    for (p = dialog_state.all_subwindows; p != 0; p = p->next) {
+	if (p->shadow == win) {
+	    result = p->normal;
+	    break;
+	}
+    }
+    return result;
 }
 #endif

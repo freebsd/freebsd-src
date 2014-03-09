@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -69,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -157,7 +161,7 @@ static device_method_t cue_methods[] = {
 	DEVMETHOD(device_attach, cue_attach),
 	DEVMETHOD(device_detach, cue_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cue_driver = {

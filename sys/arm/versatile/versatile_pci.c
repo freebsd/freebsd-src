@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/pci/pcivar.h>
@@ -145,6 +144,9 @@ static int
 versatile_pci_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "versatile,pci")) {
 		device_set_desc(dev, "Versatile PCI controller");
 		return (BUS_PROBE_DEFAULT);
@@ -173,16 +175,17 @@ versatile_pci_attach(device_t dev)
 	/*
 	 * Setup memory windows
 	 */
-	versatile_pci_core_write_4(PCI_CORE_IMAP0, (PCI_IO_WINDOW >> 11));
-	versatile_pci_core_write_4(PCI_CORE_IMAP1, (PCI_NPREFETCH_WINDOW >> 11));
-	versatile_pci_core_write_4(PCI_CORE_IMAP2, (PCI_PREFETCH_WINDOW >> 11));
+	versatile_pci_core_write_4(PCI_CORE_IMAP0, (PCI_IO_WINDOW >> 28));
+	versatile_pci_core_write_4(PCI_CORE_IMAP1, (PCI_NPREFETCH_WINDOW >> 28));
+	versatile_pci_core_write_4(PCI_CORE_IMAP2, (PCI_PREFETCH_WINDOW >> 28));
 
 	/*
 	 * XXX: this is SDRAM offset >> 28
+	 * Unused as of QEMU 1.5
 	 */
-	versatile_pci_core_write_4(PCI_CORE_SMAP0, 0);
-	versatile_pci_core_write_4(PCI_CORE_SMAP1, 0);
-	versatile_pci_core_write_4(PCI_CORE_SMAP2, 0);
+	versatile_pci_core_write_4(PCI_CORE_SMAP0, (PCI_IO_WINDOW >> 28));
+	versatile_pci_core_write_4(PCI_CORE_SMAP1, (PCI_NPREFETCH_WINDOW >> 28));
+	versatile_pci_core_write_4(PCI_CORE_SMAP2, (PCI_NPREFETCH_WINDOW >> 28));
 
 	versatile_pci_sys_write_4(SYS_PCICTL, 1);
 
@@ -307,7 +310,7 @@ versatile_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *rv;
 	struct rman *rm;
 
-	printf("Alloc resources %d, %08lx..%08lx, %ld\n", type, start, end, count);
+	dprintf("Alloc resources %d, %08lx..%08lx, %ld\n", type, start, end, count);
 
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -344,20 +347,26 @@ versatile_pci_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 	vm_offset_t vaddr;
-	int res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
-	    child, type, rid, r));
+	int res;
 
-	if (!res) {
-		switch(type) {
-		case SYS_RES_MEMORY:
-		case SYS_RES_IOPORT:
-			vaddr = (vm_offset_t)pmap_mapdev(rman_get_start(r),
-					rman_get_size(r));
-			rman_set_bushandle(r, vaddr);
-			rman_set_bustag(r, versatile_bus_space_pcimem);
-			break;
-		}
+	switch(type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		vaddr = (vm_offset_t)pmap_mapdev(rman_get_start(r),
+				rman_get_size(r));
+		rman_set_bushandle(r, vaddr);
+		rman_set_bustag(r, versatile_bus_space_pcimem);
+		res = rman_activate_resource(r);
+		break;
+	case SYS_RES_IRQ:
+		res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
+		    child, type, rid, r));
+		break;
+	default:
+		res = ENXIO;
+		break;
 	}
+
 	return (res);
 }
 

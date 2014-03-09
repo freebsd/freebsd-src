@@ -14,8 +14,8 @@
 #ifndef LLVM_MC_MCSECTIONMACHO_H
 #define LLVM_MC_MCSECTIONMACHO_H
 
-#include "llvm/MC/MCSection.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCSection.h"
 
 namespace llvm {
 
@@ -41,7 +41,7 @@ public:
 
   /// These are the section type and attributes fields.  A MachO section can
   /// have only one Type, but can have any of the attributes specified.
-  enum {
+  enum LLVM_ENUM_INT_TYPE(uint32_t) {
     // TypeAndAttributes bitmasks.
     SECTION_TYPE       = 0x000000FFU,
     SECTION_ATTRIBUTES = 0xFFFFFF00U,
@@ -145,6 +145,14 @@ public:
     return StringRef(SectionName);
   }
 
+  virtual std::string getLabelBeginName() const {
+    return StringRef(getSegmentName().str() + getSectionName().str() + "_begin");
+  }
+
+  virtual std::string getLabelEndName() const {
+    return StringRef(getSegmentName().str() + getSectionName().str() + "_end");
+  }
+
   unsigned getTypeAndAttributes() const { return TypeAndAttributes; }
   unsigned getStubSize() const { return Reserved2; }
 
@@ -167,7 +175,8 @@ public:
                                            unsigned  &StubSize); // Out.
 
   virtual void PrintSwitchToSection(const MCAsmInfo &MAI,
-                                    raw_ostream &OS) const;
+                                    raw_ostream &OS,
+                                    const MCExpr *Subsection) const;
   virtual bool UseCodeAlign() const;
   virtual bool isVirtualSection() const;
 

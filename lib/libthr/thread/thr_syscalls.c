@@ -101,6 +101,7 @@ extern pid_t	__waitpid(pid_t, int *, int);
 extern int	__sys_aio_suspend(const struct aiocb * const[], int,
 			const struct timespec *);
 extern int	__sys_accept(int, struct sockaddr *, socklen_t *);
+extern int	__sys_accept4(int, struct sockaddr *, socklen_t *, int);
 extern int	__sys_connect(int, const struct sockaddr *, socklen_t);
 extern int	__sys_fsync(int);
 extern int	__sys_msync(void *, size_t, int);
@@ -129,6 +130,7 @@ int	___usleep(useconds_t useconds);
 pid_t	___wait(int *);
 pid_t	___waitpid(pid_t, int *, int);
 int	__accept(int, struct sockaddr *, socklen_t *);
+int	__accept4(int, struct sockaddr *, socklen_t *, int);
 int	__aio_suspend(const struct aiocb * const iocbs[], int,
 		const struct timespec *);
 int	__close(int);
@@ -171,6 +173,26 @@ __accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_accept(s, addr, addrlen);
+	_thr_cancel_leave(curthread, ret == -1);
+
+ 	return (ret);
+}
+
+__weak_reference(__accept4, accept4);
+
+/*
+ * Cancellation behavior:
+ *   If thread is canceled, no socket is created.
+ */
+int
+__accept4(int s, struct sockaddr *addr, socklen_t *addrlen, int flags)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_accept4(s, addr, addrlen, flags);
 	_thr_cancel_leave(curthread, ret == -1);
 
  	return (ret);

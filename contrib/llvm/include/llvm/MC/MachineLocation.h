@@ -9,17 +9,15 @@
 // The MachineLocation class is used to represent a simple location in a machine
 // frame.  Locations will be one of two forms; a register or an address formed
 // from a base address plus an offset.  Register indirection can be specified by
-// using an offset of zero.
-//
-// The MachineMove class is used to represent abstract move operations in the
-// prolog/epilog of a compiled function.  A collection of these objects can be
-// used by a debug consumer to track the location of values when unwinding stack
-// frames.
+// explicitly passing an offset to the constructor.
 //===----------------------------------------------------------------------===//
 
 
 #ifndef LLVM_MC_MACHINELOCATION_H
 #define LLVM_MC_MACHINELOCATION_H
+
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
   class MCSymbol;
@@ -30,15 +28,17 @@ private:
   unsigned Register;                    // gcc/gdb register number.
   int Offset;                           // Displacement if not register.
 public:
-  enum {
+  enum LLVM_ENUM_INT_TYPE(uint32_t) {
     // The target register number for an abstract frame pointer. The value is
     // an arbitrary value that doesn't collide with any real target register.
     VirtualFP = ~0U
   };
   MachineLocation()
     : IsRegister(false), Register(0), Offset(0) {}
+  /// Create a direct register location.
   explicit MachineLocation(unsigned R)
     : IsRegister(true), Register(R), Offset(0) {}
+  /// Create a register-indirect location with an offset.
   MachineLocation(unsigned R, int O)
     : IsRegister(false), Register(R), Offset(O) {}
 
@@ -47,18 +47,22 @@ public:
         Offset == Other.Offset;
   }
 
-  // Accessors
+  // Accessors.
+  /// \return true iff this is a register-indirect location.
+  bool isIndirect()      const { return !IsRegister; }
   bool isReg()           const { return IsRegister; }
   unsigned getReg()      const { return Register; }
   int getOffset()        const { return Offset; }
   void setIsRegister(bool Is)  { IsRegister = Is; }
   void setRegister(unsigned R) { Register = R; }
   void setOffset(int O)        { Offset = O; }
+  /// Make this location a direct register location.
   void set(unsigned R) {
     IsRegister = true;
     Register = R;
     Offset = 0;
   }
+  /// Make this location a register-indirect+offset location.
   void set(unsigned R, int O) {
     IsRegister = false;
     Register = R;
@@ -69,30 +73,6 @@ public:
   void dump();
 #endif
 };
-
-/// MachineMove - This class represents the save or restore of a callee saved
-/// register that exception or debug info needs to know about.
-class MachineMove {
-private:
-  /// Label - Symbol for post-instruction address when result of move takes
-  /// effect.
-  MCSymbol *Label;
-
-  // Move to & from location.
-  MachineLocation Destination, Source;
-public:
-  MachineMove() : Label(0) {}
-
-  MachineMove(MCSymbol *label, const MachineLocation &D,
-              const MachineLocation &S)
-  : Label(label), Destination(D), Source(S) {}
-
-  // Accessors
-  MCSymbol *getLabel()                    const { return Label; }
-  const MachineLocation &getDestination() const { return Destination; }
-  const MachineLocation &getSource()      const { return Source; }
-};
-
 } // End llvm namespace
 
 #endif

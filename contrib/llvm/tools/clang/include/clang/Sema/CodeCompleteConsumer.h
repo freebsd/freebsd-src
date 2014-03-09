@@ -13,13 +13,13 @@
 #ifndef LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H
 #define LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H
 
-#include "clang/AST/Type.h"
+#include "clang-c/Index.h"
 #include "clang/AST/CanonicalType.h"
+#include "clang/AST/Type.h"
 #include "clang/Sema/CodeCompleteOptions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
-#include "clang-c/Index.h"
 #include <string>
 
 namespace clang {
@@ -121,7 +121,7 @@ SimplifiedTypeClass getSimplifiedTypeClass(CanQualType T);
 
 /// \brief Determine the type that this declaration will have if it is used
 /// as a type or in an expression.
-QualType getDeclUsageType(ASTContext &C, NamedDecl *ND);
+QualType getDeclUsageType(ASTContext &C, const NamedDecl *ND);
 
 /// \brief Determine the priority to be given to a macro code completion result
 /// with the given name.
@@ -138,7 +138,7 @@ unsigned getMacroUsagePriority(StringRef MacroName,
 
 /// \brief Determine the libclang cursor kind associated with the given
 /// declaration.
-CXCursorKind getCursorKindForDecl(Decl *D);
+CXCursorKind getCursorKindForDecl(const Decl *D);
 
 class FunctionDecl;
 class FunctionType;
@@ -245,7 +245,8 @@ public:
     /// \brief Code completion in a parenthesized expression, which means that
     /// we may also have types here in C and Objective-C (as well as in C++).
     CCC_ParenthesizedExpression,
-    /// \brief Code completion where an Objective-C instance message is expcted.
+    /// \brief Code completion where an Objective-C instance message is
+    /// expected.
     CCC_ObjCInstanceMessage,
     /// \brief Code completion where an Objective-C class message is expected.
     CCC_ObjCClassMessage,
@@ -270,22 +271,17 @@ private:
   QualType BaseType;
 
   /// \brief The identifiers for Objective-C selector parts.
-  IdentifierInfo **SelIdents;
-
-  /// \brief The number of Objective-C selector parts.
-  unsigned NumSelIdents;
+  ArrayRef<IdentifierInfo *> SelIdents;
 
 public:
   /// \brief Construct a new code-completion context of the given kind.
-  CodeCompletionContext(enum Kind Kind) : Kind(Kind), SelIdents(NULL),
-                                          NumSelIdents(0) { }
+  CodeCompletionContext(enum Kind Kind) : Kind(Kind), SelIdents(None) { }
 
   /// \brief Construct a new code-completion context of the given kind.
   CodeCompletionContext(enum Kind Kind, QualType T,
-                        IdentifierInfo **SelIdents = NULL,
-                        unsigned NumSelIdents = 0) : Kind(Kind),
-                                                     SelIdents(SelIdents),
-                                                    NumSelIdents(NumSelIdents) {
+                        ArrayRef<IdentifierInfo *> SelIdents = None)
+                        : Kind(Kind),
+                          SelIdents(SelIdents) {
     if (Kind == CCC_DotMemberAccess || Kind == CCC_ArrowMemberAccess ||
         Kind == CCC_ObjCPropertyAccess || Kind == CCC_ObjCClassMessage ||
         Kind == CCC_ObjCInstanceMessage)
@@ -307,10 +303,7 @@ public:
   QualType getBaseType() const { return BaseType; }
 
   /// \brief Retrieve the Objective-C selector identifiers.
-  IdentifierInfo **getSelIdents() const { return SelIdents; }
-
-  /// \brief Retrieve the number of Objective-C selector identifiers.
-  unsigned getNumSelIdents() const { return NumSelIdents; }
+  ArrayRef<IdentifierInfo *> getSelIdents() const { return SelIdents; }
 
   /// \brief Determines whether we want C++ constructors as results within this
   /// context.
@@ -530,7 +523,7 @@ class GlobalCodeCompletionAllocator
 };
 
 class CodeCompletionTUInfo {
-  llvm::DenseMap<DeclContext *, StringRef> ParentNames;
+  llvm::DenseMap<const DeclContext *, StringRef> ParentNames;
   IntrusiveRefCntPtr<GlobalCodeCompletionAllocator> AllocatorRef;
 
 public:
@@ -546,7 +539,7 @@ public:
     return *AllocatorRef;
   }
 
-  StringRef getParentName(DeclContext *DC);
+  StringRef getParentName(const DeclContext *DC);
 };
 
 } // end namespace clang
@@ -629,8 +622,9 @@ public:
   void AddAnnotation(const char *A) { Annotations.push_back(A); }
 
   /// \brief Add the parent context information to this code completion.
-  void addParentContext(DeclContext *DC);
+  void addParentContext(const DeclContext *DC);
 
+  const char *getBriefComment() const { return BriefComment; }
   void addBriefComment(StringRef Comment);
   
   StringRef getParentName() const { return ParentName; }
@@ -649,7 +643,7 @@ public:
 
   /// \brief When Kind == RK_Declaration or RK_Pattern, the declaration we are
   /// referring to. In the latter case, the declaration might be NULL.
-  NamedDecl *Declaration;
+  const NamedDecl *Declaration;
 
   union {
     /// \brief When Kind == RK_Keyword, the string representing the keyword
@@ -661,7 +655,7 @@ public:
     CodeCompletionString *Pattern;
 
     /// \brief When Kind == RK_Macro, the identifier that refers to a macro.
-    IdentifierInfo *Macro;
+    const IdentifierInfo *Macro;
   };
 
   /// \brief The priority of this particular code-completion result.
@@ -704,11 +698,12 @@ public:
   NestedNameSpecifier *Qualifier;
 
   /// \brief Build a result that refers to a declaration.
-  CodeCompletionResult(NamedDecl *Declaration,
+  CodeCompletionResult(const NamedDecl *Declaration,
+                       unsigned Priority,
                        NestedNameSpecifier *Qualifier = 0,
                        bool QualifierIsInformative = false,
                        bool Accessible = true)
-    : Declaration(Declaration), Priority(getPriorityFromDecl(Declaration)),
+    : Declaration(Declaration), Priority(Priority),
       StartParameter(0), Kind(RK_Declaration),
       Availability(CXAvailability_Available), Hidden(false),
       QualifierIsInformative(QualifierIsInformative),
@@ -728,7 +723,8 @@ public:
   }
 
   /// \brief Build a result that refers to a macro.
-  CodeCompletionResult(IdentifierInfo *Macro, unsigned Priority = CCP_Macro)
+  CodeCompletionResult(const IdentifierInfo *Macro,
+                       unsigned Priority = CCP_Macro)
     : Declaration(0), Macro(Macro), Priority(Priority), StartParameter(0),
       Kind(RK_Macro), CursorKind(CXCursor_MacroDefinition),
       Availability(CXAvailability_Available), Hidden(false),
@@ -742,7 +738,7 @@ public:
                        unsigned Priority = CCP_CodePattern,
                        CXCursorKind CursorKind = CXCursor_NotImplemented,
                    CXAvailabilityKind Availability = CXAvailability_Available,
-                       NamedDecl *D = 0)
+                       const NamedDecl *D = 0)
     : Declaration(D), Pattern(Pattern), Priority(Priority), StartParameter(0),
       Kind(RK_Pattern), CursorKind(CursorKind), Availability(Availability),
       Hidden(false), QualifierIsInformative(0),
@@ -763,7 +759,7 @@ public:
   }  
   
   /// \brief Retrieve the declaration stored in this result.
-  NamedDecl *getDeclaration() const {
+  const NamedDecl *getDeclaration() const {
     assert(Kind == RK_Declaration && "Not a declaration result");
     return Declaration;
   }
@@ -790,9 +786,6 @@ public:
                                            CodeCompletionAllocator &Allocator,
                                            CodeCompletionTUInfo &CCTUInfo,
                                            bool IncludeBriefComments);
-
-  /// \brief Determine a base priority for the given declaration.
-  static unsigned getPriorityFromDecl(NamedDecl *ND);
 
 private:
   void computeCursorKindAndAvailability(bool Accessible = true);

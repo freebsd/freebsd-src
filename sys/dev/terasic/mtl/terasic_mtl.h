@@ -159,6 +159,8 @@ struct terasic_mtl_softc {
 int	terasic_mtl_attach(struct terasic_mtl_softc *sc);
 void	terasic_mtl_detach(struct terasic_mtl_softc *sc);
 
+extern devclass_t	terasic_mtl_devclass;
+
 /*
  * Sub-driver setup routines.
  */

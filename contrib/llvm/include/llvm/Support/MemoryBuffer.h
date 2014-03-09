@@ -14,9 +14,11 @@
 #ifndef LLVM_SUPPORT_MEMORYBUFFER_H
 #define LLVM_SUPPORT_MEMORYBUFFER_H
 
-#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm-c/Core.h"
 
 namespace llvm {
 
@@ -64,21 +66,22 @@ public:
   /// MemoryBuffer if successful, otherwise returning null.  If FileSize is
   /// specified, this means that the client knows that the file exists and that
   /// it has the specified size.
-  static error_code getFile(StringRef Filename, OwningPtr<MemoryBuffer> &result,
-                            int64_t FileSize = -1,
-                            bool RequiresNullTerminator = true);
-  static error_code getFile(const char *Filename,
-                            OwningPtr<MemoryBuffer> &result,
+  static error_code getFile(Twine Filename, OwningPtr<MemoryBuffer> &result,
                             int64_t FileSize = -1,
                             bool RequiresNullTerminator = true);
 
-  /// getOpenFile - Given an already-open file descriptor, read the file and
-  /// return a MemoryBuffer.
+  /// Given an already-open file descriptor, map some slice of it into a
+  /// MemoryBuffer. The slice is specified by an \p Offset and \p MapSize.
+  /// Since this is in the middle of a file, the buffer is not null terminated.
+  static error_code getOpenFileSlice(int FD, const char *Filename,
+                                     OwningPtr<MemoryBuffer> &Result,
+                                     uint64_t MapSize, int64_t Offset);
+
+  /// Given an already-open file descriptor, read the file and return a
+  /// MemoryBuffer.
   static error_code getOpenFile(int FD, const char *Filename,
-                                OwningPtr<MemoryBuffer> &result,
-                                uint64_t FileSize = -1,
-                                uint64_t MapSize = -1,
-                                int64_t Offset = 0,
+                                OwningPtr<MemoryBuffer> &Result,
+                                uint64_t FileSize,
                                 bool RequiresNullTerminator = true);
 
   /// getMemBuffer - Open the specified memory range as a MemoryBuffer.  Note
@@ -117,11 +120,7 @@ public:
   static error_code getFileOrSTDIN(StringRef Filename,
                                    OwningPtr<MemoryBuffer> &result,
                                    int64_t FileSize = -1);
-  static error_code getFileOrSTDIN(const char *Filename,
-                                   OwningPtr<MemoryBuffer> &result,
-                                   int64_t FileSize = -1);
-  
-  
+
   //===--------------------------------------------------------------------===//
   // Provided for performance analysis.
   //===--------------------------------------------------------------------===//
@@ -136,6 +135,9 @@ public:
   /// MemoryBuffer.
   virtual BufferKind getBufferKind() const = 0;  
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(MemoryBuffer, LLVMMemoryBufferRef)
 
 } // end namespace llvm
 

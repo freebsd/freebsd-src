@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -30,9 +30,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-MACHINE=i386
-
-MKMODULESENV+=	MACHINE=${MACHINE}
+INCLUDES+= -I$S/contrib/libfdt
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS}

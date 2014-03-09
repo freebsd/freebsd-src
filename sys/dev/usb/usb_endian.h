@@ -27,8 +27,10 @@
 #ifndef _USB_ENDIAN_H_
 #define	_USB_ENDIAN_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/stdint.h>
 #include <sys/endian.h>
+#endif
 
 /*
  * Declare the basic USB record types. USB records have an alignment

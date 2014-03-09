@@ -715,7 +715,7 @@ bad:
 }
 
 pcap_t *
-pcap_create(const char *device, char *ebuf)
+pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *p;
 
@@ -836,7 +836,7 @@ pcap_setnonblock_win32(pcap_t *p, int nonblock, char *errbuf)
 		newtimeout = p->md.timeout;
 	}
 	if (!PacketSetReadTimeout(p->adapter, newtimeout)) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		snprintf(errbuf, PCAP_ERRBUF_SIZE,
 		    "PacketSetReadTimeout: %s", pcap_win32strerror());
 		return (-1);
 	}

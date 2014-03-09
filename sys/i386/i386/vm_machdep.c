@@ -106,9 +106,10 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
-CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
-    &((struct pcpu *)NULL)->pc_curthread);
-CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+_Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
+    "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
+_Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
+    "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -116,6 +117,18 @@ static void	cpu_reset_proxy(void);
 static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
+
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -354,7 +367,7 @@ cpu_thread_clean(struct thread *td)
 		 * XXX do we need to move the TSS off the allocated pages
 		 * before freeing them?  (not done here)
 		 */
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ext,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = NULL;
 	}
@@ -750,7 +763,7 @@ sf_buf_init(void *arg)
 
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
@@ -832,7 +845,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			goto done;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_buf_freelist, &sf_buf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;

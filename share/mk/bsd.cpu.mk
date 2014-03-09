@@ -97,13 +97,13 @@ _CPUCFLAGS = -march=${CPUTYPE}
 .  if ${CPUTYPE} == "xscale"
 #XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
 #_CPUCFLAGS = -mcpu=xscale
-_CPUCFLAGS = -march=armv5te -D__XSCALE__ -DARM_WANT_TP_ADDRESS
+_CPUCFLAGS = -march=armv5te -D__XSCALE__
 . elif ${CPUTYPE} == "armv6"
 _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
-_CPUCFLAGS = -march=armv6 -DARM_ARCH_6=1 -mfpu=vfp
+_CPUCFLAGS = -DARM_ARCH_6=1 -mfpu=vfp
 .  else
-_CPUCFLAGS = -mcpu=${CPUTYPE} -DARM_WANT_TP_ADDRESS
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
@@ -144,6 +144,8 @@ _CPUCFLAGS = -mcpu=ultrasparc3
 . if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "bdver2" || ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+.  elif ${CPUTYPE} == "btver2"
+MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "btver1"
 MACHINE_CPU = ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "amdfam10"
@@ -204,6 +206,8 @@ MACHINE_CPU += i486
 . elif ${MACHINE_CPUARCH} == "amd64"
 .  if ${CPUTYPE} == "bdver2" || ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3
+.  elif ${CPUTYPE} == "btver2"
+MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "btver1"
 MACHINE_CPU = ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "amdfam10"

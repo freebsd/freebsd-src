@@ -51,8 +51,8 @@
 #define	PMC_FN_CSW_IN			2
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
-#define	PMC_FN_KLD_LOAD			5
-#define	PMC_FN_KLD_UNLOAD		6
+#define	PMC_FN_UNUSED1			5
+#define	PMC_FN_UNUSED2			6
 #define	PMC_FN_MMAP			7
 #define	PMC_FN_MUNMAP			8
 #define	PMC_FN_USER_CALLCHAIN		9
@@ -87,15 +87,18 @@ struct pmckern_soft {
  * Soft PMC.
  */
 
-#define PMC_SOFT_DEFINE(prov, mod, func, name)					\
+#define PMC_SOFT_DEFINE_EX(prov, mod, func, name, alloc, release)		\
 	struct pmc_soft pmc_##prov##_##mod##_##func##_##name =			\
-	    { 0, { #prov "_" #mod "_" #func "." #name, 0 } };			\
+	    { 0, alloc, release, { #prov "_" #mod "_" #func "." #name, 0 } };	\
 	SYSINIT(pmc_##prov##_##mod##_##func##_##name##_init, SI_SUB_KDTRACE, 	\
 	    SI_ORDER_SECOND + 1, pmc_soft_ev_register, 				\
 	    &pmc_##prov##_##mod##_##func##_##name );				\
 	SYSUNINIT(pmc_##prov##_##mod##_##func##_##name##_uninit, 		\
 	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 1, pmc_soft_ev_deregister,	\
 	    &pmc_##prov##_##mod##_##func##_##name )
+
+#define PMC_SOFT_DEFINE(prov, mod, func, name)					\
+	PMC_SOFT_DEFINE_EX(prov, mod, func, name, NULL, NULL)
 
 #define PMC_SOFT_DECLARE(prov, mod, func, name)					\
 	extern struct pmc_soft pmc_##prov##_##mod##_##func##_##name
@@ -107,7 +110,7 @@ struct pmckern_soft {
 #ifdef PMC_FAKE_TRAPFRAME
 #define PMC_SOFT_CALL(pr, mo, fu, na)						\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\
@@ -132,7 +135,7 @@ do {										\
  */
 #define PMC_SOFT_CALL_TF(pr, mo, fu, na, tf)					\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\
@@ -147,6 +150,8 @@ do {										\
 
 struct pmc_soft {
 	int				ps_running;
+	void				(*ps_alloc)(void);
+	void				(*ps_release)(void);
 	struct pmc_dyn_event_descr	ps_ev;
 };
 

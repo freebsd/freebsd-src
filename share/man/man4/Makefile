@@ -4,6 +4,7 @@
 .include <bsd.own.mk>
 
 MAN=	aac.4 \
+	aacraid.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
 	${_acpi_asus_wmi.4} \
@@ -12,6 +13,7 @@ MAN=	aac.4 \
 	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
+	${_acpi_rapidstart.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
@@ -34,6 +36,7 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_atse.4 \
 	altera_avgen.4 \
 	altera_jtag_uart.4 \
 	altera_sdcard.4 \
@@ -51,15 +54,13 @@ MAN=	aac.4 \
 	${_asmc.4} \
 	asr.4 \
 	ata.4 \
-	atapicam.4 \
-	ataraid.4 \
 	ath.4 \
 	ath_ahb.4 \
 	ath_hal.4 \
 	ath_pci.4 \
 	atkbd.4 \
 	atkbdc.4 \
-	${_atp.4} \
+	atp.4 \
 	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
@@ -67,9 +68,11 @@ MAN=	aac.4 \
 	auditpipe.4 \
 	aue.4 \
 	axe.4 \
+	axge.4 \
 	bce.4 \
 	bfe.4 \
 	bge.4 \
+	${_bhyve.4} \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
@@ -81,6 +84,7 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc_cdg.4 \
 	cc_chd.4 \
 	cc_cubic.4 \
 	cc_hd.4 \
@@ -98,6 +102,7 @@ MAN=	aac.4 \
 	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
+	ctl.4 \
 	cue.4 \
 	cxgb.4 \
 	cxgbe.4 \
@@ -149,9 +154,13 @@ MAN=	aac.4 \
 	geom_fox.4 \
 	geom_linux_lvm.4 \
 	geom_map.4 \
+	geom_uncompress.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpib.4 \
+	gpio.4 \
+	gpioiic.4 \
+	gpioled.4 \
 	gre.4 \
 	h_ertt.4 \
 	hatm.4 \
@@ -161,6 +170,7 @@ MAN=	aac.4 \
 	${_hpt27xx.4} \
 	${_hptiop.4} \
 	${_hptmv.4} \
+	${_hptnr.4} \
 	${_hptrr.4} \
 	hwpmc.4 \
 	ichsmb.4 \
@@ -191,7 +201,6 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
-	isf.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -291,7 +300,6 @@ MAN=	aac.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_ether_echo.4 \
-	ng_fec.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
 	ng_gif_demux.4 \
@@ -333,9 +341,9 @@ MAN=	aac.4 \
 	ng_vlan.4 \
 	nmdm.4 \
 	nsp.4 \
+	${_ntb.4} \
 	null.4 \
 	${_nvd.4} \
-	${_nve.4} \
 	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
@@ -363,22 +371,28 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
+	procdesc.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	${_qlxge.4} \
 	${_qlxgb.4} \
+	${_qlxgbe.4} \
 	ral.4 \
 	random.4 \
 	rc.4 \
 	re.4 \
 	rgephy.4 \
+	rights.4 \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rsu.4 \
+	rsufw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -512,7 +526,10 @@ MAN=	aac.4 \
 	uplcom.4 \
 	ural.4 \
 	urio.4 \
+	urndis.4 \
 	${_urtw.4} \
+	urtwn.4 \
+	urtwnfw.4 \
 	usb.4 \
 	usb_quirk.4 \
 	uslcom.4 \
@@ -524,13 +541,14 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
-	vinum.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
+	${_virtio_random.4} \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
+	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
 	vte.4 \
@@ -549,6 +567,7 @@ MAN=	aac.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
+	wsp.4 \
 	xe.4 \
 	${_xen.4} \
 	xhci.4 \
@@ -563,6 +582,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_atse.4 atse.4
 MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
@@ -624,6 +644,8 @@ MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=iwn.4 if_iwn.4
 MLINKS+=ixgb.4 if_ixgb.4
+MLINKS+=ixgbe.4 ix.4
+MLINKS+=ixgbe.4 if_ix.4
 MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
@@ -648,7 +670,8 @@ MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
-MLINKS+=${_nve.4} ${_if_nve.4}
+MLINKS+=${_ntb.4} ${_if_ntb.4} \
+	${_ntb.4} ${_ntb_hw.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
@@ -693,9 +716,11 @@ MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
+MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
+MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
@@ -717,6 +742,7 @@ _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
+_acpi_rapidstart.4=acpi_rapidstart.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
@@ -730,7 +756,6 @@ _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
-_atp.4=		atp.4
 _bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
@@ -738,15 +763,16 @@ _dpms.4=	dpms.4
 _hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
+_hptnr.4=	hptnr.4
 _hptrr.4=	hptrr.4
 _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
-_if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
+_if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
 _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
@@ -758,14 +784,15 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nvd.4=		nvd.4
-_nve.4=		nve.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
+_virtio_random.4= virtio_random.4
 _virtio_scsi.4= virtio_scsi.4
+_vmx.4=		vmx.4
 _vtnet.4=	vtnet.4
 _vxge.4=	vxge.4
 _padlock.4=	padlock.4
@@ -784,16 +811,21 @@ MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_bhyve.4=	bhyve.4
+_if_ntb.4=	if_ntb.4
+_ntb.4=		ntb.4
+_ntb_hw.4=	ntb_hw.4
+_qlxge.4=	qlxge.4
 _qlxgb.4=	qlxgb.4
+_qlxgbe.4=	qlxgbe.4
 _sfxge.4=	sfxge.4
 
+MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
+MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc"
-_atp.4=		atp.4
-.endif
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
 .endif
@@ -802,7 +834,7 @@ _nvram2env.4=	nvram2env.4
 SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 ATF=            ${.CURDIR}/../../../contrib/atf
 .PATH:          ${ATF}/doc
 _atf_test_case.4=	atf-test-case.4

@@ -88,11 +88,9 @@ struct var vifs;
 struct var vmail;
 struct var vmpath;
 struct var vpath;
-struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vps4;
-struct var vvers;
 static struct var voptind;
 struct var vdisvfork;
 
@@ -111,8 +109,6 @@ static const struct varinit varinit[] = {
 	  NULL },
 	{ &vpath,	0,				"PATH=" _PATH_DEFPATH,
 	  changepath },
-	{ &vppid,	VUNSET,				"PPID=",
-	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
@@ -146,29 +142,11 @@ static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
 
-/*
- * Initialize the variable symbol tables and import the environment.
- */
-
-#ifdef mkinit
-INCLUDE "var.h"
-MKINIT char **environ;
-INIT {
-	char **envp;
-
-	initvar();
-	for (envp = environ ; *envp ; envp++) {
-		if (strchr(*envp, '=')) {
-			setvareq(*envp, VEXPORT|VTEXTFIXED);
-		}
-	}
-}
-#endif
-
+extern char **environ;
 
 /*
- * This routine initializes the builtin variables.  It is called when the
- * shell is initialized.
+ * This routine initializes the builtin variables and imports the environment.
+ * It is called when the shell is initialized.
  */
 
 void
@@ -178,6 +156,7 @@ initvar(void)
 	const struct varinit *ip;
 	struct var *vp;
 	struct var **vpp;
+	char **envp;
 
 	for (ip = varinit ; (vp = ip->var) != NULL ; ip++) {
 		if (find_var(ip->text, &vpp, &vp->name_len) != NULL)
@@ -197,10 +176,14 @@ initvar(void)
 		vps1.text = __DECONST(char *, geteuid() ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
-	if ((vppid.flags & VEXPORT) == 0) {
-		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
-		setvarsafe("PPID", ppid, 0);
+	fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
+	setvarsafe("PPID", ppid, 0);
+	for (envp = environ ; *envp ; envp++) {
+		if (strchr(*envp, '=')) {
+			setvareq(*envp, VEXPORT|VTEXTFIXED);
+		}
 	}
+	setvareq("OPTIND=1", VTEXTFIXED);
 }
 
 /*
@@ -236,8 +219,9 @@ void
 setvar(const char *name, const char *val, int flags)
 {
 	const char *p;
-	int len;
-	int namelen;
+	size_t len;
+	size_t namelen;
+	size_t vallen;
 	char *nameeq;
 	int isbad;
 
@@ -256,18 +240,20 @@ setvar(const char *name, const char *val, int flags)
 	}
 	namelen = p - name;
 	if (isbad)
-		error("%.*s: bad variable name", namelen, name);
+		error("%.*s: bad variable name", (int)namelen, name);
 	len = namelen + 2;		/* 2 is space for '=' and '\0' */
 	if (val == NULL) {
 		flags |= VUNSET;
+		vallen = 0;
 	} else {
-		len += strlen(val);
+		vallen = strlen(val);
+		len += vallen;
 	}
 	nameeq = ckmalloc(len);
 	memcpy(nameeq, name, namelen);
 	nameeq[namelen] = '=';
 	if (val)
-		scopy(val, nameeq + namelen + 1);
+		memcpy(nameeq + namelen + 1, val, vallen + 1);
 	else
 		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);
@@ -356,7 +342,7 @@ setvareq(char *s, int flags)
 		 * a regular variable function callback, but why bother?
 		 *
 		 * Note: this assumes iflag is not set to 1 initially.
-		 * As part of init(), this is called before arguments
+		 * As part of initvar(), this is called before arguments
 		 * are looked at.
 		 */
 		if ((vp == &vmpath || (vp == &vmail && ! mpathset())) &&
@@ -722,6 +708,7 @@ localcmd(int argc __unused, char **argv __unused)
 {
 	char *name;
 
+	nextopt("");
 	if (! in_function())
 		error("Not in a function");
 	while ((name = *argptr++) != NULL) {
@@ -889,7 +876,7 @@ unsetvar(const char *s)
 
 
 /*
- * Returns true if the two strings specify the same varable.  The first
+ * Returns true if the two strings specify the same variable.  The first
  * variable name is terminated by '='; the second may be terminated by
  * either '=' or '\0'.
  */
@@ -910,7 +897,7 @@ varequal(const char *p, const char *q)
  * Search for a variable.
  * 'name' may be terminated by '=' or a NUL.
  * vppp is set to the pointer to vp, or the list head if vp isn't found
- * lenp is set to the number of charactets in 'name'
+ * lenp is set to the number of characters in 'name'
  */
 
 static struct var *

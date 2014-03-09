@@ -54,6 +54,7 @@
 #include <sys/sockio.h> 
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_llc.h>
@@ -231,11 +232,8 @@ iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
  * ISO88025 encapsulation
  */
 int
-iso88025_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	u_int16_t snap_type = 0;
 	int loop_copy = 0, error = 0, rif_len = 0;
@@ -351,7 +349,7 @@ iso88025_output(ifp, m, dst, ro)
 #endif	/* IPX */
 	case AF_UNSPEC:
 	{
-		struct iso88025_sockaddr_data *sd;
+		const struct iso88025_sockaddr_data *sd;
 		/*
 		 * For AF_UNSPEC sockaddr.sa_data must contain all of the
 		 * mac information needed to send the packet.  This allows
@@ -361,13 +359,12 @@ iso88025_output(ifp, m, dst, ro)
 		 * should be an iso88025_sockaddr_data structure see iso88025.h
 		 */
                 loop_copy = -1;
-		sd = (struct iso88025_sockaddr_data *)dst->sa_data;
+		sd = (const struct iso88025_sockaddr_data *)dst->sa_data;
 		gen_th.ac = sd->ac;
 		gen_th.fc = sd->fc;
-		(void)memcpy((caddr_t)edst, (caddr_t)sd->ether_dhost,
-			     ISO88025_ADDR_LEN);
-		(void)memcpy((caddr_t)gen_th.iso88025_shost,
-			     (caddr_t)sd->ether_shost, ISO88025_ADDR_LEN);
+		(void)memcpy(edst, sd->ether_dhost, ISO88025_ADDR_LEN);
+		(void)memcpy(gen_th.iso88025_shost, sd->ether_shost,
+		    ISO88025_ADDR_LEN);
 		rif_len = 0;
 		break;
 	}
@@ -480,7 +477,6 @@ iso88025_input(ifp, m)
 		goto dropanyway;
 	}
 	th = mtod(m, struct iso88025_header *);
-	m->m_pkthdr.header = (void *)th;
 
 	/*
 	 * Discard packet if interface is not up.
@@ -725,14 +721,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -755,14 +744,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);

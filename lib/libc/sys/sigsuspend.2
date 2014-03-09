@@ -28,7 +28,7 @@
 .\"	@(#)sigsuspend.2	8.2 (Berkeley) 5/16/95
 .\" $FreeBSD$
 .\"
-.Dd May 16, 1995
+.Dd August 16, 2013
 .Dt SIGSUSPEND 2
 .Os
 .Sh NAME
@@ -70,9 +70,13 @@ always terminates by being interrupted, returning -1 with
 set to
 .Er EINTR .
 .Sh SEE ALSO
+.Xr pselect 2 ,
 .Xr sigaction 2 ,
 .Xr sigpending 2 ,
 .Xr sigprocmask 2 ,
+.Xr sigtimedwait 2 ,
+.Xr sigwait 2 ,
+.Xr sigwaitinfo 2 ,
 .Xr sigsetops 3
 .Sh STANDARDS
 The

@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.73 2011/06/29 09:48:08 tom Exp $
+ *  $Id: formbox.c,v 1.87 2013/09/02 17:02:05 tom Exp $
  *
  *  formbox.c -- implements the form (i.e, some pairs label/editbox)
  *
- *  Copyright 2003-2010,2011	Thomas E. Dickey
+ *  Copyright 2003-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -188,6 +188,34 @@ form_limit(DIALOG_FORMITEM item[])
     return limit;
 }
 
+static int
+is_first_field(DIALOG_FORMITEM item[], int choice)
+{
+    int count = 0;
+    while (choice >= 0) {
+	if (item[choice].text_flen > 0) {
+	    ++count;
+	}
+	--choice;
+    }
+
+    return (count == 1);
+}
+
+static int
+is_last_field(DIALOG_FORMITEM item[], int choice, int item_no)
+{
+    int count = 0;
+    while (choice < item_no) {
+	if (item[choice].text_flen > 0) {
+	    ++count;
+	}
+	++choice;
+    }
+
+    return (count == 1);
+}
+
 /*
  * Tab to the next field.
  */
@@ -259,6 +287,7 @@ tab_next(WINDOW *win,
 static bool
 scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int *scrollamt)
 {
+    bool result = TRUE;
     int old_choice = *choice;
     int old_scroll = *scrollamt;
     int old_row = MIN(item[old_choice].text_y, item[old_choice].name_y);
@@ -270,34 +299,40 @@ scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int 
 	    target = old_scroll;
 	else
 	    target = old_scroll + stepsize;
-	if (target < 0)
-	    target = 0;
+	if (target < 0) {
+	    result = FALSE;
+	}
     } else {
-	int limit = form_limit(item);
-	if (target > limit)
-	    target = limit;
-    }
-
-    for (n = 0; item[n].name != 0; ++n) {
-	if (item[n].text_flen > 0) {
-	    int new_row = MIN(item[n].text_y, item[n].name_y);
-	    if (abs(new_row - target) < abs(old_row - target)) {
-		old_row = new_row;
-		*choice = n;
-	    }
+	if (target > form_limit(item)) {
+	    result = FALSE;
 	}
     }
 
-    if (old_choice != *choice)
-	print_item(win, item + old_choice, *scrollamt, FALSE);
+    if (result) {
+	for (n = 0; item[n].name != 0; ++n) {
+	    if (item[n].text_flen > 0) {
+		int new_row = MIN(item[n].text_y, item[n].name_y);
+		if (abs(new_row - target) < abs(old_row - target)) {
+		    old_row = new_row;
+		    *choice = n;
+		}
+	    }
+	}
 
-    *scrollamt = *choice;
-    if (*scrollamt != old_scroll) {
-	scrollok(win, TRUE);
-	wscrl(win, *scrollamt - old_scroll);
-	scrollok(win, FALSE);
+	if (old_choice != *choice)
+	    print_item(win, item + old_choice, *scrollamt, FALSE);
+
+	*scrollamt = *choice;
+	if (*scrollamt != old_scroll) {
+	    scrollok(win, TRUE);
+	    wscrl(win, *scrollamt - old_scroll);
+	    scrollok(win, FALSE);
+	}
+	result = (old_choice != *choice) || (old_scroll != *scrollamt);
     }
-    return (old_choice != *choice) || (old_scroll != *scrollamt);
+    if (!result)
+	beep();
+    return result;
 }
 
 /*
@@ -419,7 +454,7 @@ prev_valid_buttonindex(int state, int extra, bool non_editable)
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  KEY_NPAGE ), \
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,  KEY_PPAGE )
 /*
- * Display a form for fulfill a number of fields
+ * Display a form for entering a number of fields
  */
 int
 dlg_form(const char *title,
@@ -454,8 +489,9 @@ dlg_form(const char *title,
 
     int form_width;
     int first = TRUE;
+    int first_trace = TRUE;
     int chr_offset = 0;
-    int state = dialog_vars.defaultno ? dlg_defaultno_button() : sTEXT;
+    int state = dialog_vars.default_button >= 0 ? dlg_default_button() : sTEXT;
     int x, y, cur_x, cur_y, box_x, box_y;
     int code;
     int key = 0;
@@ -510,30 +546,31 @@ dlg_form(const char *title,
 
     dialog = dlg_new_window(height, width, y, x);
     dlg_register_window(dialog, "formbox", binding);
-    dlg_register_window(dialog, "formfield", binding2);
     dlg_register_buttons(dialog, "formbox", buttons);
 
     dlg_mouse_setbase(x, y);
 
-    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
-    dlg_draw_bottom_box(dialog);
+    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
+    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    wattrset(dialog, dialog_attr);
+    (void) wattrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     form_width = width - 6;
     getyx(dialog, cur_y, cur_x);
+    (void) cur_x;
     box_y = cur_y + 1;
     box_x = (width - form_width) / 2 - 1;
 
     /* create new window for the form */
     form = dlg_sub_window(dialog, form_height, form_width, y + box_y + 1,
 			  x + box_x + 1);
+    dlg_register_window(form, "formfield", binding2);
 
     /* draw a box around the form items */
     dlg_draw_box(dialog, box_y, box_x, form_height + 2, form_width + 2,
-		 menubox_border_attr, menubox_attr);
+		 menubox_border_attr, menubox_border2_attr);
 
     /* register the new window, along with its borders */
     dlg_mouse_mkbigregion(getbegy(form) - getbegy(dialog),
@@ -564,7 +601,7 @@ dlg_form(const char *title,
 			       box_x + form_width,
 			       box_y,
 			       box_y + form_height + 1,
-			       menubox_attr,
+			       menubox_border2_attr,
 			       menubox_border_attr);
 	    scroll_changed = FALSE;
 	}
@@ -579,6 +616,11 @@ dlg_form(const char *title,
 	    show_buttons = FALSE;
 	}
 
+	if (first_trace) {
+	    first_trace = FALSE;
+	    dlg_trace_win(dialog);
+	}
+
 	if (field_changed || state == sTEXT) {
 	    if (field_changed)
 		chr_offset = 0;
@@ -591,10 +633,12 @@ dlg_form(const char *title,
 			    current->text_x,
 			    current->text_len,
 			    is_hidden(current), first);
+	    wsyncup(form);
+	    wcursyncup(form);
 	    field_changed = FALSE;
 	}
 
-	key = dlg_mouse_wgetch(dialog, &fkey);
+	key = dlg_mouse_wgetch((state == sTEXT) ? form : dialog, &fkey);
 	if (dlg_result_key(key, fkey, &result))
 	    break;
 
@@ -653,6 +697,25 @@ dlg_form(const char *title,
 		    continue;
 		}
 
+	    case DLGK_FORM_PREV:
+		if (state == sTEXT && !is_first_field(items, choice)) {
+		    do_tab = TRUE;
+		    move_by = -1;
+		    break;
+		} else {
+		    int old_state = state;
+		    state = prev_valid_buttonindex(state, sTEXT, non_editable);
+		    show_buttons = TRUE;
+		    if (old_state >= 0 && state == sTEXT) {
+			new_choice = item_no - 1;
+			if (choice != new_choice) {
+			    print_item(form, items + choice, scrollamt, FALSE);
+			    choice = new_choice;
+			}
+		    }
+		    continue;
+		}
+
 	    case DLGK_FIELD_PREV:
 		state = prev_valid_buttonindex(state, sTEXT, non_editable);
 		show_buttons = TRUE;
@@ -676,6 +739,21 @@ dlg_form(const char *title,
 		} else {
 		    state = next_valid_buttonindex(state, 0, non_editable);
 		    show_buttons = TRUE;
+		    continue;
+		}
+
+	    case DLGK_FORM_NEXT:
+		if (state == sTEXT && !is_last_field(items, choice, item_no)) {
+		    do_tab = TRUE;
+		    move_by = 1;
+		    break;
+		} else {
+		    state = next_valid_buttonindex(state, sTEXT, non_editable);
+		    show_buttons = TRUE;
+		    if (state == sTEXT && choice) {
+			print_item(form, items + choice, scrollamt, FALSE);
+			choice = 0;
+		    }
 		    continue;
 		}
 
@@ -837,6 +915,7 @@ dialog_form(const char *title,
     DIALOG_FORMITEM *listitems;
     DIALOG_VARS save_vars;
     bool show_status = FALSE;
+    char *help_result;
 
     dlg_save_vars(&save_vars);
     dialog_vars.separate_output = TRUE;
@@ -876,14 +955,9 @@ dialog_form(const char *title,
 	show_status = TRUE;
 	break;
     case DLG_EXIT_HELP:
-	dlg_add_result("HELP ");
+	dlg_add_help_formitem(&result, &help_result, &listitems[choice]);
 	show_status = dialog_vars.help_status;
-	if (USE_ITEM_HELP(listitems[choice].help)) {
-	    dlg_add_string(listitems[choice].help);
-	    result = DLG_EXIT_ITEM_HELP;
-	} else {
-	    dlg_add_string(listitems[choice].name);
-	}
+	dlg_add_string(help_result);
 	if (show_status)
 	    dlg_add_separator();
 	break;
@@ -895,6 +969,7 @@ dialog_form(const char *title,
 		dlg_add_separator();
 	    }
 	}
+	dlg_add_last_key(-1);
     }
 
     dlg_free_formitems(listitems);

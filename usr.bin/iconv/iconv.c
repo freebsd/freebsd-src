@@ -47,8 +47,7 @@ static void		 do_conv(FILE *, const char *, const char *, bool, bool);
 static int		 do_list(unsigned int, const char * const *, void *);
 static void		 usage(void);
 
-struct option long_options[] =
-{
+static struct option long_options[] = {
 	{"from-code",		required_argument,	NULL, 'f'},
 	{"list",		no_argument,		NULL, 'l'},
 	{"silent",		no_argument,		NULL, 's'},
@@ -75,7 +74,7 @@ do_conv(FILE *fp, const char *from, const char *to, bool silent,
 {
 	iconv_t cd;
 	char inbuf[INBUFSIZE], outbuf[OUTBUFSIZE], *out;
-	char *in;
+	const char *in;
 	size_t inbytes, outbytes, ret;
 
 	if ((cd = iconv_open(to, from)) == (iconv_t)-1)

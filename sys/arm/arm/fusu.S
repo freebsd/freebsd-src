@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #ifdef _ARM_ARCH_6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURPCB)
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
@@ -67,15 +67,33 @@ ENTRY(casuword)
 	stmfd	sp!, {r4, r5}
 	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
+#ifdef _ARM_ARCH_6
+1:    
+	cmp     r0, #KERNBASE
+	mvnhs   r0, #0
+	bhs     2f
+	
+	ldrex   r5, [r0]
+	cmp     r5, r1
+	movne   r0, r5
+	bne     2f
+	strex   r5, r2, [r0]
+	cmp     r5, #0
+	bne     1b
+#else
 	ldrt	r5, [r0]
 	cmp	r5, r1
 	movne	r0, r5
 	streqt	r2, [r0]
+#endif
 	moveq	r0, r1
+2:
 	ldmfd	sp!, {r4, r5}
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]
 	RET
+END(casuword32)
+END(casuword)
 
 /*
  * Handle faults from casuword.  Clean up and return -1.
@@ -87,6 +105,7 @@ ENTRY(casuword)
 	mvn	r0, #0x00000000
 	ldmfd	sp!, {r4, r5}
 	RET	
+
 /*
  * fuword(caddr_t uaddr);
  * Fetch an int from the user's address space.
@@ -111,6 +130,8 @@ ENTRY(fuword)
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
 	RET
+END(fuword32)
+END(fuword)
 
 /*
  * fusword(caddr_t uaddr);
@@ -139,6 +160,7 @@ ENTRY(fusword)
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
 	RET
+END(fusword)
 
 /*
  * fuswintr(caddr_t uaddr);
@@ -175,6 +197,7 @@ ENTRY(fuswintr)
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
 	RET
+END(fuswintr)
 
 Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)
@@ -209,6 +232,7 @@ ENTRY(fubyte)
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
 	RET
+END(fubyte)
 
 /*
  * Handle faults from [fs]u*().  Clean up and return -1.
@@ -272,6 +296,8 @@ ENTRY(suword)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
+END(suword32)
+END(suword)
 
 /*
  * suswintr(caddr_t uaddr, short x);
@@ -309,6 +335,7 @@ ENTRY(suswintr)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
+END(suswintr)
 
 /*
  * susword(caddr_t uaddr, short x);
@@ -339,6 +366,7 @@ ENTRY(susword)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
+END(susword)
 
 /*
  * subyte(caddr_t uaddr, char x);
@@ -362,3 +390,5 @@ ENTRY(subyte)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
+END(subyte)
+

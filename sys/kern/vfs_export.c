@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/refcount.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>

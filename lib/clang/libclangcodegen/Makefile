@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangcodegen
 
 SRCDIR=	tools/clang/lib/CodeGen
 SRCS=	BackendUtil.cpp \
+	CGAtomic.cpp \
 	CGBlocks.cpp \
 	CGBuiltin.cpp \
 	CGCUDANV.cpp \
@@ -33,6 +36,7 @@ SRCS=	BackendUtil.cpp \
 	CGStmt.cpp \
 	CGVTT.cpp \
 	CGVTables.cpp \
+	CodeGenABITypes.cpp \
 	CodeGenAction.cpp \
 	CodeGenFunction.cpp \
 	CodeGenModule.cpp \
@@ -40,15 +44,18 @@ SRCS=	BackendUtil.cpp \
 	CodeGenTypes.cpp \
 	ItaniumCXXABI.cpp \
 	MicrosoftCXXABI.cpp \
+	MicrosoftVBTables.cpp \
 	ModuleBuilder.cpp \
 	TargetInfo.cpp
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \
+	DiagnosticSemaKinds \
 	Intrinsics \
 	StmtNodes \
 	arm_neon

@@ -44,6 +44,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/pfil.h>
@@ -88,7 +89,7 @@ struct enc_softc {
 
 static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
-		    struct sockaddr *dst, struct route *ro);
+		    const struct sockaddr *dst, struct route *ro);
 static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
 static struct if_clone *enc_cloner;
@@ -168,7 +169,7 @@ enc_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&enc_mtx, "enc mtx", NULL, MTX_DEF);
 		enc_cloner = if_clone_simple(encname, enc_clone_create,
-		    enc_clone_destroy, 0);
+		    enc_clone_destroy, 1);
 		break;
 	case MOD_UNLOAD:
 		printf("enc module unload - not possible for this module\n");
@@ -188,7 +189,7 @@ static moduledata_t enc_mod = {
 DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 static int
-enc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+enc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	m_freem(m);

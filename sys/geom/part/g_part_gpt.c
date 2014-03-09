@@ -167,6 +167,7 @@ static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
 static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
+static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
@@ -208,6 +209,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
+	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
@@ -260,6 +262,16 @@ gpt_map_type(struct uuid *t)
 	return (0);
 }
 
+static void
+gpt_create_pmbr(struct g_part_gpt_table *table, struct g_provider *pp)
+{
+
+	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
+	    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
+	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
+}
+
 /*
  * Under Boot Camp the PMBR partition (type 0xEE) doesn't cover the
  * whole disk anymore. Rather, it covers the GPT table and the EFI
@@ -284,7 +296,7 @@ gpt_is_bootcamp(struct g_part_gpt_table *table, const char *provname)
 }
 
 static void
-gpt_update_bootcamp(struct g_part_table *basetable)
+gpt_update_bootcamp(struct g_part_table *basetable, struct g_provider *pp)
 {
 	struct g_part_entry *baseentry;
 	struct g_part_gpt_entry *entry;
@@ -341,6 +353,7 @@ gpt_update_bootcamp(struct g_part_table *basetable)
 
  disable:
 	table->bootcamp = 0;
+	gpt_create_pmbr(table, pp);
 }
 
 static struct gpt_hdr *
@@ -609,6 +622,8 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	    pp->sectorsize)
 		return (ENOSPC);
 
+	gpt_create_pmbr(table, pp);
+
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
 
@@ -718,8 +733,11 @@ g_part_gpt_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_gpt_entry *entry;
-	entry = (struct g_part_gpt_entry *)baseentry;
 
+	if (baseentry == NULL)
+		return (EOPNOTSUPP);
+
+	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
 	entry->ent.ent_lba_end = baseentry->gpe_end;
 
@@ -743,8 +761,8 @@ static int
 g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	char *buf;
-	int error, res;
+	u_char *buf;
+	int error, index, pri, res;
 
 	/* We don't nest, which means that our depth should be 0. */
 	if (table->gpt_depth != 0)
@@ -769,11 +787,21 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (pp->sectorsize < MBRSIZE || pp->mediasize < 6 * pp->sectorsize)
 		return (ENOSPC);
 
-	/* Check that there's a MBR. */
+	/*
+	 * Check that there's a MBR or a PMBR. If it's a PMBR, we return
+	 * as the highest priority on a match, otherwise we assume some
+	 * GPT-unaware tool has destroyed the GPT by recreating a MBR and
+	 * we really want the MBR scheme to take precedence.
+	 */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
 	res = le16dec(buf + DOSMAGICOFFSET);
+	pri = G_PART_PROBE_PRI_LOW;
+	for (index = 0; index < NDOSPART; index++) {
+		if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
+			pri = G_PART_PROBE_PRI_HIGH;
+	}
 	g_free(buf);
 	if (res != DOSMAGIC) 
 		return (ENXIO);
@@ -785,7 +813,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	if (res == 0)
-		return (G_PART_PROBE_PRI_HIGH);
+		return (pri);
 
 	/* No primary? Check that there's a secondary. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
@@ -794,7 +822,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (error);
 	res = memcmp(buf, GPT_HDR_SIG, 8); 
 	g_free(buf);
-	return ((res == 0) ? G_PART_PROBE_PRI_HIGH : ENXIO);
+	return ((res == 0) ? pri : ENXIO);
 }
 
 static int
@@ -903,9 +931,10 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_first = table->hdr->hdr_lba_start;
 	basetable->gpt_last = table->hdr->hdr_lba_end;
-	basetable->gpt_entries = table->hdr->hdr_entries;
+	basetable->gpt_entries = (table->hdr->hdr_lba_start - 2) *
+	    pp->sectorsize / table->hdr->hdr_entsz;
 
-	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
+	for (index = table->hdr->hdr_entries - 1; index >= 0; index--) {
 		if (EQUUID(&tbl[index].ent_type, &gpt_uuid_unused))
 			continue;
 		entry = (struct g_part_gpt_entry *)g_part_new_entry(
@@ -936,9 +965,13 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 static int
 g_part_gpt_recover(struct g_part_table *basetable)
 {
+	struct g_part_gpt_table *table;
+	struct g_provider *pp;
 
-	g_gpt_set_defaults(basetable,
-	    LIST_FIRST(&basetable->gpt_gp->consumer)->provider);
+	table = (struct g_part_gpt_table *)basetable;
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+	gpt_create_pmbr(table, pp);
+	g_gpt_set_defaults(basetable, pp);
 	basetable->gpt_corrupt = 0;
 	return (0);
 }
@@ -949,6 +982,7 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 {
 	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
+	uint8_t *p;
 	uint64_t attr;
 	int i;
 
@@ -956,14 +990,31 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 	entry = (struct g_part_gpt_entry *)baseentry;
 
 	if (strcasecmp(attrib, "active") == 0) {
-		if (!table->bootcamp || baseentry->gpe_index > NDOSPART)
-			return (EINVAL);
-		for (i = 0; i < NDOSPART; i++) {
-			table->mbr[DOSPARTOFF + i * DOSPARTSIZE] =
-			    (i == baseentry->gpe_index - 1) ? 0x80 : 0;
+		if (table->bootcamp) {
+			/* The active flag must be set on a valid entry. */
+			if (entry == NULL)
+				return (ENXIO);
+			if (baseentry->gpe_index > NDOSPART)
+				return (EINVAL);
+			for (i = 0; i < NDOSPART; i++) {
+				p = &table->mbr[DOSPARTOFF + i * DOSPARTSIZE];
+				p[0] = (i == baseentry->gpe_index - 1)
+				    ? ((set) ? 0x80 : 0) : 0;
+			}
+		} else {
+			/* The PMBR is marked as active without an entry. */
+			if (entry != NULL)
+				return (ENXIO);
+			for (i = 0; i < NDOSPART; i++) {
+				p = &table->mbr[DOSPARTOFF + i * DOSPARTSIZE];
+				p[0] = (p[4] == 0xee) ? ((set) ? 0x80 : 0) : 0;
+			}
 		}
 		return (0);
 	}
+
+	if (entry == NULL)
+		return (ENODEV);
 
 	attr = 0;
 	if (strcasecmp(attrib, "bootme") == 0) {
@@ -1032,17 +1083,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
-		gpt_update_bootcamp(basetable);
-
-	/* Update partition entries in the PMBR if Boot Camp disabled. */
-	if (!table->bootcamp) {
-		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
-		gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
-		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
-		/* Mark the PMBR active since some BIOS require it. */
-		table->mbr[DOSPARTOFF] = 0x80;
-	}
-	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
+		gpt_update_bootcamp(basetable, pp);
 
 	/* Write the PMBR */
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);

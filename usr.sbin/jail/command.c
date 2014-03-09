@@ -66,7 +66,7 @@ int paralimit = -1;
 extern char **environ;
 
 static int run_command(struct cfjail *j);
-static void add_proc(struct cfjail *j, pid_t pid);
+static int add_proc(struct cfjail *j, pid_t pid);
 static void clear_procs(struct cfjail *j);
 static struct cfjail *find_proc(pid_t pid);
 static int term_procs(struct cfjail *j);
@@ -88,13 +88,14 @@ int
 next_command(struct cfjail *j)
 {
 	enum intparam comparam;
-	int create_failed;
+	int create_failed, stopping;
 
 	if (paralimit == 0) {
 		requeue(j, &runnable);
 		return 1;
 	}
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
+	stopping = (j->flags & JF_STOP) != 0;
 	comparam = *j->comparam;
 	for (;;) {
 		if (j->comstring == NULL) {
@@ -105,7 +106,12 @@ next_command(struct cfjail *j)
 			case IP_MOUNT_DEVFS:
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
 					continue;
-				/* FALLTHROUGH */
+				j->comstring = &dummystring;
+				break;
+			case IP_MOUNT_FDESCFS:
+				if (!bool_param(j->intparams[IP_MOUNT_FDESCFS]))
+					continue;
+				j->comstring = &dummystring;
 			case IP__OP:
 			case IP_STOP_TIMEOUT:
 				j->comstring = &dummystring;
@@ -113,14 +119,16 @@ next_command(struct cfjail *j)
 			default:
 				if (j->intparams[comparam] == NULL)
 					continue;
-				j->comstring = create_failed
+				j->comstring = create_failed || (stopping &&
+				    (j->intparams[comparam]->flags & PF_REV))
 				    ? TAILQ_LAST(&j->intparams[comparam]->val,
 					cfstrings)
 				    : TAILQ_FIRST(&j->intparams[comparam]->val);
 			}
 		} else {
 			j->comstring = j->comstring == &dummystring ? NULL :
-			    create_failed
+			    create_failed || (stopping &&
+			    (j->intparams[comparam]->flags & PF_REV))
 			    ? TAILQ_PREV(j->comstring, cfstrings, tq)
 			    : TAILQ_NEXT(j->comstring, tq);
 		}
@@ -449,6 +457,32 @@ run_command(struct cfjail *j)
 		}
 		break;
 
+	case IP_MOUNT_FDESCFS:
+		argv = alloca(7 * sizeof(char *));
+		path = string_param(j->intparams[KP_PATH]);
+		if (path == NULL) {
+			jail_warnx(j, "mount.fdescfs: no path");
+			return -1;
+		}
+		devpath = alloca(strlen(path) + 8);
+		sprintf(devpath, "%s/dev/fd", path);
+		if (check_path(j, "mount.fdescfs", devpath, 0,
+		    down ? "fdescfs" : NULL) < 0)
+			return -1;
+		if (down) {
+			*(const char **)&argv[0] = "/sbin/umount";
+			argv[1] = devpath;
+			argv[2] = NULL;
+		} else {
+			*(const char **)&argv[0] = _PATH_MOUNT;
+			*(const char **)&argv[1] = "-t";
+			*(const char **)&argv[2] = "fdescfs";
+			*(const char **)&argv[3] = ".";
+			argv[4] = devpath;
+			argv[5] = NULL;
+		}
+		break;
+
 	case IP_COMMAND:
 		if (j->name != NULL)
 			goto default_command;
@@ -542,13 +576,12 @@ run_command(struct cfjail *j)
 	if (pid < 0)
 		err(1, "fork");
 	if (pid > 0) {
-		if (bg) {
+		if (bg || !add_proc(j, pid)) {
 			free(j->comline);
 			j->comline = NULL;
 			return 0;
 		} else {
 			paralimit--;
-			add_proc(j, pid);
 			return 1;
 		}
 	}
@@ -622,7 +655,7 @@ run_command(struct cfjail *j)
 /*
  * Add a process to the hash, tied to a jail.
  */
-static void
+static int
 add_proc(struct cfjail *j, pid_t pid)
 {
 	struct kevent ke;
@@ -632,8 +665,11 @@ add_proc(struct cfjail *j, pid_t pid)
 	if (!kq && (kq = kqueue()) < 0)
 		err(1, "kqueue");
 	EV_SET(&ke, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
-	if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0)
+	if (kevent(kq, &ke, 1, NULL, 0, NULL) < 0) {
+		if (errno == ESRCH)
+			return 0;
 		err(1, "kevent");
+	}
 	ph = emalloc(sizeof(struct phash));
 	ph->j = j;
 	ph->pid = pid;
@@ -658,6 +694,7 @@ add_proc(struct cfjail *j, pid_t pid)
 			TAILQ_INSERT_TAIL(&sleeping, j, tq);
 		j->queue = &sleeping;
 	}
+	return 1;
 }
 
 /*
@@ -730,7 +767,7 @@ term_procs(struct cfjail *j)
 	for (i = 0; i < pcnt; i++)
 		if (ki[i].ki_jid == j->jid &&
 		    kill(ki[i].ki_pid, SIGTERM) == 0) {
-			add_proc(j, ki[i].ki_pid);
+			(void)add_proc(j, ki[i].ki_pid);
 			if (verbose > 0) {
 				if (!noted) {
 					noted = 1;

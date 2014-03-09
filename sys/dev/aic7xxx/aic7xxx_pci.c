@@ -673,8 +673,8 @@ const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 #define STA	0x08
 #define DPR	0x01
 
-static int ahc_9005_subdevinfo_valid(uint16_t vendor, uint16_t device,
-				     uint16_t subvendor, uint16_t subdevice);
+static int ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
+				     uint16_t subdevice, uint16_t subvendor);
 static int ahc_ext_scbram_present(struct ahc_softc *ahc);
 static void ahc_scbram_config(struct ahc_softc *ahc, int enable,
 				  int pcheck, int fast, int large);
@@ -766,7 +766,7 @@ ahc_find_pci_device(aic_dev_softc_t pci)
 	 * ID as valid.
 	 */
 	if (aic_get_pci_function(pci) > 0
-	 && ahc_9005_subdevinfo_valid(vendor, device, subvendor, subdevice)
+	 && ahc_9005_subdevinfo_valid(device, vendor, subdevice, subvendor)
 	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
 

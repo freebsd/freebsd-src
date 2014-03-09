@@ -13,10 +13,12 @@
 
 #include "HexagonMCTargetDesc.h"
 #include "HexagonMCAsmInfo.h"
+#include "InstPrinter/HexagonInstPrinter.h"
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -52,13 +54,14 @@ static MCSubtargetInfo *createHexagonMCSubtargetInfo(StringRef TT,
   return X;
 }
 
-static MCAsmInfo *createHexagonMCAsmInfo(const Target &T, StringRef TT) {
-  MCAsmInfo *MAI = new HexagonMCAsmInfo(T, TT);
+static MCAsmInfo *createHexagonMCAsmInfo(const MCRegisterInfo &MRI,
+                                         StringRef TT) {
+  MCAsmInfo *MAI = new HexagonMCAsmInfo(TT);
 
   // VirtualFP = (R30 + #0).
-  MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(Hexagon::R30, 0);
-  MAI->addInitialFrameState(0, Dst, Src);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(
+      0, Hexagon::R30, 0);
+  MAI->addInitialFrameState(Inst);
 
   return MAI;
 }

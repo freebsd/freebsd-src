@@ -17,22 +17,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/Path.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
 #include <cerrno>
 #include <cstdlib>
+#include <map>
 using namespace llvm;
 using namespace cl;
 
@@ -57,6 +60,7 @@ TEMPLATE_INSTANTIATION(class opt<char>);
 TEMPLATE_INSTANTIATION(class opt<bool>);
 } } // end namespace llvm::cl
 
+// Pin the vtables to this file.
 void GenericOptionValue::anchor() {}
 void OptionValue<boolOrDefault>::anchor() {}
 void OptionValue<std::string>::anchor() {}
@@ -71,6 +75,7 @@ void parser<double>::anchor() {}
 void parser<float>::anchor() {}
 void parser<std::string>::anchor() {}
 void parser<char>::anchor() {}
+void StringSaver::anchor() {}
 
 //===----------------------------------------------------------------------===//
 
@@ -106,6 +111,17 @@ void Option::addArgument() {
   MarkOptionsChanged();
 }
 
+// This collects the different option categories that have been registered.
+typedef SmallPtrSet<OptionCategory*,16> OptionCatSet;
+static ManagedStatic<OptionCatSet> RegisteredOptionCategories;
+
+// Initialise the general option category.
+OptionCategory llvm::cl::GeneralCategory("General options");
+
+void OptionCategory::registerCategory()
+{
+  RegisteredOptionCategories->insert(this);
+}
 
 //===----------------------------------------------------------------------===//
 // Basic, shared command line option processing machinery.
@@ -423,39 +439,248 @@ static bool EatsUnboundedNumberOfValues(const Option *O) {
          O->getNumOccurrencesFlag() == cl::OneOrMore;
 }
 
-/// ParseCStringVector - Break INPUT up wherever one or more
-/// whitespace characters are found, and store the resulting tokens in
-/// OUTPUT. The tokens stored in OUTPUT are dynamically allocated
-/// using strdup(), so it is the caller's responsibility to free()
-/// them later.
-///
-static void ParseCStringVector(std::vector<char *> &OutputVector,
-                               const char *Input) {
-  // Characters which will be treated as token separators:
-  StringRef Delims = " \v\f\t\r\n";
+static bool isWhitespace(char C) {
+  return strchr(" \t\n\r\f\v", C);
+}
 
-  StringRef WorkStr(Input);
-  while (!WorkStr.empty()) {
-    // If the first character is a delimiter, strip them off.
-    if (Delims.find(WorkStr[0]) != StringRef::npos) {
-      size_t Pos = WorkStr.find_first_not_of(Delims);
-      if (Pos == StringRef::npos) Pos = WorkStr.size();
-      WorkStr = WorkStr.substr(Pos);
+static bool isQuote(char C) {
+  return C == '\"' || C == '\'';
+}
+
+static bool isGNUSpecial(char C) {
+  return strchr("\\\"\' ", C);
+}
+
+void cl::TokenizeGNUCommandLine(StringRef Src, StringSaver &Saver,
+                                SmallVectorImpl<const char *> &NewArgv) {
+  SmallString<128> Token;
+  for (size_t I = 0, E = Src.size(); I != E; ++I) {
+    // Consume runs of whitespace.
+    if (Token.empty()) {
+      while (I != E && isWhitespace(Src[I]))
+        ++I;
+      if (I == E) break;
+    }
+
+    // Backslashes can escape backslashes, spaces, and other quotes.  Otherwise
+    // they are literal.  This makes it much easier to read Windows file paths.
+    if (I + 1 < E && Src[I] == '\\' && isGNUSpecial(Src[I + 1])) {
+      ++I;  // Skip the escape.
+      Token.push_back(Src[I]);
       continue;
     }
 
-    // Find position of first delimiter.
-    size_t Pos = WorkStr.find_first_of(Delims);
-    if (Pos == StringRef::npos) Pos = WorkStr.size();
+    // Consume a quoted string.
+    if (isQuote(Src[I])) {
+      char Quote = Src[I++];
+      while (I != E && Src[I] != Quote) {
+        // Backslashes are literal, unless they escape a special character.
+        if (Src[I] == '\\' && I + 1 != E && isGNUSpecial(Src[I + 1]))
+          ++I;
+        Token.push_back(Src[I]);
+        ++I;
+      }
+      if (I == E) break;
+      continue;
+    }
 
-    // Everything from 0 to Pos is the next word to copy.
-    char *NewStr = (char*)malloc(Pos+1);
-    memcpy(NewStr, WorkStr.data(), Pos);
-    NewStr[Pos] = 0;
-    OutputVector.push_back(NewStr);
+    // End the token if this is whitespace.
+    if (isWhitespace(Src[I])) {
+      if (!Token.empty())
+        NewArgv.push_back(Saver.SaveString(Token.c_str()));
+      Token.clear();
+      continue;
+    }
 
-    WorkStr = WorkStr.substr(Pos);
+    // This is a normal character.  Append it.
+    Token.push_back(Src[I]);
   }
+
+  // Append the last token after hitting EOF with no whitespace.
+  if (!Token.empty())
+    NewArgv.push_back(Saver.SaveString(Token.c_str()));
+}
+
+/// Backslashes are interpreted in a rather complicated way in the Windows-style
+/// command line, because backslashes are used both to separate path and to
+/// escape double quote. This method consumes runs of backslashes as well as the
+/// following double quote if it's escaped.
+///
+///  * If an even number of backslashes is followed by a double quote, one
+///    backslash is output for every pair of backslashes, and the last double
+///    quote remains unconsumed. The double quote will later be interpreted as
+///    the start or end of a quoted string in the main loop outside of this
+///    function.
+///
+///  * If an odd number of backslashes is followed by a double quote, one
+///    backslash is output for every pair of backslashes, and a double quote is
+///    output for the last pair of backslash-double quote. The double quote is
+///    consumed in this case.
+///
+///  * Otherwise, backslashes are interpreted literally.
+static size_t parseBackslash(StringRef Src, size_t I, SmallString<128> &Token) {
+  size_t E = Src.size();
+  int BackslashCount = 0;
+  // Skip the backslashes.
+  do {
+    ++I;
+    ++BackslashCount;
+  } while (I != E && Src[I] == '\\');
+
+  bool FollowedByDoubleQuote = (I != E && Src[I] == '"');
+  if (FollowedByDoubleQuote) {
+    Token.append(BackslashCount / 2, '\\');
+    if (BackslashCount % 2 == 0)
+      return I - 1;
+    Token.push_back('"');
+    return I;
+  }
+  Token.append(BackslashCount, '\\');
+  return I - 1;
+}
+
+void cl::TokenizeWindowsCommandLine(StringRef Src, StringSaver &Saver,
+                                    SmallVectorImpl<const char *> &NewArgv) {
+  SmallString<128> Token;
+
+  // This is a small state machine to consume characters until it reaches the
+  // end of the source string.
+  enum { INIT, UNQUOTED, QUOTED } State = INIT;
+  for (size_t I = 0, E = Src.size(); I != E; ++I) {
+    // INIT state indicates that the current input index is at the start of
+    // the string or between tokens.
+    if (State == INIT) {
+      if (isWhitespace(Src[I]))
+        continue;
+      if (Src[I] == '"') {
+        State = QUOTED;
+        continue;
+      }
+      if (Src[I] == '\\') {
+        I = parseBackslash(Src, I, Token);
+        State = UNQUOTED;
+        continue;
+      }
+      Token.push_back(Src[I]);
+      State = UNQUOTED;
+      continue;
+    }
+
+    // UNQUOTED state means that it's reading a token not quoted by double
+    // quotes.
+    if (State == UNQUOTED) {
+      // Whitespace means the end of the token.
+      if (isWhitespace(Src[I])) {
+        NewArgv.push_back(Saver.SaveString(Token.c_str()));
+        Token.clear();
+        State = INIT;
+        continue;
+      }
+      if (Src[I] == '"') {
+        State = QUOTED;
+        continue;
+      }
+      if (Src[I] == '\\') {
+        I = parseBackslash(Src, I, Token);
+        continue;
+      }
+      Token.push_back(Src[I]);
+      continue;
+    }
+
+    // QUOTED state means that it's reading a token quoted by double quotes.
+    if (State == QUOTED) {
+      if (Src[I] == '"') {
+        State = UNQUOTED;
+        continue;
+      }
+      if (Src[I] == '\\') {
+        I = parseBackslash(Src, I, Token);
+        continue;
+      }
+      Token.push_back(Src[I]);
+    }
+  }
+  // Append the last token after hitting EOF with no whitespace.
+  if (!Token.empty())
+    NewArgv.push_back(Saver.SaveString(Token.c_str()));
+}
+
+static bool ExpandResponseFile(const char *FName, StringSaver &Saver,
+                               TokenizerCallback Tokenizer,
+                               SmallVectorImpl<const char *> &NewArgv) {
+  OwningPtr<MemoryBuffer> MemBuf;
+  if (MemoryBuffer::getFile(FName, MemBuf))
+    return false;
+  StringRef Str(MemBuf->getBufferStart(), MemBuf->getBufferSize());
+
+  // If we have a UTF-16 byte order mark, convert to UTF-8 for parsing.
+  ArrayRef<char> BufRef(MemBuf->getBufferStart(), MemBuf->getBufferEnd());
+  std::string UTF8Buf;
+  if (hasUTF16ByteOrderMark(BufRef)) {
+    if (!convertUTF16ToUTF8String(BufRef, UTF8Buf))
+      return false;
+    Str = StringRef(UTF8Buf);
+  }
+
+  // Tokenize the contents into NewArgv.
+  Tokenizer(Str, Saver, NewArgv);
+
+  return true;
+}
+
+/// \brief Expand response files on a command line recursively using the given
+/// StringSaver and tokenization strategy.
+bool cl::ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
+                             SmallVectorImpl<const char *> &Argv) {
+  unsigned RspFiles = 0;
+  bool AllExpanded = false;
+
+  // Don't cache Argv.size() because it can change.
+  for (unsigned I = 0; I != Argv.size(); ) {
+    const char *Arg = Argv[I];
+    if (Arg[0] != '@') {
+      ++I;
+      continue;
+    }
+
+    // If we have too many response files, leave some unexpanded.  This avoids
+    // crashing on self-referential response files.
+    if (RspFiles++ > 20)
+      return false;
+
+    // Replace this response file argument with the tokenization of its
+    // contents.  Nested response files are expanded in subsequent iterations.
+    // FIXME: If a nested response file uses a relative path, is it relative to
+    // the cwd of the process or the response file?
+    SmallVector<const char *, 0> ExpandedArgv;
+    if (!ExpandResponseFile(Arg + 1, Saver, Tokenizer, ExpandedArgv)) {
+      AllExpanded = false;
+      continue;
+    }
+    Argv.erase(Argv.begin() + I);
+    Argv.insert(Argv.begin() + I, ExpandedArgv.begin(), ExpandedArgv.end());
+  }
+  return AllExpanded;
+}
+
+namespace {
+  class StrDupSaver : public StringSaver {
+    std::vector<char*> Dups;
+  public:
+    ~StrDupSaver() {
+      for (std::vector<char *>::iterator I = Dups.begin(), E = Dups.end();
+           I != E; ++I) {
+        char *Dup = *I;
+        free(Dup);
+      }
+    }
+    const char *SaveString(const char *Str) LLVM_OVERRIDE {
+      char *Dup = strdup(Str);
+      Dups.push_back(Dup);
+      return Dup;
+    }
+  };
 }
 
 /// ParseEnvironmentOptions - An alternative entry point to the
@@ -476,56 +701,15 @@ void cl::ParseEnvironmentOptions(const char *progName, const char *envVar,
 
   // Get program's "name", which we wouldn't know without the caller
   // telling us.
-  std::vector<char*> newArgv;
-  newArgv.push_back(strdup(progName));
+  SmallVector<const char *, 20> newArgv;
+  StrDupSaver Saver;
+  newArgv.push_back(Saver.SaveString(progName));
 
   // Parse the value of the environment variable into a "command line"
   // and hand it off to ParseCommandLineOptions().
-  ParseCStringVector(newArgv, envValue);
+  TokenizeGNUCommandLine(envValue, Saver, newArgv);
   int newArgc = static_cast<int>(newArgv.size());
   ParseCommandLineOptions(newArgc, &newArgv[0], Overview);
-
-  // Free all the strdup()ed strings.
-  for (std::vector<char*>::iterator i = newArgv.begin(), e = newArgv.end();
-       i != e; ++i)
-    free(*i);
-}
-
-
-/// ExpandResponseFiles - Copy the contents of argv into newArgv,
-/// substituting the contents of the response files for the arguments
-/// of type @file.
-static void ExpandResponseFiles(unsigned argc, const char*const* argv,
-                                std::vector<char*>& newArgv) {
-  for (unsigned i = 1; i != argc; ++i) {
-    const char *arg = argv[i];
-
-    if (arg[0] == '@') {
-      sys::PathWithStatus respFile(++arg);
-
-      // Check that the response file is not empty (mmap'ing empty
-      // files can be problematic).
-      const sys::FileStatus *FileStat = respFile.getFileStatus();
-      if (FileStat && FileStat->getSize() != 0) {
-
-        // If we could open the file, parse its contents, otherwise
-        // pass the @file option verbatim.
-
-        // TODO: we should also support recursive loading of response files,
-        // since this is how gcc behaves. (From their man page: "The file may
-        // itself contain additional @file options; any such options will be
-        // processed recursively.")
-
-        // Mmap the response file into memory.
-        OwningPtr<MemoryBuffer> respFilePtr;
-        if (!MemoryBuffer::getFile(respFile.c_str(), respFilePtr)) {
-          ParseCStringVector(newArgv, respFilePtr->getBufferStart());
-          continue;
-        }
-      }
-    }
-    newArgv.push_back(strdup(arg));
-  }
 }
 
 void cl::ParseCommandLineOptions(int argc, const char * const *argv,
@@ -540,9 +724,11 @@ void cl::ParseCommandLineOptions(int argc, const char * const *argv,
          "No options specified!");
 
   // Expand response files.
-  std::vector<char*> newArgv;
-  newArgv.push_back(strdup(argv[0]));
-  ExpandResponseFiles(argc, argv, newArgv);
+  SmallVector<const char *, 20> newArgv;
+  for (int i = 0; i != argc; ++i)
+    newArgv.push_back(argv[i]);
+  StrDupSaver Saver;
+  ExpandResponseFiles(Saver, TokenizeGNUCommandLine, newArgv);
   argv = &newArgv[0];
   argc = static_cast<int>(newArgv.size());
 
@@ -836,12 +1022,6 @@ void cl::ParseCommandLineOptions(int argc, const char * const *argv,
   PositionalOpts.clear();
   MoreHelp->clear();
 
-  // Free the memory allocated by ExpandResponseFiles.
-  // Free all the strdup()ed strings.
-  for (std::vector<char*>::iterator i = newArgv.begin(), e = newArgv.end();
-       i != e; ++i)
-    free(*i);
-
   // If we had an error processing our arguments, don't let the program execute
   if (ErrorParsing) exit(1);
 }
@@ -901,11 +1081,20 @@ size_t alias::getOptionWidth() const {
   return std::strlen(ArgStr)+6;
 }
 
+static void printHelpStr(StringRef HelpStr, size_t Indent,
+                         size_t FirstLineIndentedBy) {
+  std::pair<StringRef, StringRef> Split = HelpStr.split('\n');
+  outs().indent(Indent - FirstLineIndentedBy) << " - " << Split.first << "\n";
+  while (!Split.second.empty()) {
+    Split = Split.second.split('\n');
+    outs().indent(Indent) << Split.first << "\n";
+  }
+}
+
 // Print out the option for the alias.
 void alias::printOptionInfo(size_t GlobalWidth) const {
-  size_t L = std::strlen(ArgStr);
   outs() << "  -" << ArgStr;
-  outs().indent(GlobalWidth-L-6) << " - " << HelpStr << "\n";
+  printHelpStr(HelpStr, GlobalWidth, std::strlen(ArgStr) + 6);
 }
 
 //===----------------------------------------------------------------------===//
@@ -934,7 +1123,7 @@ void basic_parser_impl::printOptionInfo(const Option &O,
   if (const char *ValName = getValueName())
     outs() << "=<" << getValueStr(O, ValName) << '>';
 
-  outs().indent(GlobalWidth-getOptionWidth(O)) << " - " << O.HelpStr << '\n';
+  printHelpStr(O.HelpStr, GlobalWidth, getOptionWidth(O));
 }
 
 void basic_parser_impl::printOptionName(const Option &O,
@@ -1075,9 +1264,8 @@ size_t generic_parser_base::getOptionWidth(const Option &O) const {
 void generic_parser_base::printOptionInfo(const Option &O,
                                           size_t GlobalWidth) const {
   if (O.hasArgStr()) {
-    size_t L = std::strlen(O.ArgStr);
     outs() << "  -" << O.ArgStr;
-    outs().indent(GlobalWidth-L-6) << " - " << O.HelpStr << '\n';
+    printHelpStr(O.HelpStr, GlobalWidth, std::strlen(O.ArgStr) + 6);
 
     for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
       size_t NumSpaces = GlobalWidth-strlen(getOption(i))-8;
@@ -1088,9 +1276,9 @@ void generic_parser_base::printOptionInfo(const Option &O,
     if (O.HelpStr[0])
       outs() << "  " << O.HelpStr << '\n';
     for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
-      size_t L = std::strlen(getOption(i));
-      outs() << "    -" << getOption(i);
-      outs().indent(GlobalWidth-L-8) << " - " << getDescription(i) << '\n';
+      const char *Option = getOption(i);
+      outs() << "    -" << Option;
+      printHelpStr(getDescription(i), GlobalWidth, std::strlen(Option) + 8);
     }
   }
 }
@@ -1222,15 +1410,20 @@ sortOpts(StringMap<Option*> &OptMap,
 namespace {
 
 class HelpPrinter {
-  size_t MaxArgLen;
-  const Option *EmptyArg;
+protected:
   const bool ShowHidden;
-
-public:
-  explicit HelpPrinter(bool showHidden) : ShowHidden(showHidden) {
-    EmptyArg = 0;
+  typedef SmallVector<std::pair<const char *, Option*>,128> StrOptionPairVector;
+  // Print the options. Opts is assumed to be alphabetically sorted.
+  virtual void printOptions(StrOptionPairVector &Opts, size_t MaxArgLen) {
+    for (size_t i = 0, e = Opts.size(); i != e; ++i)
+      Opts[i].second->printOptionInfo(MaxArgLen);
   }
 
+public:
+  explicit HelpPrinter(bool showHidden) : ShowHidden(showHidden) {}
+  virtual ~HelpPrinter() {}
+
+  // Invoke the printer.
   void operator=(bool Value) {
     if (Value == false) return;
 
@@ -1240,7 +1433,7 @@ public:
     StringMap<Option*> OptMap;
     GetOptionInfo(PositionalOpts, SinkOpts, OptMap);
 
-    SmallVector<std::pair<const char *, Option*>, 128> Opts;
+    StrOptionPairVector Opts;
     sortOpts(OptMap, Opts, ShowHidden);
 
     if (ProgramOverview)
@@ -1266,17 +1459,17 @@ public:
     outs() << "\n\n";
 
     // Compute the maximum argument length...
-    MaxArgLen = 0;
+    size_t MaxArgLen = 0;
     for (size_t i = 0, e = Opts.size(); i != e; ++i)
       MaxArgLen = std::max(MaxArgLen, Opts[i].second->getOptionWidth());
 
     outs() << "OPTIONS:\n";
-    for (size_t i = 0, e = Opts.size(); i != e; ++i)
-      Opts[i].second->printOptionInfo(MaxArgLen);
+    printOptions(Opts, MaxArgLen);
 
     // Print any extra help the user has declared.
     for (std::vector<const char *>::iterator I = MoreHelp->begin(),
-          E = MoreHelp->end(); I != E; ++I)
+                                             E = MoreHelp->end();
+         I != E; ++I)
       outs() << *I;
     MoreHelp->clear();
 
@@ -1284,21 +1477,152 @@ public:
     exit(1);
   }
 };
+
+class CategorizedHelpPrinter : public HelpPrinter {
+public:
+  explicit CategorizedHelpPrinter(bool showHidden) : HelpPrinter(showHidden) {}
+
+  // Helper function for printOptions().
+  // It shall return true if A's name should be lexographically
+  // ordered before B's name. It returns false otherwise.
+  static bool OptionCategoryCompare(OptionCategory *A, OptionCategory *B) {
+    int Length = strcmp(A->getName(), B->getName());
+    assert(Length != 0 && "Duplicate option categories");
+    return Length < 0;
+  }
+
+  // Make sure we inherit our base class's operator=()
+  using HelpPrinter::operator= ;
+
+protected:
+  virtual void printOptions(StrOptionPairVector &Opts, size_t MaxArgLen) {
+    std::vector<OptionCategory *> SortedCategories;
+    std::map<OptionCategory *, std::vector<Option *> > CategorizedOptions;
+
+    // Collect registered option categories into vector in preperation for
+    // sorting.
+    for (OptionCatSet::const_iterator I = RegisteredOptionCategories->begin(),
+                                      E = RegisteredOptionCategories->end();
+         I != E; ++I)
+      SortedCategories.push_back(*I);
+
+    // Sort the different option categories alphabetically.
+    assert(SortedCategories.size() > 0 && "No option categories registered!");
+    std::sort(SortedCategories.begin(), SortedCategories.end(),
+              OptionCategoryCompare);
+
+    // Create map to empty vectors.
+    for (std::vector<OptionCategory *>::const_iterator
+             I = SortedCategories.begin(),
+             E = SortedCategories.end();
+         I != E; ++I)
+      CategorizedOptions[*I] = std::vector<Option *>();
+
+    // Walk through pre-sorted options and assign into categories.
+    // Because the options are already alphabetically sorted the
+    // options within categories will also be alphabetically sorted.
+    for (size_t I = 0, E = Opts.size(); I != E; ++I) {
+      Option *Opt = Opts[I].second;
+      assert(CategorizedOptions.count(Opt->Category) > 0 &&
+             "Option has an unregistered category");
+      CategorizedOptions[Opt->Category].push_back(Opt);
+    }
+
+    // Now do printing.
+    for (std::vector<OptionCategory *>::const_iterator
+             Category = SortedCategories.begin(),
+             E = SortedCategories.end();
+         Category != E; ++Category) {
+      // Hide empty categories for -help, but show for -help-hidden.
+      bool IsEmptyCategory = CategorizedOptions[*Category].size() == 0;
+      if (!ShowHidden && IsEmptyCategory)
+        continue;
+
+      // Print category information.
+      outs() << "\n";
+      outs() << (*Category)->getName() << ":\n";
+
+      // Check if description is set.
+      if ((*Category)->getDescription() != 0)
+        outs() << (*Category)->getDescription() << "\n\n";
+      else
+        outs() << "\n";
+
+      // When using -help-hidden explicitly state if the category has no
+      // options associated with it.
+      if (IsEmptyCategory) {
+        outs() << "  This option category has no options.\n";
+        continue;
+      }
+      // Loop over the options in the category and print.
+      for (std::vector<Option *>::const_iterator
+               Opt = CategorizedOptions[*Category].begin(),
+               E = CategorizedOptions[*Category].end();
+           Opt != E; ++Opt)
+        (*Opt)->printOptionInfo(MaxArgLen);
+    }
+  }
+};
+
+// This wraps the Uncategorizing and Categorizing printers and decides
+// at run time which should be invoked.
+class HelpPrinterWrapper {
+private:
+  HelpPrinter &UncategorizedPrinter;
+  CategorizedHelpPrinter &CategorizedPrinter;
+
+public:
+  explicit HelpPrinterWrapper(HelpPrinter &UncategorizedPrinter,
+                              CategorizedHelpPrinter &CategorizedPrinter) :
+    UncategorizedPrinter(UncategorizedPrinter),
+    CategorizedPrinter(CategorizedPrinter) { }
+
+  // Invoke the printer.
+  void operator=(bool Value);
+};
+
 } // End anonymous namespace
 
-// Define the two HelpPrinter instances that are used to print out help, or
-// help-hidden...
-//
-static HelpPrinter NormalPrinter(false);
-static HelpPrinter HiddenPrinter(true);
+// Declare the four HelpPrinter instances that are used to print out help, or
+// help-hidden as an uncategorized list or in categories.
+static HelpPrinter UncategorizedNormalPrinter(false);
+static HelpPrinter UncategorizedHiddenPrinter(true);
+static CategorizedHelpPrinter CategorizedNormalPrinter(false);
+static CategorizedHelpPrinter CategorizedHiddenPrinter(true);
+
+
+// Declare HelpPrinter wrappers that will decide whether or not to invoke
+// a categorizing help printer
+static HelpPrinterWrapper WrappedNormalPrinter(UncategorizedNormalPrinter,
+                                               CategorizedNormalPrinter);
+static HelpPrinterWrapper WrappedHiddenPrinter(UncategorizedHiddenPrinter,
+                                               CategorizedHiddenPrinter);
+
+// Define uncategorized help printers.
+// -help-list is hidden by default because if Option categories are being used
+// then -help behaves the same as -help-list.
+static cl::opt<HelpPrinter, true, parser<bool> >
+HLOp("help-list",
+     cl::desc("Display list of available options (-help-list-hidden for more)"),
+     cl::location(UncategorizedNormalPrinter), cl::Hidden, cl::ValueDisallowed);
 
 static cl::opt<HelpPrinter, true, parser<bool> >
+HLHOp("help-list-hidden",
+     cl::desc("Display list of all available options"),
+     cl::location(UncategorizedHiddenPrinter), cl::Hidden, cl::ValueDisallowed);
+
+// Define uncategorized/categorized help printers. These printers change their
+// behaviour at runtime depending on whether one or more Option categories have
+// been declared.
+static cl::opt<HelpPrinterWrapper, true, parser<bool> >
 HOp("help", cl::desc("Display available options (-help-hidden for more)"),
-    cl::location(NormalPrinter), cl::ValueDisallowed);
+    cl::location(WrappedNormalPrinter), cl::ValueDisallowed);
 
-static cl::opt<HelpPrinter, true, parser<bool> >
+static cl::opt<HelpPrinterWrapper, true, parser<bool> >
 HHOp("help-hidden", cl::desc("Display all available options"),
-     cl::location(HiddenPrinter), cl::Hidden, cl::ValueDisallowed);
+     cl::location(WrappedHiddenPrinter), cl::Hidden, cl::ValueDisallowed);
+
+
 
 static cl::opt<bool>
 PrintOptions("print-options",
@@ -1309,6 +1633,24 @@ static cl::opt<bool>
 PrintAllOptions("print-all-options",
                 cl::desc("Print all option values after command line parsing"),
                 cl::Hidden, cl::init(false));
+
+void HelpPrinterWrapper::operator=(bool Value) {
+  if (Value == false)
+    return;
+
+  // Decide which printer to invoke. If more than one option category is
+  // registered then it is useful to show the categorized help instead of
+  // uncategorized help.
+  if (RegisteredOptionCategories->size() > 1) {
+    // unhide -help-list option so user can have uncategorized output if they
+    // want it.
+    HLOp.setHiddenFlag(NotHidden);
+
+    CategorizedPrinter = true; // Invoke categorized printer
+  }
+  else
+    UncategorizedPrinter = true; // Invoke uncategorized printer
+}
 
 // Print the value of each option.
 void cl::PrintOptionValues() {
@@ -1397,14 +1739,22 @@ VersOp("version", cl::desc("Display the version of this program"),
     cl::location(VersionPrinterInstance), cl::ValueDisallowed);
 
 // Utility function for printing the help message.
-void cl::PrintHelpMessage() {
-  // This looks weird, but it actually prints the help message. The
-  // NormalPrinter variable is a HelpPrinter and the help gets printed when
-  // its operator= is invoked. That's because the "normal" usages of the
-  // help printer is to be assigned true/false depending on whether the
-  // -help option was given or not. Since we're circumventing that we have
-  // to make it look like -help was given, so we assign true.
-  NormalPrinter = true;
+void cl::PrintHelpMessage(bool Hidden, bool Categorized) {
+  // This looks weird, but it actually prints the help message. The Printers are
+  // types of HelpPrinter and the help gets printed when its operator= is
+  // invoked. That's because the "normal" usages of the help printer is to be
+  // assigned true/false depending on whether -help or -help-hidden was given or
+  // not.  Since we're circumventing that we have to make it look like -help or
+  // -help-hidden were given, so we assign true.
+
+  if (!Hidden && !Categorized)
+    UncategorizedNormalPrinter = true;
+  else if (!Hidden && Categorized)
+    CategorizedNormalPrinter = true;
+  else if (Hidden && !Categorized)
+    UncategorizedHiddenPrinter = true;
+  else
+    CategorizedHiddenPrinter = true;
 }
 
 /// Utility function for printing version number.
@@ -1421,4 +1771,14 @@ void cl::AddExtraVersionPrinter(void (*func)()) {
     ExtraVersionPrinters = new std::vector<void (*)()>;
 
   ExtraVersionPrinters->push_back(func);
+}
+
+void cl::getRegisteredOptions(StringMap<Option*> &Map)
+{
+  // Get all the options.
+  SmallVector<Option*, 4> PositionalOpts; //NOT USED
+  SmallVector<Option*, 4> SinkOpts;  //NOT USED
+  assert(Map.size() == 0 && "StringMap must be empty");
+  GetOptionInfo(PositionalOpts, SinkOpts, Map);
+  return;
 }

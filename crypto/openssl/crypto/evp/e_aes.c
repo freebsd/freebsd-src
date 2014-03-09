@@ -842,7 +842,10 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			gctx->ctr = NULL;
 			break;
 			}
+		else
 #endif
+		(void)0;	/* terminate potentially open 'else' */
+
 		AES_set_encrypt_key(key, ctx->key_len * 8, &gctx->ks);
 		CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks, (block128_f)AES_encrypt);
 #ifdef AES_CTR_ASM
@@ -969,8 +972,6 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 	if (!gctx->iv_set)
 		return -1;
-	if (!ctx->encrypt && gctx->taglen < 0)
-		return -1;
 	if (in)
 		{
 		if (out == NULL)
@@ -1012,6 +1013,8 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 		{
 		if (!ctx->encrypt)
 			{
+			if (gctx->taglen < 0)
+				return -1;
 			if (CRYPTO_gcm128_finish(&gctx->gcm,
 					ctx->buf, gctx->taglen) != 0)
 				return -1;
@@ -1083,14 +1086,17 @@ static int aes_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			xctx->xts.block1 = (block128_f)vpaes_decrypt;
 			}
 
-		vpaes_set_encrypt_key(key + ctx->key_len/2,
+		    vpaes_set_encrypt_key(key + ctx->key_len/2,
 						ctx->key_len * 4, &xctx->ks2);
-		xctx->xts.block2 = (block128_f)vpaes_encrypt;
+		    xctx->xts.block2 = (block128_f)vpaes_encrypt;
 
-		xctx->xts.key1 = &xctx->ks1;
-		break;
-		}
+		    xctx->xts.key1 = &xctx->ks1;
+		    break;
+		    }
+		else
 #endif
+		(void)0;	/* terminate potentially open 'else' */
+
 		if (enc)
 			{
 			AES_set_encrypt_key(key, ctx->key_len * 4, &xctx->ks1);
@@ -1217,6 +1223,7 @@ static int aes_ccm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			vpaes_set_encrypt_key(key, ctx->key_len*8, &cctx->ks);
 			CRYPTO_ccm128_init(&cctx->ccm, cctx->M, cctx->L,
 					&cctx->ks, (block128_f)vpaes_encrypt);
+			cctx->str = NULL;
 			cctx->key_set = 1;
 			break;
 			}

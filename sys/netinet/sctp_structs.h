@@ -446,7 +446,6 @@ struct sctp_tmit_chunk {
 	uint8_t do_rtt;
 	uint8_t book_size_scale;
 	uint8_t no_fr_allowed;
-	uint8_t pr_sctp_on;
 	uint8_t copy_by_ref;
 	uint8_t window_probe;
 };
@@ -522,7 +521,6 @@ struct sctp_stream_queue_pending {
 	uint8_t holds_key_ref;
 	uint8_t msg_is_complete;
 	uint8_t some_taken;
-	uint8_t pr_sctp_on;
 	uint8_t sender_all_done;
 	uint8_t put_last_out;
 	uint8_t discard_rest;
@@ -1177,17 +1175,7 @@ struct sctp_association {
 	 */
 	uint8_t peer_supports_pktdrop;
 
-	/* Do we allow V6/V4? */
-	uint8_t ipv4_addr_legal;
-	uint8_t ipv6_addr_legal;
-	/* Address scoping flags */
-	/* scope value for IPv4 */
-	uint8_t ipv4_local_scope;
-	/* scope values for IPv6 */
-	uint8_t local_scope;
-	uint8_t site_scope;
-	/* loopback scope */
-	uint8_t loopback_scope;
+	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
 	uint8_t used_alt_onsack;
 	uint8_t used_alt_asconfack;
@@ -1215,7 +1203,7 @@ struct sctp_association {
 	/* JRS 5/21/07 - CMT PF variable */
 	uint8_t sctp_cmt_pf;
 	uint8_t use_precise_time;
-	uint32_t sctp_features;
+	uint64_t sctp_features;
 	uint16_t port;		/* remote UDP encapsulation port */
 	/*
 	 * The mapping array is used to track out of order sequences above

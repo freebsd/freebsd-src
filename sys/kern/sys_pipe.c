@@ -129,9 +129,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
-/* XXX */
-int	do_pipe(struct thread *td, int fildes[2], int flags);
-
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
  * approx 30% decrease in transfer rate.  This could be useful for
@@ -167,6 +164,7 @@ struct fileops pipeops = {
 	.fo_close = pipe_close,
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
+	.fo_sendfile = invfo_sendfile,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -408,11 +406,11 @@ int
 kern_pipe(struct thread *td, int fildes[2])
 {
 
-	return (do_pipe(td, fildes, 0));
+	return (kern_pipe2(td, fildes, 0));
 }
 
 int
-do_pipe(struct thread *td, int fildes[2], int flags)
+kern_pipe2(struct thread *td, int fildes[2], int flags)
 {
 	struct filedesc *fdp; 
 	struct file *rf, *wf;
@@ -473,11 +471,29 @@ sys_pipe(struct thread *td, struct pipe_args *uap)
 	error = kern_pipe(td, fildes);
 	if (error)
 		return (error);
-	
+
 	td->td_retval[0] = fildes[0];
 	td->td_retval[1] = fildes[1];
 
 	return (0);
+}
+
+int
+sys_pipe2(struct thread *td, struct pipe2_args *uap)
+{
+	int error, fildes[2];
+
+	if (uap->flags & ~(O_CLOEXEC | O_NONBLOCK))
+		return (EINVAL);
+	error = kern_pipe2(td, fildes, uap->flags);
+	if (error)
+		return (error);
+	error = copyout(fildes, uap->fildes, 2 * sizeof(int));
+	if (error) {
+		(void)kern_close(td, fildes[0]);
+		(void)kern_close(td, fildes[1]);
+	}
+	return (error);
 }
 
 /*
@@ -508,7 +524,7 @@ retry:
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
 	error = vm_map_find(pipe_map, NULL, 0,
-		(vm_offset_t *) &buffer, size, 1,
+		(vm_offset_t *) &buffer, size, 0, VMFS_ANY_SPACE,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != KERN_SUCCESS) {
 		if ((cpipe->pipe_buffer.buffer == NULL) &&

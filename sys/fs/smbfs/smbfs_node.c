@@ -89,7 +89,7 @@ smbfs_vnode_cmp(struct vnode *vp, void *_sc)
 	struct smbnode *np;
 	struct smbcmp *sc;
 
-	np = (struct smbnode *) vp;
+	np = (struct smbnode *) vp->v_data;
 	sc = (struct smbcmp *) _sc;
 	if (np->n_parent != sc->n_parent || np->n_nmlen != sc->n_nmlen ||
 	    bcmp(sc->n_name, np->n_name, sc->n_nmlen) != 0)
@@ -370,10 +370,13 @@ smbfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
 	if (diff > 2)	/* XXX should be configurable */
 		return ENOENT;
 	va->va_type = vp->v_type;		/* vnode type (for create) */
+	va->va_flags = 0;			/* flags defined for file */
 	if (vp->v_type == VREG) {
 		va->va_mode = smp->sm_file_mode; /* files access mode and type */
-		if (np->n_dosattr & SMB_FA_RDONLY)
+		if (np->n_dosattr & SMB_FA_RDONLY) {
 			va->va_mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
+			va->va_flags |= UF_READONLY;
+		}
 	} else if (vp->v_type == VDIR) {
 		va->va_mode = smp->sm_dir_mode;	/* files access mode and type */
 	} else
@@ -390,7 +393,15 @@ smbfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
 	va->va_mtime = np->n_mtime;
 	va->va_atime = va->va_ctime = va->va_mtime;	/* time file changed */
 	va->va_gen = VNOVAL;		/* generation number of file */
-	va->va_flags = 0;		/* flags defined for file */
+	if (np->n_dosattr & SMB_FA_HIDDEN)
+		va->va_flags |= UF_HIDDEN;
+	if (np->n_dosattr & SMB_FA_SYSTEM)
+		va->va_flags |= UF_SYSTEM;
+	/*
+	 * We don't set the archive bit for directories.
+	 */
+	if ((vp->v_type != VDIR) && (np->n_dosattr & SMB_FA_ARCHIVE))
+		va->va_flags |= UF_ARCHIVE;
 	va->va_rdev = NODEV;		/* device the special file represents */
 	va->va_bytes = va->va_size;	/* bytes of disk space held by file */
 	va->va_filerev = 0;		/* file modification number */

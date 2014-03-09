@@ -11,9 +11,9 @@
 #define LLVM_CLANG_ARCMIGRATE_FILEREMAPPER_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -53,7 +53,6 @@ public:
                          StringRef outputDir = StringRef());
 
   void remap(StringRef filePath, llvm::MemoryBuffer *memBuf);
-  void remap(StringRef filePath, StringRef newPath);
 
   void applyMappings(PreprocessorOptions &PPOpts) const;
 

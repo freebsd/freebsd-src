@@ -51,7 +51,6 @@ device		pci
 
 # ATA and ATAPI devices
 device		ata
-options 	ATA_CAM
 options 	ATA_STATIC_ID	# Static device numbering
 
 # ATA/SCSI peripherals

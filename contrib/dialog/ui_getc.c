@@ -1,9 +1,9 @@
 /*
- *  $Id: ui_getc.c,v 1.63 2011/07/07 22:05:58 tom Exp $
+ *  $Id: ui_getc.c,v 1.67 2013/03/24 23:53:19 tom Exp $
  *
  *  ui_getc.c - user interface glue for getc()
  *
- *  Copyright 2001-2010,2011	Thomas E. Dickey
+ *  Copyright 2001-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -284,6 +284,36 @@ dlg_flush_getc(void)
 }
 
 /*
+ * Report the last key entered by the user.  The 'mode' parameter controls
+ * the way it is separated from other results:
+ * -2 (no separator)
+ * -1 (separator after the key name)
+ * 0 (separator is optionally before the key name)
+ * 1 (same as -1)
+ */
+void
+dlg_add_last_key(int mode)
+{
+    if (dialog_vars.last_key) {
+	if (mode >= 0) {
+	    if (mode > 0) {
+		dlg_add_last_key(-1);
+	    } else {
+		if (dlg_need_separator())
+		    dlg_add_separator();
+		dlg_add_last_key(-2);
+	    }
+	} else {
+	    char temp[80];
+	    sprintf(temp, "%d", last_getc);
+	    dlg_add_string(temp);
+	    if (mode == -1)
+		dlg_add_separator();
+	}
+    }
+}
+
+/*
  * Check if the stream has been unexpectedly closed, returning false in that
  * case.
  */
@@ -294,8 +324,7 @@ valid_file(FILE *fp)
     int fd = fileno(fp);
 
     if (fd >= 0) {
-	long result = 0;
-	if ((result = fcntl(fd, F_GETFL, 0)) >= 0) {
+	if (fcntl(fd, F_GETFL, 0) >= 0) {
 	    code = TRUE;
 	}
     }
@@ -441,12 +470,9 @@ dlg_getc(WINDOW *win, int *fkey)
 	if (!*fkey || *fkey != before_fkey) {
 	    switch (ch) {
 	    case CHR_LITERAL:
-		if (!literal) {
-		    literal = TRUE;
-		    keypad(win, FALSE);
-		    continue;
-		}
-		break;
+		literal = TRUE;
+		keypad(win, FALSE);
+		continue;
 	    case CHR_REPAINT:
 		(void) touchwin(win);
 		(void) wrefresh(curscr);
@@ -530,6 +556,7 @@ dlg_getc(WINDOW *win, int *fkey)
 	if (handle_others) {
 	    if ((p = dialog_state.getc_redirect) != 0) {
 		if (!(p->handle_getc(p, ch, *fkey, &result))) {
+		    done = (p->win == save_win) && (!p->keep_win);
 		    dlg_remove_callback(p);
 		    dialog_state.getc_redirect = 0;
 		    win = save_win;

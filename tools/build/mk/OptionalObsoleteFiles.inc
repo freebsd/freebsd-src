@@ -68,78 +68,6 @@ OLD_FILES+=usr/share/man/man1/batch.1.gz
 OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
-.if ${MK_ATF} == no
-OLD_DIRS+=etc/atf
-OLD_FILES+=etc/atf/FreeBSD.conf
-OLD_FILES+=etc/atf/atf-run.hooks
-OLD_FILES+=etc/atf/common.conf
-OLD_FILES+=usr/bin/atf-config
-OLD_FILES+=usr/bin/atf-report
-OLD_FILES+=usr/bin/atf-run
-OLD_FILES+=usr/bin/atf-sh
-OLD_FILES+=usr/bin/atf-version
-OLD_DIRS+=usr/include/atf-c
-OLD_FILES+=usr/include/atf-c/build.h
-OLD_FILES+=usr/include/atf-c/check.h
-OLD_FILES+=usr/include/atf-c/config.h
-OLD_FILES+=usr/include/atf-c/defs.h
-OLD_FILES+=usr/include/atf-c/error.h
-OLD_FILES+=usr/include/atf-c/error_fwd.h
-OLD_FILES+=usr/include/atf-c/macros.h
-OLD_FILES+=usr/include/atf-c/tc.h
-OLD_FILES+=usr/include/atf-c/tp.h
-OLD_FILES+=usr/include/atf-c/utils.h
-OLD_FILES+=usr/include/atf-c/atf-c.h
-OLD_FILES+=usr/include/atf-c.h
-OLD_DIRS+=usr/include/atf-c++
-OLD_FILES+=usr/include/atf-c++/build.hpp
-OLD_FILES+=usr/include/atf-c++/check.hpp
-OLD_FILES+=usr/include/atf-c++/config.hpp
-OLD_FILES+=usr/include/atf-c++/macros.hpp
-OLD_FILES+=usr/include/atf-c++/tests.hpp
-OLD_FILES+=usr/include/atf-c++/utils.hpp
-OLD_FILES+=usr/include/atf-c++/atf-c++.hpp
-OLD_FILES+=usr/include/atf-c++.hpp
-OLD_FILES+=usr/lib/libatf-c_p.a
-OLD_FILES+=usr/lib/libatf-c.so.1
-OLD_FILES+=usr/lib/libatf-c.so
-OLD_FILES+=usr/lib/libatf-c++.a
-OLD_FILES+=usr/lib/libatf-c++_p.a
-OLD_FILES+=usr/lib/libatf-c++.so.1
-OLD_FILES+=usr/lib/libatf-c++.so
-OLD_FILES+=usr/lib/libatf-c.a
-OLD_FILES+=usr/libexec/atf-check
-OLD_DIRS+=usr/share/atf
-OLD_FILES+=usr/share/atf/atf-run.hooks
-OLD_FILES+=usr/share/atf/libatf-sh.subr
-OLD_DIRS+=usr/share/doc/atf
-OLD_FILES+=usr/share/doc/atf/AUTHORS
-OLD_FILES+=usr/share/doc/atf/COPYING
-OLD_FILES+=usr/share/doc/atf/NEWS
-OLD_FILES+=usr/share/doc/atf/README
-OLD_DIRS+=usr/share/examples/atf
-OLD_FILES+=usr/share/examples/atf/atf-run.hooks
-OLD_FILES+=usr/share/examples/atf/tests-results.css
-OLD_FILES+=usr/share/man/man1/atf-check.1.gz
-OLD_FILES+=usr/share/man/man1/atf-config.1.gz
-OLD_FILES+=usr/share/man/man1/atf-report.1.gz
-OLD_FILES+=usr/share/man/man1/atf-run.1.gz
-OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
-OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
-OLD_FILES+=usr/share/man/man1/atf-version.1.gz
-OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
-OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
-OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
-OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
-OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
-OLD_FILES+=usr/share/man/man7/atf.7.gz
-OLD_FILES+=usr/share/mk/atf.test.mk
-OLD_DIRS+=usr/share/xml/atf
-OLD_FILES+=usr/share/xml/atf/tests-results.dtd
-OLD_DIRS+=usr/share/xsl/atf
-OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
-.endif
-
 .if ${MK_ATM} == no
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
@@ -149,6 +77,7 @@ OLD_FILES+=usr/include/netnatm/addr.h
 OLD_FILES+=usr/include/netnatm/api/atmapi.h
 OLD_FILES+=usr/include/netnatm/api/ccatm.h
 OLD_FILES+=usr/include/netnatm/api/unisap.h
+OLD_DIRS+=usr/include/netnatm/api
 OLD_FILES+=usr/include/netnatm/msg/uni_config.h
 OLD_FILES+=usr/include/netnatm/msg/uni_hdr.h
 OLD_FILES+=usr/include/netnatm/msg/uni_ie.h
@@ -156,13 +85,16 @@ OLD_FILES+=usr/include/netnatm/msg/uni_msg.h
 OLD_FILES+=usr/include/netnatm/msg/unimsglib.h
 OLD_FILES+=usr/include/netnatm/msg/uniprint.h
 OLD_FILES+=usr/include/netnatm/msg/unistruct.h
+OLD_DIRS+=usr/include/netnatm/msg
 OLD_FILES+=usr/include/netnatm/saal/sscfu.h
 OLD_FILES+=usr/include/netnatm/saal/sscfudef.h
 OLD_FILES+=usr/include/netnatm/saal/sscop.h
 OLD_FILES+=usr/include/netnatm/saal/sscopdef.h
+OLD_DIRS+=usr/include/netnatm/saal
 OLD_FILES+=usr/include/netnatm/sig/uni.h
 OLD_FILES+=usr/include/netnatm/sig/unidef.h
 OLD_FILES+=usr/include/netnatm/sig/unisig.h
+OLD_DIRS+=usr/include/netnatm/sig
 OLD_FILES+=usr/include/netnatm/unimsg.h
 OLD_FILES+=usr/lib/libngatm.a
 OLD_FILES+=usr/lib/libngatm.so
@@ -178,6 +110,7 @@ OLD_FILES+=usr/lib32/libngatm_p.a
 .endif
 OLD_FILES+=usr/share/doc/atm/atmconfig.help
 OLD_FILES+=usr/share/doc/atm/atmconfig_device.help
+OLD_DIRS+=usr/share/doc/atm
 OLD_FILES+=usr/share/man/man1/sscop.1.gz
 OLD_FILES+=usr/share/man/man3/libngatm.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
@@ -206,211 +139,16 @@ OLD_FILES+=usr/share/man/man8/auditd.8.gz
 
 .if ${MK_AUTHPF} == no
 OLD_FILES+=usr/sbin/authpf
+OLD_FILES+=usr/sbin/authpf-noip
 OLD_FILES+=usr/share/man/man8/authpf.8.gz
+OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .endif
-
-.if ${MK_BIND} == no
-OLD_FILES+=etc/periodic/daily/470.status-named
-OLD_FILES+=usr/bin/dig
-OLD_FILES+=usr/bin/host
-OLD_FILES+=usr/bin/nslookup
-OLD_FILES+=usr/bin/nsupdate
-OLD_FILES+=usr/include/lwres/context.h
-OLD_FILES+=usr/include/lwres/int.h
-OLD_FILES+=usr/include/lwres/ipv6.h
-OLD_FILES+=usr/include/lwres/lang.h
-OLD_FILES+=usr/include/lwres/list.h
-OLD_FILES+=usr/include/lwres/lwbuffer.h
-OLD_FILES+=usr/include/lwres/lwpacket.h
-OLD_FILES+=usr/include/lwres/lwres.h
-OLD_FILES+=usr/include/lwres/result.h
-OLD_FILES+=usr/include/lwres/version.h
-OLD_FILES+=usr/include/lwres/net.h
-OLD_FILES+=usr/include/lwres/netdb.h
-OLD_FILES+=usr/include/lwres/platform.h
-OLD_DIRS+=usr/include/lwres
-OLD_FILES+=usr/lib/liblwres.a
-OLD_FILES+=usr/lib/liblwres_p.a
-OLD_LIBS+=usr/lib/liblwres.so.50
-OLD_FILES+=usr/lib/liblwres.so
-OLD_FILES+=usr/sbin/named
-OLD_FILES+=usr/sbin/lwresd
-OLD_FILES+=usr/sbin/named-checkconf
-OLD_FILES+=usr/sbin/named-checkzone
-OLD_FILES+=usr/sbin/named.reload
-OLD_FILES+=usr/sbin/named.reconfig
-OLD_FILES+=usr/sbin/rndc
-OLD_FILES+=usr/sbin/rndc-confgen
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch01.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch02.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch03.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch04.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch05.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch06.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch07.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch08.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch09.html
-OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.html
-OLD_DIRS+=usr/share/doc/bind9/arm
-OLD_FILES+=usr/share/doc/bind9/misc/dnssec
-OLD_FILES+=usr/share/doc/bind9/misc/format-options.pl
-OLD_FILES+=usr/share/doc/bind9/misc/ipv6
-OLD_FILES+=usr/share/doc/bind9/misc/migration
-OLD_FILES+=usr/share/doc/bind9/misc/migration-4to9
-OLD_FILES+=usr/share/doc/bind9/misc/options
-OLD_FILES+=usr/share/doc/bind9/misc/rfc-compliance
-OLD_FILES+=usr/share/doc/bind9/misc/roadmap
-OLD_FILES+=usr/share/doc/bind9/misc/sdb
-OLD_DIRS+=usr/share/doc/bind9/misc
-OLD_DIRS+=usr/share/doc/bind9
-OLD_FILES+=usr/share/doc/bind9/CHANGES
-OLD_FILES+=usr/share/doc/bind9/COPYRIGHT
-OLD_FILES+=usr/share/doc/bind9/FAQ
-OLD_FILES+=usr/share/doc/bind9/README
-OLD_FILES+=usr/share/man/man1/dig.1.gz
-OLD_FILES+=usr/share/man/man1/host.1.gz
-OLD_FILES+=usr/share/man/man1/nslookup.1.gz
-OLD_FILES+=usr/share/man/man3/lwres.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_config.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabn.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gai_strerror.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getaddrinfo.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostent.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getipnode.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getnameinfo.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getrrsetbyname.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnba.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_inetntop.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_hstrerror.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_noop.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_packet.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_resutil.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_add.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_back.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_clear.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_first.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_forward.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_getmem.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint16.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint32.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint8.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_init.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_invalidate.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_putmem.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint16.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint32.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint8.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_buffer_subtract.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_conf_clear.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_conf_get.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_conf_init.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_conf_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_conf_print.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_allocmem.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_create.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_destroy.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_freemem.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_freeaddrinfo.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_initserial.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_nextserial.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_context_sendrecv.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_endhostent.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_endhostent_r.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostbyaddr.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostbyaddr_r.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostbyname.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostbyname2.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostbyname_r.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gethostent_r.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_sethostent.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_sethostent_r.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_freehostent.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getipnodebyaddr.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getipnodebyname.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_herror.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_net_ntop.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_nooprequest_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_nooprequest_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_nooprequest_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_noopresponse_free.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_noopresponse_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_noopresponse_render.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_lwpacket_parseheader.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_lwpacket_renderheader.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_addr_parse.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getaddrsbyname.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_getnamebyaddr.3.gz
-OLD_FILES+=usr/share/man/man3/lwres_string_parse.3.gz
-OLD_FILES+=usr/share/man/man5/named.conf.5.gz
-OLD_FILES+=usr/share/man/man5/rndc.conf.5.gz
-OLD_FILES+=usr/share/man/man1/nsupdate.1.gz
-OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
-OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
-OLD_FILES+=usr/share/man/man8/named.8.gz
-OLD_FILES+=usr/share/man/man8/lwresd.8.gz
-OLD_FILES+=usr/share/man/man8/named-checkconf.8.gz
-OLD_FILES+=usr/share/man/man8/named-checkzone.8.gz
-OLD_FILES+=usr/share/man/man8/named.reload.8.gz
-OLD_FILES+=usr/share/man/man8/named.reconfig.8.gz
-OLD_FILES+=usr/share/man/man8/rndc.8.gz
-OLD_FILES+=usr/share/man/man8/rndc-confgen.8.gz
-OLD_DIRS+=var/named/dev
-OLD_DIRS+=var/named/var/stats
-OLD_DIRS+=var/named/var/run/named
-OLD_DIRS+=var/named/var/run
-OLD_DIRS+=var/named/var/log
-OLD_DIRS+=var/named/var/dump
-OLD_DIRS+=var/named/var
-.endif
-
-.if ${MK_BIND_DNSSEC} == no || ${MK_BIND} == no
-OLD_FILES+=usr/sbin/dnssec-keygen
-OLD_FILES+=usr/sbin/dnssec-signzone
-.endif
-
-.if ${MK_BIND_ETC} == no || ${MK_BIND} == no
-OLD_FILES+=var/named/etc/namedb/PROTO.localhost-v6.rev
-OLD_FILES+=var/named/etc/namedb/PROTO.localhost.rev
-OLD_FILES+=var/named/etc/namedb/make-localhost
-#OLD_FILES+=var/named/etc/namedb/named.conf	# intentionally left out
-OLD_FILES+=var/named/etc/namedb/named.root
-OLD_DIRS+=var/named/etc/namedb/slave
-OLD_DIRS+=var/named/etc/namedb/master
-OLD_DIRS+=var/named/etc/namedb/dynamic
-#OLD_DIRS+=var/named/etc/namedb
-#OLD_DIRS+=var/named/etc
-.endif
-
-#.if ${MK_BIND_LIBS} == no || ${MK_BIND} == no
-# to be filled in and removed above
-#.endif
-
-#.if ${MK_BIND_LIBS_LWRES} == no || ${MK_BIND} == no
-# to be filled in and removed above
-#.endif
-
-#.if ${MK_BIND_NAMED} == no || ${MK_BIND} == no
-# to be filled in and removed above
-#.endif
 
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
 OLD_FILES+=etc/bluetooth/protocols
+OLD_DIRS+=etc/bluetooth
 OLD_FILES+=usr/bin/bthost
 OLD_FILES+=usr/bin/btsockstat
 OLD_FILES+=usr/bin/rfcomm_sppd
@@ -542,6 +280,7 @@ OLD_FILES+=usr/bin/calendar
 OLD_FILES+=usr/share/calendar/calendar.all
 OLD_FILES+=usr/share/calendar/calendar.australia
 OLD_FILES+=usr/share/calendar/calendar.birthday
+OLD_FILES+=usr/share/calendar/calendar.brazilian
 OLD_FILES+=usr/share/calendar/calendar.christian
 OLD_FILES+=usr/share/calendar/calendar.computer
 OLD_FILES+=usr/share/calendar/calendar.croatian
@@ -561,8 +300,8 @@ OLD_FILES+=usr/share/calendar/calendar.southafrica
 OLD_FILES+=usr/share/calendar/calendar.ukrainian
 OLD_FILES+=usr/share/calendar/calendar.usholiday
 OLD_FILES+=usr/share/calendar/calendar.world
-OLD_DIRS+=usr/share/calendar/de_AT.ISO_8859-15
 OLD_FILES+=usr/share/calendar/de_AT.ISO_8859-15/calendar.feiertag
+OLD_DIRS+=usr/share/calendar/de_AT.ISO_8859-15
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.all
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.feiertag
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.geschichte
@@ -570,30 +309,60 @@ OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.kirche
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.literatur
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.musik
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-1/calendar.wissenschaft
+OLD_DIRS+=usr/share/calendar/de_DE.ISO8859-1
 OLD_FILES+=usr/share/calendar/de_DE.ISO8859-15
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.all
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.fetes
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.french
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.jferies
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-1/calendar.proverbes
+OLD_DIRS+=usr/share/calendar/fr_FR.ISO8859-1
 OLD_FILES+=usr/share/calendar/fr_FR.ISO8859-15
 OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.all
 OLD_FILES+=usr/share/calendar/hr_HR.ISO8859-2/calendar.praznici
+OLD_DIRS+=usr/share/calendar/hr_HR.ISO8859-2
 OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.all
 OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.nevnapok
 OLD_FILES+=usr/share/calendar/hu_HU.ISO8859-2/calendar.unnepek
+OLD_DIRS+=usr/share/calendar/hu_HU.ISO8859-2
+OLD_FILES+=usr/share/calendar/pt_BR.ISO8859-1/calendar.all
+OLD_FILES+=usr/share/calendar/pt_BR.ISO8859-1/calendar.commemorative
+OLD_FILES+=usr/share/calendar/pt_BR.ISO8859-1/calendar.holidays
+OLD_FILES+=usr/share/calendar/pt_BR.ISO8859-1/calendar.mcommemorative
+OLD_DIRS+=usr/share/calendar/pt_BR.ISO8859-1
+OLD_FILES+=usr/share/calendar/pt_BR.UTF-8/calendar.all
+OLD_FILES+=usr/share/calendar/pt_BR.UTF-8/calendar.commemorative
+OLD_FILES+=usr/share/calendar/pt_BR.UTF-8/calendar.holidays
+OLD_FILES+=usr/share/calendar/pt_BR.UTF-8/calendar.mcommemorative
+OLD_DIRS+=usr/share/calendar/pt_BR.UTF-8
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.all
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.common
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.holiday
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.military
-OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.orthodox
 OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.pagan
+OLD_DIRS+=usr/share/calendar/ru_RU.KOI8-R
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.all
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.common
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.holiday
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.military
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.orthodox
+OLD_FILES+=usr/share/calendar/ru_RU.UTF-8/calendar.pagan
+OLD_DIRS+=usr/share/calendar/ru_RU.UTF-8
 OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.all
 OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.holiday
 OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.misc
 OLD_FILES+=usr/share/calendar/uk_UA.KOI8-U/calendar.orthodox
+OLD_DIRS+=usr/share/calendar/uk_UA.KOI8-U
+OLD_DIRS+=usr/share/calendar
 OLD_FILES+=usr/share/man/man1/calendar.1.gz
+.endif
+
+.if ${MK_CASPER} == no
+OLD_FILES+=etc/rc.d/casperd
+OLD_LIBS+=lib/libcasper.so.0
+OLD_FILES+=sbin/casper
+OLD_FILES+=usr/lib/libcasper.a
 .endif
 
 .if ${MK_CDDL} == no
@@ -609,9 +378,17 @@ OLD_FILES+=usr/bin/ctfmerge
 OLD_FILES+=usr/bin/sgsmsg
 OLD_FILES+=usr/lib/dtrace/drti.o
 OLD_FILES+=usr/lib/dtrace/errno.d
+OLD_FILES+=usr/lib/dtrace/io.d
+OLD_FILES+=usr/lib/dtrace/ip.d
 OLD_FILES+=usr/lib/dtrace/psinfo.d
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/lib/dtrace/regs_x86.d
+.endif
 OLD_FILES+=usr/lib/dtrace/signal.d
+OLD_FILES+=usr/lib/dtrace/tcp.d
+OLD_FILES+=usr/lib/dtrace/udp.d
 OLD_FILES+=usr/lib/dtrace/unistd.d
+OLD_DIRS+=usr/lib/dtrace
 OLD_FILES+=usr/lib/libavl.a
 OLD_FILES+=usr/lib/libavl.so
 OLD_FILES+=usr/lib/libavl_p.a
@@ -632,6 +409,7 @@ OLD_FILES+=usr/lib/libuutil.so
 OLD_FILES+=usr/lib/libuutil_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/dtrace/drti.o
+OLD_DIRS+=usr/lib32/dtrace
 OLD_FILES+=usr/lib32/libavl.a
 OLD_FILES+=usr/lib32/libavl.so
 OLD_LIBS+=usr/lib32/libavl.so.2
@@ -669,6 +447,7 @@ OLD_FILES+=boot/zfsloader
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
+OLD_LIBS+=lib/libzfs_core.so.2
 OLD_LIBS+=lib/libzpool.so.2
 OLD_FILES+=rescue/zfs
 OLD_FILES+=rescue/zpool
@@ -678,6 +457,9 @@ OLD_FILES+=usr/bin/zinject
 OLD_FILES+=usr/bin/ztest
 OLD_FILES+=usr/lib/libzfs.a
 OLD_FILES+=usr/lib/libzfs.so
+OLD_FILES+=usr/lib/libzfs_core.a
+OLD_FILES+=usr/lib/libzfs_core.so
+OLD_FILES+=usr/lib/libzfs_core_p.a
 OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libzpool.a
 OLD_FILES+=usr/lib/libzpool.so
@@ -685,6 +467,10 @@ OLD_FILES+=usr/lib/libzpool.so
 OLD_FILES+=usr/lib32/libzfs.a
 OLD_FILES+=usr/lib32/libzfs.so
 OLD_LIBS+=usr/lib32/libzfs.so.2
+OLD_FILES+=usr/lib32/libzfs_core.a
+OLD_FILES+=usr/lib32/libzfs_core.so
+OLD_LIBS+=usr/lib32/libzfs_core.so.2
+OLD_FILES+=usr/lib32/libzfs_core_p.a
 OLD_FILES+=usr/lib32/libzfs_p.a
 OLD_FILES+=usr/lib32/libzpool.a
 OLD_FILES+=usr/lib32/libzpool.so
@@ -702,90 +488,41 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/include/clang/2.8/emmintrin.h
-OLD_FILES+=usr/include/clang/2.8/mm_malloc.h
-OLD_FILES+=usr/include/clang/2.8/mmintrin.h
-OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
-OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
-OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
-OLD_DIRS+=usr/include/clang/2.8
-OLD_FILES+=usr/include/clang/2.9/emmintrin.h
-OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
-OLD_FILES+=usr/include/clang/2.9/mmintrin.h
-OLD_FILES+=usr/include/clang/2.9/pmmintrin.h
-OLD_FILES+=usr/include/clang/2.9/tmmintrin.h
-OLD_FILES+=usr/include/clang/2.9/xmmintrin.h
-OLD_DIRS+=usr/include/clang/2.9
-OLD_FILES+=usr/include/clang/3.0/altivec.h
-OLD_FILES+=usr/include/clang/3.0/avxintrin.h
-OLD_FILES+=usr/include/clang/3.0/emmintrin.h
-OLD_FILES+=usr/include/clang/3.0/immintrin.h
-OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
-OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
-OLD_FILES+=usr/include/clang/3.0/mmintrin.h
-OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
-OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
-OLD_FILES+=usr/include/clang/3.0/smmintrin.h
-OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
-OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
-OLD_FILES+=usr/include/clang/3.0/x86intrin.h
-OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
-OLD_DIRS+=usr/include/clang/3.0
-OLD_FILES+=usr/include/clang/3.1/altivec.h
-OLD_FILES+=usr/include/clang/3.1/avx2intrin.h
-OLD_FILES+=usr/include/clang/3.1/avxintrin.h
-OLD_FILES+=usr/include/clang/3.1/bmi2intrin.h
-OLD_FILES+=usr/include/clang/3.1/bmiintrin.h
-OLD_FILES+=usr/include/clang/3.1/cpuid.h
-OLD_FILES+=usr/include/clang/3.1/emmintrin.h
-OLD_FILES+=usr/include/clang/3.1/fma4intrin.h
-OLD_FILES+=usr/include/clang/3.1/immintrin.h
-OLD_FILES+=usr/include/clang/3.1/lzcntintrin.h
-OLD_FILES+=usr/include/clang/3.1/mm3dnow.h
-OLD_FILES+=usr/include/clang/3.1/mm_malloc.h
-OLD_FILES+=usr/include/clang/3.1/mmintrin.h
-OLD_FILES+=usr/include/clang/3.1/module.map
-OLD_FILES+=usr/include/clang/3.1/nmmintrin.h
-OLD_FILES+=usr/include/clang/3.1/pmmintrin.h
-OLD_FILES+=usr/include/clang/3.1/popcntintrin.h
-OLD_FILES+=usr/include/clang/3.1/smmintrin.h
-OLD_FILES+=usr/include/clang/3.1/tmmintrin.h
-OLD_FILES+=usr/include/clang/3.1/unwind.h
-OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
-OLD_FILES+=usr/include/clang/3.1/x86intrin.h
-OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
-OLD_DIRS+=usr/include/clang/3.1
-OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
-OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
-OLD_FILES+=usr/include/clang/3.2/altivec.h
-OLD_FILES+=usr/include/clang/3.2/ammintrin.h
-OLD_FILES+=usr/include/clang/3.2/avx2intrin.h
-OLD_FILES+=usr/include/clang/3.2/avxintrin.h
-OLD_FILES+=usr/include/clang/3.2/bmi2intrin.h
-OLD_FILES+=usr/include/clang/3.2/bmiintrin.h
-OLD_FILES+=usr/include/clang/3.2/cpuid.h
-OLD_FILES+=usr/include/clang/3.2/emmintrin.h
-OLD_FILES+=usr/include/clang/3.2/f16cintrin.h
-OLD_FILES+=usr/include/clang/3.2/fma4intrin.h
-OLD_FILES+=usr/include/clang/3.2/fmaintrin.h
-OLD_FILES+=usr/include/clang/3.2/immintrin.h
-OLD_FILES+=usr/include/clang/3.2/lzcntintrin.h
-OLD_FILES+=usr/include/clang/3.2/mm3dnow.h
-OLD_FILES+=usr/include/clang/3.2/mm_malloc.h
-OLD_FILES+=usr/include/clang/3.2/mmintrin.h
-OLD_FILES+=usr/include/clang/3.2/module.map
-OLD_FILES+=usr/include/clang/3.2/nmmintrin.h
-OLD_FILES+=usr/include/clang/3.2/pmmintrin.h
-OLD_FILES+=usr/include/clang/3.2/popcntintrin.h
-OLD_FILES+=usr/include/clang/3.2/rtmintrin.h
-OLD_FILES+=usr/include/clang/3.2/smmintrin.h
-OLD_FILES+=usr/include/clang/3.2/tmmintrin.h
-OLD_FILES+=usr/include/clang/3.2/unwind.h
-OLD_FILES+=usr/include/clang/3.2/wmmintrin.h
-OLD_FILES+=usr/include/clang/3.2/x86intrin.h
-OLD_FILES+=usr/include/clang/3.2/xmmintrin.h
-OLD_FILES+=usr/include/clang/3.2/xopintrin.h
-OLD_DIRS+=usr/include/clang/3.2
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4/altivec.h
+OLD_FILES+=usr/include/clang/3.4/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4/cpuid.h
+OLD_FILES+=usr/include/clang/3.4/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4/immintrin.h
+OLD_FILES+=usr/include/clang/3.4/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_FILES+=usr/include/clang/3.4/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4
 OLD_DIRS+=usr/include/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
@@ -813,8 +550,6 @@ OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
-OLD_FILES+=usr/bin/llvm-prof
-OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-stub
 OLD_FILES+=usr/bin/macho-dump
@@ -831,8 +566,6 @@ OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -857,40 +590,21 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
-.if ${MK_CVS} == no
-OLD_FILES+=usr/bin/cvs
-OLD_FILES+=usr/bin/cvsbug
-OLD_FILES+=usr/share/examples/cvs/contrib/README
-OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
-OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
-OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
-OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
-OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
-OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
-OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
-OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
-OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
-OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
-OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
-OLD_FILES+=usr/share/examples/cvs/contrib/log
-OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
-OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
-OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
-OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
-OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
-OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
-OLD_FILES+=usr/share/info/cvs.info.gz
-OLD_FILES+=usr/share/info/cvsclient.info.gz
-OLD_FILES+=usr/share/man/man1/cvs.1.gz
-OLD_FILES+=usr/share/man/man5/cvs.5.gz
-OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
-.endif
-
 # devd(8) and gperf(1) not listed here on purpose
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/g++
+OLD_FILES+=usr/libexec/cc1plus
+.endif
+
+.if ${MK_FMTREE} == no
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
+.endif
+
+.if ${MK_GNUCXX} == no
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/include/c++/4.2/algorithm
 OLD_FILES+=usr/include/c++/4.2/backward/algo.h
@@ -1447,22 +1161,35 @@ OLD_FILES+=usr/include/c++/4.2/utility
 OLD_FILES+=usr/include/c++/4.2/valarray
 OLD_FILES+=usr/include/c++/4.2/vector
 OLD_FILES+=usr/lib/libstdc++.a
-# Keep libs to allow bootstrapping g++(1) with gperf(1)
-#OLD_LIBS+=usr/lib/libstdc++.so
-#OLD_LIBS+=usr/lib/libstdc++.so.6
+OLD_FILES+=usr/lib/libstdc++.so
+OLD_LIBS+=usr/lib/libstdc++.so.6
 OLD_FILES+=usr/lib/libstdc++_p.a
 OLD_FILES+=usr/lib/libsupc++.a
+OLD_FILES+=usr/lib/libsupc++.so
+OLD_LIBS+=usr/lib/libsupc++.so.1
 OLD_FILES+=usr/lib/libsupc++_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libstdc++.a
+OLD_FILES+=usr/lib32/libstdc++.so
+OLD_LIBS+=usr/lib32/libstdc++.so.6
+OLD_FILES+=usr/lib32/libstdc++_p.a
+OLD_FILES+=usr/lib32/libsupc++.a
+OLD_FILES+=usr/lib32/libsupc++.so
+OLD_LIBS+=usr/lib32/libsupc++.so.1
+OLD_FILES+=usr/lib32/libsupc++_p.a
+.endif
 OLD_FILES+=usr/libexec/cc1plus
 .endif
 
 .if ${MK_DICT} == no
 OLD_FILES+=usr/share/dict/README
+OLD_FILES+=usr/share/dict/eign
 OLD_FILES+=usr/share/dict/freebsd
 OLD_FILES+=usr/share/dict/propernames
 OLD_FILES+=usr/share/dict/web2
 OLD_FILES+=usr/share/dict/web2a
 OLD_FILES+=usr/share/dict/words
+OLD_DIRS+=usr/share/dict
 .endif
 
 #.if ${MK_EXAMPLES} == no
@@ -1484,6 +1211,7 @@ OLD_FILES+=usr/share/man/man8/fdcontrol.8.gz
 OLD_FILES+=etc/freebsd-update.conf
 OLD_FILES+=usr/sbin/freebsd-update
 OLD_FILES+=usr/share/examples/etc/freebsd-update.conf
+OLD_FILES+=usr/share/man/man5/freebsd-update.conf.5.gz
 OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
@@ -1502,9 +1230,8 @@ OLD_FILES+=usr/games/random
 OLD_FILES+=usr/games/rot13
 OLD_FILES+=usr/games/strfile
 OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
 OLD_FILES+=usr/share/games/fortune/fortunes
-OLD_FILES+=usr/share/games/fortune/fortunes-o
-OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
 OLD_FILES+=usr/share/games/fortune/fortunes.dat
 OLD_FILES+=usr/share/games/fortune/freebsd-tips
 OLD_FILES+=usr/share/games/fortune/freebsd-tips.dat
@@ -1520,6 +1247,8 @@ OLD_FILES+=usr/share/games/fortune/startrek
 OLD_FILES+=usr/share/games/fortune/startrek.dat
 OLD_FILES+=usr/share/games/fortune/zippy
 OLD_FILES+=usr/share/games/fortune/zippy.dat
+OLD_DIRS+=usr/share/games/fortune
+OLD_DIRS+=usr/share/games
 OLD_FILES+=usr/share/man/man6/bcd.6.gz
 OLD_FILES+=usr/share/man/man6/caesar.6.gz
 OLD_FILES+=usr/share/man/man6/factor.6.gz
@@ -1543,11 +1272,16 @@ OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_aes.h
+OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/gcc/4.2/ammintrin.h
 OLD_FILES+=usr/include/gcc/4.2/emmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/mm3dnow.h
 OLD_FILES+=usr/include/gcc/4.2/mm_malloc.h
 OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/wmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
 .elif ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
@@ -1558,8 +1292,6 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
-OLD_DIRS+=usr/include/gcc/4.2
-OLD_DIRS+=usr/include/gcc
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
@@ -1592,9 +1324,12 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 
 .if ${MK_GPIB} == no
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
 OLD_FILES+=usr/include/dev/ieee488/ugpib.h
 OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
 OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
 OLD_FILES+=usr/lib/libgpib.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
@@ -2188,8 +1923,25 @@ OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
 # to be filled in
 #.endif
 
-.if ${MK_IDEA} == no
-OLD_FILES+=usr/include/openssl/idea.h
+.if ${MK_ICONV} == no
+OLD_FILES+=usr/bin/iconv
+OLD_FILES+=usr/bin/mkcsmapper
+OLD_FILES+=usr/bin/mkesdb
+OLD_FILES+=usr/include/_libiconv_compat.h
+OLD_FILES+=usr/include/iconv.h
+OLD_FILES+=usr/share/man/man1/iconv.1.gz
+OLD_FILES+=usr/share/man/man1/mkcsmapper.1.gz
+OLD_FILES+=usr/share/man/man1/mkesdb.1.gz
+OLD_FILES+=usr/share/man/man3/__iconv.3.gz
+OLD_FILES+=usr/share/man/man3/__iconv_free_list.3.gz	
+OLD_FILES+=usr/share/man/man3/__iconv_get_list.3.gz
+OLD_FILES+=usr/share/man/man3/iconv.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_canonicalize.3.gz	
+OLD_FILES+=usr/share/man/man3/iconv_close.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_open.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_open_into.3.gz
+OLD_FILES+=usr/share/man/man3/iconvctl.3.gz
+OLD_FILES+=usr/share/man/man3/iconvlist.3.gz	
 .endif
 
 .if ${MK_INET6} == no
@@ -2230,6 +1982,7 @@ OLD_FILES+=rescue/ping6
 
 .if ${MK_IPFILTER} == no
 OLD_FILES+=etc/periodic/security/510.ipfdenied
+OLD_FILES+=etc/periodic/security/610.ipf6denied
 OLD_FILES+=rescue/ipf
 OLD_FILES+=sbin/ipf
 OLD_FILES+=sbin/ipfs
@@ -2288,6 +2041,8 @@ OLD_FILES+=usr/share/examples/ipfilter/ipnat.conf.sample
 OLD_FILES+=usr/share/examples/ipfilter/ipf-howto.txt
 OLD_FILES+=usr/share/examples/ipfilter/examples.txt
 OLD_FILES+=usr/share/examples/ipfilter/rules.txt
+OLD_FILES+=usr/share/examples/ipfilter/mkfilters
+OLD_DIRS+=usr/share/examples/ipfilter
 OLD_FILES+=usr/share/man/man1/ipftest.1.gz
 OLD_FILES+=usr/share/man/man1/ipresend.1.gz
 OLD_FILES+=usr/share/man/man4/ipf.4.gz
@@ -2306,8 +2061,6 @@ OLD_FILES+=usr/share/man/man8/ipfstat.8.gz
 OLD_FILES+=usr/share/man/man8/ipmon.8.gz
 OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
-OLD_FILES+=etc/periodic/security/510.ipfdenied
-OLD_FILES+=etc/periodic/security/610.ipf6denied
 .endif
 
 .if ${MK_IPFW} == no
@@ -2396,6 +2149,7 @@ OLD_FILES+=usr/include/kadm5/kadm5-protos.h
 OLD_FILES+=usr/include/kadm5/kadm5-pwcheck.h
 OLD_FILES+=usr/include/kadm5/kadm5_err.h
 OLD_FILES+=usr/include/kadm5/private.h
+OLD_DIRS+=usr/include/kadm5
 OLD_FILES+=usr/include/kafs.h
 OLD_FILES+=usr/include/kdc-protos.h
 OLD_FILES+=usr/include/kdc.h
@@ -2407,6 +2161,7 @@ OLD_FILES+=usr/include/krb5/ccache_plugin.h
 OLD_FILES+=usr/include/krb5/locate_plugin.h
 OLD_FILES+=usr/include/krb5/send_to_kdc_plugin.h
 OLD_FILES+=usr/include/krb5/windc_plugin.h
+OLD_DIRS+=usr/include/krb5
 OLD_FILES+=usr/include/krb5_asn1.h
 OLD_FILES+=usr/include/krb5_ccapi.h
 OLD_FILES+=usr/include/krb5_err.h
@@ -2435,7 +2190,6 @@ OLD_FILES+=usr/lib/libasn1_p.a
 OLD_FILES+=usr/lib/libcom_err.a
 OLD_FILES+=usr/lib/libcom_err.so
 OLD_LIBS+=usr/lib/libcom_err.so.5
-OLD_FILES+=usr/lib/libcom_err_p.a
 OLD_FILES+=usr/lib/libcom_err_p.a
 OLD_FILES+=usr/lib/libgssapi_krb5.a
 OLD_FILES+=usr/lib/libgssapi_krb5.so
@@ -2501,6 +2255,14 @@ OLD_FILES+=usr/lib/pam_krb5.so
 OLD_LIBS+=usr/lib/pam_krb5.so.5
 OLD_FILES+=usr/lib/pam_ksu.so
 OLD_LIBS+=usr/lib/pam_ksu.so.5
+OLD_FILES+=usr/lib/private/libheimipcc.a
+OLD_FILES+=usr/lib/private/libheimipcc.so
+OLD_LIBS+=usr/lib/private/libheimipcc.so.11
+OLD_FILES+=usr/lib/private/libheimipcc_p.a
+OLD_FILES+=usr/lib/private/libheimipcs.a
+OLD_FILES+=usr/lib/private/libheimipcs.so
+OLD_LIBS+=usr/lib/private/libheimipcs.so.11
+OLD_FILES+=usr/lib/private/libheimipcs_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libasn1.a
 OLD_FILES+=usr/lib32/libasn1.so
@@ -2570,6 +2332,14 @@ OLD_FILES+=usr/lib32/pam_krb5.so
 OLD_LIBS+=usr/lib32/pam_krb5.so.5
 OLD_FILES+=usr/lib32/pam_ksu.so
 OLD_LIBS+=usr/lib32/pam_ksu.so.5
+OLD_FILES+=usr/lib32/private/libheimipcc.a
+OLD_FILES+=usr/lib32/private/libheimipcc.so
+OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
+OLD_FILES+=usr/lib32/private/libheimipcc_p.a
+OLD_FILES+=usr/lib32/private/libheimipcs.a
+OLD_FILES+=usr/lib32/private/libheimipcs.so
+OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
+OLD_FILES+=usr/lib32/private/libheimipcs_p.a
 .endif
 OLD_FILES+=usr/libexec/digest-service
 OLD_FILES+=usr/libexec/hprop
@@ -2799,27 +2569,16 @@ OLD_FILES+=usr/share/man/man3/hx509_verify_set_time.3.gz
 OLD_FILES+=usr/share/man/man3/hx509_verify_signature.3.gz
 OLD_FILES+=usr/share/man/man3/hx509_xfree.3.gz
 OLD_FILES+=usr/share/man/man3/k_afs_cell_of_file.3.gz
-OLD_FILES+=usr/share/man/man3/k_afs_cell_of_file.3.gz
-OLD_FILES+=usr/share/man/man3/k_hasafs.3.gz
 OLD_FILES+=usr/share/man/man3/k_hasafs.3.gz
 OLD_FILES+=usr/share/man/man3/k_pioctl.3.gz
-OLD_FILES+=usr/share/man/man3/k_pioctl.3.gz
 OLD_FILES+=usr/share/man/man3/k_setpag.3.gz
-OLD_FILES+=usr/share/man/man3/k_setpag.3.gz
-OLD_FILES+=usr/share/man/man3/k_unlog.3.gz
 OLD_FILES+=usr/share/man/man3/k_unlog.3.gz
 OLD_FILES+=usr/share/man/man3/kadm5_pwcheck.3.gz
 OLD_FILES+=usr/share/man/man3/kafs.3.gz
-OLD_FILES+=usr/share/man/man3/kafs.3.gz
-OLD_FILES+=usr/share/man/man3/kafs5.3.gz
 OLD_FILES+=usr/share/man/man3/kafs5.3.gz
 OLD_FILES+=usr/share/man/man3/kafs_set_verbose.3.gz
-OLD_FILES+=usr/share/man/man3/kafs_set_verbose.3.gz
-OLD_FILES+=usr/share/man/man3/kafs_settoken.3.gz
 OLD_FILES+=usr/share/man/man3/kafs_settoken.3.gz
 OLD_FILES+=usr/share/man/man3/kafs_settoken5.3.gz
-OLD_FILES+=usr/share/man/man3/kafs_settoken5.3.gz
-OLD_FILES+=usr/share/man/man3/kafs_settoken_rxkad.3.gz
 OLD_FILES+=usr/share/man/man3/kafs_settoken_rxkad.3.gz
 OLD_FILES+=usr/share/man/man3/krb5.3.gz
 OLD_FILES+=usr/share/man/man3/krb524_convert_creds_kdc.3.gz
@@ -2842,8 +2601,6 @@ OLD_FILES+=usr/share/man/man3/krb5_address_order.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_address_prefixlen_boundary.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_address_search.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_afslog.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_afslog.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_afslog_uid.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_afslog_uid.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_allow_weak_crypto.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_aname_to_localname.3.gz
@@ -2879,7 +2636,6 @@ OLD_FILES+=usr/share/man/man3/krb5_auth_getauthenticator.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_getcksumtype.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_getkeytype.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_getlocalseqnumber.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_auth_getremoteseqnumber.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_getremoteseqnumber.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_setcksumtype.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_auth_setkeytype.3.gz
@@ -3027,14 +2783,12 @@ OLD_FILES+=usr/share/man/man3/krb5_free_address.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_addresses.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_config_files.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_context.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_free_context.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_cred_contents.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_creds.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_creds_contents.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_data.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_data_contents.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_error_string.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_free_host_realm.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_host_realm.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_keyblock.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_free_keyblock_contents.3.gz
@@ -3115,7 +2869,6 @@ OLD_FILES+=usr/share/man/man3/krb5_keytype_to_string.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_format_string.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_free.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_get_addrinfo.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_krbhst_get_addrinfo.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_init.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_next.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_krbhst_next_as_string.3.gz
@@ -3156,15 +2909,12 @@ OLD_FILES+=usr/share/man/man3/krb5_pac_get_buffer.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_pac_verify.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_parse_address.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_parse_name.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_parse_name.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_parse_name_flags.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_parse_nametype.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_password_key_proc.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_plugin_register.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_prepend_config_files_default.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_princ_realm.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_princ_realm.3.gz
-OLD_FILES+=usr/share/man/man3/krb5_princ_set_realm.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_princ_set_realm.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_principal.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_principal_compare.3.gz
@@ -3298,8 +3048,6 @@ OLD_FILES+=usr/share/man/man3/krb5_vlog_msg.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_vset_error_string.3.gz
 OLD_FILES+=usr/share/man/man3/krb5_vwarn.3.gz
 OLD_FILES+=usr/share/man/man3/krb_afslog.3.gz
-OLD_FILES+=usr/share/man/man3/krb_afslog.3.gz
-OLD_FILES+=usr/share/man/man3/krb_afslog_uid.3.gz
 OLD_FILES+=usr/share/man/man3/krb_afslog_uid.3.gz
 OLD_FILES+=usr/share/man/man3/ntlm_buf.3.gz
 OLD_FILES+=usr/share/man/man3/ntlm_core.3.gz
@@ -3325,7 +3073,26 @@ OLD_FILES+=usr/share/man/man8/pam_krb5.8.gz
 OLD_FILES+=usr/share/man/man8/pam_ksu.8.gz
 OLD_FILES+=usr/share/man/man8/string2key.8.gz
 OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
-OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
+.endif
+
+.if ${MK_LDNS} == no
+OLD_FILES+=usr/lib/private/libldns.a
+OLD_FILES+=usr/lib/private/libldns.so
+OLD_LIBS+=usr/lib/private/libldns.so.5
+OLD_FILES+=usr/lib/private/libldns_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libldns.a
+OLD_FILES+=usr/lib32/private/libldns.so
+OLD_LIBS+=usr/lib32/private/libldns.so.5
+OLD_FILES+=usr/lib32/private/libldns_p.a
+.endif
+.endif
+
+.if ${MK_LDNS_UTILS} == no
+OLD_FILES+=usr/bin/drill
+OLD_FILES+=usr/share/man/man1/drill.1.gz
+OLD_FILES+=usr/bin/host
+OLD_FILES+=usr/share/man/man1/host.1.gz
 .endif
 
 #.if ${MK_LIB32} == no
@@ -3393,6 +3160,8 @@ OLD_FILES+=usr/include/c++/v1/cwctype
 OLD_FILES+=usr/include/c++/v1/cxxabi.h
 OLD_FILES+=usr/include/c++/v1/deque
 OLD_FILES+=usr/include/c++/v1/exception
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
+OLD_FILES+=usr/include/c++/v1/experimental/optional
 OLD_FILES+=usr/include/c++/v1/ext/__hash
 OLD_FILES+=usr/include/c++/v1/ext/hash_map
 OLD_FILES+=usr/include/c++/v1/ext/hash_set
@@ -3443,6 +3212,7 @@ OLD_FILES+=usr/include/c++/v1/unwind.h
 OLD_FILES+=usr/include/c++/v1/utility
 OLD_FILES+=usr/include/c++/v1/valarray
 OLD_FILES+=usr/include/c++/v1/vector
+OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
 .endif
@@ -3479,13 +3249,16 @@ OLD_FILES+=usr/bin/lprm
 OLD_FILES+=usr/libexec/lpr/ru/bjc-240.sh.sample
 OLD_FILES+=usr/libexec/lpr/ru/koi2alt
 OLD_FILES+=usr/libexec/lpr/ru/koi2855
+OLD_DIRS+=usr/libexec/lpr/ru
 OLD_FILES+=usr/libexec/lpr/lpf
+OLD_DIRS+=usr/libexec/lpr
 OLD_FILES+=usr/sbin/chkprintcap
 OLD_FILES+=usr/sbin/lpc
 OLD_FILES+=usr/sbin/lpd
 OLD_FILES+=usr/sbin/lptest
 OLD_FILES+=usr/sbin/pac
 OLD_FILES+=usr/share/doc/smm/07.lpd/paper.ascii.gz
+OLD_DIRS+=usr/share/doc/smm/07.lpd
 OLD_FILES+=usr/share/examples/etc/hosts.lpd
 OLD_FILES+=usr/share/examples/etc/printcap
 OLD_FILES+=usr/share/man/man1/lp.1.gz
@@ -3547,9 +3320,60 @@ OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
 .endif
 
-#.if ${MK_NIS} == no
-# to be filled in
-#.endif
+.if ${MK_NIS} == no
+OLD_FILES+=usr/bin/ypcat
+OLD_FILES+=usr/bin/ypchfn
+OLD_FILES+=usr/bin/ypchpass
+OLD_FILES+=usr/bin/ypchsh
+OLD_FILES+=usr/bin/ypmatch
+OLD_FILES+=usr/bin/yppasswd
+OLD_FILES+=usr/bin/ypwhich
+OLD_FILES+=usr/include/ypclnt.h
+OLD_FILES+=usr/lib/libypclnt.a
+OLD_FILES+=usr/lib/libypclnt.so
+OLD_LIBS+=usr/lib/libypclnt.so.4
+OLD_FILES+=usr/lib/libypclnt_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libypclnt.a
+OLD_FILES+=usr/lib32/libypclnt.so
+OLD_LIBS+=usr/lib32/libypclnt.so.4
+OLD_FILES+=usr/lib32/libypclnt_p.a
+.endif
+OLD_FILES+=usr/libexec/mknetid
+OLD_FILES+=usr/libexec/yppwupdate
+OLD_FILES+=usr/libexec/ypxfr
+OLD_FILES+=usr/sbin/rpc.yppasswdd
+OLD_FILES+=usr/sbin/rpc.ypupdated
+OLD_FILES+=usr/sbin/rpc.ypxfrd
+OLD_FILES+=usr/sbin/yp_mkdb
+OLD_FILES+=usr/sbin/ypbind
+OLD_FILES+=usr/sbin/ypinit
+OLD_FILES+=usr/sbin/yppoll
+OLD_FILES+=usr/sbin/yppush
+OLD_FILES+=usr/sbin/ypserv
+OLD_FILES+=usr/sbin/ypset
+OLD_FILES+=usr/share/man/man1/ypcat.1.gz
+OLD_FILES+=usr/share/man/man1/ypchfn.1.gz
+OLD_FILES+=usr/share/man/man1/ypchpass.1.gz
+OLD_FILES+=usr/share/man/man1/ypchsh.1.gz
+OLD_FILES+=usr/share/man/man1/ypmatch.1.gz
+OLD_FILES+=usr/share/man/man1/yppasswd.1.gz
+OLD_FILES+=usr/share/man/man1/ypwhich.1.gz
+OLD_FILES+=usr/share/man/man5/netid.5.gz
+OLD_FILES+=usr/share/man/man8/mknetid.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.yppasswdd.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.ypxfrd.8.gz
+OLD_FILES+=usr/share/man/man8/yp_mkdb.8.gz
+OLD_FILES+=usr/share/man/man8/ypbind.8.gz
+OLD_FILES+=usr/share/man/man8/ypinit.8.gz
+OLD_FILES+=usr/share/man/man8/yppoll.8.gz
+OLD_FILES+=usr/share/man/man8/yppush.8.gz
+OLD_FILES+=usr/share/man/man8/ypserv.8.gz
+OLD_FILES+=usr/share/man/man8/ypset.8.gz
+OLD_FILES+=usr/share/man/man8/ypxfr.8.gz
+OLD_FILES+=var/yp/Makefile
+OLD_FILES+=var/yp/Makefile.dist
+.endif
 
 #.if ${MK_NLS} == no
 # to be filled in
@@ -3631,6 +3455,7 @@ OLD_FILES+=usr/share/doc/ntp/rdebug.html
 OLD_FILES+=usr/share/doc/ntp/refclock.html
 OLD_FILES+=usr/share/doc/ntp/release.html
 OLD_FILES+=usr/share/doc/ntp/tickadj.html
+OLD_DIRS+=usr/share/doc/ntp
 OLD_FILES+=usr/share/examples/etc/ntp.conf
 OLD_FILES+=usr/share/man/man5/ntp.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ntp.keys.5.gz
@@ -3646,13 +3471,122 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_OPENSSH} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSH} == no
+OLD_FILES+=usr/bin/sftp
+OLD_FILES+=usr/bin/ssh
+OLD_FILES+=usr/bin/ssh-add
+OLD_FILES+=usr/bin/ssh-agent
+OLD_FILES+=usr/bin/ssh-copy-id
+OLD_FILES+=usr/bin/ssh-keygen
+OLD_FILES+=usr/bin/ssh-keyscan
+OLD_FILES+=usr/lib/private/libssh.a
+OLD_FILES+=usr/lib/private/libssh.so
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_FILES+=usr/lib/private/libssh_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libssh.a
+OLD_FILES+=usr/lib32/private/libssh.so
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_FILES+=usr/lib32/private/libssh_p.a
+.endif
+OLD_FILES+=usr/libexec/sftp-server
+OLD_FILES+=usr/libexec/ssh-keysign
+OLD_FILES+=usr/libexec/ssh-pkcs11-helper
+OLD_FILES+=usr/sbin/sshd
+.endif
 
 #.if ${MK_OPENSSL} == no
 # to be filled in
 #.endif
+
+.if ${MK_PC_SYSINSTALL} == no
+# backend-partmanager
+OLD_FILES+=usr/share/pc-sysinstall/backend-partmanager/create-part.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-partmanager/delete-part.sh
+# backend-query
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-emulation.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-laptop.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-nics.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-info.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-list.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-part.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/enable-net.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/get-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-components.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-config.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-mirrors.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-rsync-backups.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-tzones.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/query-langs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/send-logs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/setup-ssh-keys.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/set-mirror.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/sys-mem.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/test-live.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/test-netup.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/update-part-list.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-layouts.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-models.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-variants.sh
+# backend
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-bsdlabel.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-cleanup.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-disk.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-extractimage.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-ftp.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-installcomponents.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-installpackages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-localize.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-mountdisk.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-mountoptical.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-networking.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-newfs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-parse.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-runcommands.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-unmount.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-upgrade.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-users.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/installimage.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/parseconfig.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/startautoinstall.sh
+# conf
+OLD_FILES+=usr/share/pc-sysinstall/conf/avail-langs
+OLD_FILES+=usr/share/pc-sysinstall/conf/exclude-from-upgrade
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/bsd-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/intel-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/nvidia-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/pc-sysinstall.conf
+# doc
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-disk-list
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-disk-size
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-index
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-start-autoinstall
+# examples
+OLD_FILES+=usr/share/examples/pc-sysinstall/README
+OLD_FILES+=usr/share/examples/pc-sysinstall/pc-autoinstall.conf
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.fbsd-netinstall
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.geli
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.gmirror
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.netinstall
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.restore
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.rsync
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.upgrade
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.zfs
+# pc-sysinstall
+OLD_FILES+=usr/sbin/pc-sysinstall
+OLD_FILES+=usr/share/man/man8/pc-sysinstall.8.gz
+OLD_DIRS+=usr/share/pc-sysinstall/backend
+OLD_DIRS+=usr/share/pc-sysinstall/backend-partmanager
+OLD_DIRS+=usr/share/pc-sysinstall/backend-query
+OLD_DIRS+=usr/share/pc-sysinstall/conf/license
+OLD_DIRS+=usr/share/pc-sysinstall/conf
+OLD_DIRS+=usr/share/pc-sysinstall/doc
+OLD_DIRS+=usr/share/pc-sysinstall
+OLD_DIRS+=usr/share/examples/pc-sysinstall
+.endif
 
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
@@ -3672,6 +3606,7 @@ OLD_FILES+=usr/share/examples/pf/queue2
 OLD_FILES+=usr/share/examples/pf/queue3
 OLD_FILES+=usr/share/examples/pf/queue4
 OLD_FILES+=usr/share/examples/pf/spamd
+OLD_DIRS+=usr/share/examples/pf
 OLD_FILES+=usr/share/man/man4/pf.4.gz
 OLD_FILES+=usr/share/man/man4/pflog.4.gz
 OLD_FILES+=usr/share/man/man4/pfsync.4.gz
@@ -3685,29 +3620,7 @@ OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 
 .if ${MK_PKGBOOTSTRAP} == no
 OLD_FILES+=usr/sbin/pkg
-.endif
-
-.if ${MK_PKGTOOLS} == no
-OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
-OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
-OLD_FILES+=etc/periodic/security/460.chkportsum
-OLD_FILES+=etc/periodic/weekly/400.status-pkg
-OLD_FILES+=usr/include/pkg.h
-OLD_FILES+=usr/lib/libpkg.a
-OLD_FILES+=usr/lib/libpkg.so
-OLD_LIBS+=usr/lib/libpkg.so.0
-OLD_FILES+=usr/sbin/pkg_add
-OLD_FILES+=usr/sbin/pkg_create
-OLD_FILES+=usr/sbin/pkg_delete
-OLD_FILES+=usr/sbin/pkg_info
-OLD_FILES+=usr/sbin/pkg_updating
-OLD_FILES+=usr/sbin/pkg_version
-OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
+OLD_FILES+=usr/share/man/man7/pkg.7.gz
 .endif
 
 .if ${MK_PORTSNAP} == no
@@ -3721,6 +3634,7 @@ OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 
 .if ${MK_PPP} == no
 OLD_FILES+=etc/ppp/ppp.conf
+OLD_DIRS+=etc/ppp
 OLD_FILES+=usr/sbin/ppp
 OLD_FILES+=usr/sbin/pppctl
 OLD_FILES+=usr/share/man/man8/ppp.8.gz
@@ -3763,7 +3677,6 @@ OLD_FILES+=usr/lib/libfetch_p.a
 OLD_FILES+=usr/lib/libfl_p.a
 OLD_FILES+=usr/lib/libform_p.a
 OLD_FILES+=usr/lib/libformw_p.a
-OLD_FILES+=usr/lib/libftpio_p.a
 OLD_FILES+=usr/lib/libgcc_p.a
 OLD_FILES+=usr/lib/libgeom_p.a
 OLD_FILES+=usr/lib/libgnuregex_p.a
@@ -3786,7 +3699,6 @@ OLD_FILES+=usr/lib/libkrb5_p.a
 OLD_FILES+=usr/lib/libkvm_p.a
 OLD_FILES+=usr/lib/libl_p.a
 OLD_FILES+=usr/lib/libln_p.a
-OLD_FILES+=usr/lib/liblwres_p.a
 OLD_FILES+=usr/lib/libm_p.a
 OLD_FILES+=usr/lib/libmagic_p.a
 OLD_FILES+=usr/lib/libmd_p.a
@@ -3795,12 +3707,10 @@ OLD_FILES+=usr/lib/libmenu_p.a
 OLD_FILES+=usr/lib/libmenuw_p.a
 OLD_FILES+=usr/lib/libmilter_p.a
 OLD_FILES+=usr/lib/libmp_p.a
-OLD_FILES+=usr/lib/libncp_p.a
 OLD_FILES+=usr/lib/libncurses_p.a
 OLD_FILES+=usr/lib/libncursesw_p.a
 OLD_FILES+=usr/lib/libnetgraph_p.a
 OLD_FILES+=usr/lib/libngatm_p.a
-OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/lib/libopie_p.a
 OLD_FILES+=usr/lib/libpanel_p.a
 OLD_FILES+=usr/lib/libpanelw_p.a
@@ -3815,7 +3725,6 @@ OLD_FILES+=usr/lib/librt_p.a
 OLD_FILES+=usr/lib/libsbuf_p.a
 OLD_FILES+=usr/lib/libsdp_p.a
 OLD_FILES+=usr/lib/libsmb_p.a
-OLD_FILES+=usr/lib/libssh_p.a
 OLD_FILES+=usr/lib/libssl_p.a
 OLD_FILES+=usr/lib/libstdc++_p.a
 OLD_FILES+=usr/lib/libsupc++_p.a
@@ -3838,6 +3747,8 @@ OLD_FILES+=usr/lib/libwrap_p.a
 OLD_FILES+=usr/lib/liby_p.a
 OLD_FILES+=usr/lib/libypclnt_p.a
 OLD_FILES+=usr/lib/libz_p.a
+OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/private/libssh_p.a
 .endif
 
 .if ${MK_RCMDS} == no
@@ -3900,7 +3811,6 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 
 .if ${MK_SENDMAIL} == no
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
-OLD_FILES+=etc/periodic/daily/210.backup-aliases
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
@@ -3910,11 +3820,14 @@ OLD_FILES+=bin/rmail
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h
+OLD_DIRS+=usr/include/libmilter
 OLD_FILES+=usr/lib/libmilter.a
+OLD_FILES+=usr/lib/libmilter.so
 OLD_LIBS+=usr/lib/libmilter.so.5
 OLD_FILES+=usr/lib/libmilter_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libmilter.a
+OLD_FILES+=usr/lib32/libmilter.so
 OLD_LIBS+=usr/lib32/libmilter.so.5
 OLD_FILES+=usr/lib32/libmilter_p.a
 .endif
@@ -3926,6 +3839,7 @@ OLD_FILES+=usr/sbin/mailstats
 OLD_FILES+=usr/sbin/makemap
 OLD_FILES+=usr/sbin/praliases
 OLD_FILES+=usr/share/doc/smm/08.sendmailop/paper.ascii.gz
+OLD_DIRS+=usr/share/doc/smm/08.sendmailop
 OLD_FILES+=usr/share/man/man1/mailq.1.gz
 OLD_FILES+=usr/share/man/man1/newaliases.1.gz
 OLD_FILES+=usr/share/man/man1/vacation.1.gz
@@ -3977,12 +3891,14 @@ OLD_FILES+=usr/share/sendmail/cf/cf/ucbarpa.mc
 OLD_FILES+=usr/share/sendmail/cf/cf/ucbvax.mc
 OLD_FILES+=usr/share/sendmail/cf/cf/uucpproto.mc
 OLD_FILES+=usr/share/sendmail/cf/cf/vangogh.cs.mc
+OLD_DIRS+=usr/share/sendmail/cf/cf
 OLD_FILES+=usr/share/sendmail/cf/domain/Berkeley.EDU.m4
 OLD_FILES+=usr/share/sendmail/cf/domain/CS.Berkeley.EDU.m4
 OLD_FILES+=usr/share/sendmail/cf/domain/EECS.Berkeley.EDU.m4
 OLD_FILES+=usr/share/sendmail/cf/domain/S2K.Berkeley.EDU.m4
 OLD_FILES+=usr/share/sendmail/cf/domain/berkeley-only.m4
 OLD_FILES+=usr/share/sendmail/cf/domain/generic.m4
+OLD_DIRS+=usr/share/sendmail/cf/domain
 OLD_FILES+=usr/share/sendmail/cf/feature/accept_unqualified_senders.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/accept_unresolvable_domains.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/access_db.m4
@@ -4040,11 +3956,14 @@ OLD_FILES+=usr/share/sendmail/cf/feature/use_cw_file.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/uucpdomain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/virtuser_entire_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/virtusertable.m4
+OLD_DIRS+=usr/share/sendmail/cf/feature
 OLD_FILES+=usr/share/sendmail/cf/hack/cssubdomain.m4
+OLD_DIRS+=usr/share/sendmail/cf/hack
 OLD_FILES+=usr/share/sendmail/cf/m4/cf.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/cfhead.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/proto.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/version.m4
+OLD_DIRS+=usr/share/sendmail/cf/m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/cyrus.m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/cyrusv2.m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/fax.m4
@@ -4057,6 +3976,7 @@ OLD_FILES+=usr/share/sendmail/cf/mailer/qpage.m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/smtp.m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/usenet.m4
 OLD_FILES+=usr/share/sendmail/cf/mailer/uucp.m4
+OLD_DIRS+=usr/share/sendmail/cf/mailer
 OLD_FILES+=usr/share/sendmail/cf/ostype/a-ux.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/aix3.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/aix4.m4
@@ -4098,6 +4018,7 @@ OLD_FILES+=usr/share/sendmail/cf/ostype/riscos4.5.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/sco-uw-2.1.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/sco3.2.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/sinix.m4
+OLD_FILES+=usr/share/sendmail/cf/ostype/solaris11.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/solaris2.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/solaris2.ml.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/solaris2.pre5.m4
@@ -4112,12 +4033,17 @@ OLD_FILES+=usr/share/sendmail/cf/ostype/unicosmp.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/unixware7.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/unknown.m4
 OLD_FILES+=usr/share/sendmail/cf/ostype/uxpds.m4
+OLD_DIRS+=usr/share/sendmail/cf/ostype
 OLD_FILES+=usr/share/sendmail/cf/sendmail.schema
 OLD_FILES+=usr/share/sendmail/cf/sh/makeinfo.sh
+OLD_DIRS+=usr/share/sendmail/cf/sh
 OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.cogsci.m4
 OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.old.arpa.m4
 OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.ucbarpa.m4
 OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.ucbvax.m4
+OLD_DIRS+=usr/share/sendmail/cf/siteconfig
+OLD_DIRS+=usr/share/sendmail/cf
+OLD_DIRS+=usr/share/sendmail
 .endif
 
 #.if ${MK_SHAREDOCS} == no
@@ -4135,35 +4061,57 @@ OLD_FILES+=rescue/csh
 OLD_FILES+=rescue/tcsh
 OLD_FILES+=usr/share/examples/tcsh/complete.tcsh
 OLD_FILES+=usr/share/examples/tcsh/csh-mode.el
+OLD_DIRS+=usr/share/examples/tcsh
 OLD_FILES+=usr/share/man/man1/csh.1.gz
 OLD_FILES+=usr/share/man/man1/tcsh.1.gz
 OLD_FILES+=usr/share/nls/de_AT.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/de_AT.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/de_AT.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/de_CH.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/de_CH.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/de_CH.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/de_DE.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/de_DE.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/de_DE.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/el_GR.ISO8859-7/tcsh.cat
+OLD_FILES+=usr/share/nls/el_GR.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/es_ES.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/es_ES.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/es_ES.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/et_EE.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/et_EE.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/fi_FI.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/fi_FI.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/fi_FI.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_BE.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_BE.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_BE.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_CA.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_CA.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_CA.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_CH.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_CH.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_CH.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_FR.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/fr_FR.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_FR.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/it_CH.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/it_CH.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/it_CH.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/it_IT.ISO8859-1/tcsh.cat
 OLD_FILES+=usr/share/nls/it_IT.ISO8859-15/tcsh.cat
+OLD_FILES+=usr/share/nls/it_IT.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/ja_JP.SJIS/tcsh.cat
+OLD_FILES+=usr/share/nls/ja_JP.UTF-8/tcsh.cat
 OLD_FILES+=usr/share/nls/ja_JP.eucJP/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.CP1251/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.CP866/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.ISO8859-5/tcsh.cat
 OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/uk_UA.ISO8859-5/tcsh.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/tcsh.cat
+OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
 .endif
 
 .if ${MK_TELNET} == no
@@ -4173,9 +4121,113 @@ OLD_FILES+=usr/share/man/man1/telnet.1.gz
 OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
+.if ${MK_TESTS} == yes
+OLD_LIBS+=usr/lib/libatf-c++.so.1
+OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
+OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/list_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/map_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_helpers
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/user_test
+.else
+# ATF libraries.
+OLD_FILES+=usr/bin/atf-sh
+OLD_DIRS+=usr/include/atf-c
+OLD_FILES+=usr/include/atf-c/build.h
+OLD_FILES+=usr/include/atf-c/check.h
+OLD_FILES+=usr/include/atf-c/config.h
+OLD_FILES+=usr/include/atf-c/defs.h
+OLD_FILES+=usr/include/atf-c/error.h
+OLD_FILES+=usr/include/atf-c/error_fwd.h
+OLD_FILES+=usr/include/atf-c/macros.h
+OLD_FILES+=usr/include/atf-c/tc.h
+OLD_FILES+=usr/include/atf-c/tp.h
+OLD_FILES+=usr/include/atf-c/utils.h
+OLD_FILES+=usr/include/atf-c.h
+OLD_DIRS+=usr/include/atf-c++
+OLD_FILES+=usr/include/atf-c++/build.hpp
+OLD_FILES+=usr/include/atf-c++/check.hpp
+OLD_FILES+=usr/include/atf-c++/config.hpp
+OLD_FILES+=usr/include/atf-c++/macros.hpp
+OLD_FILES+=usr/include/atf-c++/tests.hpp
+OLD_FILES+=usr/include/atf-c++/utils.hpp
+OLD_FILES+=usr/include/atf-c++.hpp
+OLD_FILES+=usr/lib/libatf-c_p.a
+OLD_FILES+=usr/lib/libatf-c.so.1
+OLD_FILES+=usr/lib/libatf-c.so
+OLD_FILES+=usr/lib/libatf-c++.a
+OLD_FILES+=usr/lib/libatf-c++_p.a
+OLD_FILES+=usr/lib/libatf-c++.so.1
+OLD_FILES+=usr/lib/libatf-c++.so
+OLD_FILES+=usr/lib/libatf-c.a
+OLD_FILES+=usr/libexec/atf-check
+OLD_DIRS+=usr/share/atf
+OLD_FILES+=usr/share/atf/libatf-sh.subr
+OLD_DIRS+=usr/share/doc/atf
+OLD_FILES+=usr/share/doc/atf/AUTHORS
+OLD_FILES+=usr/share/doc/atf/COPYING
+OLD_FILES+=usr/share/doc/atf/NEWS
+OLD_FILES+=usr/share/doc/atf/README
+OLD_FILES+=usr/share/man/man1/atf-check.1.gz
+OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
+OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
+OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
+OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
+OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
+OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
+OLD_FILES+=usr/share/mk/atf.test.mk
+
+# Test suite.
+. if(exists(${DESTDIR}/usr/tests/))
+TESTS_DIRS!=find ${DESTDIR}/usr/tests -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${TESTS_DIRS}
+TESTS_FILES!=find ${DESTDIR}/usr/tests \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${TESTS_FILES}
+. endif
+.endif	# Test suite.
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
+
+.if ${MK_UNBOUND} == no
+OLD_FILES+=etc/rc.d/local_unbound
+OLD_FILES+=usr/lib/private/libunbound.a
+OLD_FILES+=usr/lib/private/libunbound.so
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_FILES+=usr/lib/private/libunbound_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libunbound.a
+OLD_FILES+=usr/lib32/private/libunbound.so
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_FILES+=usr/lib32/private/libunbound_p.a
+.endif
+OLD_FILES+=usr/sbin/local-unbound-setup
+OLD_FILES+=usr/sbin/unbound
+OLD_FILES+=usr/sbin/unbound-anchor
+OLD_FILES+=usr/sbin/unbound-checkconf
+OLD_FILES+=usr/sbin/unbound-control
+OLD_FILES+=usr/sbin/unbound-control-setup
+.endif
 
 #.if ${MK_USB} == no
 # to be filled in
@@ -4186,19 +4238,15 @@ OLD_FILES+=etc/periodic/monthly/200.accounting
 OLD_FILES+=usr/bin/last
 OLD_FILES+=usr/bin/users
 OLD_FILES+=usr/bin/who
-OLD_FILES+=usr/bin/wtmpcvt
 OLD_FILES+=usr/sbin/ac
 OLD_FILES+=usr/sbin/lastlogin
 OLD_FILES+=usr/sbin/utx
-OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man1/last.1.gz
 OLD_FILES+=usr/share/man/man1/users.1.gz
 OLD_FILES+=usr/share/man/man1/who.1.gz
-OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
 OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
-OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 .endif
 
 .if ${MK_WIRELESS} == no
@@ -4208,7 +4256,9 @@ OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli
 OLD_FILES+=usr/sbin/ndis_events
 OLD_FILES+=usr/sbin/wlandebug
+.if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/sbin/wlconfig
+.endif
 OLD_FILES+=usr/sbin/wpa_cli
 OLD_FILES+=usr/sbin/wpa_passphrase
 OLD_FILES+=usr/sbin/wpa_supplicant
@@ -4217,15 +4267,48 @@ OLD_FILES+=usr/share/examples/etc/wpa_supplicant.conf
 OLD_FILES+=usr/share/examples/hostapd/hostapd.conf
 OLD_FILES+=usr/share/examples/hostapd/hostapd.eap_user
 OLD_FILES+=usr/share/examples/hostapd/hostapd.wpa_psk
+OLD_DIRS+=usr/share/examples/hostapd
 OLD_FILES+=usr/share/man/man5/hostapd.conf.5.gz
 OLD_FILES+=usr/share/man/man5/wpa_supplicant.conf.5.gz
 OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd.8.gz
 OLD_FILES+=usr/share/man/man8/hostapd_cli.8.gz
+.if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
+.endif
 OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
 OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_passphrase.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
+.endif
+
+.if ${MK_SVNLITE} == no || ${MK_SVN} == yes
+OLD_FILES+=usr/bin/svnlite
+OLD_FILES+=usr/bin/svnliteadmin
+OLD_FILES+=usr/bin/svnlitedumpfilter
+OLD_FILES+=usr/bin/svnlitelook
+OLD_FILES+=usr/bin/svnlitemucc
+OLD_FILES+=usr/bin/svnliterdump
+OLD_FILES+=usr/bin/svnliteserve
+OLD_FILES+=usr/bin/svnlitesync
+OLD_FILES+=usr/bin/svnliteversion
+.endif
+
+.if ${MK_SVN} == no
+OLD_FILES+=usr/bin/svn
+OLD_FILES+=usr/bin/svnadmin
+OLD_FILES+=usr/bin/svndumpfilter
+OLD_FILES+=usr/bin/svnlook
+OLD_FILES+=usr/bin/svnmucc
+OLD_FILES+=usr/bin/svnrdump
+OLD_FILES+=usr/bin/svnserve
+OLD_FILES+=usr/bin/svnsync
+OLD_FILES+=usr/bin/svnversion
+.endif
+
+.if ${MK_DMAGENT} == no
+OLD_FILES+=usr/libexec/dma
+OLD_FILES+=usr/libexec/dma-mbox-create
+OLD_FILES+=usr/share/man/man8/dma.8.gz
 .endif

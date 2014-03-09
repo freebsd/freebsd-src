@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -82,6 +81,11 @@ extern int	*end;
 void	lcd_init(void);
 void	lcd_puts(char *);
 void	malta_reset(void);
+
+/*
+ * Temporary boot environment used at startup.
+ */
+static char boot1_env[4096];
 
 /*
  * Offsets to MALTA LCD characters.
@@ -265,8 +269,8 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
-	char **argv = (char **)a1;
-	char **envp = (char **)a2;
+	int32_t *argv = (int32_t*)a1;
+	int32_t *envp = (int32_t*)a2;
 	unsigned int memsize = a3;
 	int i;
 
@@ -279,20 +283,26 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_pcpu0_init();
 	platform_counter_freq = malta_cpu_freq();
 	mips_timer_early_init(platform_counter_freq);
+	init_static_kenv(boot1_env, sizeof(boot1_env));
 
 	cninit();
 	printf("entry: platform_start()\n");
 
 	bootverbose = 1;
+	/* 
+	 * YAMON uses 32bit pointers to strings so
+	 * convert them to proper type manually
+	 */
 	if (bootverbose) {
 		printf("cmd line: ");
 		for (i = 0; i < argc; i++)
-			printf("%s ", argv[i]);
+			printf("%s ", (char*)(intptr_t)argv[i]);
 		printf("\n");
 
 		printf("envp:\n");
 		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", envp[i], envp[i+1]);
+			printf("\t%s = %s\n", (char*)(intptr_t)envp[i],
+			    (char*)(intptr_t)envp[i+1]);
 
 		printf("memsize = %08x\n", memsize);
 	}

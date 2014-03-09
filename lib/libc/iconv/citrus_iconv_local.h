@@ -31,6 +31,7 @@
 #define _CITRUS_ICONV_LOCAL_H_
 
 #include <iconv.h>
+#include <stdbool.h>
 
 #define _CITRUS_ICONV_GETOPS_FUNC_BASE(_n_)				\
     int _n_(struct _citrus_iconv_ops *)
@@ -45,7 +46,7 @@ static void	 _citrus_##_m_##_iconv_uninit_shared			\
 		    (struct _citrus_iconv_shared *);			\
 static int	 _citrus_##_m_##_iconv_convert				\
 		    (struct _citrus_iconv * __restrict,			\
-		    char * __restrict * __restrict,			\
+		    const char * __restrict * __restrict,		\
 		    size_t * __restrict,				\
 		    char * __restrict * __restrict,			\
 		    size_t * __restrict outbytes,			\
@@ -57,6 +58,7 @@ static void	 _citrus_##_m_##_iconv_uninit_context			\
 
 
 #define _CITRUS_ICONV_DEF_OPS(_m_)					\
+extern struct _citrus_iconv_ops _citrus_##_m_##_iconv_ops;		\
 struct _citrus_iconv_ops _citrus_##_m_##_iconv_ops = {			\
 	/* io_init_shared */	&_citrus_##_m_##_iconv_init_shared,	\
 	/* io_uninit_shared */	&_citrus_##_m_##_iconv_uninit_shared,	\
@@ -73,7 +75,7 @@ typedef void (*_citrus_iconv_uninit_shared_t)
     (struct _citrus_iconv_shared *);
 typedef int (*_citrus_iconv_convert_t)
     (struct _citrus_iconv * __restrict,
-    char *__restrict* __restrict, size_t * __restrict,
+    const char *__restrict* __restrict, size_t * __restrict,
     char * __restrict * __restrict, size_t * __restrict, uint32_t,
     size_t * __restrict);
 typedef int (*_citrus_iconv_init_context_t)(struct _citrus_iconv *);
@@ -97,6 +99,7 @@ struct _citrus_iconv_shared {
 	char						*ci_convname;
 	bool						 ci_discard_ilseq;
 	struct iconv_hooks				*ci_hooks;
+	bool						 ci_ilseq_invalid;
 };
 
 struct _citrus_iconv {

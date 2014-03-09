@@ -240,7 +240,6 @@ public:
 
 void MapTableEmitter::buildRowInstrMap() {
   for (unsigned i = 0, e = InstrDefs.size(); i < e; i++) {
-    std::vector<Record*> InstrList;
     Record *CurInstr = InstrDefs[i];
     std::vector<Init*> KeyValue;
     ListInit *RowFields = InstrMapDesc.getRowFields();
@@ -533,12 +532,11 @@ static void emitEnums(raw_ostream &OS, RecordKeeper &Records) {
        II = ColFieldValueMap.begin(), IE = ColFieldValueMap.end();
        II != IE; II++) {
     std::vector<Init*> FieldValues = (*II).second;
-    unsigned FieldSize = FieldValues.size();
 
     // Delete duplicate entries from ColFieldValueMap
-    for (unsigned i = 0; i < FieldSize - 1; i++) {
+    for (unsigned i = 0; i < FieldValues.size() - 1; i++) {
       Init *CurVal = FieldValues[i];
-      for (unsigned j = i+1; j < FieldSize; j++) {
+      for (unsigned j = i+1; j < FieldValues.size(); j++) {
         if (CurVal == FieldValues[j]) {
           FieldValues.erase(FieldValues.begin()+j);
         }
@@ -547,9 +545,9 @@ static void emitEnums(raw_ostream &OS, RecordKeeper &Records) {
 
     // Emit enumerated values for the column fields.
     OS << "enum " << (*II).first << " {\n";
-    for (unsigned i = 0; i < FieldSize; i++) {
+    for (unsigned i = 0, endFV = FieldValues.size(); i < endFV; i++) {
       OS << "\t" << (*II).first << "_" << FieldValues[i]->getAsUnquotedString();
-      if (i != FieldValues.size() - 1)
+      if (i != endFV - 1)
         OS << ",\n";
       else
         OS << "\n};\n\n";

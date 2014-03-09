@@ -15,9 +15,11 @@
 #ifndef LLVM_CLANG_AST_UNRESOLVEDSET_H
 #define LLVM_CLANG_AST_UNRESOLVEDSET_H
 
-#include <iterator>
-#include "llvm/ADT/SmallVector.h"
 #include "clang/AST/DeclAccessPair.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include <iterator>
 
 namespace clang {
 
@@ -25,12 +27,13 @@ namespace clang {
 /// non-const iterator.
 class UnresolvedSetIterator {
 private:
-  typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
+  typedef llvm::MutableArrayRef<DeclAccessPair> DeclsTy;
   typedef DeclsTy::iterator IteratorTy;
 
   IteratorTy ir;
 
   friend class UnresolvedSetImpl;
+  friend class ASTUnresolvedSet;
   friend class OverloadExpr;
   explicit UnresolvedSetIterator(DeclsTy::iterator ir) : ir(ir) {}
   explicit UnresolvedSetIterator(DeclsTy::const_iterator ir) :
@@ -48,6 +51,7 @@ public:
   typedef std::iterator_traits<IteratorTy>::iterator_category iterator_category;
 
   NamedDecl *getDecl() const { return ir->getDecl(); }
+  void setDecl(NamedDecl *ND) const { return ir->setDecl(ND); }
   AccessSpecifier getAccess() const { return ir->getAccess(); }
   void setAccess(AccessSpecifier AS) { ir->setAccess(AS); }
   DeclAccessPair getPair() const { return *ir; }
@@ -85,9 +89,9 @@ public:
   bool operator>(const UnresolvedSetIterator &o) const { return ir > o.ir; }
 };
 
-/// UnresolvedSet - A set of unresolved declarations.
+/// \brief A set of unresolved declarations.
 class UnresolvedSetImpl {
-  typedef UnresolvedSetIterator::DeclsTy DeclsTy;
+  typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
 
   // Don't allow direct construction, and only permit subclassing by
   // UnresolvedSet.
@@ -136,15 +140,9 @@ public:
     I.ir->set(New, AS);
   }
 
-  void erase(unsigned I) {
-    decls()[I] = decls().back();
-    decls().pop_back();
-  }
+  void erase(unsigned I) { decls()[I] = decls().pop_back_val(); }
 
-  void erase(iterator I) {
-    *I.ir = decls().back();
-    decls().pop_back();
-  }
+  void erase(iterator I) { *I.ir = decls().pop_back_val(); }
 
   void setAccess(iterator I, AccessSpecifier AS) {
     I.ir->setAccess(AS);
@@ -174,7 +172,7 @@ private:
   }
 };
 
-/// A set of unresolved declarations 
+/// \brief A set of unresolved declarations.
 template <unsigned InlineCapacity> class UnresolvedSet :
     public UnresolvedSetImpl {
   SmallVector<DeclAccessPair, InlineCapacity> Decls;

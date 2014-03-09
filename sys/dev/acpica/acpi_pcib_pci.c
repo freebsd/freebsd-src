@@ -83,7 +83,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
     DEVMETHOD(pcib_route_interrupt,	acpi_pcib_pci_route_interrupt),
     DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;
@@ -120,7 +120,7 @@ acpi_pcib_pci_attach(device_t dev)
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     sc->ap_handle = acpi_get_handle(dev);
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
+    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.bus.sec));
 }
 
 static int

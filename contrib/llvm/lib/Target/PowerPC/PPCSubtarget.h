@@ -14,9 +14,9 @@
 #ifndef POWERPCSUBTARGET_H
 #define POWERPCSUBTARGET_H
 
-#include "llvm/Target/TargetSubtargetInfo.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
@@ -43,7 +43,12 @@ namespace PPC {
     DIR_A2,
     DIR_E500mc,
     DIR_E5500,
+    DIR_PWR3,
+    DIR_PWR4,
+    DIR_PWR5,
+    DIR_PWR5X,
     DIR_PWR6,
+    DIR_PWR6X,
     DIR_PWR7,
     DIR_64
   };
@@ -70,12 +75,25 @@ protected:
   bool Use64BitRegs;
   bool IsPPC64;
   bool HasAltivec;
+  bool HasQPX;
+  bool HasVSX;
+  bool HasFCPSGN;
   bool HasFSQRT;
+  bool HasFRE, HasFRES, HasFRSQRTE, HasFRSQRTES;
+  bool HasRecipPrec;
   bool HasSTFIWX;
+  bool HasLFIWAX;
+  bool HasFPRND;
+  bool HasFPCVT;
   bool HasISEL;
+  bool HasPOPCNTD;
+  bool HasLDBRX;
   bool IsBookE;
+  bool DeprecatedMFTB;
+  bool DeprecatedDST;
   bool HasLazyResolverStubs;
   bool IsJITCodeModel;
+  bool IsLittleEndian;
 
   /// TargetTriple - What processor and OS we're targeting.
   Triple TargetTriple;
@@ -115,7 +133,7 @@ public:
     // documentation are wrong; these are correct (i.e. "what gcc does").
     if (isPPC64() && isSVR4ABI()) {
       if (TargetTriple.getOS() == llvm::Triple::FreeBSD)
-        return "E-p:64:64-f64:64:64-i64:64:64-f128:64:64-v128:128:128-n32:64";
+        return "E-p:64:64-f64:64:64-i64:64:64-v128:128:128-n32:64";
       else
         return "E-p:64:64-f64:64:64-i64:64:64-f128:128:128-v128:128:128-n32:64";
     }
@@ -124,6 +142,13 @@ public:
                      : "E-p:32:32-f64:64:64-i64:64:64-f128:64:128-n32";
   }
 
+  /// \brief Reset the features for the PowerPC target.
+  virtual void resetSubtargetFeatures(const MachineFunction *MF);
+private:
+  void initializeEnvironment();
+  void resetSubtargetFeatures(StringRef CPU, StringRef FS);
+
+public:
   /// isPPC64 - Return true if we are generating code for 64-bit pointer mode.
   ///
   bool isPPC64() const { return IsPPC64; }
@@ -146,13 +171,30 @@ public:
   // isJITCodeModel - True if we're generating code for the JIT
   bool isJITCodeModel() const { return IsJITCodeModel; }
 
+  // isLittleEndian - True if generating little-endian code
+  bool isLittleEndian() const { return IsLittleEndian; }
+
   // Specific obvious features.
+  bool hasFCPSGN() const { return HasFCPSGN; }
   bool hasFSQRT() const { return HasFSQRT; }
+  bool hasFRE() const { return HasFRE; }
+  bool hasFRES() const { return HasFRES; }
+  bool hasFRSQRTE() const { return HasFRSQRTE; }
+  bool hasFRSQRTES() const { return HasFRSQRTES; }
+  bool hasRecipPrec() const { return HasRecipPrec; }
   bool hasSTFIWX() const { return HasSTFIWX; }
+  bool hasLFIWAX() const { return HasLFIWAX; }
+  bool hasFPRND() const { return HasFPRND; }
+  bool hasFPCVT() const { return HasFPCVT; }
   bool hasAltivec() const { return HasAltivec; }
+  bool hasQPX() const { return HasQPX; }
   bool hasMFOCRF() const { return HasMFOCRF; }
   bool hasISEL() const { return HasISEL; }
+  bool hasPOPCNTD() const { return HasPOPCNTD; }
+  bool hasLDBRX() const { return HasLDBRX; }
   bool isBookE() const { return IsBookE; }
+  bool isDeprecatedMFTB() const { return DeprecatedMFTB; }
+  bool isDeprecatedDST() const { return DeprecatedDST; }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -160,6 +202,8 @@ public:
   bool isDarwin() const { return TargetTriple.isMacOSX(); }
   /// isBGP - True if this is a BG/P platform.
   bool isBGP() const { return TargetTriple.getVendor() == Triple::BGP; }
+  /// isBGQ - True if this is a BG/Q platform.
+  bool isBGQ() const { return TargetTriple.getVendor() == Triple::BGQ; }
 
   bool isDarwinABI() const { return isDarwin(); }
   bool isSVR4ABI() const { return !isDarwin(); }
@@ -168,6 +212,14 @@ public:
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
                              TargetSubtargetInfo::AntiDepBreakMode& Mode,
                              RegClassVector& CriticalPathRCs) const;
+
+  // Scheduling customization.
+  bool enableMachineScheduler() const;
+  void overrideSchedPolicy(MachineSchedPolicy &Policy,
+                           MachineInstr *begin,
+                           MachineInstr *end,
+                           unsigned NumRegionInstrs) const;
+  bool useAA() const;
 };
 } // End llvm namespace
 

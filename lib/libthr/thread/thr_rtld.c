@@ -213,14 +213,3 @@ _thr_rtld_init(void)
 	_rtld_thread_init(&li);
 	_thr_signal_unblock(curthread);
 }
-
-void
-_thr_rtld_fini(void)
-{
-	struct pthread	*curthread;
-
-	curthread = _get_curthread();
-	_thr_signal_block(curthread);
-	_rtld_thread_init(NULL);
-	_thr_signal_unblock(curthread);
-}

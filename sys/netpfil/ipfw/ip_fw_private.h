@@ -213,25 +213,27 @@ VNET_DECLARE(unsigned int, fw_tables_max);
 #define V_fw_tables_max		VNET(fw_tables_max)
 
 struct ip_fw_chain {
-	struct ip_fw	*rules;		/* list of rules */
-	struct ip_fw	*reap;		/* list of rules to reap */
-	struct ip_fw	*default_rule;
-	int		n_rules;	/* number of static rules */
-	int		static_len;	/* total len of static rules */
 	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
+	uint32_t	id;		/* ruleset id */
+	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head **tables;	/* IPv4 tables */
 	struct radix_node_head **xtables;	/* extended tables */
 	uint8_t		*tabletype;	/* Array of table types */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
-	spinlock_t uh_lock;
 #else
 	struct rwlock	rwmtx;
+#endif
+	int		static_len;	/* total len of static rules */
+	uint32_t	gencnt;		/* NAT generation count */
+	struct ip_fw	*reap;		/* list of rules to reap */
+	struct ip_fw	*default_rule;
+#if defined( __linux__ ) || defined( _WIN32 )
+	spinlock_t uh_lock;
+#else
 	struct rwlock	uh_lock;	/* lock for upper half */
 #endif
-	uint32_t	id;		/* ruleset id */
-	uint32_t	gencnt;		/* generation count */
 };
 
 struct sockopt;	/* used by tcp_var.h */
@@ -278,10 +280,12 @@ struct sockopt;	/* used by tcp_var.h */
 #define	IPFW_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_RLOCKED)
 #define	IPFW_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
 
-#define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)
-#define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
-#define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
-#define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
+#define	IPFW_RLOCK(p)			rw_rlock(&(p)->rwmtx)
+#define	IPFW_RUNLOCK(p)			rw_runlock(&(p)->rwmtx)
+#define	IPFW_WLOCK(p)			rw_wlock(&(p)->rwmtx)
+#define	IPFW_WUNLOCK(p)			rw_wunlock(&(p)->rwmtx)
+#define	IPFW_PF_RLOCK(p)		IPFW_RLOCK(p)
+#define	IPFW_PF_RUNLOCK(p)		IPFW_RUNLOCK(p)
 
 #define	IPFW_UH_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_RLOCKED)
 #define	IPFW_UH_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_WLOCKED)
@@ -325,9 +329,11 @@ extern struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
 typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
 typedef int ipfw_nat_cfg_t(struct sockopt *);
 
-extern ipfw_nat_t *ipfw_nat_ptr;
-#define IPFW_NAT_LOADED (ipfw_nat_ptr != NULL)
+VNET_DECLARE(int, ipfw_nat_ready);
+#define	V_ipfw_nat_ready	VNET(ipfw_nat_ready)
+#define	IPFW_NAT_LOADED	(V_ipfw_nat_ready)
 
+extern ipfw_nat_t *ipfw_nat_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;

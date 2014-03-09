@@ -15,8 +15,6 @@
 #define DEBUG_TYPE "decoder-emitter"
 
 #include "CodeGenTarget.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -28,11 +26,12 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
-
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace llvm;
 
@@ -880,15 +879,20 @@ emitPredicateFunction(formatted_raw_ostream &OS, PredicateSet &Predicates,
   OS.indent(Indentation) << "static bool checkDecoderPredicate(unsigned Idx, "
     << "uint64_t Bits) {\n";
   Indentation += 2;
-  OS.indent(Indentation) << "switch (Idx) {\n";
-  OS.indent(Indentation) << "default: llvm_unreachable(\"Invalid index!\");\n";
-  unsigned Index = 0;
-  for (PredicateSet::const_iterator I = Predicates.begin(), E = Predicates.end();
-       I != E; ++I, ++Index) {
-    OS.indent(Indentation) << "case " << Index << ":\n";
-    OS.indent(Indentation+2) << "return (" << *I << ");\n";
+  if (!Predicates.empty()) {
+    OS.indent(Indentation) << "switch (Idx) {\n";
+    OS.indent(Indentation) << "default: llvm_unreachable(\"Invalid index!\");\n";
+    unsigned Index = 0;
+    for (PredicateSet::const_iterator I = Predicates.begin(), E = Predicates.end();
+         I != E; ++I, ++Index) {
+      OS.indent(Indentation) << "case " << Index << ":\n";
+      OS.indent(Indentation+2) << "return (" << *I << ");\n";
+    }
+    OS.indent(Indentation) << "}\n";
+  } else {
+    // No case statement to emit
+    OS.indent(Indentation) << "llvm_unreachable(\"Invalid index!\");\n";
   }
-  OS.indent(Indentation) << "}\n";
   Indentation -= 2;
   OS.indent(Indentation) << "}\n\n";
 }
@@ -1867,7 +1871,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "    if (numBits == sizeof(InsnType)*8)\n"
      << "      fieldMask = (InsnType)(-1LL);\n"
      << "    else\n"
-     << "      fieldMask = ((1 << numBits) - 1) << startBit;\n"
+     << "      fieldMask = (((InsnType)1 << numBits) - 1) << startBit;\n"
      << "    return (insn & fieldMask) >> startBit;\n"
      << "}\n\n";
 }
@@ -2034,7 +2038,6 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   }
 
   DecoderTableInfo TableInfo;
-  std::set<unsigned> Sizes;
   for (std::map<std::pair<std::string, unsigned>,
                 std::vector<unsigned> >::const_iterator
        I = OpcMap.begin(), E = OpcMap.end(); I != E; ++I) {

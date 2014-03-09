@@ -105,17 +105,6 @@ hand.
 No login or connect time accounting is performed if
 .Pa /var/log/utx.log
 does not exist.
-.Pp
-For example,
-.Bd -literal -offset indent
-ac -p -t "ttyd*" > modems
-ac -p -t "!ttyd*" > other
-.Ed
-.Pp
-allows times recorded in
-.Pa modems
-to be charged out at a different rate than
-.Pa other .
 .Sh FILES
 .Bl -tag -width /var/log/utx.log -compact
 .It Pa /var/log/utx.log
@@ -123,6 +112,15 @@ connect time accounting file
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Allow times recorded in
+.Pa modems
+to be charged out at a different rate than
+.Pa other :
+.Bd -literal -offset indent
+ac -p -t "ttyd*" > modems
+ac -p -t "!ttyd*" > other
+.Ed
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr getutxent 3 ,

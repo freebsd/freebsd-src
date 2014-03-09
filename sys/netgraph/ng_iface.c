@@ -72,6 +72,7 @@
 #include <sys/libkern.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
@@ -123,7 +124,7 @@ typedef struct ng_iface_private *priv_p;
 static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
-    			struct sockaddr *dst, struct route *ro);
+    			const struct sockaddr *dst, struct route *ro);
 static void	ng_iface_bpftap(struct ifnet *ifp,
 			struct mbuf *m, sa_family_t family);
 static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
@@ -353,7 +354,7 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
-    		struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	struct m_tag *mtag;
 	uint32_t af;
@@ -385,13 +386,13 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	m_tag_prepend(m, mtag);
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
+	else
+		af = dst->sa_family;
 
 	/* Berkeley packet filter */
-	ng_iface_bpftap(ifp, m, dst->sa_family);
+	ng_iface_bpftap(ifp, m, af);
 
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
@@ -402,10 +403,10 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 			ifp->if_oerrors++;
 			return (ENOBUFS);
 		}
-		*(sa_family_t *)m->m_data = dst->sa_family;
+		*(sa_family_t *)m->m_data = af;
 		error = (ifp->if_transmit)(ifp, m);
 	} else
-		error = ng_iface_send(ifp, m, dst->sa_family);
+		error = ng_iface_send(ifp, m, af);
 
 	return (error);
 }
@@ -774,9 +775,8 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);

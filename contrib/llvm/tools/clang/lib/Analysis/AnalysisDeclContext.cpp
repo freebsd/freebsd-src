@@ -12,24 +12,24 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Analysis/AnalysisContext.h"
+#include "BodyFarm.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
-#include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/Support/BumpVector.h"
-#include "llvm/Support/SaveAndRestore.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/ErrorHandling.h"
-
-#include "BodyFarm.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 using namespace clang;
 
@@ -67,13 +67,15 @@ AnalysisDeclContextManager::AnalysisDeclContextManager(bool useUnoptimizedCFG,
                                                        bool addImplicitDtors,
                                                        bool addInitializers,
                                                        bool addTemporaryDtors,
-                                                       bool synthesizeBodies)
+                                                       bool synthesizeBodies,
+                                                       bool addStaticInitBranch)
   : SynthesizeBodies(synthesizeBodies)
 {
   cfgBuildOptions.PruneTriviallyFalseEdges = !useUnoptimizedCFG;
   cfgBuildOptions.AddImplicitDtors = addImplicitDtors;
   cfgBuildOptions.AddInitializers = addInitializers;
   cfgBuildOptions.AddTemporaryDtors = addTemporaryDtors;
+  cfgBuildOptions.AddStaticInitBranches = addStaticInitBranch;
 }
 
 void AnalysisDeclContextManager::clear() {
@@ -87,11 +89,14 @@ static BodyFarm &getBodyFarm(ASTContext &C) {
   return *BF;
 }
 
-Stmt *AnalysisDeclContext::getBody() const {
+Stmt *AnalysisDeclContext::getBody(bool &IsAutosynthesized) const {
+  IsAutosynthesized = false;
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     Stmt *Body = FD->getBody();
-    if (!Body && Manager && Manager->synthesizeBodies())
+    if (!Body && Manager && Manager->synthesizeBodies()) {
+      IsAutosynthesized = true;
       return getBodyFarm(getASTContext()).getBody(FD);
+    }
     return Body;
   }
   else if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
@@ -103,6 +108,17 @@ Stmt *AnalysisDeclContext::getBody() const {
     return FunTmpl->getTemplatedDecl()->getBody();
 
   llvm_unreachable("unknown code decl");
+}
+
+Stmt *AnalysisDeclContext::getBody() const {
+  bool Tmp;
+  return getBody(Tmp);
+}
+
+bool AnalysisDeclContext::isBodyAutosynthesized() const {
+  bool Tmp;
+  getBody(Tmp);
+  return Tmp;
 }
 
 const ImplicitParamDecl *AnalysisDeclContext::getSelfDecl() const {
@@ -141,6 +157,19 @@ AnalysisDeclContext::getBlockForRegisteredExpression(const Stmt *stmt) {
   return itr->second;
 }
 
+/// Add each synthetic statement in the CFG to the parent map, using the
+/// source statement's parent.
+static void addParentsForSyntheticStmts(const CFG *TheCFG, ParentMap &PM) {
+  if (!TheCFG)
+    return;
+
+  for (CFG::synthetic_stmt_iterator I = TheCFG->synthetic_stmt_begin(),
+                                    E = TheCFG->synthetic_stmt_end();
+       I != E; ++I) {
+    PM.setParent(I->first, PM.getParent(I->second));
+  }
+}
+
 CFG *AnalysisDeclContext::getCFG() {
   if (!cfgBuildOptions.PruneTriviallyFalseEdges)
     return getUnoptimizedCFG();
@@ -151,6 +180,9 @@ CFG *AnalysisDeclContext::getCFG() {
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCFG = true;
+
+    if (PM)
+      addParentsForSyntheticStmts(cfg.get(), *PM);
   }
   return cfg.get();
 }
@@ -164,6 +196,9 @@ CFG *AnalysisDeclContext::getUnoptimizedCFG() {
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCompleteCFG = true;
+
+    if (PM)
+      addParentsForSyntheticStmts(completeCFG.get(), *PM);
   }
   return completeCFG.get();
 }
@@ -206,6 +241,10 @@ ParentMap &AnalysisDeclContext::getParentMap() {
         PM->addStmt((*I)->getInit());
       }
     }
+    if (builtCFG)
+      addParentsForSyntheticStmts(getCFG(), *PM);
+    if (builtCompleteCFG)
+      addParentsForSyntheticStmts(getUnoptimizedCFG(), *PM);
   }
   return *PM;
 }
@@ -371,6 +410,35 @@ bool LocationContext::isParentOf(const LocationContext *LC) const {
   return false;
 }
 
+void LocationContext::dumpStack(raw_ostream &OS, StringRef Indent) const {
+  ASTContext &Ctx = getAnalysisDeclContext()->getASTContext();
+  PrintingPolicy PP(Ctx.getLangOpts());
+  PP.TerseOutput = 1;
+
+  unsigned Frame = 0;
+  for (const LocationContext *LCtx = this; LCtx; LCtx = LCtx->getParent()) {
+    switch (LCtx->getKind()) {
+    case StackFrame:
+      OS << Indent << '#' << Frame++ << ' ';
+      cast<StackFrameContext>(LCtx)->getDecl()->print(OS, PP);
+      OS << '\n';
+      break;
+    case Scope:
+      OS << Indent << "    (scope)\n";
+      break;
+    case Block:
+      OS << Indent << "    (block context: "
+                   << cast<BlockInvocationContext>(LCtx)->getContextData()
+                   << ")\n";
+      break;
+    }
+  }
+}
+
+void LocationContext::dumpStack() const {
+  dumpStack(llvm::errs());
+}
+
 //===----------------------------------------------------------------------===//
 // Lazily generated map to query the external variables referenced by a Block.
 //===----------------------------------------------------------------------===//
@@ -402,9 +470,6 @@ public:
     if (const VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
       if (!VD->hasLocalStorage()) {
         if (Visited.insert(VD))
-          BEVals.push_back(VD, BC);
-      } else if (DR->refersToEnclosingLocal()) {
-        if (Visited.insert(VD) && IsTrackedDecl(VD))
           BEVals.push_back(VD, BC);
       }
     }
@@ -440,7 +505,13 @@ static DeclVec* LazyInitializeReferencedDecls(const BlockDecl *BD,
   DeclVec *BV = (DeclVec*) A.Allocate<DeclVec>();
   new (BV) DeclVec(BC, 10);
 
-  // Find the referenced variables.
+  // Go through the capture list.
+  for (BlockDecl::capture_const_iterator CI = BD->capture_begin(),
+       CE = BD->capture_end(); CI != CE; ++CI) {
+    BV->push_back(CI->getVariable(), BC);
+  }
+
+  // Find the referenced global/static variables.
   FindBlockDeclRefExprsVals F(*BV, BC);
   F.Visit(BD->getBody());
 

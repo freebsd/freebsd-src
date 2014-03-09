@@ -17,17 +17,16 @@
 #include "NVPTXSubtarget.h"
 #include "NVPTXTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/Target/TargetInstrInfo.h"
 
 using namespace llvm;
 
-bool NVPTXFrameLowering::hasFP(const MachineFunction &MF) const {
-  return true;
-}
+bool NVPTXFrameLowering::hasFP(const MachineFunction &MF) const { return true; }
 
 void NVPTXFrameLowering::emitPrologue(MachineFunction &MF) const {
   if (MF.getFrameInfo()->hasStackObjects()) {
@@ -38,39 +37,37 @@ void NVPTXFrameLowering::emitPrologue(MachineFunction &MF) const {
     // in the BB, so giving it no debug location.
     DebugLoc dl = DebugLoc();
 
-    if (tm.getSubtargetImpl()->hasGenericLdSt()) {
-      // mov %SPL, %depot;
-      // cvta.local %SP, %SPL;
-      if (is64bit) {
-        MachineInstr *MI = BuildMI(MBB, MBBI, dl,
-                               tm.getInstrInfo()->get(NVPTX::cvta_local_yes_64),
-                                   NVPTX::VRFrame).addReg(NVPTX::VRFrameLocal);
-        BuildMI(MBB, MI, dl,
-                tm.getInstrInfo()->get(NVPTX::IMOV64rr), NVPTX::VRFrameLocal)
-        .addReg(NVPTX::VRDepot);
-      } else {
-        MachineInstr *MI = BuildMI(MBB, MBBI, dl,
-                                  tm.getInstrInfo()->get(NVPTX::cvta_local_yes),
-                                   NVPTX::VRFrame).addReg(NVPTX::VRFrameLocal);
-        BuildMI(MBB, MI, dl,
-                tm.getInstrInfo()->get(NVPTX::IMOV32rr), NVPTX::VRFrameLocal)
-        .addReg(NVPTX::VRDepot);
-      }
-    }
-    else {
-      // mov %SP, %depot;
-      if (is64bit)
-        BuildMI(MBB, MBBI, dl,
-                tm.getInstrInfo()->get(NVPTX::IMOV64rr), NVPTX::VRFrame)
-                .addReg(NVPTX::VRDepot);
-      else
-        BuildMI(MBB, MBBI, dl,
-                tm.getInstrInfo()->get(NVPTX::IMOV32rr), NVPTX::VRFrame)
-                .addReg(NVPTX::VRDepot);
+    MachineRegisterInfo &MRI = MF.getRegInfo();
+
+    // mov %SPL, %depot;
+    // cvta.local %SP, %SPL;
+    if (is64bit) {
+      unsigned LocalReg = MRI.createVirtualRegister(&NVPTX::Int64RegsRegClass);
+      MachineInstr *MI = BuildMI(
+          MBB, MBBI, dl, tm.getInstrInfo()->get(NVPTX::cvta_local_yes_64),
+          NVPTX::VRFrame).addReg(LocalReg);
+      BuildMI(MBB, MI, dl, tm.getInstrInfo()->get(NVPTX::MOV_DEPOT_ADDR_64),
+              LocalReg).addImm(MF.getFunctionNumber());
+    } else {
+      unsigned LocalReg = MRI.createVirtualRegister(&NVPTX::Int32RegsRegClass);
+      MachineInstr *MI = BuildMI(
+          MBB, MBBI, dl, tm.getInstrInfo()->get(NVPTX::cvta_local_yes),
+          NVPTX::VRFrame).addReg(LocalReg);
+      BuildMI(MBB, MI, dl, tm.getInstrInfo()->get(NVPTX::MOV_DEPOT_ADDR),
+              LocalReg).addImm(MF.getFunctionNumber());
     }
   }
 }
 
 void NVPTXFrameLowering::emitEpilogue(MachineFunction &MF,
-                                      MachineBasicBlock &MBB) const {
+                                      MachineBasicBlock &MBB) const {}
+
+// This function eliminates ADJCALLSTACKDOWN,
+// ADJCALLSTACKUP pseudo instructions
+void NVPTXFrameLowering::eliminateCallFramePseudoInstr(
+    MachineFunction &MF, MachineBasicBlock &MBB,
+    MachineBasicBlock::iterator I) const {
+  // Simply discard ADJCALLSTACKDOWN,
+  // ADJCALLSTACKUP instructions.
+  MBB.erase(I);
 }

@@ -51,6 +51,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	counter.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -117,6 +118,7 @@ MAN=	accept_filter.9 \
 	g_consumer.9 \
 	g_data.9 \
 	get_cyclecount.9 \
+	getenv.9 \
 	getnewvnode.9 \
 	g_event.9 \
 	g_geom.9 \
@@ -235,6 +237,7 @@ MAN=	accept_filter.9 \
 	rwlock.9 \
 	sbuf.9 \
 	scheduler.9 \
+	SDT.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
@@ -281,7 +284,6 @@ MAN=	accept_filter.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
 	VFS_MOUNT.9 \
-	vfs_mount.9 \
 	vfs_mountedfrom.9 \
 	VFS_QUOTACTL.9 \
 	VFS_ROOT.9 \
@@ -323,6 +325,7 @@ MAN=	accept_filter.9 \
 	vm_map_wire.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
+	vm_page_busy.9 \
 	vm_page_cache.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
@@ -331,19 +334,19 @@ MAN=	accept_filter.9 \
 	vm_page_grab.9 \
 	vm_page_hold.9 \
 	vm_page_insert.9 \
-	vm_page_io.9 \
 	vm_page_lookup.9 \
 	vm_page_rename.9 \
-	vm_page_sleep_if_busy.9 \
-	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_set_page_size.9 \
+	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
 	vnode.9 \
 	VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 \
+	VOP_ADVISE.9 \
 	VOP_ADVLOCK.9 \
+	VOP_ALLOCATE.9 \
 	VOP_ATTRIB.9 \
 	VOP_BWRITE.9 \
 	VOP_CREATE.9 \
@@ -569,6 +572,14 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=counter.9 counter_u64_alloc.9 \
+	counter.9 counter_u64_free.9 \
+	counter.9 counter_u64_add.9 \
+	counter.9 counter_enter.9 \
+	counter.9 counter_exit.9 \
+	counter.9 counter_u64_add_protected.9 \
+	counter.9 counter_u64_fetch.9 \
+	counter.9 counter_u64_zero.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
@@ -667,6 +678,14 @@ MLINKS+=g_consumer.9 g_destroy_consumer.9 \
 	g_consumer.9 g_new_consumer.9
 MLINKS+=g_data.9 g_read_data.9 \
 	g_data.9 g_write_data.9
+MLINKS+=getenv.9 freeenv.9 \
+	getenv.9 getenv_int.9 \
+	getenv.9 getenv_long.9 \
+	getenv.9 getenv_string.9 \
+	getenv.9 getenv_quad.9 \
+	getenv.9 getenv_uint.9 \
+	getenv.9 getenv_ulong.9 \
+	getenv.9 testenv.9
 MLINKS+=g_event.9 g_cancel_event.9 \
 	g_event.9 g_post_event.9 \
 	g_event.9 g_waitfor_event.9
@@ -859,6 +878,7 @@ MLINKS+=mbpool.9 mbp_alloc.9 \
 MLINKS+=\
 	mbuf.9 m_adj.9 \
 	mbuf.9 M_ALIGN.9 \
+	mbuf.9 m_append.9 \
 	mbuf.9 m_apply.9 \
 	mbuf.9 m_cat.9 \
 	mbuf.9 MCHTYPE.9 \
@@ -882,6 +902,7 @@ MLINKS+=\
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \
 	mbuf.9 m_get.9 \
+	mbuf.9 m_getjcl.9 \
 	mbuf.9 m_getcl.9 \
 	mbuf.9 m_getclr.9 \
 	mbuf.9 MGETHDR.9 \
@@ -944,7 +965,9 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 getbinuptime.9 \
 	microuptime.9 getmicrouptime.9 \
 	microuptime.9 getnanouptime.9 \
-	microuptime.9 nanouptime.9
+	microuptime.9 getsbinuptime.9 \
+	microuptime.9 nanouptime.9 \
+	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \
@@ -1069,12 +1092,15 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
-MLINKS+=rmlock.9 rm_destroy.9 \
+MLINKS+=rmlock.9 rm_assert.9 \
+	rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
+	rmlock.9 rm_init_flags.9 \
 	rmlock.9 rm_rlock.9 \
-	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
+	rmlock.9 rm_sleep.9 \
 	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9
@@ -1119,11 +1145,14 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
+	sbuf.9 sbuf_new_auto.9 \
 	sbuf.9 sbuf_new_for_sysctl.9 \
 	sbuf.9 sbuf_printf.9 \
 	sbuf.9 sbuf_putc.9 \
 	sbuf.9 sbuf_set_drain.9 \
 	sbuf.9 sbuf_setpos.9 \
+	sbuf.9 sbuf_start_section.9 \
+	sbuf.9 sbuf_end_section.9  \
 	sbuf.9 sbuf_trim.9 \
 	sbuf.9 sbuf_vprintf.9
 MLINKS+=scheduler.9 curpriority_cmp.9 \
@@ -1136,6 +1165,11 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 sched_setup.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
+MLINKS+=SDT.9 SDT_PROVIDER_DECLARE.9 \
+	SDT.9 SDT_PROVIDER_DEFINE.9 \
+	SDT.9 SDT_PROBE_DECLARE.9 \
+	SDT.9 SDT_PROBE_DEFINE.9 \
+	SDT.9 SDT_PROBE.9
 MLINKS+=securelevel_gt.9 securelevel_ge.9
 MLINKS+=selrecord.9 seldrain.9 \
 	selrecord.9 selwakeup.9
@@ -1152,6 +1186,7 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_page.9
 MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append.9 \
+	sglist.9 sglist_append_bio.9 \
 	sglist.9 sglist_append_mbuf.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_uio.9 \
@@ -1196,9 +1231,13 @@ MLINKS+=signal.9 cursig.9 \
 	signal.9 SIG_STOPSIGMASK.9 \
 	signal.9 trapsignal.9
 MLINKS+=sleep.9 msleep.9 \
+	sleep.9 msleep_sbt.9 \
 	sleep.9 msleep_spin.9 \
+	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
+	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
@@ -1213,6 +1252,7 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_release.9 \
 	sleepqueue.9 sleepq_remove.9 \
 	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_set_timeout_sbt.9 \
 	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_timedwait.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
@@ -1281,22 +1321,24 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_NODE.9 \
 	sysctl.9 SYSCTL_OPAQUE.9 \
 	sysctl.9 SYSCTL_PROC.9 \
+	sysctl.9 SYSCTL_QUAD.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
-	sysctl.9 SYSCTL_QUAD.9
+	sysctl.9 SYSCTL_UQUAD.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_OID.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_PROC.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRING.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_UQUAD.9 \
 	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
 	sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
@@ -1308,6 +1350,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASK_INITIALIZER.9 \
+	taskqueue.9 taskqueue_block.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \
@@ -1315,13 +1358,15 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASKQUEUE_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_drain.9 \
+	taskqueue.9 taskqueue_drain_all.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
 	taskqueue.9 taskqueue_enqueue_fast.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_member.9 \
-	taskqueue.9 taskqueue_run.9
+	taskqueue.9 taskqueue_run.9 \
+	taskqueue.9 taskqueue_unblock.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
@@ -1335,6 +1380,9 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_init_rw.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
+	timeout.9 callout_reset_sbt.9 \
+	timeout.9 callout_reset_on.9 \
+	timeout.9 callout_reset_sbt_on.9 \
 	timeout.9 callout_schedule.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9
@@ -1417,6 +1465,13 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9
+MLINKS+=vmem.9 vmem_add.9 \
+	vmem.9 vmem_alloc.9 \
+	vmem.9 vmem_create.9 \
+	vmem.9 vmem_destroy.9 \
+	vmem.9 vmem_free.9 \
+	vmem.9 vmem_xalloc.9 \
+	vmem.9 vmem_xfree.9  
 MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9 \
 	vm_map_lock.9 vm_map_lock_read.9 \
 	vm_map_lock.9 vm_map_lock_upgrade.9 \
@@ -1437,6 +1492,21 @@ MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_test_dirty.9 \
 	vm_page_bits.9 vm_page_undirty.9 \
 	vm_page_bits.9 vm_page_zero_invalid.9
+MLINKS+=vm_page_busy.9 vm_page_busied.9 \
+	vm_page_busy.9 vm_page_busy_downgrade.9 \
+	vm_page_busy.9 vm_page_busy_sleep.9 \
+	vm_page_busy.9 vm_page_sbusied.9 \
+	vm_page_busy.9 vm_page_sbusy.9 \
+	vm_page_busy.9 vm_page_sleep_if_busy.9 \
+	vm_page_busy.9 vm_page_sunbusy.9 \
+	vm_page_busy.9 vm_page_trysbusy.9 \
+	vm_page_busy.9 vm_page_tryxbusy.9 \
+	vm_page_busy.9 vm_page_xbusied.9 \
+	vm_page_busy.9 vm_page_xbusy.9 \
+	vm_page_busy.9 vm_page_xunbusy.9 \
+	vm_page_busy.9 vm_page_assert_sbusied.9 \
+	vm_page_busy.9 vm_page_assert_unbusied.9 \
+	vm_page_busy.9 vm_page_assert_xbusied.9
 MLINKS+=vm_page_aflag.9 vm_page_aflag_clear.9 \
 	vm_page_aflag.9 vm_page_aflag_set.9 \
 	vm_page_aflag.9 vm_page_reference.9
@@ -1445,10 +1515,6 @@ MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_try_to_free.9
 MLINKS+=vm_page_hold.9 vm_page_unhold.9
 MLINKS+=vm_page_insert.9 vm_page_remove.9
-MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
-	vm_page_io.9 vm_page_io_start.9
-MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
-	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
 MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
@@ -1475,9 +1541,13 @@ MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
+	zone.9 uma_zalloc_arg.9 \
 	zone.9 uma_zcreate.9 \
 	zone.9 uma_zdestroy.9 \
 	zone.9 uma_zfree.9 \
+	zone.9 uma_zfree_arg.9 \
+	zone.9 uma_zone_get_cur.9 \
+	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9
 
 .include <bsd.prog.mk>

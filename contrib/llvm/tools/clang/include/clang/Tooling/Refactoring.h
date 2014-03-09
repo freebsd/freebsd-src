@@ -19,9 +19,9 @@
 #ifndef LLVM_CLANG_TOOLING_REFACTORING_H
 #define LLVM_CLANG_TOOLING_REFACTORING_H
 
-#include "llvm/ADT/StringRef.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/StringRef.h"
 #include <set>
 #include <string>
 
@@ -31,6 +31,37 @@ class Rewriter;
 class SourceLocation;
 
 namespace tooling {
+
+/// \brief A source range independent of the \c SourceManager.
+class Range {
+public:
+  Range() : Offset(0), Length(0) {}
+  Range(unsigned Offset, unsigned Length) : Offset(Offset), Length(Length) {}
+
+  /// \brief Accessors.
+  /// @{
+  unsigned getOffset() const { return Offset; }
+  unsigned getLength() const { return Length; }
+  /// @}
+
+  /// \name Range Predicates
+  /// @{
+  /// \brief Whether this range overlaps with \p RHS or not.
+  bool overlapsWith(Range RHS) const {
+    return Offset + Length > RHS.Offset && Offset < RHS.Offset + RHS.Length;
+  }
+
+  /// \brief Whether this range contains \p RHS or not.
+  bool contains(Range RHS) const {
+    return RHS.Offset >= Offset &&
+           (RHS.Offset + RHS.Length) <= (Offset + Length);
+  }
+  /// @}
+
+private:
+  unsigned Offset;
+  unsigned Length;
+};
 
 /// \brief A text replacement.
 ///
@@ -47,22 +78,22 @@ public:
   /// \param FilePath A source file accessible via a SourceManager.
   /// \param Offset The byte offset of the start of the range in the file.
   /// \param Length The length of the range in bytes.
-  Replacement(llvm::StringRef FilePath, unsigned Offset,
-              unsigned Length, llvm::StringRef ReplacementText);
+  Replacement(StringRef FilePath, unsigned Offset,
+              unsigned Length, StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the range [Start, Start+Length) with
   /// ReplacementText.
   Replacement(SourceManager &Sources, SourceLocation Start, unsigned Length,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the given range with ReplacementText.
   Replacement(SourceManager &Sources, const CharSourceRange &Range,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the node with ReplacementText.
   template <typename Node>
   Replacement(SourceManager &Sources, const Node &NodeToReplace,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Returns whether this replacement can be applied to a file.
   ///
@@ -72,8 +103,8 @@ public:
   /// \brief Accessors.
   /// @{
   StringRef getFilePath() const { return FilePath; }
-  unsigned getOffset() const { return Offset; }
-  unsigned getLength() const { return Length; }
+  unsigned getOffset() const { return ReplacementRange.getOffset(); }
+  unsigned getLength() const { return ReplacementRange.getLength(); }
   StringRef getReplacementText() const { return ReplacementText; }
   /// @}
 
@@ -83,63 +114,124 @@ public:
   /// \brief Returns a human readable string representation.
   std::string toString() const;
 
-  /// \brief Comparator to be able to use Replacement in std::set for uniquing.
-  class Less {
-  public:
-    bool operator()(const Replacement &R1, const Replacement &R2) const;
-  };
-
  private:
   void setFromSourceLocation(SourceManager &Sources, SourceLocation Start,
-                             unsigned Length, llvm::StringRef ReplacementText);
+                             unsigned Length, StringRef ReplacementText);
   void setFromSourceRange(SourceManager &Sources, const CharSourceRange &Range,
-                          llvm::StringRef ReplacementText);
+                          StringRef ReplacementText);
 
   std::string FilePath;
-  unsigned Offset;
-  unsigned Length;
+  Range ReplacementRange;
   std::string ReplacementText;
 };
 
+/// \brief Less-than operator between two Replacements.
+bool operator<(const Replacement &LHS, const Replacement &RHS);
+
+/// \brief Equal-to operator between two Replacements.
+bool operator==(const Replacement &LHS, const Replacement &RHS);
+
 /// \brief A set of Replacements.
 /// FIXME: Change to a vector and deduplicate in the RefactoringTool.
-typedef std::set<Replacement, Replacement::Less> Replacements;
+typedef std::set<Replacement> Replacements;
 
-/// \brief Apply all replacements on the Rewriter.
+/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
 ///
-/// If at least one Apply returns false, ApplyAll returns false. Every
-/// Apply will be executed independently of the result of other
-/// Apply operations.
-bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite);
+/// Replacement applications happen independently of the success of
+/// other applications.
+///
+/// \returns true if all replacements apply. false otherwise.
+bool applyAllReplacements(const Replacements &Replaces, Rewriter &Rewrite);
+
+/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
+///
+/// Replacement applications happen independently of the success of
+/// other applications.
+///
+/// \returns true if all replacements apply. false otherwise.
+bool applyAllReplacements(const std::vector<Replacement> &Replaces,
+                          Rewriter &Rewrite);
+
+/// \brief Applies all replacements in \p Replaces to \p Code.
+///
+/// This completely ignores the path stored in each replacement. If one or more
+/// replacements cannot be applied, this returns an empty \c string.
+std::string applyAllReplacements(StringRef Code, const Replacements &Replaces);
+
+/// \brief Calculates how a code \p Position is shifted when \p Replaces are
+/// applied.
+unsigned shiftedCodePosition(const Replacements& Replaces, unsigned Position);
+
+/// \brief Calculates how a code \p Position is shifted when \p Replaces are
+/// applied.
+///
+/// \pre Replaces[i].getOffset() <= Replaces[i+1].getOffset().
+unsigned shiftedCodePosition(const std::vector<Replacement> &Replaces,
+                             unsigned Position);
+
+/// \brief Removes duplicate Replacements and reports if Replacements conflict
+/// with one another.
+///
+/// \post Replaces[i].getOffset() <= Replaces[i+1].getOffset().
+///
+/// This function sorts \p Replaces so that conflicts can be reported simply by
+/// offset into \p Replaces and number of elements in the conflict.
+void deduplicate(std::vector<Replacement> &Replaces,
+                 std::vector<Range> &Conflicts);
+
+/// \brief Collection of Replacements generated from a single translation unit.
+struct TranslationUnitReplacements {
+  /// Name of the main source for the translation unit.
+  std::string MainSourceFile;
+
+  /// A freeform chunk of text to describe the context of the replacements.
+  /// Will be printed, for example, when detecting conflicts during replacement
+  /// deduplication.
+  std::string Context;
+
+  std::vector<Replacement> Replacements;
+};
 
 /// \brief A tool to run refactorings.
 ///
-/// This is a refactoring specific version of \see ClangTool.
-/// All text replacements added to getReplacements() during the run of the
-/// tool will be applied and saved after all translation units have been
-/// processed.
-class RefactoringTool {
+/// This is a refactoring specific version of \see ClangTool. FrontendActions
+/// passed to run() and runAndSave() should add replacements to
+/// getReplacements().
+class RefactoringTool : public ClangTool {
 public:
   /// \see ClangTool::ClangTool.
   RefactoringTool(const CompilationDatabase &Compilations,
                   ArrayRef<std::string> SourcePaths);
 
-  /// \brief Returns a set of replacements. All replacements added during the
-  /// run of the tool will be applied after all translation units have been
-  /// processed.
+  /// \brief Returns the set of replacements to which replacements should
+  /// be added during the run of the tool.
   Replacements &getReplacements();
 
-  /// \see ClangTool::run.
-  int run(FrontendActionFactory *ActionFactory);
+  /// \brief Call run(), apply all generated replacements, and immediately save
+  /// the results to disk.
+  ///
+  /// \returns 0 upon success. Non-zero upon failure.
+  int runAndSave(FrontendActionFactory *ActionFactory);
+
+  /// \brief Apply all stored replacements to the given Rewriter.
+  ///
+  /// Replacement applications happen independently of the success of other
+  /// applications.
+  ///
+  /// \returns true if all replacements apply. false otherwise.
+  bool applyAllReplacements(Rewriter &Rewrite);
 
 private:
-  ClangTool Tool;
+  /// \brief Write all refactored files to disk.
+  int saveRewrittenFiles(Rewriter &Rewrite);
+
+private:
   Replacements Replace;
 };
 
 template <typename Node>
 Replacement::Replacement(SourceManager &Sources, const Node &NodeToReplace,
-                         llvm::StringRef ReplacementText) {
+                         StringRef ReplacementText) {
   const CharSourceRange Range =
       CharSourceRange::getTokenRange(NodeToReplace->getSourceRange());
   setFromSourceRange(Sources, Range, ReplacementText);
@@ -149,4 +241,3 @@ Replacement::Replacement(SourceManager &Sources, const Node &NodeToReplace,
 } // end namespace clang
 
 #endif // end namespace LLVM_CLANG_TOOLING_REFACTORING_H
-

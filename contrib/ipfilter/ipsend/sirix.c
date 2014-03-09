@@ -60,7 +60,7 @@ int	initdevice(char *device, int tout)
  * output an IP packet
  */
 int	sendip(int fd, char *pkt, int len)
-{			
+{
 	struct sockaddr_raw sr;
 	int srlen = sizeof(sr);
 	struct ifreq ifr;

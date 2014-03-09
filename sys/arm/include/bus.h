@@ -725,4 +725,12 @@ bs_c_8_proto(f);
 
 #include <machine/bus_dma.h>
 
+/*
+ * Get the physical address of a bus space memory-mapped resource.
+ * Doing this as a macro is a temporary solution until a more robust fix is
+ * designed.  It also serves to mark the locations needing that fix.
+ */
+#define BUS_SPACE_PHYSADDR(res, offs) \
+	((u_int)(rman_get_start(res)+(offs)))
+
 #endif /* _MACHINE_BUS_H_ */

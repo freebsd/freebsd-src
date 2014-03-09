@@ -37,7 +37,7 @@ if [ $# -lt 3 ]; then
     exit 1
 fi
 
-LABEL=$1; shift
+LABEL=`echo $1 | tr '[:lower:]' '[:upper:]'`; shift
 NAME=$1; shift
 BASE=$1; shift
 
@@ -63,10 +63,13 @@ if [ $bootable = yes ]; then
     if [ -s $BASE/boot/mfsroot.gz ]; then
 	cp $BASE/boot/mfsroot.gz $MNT/boot
     fi
+    cp $BASE/boot/color.4th $MNT/boot
     cp $BASE/boot/support.4th $MNT/boot
     cp $BASE/boot/check-password.4th $MNT/boot
     cp $BASE/boot/screen.4th $MNT/boot
     mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
+    echo kern.cam.boot_delay=\"3000\" >> $MNT/boot/loader.conf
+    echo vfs.root.mountfrom=\"cd9660:iso9660/$LABEL\" >> $MNT/boot/loader.conf
     umount $MNT
     mdconfig -d -u $md
     BOOTOPTS="-o bootimage=i386;$EFIPART -o no-emul-boot"
@@ -74,8 +77,9 @@ else
     BOOTOPTS=""
 fi
 
+publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $BASE/etc/fstab
-makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL $NAME $BASE $*
+makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL -o publisher="$publisher" $NAME $BASE $*
 rm $BASE/etc/fstab
 rm -f $EFIPART
 exit 0

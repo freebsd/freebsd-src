@@ -52,6 +52,7 @@ static void	 _citrus_##_m_##_mapper_init_state			\
 		    (void);
 
 #define _CITRUS_MAPPER_DEF_OPS(_m_)					\
+extern struct _citrus_mapper_ops _citrus_##_m_##_mapper_ops;		\
 struct _citrus_mapper_ops _citrus_##_m_##_mapper_ops = {		\
 	/* mo_init */		&_citrus_##_m_##_mapper_init,		\
 	/* mo_uninit */		&_citrus_##_m_##_mapper_uninit,		\

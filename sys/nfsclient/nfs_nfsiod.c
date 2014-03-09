@@ -308,6 +308,14 @@ nfssvc_iod(void *instance)
 			mtx_unlock(&Giant);
 		mtx_lock(&nfs_iod_mtx);
 		/*
+		 * Make sure the nmp hasn't been dismounted as soon as
+		 * nfs_doio() completes for the last buffer.
+		 */
+		nmp = nfs_iodmount[myiod];
+		if (nmp == NULL)
+			break;
+
+		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
 		 */

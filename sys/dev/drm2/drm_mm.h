@@ -182,4 +182,6 @@ void drm_mm_init_scan_with_range(struct drm_mm *mm, unsigned long size,
 int drm_mm_scan_add_block(struct drm_mm_node *node);
 int drm_mm_scan_remove_block(struct drm_mm_node *node);
 
+void drm_mm_debug_table(struct drm_mm *mm, const char *prefix);
+
 #endif

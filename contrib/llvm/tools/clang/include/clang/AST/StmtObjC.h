@@ -55,9 +55,11 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(ForLoc, SubExprs[BODY]->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return SubExprs[BODY]->getLocEnd();
   }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCForCollectionStmtClass;
   }
@@ -102,9 +104,8 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtCatchLoc, Body->getLocEnd());
-  }
+  SourceLocation getLocStart() const LLVM_READONLY { return AtCatchLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Body->getLocEnd(); }
 
   bool hasEllipsis() const { return getCatchParamDecl() == 0; }
 
@@ -131,8 +132,9 @@ public:
   Stmt *getFinallyBody() { return AtFinallyStmt; }
   void setFinallyBody(Stmt *S) { AtFinallyStmt = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtFinallyLoc, AtFinallyStmt->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return AtFinallyLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return AtFinallyStmt->getLocEnd();
   }
 
   SourceLocation getAtFinallyLoc() const { return AtFinallyLoc; }
@@ -179,13 +181,12 @@ private:
       HasFinally(HasFinally) { }
 
 public:
-  static ObjCAtTryStmt *Create(ASTContext &Context, SourceLocation atTryLoc, 
-                               Stmt *atTryStmt,
+  static ObjCAtTryStmt *Create(const ASTContext &Context,
+                               SourceLocation atTryLoc, Stmt *atTryStmt,
                                Stmt **CatchStmts, unsigned NumCatchStmts,
                                Stmt *atFinallyStmt);
-  static ObjCAtTryStmt *CreateEmpty(ASTContext &Context, 
-                                    unsigned NumCatchStmts,
-                                    bool HasFinally);
+  static ObjCAtTryStmt *CreateEmpty(const ASTContext &Context,
+                                    unsigned NumCatchStmts, bool HasFinally);
   
   /// \brief Retrieve the location of the @ in the \@try.
   SourceLocation getAtTryLoc() const { return AtTryLoc; }
@@ -236,7 +237,8 @@ public:
     getStmts()[1 + NumCatchStmts] = S; 
   }
 
-  SourceRange getSourceRange() const LLVM_READONLY;
+  SourceLocation getLocStart() const LLVM_READONLY { return AtTryLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtTryStmtClass;
@@ -292,8 +294,9 @@ public:
   }
   void setSynchExpr(Stmt *S) { SubStmts[SYNC_EXPR] = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtSynchronizedLoc, getSynchBody()->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return AtSynchronizedLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return getSynchBody()->getLocEnd();
   }
 
   static bool classof(const Stmt *T) {
@@ -324,11 +327,9 @@ public:
   SourceLocation getThrowLoc() { return AtThrowLoc; }
   void setThrowLoc(SourceLocation Loc) { AtThrowLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    if (Throw)
-      return SourceRange(AtThrowLoc, Throw->getLocEnd());
-    else
-      return SourceRange(AtThrowLoc);
+  SourceLocation getLocStart() const LLVM_READONLY { return AtThrowLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return Throw ? Throw->getLocEnd() : AtThrowLoc;
   }
 
   static bool classof(const Stmt *T) {
@@ -355,9 +356,8 @@ public:
   Stmt *getSubStmt() { return SubStmt; }
   void setSubStmt(Stmt *S) { SubStmt = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtLoc, SubStmt->getLocEnd());
-  }
+  SourceLocation getLocStart() const LLVM_READONLY { return AtLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return SubStmt->getLocEnd();}
 
   SourceLocation getAtLoc() const { return AtLoc; }
   void setAtLoc(SourceLocation Loc) { AtLoc = Loc; }

@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -59,6 +62,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_BUSDMA
 static void	usb_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
@@ -211,9 +215,7 @@ usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
     struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len)
 {
 	struct usb_m_copy_in_arg arg = {cache, dst_offset};
-	int error;
-
-	error = m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
+	(void) m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
 }
 #endif
 
@@ -440,7 +442,6 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
-	nseg--;
 #ifdef USB_DEBUG
 	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
 		/*
@@ -451,7 +452,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 		goto done;
 	}
 #endif
-	while (nseg > 0) {
+	while (pc->ismultiseg) {
 		off += USB_PAGE_SIZE;
 		if (off >= (segs->ds_len + rem)) {
 			/* page crossing */
@@ -459,6 +460,8 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 			segs++;
 			off = 0;
 			rem = 0;
+			if (nseg == 0)
+				break;
 		}
 		pg++;
 		pg->physaddr = (segs->ds_addr + off) & ~(USB_PAGE_SIZE - 1);

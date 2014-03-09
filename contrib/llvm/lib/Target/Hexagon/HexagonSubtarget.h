@@ -14,8 +14,8 @@
 #ifndef Hexagon_SUBTARGET_H
 #define Hexagon_SUBTARGET_H
 
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
@@ -27,7 +27,7 @@
 namespace llvm {
 
 class HexagonSubtarget : public HexagonGenSubtargetInfo {
-
+  virtual void anchor();
   bool UseMemOps;
   bool ModeIEEERndNear;
 

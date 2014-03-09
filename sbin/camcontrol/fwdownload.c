@@ -77,6 +77,7 @@ typedef enum {
 	VENDOR_PLEXTOR,
 	VENDOR_QUALSTAR,
 	VENDOR_QUANTUM,
+	VENDOR_SAMSUNG,
 	VENDOR_SEAGATE,
 	VENDOR_UNKNOWN
 } fw_vendor_t;
@@ -98,6 +99,7 @@ static const struct fw_vendor vendors_list[] = {
 	{VENDOR_PLEXTOR,	"PLEXTOR",	0x2000, 0x04, 0x05, 0, 1},
 	{VENDOR_QUALSTAR,	"QUALSTAR",	0x2030, 0x05, 0x05, 0, 0},
 	{VENDOR_QUANTUM,	"QUANTUM",	0x2000, 0x04, 0x05, 0, 1},
+	{VENDOR_SAMSUNG,	"SAMSUNG",	0x8000, 0x07, 0x07, 0, 1},
 	{VENDOR_SEAGATE,	"SEAGATE",	0x8000, 0x07, 0x07, 0, 1},
 	/* the next 2 are SATA disks going through SAS HBA */
 	{VENDOR_SEAGATE,	"ATA ST",	0x8000, 0x07, 0x07, 0, 1},
@@ -222,6 +224,7 @@ fw_read_img(const char *fw_img_path, const struct fw_vendor *vp, int *num_bytes)
 		goto bailout;
 	}
 	*num_bytes = img_size;
+	close(fd);
 	return (buf);
 bailout:
 	free(buf);
@@ -284,6 +287,7 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		ata_28bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 	} else {
 		warnx("weird disk type '%s'", type);
+		cam_freeccb(ccb);
 		return 1;
 	}
 	/* Disable freezing the device queue. */
@@ -370,16 +374,14 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		}
 		if (!sim_mode) {
 			/* Execute the command. */
-			if (cam_send_ccb(cam_dev, ccb) < 0) {
+			if (cam_send_ccb(cam_dev, ccb) < 0 ||
+			    (ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_CMP) {
 				warnx("Error writing image to device");
 				if (printerrors)
 					cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 						   CAM_EPF_ALL, stderr);
 				goto bailout;
-			}
-			if (ccb->ataio.res.status != 0 /*&& !last_pkt*/) {
-				cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
-					   CAM_EPF_ALL, stderr);
 			}
 		}
 		/* Prepare next round. */

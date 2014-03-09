@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to enable IDN support for dig, host, and nslookup.
-This requires ports/dns/idnkit to be installed in /usr/local.

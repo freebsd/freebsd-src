@@ -383,8 +383,7 @@ xlp_pcib_probe(device_t dev)
 {
 
 	device_set_desc(dev, "XLP PCI bus");
-	xlp_pcib_init_resources();
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -487,12 +486,14 @@ xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 }
 
 /*
- * Enable byte swap in hardware. Program a link's PCIe SWAP regions
- * from the link's IO and MEM address ranges.
+ * Enable byte swap in hardware when compiled big-endian.
+ * Programs a link's PCIe SWAP regions from the link's IO and MEM address
+ * ranges.
  */
 static void
 xlp_pcib_hardware_swap_enable(int node, int link)
 {
+#if BYTE_ORDER == BIG_ENDIAN
 	uint64_t bbase, linkpcibase;
 	uint32_t bar;
 	int pcieoffset;
@@ -514,12 +515,15 @@ xlp_pcib_hardware_swap_enable(int node, int link)
 
 	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_LIMIT0 + link);
 	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_LIM, bar | 0xFFF);
+#endif
 }
 
 static int 
 xlp_pcib_attach(device_t dev)
 {
 	int node, link;
+
+	xlp_pcib_init_resources();
 
 	/* enable hardware swap on all nodes/links */
 	for (node = 0; node < XLP_MAX_NODES; node++)

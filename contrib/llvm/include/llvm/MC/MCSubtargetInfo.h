@@ -14,8 +14,8 @@
 #ifndef LLVM_MC_MCSUBTARGET_H
 #define LLVM_MC_MCSUBTARGET_H
 
-#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include <string>
 
 namespace llvm {
@@ -71,6 +71,9 @@ public:
   /// InitMCProcessorInfo - Set or change the CPU (optionally supplemented with
   /// feature string). Recompute feature bits and scheduling model.
   void InitMCProcessorInfo(StringRef CPU, StringRef FS);
+
+  /// InitCPUSchedModel - Recompute scheduling model based on CPU.
+  void InitCPUSchedModel(StringRef CPU);
 
   /// ToggleFeature - Toggle a feature and returns the re-computed feature
   /// bits. This version does not change the implied bits.

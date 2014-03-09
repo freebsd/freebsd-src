@@ -318,6 +318,7 @@ static const struct {
 	{ HDA_CODEC_INTELIP2, 0,	"Intel Ibex Peak" },
 	{ HDA_CODEC_INTELCPT, 0,	"Intel Cougar Point" },
 	{ HDA_CODEC_INTELPPT, 0,	"Intel Panther Point" },
+	{ HDA_CODEC_INTELHSW, 0,	"Intel Haswell" },
 	{ HDA_CODEC_INTELCL, 0,		"Intel Crestline" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
@@ -460,8 +461,12 @@ hdacc_attach(device_t dev)
 static int
 hdacc_detach(device_t dev)
 {
+	struct hdacc_softc *codec = device_get_softc(dev);
+	int error;
 
-	return (device_delete_children(dev));
+	error = device_delete_children(dev);
+	free(codec->fgs, M_HDACC);
+	return (error);
 }
 
 static int

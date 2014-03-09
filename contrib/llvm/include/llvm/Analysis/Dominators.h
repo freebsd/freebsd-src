@@ -15,13 +15,13 @@
 #ifndef LLVM_ANALYSIS_DOMINATORS_H
 #define LLVM_ANALYSIS_DOMINATORS_H
 
-#include "llvm/Pass.h"
-#include "llvm/Function.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
@@ -101,18 +101,18 @@ public:
     Children.clear();
   }
 
-  bool compare(DomTreeNodeBase<NodeT> *Other) {
+  bool compare(const DomTreeNodeBase<NodeT> *Other) const {
     if (getNumChildren() != Other->getNumChildren())
       return true;
 
-    SmallPtrSet<NodeT *, 4> OtherChildren;
-    for (iterator I = Other->begin(), E = Other->end(); I != E; ++I) {
-      NodeT *Nd = (*I)->getBlock();
+    SmallPtrSet<const NodeT *, 4> OtherChildren;
+    for (const_iterator I = Other->begin(), E = Other->end(); I != E; ++I) {
+      const NodeT *Nd = (*I)->getBlock();
       OtherChildren.insert(Nd);
     }
 
-    for (iterator I = begin(), E = end(); I != E; ++I) {
-      NodeT *N = (*I)->getBlock();
+    for (const_iterator I = begin(), E = end(); I != E; ++I) {
+      const NodeT *N = (*I)->getBlock();
       if (OtherChildren.count(N) == 0)
         return true;
     }
@@ -345,6 +345,20 @@ public:
   ///
   DomTreeNodeBase<NodeT> *getRootNode() { return RootNode; }
   const DomTreeNodeBase<NodeT> *getRootNode() const { return RootNode; }
+
+  /// Get all nodes dominated by R, including R itself. Return true on success.
+  void getDescendants(NodeT *R, SmallVectorImpl<NodeT *> &Result) const {
+    const DomTreeNodeBase<NodeT> *RN = getNode(R);
+    SmallVector<const DomTreeNodeBase<NodeT> *, 8> WL;
+    WL.push_back(RN);
+    Result.clear();
+
+    while (!WL.empty()) {
+      const DomTreeNodeBase<NodeT> *N = WL.pop_back_val();
+      Result.push_back(N->getBlock());
+      WL.append(N->begin(), N->end());
+    }
+  }
 
   /// properlyDominates - Returns true iff A dominates B and A != B.
   /// Note that this is not a constant time operation!
@@ -663,8 +677,7 @@ public:
       // Initialize the roots list
       for (typename TraitsTy::nodes_iterator I = TraitsTy::nodes_begin(&F),
                                         E = TraitsTy::nodes_end(&F); I != E; ++I) {
-        if (std::distance(TraitsTy::child_begin(I),
-                          TraitsTy::child_end(I)) == 0)
+        if (TraitsTy::child_begin(I) == TraitsTy::child_end(I))
           addRoot(I);
 
         // Prepopulate maps so that we don't get iterator invalidation issues later.
@@ -754,6 +767,12 @@ public:
 
   inline DomTreeNode *getRootNode() const {
     return DT->getRootNode();
+  }
+
+  /// Get all nodes dominated by R, including R itself. Return true on success.
+  void getDescendants(BasicBlock *R,
+                     SmallVectorImpl<BasicBlock *> &Result) const {
+    DT->getDescendants(R, Result);
   }
 
   /// compare - Return false if the other dominator tree matches this

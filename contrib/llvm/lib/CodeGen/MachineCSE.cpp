@@ -15,17 +15,17 @@
 
 #define DEBUG_TYPE "machine-cse"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
+#include "llvm/Target/TargetInstrInfo.h"
 using namespace llvm;
 
 STATISTIC(NumCoalesces, "Number of copies coalesced");
@@ -84,11 +84,11 @@ namespace {
     bool hasLivePhysRegDefUses(const MachineInstr *MI,
                                const MachineBasicBlock *MBB,
                                SmallSet<unsigned,8> &PhysRefs,
-                               SmallVector<unsigned,2> &PhysDefs,
+                               SmallVectorImpl<unsigned> &PhysDefs,
                                bool &PhysUseDef) const;
     bool PhysRegDefsReach(MachineInstr *CSMI, MachineInstr *MI,
                           SmallSet<unsigned,8> &PhysRefs,
-                          SmallVector<unsigned,2> &PhysDefs,
+                          SmallVectorImpl<unsigned> &PhysDefs,
                           bool &NonLocal) const;
     bool isCSECandidate(MachineInstr *MI);
     bool isProfitableToCSE(unsigned CSReg, unsigned Reg,
@@ -126,8 +126,6 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
       // deleted.
       continue;
     MachineInstr *DefMI = MRI->getVRegDef(Reg);
-    if (DefMI->getParent() != MBB)
-      continue;
     if (!DefMI->isCopy())
       continue;
     unsigned SrcReg = DefMI->getOperand(1).getReg();
@@ -195,7 +193,7 @@ MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
 bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
                                        const MachineBasicBlock *MBB,
                                        SmallSet<unsigned,8> &PhysRefs,
-                                       SmallVector<unsigned,2> &PhysDefs,
+                                       SmallVectorImpl<unsigned> &PhysDefs,
                                        bool &PhysUseDef) const{
   // First, add all uses to PhysRefs.
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -246,7 +244,7 @@ bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
 
 bool MachineCSE::PhysRegDefsReach(MachineInstr *CSMI, MachineInstr *MI,
                                   SmallSet<unsigned,8> &PhysRefs,
-                                  SmallVector<unsigned,2> &PhysDefs,
+                                  SmallVectorImpl<unsigned> &PhysDefs,
                                   bool &NonLocal) const {
   // For now conservatively returns false if the common subexpression is
   // not in the same basic block as the given instruction. The only exception

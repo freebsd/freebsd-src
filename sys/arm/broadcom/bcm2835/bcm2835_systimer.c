@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -55,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_TIMER		3
 #define	DEFAULT_FREQUENCY	1000000
-#define	MIN_PERIOD		100LLU
+#define	MIN_PERIOD		5LLU
 
 #define	SYSTIMER_CS	0x00
 #define	SYSTIMER_CLO	0x04
@@ -118,28 +117,32 @@ bcm_systimer_tc_get_timecount(struct timecounter *tc)
 }
 
 static int
-bcm_systimer_start(struct eventtimer *et, struct bintime *first,
-              struct bintime *period)
+bcm_systimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct systimer *st = et->et_priv;
-	uint32_t clo;
+	uint32_t clo, clo1;
 	uint32_t count;
 	register_t s;
 
-	if (first != NULL) {
+	if (first != 0) {
 
-		count = (st->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			count += st->et.et_frequency * first->sec;
+		count = ((uint32_t)et->et_frequency * first) >> 32;
 
 		s = intr_disable();
 		clo = bcm_systimer_tc_read_4(SYSTIMER_CLO);
+restart:
 		clo += count;
 		/*
 		 * Clear pending interrupts
 		 */
 		bcm_systimer_tc_write_4(SYSTIMER_CS, (1 << st->index));
 		bcm_systimer_tc_write_4(SYSTIMER_C0 + st->index*4, clo);
+		clo1 = bcm_systimer_tc_read_4(SYSTIMER_CLO);
+		if ((int32_t)(clo1 - clo) >= 0) {
+			count *= 2;
+			clo = clo1;
+			goto restart;
+		}
 		st->enabled = 1;
 		intr_restore(s);
 
@@ -182,6 +185,9 @@ bcm_systimer_intr(void *arg)
 static int
 bcm_systimer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-system-timer")) {
 		device_set_desc(dev, "BCM2835 System Timer");
@@ -238,12 +244,10 @@ bcm_systimer_attach(device_t dev)
 	sc->st[DEFAULT_TIMER].et.et_flags = ET_FLAGS_ONESHOT;
 	sc->st[DEFAULT_TIMER].et.et_quality = 1000;
 	sc->st[DEFAULT_TIMER].et.et_frequency = sc->sysclk_freq;
-	sc->st[DEFAULT_TIMER].et.et_min_period.sec = 0;
-	sc->st[DEFAULT_TIMER].et.et_min_period.frac =
-	    ((MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
-	sc->st[DEFAULT_TIMER].et.et_max_period.sec = 0xfffffff0U / sc->st[DEFAULT_TIMER].et.et_frequency;
-	sc->st[DEFAULT_TIMER].et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
+	sc->st[DEFAULT_TIMER].et.et_min_period =
+	    (MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency + 1;
+	sc->st[DEFAULT_TIMER].et.et_max_period =
+	    (0x7ffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
 	sc->st[DEFAULT_TIMER].et.et_start = bcm_systimer_start;
 	sc->st[DEFAULT_TIMER].et.et_stop = bcm_systimer_stop;
 	sc->st[DEFAULT_TIMER].et.et_priv = &sc->st[DEFAULT_TIMER];
@@ -274,12 +278,6 @@ static devclass_t bcm_systimer_devclass;
 DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
 
 void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
-
-void
 DELAY(int usec)
 {
 	int32_t counts;
@@ -294,7 +292,7 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-	counts = usec * ((bcm_systimer_tc.tc_frequency / 1000000) + 1);
+	counts = usec * (bcm_systimer_tc.tc_frequency / 1000000) + 1;
 
 	first = bcm_systimer_tc_read_4(SYSTIMER_CLO);
 

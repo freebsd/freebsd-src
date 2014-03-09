@@ -99,7 +99,8 @@ static device_method_t	mfip_methods[] = {
 	DEVMETHOD(device_probe,		mfip_probe),
 	DEVMETHOD(device_attach,	mfip_attach),
 	DEVMETHOD(device_detach,	mfip_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 static driver_t mfip_driver = {
 	"mfip",
@@ -144,6 +145,7 @@ mfip_attach(device_t dev)
 				MFI_SCSI_MAX_CMDS, sc->devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		device_printf(dev, "CAM SIM attach failed\n");
 		return (EINVAL);
 	}
@@ -154,7 +156,9 @@ mfip_attach(device_t dev)
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		mtx_unlock(&mfisc->mfi_io_lock);
 		return (EINVAL);
 	}
@@ -186,11 +190,14 @@ mfip_detach(device_t dev)
 		mtx_lock(&sc->mfi_sc->mfi_io_lock);
 		xpt_bus_deregister(cam_sim_path(sc->sim));
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		mtx_unlock(&sc->mfi_sc->mfi_io_lock);
 	}
 
-	if (sc->devq != NULL)
+	if (sc->devq != NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
+	}
 
 	return (0);
 }
@@ -209,7 +216,7 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
-		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
+		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
 		cpi->hba_misc = PIM_NOBUSRESET|PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
@@ -237,6 +244,8 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
+		struct ccb_trans_settings_scsi *scsi =
+		    &ccb->cts.proto_specific.scsi;
 		struct ccb_trans_settings_sas *sas =
 		    &ccb->cts.xport_specific.sas;
 
@@ -244,6 +253,9 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->cts.protocol_version = SCSI_REV_2;
 		ccb->cts.transport = XPORT_SAS;
 		ccb->cts.transport_version = 0;
+
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 
 		sas->valid &= ~CTS_SAS_VALID_SPEED;
 		sas->bitrate = 150000;
@@ -264,17 +276,6 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccbh->status = CAM_REQ_INVALID;
 			break;
 		}
-		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if (ccbh->flags & CAM_DATA_PHYS) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-			if (ccbh->flags & CAM_SCATTER_VALID) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-		}
-
 		ccbh->ccb_mfip_ptr = sc;
 		TAILQ_INSERT_TAIL(&mfisc->mfi_cam_ccbq, ccbh, sim_links.tqe);
 		mfi_startio(mfisc);
@@ -312,27 +313,26 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 		return;
 	}
 	camsc->state = MFIP_STATE_RESCAN;
-	mtx_unlock(&sc->mfi_io_lock);
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot allocate ccb for bus rescan.\n");
 		return;
 	}
 
 	sim = camsc->sim;
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sim),
 	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_free_ccb(ccb);
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot create path for bus rescan.\n");
 		return;
 	}
-
 	xpt_rescan(ccb);
 
-	mtx_lock(&sc->mfi_io_lock);
 	camsc->state = MFIP_STATE_NONE;
 	mtx_unlock(&sc->mfi_io_lock);
 }
@@ -379,14 +379,14 @@ mfip_start(void *data)
 	cm->cm_private = ccb;
 	cm->cm_sg = &pt->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_data = csio->data_ptr;
+	cm->cm_data = ccb;
 	cm->cm_len = csio->dxfer_len;
 	switch (ccbh->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
-		cm->cm_flags = MFI_CMD_DATAIN;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_OUT:
-		cm->cm_flags = MFI_CMD_DATAOUT;
+		cm->cm_flags = MFI_CMD_DATAOUT | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_NONE:
 	default:

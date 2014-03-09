@@ -13,26 +13,26 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/Constants.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCTargetAsmParser.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 namespace {
@@ -123,7 +123,7 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, const MDNode *LocMDNode,
                                              TM.getTargetCPU(),
                                              TM.getTargetFeatureString()));
   OwningPtr<MCTargetAsmParser>
-    TAP(TM.getTarget().createMCAsmParser(*STI, *Parser));
+    TAP(TM.getTarget().createMCAsmParser(*STI, *Parser, *MII));
   if (!TAP)
     report_fatal_error("Inline asm not supported by this streamer because"
                        " we don't have an asm parser for this target\n");
@@ -213,7 +213,7 @@ static void EmitMSInlineAsmStr(const char *AsmStr, const MachineInstr *MI,
       } else {
         unsigned OpFlags = MI->getOperand(OpNo).getImm();
         ++OpNo;  // Skip over the ID number.
-        
+
         if (InlineAsm::isMemKind(OpFlags)) {
           Error = AP->PrintAsmMemoryOperand(MI, OpNo, InlineAsmVariant,
                                             /*Modifier*/ 0, OS);

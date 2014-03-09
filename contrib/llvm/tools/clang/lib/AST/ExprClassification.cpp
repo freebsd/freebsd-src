@@ -11,14 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/ErrorHandling.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/DeclObjC.h"
-#include "clang/AST/DeclCXX.h"
-#include "clang/AST/DeclTemplate.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
 typedef Expr::Classification Cl;
@@ -33,21 +33,6 @@ static Cl::Kinds ClassifyConditional(ASTContext &Ctx,
                                      const Expr *falseExpr);
 static Cl::ModifiableType IsModifiable(ASTContext &Ctx, const Expr *E,
                                        Cl::Kinds Kind, SourceLocation &Loc);
-
-static Cl::Kinds ClassifyExprValueKind(const LangOptions &Lang,
-                                       const Expr *E,
-                                       ExprValueKind Kind) {
-  switch (Kind) {
-  case VK_RValue:
-    return Lang.CPlusPlus && E->getType()->isRecordType() ?
-      Cl::CL_ClassTemporary : Cl::CL_PRValue;
-  case VK_LValue:
-    return Cl::CL_LValue;
-  case VK_XValue:
-    return Cl::CL_XValue;
-  }
-  llvm_unreachable("Invalid value category of implicit cast.");
-}
 
 Cl Expr::ClassifyImpl(ASTContext &Ctx, SourceLocation *Loc) const {
   assert(!TR->isReferenceType() && "Expressions can't have reference type.");
@@ -100,6 +85,20 @@ static Cl::Kinds ClassifyTemporary(QualType T) {
   return Cl::CL_PRValue;
 }
 
+static Cl::Kinds ClassifyExprValueKind(const LangOptions &Lang,
+                                       const Expr *E,
+                                       ExprValueKind Kind) {
+  switch (Kind) {
+  case VK_RValue:
+    return Lang.CPlusPlus ? ClassifyTemporary(E->getType()) : Cl::CL_PRValue;
+  case VK_LValue:
+    return Cl::CL_LValue;
+  case VK_XValue:
+    return Cl::CL_XValue;
+  }
+  llvm_unreachable("Invalid value category of implicit cast.");
+}
+
 static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   // This function takes the first stab at classifying expressions.
   const LangOptions &Lang = Ctx.getLangOpts();
@@ -135,6 +134,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     // FIXME: ObjC++0x might have different rules
   case Expr::ObjCIvarRefExprClass:
   case Expr::FunctionParmPackExprClass:
+  case Expr::MSPropertyRefExprClass:
     return Cl::CL_LValue;
 
     // C99 6.5.2.5p5 says that compound literals are lvalues.
@@ -155,6 +155,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::OffsetOfExprClass:
   case Expr::CXXThrowExprClass:
   case Expr::ShuffleVectorExprClass:
+  case Expr::ConvertVectorExprClass:
   case Expr::IntegerLiteralClass:
   case Expr::CharacterLiteralClass:
   case Expr::AddrLabelExprClass:
@@ -286,17 +287,24 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
 
     // __builtin_choose_expr is equivalent to the chosen expression.
   case Expr::ChooseExprClass:
-    return ClassifyInternal(Ctx, cast<ChooseExpr>(E)->getChosenSubExpr(Ctx));
+    return ClassifyInternal(Ctx, cast<ChooseExpr>(E)->getChosenSubExpr());
 
     // Extended vector element access is an lvalue unless there are duplicates
     // in the shuffle expression.
   case Expr::ExtVectorElementExprClass:
-    return cast<ExtVectorElementExpr>(E)->containsDuplicateElements() ?
-      Cl::CL_DuplicateVectorComponents : Cl::CL_LValue;
+    if (cast<ExtVectorElementExpr>(E)->containsDuplicateElements())
+      return Cl::CL_DuplicateVectorComponents;
+    if (cast<ExtVectorElementExpr>(E)->isArrow())
+      return Cl::CL_LValue;
+    return ClassifyInternal(Ctx, cast<ExtVectorElementExpr>(E)->getBase());
 
     // Simply look at the actual default argument.
   case Expr::CXXDefaultArgExprClass:
     return ClassifyInternal(Ctx, cast<CXXDefaultArgExpr>(E)->getExpr());
+
+    // Same idea for default initializers.
+  case Expr::CXXDefaultInitExprClass:
+    return ClassifyInternal(Ctx, cast<CXXDefaultInitExpr>(E)->getExpr());
 
     // Same idea for temporary binding.
   case Expr::CXXBindTemporaryExprClass:
@@ -349,6 +357,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::CXXConstructExprClass:
   case Expr::CXXTemporaryObjectExprClass:
   case Expr::LambdaExprClass:
+  case Expr::CXXStdInitializerListExprClass:
     return Cl::CL_ClassTemporary;
 
   case Expr::VAArgExprClass:
@@ -582,6 +591,8 @@ static Cl::ModifiableType IsModifiable(ASTContext &Ctx, const Expr *E,
   CanQualType CT = Ctx.getCanonicalType(E->getType());
   // Const stuff is obviously not modifiable.
   if (CT.isConstQualified())
+    return Cl::CM_ConstQualified;
+  if (CT.getQualifiers().getAddressSpace() == LangAS::opencl_constant)
     return Cl::CM_ConstQualified;
 
   // Arrays are not modifiable, only their elements are.

@@ -152,7 +152,7 @@ fully specified using just rsa_q, rsa_p and rsa_e at the cost of extra
 computation.
 
 "key_constraints" may only be present if the request type is
-SSH_AGENTC_ADD_RSA_IDENTITY.
+SSH_AGENTC_ADD_RSA_ID_CONSTRAINED.
 
 The agent will reply with a SSH_AGENT_SUCCESS if the key has been
 successfully added or a SSH_AGENT_FAILURE if an error occurred.
@@ -557,4 +557,4 @@ Locking and unlocking affects both protocol 1 and protocol 2 keys.
 	SSH_AGENT_CONSTRAIN_LIFETIME			1
 	SSH_AGENT_CONSTRAIN_CONFIRM			2
 
-$OpenBSD: PROTOCOL.agent,v 1.6 2010/08/31 11:54:45 djm Exp $
+$OpenBSD: PROTOCOL.agent,v 1.7 2013/01/02 00:33:49 djm Exp $

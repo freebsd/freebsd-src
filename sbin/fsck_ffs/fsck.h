@@ -67,10 +67,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <sys/queue.h>
+
 #define	MAXDUP		10	/* limit on dup blks (per inode) */
 #define	MAXBAD		10	/* limit on bad blks (per inode) */
-#define	MAXBUFSPACE	40*1024	/* maximum space to allocate to buffers */
-#define	INOBUFSIZE	56*1024	/* size of buffer to read inodes in pass1 */
+#define	MINBUFS		10	/* minimum number of buffers required */
+#define	MAXBUFS		40	/* maximum space to allocate to buffers */
+#define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
+#define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -130,12 +134,12 @@ struct inostatlist {
  * buffer cache structure.
  */
 struct bufarea {
-	struct bufarea *b_next;		/* free list queue */
-	struct bufarea *b_prev;		/* free list queue */
+	TAILQ_ENTRY(bufarea) b_list;		/* buffer list */
 	ufs2_daddr_t b_bno;
 	int b_size;
 	int b_errs;
 	int b_flags;
+	int b_type;
 	union {
 		char *b_buf;			/* buffer space */
 		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
@@ -159,14 +163,44 @@ struct bufarea {
 		(bp)->b_un.b_indir2[i] = (val); \
 	} while (0)
 
-#define	B_INUSE 1
+/*
+ * Buffer flags
+ */
+#define	B_INUSE 	0x00000001	/* Buffer is in use */
+/*
+ * Type of data in buffer
+ */
+#define	BT_UNKNOWN 	 0	/* Buffer holds a superblock */
+#define	BT_SUPERBLK 	 1	/* Buffer holds a superblock */
+#define	BT_CYLGRP 	 2	/* Buffer holds a cylinder group map */
+#define	BT_LEVEL1 	 3	/* Buffer holds single level indirect */
+#define	BT_LEVEL2 	 4	/* Buffer holds double level indirect */
+#define	BT_LEVEL3 	 5	/* Buffer holds triple level indirect */
+#define	BT_EXTATTR 	 6	/* Buffer holds external attribute data */
+#define	BT_INODES 	 7	/* Buffer holds external attribute data */
+#define	BT_DIRDATA 	 8	/* Buffer holds directory data */
+#define	BT_DATA	 	 9	/* Buffer holds user data */
+#define BT_NUMBUFTYPES	10
+#define BT_NAMES {			\
+	"unknown",			\
+	"Superblock",			\
+	"Cylinder Group",		\
+	"Single Level Indirect",	\
+	"Double Level Indirect",	\
+	"Triple Level Indirect",	\
+	"External Attribute",		\
+	"Inode Block",			\
+	"Directory Contents",		\
+	"User Data" }
+extern long readcnt[BT_NUMBUFTYPES];
+extern long totalreadcnt[BT_NUMBUFTYPES];
+extern struct timespec readtime[BT_NUMBUFTYPES];
+extern struct timespec totalreadtime[BT_NUMBUFTYPES];
+extern struct timespec startprog;
 
-#define	MINBUFS		5	/* minimum number of buffers required */
-struct bufarea bufhead;		/* head of list of other blks in filesys */
-struct bufarea sblk;		/* file system superblock */
-struct bufarea cgblk;		/* cylinder group blocks */
-struct bufarea *pdirbp;		/* current directory contents */
-struct bufarea *pbp;		/* current inode block */
+extern struct bufarea sblk;		/* file system superblock */
+extern struct bufarea *pdirbp;		/* current directory contents */
+extern struct bufarea *pbp;		/* current inode block */
 
 #define	dirty(bp) do { \
 	if (fswritefd < 0) \
@@ -174,19 +208,18 @@ struct bufarea *pbp;		/* current inode block */
 	else \
 		(bp)->b_dirty = 1; \
 } while (0)
-#define	initbarea(bp) do { \
+#define	initbarea(bp, type) do { \
 	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs2_daddr_t)-1; \
 	(bp)->b_flags = 0; \
+	(bp)->b_type = type; \
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
-#define	cgdirty()	dirty(&cgblk)
 #define	sblock		(*sblk.b_un.b_fs)
-#define	cgrp		(*cgblk.b_un.b_cg)
 
 enum fixstate {DONTKNOW, NOFIX, FIX, IGNORE};
-ino_t cursnapshot;
+extern ino_t cursnapshot;
 
 struct inodesc {
 	enum fixstate id_fix;	/* policy on fixing errors */
@@ -249,61 +282,64 @@ struct inoinfo {
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs2_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
-long numdirs, dirhash, listmax, inplast;
-long countdirs;			/* number of directories we actually found */
+extern long numdirs, dirhash, listmax, inplast;
+extern long countdirs;		/* number of directories we actually found */
 
 #define MIBSIZE	3		/* size of fsck sysctl MIBs */
-int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
-int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
-int	adjndir[MIBSIZE];	/* MIB command to adjust number of directories */
-int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
-int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
-int	adjnffree[MIBSIZE];	/* MIB command to adjust number of free frags */
-int	adjnumclusters[MIBSIZE];	/* MIB command to adjust number of free clusters */
-int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
-int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
-int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
-struct	fsck_cmd cmd;		/* sysctl file system update commands */
-char	snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
-char	*cdevname;		/* name of device being checked */
-long	dev_bsize;		/* computed value of DEV_BSIZE */
-long	secsize;		/* actual disk sector size */
-u_int	real_dev_bsize;		/* actual disk sector size, not overriden */
-char	nflag;			/* assume a no response */
-char	yflag;			/* assume a yes response */
-int	bkgrdflag;		/* use a snapshot to run on an active system */
-int	bflag;			/* location of alternate super block */
-int	debug;			/* output debugging info */
-int	Eflag;			/* zero out empty data blocks */
-int	inoopt;			/* trim out unused inodes */
-char	ckclean;		/* only do work if not cleanly unmounted */
-int	cvtlevel;		/* convert to newer file system format */
-int	bkgrdcheck;		/* determine if background check is possible */
-int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
-char	usedsoftdep;		/* just fix soft dependency inconsistencies */
-char	preen;			/* just fix normal inconsistencies */
-char	rerun;			/* rerun fsck. Only used in non-preen mode */
-int	returntosingle;		/* 1 => return to single user mode on exit */
-char	resolved;		/* cleared if unresolved changes => not clean */
-char	havesb;			/* superblock has been read */
-char	skipclean;		/* skip clean file systems if preening */
-int	fsmodified;		/* 1 => write done to file system */
-int	fsreadfd;		/* file descriptor for reading file system */
-int	fswritefd;		/* file descriptor for writing file system */
+extern int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
+extern int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
+extern int	adjndir[MIBSIZE];	/* MIB command to adjust number of directories */
+extern int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
+extern int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
+extern int	adjnffree[MIBSIZE];	/* MIB command to adjust number of free frags */
+extern int	adjnumclusters[MIBSIZE];	/* MIB command to adjust number of free clusters */
+extern int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
+extern int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
+extern int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
+extern struct	fsck_cmd cmd;		/* sysctl file system update commands */
+extern char	snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
+extern char	*cdevname;		/* name of device being checked */
+extern long	dev_bsize;		/* computed value of DEV_BSIZE */
+extern long	secsize;		/* actual disk sector size */
+extern u_int	real_dev_bsize;		/* actual disk sector size, not overriden */
+extern char	nflag;			/* assume a no response */
+extern char	yflag;			/* assume a yes response */
+extern int	bkgrdflag;		/* use a snapshot to run on an active system */
+extern int	bflag;			/* location of alternate super block */
+extern int	debug;			/* output debugging info */
+extern int	Eflag;			/* delete empty data blocks */
+extern int	Zflag;			/* zero empty data blocks */
+extern int	inoopt;			/* trim out unused inodes */
+extern char	ckclean;		/* only do work if not cleanly unmounted */
+extern int	cvtlevel;		/* convert to newer file system format */
+extern int	bkgrdcheck;		/* determine if background check is possible */
+extern int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
+extern char	usedsoftdep;		/* just fix soft dependency inconsistencies */
+extern char	preen;			/* just fix normal inconsistencies */
+extern char	rerun;			/* rerun fsck. Only used in non-preen mode */
+extern int	returntosingle;		/* 1 => return to single user mode on exit */
+extern char	resolved;		/* cleared if unresolved changes => not clean */
+extern char	havesb;			/* superblock has been read */
+extern char	skipclean;		/* skip clean file systems if preening */
+extern int	fsmodified;		/* 1 => write done to file system */
+extern int	fsreadfd;		/* file descriptor for reading file system */
+extern int	fswritefd;		/* file descriptor for writing file system */
+extern int	surrender;		/* Give up if reads fail */
+extern int	wantrestart;		/* Restart fsck on early termination */
 
-ufs2_daddr_t maxfsblock;	/* number of blocks in the file system */
-char	*blockmap;		/* ptr to primary blk allocation map */
-ino_t	maxino;			/* number of inodes in file system */
+extern ufs2_daddr_t maxfsblock;	/* number of blocks in the file system */
+extern char	*blockmap;		/* ptr to primary blk allocation map */
+extern ino_t	maxino;			/* number of inodes in file system */
 
-ino_t	lfdir;			/* lost & found directory inode number */
-const char *lfname;		/* lost & found directory name */
-int	lfmode;			/* lost & found directory creation mode */
+extern ino_t	lfdir;			/* lost & found directory inode number */
+extern const char *lfname;		/* lost & found directory name */
+extern int	lfmode;			/* lost & found directory creation mode */
 
-ufs2_daddr_t n_blks;		/* number of blocks in use */
-ino_t n_files;			/* number of files in use */
+extern ufs2_daddr_t n_blks;		/* number of blocks in use */
+extern ino_t n_files;			/* number of files in use */
 
-volatile sig_atomic_t	got_siginfo;	/* received a SIGINFO */
-volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
+extern volatile sig_atomic_t	got_siginfo;	/* received a SIGINFO */
+extern volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
 
 #define	clearinode(dp) \
 	if (sblock.fs_magic == FS_UFS1_MAGIC) { \
@@ -311,8 +347,8 @@ volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
 	} else { \
 		(dp)->dp2 = ufs2_zino; \
 	}
-struct	ufs1_dinode ufs1_zino;
-struct	ufs2_dinode ufs2_zino;
+extern struct	ufs1_dinode ufs1_zino;
+extern struct	ufs2_dinode ufs2_zino;
 
 #define	setbmap(blkno)	setbit(blockmap, blkno)
 #define	testbmap(blkno)	isset(blockmap, blkno)
@@ -325,6 +361,38 @@ struct	ufs2_dinode ufs2_zino;
 #define	FOUND	0x10
 
 #define	EEXIT	8		/* Standard error exit. */
+#define	ERESTART -1
+
+int flushentry(void);
+/*
+ * Wrapper for malloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Malloc(size_t size)
+{
+	void *retval;
+
+	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
+/*
+ * Wrapper for calloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Calloc(size_t cnt, size_t size)
+{
+	void *retval;
+
+	while ((retval = calloc(cnt, size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
 
 struct fstab;
 
@@ -339,11 +407,12 @@ int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
+void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
-int		check_cgmagic(int cg, struct cg *cgp);
+int		check_cgmagic(int cg, struct bufarea *cgbp);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
@@ -354,15 +423,18 @@ int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
 int		eascan(struct inodesc *, struct ufs2_dinode *dp);
 void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
+void		finalIOstats(void);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
 void		freeblk(ufs2_daddr_t blkno, long frags);
 void		freeino(ino_t ino);
 void		freeinodebuf(void);
+void		fsutilinit(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
-struct bufarea *getdatablk(ufs2_daddr_t blkno, long size);
+struct bufarea *cgget(int cg);
+struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
@@ -372,6 +444,7 @@ void		alarmhandler(int sig);
 void		inocleanup(void);
 void		inodirty(void);
 struct inostat *inoinfo(ino_t inum);
+void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
 int		makeentry(ino_t parent, ino_t ino, const char *name);
 void		panic(const char *fmt, ...) __printflike(1, 2);
@@ -396,5 +469,6 @@ int		setup(char *dev);
 void		gjournal_check(const char *filesys);
 int		suj_check(const char *filesys);
 void		update_maps(struct cg *, struct cg*, int);
+void		fsckinit(void);
 
 #endif	/* !_FSCK_H_ */

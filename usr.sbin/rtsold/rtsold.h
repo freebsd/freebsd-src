@@ -43,7 +43,7 @@ struct ra_opt {
 	TAILQ_ENTRY(ra_opt)	rao_next;
 
 	u_int8_t	rao_type;
-	struct timeval	rao_expire;
+	struct timespec	rao_expire;
 	size_t		rao_len;
 	void		*rao_msg;
 };
@@ -73,8 +73,8 @@ struct ifinfo {
 	int state;
 	int probes;
 	int dadcount;
-	struct timeval timer;
-	struct timeval expire;
+	struct timespec timer;
+	struct timespec expire;
 	int errors;		/* # of errors we've got - detect wedge */
 #define IFI_DNSOPT_STATE_NOINFO		0
 #define IFI_DNSOPT_STATE_RECEIVED     	1
@@ -124,8 +124,31 @@ extern TAILQ_HEAD(ifinfo_head_t, ifinfo) ifinfo_head;
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
 #endif
 
+#define	TS_CMP(tsp, usp, cmp)						\
+	(((tsp)->tv_sec == (usp)->tv_sec) ?				\
+	    ((tsp)->tv_nsec cmp (usp)->tv_nsec) :			\
+	    ((tsp)->tv_sec cmp (usp)->tv_sec))
+#define	TS_ADD(tsp, usp, vsp)						\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec + (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec >= 1000000000L) {			\
+			(vsp)->tv_sec++;				\
+			(vsp)->tv_nsec -= 1000000000L;			\
+		}							\
+	} while (0)
+#define	TS_SUB(tsp, usp, vsp)						\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec < 0) {				\
+			(vsp)->tv_sec--;				\
+			(vsp)->tv_nsec += 1000000000L;			\
+		}							\
+	} while (0)
+
 /* rtsold.c */
-extern struct timeval tm_max;
+extern struct timespec tm_max;
 extern int dflag;
 extern int aflag;
 extern int Fflag;
@@ -153,6 +176,7 @@ extern int getinet6sysctl(int);
 extern int setinet6sysctl(int, int);
 
 /* rtsol.c */
+extern int rssock;
 extern int sockopen(void);
 extern void sendpacket(struct ifinfo *);
 extern void rtsol_input(int);
@@ -163,7 +187,7 @@ extern void defrouter_probe(struct ifinfo *);
 
 /* dump.c */
 extern void rtsold_dump_file(const char *);
-extern const char *sec2str(const struct timeval *);
+extern const char *sec2str(const struct timespec *);
 
 /* rtsock.c */
 extern int rtsock_open(void);

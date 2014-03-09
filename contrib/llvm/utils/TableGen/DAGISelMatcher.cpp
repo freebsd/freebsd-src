@@ -10,9 +10,9 @@
 #include "DAGISelMatcher.h"
 #include "CodeGenDAGPatterns.h"
 #include "CodeGenTarget.h"
-#include "llvm/TableGen/Record.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/TableGen/Record.h"
 using namespace llvm;
 
 void Matcher::anchor() { }
@@ -63,7 +63,7 @@ bool Matcher::canMoveBefore(const Matcher *Other) const {
   }
 }
 
-/// canMoveBefore - Return true if it is safe to move the current matcher
+/// canMoveBeforeNode - Return true if it is safe to move the current matcher
 /// across the specified one.
 bool Matcher::canMoveBeforeNode(const Matcher *Other) const {
   // We can move simple predicates before record nodes.
@@ -132,6 +132,10 @@ void MoveParentMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
 
 void CheckSameMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "CheckSame " << MatchNumber << '\n';
+}
+
+void CheckChildSameMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
+  OS.indent(indent) << "CheckChild" << ChildNo << "Same\n";
 }
 
 void CheckPatternPredicateMatcher::

@@ -72,14 +72,14 @@ __FBSDID("$FreeBSD$");
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
 
 
-MKINIT char sigmode[NSIG];	/* current value of signal */
-int pendingsigs;		/* indicates some signal received */
+static char sigmode[NSIG];	/* current value of signal */
+volatile sig_atomic_t pendingsig;	/* indicates some signal received */
+volatile sig_atomic_t pendingsig_waitcmd;	/* indicates SIGINT/SIGQUIT received */
 int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
-volatile sig_atomic_t gotwinch;
 static int last_trapsig;
 
 static int exiting;		/* exitshell() has been called */
@@ -150,7 +150,7 @@ printsignals(void)
  * The trap builtin.
  */
 int
-trapcmd(int argc, char **argv)
+trapcmd(int argc __unused, char **argv)
 {
 	char *action;
 	int signo;
@@ -292,12 +292,6 @@ setsignal(int signo)
 				action = S_IGN;
 			break;
 #endif
-#ifndef NO_HISTORY
-		case SIGWINCH:
-			if (rootshell && iflag)
-				action = S_CATCH;
-			break;
-#endif
 		}
 	}
 
@@ -361,10 +355,12 @@ void
 ignoresig(int signo)
 {
 
+	if (sigmode[signo] == 0)
+		setsignal(signo);
 	if (sigmode[signo] != S_IGN && sigmode[signo] != S_HARD_IGN) {
 		signal(signo, SIG_IGN);
+		sigmode[signo] = S_IGN;
 	}
-	sigmode[signo] = S_HARD_IGN;
 }
 
 
@@ -388,27 +384,15 @@ onsig(int signo)
 		return;
 	}
 
-	if (signo != SIGCHLD || !ignore_sigchld)
-		gotsig[signo] = 1;
-	pendingsigs++;
-
 	/* If we are currently in a wait builtin, prepare to break it */
-	if ((signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
-		breakwaitcmd = 1;
-	/*
-	 * If a trap is set, not ignored and not the null command, we need
-	 * to make sure traps are executed even when a child blocks signals.
-	 */
-	if (Tflag &&
-	    trap[signo] != NULL &&
-	    ! (trap[signo][0] == '\0') &&
-	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
-		breakwaitcmd = 1;
+	if (signo == SIGINT || signo == SIGQUIT)
+		pendingsig_waitcmd = signo;
 
-#ifndef NO_HISTORY
-	if (signo == SIGWINCH)
-		gotwinch = 1;
-#endif
+	if (trap[signo] != NULL && trap[signo][0] != '\0' &&
+	    (signo != SIGCHLD || !ignore_sigchld)) {
+		gotsig[signo] = 1;
+		pendingsig = signo;
+	}
 }
 
 
@@ -424,7 +408,8 @@ dotrap(void)
 
 	in_dotrap++;
 	for (;;) {
-		pendingsigs = 0;
+		pendingsig = 0;
+		pendingsig_waitcmd = 0;
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
 				gotsig[i] = 0;
@@ -452,7 +437,6 @@ dotrap(void)
 					last_trapsig = i;
 					savestatus = exitstatus;
 					evalstring(trap[i], 0);
-					exitstatus = savestatus;
 
 					/*
 					 * If such a command was not
@@ -461,9 +445,11 @@ dotrap(void)
 					 * trap action to have an effect
 					 * outside of it.
 					 */
-					if (prev_evalskip != 0) {
+					if (evalskip == 0 ||
+					    prev_evalskip != 0) {
 						evalskip  = prev_evalskip;
 						skipcount = prev_skipcount;
+						exitstatus = savestatus;
 					}
 
 					if (i == SIGCHLD)
@@ -492,9 +478,6 @@ setinteractive(int on)
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
-#ifndef NO_HISTORY
-	setsignal(SIGWINCH);
-#endif
 	is_interactive = on;
 }
 

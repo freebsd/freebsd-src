@@ -50,6 +50,7 @@
 #define	_PATH_CSHELL	"/bin/csh"
 #define	_PATH_CSMAPPER	"/usr/share/i18n/csmapper"
 #define	_PATH_DEFTAPE	"/dev/sa0"
+#define	_PATH_DEVGPIOC	"/dev/gpioc"
 #define	_PATH_DEVNULL	"/dev/null"
 #define	_PATH_DEVZERO	"/dev/zero"
 #define	_PATH_DRUM	"/dev/drum"
@@ -57,6 +58,8 @@
 #define	_PATH_ETC	"/etc"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_FWMEM	"/dev/fwmem"
+#define	_PATH_GBDE	"/sbin/gbde"
+#define	_PATH_GELI	"/sbin/geli"
 #define	_PATH_HALT	"/sbin/halt"
 #ifdef COMPAT_32BIT
 #define	_PATH_I18NMODULE	"/usr/lib32/i18n"

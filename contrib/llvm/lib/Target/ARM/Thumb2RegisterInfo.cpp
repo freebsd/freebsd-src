@@ -16,17 +16,16 @@
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMSubtarget.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
 using namespace llvm;
 
-Thumb2RegisterInfo::Thumb2RegisterInfo(const ARMBaseInstrInfo &tii,
-                                       const ARMSubtarget &sti)
-  : ARMBaseRegisterInfo(tii, sti) {
+Thumb2RegisterInfo::Thumb2RegisterInfo(const ARMSubtarget &sti)
+  : ARMBaseRegisterInfo(sti) {
 }
 
 /// emitLoadConstPool - Emits a load from constpool to materialize the
@@ -40,6 +39,7 @@ Thumb2RegisterInfo::emitLoadConstPool(MachineBasicBlock &MBB,
                                       ARMCC::CondCodes Pred, unsigned PredReg,
                                       unsigned MIFlags) const {
   MachineFunction &MF = *MBB.getParent();
+  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
   MachineConstantPool *ConstantPool = MF.getConstantPool();
   const Constant *C = ConstantInt::get(
            Type::getInt32Ty(MBB.getParent()->getFunction()->getContext()), Val);

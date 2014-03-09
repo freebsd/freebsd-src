@@ -306,7 +306,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 		switch (cfgmech) {
 		case CFGMECH_PCIE:
 		case CFGMECH_1:
-			outl(CONF1_ADDR_PORT, (1 << 31)
+			outl(CONF1_ADDR_PORT, (1U << 31)
 			    | (bus << 16) | (slot << 11) 
 			    | (func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);
@@ -562,7 +562,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		if (pcie_array == NULL)
 			return (0);
 
-		va = kmem_alloc_nofault(kernel_map, PCIE_CACHE * PAGE_SIZE);
+		va = kva_alloc(PCIE_CACHE * PAGE_SIZE);
 		if (va == 0) {
 			free(pcie_array, M_DEVBUF);
 			return (0);

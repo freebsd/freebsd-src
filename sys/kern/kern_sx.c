@@ -38,7 +38,6 @@
 
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_no_adaptive_sx.h"
 
 #include <sys/cdefs.h>
@@ -109,18 +108,17 @@ PMC_SOFT_DECLARE( , , lock, failed);
  * Returns true if an exclusive lock is recursed.  It assumes
  * curthread currently has an exclusive lock.
  */
-#define	sx_recurse		lock_object.lo_data
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
 static void	assert_sx(const struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_sx(const struct lock_object *lock);
 #endif
-static void	lock_sx(struct lock_object *lock, int how);
+static void	lock_sx(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_sx(const struct lock_object *lock, struct thread **owner);
 #endif
-static int	unlock_sx(struct lock_object *lock);
+static uintptr_t unlock_sx(struct lock_object *lock);
 
 struct lock_class lock_class_sx = {
 	.lc_name = "sx",
@@ -156,18 +154,18 @@ assert_sx(const struct lock_object *lock, int what)
 }
 
 void
-lock_sx(struct lock_object *lock, int how)
+lock_sx(struct lock_object *lock, uintptr_t how)
 {
 	struct sx *sx;
 
 	sx = (struct sx *)lock;
 	if (how)
-		sx_xlock(sx);
-	else
 		sx_slock(sx);
+	else
+		sx_xlock(sx);
 }
 
-int
+uintptr_t
 unlock_sx(struct lock_object *lock)
 {
 	struct sx *sx;
@@ -176,10 +174,10 @@ unlock_sx(struct lock_object *lock)
 	sx_assert(sx, SA_LOCKED | SA_NOTRECURSED);
 	if (sx_xlocked(sx)) {
 		sx_xunlock(sx);
-		return (1);
+		return (0);
 	} else {
 		sx_sunlock(sx);
-		return (0);
+		return (1);
 	}
 }
 
@@ -228,9 +226,9 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 		flags |= LO_QUIET;
 
 	flags |= opts & SX_NOADAPTIVE;
+	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
-	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 }
 
 void
@@ -362,11 +360,10 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_SLOCKED, file, line);
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
 	__sx_sunlock(sx, file, line);
-	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_SUNLOCK_RELEASE, sx);
+	curthread->td_locks--;
 }
 
 void
@@ -378,13 +375,11 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_XLOCKED, file, line);
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
 	    line);
-	if (!sx_recursed(sx))
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_XUNLOCK_RELEASE, sx);
 	__sx_xunlock(sx, curthread, file, line);
+	curthread->td_locks--;
 }
 
 /*

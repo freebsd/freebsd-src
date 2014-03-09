@@ -34,9 +34,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -123,11 +125,11 @@ phys_pager_dealloc(vm_object_t object)
 {
 
 	if (object->handle != NULL) {
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		mtx_lock(&phys_pager_mtx);
 		TAILQ_REMOVE(&phys_pager_object_list, object, pager_object_list);
 		mtx_unlock(&phys_pager_mtx);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 	}
 }
 
@@ -139,7 +141,7 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (i = 0; i < count; i++) {
 		if (m[i]->valid == 0) {
 			if ((m[i]->flags & PG_ZERO) == 0)
@@ -151,10 +153,12 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		KASSERT(m[i]->dirty == 0,
 		    ("phys_pager_getpages: dirty page %p", m[i]));
 		/* The requested page must remain busy, the others not. */
-		if (i == reqpage)
+		if (i == reqpage) {
+			vm_page_lock(m[i]);
 			vm_page_flash(m[i]);
-		else
-			vm_page_wakeup(m[i]);
+			vm_page_unlock(m[i]);
+		} else
+			vm_page_xunbusy(m[i]);
 	}
 	return (VM_PAGER_OK);
 }

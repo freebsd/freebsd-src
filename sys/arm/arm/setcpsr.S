@@ -61,11 +61,12 @@ ENTRY_NP(SetCPSR)
         mrs     r3, cpsr		/* Set the CPSR */
 	bic	r2, r3, r0
         eor     r2, r2, r1
-        msr     cpsr_all, r2
+        msr     cpsr_fsxc, r2
 
         mov	r0, r3			/* Return the old CPSR */
 
 	RET
+END(SetCPSR)
 
 
 /* Gets the CPSR register
@@ -77,4 +78,5 @@ ENTRY_NP(GetCPSR)
         mrs     r0, cpsr		/* Get the CPSR */
 
 	RET
+END(GetCPSR)
 

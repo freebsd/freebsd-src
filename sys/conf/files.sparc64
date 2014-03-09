@@ -24,7 +24,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 #
 cddl/contrib/opensolaris/common/atomic/sparc64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
@@ -39,7 +39,7 @@ dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
 dev/le/lebuffer_sbus.c		optional	le sbus
@@ -59,7 +59,8 @@ dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
-dev/uart/uart_kbd_sun.c		optional	uart sc
+dev/uart/uart_kbd_sun.c		optional	uart sc | vt
+dev/vt/hw/ofwfb/ofwfb.c		optional	vt
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
@@ -67,6 +68,7 @@ libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/memmove.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
@@ -88,7 +90,7 @@ sparc64/pci/schizo.c		optional	pci
 sparc64/sbus/dma_sbus.c		optional	sbus
 sparc64/sbus/sbus.c		optional	sbus
 sparc64/sbus/lsi64854.c		optional	sbus
-sparc64/sparc64/ata_machdep.c	optional	ada | atadisk | da
+sparc64/sparc64/ata_machdep.c	optional	ada | da
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard

@@ -101,7 +101,7 @@ buf_read(int sock, void *buf, size_t nbytes)
 }
 
 void
-dispatch_imsg(int fd)
+dispatch_imsg(struct interface_info *ifi, int fd)
 {
 	struct imsg_hdr		 hdr;
 	char			*medium, *reason, *filename,
@@ -231,6 +231,9 @@ dispatch_imsg(int fd)
 			error("buf_add: %m");
 		if (buf_close(fd, buf) == -1)
 			error("buf_close: %m");
+		break;
+	case IMSG_SEND_PACKET:
+		send_packet_priv(ifi, &hdr, fd);
 		break;
 	default:
 		error("received unknown message, code %d", hdr.code);

@@ -183,7 +183,7 @@ static int
 tws_attach(device_t dev)
 {
     struct tws_softc *sc = device_get_softc(dev);
-    u_int32_t cmd, bar;
+    u_int32_t bar;
     int error=0,i;
 
     /* no tracing yet */
@@ -224,14 +224,7 @@ tws_attach(device_t dev)
                       OID_AUTO, "driver_version", CTLFLAG_RD,
                       TWS_DRIVER_VERSION_STRING, 0, "TWS driver version");
 
-    cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-    if ( (cmd & PCIM_CMD_PORTEN) == 0) {
-        tws_log(sc, PCI_COMMAND_READ);
-        goto attach_fail_1;
-    }
-    /* Force the busmaster enable bit on. */
-    cmd |= PCIM_CMD_BUSMASTEREN;
-    pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+    pci_enable_busmaster(dev);
 
     bar = pci_read_config(dev, TWS_PCI_BAR0, 4);
     TWS_TRACE_DEBUG(sc, "bar0 ", bar, 0);
@@ -461,13 +454,9 @@ static int
 tws_setup_irq(struct tws_softc *sc)
 {
     int messages;
-    u_int16_t cmd;
 
-    cmd = pci_read_config(sc->tws_dev, PCIR_COMMAND, 2);
     switch(sc->intr_type) {
         case TWS_INTx :
-            cmd = cmd & ~0x0400;
-            pci_write_config(sc->tws_dev, PCIR_COMMAND, cmd, 2);
             sc->irqs = 1;
             sc->irq_res_id[0] = 0;
             sc->irq_res[0] = bus_alloc_resource_any(sc->tws_dev, SYS_RES_IRQ,
@@ -479,8 +468,6 @@ tws_setup_irq(struct tws_softc *sc)
             device_printf(sc->tws_dev, "Using legacy INTx\n");
             break;
         case TWS_MSI :
-            cmd = cmd | 0x0400;
-            pci_write_config(sc->tws_dev, PCIR_COMMAND, cmd, 2);
             sc->irqs = 1;
             sc->irq_res_id[0] = 1;
             messages = 1;
@@ -709,6 +696,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
 
         sc->reqs[i].cmd_pkt->hdr.header_desc.size_header = 128;
 
+	callout_handle_init(&sc->reqs[i].thandle);
         sc->reqs[i].state = TWS_REQ_STATE_FREE;
         if ( i >= TWS_RESERVED_REQS )
             tws_q_insert_tail(sc, &sc->reqs[i], TWS_FREE_Q);

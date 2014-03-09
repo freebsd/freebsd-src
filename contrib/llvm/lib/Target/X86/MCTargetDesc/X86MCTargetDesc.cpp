@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "X86MCTargetDesc.h"
-#include "X86MCAsmInfo.h"
 #include "InstPrinter/X86ATTInstPrinter.h"
 #include "InstPrinter/X86IntelInstPrinter.h"
-#include "llvm/MC/MachineLocation.h"
+#include "X86MCAsmInfo.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/ADT/Triple.h"
-#include "llvm/Support/Host.h"
+#include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_REGINFO_MC_DESC
@@ -257,12 +257,13 @@ static MCRegisterInfo *createX86MCRegisterInfo(StringRef TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitX86MCRegisterInfo(X, RA,
                         X86_MC::getDwarfRegFlavour(TT, false),
-                        X86_MC::getDwarfRegFlavour(TT, true));
+                        X86_MC::getDwarfRegFlavour(TT, true),
+                        RA);
   X86_MC::InitLLVM2SEHRegisterMapping(X);
   return X;
 }
 
-static MCAsmInfo *createX86MCAsmInfo(const Target &T, StringRef TT) {
+static MCAsmInfo *createX86MCAsmInfo(const MCRegisterInfo &MRI, StringRef TT) {
   Triple TheTriple(TT);
   bool is64Bit = TheTriple.getArch() == Triple::x86_64;
 
@@ -289,14 +290,16 @@ static MCAsmInfo *createX86MCAsmInfo(const Target &T, StringRef TT) {
   int stackGrowth = is64Bit ? -8 : -4;
 
   // Initial state of the frame pointer is esp+stackGrowth.
-  MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(is64Bit ? X86::RSP : X86::ESP, stackGrowth);
-  MAI->addInitialFrameState(0, Dst, Src);
+  unsigned StackPtr = is64Bit ? X86::RSP : X86::ESP;
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(
+      0, MRI.getDwarfRegNum(StackPtr, true), -stackGrowth);
+  MAI->addInitialFrameState(Inst);
 
   // Add return address to move list
-  MachineLocation CSDst(is64Bit ? X86::RSP : X86::ESP, stackGrowth);
-  MachineLocation CSSrc(is64Bit ? X86::RIP : X86::EIP);
-  MAI->addInitialFrameState(0, CSDst, CSSrc);
+  unsigned InstPtr = is64Bit ? X86::RIP : X86::EIP;
+  MCCFIInstruction Inst2 = MCCFIInstruction::createOffset(
+      0, MRI.getDwarfRegNum(InstPtr, true), stackGrowth);
+  MAI->addInitialFrameState(Inst2);
 
   return MAI;
 }
@@ -365,7 +368,7 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
   if (TheTriple.isOSWindows() && TheTriple.getEnvironment() != Triple::ELF)
     return createWinCOFFStreamer(Ctx, MAB, *_Emitter, _OS, RelaxAll);
 
-  return createELFStreamer(Ctx, MAB, _OS, _Emitter, RelaxAll, NoExecStack);
+  return createELFStreamer(Ctx, 0, MAB, _OS, _Emitter, RelaxAll, NoExecStack);
 }
 
 static MCInstPrinter *createX86MCInstPrinter(const Target &T,
@@ -379,6 +382,17 @@ static MCInstPrinter *createX86MCInstPrinter(const Target &T,
   if (SyntaxVariant == 1)
     return new X86IntelInstPrinter(MAI, MII, MRI);
   return 0;
+}
+
+static MCRelocationInfo *createX86MCRelocationInfo(StringRef TT,
+                                                   MCContext &Ctx) {
+  Triple TheTriple(TT);
+  if (TheTriple.isEnvironmentMachO() && TheTriple.getArch() == Triple::x86_64)
+    return createX86_64MachORelocationInfo(Ctx);
+  else if (TheTriple.isOSBinFormatELF())
+    return createX86_64ELFRelocationInfo(Ctx);
+  // Default to the stock relocation info.
+  return llvm::createMCRelocationInfo(TT, Ctx);
 }
 
 static MCInstrAnalysis *createX86MCInstrAnalysis(const MCInstrInfo *Info) {
@@ -438,4 +452,10 @@ extern "C" void LLVMInitializeX86TargetMC() {
                                         createX86MCInstPrinter);
   TargetRegistry::RegisterMCInstPrinter(TheX86_64Target,
                                         createX86MCInstPrinter);
+
+  // Register the MC relocation info.
+  TargetRegistry::RegisterMCRelocationInfo(TheX86_32Target,
+                                           createX86MCRelocationInfo);
+  TargetRegistry::RegisterMCRelocationInfo(TheX86_64Target,
+                                           createX86MCRelocationInfo);
 }

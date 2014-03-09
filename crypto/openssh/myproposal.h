@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.29 2012/06/28 05:07:45 dtucker Exp $ */
+/* $OpenBSD: myproposal.h,v 1.35 2013/12/06 13:39:49 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -27,7 +27,10 @@
 
 #include <openssl/opensslv.h>
 
+/* conditional algorithm support */
+
 #ifdef OPENSSL_HAS_ECC
+#ifdef OPENSSL_HAS_NISTP521
 # define KEX_ECDH_METHODS \
 	"ecdh-sha2-nistp256," \
 	"ecdh-sha2-nistp384," \
@@ -41,20 +44,45 @@
 	"ecdsa-sha2-nistp384," \
 	"ecdsa-sha2-nistp521,"
 #else
+# define KEX_ECDH_METHODS \
+	"ecdh-sha2-nistp256," \
+	"ecdh-sha2-nistp384,"
+# define HOSTKEY_ECDSA_CERT_METHODS \
+	"ecdsa-sha2-nistp256-cert-v01@openssh.com," \
+	"ecdsa-sha2-nistp384-cert-v01@openssh.com,"
+# define HOSTKEY_ECDSA_METHODS \
+	"ecdsa-sha2-nistp256," \
+	"ecdsa-sha2-nistp384,"
+#endif
+#else
 # define KEX_ECDH_METHODS
 # define HOSTKEY_ECDSA_CERT_METHODS
 # define HOSTKEY_ECDSA_METHODS
 #endif
 
-/* Old OpenSSL doesn't support what we need for DHGEX-sha256 */
-#if OPENSSL_VERSION_NUMBER >= 0x00907000L
+#ifdef OPENSSL_HAVE_EVPGCM
+# define AESGCM_CIPHER_MODES \
+	"aes128-gcm@openssh.com,aes256-gcm@openssh.com,"
+#else
+# define AESGCM_CIPHER_MODES
+#endif
+
+#ifdef HAVE_EVP_SHA256
 # define KEX_SHA256_METHODS \
 	"diffie-hellman-group-exchange-sha256,"
+#define KEX_CURVE25519_METHODS \
+	"curve25519-sha256@libssh.org,"
+#define	SHA2_HMAC_MODES \
+	"hmac-sha2-256," \
+	"hmac-sha2-512,"
 #else
 # define KEX_SHA256_METHODS
+# define KEX_CURVE25519_METHODS
+# define SHA2_HMAC_MODES
 #endif
 
 # define KEX_DEFAULT_KEX \
+	KEX_CURVE25519_METHODS \
 	KEX_ECDH_METHODS \
 	KEX_SHA256_METHODS \
 	"diffie-hellman-group-exchange-sha1," \
@@ -63,34 +91,44 @@
 
 #define	KEX_DEFAULT_PK_ALG	\
 	HOSTKEY_ECDSA_CERT_METHODS \
+	"ssh-ed25519-cert-v01@openssh.com," \
 	"ssh-rsa-cert-v01@openssh.com," \
 	"ssh-dss-cert-v01@openssh.com," \
 	"ssh-rsa-cert-v00@openssh.com," \
 	"ssh-dss-cert-v00@openssh.com," \
 	HOSTKEY_ECDSA_METHODS \
+	"ssh-ed25519," \
 	"ssh-rsa," \
 	"ssh-dss"
+
+/* the actual algorithms */
 
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-ctr,aes192-ctr,aes256-ctr," \
 	"arcfour256,arcfour128," \
+	AESGCM_CIPHER_MODES \
+	"chacha20-poly1305@openssh.com," \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc," \
 	"aes192-cbc,aes256-cbc,arcfour,rijndael-cbc@lysator.liu.se"
 #ifdef	NONE_CIPHER_ENABLED
 #define KEX_ENCRYPT_INCLUDE_NONE KEX_DEFAULT_ENCRYPT \
 	",none"
 #endif
-#ifdef HAVE_EVP_SHA256
-#define	SHA2_HMAC_MODES \
-	"hmac-sha2-256," \
-	"hmac-sha2-512,"
-#else
-# define SHA2_HMAC_MODES
-#endif
+
 #define	KEX_DEFAULT_MAC \
+	"hmac-md5-etm@openssh.com," \
+	"hmac-sha1-etm@openssh.com," \
+	"umac-64-etm@openssh.com," \
+	"umac-128-etm@openssh.com," \
+	"hmac-sha2-256-etm@openssh.com," \
+	"hmac-sha2-512-etm@openssh.com," \
+	"hmac-ripemd160-etm@openssh.com," \
+	"hmac-sha1-96-etm@openssh.com," \
+	"hmac-md5-96-etm@openssh.com," \
 	"hmac-md5," \
 	"hmac-sha1," \
 	"umac-64@openssh.com," \
+	"umac-128@openssh.com," \
 	SHA2_HMAC_MODES \
 	"hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \

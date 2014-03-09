@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.6 2010/06/08 21:32:19 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.11 2013/11/13 13:48:20 markus Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -30,6 +30,8 @@
 #include <dlfcn.h>
 
 #include "openbsd-compat/sys-queue.h"
+
+#include <openssl/x509.h>
 
 #define CRYPTOKI_COMPAT
 #include "pkcs11.h"
@@ -120,9 +122,9 @@ pkcs11_provider_unref(struct pkcs11_provider *p)
 	if (--p->refcount <= 0) {
 		if (p->valid)
 			error("pkcs11_provider_unref: %p still valid", p);
-		xfree(p->slotlist);
-		xfree(p->slotinfo);
-		xfree(p);
+		free(p->slotlist);
+		free(p->slotinfo);
+		free(p);
 	}
 }
 
@@ -180,9 +182,8 @@ pkcs11_rsa_finish(RSA *rsa)
 			rv = k11->orig_finish(rsa);
 		if (k11->provider)
 			pkcs11_provider_unref(k11->provider);
-		if (k11->keyid)
-			xfree(k11->keyid);
-		xfree(k11);
+		free(k11->keyid);
+		free(k11);
 	}
 	return (rv);
 }
@@ -226,7 +227,7 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 	CK_OBJECT_HANDLE	obj;
 	CK_ULONG		tlen = 0;
 	CK_RV			rv;
-	CK_OBJECT_CLASS		private_key_class = CKO_PRIVATE_KEY;
+	CK_OBJECT_CLASS	private_key_class = CKO_PRIVATE_KEY;
 	CK_BBOOL		true_val = CK_TRUE;
 	CK_MECHANISM		mech = {
 		CKM_RSA_PKCS, NULL_PTR, 0
@@ -239,8 +240,6 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 	char			*pin, prompt[1024];
 	int			rval = -1;
 
-	/* some compilers complain about non-constant initializer so we
-	   use NULL in CK_ATTRIBUTE above and set the values here */
 	key_filter[0].pValue = &private_key_class;
 	key_filter[2].pValue = &true_val;
 
@@ -264,13 +263,13 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 		pin = read_passphrase(prompt, RP_ALLOW_EOF);
 		if (pin == NULL)
 			return (-1);	/* bail out */
-		if ((rv = f->C_Login(si->session, CKU_USER, pin, strlen(pin)))
-		    != CKR_OK) {
-			xfree(pin);
+		if ((rv = f->C_Login(si->session, CKU_USER,
+		    (u_char *)pin, strlen(pin))) != CKR_OK) {
+			free(pin);
 			error("C_Login failed: %lu", rv);
 			return (-1);
 		}
-		xfree(pin);
+		free(pin);
 		si->logged_in = 1;
 	}
 	key_filter[1].pValue = k11->keyid;
@@ -329,7 +328,7 @@ pkcs11_rsa_wrap(struct pkcs11_provider *provider, CK_ULONG slotidx,
 
 /* remove trailing spaces */
 static void
-rmspace(char *buf, size_t len)
+rmspace(u_char *buf, size_t len)
 {
 	size_t i;
 
@@ -367,8 +366,8 @@ pkcs11_open_session(struct pkcs11_provider *p, CK_ULONG slotidx, char *pin)
 		return (-1);
 	}
 	if (login_required && pin) {
-		if ((rv = f->C_Login(session, CKU_USER, pin, strlen(pin)))
-		    != CKR_OK) {
+		if ((rv = f->C_Login(session, CKU_USER,
+		    (u_char *)pin, strlen(pin))) != CKR_OK) {
 			error("C_Login failed: %lu", rv);
 			if ((rv = f->C_CloseSession(session)) != CKR_OK)
 				error("C_CloseSession failed: %lu", rv);
@@ -385,36 +384,75 @@ pkcs11_open_session(struct pkcs11_provider *p, CK_ULONG slotidx, char *pin)
  * add 'wrapped' public keys to the 'keysp' array and increment nkeys.
  * keysp points to an (possibly empty) array with *nkeys keys.
  */
+static int pkcs11_fetch_keys_filter(struct pkcs11_provider *, CK_ULONG,
+    CK_ATTRIBUTE [], CK_ATTRIBUTE [3], Key ***, int *)
+	__attribute__((__bounded__(__minbytes__,4, 3 * sizeof(CK_ATTRIBUTE))));
+
 static int
-pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx, Key ***keysp,
-    int *nkeys)
+pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx,
+    Key ***keysp, int *nkeys)
+{
+	CK_OBJECT_CLASS	pubkey_class = CKO_PUBLIC_KEY;
+	CK_OBJECT_CLASS	cert_class = CKO_CERTIFICATE;
+	CK_ATTRIBUTE		pubkey_filter[] = {
+		{ CKA_CLASS, NULL, sizeof(pubkey_class) }
+	};
+	CK_ATTRIBUTE		cert_filter[] = {
+		{ CKA_CLASS, NULL, sizeof(cert_class) }
+	};
+	CK_ATTRIBUTE		pubkey_attribs[] = {
+		{ CKA_ID, NULL, 0 },
+		{ CKA_MODULUS, NULL, 0 },
+		{ CKA_PUBLIC_EXPONENT, NULL, 0 }
+	};
+	CK_ATTRIBUTE		cert_attribs[] = {
+		{ CKA_ID, NULL, 0 },
+		{ CKA_SUBJECT, NULL, 0 },
+		{ CKA_VALUE, NULL, 0 }
+	};
+	pubkey_filter[0].pValue = &pubkey_class;
+	cert_filter[0].pValue = &cert_class;
+
+	if (pkcs11_fetch_keys_filter(p, slotidx, pubkey_filter, pubkey_attribs,
+	    keysp, nkeys) < 0 ||
+	    pkcs11_fetch_keys_filter(p, slotidx, cert_filter, cert_attribs,
+	    keysp, nkeys) < 0)
+		return (-1);
+	return (0);
+}
+
+static int
+pkcs11_key_included(Key ***keysp, int *nkeys, Key *key)
+{
+	int i;
+
+	for (i = 0; i < *nkeys; i++)
+		if (key_equal(key, (*keysp)[i]))
+			return (1);
+	return (0);
+}
+
+static int
+pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
+    CK_ATTRIBUTE filter[], CK_ATTRIBUTE attribs[3],
+    Key ***keysp, int *nkeys)
 {
 	Key			*key;
 	RSA			*rsa;
+	X509 			*x509;
+	EVP_PKEY		*evp;
 	int			i;
+	const u_char		*cp;
 	CK_RV			rv;
 	CK_OBJECT_HANDLE	obj;
 	CK_ULONG		nfound;
 	CK_SESSION_HANDLE	session;
 	CK_FUNCTION_LIST	*f;
-	CK_OBJECT_CLASS		pubkey_class = CKO_PUBLIC_KEY;
-	CK_ATTRIBUTE		pubkey_filter[] = {
-		{ CKA_CLASS, NULL, sizeof(pubkey_class) }
-	};
-	CK_ATTRIBUTE		attribs[] = {
-		{ CKA_ID, NULL, 0 },
-		{ CKA_MODULUS, NULL, 0 },
-		{ CKA_PUBLIC_EXPONENT, NULL, 0 }
-	};
-
-	/* some compilers complain about non-constant initializer so we
-	   use NULL in CK_ATTRIBUTE above and set the value here */
-	pubkey_filter[0].pValue = &pubkey_class;
 
 	f = p->function_list;
 	session = p->slotinfo[slotidx].session;
 	/* setup a filter the looks for public keys */
-	if ((rv = f->C_FindObjectsInit(session, pubkey_filter, 1)) != CKR_OK) {
+	if ((rv = f->C_FindObjectsInit(session, filter, 1)) != CKR_OK) {
 		error("C_FindObjectsInit failed: %lu", rv);
 		return (-1);
 	}
@@ -442,35 +480,62 @@ pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx, Key ***keysp,
 		/* allocate buffers for attributes */
 		for (i = 0; i < 3; i++)
 			attribs[i].pValue = xmalloc(attribs[i].ulValueLen);
-		/* retrieve ID, modulus and public exponent of RSA key */
+		/*
+		 * retrieve ID, modulus and public exponent of RSA key,
+		 * or ID, subject and value for certificates.
+		 */
+		rsa = NULL;
 		if ((rv = f->C_GetAttributeValue(session, obj, attribs, 3))
 		    != CKR_OK) {
 			error("C_GetAttributeValue failed: %lu", rv);
-		} else if ((rsa = RSA_new()) == NULL) {
-			error("RSA_new failed");
+		} else if (attribs[1].type == CKA_MODULUS ) {
+			if ((rsa = RSA_new()) == NULL) {
+				error("RSA_new failed");
+			} else {
+				rsa->n = BN_bin2bn(attribs[1].pValue,
+				    attribs[1].ulValueLen, NULL);
+				rsa->e = BN_bin2bn(attribs[2].pValue,
+				    attribs[2].ulValueLen, NULL);
+			}
 		} else {
-			rsa->n = BN_bin2bn(attribs[1].pValue,
-			    attribs[1].ulValueLen, NULL);
-			rsa->e = BN_bin2bn(attribs[2].pValue,
-			    attribs[2].ulValueLen, NULL);
-			if (rsa->n && rsa->e &&
-			    pkcs11_rsa_wrap(p, slotidx, &attribs[0], rsa) == 0) {
-				key = key_new(KEY_UNSPEC);
-				key->rsa = rsa;
-				key->type = KEY_RSA;
-				key->flags |= KEY_FLAG_EXT;
+			cp = attribs[2].pValue;
+			if ((x509 = X509_new()) == NULL) {
+				error("X509_new failed");
+			} else if (d2i_X509(&x509, &cp, attribs[2].ulValueLen)
+			    == NULL) {
+				error("d2i_X509 failed");
+			} else if ((evp = X509_get_pubkey(x509)) == NULL ||
+			    evp->type != EVP_PKEY_RSA ||
+			    evp->pkey.rsa == NULL) {
+				debug("X509_get_pubkey failed or no rsa");
+			} else if ((rsa = RSAPublicKey_dup(evp->pkey.rsa))
+			    == NULL) {
+				error("RSAPublicKey_dup");
+			}
+			if (x509)
+				X509_free(x509);
+		}
+		if (rsa && rsa->n && rsa->e &&
+		    pkcs11_rsa_wrap(p, slotidx, &attribs[0], rsa) == 0) {
+			key = key_new(KEY_UNSPEC);
+			key->rsa = rsa;
+			key->type = KEY_RSA;
+			key->flags |= KEY_FLAG_EXT;
+			if (pkcs11_key_included(keysp, nkeys, key)) {
+				key_free(key);
+			} else {
 				/* expand key array and add key */
 				*keysp = xrealloc(*keysp, *nkeys + 1,
 				    sizeof(Key *));
 				(*keysp)[*nkeys] = key;
 				*nkeys = *nkeys + 1;
 				debug("have %d keys", *nkeys);
-			} else {
-				RSA_free(rsa);
 			}
+		} else if (rsa) {
+			RSA_free(rsa);
 		}
 		for (i = 0; i < 3; i++)
-			xfree(attribs[i].pValue);
+			free(attribs[i].pValue);
 	}
 	if ((rv = f->C_FindObjectsFinal(session)) != CKR_OK)
 		error("C_FindObjectsFinal failed: %lu", rv);
@@ -579,11 +644,9 @@ fail:
 	if (need_finalize && (rv = f->C_Finalize(NULL)) != CKR_OK)
 		error("C_Finalize failed: %lu", rv);
 	if (p) {
-		if (p->slotlist)
-			xfree(p->slotlist);
-		if (p->slotinfo)
-			xfree(p->slotinfo);
-		xfree(p);
+		free(p->slotlist);
+		free(p->slotinfo);
+		free(p);
 	}
 	if (handle)
 		dlclose(handle);

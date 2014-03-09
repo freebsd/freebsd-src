@@ -10,7 +10,8 @@ DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
 LDADD= -L ${.OBJDIR}/.. -larchive
 LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
 CFLAGS+= -g
-CFLAGS+= -I${.CURDIR}/.. -I${LIBARCHIVEDIR}/libarchive -I${.OBJDIR}
+CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
+CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # Uncomment to link against dmalloc
@@ -26,6 +27,7 @@ TESTS= \
 	test_acl_posix1e.c			\
 	test_archive_api_feature.c		\
 	test_archive_clear_error.c		\
+	test_archive_cmdline.c			\
 	test_archive_crypto.c			\
 	test_archive_getdate.c			\
 	test_archive_match_time.c		\
@@ -35,6 +37,7 @@ TESTS= \
 	test_archive_read_close_twice.c		\
 	test_archive_read_close_twice_open_fd.c	\
 	test_archive_read_close_twice_open_filename.c	\
+	test_archive_read_multiple_data_objects.c	\
 	test_archive_read_next_header_empty.c	\
 	test_archive_read_next_header_raw.c	\
 	test_archive_read_open2.c		\
@@ -46,7 +49,9 @@ TESTS= \
 	test_archive_set_error.c		\
 	test_archive_string.c			\
 	test_archive_string_conversion.c	\
+	test_archive_write_add_filter_by_name.c	\
 	test_archive_write_set_filter_option.c	\
+	test_archive_write_set_format_by_name.c	\
 	test_archive_write_set_format_option.c	\
 	test_archive_write_set_option.c		\
 	test_archive_write_set_options.c	\
@@ -57,11 +62,13 @@ TESTS= \
 	test_compat_gzip.c			\
 	test_compat_lzip.c			\
 	test_compat_lzma.c			\
+	test_compat_lzop.c			\
 	test_compat_mac.c			\
 	test_compat_pax_libarchive_2x.c		\
 	test_compat_solaris_tar_acl.c		\
 	test_compat_solaris_pax_sparse.c	\
 	test_compat_tar_hardlink.c		\
+	test_compat_uudecode.c			\
 	test_compat_xz.c			\
 	test_compat_zip.c			\
 	test_empty_write.c			\
@@ -77,13 +84,19 @@ TESTS= \
 	test_open_file.c			\
 	test_open_filename.c			\
 	test_pax_filename_encoding.c		\
-	test_read_compress_program.c		\
 	test_read_data_large.c			\
 	test_read_disk.c			\
 	test_read_disk_directory_traversals.c	\
 	test_read_disk_entry_from_file.c	\
 	test_read_extract.c			\
 	test_read_file_nonexistent.c		\
+	test_read_filter_grzip.c		\
+	test_read_filter_lrzip.c		\
+	test_read_filter_lzop.c			\
+	test_read_filter_lzop_multiple_parts.c	\
+	test_read_filter_program.c		\
+	test_read_filter_program_signature.c	\
+	test_read_filter_uudecode.c		\
 	test_read_format_7zip.c			\
 	test_read_format_ar.c			\
 	test_read_format_cab.c			\
@@ -137,35 +150,49 @@ TESTS= \
 	test_read_format_ustar_filename.c	\
 	test_read_format_xar.c			\
 	test_read_format_zip.c			\
+	test_read_format_zip_comment_stored.c	\
 	test_read_format_zip_filename.c		\
+	test_read_format_zip_mac_metadata.c	\
+	test_read_format_zip_sfx.c		\
 	test_read_large.c			\
 	test_read_pax_truncated.c		\
 	test_read_position.c			\
+	test_read_set_format.c			\
 	test_read_truncated.c			\
 	test_read_truncated_filter.c		\
-	test_read_uu.c				\
 	test_sparse_basic.c			\
 	test_tar_filenames.c			\
 	test_tar_large.c			\
 	test_ustar_filenames.c			\
 	test_ustar_filename_encoding.c		\
-	test_write_compress.c			\
-	test_write_compress_bzip2.c		\
-	test_write_compress_gzip.c		\
-	test_write_compress_lzip.c		\
-	test_write_compress_lzma.c		\
-	test_write_compress_program.c		\
-	test_write_compress_xz.c		\
 	test_write_disk.c			\
+	test_write_disk_appledouble.c		\
 	test_write_disk_failures.c		\
 	test_write_disk_hardlink.c		\
+	test_write_disk_hfs_compression.c	\
 	test_write_disk_lookup.c		\
+	test_write_disk_mac_metadata.c		\
+	test_write_disk_no_hfs_compression.c	\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\
+	test_write_filter_b64encode.c		\
+	test_write_filter_bzip2.c		\
+	test_write_filter_compress.c		\
+	test_write_filter_gzip.c		\
+	test_write_filter_gzip_timestamp.c	\
+	test_write_filter_lrzip.c		\
+	test_write_filter_lzip.c		\
+	test_write_filter_lzma.c		\
+	test_write_filter_lzop.c		\
+	test_write_filter_program.c		\
+	test_write_filter_uuencode.c		\
+	test_write_filter_xz.c			\
 	test_write_format_7zip.c		\
+	test_write_format_7zip_empty.c		\
+	test_write_format_7zip_large.c		\
 	test_write_format_ar.c			\
 	test_write_format_cpio.c		\
 	test_write_format_cpio_empty.c		\
@@ -178,18 +205,25 @@ TESTS= \
 	test_write_format_iso9660_filename.c	\
 	test_write_format_iso9660_zisofs.c	\
 	test_write_format_mtree.c		\
+	test_write_format_mtree_absolute_path.c	\
+	test_write_format_mtree_classic.c	\
+	test_write_format_mtree_classic_indent.c	\
 	test_write_format_mtree_fflags.c	\
+	test_write_format_mtree_no_separator.c	\
+	test_write_format_mtree_quoted_filename.c	\
 	test_write_format_pax.c			\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
 	test_write_format_tar_empty.c		\
 	test_write_format_tar_sparse.c		\
 	test_write_format_tar_ustar.c		\
+	test_write_format_tar_v7tar.c		\
 	test_write_format_xar.c			\
 	test_write_format_xar_empty.c		\
 	test_write_format_zip.c			\
 	test_write_format_zip_empty.c		\
 	test_write_format_zip_no_compression.c	\
+	test_write_zip_set_compression_store.c	\
 	test_write_open_memory.c		\
 	test_zip_filename_encoding.c
 
@@ -199,6 +233,9 @@ SRCS= \
 	list.h					\
 	main.c					\
 	read_open_memory.c
+
+.PATH:	${LIBARCHIVEDIR}/test_utils
+SRCS+=	test_utils.c
 
 # Build libarchive_test and run it.
 check test: libarchive_test

@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ErrorHandling.h"
+
 using namespace llvm;
 using namespace dwarf;
 
@@ -59,8 +61,8 @@ const char *llvm::dwarf::TagString(unsigned Tag) {
   case DW_TAG_namelist_item:             return "DW_TAG_namelist_item";
   case DW_TAG_packed_type:               return "DW_TAG_packed_type";
   case DW_TAG_subprogram:                return "DW_TAG_subprogram";
-  case DW_TAG_template_type_parameter:  return "DW_TAG_template_type_parameter";
-  case DW_TAG_template_value_parameter:return "DW_TAG_template_value_parameter";
+  case DW_TAG_template_type_parameter:   return "DW_TAG_template_type_parameter";
+  case DW_TAG_template_value_parameter:  return "DW_TAG_template_value_parameter";
   case DW_TAG_thrown_type:               return "DW_TAG_thrown_type";
   case DW_TAG_try_block:                 return "DW_TAG_try_block";
   case DW_TAG_variant_part:              return "DW_TAG_variant_part";
@@ -80,8 +82,6 @@ const char *llvm::dwarf::TagString(unsigned Tag) {
   case DW_TAG_hi_user:                   return "DW_TAG_hi_user";
   case DW_TAG_auto_variable:             return "DW_TAG_auto_variable";
   case DW_TAG_arg_variable:              return "DW_TAG_arg_variable";
-  case DW_TAG_return_variable:           return "DW_TAG_return_variable";
-  case DW_TAG_vector_type:               return "DW_TAG_vector_type";
   case DW_TAG_rvalue_reference_type:     return "DW_TAG_rvalue_reference_type";
   case DW_TAG_template_alias:            return "DW_TAG_template_alias";
   case DW_TAG_MIPS_loop:                 return "DW_TAG_MIPS_loop";
@@ -232,6 +232,7 @@ const char *llvm::dwarf::AttributeString(unsigned Attribute) {
   case DW_AT_body_end:                   return "DW_AT_body_end";
   case DW_AT_GNU_vector:                 return "DW_AT_GNU_vector";
   case DW_AT_GNU_template_name:          return "DW_AT_GNU_template_name";
+  case DW_AT_GNU_odr_signature:          return "DW_AT_GNU_odr_signature";
   case DW_AT_MIPS_assumed_size:          return "DW_AT_MIPS_assumed_size";
   case DW_AT_lo_user:                    return "DW_AT_lo_user";
   case DW_AT_hi_user:                    return "DW_AT_hi_user";
@@ -248,6 +249,14 @@ const char *llvm::dwarf::AttributeString(unsigned Attribute) {
   case DW_AT_APPLE_property_attribute:   return "DW_AT_APPLE_property_attribute";
   case DW_AT_APPLE_property:             return "DW_AT_APPLE_property";
   case DW_AT_APPLE_objc_complete_type:   return "DW_AT_APPLE_objc_complete_type";
+
+    // DWARF5 Fission Extension Attribute
+  case DW_AT_GNU_dwo_name:               return "DW_AT_GNU_dwo_name";
+  case DW_AT_GNU_dwo_id:                 return "DW_AT_GNU_dwo_id";
+  case DW_AT_GNU_ranges_base:            return "DW_AT_GNU_ranges_base";
+  case DW_AT_GNU_addr_base:              return "DW_AT_GNU_addr_base";
+  case DW_AT_GNU_pubnames:               return "DW_AT_GNU_pubnames";
+  case DW_AT_GNU_pubtypes:               return "DW_AT_GNU_pubtypes";
   }
   return 0;
 }
@@ -281,6 +290,10 @@ const char *llvm::dwarf::FormEncodingString(unsigned Encoding) {
   case DW_FORM_exprloc:                  return "DW_FORM_exprloc";
   case DW_FORM_flag_present:             return "DW_FORM_flag_present";
   case DW_FORM_ref_sig8:                 return "DW_FORM_ref_sig8";
+
+    // DWARF5 Fission Extension Forms
+  case DW_FORM_GNU_addr_index:           return "DW_FORM_GNU_addr_index";
+  case DW_FORM_GNU_str_index:            return "DW_FORM_GNU_str_index";
   }
   return 0;
 }
@@ -443,8 +456,13 @@ const char *llvm::dwarf::OperationEncodingString(unsigned Encoding) {
   case DW_OP_bit_piece:                  return "DW_OP_bit_piece";
   case DW_OP_implicit_value:             return "DW_OP_implicit_value";
   case DW_OP_stack_value:                return "DW_OP_stack_value";
-  case DW_OP_lo_user:                    return "DW_OP_lo_user";
-  case DW_OP_hi_user:                    return "DW_OP_hi_user";
+
+  // GNU thread-local storage
+  case DW_OP_GNU_push_tls_address:       return "DW_OP_GNU_push_tls_address";
+
+  // DWARF5 Fission Proposal Op Extensions
+  case DW_OP_GNU_addr_index:             return "DW_OP_GNU_addr_index";
+  case DW_OP_GNU_const_index:            return "DW_OP_GNU_const_index";
   }
   return 0;
 }
@@ -674,6 +692,7 @@ const char *llvm::dwarf::MacinfoString(unsigned Encoding) {
 /// encodings.
 const char *llvm::dwarf::CallFrameString(unsigned Encoding) {
   switch (Encoding) {
+  case DW_CFA_nop:                       return "DW_CFA_nop";
   case DW_CFA_advance_loc:               return "DW_CFA_advance_loc";
   case DW_CFA_offset:                    return "DW_CFA_offset";
   case DW_CFA_restore:                   return "DW_CFA_restore";
@@ -706,4 +725,52 @@ const char *llvm::dwarf::CallFrameString(unsigned Encoding) {
   case DW_CFA_hi_user:                   return "DW_CFA_hi_user";
   }
   return 0;
+}
+
+const char *llvm::dwarf::AtomTypeString(unsigned AT) {
+  switch (AT) {
+  case dwarf::DW_ATOM_null:
+    return "DW_ATOM_null";
+  case dwarf::DW_ATOM_die_offset:
+    return "DW_ATOM_die_offset";
+  case DW_ATOM_cu_offset:
+    return "DW_ATOM_cu_offset";
+  case DW_ATOM_die_tag:
+    return "DW_ATOM_die_tag";
+  case DW_ATOM_type_flags:
+    return "DW_ATOM_type_flags";
+  }
+  return 0;
+}
+
+const char *llvm::dwarf::GDBIndexEntryKindString(GDBIndexEntryKind Kind) {
+  switch (Kind) {
+  case GIEK_NONE:
+    return "NONE";
+  case GIEK_TYPE:
+    return "TYPE";
+  case GIEK_VARIABLE:
+    return "VARIABLE";
+  case GIEK_FUNCTION:
+    return "FUNCTION";
+  case GIEK_OTHER:
+    return "OTHER";
+  case GIEK_UNUSED5:
+    return "UNUSED5";
+  case GIEK_UNUSED6:
+    return "UNUSED6";
+  case GIEK_UNUSED7:
+    return "UNUSED7";
+  }
+  llvm_unreachable("Unknown GDBIndexEntryKind value");
+}
+
+const char *llvm::dwarf::GDBIndexEntryLinkageString(GDBIndexEntryLinkage Linkage) {
+  switch (Linkage) {
+  case GIEL_EXTERNAL:
+    return "EXTERNAL";
+  case GIEL_STATIC:
+    return "STATIC";
+  }
+  llvm_unreachable("Unknown GDBIndexEntryLinkage value");
 }

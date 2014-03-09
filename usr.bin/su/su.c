@@ -373,6 +373,8 @@ main(int argc, char *argv[])
 		}
 		lc = login_getclass(class);
 		if (lc == NULL)
+			err(1, "login_getclass");
+		if (lc->lc_class == NULL || strcmp(class, lc->lc_class) != 0)
 			errx(1, "unknown class: %s", class);
 	}
 

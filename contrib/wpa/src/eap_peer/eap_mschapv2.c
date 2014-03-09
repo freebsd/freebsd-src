@@ -2,14 +2,8 @@
  * EAP peer method: EAP-MSCHAPV2 (draft-kamath-pppext-eap-mschapv2-00.txt)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This file implements EAP peer part of EAP-MSCHAPV2 method (EAP type 26).
  * draft-kamath-pppext-eap-mschapv2-00.txt defines the Microsoft EAP CHAP
@@ -23,6 +17,7 @@
 
 #include "common.h"
 #include "crypto/ms_funcs.h"
+#include "crypto/random.h"
 #include "common/wpa_ctrl.h"
 #include "mschapv2.h"
 #include "eap_i.h"
@@ -199,7 +194,7 @@ static struct wpabuf * eap_mschapv2_challenge_reply(
 			   "in Phase 1");
 		peer_challenge = data->peer_challenge;
 		os_memset(r->peer_challenge, 0, MSCHAPV2_CHAL_LEN);
-	} else if (os_get_random(peer_challenge, MSCHAPV2_CHAL_LEN)) {
+	} else if (random_get_bytes(peer_challenge, MSCHAPV2_CHAL_LEN)) {
 		wpabuf_free(resp);
 		return NULL;
 	}
@@ -309,7 +304,9 @@ static void eap_mschapv2_password_changed(struct eap_sm *sm,
 			"EAP-MSCHAPV2: Password changed successfully");
 		data->prev_error = 0;
 		os_free(config->password);
-		if (config->flags & EAP_CONFIG_FLAGS_PASSWORD_NTHASH) {
+		if (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD) {
+			/* TODO: update external storage */
+		} else if (config->flags & EAP_CONFIG_FLAGS_PASSWORD_NTHASH) {
 			config->password = os_malloc(16);
 			config->password_len = 16;
 			if (config->password) {
@@ -564,7 +561,7 @@ static struct wpabuf * eap_mschapv2_change_password(
 	}
 
 	/* Peer-Challenge */
-	if (os_get_random(cp->peer_challenge, MSCHAPV2_CHAL_LEN))
+	if (random_get_bytes(cp->peer_challenge, MSCHAPV2_CHAL_LEN))
 		goto fail;
 
 	/* Reserved, must be zero */

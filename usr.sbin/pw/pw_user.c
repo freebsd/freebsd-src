@@ -200,7 +200,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strlcpy(dbuf, cnf->home, sizeof(dbuf));
 			p = dbuf;
 			if (stat(dbuf, &st) == -1) {
-				while ((p = strchr(++p, '/')) != NULL) {
+				while ((p = strchr(p + 1, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
 						if (mkdir(dbuf, _DEF_DIRMODE) == -1)
@@ -425,19 +425,22 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 
 			grp = GETGRNAM(a_name->val);
-			if (*grp->gr_mem == NULL)
+			if (grp != NULL &&
+			    (grp->gr_mem == NULL || *grp->gr_mem == NULL))
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {
 				int i;
 				char group[MAXLOGNAME];
-				for (i = 0; grp->gr_mem[i] != NULL; i++) {
-					if (!strcmp(grp->gr_mem[i], a_name->val)) {
-						while (grp->gr_mem[i] != NULL) {
-							grp->gr_mem[i] = grp->gr_mem[i+1];
-						}	
-						strlcpy(group, grp->gr_name, MAXLOGNAME);
-						chggrent(group, grp);
+				if (grp->gr_mem != NULL) {
+					for (i = 0; grp->gr_mem[i] != NULL; i++) {
+						if (!strcmp(grp->gr_mem[i], a_name->val)) {
+							while (grp->gr_mem[i] != NULL) {
+								grp->gr_mem[i] = grp->gr_mem[i+1];
+							}	
+							strlcpy(group, grp->gr_name, MAXLOGNAME);
+							chggrent(group, grp);
+						}
 					}
 				}
 			}
@@ -513,8 +516,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
 				if (pwd->pw_change != expire) {
 					pwd->pw_change = expire;
 					edited = 1;
@@ -533,8 +534,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
 				if (pwd->pw_expire != expire) {
 					pwd->pw_expire = expire;
 					edited = 1;
@@ -577,7 +576,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			lc = login_getpwclass(pwd);
 			if (lc == NULL ||
-			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+			    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 				warn("setting crypt(3) format");
 			login_close(lc);
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
@@ -758,6 +757,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (grp == NULL)
 				continue;
 			chggrent(cnf->groups[i], grp);
+			free(grp);
 		}
 	}
 
@@ -911,7 +911,8 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 				errx(EX_NOUSER, "group `%s' is not defined", a_gid->val);
 		}
 		gid = grp->gr_gid;
-	} else if ((grp = GETGRNAM(nam)) != NULL && grp->gr_mem[0] == NULL) {
+	} else if ((grp = GETGRNAM(nam)) != NULL &&
+	    (grp->gr_mem == NULL || grp->gr_mem[0] == NULL)) {
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
 		struct cargs    grpargs;
@@ -1185,14 +1186,16 @@ print_user(struct passwd * pwd, int pretty, int v7)
 		while ((grp=GETGRENT()) != NULL)
 		{
 			int     i = 0;
-			while (grp->gr_mem[i] != NULL)
-			{
-				if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
+			if (grp->gr_mem != NULL) {
+				while (grp->gr_mem[i] != NULL)
 				{
-					printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
-					break;
+					if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
+					{
+						printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
+						break;
+					}
+					++i;
 				}
-				++i;
 			}
 		}
 		ENDGRENT();

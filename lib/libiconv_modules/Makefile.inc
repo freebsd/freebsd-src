@@ -5,6 +5,9 @@
 SHLIB_MAJOR= 4
 WARNS?=	6
 CFLAGS+= -I${.CURDIR}/../../libc/iconv
+
+CFLAGS+=	-Dbool=_Bool
+
 .if !defined(COMPAT_32BIT)
 SHLIBDIR= /usr/lib/i18n
 .else

@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -758,16 +759,23 @@ dtrace_dof_create(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t flags)
 				dofa[i].dofa_difo = DOF_SECIDX_NONE;
 
 			/*
-			 * If the first action in a statement has format data,
-			 * add the format string to the global string table.
+			 * If the first action in a statement has string data,
+			 * add the string to the global string table.  This can
+			 * be due either to a printf() format string
+			 * (dtsd_fmtdata) or a print() type string
+			 * (dtsd_strdata).
 			 */
 			if (sdp != NULL && ap == sdp->dtsd_action) {
 				if (sdp->dtsd_fmtdata != NULL) {
 					(void) dtrace_printf_format(dtp,
 					    sdp->dtsd_fmtdata, fmt, maxfmt + 1);
 					strndx = dof_add_string(ddo, fmt);
-				} else
+				} else if (sdp->dtsd_strdata != NULL) {
+					strndx = dof_add_string(ddo,
+					    sdp->dtsd_strdata);
+				} else {
 					strndx = 0; /* use dtad_arg instead */
+				}
 
 				if ((next = dt_list_next(next)) != NULL)
 					sdp = next->ds_desc;

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd February 19, 2013
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nm sleepq_remove ,
 .Nm sleepq_signal ,
 .Nm sleepq_set_timeout ,
+.Nm sleepq_set_timeout_sbt ,
 .Nm sleepq_sleepcnt ,
 .Nm sleepq_timedwait ,
 .Nm sleepq_timedwait_sig ,
@@ -79,6 +80,9 @@
 .Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
+.Ft void
+.Fn sleepq_set_timeout_sbt "void *wchan" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
 .Ft u_int
 .Fn sleepq_sleepcnt "void *wchan" "int queue"
 .Ft int
@@ -230,6 +234,23 @@ must have been locked by a prior call to
 The
 .Fa timo
 parameter should specify the timeout value in ticks.
+.Pp
+.Fn sleepq_set_timeout_sbt
+function takes
+.Fa sbt
+argument instead of
+.Fa timo .
+It allows to specify relative or absolute wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
 .Pp
 The current thread may be marked interruptible by calling
 .Fn sleepq_catch_signals
@@ -400,4 +421,5 @@ than manipulating sleep queues directly.
 .Xr condvar 9 ,
 .Xr runqueue 9 ,
 .Xr scheduler 9 ,
-.Xr sleep 9
+.Xr sleep 9 ,
+.Xr timeout 9

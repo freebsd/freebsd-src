@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ntpdate
-# REQUIRE: NETWORKING syslogd named
+# REQUIRE: NETWORKING syslogd
 # KEYWORD: nojail
 
 . /etc/rc.subr
@@ -16,13 +16,13 @@ start_cmd="ntpdate_start"
 
 ntpdate_start()
 {
-	if [ -z "$ntpdate_hosts" -a -f ${ntpdate_config} ]; then
+	if [ -z "$ntpdate_hosts" -a -f "$ntpdate_config" ]; then
 		ntpdate_hosts=`awk '
 			/^server[ \t]*127.127/      {next}
 			/^(server|peer)/            {
 			    if ($2 ~/^-/)           {print $3}
 			    else                    {print $2}}
-		' < ${ntpdate_config}`
+		' < "$ntpdate_config"`
 	fi
 	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then
 		echo "Setting date via ntp."

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 - 2011 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2013 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,21 +43,10 @@
  *   it possible to handle all "dodgy" directives correctly.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <ctype.h>
-#include <err.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "unifdef.h"
 
 static const char copyright[] =
-    "@(#) $Version: unifdef-2.5.6.21f1388 $\n"
+    "@(#) $Version: unifdef-2.7 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
     "@(#) $URL: http://dotat.at/prog/unifdef $\n"
@@ -92,6 +81,9 @@ static char const * const linetype_name[] = {
 	"DODGY ELSE", "DODGY ENDIF",
 	"PLAIN", "EOF", "ERROR"
 };
+
+#define linetype_if2elif(lt) ((Linetype)(lt - LT_IF + LT_ELIF))
+#define linetype_2dodgy(lt) ((Linetype)(lt + LT_DODGY))
 
 /* state of #if processing */
 typedef enum {
@@ -155,11 +147,6 @@ static char const * const linestate_name[] = {
 #define	EDITSLOP        10
 
 /*
- * For temporary filenames
- */
-#define TEMPLATE        "unifdef.XXXXXX"
-
-/*
  * Globals.
  */
 
@@ -167,6 +154,7 @@ static bool             compblank;		/* -B: compress blank lines */
 static bool             lnblank;		/* -b: blank deleted lines */
 static bool             complement;		/* -c: do the complement */
 static bool             debugging;		/* -d: debugging reports */
+static bool             inplace;		/* -m: modify in place */
 static bool             iocccok;		/* -e: fewer IOCCC errors */
 static bool             strictlogic;		/* -K: keep ambiguous #ifs */
 static bool             killconsts;		/* -k: eval constant #ifs */
@@ -183,10 +171,11 @@ static int              nsyms;			/* number of symbols */
 static FILE            *input;			/* input file pointer */
 static const char      *filename;		/* input file name */
 static int              linenum;		/* current line number */
+static const char      *linefile;		/* file name for #line */
 static FILE            *output;			/* output file pointer */
 static const char      *ofilename;		/* output file name */
-static bool             overwriting;		/* output overwrites input */
-static char             tempname[FILENAME_MAX];	/* used when overwriting */
+static const char      *backext;		/* backup extension */
+static char            *tempname;		/* avoid splatting input */
 
 static char             tline[MAXLINE+EDITSLOP];/* input buffer plus space */
 static char            *keyword;		/* used for editing #elif's */
@@ -205,25 +194,31 @@ static int              delcount;		/* count of deleted lines */
 static unsigned         blankcount;		/* count of blank lines */
 static unsigned         blankmax;		/* maximum recent blankcount */
 static bool             constexpr;		/* constant #if expression */
-static bool             zerosyms = true;	/* to format symdepth output */
+static bool             zerosyms;		/* to format symdepth output */
 static bool             firstsym;		/* ditto */
 
+static int              exitmode;		/* exit status mode */
 static int              exitstat;		/* program exit status */
 
 static void             addsym(bool, bool, char *);
+static char            *astrcat(const char *, const char *);
+static void             cleantemp(void);
 static void             closeout(void);
 static void             debug(const char *, ...);
 static void             done(void);
 static void             error(const char *);
 static int              findsym(const char *);
 static void             flushline(bool);
-static Linetype         parseline(void);
+static void             hashline(void);
+static void             help(void);
 static Linetype         ifeval(const char **);
 static void             ignoreoff(void);
 static void             ignoreon(void);
 static void             keywordedit(const char *);
 static void             nest(void);
+static Linetype         parseline(void);
 static void             process(void);
+static void             processinout(const char *, const char *);
 static const char      *skipargs(const char *);
 static const char      *skipcomment(const char *);
 static const char      *skipsym(const char *);
@@ -243,7 +238,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:D:U:I:o:bBcdeKklnsStV")) != -1)
+	while ((opt = getopt(argc, argv, "i:D:U:I:M:o:x:bBcdehKklmnsStV")) != -1)
 		switch (opt) {
 		case 'i': /* treat stuff controlled by these symbols as text */
 			/*
@@ -283,11 +278,21 @@ main(int argc, char *argv[])
 		case 'e': /* fewer errors from dodgy lines */
 			iocccok = true;
 			break;
+		case 'h':
+			help();
+			break;
 		case 'K': /* keep ambiguous #ifs */
 			strictlogic = true;
 			break;
 		case 'k': /* process constant #ifs */
 			killconsts = true;
+			break;
+		case 'm': /* modify in place */
+			inplace = true;
+			break;
+		case 'M': /* modify in place and keep backup */
+			inplace = true;
+			backext = optarg;
 			break;
 		case 'n': /* add #line directive after deleted lines */
 			lnnum = true;
@@ -304,8 +309,14 @@ main(int argc, char *argv[])
 		case 't': /* don't parse C comments */
 			text = true;
 			break;
-		case 'V': /* print version */
+		case 'V':
 			version();
+			break;
+		case 'x':
+			exitmode = atoi(optarg);
+			if(exitmode < 0 || exitmode > 2)
+				usage();
+			break;
 		default:
 			usage();
 		}
@@ -313,53 +324,96 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (compblank && lnblank)
 		errx(2, "-B and -b are mutually exclusive");
-	if (argc > 1) {
-		errx(2, "can only do one file");
-	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
-		filename = *argv;
-		input = fopen(filename, "rb");
-		if (input == NULL)
-			err(2, "can't open %s", filename);
-	} else {
-		filename = "[stdin]";
-		input = stdin;
-	}
-	if (ofilename == NULL) {
-		ofilename = "[stdout]";
-		output = stdout;
-	} else {
-		struct stat ist, ost;
-		if (stat(ofilename, &ost) == 0 &&
-		    fstat(fileno(input), &ist) == 0)
-			overwriting = (ist.st_dev == ost.st_dev
-				    && ist.st_ino == ost.st_ino);
-		if (overwriting) {
-			const char *dirsep;
-			int ofd;
+	if (symlist && (ofilename != NULL || inplace || argc > 1))
+		errx(2, "-s only works with one input file");
+	if (argc > 1 && ofilename != NULL)
+		errx(2, "-o cannot be used with multiple input files");
+	if (argc > 1 && !inplace)
+		errx(2, "multiple input files require -m or -M");
+	if (argc == 0)
+		argc = 1;
+	if (argc == 1 && !inplace && ofilename == NULL)
+		ofilename = "-";
 
-			dirsep = strrchr(ofilename, '/');
-			if (dirsep != NULL)
-				snprintf(tempname, sizeof(tempname),
-				    "%.*s/" TEMPLATE,
-				    (int)(dirsep - ofilename), ofilename);
-			else
-				snprintf(tempname, sizeof(tempname),
-				    TEMPLATE);
-			ofd = mkstemp(tempname);
-			if (ofd != -1)
-				output = fdopen(ofd, "wb+");
-			if (output == NULL)
-				err(2, "can't create temporary file");
-			fchmod(ofd, ist.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO));
-		} else {
-			output = fopen(ofilename, "wb");
-			if (output == NULL)
-				err(2, "can't open %s", ofilename);
-		}
+	atexit(cleantemp);
+	if (ofilename != NULL)
+		processinout(*argv, ofilename);
+	else while (argc-- > 0) {
+		processinout(*argv, *argv);
+		argv++;
 	}
-	process();
-	abort(); /* bug */
+	switch(exitmode) {
+	case(0): exit(exitstat);
+	case(1): exit(!exitstat);
+	case(2): exit(0);
+	default: abort(); /* bug */
+	}
 }
+
+/*
+ * File logistics.
+ */
+static void
+processinout(const char *ifn, const char *ofn)
+{
+	struct stat st;
+
+	if (ifn == NULL || strcmp(ifn, "-") == 0) {
+		filename = "[stdin]";
+		linefile = NULL;
+		input = fbinmode(stdin);
+	} else {
+		filename = ifn;
+		linefile = ifn;
+		input = fopen(ifn, "rb");
+		if (input == NULL)
+			err(2, "can't open %s", ifn);
+	}
+	if (strcmp(ofn, "-") == 0) {
+		output = fbinmode(stdout);
+		process();
+		return;
+	}
+	if (stat(ofn, &st) < 0) {
+		output = fopen(ofn, "wb");
+		if (output == NULL)
+			err(2, "can't create %s", ofn);
+		process();
+		return;
+	}
+
+	tempname = astrcat(ofn, ".XXXXXX");
+	output = mktempmode(tempname, st.st_mode);
+	if (output == NULL)
+		err(2, "can't create %s", tempname);
+
+	process();
+
+	if (backext != NULL) {
+		char *backname = astrcat(ofn, backext);
+		if (rename(ofn, backname) < 0)
+			err(2, "can't rename \"%s\" to \"%s%s\"", ofn, ofn, backext);
+		free(backname);
+	}
+	if (rename(tempname, ofn) < 0)
+		err(2, "can't rename \"%s\" to \"%s\"", tempname, ofn);
+	free(tempname);
+	tempname = NULL;
+}
+
+/*
+ * For cleaning up if there is an error.
+ */
+static void
+cleantemp(void)
+{
+	if (tempname != NULL)
+		remove(tempname);
+}
+
+/*
+ * Self-identification functions.
+ */
 
 static void
 version(void)
@@ -376,11 +430,51 @@ version(void)
 }
 
 static void
+synopsis(FILE *fp)
+{
+	fprintf(fp,
+	    "usage:	unifdef [-bBcdehKkmnsStV] [-x{012}] [-Mext] [-opath] \\\n"
+	    "		[-[i]Dsym[=val]] [-[i]Usym] ... [file] ...\n");
+}
+
+static void
 usage(void)
 {
-	fprintf(stderr, "usage: unifdef [-bBcdeKknsStV] [-Ipath]"
-	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
+	synopsis(stderr);
 	exit(2);
+}
+
+static void
+help(void)
+{
+	synopsis(stdout);
+	printf(
+	    "	-Dsym=val  define preprocessor symbol with given value\n"
+	    "	-Dsym      define preprocessor symbol with value 1\n"
+	    "	-Usym	   preprocessor symbol is undefined\n"
+	    "	-iDsym=val \\  ignore C strings and comments\n"
+	    "	-iDsym      ) in sections controlled by these\n"
+	    "	-iUsym	   /  preprocessor symbols\n"
+	    "	-b	blank lines instead of deleting them\n"
+	    "	-B	compress blank lines around deleted section\n"
+	    "	-c	complement (invert) keep vs. delete\n"
+	    "	-d	debugging mode\n"
+	    "	-e	ignore multiline preprocessor directives\n"
+	    "	-h	print help\n"
+	    "	-Ipath	extra include file path (ignored)\n"
+	    "	-K	disable && and || short-circuiting\n"
+	    "	-k	process constant #if expressions\n"
+	    "	-Mext	modify in place and keep backups\n"
+	    "	-m	modify input files in place\n"
+	    "	-n	add #line directives to output\n"
+	    "	-opath	output file name\n"
+	    "	-S	list #if control symbols with nesting\n"
+	    "	-s	list #if control symbols\n"
+	    "	-t	ignore C strings and comments\n"
+	    "	-V	print version\n"
+	    "	-x{012}	exit status mode\n"
+	);
+	exit(0);
 }
 
 /*
@@ -396,7 +490,7 @@ usage(void)
  * When we have processed a group that starts off with a known-false
  * #if/#elif sequence (which has therefore been deleted) followed by a
  * #elif that we don't understand and therefore must keep, we edit the
- * latter into a #if to keep the nesting correct. We use strncpy() to
+ * latter into a #if to keep the nesting correct. We use memcpy() to
  * overwrite the 4 byte token "elif" with "if  " without a '\0' byte.
  *
  * When we find a true #elif in a group, the following block will
@@ -451,7 +545,7 @@ static void Idrop (void) { Fdrop();  ignoreon(); }
 static void Itrue (void) { Ftrue();  ignoreon(); }
 static void Ifalse(void) { Ffalse(); ignoreon(); }
 /* modify this line */
-static void Mpass (void) { strncpy(keyword, "if  ", 4); Pelif(); }
+static void Mpass (void) { memcpy(keyword, "if  ", 4); Pelif(); }
 static void Mtrue (void) { keywordedit("else");  state(IS_TRUE_MIDDLE); }
 static void Melif (void) { keywordedit("endif"); state(IS_FALSE_TRAILER); }
 static void Melse (void) { keywordedit("endif"); state(IS_FALSE_ELSE); }
@@ -548,6 +642,18 @@ state(Ifstate is)
 }
 
 /*
+ * The last state transition function. When this is called,
+ * lineval == LT_EOF, so the process() loop will terminate.
+ */
+static void
+done(void)
+{
+	if (incomment)
+		error("EOF in comment");
+	closeout();
+}
+
+/*
  * Write a line to the output or not, according to command line options.
  * If writing fails, closeout() will print the error and exit.
  */
@@ -562,9 +668,8 @@ flushline(bool keep)
 			delcount += 1;
 			blankcount += 1;
 		} else {
-			if (lnnum && delcount > 0 &&
-			    fprintf(output, "#line %d%s", linenum, newline) < 0)
-				closeout();
+			if (lnnum && delcount > 0)
+				hashline();
 			if (fputs(tline, output) == EOF)
 				closeout();
 			delcount = 0;
@@ -582,21 +687,20 @@ flushline(bool keep)
 }
 
 /*
- * The driver for the state machine.
+ * Format of #line directives depends on whether we know the input filename.
  */
 static void
-process(void)
+hashline(void)
 {
-	/* When compressing blank lines, act as if the file
-	   is preceded by a large number of blank lines. */
-	blankmax = blankcount = 1000;
-	for (;;) {
-		Linetype lineval = parseline();
-		trans_table[ifstate[depth]][lineval]();
-		debug("process line %d %s -> %s depth %d",
-		    linenum, linetype_name[lineval],
-		    ifstate_name[ifstate[depth]], depth);
-	}
+	int e;
+
+	if (linefile == NULL)
+		e = fprintf(output, "#line %d%s", linenum, newline);
+	else
+		e = fprintf(output, "#line %d \"%s\"%s",
+		    linenum, linefile, newline);
+	if (e < 0)
+		closeout();
 }
 
 /*
@@ -605,34 +709,31 @@ process(void)
 static void
 closeout(void)
 {
+	/* Tidy up after findsym(). */
 	if (symdepth && !zerosyms)
 		printf("\n");
-	if (ferror(output) || fclose(output) == EOF) {
-		if (overwriting) {
-			warn("couldn't write to temporary file");
-			unlink(tempname);
-			errx(2, "%s unchanged", ofilename);
-		} else {
-			err(2, "couldn't write to %s", ofilename);
-		}
-	}
+	if (ferror(output) || fclose(output) == EOF)
+		err(2, "%s: can't write to output", filename);
 }
 
 /*
- * Clean up and exit.
+ * The driver for the state machine.
  */
 static void
-done(void)
+process(void)
 {
-	if (incomment)
-		error("EOF in comment");
-	closeout();
-	if (overwriting && rename(tempname, ofilename) == -1) {
-		warn("couldn't rename temporary file");
-		unlink(tempname);
-		errx(2, "%s unchanged", ofilename);
+	Linetype lineval = LT_PLAIN;
+	/* When compressing blank lines, act as if the file
+	   is preceded by a large number of blank lines. */
+	blankmax = blankcount = 1000;
+	zerosyms = true;
+	while (lineval != LT_EOF) {
+		lineval = parseline();
+		trans_table[ifstate[depth]][lineval]();
+		debug("process line %d %s -> %s depth %d",
+		    linenum, linetype_name[lineval],
+		    ifstate_name[ifstate[depth]], depth);
 	}
-	exit(exitstat);
 }
 
 /*
@@ -652,7 +753,7 @@ parseline(void)
 	linenum++;
 	if (fgets(tline, MAXLINE, input) == NULL) {
 		if (ferror(input))
-			error(strerror(errno));
+			err(2, "can't read %s", filename);
 		else
 			return (LT_EOF);
 	}
@@ -700,7 +801,7 @@ parseline(void)
 		} else if (strlcmp("if", keyword, kwlen) == 0)
 			retval = ifeval(&cp);
 		else if (strlcmp("elif", keyword, kwlen) == 0)
-			retval = ifeval(&cp) - LT_IF + LT_ELIF;
+			retval = linetype_if2elif(ifeval(&cp));
 		else if (strlcmp("else", keyword, kwlen) == 0)
 			retval = LT_ELSE;
 		else if (strlcmp("endif", keyword, kwlen) == 0)
@@ -719,7 +820,7 @@ parseline(void)
 				retval = LT_ELIF;
 		}
 		if (retval != LT_PLAIN && (wascomment || incomment)) {
-			retval += LT_DODGY;
+			retval = linetype_2dodgy(retval);
 			if (incomment)
 				linestate = LS_DIRTY;
 		}
@@ -730,7 +831,7 @@ parseline(void)
 			size_t len = cp - tline;
 			if (fgets(tline + len, MAXLINE - len, input) == NULL) {
 				if (ferror(input))
-					error(strerror(errno));
+					err(2, "can't read %s", filename);
 				/* append the missing newline at eof */
 				strcpy(tline + len, newline);
 				cp += strlen(newline);
@@ -809,13 +910,15 @@ static eval_fn eval_table, eval_unary;
  * element of the table. Innermost expressions have special non-table-driven
  * handling.
  */
-static const struct ops {
+struct op {
+	const char *str;
+	Linetype (*fn)(int *, Linetype, int, Linetype, int);
+};
+struct ops {
 	eval_fn *inner;
-	struct op {
-		const char *str;
-		Linetype (*fn)(int *, Linetype, int, Linetype, int);
-	} op[5];
-} eval_ops[] = {
+	struct op op[5];
+};
+static const struct ops eval_ops[] = {
 	{ eval_table, { { "||", op_or } } },
 	{ eval_table, { { "&&", op_and } } },
 	{ eval_table, { { "==", op_eq },
@@ -825,6 +928,12 @@ static const struct ops {
 			{ "<", op_lt },
 			{ ">", op_gt } } }
 };
+
+/* Current operator precedence level */
+static int prec(const struct ops *ops)
+{
+	return (ops - eval_ops);
+}
 
 /*
  * Function for evaluating the innermost parts of expressions,
@@ -842,7 +951,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 
 	cp = skipcomment(*cpp);
 	if (*cp == '!') {
-		debug("eval%d !", ops - eval_ops);
+		debug("eval%d !", prec(ops));
 		cp++;
 		lt = eval_unary(ops, valp, &cp);
 		if (lt == LT_ERROR)
@@ -853,7 +962,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 	} else if (*cp == '(') {
 		cp++;
-		debug("eval%d (", ops - eval_ops);
+		debug("eval%d (", prec(ops));
 		lt = eval_table(eval_ops, valp, &cp);
 		if (lt == LT_ERROR)
 			return (LT_ERROR);
@@ -861,7 +970,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		if (*cp++ != ')')
 			return (LT_ERROR);
 	} else if (isdigit((unsigned char)*cp)) {
-		debug("eval%d number", ops - eval_ops);
+		debug("eval%d number", prec(ops));
 		*valp = strtol(cp, &ep, 0);
 		if (ep == cp)
 			return (LT_ERROR);
@@ -869,7 +978,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		cp = skipsym(cp);
 	} else if (strncmp(cp, "defined", 7) == 0 && endsym(cp[7])) {
 		cp = skipcomment(cp+7);
-		debug("eval%d defined", ops - eval_ops);
+		debug("eval%d defined", prec(ops));
 		if (*cp == '(') {
 			cp = skipcomment(cp+1);
 			defparen = true;
@@ -889,7 +998,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 			return (LT_ERROR);
 		constexpr = false;
 	} else if (!endsym(*cp)) {
-		debug("eval%d symbol", ops - eval_ops);
+		debug("eval%d symbol", prec(ops));
 		sym = findsym(cp);
 		cp = skipsym(cp);
 		if (sym < 0) {
@@ -907,12 +1016,12 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 		constexpr = false;
 	} else {
-		debug("eval%d bad expr", ops - eval_ops);
+		debug("eval%d bad expr", prec(ops));
 		return (LT_ERROR);
 	}
 
 	*cpp = cp;
-	debug("eval%d = %d", ops - eval_ops, *valp);
+	debug("eval%d = %d", prec(ops), *valp);
 	return (lt);
 }
 
@@ -927,7 +1036,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	int val;
 	Linetype lt, rt;
 
-	debug("eval%d", ops - eval_ops);
+	debug("eval%d", prec(ops));
 	cp = *cpp;
 	lt = ops->inner(ops+1, valp, &cp);
 	if (lt == LT_ERROR)
@@ -940,7 +1049,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 		if (op->str == NULL)
 			break;
 		cp += strlen(op->str);
-		debug("eval%d %s", ops - eval_ops, op->str);
+		debug("eval%d %s", prec(ops), op->str);
 		rt = ops->inner(ops+1, &val, &cp);
 		if (rt == LT_ERROR)
 			return (LT_ERROR);
@@ -948,8 +1057,8 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	}
 
 	*cpp = cp;
-	debug("eval%d = %d", ops - eval_ops, *valp);
-	debug("eval%d lt = %s", ops - eval_ops, linetype_name[lt]);
+	debug("eval%d = %d", prec(ops), *valp);
+	debug("eval%d lt = %s", prec(ops), linetype_name[lt]);
 	return (lt);
 }
 
@@ -961,7 +1070,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 static Linetype
 ifeval(const char **cpp)
 {
-	int ret;
+	Linetype ret;
 	int val = 0;
 
 	debug("eval %s", *cpp);
@@ -1205,6 +1314,23 @@ strlcmp(const char *s, const char *t, size_t n)
 		else
 			++s, ++t;
 	return ((unsigned char)*s);
+}
+
+/*
+ * Concatenate two strings into new memory, checking for failure.
+ */
+static char *
+astrcat(const char *s1, const char *s2)
+{
+	char *s;
+	int len;
+
+	len = 1 + snprintf(NULL, 0, "%s%s", s1, s2);
+	s = (char *)malloc(len);
+	if (s == NULL)
+		err(2, "malloc");
+	snprintf(s, len, "%s%s", s1, s2);
+	return (s);
 }
 
 /*

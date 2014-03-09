@@ -55,6 +55,8 @@ struct partition_metadata *get_part_metadata(const char *name, int create);
 void delete_part_metadata(const char *name);
 
 int part_wizard(void);
+int scripted_editor(int argc, const char **argv);
+int wizard_makeparts(struct gmesh *mesh, const char *disk, int interactive);
 
 /* gpart operations */
 void gpart_delete(struct gprovider *pp);

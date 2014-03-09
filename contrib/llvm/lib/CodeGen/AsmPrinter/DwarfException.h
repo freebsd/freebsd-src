@@ -23,13 +23,13 @@ namespace llvm {
 template <typename T> class SmallVectorImpl;
 struct LandingPadInfo;
 class MachineModuleInfo;
-class MachineMove;
 class MachineInstr;
 class MachineFunction;
 class MCAsmInfo;
 class MCExpr;
 class MCSymbol;
 class Function;
+class ARMTargetStreamer;
 class AsmPrinter;
 
 //===----------------------------------------------------------------------===//
@@ -121,6 +121,8 @@ protected:
   ///     catches in the function.  This tables is reversed indexed base 1.
   void EmitExceptionTable();
 
+  virtual void EmitTypeInfos(unsigned TTypeEncoding);
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -175,6 +177,9 @@ public:
 };
 
 class ARMException : public DwarfException {
+  void EmitTypeInfos(unsigned TTypeEncoding);
+  ARMTargetStreamer &getTargetStreamer();
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.

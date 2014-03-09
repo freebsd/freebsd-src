@@ -160,15 +160,52 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstats newnfsstats;
-NFSCACHEMUTEX;
+extern struct mtx nfsrc_udpmtx;
+extern struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+extern struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 int nfsrc_floodlevel = NFSRVCACHE_FLOODLEVEL, nfsrc_tcpsavedreplies = 0;
 #endif	/* !APPLEKEXT */
 
-static int nfsrc_tcpnonidempotent = 1;
-static int nfsrc_udphighwater = NFSRVCACHE_UDPHIGHWATER, nfsrc_udpcachesize = 0;
+SYSCTL_DECL(_vfs_nfsd);
+
+static u_int	nfsrc_tcphighwater = 0;
+static int
+sysctl_tcphighwater(SYSCTL_HANDLER_ARGS)
+{
+	int error, newhighwater;
+
+	newhighwater = nfsrc_tcphighwater;
+	error = sysctl_handle_int(oidp, &newhighwater, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (newhighwater < 0)
+		return (EINVAL);
+	if (newhighwater >= nfsrc_floodlevel)
+		nfsrc_floodlevel = newhighwater + newhighwater / 5;
+	nfsrc_tcphighwater = newhighwater;
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, tcphighwater, CTLTYPE_UINT | CTLFLAG_RW, 0,
+    sizeof(nfsrc_tcphighwater), sysctl_tcphighwater, "IU",
+    "High water mark for TCP cache entries");
+
+static u_int	nfsrc_udphighwater = NFSRVCACHE_UDPHIGHWATER;
+SYSCTL_UINT(_vfs_nfsd, OID_AUTO, udphighwater, CTLFLAG_RW,
+    &nfsrc_udphighwater, 0,
+    "High water mark for UDP cache entries");
+static u_int	nfsrc_tcptimeout = NFSRVCACHE_TCPTIMEOUT;
+SYSCTL_UINT(_vfs_nfsd, OID_AUTO, tcpcachetimeo, CTLFLAG_RW,
+    &nfsrc_tcptimeout, 0,
+    "Timeout for TCP entries in the DRC");
+static u_int nfsrc_tcpnonidempotent = 1;
+SYSCTL_UINT(_vfs_nfsd, OID_AUTO, cachetcp, CTLFLAG_RW,
+    &nfsrc_tcpnonidempotent, 0,
+    "Enable the DRC for NFS over TCP");
+
+static int nfsrc_udpcachesize = 0;
 static TAILQ_HEAD(, nfsrvcache) nfsrvudplru;
-static struct nfsrvhashhead nfsrvhashtbl[NFSRVCACHE_HASHSIZE],
-    nfsrvudphashtbl[NFSRVCACHE_HASHSIZE];
+static struct nfsrvhashhead nfsrvudphashtbl[NFSRVCACHE_HASHSIZE];
+
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
  */
@@ -197,10 +234,12 @@ static int newnfsv2_procid[NFS_V3NPROCS] = {
 	NFSV2PROC_NOOP,
 };
 
+#define	nfsrc_hash(xid)	(((xid) + ((xid) >> 24)) % NFSRVCACHE_HASHSIZE)
 #define	NFSRCUDPHASH(xid) \
-	(&nfsrvudphashtbl[((xid) + ((xid) >> 24)) % NFSRVCACHE_HASHSIZE])
+	(&nfsrvudphashtbl[nfsrc_hash(xid)])
 #define	NFSRCHASH(xid) \
-	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) % NFSRVCACHE_HASHSIZE])
+	(&nfsrchash_table[nfsrc_hash(xid)].tbl)
+#define	NFSRCAHASH(xid) (&nfsrcahash_table[nfsrc_hash(xid)])
 #define	TRUE	1
 #define	FALSE	0
 #define	NFSRVCACHE_CHECKLEN	100
@@ -244,11 +283,20 @@ static void nfsrc_lock(struct nfsrvcache *rp);
 static void nfsrc_unlock(struct nfsrvcache *rp);
 static void nfsrc_wanted(struct nfsrvcache *rp);
 static void nfsrc_freecache(struct nfsrvcache *rp);
-static void nfsrc_trimcache(u_int64_t, struct socket *);
-static int nfsrc_activesocket(struct nfsrvcache *rp, u_int64_t,
-    struct socket *);
 static int nfsrc_getlenandcksum(mbuf_t m1, u_int16_t *cksum);
 static void nfsrc_marksametcpconn(u_int64_t);
+
+/*
+ * Return the correct mutex for this cache entry.
+ */
+static __inline struct mtx *
+nfsrc_cachemutex(struct nfsrvcache *rp)
+{
+
+	if ((rp->rc_flag & RC_UDP) != 0)
+		return (&nfsrc_udpmtx);
+	return (&nfsrchash_table[nfsrc_hash(rp->rc_xid)].mtx);
+}
 
 /*
  * Initialize the server request cache list
@@ -264,7 +312,8 @@ nfsrvd_initcache(void)
 	inited = 1;
 	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 		LIST_INIT(&nfsrvudphashtbl[i]);
-		LIST_INIT(&nfsrvhashtbl[i]);
+		LIST_INIT(&nfsrchash_table[i].tbl);
+		LIST_INIT(&nfsrcahash_table[i].tbl);
 	}
 	TAILQ_INIT(&nfsrvudplru);
 	nfsrc_tcpsavedreplies = 0;
@@ -276,10 +325,9 @@ nfsrvd_initcache(void)
 /*
  * Get a cache entry for this request. Basically just malloc a new one
  * and then call nfsrc_getudp() or nfsrc_gettcp() to do the rest.
- * Call nfsrc_trimcache() to clean up the cache before returning.
  */
 APPLESTATIC int
-nfsrvd_getcache(struct nfsrv_descript *nd, struct socket *so)
+nfsrvd_getcache(struct nfsrv_descript *nd)
 {
 	struct nfsrvcache *newrp;
 	int ret;
@@ -307,7 +355,6 @@ nfsrvd_getcache(struct nfsrv_descript *nd, struct socket *so)
 	} else {
 		ret = nfsrc_gettcp(nd, newrp);
 	}
-	nfsrc_trimcache(nd->nd_sockref, so);
 	NFSEXITCODE2(0, nd);
 	return (ret);
 }
@@ -325,10 +372,12 @@ nfsrc_getudp(struct nfsrv_descript *nd, struct nfsrvcache *newrp)
 	struct sockaddr_in6 *saddr6;
 	struct nfsrvhashhead *hp;
 	int ret = 0;
+	struct mtx *mutex;
 
+	mutex = nfsrc_cachemutex(newrp);
 	hp = NFSRCUDPHASH(newrp->rc_xid);
 loop:
-	NFSLOCKCACHE();
+	mtx_lock(mutex);
 	LIST_FOREACH(rp, hp, rc_hash) {
 	    if (newrp->rc_xid == rp->rc_xid &&
 		newrp->rc_proc == rp->rc_proc &&
@@ -336,8 +385,8 @@ loop:
 		nfsaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
-				(void)mtx_sleep(rp, NFSCACHEMUTEXPTR,
-				    (PZERO - 1) | PDROP, "nfsrc", 10 * hz);
+				(void)mtx_sleep(rp, mutex, (PZERO - 1) | PDROP,
+				    "nfsrc", 10 * hz);
 				goto loop;
 			}
 			if (rp->rc_flag == 0)
@@ -347,14 +396,14 @@ loop:
 			TAILQ_INSERT_TAIL(&nfsrvudplru, rp, rc_lru);
 			if (rp->rc_flag & RC_INPROG) {
 				newnfsstats.srvcache_inproghits++;
-				NFSUNLOCKCACHE();
+				mtx_unlock(mutex);
 				ret = RC_DROPIT;
 			} else if (rp->rc_flag & RC_REPSTATUS) {
 				/*
 				 * V2 only.
 				 */
 				newnfsstats.srvcache_nonidemdonehits++;
-				NFSUNLOCKCACHE();
+				mtx_unlock(mutex);
 				nfsrvd_rephead(nd);
 				*(nd->nd_errp) = rp->rc_status;
 				ret = RC_REPLY;
@@ -362,7 +411,7 @@ loop:
 					NFSRVCACHE_UDPTIMEOUT;
 			} else if (rp->rc_flag & RC_REPMBUF) {
 				newnfsstats.srvcache_nonidemdonehits++;
-				NFSUNLOCKCACHE();
+				mtx_unlock(mutex);
 				nd->nd_mreq = m_copym(rp->rc_reply, 0,
 					M_COPYALL, M_WAITOK);
 				ret = RC_REPLY;
@@ -377,7 +426,7 @@ loop:
 		}
 	}
 	newnfsstats.srvcache_misses++;
-	newnfsstats.srvcache_size++;
+	atomic_add_int(&newnfsstats.srvcache_size, 1);
 	nfsrc_udpcachesize++;
 
 	newrp->rc_flag |= RC_INPROG;
@@ -392,7 +441,7 @@ loop:
 	}
 	LIST_INSERT_HEAD(hp, newrp, rc_hash);
 	TAILQ_INSERT_TAIL(&nfsrvudplru, newrp, rc_lru);
-	NFSUNLOCKCACHE();
+	mtx_unlock(mutex);
 	nd->nd_rp = newrp;
 	ret = RC_DOIT;
 
@@ -405,17 +454,19 @@ out:
  * Update a request cache entry after the rpc has been done
  */
 APPLESTATIC struct nfsrvcache *
-nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
+nfsrvd_updatecache(struct nfsrv_descript *nd)
 {
 	struct nfsrvcache *rp;
 	struct nfsrvcache *retrp = NULL;
 	mbuf_t m;
+	struct mtx *mutex;
 
 	rp = nd->nd_rp;
 	if (!rp)
 		panic("nfsrvd_updatecache null rp");
 	nd->nd_rp = NULL;
-	NFSLOCKCACHE();
+	mutex = nfsrc_cachemutex(rp);
+	mtx_lock(mutex);
 	nfsrc_lock(rp);
 	if (!(rp->rc_flag & RC_INPROG))
 		panic("nfsrvd_updatecache not inprog");
@@ -430,7 +481,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 	 */
 	if (nd->nd_repstat == NFSERR_REPLYFROMCACHE) {
 		newnfsstats.srvcache_nonidemdonehits++;
-		NFSUNLOCKCACHE();
+		mtx_unlock(mutex);
 		nd->nd_repstat = 0;
 		if (nd->nd_mreq)
 			mbuf_freem(nd->nd_mreq);
@@ -438,7 +489,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 			panic("reply from cache");
 		nd->nd_mreq = m_copym(rp->rc_reply, 0,
 		    M_COPYALL, M_WAITOK);
-		rp->rc_timestamp = NFSD_MONOSEC + NFSRVCACHE_TCPTIMEOUT;
+		rp->rc_timestamp = NFSD_MONOSEC + nfsrc_tcptimeout;
 		nfsrc_unlock(rp);
 		goto out;
 	}
@@ -463,29 +514,28 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		    nfsv2_repstat[newnfsv2_procid[nd->nd_procnum]]) {
 			rp->rc_status = nd->nd_repstat;
 			rp->rc_flag |= RC_REPSTATUS;
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 		} else {
 			if (!(rp->rc_flag & RC_UDP)) {
-			    nfsrc_tcpsavedreplies++;
+			    atomic_add_int(&nfsrc_tcpsavedreplies, 1);
 			    if (nfsrc_tcpsavedreplies >
 				newnfsstats.srvcache_tcppeak)
 				newnfsstats.srvcache_tcppeak =
 				    nfsrc_tcpsavedreplies;
 			}
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 			m = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
-			NFSLOCKCACHE();
+			mtx_lock(mutex);
 			rp->rc_reply = m;
 			rp->rc_flag |= RC_REPMBUF;
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 		}
 		if (rp->rc_flag & RC_UDP) {
 			rp->rc_timestamp = NFSD_MONOSEC +
 			    NFSRVCACHE_UDPTIMEOUT;
 			nfsrc_unlock(rp);
 		} else {
-			rp->rc_timestamp = NFSD_MONOSEC +
-			    NFSRVCACHE_TCPTIMEOUT;
+			rp->rc_timestamp = NFSD_MONOSEC + nfsrc_tcptimeout;
 			if (rp->rc_refcnt > 0)
 				nfsrc_unlock(rp);
 			else
@@ -493,11 +543,10 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		}
 	} else {
 		nfsrc_freecache(rp);
-		NFSUNLOCKCACHE();
+		mtx_unlock(mutex);
 	}
 
 out:
-	nfsrc_trimcache(nd->nd_sockref, so);
 	NFSEXITCODE2(0, nd);
 	return (retrp);
 }
@@ -509,39 +558,37 @@ out:
 APPLESTATIC void
 nfsrvd_delcache(struct nfsrvcache *rp)
 {
+	struct mtx *mutex;
 
+	mutex = nfsrc_cachemutex(rp);
 	if (!(rp->rc_flag & RC_INPROG))
 		panic("nfsrvd_delcache not in prog");
-	NFSLOCKCACHE();
+	mtx_lock(mutex);
 	rp->rc_flag &= ~RC_INPROG;
 	if (rp->rc_refcnt == 0 && !(rp->rc_flag & RC_LOCKED))
 		nfsrc_freecache(rp);
-	NFSUNLOCKCACHE();
+	mtx_unlock(mutex);
 }
 
 /*
  * Called after nfsrvd_updatecache() once the reply is sent, to update
- * the entry for nfsrc_activesocket() and unlock it. The argument is
+ * the entry's sequence number and unlock it. The argument is
  * the pointer returned by nfsrvd_updatecache().
  */
 APPLESTATIC void
-nfsrvd_sentcache(struct nfsrvcache *rp, struct socket *so, int err)
+nfsrvd_sentcache(struct nfsrvcache *rp, int have_seq, uint32_t seq)
 {
-	tcp_seq tmp_seq;
+	struct nfsrchash_bucket *hbp;
 
-	if (!(rp->rc_flag & RC_LOCKED))
-		panic("nfsrvd_sentcache not locked");
-	if (!err) {
-		if ((so->so_proto->pr_domain->dom_family != AF_INET &&
-		     so->so_proto->pr_domain->dom_family != AF_INET6) ||
-		     so->so_proto->pr_protocol != IPPROTO_TCP)
-			panic("nfs sent cache");
-		if (nfsrv_getsockseqnum(so, &tmp_seq)) {
-			NFSLOCKCACHE();
-			rp->rc_tcpseq = tmp_seq;
-			rp->rc_flag |= RC_TCPSEQ;
-			NFSUNLOCKCACHE();
-		}
+	KASSERT(rp->rc_flag & RC_LOCKED, ("nfsrvd_sentcache not locked"));
+	if (have_seq) {
+		hbp = NFSRCAHASH(rp->rc_sockref);
+		mtx_lock(&hbp->mtx);
+		rp->rc_tcpseq = seq;
+		if (rp->rc_acked != RC_NO_ACK)
+			LIST_INSERT_HEAD(&hbp->tbl, rp, rc_ahash);
+		rp->rc_acked = RC_NO_ACK;
+		mtx_unlock(&hbp->mtx);
 	}
 	nfsrc_unlock(rp);
 }
@@ -559,11 +606,13 @@ nfsrc_gettcp(struct nfsrv_descript *nd, struct nfsrvcache *newrp)
 	struct nfsrvcache *hitrp;
 	struct nfsrvhashhead *hp, nfsrc_templist;
 	int hit, ret = 0;
+	struct mtx *mutex;
 
+	mutex = nfsrc_cachemutex(newrp);
 	hp = NFSRCHASH(newrp->rc_xid);
 	newrp->rc_reqlen = nfsrc_getlenandcksum(nd->nd_mrep, &newrp->rc_cksum);
 tryagain:
-	NFSLOCKCACHE();
+	mtx_lock(mutex);
 	hit = 1;
 	LIST_INIT(&nfsrc_templist);
 	/*
@@ -621,8 +670,8 @@ tryagain:
 		rp = hitrp;
 		if ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
-			(void)mtx_sleep(rp, NFSCACHEMUTEXPTR,
-			    (PZERO - 1) | PDROP, "nfsrc", 10 * hz);
+			(void)mtx_sleep(rp, mutex, (PZERO - 1) | PDROP,
+			    "nfsrc", 10 * hz);
 			goto tryagain;
 		}
 		if (rp->rc_flag == 0)
@@ -630,7 +679,7 @@ tryagain:
 		rp->rc_flag |= RC_LOCKED;
 		if (rp->rc_flag & RC_INPROG) {
 			newnfsstats.srvcache_inproghits++;
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
 			ret = RC_DROPIT;
@@ -639,24 +688,22 @@ tryagain:
 			 * V2 only.
 			 */
 			newnfsstats.srvcache_nonidemdonehits++;
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
 			ret = RC_REPLY;
 			nfsrvd_rephead(nd);
 			*(nd->nd_errp) = rp->rc_status;
-			rp->rc_timestamp = NFSD_MONOSEC +
-				NFSRVCACHE_TCPTIMEOUT;
+			rp->rc_timestamp = NFSD_MONOSEC + nfsrc_tcptimeout;
 		} else if (rp->rc_flag & RC_REPMBUF) {
 			newnfsstats.srvcache_nonidemdonehits++;
-			NFSUNLOCKCACHE();
+			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
 			ret = RC_REPLY;
 			nd->nd_mreq = m_copym(rp->rc_reply, 0,
 				M_COPYALL, M_WAITOK);
-			rp->rc_timestamp = NFSD_MONOSEC +
-				NFSRVCACHE_TCPTIMEOUT;
+			rp->rc_timestamp = NFSD_MONOSEC + nfsrc_tcptimeout;
 		} else {
 			panic("nfs tcp cache1");
 		}
@@ -665,7 +712,7 @@ tryagain:
 		goto out;
 	}
 	newnfsstats.srvcache_misses++;
-	newnfsstats.srvcache_size++;
+	atomic_add_int(&newnfsstats.srvcache_size, 1);
 
 	/*
 	 * For TCP, multiple entries for a key are allowed, so don't
@@ -674,7 +721,7 @@ tryagain:
 	newrp->rc_cachetime = NFSD_MONOSEC;
 	newrp->rc_flag |= RC_INPROG;
 	LIST_INSERT_HEAD(hp, newrp, rc_hash);
-	NFSUNLOCKCACHE();
+	mtx_unlock(mutex);
 	nd->nd_rp = newrp;
 	ret = RC_DOIT;
 
@@ -685,16 +732,17 @@ out:
 
 /*
  * Lock a cache entry.
- * Also puts a mutex lock on the cache list.
  */
 static void
 nfsrc_lock(struct nfsrvcache *rp)
 {
-	NFSCACHELOCKREQUIRED();
+	struct mtx *mutex;
+
+	mutex = nfsrc_cachemutex(rp);
+	mtx_assert(mutex, MA_OWNED);
 	while ((rp->rc_flag & RC_LOCKED) != 0) {
 		rp->rc_flag |= RC_WANTED;
-		(void)mtx_sleep(rp, NFSCACHEMUTEXPTR, PZERO - 1,
-		    "nfsrc", 0);
+		(void)mtx_sleep(rp, mutex, PZERO - 1, "nfsrc", 0);
 	}
 	rp->rc_flag |= RC_LOCKED;
 }
@@ -705,11 +753,13 @@ nfsrc_lock(struct nfsrvcache *rp)
 static void
 nfsrc_unlock(struct nfsrvcache *rp)
 {
+	struct mtx *mutex;
 
-	NFSLOCKCACHE();
+	mutex = nfsrc_cachemutex(rp);
+	mtx_lock(mutex);
 	rp->rc_flag &= ~RC_LOCKED;
 	nfsrc_wanted(rp);
-	NFSUNLOCKCACHE();
+	mtx_unlock(mutex);
 }
 
 /*
@@ -731,21 +781,27 @@ nfsrc_wanted(struct nfsrvcache *rp)
 static void
 nfsrc_freecache(struct nfsrvcache *rp)
 {
+	struct nfsrchash_bucket *hbp;
 
-	NFSCACHELOCKREQUIRED();
 	LIST_REMOVE(rp, rc_hash);
 	if (rp->rc_flag & RC_UDP) {
 		TAILQ_REMOVE(&nfsrvudplru, rp, rc_lru);
 		nfsrc_udpcachesize--;
+	} else if (rp->rc_acked != RC_NO_SEQ) {
+		hbp = NFSRCAHASH(rp->rc_sockref);
+		mtx_lock(&hbp->mtx);
+		if (rp->rc_acked == RC_NO_ACK)
+			LIST_REMOVE(rp, rc_ahash);
+		mtx_unlock(&hbp->mtx);
 	}
 	nfsrc_wanted(rp);
 	if (rp->rc_flag & RC_REPMBUF) {
 		mbuf_freem(rp->rc_reply);
 		if (!(rp->rc_flag & RC_UDP))
-			nfsrc_tcpsavedreplies--;
+			atomic_add_int(&nfsrc_tcpsavedreplies, -1);
 	}
 	FREE((caddr_t)rp, M_NFSRVCACHE);
-	newnfsstats.srvcache_size--;
+	atomic_add_int(&newnfsstats.srvcache_size, -1);
 }
 
 /*
@@ -757,51 +813,160 @@ nfsrvd_cleancache(void)
 	struct nfsrvcache *rp, *nextrp;
 	int i;
 
-	NFSLOCKCACHE();
 	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-		LIST_FOREACH_SAFE(rp, &nfsrvhashtbl[i], rc_hash, nextrp) {
+		mtx_lock(&nfsrchash_table[i].mtx);
+		LIST_FOREACH_SAFE(rp, &nfsrchash_table[i].tbl, rc_hash, nextrp)
 			nfsrc_freecache(rp);
-		}
+		mtx_unlock(&nfsrchash_table[i].mtx);
 	}
+	mtx_lock(&nfsrc_udpmtx);
 	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 		LIST_FOREACH_SAFE(rp, &nfsrvudphashtbl[i], rc_hash, nextrp) {
 			nfsrc_freecache(rp);
 		}
 	}
 	newnfsstats.srvcache_size = 0;
+	mtx_unlock(&nfsrc_udpmtx);
 	nfsrc_tcpsavedreplies = 0;
-	NFSUNLOCKCACHE();
 }
 
+#define HISTSIZE	16
 /*
  * The basic rule is to get rid of entries that are expired.
  */
-static void
-nfsrc_trimcache(u_int64_t sockref, struct socket *so)
+void
+nfsrc_trimcache(u_int64_t sockref, uint32_t snd_una, int final)
 {
+	struct nfsrchash_bucket *hbp;
 	struct nfsrvcache *rp, *nextrp;
-	int i;
+	int force, lastslot, i, j, k, tto, time_histo[HISTSIZE];
+	time_t thisstamp;
+	static time_t udp_lasttrim = 0, tcp_lasttrim = 0;
+	static int onethread = 0, oneslot = 0;
 
-	NFSLOCKCACHE();
-	TAILQ_FOREACH_SAFE(rp, &nfsrvudplru, rc_lru, nextrp) {
-		if (!(rp->rc_flag & (RC_INPROG|RC_LOCKED|RC_WANTED))
-		     && rp->rc_refcnt == 0
-		     && ((rp->rc_flag & RC_REFCNT) ||
-			 NFSD_MONOSEC > rp->rc_timestamp ||
-			 nfsrc_udpcachesize > nfsrc_udphighwater))
-			nfsrc_freecache(rp);
+	if (sockref != 0) {
+		hbp = NFSRCAHASH(sockref);
+		mtx_lock(&hbp->mtx);
+		LIST_FOREACH_SAFE(rp, &hbp->tbl, rc_ahash, nextrp) {
+			if (sockref == rp->rc_sockref) {
+				if (SEQ_GEQ(snd_una, rp->rc_tcpseq)) {
+					rp->rc_acked = RC_ACK;
+					LIST_REMOVE(rp, rc_ahash);
+				} else if (final) {
+					rp->rc_acked = RC_NACK;
+					LIST_REMOVE(rp, rc_ahash);
+				}
+			}
+		}
+		mtx_unlock(&hbp->mtx);
 	}
-	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-		LIST_FOREACH_SAFE(rp, &nfsrvhashtbl[i], rc_hash, nextrp) {
+
+	if (atomic_cmpset_acq_int(&onethread, 0, 1) == 0)
+		return;
+	if (NFSD_MONOSEC != udp_lasttrim ||
+	    nfsrc_udpcachesize >= (nfsrc_udphighwater +
+	    nfsrc_udphighwater / 2)) {
+		mtx_lock(&nfsrc_udpmtx);
+		udp_lasttrim = NFSD_MONOSEC;
+		TAILQ_FOREACH_SAFE(rp, &nfsrvudplru, rc_lru, nextrp) {
 			if (!(rp->rc_flag & (RC_INPROG|RC_LOCKED|RC_WANTED))
 			     && rp->rc_refcnt == 0
 			     && ((rp->rc_flag & RC_REFCNT) ||
-				 NFSD_MONOSEC > rp->rc_timestamp ||
-				 nfsrc_activesocket(rp, sockref, so)))
+				 udp_lasttrim > rp->rc_timestamp ||
+				 nfsrc_udpcachesize > nfsrc_udphighwater))
 				nfsrc_freecache(rp);
 		}
+		mtx_unlock(&nfsrc_udpmtx);
 	}
-	NFSUNLOCKCACHE();
+	if (NFSD_MONOSEC != tcp_lasttrim ||
+	    nfsrc_tcpsavedreplies >= nfsrc_tcphighwater) {
+		force = nfsrc_tcphighwater / 4;
+		if (force > 0 &&
+		    nfsrc_tcpsavedreplies + force >= nfsrc_tcphighwater) {
+			for (i = 0; i < HISTSIZE; i++)
+				time_histo[i] = 0;
+			i = 0;
+			lastslot = NFSRVCACHE_HASHSIZE - 1;
+		} else {
+			force = 0;
+			if (NFSD_MONOSEC != tcp_lasttrim) {
+				i = 0;
+				lastslot = NFSRVCACHE_HASHSIZE - 1;
+			} else {
+				lastslot = i = oneslot;
+				if (++oneslot >= NFSRVCACHE_HASHSIZE)
+					oneslot = 0;
+			}
+		}
+		tto = nfsrc_tcptimeout;
+		tcp_lasttrim = NFSD_MONOSEC;
+		for (; i <= lastslot; i++) {
+			mtx_lock(&nfsrchash_table[i].mtx);
+			LIST_FOREACH_SAFE(rp, &nfsrchash_table[i].tbl, rc_hash,
+			    nextrp) {
+				if (!(rp->rc_flag &
+				     (RC_INPROG|RC_LOCKED|RC_WANTED))
+				     && rp->rc_refcnt == 0) {
+					if ((rp->rc_flag & RC_REFCNT) ||
+					    tcp_lasttrim > rp->rc_timestamp ||
+					    rp->rc_acked == RC_ACK) {
+						nfsrc_freecache(rp);
+						continue;
+					}
+
+					if (force == 0)
+						continue;
+					/*
+					 * The timestamps range from roughly the
+					 * present (tcp_lasttrim) to the present
+					 * + nfsrc_tcptimeout. Generate a simple
+					 * histogram of where the timeouts fall.
+					 */
+					j = rp->rc_timestamp - tcp_lasttrim;
+					if (j >= tto)
+						j = HISTSIZE - 1;
+					else if (j < 0)
+						j = 0;
+					else
+						j = j * HISTSIZE / tto;
+					time_histo[j]++;
+				}
+			}
+			mtx_unlock(&nfsrchash_table[i].mtx);
+		}
+		if (force) {
+			/*
+			 * Trim some more with a smaller timeout of as little
+			 * as 20% of nfsrc_tcptimeout to try and get below
+			 * 80% of the nfsrc_tcphighwater.
+			 */
+			k = 0;
+			for (i = 0; i < (HISTSIZE - 2); i++) {
+				k += time_histo[i];
+				if (k > force)
+					break;
+			}
+			k = tto * (i + 1) / HISTSIZE;
+			if (k < 1)
+				k = 1;
+			thisstamp = tcp_lasttrim + k;
+			for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
+				mtx_lock(&nfsrchash_table[i].mtx);
+				LIST_FOREACH_SAFE(rp, &nfsrchash_table[i].tbl,
+				    rc_hash, nextrp) {
+					if (!(rp->rc_flag &
+					     (RC_INPROG|RC_LOCKED|RC_WANTED))
+					     && rp->rc_refcnt == 0
+					     && ((rp->rc_flag & RC_REFCNT) ||
+						 thisstamp > rp->rc_timestamp ||
+						 rp->rc_acked == RC_ACK))
+						nfsrc_freecache(rp);
+				}
+				mtx_unlock(&nfsrchash_table[i].mtx);
+			}
+		}
+	}
+	atomic_store_rel_int(&onethread, 0);
 }
 
 /*
@@ -810,12 +975,14 @@ nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 APPLESTATIC void
 nfsrvd_refcache(struct nfsrvcache *rp)
 {
+	struct mtx *mutex;
 
-	NFSLOCKCACHE();
+	mutex = nfsrc_cachemutex(rp);
+	mtx_lock(mutex);
 	if (rp->rc_refcnt < 0)
 		panic("nfs cache refcnt");
 	rp->rc_refcnt++;
-	NFSUNLOCKCACHE();
+	mtx_unlock(mutex);
 }
 
 /*
@@ -824,36 +991,16 @@ nfsrvd_refcache(struct nfsrvcache *rp)
 APPLESTATIC void
 nfsrvd_derefcache(struct nfsrvcache *rp)
 {
+	struct mtx *mutex;
 
-	NFSLOCKCACHE();
+	mutex = nfsrc_cachemutex(rp);
+	mtx_lock(mutex);
 	if (rp->rc_refcnt <= 0)
 		panic("nfs cache derefcnt");
 	rp->rc_refcnt--;
 	if (rp->rc_refcnt == 0 && !(rp->rc_flag & (RC_LOCKED | RC_INPROG)))
 		nfsrc_freecache(rp);
-	NFSUNLOCKCACHE();
-}
-
-/*
- * Check to see if the socket is active.
- * Return 1 if the reply has been received/acknowledged by the client,
- * 0 otherwise.
- * XXX - Uses tcp internals.
- */
-static int
-nfsrc_activesocket(struct nfsrvcache *rp, u_int64_t cur_sockref,
-    struct socket *cur_so)
-{
-	int ret = 0;
-
-	if (!(rp->rc_flag & RC_TCPSEQ))
-		return (ret);
-	/*
-	 * If the sockref is the same, it is the same TCP connection.
-	 */
-	if (cur_sockref == rp->rc_sockref)
-		ret = nfsrv_checksockseqnum(cur_so, rp->rc_tcpseq);
-	return (ret);
+	mtx_unlock(mutex);
 }
 
 /*

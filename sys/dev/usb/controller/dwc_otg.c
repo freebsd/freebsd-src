@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2012 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2010-2011 Aleksandr Rybalko. All rights reserved.
@@ -41,9 +42,9 @@
  * internal reset.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -79,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #include <dev/usb/controller/dwc_otg.h>
 #include <dev/usb/controller/dwc_otgreg.h>
@@ -120,9 +122,9 @@ SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods dwc_otg_bus_methods;
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
-struct usb_pipe_methods dwc_otg_device_isoc_methods;
+static const struct usb_bus_methods dwc_otg_bus_methods;
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods;
 
 static dwc_otg_cmd_t dwc_otg_setup_rx;
 static dwc_otg_cmd_t dwc_otg_data_rx;
@@ -3325,7 +3327,7 @@ dwc_otg_device_non_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
 {
 	.open = dwc_otg_device_non_isoc_open,
 	.close = dwc_otg_device_non_isoc_close,
@@ -3420,7 +3422,7 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods =
 {
 	.open = dwc_otg_device_isoc_open,
 	.close = dwc_otg_device_isoc_close,
@@ -3489,18 +3491,12 @@ static const struct usb_hub_descriptor_min dwc_otg_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'D', 0, 'W', 0, 'C', 0, 'O', 0, 'T', 0, 'G', 0
+  "D\0W\0C\0O\0T\0G"
 
 #define	STRING_PRODUCT \
-  'O', 0, 'T', 0, 'G', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "O\0T\0G\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, dwc_otg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, dwc_otg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, dwc_otg_product);
 
@@ -3702,8 +3698,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(dwc_otg_langtab);
-			ptr = (const void *)&dwc_otg_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -3972,7 +3968,6 @@ done:
 static void
 dwc_otg_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb_hw_ep_profile *pf;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
@@ -4015,16 +4010,21 @@ dwc_otg_xfer_setup(struct usb_setup_params *parm)
 	 */
 	last_obj = NULL;
 
-	/*
-	 * get profile stuff
-	 */
 	ep_no = xfer->endpointno & UE_ADDR;
-	dwc_otg_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
-	if (pf == NULL) {
-		/* should not happen */
-		parm->err = USB_ERR_INVAL;
-		return;
+	/*
+	 * Check for a valid endpoint profile in USB device mode:
+	 */
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+		const struct usb_hw_ep_profile *pf;
+
+		dwc_otg_get_hw_ep_profile(parm->udev, &pf, ep_no);
+
+		if (pf == NULL) {
+			/* should not happen */
+			parm->err = USB_ERR_INVAL;
+			return;
+		}
 	}
 
 	/* align data */
@@ -4201,7 +4201,7 @@ dwc_otg_device_suspend(struct usb_device *udev)
 	USB_BUS_UNLOCK(udev->bus);
 }
 
-struct usb_bus_methods dwc_otg_bus_methods =
+static const struct usb_bus_methods dwc_otg_bus_methods =
 {
 	.endpoint_init = &dwc_otg_ep_init,
 	.xfer_setup = &dwc_otg_xfer_setup,

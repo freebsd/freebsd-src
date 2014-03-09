@@ -23,7 +23,6 @@ __FBSDID("$FreeBSD$");
 
 static const float
 one		= 1.0,
-huge		= 1.0e+30,
 tiny		= 1.0e-30,
 o_threshold	= 8.8721679688e+01,/* 0x42b17180 */
 ln2_hi		= 6.9313812256e-01,/* 0x3f317180 */
@@ -36,6 +35,8 @@ invln2		= 1.4426950216e+00,/* 0x3fb8aa3b */
  */
 Q1 = -3.3333212137e-2,		/* -0x888868.0p-28 */
 Q2 =  1.5807170421e-3;		/*  0xcf3010.0p-33 */
+
+static volatile float huge = 1.0e+30;
 
 float
 expm1f(float x)

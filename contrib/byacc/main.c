@@ -1,19 +1,15 @@
-/* $Id: main.c,v 1.39 2012/05/26 00:50:20 tom Exp $ */
+/* $Id: main.c,v 1.41 2014/01/01 14:23:27 Christos.Zoulas Exp $ */
 
 #include <signal.h>
 #include <unistd.h>		/* for _exit() */
 
 #include "defs.h"
 
-#if defined(HAVE_ATEXIT)
-# ifdef HAVE_MKSTEMP
-#  define USE_MKSTEMP 1
-# elif defined(HAVE_FCNTL_H)
-#  define USE_MKSTEMP 1
-#  include <fcntl.h>		/* for open(), O_EXCL, etc. */
-# else
-#  define USE_MKSTEMP 0
-# endif
+#ifdef HAVE_MKSTEMP
+# define USE_MKSTEMP 1
+#elif defined(HAVE_FCNTL_H)
+# define USE_MKSTEMP 1
+# include <fcntl.h>		/* for open(), O_EXCL, etc. */
 #else
 # define USE_MKSTEMP 0
 #endif
@@ -91,6 +87,7 @@ short *symbol_prec;
 char *symbol_assoc;
 
 int pure_parser;
+int token_table;
 int exit_code;
 
 Value_t *ritem;

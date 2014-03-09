@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2001
+.Dd June 16, 2013
 .Dt VFSCONF 9
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ struct vfsconf {
 .Ed
 .Pp
 When a new file system is mounted,
-.Xr vfs_mount 9
+.Xr mount 2
 does a lookup of the
 .Vt vfsconf
 structure by its name, and if it is not already registered,
@@ -143,7 +143,7 @@ or
 .Fn vfs_unregister ,
 whatever the case.
 .Sh SEE ALSO
-.Xr vfs_mount 9 ,
+.Xr mount 2 ,
 .Xr vfs_rootmountalloc 9 ,
 .Xr VFS_SET 9
 .Sh AUTHORS

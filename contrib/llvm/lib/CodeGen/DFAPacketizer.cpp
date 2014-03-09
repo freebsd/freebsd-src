@@ -23,12 +23,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/DFAPacketizer.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/Target/TargetInstrInfo.h"
 using namespace llvm;
 
 DFAPacketizer::DFAPacketizer(const InstrItineraryData *I, const int (*SIT)[2],
@@ -160,7 +160,8 @@ void VLIWPacketizerList::PacketizeMIs(MachineBasicBlock *MBB,
                                       MachineBasicBlock::iterator EndItr) {
   assert(VLIWScheduler && "VLIW Scheduler is not initialized!");
   VLIWScheduler->startBlock(MBB);
-  VLIWScheduler->enterRegion(MBB, BeginItr, EndItr, MBB->size());
+  VLIWScheduler->enterRegion(MBB, BeginItr, EndItr,
+                             std::distance(BeginItr, EndItr));
   VLIWScheduler->schedule();
 
   // Generate MI -> SU map.

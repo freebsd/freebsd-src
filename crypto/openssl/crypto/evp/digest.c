@@ -267,6 +267,7 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
 	return FIPS_digestfinal(ctx, md, size);
 #else
 	int ret;
+
 	OPENSSL_assert(ctx->digest->md_size <= EVP_MAX_MD_SIZE);
 	ret=ctx->digest->final(ctx,md);
 	if (size != NULL)
@@ -365,8 +366,11 @@ int EVP_Digest(const void *data, size_t count,
 
 void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx)
 	{
-	EVP_MD_CTX_cleanup(ctx);
-	OPENSSL_free(ctx);
+	if (ctx)
+		{
+		EVP_MD_CTX_cleanup(ctx);
+		OPENSSL_free(ctx);
+		}
 	}
 
 /* This call frees resources associated with the context */

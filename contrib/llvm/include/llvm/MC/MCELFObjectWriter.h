@@ -42,11 +42,6 @@ struct ELFRelocationEntry {
                      const MCSymbol *Sym, uint64_t Addend, const MCFixup &Fixup)
     : r_offset(RelocOffset), Index(Idx), Type(RelType), Symbol(Sym),
       r_addend(Addend), Fixup(&Fixup) {}
-
-  // Support lexicographic sorting.
-  bool operator<(const ELFRelocationEntry &RE) const {
-    return RE.r_offset < r_offset;
-  }
 };
 
 class MCELFObjectTargetWriter {
@@ -79,7 +74,6 @@ public:
   virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                 bool IsPCRel, bool IsRelocWithSymbol,
                                 int64_t Addend) const = 0;
-  virtual unsigned getEFlags() const;
   virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
                                          const MCValue &Target,
                                          const MCFragment &F,
@@ -88,8 +82,6 @@ public:
   virtual const MCSymbol *undefinedExplicitRelSym(const MCValue &Target,
                                                   const MCFixup &Fixup,
                                                   bool IsPCRel) const;
-  virtual void adjustFixupOffset(const MCFixup &Fixup,
-                                 uint64_t &RelocOffset);
 
   virtual void sortRelocs(const MCAssembler &Asm,
                           std::vector<ELFRelocationEntry> &Relocs);

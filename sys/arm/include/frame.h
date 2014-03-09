@@ -59,10 +59,10 @@
  * Trap frame.  Pushed onto the kernel stack on a trap (synchronous exception).
  */
 
-typedef struct trapframe {
+struct trapframe {
 	register_t tf_spsr; /* Zero on arm26 */
 	register_t tf_r0;
- 	register_t tf_r1;
+	register_t tf_r1;
 	register_t tf_r2;
 	register_t tf_r3;
 	register_t tf_r4;
@@ -78,8 +78,9 @@ typedef struct trapframe {
 	register_t tf_usr_lr;
 	register_t tf_svc_sp; /* Not used on arm26 */
 	register_t tf_svc_lr; /* Not used on arm26 */
-        register_t tf_pc;
-} trapframe_t;
+	register_t tf_pc;
+	register_t tf_pad;
+};
 
 /* Register numbers */
 #define tf_r13 tf_usr_sp
@@ -138,10 +139,14 @@ typedef struct irqframe {
 } irqframe_t;
 
 /*
- * Switch frame
+ * Switch frame.
+ *
+ * It is important this is a multiple of 8 bytes so the stack is correctly
+ * aligned when we create new threads.
  */
 
 struct switchframe {
+	u_int	pad;	/* Used to pad the struct to a multiple of 8-bytes */
 	u_int	sf_r4;
 	u_int	sf_r5;
 	u_int	sf_r6;

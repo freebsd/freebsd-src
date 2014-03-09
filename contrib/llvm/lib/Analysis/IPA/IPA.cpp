@@ -12,14 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm-c/Initialization.h"
 
 using namespace llvm;
 
 /// initializeIPA - Initialize all passes linked into the IPA library.
 void llvm::initializeIPA(PassRegistry &Registry) {
-  initializeBasicCallGraphPass(Registry);
-  initializeCallGraphAnalysisGroup(Registry);
+  initializeCallGraphPass(Registry);
+  initializeCallGraphPrinterPass(Registry);
+  initializeCallGraphViewerPass(Registry);
   initializeFindUsedTypesPass(Registry);
   initializeGlobalsModRefPass(Registry);
 }

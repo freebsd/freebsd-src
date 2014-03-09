@@ -14,11 +14,9 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "lli"
-#include "RecordingMemoryManager.h"
+#include "llvm/IR/LLVMContext.h"
+#include "RemoteMemoryManager.h"
 #include "RemoteTarget.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Type.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
@@ -28,32 +26,30 @@
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/TypeBuilder.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/IRReader.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/Memory.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/Memory.h"
-#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Instrumentation.h"
 #include <cerrno>
-
-#ifdef __linux__
-// These includes used by LLIMCJITMemoryManager::getPointerToNamedFunction()
-// for Glibc trickery. Look comments in this function for more information.
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#include <fcntl.h>
-#include <unistd.h>
-#endif
 
 #ifdef __CYGWIN__
 #include <cygwin/version.h>
@@ -79,12 +75,28 @@ namespace {
     "use-mcjit", cl::desc("Enable use of the MC-based JIT (if available)"),
     cl::init(false));
 
+  cl::opt<bool> DebugIR(
+    "debug-ir", cl::desc("Generate debug information to allow debugging IR."),
+    cl::init(false));
+
   // The MCJIT supports building for a target address space separate from
   // the JIT compilation process. Use a forked process and a copying
   // memory manager with IPC to execute using this functionality.
   cl::opt<bool> RemoteMCJIT("remote-mcjit",
     cl::desc("Execute MCJIT'ed code in a separate process."),
     cl::init(false));
+
+  // Manually specify the child process for remote execution. This overrides
+  // the simulated remote execution that allocates address space for child
+  // execution. The child process will be executed and will communicate with
+  // lli via stdin/stdout pipes.
+  cl::opt<std::string>
+  MCJITRemoteProcess("mcjit-remote-process",
+            cl::desc("Specify the filename of the process to launch "
+                     "for remote MCJIT execution.  If none is specified,"
+                     "\n\tremote execution will be simulated in-process."),
+            cl::value_desc("filename"),
+            cl::init(""));
 
   // Determine optimization level.
   cl::opt<char>
@@ -120,6 +132,11 @@ namespace {
                      "of the executable"),
             cl::value_desc("function"),
             cl::init("main"));
+
+  cl::list<std::string>
+  ExtraModules("extra-module",
+         cl::desc("Extra modules to be loaded"),
+         cl::value_desc("input bitcode"));
 
   cl::opt<std::string>
   FakeArgv0("fake-argv0",
@@ -167,11 +184,6 @@ namespace {
                      clEnumValEnd));
 
   cl::opt<bool>
-  EnableJITExceptionHandling("jit-enable-eh",
-    cl::desc("Emit exception handling information"),
-    cl::init(false));
-
-  cl::opt<bool>
   GenerateSoftFloatCalls("soft-float",
     cl::desc("Generate software floating point library calls"),
     cl::init(false));
@@ -217,286 +229,45 @@ static void do_shutdown() {
 #endif
 }
 
-// Memory manager for MCJIT
-class LLIMCJITMemoryManager : public JITMemoryManager {
-public:
-  SmallVector<sys::MemoryBlock, 16> AllocatedDataMem;
-  SmallVector<sys::MemoryBlock, 16> AllocatedCodeMem;
-  SmallVector<sys::MemoryBlock, 16> FreeCodeMem;
+// On Mingw and Cygwin, an external symbol named '__main' is called from the
+// generated 'main' function to allow static intialization.  To avoid linking
+// problems with remote targets (because lli's remote target support does not
+// currently handle external linking) we add a secondary module which defines
+// an empty '__main' function.
+static void addCygMingExtraModule(ExecutionEngine *EE,
+                                  LLVMContext &Context,
+                                  StringRef TargetTripleStr) {
+  IRBuilder<> Builder(Context);
+  Triple TargetTriple(TargetTripleStr);
 
-  LLIMCJITMemoryManager() { }
-  ~LLIMCJITMemoryManager();
+  // Create a new module.
+  Module *M = new Module("CygMingHelper", Context);
+  M->setTargetTriple(TargetTripleStr);
 
-  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID);
+  // Create an empty function named "__main".
+  Function *Result;
+  if (TargetTriple.isArch64Bit()) {
+    Result = Function::Create(
+      TypeBuilder<int64_t(void), false>::get(Context),
+      GlobalValue::ExternalLinkage, "__main", M);
+  } else {
+    Result = Function::Create(
+      TypeBuilder<int32_t(void), false>::get(Context),
+      GlobalValue::ExternalLinkage, "__main", M);
+  }
+  BasicBlock *BB = BasicBlock::Create(Context, "__main", Result);
+  Builder.SetInsertPoint(BB);
+  Value *ReturnVal;
+  if (TargetTriple.isArch64Bit())
+    ReturnVal = ConstantInt::get(Context, APInt(64, 0));
+  else
+    ReturnVal = ConstantInt::get(Context, APInt(32, 0));
+  Builder.CreateRet(ReturnVal);
 
-  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID);
-
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true);
-
-  // Invalidate instruction cache for code sections. Some platforms with
-  // separate data cache and instruction cache require explicit cache flush,
-  // otherwise JIT code manipulations (like resolved relocations) will get to
-  // the data cache but not to the instruction cache.
-  virtual void invalidateInstructionCache();
-
-  // The RTDyldMemoryManager doesn't use the following functions, so we don't
-  // need implement them.
-  virtual void setMemoryWritable() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void setMemoryExecutable() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void setPoisonMemory(bool poison) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void AllocateGOT() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t *getGOTBase() const {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *startFunctionBody(const Function *F,
-                                     uintptr_t &ActualSize){
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *allocateStub(const GlobalValue* F, unsigned StubSize,
-                                unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void endFunctionBody(const Function *F, uint8_t *FunctionStart,
-                               uint8_t *FunctionEnd) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t *allocateSpace(intptr_t Size, unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *allocateGlobal(uintptr_t Size, unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void deallocateFunctionBody(void *Body) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t* startExceptionTable(const Function* F,
-                                       uintptr_t &ActualSize) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void endExceptionTable(const Function *F, uint8_t *TableStart,
-                                 uint8_t *TableEnd, uint8_t* FrameRegister) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void deallocateExceptionTable(void *ET) {
-    llvm_unreachable("Unexpected call!");
-  }
-};
-
-uint8_t *LLIMCJITMemoryManager::allocateDataSection(uintptr_t Size,
-                                                    unsigned Alignment,
-                                                    unsigned SectionID) {
-  if (!Alignment)
-    Alignment = 16;
-  // Ensure that enough memory is requested to allow aligning.
-  size_t NumElementsAligned = 1 + (Size + Alignment - 1)/Alignment;
-  uint8_t *Addr = (uint8_t*)calloc(NumElementsAligned, Alignment);
-
-  // Honour the alignment requirement.
-  uint8_t *AlignedAddr = (uint8_t*)RoundUpToAlignment((uint64_t)Addr, Alignment);
-
-  // Store the original address from calloc so we can free it later.
-  AllocatedDataMem.push_back(sys::MemoryBlock(Addr, NumElementsAligned*Alignment));
-  return AlignedAddr;
+  // Add this new module to the ExecutionEngine.
+  EE->addModule(M);
 }
 
-uint8_t *LLIMCJITMemoryManager::allocateCodeSection(uintptr_t Size,
-                                                    unsigned Alignment,
-                                                    unsigned SectionID) {
-  if (!Alignment)
-    Alignment = 16;
-  unsigned NeedAllocate = Alignment * ((Size + Alignment - 1)/Alignment + 1);
-  uintptr_t Addr = 0;
-  // Look in the list of free code memory regions and use a block there if one
-  // is available.
-  for (int i = 0, e = FreeCodeMem.size(); i != e; ++i) {
-    sys::MemoryBlock &MB = FreeCodeMem[i];
-    if (MB.size() >= NeedAllocate) {
-      Addr = (uintptr_t)MB.base();
-      uintptr_t EndOfBlock = Addr + MB.size();
-      // Align the address.
-      Addr = (Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1);
-      // Store cutted free memory block.
-      FreeCodeMem[i] = sys::MemoryBlock((void*)(Addr + Size),
-                                        EndOfBlock - Addr - Size);
-      return (uint8_t*)Addr;
-    }
-  }
-
-  // No pre-allocated free block was large enough. Allocate a new memory region.
-  sys::MemoryBlock MB = sys::Memory::AllocateRWX(NeedAllocate, 0, 0);
-
-  AllocatedCodeMem.push_back(MB);
-  Addr = (uintptr_t)MB.base();
-  uintptr_t EndOfBlock = Addr + MB.size();
-  // Align the address.
-  Addr = (Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1);
-  // The AllocateRWX may allocate much more memory than we need. In this case,
-  // we store the unused memory as a free memory block.
-  unsigned FreeSize = EndOfBlock-Addr-Size;
-  if (FreeSize > 16)
-    FreeCodeMem.push_back(sys::MemoryBlock((void*)(Addr + Size), FreeSize));
-
-  // Return aligned address
-  return (uint8_t*)Addr;
-}
-
-void LLIMCJITMemoryManager::invalidateInstructionCache() {
-  for (int i = 0, e = AllocatedCodeMem.size(); i != e; ++i)
-    sys::Memory::InvalidateInstructionCache(AllocatedCodeMem[i].base(),
-                                            AllocatedCodeMem[i].size());
-}
-
-static int jit_noop() {
-  return 0;
-}
-
-void *LLIMCJITMemoryManager::getPointerToNamedFunction(const std::string &Name,
-                                                       bool AbortOnFailure) {
-#if defined(__linux__)
-  //===--------------------------------------------------------------------===//
-  // Function stubs that are invoked instead of certain library calls
-  //
-  // Force the following functions to be linked in to anything that uses the
-  // JIT. This is a hack designed to work around the all-too-clever Glibc
-  // strategy of making these functions work differently when inlined vs. when
-  // not inlined, and hiding their real definitions in a separate archive file
-  // that the dynamic linker can't see. For more info, search for
-  // 'libc_nonshared.a' on Google, or read http://llvm.org/PR274.
-  if (Name == "stat") return (void*)(intptr_t)&stat;
-  if (Name == "fstat") return (void*)(intptr_t)&fstat;
-  if (Name == "lstat") return (void*)(intptr_t)&lstat;
-  if (Name == "stat64") return (void*)(intptr_t)&stat64;
-  if (Name == "fstat64") return (void*)(intptr_t)&fstat64;
-  if (Name == "lstat64") return (void*)(intptr_t)&lstat64;
-  if (Name == "atexit") return (void*)(intptr_t)&atexit;
-  if (Name == "mknod") return (void*)(intptr_t)&mknod;
-#endif // __linux__
-
-  // We should not invoke parent's ctors/dtors from generated main()!
-  // On Mingw and Cygwin, the symbol __main is resolved to
-  // callee's(eg. tools/lli) one, to invoke wrong duplicated ctors
-  // (and register wrong callee's dtors with atexit(3)).
-  // We expect ExecutionEngine::runStaticConstructorsDestructors()
-  // is called before ExecutionEngine::runFunctionAsMain() is called.
-  if (Name == "__main") return (void*)(intptr_t)&jit_noop;
-
-  const char *NameStr = Name.c_str();
-  void *Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(NameStr);
-  if (Ptr) return Ptr;
-
-  // If it wasn't found and if it starts with an underscore ('_') character,
-  // try again without the underscore.
-  if (NameStr[0] == '_') {
-    Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(NameStr+1);
-    if (Ptr) return Ptr;
-  }
-
-  if (AbortOnFailure)
-    report_fatal_error("Program used external function '" + Name +
-                      "' which could not be resolved!");
-  return 0;
-}
-
-LLIMCJITMemoryManager::~LLIMCJITMemoryManager() {
-  for (unsigned i = 0, e = AllocatedCodeMem.size(); i != e; ++i)
-    sys::Memory::ReleaseRWX(AllocatedCodeMem[i]);
-  for (unsigned i = 0, e = AllocatedDataMem.size(); i != e; ++i)
-    free(AllocatedDataMem[i].base());
-}
-
-
-void layoutRemoteTargetMemory(RemoteTarget *T, RecordingMemoryManager *JMM) {
-  // Lay out our sections in order, with all the code sections first, then
-  // all the data sections.
-  uint64_t CurOffset = 0;
-  unsigned MaxAlign = T->getPageAlignment();
-  SmallVector<std::pair<const void*, uint64_t>, 16> Offsets;
-  SmallVector<unsigned, 16> Sizes;
-  for (RecordingMemoryManager::const_code_iterator I = JMM->code_begin(),
-                                                   E = JMM->code_end();
-       I != E; ++I) {
-    DEBUG(dbgs() << "code region: size " << I->first.size()
-                 << ", alignment " << I->second << "\n");
-    // Align the current offset up to whatever is needed for the next
-    // section.
-    unsigned Align = I->second;
-    CurOffset = (CurOffset + Align - 1) / Align * Align;
-    // Save off the address of the new section and allocate its space.
-    Offsets.push_back(std::pair<const void*,uint64_t>(I->first.base(), CurOffset));
-    Sizes.push_back(I->first.size());
-    CurOffset += I->first.size();
-  }
-  // Adjust to keep code and data aligned on seperate pages.
-  CurOffset = (CurOffset + MaxAlign - 1) / MaxAlign * MaxAlign;
-  unsigned FirstDataIndex = Offsets.size();
-  for (RecordingMemoryManager::const_data_iterator I = JMM->data_begin(),
-                                                   E = JMM->data_end();
-       I != E; ++I) {
-    DEBUG(dbgs() << "data region: size " << I->first.size()
-                 << ", alignment " << I->second << "\n");
-    // Align the current offset up to whatever is needed for the next
-    // section.
-    unsigned Align = I->second;
-    CurOffset = (CurOffset + Align - 1) / Align * Align;
-    // Save off the address of the new section and allocate its space.
-    Offsets.push_back(std::pair<const void*,uint64_t>(I->first.base(), CurOffset));
-    Sizes.push_back(I->first.size());
-    CurOffset += I->first.size();
-  }
-
-  // Allocate space in the remote target.
-  uint64_t RemoteAddr;
-  if (T->allocateSpace(CurOffset, MaxAlign, RemoteAddr))
-    report_fatal_error(T->getErrorMsg());
-  // Map the section addresses so relocations will get updated in the local
-  // copies of the sections.
-  for (unsigned i = 0, e = Offsets.size(); i != e; ++i) {
-    uint64_t Addr = RemoteAddr + Offsets[i].second;
-    EE->mapSectionAddress(const_cast<void*>(Offsets[i].first), Addr);
-
-    DEBUG(dbgs() << "  Mapping local: " << Offsets[i].first
-                 << " to remote: " << format("%p", Addr) << "\n");
-
-  }
-
-  // Trigger application of relocations
-  EE->finalizeObject();
-
-  // Now load it all to the target.
-  for (unsigned i = 0, e = Offsets.size(); i != e; ++i) {
-    uint64_t Addr = RemoteAddr + Offsets[i].second;
-
-    if (i < FirstDataIndex) {
-      T->loadCode(Addr, Offsets[i].first, Sizes[i]);
-
-      DEBUG(dbgs() << "  loading code: " << Offsets[i].first
-            << " to remote: " << format("%p", Addr) << "\n");
-    } else {
-      T->loadData(Addr, Offsets[i].first, Sizes[i]);
-
-      DEBUG(dbgs() << "  loading data: " << Offsets[i].first
-            << " to remote: " << format("%p", Addr) << "\n");
-    }
-
-  }
-}
 
 //===----------------------------------------------------------------------===//
 // main Driver function
@@ -539,6 +310,17 @@ int main(int argc, char **argv, char * const *envp) {
     }
   }
 
+  if (DebugIR) {
+    if (!UseMCJIT) {
+      errs() << "warning: -debug-ir used without -use-mcjit. Only partial debug"
+        << " information will be emitted by the non-MC JIT engine. To see full"
+        << " source debug information, enable the flag '-use-mcjit'.\n";
+
+    }
+    ModulePass *DebugIRPass = createDebugIRPass();
+    DebugIRPass->runOnModule(*Mod);
+  }
+
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
   builder.setMCPU(MCPU);
@@ -555,14 +337,14 @@ int main(int argc, char **argv, char * const *envp) {
     Mod->setTargetTriple(Triple::normalize(TargetTriple));
 
   // Enable MCJIT if desired.
-  JITMemoryManager *JMM = 0;
+  RTDyldMemoryManager *RTDyldMM = 0;
   if (UseMCJIT && !ForceInterpreter) {
     builder.setUseMCJIT(true);
     if (RemoteMCJIT)
-      JMM = new RecordingMemoryManager();
+      RTDyldMM = new RemoteMemoryManager();
     else
-      JMM = new LLIMCJITMemoryManager();
-    builder.setJITMemoryManager(JMM);
+      RTDyldMM = new SectionMemoryManager();
+    builder.setMCJITMemoryManager(RTDyldMM);
   } else {
     if (RemoteMCJIT) {
       errs() << "error: Remote process execution requires -use-mcjit\n";
@@ -594,7 +376,6 @@ int main(int argc, char **argv, char * const *envp) {
 
   // Remote target execution doesn't handle EH or debug registration.
   if (!RemoteMCJIT) {
-    Options.JITExceptionHandling = EnableJITExceptionHandling;
     Options.JITEmitDebugInfo = EmitJitDebugInfo;
     Options.JITEmitDebugInfoToDisk = EmitJitDebugInfoToDisk;
   }
@@ -608,6 +389,22 @@ int main(int argc, char **argv, char * const *envp) {
     else
       errs() << argv[0] << ": unknown error creating EE!\n";
     exit(1);
+  }
+
+  // Load any additional modules specified on the command line.
+  for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
+    Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
+    if (!XMod) {
+      Err.print(argv[0], errs());
+      return 1;
+    }
+    EE->addModule(XMod);
+  }
+
+  // If the target is Cygwin/MingW and we are generating remote code, we
+  // need an extra module to help out with linking.
+  if (RemoteMCJIT && Triple(Mod->getTargetTriple()).isOSCygMing()) {
+    addCygMingExtraModule(EE, Context, Mod->getTargetTriple());
   }
 
   // The following functions have no effect if their respective profiling
@@ -648,77 +445,43 @@ int main(int argc, char **argv, char * const *envp) {
     return -1;
   }
 
-  // If the program doesn't explicitly call exit, we will need the Exit
-  // function later on to make an explicit call, so get the function now.
-  Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
-                                                    Type::getInt32Ty(Context),
-                                                    NULL);
-
   // Reset errno to zero on entry to main.
   errno = 0;
 
-  // Remote target MCJIT doesn't (yet) support static constructors. No reason
-  // it couldn't. This is a limitation of the LLI implemantation, not the
-  // MCJIT itself. FIXME.
-  //
-  // Run static constructors.
-  if (!RemoteMCJIT)
+  int Result;
+
+  if (!RemoteMCJIT) {
+    // If the program doesn't explicitly call exit, we will need the Exit
+    // function later on to make an explicit call, so get the function now.
+    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
+                                                      Type::getInt32Ty(Context),
+                                                      NULL);
+
+    // Run static constructors.
+    if (UseMCJIT && !ForceInterpreter) {
+      // Give MCJIT a chance to apply relocations and set page permissions.
+      EE->finalizeObject();
+    }
     EE->runStaticConstructorsDestructors(false);
 
-  if (NoLazyCompilation) {
-    for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
-      Function *Fn = &*I;
-      if (Fn != EntryFn && !Fn->isDeclaration())
-        EE->getPointerToFunction(Fn);
+    if (!UseMCJIT && NoLazyCompilation) {
+      for (Module::iterator I = Mod->begin(), E = Mod->end(); I != E; ++I) {
+        Function *Fn = &*I;
+        if (Fn != EntryFn && !Fn->isDeclaration())
+          EE->getPointerToFunction(Fn);
+      }
     }
-  }
 
-  int Result;
-  if (RemoteMCJIT) {
-    RecordingMemoryManager *MM = static_cast<RecordingMemoryManager*>(JMM);
-    // Everything is prepared now, so lay out our program for the target
-    // address space, assign the section addresses to resolve any relocations,
-    // and send it to the target.
-    RemoteTarget Target;
-    Target.create();
-
-    // Ask for a pointer to the entry function. This triggers the actual
-    // compilation.
-    (void)EE->getPointerToFunction(EntryFn);
-
-    // Enough has been compiled to execute the entry function now, so
-    // layout the target memory.
-    layoutRemoteTargetMemory(&Target, MM);
-
-    // Since we're executing in a (at least simulated) remote address space,
-    // we can't use the ExecutionEngine::runFunctionAsMain(). We have to
-    // grab the function address directly here and tell the remote target
-    // to execute the function.
-    // FIXME: argv and envp handling.
-    uint64_t Entry = (uint64_t)EE->getPointerToFunction(EntryFn);
-
-    DEBUG(dbgs() << "Executing '" << EntryFn->getName() << "' at "
-                 << format("%p", Entry) << "\n");
-
-    if (Target.executeCode(Entry, Result))
-      errs() << "ERROR: " << Target.getErrorMsg() << "\n";
-
-    Target.stop();
-  } else {
     // Trigger compilation separately so code regions that need to be 
     // invalidated will be known.
     (void)EE->getPointerToFunction(EntryFn);
     // Clear instruction cache before code will be executed.
-    if (JMM)
-      static_cast<LLIMCJITMemoryManager*>(JMM)->invalidateInstructionCache();
+    if (RTDyldMM)
+      static_cast<SectionMemoryManager*>(RTDyldMM)->invalidateInstructionCache();
 
     // Run main.
     Result = EE->runFunctionAsMain(EntryFn, InputArgv, envp);
-  }
 
-  // Like static constructors, the remote target MCJIT support doesn't handle
-  // this yet. It could. FIXME.
-  if (!RemoteMCJIT) {
     // Run static destructors.
     EE->runStaticConstructorsDestructors(true);
 
@@ -736,6 +499,67 @@ int main(int argc, char **argv, char * const *envp) {
       errs() << "ERROR: exit defined with wrong prototype!\n";
       abort();
     }
+  } else {
+    // else == "if (RemoteMCJIT)"
+
+    // Remote target MCJIT doesn't (yet) support static constructors. No reason
+    // it couldn't. This is a limitation of the LLI implemantation, not the
+    // MCJIT itself. FIXME.
+    //
+    RemoteMemoryManager *MM = static_cast<RemoteMemoryManager*>(RTDyldMM);
+    // Everything is prepared now, so lay out our program for the target
+    // address space, assign the section addresses to resolve any relocations,
+    // and send it to the target.
+
+    OwningPtr<RemoteTarget> Target;
+    if (!MCJITRemoteProcess.empty()) { // Remote execution on a child process
+      if (!RemoteTarget::hostSupportsExternalRemoteTarget()) {
+        errs() << "Warning: host does not support external remote targets.\n"
+               << "  Defaulting to simulated remote execution\n";
+        Target.reset(RemoteTarget::createRemoteTarget());
+      } else {
+        std::string ChildEXE = sys::FindProgramByName(MCJITRemoteProcess);
+        if (ChildEXE == "") {
+          errs() << "Unable to find child target: '\''" << MCJITRemoteProcess << "\'\n";
+          return -1;
+        }
+        Target.reset(RemoteTarget::createExternalRemoteTarget(ChildEXE));
+      }
+    } else {
+      // No child process name provided, use simulated remote execution.
+      Target.reset(RemoteTarget::createRemoteTarget());
+    }
+
+    // Give the memory manager a pointer to our remote target interface object.
+    MM->setRemoteTarget(Target.get());
+
+    // Create the remote target.
+    Target->create();
+
+    // Since we're executing in a (at least simulated) remote address space,
+    // we can't use the ExecutionEngine::runFunctionAsMain(). We have to
+    // grab the function address directly here and tell the remote target
+    // to execute the function.
+    //
+    // Our memory manager will map generated code into the remote address
+    // space as it is loaded and copy the bits over during the finalizeMemory
+    // operation.
+    //
+    // FIXME: argv and envp handling.
+    uint64_t Entry = EE->getFunctionAddress(EntryFn->getName().str());
+
+    DEBUG(dbgs() << "Executing '" << EntryFn->getName() << "' at 0x"
+                 << format("%llx", Entry) << "\n");
+
+    if (Target->executeCode(Entry, Result))
+      errs() << "ERROR: " << Target->getErrorMsg() << "\n";
+
+    // Like static constructors, the remote target MCJIT support doesn't handle
+    // this yet. It could. FIXME.
+
+    // Stop the remote target
+    Target->stop();
   }
+
   return Result;
 }

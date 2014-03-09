@@ -137,6 +137,7 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_setCoverageClass		= ar5211SetCoverageClass,
 	.ah_get11nExtBusy		= ar5211Get11nExtBusy,
 	.ah_getMibCycleCounts		= ar5211GetMibCycleCounts,
+	.ah_setChainMasks		= ar5211SetChainMasks,
 	.ah_enableDfs			= ar5211EnableDfs,
 	.ah_getDfsThresh		= ar5211GetDfsThresh,
 	/* XXX procRadarEvent */

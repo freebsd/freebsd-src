@@ -14,14 +14,14 @@
 
 #define DEBUG_TYPE "CoreEngine"
 
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CoreEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/StmtCXX.h"
-#include "llvm/Support/Casting.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Casting.h"
 
 using namespace clang;
 using namespace ento;
@@ -114,7 +114,7 @@ namespace {
     }
 
     virtual void enqueue(const WorkListUnit& U) {
-      if (isa<BlockEntrance>(U.getNode()->getLocation()))
+      if (U.getNode()->getLocation().getAs<BlockEntrance>())
         Queue.push_front(U);
       else
         Stack.push_back(U);
@@ -230,11 +230,11 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
   // Dispatch on the location type.
   switch (Loc.getKind()) {
     case ProgramPoint::BlockEdgeKind:
-      HandleBlockEdge(cast<BlockEdge>(Loc), Pred);
+      HandleBlockEdge(Loc.castAs<BlockEdge>(), Pred);
       break;
 
     case ProgramPoint::BlockEntranceKind:
-      HandleBlockEntrance(cast<BlockEntrance>(Loc), Pred);
+      HandleBlockEntrance(Loc.castAs<BlockEntrance>(), Pred);
       break;
 
     case ProgramPoint::BlockExitKind:
@@ -242,7 +242,7 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
       break;
 
     case ProgramPoint::CallEnterKind: {
-      CallEnter CEnter = cast<CallEnter>(Loc);
+      CallEnter CEnter = Loc.castAs<CallEnter>();
       SubEng.processCallEnter(CEnter, Pred);
       break;
     }
@@ -259,10 +259,10 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
       break;
     }
     default:
-      assert(isa<PostStmt>(Loc) ||
-             isa<PostInitializer>(Loc) ||
-             isa<PostImplicitCall>(Loc) ||
-             isa<CallExitEnd>(Loc));
+      assert(Loc.getAs<PostStmt>() ||
+             Loc.getAs<PostInitializer>() ||
+             Loc.getAs<PostImplicitCall>() ||
+             Loc.getAs<CallExitEnd>());
       HandlePostStmt(WU.getBlock(), WU.getIndex(), Pred);
       break;
   }
@@ -331,9 +331,9 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
   WList->setBlockCounter(Counter);
 
   // Process the entrance of the block.
-  if (CFGElement E = L.getFirstElement()) {
+  if (Optional<CFGElement> E = L.getFirstElement()) {
     NodeBuilderContext Ctx(*this, L.getBlock(), Pred);
-    SubEng.processCFGElement(E, Pred, 0, &Ctx);
+    SubEng.processCFGElement(*E, Pred, 0, &Ctx);
   }
   else
     HandleBlockExit(L.getBlock(), Pred);
@@ -345,6 +345,11 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
     switch (Term->getStmtClass()) {
       default:
         llvm_unreachable("Analysis for this terminator not implemented.");
+
+      // Model static initializers.
+      case Stmt::DeclStmtClass:
+        HandleStaticInit(cast<DeclStmt>(Term), B, Pred);
+        return;
 
       case Stmt::BinaryOperatorClass: // '&&' and '||'
         HandleBranch(cast<BinaryOperator>(Term)->getLHS(), Term, B, Pred);
@@ -456,6 +461,19 @@ void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
   enqueue(Dst);
 }
 
+
+void CoreEngine::HandleStaticInit(const DeclStmt *DS, const CFGBlock *B,
+                                  ExplodedNode *Pred) {
+  assert(B->succ_size() == 2);
+  NodeBuilderContext Ctx(*this, B, Pred);
+  ExplodedNodeSet Dst;
+  SubEng.processStaticInitializer(DS, Ctx, Pred, Dst,
+                                  *(B->succ_begin()), *(B->succ_begin()+1));
+  // Enqueue the new frontier onto the worklist.
+  enqueue(Dst);
+}
+
+
 void CoreEngine::HandlePostStmt(const CFGBlock *B, unsigned StmtIdx, 
                                   ExplodedNode *Pred) {
   assert(B);
@@ -495,7 +513,7 @@ void CoreEngine::enqueueStmtNode(ExplodedNode *N,
   assert (!N->isSink());
 
   // Check if this node entered a callee.
-  if (isa<CallEnter>(N->getLocation())) {
+  if (N->getLocation().getAs<CallEnter>()) {
     // Still use the index of the CallExpr. It's needed to create the callee
     // StackFrameContext.
     WList->enqueue(N, Block, Idx);
@@ -503,19 +521,19 @@ void CoreEngine::enqueueStmtNode(ExplodedNode *N,
   }
 
   // Do not create extra nodes. Move to the next CFG element.
-  if (isa<PostInitializer>(N->getLocation()) ||
-      isa<PostImplicitCall>(N->getLocation())) {
+  if (N->getLocation().getAs<PostInitializer>() ||
+      N->getLocation().getAs<PostImplicitCall>()) {
     WList->enqueue(N, Block, Idx+1);
     return;
   }
 
-  if (isa<EpsilonPoint>(N->getLocation())) {
+  if (N->getLocation().getAs<EpsilonPoint>()) {
     WList->enqueue(N, Block, Idx);
     return;
   }
 
   // At this point, we know we're processing a normal statement.
-  CFGStmt CS = cast<CFGStmt>((*Block)[Idx]);
+  CFGStmt CS = (*Block)[Idx].castAs<CFGStmt>();
   PostStmt Loc(CS.getStmt(), N->getLocationContext());
 
   if (Loc == N->getLocation()) {

@@ -108,23 +108,13 @@
 
 #else /* Book-E */
 
-/*
- * Kernel CCSRBAR location. We make this the reset location.
- */
-#define	CCSRBAR_VA		0xfef00000
-#define	CCSRBAR_SIZE		0x00100000
-
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
 #define	VM_MAX_KERNEL_ADDRESS	0xf8000000
+#define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 
 #endif /* AIM/E500 */
-
-/* XXX max. amount of KVM to be used by buffers. */
-#ifndef VM_MAX_KERNEL_BUF
-#define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
-#endif
 
 #if !defined(LOCORE)
 struct pmap_physseg {
@@ -168,13 +158,6 @@ struct pmap_physseg {
 #define	VM_NFREEORDER		11
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -189,18 +172,27 @@ struct pmap_physseg {
 #define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-#ifndef VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
-#ifdef __powerpc64__
+/*
+ * How many physical pages per kmem arena virtual page.
+ */
 #ifndef VM_KMEM_SIZE_SCALE
-#define VM_KMEM_SIZE_SCALE      (3)
+#define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
-#ifndef VM_KMEM_SIZE_MAX
-#define VM_KMEM_SIZE_MAX        0x1c0000000  /* 7 GB */
+/*
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
 #endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * usable KVA space.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define VM_KMEM_SIZE_MAX	((VM_MAX_SAFE_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */

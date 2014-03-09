@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/Attr.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
@@ -25,31 +26,29 @@ using namespace ento;
 
 namespace {
 
-class NoReturnFunctionChecker : public Checker< check::PostStmt<CallExpr>,
+class NoReturnFunctionChecker : public Checker< check::PostCall,
                                                 check::PostObjCMessage > {
 public:
-  void checkPostStmt(const CallExpr *CE, CheckerContext &C) const;
+  void checkPostCall(const CallEvent &CE, CheckerContext &C) const;
   void checkPostObjCMessage(const ObjCMethodCall &msg, CheckerContext &C) const;
 };
 
 }
 
-void NoReturnFunctionChecker::checkPostStmt(const CallExpr *CE,
+void NoReturnFunctionChecker::checkPostCall(const CallEvent &CE,
                                             CheckerContext &C) const {
   ProgramStateRef state = C.getState();
-  const Expr *Callee = CE->getCallee();
+  bool BuildSinks = false;
 
-  bool BuildSinks = getFunctionExtInfo(Callee->getType()).getNoReturn();
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CE.getDecl()))
+    BuildSinks = FD->getAttr<AnalyzerNoReturnAttr>() || FD->isNoReturn();
 
-  if (!BuildSinks) {
-    SVal L = state->getSVal(Callee, C.getLocationContext());
-    const FunctionDecl *FD = L.getAsFunctionDecl();
-    if (!FD)
-      return;
+  const Expr *Callee = CE.getOriginExpr();
+  if (!BuildSinks && Callee)
+    BuildSinks = getFunctionExtInfo(Callee->getType()).getNoReturn();
 
-    if (FD->getAttr<AnalyzerNoReturnAttr>())
-      BuildSinks = true;
-    else if (const IdentifierInfo *II = FD->getIdentifier()) {
+  if (!BuildSinks && CE.isGlobalCFunction()) {
+    if (const IdentifierInfo *II = CE.getCalleeIdentifier()) {
       // HACK: Some functions are not marked noreturn, and don't return.
       //  Here are a few hardwired ones.  If this takes too long, we can
       //  potentially cache these results.
@@ -65,6 +64,9 @@ void NoReturnFunctionChecker::checkPostStmt(const CallExpr *CE,
             .Case("assfail", true)
             .Case("db_error", true)
             .Case("__assert", true)
+            // For the purpose of static analysis, we do not care that
+            //  this MSVC function will return if the user decides to continue.
+            .Case("_wassert", true)
             .Case("__assert_rtn", true)
             .Case("__assert_fail", true)
             .Case("dtrace_assfail", true)
@@ -100,6 +102,15 @@ static bool END_WITH_NULL isMultiArgSelector(const Selector *Sel, ...) {
 
 void NoReturnFunctionChecker::checkPostObjCMessage(const ObjCMethodCall &Msg,
                                                    CheckerContext &C) const {
+  // Check if the method is annotated with analyzer_noreturn.
+  if (const ObjCMethodDecl *MD = Msg.getDecl()) {
+    MD = MD->getCanonicalDecl();
+    if (MD->hasAttr<AnalyzerNoReturnAttr>()) {
+      C.generateSink();
+      return;
+    }
+  }
+
   // HACK: This entire check is to handle two messages in the Cocoa frameworks:
   // -[NSAssertionHandler
   //    handleFailureInMethod:object:file:lineNumber:description:]

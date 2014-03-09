@@ -21,6 +21,7 @@
 
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -617,8 +618,8 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 		size_t avail;
 
 		/*
-		 * It's not legal to use buffered ouput if there is not a
-		 * handler for buffered output.
+		 * Using buffered output is not allowed if a handler has
+		 * not been installed.
 		 */
 		if (dtp->dt_bufhdlr == NULL) {
 			va_end(ap);
@@ -733,11 +734,6 @@ dt_zalloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
 
-	if (size > 16 * 1024 * 1024) {
-		(void) dt_set_errno(dtp, EDT_NOMEM);
-		return (NULL);
-	}
-
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);
 	else
@@ -750,11 +746,6 @@ void *
 dt_alloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
-
-	if (size > 16 * 1024 * 1024) {
-		(void) dt_set_errno(dtp, EDT_NOMEM);
-		return (NULL);
-	}
 
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);

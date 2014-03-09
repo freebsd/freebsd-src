@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -62,10 +63,12 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -174,7 +177,7 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
 VNET_DEFINE(int, tcp_minmss) = TCP_MINMSS;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
      &VNET_NAME(tcp_minmss), 0,
-    "Minmum TCP Maximum Segment Size");
+    "Minimum TCP Maximum Segment Size");
 
 VNET_DEFINE(int, tcp_do_rfc1323) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
@@ -428,6 +431,7 @@ tcp_init(void)
 void
 tcp_destroy(void)
 {
+	int error;
 
 	tcp_reass_destroy();
 	tcp_hc_destroy();
@@ -436,6 +440,19 @@ tcp_destroy(void)
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN, error);
+	}
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_OUT]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
+	}
 }
 #endif
 
@@ -632,8 +649,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = 0;		/* Set in ip6_output(). */
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
+		ip6->ip6_plen = htons(tlen - sizeof(*ip6));
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -702,6 +719,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
+	if (flags & TH_RST)
+		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
+		    tp, nth);
+
+	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
@@ -882,7 +904,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
-		tp->t_state = TCPS_CLOSED;
+		tcp_state_change(tp, TCPS_CLOSED);
 		(void) tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
@@ -1060,7 +1082,7 @@ tcp_drain(void)
 	 * XXX: The "Net/3" implementation doesn't imply that the TCP
 	 *      reassembly queue should be flushed, but in a situation
 	 *	where we're really low on mbufs, this is potentially
-	 *	usefull.
+	 *	useful.
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
@@ -1770,7 +1792,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
  * tcp_mss_update to get the peer/interface MTU.
  */
 u_long
-tcp_maxmtu(struct in_conninfo *inc, int *flags)
+tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route sro;
 	struct sockaddr_in *dst;
@@ -1789,16 +1811,17 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro.ro_rt->rt_mtu == 0)
 			maxmtu = ifp->if_mtu;
 		else
-			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO4 &&
 			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1808,7 +1831,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 
 #ifdef INET6
 u_long
-tcp_maxmtu6(struct in_conninfo *inc, int *flags)
+tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route_in6 sro6;
 	struct ifnet *ifp;
@@ -1825,17 +1848,18 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro6.ro_rt->rt_mtu == 0)
 			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
 		else
-			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
+			maxmtu = min(sro6.ro_rt->rt_mtu,
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO6 &&
 			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
 		}
 		RTFREE(sro6.ro_rt);
 	}
@@ -1860,7 +1884,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return (0);
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (!m)
 		return (0);
 
@@ -2373,4 +2397,20 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	if (*(s + size - 1) != '\0')
 		panic("%s: string too long", __func__);
 	return (s);
+}
+
+/*
+ * A subroutine which makes it easy to track TCP state changes with DTrace.
+ * This function shouldn't be called for t_state initializations that don't
+ * correspond to actual TCP state transitions.
+ */
+void
+tcp_state_change(struct tcpcb *tp, int newstate)
+{
+#if defined(KDTRACE_HOOKS)
+	int pstate = tp->t_state;
+#endif
+
+	tp->t_state = newstate;
+	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

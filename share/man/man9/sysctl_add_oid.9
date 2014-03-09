@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2000
+.Dd September 12, 2013
 .Dt SYSCTL_ADD_OID 9
 .Os
 .Sh NAME
@@ -154,6 +154,16 @@
 .Fa "const char *name"
 .Fa "int access"
 .Fa "int64_t *arg"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UQUAD
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int access"
+.Fa "uint64_t *arg"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *

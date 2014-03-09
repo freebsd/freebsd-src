@@ -12,16 +12,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_PASSMANAGERBUILDER_H
-#define LLVM_SUPPORT_PASSMANAGERBUILDER_H
+#ifndef LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
+#define LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
 
 #include <vector>
 
 namespace llvm {
-  class TargetLibraryInfo;
-  class PassManagerBase;
-  class Pass;
-  class FunctionPassManager;
+class TargetLibraryInfo;
+class Pass;
+
+// The old pass manager infrastructure is hidden in a legacy namespace now.
+namespace legacy {
+class PassManagerBase;
+class FunctionPassManager;
+}
+using legacy::PassManagerBase;
+using legacy::FunctionPassManager;
 
 /// PassManagerBuilder - This class is used to set up a standard optimization
 /// sequence for languages like C and C++, allowing some APIs to customize the
@@ -100,11 +106,13 @@ public:
   /// added to the per-module passes.
   Pass *Inliner;
 
-  bool DisableSimplifyLibCalls;
   bool DisableUnitAtATime;
   bool DisableUnrollLoops;
-  bool Vectorize;
+  bool BBVectorize;
+  bool SLPVectorize;
   bool LoopVectorize;
+  bool LateVectorize;
+  bool RerollLoops;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_APSINT_H
-#define LLVM_APSINT_H
+#ifndef LLVM_ADT_APSINT_H
+#define LLVM_ADT_APSINT_H
 
 #include "llvm/ADT/APInt.h"
 
@@ -23,7 +23,7 @@ class APSInt : public APInt {
   bool IsUnsigned;
 public:
   /// Default constructor that creates an uninitialized APInt.
-  explicit APSInt() {}
+  explicit APSInt() : IsUnsigned(false) {}
 
   /// APSInt ctor - Create an APSInt with the specified width, default to
   /// unsigned.
@@ -68,18 +68,18 @@ public:
   }
   using APInt::toString;
 
-  APSInt trunc(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT trunc(uint32_t width) const {
     return APSInt(APInt::trunc(width), IsUnsigned);
   }
 
-  APSInt extend(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT extend(uint32_t width) const {
     if (IsUnsigned)
       return APSInt(zext(width), IsUnsigned);
     else
       return APSInt(sext(width), IsUnsigned);
   }
 
-  APSInt extOrTrunc(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT extOrTrunc(uint32_t width) const {
       if (IsUnsigned)
         return APSInt(zextOrTrunc(width), IsUnsigned);
       else
@@ -161,11 +161,11 @@ public:
   }
 
   APSInt& operator++() {
-    static_cast<APInt&>(*this)++;
+    ++(static_cast<APInt&>(*this));
     return *this;
   }
   APSInt& operator--() {
-    static_cast<APInt&>(*this)--;
+    --(static_cast<APInt&>(*this));
     return *this;
   }
   APSInt operator++(int) {
@@ -212,7 +212,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) & RHS, IsUnsigned);
   }
-  APSInt And(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT And(const APSInt& RHS) const {
     return this->operator&(RHS);
   }
 
@@ -220,7 +220,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) | RHS, IsUnsigned);
   }
-  APSInt Or(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT Or(const APSInt& RHS) const {
     return this->operator|(RHS);
   }
 
@@ -229,7 +229,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) ^ RHS, IsUnsigned);
   }
-  APSInt Xor(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT Xor(const APSInt& RHS) const {
     return this->operator^(RHS);
   }
 

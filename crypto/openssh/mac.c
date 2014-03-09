@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.18 2012/06/28 05:07:45 dtucker Exp $ */
+/* $OpenBSD: mac.c,v 1.26 2014/01/04 17:50:55 tedu Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -48,60 +48,101 @@
 
 #define SSH_EVP		1	/* OpenSSL EVP-based MAC */
 #define SSH_UMAC	2	/* UMAC (not integrated with OpenSSL) */
+#define SSH_UMAC128	3
 
-struct {
+struct macalg {
 	char		*name;
 	int		type;
 	const EVP_MD *	(*mdfunc)(void);
 	int		truncatebits;	/* truncate digest if != 0 */
 	int		key_len;	/* just for UMAC */
 	int		len;		/* just for UMAC */
-} macs[] = {
-	{ "hmac-sha1",			SSH_EVP, EVP_sha1, 0, -1, -1 },
-	{ "hmac-sha1-96",		SSH_EVP, EVP_sha1, 96, -1, -1 },
-#ifdef HAVE_EVP_SHA256
-	{ "hmac-sha2-256",		SSH_EVP, EVP_sha256, 0, -1, -1 },
-	{ "hmac-sha2-512",		SSH_EVP, EVP_sha512, 0, -1, -1 },
-#endif
-	{ "hmac-md5",			SSH_EVP, EVP_md5, 0, -1, -1 },
-	{ "hmac-md5-96",		SSH_EVP, EVP_md5, 96, -1, -1 },
-	{ "hmac-ripemd160",		SSH_EVP, EVP_ripemd160, 0, -1, -1 },
-	{ "hmac-ripemd160@openssh.com",	SSH_EVP, EVP_ripemd160, 0, -1, -1 },
-	{ "umac-64@openssh.com",	SSH_UMAC, NULL, 0, 128, 64 },
-	{ NULL,				0, NULL, 0, -1, -1 }
+	int		etm;		/* Encrypt-then-MAC */
 };
 
+static const struct macalg macs[] = {
+	/* Encrypt-and-MAC (encrypt-and-authenticate) variants */
+	{ "hmac-sha1",				SSH_EVP, EVP_sha1, 0, 0, 0, 0 },
+	{ "hmac-sha1-96",			SSH_EVP, EVP_sha1, 96, 0, 0, 0 },
+#ifdef HAVE_EVP_SHA256
+	{ "hmac-sha2-256",			SSH_EVP, EVP_sha256, 0, 0, 0, 0 },
+	{ "hmac-sha2-512",			SSH_EVP, EVP_sha512, 0, 0, 0, 0 },
+#endif
+	{ "hmac-md5",				SSH_EVP, EVP_md5, 0, 0, 0, 0 },
+	{ "hmac-md5-96",			SSH_EVP, EVP_md5, 96, 0, 0, 0 },
+	{ "hmac-ripemd160",			SSH_EVP, EVP_ripemd160, 0, 0, 0, 0 },
+	{ "hmac-ripemd160@openssh.com",		SSH_EVP, EVP_ripemd160, 0, 0, 0, 0 },
+	{ "umac-64@openssh.com",		SSH_UMAC, NULL, 0, 128, 64, 0 },
+	{ "umac-128@openssh.com",		SSH_UMAC128, NULL, 0, 128, 128, 0 },
+
+	/* Encrypt-then-MAC variants */
+	{ "hmac-sha1-etm@openssh.com",		SSH_EVP, EVP_sha1, 0, 0, 0, 1 },
+	{ "hmac-sha1-96-etm@openssh.com",	SSH_EVP, EVP_sha1, 96, 0, 0, 1 },
+#ifdef HAVE_EVP_SHA256
+	{ "hmac-sha2-256-etm@openssh.com",	SSH_EVP, EVP_sha256, 0, 0, 0, 1 },
+	{ "hmac-sha2-512-etm@openssh.com",	SSH_EVP, EVP_sha512, 0, 0, 0, 1 },
+#endif
+	{ "hmac-md5-etm@openssh.com",		SSH_EVP, EVP_md5, 0, 0, 0, 1 },
+	{ "hmac-md5-96-etm@openssh.com",	SSH_EVP, EVP_md5, 96, 0, 0, 1 },
+	{ "hmac-ripemd160-etm@openssh.com",	SSH_EVP, EVP_ripemd160, 0, 0, 0, 1 },
+	{ "umac-64-etm@openssh.com",		SSH_UMAC, NULL, 0, 128, 64, 1 },
+	{ "umac-128-etm@openssh.com",		SSH_UMAC128, NULL, 0, 128, 128, 1 },
+
+	{ NULL,					0, NULL, 0, 0, 0, 0 }
+};
+
+/* Returns a list of supported MACs separated by the specified char. */
+char *
+mac_alg_list(char sep)
+{
+	char *ret = NULL;
+	size_t nlen, rlen = 0;
+	const struct macalg *m;
+
+	for (m = macs; m->name != NULL; m++) {
+		if (ret != NULL)
+			ret[rlen++] = sep;
+		nlen = strlen(m->name);
+		ret = xrealloc(ret, 1, rlen + nlen + 2);
+		memcpy(ret + rlen, m->name, nlen + 1);
+		rlen += nlen;
+	}
+	return ret;
+}
+
 static void
-mac_setup_by_id(Mac *mac, int which)
+mac_setup_by_alg(Mac *mac, const struct macalg *macalg)
 {
 	int evp_len;
-	mac->type = macs[which].type;
+
+	mac->type = macalg->type;
 	if (mac->type == SSH_EVP) {
-		mac->evp_md = (*macs[which].mdfunc)();
+		mac->evp_md = macalg->mdfunc();
 		if ((evp_len = EVP_MD_size(mac->evp_md)) <= 0)
 			fatal("mac %s len %d", mac->name, evp_len);
 		mac->key_len = mac->mac_len = (u_int)evp_len;
 	} else {
-		mac->mac_len = macs[which].len / 8;
-		mac->key_len = macs[which].key_len / 8;
+		mac->mac_len = macalg->len / 8;
+		mac->key_len = macalg->key_len / 8;
 		mac->umac_ctx = NULL;
 	}
-	if (macs[which].truncatebits != 0)
-		mac->mac_len = macs[which].truncatebits / 8;
+	if (macalg->truncatebits != 0)
+		mac->mac_len = macalg->truncatebits / 8;
+	mac->etm = macalg->etm;
 }
 
 int
 mac_setup(Mac *mac, char *name)
 {
-	int i;
+	const struct macalg *m;
 
-	for (i = 0; macs[i].name; i++) {
-		if (strcmp(name, macs[i].name) == 0) {
-			if (mac != NULL)
-				mac_setup_by_id(mac, i);
-			debug2("mac_setup: found %s", name);
-			return (0);
-		}
+	for (m = macs; m->name != NULL; m++) {
+		if (strcmp(name, m->name) != 0)
+			continue;
+		if (mac != NULL)
+			mac_setup_by_alg(mac, m);
+		debug2("mac_setup: found %s", name);
+		return (0);
 	}
 	debug2("mac_setup: unknown %s", name);
 	return (-1);
@@ -122,6 +163,9 @@ mac_init(Mac *mac)
 	case SSH_UMAC:
 		mac->umac_ctx = umac_new(mac->key);
 		return 0;
+	case SSH_UMAC128:
+		mac->umac_ctx = umac128_new(mac->key);
+		return 0;
 	default:
 		return -1;
 	}
@@ -130,12 +174,15 @@ mac_init(Mac *mac)
 u_char *
 mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 {
-	static u_char m[EVP_MAX_MD_SIZE];
+	static union {
+		u_char m[EVP_MAX_MD_SIZE];
+		u_int64_t for_align;
+	} u;
 	u_char b[4], nonce[8];
 
-	if (mac->mac_len > sizeof(m))
-		fatal("mac_compute: mac too long %u %lu",
-		    mac->mac_len, (u_long)sizeof(m));
+	if (mac->mac_len > sizeof(u))
+		fatal("mac_compute: mac too long %u %zu",
+		    mac->mac_len, sizeof(u));
 
 	switch (mac->type) {
 	case SSH_EVP:
@@ -144,17 +191,22 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 		HMAC_Init(&mac->evp_ctx, NULL, 0, NULL);
 		HMAC_Update(&mac->evp_ctx, b, sizeof(b));
 		HMAC_Update(&mac->evp_ctx, data, datalen);
-		HMAC_Final(&mac->evp_ctx, m, NULL);
+		HMAC_Final(&mac->evp_ctx, u.m, NULL);
 		break;
 	case SSH_UMAC:
 		put_u64(nonce, seqno);
 		umac_update(mac->umac_ctx, data, datalen);
-		umac_final(mac->umac_ctx, m, nonce);
+		umac_final(mac->umac_ctx, u.m, nonce);
+		break;
+	case SSH_UMAC128:
+		put_u64(nonce, seqno);
+		umac128_update(mac->umac_ctx, data, datalen);
+		umac128_final(mac->umac_ctx, u.m, nonce);
 		break;
 	default:
 		fatal("mac_compute: unknown MAC type");
 	}
-	return (m);
+	return (u.m);
 }
 
 void
@@ -163,6 +215,9 @@ mac_clear(Mac *mac)
 	if (mac->type == SSH_UMAC) {
 		if (mac->umac_ctx != NULL)
 			umac_delete(mac->umac_ctx);
+	} else if (mac->type == SSH_UMAC128) {
+		if (mac->umac_ctx != NULL)
+			umac128_delete(mac->umac_ctx);
 	} else if (mac->evp_md != NULL)
 		HMAC_cleanup(&mac->evp_ctx);
 	mac->evp_md = NULL;
@@ -183,13 +238,13 @@ mac_valid(const char *names)
 	    (p = strsep(&cp, MAC_SEP))) {
 		if (mac_setup(NULL, p) < 0) {
 			debug("bad mac %s [%s]", p, names);
-			xfree(maclist);
+			free(maclist);
 			return (0);
 		} else {
 			debug3("mac ok: %s [%s]", p, names);
 		}
 	}
 	debug3("macs ok: [%s]", names);
-	xfree(maclist);
+	free(maclist);
 	return (1);
 }

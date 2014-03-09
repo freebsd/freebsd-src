@@ -774,7 +774,7 @@ winSlotCnt(un, unlen, pmp)
 }
 
 /*
- * Determine the number of bytes neccesary for Win95 names
+ * Determine the number of bytes neccessary for Win95 names
  */
 size_t
 winLenFixup(un, unlen)
@@ -788,7 +788,7 @@ winLenFixup(un, unlen)
 }
 
 /*
- * Store an area with multi byte string instr, and reterns left
+ * Store an area with multi byte string instr, and returns left
  * byte of instr and moves pointer forward. The area's size is
  * inlen or outlen.
  */

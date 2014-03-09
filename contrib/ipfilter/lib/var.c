@@ -1,12 +1,12 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2004 by Darren Reed.
- * 
- * See the IPFILTER.LICENCE file for details on licencing.  
- *   
- * $Id: var.c,v 1.4.2.3 2006/06/16 17:21:18 darrenr Exp $ 
- */     
+ * Copyright (C) 2012 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * $Id$
+ */
 
 #include <ctype.h>
 
@@ -25,7 +25,7 @@ static char *expand_string __P((char *, int));
 
 
 static variable_t *find_var(name)
-char *name;
+	char *name;
 {
 	variable_t *v;
 
@@ -37,8 +37,8 @@ char *name;
 
 
 char *get_variable(string, after, line)
-char *string, **after;
-int line;
+	char *string, **after;
+	int line;
 {
 	char c, *s, *t, *value;
 	variable_t *v;
@@ -84,8 +84,8 @@ int line;
 
 
 static char *expand_string(oldstring, line)
-char *oldstring;
-int line;
+	char *oldstring;
+	int line;
 {
 	char c, *s, *p1, *p2, *p3, *newstring, *value;
 	int len;
@@ -144,8 +144,8 @@ int line;
 
 
 void set_variable(name, value)
-char *name;
-char *value;
+	char *name;
+	char *value;
 {
 	variable_t *v;
 	int len;

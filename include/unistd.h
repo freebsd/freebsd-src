@@ -493,6 +493,7 @@ const char *
 int	 crypt_set_format(const char *);
 int	 des_cipher(const char *, char *, long, int);
 int	 des_setkey(const char *key);
+int	 dup3(int, int, int);
 int	 eaccess(const char *, int);
 void	 endusershell(void);
 int	 exect(const char *, char * const *, char * const *);
@@ -533,6 +534,7 @@ char	*mktemp(char *);
 #endif
 int	 nfssvc(int, void *);
 int	 nlm_syscall(int, int, int, char **);
+int	 pipe2(int *, int);
 int	 profil(char *, size_t, vm_offset_t, int);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);
 int	 rcmd_af(char **, int, const char *,

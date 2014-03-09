@@ -94,4 +94,4 @@ static driver_t scc_ebus_driver = {
 	sizeof(struct scc_softc),
 };
 
-DRIVER_MODULE(scc, ebus, scc_ebus_driver, scc_devclass, 0, 0);
+DRIVER_MODULE(scc, ebus, scc_ebus_driver, scc_devclass, NULL, NULL);

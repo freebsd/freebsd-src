@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -236,9 +237,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 		    sp->req->sav->sah != NULL) {
 			ro = &sp->req->sav->sah->route_cache.sa_route;
 			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-				mtu =
-				    ro->ro_rt->rt_rmx.rmx_mtu ?
-				    ro->ro_rt->rt_rmx.rmx_mtu :
+				mtu = ro->ro_rt->rt_mtu ? ro->ro_rt->rt_mtu :
 				    ro->ro_rt->rt_ifp->if_mtu;
 				mtu -= ipsechdr;
 			}

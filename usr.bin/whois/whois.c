@@ -275,7 +275,7 @@ s_asprintf(char **ret, const char *format, ...)
 static void
 whois(const char *query, const char *hostname, int flags)
 {
-	FILE *sfi, *sfo;
+	FILE *fp;
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
 	int i, s;
@@ -295,20 +295,19 @@ whois(const char *query, const char *hostname, int flags)
 	if (res == NULL)
 		err(EX_OSERR, "connect()");
 
-	sfi = fdopen(s, "r");
-	sfo = fdopen(s, "w");
-	if (sfi == NULL || sfo == NULL)
+	fp = fdopen(s, "r+");
+	if (fp == NULL)
 		err(EX_OSERR, "fdopen()");
 	if (strcmp(hostname, GERMNICHOST) == 0) {
-		fprintf(sfo, "-T dn,ace -C US-ASCII %s\r\n", query);
+		fprintf(fp, "-T dn,ace -C US-ASCII %s\r\n", query);
 	} else if (strcmp(hostname, "dk" QNICHOST_TAIL) == 0) {
-		fprintf(sfo, "--show-handles %s\r\n", query);
+		fprintf(fp, "--show-handles %s\r\n", query);
 	} else {
-		fprintf(sfo, "%s\r\n", query);
+		fprintf(fp, "%s\r\n", query);
 	}
-	fflush(sfo);
+	fflush(fp);
 	nhost = NULL;
-	while ((buf = fgetln(sfi, &len)) != NULL) {
+	while ((buf = fgetln(fp, &len)) != NULL) {
 		while (len > 0 && isspace((unsigned char)buf[len - 1]))
 			buf[--len] = '\0';
 		printf("%.*s\n", (int)len, buf);
@@ -350,6 +349,7 @@ whois(const char *query, const char *hostname, int flags)
 			}
 		}
 	}
+	fclose(fp);
 	if (nhost != NULL) {
 		whois(query, nhost, 0);
 		free(nhost);

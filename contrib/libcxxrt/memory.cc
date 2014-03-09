@@ -36,14 +36,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "stdexcept.h"
+#include "atomic.h"
 
-#ifndef __has_builtin
-#define __has_builtin(x) 0
-#endif
-
-#if !__has_builtin(__sync_swap)
-#define __sync_swap __sync_lock_test_and_set
-#endif
 
 namespace std
 {
@@ -67,7 +61,12 @@ namespace std
 	__attribute__((weak))
 	new_handler set_new_handler(new_handler handler)
 	{
-		return __sync_swap(&new_handl, handler);
+		return ATOMIC_SWAP(&new_handl, handler);
+	}
+	__attribute__((weak))
+	new_handler get_new_handler(void)
+	{
+		return ATOMIC_LOAD(&new_handl);
 	}
 }
 
@@ -75,12 +74,17 @@ namespace std
 __attribute__((weak))
 void* operator new(size_t size)
 {
+	if (0 == size)
+	{
+		size = 1;
+	}
 	void * mem = malloc(size);
 	while (0 == mem)
 	{
-		if (0 != new_handl)
+		new_handler h = std::get_new_handler();
+		if (0 != h)
 		{
-			new_handl();
+			h();
 		}
 		else
 		{
@@ -95,35 +99,21 @@ void* operator new(size_t size)
 __attribute__((weak))
 void* operator new(size_t size, const std::nothrow_t &) throw()
 {
-	void *mem = malloc(size);
-	while (0 == mem)
-	{
-		if (0 != new_handl)
-		{
-			try
-			{
-				new_handl();
-			}
-			catch (...)
-			{
-				// nothrow operator new should return NULL in case of
-				// std::bad_alloc exception in new handler
-				return NULL;
-			}
-		}
-		else
-		{
-			return NULL;
-		}
-		mem = malloc(size);
+	try {
+		return :: operator new(size);
+	} catch (...) {
+		// nothrow operator new should return NULL in case of
+		// std::bad_alloc exception in new handler
+		return NULL;
 	}
-
-	return mem;
 }
 
 
 __attribute__((weak))
 void operator delete(void * ptr)
+#if __cplusplus < 201000L
+throw()
+#endif
 {
 	free(ptr);
 }
@@ -131,13 +121,32 @@ void operator delete(void * ptr)
 
 __attribute__((weak))
 void * operator new[](size_t size)
+#if __cplusplus < 201000L
+throw(std::bad_alloc)
+#endif
 {
 	return ::operator new(size);
 }
 
 
 __attribute__((weak))
-void operator delete[](void * ptr) throw()
+void * operator new[](size_t size, const std::nothrow_t &) throw()
+{
+	try {
+		return ::operator new[](size);
+	} catch (...) {
+		// nothrow operator new should return NULL in case of
+		// std::bad_alloc exception in new handler
+		return NULL;
+	}
+}
+
+
+__attribute__((weak))
+void operator delete[](void * ptr)
+#if __cplusplus < 201000L
+throw()
+#endif
 {
 	::operator delete(ptr);
 }

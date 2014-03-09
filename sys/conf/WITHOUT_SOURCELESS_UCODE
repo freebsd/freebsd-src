@@ -35,7 +35,11 @@ nodevice	ds1
 nodevice	maestro3
 
 # usb
+nodevice	rsu
+nodevice	rsufw
 nodevice	rum
 nodevice	uath
 nodevice	zyd
 nodevice	kue
+nodevice	urtwn
+nodevice	urtwnfw

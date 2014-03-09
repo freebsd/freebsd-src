@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangfrontend
 
 SRCDIR=	tools/clang/lib/Frontend
@@ -36,6 +38,7 @@ SRCS=	ASTConsumers.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \

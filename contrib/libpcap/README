@@ -13,8 +13,11 @@ Anonymous Git is available via:
 Version 1.x.y of LIBPCAP can be retrieved with the CVS tag "libpcap_1_{x}rel{y}":
 	cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout -r libpcap_1_{x}rel{y} libpcap
 
-Please submit patches against the master copy to the libpcap project on
-sourceforge.net.
+Please submit patches by forking the branch on GitHub at
+
+	http://github.com/mcr/libpcap/tree/master
+
+and issuing a pull request.
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <libpcap@ee.lbl.gov>
@@ -91,15 +94,18 @@ a particular release of libpcap.
 
 Problems, bugs, questions, desirable enhancements, etc. should be sent
 to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
-requests, and feature requests may also be submitted on the SourceForge
-site for libpcap at
+requests, and feature requests may also be submitted on the GitHub issue
+tracker for libpcap at
 
-	http://sourceforge.net/projects/libpcap/
+	https://github.com/mcr/libpcap/issues
 
 Source code contributions, etc. should be sent to the email address
-submitted as patches on the SourceForge site for libpcap.
+above or submitted by forking the branch on GitHub at
 
-Current versions can be found at www.tcpdump.org, or the SourceForge
-site for libpcap.
+	http://github.com/mcr/libpcap/tree/master
+
+and issuing a pull request.
+
+Current versions can be found at www.tcpdump.org.
 
  - The TCPdump team

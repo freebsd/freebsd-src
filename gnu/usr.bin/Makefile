@@ -4,7 +4,6 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	${_cvs} \
 	dialog \
 	diff \
 	diff3 \
@@ -13,7 +12,6 @@ SUBDIR= ${_binutils} \
 	${_gperf} \
 	grep \
 	${_groff} \
-	patch \
 	${_rcs} \
 	sdiff \
 	send-pr \
@@ -26,11 +24,7 @@ _groff=		groff
 .endif
 .endif
 
-.if ${MK_CVS} != "no"
-_cvs=		cvs
-.endif
-
-.if ${MK_FDT}	!= "no"
+.if ${MK_GPL_DTC} != "no"
 _dtc=		dtc
 .endif
 

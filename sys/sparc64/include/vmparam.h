@@ -106,13 +106,6 @@
 #define	VM_NFREEORDER		12
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -149,8 +142,8 @@
  *
  * We define some interesting address constants:
  *
- * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and of the entire 64 bit
- * address space, mostly just for convenience.
+ * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and end of the entire
+ * 64 bit address space, mostly just for convenience.
  *
  * VM_MIN_DIRECT_ADDRESS and VM_MAX_DIRECT_ADDRESS define the start and end
  * of the direct mapped region.  This maps virtual addresses to physical
@@ -205,24 +198,22 @@
 #define	USRSTACK		(VM_MAX_USER_ADDRESS)
 
 /*
- * Virtual size (bytes) for various kernel submaps.
- */
-#ifndef	VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(16*1024*1024)
-#endif
-
-/*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 2)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(16 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \

@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 /* Prototypes for all the bus_space structure functions */
-bs_protos(s3c2xx0);
 bs_protos(generic);
 bs_protos(generic_armv4);
 
@@ -98,16 +97,16 @@ struct bus_space s3c2xx0_bs_tag = {
 	(void *) 0,
 
 	/* mapping/unmapping */
-	s3c2xx0_bs_map,
-	s3c2xx0_bs_unmap,
-	s3c2xx0_bs_subregion,
+	generic_bs_map,
+	generic_bs_unmap,
+	generic_bs_subregion,
 
 	/* allocation/deallocation */
-	s3c2xx0_bs_alloc,	/* not implemented */
-	s3c2xx0_bs_free,	/* not implemented */
+	generic_bs_alloc,	/* not implemented */
+	generic_bs_free,	/* not implemented */
 
 	/* barrier */
-	s3c2xx0_bs_barrier,
+	generic_bs_barrier,
 
 	/* read (single) */
 	generic_bs_r_1,
@@ -164,87 +163,3 @@ struct bus_space s3c2xx0_bs_tag = {
 	NULL,
 };
 
-int
-s3c2xx0_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
-	       int flag, bus_space_handle_t * bshp)
-{
-	u_long startpa, endpa, pa;
-	vm_offset_t va;
-	pt_entry_t *pte;
-	const struct pmap_devmap *pd;
-
-	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
-		/* Device was statically mapped. */
-		*bshp = pd->pd_va + (bpa - pd->pd_pa);
-		return 0;
-	}
-
-	startpa = trunc_page(bpa);
-	endpa = round_page(bpa + size);
-
-	va = kmem_alloc_nofault(kernel_map, endpa - startpa);
-	if (!va)
-		return (ENOMEM);
-
-	*bshp = (bus_space_handle_t) (va + (bpa - startpa));
-
-	for (pa = startpa; pa < endpa; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		pmap_kenter(va, pa);
-		pte = vtopte(va);
-		if ((flag & BUS_SPACE_MAP_CACHEABLE) == 0)
-			*pte &= ~L2_S_CACHE_MASK;
-	}
-	return (0);
-}
-
-void
-s3c2xx0_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
-{
-	vm_offset_t va, endva;
-
-	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
-		/* Device was statically mapped; nothing to do. */
-		return;
-	}
-
-	endva = round_page((vm_offset_t)t + size);
-	va = trunc_page((vm_offset_t)t);
-
-	while (va < endva) {
-		pmap_kremove(va);
-		va += PAGE_SIZE;
-	}
-	kmem_free(kernel_map, va, endva - va);
-}
-
-int
-s3c2xx0_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
-		     bus_size_t size, bus_space_handle_t * nbshp)
-{
-
-	*nbshp = bsh + offset;
-	return (0);
-}
-
-void
-s3c2xx0_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
-		   bus_size_t len, int flags)
-{
-
-	/* Nothing to do. */
-}
-
-int
-s3c2xx0_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
-		 bus_size_t size, bus_size_t alignment, bus_size_t boundary,
-    		 int flags, bus_addr_t * bpap, bus_space_handle_t * bshp)
-{
-
-	panic("s3c2xx0_io_bs_alloc(): not implemented\n");
-}
-
-void
-s3c2xx0_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
-{
-	panic("s3c2xx0_io_bs_free(): not implemented\n");
-}

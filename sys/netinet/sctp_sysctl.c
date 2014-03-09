@@ -81,6 +81,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_path_rtx_max_default) = SCTPCTL_PATH_RTX_MAX_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_path_pf_threshold) = SCTPCTL_PATH_PF_THRESHOLD_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_add_more_threshold) = SCTPCTL_ADD_MORE_ON_OUTPUT_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default) = SCTPCTL_INCOMING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default) = SCTPCTL_OUTGOING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_on_off) = SCTPCTL_CMT_ON_OFF_DEFAULT;
 	/* EY */
@@ -197,29 +198,29 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 	/* Turn on all the appropriate scope */
 	if (stcb) {
 		/* use association specific values */
-		loopback_scope = stcb->asoc.loopback_scope;
-		ipv4_local_scope = stcb->asoc.ipv4_local_scope;
-		local_scope = stcb->asoc.local_scope;
-		site_scope = stcb->asoc.site_scope;
+		loopback_scope = stcb->asoc.scope.loopback_scope;
+		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		local_scope = stcb->asoc.scope.local_scope;
+		site_scope = stcb->asoc.scope.site_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
 	} else {
-		/* use generic values for endpoints */
+		/* Use generic values for endpoints. */
 		loopback_scope = 1;
 		ipv4_local_scope = 1;
 		local_scope = 1;
 		site_scope = 1;
-	}
-
-	/* use only address families of interest */
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-		ipv6_addr_legal = 1;
-		if (SCTP_IPV6_V6ONLY(inp)) {
-			ipv4_addr_legal = 0;
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+			ipv6_addr_legal = 1;
+			if (SCTP_IPV6_V6ONLY(inp)) {
+				ipv4_addr_legal = 0;
+			} else {
+				ipv4_addr_legal = 1;
+			}
 		} else {
+			ipv6_addr_legal = 0;
 			ipv4_addr_legal = 1;
 		}
-	} else {
-		ipv4_addr_legal = 1;
-		ipv6_addr_legal = 0;
 	}
 
 	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
@@ -586,11 +587,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-#ifdef VIMAGE
-	error = vnet_sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-#else
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-#endif
 	if (error == 0) {
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_sendspace), SCTPCTL_MAXDGRAM_MIN, SCTPCTL_MAXDGRAM_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_recvspace), SCTPCTL_RECVSPACE_MIN, SCTPCTL_RECVSPACE_MAX);
@@ -623,6 +620,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), SCTPCTL_PATH_RTX_MAX_MIN, SCTPCTL_PATH_RTX_MAX_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_pf_threshold), SCTPCTL_PATH_PF_THRESHOLD_MIN, SCTPCTL_PATH_PF_THRESHOLD_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTPCTL_ADD_MORE_ON_OUTPUT_MIN, SCTPCTL_ADD_MORE_ON_OUTPUT_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), SCTPCTL_INCOMING_STREAMS_MIN, SCTPCTL_INCOMING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), SCTPCTL_OUTGOING_STREAMS_MIN, SCTPCTL_OUTGOING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_on_off), SCTPCTL_CMT_ON_OFF_MIN, SCTPCTL_CMT_ON_OFF_MAX);
 		/* EY */
@@ -964,6 +962,10 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_pf_threshold, CTLTYPE_UINT | CTL
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, add_more_on_output, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_add_more_threshold), 0, sysctl_sctp_check, "IU",
     SCTPCTL_ADD_MORE_ON_OUTPUT_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, incoming_streams, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_INCOMING_STREAMS_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, outgoing_streams, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), 0, sysctl_sctp_check, "IU",

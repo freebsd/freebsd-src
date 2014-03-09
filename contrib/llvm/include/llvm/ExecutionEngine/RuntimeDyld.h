@@ -11,55 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_RUNTIME_DYLD_H
-#define LLVM_RUNTIME_DYLD_H
+#ifndef LLVM_EXECUTIONENGINE_RUNTIMEDYLD_H
+#define LLVM_EXECUTIONENGINE_RUNTIMEDYLD_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/ObjectBuffer.h"
+#include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include "llvm/Support/Memory.h"
 
 namespace llvm {
 
 class RuntimeDyldImpl;
 class ObjectImage;
-
-// RuntimeDyld clients often want to handle the memory management of
-// what gets placed where. For JIT clients, this is the subset of
-// JITMemoryManager required for dynamic loading of binaries.
-//
-// FIXME: As the RuntimeDyld fills out, additional routines will be needed
-//        for the varying types of objects to be allocated.
-class RTDyldMemoryManager {
-  RTDyldMemoryManager(const RTDyldMemoryManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const RTDyldMemoryManager&) LLVM_DELETED_FUNCTION;
-public:
-  RTDyldMemoryManager() {}
-  virtual ~RTDyldMemoryManager();
-
-  /// allocateCodeSection - Allocate a memory block of (at least) the given
-  /// size suitable for executable code. The SectionID is a unique identifier
-  /// assigned by the JIT engine, and optionally recorded by the memory manager
-  /// to access a loaded section.
-  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID) = 0;
-
-  /// allocateDataSection - Allocate a memory block of (at least) the given
-  /// size suitable for data. The SectionID is a unique identifier
-  /// assigned by the JIT engine, and optionally recorded by the memory manager
-  /// to access a loaded section.
-  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID) = 0;
-
-  /// getPointerToNamedFunction - This method returns the address of the
-  /// specified function. As such it is only useful for resolving library
-  /// symbols, not code generated symbols.
-  ///
-  /// If AbortOnFailure is false and no function with the given name is
-  /// found, this function returns a null pointer. Otherwise, it prints a
-  /// message to stderr and aborts.
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true) = 0;
-};
 
 class RuntimeDyld {
   RuntimeDyld(const RuntimeDyld &) LLVM_DELETED_FUNCTION;
@@ -77,10 +40,10 @@ public:
   RuntimeDyld(RTDyldMemoryManager *);
   ~RuntimeDyld();
 
-  /// loadObject - prepare the object contained in the input buffer for
-  /// execution.  Ownership of the input buffer is transferred to the
-  /// ObjectImage instance returned from this function if successful.
-  /// In the case of load failure, the input buffer will be deleted.
+  /// Prepare the object contained in the input buffer for execution.
+  /// Ownership of the input buffer is transferred to the ObjectImage
+  /// instance returned from this function if successful. In the case of load
+  /// failure, the input buffer will be deleted.
   ObjectImage *loadObject(ObjectBuffer *InputBuffer);
 
   /// Get the address of our local copy of the symbol. This may or may not
@@ -95,11 +58,20 @@ public:
   /// Resolve the relocations for all symbols we currently know about.
   void resolveRelocations();
 
-  /// mapSectionAddress - map a section to its target address space value.
+  /// Map a section to its target address space value.
   /// Map the address of a JIT section as returned from the memory manager
   /// to the address in the target process as the running code will see it.
   /// This is the address which will be used for relocation resolution.
   void mapSectionAddress(const void *LocalAddress, uint64_t TargetAddress);
+
+  /// Register any EH frame sections that have been loaded but not previously
+  /// registered with the memory manager.  Note, RuntimeDyld is responsible
+  /// for identifying the EH frame and calling the memory manager with the
+  /// EH frame section data.  However, the memory manager itself will handle
+  /// the actual target-specific EH frame registration.
+  void registerEHFrames();
+
+  void deregisterEHFrames();
 
   StringRef getErrorString();
 };

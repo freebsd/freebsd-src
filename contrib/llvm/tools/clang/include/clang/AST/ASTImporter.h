@@ -48,6 +48,9 @@ namespace clang {
 
     /// \brief Whether to perform a minimal import.
     bool Minimal;
+
+    /// \brief Whether the last diagnostic came from the "from" context.
+    bool LastDiagFromFrom;
     
     /// \brief Mapping from the already-imported types in the "from" context
     /// to the corresponding types in the "to" context.
@@ -268,6 +271,14 @@ namespace clang {
     /// Subclasses can override this function to observe all of the \c From ->
     /// \c To declaration mappings as they are imported.
     virtual Decl *Imported(Decl *From, Decl *To);
+      
+    /// \brief Called by StructuralEquivalenceContext.  If a RecordDecl is
+    /// being compared to another RecordDecl as part of import, completing the
+    /// other RecordDecl may trigger importation of the first RecordDecl. This
+    /// happens especially for anonymous structs.  If the original of the second
+    /// RecordDecl can be found, we can complete it without the need for
+    /// importation, eliminating this loop.
+    virtual Decl *GetOriginalDecl(Decl *To) { return NULL; }
     
     /// \brief Determine whether the given types are structurally
     /// equivalent.

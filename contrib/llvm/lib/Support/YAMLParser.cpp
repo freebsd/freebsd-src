@@ -12,16 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/YAMLParser.h"
-
-#include "llvm/ADT/ilist.h"
-#include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace yaml;
@@ -97,6 +96,15 @@ static EncodingInfo getUnicodeEncoding(StringRef Input) {
 
 namespace llvm {
 namespace yaml {
+/// Pin the vtables to this file.
+void Node::anchor() {}
+void NullNode::anchor() {}
+void ScalarNode::anchor() {}
+void KeyValueNode::anchor() {}
+void MappingNode::anchor() {}
+void SequenceNode::anchor() {}
+void AliasNode::anchor() {}
+
 /// Token - A single YAML token.
 struct Token : ilist_node<Token> {
   enum TokenKind {
@@ -252,6 +260,7 @@ namespace yaml {
 class Scanner {
 public:
   Scanner(const StringRef Input, SourceMgr &SM);
+  Scanner(MemoryBuffer *Buffer, SourceMgr &SM_);
 
   /// @brief Parse the next token and return it without popping it.
   Token &peekNext();
@@ -260,7 +269,7 @@ public:
   Token getNext();
 
   void printError(SMLoc Loc, SourceMgr::DiagKind Kind, const Twine &Message,
-                  ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) {
+                  ArrayRef<SMRange> Ranges = None) {
     SM.PrintMessage(Loc, Kind, Message, Ranges);
   }
 
@@ -708,6 +717,21 @@ Scanner::Scanner(StringRef Input, SourceMgr &sm)
   End = InputBuffer->getBufferEnd();
 }
 
+Scanner::Scanner(MemoryBuffer *Buffer, SourceMgr &SM_)
+  : SM(SM_)
+  , InputBuffer(Buffer)
+  , Current(InputBuffer->getBufferStart())
+  , End(InputBuffer->getBufferEnd())
+  , Indent(-1)
+  , Column(0)
+  , Line(0)
+  , FlowLevel(0)
+  , IsStartOfStream(true)
+  , IsSimpleKeyAllowed(true)
+  , Failed(false) {
+    SM.AddNewSourceBuffer(InputBuffer, SMLoc());
+}
+
 Token &Scanner::peekNext() {
   // If the current token is a possible simple key, keep parsing until we
   // can confirm.
@@ -1055,11 +1079,19 @@ bool Scanner::scanDirective() {
   Current = skip_while(&Scanner::skip_ns_char, Current);
   StringRef Name(NameStart, Current - NameStart);
   Current = skip_while(&Scanner::skip_s_white, Current);
-
+  
+  Token T;
   if (Name == "YAML") {
     Current = skip_while(&Scanner::skip_ns_char, Current);
-    Token T;
     T.Kind = Token::TK_VersionDirective;
+    T.Range = StringRef(Start, Current - Start);
+    TokenQueue.push_back(T);
+    return true;
+  } else if(Name == "TAG") {
+    Current = skip_while(&Scanner::skip_ns_char, Current);
+    Current = skip_while(&Scanner::skip_s_white, Current);
+    Current = skip_while(&Scanner::skip_ns_char, Current);
+    T.Kind = Token::TK_TagDirective;
     T.Range = StringRef(Start, Current - Start);
     TokenQueue.push_back(T);
     return true;
@@ -1532,6 +1564,10 @@ Stream::Stream(StringRef Input, SourceMgr &SM)
   : scanner(new Scanner(Input, SM))
   , CurrentDoc(0) {}
 
+Stream::Stream(MemoryBuffer *InputBuffer, SourceMgr &SM)
+  : scanner(new Scanner(InputBuffer, SM))
+  , CurrentDoc(0) {}
+
 Stream::~Stream() {}
 
 bool Stream::failed() { return scanner->failed(); }
@@ -1543,10 +1579,6 @@ void Stream::printError(Node *N, const Twine &Msg) {
                      , SourceMgr::DK_Error
                      , Msg
                      , Ranges);
-}
-
-void Stream::handleYAMLDirective(const Token &t) {
-  // TODO: Ensure version is 1.x.
 }
 
 document_iterator Stream::begin() {
@@ -1569,12 +1601,57 @@ void Stream::skip() {
     i->skip();
 }
 
-Node::Node(unsigned int Type, OwningPtr<Document> &D, StringRef A)
+Node::Node(unsigned int Type, OwningPtr<Document> &D, StringRef A, StringRef T)
   : Doc(D)
   , TypeID(Type)
-  , Anchor(A) {
+  , Anchor(A)
+  , Tag(T) {
   SMLoc Start = SMLoc::getFromPointer(peekNext().Range.begin());
   SourceRange = SMRange(Start, Start);
+}
+
+std::string Node::getVerbatimTag() const {
+  StringRef Raw = getRawTag();
+  if (!Raw.empty() && Raw != "!") {
+    std::string Ret;
+    if (Raw.find_last_of('!') == 0) {
+      Ret = Doc->getTagMap().find("!")->second;
+      Ret += Raw.substr(1);
+      return llvm_move(Ret);
+    } else if (Raw.startswith("!!")) {
+      Ret = Doc->getTagMap().find("!!")->second;
+      Ret += Raw.substr(2);
+      return llvm_move(Ret);
+    } else {
+      StringRef TagHandle = Raw.substr(0, Raw.find_last_of('!') + 1);
+      std::map<StringRef, StringRef>::const_iterator It =
+          Doc->getTagMap().find(TagHandle);
+      if (It != Doc->getTagMap().end())
+        Ret = It->second;
+      else {
+        Token T;
+        T.Kind = Token::TK_Tag;
+        T.Range = TagHandle;
+        setError(Twine("Unknown tag handle ") + TagHandle, T);
+      }
+      Ret += Raw.substr(Raw.find_last_of('!') + 1);
+      return llvm_move(Ret);
+    }
+  }
+
+  switch (getType()) {
+  case NK_Null:
+    return "tag:yaml.org,2002:null";
+  case NK_Scalar:
+    // TODO: Tag resolution.
+    return "tag:yaml.org,2002:str";
+  case NK_Mapping:
+    return "tag:yaml.org,2002:map";
+  case NK_Sequence:
+    return "tag:yaml.org,2002:seq";
+  }
+
+  return "";
 }
 
 Token &Node::peekNext() {
@@ -1980,6 +2057,10 @@ void SequenceNode::increment() {
 }
 
 Document::Document(Stream &S) : stream(S), Root(0) {
+  // Tag maps starts with two default mappings.
+  TagMap["!"] = "!";
+  TagMap["!!"] = "tag:yaml.org,2002:";
+
   if (parseDirectives())
     expectToken(Token::TK_DocumentStart);
   Token &T = peekNext();
@@ -2023,6 +2104,7 @@ Node *Document::parseBlockNode() {
   Token T = peekNext();
   // Handle properties.
   Token AnchorInfo;
+  Token TagInfo;
 parse_property:
   switch (T.Kind) {
   case Token::TK_Alias:
@@ -2037,7 +2119,11 @@ parse_property:
     T = peekNext();
     goto parse_property;
   case Token::TK_Tag:
-    getNext(); // Skip TK_Tag.
+    if (TagInfo.Kind == Token::TK_Tag) {
+      setError("Already encountered a tag for this node!", T);
+      return 0;
+    }
+    TagInfo = getNext(); // Consume TK_Tag.
     T = peekNext();
     goto parse_property;
   default:
@@ -2051,42 +2137,49 @@ parse_property:
     // Don't eat the TK_BlockEntry, SequenceNode needs it.
     return new (NodeAllocator) SequenceNode( stream.CurrentDoc
                                            , AnchorInfo.Range.substr(1)
+                                           , TagInfo.Range
                                            , SequenceNode::ST_Indentless);
   case Token::TK_BlockSequenceStart:
     getNext();
     return new (NodeAllocator)
       SequenceNode( stream.CurrentDoc
                   , AnchorInfo.Range.substr(1)
+                  , TagInfo.Range
                   , SequenceNode::ST_Block);
   case Token::TK_BlockMappingStart:
     getNext();
     return new (NodeAllocator)
       MappingNode( stream.CurrentDoc
                  , AnchorInfo.Range.substr(1)
+                 , TagInfo.Range
                  , MappingNode::MT_Block);
   case Token::TK_FlowSequenceStart:
     getNext();
     return new (NodeAllocator)
       SequenceNode( stream.CurrentDoc
                   , AnchorInfo.Range.substr(1)
+                  , TagInfo.Range
                   , SequenceNode::ST_Flow);
   case Token::TK_FlowMappingStart:
     getNext();
     return new (NodeAllocator)
       MappingNode( stream.CurrentDoc
                  , AnchorInfo.Range.substr(1)
+                 , TagInfo.Range
                  , MappingNode::MT_Flow);
   case Token::TK_Scalar:
     getNext();
     return new (NodeAllocator)
       ScalarNode( stream.CurrentDoc
                 , AnchorInfo.Range.substr(1)
+                , TagInfo.Range
                 , T.Range);
   case Token::TK_Key:
     // Don't eat the TK_Key, KeyValueNode expects it.
     return new (NodeAllocator)
       MappingNode( stream.CurrentDoc
                  , AnchorInfo.Range.substr(1)
+                 , TagInfo.Range
                  , MappingNode::MT_Inline);
   case Token::TK_DocumentStart:
   case Token::TK_DocumentEnd:
@@ -2107,15 +2200,30 @@ bool Document::parseDirectives() {
   while (true) {
     Token T = peekNext();
     if (T.Kind == Token::TK_TagDirective) {
-      handleTagDirective(getNext());
+      parseTAGDirective();
       isDirective = true;
     } else if (T.Kind == Token::TK_VersionDirective) {
-      stream.handleYAMLDirective(getNext());
+      parseYAMLDirective();
       isDirective = true;
     } else
       break;
   }
   return isDirective;
+}
+
+void Document::parseYAMLDirective() {
+  getNext(); // Eat %YAML <version>
+}
+
+void Document::parseTAGDirective() {
+  Token Tag = getNext(); // %TAG <handle> <prefix>
+  StringRef T = Tag.Range;
+  // Strip %TAG
+  T = T.substr(T.find_first_of(" \t")).ltrim(" \t");
+  std::size_t HandleEnd = T.find_first_of(" \t");
+  StringRef TagHandle = T.substr(0, HandleEnd);
+  StringRef TagPrefix = T.substr(HandleEnd).ltrim(" \t");
+  TagMap[TagHandle] = TagPrefix;
 }
 
 bool Document::expectToken(int TK) {

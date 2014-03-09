@@ -94,6 +94,7 @@ struct callframe {
 	register_t	cf_func;
 	register_t	cf_arg0;
 	register_t	cf_arg1;
+	register_t	_padding;	/* Maintain 16-byte alignment */
 };
 #else
 struct callframe {
@@ -102,6 +103,7 @@ struct callframe {
 	register_t	cf_func;
 	register_t	cf_arg0;
 	register_t	cf_arg1;
+	register_t	_padding;	/* Maintain 16-byte alignment */
 };
 #endif
 

@@ -17,7 +17,6 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "early-ifcvt"
-#include "MachineTraceMetrics.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -30,13 +29,14 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineTraceMetrics.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -459,7 +459,6 @@ void SSAIfConv::replacePHIInstrs() {
   for (unsigned i = 0, e = PHIs.size(); i != e; ++i) {
     PHIInfo &PI = PHIs[i];
     DEBUG(dbgs() << "If-converting " << *PI.PHI);
-    assert(PI.PHI->getNumOperands() == 5 && "Unexpected PHI operands.");
     unsigned DstReg = PI.PHI->getOperand(0).getReg();
     TII->insertSelect(*Head, FirstTerm, HeadDL, DstReg, Cond, PI.TReg, PI.FReg);
     DEBUG(dbgs() << "          --> " << *llvm::prior(FirstTerm));
@@ -593,6 +592,7 @@ public:
   EarlyIfConverter() : MachineFunctionPass(ID) {}
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnMachineFunction(MachineFunction &MF);
+  const char *getPassName() const { return "Early If-Conversion"; }
 
 private:
   bool tryConvertIf(MachineBasicBlock*);

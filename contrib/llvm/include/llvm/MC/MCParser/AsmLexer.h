@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ASMLEXER_H
-#define ASMLEXER_H
+#ifndef LLVM_MC_MCPARSER_ASMLEXER_H
+#define LLVM_MC_MCPARSER_ASMLEXER_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
@@ -63,6 +63,7 @@ private:
   AsmToken LexSingleQuote();
   AsmToken LexQuote();
   AsmToken LexFloatLiteral();
+  AsmToken LexHexFloatLiteral(bool NoIntDigits);
 };
 
 } // end namespace llvm

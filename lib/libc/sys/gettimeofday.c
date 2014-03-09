@@ -41,10 +41,7 @@ __gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	int error;
 
-	if (__vdso_gettimeofday != NULL && __vdso_gettc != NULL)
-		error = __vdso_gettimeofday(tv, tz);
-	else
-		error = ENOSYS;
+	error = __vdso_gettimeofday(tv, tz);
 	if (error == ENOSYS)
 		error = __sys_gettimeofday(tv, tz);
 	return (error);

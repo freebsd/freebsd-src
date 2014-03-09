@@ -85,6 +85,56 @@ struct vnet {
 
 #ifdef _KERNEL
 
+#define	VNET_PCPUSTAT_DECLARE(type, name)	\
+    VNET_DECLARE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_DEFINE(type, name)	\
+    VNET_DEFINE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_ALLOC(name, wait)	\
+    COUNTER_ARRAY_ALLOC(VNET(name), \
+	sizeof(VNET(name)) / sizeof(counter_u64_t), (wait))
+
+#define	VNET_PCPUSTAT_FREE(name)	\
+    COUNTER_ARRAY_FREE(VNET(name), sizeof(VNET(name)) / sizeof(counter_u64_t))
+
+#define	VNET_PCPUSTAT_ADD(type, name, f, v)	\
+    counter_u64_add(VNET(name)[offsetof(type, f) / sizeof(uint64_t)], (v))
+
+#define	VNET_PCPUSTAT_SYSINIT(name)	\
+static void				\
+vnet_##name##_init(const void *unused)	\
+{					\
+	VNET_PCPUSTAT_ALLOC(name, M_WAITOK);	\
+}					\
+VNET_SYSINIT(vnet_ ## name ## _init, SI_SUB_PROTO_IFATTACHDOMAIN,	\
+    SI_ORDER_ANY, vnet_ ## name ## _init, NULL)
+
+#define	VNET_PCPUSTAT_SYSUNINIT(name)					\
+static void								\
+vnet_##name##_uninit(const void *unused)				\
+{									\
+	VNET_PCPUSTAT_FREE(name);					\
+}									\
+VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_PROTO_IFATTACHDOMAIN,	\
+    SI_ORDER_ANY, vnet_ ## name ## _uninit, NULL)
+
+#define	SYSCTL_VNET_PCPUSTAT(parent, nbr, name, type, array, desc)	\
+static int								\
+array##_sysctl(SYSCTL_HANDLER_ARGS)					\
+{									\
+	type s;								\
+	CTASSERT((sizeof(type) / sizeof(uint64_t)) ==			\
+	    (sizeof(VNET(array)) / sizeof(counter_u64_t)));		\
+	COUNTER_ARRAY_COPY(VNET(array), &s, sizeof(type) / sizeof(uint64_t));\
+	if (req->newptr)						\
+		COUNTER_ARRAY_ZERO(VNET(array),				\
+		    sizeof(type) / sizeof(uint64_t));			\
+	return (SYSCTL_OUT(req, &s, sizeof(type)));			\
+}									\
+SYSCTL_VNET_PROC(parent, nbr, name, CTLTYPE_OPAQUE | CTLFLAG_RW, NULL,	\
+    0, array ## _sysctl, "I", desc)
+
 #ifdef VIMAGE
 #include <sys/lock.h>
 #include <sys/proc.h>			/* for struct thread */
@@ -240,15 +290,10 @@ void	 vnet_data_free(void *start_arg, int size);
  * arguments themselves, if required.
  */
 #ifdef SYSCTL_OID
-int	vnet_sysctl_handle_int(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_string(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
-
 #define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, vnet_sysctl_handle_int, "I", descr)
+	    ptr, val, sysctl_handle_int, "I", descr)
 #define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
 	    fmt, descr)							\
 	CTASSERT(((access) & CTLTYPE) != 0);				\
@@ -258,20 +303,20 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 	    descr)							\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr, len, 		\
-	    vnet_sysctl_handle_opaque, fmt, descr)
+	    sysctl_handle_opaque, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
-	    arg, len, vnet_sysctl_handle_string, "A", descr)
+	    arg, len, sysctl_handle_string, "A", descr)
 #define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr,			\
-	    sizeof(struct type), vnet_sysctl_handle_opaque, "S," #type,	\
+	    sizeof(struct type), sysctl_handle_opaque, "S," #type,	\
 	    descr)
 #define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_UINT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, vnet_sysctl_handle_uint, "IU", descr)
+	    ptr, val, sysctl_handle_int, "IU", descr)
 #define	VNET_SYSCTL_ARG(req, arg1) do {					\
 	if (arg1 != NULL)						\
 		arg1 = (void *)(TD_TO_VNET((req)->td)->vnet_data_base +	\

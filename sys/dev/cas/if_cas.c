@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -132,7 +133,7 @@ static void	cas_detach(struct cas_softc *sc);
 static int	cas_disable_rx(struct cas_softc *sc);
 static int	cas_disable_tx(struct cas_softc *sc);
 static void	cas_eint(struct cas_softc *sc, u_int status);
-static void	cas_free(void *arg1, void* arg2);
+static int	cas_free(struct mbuf *m, void *arg1, void* arg2);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
@@ -214,8 +215,12 @@ cas_attach(struct cas_softc *sc)
 		error = ENXIO;
 		goto fail_ifnet;
 	}
-	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
+	error = taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->sc_dev));
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not start threads\n");
+		goto fail_taskq;
+	}
 
 	/* Make sure the chip is stopped. */
 	cas_reset(sc);
@@ -339,10 +344,13 @@ cas_attach(struct cas_softc *sc)
 			    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 			/* Enable/unfreeze the GMII pins of Saturn. */
 			if (sc->sc_variant == CAS_SATURN) {
-				CAS_WRITE_4(sc, CAS_SATURN_PCFG, 0);
+				CAS_WRITE_4(sc, CAS_SATURN_PCFG,
+				    CAS_READ_4(sc, CAS_SATURN_PCFG) &
+				    ~CAS_SATURN_PCFG_FSI);
 				CAS_BARRIER(sc, CAS_SATURN_PCFG, 4,
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
+				DELAY(10000);
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
@@ -359,10 +367,12 @@ cas_attach(struct cas_softc *sc)
 			/* Freeze the GMII pins of Saturn for saving power. */
 			if (sc->sc_variant == CAS_SATURN) {
 				CAS_WRITE_4(sc, CAS_SATURN_PCFG,
+				    CAS_READ_4(sc, CAS_SATURN_PCFG) |
 				    CAS_SATURN_PCFG_FSI);
 				CAS_BARRIER(sc, CAS_SATURN_PCFG, 4,
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
+				DELAY(10000);
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
@@ -815,7 +825,8 @@ cas_disable_rx(struct cas_softc *sc)
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0))
 		return (1);
-	device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
 	return (0);
 }
 
@@ -829,7 +840,8 @@ cas_disable_tx(struct cas_softc *sc)
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0))
 		return (1);
-	device_printf(sc->sc_dev, "cannot disable TX MAC\n");
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
 	return (0);
 }
 
@@ -1032,7 +1044,8 @@ cas_init_locked(struct cas_softc *sc)
 	/*
 	 * Enable infinite bursts for revisions without PCI issues if
 	 * applicable.  Doing so greatly improves the TX performance on
-	 * !__sparc64__.
+	 * !__sparc64__ (on sparc64, setting CAS_INF_BURST improves TX
+	 * performance only marginally but hurts RX throughput quite a bit).
 	 */
 	CAS_WRITE_4(sc, CAS_INF_BURST,
 #if !defined(__sparc64__)
@@ -1875,8 +1888,8 @@ cas_rint(struct cas_softc *sc)
 #endif
 }
 
-static void
-cas_free(void *arg1, void *arg2)
+static int
+cas_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;
@@ -1892,7 +1905,7 @@ cas_free(void *arg1, void *arg2)
 	rxds = &sc->sc_rxdsoft[idx];
 #endif
 	if (refcount_release(&rxds->rxds_refcount) == 0)
-		return;
+		return (EXT_FREE_OK);
 
 	/*
 	 * NB: this function can be called via m_freem(9) within
@@ -1903,6 +1916,7 @@ cas_free(void *arg1, void *arg2)
 	cas_add_rxdesc(sc, idx);
 	if (locked == 0)
 		CAS_UNLOCK(sc);
+	return (EXT_FREE_OK);
 }
 
 static inline void
@@ -2682,7 +2696,10 @@ cas_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	pci_enable_busmaster(dev);
+	/* PCI configuration */
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_BUSMASTEREN |
+	    PCIM_CMD_MWRICEN | PCIM_CMD_PERRESPEN | PCIM_CMD_SERRESPEN, 2);
 
 	sc->sc_dev = dev;
 	if (sc->sc_variant == CAS_CAS && pci_get_devid(dev) < 0x02)
@@ -2865,7 +2882,7 @@ cas_pci_attach(device_t dev)
 		goto fail;
 	}
 	i = 0;
-	if (lma > 1 && pci_get_slot(dev) < sizeof(enaddr) / sizeof(*enaddr))
+	if (lma > 1 && pci_get_slot(dev) < nitems(enaddr))
 		i = pci_get_slot(dev);
 	memcpy(sc->sc_enaddr, enaddr[i], ETHER_ADDR_LEN);
 
@@ -2874,7 +2891,7 @@ cas_pci_attach(device_t dev)
 		goto fail;
 	}
 	i = 0;
-	if (phy > 1 && pci_get_slot(dev) < sizeof(pcs) / sizeof(*pcs))
+	if (phy > 1 && pci_get_slot(dev) < nitems(pcs))
 		i = pci_get_slot(dev);
 	if (pcs[i] != 0)
 		sc->sc_flags |= CAS_SERDES;

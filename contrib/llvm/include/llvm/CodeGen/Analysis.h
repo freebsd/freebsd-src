@@ -14,18 +14,19 @@
 #ifndef LLVM_CODEGEN_ANALYSIS_H
 #define LLVM_CODEGEN_ANALYSIS_H
 
-#include "llvm/Instructions.h"
-#include "llvm/InlineAsm.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CallSite.h"
 
 namespace llvm {
 
 class GlobalVariable;
 class TargetLowering;
+class TargetLoweringBase;
 class SDNode;
 class SDValue;
 class SelectionDAG;
@@ -86,11 +87,15 @@ ISD::CondCode getICmpCondCode(ICmpInst::Predicate Pred);
 /// between it and the return.
 ///
 /// This function only tests target-independent requirements.
-bool isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
-                          const TargetLowering &TLI);
+bool isInTailCallPosition(ImmutableCallSite CS, const TargetLowering &TLI);
 
-bool isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
-                          SDValue &Chain, const TargetLowering &TLI);
+/// Test if given that the input instruction is in the tail call position if the
+/// return type or any attributes of the function will inhibit tail call
+/// optimization.
+bool returnTypeIsEligibleForTailCall(const Function *F,
+                                     const Instruction *I,
+                                     const ReturnInst *Ret,
+                                     const TargetLoweringBase &TLI);
 
 } // End llvm namespace
 

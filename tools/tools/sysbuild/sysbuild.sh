@@ -91,7 +91,7 @@ SERCONS=false
 PORTS_WE_WANT='
 '
 
-PORTS_OPTS="BATCH=YES MAKE_IDEA=YES A4=yes"
+PORTS_OPTS="BATCH=YES A4=yes"
 
 CONFIGFILES='
 '
@@ -252,6 +252,13 @@ ports_build() (
 				) > _.$b 2>&1 < /dev/null
 				continue
 			fi
+		fi
+
+		miss=`(cd $p ; make missing ${PORTS_OPTS}) || true`
+
+		if [ "x${miss}" != "x" ] ; then
+			log_it "MISSING for $p:" $miss
+			continue
 		fi
 
 		log_it "build $pn ($p)"

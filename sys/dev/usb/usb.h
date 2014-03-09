@@ -40,22 +40,28 @@
 #define	_USB_STANDARD_H_
 
 #if defined(_KERNEL)
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include "opt_usb.h"
+#endif
 
 /* Declare parent SYSCTL USB node. */
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_hw_usb);
 #endif
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/malloc.h>
+#endif
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb_freebsd.h>
+#endif
 
 #define	USB_STACK_VERSION 2000		/* 2.0 */
 
@@ -435,6 +441,7 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UISUBCLASS_ETHERNET_EMULATION_MODEL 12
 #define	UISUBCLASS_NETWORK_CONTROL_MODEL 13
 
+#define	UIPROTO_CDC_NONE		0
 #define	UIPROTO_CDC_AT			1
 
 #define	UICLASS_HID		0x03
@@ -493,8 +500,11 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UICLASS_WIRELESS	0xe0
 #define	UISUBCLASS_RF			0x01
 #define	UIPROTO_BLUETOOTH		0x01
+#define	UIPROTO_RNDIS			0x03
 
 #define	UICLASS_IAD		0xEF	/* Interface Association Descriptor */
+#define	UISUBCLASS_SYNC			0x01
+#define	UIPROTO_ACTIVESYNC		0x01
 
 #define	UICLASS_APPL_SPEC	0xfe
 #define	UISUBCLASS_FIRMWARE_DOWNLOAD	1
@@ -560,16 +570,22 @@ struct usb_string_descriptor {
 typedef struct usb_string_descriptor usb_string_descriptor_t;
 
 #define	USB_MAKE_STRING_DESC(m,name)	\
-struct name {				\
+static const struct {			\
   uByte bLength;			\
   uByte bDescriptorType;		\
   uByte bData[sizeof((uint8_t []){m})];	\
-} __packed;				\
-static const struct name name = {	\
-  .bLength = sizeof(struct name),	\
+} __packed name = {			\
+  .bLength = sizeof(name),		\
   .bDescriptorType = UDESC_STRING,	\
   .bData = { m },			\
 }
+
+struct usb_string_lang {
+	uByte bLength;
+	uByte bDescriptorType;
+	uByte bData[2];
+} __packed;
+typedef struct usb_string_lang usb_string_lang_t;
 
 struct usb_hub_descriptor {
 	uByte	bDescLength;

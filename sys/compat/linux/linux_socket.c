@@ -53,13 +53,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_var.h>
 #endif
 
 #ifdef COMPAT_LINUX32
@@ -321,6 +322,27 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_TIMESTAMP);
 	case LINUX_SO_ACCEPTCONN:
 		return (SO_ACCEPTCONN);
+	}
+	return (-1);
+}
+
+static int
+linux_to_bsd_tcp_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_TCP_NODELAY:
+		return (TCP_NODELAY);
+	case LINUX_TCP_MAXSEG:
+		return (TCP_MAXSEG);
+	case LINUX_TCP_KEEPIDLE:
+		return (TCP_KEEPIDLE);
+	case LINUX_TCP_KEEPINTVL:
+		return (TCP_KEEPINTVL);
+	case LINUX_TCP_KEEPCNT:
+		return (TCP_KEEPCNT);
+	case LINUX_TCP_MD5SIG:
+		return (TCP_MD5SIG);
 	}
 	return (-1);
 }
@@ -726,6 +748,7 @@ int linux_connect(struct thread *, struct linux_connect_args *);
 int
 linux_connect(struct thread *td, struct linux_connect_args *args)
 {
+	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
 	u_int fflag;
@@ -750,7 +773,8 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * socket and use the file descriptor reference instead of
 	 * creating a new one.
 	 */
-	error = fgetsock(td, args->s, CAP_CONNECT, &so, &fflag);
+	error = fgetsock(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	    &so, &fflag);
 	if (error == 0) {
 		error = EISCONN;
 		if (fflag & FNONBLOCK) {
@@ -1421,10 +1445,8 @@ out:
 
 bad:
 	free(iov, M_IOV);
-	if (control != NULL)
-		m_freem(control);
-	if (linux_cmsg != NULL)
-		free(linux_cmsg, M_TEMP);
+	m_freem(control);
+	free(linux_cmsg, M_TEMP);
 
 	return (error);
 }
@@ -1496,8 +1518,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
-		/* Linux TCP option values match BSD's */
-		name = args->optname;
+		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	default:
 		name = -1;
@@ -1591,8 +1612,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
-		/* Linux TCP option values match BSD's */
-		name = args->optname;
+		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	default:
 		name = -1;

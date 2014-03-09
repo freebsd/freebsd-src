@@ -95,10 +95,7 @@ int
 main(int argc, char *argv[])
 {
 
-	if (argc >= 2 && strcmp(getprogname(), "utxrm") == 0)
-		/* For compatibility. */
-		return (rm(&argv[1]));
-	else if (argc == 2 && strcmp(argv[1], "boot") == 0)
+	if (argc == 2 && strcmp(argv[1], "boot") == 0)
 		return (boot(BOOT_TIME));
 	else if (argc == 2 && strcmp(argv[1], "shutdown") == 0)
 		return (boot(SHUTDOWN_TIME));
@@ -108,7 +105,6 @@ main(int argc, char *argv[])
 	fprintf(stderr,
 	    "usage: utx boot\n"
 	    "       utx shutdown\n"
-	    "       utx rm identifier ...\n"
-	    "       utxrm identifier ...\n");
+	    "       utx rm identifier ...\n");
 	exit(1);
 }

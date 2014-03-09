@@ -214,7 +214,7 @@ yylex(void)
 	for (; (cp - buf) < BSZ; ++cp, c = getchar())
 	{
 
-	    *cp = c;
+	    *cp = (char) c;
 	    if (isdigit(c))
 		continue;
 	    if (c == '.')

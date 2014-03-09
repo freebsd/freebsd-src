@@ -53,6 +53,7 @@ archive_read_support_format_empty(struct archive *_a)
 	    archive_read_format_empty_read_header,
 	    archive_read_format_empty_read_data,
 	    NULL,
+	    NULL,
 	    NULL);
 
 	return (r);

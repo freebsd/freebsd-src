@@ -936,7 +936,7 @@ struct ioctl
 #define IOCTL_RESET_CNTRS	  54	/* reset event counters            */
 
 /* storage for these strings is allocated here! */
-const char *ssi_cables[] =
+static const char *ssi_cables[] =
   {
   "V.10/EIA423",
   "V.11/EIA530A",
@@ -1595,7 +1595,7 @@ static int lmc_raw_ioctl(struct ifnet *, u_long, caddr_t);
 static int lmc_ifnet_ioctl(struct ifnet *, u_long, caddr_t);
 static void lmc_ifnet_start(struct ifnet *);
 static int lmc_raw_output(struct ifnet *, struct mbuf *,
- struct sockaddr *, struct route *);
+ const struct sockaddr *, struct route *);
 # ifdef __OpenBSD__
 static int ifmedia_change(struct ifnet *);
 static void ifmedia_status(struct ifnet *, struct ifmediareq *);

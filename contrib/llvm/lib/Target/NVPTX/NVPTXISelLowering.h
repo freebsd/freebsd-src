@@ -29,17 +29,11 @@ enum NodeType {
   CALL,
   RET_FLAG,
   LOAD_PARAM,
-  NVBuiltin,
   DeclareParam,
   DeclareScalarParam,
   DeclareRetParam,
   DeclareRet,
   DeclareScalarRet,
-  LoadParam,
-  StoreParam,
-  StoreParamS32, // to sext and store a <32bit value, not used currently
-  StoreParamU32, // to zext and store a <32bit value, not used currently
-  MoveToParam,
   PrintCall,
   PrintCallUni,
   CallArgBegin,
@@ -51,14 +45,32 @@ enum NodeType {
   CallSymbol,
   Prototype,
   MoveParam,
-  MoveRetval,
-  MoveToRetval,
-  StoreRetval,
   PseudoUseParam,
   RETURN,
   CallSeqBegin,
   CallSeqEnd,
-  Dummy
+  CallPrototype,
+  Dummy,
+
+  LoadV2 = ISD::FIRST_TARGET_MEMORY_OPCODE,
+  LoadV4,
+  LDGV2, // LDG.v2
+  LDGV4, // LDG.v4
+  LDUV2, // LDU.v2
+  LDUV4, // LDU.v4
+  StoreV2,
+  StoreV4,
+  LoadParam,
+  LoadParamV2,
+  LoadParamV4,
+  StoreParam,
+  StoreParamV2,
+  StoreParamV4,
+  StoreParamS32, // to sext and store a <32bit value, not used currently
+  StoreParamU32, // to zext and store a <32bit value, not used currently 
+  StoreRetval,
+  StoreRetvalV2,
+  StoreRetvalV4
 };
 }
 
@@ -78,7 +90,7 @@ public:
 
   bool isTypeSupportedInIntrinsic(MVT VT) const;
 
-  bool getTgtMemIntrinsic(IntrinsicInfo& Info, const CallInst &I,
+  bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallInst &I,
                           unsigned Intrinsic) const;
 
   /// isLegalAddressingMode - Return true if the addressing mode represented
@@ -91,31 +103,33 @@ public:
   /// getFunctionAlignment - Return the Log2 alignment of this function.
   virtual unsigned getFunctionAlignment(const Function *F) const;
 
-  virtual EVT getSetCCResultType(EVT VT) const {
+  virtual EVT getSetCCResultType(LLVMContext &, EVT VT) const {
+    if (VT.isVector())
+      return MVT::getVectorVT(MVT::i1, VT.getVectorNumElements());
     return MVT::i1;
   }
 
   ConstraintType getConstraintType(const std::string &Constraint) const;
-  std::pair<unsigned, const TargetRegisterClass*>
-  getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const;
+  std::pair<unsigned, const TargetRegisterClass *>
+  getRegForInlineAsmConstraint(const std::string &Constraint, MVT VT) const;
 
-  virtual SDValue
-  LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-                       const SmallVectorImpl<ISD::InputArg> &Ins, DebugLoc dl,
-                       SelectionDAG &DAG,
-                       SmallVectorImpl<SDValue> &InVals) const;
+  virtual SDValue LowerFormalArguments(
+      SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+      const SmallVectorImpl<ISD::InputArg> &Ins, SDLoc dl, SelectionDAG &DAG,
+      SmallVectorImpl<SDValue> &InVals) const;
 
   virtual SDValue
   LowerCall(CallLoweringInfo &CLI, SmallVectorImpl<SDValue> &InVals) const;
 
   std::string getPrototype(Type *, const ArgListTy &,
                            const SmallVectorImpl<ISD::OutputArg> &,
-                           unsigned retAlignment) const;
+                           unsigned retAlignment,
+                           const ImmutableCallSite *CS) const;
 
   virtual SDValue
   LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
               const SmallVectorImpl<ISD::OutputArg> &Outs,
-              const SmallVectorImpl<SDValue> &OutVals, DebugLoc dl,
+              const SmallVectorImpl<SDValue> &OutVals, SDLoc dl,
               SelectionDAG &DAG) const;
 
   virtual void LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
@@ -125,22 +139,32 @@ public:
   NVPTXTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
-  virtual MVT getShiftAmountTy(EVT LHSTy) const {
-    return MVT::i32;
-  }
+  virtual MVT getScalarShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
+
+  virtual bool shouldSplitVectorElementType(EVT VT) const;
 
 private:
-  const NVPTXSubtarget &nvptxSubtarget;  // cache the subtarget here
+  const NVPTXSubtarget &nvptxSubtarget; // cache the subtarget here
 
-  SDValue getExtSymb(SelectionDAG &DAG, const char *name, int idx, EVT =
-                         MVT::i32) const;
-  SDValue getParamSymbol(SelectionDAG &DAG, int idx, EVT = MVT::i32) const;
+  SDValue getExtSymb(SelectionDAG &DAG, const char *name, int idx,
+                     EVT = MVT::i32) const;
+  SDValue getParamSymbol(SelectionDAG &DAG, int idx, EVT) const;
   SDValue getParamHelpSymbol(SelectionDAG &DAG, int idx);
 
   SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
 
-  SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerLOADi1(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSTOREi1(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSTOREVector(SDValue Op, SelectionDAG &DAG) const;
+
+  virtual void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                                  SelectionDAG &DAG) const;
+
+  unsigned getArgumentAlignment(SDValue Callee, const ImmutableCallSite *CS,
+                                Type *Ty, unsigned Idx) const;
 };
 } // namespace llvm
 

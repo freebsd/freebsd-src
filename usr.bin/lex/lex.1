@@ -1,8 +1,8 @@
 .\" $FreeBSD$
 .\"
-.TH FLEX 1 "April 1995" "Version 2.5"
+.TH FLEX 1 "May 21, 2013" "Version 2.5.37"
 .SH NAME
-flex \- fast lexical analyzer generator
+flex, lex \- fast lexical analyzer generator
 .SH SYNOPSIS
 .B flex
 .B [\-bcdfhilnpstvwBFILTV78+? \-C[aefFmr] \-ooutput \-Pprefix \-Sskeleton]
@@ -11,8 +11,8 @@ flex \- fast lexical analyzer generator
 .SH OVERVIEW
 This manual describes
 .I flex,
-a tool for generating programs that perform pattern-matching on text.  The
-manual includes both tutorial and reference sections:
+a tool for generating programs that perform pattern-matching on text.
+The manual includes both tutorial and reference sections:
 .nf
 
     Description
@@ -95,19 +95,22 @@ programs which recognize lexical patterns in text.
 .I flex
 reads
 the given input files, or its standard input if no file names are given,
-for a description of a scanner to generate.  The description is in
-the form of pairs
+for a description of a scanner to generate.
+The description is in the form of pairs
 of regular expressions and C code, called
-.I rules.  flex
+.I rules.
+.I flex
 generates as output a C source file,
 .B lex.yy.c,
 which defines a routine
 .B yylex().
 This file is compiled and linked with the
 .B \-ll
-library to produce an executable.  When the executable is run,
+library to produce an executable.
+When the executable is run,
 it analyzes its input for occurrences
-of the regular expressions.  Whenever it finds one, it executes
+of the regular expressions.
+Whenever it finds one, it executes
 the corresponding C code.
 .SH SOME SIMPLE EXAMPLES
 First some simple examples to get the flavor of how one uses
@@ -128,7 +131,8 @@ scanner
 is copied to the output, so the net effect of this scanner is
 to copy its input file to its output with each occurrence
 of "username" expanded.
-In this input, there is just one rule.  "username" is the
+In this input, there is just one rule.
+"username" is the
 .I pattern
 and the "printf" is the
 .I action.
@@ -156,13 +160,15 @@ Here's another simple example:
 .fi
 This scanner counts the number of characters and the number
 of lines in its input (it produces no output other than the
-final report on the counts).  The first line
+final report on the counts).
+The first line
 declares two globals, "num_lines" and "num_chars", which are accessible
 both inside
 .B yylex()
 and in the
 .B main()
-routine declared after the second "%%".  There are two rules, one
+routine declared after the second "%%".
+There are two rules, one
 which matches a newline ("\\n") and increments both the line count and
 the character count, and one which matches any character other than
 a newline (indicated by the "." regular expression).
@@ -223,7 +229,8 @@ A somewhat more complicated example:
 
 .fi
 This is the beginnings of a simple scanner for a language like
-Pascal.  It identifies different types of
+Pascal.
+It identifies different types of
 .I tokens
 and reports on what it has seen.
 .PP
@@ -263,7 +270,8 @@ followed by zero or more letters, digits, '_', or '-' (dash).
 The definition is taken to begin at the first non-white-space character
 following the name and continuing to the end of the line.
 The definition can subsequently be referred to using "{name}", which
-will expand to "(definition)".  For example,
+will expand to "(definition)".
+For example,
 .nf
 
     DIGIT    [0-9]
@@ -308,7 +316,8 @@ Finally, the user code section is simply copied to
 .B lex.yy.c
 verbatim.
 It is used for companion routines which call or are called
-by the scanner.  The presence of this section is optional;
+by the scanner.
+The presence of this section is optional;
 if it is missing, the second
 .B %%
 in the input file may be skipped, too.
@@ -339,7 +348,8 @@ beginning with "/*") is also copied verbatim to the output up
 to the next "*/".
 .SH PATTERNS
 The patterns in the input are written using an extended set of regular
-expressions.  These are:
+expressions.
+These are:
 .nf
 
     x          match the character 'x'
@@ -425,7 +435,8 @@ operators, '-', ']', and, at the beginning of the class, '^'.
 .PP
 The regular expressions listed above are grouped according to
 precedence, from highest precedence at the top to lowest at the bottom.
-Those grouped together have equal precedence.  For example,
+Those grouped together have equal precedence.
+For example,
 .nf
 
     foo|bar*
@@ -438,7 +449,8 @@ is the same as
 
 .fi
 since the '*' operator has higher precedence than concatenation,
-and concatenation higher than alternation ('|').  This pattern
+and concatenation higher than alternation ('|').
+This pattern
 therefore matches
 .I either
 the string "foo"
@@ -478,7 +490,8 @@ The valid expressions are:
 These expressions all designate a set of characters equivalent to
 the corresponding standard C
 .B isXXX
-function.  For example,
+function.
+For example,
 .B [:alnum:]
 designates those characters for which
 .B isalnum()
@@ -514,16 +527,19 @@ above
 .I will match a newline
 unless "\\n" (or an equivalent escape sequence) is one of the
 characters explicitly present in the negated character class
-(e.g., "[^A-Z\\n]").  This is unlike how many other regular
+(e.g., "[^A-Z\\n]").
+This is unlike how many other regular
 expression tools treat negated character classes, but unfortunately
 the inconsistency is historically entrenched.
 Matching newlines means that a pattern like [^"]* can match the entire
 input unless there's another quote in the input.
 .IP -
 A rule can have at most one instance of trailing context (the '/' operator
-or the '$' operator).  The start condition, '^', and "<<EOF>>" patterns
+or the '$' operator).
+The start condition, '^', and "<<EOF>>" patterns
 can only occur at the beginning of a pattern, and, as well as with '/' and '$',
-cannot be grouped inside parentheses.  A '^' which does not occur at
+cannot be grouped inside parentheses.
+A '^' which does not occur at
 the beginning of a rule or a '$' which does not occur at the end of
 a rule loses its special properties and is treated as a normal character.
 .IP
@@ -555,10 +571,12 @@ A similar trick will work for matching a foo or a
 bar-at-the-beginning-of-a-line.
 .SH HOW THE INPUT IS MATCHED
 When the generated scanner is run, it analyzes its input looking
-for strings which match any of its patterns.  If it finds more than
+for strings which match any of its patterns.
+If it finds more than
 one match, it takes the one matching the most text (for trailing
 context rules, this includes the length of the trailing part, even
-though it will then be returned to the input).  If it finds two
+though it will then be returned to the input).
+If it finds two
 or more matches of the same length, the
 rule listed first in the
 .I flex
@@ -580,7 +598,8 @@ input is scanned for another match.
 If no match is found, then the
 .I default rule
 is executed: the next character in the input is considered matched and
-copied to the standard output.  Thus, the simplest legal
+copied to the standard output.
+Thus, the simplest legal
 .I flex
 input is:
 .nf
@@ -603,7 +622,8 @@ uses by including one of the special directives
 .B %pointer
 or
 .B %array
-in the first (definitions) section of your flex input.  The default is
+in the first (definitions) section of your flex input.
+The default is
 .B %pointer,
 unless you use the
 .B -l
@@ -613,7 +633,8 @@ will be an array.
 The advantage of using
 .B %pointer
 is substantially faster scanning and no buffer overflow when matching
-very large tokens (unless you run out of dynamic memory).  The disadvantage
+very large tokens (unless you run out of dynamic memory).
+The disadvantage
 is that you are restricted in how your actions can modify
 .B yytext
 (see the next section), and calls to the
@@ -632,7 +653,8 @@ to your heart's content, and calls to
 .B unput()
 do not destroy
 .B yytext
-(see below).  Furthermore, existing
+(see below).
+Furthermore, existing
 .I lex
 programs sometimes access
 .B yytext
@@ -650,14 +672,17 @@ defines
 .B yytext
 to be an array of
 .B YYLMAX
-characters, which defaults to a fairly large value.  You can change
+characters, which defaults to a fairly large value.
+You can change
 the size by simply #define'ing
 .B YYLMAX
 to a different value in the first section of your
 .I flex
-input.  As mentioned above, with
+input.
+As mentioned above, with
 .B %pointer
-yytext grows dynamically to accommodate large tokens.  While this means your
+yytext grows dynamically to accommodate large tokens.
+While this means your
 .B %pointer
 scanner can accommodate very large tokens (such as matching entire blocks
 of comments), bear in mind that each time the scanner must resize
@@ -679,10 +704,13 @@ with C++ scanner classes
 option; see below).
 .SH ACTIONS
 Each pattern in a rule has a corresponding action, which can be any
-arbitrary C statement.  The pattern ends at the first non-escaped
-whitespace character; the remainder of the line is its action.  If the
+arbitrary C statement.
+The pattern ends at the first non-escaped
+whitespace character; the remainder of the line is its action.
+If the
 action is empty, then when the pattern is matched the input token
-is simply discarded.  For example, here is the specification for a program
+is simply discarded.
+For example, here is the specification for a program
 which deletes all occurrences of "zap me" from its input:
 .nf
 
@@ -730,7 +758,8 @@ Actions are free to modify
 .B yytext
 except for lengthening it (adding
 characters to its end--these will overwrite later characters in the
-input stream).  This however does not apply when using
+input stream).
+This however does not apply when using
 .B %array
 (see above); in that case,
 .B yytext
@@ -754,7 +783,8 @@ corresponding start condition (see below).
 .IP -
 .B REJECT
 directs the scanner to proceed on to the "second best" rule which matched the
-input (or a prefix of the input).  The rule is chosen as described
+input (or a prefix of the input).
+The rule is chosen as described
 above in "How the Input is Matched", and
 .B yytext
 and
@@ -782,7 +812,8 @@ scanner normally executes only one action per token.
 Multiple
 .B REJECT's
 are allowed, each one finding the next best choice to the currently
-active rule.  For example, when the following scanner scans the token
+active rule.
+For example, when the following scanner scans the token
 "abcd", it will write "abcdabcaba" to the output:
 .nf
 
@@ -802,7 +833,8 @@ if it is used in
 .I any
 of the scanner's actions it will slow down
 .I all
-of the scanner's matching.  Furthermore,
+of the scanner's matching.
+Furthermore,
 .B REJECT
 cannot be used with the
 .I -Cf
@@ -824,7 +856,8 @@ token should be
 .I appended
 onto the current value of
 .B yytext
-rather than replacing it.  For example, given the input "mega-kludge"
+rather than replacing it.
+For example, given the input "mega-kludge"
 the following will write "mega-mega-kludge" to the output:
 .nf
 
@@ -833,7 +866,8 @@ the following will write "mega-mega-kludge" to the output:
     kludge   ECHO;
 
 .fi
-First "mega-" is matched and echoed to the output.  Then "kludge"
+First "mega-" is matched and echoed to the output.
+Then "kludge"
 is matched, but the previous "mega-" is still hanging around at the
 beginning of
 .B yytext
@@ -869,7 +903,8 @@ are adjusted appropriately (e.g.,
 .B yyleng
 will now be equal to
 .I n
-).  For example, on the input "foobar" the following will write out
+).
+For example, on the input "foobar" the following will write out
 "foobarbar":
 .nf
 
@@ -880,7 +915,8 @@ will now be equal to
 .fi
 An argument of 0 to
 .B yyless
-will cause the entire current input string to be scanned again.  Unless you've
+will cause the entire current input string to be scanned again.
+Unless you've
 changed how the scanner will subsequently process its input (using
 .B BEGIN,
 for example), this will result in an endless loop.
@@ -893,7 +929,8 @@ other source files.
 .B unput(c)
 puts the character
 .I c
-back onto the input stream.  It will be the next character scanned.
+back onto the input stream.
+It will be the next character scanned.
 The following action will take the current token and cause it
 to be rescanned enclosed in parentheses.
 .nf
@@ -926,7 +963,8 @@ is that if you are using
 the contents of
 .I yytext,
 starting with its rightmost character and devouring one character to
-the left with each call.  If you need the value of yytext preserved
+the left with each call.
+If you need the value of yytext preserved
 after a call to
 .B unput()
 (as in the above example),
@@ -939,7 +977,8 @@ Finally, note that you cannot put back
 to attempt to mark the input stream with an end-of-file.
 .IP -
 .B input()
-reads the next character from the input stream.  For example,
+reads the next character from the input stream.
+For example,
 the following is one way to eat up C comments:
 .nf
 
@@ -986,18 +1025,20 @@ flushes the scanner's internal buffer
 so that the next time the scanner attempts to match a token, it will
 first refill the buffer using
 .B YY_INPUT
-(see The Generated Scanner, below).  This action is a special case
+(see The Generated Scanner, below).
+This action is a special case
 of the more general
 .B yy_flush_buffer()
 function, described below in the section Multiple Input Buffers.
 .IP -
 .B yyterminate()
-can be used in lieu of a return statement in an action.  It terminates
+can be used in lieu of a return statement in an action.
+It terminates
 the scanner and returns a 0 to the scanner's caller, indicating "all done".
 By default,
 .B yyterminate()
-is also called when an end-of-file is encountered.  It is a macro and
-may be redefined.
+is also called when an end-of-file is encountered.
+It is a macro and may be redefined.
 .SH THE GENERATED SCANNER
 The output of
 .I flex
@@ -1006,7 +1047,8 @@ is the file
 which contains the scanning routine
 .B yylex(),
 a number of tables used by it for matching tokens, and a number
-of auxiliary routines and macros.  By default,
+of auxiliary routines and macros.
+By default,
 .B yylex()
 is declared as follows:
 .nf
@@ -1019,7 +1061,8 @@ is declared as follows:
 .fi
 (If your environment supports function prototypes, then it will
 be "int yylex( void )".)  This definition may be changed by defining
-the "YY_DECL" macro.  For example, you could use:
+the "YY_DECL" macro.
+For example, you could use:
 .nf
 
     #define YY_DECL float lexscan( a, b ) float a, b;
@@ -1027,7 +1070,8 @@ the "YY_DECL" macro.  For example, you could use:
 .fi
 to give the scanning routine the name
 .I lexscan,
-returning a float, and taking two floats as arguments.  Note that
+returning a float, and taking two floats as arguments.
+Note that
 if you give arguments to the scanning routine using a
 K&R-style/non-prototyped function declaration, you must terminate
 the definition with a semi-colon (;).
@@ -1036,7 +1080,8 @@ Whenever
 .B yylex()
 is called, it scans tokens from the global input file
 .I yyin
-(which defaults to stdin).  It continues until it either reaches
+(which defaults to stdin).
+It continues until it either reaches
 an end-of-file (at which point it returns the value 0) or
 one of its actions executes a
 .I return
@@ -1058,7 +1103,8 @@ to scan from a source other than
 .I yyin),
 and initializes
 .I yyin
-for scanning from that file.  Essentially there is no difference between
+for scanning from that file.
+Essentially there is no difference between
 just assigning
 .I yyin
 to a new input file or using
@@ -1096,8 +1142,8 @@ calls to read characters from
 The nature of how it gets its input can be controlled by defining the
 .B YY_INPUT
 macro.
-YY_INPUT's calling sequence is "YY_INPUT(buf,result,max_size)".  Its
-action is to place up to
+YY_INPUT's calling sequence is "YY_INPUT(buf,result,max_size)".
+Its action is to place up to
 .I max_size
 characters in the character array
 .I buf
@@ -1105,7 +1151,8 @@ and return in the integer variable
 .I result
 either the
 number of characters read or the constant YY_NULL (0 on Unix systems)
-to indicate EOF.  The default YY_INPUT reads from the
+to indicate EOF.
+The default YY_INPUT reads from the
 global file-pointer "yyin".
 .PP
 A sample definition of YY_INPUT (in the definitions
@@ -1127,14 +1174,17 @@ one character at a time.
 When the scanner receives an end-of-file indication from YY_INPUT,
 it then checks the
 .B yywrap()
-function.  If
+function.
+If
 .B yywrap()
 returns false (zero), then it is assumed that the
 function has gone ahead and set up
 .I yyin
-to point to another input file, and scanning continues.  If it returns
+to point to another input file, and scanning continues.
+If it returns
 true (non-zero), then the scanner terminates, returning 0 to its
-caller.  Note that in either case, the start condition remains unchanged;
+caller.
+Note that in either case, the start condition remains unchanged;
 it does
 .I not
 revert to
@@ -1167,9 +1217,11 @@ by assigning it to some other
 pointer.
 .SH START CONDITIONS
 .I flex
-provides a mechanism for conditionally activating rules.  Any rule
+provides a mechanism for conditionally activating rules.
+Any rule
 whose pattern is prefixed with "<sc>" will only be active when
-the scanner is in the start condition named "sc".  For example,
+the scanner is in the start condition named "sc".
+For example,
 .nf
 
     <STRING>[^"]*        { /* eat up the string body ... */
@@ -1200,9 +1252,11 @@ The former declares
 .I inclusive
 start conditions, the latter
 .I exclusive
-start conditions.  A start condition is activated using the
+start conditions.
+A start condition is activated using the
 .B BEGIN
-action.  Until the next
+action.
+Until the next
 .B BEGIN
 action is executed, rules with the given start
 condition will be active and
@@ -1218,14 +1272,16 @@ rules qualified with the start condition will be active.
 A set of rules contingent on the same exclusive start condition
 describe a scanner which is independent of any of the other rules in the
 .I flex
-input.  Because of this,
+input.
+Because of this,
 exclusive start conditions make it easy to specify "mini-scanners"
 which scan portions of the input that are syntactically different
 from the rest (e.g., comments).
 .PP
 If the distinction between inclusive and exclusive start conditions
 is still a little vague, here's a simple example illustrating the
-connection between the two.  The set of rules:
+connection between the two.
+The set of rules:
 .nf
 
     %s example
@@ -1272,8 +1328,8 @@ start condition.
 .PP
 Also note that the special start-condition specifier
 .B <*>
-matches every start condition.  Thus, the above example could also
-have been written;
+matches every start condition.
+Thus, the above example could also have been written;
 .nf
 
     %x example
@@ -1287,7 +1343,8 @@ have been written;
 .PP
 The default rule (to
 .B ECHO
-any unmatched character) remains active in start conditions.  It
+any unmatched character) remains active in start conditions.
+It
 is equivalent to:
 .nf
 
@@ -1297,7 +1354,8 @@ is equivalent to:
 .PP
 .B BEGIN(0)
 returns to the original state where only the rules with
-no start conditions are active.  This state can also be
+no start conditions are active.
+This state can also be
 referred to as the start-condition "INITIAL", so
 .B BEGIN(INITIAL)
 is equivalent to
@@ -1307,7 +1365,8 @@ are considered good style.)
 .PP
 .B BEGIN
 actions can also be given as indented code at the beginning
-of the rules section.  For example, the following will cause
+of the rules section.
+For example, the following will cause
 the scanner to enter the "SPECIAL" start condition whenever
 .B yylex()
 is called and the global variable
@@ -1329,7 +1388,8 @@ is true:
 .PP
 To illustrate the uses of start conditions,
 here is a scanner which provides two different interpretations
-of a string like "123.456".  By default it will treat it as
+of a string like "123.456".
+By default it will treat it as
 three tokens, the integer "123", a dot ('.'), and the integer "456".
 But if the string is preceded earlier in the line by the string
 "expect-floats"
@@ -1383,12 +1443,14 @@ maintaining a count of the current input line.
 
 .fi
 This scanner goes to a bit of trouble to match as much
-text as possible with each rule.  In general, when attempting to write
+text as possible with each rule.
+In general, when attempting to write
 a high-speed scanner try to match as much possible in each rule, as
 it's a big win.
 .PP
 Note that start-conditions names are really integer values and
-can be stored as such.  Thus, the above could be extended in the
+can be stored as such.
+Thus, the above could be extended in the
 following fashion:
 .nf
 
@@ -1418,7 +1480,8 @@ following fashion:
 Furthermore, you can access the current start condition using
 the integer-valued
 .B YY_START
-macro.  For example, the above assignments to
+macro.
+For example, the above assignments to
 .I comment_caller
 could instead be written
 .nf
@@ -1499,8 +1562,8 @@ not including checking for a string that's too long):
 .fi
 .PP
 Often, such as in some of the examples above, you wind up writing a
-whole bunch of rules all preceded by the same start condition(s).  Flex
-makes this a little easier and cleaner by introducing a notion of
+whole bunch of rules all preceded by the same start condition(s).
+Flex makes this a little easier and cleaner by introducing a notion of
 start condition
 .I scope.
 A start condition scope is begun with:
@@ -1511,7 +1574,8 @@ A start condition scope is begun with:
 .fi
 where
 .I SCs
-is a list of one or more start conditions.  Inside the start condition
+is a list of one or more start conditions.
+Inside the start condition
 scope, every rule automatically has the prefix
 .I <SCs>
 applied to it, until a
@@ -1558,14 +1622,16 @@ pops the top of the stack and switches to it via
 returns the top of the stack without altering the stack's contents.
 .PP
 The start condition stack grows dynamically and so has no built-in
-size limitation.  If memory is exhausted, program execution aborts.
+size limitation.
+If memory is exhausted, program execution aborts.
 .PP
 To use start condition stacks, your scanner must include a
 .B %option stack
 directive (see Options below).
 .SH MULTIPLE INPUT BUFFERS
 Some scanners (such as those which support "include" files)
-require reading from several input streams.  As
+require reading from several input streams.
+As
 .I flex
 scanners do a large amount of buffering, one cannot control
 where the next input will be read from by simply writing a
@@ -1579,7 +1645,8 @@ which requires switching the input source.
 To negotiate these sorts of problems,
 .I flex
 provides a mechanism for creating and switching between multiple
-input buffers.  An input buffer is created by using:
+input buffers.
+An input buffer is created by using:
 .nf
 
     YY_BUFFER_STATE yy_create_buffer( FILE *file, int size )
@@ -1592,9 +1659,11 @@ file and large enough to hold
 .I size
 characters (when in doubt, use
 .B YY_BUF_SIZE
-for the size).  It returns a
+for the size).
+It returns a
 .B YY_BUFFER_STATE
-handle, which may then be passed to other routines (see below).  The
+handle, which may then be passed to other routines (see below).
+The
 .B YY_BUFFER_STATE
 type is a pointer to an opaque
 .B struct yy_buffer_state
@@ -1602,7 +1671,8 @@ structure, so you may safely initialize YY_BUFFER_STATE variables to
 .B ((YY_BUFFER_STATE) 0)
 if you wish, and also refer to the opaque structure in order to
 correctly declare input buffers in source files other than that
-of your scanner.  Note that the
+of your scanner.
+Note that the
 .I FILE
 pointer in the call to
 .B yy_create_buffer
@@ -1632,7 +1702,8 @@ Note that
 may be used by yywrap() to set things up for continued scanning, instead
 of opening a new file and pointing
 .I yyin
-at it.  Note also that switching input sources via either
+at it.
+Note also that switching input sources via either
 .B yy_switch_to_buffer()
 or
 .B yywrap()
@@ -1644,7 +1715,8 @@ change the start condition.
     void yy_delete_buffer( YY_BUFFER_STATE buffer )
 
 .fi
-is used to reclaim the storage associated with a buffer.  (
+is used to reclaim the storage associated with a buffer.
+(
 .B buffer
 can be nil, in which case the routine does nothing.)
 You can also clear the current contents of a buffer using:
@@ -1734,12 +1806,14 @@ feature is discussed below):
 
 .fi
 Three routines are available for setting up input buffers for
-scanning in-memory strings instead of files.  All of them create
+scanning in-memory strings instead of files.
+All of them create
 a new input buffer for scanning the string, and return a corresponding
 .B YY_BUFFER_STATE
 handle (which you should delete with
 .B yy_delete_buffer()
-when done with it).  They also switch to the new buffer using
+when done with it).
+They also switch to the new buffer using
 .B yy_switch_to_buffer(),
 so the next call to
 .B yylex()
@@ -1757,7 +1831,8 @@ starting at location
 .PP
 Note that both of these functions create and scan a
 .I copy
-of the string or bytes.  (This may be desirable, since
+of the string or bytes.
+(This may be desirable, since
 .B yylex()
 modifies the contents of the buffer it is scanning.)  You can avoid the
 copy by using:
@@ -1795,7 +1870,8 @@ reflecting the size of the buffer.
 The special rule "<<EOF>>" indicates
 actions which are to be taken when an end-of-file is
 encountered and yywrap() returns non-zero (i.e., indicates
-no further files to process).  The action must finish
+no further files to process).
+The action must finish
 by doing one of four things:
 .IP -
 assigning
@@ -1819,10 +1895,12 @@ as shown in the example above.
 .PP
 <<EOF>> rules may not be used with other
 patterns; they may only be qualified with a list of start
-conditions.  If an unqualified <<EOF>> rule is given, it
+conditions.
+If an unqualified <<EOF>> rule is given, it
 applies to
 .I all
-start conditions which do not already have <<EOF>> actions.  To
+start conditions which do not already have <<EOF>> actions.
+To
 specify an <<EOF>> rule for only the initial start condition, use
 .nf
 
@@ -1855,15 +1933,16 @@ An example:
 The macro
 .B YY_USER_ACTION
 can be defined to provide an action
-which is always executed prior to the matched rule's action.  For example,
+which is always executed prior to the matched rule's action.
+For example,
 it could be #define'd to call a routine to convert yytext to lower-case.
 When
 .B YY_USER_ACTION
 is invoked, the variable
 .I yy_act
 gives the number of the matched rule (rules are numbered starting with 1).
-Suppose you want to profile how often each of your rules is matched.  The
-following would do the trick:
+Suppose you want to profile how often each of your rules is matched.
+The following would do the trick:
 .nf
 
     #define YY_USER_ACTION ++ctr[yy_act]
@@ -1871,8 +1950,8 @@ following would do the trick:
 .fi
 where
 .I ctr
-is an array to hold the counts for the different rules.  Note that
-the macro
+is an array to hold the counts for the different rules.
+Note that the macro
 .B YY_NUM_RULES
 gives the total number of rules (including the default rule, even if
 you use
@@ -1902,9 +1981,11 @@ but must be used when the scanner's input source is indeed
 interactive to avoid problems due to waiting to fill buffers
 (see the discussion of the
 .B \-I
-flag below).  A non-zero value
+flag below).
+A non-zero value
 in the macro invocation marks the buffer as interactive, a zero
-value as non-interactive.  Note that use of this macro overrides
+value as non-interactive.
+Note that use of this macro overrides
 .B %option interactive ,
 .B %option always-interactive
 or
@@ -1918,8 +1999,9 @@ The macro
 .B yy_set_bol(at_bol)
 can be used to control whether the current buffer's scanning
 context for the next token match is done as though at the
-beginning of a line.  A non-zero macro argument makes rules anchored with
-\&'^' active, while a zero argument makes '^' rules inactive.
+beginning of a line.
+A non-zero macro argument makes rules anchored with
+'^' active, while a zero argument makes '^' rules inactive.
 .PP
 The macro
 .B YY_AT_BOL()
@@ -1929,7 +2011,8 @@ will have '^' rules active, false otherwise.
 In the generated scanner, the actions are all gathered in one large
 switch statement and separated using
 .B YY_BREAK,
-which may be redefined.  By default, it is simply a "break", to separate
+which may be redefined.
+By default, it is simply a "break", to separate
 each rule's action from the following rule's.
 Redefining
 .B YY_BREAK
@@ -1945,7 +2028,8 @@ This section summarizes the various values available to the user
 in the rule actions.
 .IP -
 .B char *yytext
-holds the text of the current token.  It may be modified but not lengthened
+holds the text of the current token.
+It may be modified but not lengthened
 (you cannot append characters to the end).
 .IP
 If the special directive
@@ -1957,7 +2041,8 @@ is instead declared
 where
 .B YYLMAX
 is a macro definition that you can redefine in the first section
-if you don't like the default value (generally 8KB).  Using
+if you don't like the default value (generally 8KB).
+Using
 .B %array
 results in somewhat slower scanners, but the value of
 .B yytext
@@ -1967,7 +2052,8 @@ and
 .I unput(),
 which potentially destroy its value when
 .B yytext
-is a character pointer.  The opposite of
+is a character pointer.
+The opposite of
 .B %array
 is
 .B %pointer,
@@ -1986,9 +2072,10 @@ holds the length of the current token.
 .B FILE *yyin
 is the file which by default
 .I flex
-reads from.  It may be redefined but doing so only makes sense before
-scanning begins or after an EOF has been encountered.  Changing it in
-the midst of scanning will have unexpected results since
+reads from.
+It may be redefined but doing so only makes sense before
+scanning begins or after an EOF has been encountered.
+Changing it in the midst of scanning will have unexpected results since
 .I flex
 buffers its input; use
 .B yyrestart()
@@ -2001,8 +2088,10 @@ at the new input file and then call the scanner again to continue scanning.
 .B void yyrestart( FILE *new_file )
 may be called to point
 .I yyin
-at the new input file.  The switch-over to the new file is immediate
-(any previously buffered-up input is lost).  Note that calling
+at the new input file.
+The switch-over to the new file is immediate
+(any previously buffered-up input is lost).
+Note that calling
 .B yyrestart()
 with
 .I yyin
@@ -2012,7 +2101,8 @@ scanning the same input file.
 .B FILE *yyout
 is the file to which
 .B ECHO
-actions are done.  It can be reassigned by the user.
+actions are done.
+It can be reassigned by the user.
 .IP -
 .B YY_CURRENT_BUFFER
 returns a
@@ -2021,7 +2111,8 @@ handle to the current buffer.
 .IP -
 .B YY_START
 returns an integer value corresponding to the current start
-condition.  You can subsequently use this value with
+condition.
+You can subsequently use this value with
 .B BEGIN
 to return to that start condition.
 .SH INTERFACING WITH YACC
@@ -2033,7 +2124,8 @@ parser-generator.
 .I yacc
 parsers expect to call a routine named
 .B yylex()
-to find the next input token.  The routine is supposed to
+to find the next input token.
+The routine is supposed to
 return the type of the next token as well as putting any associated
 value in the global
 .B yylval.
@@ -2051,9 +2143,11 @@ containing definitions of all the
 .B %tokens
 appearing in the
 .I yacc
-input.  This file is then included in the
+input.
+This file is then included in the
 .I flex
-scanner.  For example, if one of the tokens is "TOK_NUMBER",
+scanner.
+For example, if one of the tokens is "TOK_NUMBER",
 part of the scanner might look like:
 .nf
 
@@ -2070,12 +2164,14 @@ part of the scanner might look like:
 .I flex
 has the following options:
 .TP
-.B \-b
+.B \-b, --backup
 Generate backing-up information to
 .I lex.backup.
 This is a list of scanner states which require backing up
-and the input characters on which they do so.  By adding rules one
-can remove backing-up states.  If
+and the input characters on which they do so.
+By adding rules one
+can remove backing-up states.
+If
 .I all
 backing-up states are eliminated and
 .B \-Cf
@@ -2083,17 +2179,19 @@ or
 .B \-CF
 is used, the generated scanner will run faster (see the
 .B \-p
-flag).  Only users who wish to squeeze every last cycle out of their
-scanners need worry about this option.  (See the section on Performance
-Considerations below.)
+flag).
+Only users who wish to squeeze every last cycle out of their
+scanners need worry about this option.
+(See the section on Performance Considerations below.)
 .TP
 .B \-c
 is a do-nothing, deprecated option included for POSIX compliance.
 .TP
-.B \-d
+.B \-d, \-\-debug
 makes the generated scanner run in
 .I debug
-mode.  Whenever a pattern is recognized and the global
+mode.
+Whenever a pattern is recognized and the global
 .B yy_flex_debug
 is non-zero (which is the default),
 the scanner will write to
@@ -2105,21 +2203,22 @@ a line of the form:
 
 .fi
 The line number refers to the location of the rule in the file
-defining the scanner (i.e., the file that was fed to flex).  Messages
-are also generated when the scanner backs up, accepts the
+defining the scanner (i.e., the file that was fed to flex).
+Messages are also generated when the scanner backs up, accepts the
 default rule, reaches the end of its input buffer (or encounters
 a NUL; at this point, the two look the same as far as the scanner's concerned),
 or reaches an end-of-file.
 .TP
-.B \-f
+.B \-f, \-\-full
 specifies
 .I fast scanner.
 No table compression is done and stdio is bypassed.
-The result is large but fast.  This option is equivalent to
+The result is large but fast.
+This option is equivalent to
 .B \-Cfr
 (see below).
 .TP
-.B \-h
+.B \-h, \-\-help
 generates a "help" summary of
 .I flex's
 options to
@@ -2131,31 +2230,36 @@ and
 are synonyms for
 .B \-h.
 .TP
-.B \-i
+.B \-i, \-\-case-insensitive
 instructs
 .I flex
 to generate a
 .I case-insensitive
-scanner.  The case of letters given in the
+scanner.
+The case of letters given in the
 .I flex
 input patterns will
-be ignored, and tokens in the input will be matched regardless of case.  The
-matched text given in
+be ignored, and tokens in the input will be matched regardless of case.
+The matched text given in
 .I yytext
 will have the preserved case (i.e., it will not be folded).
 .TP
-.B \-l
+.B \-l, \-\-lex\-compat
 turns on maximum compatibility with the original AT&T
 .I lex
-implementation.  Note that this does not mean
+implementation.
+Note that this does not mean
 .I full
-compatibility.  Use of this option costs a considerable amount of
+compatibility.
+Use of this option costs a considerable amount of
 performance, and it cannot be used with the
 .B \-+, -f, -F, -Cf,
 or
 .B -CF
-options.  For details on the compatibilities it provides, see the section
-"Incompatibilities With Lex And POSIX" below.  This option also results
+options.
+For details on the compatibilities it provides, see the section
+"Incompatibilities With Lex And POSIX" below.
+This option also results
 in the name
 .B YY_FLEX_LEX_COMPAT
 being #define'd in the generated scanner.
@@ -2164,12 +2268,13 @@ being #define'd in the generated scanner.
 is another do-nothing, deprecated option included only for
 POSIX compliance.
 .TP
-.B \-p
-generates a performance report to stderr.  The report
-consists of comments regarding features of the
+.B \-p, \-\-perf\-report
+generates a performance report to stderr.
+The report consists of comments regarding features of the
 .I flex
 input file which will cause a serious loss of performance in the resulting
-scanner.  If you give the flag twice, you will also get comments regarding
+scanner.
+If you give the flag twice, you will also get comments regarding
 features that lead to minor performance losses.
 .IP
 Note that the use of
@@ -2185,23 +2290,25 @@ and the
 .B \-I
 flag entail minor performance penalties.
 .TP
-.B \-s
+.B \-s, \-\-no\-default
 causes the
 .I default rule
 (that unmatched scanner input is echoed to
 .I stdout)
-to be suppressed.  If the scanner encounters input that does not
-match any of its rules, it aborts with an error.  This option is
+to be suppressed.
+If the scanner encounters input that does not
+match any of its rules, it aborts with an error.
+This option is
 useful for finding holes in a scanner's rule set.
 .TP
-.B \-t
+.B \-t, \-\-stdout
 instructs
 .I flex
 to write the scanner it generates to standard output instead
 of
 .B lex.yy.c.
 .TP
-.B \-v
+.B \-v, \-\-verbose
 specifies that
 .I flex
 should write to
@@ -2216,10 +2323,10 @@ user, but the first line identifies the version of
 and the next line the flags used when generating the scanner, including
 those that are on by default.
 .TP
-.B \-w
+.B \-w, \-\-nowarn
 suppresses warning messages.
 .TP
-.B \-B
+.B \-B, \-\-batch
 instructs
 .I flex
 to generate a
@@ -2228,16 +2335,18 @@ scanner, the opposite of
 .I interactive
 scanners generated by
 .B \-I
-(see below).  In general, you use
+(see below).
+In general, you use
 .B \-B
 when you are
 .I certain
 that your scanner will never be used interactively, and you want to
 squeeze a
 .I little
-more performance out of it.  If your goal is instead to squeeze out a
+more performance out of it.
+If your goal is instead to squeeze out a
 .I lot
-more performance, you should  be using the
+more performance, you should be using the
 .B \-Cf
 or
 .B \-CF
@@ -2245,15 +2354,17 @@ options (discussed below), which turn on
 .B \-B
 automatically anyway.
 .TP
-.B \-F
+.B \-F, \-\-fast
 specifies that the
-.I fast
+.ul
+fast
 scanner table representation should be used (and stdio
-bypassed).  This representation is
-about as fast as the full table representation
+bypassed).
+This representation is about as fast as the full table representation
 .B (-f),
 and for some sets of patterns will be considerably smaller (and for
-others, larger).  In general, if the pattern set contains both "keywords"
+others, larger).
+In general, if the pattern set contains both "keywords"
 and a catch-all, "identifier" rule, such as in the set:
 .nf
 
@@ -2264,26 +2375,31 @@ and a catch-all, "identifier" rule, such as in the set:
     [a-z]+    return TOK_ID;
 
 .fi
-then you're better off using the full table representation.  If only
+then you're better off using the full table representation.
+If only
 the "identifier" rule is present and you then use a hash table or some such
 to detect the keywords, you're better off using
 .B -F.
 .IP
 This option is equivalent to
 .B \-CFr
-(see below).  It cannot be used with
+(see below).
+It cannot be used with
 .B \-+.
 .TP
-.B \-I
+.B \-I, \-\-interactive
 instructs
 .I flex
 to generate an
 .I interactive
-scanner.  An interactive scanner is one that only looks ahead to decide
-what token has been matched if it absolutely must.  It turns out that
+scanner.
+An interactive scanner is one that only looks ahead to decide
+what token has been matched if it absolutely must.
+It turns out that
 always looking one extra character ahead, even if the scanner has already
 seen enough text to disambiguate the current token, is a bit faster than
-only looking ahead when necessary.  But scanners that always look ahead
+only looking ahead when necessary.
+But scanners that always look ahead
 give dreadful interactive performance; for example, when a user types
 a newline, it is not recognized as a newline token until they enter
 .I another
@@ -2296,12 +2412,14 @@ unless you use the
 .B \-Cf
 or
 .B \-CF
-table-compression options (see below).  That's because if you're looking
+table-compression options (see below).
+That's because if you're looking
 for high-performance you should be using one of these options, so if you
 didn't,
 .I flex
 assumes you'd rather trade off a bit of run-time performance for intuitive
-interactive behavior.  Note also that you
+interactive behavior.
+Note also that you
 .I cannot
 use
 .B \-I
@@ -2316,7 +2434,8 @@ Note that if
 .B isatty()
 returns false for the scanner input, flex will revert to batch mode, even if
 .B \-I
-was specified.  To force interactive mode no matter what, use
+was specified.
+To force interactive mode no matter what, use
 .B %option always-interactive
 (see Options below).
 .IP
@@ -2326,12 +2445,13 @@ be interactive by using
 .B \-B
 (see above).
 .TP
-.B \-L
+.B \-L, \-\-noline
 instructs
 .I flex
 not to generate
 .B #line
-directives.  Without this option,
+directives.
+Without this option,
 .I flex
 peppers the generated scanner
 with #line directives so error messages in the actions will be correctly
@@ -2344,19 +2464,21 @@ input file (if the errors are due to code in the input file), or
 fault -- you should report these sorts of errors to the email address
 given below).
 .TP
-.B \-T
+.B \-T, \-\-trace
 makes
 .I flex
 run in
 .I trace
-mode.  It will generate a lot of messages to
+mode.
+It will generate a lot of messages to
 .I stderr
 concerning
 the form of the input and the resultant non-deterministic and deterministic
-finite automata.  This option is mostly for use in maintaining
+finite automata.
+This option is mostly for use in maintaining
 .I flex.
 .TP
-.B \-V
+.B \-V, \-\-version
 prints the version number to
 .I stdout
 and exits.
@@ -2364,16 +2486,18 @@ and exits.
 is a synonym for
 .B \-V.
 .TP
-.B \-7
+.B \-7, \-\-7bit
 instructs
 .I flex
 to generate a 7-bit scanner, i.e., one which can only recognize 7-bit
-characters in its input.  The advantage of using
+characters in its input.
+The advantage of using
 .B \-7
 is that the scanner's tables can be up to half the size of those generated
 using the
 .B \-8
-option (see below).  The disadvantage is that such scanners often hang
+option (see below).
+The disadvantage is that such scanners often hang
 or crash if their input contains an 8-bit character.
 .IP
 Note, however, that unless you generate your scanner using the
@@ -2393,7 +2517,8 @@ in which case
 .I flex
 defaults to generating 7-bit scanners unless your site was always
 configured to generate 8-bit scanners (as will often be the case
-with non-USA sites).  You can tell whether flex generated a 7-bit
+with non-USA sites).
+You can tell whether flex generated a 7-bit
 or an 8-bit scanner by inspecting the flag summary in the
 .B \-v
 output as described above.
@@ -2407,11 +2532,12 @@ discussed see below), flex still defaults to generating an 8-bit
 scanner, since usually with these compression options full 8-bit tables
 are not much more expensive than 7-bit tables.
 .TP
-.B \-8
+.B \-8, \-\-8bit
 instructs
 .I flex
 to generate an 8-bit scanner, i.e., one which can recognize 8-bit
-characters.  This flag is only needed for scanners generated using
+characters.
+This flag is only needed for scanners generated using
 .B \-Cf
 or
 .B \-CF,
@@ -2422,24 +2548,27 @@ See the discussion of
 above for flex's default behavior and the tradeoffs between 7-bit
 and 8-bit scanners.
 .TP
-.B \-+
+.B \-+, \-\-c++
 specifies that you want flex to generate a C++
-scanner class.  See the section on Generating C++ Scanners below for
+scanner class.
+See the section on Generating C++ Scanners below for
 details.
 .TP
 .B \-C[aefFmr]
 controls the degree of table compression and, more generally, trade-offs
 between small scanners and fast scanners.
 .IP
-.B \-Ca
+.B \-Ca, \-\-align
 ("align") instructs flex to trade off larger tables in the
 generated scanner for faster performance because the elements of
-the tables are better aligned for memory access and computation.  On some
+the tables are better aligned for memory access and computation.
+On some
 RISC architectures, fetching and manipulating longwords is more efficient
-than with smaller-sized units such as shortwords.  This option can
+than with smaller-sized units such as shortwords.
+This option can
 double the size of the tables used by your scanner.
 .IP
-.B \-Ce
+.B \-Ce, \-\-ecs
 directs
 .I flex
 to construct
@@ -2450,7 +2579,8 @@ appearance of digits in the
 .I flex
 input is in the character class
 "[0-9]" then the digits '0', '1', ..., '9' will all be put
-in the same equivalence class).  Equivalence classes usually give
+in the same equivalence class).
+Equivalence classes usually give
 dramatic reductions in the final table/object file sizes (typically
 a factor of 2-5) and are pretty cheap performance-wise (one array
 look-up per character scanned).
@@ -2465,28 +2595,31 @@ tables by taking advantages of similar transition functions for
 different states.
 .IP
 .B \-CF
-specifies that the alternate fast scanner representation (described
+specifies that the alternative fast scanner representation (described
 above under the
 .B \-F
 flag)
-should be used.  This option cannot be used with
+should be used.
+This option cannot be used with
 .B \-+.
 .IP
-.B \-Cm
+.B \-Cm, \-\-meta-ecs
 directs
 .I flex
 to construct
 .I meta-equivalence classes,
 which are sets of equivalence classes (or characters, if equivalence
-classes are not being used) that are commonly used together.  Meta-equivalence
+classes are not being used) that are commonly used together.
+Meta-equivalence
 classes are often a big win when using compressed tables, but they
 have a moderate performance impact (one or two "if" tests and one
 array look-up per character scanned).
 .IP
-.B \-Cr
+.B \-Cr, \-\-read
 causes the generated scanner to
 .I bypass
-use of the standard I/O library (stdio) for input.  Instead of calling
+use of the standard I/O library (stdio) for input.
+Instead of calling
 .B fread()
 or
 .B getc(),
@@ -2521,7 +2654,8 @@ or
 and
 .B \-Cm
 do not make sense together - there is no opportunity for meta-equivalence
-classes if the table is not being compressed.  Otherwise the options
+classes if the table is not being compressed.
+Otherwise the options
 may be freely mixed, and are cumulative.
 .IP
 The default setting is
@@ -2529,8 +2663,9 @@ The default setting is
 which specifies that
 .I flex
 should generate equivalence classes
-and meta-equivalence classes.  This setting provides the highest
-degree of table compression.  You can trade off
+and meta-equivalence classes.
+This setting provides the highest degree of table compression.
+You can trade off
 faster-executing scanners at the cost of larger tables with
 the following generally being true:
 .nf
@@ -2555,7 +2690,7 @@ compression.
 is often a good compromise between speed and size for production
 scanners.
 .TP
-.B \-ooutput
+.B \-ooutput, \-\-outputfile=FILE
 directs flex to write the scanner to the file
 .B output
 instead of
@@ -2573,7 +2708,7 @@ directives (see the
 option above) refer to the file
 .B output.
 .TP
-.B \-Pprefix
+.B \-Pprefix, \-\-prefix=STRING
 changes the default
 .I "yy"
 prefix used by
@@ -2621,8 +2756,8 @@ have the modified name.
 .IP
 This option lets you easily link together multiple
 .I flex
-programs into the same executable.  Note, though, that using this
-option also renames
+programs into the same executable.
+Note, though, that using this option also renames
 .B yywrap(),
 so you now
 .I must
@@ -2634,12 +2769,54 @@ as linking with
 .B \-ll
 no longer provides one for you by default.
 .TP
-.B \-Sskeleton_file
+.B \-Sskeleton_file, \-\-skel=FILE
 overrides the default skeleton file from which
 .I flex
-constructs its scanners.  You'll never need this option unless you are doing
+constructs its scanners.
+You'll never need this option unless you are doing
 .I flex
 maintenance or development.
+.TP
+.B \-X, \-\-posix\-compat
+maximal compatibility with POSIX lex.
+.TP
+.B \-\-yylineno
+track line count in yylineno.
+.TP
+.B \-\-yyclass=NAME
+name of C++ class.
+.TP
+.B \-\-header\-file=FILE
+create a C header file in addition to the scanner.
+.TP
+.B \-\-tables\-file[=FILE]
+write tables to FILE.
+.TP
+.B \\-Dmacro[=defn]
+#define macro defn (default defn is '1').
+.TP
+.B \-R,  \-\-reentrant
+generate a reentrant C scanner
+.TP
+.B \-\-bison\-bridge
+scanner for bison pure parser.
+.TP
+.B \-\-bison\-locations
+include yylloc support.
+.TP
+.B \-\-stdinit
+initialize yyin/yyout to stdin/stdout.
+.TP
+.B \-\-noansi\-definitions old\-style function definitions.
+.TP
+.B \-\-noansi\-prototypes
+empty parameter list in prototypes.
+.TP
+.B \-\-nounistd
+do not include <unistd.h>.
+.TP
+.B \-\-noFUNCTION
+do not generate a particular FUNCTION.
 .PP
 .I flex
 also provides a mechanism for controlling options within the
@@ -2695,11 +2872,13 @@ provide features otherwise not available:
 .TP
 .B always-interactive
 instructs flex to generate a scanner which always considers its input
-"interactive".  Normally, on each new input file the scanner calls
+"interactive".
+Normally, on each new input file the scanner calls
 .B isatty()
 in an attempt to determine whether
 the scanner's input source is interactive and thus should be read a
-character at a time.  When this option is used, however, then no
+character at a time.
+When this option is used, however, then no
 such call is made.
 .TP
 .B main
@@ -2769,7 +2948,8 @@ scans your rule actions to determine whether you use the
 .B REJECT
 or
 .B yymore()
-features.  The
+features.
+The
 .B reject
 and
 .B yymore
@@ -2805,7 +2985,8 @@ Finally,
 .fi
 only applies when generating a C++ scanner (
 .B \-+
-option).  It informs
+option).
+It informs
 .I flex
 that you have derived
 .B foo
@@ -2825,8 +3006,8 @@ if called.
 See Generating C++ Scanners, below, for additional information.
 .PP
 A number of options are available for lint purists who want to suppress
-the appearance of unneeded routines in the generated scanner.  Each of the
-following, if unset
+the appearance of unneeded routines in the generated scanner.
+Each of the following, if unset
 (e.g.,
 .B %option nounput
 ), results in the corresponding routine not appearing in
@@ -2845,13 +3026,14 @@ and friends won't appear anyway unless you use
 .SH PERFORMANCE CONSIDERATIONS
 The main design goal of
 .I flex
-is that it generate high-performance scanners.  It has been optimized
-for dealing well with large sets of rules.  Aside from the effects on
-scanner speed of the table compression
+is that it generate high-performance scanners.
+It has been optimized
+for dealing well with large sets of rules.
+Aside from the effects on scanner speed of the table compression
 .B \-C
 options outlined above,
-there are a number of options/actions which degrade performance.  These
-are, from most expensive to least:
+there are a number of options/actions which degrade performance.
+These are, from most expensive to least:
 .nf
 
     REJECT
@@ -2868,7 +3050,8 @@ are, from most expensive to least:
 
 .fi
 with the first three all being quite expensive and the last two
-being quite cheap.  Note also that
+being quite cheap.
+Note also that
 .B unput()
 is implemented as a routine call that potentially does quite a bit of
 work, while
@@ -2882,12 +3065,13 @@ should be avoided at all costs when performance is important.
 It is a particularly expensive option.
 .PP
 Getting rid of backing up is messy and often may be an enormous
-amount of work for a complicated scanner.  In principal, one begins
-by using the
+amount of work for a complicated scanner.
+In principal, one begins by using the
 .B \-b
 flag to generate a
 .I lex.backup
-file.  For example, on the input
+file.
+For example, on the input
 .nf
 
     %%
@@ -2922,18 +3106,21 @@ the file looks like:
 The first few lines tell us that there's a scanner state in
 which it can make a transition on an 'o' but not on any other
 character, and that in that state the currently scanned text does not match
-any rule.  The state occurs when trying to match the rules found
+any rule.
+The state occurs when trying to match the rules found
 at lines 2 and 3 in the input file.
 If the scanner is in that state and then reads
 something other than an 'o', it will have to back up to find
-a rule which is matched.  With
-a bit of headscratching one can see that this must be the
-state it's in when it has seen "fo".  When this has happened,
+a rule which is matched.
+With a bit of headscratching one can see that this must be the
+state it's in when it has seen "fo".
+When this has happened,
 if anything other than another 'o' is seen, the scanner will
 have to back up to simply match the 'f' (by the default rule).
 .PP
 The comment regarding State #8 indicates there's a problem
-when "foob" has been scanned.  Indeed, on any character other
+when "foob" has been scanned.
+Indeed, on any character other
 than an 'a', the scanner will have to back up to accept "foo".
 Similarly, the comment for State #9 concerns when "fooba" has
 been scanned and an 'r' does not follow.
@@ -2977,23 +3164,27 @@ This is usually the best solution when appropriate.
 .PP
 Backing up messages tend to cascade.
 With a complicated set of rules it's not uncommon to get hundreds
-of messages.  If one can decipher them, though, it often
+of messages.
+If one can decipher them, though, it often
 only takes a dozen or so rules to eliminate the backing up (though
 it's easy to make a mistake and have an error rule accidentally match
-a valid token.  A possible future
+a valid token.
+A possible future
 .I flex
 feature will be to automatically add rules to eliminate backing up).
 .PP
 It's important to keep in mind that you gain the benefits of eliminating
 backing up only if you eliminate
 .I every
-instance of backing up.  Leaving just one means you gain nothing.
+instance of backing up.
+Leaving just one means you gain nothing.
 .PP
 .I Variable
 trailing context (where both the leading and trailing parts do not have
 a fixed length) entails almost the same performance loss as
 .B REJECT
-(i.e., substantial).  So when possible a rule like:
+(i.e., substantial).
+So when possible a rule like:
 .nf
 
     %%
@@ -3029,7 +3220,8 @@ characters takes place in the (short) inner scanning loop, and
 does not often have to go through the additional work of setting up
 the scanning environment (e.g.,
 .B yytext)
-for the action.  Recall the scanner for C comments:
+for the action.
+Recall the scanner for C comments:
 .nf
 
     %x comment
@@ -3062,7 +3254,8 @@ This could be sped up by writing it as:
 .fi
 Now instead of each newline requiring the processing of another
 action, recognizing the newlines is "distributed" over the other rules
-to keep the matched text as long as possible.  Note that
+to keep the matched text as long as possible.
+Note that
 .I adding
 rules does
 .I not
@@ -3074,7 +3267,8 @@ regard to operators such as '*' and '|'.
 A final example in speeding up a scanner: suppose you want to scan
 through a file containing identifiers and keywords, one per line
 and with no other extraneous characters, and recognize all the
-keywords.  A natural first approach is:
+keywords.
+A natural first approach is:
 .nf
 
     %%
@@ -3122,16 +3316,19 @@ tokens:
 
 .fi
 One has to be careful here, as we have now reintroduced backing up
-into the scanner.  In particular, while
+into the scanner.
+In particular, while
 .I we
 know that there will never be any characters in the input stream
 other than letters or newlines,
 .I flex
 can't figure this out, and it will plan for possibly needing to back up
 when it has scanned a token like "auto" and then the next character
-is something other than a newline or a letter.  Previously it would
+is something other than a newline or a letter.
+Previously it would
 then just match the "auto" rule and be done, but now it has no "auto"
-rule, only an "auto\\n" rule.  To eliminate the possibility of backing up,
+rule, only an "auto\\n" rule.
+To eliminate the possibility of backing up,
 we could either duplicate all rules but without final newlines, or,
 since we never expect to encounter such an input and therefore don't
 how it's classified, we can introduce one more catch-all rule, this
@@ -3169,20 +3366,22 @@ Another final note regarding performance: as mentioned above in the section
 How the Input is Matched, dynamically resizing
 .B yytext
 to accommodate huge tokens is a slow process because it presently requires that
-the (huge) token be rescanned from the beginning.  Thus if performance is
+the (huge) token be rescanned from the beginning.
+Thus if performance is
 vital, you should attempt to match "large" quantities of text but not
 "huge" quantities, where the cutoff between the two is at about 8K
 characters/token.
 .SH GENERATING C++ SCANNERS
 .I flex
-provides two different ways to generate scanners for use with C++.  The
-first way is to simply compile a scanner generated by
+provides two different ways to generate scanners for use with C++.
+The first way is to simply compile a scanner generated by
 .I flex
-using a C++ compiler instead of a C compiler.  You should not encounter
+using a C++ compiler instead of a C compiler.
+You should not encounter
 any compilations errors (please report any you find to the email address
-given in the Author section below).  You can then use C++ code in your
-rule actions instead of C code.  Note that the default input source for
-your scanner remains
+given in the Author section below).
+You can then use C++ code in your rule actions instead of C code.
+Note that the default input source for your scanner remains
 .I yyin,
 and default echoing is still done to
 .I yyout.
@@ -3211,7 +3410,8 @@ which defines the interface to two C++ classes.
 The first class,
 .B FlexLexer,
 provides an abstract base class defining the general scanner class
-interface.  It provides the following member functions:
+interface.
+It provides the following member functions:
 .TP
 .B const char* YYText()
 returns the text of the most recently matched token, the equivalent of
@@ -3234,8 +3434,8 @@ was not used.
 .B void set_debug( int flag )
 sets the debugging flag for the scanner, equivalent to assigning to
 .B yy_flex_debug
-(see the Options section above).  Note that you must build the scanner
-using
+(see the Options section above).
+Note that you must build the scanner using
 .B %option debug
 to include debugging information in it.
 .TP
@@ -3246,7 +3446,7 @@ Also provided are member functions equivalent to
 .B yy_switch_to_buffer(),
 .B yy_create_buffer()
 (though the first argument is an
-.B istream*
+.B std::istream*
 object pointer and not a
 .B FILE*),
 .B yy_flush_buffer(),
@@ -3254,7 +3454,7 @@ object pointer and not a
 and
 .B yyrestart()
 (again, the first argument is a
-.B istream*
+.B std::istream*
 object pointer).
 .PP
 The second class defined in
@@ -3266,11 +3466,11 @@ which is derived from
 It defines the following additional member functions:
 .TP
 .B
-yyFlexLexer( istream* arg_yyin = 0, ostream* arg_yyout = 0 )
+yyFlexLexer( std::istream* arg_yyin = 0, std::ostream* arg_yyout = 0 )
 constructs a
 .B yyFlexLexer
-object using the given streams for input and output.  If not specified,
-the streams default to
+object using the given streams for input and output.
+If not specified, the streams default to
 .B cin
 and
 .B cout,
@@ -3280,7 +3480,8 @@ respectively.
 performs the same role is
 .B yylex()
 does for ordinary flex scanners: it scans the input stream, consuming
-tokens, until a rule's action returns a value.  If you derive a subclass
+tokens, until a rule's action returns a value.
+If you derive a subclass
 .B S
 from
 .B yyFlexLexer
@@ -3306,9 +3507,9 @@ that calls
 if called).
 .TP
 .B
-virtual void switch_streams(istream* new_in = 0,
+virtual void switch_streams(std::istream* new_in = 0,
 .B
-ostream* new_out = 0)
+std::ostream* new_out = 0)
 reassigns
 .B yyin
 to
@@ -3323,7 +3524,7 @@ to
 is reassigned.
 .TP
 .B
-int yylex( istream* new_in, ostream* new_out = 0 )
+int yylex( std::istream* new_in, std::ostream* new_out = 0 )
 first switches the input streams via
 .B switch_streams( new_in, new_out )
 and then returns the value of
@@ -3340,8 +3541,9 @@ reads up to
 .B max_size
 characters into
 .B buf
-and returns the number of characters read.  To indicate end-of-input,
-return 0 characters.  Note that "interactive" scanners (see the
+and returns the number of characters read.
+To indicate end-of-input, return 0 characters.
+Note that "interactive" scanners (see the
 .B \-B
 and
 .B \-I
@@ -3365,8 +3567,8 @@ the scanner's rules can match text with NUL's in them.
 .TP
 .B
 virtual void LexerError( const char* msg )
-reports a fatal error message.  The default version of this function
-writes the message to the stream
+reports a fatal error message.
+The default version of this function writes the message to the stream
 .B cerr
 and exits.
 .PP
@@ -3374,8 +3576,9 @@ Note that a
 .B yyFlexLexer
 object contains its
 .I entire
-scanning state.  Thus you can use such objects to create reentrant
-scanners.  You can instantiate multiple instances of the same
+scanning state.
+Thus you can use such objects to create reentrant scanners.
+You can instantiate multiple instances of the same
 .B yyFlexLexer
 class, and you can also combine multiple C++ scanner classes together
 in the same program using the
@@ -3488,7 +3691,8 @@ is a rewrite of the AT&T Unix
 tool (the two implementations do not share any code, though),
 with some extensions and incompatibilities, both of which
 are of concern to those who wish to write scanners acceptable
-to either implementation.  Flex is fully compliant with the POSIX
+to either implementation.
+Flex is fully compliant with the POSIX
 .I lex
 specification, except that when using
 .B %pointer
@@ -3506,7 +3710,8 @@ between flex, AT&T lex, and the POSIX specification.
 option turns on maximum compatibility with the original AT&T
 .I lex
 implementation, at the cost of a major loss in the generated scanner's
-performance.  We note below which incompatibilities can be overcome
+performance.
+We note below which incompatibilities can be overcome
 using the
 .B \-l
 option.
@@ -3536,11 +3741,13 @@ is not part of the POSIX specification.
 The
 .B input()
 routine is not redefinable, though it may be called to read characters
-following whatever has been matched by a rule.  If
+following whatever has been matched by a rule.
+If
 .B input()
 encounters an end-of-file the normal
 .B yywrap()
-processing is done.  A ``real'' end-of-file is returned by
+processing is done.
+A ``real'' end-of-file is returned by
 .B input()
 as
 .I EOF.
@@ -3560,12 +3767,14 @@ scanner's input other than by making an initial assignment to
 .IP -
 The
 .B unput()
-routine is not redefinable.  This restriction is in accordance with POSIX.
+routine is not redefinable.
+This restriction is in accordance with POSIX.
 .IP -
 .I flex
 scanners are not as reentrant as
 .I lex
-scanners.  In particular, if you have an interactive scanner and
+scanners.
+In particular, if you have an interactive scanner and
 an interrupt handler which long-jumps out of the scanner, and
 the scanner is subsequently called again, you may get the following
 message:
@@ -3586,7 +3795,8 @@ isn't a problem with an interactive scanner.
 Also note that flex C++ scanner classes
 .I are
 reentrant, so if using C++ is an option for you, you should use
-them instead.  See "Generating C++ Scanners" above for details.
+them instead.
+See "Generating C++ Scanners" above for details.
 .IP -
 .B output()
 is not supported.
@@ -3619,7 +3829,8 @@ With lex, the following:
 will not match the string "foo" because when the macro
 is expanded the rule is equivalent to "foo[A-Z][A-Z0-9]*?"
 and the precedence is such that the '?' is associated with
-"[A-Z0-9]*".  With
+"[A-Z0-9]*".
+With
 .I flex,
 the rule will be expanded to
 "foo([A-Z][A-Z0-9]*)?" and so the string "foo" will match.
@@ -3631,7 +3842,8 @@ or ends with
 then it is
 .I not
 expanded with parentheses, to allow these operators to appear in
-definitions without losing their special meanings.  But the
+definitions without losing their special meanings.
+But the
 .B <s>, /,
 and
 .B <<EOF>>
@@ -3664,7 +3876,8 @@ does not support this feature.
 The
 .I lex
 .B %r
-(generate a Ratfor scanner) option is not supported.  It is not part
+(generate a Ratfor scanner) option is not supported.
+It is not part
 of the POSIX specification.
 .IP -
 After a call to
@@ -3675,7 +3888,8 @@ was built using
 .B %array.
 This is not the case with
 .I lex
-or the POSIX specification.  The
+or the POSIX specification.
+The
 .B \-l
 option does away with this incompatibility.
 .IP -
@@ -3687,8 +3901,8 @@ interprets "abc{1,3}" as "match one, two, or
 three occurrences of 'abc'", whereas
 .I flex
 interprets it as "match 'ab'
-followed by one, two, or three occurrences of 'c'".  The latter is
-in agreement with the POSIX specification.
+followed by one, two, or three occurrences of 'c'".
+The latter is in agreement with the POSIX specification.
 .IP -
 The precedence of the
 .B ^
@@ -3698,7 +3912,8 @@ interprets "^foo|bar" as "match either 'foo' at the beginning of a line,
 or 'bar' anywhere", whereas
 .I flex
 interprets it as "match either 'foo' or 'bar' if they come at the beginning
-of a line".  The latter is in agreement with the POSIX specification.
+of a line".
+The latter is in agreement with the POSIX specification.
 .IP -
 The special table-size declarations such as
 .B %a
@@ -3773,14 +3988,15 @@ is (rather surprisingly) truncated to
 
 .fi
 .I flex
-does not truncate the action.  Actions that are not enclosed in
+does not truncate the action.
+Actions that are not enclosed in
 braces are simply terminated at the end of the line.
 .SH DIAGNOSTICS
 .I warning, rule cannot be matched
 indicates that the given rule
 cannot be matched because it follows other rules that will
-always match the same text as it.  For
-example, in the following "foo" cannot be matched because it comes after
+always match the same text as it.
+For example, in the following "foo" cannot be matched because it comes after
 an identifier "catch-all" rule:
 .nf
 
@@ -3798,15 +4014,16 @@ in a scanner suppresses this warning.
 option given but default rule can be matched
 means that it is possible (perhaps only in a particular start condition)
 that the default rule (match any single character) is the only one
-that will match a particular input.  Since
+that will match a particular input.
+Since
 .B \-s
 was given, presumably this is not intended.
 .PP
 .I reject_used_but_not_detected undefined
 or
 .I yymore_used_but_not_detected undefined -
-These errors can occur at compile time.  They indicate that the
-scanner uses
+These errors can occur at compile time.
+They indicate that the scanner uses
 .B REJECT
 or
 .B yymore()
@@ -3816,7 +4033,8 @@ failed to notice the fact, meaning that
 .I flex
 scanned the first two sections looking for occurrences of these actions
 and failed to find any, but somehow you snuck some in (via a #include
-file, for example).  Use
+file, for example).
+Use
 .B %option reject
 or
 .B %option yymore
@@ -3826,14 +4044,16 @@ to indicate to flex that you really do use these features.
 a scanner compiled with
 .B \-s
 has encountered an input string which wasn't matched by
-any of its rules.  This error can also occur due to internal problems.
+any of its rules.
+This error can also occur due to internal problems.
 .PP
 .I token too large, exceeds YYLMAX -
 your scanner uses
 .B %array
 and one of its rules matched a string longer than the
 .B YYLMAX
-constant (8K bytes by default).  You can increase the value by
+constant (8K bytes by default).
+You can increase the value by
 #define'ing
 .B YYLMAX
 in the definitions section of your
@@ -3849,7 +4069,8 @@ because you used the
 .B \-Cf
 or
 .B \-CF
-table compression options.  See the discussion of the
+table compression options.
+See the discussion of the
 .B \-7
 flag for details.
 .PP
@@ -3865,15 +4086,16 @@ present it does not.
 .I
 input buffer overflow, can't enlarge buffer because scanner uses REJECT -
 the scanner was working on matching an extremely large token and needed
-to expand the input buffer.  This doesn't work with scanners that use
+to expand the input buffer.
+This doesn't work with scanners that use
 .B
 REJECT.
 .PP
 .I
 fatal flex scanner internal error--end of buffer missed -
 This can occur in a scanner which is reentered after a long-jump
-has jumped out (or over) the scanner's activation frame.  Before
-reentering the scanner, use:
+has jumped out (or over) the scanner's activation frame.
+Before reentering the scanner, use:
 .nf
 
     yyrestart( yyin );
@@ -3905,8 +4127,8 @@ and its derived class,
 .B yyFlexLexer.
 .TP
 .I flex.skl
-skeleton scanner.  This file is only used when building flex, not when
-flex executes.
+skeleton scanner.
+This file is only used when building flex, not when flex executes.
 .TP
 .I lex.backup
 backing-up information for
@@ -3917,11 +4139,12 @@ on some systems).
 .SH DEFICIENCIES / BUGS
 Some trailing context
 patterns cannot be properly matched and generate
-warning messages ("dangerous trailing context").  These are
-patterns where the ending of the
+warning messages ("dangerous trailing context").
+These are patterns where the ending of the
 first part of the rule matches the beginning of the second
 part, such as "zx*/xy*", where the 'x*' matches the 'x' at
-the beginning of the trailing context.  (Note that the POSIX draft
+the beginning of the trailing context.
+(Note that the POSIX draft
 states that the text matched by such patterns is undefined.)
 .PP
 For some trailing context rules, parts which are actually fixed-length are
@@ -3933,7 +4156,8 @@ Combining trailing context with the special '|' action can result in
 .I fixed
 trailing context being turned into the more expensive
 .I variable
-trailing context.  For example, in the following:
+trailing context.
+For example, in the following:
 .nf
 
     %%
@@ -3962,14 +4186,16 @@ calls to <stdio.h> routines, such as, for example,
 .B getchar(),
 with
 .I flex
-rules and expect it to work.  Call
+rules and expect it to work.
+Call
 .B input()
 instead.
 .PP
 The total table entries listed by the
 .B \-v
 flag excludes the number of table entries needed to determine
-what rule has been matched.  The number of entries is equal
+what rule has been matched.
+The number of entries is equal
 to the number of DFA states if the scanner does not use
 .B REJECT,
 and somewhat greater than the number of states if it does.
@@ -3989,21 +4215,26 @@ lex(1), yacc(1), sed(1), awk(1).
 .PP
 John Levine, Tony Mason, and Doug Brown,
 .I Lex & Yacc,
-O'Reilly and Associates.  Be sure to get the 2nd edition.
+O'Reilly and Associates.
+Be sure to get the 2nd edition.
 .PP
 M. E. Lesk and E. Schmidt,
 .I LEX \- Lexical Analyzer Generator
 .PP
 Alfred Aho, Ravi Sethi and Jeffrey Ullman,
 .I Compilers: Principles, Techniques and Tools,
-Addison-Wesley (1986).  Describes the pattern-matching techniques used by
+Addison-Wesley (1986).
+Describes the pattern-matching techniques used by
 .I flex
 (deterministic finite automata).
 .SH AUTHOR
 Vern Paxson, with the help of many ideas and much inspiration from
-Van Jacobson.  Original version by Jef Poskanzer.  The fast table
+Van Jacobson.
+Original version by Jef Poskanzer.
+The fast table
 representation is a partial implementation of a design done by Van
-Jacobson.  The implementation was done by Kevin Gong and Vern Paxson.
+Jacobson.
+The implementation was done by Kevin Gong and Vern Paxson.
 .PP
 Thanks to the many
 .I flex
@@ -4016,7 +4247,7 @@ Karl Berry, Peter A. Bigot, Simon Blanchard,
 Keith Bostic, Frederic Brehm, Ian Brockbank, Kin Cho, Nick Christopher,
 Brian Clapper, J.T. Conklin,
 Jason Coughlin, Bill Cox, Nick Cropper, Dave Curtis, Scott David
-Daniels, Chris G. Demetriou, Theo Deraadt,
+Daniels, Chris G. Demetriou, Theo de Raadt,
 Mike Donahue, Chuck Doucette, Tom Epperly, Leo Eskin,
 Chris Faylor, Chris Flatters, Jon Forrest, Jeffrey Friedl,
 Joe Gayda, Kaveh R. Ghazi, Wolfgang Glunz,
@@ -4061,7 +4292,7 @@ Epperly for C++ class support; to Ove Ewerlid for support of NUL's; and to
 Eric Hughes for support of multiple buffers.
 .PP
 This work was primarily done when I was with the Real Time Systems Group
-at the Lawrence Berkeley Laboratory in Berkeley, CA.  Many thanks to all there
-for the support I received.
+at the Lawrence Berkeley Laboratory in Berkeley, CA.
+Many thanks to all there for the support I received.
 .PP
 Send comments to vern@ee.lbl.gov.

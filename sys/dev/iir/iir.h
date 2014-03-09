@@ -63,7 +63,7 @@
 #define GDT_DEVICE_ID_MAX       0x2ff
 #define GDT_DEVICE_ID_NEWRX     0x300
 
-#define INTEL_VENDOR_ID         0x8086
+#define INTEL_VENDOR_ID_IIR     0x8086
 #define INTEL_DEVICE_ID_IIR     0x600
 
 #define GDT_MAXBUS              6       /* XXX Why not 5? */
@@ -684,6 +684,7 @@ struct gdt_ccb {
     union ccb   *gc_ccb;
     gdt_ucmd_t  *gc_ucmd;
     bus_dmamap_t gc_dmamap;
+    struct callout_handle gc_timeout_ch;
     int         gc_map_flag;
     int         gc_timeout;
     u_int8_t    gc_service;

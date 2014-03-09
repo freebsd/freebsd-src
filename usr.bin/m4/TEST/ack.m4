@@ -1,4 +1,4 @@
-#	$OpenBSD: ack.m4,v 1.2 1996/06/26 05:36:18 deraadt Exp $
+#	$OpenBSD: ack.m4,v 1.3 2003/06/03 02:56:11 millert Exp $
 #	$NetBSD: ack.m4,v 1.4 1995/09/28 05:37:54 tls Exp $
 #
 # Copyright (c) 1989, 1993
@@ -15,7 +15,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #

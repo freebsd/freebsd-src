@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -89,12 +89,13 @@ ddt_object_destroy(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
 	spa_t *spa = ddt->ddt_spa;
 	objset_t *os = ddt->ddt_os;
 	uint64_t *objectp = &ddt->ddt_object[type][class];
+	uint64_t count;
 	char name[DDT_NAMELEN];
 
 	ddt_object_name(ddt, type, class, name);
 
 	ASSERT(*objectp != 0);
-	ASSERT(ddt_object_count(ddt, type, class) == 0);
+	VERIFY(ddt_object_count(ddt, type, class, &count) == 0 && count == 0);
 	ASSERT(ddt_histogram_empty(&ddt->ddt_histogram[type][class]));
 	VERIFY(zap_remove(os, DMU_POOL_DIRECTORY_OBJECT, name, tx) == 0);
 	VERIFY(zap_remove(os, spa->spa_ddt_stat_object, name, tx) == 0);
@@ -109,6 +110,7 @@ ddt_object_load(ddt_t *ddt, enum ddt_type type, enum ddt_class class)
 {
 	ddt_object_t *ddo = &ddt->ddt_object_stats[type][class];
 	dmu_object_info_t doi;
+	uint64_t count;
 	char name[DDT_NAMELEN];
 	int error;
 
@@ -117,24 +119,27 @@ ddt_object_load(ddt_t *ddt, enum ddt_type type, enum ddt_class class)
 	error = zap_lookup(ddt->ddt_os, DMU_POOL_DIRECTORY_OBJECT, name,
 	    sizeof (uint64_t), 1, &ddt->ddt_object[type][class]);
 
-	if (error)
+	if (error != 0)
 		return (error);
 
-	error = zap_lookup(ddt->ddt_os, ddt->ddt_spa->spa_ddt_stat_object, name,
+	VERIFY0(zap_lookup(ddt->ddt_os, ddt->ddt_spa->spa_ddt_stat_object, name,
 	    sizeof (uint64_t), sizeof (ddt_histogram_t) / sizeof (uint64_t),
-	    &ddt->ddt_histogram[type][class]);
+	    &ddt->ddt_histogram[type][class]));
 
 	/*
 	 * Seed the cached statistics.
 	 */
 	VERIFY(ddt_object_info(ddt, type, class, &doi) == 0);
 
-	ddo->ddo_count = ddt_object_count(ddt, type, class);
+	error = ddt_object_count(ddt, type, class, &count);
+	if (error)
+		return error;
+
+	ddo->ddo_count = count;
 	ddo->ddo_dspace = doi.doi_physical_blocks_512 << 9;
 	ddo->ddo_mspace = doi.doi_fill_count * doi.doi_data_block_size;
 
-	ASSERT(error == 0);
-	return (error);
+	return (0);
 }
 
 static void
@@ -143,6 +148,7 @@ ddt_object_sync(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
 {
 	ddt_object_t *ddo = &ddt->ddt_object_stats[type][class];
 	dmu_object_info_t doi;
+	uint64_t count;
 	char name[DDT_NAMELEN];
 
 	ddt_object_name(ddt, type, class, name);
@@ -155,8 +161,9 @@ ddt_object_sync(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
 	 * Cache DDT statistics; this is the only time they'll change.
 	 */
 	VERIFY(ddt_object_info(ddt, type, class, &doi) == 0);
+	VERIFY(ddt_object_count(ddt, type, class, &count) == 0);
 
-	ddo->ddo_count = ddt_object_count(ddt, type, class);
+	ddo->ddo_count = count;
 	ddo->ddo_dspace = doi.doi_physical_blocks_512 << 9;
 	ddo->ddo_mspace = doi.doi_fill_count * doi.doi_data_block_size;
 }
@@ -166,7 +173,7 @@ ddt_object_lookup(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
     ddt_entry_t *dde)
 {
 	if (!ddt_object_exists(ddt, type, class))
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 
 	return (ddt_ops[type]->ddt_op_lookup(ddt->ddt_os,
 	    ddt->ddt_object[type][class], dde));
@@ -213,13 +220,13 @@ ddt_object_walk(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
 	    ddt->ddt_object[type][class], dde, walk));
 }
 
-uint64_t
-ddt_object_count(ddt_t *ddt, enum ddt_type type, enum ddt_class class)
+int
+ddt_object_count(ddt_t *ddt, enum ddt_type type, enum ddt_class class, uint64_t *count)
 {
 	ASSERT(ddt_object_exists(ddt, type, class));
 
 	return (ddt_ops[type]->ddt_op_count(ddt->ddt_os,
-	    ddt->ddt_object[type][class]));
+	    ddt->ddt_object[type][class], count));
 }
 
 int
@@ -227,7 +234,7 @@ ddt_object_info(ddt_t *ddt, enum ddt_type type, enum ddt_class class,
     dmu_object_info_t *doi)
 {
 	if (!ddt_object_exists(ddt, type, class))
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 
 	return (dmu_object_info(ddt->ddt_os, ddt->ddt_object[type][class],
 	    doi));
@@ -587,7 +594,10 @@ ddt_compress(void *src, uchar_t *dst, size_t s_len, size_t d_len)
 		bcopy(src, dst, s_len);
 	}
 
-	*version = (ZFS_HOST_BYTEORDER & DDT_COMPRESS_BYTEORDER_MASK) | cpfunc;
+	*version = cpfunc;
+	/* CONSTCOND */
+	if (ZFS_HOST_BYTEORDER)
+		*version |= DDT_COMPRESS_BYTEORDER_MASK;
 
 	return (c_len + 1);
 }
@@ -604,7 +614,8 @@ ddt_decompress(uchar_t *src, void *dst, size_t s_len, size_t d_len)
 	else
 		bcopy(src, dst, d_len);
 
-	if ((version ^ ZFS_HOST_BYTEORDER) & DDT_COMPRESS_BYTEORDER_MASK)
+	if (((version & DDT_COMPRESS_BYTEORDER_MASK) != 0) !=
+	    (ZFS_HOST_BYTEORDER != 0))
 		byteswap_uint64_array(dst, d_len);
 }
 
@@ -1079,11 +1090,13 @@ ddt_sync_table(ddt_t *ddt, dmu_tx_t *tx, uint64_t txg)
 	}
 
 	for (enum ddt_type type = 0; type < DDT_TYPES; type++) {
-		uint64_t count = 0;
+		uint64_t add, count = 0;
 		for (enum ddt_class class = 0; class < DDT_CLASSES; class++) {
 			if (ddt_object_exists(ddt, type, class)) {
 				ddt_object_sync(ddt, type, class, tx);
-				count += ddt_object_count(ddt, type, class);
+				VERIFY(ddt_object_count(ddt, type, class,
+				    &add) == 0);
+				count += add;
 			}
 		}
 		for (enum ddt_class class = 0; class < DDT_CLASSES; class++) {
@@ -1147,5 +1160,5 @@ ddt_walk(spa_t *spa, ddt_bookmark_t *ddb, ddt_entry_t *dde)
 		ddb->ddb_type = 0;
 	} while (++ddb->ddb_class < DDT_CLASSES);
 
-	return (ENOENT);
+	return (SET_ERROR(ENOENT));
 }

@@ -53,6 +53,20 @@ __FBSDID("$FreeBSD$");
 
 #include "kgdb.h"
 
+#ifdef CROSS_DEBUGGER
+/*
+ * We suppress the call to add_target() of core_ops in corelow.c because if
+ * there are multiple core_stratum targets, the find_core_target() function
+ * won't know which one to return and returns none. We need it to return
+ * our target. We only have to do that when we're building a cross-debugger
+ * because fbsd-threads.c is part of a native debugger and it too defines
+ * coreops_suppress_target with 1 as the initializer.
+ */
+int coreops_suppress_target = 1;
+#endif
+
+static CORE_ADDR stoppcbs;
+
 static void	kgdb_core_cleanup(void *);
 
 static char *vmcore;
@@ -351,4 +365,19 @@ initialize_kgdb_target(void)
 	   "Set current process context");
 	add_com ("tid", class_obscure, kgdb_set_tid_cmd,
 	   "Set current thread context");
+}
+
+CORE_ADDR
+kgdb_trgt_stop_pcb(u_int cpuid, u_int pcbsz)
+{
+	static int once = 0;
+
+	if (stoppcbs == 0 && !once) {
+		once = 1;
+		stoppcbs = kgdb_lookup("stoppcbs");
+	}
+	if (stoppcbs == 0)
+		return 0;
+
+	return (stoppcbs + pcbsz * cpuid);
 }

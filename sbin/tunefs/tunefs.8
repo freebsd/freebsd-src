@@ -42,6 +42,7 @@
 .Op Fl f Ar avgfilesize
 .Op Fl j Cm enable | disable
 .Op Fl J Cm enable | disable
+.Op Fl k Ar held-for-metadata-blocks
 .Op Fl L Ar volname
 .Op Fl l Cm enable | disable
 .Op Fl m Ar minfree
@@ -96,6 +97,19 @@ Specify the expected average file size.
 Turn on/off soft updates journaling.
 .It Fl J Cm enable | disable
 Turn on/off gjournal flag.
+.It Fl k Ar held-for-metadata-blocks
+Set the amount of space to be held for metadata blocks.
+When set, the file system preference routines will try to save
+the specified amount of space immediately following the inode blocks
+in each cylinder group for use by metadata blocks.
+Clustering the metadata blocks speeds up random file access
+and decreases the running time of
+.Xr fsck 8 .
+While this option can be set at any time,
+it is most effective if set before any data is loaded into the file system.
+By default
+.Xr newfs 8
+sets it to half of the space reserved to minfree.
 .It Fl L Ar volname
 Add/modify an optional file system volume label.
 .It Fl l Cm enable | disable

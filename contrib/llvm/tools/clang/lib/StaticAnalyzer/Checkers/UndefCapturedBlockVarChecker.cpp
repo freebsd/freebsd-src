@@ -12,11 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/Attr.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -67,18 +68,15 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
   for (; I != E; ++I) {
     // This VarRegion is the region associated with the block; we need
     // the one associated with the encompassing context.
-    const VarRegion *VR = *I;
+    const VarRegion *VR = I.getCapturedRegion();
     const VarDecl *VD = VR->getDecl();
 
     if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage())
       continue;
 
     // Get the VarRegion associated with VD in the local stack frame.
-    const LocationContext *LC = C.getLocationContext();
-    VR = C.getSValBuilder().getRegionManager().getVarRegion(VD, LC);
-    SVal VRVal = state->getSVal(VR);
-
-    if (VRVal.isUndef())
+    if (Optional<UndefinedVal> V =
+          state->getSVal(I.getOriginalRegion()).getAs<UndefinedVal>()) {
       if (ExplodedNode *N = C.generateSink()) {
         if (!BT)
           BT.reset(new BuiltinBug("uninitialized variable captured by block"));
@@ -93,11 +91,13 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
         BugReport *R = new BugReport(*BT, os.str(), N);
         if (const Expr *Ex = FindBlockDeclRefExpr(BE->getBody(), VD))
           R->addRange(Ex->getSourceRange());
-        R->addVisitor(new FindLastStoreBRVisitor(VRVal, VR));
+        R->addVisitor(new FindLastStoreBRVisitor(*V, VR,
+                                             /*EnableNullFPSuppression*/false));
         R->disablePathPruning();
         // need location of block
         C.emitReport(R);
       }
+    }
   }
 }
 

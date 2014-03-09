@@ -15,15 +15,17 @@
 #define MIPSTARGETMACHINE_H
 
 #include "MipsFrameLowering.h"
-#include "MipsInstrInfo.h"
 #include "MipsISelLowering.h"
+#include "MipsInstrInfo.h"
 #include "MipsJITInfo.h"
 #include "MipsSelectionDAGInfo.h"
 #include "MipsSubtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/DataLayout.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 class formatted_raw_ostream;
@@ -32,13 +34,18 @@ class MipsRegisterInfo;
 class MipsTargetMachine : public LLVMTargetMachine {
   MipsSubtarget       Subtarget;
   const DataLayout    DL; // Calculates type size & alignment
-  const MipsInstrInfo *InstrInfo;
-  const MipsFrameLowering *FrameLowering;
-  MipsTargetLowering  TLInfo;
+  OwningPtr<const MipsInstrInfo> InstrInfo;
+  OwningPtr<const MipsFrameLowering> FrameLowering;
+  OwningPtr<const MipsTargetLowering> TLInfo;
+  OwningPtr<const MipsInstrInfo> InstrInfo16;
+  OwningPtr<const MipsFrameLowering> FrameLowering16;
+  OwningPtr<const MipsTargetLowering> TLInfo16;
+  OwningPtr<const MipsInstrInfo> InstrInfoSE;
+  OwningPtr<const MipsFrameLowering> FrameLoweringSE;
+  OwningPtr<const MipsTargetLowering> TLInfoSE;
   MipsSelectionDAGInfo TSInfo;
+  const InstrItineraryData &InstrItins;
   MipsJITInfo JITInfo;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
 
 public:
   MipsTargetMachine(const Target &T, StringRef TT,
@@ -47,16 +54,23 @@ public:
                     CodeGenOpt::Level OL,
                     bool isLittle);
 
-  virtual ~MipsTargetMachine() { delete InstrInfo; }
+  virtual ~MipsTargetMachine() {}
+
+  virtual void addAnalysisPasses(PassManagerBase &PM);
 
   virtual const MipsInstrInfo *getInstrInfo() const
-  { return InstrInfo; }
+  { return InstrInfo.get(); }
   virtual const TargetFrameLowering *getFrameLowering() const
-  { return FrameLowering; }
+  { return FrameLowering.get(); }
   virtual const MipsSubtarget *getSubtargetImpl() const
   { return &Subtarget; }
   virtual const DataLayout *getDataLayout()    const
   { return &DL;}
+
+  virtual const InstrItineraryData *getInstrItineraryData() const {
+    return Subtarget.inMips16Mode() ? 0 : &InstrItins;
+  }
+
   virtual MipsJITInfo *getJITInfo()
   { return &JITInfo; }
 
@@ -65,23 +79,23 @@ public:
   }
 
   virtual const MipsTargetLowering *getTargetLowering() const {
-    return &TLInfo;
+    return TLInfo.get();
   }
 
   virtual const MipsSelectionDAGInfo* getSelectionDAGInfo() const {
     return &TSInfo;
   }
 
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
-
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE);
+
+  // Set helper classes
+  void setHelperClassesMips16();
+
+  void setHelperClassesMipsSE();
+
+
 };
 
 /// MipsebTargetMachine - Mips32/64 big endian target machine.

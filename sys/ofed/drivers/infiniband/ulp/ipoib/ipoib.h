@@ -52,6 +52,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -109,7 +110,8 @@ enum {
 	IPOIB_ENCAP_LEN		  = 4,
 	IPOIB_HEADER_LEN	  = IPOIB_ENCAP_LEN + INFINIBAND_ALEN,
 	IPOIB_UD_MAX_MTU	  = 4 * 1024,
-	IPOIB_UD_RX_SG		  = (IPOIB_UD_MAX_MTU / MJUMPAGESIZE),
+//	IPOIB_UD_RX_SG		  = (IPOIB_UD_MAX_MTU / MJUMPAGESIZE),
+	IPOIB_UD_RX_SG		  = 2,
 	IPOIB_UD_TX_SG		  = (IPOIB_UD_MAX_MTU / MCLBYTES) + 2,
 	IPOIB_CM_MAX_MTU	  = (64 * 1024),
 	IPOIB_CM_TX_SG		  = (IPOIB_CM_MAX_MTU / MCLBYTES) + 2,

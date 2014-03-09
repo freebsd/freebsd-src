@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+## Set the directory within which the release will be built.
+CHROOTDIR="/scratch"
+
+## Set the svn host.
+SVNROOT="svn://svn.FreeBSD.org/"
+
+## Set the src/, ports/, and doc/ branches or tags.
+SRCBRANCH="base/head@rHEAD"
+DOCBRANCH="doc/head@rHEAD"
+PORTBRANCH="ports/head@rHEAD"
+
+## Run svn co --force for src checkout.
+#SRC_FORCE_CHECKOUT=yes
+
+## Sample configuration for using git instead of svn.
+#VCSCMD="/usr/local/bin/git clone --branch master"
+#SVNROOT=""
+#SRCBRANCH="https://github.com/freebsd/freebsd"
+#DOCBRANCH="https://github.com/freebsd/freebsd-doc"
+#PORTBRANCH="https://github.com/freebsd/freebsd-ports"
+
+## Set to override the default target architecture.
+#TARGET="amd64"
+#TARGET_ARCH="amd64"
+#KERNEL="GENERIC"
+## Multiple kernels may be set.
+#KERNEL="GENERIC XENHVM"
+
+## Set to specify a custom make.conf and/or src.conf
+#MAKE_CONF="/etc/local/make.conf"
+#SRC_CONF="/etc/local/src.conf"
+
+## Set to use make(1) flags.
+#MAKE_FLAGS="-s"
+
+## Set to use world- and kernel-specific make(1) flags.
+#WORLD_FLAGS="-j $(sysctl -n hw.ncpu)"
+#KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
+
+## Set miscellaneous 'make release' settings.
+#NODOC=
+#NOPORTS=
+#WITH_DVD=
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to skip the chroot environment buildworld/installworld/distribution
+## step if it is expected the build environment will exist via alternate
+## means.
+#CHROOTBUILD_SKIP=
+
+## Set to pass additional flags to make(1) for the build chroot setup, such
+## as TARGET/TARGET_ARCH.
+#CHROOT_MAKEENV=
+

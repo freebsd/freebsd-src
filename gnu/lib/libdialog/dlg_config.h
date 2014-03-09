@@ -5,9 +5,12 @@
  * $FreeBSD$
  */
 
-#define DIALOG_PATCHDATE 20100428
-#define DIALOG_VERSION "1.1"
+#define CURSES_WACS_ARRAY _nc_wacs
+#define CURSES_WACS_SYMBOLS 1
+#define DIALOG_PATCHDATE 20130923
+#define DIALOG_VERSION "1.2"
 #define HAVE_ALLOCA 1
+#define HAVE_BTOWC 1
 #define HAVE_COLOR 1
 #define HAVE_DIRENT_H 1
 #define HAVE_DLG_FORMBOX 1
@@ -18,6 +21,7 @@
 #define HAVE_FEOF_UNLOCKED 1
 #define HAVE_FLUSHINP 1
 #define HAVE_FSEEKO 1
+#define HAVE_GETATTRS 1
 #define HAVE_GETBEGX 1
 #define HAVE_GETBEGY 1
 #define HAVE_GETBEGYX 1
@@ -42,7 +46,11 @@
 #define HAVE_LIBNCURSESW 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LOCALE_H 1
+#define HAVE_MBLEN 1
+#define HAVE_MBRLEN 1
+#define HAVE_MBRTOWC 1
 #define HAVE_MBSTATE_T 1
+#define HAVE_MBTOWC 1
 #define HAVE_MEMORY_H 1
 #define HAVE_MIXEDGAUGE 1
 #define HAVE_MMAP 1
@@ -75,8 +83,17 @@
 #define HAVE_UNISTD_H 1
 #define HAVE_USE_DEFAULT_COLORS 1
 #define HAVE_WAITPID 1
-#define HAVE_WGET_WCH 1
+#define HAVE_WCHGAT 1
+#define HAVE_WCSRTOMBS 1
+#define HAVE_WCSTOMBS 1
+#define HAVE_WCTOB 1
+#define HAVE_WCTOMB 1
+#define HAVE_WCURSYNCUP 1
+#define HAVE_WGETPARENT 1
+#define HAVE_WHIPTAIL 1
+#define HAVE_WSYNCUP 1
 #define HAVE_XDIALOG 1
+#define HAVE_XDIALOG2 1
 #define HAVE__NC_FREE_AND_EXIT 1
 #define ICONV_CONST const
 #define MIXEDCASE_FILENAMES 1
@@ -85,7 +102,7 @@
 #define PACKAGE "dialog"
 #define RETSIGTYPE void
 #define STDC_HEADERS 1
-#define SYSTEM_NAME "freebsd9.0"
+#define SYSTEM_NAME "freebsd10.0"
 #define TIME_WITH_SYS_TIME 1
 #define TYPE_CHTYPE_IS_SCALAR 1
 #define USE_WIDE_CURSES 1

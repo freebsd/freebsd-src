@@ -16,9 +16,9 @@
 #ifndef LLVM_ADT_FOLDINGSET_H
 #define LLVM_ADT_FOLDINGSET_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
   class APFloat;
@@ -352,7 +352,8 @@ template<class T> class FoldingSetBucketIterator;
 template<typename T>
 inline bool
 DefaultFoldingSetTrait<T>::Equals(T &X, const FoldingSetNodeID &ID,
-                                  unsigned IDHash, FoldingSetNodeID &TempID) {
+                                  unsigned /*IDHash*/,
+                                  FoldingSetNodeID &TempID) {
   FoldingSetTrait<T>::Profile(X, TempID);
   return TempID == ID;
 }
@@ -366,7 +367,7 @@ template<typename T, typename Ctx>
 inline bool
 DefaultContextualFoldingSetTrait<T, Ctx>::Equals(T &X,
                                                  const FoldingSetNodeID &ID,
-                                                 unsigned IDHash,
+                                                 unsigned /*IDHash*/,
                                                  FoldingSetNodeID &TempID,
                                                  Ctx Context) {
   ContextualFoldingSetTrait<T, Ctx>::Profile(X, TempID, Context);

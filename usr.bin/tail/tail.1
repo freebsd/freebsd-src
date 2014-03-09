@@ -31,7 +31,7 @@
 .\"	@(#)tail.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2009
+.Dd March 16, 2013
 .Dt TAIL 1
 .Os
 .Sh NAME
@@ -147,6 +147,17 @@ is the name of the file unless
 flag is specified.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+To display the last 500 lines of the file
+.Ar foo :
+.Pp
+.Dl $ tail -n 500 foo
+.Pp
+Keep
+.Pa /var/log/messages
+open, displaying to the standard output anything appended to the file:
+.Pp
+.Dl $ tail -f /var/log/messages
 .Sh SEE ALSO
 .Xr cat 1 ,
 .Xr head 1 ,

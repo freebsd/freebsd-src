@@ -55,7 +55,7 @@ terasic_mtl_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Terasic Multi-touch LCD (MTL)");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -189,8 +189,6 @@ static driver_t terasic_mtl_nexus_driver = {
 	terasic_mtl_nexus_methods,
 	sizeof(struct terasic_mtl_softc),
 };
-
-static devclass_t terasic_mtl_devclass;
 
 DRIVER_MODULE(mtl, nexus, terasic_mtl_nexus_driver, terasic_mtl_devclass, 0,
     0);

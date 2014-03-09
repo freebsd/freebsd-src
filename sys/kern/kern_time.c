@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -97,9 +98,6 @@ static int	realtimer_settime(struct itimer *, int,
 static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
-static int	kern_timer_create(struct thread *, clockid_t,
-			struct sigevent *, int *, int);
-static int	kern_timer_delete(struct thread *, int);
 
 int		register_posix_clock(int, struct kclock *);
 void		itimer_fire(struct itimer *it);
@@ -182,38 +180,46 @@ int
 sys_clock_getcpuclockid2(struct thread *td, struct clock_getcpuclockid2_args *uap)
 {
 	clockid_t clk_id;
+	int error;
+
+	error = kern_clock_getcpuclockid2(td, uap->id, uap->which, &clk_id);
+	if (error == 0)
+		error = copyout(&clk_id, uap->clock_id, sizeof(clockid_t));
+	return (error);
+}
+
+int
+kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
+    clockid_t *clk_id)
+{
 	struct proc *p;
 	pid_t pid;
 	lwpid_t tid;
 	int error;
 
-	switch(uap->which) {
+	switch (which) {
 	case CPUCLOCK_WHICH_PID:
-		if (uap->id != 0) {
-			p = pfind(uap->id);
+		if (id != 0) {
+			p = pfind(id);
 			if (p == NULL)
 				return (ESRCH);
 			error = p_cansee(td, p);
 			PROC_UNLOCK(p);
-			if (error)
+			if (error != 0)
 				return (error);
-			pid = uap->id;
+			pid = id;
 		} else {
 			pid = td->td_proc->p_pid;
 		}
-		clk_id = MAKE_PROCESS_CPUCLOCK(pid);
-		break;
+		*clk_id = MAKE_PROCESS_CPUCLOCK(pid);
+		return (0);
 	case CPUCLOCK_WHICH_TID:
-		if (uap->id == 0)
-			tid = td->td_tid;
-		else
-			tid = uap->id;
-		clk_id = MAKE_THREAD_CPUCLOCK(tid);
-		break;
+		tid = id == 0 ? td->td_tid : id;
+		*clk_id = MAKE_THREAD_CPUCLOCK(tid);
+		return (0);
 	default:
 		return (EINVAL);
 	}
-	return (copyout(&clk_id, uap->clock_id, sizeof(clockid_t)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -296,14 +302,9 @@ get_cputime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		PROC_UNLOCK(td2->td_proc);
 	} else {
 		pid = clock_id & CPUCLOCK_ID_MASK;
-		p2 = pfind(pid);
-		if (p2 == NULL)
+		error = pget(pid, PGET_CANSEE, &p2);
+		if (error != 0)
 			return (EINVAL);
-		error = p_cansee(td, p2);
-		if (error) {
-			PROC_UNLOCK(p2);
-			return (EINVAL);
-		}
 		get_process_cputime(p2, ats);
 		PROC_UNLOCK(p2);
 	}
@@ -476,43 +477,50 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	return (0);
 }
 
-static int nanowait;
+static uint8_t nanowait[MAXCPU];
 
 int
 kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec ts;
+	sbintime_t sbt, sbtt, prec, tmp;
+	time_t over;
 	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
-	getnanouptime(&ts);
-	timespecadd(&ts, rqt);
-	TIMESPEC_TO_TIMEVAL(&tv, rqt);
-	for (;;) {
-		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp",
-		    tvtohz(&tv));
-		getnanouptime(&ts2);
-		if (error != EWOULDBLOCK) {
-			if (error == ERESTART)
-				error = EINTR;
-			if (rmt != NULL) {
-				timespecsub(&ts, &ts2);
-				if (ts.tv_sec < 0)
-					timespecclear(&ts);
-				*rmt = ts;
-			}
-			return (error);
+	ts = *rqt;
+	if (ts.tv_sec > INT32_MAX / 2) {
+		over = ts.tv_sec - INT32_MAX / 2;
+		ts.tv_sec -= over;
+	} else
+		over = 0;
+	tmp = tstosbt(ts);
+	prec = tmp;
+	prec >>= tc_precexp;
+	if (TIMESEL(&sbt, tmp))
+		sbt += tc_tick_sbt;
+	sbt += tmp;
+	error = tsleep_sbt(&nanowait[curcpu], PWAIT | PCATCH, "nanslp",
+	    sbt, prec, C_ABSOLUTE);
+	if (error != EWOULDBLOCK) {
+		if (error == ERESTART)
+			error = EINTR;
+		TIMESEL(&sbtt, tmp);
+		if (rmt != NULL) {
+			ts = sbttots(sbt - sbtt);
+			ts.tv_sec += over;
+			if (ts.tv_sec < 0)
+				timespecclear(&ts);
+			*rmt = ts;
 		}
-		if (timespeccmp(&ts2, &ts, >=))
+		if (sbtt >= sbt)
 			return (0);
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		return (error);
 	}
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -683,7 +691,7 @@ kern_getitimer(struct thread *td, u_int which, struct itimerval *aitv)
 		*aitv = p->p_realtimer;
 		PROC_UNLOCK(p);
 		if (timevalisset(&aitv->it_value)) {
-			getmicrouptime(&ctv);
+			microuptime(&ctv);
 			if (timevalcmp(&aitv->it_value, &ctv, <))
 				timevalclear(&aitv->it_value);
 			else
@@ -728,28 +736,33 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 {
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
+	sbintime_t sbt, pr;
 
 	if (aitv == NULL)
 		return (kern_getitimer(td, which, oitv));
 
 	if (which > ITIMER_PROF)
 		return (EINVAL);
-	if (itimerfix(&aitv->it_value))
+	if (itimerfix(&aitv->it_value) ||
+	    aitv->it_value.tv_sec > INT32_MAX / 2)
 		return (EINVAL);
 	if (!timevalisset(&aitv->it_value))
 		timevalclear(&aitv->it_interval);
-	else if (itimerfix(&aitv->it_interval))
+	else if (itimerfix(&aitv->it_interval) ||
+	    aitv->it_interval.tv_sec > INT32_MAX / 2)
 		return (EINVAL);
 
 	if (which == ITIMER_REAL) {
 		PROC_LOCK(p);
 		if (timevalisset(&p->p_realtimer.it_value))
 			callout_stop(&p->p_itcallout);
-		getmicrouptime(&ctv);
+		microuptime(&ctv);
 		if (timevalisset(&aitv->it_value)) {
-			callout_reset(&p->p_itcallout, tvtohz(&aitv->it_value),
-			    realitexpire, p);
+			pr = tvtosbt(aitv->it_value) >> tc_precexp;
 			timevaladd(&aitv->it_value, &ctv);
+			sbt = tvtosbt(aitv->it_value);
+			callout_reset_sbt(&p->p_itcallout, sbt, pr,
+			    realitexpire, p, C_ABSOLUTE);
 		}
 		*oitv = p->p_realtimer;
 		p->p_realtimer = *aitv;
@@ -785,7 +798,8 @@ void
 realitexpire(void *arg)
 {
 	struct proc *p;
-	struct timeval ctv, ntv;
+	struct timeval ctv;
+	sbintime_t isbt;
 
 	p = (struct proc *)arg;
 	kern_psignal(p, SIGALRM);
@@ -795,19 +809,17 @@ realitexpire(void *arg)
 			wakeup(&p->p_itcallout);
 		return;
 	}
-	for (;;) {
+	isbt = tvtosbt(p->p_realtimer.it_interval);
+	if (isbt >= sbt_timethreshold)
+		getmicrouptime(&ctv);
+	else
+		microuptime(&ctv);
+	do {
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
-		getmicrouptime(&ctv);
-		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
-			ntv = p->p_realtimer.it_value;
-			timevalsub(&ntv, &ctv);
-			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
-			    realitexpire, p);
-			return;
-		}
-	}
-	/*NOTREACHED*/
+	} while (timevalcmp(&p->p_realtimer.it_value, &ctv, <=));
+	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
+	    isbt >> tc_precexp, realitexpire, p, C_ABSOLUTE);
 }
 
 /*
@@ -822,8 +834,9 @@ itimerfix(struct timeval *tv)
 
 	if (tv->tv_sec < 0 || tv->tv_usec < 0 || tv->tv_usec >= 1000000)
 		return (EINVAL);
-	if (tv->tv_sec == 0 && tv->tv_usec != 0 && tv->tv_usec < tick)
-		tv->tv_usec = tick;
+	if (tv->tv_sec == 0 && tv->tv_usec != 0 &&
+	    tv->tv_usec < (u_int)tick / 16)
+		tv->tv_usec = (u_int)tick / 16;
 	return (0);
 }
 
@@ -1051,31 +1064,30 @@ struct ktimer_create_args {
 int
 sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 {
-	struct sigevent *evp1, ev;
+	struct sigevent *evp, ev;
 	int id;
 	int error;
 
-	if (uap->evp != NULL) {
+	if (uap->evp == NULL) {
+		evp = NULL;
+	} else {
 		error = copyin(uap->evp, &ev, sizeof(ev));
 		if (error != 0)
 			return (error);
-		evp1 = &ev;
-	} else
-		evp1 = NULL;
-
-	error = kern_timer_create(td, uap->clock_id, evp1, &id, -1);
-
+		evp = &ev;
+	}
+	error = kern_ktimer_create(td, uap->clock_id, evp, &id, -1);
 	if (error == 0) {
 		error = copyout(&id, uap->timerid, sizeof(int));
 		if (error != 0)
-			kern_timer_delete(td, id);
+			kern_ktimer_delete(td, id);
 	}
 	return (error);
 }
 
-static int
-kern_timer_create(struct thread *td, clockid_t clock_id,
-	struct sigevent *evp, int *timerid, int preset_id)
+int
+kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
+    int *timerid, int preset_id)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1190,7 +1202,8 @@ struct ktimer_delete_args {
 int
 sys_ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 {
-	return (kern_timer_delete(td, uap->timerid));
+
+	return (kern_ktimer_delete(td, uap->timerid));
 }
 
 static struct itimer *
@@ -1212,8 +1225,8 @@ itimer_find(struct proc *p, int timerid)
 	return (it);
 }
 
-static int
-kern_timer_delete(struct thread *td, int timerid)
+int
+kern_ktimer_delete(struct thread *td, int timerid)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1255,35 +1268,40 @@ struct ktimer_settime_args {
 int
 sys_ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct itimer *it;
 	struct itimerspec val, oval, *ovalp;
 	int error;
 
 	error = copyin(uap->value, &val, sizeof(val));
 	if (error != 0)
 		return (error);
-	
-	if (uap->ovalue != NULL)
-		ovalp = &oval;
-	else
-		ovalp = NULL;
+	ovalp = uap->ovalue != NULL ? &oval : NULL;
+	error = kern_ktimer_settime(td, uap->timerid, uap->flags, &val, ovalp);
+	if (error == 0 && uap->ovalue != NULL)
+		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
+	return (error);
+}
 
+int
+kern_ktimer_settime(struct thread *td, int timer_id, int flags,
+    struct itimerspec *val, struct itimerspec *oval)
+{
+	struct proc *p;
+	struct itimer *it;
+	int error;
+
+	p = td->td_proc;
 	PROC_LOCK(p);
-	if (uap->timerid < 3 ||
-	    (it = itimer_find(p, uap->timerid)) == NULL) {
+	if (timer_id < 3 || (it = itimer_find(p, timer_id)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
 		PROC_UNLOCK(p);
 		itimer_enter(it);
-		error = CLOCK_CALL(it->it_clockid, timer_settime,
-				(it, uap->flags, &val, ovalp));
+		error = CLOCK_CALL(it->it_clockid, timer_settime, (it,
+		    flags, val, oval));
 		itimer_leave(it);
 		ITIMER_UNLOCK(it);
 	}
-	if (error == 0 && uap->ovalue != NULL)
-		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
 	return (error);
 }
 
@@ -1296,26 +1314,34 @@ struct ktimer_gettime_args {
 int
 sys_ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct itimer *it;
 	struct itimerspec val;
 	int error;
 
+	error = kern_ktimer_gettime(td, uap->timerid, &val);
+	if (error == 0)
+		error = copyout(&val, uap->value, sizeof(val));
+	return (error);
+}
+
+int
+kern_ktimer_gettime(struct thread *td, int timer_id, struct itimerspec *val)
+{
+	struct proc *p;
+	struct itimer *it;
+	int error;
+
+	p = td->td_proc;
 	PROC_LOCK(p);
-	if (uap->timerid < 3 ||
-	   (it = itimer_find(p, uap->timerid)) == NULL) {
+	if (timer_id < 3 || (it = itimer_find(p, timer_id)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
 		PROC_UNLOCK(p);
 		itimer_enter(it);
-		error = CLOCK_CALL(it->it_clockid, timer_gettime,
-				(it, &val));
+		error = CLOCK_CALL(it->it_clockid, timer_gettime, (it, val));
 		itimer_leave(it);
 		ITIMER_UNLOCK(it);
 	}
-	if (error == 0)
-		error = copyout(&val, uap->value, sizeof(val));
 	return (error);
 }
 
@@ -1610,7 +1636,7 @@ itimers_event_hook_exit(void *arg, struct proc *p)
 			panic("unhandled event");
 		for (; i < TIMER_MAX; ++i) {
 			if ((it = its->its_timers[i]) != NULL)
-				kern_timer_delete(curthread, i);
+				kern_ktimer_delete(curthread, i);
 		}
 		if (its->its_timers[0] == NULL &&
 		    its->its_timers[1] == NULL &&

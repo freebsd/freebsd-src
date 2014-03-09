@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd June 20, 2013
 .Dt RWLOCK 9
 .Os
 .Sh NAME
@@ -254,7 +254,7 @@ with
 and
 .Cd "options INVARIANT_SUPPORT" ,
 the kernel will panic.
-Currently the following assertions are supported:
+Currently the following base assertions are supported:
 .Bl -tag -width ".Dv RA_UNLOCKED"
 .It Dv RA_LOCKED
 Assert that current thread holds either a shared or exclusive lock
@@ -268,6 +268,20 @@ Assert that current thread holds an exclusive lock of
 .Fa rw .
 .It Dv RA_UNLOCKED
 Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rw .
+.El
+.Pp
+In addition, one of the following optional flags may be specified with
+.Dv RA_LOCKED ,
+.Dv RA_RLOCKED ,
+or
+.Dv RA_WLOCKED :
+.Bl -tag -width ".Dv RA_NOTRECURSED"
+.It Dv RA_RECURSED
+Assert that the current thread holds a recursive lock of
+.Fa rw .
+.It Dv RA_NOTRECURSED
+Assert that the current thread does not hold a recursive lock of
 .Fa rw .
 .El
 .El

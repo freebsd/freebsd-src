@@ -195,12 +195,12 @@ extern struct ia64_lpte ***ia64_kptdir;
 
 vm_offset_t kernel_vm_end;
 
-/* Values for ptc.e. XXX values for SKI. */
-static uint64_t pmap_ptc_e_base = 0x100000000;
-static uint64_t pmap_ptc_e_count1 = 3;
-static uint64_t pmap_ptc_e_count2 = 2;
-static uint64_t pmap_ptc_e_stride1 = 0x2000;
-static uint64_t pmap_ptc_e_stride2 = 0x100000000;
+/* Defaults for ptc.e. */
+static uint64_t pmap_ptc_e_base = 0;
+static uint32_t pmap_ptc_e_count1 = 1;
+static uint32_t pmap_ptc_e_count2 = 1;
+static uint32_t pmap_ptc_e_stride1 = 0;
+static uint32_t pmap_ptc_e_stride2 = 0;
 
 struct mtx pmap_ptc_mutex;
 
@@ -262,7 +262,6 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
 static void	pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va);
-static void	pmap_invalidate_all(void);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
 static int	pmap_remove_vhpt(vm_offset_t va);
@@ -325,12 +324,12 @@ pmap_bootstrap()
 		panic("Can't configure ptc.e parameters");
 	pmap_ptc_e_base = res.pal_result[0];
 	pmap_ptc_e_count1 = res.pal_result[1] >> 32;
-	pmap_ptc_e_count2 = res.pal_result[1] & ((1L<<32) - 1);
+	pmap_ptc_e_count2 = res.pal_result[1];
 	pmap_ptc_e_stride1 = res.pal_result[2] >> 32;
-	pmap_ptc_e_stride2 = res.pal_result[2] & ((1L<<32) - 1);
+	pmap_ptc_e_stride2 = res.pal_result[2];
 	if (bootverbose)
-		printf("ptc.e base=0x%lx, count1=%ld, count2=%ld, "
-		       "stride1=0x%lx, stride2=0x%lx\n",
+		printf("ptc.e base=0x%lx, count1=%u, count2=%u, "
+		       "stride1=0x%x, stride2=0x%x\n",
 		       pmap_ptc_e_base,
 		       pmap_ptc_e_count1,
 		       pmap_ptc_e_count2,
@@ -387,7 +386,7 @@ pmap_bootstrap()
 	 */
 	ia64_kptdir = ia64_physmem_alloc(PAGE_SIZE, PAGE_SIZE);
 	nkpt = 0;
-	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
+	kernel_vm_end = VM_INIT_KERNEL_ADDRESS;
 
 	/*
 	 * Determine a valid (mappable) VHPT size.
@@ -425,7 +424,7 @@ pmap_bootstrap()
 	ia64_set_pta(base + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
-	virtual_avail = VM_MIN_KERNEL_ADDRESS;
+	virtual_avail = VM_INIT_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
@@ -537,13 +536,12 @@ pmap_invalidate_page(vm_offset_t va)
 	critical_exit();
 }
 
-static void
-pmap_invalidate_all_1(void *arg)
+void
+pmap_invalidate_all(void)
 {
 	uint64_t addr;
 	int i, j;
 
-	critical_enter();
 	addr = pmap_ptc_e_base;
 	for (i = 0; i < pmap_ptc_e_count1; i++) {
 		for (j = 0; j < pmap_ptc_e_count2; j++) {
@@ -552,20 +550,7 @@ pmap_invalidate_all_1(void *arg)
 		}
 		addr += pmap_ptc_e_stride1;
 	}
-	critical_exit();
-}
-
-static void
-pmap_invalidate_all(void)
-{
-
-#ifdef SMP
-	if (mp_ncpus > 1) {
-		smp_rendezvous(NULL, pmap_invalidate_all_1, NULL, NULL);
-		return;
-	}
-#endif
-	pmap_invalidate_all_1(NULL);
+	ia64_srlz_i();
 }
 
 static uint32_t
@@ -622,6 +607,8 @@ pmap_free_rid(uint32_t rid)
 void
 pmap_pinit0(struct pmap *pmap)
 {
+
+	PMAP_LOCK_INIT(pmap);
 	/* kernel_pmap is the same as any other pmap. */
 	pmap_pinit(pmap);
 }
@@ -635,7 +622,6 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -660,7 +646,6 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -1318,6 +1303,8 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 
 	pte->itir = PAGE_SHIFT << 2;
 
+	ia64_mf();
+
 	pte->tag = ia64_ttag(va);
 }
 
@@ -1336,8 +1323,8 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	 * First remove from the VHPT.
 	 */
 	error = pmap_remove_vhpt(va);
-	if (error)
-		return (error);
+	KASSERT(error == 0, ("%s: pmap_remove_vhpt returned %d",
+	    __func__, error));
 
 	pmap_invalidate_page(va);
 
@@ -1383,7 +1370,7 @@ pmap_kextract(vm_offset_t va)
 	/* Region 5 is our KVA. Bail out if the VA is beyond our limits. */
 	if (va >= kernel_vm_end)
 		goto err_out;
-	if (va >= VM_MIN_KERNEL_ADDRESS) {
+	if (va >= VM_INIT_KERNEL_ADDRESS) {
 		pte = pmap_find_kpte(va);
 		pa = pmap_present(pte) ? pmap_ppn(pte) | (va & PAGE_MASK) : 0;
 		goto out;
@@ -1677,7 +1664,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || vm_page_xbusied(m),
 	    ("pmap_enter: page %p is not busy", m));
 
 	/*
@@ -1802,7 +1789,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
-	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	m = m_start;
 	rw_wlock(&pvh_global_lock);
@@ -1893,7 +1881,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -2014,6 +2002,32 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	bcopy(src, dst, PAGE_SIZE);
 }
 
+int unmapped_buf_allowed;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)pmap_page_to_va(ma[a_offset >> PAGE_SHIFT]) +
+		    a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)pmap_page_to_va(mb[b_offset >> PAGE_SHIFT]) +
+		    b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
@@ -2091,19 +2105,16 @@ pmap_remove_pages(pmap_t pmap)
 {
 	struct pv_chunk *pc, *npc;
 	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 	vm_offset_t va;
 	vm_page_t m;
 	u_long inuse, bitmask;
 	int allfree, bit, field, idx;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: %s called with non-current pmap\n",
-		    __func__);
-		return;
-	}
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
@@ -2143,8 +2154,9 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	rw_wunlock(&pvh_global_lock);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
 }
 
 /*
@@ -2207,13 +2219,12 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can be dirty.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2284,6 +2295,50 @@ pmap_is_referenced(vm_page_t m)
 }
 
 /*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
+	vm_page_t m;
+
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
+	for (; sva < eva; sva += PAGE_SIZE) {
+		/* If page is invalid, skip this page. */
+		pte = pmap_find_vhpt(sva);
+		if (pte == NULL)
+			continue;
+
+		/* If it isn't managed, skip it too. */
+		if (!pmap_managed(pte))
+			continue;
+
+		/* Clear its modified and referenced bits. */
+		if (pmap_dirty(pte)) {
+			if (advice == MADV_DONTNEED) {
+				/*
+				 * Future calls to pmap_is_modified() can be
+				 * avoided by making the page dirty now.
+				 */
+				m = PHYS_TO_VM_PAGE(pmap_ppn(pte));
+				vm_page_dirty(m);
+			}
+			pmap_clear_dirty(pte);
+		} else if (!pmap_accessed(pte))
+			continue;
+		pmap_clear_accessed(pte);
+		pmap_invalidate_page(sva);
+	}
+	pmap_switch(oldpmap);
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
@@ -2295,14 +2350,14 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("pmap_clear_modify: page %p is busy", m));
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	KASSERT(!vm_page_xbusied(m),
+	    ("pmap_clear_modify: page %p is exclusive busied", m));
 
 	/*
 	 * If the page is not PGA_WRITEABLE, then no PTEs can be modified.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
+	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -2315,37 +2370,6 @@ pmap_clear_modify(vm_page_t m)
 		KASSERT(pte != NULL, ("pte"));
 		if (pmap_dirty(pte)) {
 			pmap_clear_dirty(pte);
-			pmap_invalidate_page(pv->pv_va);
-		}
-		pmap_switch(oldpmap);
-		PMAP_UNLOCK(pmap);
-	}
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct ia64_lpte *pte;
-	pmap_t oldpmap, pmap;
-	pv_entry_t pv;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		oldpmap = pmap_switch(pmap);
-		pte = pmap_find_vhpt(pv->pv_va);
-		KASSERT(pte != NULL, ("pte"));
-		if (pmap_accessed(pte)) {
-			pmap_clear_accessed(pte);
 			pmap_invalidate_page(pv->pv_va);
 		}
 		pmap_switch(oldpmap);
@@ -2369,13 +2393,12 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no page table entries need updating.
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
+	 * set by another thread while the object is locked.  Thus,
+	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2424,7 +2447,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
 	if (md == NULL) {
 		printf("%s: [%#lx..%#lx] not covered by memory descriptor\n",
 		    __func__, pa, pa + sz - 1);
-		return (NULL);
+		return ((void *)IA64_PHYS_TO_RR6(pa));
 	}
 
 	if (md->md_type == EFI_MD_TYPE_FREE) {
@@ -2746,7 +2769,7 @@ DB_COMMAND(kpte, db_kpte)
 		db_printf("usage: kpte <kva>\n");
 		return;
 	}
-	if (addr < VM_MIN_KERNEL_ADDRESS) {
+	if (addr < VM_INIT_KERNEL_ADDRESS) {
 		db_printf("kpte: error: invalid <kva>\n");
 		return;
 	}

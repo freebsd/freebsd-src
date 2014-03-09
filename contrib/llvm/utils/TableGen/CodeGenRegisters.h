@@ -16,17 +16,17 @@
 #define CODEGEN_REGISTERS_H
 
 #include "SetTheory.h"
-#include "llvm/TableGen/Record.h"
-#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TableGen/Record.h"
 #include <cstdlib>
 #include <map>
-#include <string>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace llvm {
@@ -39,8 +39,14 @@ namespace llvm {
     std::string Namespace;
 
   public:
+    uint16_t Size;
+    uint16_t Offset;
     const unsigned EnumValue;
     unsigned LaneMask;
+
+    // Are all super-registers containing this SubRegIndex covered by their
+    // sub-registers?
+    bool AllSuperRegsCovered;
 
     CodeGenSubRegIndex(Record *R, unsigned Enum);
     CodeGenSubRegIndex(StringRef N, StringRef Nspace, unsigned Enum);
@@ -75,6 +81,15 @@ namespace llvm {
       assert(A && B);
       std::pair<CompMap::iterator, bool> Ins =
         Composed.insert(std::make_pair(A, B));
+      // Synthetic subreg indices that aren't contiguous (for instance ARM
+      // register tuples) don't have a bit range, so it's OK to let
+      // B->Offset == -1. For the other cases, accumulate the offset and set
+      // the size here. Only do so if there is no offset yet though.
+      if ((Offset != (uint16_t)-1 && A->Offset != (uint16_t)-1) &&
+          (B->Offset == (uint16_t)-1)) {
+        B->Offset = Offset + A->Offset;
+        B->Size = A->Size;
+      }
       return (Ins.second || Ins.first->second == B) ? 0 : Ins.first->second;
     }
 
@@ -201,9 +216,6 @@ namespace llvm {
     // Canonically ordered set.
     typedef std::set<const CodeGenRegister*, Less> Set;
 
-    // Compute the set of registers overlapping this.
-    void computeOverlaps(Set &Overlaps, const CodeGenRegBank&) const;
-
   private:
     bool SubRegsComplete;
     bool SuperRegsComplete;
@@ -261,7 +273,7 @@ namespace llvm {
   public:
     unsigned EnumValue;
     std::string Namespace;
-    std::vector<MVT::SimpleValueType> VTs;
+    SmallVector<MVT::SimpleValueType, 4> VTs;
     unsigned SpillSize;
     unsigned SpillAlignment;
     int CopyCost;
@@ -274,7 +286,7 @@ namespace llvm {
 
     const std::string &getName() const { return Name; }
     std::string getQualifiedName() const;
-    const std::vector<MVT::SimpleValueType> &getValueTypes() const {return VTs;}
+    ArrayRef<MVT::SimpleValueType> getValueTypes() const {return VTs;}
     unsigned getNumValueTypes() const { return VTs.size(); }
 
     MVT::SimpleValueType getValueTypeNum(unsigned VTNum) const {
@@ -403,7 +415,11 @@ namespace llvm {
     // these two registers and their super-registers.
     const CodeGenRegister *Roots[2];
 
-    RegUnit() : Weight(0) { Roots[0] = Roots[1] = 0; }
+    // Index into RegClassUnitSets where we can find the list of UnitSets that
+    // contain this unit.
+    unsigned RegClassUnitSetsIdx;
+
+    RegUnit() : Weight(0), RegClassUnitSetsIdx(0) { Roots[0] = Roots[1] = 0; }
 
     ArrayRef<const CodeGenRegister*> getRoots() const {
       assert(!(Roots[1] && !Roots[0]) && "Invalid roots array");
@@ -417,6 +433,10 @@ namespace llvm {
 
     std::string Name;
     std::vector<unsigned> Units;
+    unsigned Weight; // Cache the sum of all unit weights.
+    unsigned Order;  // Cache the sort key.
+
+    RegUnitSet() : Weight(0), Order(0) {}
   };
 
   // Base vector for identifying TopoSigs. The contents uniquely identify a
@@ -462,7 +482,14 @@ namespace llvm {
 
     // Map RegisterClass index to the index of the RegUnitSet that contains the
     // class's units and any inferred RegUnit supersets.
+    //
+    // NOTE: This could grow beyond the number of register classes when we map
+    // register units to lists of unit sets. If the list of unit sets does not
+    // already exist for a register class, we create a new entry in this vector.
     std::vector<std::vector<unsigned> > RegClassUnitSets;
+
+    // Give each register unit set an order based on sorting criteria.
+    std::vector<unsigned> RegUnitSetOrder;
 
     // Add RC to *2RC maps.
     void addToMaps(CodeGenRegisterClass*);
@@ -514,10 +541,10 @@ namespace llvm {
     // Find or create a sub-register index representing the concatenation of
     // non-overlapping sibling indices.
     CodeGenSubRegIndex *
-      getConcatSubRegIndex(const SmallVector<CodeGenSubRegIndex*, 8>&);
+      getConcatSubRegIndex(const SmallVector<CodeGenSubRegIndex *, 8>&);
 
     void
-    addConcatSubRegIndex(const SmallVector<CodeGenSubRegIndex*, 8> &Parts,
+    addConcatSubRegIndex(const SmallVector<CodeGenSubRegIndex *, 8> &Parts,
                          CodeGenSubRegIndex *Idx) {
       ConcatIdx.insert(std::make_pair(Parts, Idx));
     }
@@ -602,6 +629,13 @@ namespace llvm {
       return Weight;
     }
 
+    unsigned getRegSetIDAt(unsigned Order) const {
+      return RegUnitSetOrder[Order];
+    }
+    const RegUnitSet &getRegSetAt(unsigned Order) const {
+      return RegUnitSets[RegUnitSetOrder[Order]];
+    }
+
     // Increase a RegUnitWeight.
     void increaseRegUnitWeight(unsigned RUID, unsigned Inc) {
       getRegUnit(RUID).Weight += Inc;
@@ -611,8 +645,15 @@ namespace llvm {
     unsigned getNumRegPressureSets() const { return RegUnitSets.size(); }
 
     // Get a set of register unit IDs for a given dimension of pressure.
-    RegUnitSet getRegPressureSet(unsigned Idx) const {
+    const RegUnitSet &getRegPressureSet(unsigned Idx) const {
       return RegUnitSets[Idx];
+    }
+
+    // The number of pressure set lists may be larget than the number of
+    // register classes if some register units appeared in a list of sets that
+    // did not correspond to an existing register class.
+    unsigned getNumRegClassPressureSetLists() const {
+      return RegClassUnitSets.size();
     }
 
     // Get a list of pressure set IDs for a register class. Liveness of a
@@ -634,6 +675,11 @@ namespace llvm {
     // This is used to compute the mask of call-preserved registers from a list
     // of callee-saves.
     BitVector computeCoveredRegisters(ArrayRef<Record*> Regs);
+
+    // Bit mask of lanes that cover their registers. A sub-register index whose
+    // LaneMask is contained in CoveringLanes will be completely covered by
+    // another sub-register with the same or larger lane mask.
+    unsigned CoveringLanes;
   };
 }
 

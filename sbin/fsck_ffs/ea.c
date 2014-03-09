@@ -65,7 +65,7 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 	char dbuf[DIRBLKSIZ];
 
 	printf("Inode %ju extsize %ju\n",
-	   (intmax_t)idesc->id_number, (intmax_t)dp->di_extsize);
+	   (intmax_t)idesc->id_number, (uintmax_t)dp->di_extsize);
 	if (dp->di_extsize == 0)
 		return 0;
 	if (dp->di_extsize <= sblock.fs_fsize)
@@ -73,7 +73,7 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 	else
 		blksiz = sblock.fs_bsize;
 	printf("blksiz = %ju\n", (intmax_t)blksiz);
-	bp = getdatablk(dp->di_extb[0], blksiz);
+	bp = getdatablk(dp->di_extb[0], blksiz, BT_EXTATTR);
 	cp = (u_char *)bp->b_un.b_buf;
 	for (n = 0; n < blksiz; n++) {
 		printf("%02x", cp[n]);

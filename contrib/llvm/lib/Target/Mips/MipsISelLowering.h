@@ -17,9 +17,13 @@
 
 #include "Mips.h"
 #include "MipsSubtarget.h"
+#include "MCTargetDesc/MipsBaseInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Target/TargetLowering.h"
+#include <deque>
+#include <string>
 
 namespace llvm {
   namespace MipsISD {
@@ -57,11 +61,24 @@ namespace llvm {
       CMovFP_T,
       CMovFP_F,
 
-      // Floating Point Rounding
-      FPRound,
+      // FP-to-int truncation node.
+      TruncIntFP,
 
       // Return
       Ret,
+
+      EH_RETURN,
+
+      // Node used to extract integer from accumulator.
+      MFHI,
+      MFLO,
+
+      // Node used to insert integers to accumulator.
+      MTLOHI,
+
+      // Mult nodes.
+      Mult,
+      Multu,
 
       // MAdd/Sub nodes
       MAdd,
@@ -72,6 +89,8 @@ namespace llvm {
       // DivRem(u)
       DivRem,
       DivRemU,
+      DivRem16,
+      DivRemU16,
 
       BuildPairF64,
       ExtractElementF64,
@@ -126,6 +145,52 @@ namespace llvm {
       MSUB_DSP,
       MSUBU_DSP,
 
+      // DSP shift nodes.
+      SHLL_DSP,
+      SHRA_DSP,
+      SHRL_DSP,
+
+      // DSP setcc and select_cc nodes.
+      SETCC_DSP,
+      SELECT_CC_DSP,
+
+      // Vector comparisons.
+      // These take a vector and return a boolean.
+      VALL_ZERO,
+      VANY_ZERO,
+      VALL_NONZERO,
+      VANY_NONZERO,
+
+      // These take a vector and return a vector bitmask.
+      VCEQ,
+      VCLE_S,
+      VCLE_U,
+      VCLT_S,
+      VCLT_U,
+
+      // Element-wise vector max/min.
+      VSMAX,
+      VSMIN,
+      VUMAX,
+      VUMIN,
+
+      // Vector Shuffle with mask as an operand
+      VSHF,  // Generic shuffle
+      SHF,   // 4-element set shuffle.
+      ILVEV, // Interleave even elements
+      ILVOD, // Interleave odd elements
+      ILVL,  // Interleave left elements
+      ILVR,  // Interleave right elements
+      PCKEV, // Pack even elements
+      PCKOD, // Pack odd elements
+
+      // Combined (XOR (OR $a, $b), -1)
+      VNOR,
+
+      // Extended vector element extraction
+      VEXTRACT_SEXT_ELT,
+      VEXTRACT_ZEXT_ELT,
+
       // Load/Store Left/Right nodes.
       LWL = ISD::FIRST_TARGET_MEMORY_OPCODE,
       LWR,
@@ -147,9 +212,9 @@ namespace llvm {
   public:
     explicit MipsTargetLowering(MipsTargetMachine &TM);
 
-    virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
+    static const MipsTargetLowering *create(MipsTargetMachine &TM);
 
-    virtual bool allowsUnalignedMemoryAccesses (EVT VT) const;
+    virtual MVT getScalarShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
     virtual void LowerOperationWrapper(SDNode *N,
                                        SmallVectorImpl<SDValue> &Results,
@@ -169,10 +234,97 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     /// getSetCCResultType - get the ISD::SETCC result ValueType
-    EVT getSetCCResultType(EVT VT) const;
+    EVT getSetCCResultType(LLVMContext &Context, EVT VT) const;
 
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
-  private:
+
+    virtual MachineBasicBlock *
+    EmitInstrWithCustomInserter(MachineInstr *MI, MachineBasicBlock *MBB) const;
+
+    struct LTStr {
+      bool operator()(const char *S1, const char *S2) const {
+        return strcmp(S1, S2) < 0;
+      }
+    };
+
+  protected:
+    SDValue getGlobalReg(SelectionDAG &DAG, EVT Ty) const;
+
+    // This method creates the following nodes, which are necessary for
+    // computing a local symbol's address:
+    //
+    // (add (load (wrapper $gp, %got(sym)), %lo(sym))
+    template<class NodeTy>
+    SDValue getAddrLocal(NodeTy *N, EVT Ty, SelectionDAG &DAG,
+                         bool HasMips64) const {
+      SDLoc DL(N);
+      unsigned GOTFlag = HasMips64 ? MipsII::MO_GOT_PAGE : MipsII::MO_GOT;
+      SDValue GOT = DAG.getNode(MipsISD::Wrapper, DL, Ty, getGlobalReg(DAG, Ty),
+                                getTargetNode(N, Ty, DAG, GOTFlag));
+      SDValue Load = DAG.getLoad(Ty, DL, DAG.getEntryNode(), GOT,
+                                 MachinePointerInfo::getGOT(), false, false,
+                                 false, 0);
+      unsigned LoFlag = HasMips64 ? MipsII::MO_GOT_OFST : MipsII::MO_ABS_LO;
+      SDValue Lo = DAG.getNode(MipsISD::Lo, DL, Ty,
+                               getTargetNode(N, Ty, DAG, LoFlag));
+      return DAG.getNode(ISD::ADD, DL, Ty, Load, Lo);
+    }
+
+    // This method creates the following nodes, which are necessary for
+    // computing a global symbol's address:
+    //
+    // (load (wrapper $gp, %got(sym)))
+    template<class NodeTy>
+    SDValue getAddrGlobal(NodeTy *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag, SDValue Chain,
+                          const MachinePointerInfo &PtrInfo) const {
+      SDLoc DL(N);
+      SDValue Tgt = DAG.getNode(MipsISD::Wrapper, DL, Ty, getGlobalReg(DAG, Ty),
+                                getTargetNode(N, Ty, DAG, Flag));
+      return DAG.getLoad(Ty, DL, Chain, Tgt, PtrInfo, false, false, false, 0);
+    }
+
+    // This method creates the following nodes, which are necessary for
+    // computing a global symbol's address in large-GOT mode:
+    //
+    // (load (wrapper (add %hi(sym), $gp), %lo(sym)))
+    template<class NodeTy>
+    SDValue getAddrGlobalLargeGOT(NodeTy *N, EVT Ty, SelectionDAG &DAG,
+                                  unsigned HiFlag, unsigned LoFlag,
+                                  SDValue Chain,
+                                  const MachinePointerInfo &PtrInfo) const {
+      SDLoc DL(N);
+      SDValue Hi = DAG.getNode(MipsISD::Hi, DL, Ty,
+                               getTargetNode(N, Ty, DAG, HiFlag));
+      Hi = DAG.getNode(ISD::ADD, DL, Ty, Hi, getGlobalReg(DAG, Ty));
+      SDValue Wrapper = DAG.getNode(MipsISD::Wrapper, DL, Ty, Hi,
+                                    getTargetNode(N, Ty, DAG, LoFlag));
+      return DAG.getLoad(Ty, DL, Chain, Wrapper, PtrInfo, false, false, false,
+                         0);
+    }
+
+    // This method creates the following nodes, which are necessary for
+    // computing a symbol's address in non-PIC mode:
+    //
+    // (add %hi(sym), %lo(sym))
+    template<class NodeTy>
+    SDValue getAddrNonPIC(NodeTy *N, EVT Ty, SelectionDAG &DAG) const {
+      SDLoc DL(N);
+      SDValue Hi = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_HI);
+      SDValue Lo = getTargetNode(N, Ty, DAG, MipsII::MO_ABS_LO);
+      return DAG.getNode(ISD::ADD, DL, Ty,
+                         DAG.getNode(MipsISD::Hi, DL, Ty, Hi),
+                         DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
+    }
+
+    /// This function fills Ops, which is the list of operands that will later
+    /// be used when a function call node is created. It also generates
+    /// copyToReg nodes to set up argument registers.
+    virtual void
+    getOpndList(SmallVectorImpl<SDValue> &Ops,
+                std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
+                bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
+                CallLoweringInfo &CLI, SDValue Callee, SDValue Chain) const;
 
     /// ByValArgInfo - Byval argument information.
     struct ByValArgInfo {
@@ -187,103 +339,162 @@ namespace llvm {
     /// arguments and inquire about calling convention information.
     class MipsCC {
     public:
-      MipsCC(CallingConv::ID CallConv, bool IsVarArg, bool IsO32,
-             CCState &Info);
+      enum SpecialCallingConvType {
+        Mips16RetHelperConv, NoSpecialCallingConv
+      };
 
-      void analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Outs);
-      void analyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Ins);
-      void handleByValArg(unsigned ValNo, MVT ValVT, MVT LocVT,
-                          CCValAssign::LocInfo LocInfo,
-                          ISD::ArgFlagsTy ArgFlags);
+      MipsCC(CallingConv::ID CallConv, bool IsO32, bool IsFP64, CCState &Info,
+             SpecialCallingConvType SpecialCallingConv = NoSpecialCallingConv);
+
+
+      void analyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Outs,
+                               bool IsVarArg, bool IsSoftFloat,
+                               const SDNode *CallNode,
+                               std::vector<ArgListEntry> &FuncArgs);
+      void analyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Ins,
+                                  bool IsSoftFloat,
+                                  Function::const_arg_iterator FuncArg);
+
+      void analyzeCallResult(const SmallVectorImpl<ISD::InputArg> &Ins,
+                             bool IsSoftFloat, const SDNode *CallNode,
+                             const Type *RetTy) const;
+
+      void analyzeReturn(const SmallVectorImpl<ISD::OutputArg> &Outs,
+                         bool IsSoftFloat, const Type *RetTy) const;
 
       const CCState &getCCInfo() const { return CCInfo; }
 
       /// hasByValArg - Returns true if function has byval arguments.
       bool hasByValArg() const { return !ByValArgs.empty(); }
 
-      /// useRegsForByval - Returns true if the calling convention allows the
-      /// use of registers to pass byval arguments.
-      bool useRegsForByval() const { return UseRegsForByval; }
-
       /// regSize - Size (in number of bits) of integer registers.
-      unsigned regSize() const { return RegSize; }
+      unsigned regSize() const { return IsO32 ? 4 : 8; }
 
       /// numIntArgRegs - Number of integer registers available for calls.
-      unsigned numIntArgRegs() const { return NumIntArgRegs; }
+      unsigned numIntArgRegs() const;
 
       /// reservedArgArea - The size of the area the caller reserves for
       /// register arguments. This is 16-byte if ABI is O32.
-      unsigned reservedArgArea() const { return ReservedArgArea; }
+      unsigned reservedArgArea() const;
 
-      /// intArgRegs - Pointer to array of integer registers.
-      const uint16_t *intArgRegs() const { return IntArgRegs; }
+      /// Return pointer to array of integer argument registers.
+      const uint16_t *intArgRegs() const;
 
-      typedef SmallVector<ByValArgInfo, 2>::const_iterator byval_iterator;
+      typedef SmallVectorImpl<ByValArgInfo>::const_iterator byval_iterator;
       byval_iterator byval_begin() const { return ByValArgs.begin(); }
       byval_iterator byval_end() const { return ByValArgs.end(); }
 
     private:
+      void handleByValArg(unsigned ValNo, MVT ValVT, MVT LocVT,
+                          CCValAssign::LocInfo LocInfo,
+                          ISD::ArgFlagsTy ArgFlags);
+
+      /// useRegsForByval - Returns true if the calling convention allows the
+      /// use of registers to pass byval arguments.
+      bool useRegsForByval() const { return CallConv != CallingConv::Fast; }
+
+      /// Return the function that analyzes fixed argument list functions.
+      llvm::CCAssignFn *fixedArgFn() const;
+
+      /// Return the function that analyzes variable argument list functions.
+      llvm::CCAssignFn *varArgFn() const;
+
+      const uint16_t *shadowRegs() const;
+
       void allocateRegs(ByValArgInfo &ByVal, unsigned ByValSize,
                         unsigned Align);
 
+      /// Return the type of the register which is used to pass an argument or
+      /// return a value. This function returns f64 if the argument is an i64
+      /// value which has been generated as a result of softening an f128 value.
+      /// Otherwise, it just returns VT.
+      MVT getRegVT(MVT VT, const Type *OrigTy, const SDNode *CallNode,
+                   bool IsSoftFloat) const;
+
+      template<typename Ty>
+      void analyzeReturn(const SmallVectorImpl<Ty> &RetVals, bool IsSoftFloat,
+                         const SDNode *CallNode, const Type *RetTy) const;
+
       CCState &CCInfo;
-      bool UseRegsForByval;
-      unsigned RegSize;
-      unsigned NumIntArgRegs;
-      unsigned ReservedArgArea;
-      const uint16_t *IntArgRegs, *ShadowRegs;
+      CallingConv::ID CallConv;
+      bool IsO32, IsFP64;
+      SpecialCallingConvType SpecialCallingConv;
       SmallVector<ByValArgInfo, 2> ByValArgs;
-      llvm::CCAssignFn *FixedFn, *VarFn;
     };
+  protected:
+    SDValue lowerLOAD(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerSTORE(SDValue Op, SelectionDAG &DAG) const;
 
     // Subtarget Info
     const MipsSubtarget *Subtarget;
 
     bool HasMips64, IsN64, IsO32;
 
+  private:
+    // Create a TargetGlobalAddress node.
+    SDValue getTargetNode(GlobalAddressSDNode *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag) const;
+
+    // Create a TargetExternalSymbol node.
+    SDValue getTargetNode(ExternalSymbolSDNode *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag) const;
+
+    // Create a TargetBlockAddress node.
+    SDValue getTargetNode(BlockAddressSDNode *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag) const;
+
+    // Create a TargetJumpTable node.
+    SDValue getTargetNode(JumpTableSDNode *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag) const;
+
+    // Create a TargetConstantPool node.
+    SDValue getTargetNode(ConstantPoolSDNode *N, EVT Ty, SelectionDAG &DAG,
+                          unsigned Flag) const;
+
+    MipsCC::SpecialCallingConvType getSpecialCallingConv(SDValue Callee) const;
     // Lower Operand helpers
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
-                            DebugLoc dl, SelectionDAG &DAG,
-                            SmallVectorImpl<SDValue> &InVals) const;
+                            SDLoc dl, SelectionDAG &DAG,
+                            SmallVectorImpl<SDValue> &InVals,
+                            const SDNode *CallNode, const Type *RetTy) const;
 
     // Lower Operand specifics
-    SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFABS(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerMEMBARRIER(SDValue Op, SelectionDAG& DAG) const;
-    SDValue LowerATOMIC_FENCE(SDValue Op, SelectionDAG& DAG) const;
-    SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG& DAG) const;
-    SDValue LowerShiftRightParts(SDValue Op, SelectionDAG& DAG,
+    SDValue lowerBR_JT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerSELECT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerFABS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerATOMIC_FENCE(SDValue Op, SelectionDAG& DAG) const;
+    SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG& DAG) const;
+    SDValue lowerShiftRightParts(SDValue Op, SelectionDAG& DAG,
                                  bool IsSRA) const;
-    SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerADD(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerADD(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const;
 
-    /// IsEligibleForTailCallOptimization - Check whether the call is eligible
+    /// isEligibleForTailCallOptimization - Check whether the call is eligible
     /// for tail call optimization.
-    bool IsEligibleForTailCallOptimization(const MipsCC &MipsCCInfo,
-                                           unsigned NextStackOffset,
-                                           const MipsFunctionInfo& FI) const;
+    virtual bool
+    isEligibleForTailCallOptimization(const MipsCC &MipsCCInfo,
+                                      unsigned NextStackOffset,
+                                      const MipsFunctionInfo& FI) const = 0;
 
     /// copyByValArg - Copy argument registers which were used to pass a byval
     /// argument to the stack. Create a stack frame object for the byval
     /// argument.
-    void copyByValRegs(SDValue Chain, DebugLoc DL,
+    void copyByValRegs(SDValue Chain, SDLoc DL,
                        std::vector<SDValue> &OutChains, SelectionDAG &DAG,
                        const ISD::ArgFlagsTy &Flags,
                        SmallVectorImpl<SDValue> &InVals,
@@ -291,9 +502,9 @@ namespace llvm {
                        const MipsCC &CC, const ByValArgInfo &ByVal) const;
 
     /// passByValArg - Pass a byval argument in registers or on stack.
-    void passByValArg(SDValue Chain, DebugLoc DL,
-                      SmallVector<std::pair<unsigned, SDValue>, 16> &RegsToPass,
-                      SmallVector<SDValue, 8> &MemOpChains, SDValue StackPtr,
+    void passByValArg(SDValue Chain, SDLoc DL,
+                      std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
+                      SmallVectorImpl<SDValue> &MemOpChains, SDValue StackPtr,
                       MachineFrameInfo *MFI, SelectionDAG &DAG, SDValue Arg,
                       const MipsCC &CC, const ByValArgInfo &ByVal,
                       const ISD::ArgFlagsTy &Flags, bool isLittle) const;
@@ -302,17 +513,17 @@ namespace llvm {
     /// to the stack. Also create a stack frame object for the first variable
     /// argument.
     void writeVarArgRegs(std::vector<SDValue> &OutChains, const MipsCC &CC,
-                         SDValue Chain, DebugLoc DL, SelectionDAG &DAG) const;
+                         SDValue Chain, SDLoc DL, SelectionDAG &DAG) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
                            CallingConv::ID CallConv, bool isVarArg,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
-                           DebugLoc dl, SelectionDAG &DAG,
+                           SDLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue passArgOnStack(SDValue StackPtr, unsigned Offset, SDValue Chain,
-                           SDValue Arg, DebugLoc DL, bool IsTailCall,
+                           SDValue Arg, SDLoc DL, bool IsTailCall,
                            SelectionDAG &DAG) const;
 
     virtual SDValue
@@ -330,11 +541,7 @@ namespace llvm {
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
                   const SmallVectorImpl<SDValue> &OutVals,
-                  DebugLoc dl, SelectionDAG &DAG) const;
-
-    virtual MachineBasicBlock *
-      EmitInstrWithCustomInserter(MachineInstr *MI,
-                                  MachineBasicBlock *MBB) const;
+                  SDLoc dl, SelectionDAG &DAG) const;
 
     // Inline asm support
     ConstraintType getConstraintType(const std::string &Constraint) const;
@@ -344,9 +551,14 @@ namespace llvm {
     ConstraintWeight getSingleConstraintMatchWeight(
       AsmOperandInfo &info, const char *constraint) const;
 
+    /// This function parses registers that appear in inline-asm constraints.
+    /// It returns pair (0, 0) on failure.
+    std::pair<unsigned, const TargetRegisterClass *>
+    parseRegForInlineAsmConstraint(const StringRef &C, MVT VT) const;
+
     std::pair<unsigned, const TargetRegisterClass*>
               getRegForInlineAsmConstraint(const std::string &Constraint,
-              EVT VT) const;
+                                           MVT VT) const;
 
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
     /// vector.  If it is invalid, don't add anything to Ops. If hasMemory is
@@ -357,10 +569,13 @@ namespace llvm {
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
 
+    virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const;
+
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
 
     virtual EVT getOptimalMemOpType(uint64_t Size, unsigned DstAlign,
-                                    unsigned SrcAlign, bool IsZeroVal,
+                                    unsigned SrcAlign,
+                                    bool IsMemset, bool ZeroMemset,
                                     bool MemcpyStrSrc,
                                     MachineFunction &MF) const;
 
@@ -371,18 +586,20 @@ namespace llvm {
 
     virtual unsigned getJumpTableEncoding() const;
 
-    MachineBasicBlock *EmitBPOSGE32(MachineInstr *MI,
-                                    MachineBasicBlock *BB) const;
-    MachineBasicBlock *EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
+    MachineBasicBlock *emitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
                     unsigned Size, unsigned BinOpcode, bool Nand = false) const;
-    MachineBasicBlock *EmitAtomicBinaryPartword(MachineInstr *MI,
+    MachineBasicBlock *emitAtomicBinaryPartword(MachineInstr *MI,
                     MachineBasicBlock *BB, unsigned Size, unsigned BinOpcode,
                     bool Nand = false) const;
-    MachineBasicBlock *EmitAtomicCmpSwap(MachineInstr *MI,
+    MachineBasicBlock *emitAtomicCmpSwap(MachineInstr *MI,
                                   MachineBasicBlock *BB, unsigned Size) const;
-    MachineBasicBlock *EmitAtomicCmpSwapPartword(MachineInstr *MI,
+    MachineBasicBlock *emitAtomicCmpSwapPartword(MachineInstr *MI,
                                   MachineBasicBlock *BB, unsigned Size) const;
   };
+
+  /// Create MipsTargetLowering objects.
+  const MipsTargetLowering *createMips16TargetLowering(MipsTargetMachine &TM);
+  const MipsTargetLowering *createMipsSETargetLowering(MipsTargetMachine &TM);
 }
 
 #endif // MipsISELLOWERING_H

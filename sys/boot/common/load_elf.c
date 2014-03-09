@@ -290,14 +290,26 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	} else
 	    off = 0;
 #elif defined(__arm__)
-	if (off & 0xf0000000u) {
-	    off = -(off & 0xf0000000u);
-	    ehdr->e_entry += off;
+	/*
+	 * The elf headers in some kernels specify virtual addresses in all
+	 * header fields.  More recently, the e_entry and p_paddr fields are the
+	 * proper physical addresses.  Even when the p_paddr fields are correct,
+	 * the MI code below uses the p_vaddr fields with an offset added for
+	 * loading (doing so is arguably wrong).  To make loading work, we need
+	 * an offset that represents the difference between physical and virtual
+	 * addressing.  ARM kernels are always linked at 0xCnnnnnnn.  Depending
+	 * on the headers, the offset value passed in may be physical or virtual
+	 * (because it typically comes from e_entry), but we always replace
+	 * whatever is passed in with the va<->pa offset.  On the other hand, we
+	 * always remove the high-order part of the entry address whether it's
+	 * physical or virtual, because it will be adjusted later for the actual
+	 * physical entry point based on where the image gets loaded.
+	 */
+	off = -0xc0000000;
+	ehdr->e_entry &= ~0xf0000000;
 #ifdef ELF_VERBOSE
-	    printf("Converted entry 0x%08x\n", ehdr->e_entry);
+	printf("ehdr->e_entry 0x%08x, va<->pa off %llx\n", ehdr->e_entry, off);
 #endif
-	} else
-	    off = 0;
 #else
 	off = 0;		/* other archs use direct mapped kernels */
 #endif
@@ -385,6 +397,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	    "_loadimage: failed to read section headers");
 	goto nosyms;
     }
+    file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
+
     symtabindex = -1;
     symstrindex = -1;
     for (i = 0; i < ehdr->e_shnum; i++) {

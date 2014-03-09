@@ -335,7 +335,7 @@ static	const char *ip6nh[] = {
 	"#255",
 };
 
-static char *srcrule_str[] = {
+static const char *srcrule_str[] = {
 	"first candidate",
 	"same address",
 	"appropriate scope",
@@ -376,7 +376,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &ip6stat, len);
+		kread_counters(off, &ip6stat, len);
 
 	printf("%s:\n", name);
 
@@ -408,7 +408,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(ip6s_cantfrag, "\t%ju datagram%s that can't be fragmented\n");
 	p(ip6s_badscope, "\t%ju packet%s that violated scope rules\n");
 	p(ip6s_notmember, "\t%ju multicast packet%s which we don't join\n");
-	for (first = 1, i = 0; i < 256; i++)
+	for (first = 1, i = 0; i < IP6S_HDRCNT; i++)
 		if (ip6stat.ip6s_nxthist[i] != 0) {
 			if (first) {
 				printf("\tInput histogram:\n");
@@ -419,7 +419,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	printf("\tMbuf statistics:\n");
 	printf("\t\t%ju one mbuf\n", (uintmax_t)ip6stat.ip6s_m1);
-	for (first = 1, i = 0; i < 32; i++) {
+	for (first = 1, i = 0; i < IP6S_M2MMAX; i++) {
 		char ifbuf[IFNAMSIZ];
 		if (ip6stat.ip6s_m2m[i] != 0) {
 			if (first) {
@@ -445,7 +445,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #define	PRINT_SCOPESTAT(s,i) do {\
 		switch(i) { /* XXX hardcoding in each case */\
 		case 1:\
-			p(s, "\t\t%ju node-local%s\n");\
+			p(s, "\t\t%ju interface-local%s\n");\
 			break;\
 		case 2:\
 			p(s,"\t\t%ju link-local%s\n");\
@@ -464,7 +464,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	p(ip6s_sources_none,
 	  "\t%ju failure%s of source address selection\n");
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_sameif[i]) {
 			if (first) {
 				printf("\tsource addresses on an outgoing I/F\n");
@@ -473,7 +473,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_sameif[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_otherif[i]) {
 			if (first) {
 				printf("\tsource addresses on a non-outgoing I/F\n");
@@ -482,7 +482,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_otherif[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_samescope[i]) {
 			if (first) {
 				printf("\tsource addresses of same scope\n");
@@ -491,7 +491,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_samescope[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_otherscope[i]) {
 			if (first) {
 				printf("\tsource addresses of a different scope\n");
@@ -500,7 +500,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_otherscope[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_deprecated[i]) {
 			if (first) {
 				printf("\tdeprecated source addresses\n");
@@ -511,7 +511,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 
 	printf("\tSource addresses selection rule applied:\n");
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < IP6S_RULESMAX; i++) {
 		if (ip6stat.ip6s_sources_rule[i])
 			printf("\t\t%ju %s\n",
 			       (uintmax_t)ip6stat.ip6s_sources_rule[i],
@@ -858,7 +858,7 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &icmp6stat, len);
+		kread_counters(off, &icmp6stat, len);
 
 	printf("%s:\n", name);
 
@@ -1052,7 +1052,7 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &rip6stat, len);
+		kread_counters(off, &rip6stat, len);
 
 	printf("%s:\n", name);
 
@@ -1120,12 +1120,17 @@ inet6print(struct in6_addr *in6, int port, const char *proto, int numeric)
 char *
 inet6name(struct in6_addr *in6p)
 {
-	char *cp;
+	struct sockaddr_in6 sin6;
+	char hbuf[NI_MAXHOST], *cp;
 	static char line[50];
-	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN];
 	static int first = 1;
+	int flags, error;
 
+	if (IN6_IS_ADDR_UNSPECIFIED(in6p)) {
+		strcpy(line, "*");
+		return (line);
+	}
 	if (first && !numeric_addr) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
@@ -1134,24 +1139,26 @@ inet6name(struct in6_addr *in6p)
 		else
 			domain[0] = 0;
 	}
-	cp = 0;
-	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
-		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
-		if (hp) {
-			if ((cp = strchr(hp->h_name, '.')) &&
-			    !strcmp(cp + 1, domain))
-				*cp = 0;
-			cp = hp->h_name;
-		}
-	}
-	if (IN6_IS_ADDR_UNSPECIFIED(in6p))
-		strcpy(line, "*");
-	else if (cp)
-		strcpy(line, cp);
-	else
+	memset(&sin6, 0, sizeof(sin6));
+	memcpy(&sin6.sin6_addr, in6p, sizeof(*in6p));
+	sin6.sin6_family = AF_INET6;
+	/* XXX: in6p.s6_addr[2] can contain scopeid. */ 
+	in6_fillscopeid(&sin6);
+	flags = (numeric_addr) ? NI_NUMERICHOST : 0;
+	error = getnameinfo((struct sockaddr *)&sin6, sizeof(sin6), hbuf,
+	    sizeof(hbuf), NULL, 0, flags);
+	if (error == 0) {
+		if ((flags & NI_NUMERICHOST) == 0 &&
+		    (cp = strchr(hbuf, '.')) &&
+		    !strcmp(cp + 1, domain))
+			*cp = 0;
+		strcpy(line, hbuf);
+	} else {
+		/* XXX: this should not happen. */
 		sprintf(line, "%s",
-			inet_ntop(AF_INET6, (void *)in6p, ntop_buf,
+			inet_ntop(AF_INET6, (void *)&sin6.sin6_addr, ntop_buf,
 				sizeof(ntop_buf)));
+	}
 	return (line);
 }
 #endif /*INET6*/

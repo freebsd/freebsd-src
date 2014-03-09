@@ -647,6 +647,9 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	unsigned int timeout;
 	int e;
 
+	if (dumping)
+		return;
+
 	cmd &= WD_INTERVAL;
 	if (cmd > 0 && cmd <= 63) {
 		timeout = ((uint64_t)1 << cmd) / 1000000000;

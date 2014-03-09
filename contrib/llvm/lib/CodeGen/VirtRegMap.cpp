@@ -17,8 +17,10 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "regalloc"
-#include "VirtRegMap.h"
+#include "llvm/CodeGen/VirtRegMap.h"
 #include "LiveDebugVariables.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -26,15 +28,14 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -77,15 +78,22 @@ unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
   return SS;
 }
 
-unsigned VirtRegMap::getRegAllocPref(unsigned virtReg) {
-  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(virtReg);
-  unsigned physReg = Hint.second;
-  if (TargetRegisterInfo::isVirtualRegister(physReg) && hasPhys(physReg))
-    physReg = getPhys(physReg);
-  if (Hint.first == 0)
-    return (TargetRegisterInfo::isPhysicalRegister(physReg))
-      ? physReg : 0;
-  return TRI->ResolveRegAllocHint(Hint.first, physReg, *MF);
+bool VirtRegMap::hasPreferredPhys(unsigned VirtReg) {
+  unsigned Hint = MRI->getSimpleHint(VirtReg);
+  if (!Hint)
+    return 0;
+  if (TargetRegisterInfo::isVirtualRegister(Hint))
+    Hint = getPhys(Hint);
+  return getPhys(VirtReg) == Hint;
+}
+
+bool VirtRegMap::hasKnownPreference(unsigned VirtReg) {
+  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(VirtReg);
+  if (TargetRegisterInfo::isPhysicalRegister(Hint.second))
+    return true;
+  if (TargetRegisterInfo::isVirtualRegister(Hint.second))
+    return hasPhys(Hint.second);
+  return false;
 }
 
 int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
@@ -257,14 +265,35 @@ void VirtRegRewriter::rewrite() {
   SmallVector<unsigned, 8> SuperDeads;
   SmallVector<unsigned, 8> SuperDefs;
   SmallVector<unsigned, 8> SuperKills;
+  SmallPtrSet<const MachineInstr *, 4> NoReturnInsts;
 
   for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
        MBBI != MBBE; ++MBBI) {
     DEBUG(MBBI->print(dbgs(), Indexes));
+    bool IsExitBB = MBBI->succ_empty();
     for (MachineBasicBlock::instr_iterator
            MII = MBBI->instr_begin(), MIE = MBBI->instr_end(); MII != MIE;) {
       MachineInstr *MI = MII;
       ++MII;
+
+      // Check if this instruction is a call to a noreturn function.
+      // If so, all the definitions set by this instruction can be ignored.
+      if (IsExitBB && MI->isCall())
+        for (MachineInstr::mop_iterator MOI = MI->operands_begin(),
+               MOE = MI->operands_end(); MOI != MOE; ++MOI) {
+          MachineOperand &MO = *MOI;
+          if (!MO.isGlobal())
+            continue;
+          const Function *Func = dyn_cast<Function>(MO.getGlobal());
+          if (!Func || !Func->hasFnAttribute(Attribute::NoReturn) ||
+              // We need to keep correct unwind information
+              // even if the function will not return, since the
+              // runtime may need it.
+              !Func->hasFnAttribute(Attribute::NoUnwind))
+            continue;
+          NoReturnInsts.insert(MI);
+          break;
+        }
 
       for (MachineInstr::mop_iterator MOI = MI->operands_begin(),
            MOE = MI->operands_end(); MOI != MOE; ++MOI) {
@@ -346,7 +375,25 @@ void VirtRegRewriter::rewrite() {
   }
 
   // Tell MRI about physical registers in use.
-  for (unsigned Reg = 1, RegE = TRI->getNumRegs(); Reg != RegE; ++Reg)
-    if (!MRI->reg_nodbg_empty(Reg))
-      MRI->setPhysRegUsed(Reg);
+  if (NoReturnInsts.empty()) {
+    for (unsigned Reg = 1, RegE = TRI->getNumRegs(); Reg != RegE; ++Reg)
+      if (!MRI->reg_nodbg_empty(Reg))
+        MRI->setPhysRegUsed(Reg);
+  } else {
+    for (unsigned Reg = 1, RegE = TRI->getNumRegs(); Reg != RegE; ++Reg) {
+      if (MRI->reg_nodbg_empty(Reg))
+        continue;
+      // Check if this register has a use that will impact the rest of the
+      // code. Uses in debug and noreturn instructions do not impact the
+      // generated code.
+      for (MachineRegisterInfo::reg_nodbg_iterator It =
+             MRI->reg_nodbg_begin(Reg),
+             EndIt = MRI->reg_nodbg_end(); It != EndIt; ++It) {
+        if (!NoReturnInsts.count(&(*It))) {
+          MRI->setPhysRegUsed(Reg);
+          break;
+        }
+      }
+    }
+  }
 }

@@ -15,15 +15,15 @@
 
 #include "BugDriver.h"
 #include "ToolRunner.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker.h"
-#include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Host.h"
 #include <memory>
 using namespace llvm;
 
@@ -122,7 +122,7 @@ bool BugDriver::addSources(const std::vector<std::string> &Filenames) {
   outs() << "Read input file      : '" << Filenames[0] << "'\n";
 
   for (unsigned i = 1, e = Filenames.size(); i != e; ++i) {
-    std::auto_ptr<Module> M(ParseInputFile(Filenames[i], Context));
+    OwningPtr<Module> M(ParseInputFile(Filenames[i], Context));
     if (M.get() == 0) return true;
 
     outs() << "Linking in input file: '" << Filenames[i] << "'\n";
@@ -194,8 +194,8 @@ bool BugDriver::run(std::string &ErrMsg) {
 
   // Make sure the reference output file gets deleted on exit from this
   // function, if appropriate.
-  sys::Path ROF(ReferenceOutputFile);
-  FileRemover RemoverInstance(ROF.str(), CreatedOutput && !SaveTemps);
+  std::string ROF(ReferenceOutputFile);
+  FileRemover RemoverInstance(ROF, CreatedOutput && !SaveTemps);
 
   // Diff the output of the raw program against the reference output.  If it
   // matches, then we assume there is a miscompilation bug and try to

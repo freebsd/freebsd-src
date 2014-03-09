@@ -480,7 +480,7 @@ uncompressbuf(struct magic_set *ms, int fd, size_t method,
 #endif
 			free(*newch);
 			n = 0;
-			newch[0] = '\0';
+			*newch = NULL;
 			goto err;
 		} else {
 			n = r;

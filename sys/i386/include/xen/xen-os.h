@@ -1,69 +1,41 @@
-/******************************************************************************
- * os.h
+/*****************************************************************************
+ * i386/xen/xen-os.h
  * 
- * random collection of macros and definition
+ * Random collection of macros and definition
+ *
+ * Copyright (c) 2003, 2004 Keir Fraser (on behalf of the Xen team)
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * DEALINGS IN THE SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef _XEN_OS_H_
-#define _XEN_OS_H_
-#include <machine/param.h>
+#ifndef _MACHINE_XEN_XEN_OS_H_
+#define _MACHINE_XEN_XEN_OS_H_
 
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
 
-#if !defined(__XEN_INTERFACE_VERSION__) 
-/* 
- * Can update to a more recent version when we implement 
- * the hypercall page 
- */ 
-#define  __XEN_INTERFACE_VERSION__ 0x00030204 
-#endif 
-
-#include <xen/interface/xen.h>
-
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
-#define likely(x)  __builtin_expect((x),1)
-#define unlikely(x)  __builtin_expect((x),0)
-
-#ifndef vtophys
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
-extern int gdtset;
-#ifdef SMP
-#include <sys/time.h> /* XXX for pcpu.h */
-#include <sys/pcpu.h> /* XXX for PCPU_GET */
-static inline int 
-smp_processor_id(void)  
-{
-    if (likely(gdtset))
-	return PCPU_GET(cpuid);
-    return 0;
-}
-
-#else
-#define smp_processor_id() 0
-#endif
-
-#ifndef NULL
-#define NULL (void *)0
-#endif
-
-#ifndef PANIC_IF
-#define PANIC_IF(exp) if (unlikely(exp)) {printk("panic - %s: %s:%d\n",#exp, __FILE__, __LINE__); panic("%s: %s:%d", #exp, __FILE__, __LINE__);} 
-#endif
-
-extern shared_info_t *HYPERVISOR_shared_info;
-
-/* Somewhere in the middle of the GCC 2.96 development cycle, we implemented
-   a mechanism by which the user can annotate likely branch directions and
-   expect the blocks to be reordered appropriately.  Define __builtin_expect
-   to nothing for earlier compilers.  */
+/* Everything below this point is not included by assembler (.S) files. */
+#ifndef __ASSEMBLY__
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
@@ -72,30 +44,35 @@ static inline void rep_nop(void)
 }
 #define cpu_relax() rep_nop()
 
+#ifndef XENHVM
+void xc_printf(const char *fmt, ...);
 
-#if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#define __builtin_expect(x, expected_value) (x)
+#ifdef SMP
+extern int gdtset;
+
+#include <sys/time.h> /* XXX for pcpu.h */
+#include <sys/pcpu.h> /* XXX for PCPU_GET */
+static inline int 
+smp_processor_id(void)  
+{
+    if (__predict_true(gdtset))
+	return PCPU_GET(cpuid);
+    return 0;
+}
+
+#else
+#define smp_processor_id() 0
 #endif
 
-#define per_cpu(var, cpu)           (pcpu_find((cpu))->pc_ ## var)
+#ifndef PANIC_IF
+#define PANIC_IF(exp) if (__predict_false(exp)) {printf("panic - %s: %s:%d\n",#exp, __FILE__, __LINE__); panic("%s: %s:%d", #exp, __FILE__, __LINE__);} 
+#endif
 
-/* crude memory allocator for memory allocation early in 
- *  boot
+/*
+ * Crude memory allocator for memory allocation early in boot.
  */
 void *bootmem_alloc(unsigned int size);
 void bootmem_free(void *ptr, unsigned int size);
-
-
-/* Everything below this point is not included by assembler (.S) files. */
-#ifndef __ASSEMBLY__
-#include <sys/types.h>
-
-void printk(const char *fmt, ...);
-
-/* some function prototypes */
-void trap_init(void);
-
-#ifndef XENHVM
 
 /*
  * STI/CLI equivalents. These basically set and clear the virtual
@@ -103,7 +80,6 @@ void trap_init(void);
  * the enable bit is set, there may be pending events to be handled.
  * We may therefore call into do_hypervisor_callback() directly.
  */
-
 
 #define __cli()                                                         \
 do {                                                                    \
@@ -120,7 +96,7 @@ do {                                                                    \
         _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
         _vcpu->evtchn_upcall_mask = 0;                                  \
         barrier(); /* unmask then check (avoid races) */                \
-        if ( unlikely(_vcpu->evtchn_upcall_pending) )                   \
+        if (__predict_false(_vcpu->evtchn_upcall_pending))              \
                 force_evtchn_callback();                                \
 } while (0)
 
@@ -131,7 +107,7 @@ do {                                                                    \
         _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
         if ((_vcpu->evtchn_upcall_mask = (x)) == 0) {                   \
                 barrier(); /* unmask then check (avoid races) */        \
-                if ( unlikely(_vcpu->evtchn_upcall_pending) )           \
+                if (__predict_false(_vcpu->evtchn_upcall_pending))      \
                         force_evtchn_callback();                        \
         } 								\
 } while (0)
@@ -166,22 +142,7 @@ do {                                                                    \
 #define spin_lock_irqsave mtx_lock_irqsave
 #define spin_unlock_irqrestore mtx_unlock_irqrestore
 
-#endif
-
-#ifdef SMP
-#define smp_mb() mb() 
-#define smp_rmb() rmb()
-#define smp_wmb() wmb()
-#define smp_read_barrier_depends()      read_barrier_depends()
-#define set_mb(var, value) do { xchg(&var, value); } while (0)
-#else
-#define smp_mb()        barrier()
-#define smp_rmb()       barrier()
-#define smp_wmb()       barrier()
-#define smp_read_barrier_depends()      do { } while(0)
-#define set_mb(var, value) do { var = value; barrier(); } while (0)
-#endif
-
+#endif /* !XENHVM */
 
 /* This is a barrier for the compiler only, NOT the processor! */
 #define barrier() __asm__ __volatile__("": : :"memory")
@@ -195,8 +156,6 @@ do {                                                                    \
  * not some alias that contains the same information.
  */
 typedef struct { volatile int counter; } atomic_t;
-
-
 
 #define xen_xchg(ptr,v) \
         ((__typeof__(*(ptr)))__xchg((unsigned long)(v),(ptr),sizeof(*(ptr))))
@@ -324,33 +283,6 @@ static __inline__ void atomic_inc(atomic_t *v)
 #define rdtscll(val) \
      __asm__ __volatile__("rdtsc" : "=A" (val))
 
-
-
-/*
- * Kernel pointers have redundant information, so we can use a
- * scheme where we can return either an error code or a dentry
- * pointer with the same return value.
- *
- * This should be a per-architecture thing, to allow different
- * error and pointer decisions.
- */
-#define IS_ERR_VALUE(x) unlikely((x) > (unsigned long)-1000L)
-
-static inline void *ERR_PTR(long error)
-{
-	return (void *) error;
-}
-
-static inline long PTR_ERR(const void *ptr)
-{
-	return (long) ptr;
-}
-
-static inline long IS_ERR(const void *ptr)
-{
-	return IS_ERR_VALUE((unsigned long)ptr);
-}
-
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _OS_H_ */
+#endif /* _MACHINE_XEN_XEN_OS_H_ */

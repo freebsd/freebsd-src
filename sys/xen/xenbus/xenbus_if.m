@@ -29,7 +29,8 @@
 #include <sys/bus.h>
 
 #include <machine/atomic.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
 #include <xen/evtchn.h>
 #include <xen/xenbus/xenbusvar.h>
 

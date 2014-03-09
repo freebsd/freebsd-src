@@ -47,6 +47,16 @@ __FBSDID("$FreeBSD$");
 
 #include "kgdb.h"
 
+CORE_ADDR
+kgdb_trgt_core_pcb(u_int cpuid)
+{
+#ifndef CROSS_DEBUGGER
+	return (kgdb_trgt_stop_pcb(cpuid, sizeof(struct pcb)));
+#else
+	return -1;
+#endif
+}
+
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {

@@ -13,22 +13,22 @@
 
 #include "MSP430.h"
 #include "MSP430TargetMachine.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/CallingConv.h"
-#include "llvm/Constants.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetLowering.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetLowering.h"
 using namespace llvm;
 
 namespace {
@@ -259,11 +259,12 @@ bool MSP430DAGToDAGISel::SelectAddr(SDValue N,
   }
 
   Base  = (AM.BaseType == MSP430ISelAddressMode::FrameIndexBase) ?
-    CurDAG->getTargetFrameIndex(AM.Base.FrameIndex, TLI.getPointerTy()) :
+    CurDAG->getTargetFrameIndex(AM.Base.FrameIndex,
+                                getTargetLowering()->getPointerTy()) :
     AM.Base.Reg;
 
   if (AM.GV)
-    Disp = CurDAG->getTargetGlobalAddress(AM.GV, N->getDebugLoc(),
+    Disp = CurDAG->getTargetGlobalAddress(AM.GV, SDLoc(N),
                                           MVT::i16, AM.Disp,
                                           0/*AM.SymbolFlags*/);
   else if (AM.CP)
@@ -345,7 +346,7 @@ SDNode *MSP430DAGToDAGISel::SelectIndexedLoad(SDNode *N) {
     return NULL;
   }
 
-   return CurDAG->getMachineNode(Opcode, N->getDebugLoc(),
+   return CurDAG->getMachineNode(Opcode, SDLoc(N),
                                  VT, MVT::i16, MVT::Other,
                                  LD->getBasePtr(), LD->getChain());
 }
@@ -382,7 +383,7 @@ SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDNode *Op,
 
 
 SDNode *MSP430DAGToDAGISel::Select(SDNode *Node) {
-  DebugLoc dl = Node->getDebugLoc();
+  SDLoc dl(Node);
 
   // Dump information about the Node being selected
   DEBUG(errs() << "Selecting: ");
@@ -394,6 +395,7 @@ SDNode *MSP430DAGToDAGISel::Select(SDNode *Node) {
     DEBUG(errs() << "== ";
           Node->dump(CurDAG);
           errs() << "\n");
+    Node->setNodeId(-1);
     return NULL;
   }
 

@@ -12,27 +12,27 @@ SUBDIR+=	share/xml
 
 RELN_ROOT?= ${.CURDIR}
 
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
+.if exists(/usr/local/bin/svn)
+SVN?=		/usr/local/bin/svn
+.elif exists(/usr/bin/svn)
+SVN?=		/usr/bin/svn
+.else
+SVN?=		/usr/bin/svnlite
 .endif
+
+SVNFLAGS?=	-r HEAD
+
 update:
-.if defined(SUP_UPDATE)
-.if !defined(DOCSUPFILE)
-	@echo "Error: Please define DOCSUPFILE before doing make update."
+.if !exists(${SVN})
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Updating ${RELN_ROOT} requires ${SVN}."
+	@echo "--------------------------------------------------------------"
 	@exit 1
 .endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo ">>> Updating ${.CURDIR}"
 	@echo "--------------------------------------------------------------"
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.elif defined(CVS_UPDATE)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; cvs -q update -P -d
-.else
-	@echo "Error: Please define either SUP_UPDATE or CVS_UPDATE first."
-.endif
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.subdir.mk"

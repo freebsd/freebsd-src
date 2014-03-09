@@ -80,6 +80,7 @@ _citrus_JOHAB_init_state(_JOHABEncodingInfo * __restrict ei __unused,
 	psenc->chlen = 0;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_JOHAB_pack_state(_JOHABEncodingInfo * __restrict ei __unused,
@@ -97,6 +98,7 @@ _citrus_JOHAB_unpack_state(_JOHABEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)psenc, pspriv, sizeof(*psenc));
 }
+#endif
 
 static void
 /*ARGSUSED*/
@@ -143,10 +145,10 @@ ishanja(int l, int t)
 static int
 /*ARGSUSED*/
 _citrus_JOHAB_mbrtowc_priv(_JOHABEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _JOHABState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0;
+	const char *s0;
 	int l, t;
 
 	if (*s == NULL) {
