@@ -151,11 +151,15 @@ CFLAGS+=	${CWARNFLAGS}
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe extract fetch \
+		depend dependall distclean distribute exe extract \
 		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn patch realall realdepend \
+		obj objlink objs objwarn realall realdepend \
 		realinstall regress subdir-all subdir-depend subdir-install \
 		tags whereobj
+
+.if defined(PORTNAME)
+PHONY_NOTMAIN+=	fetch patch
+.endif
 
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
