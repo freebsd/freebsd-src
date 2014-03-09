@@ -84,6 +84,8 @@
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
+#include <machine/vfp.h>
+
 __FBSDID("$FreeBSD$");
 
 #define DOMAIN_CLIENT	0x01
@@ -100,6 +102,10 @@ __FBSDID("$FreeBSD$");
 
 #define GET_PCPU(tmp, tmp2) \
 	ldr	tmp, .Lcurpcpu
+#endif
+
+#ifdef VFP
+	.fpu vfp	/* allow VFP instructions */
 #endif
 
 .Lcurpcpu:
@@ -121,16 +127,10 @@ ENTRY(cpu_throw)
 	GET_PCPU(r7, r9)
 
 #ifdef VFP
-	/*
-	 * vfp_discard will clear pcpu->pc_vfpcthread, and modify
-	 * and modify the control as needed.
-	 */
-	ldr     r4, [r7, #(PC_VFPCTHREAD)]      /* this thread using vfp? */
-	cmp     r0, r4
-	bne     3f
-	bl      _C_LABEL(vfp_discard)           /* yes, shut down vfp */
-3:
-#endif		/* VFP */
+	fmrx	r0, fpexc		/* This thread is dying, if the VFP */
+	tst	r0, #(VFPEXC_EN)	/* is enabled, go shut it down */
+	blne	_C_LABEL(vfp_discard)	/* without preserving its state. */
+#endif
 
 	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
   
@@ -319,30 +319,14 @@ ENTRY(cpu_switch)
 	/* rem: interrupts are enabled */
 
 #ifdef VFP
-	/*
-	 * vfp_store will clear pcpu->pc_vfpcthread, save 
-	 * registers and state, and modify the control as needed.
-	 * a future exception will bounce the backup settings in the fp unit.
-	 * XXX vfp_store can't change r4
-	 */
-	GET_PCPU(r7, r8)
-	ldr	r8, [r7, #(PC_VFPCTHREAD)]
-	cmp	r4, r8				/* old thread used vfp? */
-	bne	1f				/* no, don't save */
-	cmp	r1, r4				/* same thread ? */
-	beq	1f				/* yes, skip vfp store */
-#ifdef SMP
-	ldr	r8, [r7, #(PC_CPU)]		/* last used on this cpu? */
-	ldr	r3, [r2, #(PCB_VFPCPU)]
-	cmp	r8, r3		/* last cpu to use these registers? */
-	bne	1f		/* no. these values are stale */
+	fmrx	r0, fpexc		/* If the VFP is enabled */
+	tst	r0, #(VFPEXC_EN)	/* the current thread has */
+	movne	r1, #1			/* used it, so go save */
+	addne	r0, r2, #(PCB_VFPSTATE)	/* the state into the PCB */
+	blne	_C_LABEL(vfp_store)	/* and disable the VFP. */
 #endif
-	add	r0, r2, #(PCB_VFPSTATE)
-	bl	_C_LABEL(vfp_store)
-1:
-#endif		/* VFP */
 
-	/* r1 now free! */
+	/* r0-r3 now free! */
 
 	/* Third phase : restore saved context */
 
@@ -520,26 +504,12 @@ ENTRY(savectx)
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
 #ifdef VFP
-	/*
-	 * vfp_store will clear pcpu->pc_vfpcthread, save 
-	 * registers and state, and modify the control as needed.
-	 * a future exception will bounce the backup settings in the fp unit.
-	 */
-	GET_PCPU(r7, r4)
-	ldr	r4, [r7, #(PC_VFPCTHREAD)]      /* vfp thread */
-	ldr	r2, [r7, #(PC_CURTHREAD)]       /* current thread */
-	cmp	r4, r2
-	bne	1f
-#ifdef SMP
-	ldr	r2, [r7, #(PC_CPU)]     /* last used on this cpu? */
-	ldr	r3, [r0, #(PCB_VFPCPU)]
-	cmp	r2, r3
-	bne	1f              /* no. these values are stale */
+	fmrx	r2, fpexc		/* If the VFP is enabled */
+	tst	r2, #(VFPEXC_EN)	/* the current thread has */
+	movne	r1, #1			/* used it, so go save */
+	addne	r0, r0, #(PCB_VFPSTATE)	/* the state into the PCB */
+	blne	_C_LABEL(vfp_store)	/* and disable the VFP. */
 #endif
-	add	r0, r0, #(PCB_VFPSTATE)
-	bl	_C_LABEL(vfp_store)
-1:
-#endif		/* VFP */
 	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
 END(savectx)

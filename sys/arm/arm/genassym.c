@@ -119,9 +119,7 @@ ASSYM(ARM_RAS_END, ARM_RAS_END);
 
 #ifdef VFP
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
-ASSYM(PCB_VFPCPU, offsetof(struct pcb, pcb_vfpcpu));
 
-ASSYM(PC_VFPCTHREAD, offsetof(struct pcpu, pc_vfpcthread));
 ASSYM(PC_CPU, offsetof(struct pcpu, pc_cpu));
 
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
