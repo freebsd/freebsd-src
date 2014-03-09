@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2011
+.Dd March 9, 2014
 .Dt CRYPT 3
 .Os
 .Sh NAME
@@ -63,11 +63,16 @@ Currently these include the
 .Tn MD5
 hash,
 .Tn NT-Hash
-(compatible with Microsoft's NT scheme)
+.Pq compatible with Microsoft's NT scheme
 and
 .Tn Blowfish .
-The algorithm used will depend upon the format of the Salt (following
-the Modular Crypt Format (MCF)), if
+The algorithm used will depend upon the format of the Salt
+.Po
+following
+the Modular Crypt Format
+.Pq MCF
+.Pc ,
+if
 .Tn DES
 and/or
 .Tn Blowfish
@@ -77,8 +82,10 @@ has been called to change the default.
 .Pp
 The first argument to
 .Nm
-is the data to hash (usually a password), in a
-.Dv null Ns -terminated
+is the data to hash
+.Pq usually a password ,
+in a
+.Dv NUL Ns -terminated
 string.
 The second is the salt, in one of three forms:
 .Pp
@@ -96,22 +103,19 @@ If it begins with the string
 then the Modular Crypt Format is used, as outlined below.
 .It Traditional
 If neither of the above is true, it assumes the Traditional Format,
-using the entire string as the salt (or the first portion).
+using the entire string as the salt
+.Pq or the first portion .
 .El
 .Pp
 All routines are designed to be time-consuming.
-A brief test on a
-.Tn Pentium
-166/MMX shows the
-.Tn DES
-crypt to do approximately 2640 crypts
-a CPU second and MD5 to do about 62 crypts a CPU second.
 .Ss DES Extended Format:
 The
 .Ar key
-is divided into groups of 8 characters (the last group is null-padded)
-and the low-order 7 bits of each character (56 bits per group) are
-used to form the
+is divided into groups of 8 characters
+.Pq the last group is NUL-padded
+and the low-order 7 bits of each character
+.Pq 56 bits per group
+are used to form the
 .Tn DES
 key as follows:
 the first group of 56 bits becomes the initial
@@ -127,7 +131,8 @@ The salt is a 9-character array consisting of an underscore followed
 by 4 bytes of iteration count and 4 bytes of salt.
 These are encoded as printable characters, 6 bits per character,
 least significant character first.
-The values 0 to 63 are encoded as ``./0-9A-Za-z''.
+The values 0 to 63 are encoded as
+.Dq ./0-9A-Za-z .
 This allows 24 bits for both
 .Fa count
 and
@@ -138,7 +143,8 @@ The
 introduces disorder in the
 .Tn DES
 algorithm in one of 16777216 or 4096 possible ways
-(i.e., with 24 or 12 bits: if bit
+.Po
+i.e., with 24 or 12 bits: if bit
 .Em i
 of the
 .Ar salt
@@ -148,7 +154,8 @@ and
 .Em i+24
 are swapped in the
 .Tn DES
-E-box output).
+E-box output
+.Pc .
 .Pp
 The
 .Tn DES
@@ -157,11 +164,13 @@ key is used to encrypt a 64-bit constant using
 iterations of
 .Tn DES .
 The value returned is a
-.Dv null Ns -terminated
-string, 20 or 13 bytes (plus null) in length, consisting of the
+.Dv NUL Ns -terminated
+string, 20 or 13 bytes
+.Pq plus NUL
+in length, consisting of the
 .Ar salt
 followed by the encoded 64-bit encryption.
-.Ss "Modular" crypt:
+.Ss Modular crypt:
 If the salt begins with the string
 .Fa $digit$
 then the Modular Crypt Format is used.
@@ -170,11 +179,10 @@ The
 represents which algorithm is used in encryption.
 Following the token is
 the actual salt to use in the encryption.
-The length of the salt is limited
-to 8 characters--because the length of the returned output is also limited
-(_PASSWORD_LEN).
-The salt must be terminated with the end of the string
-(NULL) or a dollar sign.
+The maximum length of the salt used depends upon the module.
+The salt must be terminated with the end of the string character
+.Pq NUL
+or a dollar sign.
 Any characters after the dollar sign are ignored.
 .Pp
 Currently supported algorithms are:
@@ -199,7 +207,7 @@ An example salt would be:
 .Bl -tag -width 6n -offset indent
 .It Cm "$4$thesalt$rest"
 .El
-.Ss "Traditional" crypt:
+.Ss Traditional crypt:
 The algorithm used will depend upon whether
 .Fn crypt_set_format
 has been called and whether a global default format has been specified.
@@ -216,7 +224,7 @@ if it is available, or MD5 if not.
 .Pp
 How the salt is used will depend upon the algorithm for the hash.
 For
-best results, specify at least two characters of salt.
+best results, specify at least eight characters of salt.
 .Pp
 The
 .Fn crypt_get_format
