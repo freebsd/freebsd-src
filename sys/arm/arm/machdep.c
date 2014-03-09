@@ -379,8 +379,6 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->un_32.pcb32_und_sp = (u_int)thread0.td_kstack +
-	    USPACE_UNDEF_STACK_TOP;
 	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
