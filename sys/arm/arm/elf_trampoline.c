@@ -56,13 +56,7 @@ extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
 
-#ifdef CPU_ARM7TDMI
-#define cpu_idcache_wbinv_all	arm7tdmi_cache_flushID
-extern void arm7tdmi_cache_flushID(void);
-#elif defined(CPU_ARM8)
-#define cpu_idcache_wbinv_all	arm8_cache_purgeID
-extern void arm8_cache_purgeID(void);
-#elif defined(CPU_ARM9)
+#if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
 #elif defined(CPU_FA526) || defined(CPU_FA626TE)
@@ -76,10 +70,6 @@ extern void armv5_ec_idcache_wbinv_all(void);
 extern void arm10_idcache_wbinv_all(void);
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
-    defined(CPU_IXP12X0)
-#define cpu_idcache_wbinv_all	sa1_cache_purgeID
-extern void sa1_cache_purgeID(void);
 #elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
