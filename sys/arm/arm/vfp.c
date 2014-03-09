@@ -229,21 +229,23 @@ vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
 }
 
 /*
- * If the VFP hardware is on, the current thread was using it but now that
- * thread is dying.  Turn off the VFP and set pcpu fpcurthread to 0, to indicate
- * that the VFP hardware state does not belong to any thread.   Called only from
- * cpu_throw(), so we don't have to worry about a context switch here.
+ * The current thread is dying.  If the state currently in the hardware belongs
+ * to the current thread, set fpcurthread to NULL to indicate that the VFP
+ * hardware state does not belong to any thread.  If the VFP is on, turn it off.
+ * Called only from cpu_throw(), so we don't have to worry about a context
+ * switch here.
  */
 void
-vfp_discard()
+vfp_discard(struct thread *td)
 {
 	u_int tmp;
 
+	if (PCPU_GET(fpcurthread) == td)
+		PCPU_SET(fpcurthread, NULL);
+
 	tmp = fmrx(VFPEXC);
-	if (tmp & VFPEXC_EN) {
+	if (tmp & VFPEXC_EN)
 		fmxr(VFPEXC, tmp & ~VFPEXC_EN);
-		PCPU_SET(fpcurthread, 0);
-	}
 }
 
 #endif

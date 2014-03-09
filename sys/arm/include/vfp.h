@@ -129,7 +129,7 @@
 #ifndef LOCORE
 void    vfp_init(void);
 void    vfp_store(struct vfp_state *, boolean_t);
-void    vfp_discard(void);
+void    vfp_discard(struct thread *);
 #endif
 
 #endif

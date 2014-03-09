@@ -124,14 +124,11 @@ ENTRY(cpu_throw)
 	 * r5 = newtd
 	 */
 
-	GET_PCPU(r7, r9)
-
-#ifdef VFP
-	fmrx	r0, fpexc		/* This thread is dying, if the VFP */
-	tst	r0, #(VFPEXC_EN)	/* is enabled, go shut it down */
-	blne	_C_LABEL(vfp_discard)	/* without preserving its state. */
+#ifdef VFP				/* This thread is dying, disable */
+	bl	_C_LABEL(vfp_discard)	/* VFP without preserving state. */
 #endif
 
+	GET_PCPU(r7, r9)
 	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
   
 	/* Switch to lwp0 context */
