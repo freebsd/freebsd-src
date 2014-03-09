@@ -126,6 +126,10 @@
 #define COPROC10		(0x3 << 20)
 #define COPROC11		(0x3 << 22)
 
+#ifndef LOCORE
 void    vfp_init(void);
+void    vfp_store(struct vfp_state *, boolean_t);
+void    vfp_discard(void);
+#endif
 
 #endif
