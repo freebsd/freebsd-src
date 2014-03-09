@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2013
+.Dd January 26, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -235,10 +235,16 @@ or
 .Dq Li ||
 operator; or if the command is a pipeline preceded by the
 .Ic !\&
-operator.
+keyword.
 If a shell function is executed and its exit status is explicitly
 tested, all commands of the function are considered to be tested as
 well.
+.Pp
+It is recommended to check for failures explicitly
+instead of relying on
+.Fl e
+because it tends to behave in unexpected ways,
+particularly in larger scripts.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
@@ -526,6 +532,20 @@ then the input
 would become
 .Pp
 .Dl "ls -F foobar"
+.Pp
+Aliases are also recognized after an alias
+whose value ends with a space or tab.
+For example, if there is also an alias called
+.Dq Li nohup
+with the value
+.Dq Li "nohup " ,
+then the input
+.Pp
+.Dl "nohup lf foobar"
+.Pp
+would become
+.Pp
+.Dl "nohup ls -F foobar"
 .Pp
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how

@@ -683,6 +683,12 @@ makebinary(int type, union node *n1, union node *n2)
 }
 
 void
+forcealias(void)
+{
+	checkkwd |= CHKALIAS;
+}
+
+void
 fixredir(union node *n, const char *text, int err)
 {
 	TRACE(("Fix redir %s %d\n", text, err));

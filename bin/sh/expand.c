@@ -100,6 +100,7 @@ static struct arglist exparg;		/* holds expanded arg list */
 
 static void argstr(char *, int);
 static char *exptilde(char *, int);
+static char *expari(char *);
 static void expbackq(union node *, int, int);
 static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
@@ -206,7 +207,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 /*
  * Perform parameter expansion, command substitution and arithmetic
  * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
- * Processing ends at a CTLENDVAR character as well as '\0'.
+ * Processing ends at a CTLENDVAR or CTLENDARI character as well as '\0'.
  * This is used to expand word in ${var+word} etc.
  * If EXP_FULL, EXP_CASE or EXP_REDIR are set, keep and/or generate CTLESC
  * characters to allow for further processing.
@@ -231,6 +232,7 @@ argstr(char *p, int flag)
 		switch (c = *p++) {
 		case '\0':
 		case CTLENDVAR:
+		case CTLENDARI:
 			goto breakloop;
 		case CTLQUOTEMARK:
 			lit_quoted = 1;
@@ -261,8 +263,8 @@ argstr(char *p, int flag)
 			expbackq(argbackq->n, c & CTLQUOTE, flag);
 			argbackq = argbackq->next;
 			break;
-		case CTLENDARI:
-			expari(flag);
+		case CTLARI:
+			p = expari(p);
 			break;
 		case ':':
 		case '=':
@@ -387,59 +389,56 @@ removerecordregions(int endoff)
 }
 
 /*
- * Expand arithmetic expression.  Backup to start of expression,
- * evaluate, place result in (backed up) result, adjust string position.
+ * Expand arithmetic expression.
+ * Note that flag is not required as digits never require CTLESC characters.
  */
-void
-expari(int flag)
+static char *
+expari(char *p)
 {
-	char *p, *q, *start;
+	char *q, *start;
 	arith_t result;
 	int begoff;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int quoted;
+	int c;
+	int nesting;
+	int adj;
 
-	/*
-	 * This routine is slightly over-complicated for
-	 * efficiency.  First we make sure there is
-	 * enough space for the result, which may be bigger
-	 * than the expression.  Next we
-	 * scan backwards looking for the start of arithmetic.  If the
-	 * next previous character is a CTLESC character, then we
-	 * have to rescan starting from the beginning since CTLESC
-	 * characters have to be processed left to right.
-	 */
-	CHECKSTRSPACE(DIGITS(result) - 2, expdest);
-	USTPUTC('\0', expdest);
-	start = stackblock();
-	p = expdest - 2;
-	while (p >= start && *p != CTLARI)
-		--p;
-	if (p < start || *p != CTLARI)
-		error("missing CTLARI (shouldn't happen)");
-	if (p > start && *(p - 1) == CTLESC)
-		for (p = start; *p != CTLARI; p++)
-			if (*p == CTLESC)
-				p++;
-
-	if (p[1] == '"')
-		quoted=1;
-	else
-		quoted=0;
-	begoff = p - start;
+	quoted = *p++ == '"';
+	begoff = expdest - stackblock();
+	argstr(p, 0);
 	removerecordregions(begoff);
-	if (quotes)
-		rmescapes(p+2);
+	STPUTC('\0', expdest);
+	start = stackblock() + begoff;
+
 	q = grabstackstr(expdest);
-	result = arith(p+2);
+	result = arith(start);
 	ungrabstackstr(q, expdest);
-	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
-	while (*p++)
-		;
-	if (quoted == 0)
-		recordregion(begoff, p - 1 - start, 0);
-	result = expdest - p + 1;
-	STADJUST(-result, expdest);
+
+	start = stackblock() + begoff;
+	adj = start - expdest;
+	STADJUST(adj, expdest);
+
+	CHECKSTRSPACE((int)(DIGITS(result) + 1), expdest);
+	fmtstr(expdest, DIGITS(result), ARITH_FORMAT_STR, result);
+	adj = strlen(expdest);
+	STADJUST(adj, expdest);
+	if (!quoted)
+		recordregion(begoff, expdest - stackblock(), 0);
+	nesting = 1;
+	while (nesting > 0) {
+		c = *p++;
+		if (c == CTLESC)
+			p++;
+		else if (c == CTLARI)
+			nesting++;
+		else if (c == CTLENDARI)
+			nesting--;
+		else if (c == CTLVAR)
+			p++; /* ignore variable substitution byte */
+		else if (c == '\0')
+			return p - 1;
+	}
+	return p;
 }
 
 
@@ -671,10 +670,8 @@ evalvar(char *p, int flag)
 again: /* jump here after setting a variable with ${var=text} */
 	if (varflags & VSLINENO) {
 		set = 1;
-		special = 0;
-		val = var;
-		p[-1] = '\0';	/* temporarily overwrite '=' to have \0
-				   terminated string */
+		special = 1;
+		val = NULL;
 	} else if (special) {
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
@@ -703,7 +700,10 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			varvalue(var, varflags & VSQUOTE, subtype, flag);
+			if (varflags & VSLINENO)
+				STPUTBIN(var, p - var - 1, expdest);
+			else
+				varvalue(var, varflags & VSQUOTE, subtype, flag);
 			if (subtype == VSLENGTH) {
 				varlenb = expdest - stackblock() - startloc;
 				varlen = varlenb;
@@ -815,7 +815,6 @@ record:
 	default:
 		abort();
 	}
-	p[-1] = '=';	/* recover overwritten '=' */
 
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
 		int nesting = 1;
@@ -1307,9 +1306,11 @@ addfname(char *name)
 {
 	char *p;
 	struct strlist *sp;
+	size_t len;
 
-	p = stalloc(strlen(name) + 1);
-	scopy(name, p);
+	len = strlen(name);
+	p = stalloc(len + 1);
+	memcpy(p, name, len + 1);
 	sp = (struct strlist *)stalloc(sizeof *sp);
 	sp->text = p;
 	*exparg.lastp = sp;
