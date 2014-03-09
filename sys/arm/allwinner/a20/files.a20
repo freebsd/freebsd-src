@@ -19,5 +19,5 @@ arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/a10_wdog.c		standard
 arm/allwinner/timer.c			standard
 arm/arm/bus_space-v6.c			standard
-arm/allwinner/common.c			standard
+arm/allwinner/a10_common.c			standard
 arm/allwinner/a10_machdep.c		standard
