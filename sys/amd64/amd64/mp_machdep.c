@@ -1420,7 +1420,7 @@ cpususpend_handler(void)
 	cpu = PCPU_GET(cpuid);
 
 	if (savectx(susppcbs[cpu])) {
-		ctx_fpusave(suspfpusave[cpu]);
+		fpususpend(suspfpusave[cpu]);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 	} else {
