@@ -148,7 +148,7 @@ _C_LABEL(data_abort_handler_address):
 END(data_abort_entry)
 
 /*
- * address_exception_entry:
+ * addr_exception_entry:
  *
  *	Handler for the Address Exception exception.
  *
@@ -156,17 +156,17 @@ END(data_abort_entry)
  *	print a warning message to the console and then treat
  *	it like a Data Abort.
  */
-ASENTRY_NP(address_exception_entry)
+ASENTRY_NP(addr_exception_entry)
 	mrs	r1, cpsr
 	mrs	r2, spsr
 	mov	r3, lr
-	adr	r0, Laddress_exception_msg
+	adr	r0, Laddr_exception_msg
 	bl	_C_LABEL(printf)	/* XXX CLOBBERS LR!! */
 	b	data_abort_entry
-Laddress_exception_msg:
+Laddr_exception_msg:
 	.asciz	"Address Exception CPSR=0x%08x SPSR=0x%08x LR=0x%08x\n"
 	.balign	4
-END(address_exception_entry)
+END(addr_exception_entry)
 
 /*
  * General exception exit handler
@@ -233,4 +233,64 @@ Lundefined_handler_address:
 	.global	_C_LABEL(undefined_handler_address)
 _C_LABEL(undefined_handler_address):
 	.word	undefinedinstruction_bounce
+
+/*
+ * Entry point for FIQ interrupts.
+ *
+ * We don't currently support FIQ handlers very much.  Something can 
+ * install itself in the FIQ vector using code (that may or may not work
+ * these days) in fiq.c.  If nobody does that and an FIQ happens, this
+ * default handler just disables FIQs and otherwise ignores it.
+ */
+ASENTRY_NP(fiq_entry)
+	mrs	r8, cpsr		/* FIQ handling isn't supported, */
+	bic	r8, #(F32_bit)		/* just disable FIQ and return.  */
+	msr	cpsr_c, r8		/* The r8 we trash here is the  */
+	subs	pc, lr, #4		/* banked FIQ-mode r8. */
+END(fiq_entry)
+
+/*
+ * page0 and page0_data -- An image of the ARM vectors which is copied to
+ * the ARM vectors page (high or low) as part of CPU initialization.  The
+ * code that does the copy assumes that page0_data holds one 32-bit word
+ * of data for each of the predefined ARM vectors.  It also assumes that
+ * page0_data follows the vectors in page0, but other stuff can appear 
+ * between the two.  We currently leave room between the two for some fiq 
+ * handler code to be copied in.
+ */
+	.global	_C_LABEL(page0), _C_LABEL(page0_data)
+
+_C_LABEL(page0):
+	ldr	pc, .Lreset_entry
+	ldr	pc, .Lundefined_entry
+	ldr	pc, .Lswi_entry
+	ldr	pc, .Lprefetch_abort_entry
+	ldr	pc, .Ldata_abort_entry
+	ldr	pc, .Laddr_exception_entry
+	ldr	pc, .Lirq_entry
+.fiqv:	ldr	pc, .Lfiq_entry
+	.space 256	/* room for some fiq handler code */
+
+_C_LABEL(page0_data):
+.Lreset_entry:		.word	reset_entry
+.Lundefined_entry:	.word	undefined_entry
+.Lswi_entry:		.word	swi_entry
+.Lprefetch_abort_entry:	.word	prefetch_abort_entry
+.Ldata_abort_entry:	.word	data_abort_entry
+.Laddr_exception_entry:	.word	addr_exception_entry
+.Lirq_entry:		.word	irq_entry
+.Lfiq_entry:		.word	fiq_entry
+
+/*
+ * These items are used by the code in fiq.c to install what it calls the
+ * "null" handler.  It's actually our default vector entry that just jumps
+ * to the default handler which just disables FIQs and returns.
+ */
+	.global _C_LABEL(fiq_nullhandler_code), _C_LABEL(fiq_nullhandler_size)
+
+_C_LABEL(fiq_nullhandler_code):
+	.word	.fiqv
+_C_LABEL(fiq_nullhandler_size):
+	.word	4
+
 
