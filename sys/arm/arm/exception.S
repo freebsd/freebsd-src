@@ -115,16 +115,8 @@ Lprefetch_abort_handler_address:
 	.global	_C_LABEL(prefetch_abort_handler_address)
 
 _C_LABEL(prefetch_abort_handler_address):
-	.word	abortprefetch
+	.word	prefetch_abort_handler
 
-	.text
-abortprefetch:
-        adr     r0, abortprefetchmsg
-	b	_C_LABEL(panic)
-
-abortprefetchmsg:
-        .asciz  "abortprefetch"
-        .align  0
 END(prefetch_abort_entry)
 
 /*
@@ -151,16 +143,8 @@ Ldata_abort_handler_address:
 	.data
 	.global	_C_LABEL(data_abort_handler_address)
 _C_LABEL(data_abort_handler_address):
-	.word	abortdata
+	.word	data_abort_handler
 
-	.text
-abortdata:
-        adr     r0, abortdatamsg
-	b	_C_LABEL(panic)
-
-abortdatamsg:
-        .asciz  "abortdata"
-        .align  0
 END(data_abort_entry)
 
 /*
