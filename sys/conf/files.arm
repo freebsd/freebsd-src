@@ -50,7 +50,6 @@ arm/arm/sys_machdep.c		standard
 arm/arm/trap.c			standard
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
-arm/arm/vectors.S		standard
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
 board_id.h			standard				   \
