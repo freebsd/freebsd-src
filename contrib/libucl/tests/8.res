@@ -33,4 +33,6 @@ section {
         param = 123.200000;
     }
 }
+array [
+]
 

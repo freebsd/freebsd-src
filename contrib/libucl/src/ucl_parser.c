@@ -1233,6 +1233,28 @@ ucl_parse_multiline_string (struct ucl_parser *parser,
 	return len;
 }
 
+static ucl_object_t*
+ucl_get_value_object (struct ucl_parser *parser)
+{
+	ucl_object_t *t, *obj = NULL;
+
+	if (parser->stack->obj->type == UCL_ARRAY) {
+		/* Object must be allocated */
+		obj = ucl_object_new ();
+		t = parser->stack->obj->value.av;
+		DL_APPEND (t, obj);
+		parser->cur_obj = obj;
+		parser->stack->obj->value.av = t;
+		parser->stack->obj->len ++;
+	}
+	else {
+		/* Object has been already allocated */
+		obj = parser->cur_obj;
+	}
+
+	return obj;
+}
+
 /**
  * Handle value data
  * @param parser
@@ -1243,32 +1265,30 @@ static bool
 ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 {
 	const unsigned char *p, *c;
-	ucl_object_t *obj = NULL, *t;
+	ucl_object_t *obj = NULL;
 	unsigned int stripped_spaces;
 	int str_len;
 	bool need_unescape = false, ucl_escape = false, var_expand = false;
 
 	p = chunk->pos;
 
-	while (p < chunk->end) {
-		if (obj == NULL) {
-			if (parser->stack->obj->type == UCL_ARRAY) {
-				/* Object must be allocated */
-				obj = ucl_object_new ();
-				t = parser->stack->obj->value.av;
-				DL_APPEND (t, obj);
-				parser->cur_obj = obj;
-				parser->stack->obj->value.av = t;
-				parser->stack->obj->len ++;
-			}
-			else {
-				/* Object has been already allocated */
-				obj = parser->cur_obj;
-			}
+	/* Skip any spaces and comments */
+	if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE) ||
+			(chunk->remain >= 2 && ucl_lex_is_comment (p[0], p[1]))) {
+		while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+			ucl_chunk_skipc (chunk, p);
 		}
+		if (!ucl_skip_comments (parser)) {
+			return false;
+		}
+		p = chunk->pos;
+	}
+
+	while (p < chunk->end) {
 		c = p;
 		switch (*p) {
 		case '"':
+			obj = ucl_get_value_object (parser);
 			ucl_chunk_skipc (chunk, p);
 			if (!ucl_lex_json_string (parser, chunk, &need_unescape, &ucl_escape, &var_expand)) {
 				return false;
@@ -1285,6 +1305,7 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			return true;
 			break;
 		case '{':
+			obj = ucl_get_value_object (parser);
 			/* We have a new object */
 			obj = ucl_add_parser_stack (obj, parser, false, parser->stack->level);
 
@@ -1292,13 +1313,25 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			return true;
 			break;
 		case '[':
+			obj = ucl_get_value_object (parser);
 			/* We have a new array */
 			obj = ucl_add_parser_stack (obj, parser, true, parser->stack->level);
 
 			ucl_chunk_skipc (chunk, p);
 			return true;
 			break;
+		case ']':
+			/* We have the array ending */
+			if (parser->stack && parser->stack->obj->type == UCL_ARRAY) {
+				parser->state = UCL_STATE_AFTER_VALUE;
+				return true;
+			}
+			else {
+				goto parse_string;
+			}
+			break;
 		case '<':
+			obj = ucl_get_value_object (parser);
 			/* We have something like multiline value, which must be <<[A-Z]+\n */
 			if (chunk->end - p > 3) {
 				if (memcmp (p, "<<", 2) == 0) {
@@ -1332,17 +1365,9 @@ ucl_parse_value (struct ucl_parser *parser, struct ucl_chunk *chunk)
 			}
 			/* Fallback to ordinary strings */
 		default:
-			/* Skip any spaces and comments */
-			if (ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE) ||
-					(chunk->remain >= 2 && ucl_lex_is_comment (p[0], p[1]))) {
-				while (p < chunk->end && ucl_test_character (*p, UCL_CHARACTER_WHITESPACE_UNSAFE)) {
-					ucl_chunk_skipc (chunk, p);
-				}
-				if (!ucl_skip_comments (parser)) {
-					return false;
-				}
-				p = chunk->pos;
-				continue;
+parse_string:
+			if (obj == NULL) {
+				obj = ucl_get_value_object (parser);
 			}
 			/* Parse atom */
 			if (ucl_test_character (*p, UCL_CHARACTER_VALUE_DIGIT_START)) {
