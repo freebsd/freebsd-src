@@ -247,7 +247,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	load_cr3(KPML4phys);
 
 	if (savectx(susppcbs[0])) {
-		ctx_fpusave(suspfpusave[0]);
+		fpususpend(suspfpusave[0]);
 #ifdef SMP
 		if (wakeup_cpus != 0 && suspend_cpus(wakeup_cpus) == 0) {
 			device_printf(sc->acpi_dev,

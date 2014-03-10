@@ -145,6 +145,7 @@ int	fpusetregs(struct thread *td, struct savefpu *addr,
 	    char *xfpustate, size_t xfpustate_size);
 int	fpusetxstate(struct thread *td, char *xfpustate,
 	    size_t xfpustate_size);
+void	fpususpend(void *addr);
 int	fputrap(void);
 void	fpuuserinited(struct thread *td);
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);

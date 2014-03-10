@@ -1352,7 +1352,7 @@ cpususpend_handler(void)
 	cr3 = rcr3();
 
 	if (savectx(susppcbs[cpu])) {
-		ctx_fpusave(suspfpusave[cpu]);
+		fpususpend(suspfpusave[cpu]);
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
 	} else {

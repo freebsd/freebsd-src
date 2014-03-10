@@ -179,6 +179,17 @@ fpurestore(void *addr)
 		fxrstor((char *)addr);
 }
 
+void
+fpususpend(void *addr)
+{
+	u_long cr0;
+
+	cr0 = rcr0();
+	stop_emulating();
+	fpusave(addr);
+	load_cr0(cr0);
+}
+
 /*
  * Enable XSAVE if supported and allowed by user.
  * Calculate the xsave_mask.
