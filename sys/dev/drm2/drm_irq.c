@@ -786,7 +786,7 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 
 	mtx_lock(&dev->vbl_lock);
 	/* Going from 0->1 means we have to enable interrupts again */
-	if (atomic_fetchadd_int(&dev->vblank_refcount[crtc], 1) == 0) {
+	if (atomic_add_return(1, &dev->vblank_refcount[crtc]) == 1) {
 		mtx_lock(&dev->vblank_time_lock);
 		if (!dev->vblank_enabled[crtc]) {
 			/* Enable vblank irqs under vblank_time_lock protection.
@@ -831,7 +831,7 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 	    ("Too many drm_vblank_put for crtc %d", crtc));
 
 	/* Last user schedules interrupt disable */
-	if (atomic_fetchadd_int(&dev->vblank_refcount[crtc], -1) == 1 &&
+	if (atomic_dec_and_test(&dev->vblank_refcount[crtc]) &&
 	    (drm_vblank_offdelay > 0))
 		callout_reset(&dev->vblank_disable_callout,
 		    (drm_vblank_offdelay * DRM_HZ) / 1000,

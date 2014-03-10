@@ -121,7 +121,7 @@ drm_gem_private_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 	obj->vm_obj = NULL;
 
 	obj->refcount = 1;
-	atomic_set(&obj->handle_count, 0);
+	atomic_store_rel_int(&obj->handle_count, 0);
 	obj->size = size;
 
 	return (0);
@@ -465,16 +465,12 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 }
 
 int
-drm_gem_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
+drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size,
     struct vm_object **obj_res, int nprot)
 {
-	struct drm_device *dev;
 	struct drm_gem_object *gem_obj;
 	struct vm_object *vm_obj;
 
-	dev = drm_get_device_from_kdev(kdev);
-	if ((dev->driver->driver_features & DRIVER_GEM) == 0)
-		return (ENODEV);
 	DRM_LOCK(dev);
 	gem_obj = drm_gem_object_from_offset(dev, *offset);
 	if (gem_obj == NULL) {

@@ -104,6 +104,7 @@ void drm_global_item_unref(struct drm_global_reference *ref)
 	MPASS(ref->object == item->object);
 	if (--item->refcount == 0) {
 		ref->release(ref);
+		free(item->object, M_DRM_GLOBAL);
 		item->object = NULL;
 	}
 	sx_xunlock(&item->mutex);
