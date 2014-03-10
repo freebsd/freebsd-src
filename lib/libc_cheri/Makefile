@@ -43,7 +43,8 @@ CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \
 		-I${.CURDIR}/../../contrib/gdtoa \
-		-I${.CURDIR}/../../contrib/tzcode/stdtime
+		-I${.CURDIR}/../../contrib/tzcode/stdtime \
+		-O0
 
 # libc/gdtoa
 CFLAGS.misc.c=	-Wno-sign-compare
@@ -80,6 +81,7 @@ SRCS+=		ascii.c big5.c gbk.c gb2312.c gb18030.c euc.c utf8.c \
 		none.c mbsnrtowcs.c mskanji.c rune.c setlocale.c wcsnrtombs.c
 
 SRCS+=		collate.c		\
+		ctype.c			\
 		fix_grouping.c		\
 		ldpart.c		\
 		lmessages.c		\
@@ -90,7 +92,10 @@ SRCS+=		collate.c		\
 		setlocale.c		\
 		setrunelocale.c		\
 		table.c			\
+		tolower.c		\
+		toupper.c		\
 		xlocale.c
+
 # libc/inet
 SRCS+=		inet_ntop.c		\
 		inet_ntoa.c
@@ -105,6 +110,7 @@ SRCS+=		atoi.c			\
 # libc/string
 CFLAGS.strerror.c=	-Wno-incompatible-pointer-types-discards-qualifiers
 SRCS+=		bcopy.S			\
+		ffs.c			\
 		memchr.c		\
 		memchr_c.c		\
 		memcmp.c		\
