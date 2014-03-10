@@ -192,6 +192,16 @@ ASENTRY_NP(exception_exit)
 	PULLFRAMEFROMSVCANDEXIT
 END(exception_exit)
 
+ASENTRY_NP(irq_entry)
+	sub	lr, lr, #0x00000004	/* Adjust the lr */
+	PUSHFRAMEINSVC			/* Push an interrupt frame */
+	mov	r0, sp			/* arg for dispatcher */
+
+	adr	lr, exception_exit
+	mov	r1, #0
+	b	_C_LABEL(arm_irq_handler)
+END(irq_entry)
+
 /*
  * undefined_entry:
  *
