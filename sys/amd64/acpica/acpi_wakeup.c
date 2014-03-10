@@ -242,7 +242,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	intr_suspend();
 
 	if (savectx(susppcbs[0])) {
-		ctx_fpusave(suspfpusave[0]);
+		fpususpend(suspfpusave[0]);
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) &&
 		    suspend_cpus(suspcpus) == 0) {

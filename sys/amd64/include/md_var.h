@@ -86,7 +86,6 @@ void	*alloc_fpusave(int flags);
 void	amd64_syscall(struct thread *td, int traced);
 void	busdma_swi(void);
 void	cpu_setregs(void);
-void	ctx_fpusave(void *);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	ld_ds(void) __asm(__STRING(ld_ds));
