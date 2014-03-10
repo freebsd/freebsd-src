@@ -19,3 +19,5 @@ section test {
 section foo { # test
 	param = 123.2;
 }
+
+array = []

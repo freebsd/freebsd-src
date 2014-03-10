@@ -261,3 +261,88 @@ Here is a list of all conversion functions:
 - `ucl_object_tostring_forced` - returns string representation of any UCL object
 
 Strings returned by these pointers are associated with the UCL object and exist over its lifetime. A caller should not free this memory.
+
+# Generation functions
+
+It is possible to generate UCL objects from C primitive types. Moreover, libucl permits to create and modify complex UCL objects, such as arrays or associative objects. 
+
+## ucl_object_new
+~~~C
+ucl_object_t * ucl_object_new (void)
+~~~
+
+Creates new object of type `UCL_NULL`. This object should be released by caller.
+
+## ucl_object_typed_new
+~~~C
+ucl_object_t * ucl_object_typed_new (unsigned int type)
+~~~
+
+Create an object of a specified type:
+- `UCL_OBJECT` - UCL object - key/value pairs
+- `UCL_ARRAY` - UCL array
+- `UCL_INT` - integer number
+- `UCL_FLOAT` - floating point number
+- `UCL_STRING` - NULL terminated string
+- `UCL_BOOLEAN` - boolean value
+- `UCL_TIME` - time value (floating point number of seconds)
+- `UCL_USERDATA` - opaque userdata pointer (may be used in macros)
+- `UCL_NULL` - null value
+
+This object should be released by caller.
+
+## Primitive objects generation
+Libucl provides the functions similar to inverse conversion functions called with the specific C type:
+- `ucl_object_fromint` - converts `int64_t` to UCL object
+- `ucl_object_fromdouble` - converts `double` to UCL object
+- `ucl_object_fromboolean` - converts `bool` to UCL object
+- `ucl_object_fromstring` - converts `const char *` to UCL object (this string is NULL terminated)
+- `ucl_object_fromlstring` - converts `const char *` and `size_t` len to UCL object (string can be not NULL terminated)
+
+Also there is a function to generate UCL object from a string performing various parsing or conversion operations called `ucl_object_fromstring_common`.
+
+## ucl_object_fromstring_common
+~~~C
+ucl_object_t * ucl_object_fromstring_common (const char *str, 
+	size_t len, enum ucl_string_flags flags)
+~~~
+
+This function is used to convert a string `str` of size `len` to an UCL objects applying `flags` conversions. If `len` is equal to zero then a `str` is assumed as NULL-terminated. This function supports the following flags (a set of flags can be specified using logical `OR` operation):
+
+- `UCL_STRING_ESCAPE` - perform JSON escape
+- `UCL_STRING_TRIM` - trim leading and trailing whitespaces
+- `UCL_STRING_PARSE_BOOLEAN` - parse passed string and detect boolean
+- `UCL_STRING_PARSE_INT` - parse passed string and detect integer number
+- `UCL_STRING_PARSE_DOUBLE` - parse passed string and detect integer or float number
+- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float or integer types)
+- `UCL_STRING_PARSE` - parse passed string (and detect booleans and numbers)
+- `UCL_STRING_PARSE_BYTES` - assume that numeric multipliers are in bytes notation, for example `10k` means `10*1024` and not `10*1000` as assumed without this flag
+
+If parsing operations fail then the resulting UCL object will be a `UCL_STRING`. A caller should always check the type of the returned object and release it after using.
+
+# Iteration function
+
+Iteration are used to iterate over UCL compound types: arrays and objects. Moreover, iterations could be performed over the keys with multiple values (implicit arrays). To iterate over an object, an array or a key with multiple values there is a function `ucl_iterate_object`.
+
+## ucl_iterate_object
+~~~C
+ucl_object_t* ucl_iterate_object (ucl_object_t *obj, 
+	ucl_object_iter_t *iter, bool expand_values);
+~~~
+
+This function accept opaque iterator pointer `iter`. In the first call this iterator *must* be initialized to `NULL`. Iterator is changed by this function call. `ucl_iterate_object` returns the next UCL object in the compound object `obj` or `NULL` if all objects have been iterated. The reference count of the object returned is not increased, so a caller should not unref the object or modify its content (e.g. by inserting to another compound object). The object `obj` should not be changed during the iteration process as well. `expand_values` flag speicifies whether `ucl_iterate_object` should expand keys with multiple values. The general rule is that if you need to iterate throught the *object* or *explicit array*, then you always need to set this flag to `true`. However, if you get some key in the object and want to extract all its values then you should set `expand_values` to `false`. Mixing of iteration types are not permitted since the iterator is set according to the iteration type and cannot be reused. Here is an example of iteration over the objects using libucl API (assuming that `top` is `UCL_OBJECT` in this example):
+
+~~~C
+ucl_object_iter_t it = NULL, it_obj = NULL;
+ucl_object_t *cur, *tmp;
+
+/* Iterate over the object */
+while ((obj = ucl_iterate_object (top, &it, true))) {
+	printf ("key: \"%s\"\n", ucl_object_key (obj));
+	/* Iterate over the values of a key */
+	while ((cur = ucl_iterate_object (obj, &it_obj, false))) {
+		printf ("value: \"%s\"\n", 
+			ucl_object_tostring_forced (cur));
+	}
+}
+~~~
