@@ -55,9 +55,9 @@ f_input_group()
 	eval "$( pw groupshow "$group" 2> /dev/null | awk -F: '
 	{
 		found = $1 != ""
-		printf "group_name='\'%s\''\n", $1
+		printf "group_name='\'%s\''\n",    $1
 		printf "group_password=\n"
-		printf "group_gid='\'%s\''\n", $3
+		printf "group_gid='\'%s\''\n",     $3
 		printf "group_members='\'%s\''\n", $4
 		exit
 	}
