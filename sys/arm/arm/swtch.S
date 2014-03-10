@@ -501,6 +501,5 @@ ENTRY(fork_trampoline)
 
 	movs	pc, lr			/* Exit */
 
-AST_LOCALS
 END(fork_trampoline)
 
