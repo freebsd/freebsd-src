@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 	.text	
 	.align	0
 
-AST_LOCALS
-
 /*
  * reset_entry:
  *
