@@ -4311,4 +4311,5 @@ OLD_FILES+=usr/bin/svnversion
 OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
+OLD_FILES+=usr/share/examples/dma/mailer.conf
 .endif
