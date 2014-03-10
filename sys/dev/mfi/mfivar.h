@@ -199,6 +199,8 @@ struct mfi_softc {
 #define MFI_FLAGS_GEN2		(1<<6)
 #define MFI_FLAGS_SKINNY	(1<<7)
 #define MFI_FLAGS_TBOLT		(1<<8)
+#define MFI_FLAGS_INVADER	(1<<10)
+#define MFI_FLAGS_FURY		(1<<11)
 	// Start: LSIP200113393
 	bus_dma_tag_t			verbuf_h_dmat;
 	bus_dmamap_t			verbuf_h_dmamap;
