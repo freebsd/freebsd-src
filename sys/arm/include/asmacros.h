@@ -243,13 +243,10 @@ name:
 #define GET_CURTHREAD_PTR(tmp) \
     	mrc	p15, 0, tmp, c13, c0, 4
 #else
-#define	AST_LOCALS							;\
-.Lcurthread:								;\
-	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
-
-#define GET_CURTHREAD_PTR(tmp) \
-	ldr	tmp, .Lcurthread;     \
-	ldr	tmp, [tmp]
+#define	AST_LOCALS
+#define GET_CURTHREAD_PTR(tmp)	\
+	ldr	tmp, =_C_LABEL(__pcpu);\
+	ldr	tmp, [tmp, #PC_CURTHREAD]
 #endif
 
 #define	DO_AST								\
