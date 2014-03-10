@@ -25,7 +25,9 @@
 #define UCL_INTERNAL_H_
 
 #include <sys/types.h>
+#ifndef _WIN32
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <sys/param.h>
 
