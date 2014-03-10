@@ -157,7 +157,6 @@ f_dialog_input_group_name()
 		setvar "$__var_to_set" "$__input"
 		break
 	done
-	save_flag=1
 
 	return $DIALOG_OK
 }
@@ -256,7 +255,6 @@ f_dialog_input_group_password()
 		setvar "$__var_to_set" "$__password1"
 		break
 	done
-	save_flag=1
 
 	return $DIALOG_OK
 }
@@ -276,8 +274,6 @@ f_dialog_input_group_gid()
 	               "$__input" "$hline_num_tab_enter" || return $?
 
 	setvar "$__var_to_set" "$__input"
-	save_flag=1
-
 	return $DIALOG_OK
 }
 
@@ -401,8 +397,6 @@ f_dialog_input_group_members()
 	done
 
 	setvar "$__var_to_set" "$__input"
-	save_flag=1
-
 	return $DIALOG_OK
 }
 
