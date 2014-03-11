@@ -24,11 +24,15 @@
         ..
         i18n
         ..
+        private
+        ..
     ..
     lib32
         dtrace
         ..
         i18n
+        ..
+        private
         ..
     ..
     libdata

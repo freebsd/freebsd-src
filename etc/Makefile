@@ -50,6 +50,10 @@ BIN1=	crontab \
 	syslog.conf \
 	termcap.small
 
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+BIN1+=	libmap32.conf
+.endif
+
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
 .elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
