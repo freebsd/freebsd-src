@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2013 Roger Pau Monne <royger@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,59 +32,52 @@
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
+#include <xen/xen-os.h>
+#define __ASSEMBLY__
+#include <xen/interface/elfnote.h>
+
 #include "assym.s"
 
-/*
- * Compiled KERNBASE location
- */
-	.globl	kernbase,loc_PTmap,loc_PDmap,loc_PDPmap,loc_PML4map,loc_PML4pml4e,dmapbase,dmapend
-	.set	kernbase,KERNBASE
-	.set	loc_PTmap,addr_PTmap
-	.set	loc_PDmap,addr_PDmap
-	.set	loc_PDPmap,addr_PDPmap
-	.set	loc_PML4map,addr_PML4map
-	.set	loc_PML4pml4e,addr_PML4pml4e
-	.set	dmapbase,DMAP_MIN_ADDRESS
-	.set	dmapend,DMAP_MAX_ADDRESS
+.section __xen_guest
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "FreeBSD")
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz, __XSTRING(__FreeBSD_version))
+	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz, "xen-3.0")
+	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .quad,  KERNBASE)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad,  KERNBASE) /* Xen honours elf->p_paddr; compensate for this */
+	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .quad,  xen_start)
+	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .quad,	 hypercall_page)
+	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .quad,  HYPERVISOR_VIRT_START)
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_descriptor_tables|auto_translated_physmap|supervisor_mode_kernel|hvm_callback_vector")
+	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz, "yes")
+	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .long,  PG_V, PG_V)
+	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz, "generic")
+	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long,  0)
+	ELFNOTE(Xen, XEN_ELFNOTE_BSD_SYMTAB,	 .asciz, "yes")
 
 	.text
-/**********************************************************************
- *
- * This is where the loader trampoline start us, set the ball rolling...
- *
- * We are called with the stack looking like this:
- * 0(%rsp) = 32 bit return address (cannot be used)
- * 4(%rsp) = 32 bit modulep
- * 8(%rsp) = 32 bit kernend
- *
- * We are already in long mode, on a 64 bit %cs and running at KERNBASE.
- */
-NON_GPROF_ENTRY(btext)
+.p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
 
-	/* Tell the bios to warmboot next time */
-	movw	$0x1234,0x472
+NON_GPROF_ENTRY(hypercall_page)
+	.skip	0x1000, 0x90	/* Fill with "nop"s */
 
+NON_GPROF_ENTRY(xen_start)
 	/* Don't trust what the loader gives for rflags. */
 	pushq	$PSL_KERNEL
 	popfq
 
-	/* Find the metadata pointers before we lose them */
-	movq	%rsp, %rbp
-	movl	4(%rbp),%edi		/* modulep (arg 1) */
-	movl	8(%rbp),%esi		/* kernend (arg 2) */
+	/* Parameters for the xen init function */
+	movq	%rsi, %rdi		/* shared_info (arg 1) */
+	movq	%rsp, %rsi		/* xenstack    (arg 2) */
 
-	/* Get onto a stack that we can trust - there is no going back now. */
+	/* Use our own stack */
 	movq	$bootstack,%rsp
 	xorl	%ebp, %ebp
 
-	call	hammer_time		/* set up cpu for unix operation */
-	movq	%rax,%rsp		/* set up kstack for mi_startup() */
+	/* u_int64_t hammer_time_xen(start_info_t *si, u_int64_t xenstack); */
+	call	hammer_time_xen
+	movq	%rax, %rsp		/* set up kstack for mi_startup() */
 	call	mi_startup		/* autoconfiguration, mountroot etc */
-0:	hlt
-	jmp	0b
 
-	.bss
-	ALIGN_DATA			/* just to be sure */
-	.globl	bootstack
-	.space	0x1000			/* space for bootstack - temporary stack */
-bootstack:
+	/* NOTREACHED */
+0:	hlt
+	jmp 	0b

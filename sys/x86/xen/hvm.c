@@ -149,6 +149,7 @@ DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 /** Hypercall table accessed via HYPERVISOR_*_op() methods. */
 char *hypercall_stubs;
 shared_info_t *HYPERVISOR_shared_info;
+start_info_t *HYPERVISOR_start_info;
 
 #ifdef SMP
 /*---------------------------- XEN PV IPI Handlers ---------------------------*/
