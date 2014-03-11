@@ -34,10 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/boot.h>
 #include <sys/ctype.h>
+#include <sys/mutex.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -50,9 +53,12 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/init.h>
 #include <machine/pc/bios.h>
+#include <machine/smp.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
+
+#include <xen/interface/vcpu.h>
 
 #include <dev/xen/timer/timer.h>
 
@@ -67,6 +73,22 @@ uint64_t hammer_time_xen(start_info_t *, uint64_t);
 static caddr_t xen_pv_parse_preload_data(u_int64_t);
 static void xen_pv_parse_memmap(caddr_t, vm_paddr_t *, int *);
 
+#ifdef SMP
+static int xen_pv_start_all_aps(void);
+#endif
+
+/*---------------------------- Extern Declarations ---------------------------*/
+#ifdef SMP
+/* Variables used by amd64 mp_machdep to start APs */
+extern struct mtx ap_boot_mtx;
+extern void *bootstacks[];
+extern char *doublefault_stack;
+extern char *nmi_stack;
+extern void *dpcpu;
+extern int bootAP;
+extern char *bootSTK;
+#endif
+
 /*-------------------------------- Global Data -------------------------------*/
 /* Xen init_ops implementation. */
 struct init_ops xen_init_ops = {
@@ -74,6 +96,9 @@ struct init_ops xen_init_ops = {
 	.early_clock_source_init =	xen_clock_init,
 	.early_delay =			xen_delay,
 	.parse_memmap =			xen_pv_parse_memmap,
+#ifdef SMP
+	.start_all_aps =		xen_pv_start_all_aps,
+#endif
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
@@ -151,6 +176,77 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 }
 
 /*-------------------------------- PV specific -------------------------------*/
+#ifdef SMP
+static bool
+start_xen_ap(int cpu)
+{
+	struct vcpu_guest_context *ctxt;
+	int ms, cpus = mp_naps;
+	const size_t stacksize = KSTACK_PAGES * PAGE_SIZE;
+
+	/* allocate and set up an idle stack data page */
+	bootstacks[cpu] =
+	    (void *)kmem_malloc(kernel_arena, stacksize, M_WAITOK | M_ZERO);
+	doublefault_stack =
+	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
+	nmi_stack =
+	    (char *)kmem_malloc(kernel_arena, PAGE_SIZE, M_WAITOK | M_ZERO);
+	dpcpu =
+	    (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
+
+	bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
+	bootAP = cpu;
+
+	ctxt = malloc(sizeof(*ctxt), M_TEMP, M_WAITOK | M_ZERO);
+	if (ctxt == NULL)
+		panic("unable to allocate memory");
+
+	ctxt->flags = VGCF_IN_KERNEL;
+	ctxt->user_regs.rip = (unsigned long) init_secondary;
+	ctxt->user_regs.rsp = (unsigned long) bootSTK;
+
+	/* Set the AP to use the same page tables */
+	ctxt->ctrlreg[3] = KPML4phys;
+
+	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, ctxt))
+		panic("unable to initialize AP#%d", cpu);
+
+	free(ctxt, M_TEMP);
+
+	/* Launch the vCPU */
+	if (HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
+		panic("unable to start AP#%d", cpu);
+
+	/* Wait up to 5 seconds for it to start. */
+	for (ms = 0; ms < 5000; ms++) {
+		if (mp_naps > cpus)
+			return (true);
+		DELAY(1000);
+	}
+
+	return (false);
+}
+
+static int
+xen_pv_start_all_aps(void)
+{
+	int cpu;
+
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
+
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+
+		/* attempt to start the Application Processor */
+		if (!start_xen_ap(cpu))
+			panic("AP #%d failed to start!", cpu);
+
+		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
+	}
+
+	return (mp_naps);
+}
+#endif /* SMP */
+
 /*
  * Functions to convert the "extra" parameters passed by Xen
  * into FreeBSD boot options.

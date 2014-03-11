@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/tss.h>
 #include <machine/cpu.h>
+#include <x86/init.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -90,7 +91,7 @@ extern  struct pcpu __pcpu[];
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
-static int bootAP;
+int bootAP;
 
 /* Free these after use */
 void *bootstacks[MAXCPU];
@@ -139,7 +140,7 @@ extern int pmap_pcid_enabled;
 static volatile cpuset_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
-static struct mtx ap_boot_mtx;
+struct mtx ap_boot_mtx;
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
 static volatile int aps_ready = 0;
@@ -166,7 +167,6 @@ static int cpu_cores;			/* cores per package */
 
 static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
-static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
@@ -570,7 +570,7 @@ cpu_mp_start(void)
 	assign_cpu_ids();
 
 	/* Start each Application Processor */
-	start_all_aps();
+	init_ops.start_all_aps();
 
 	set_interrupt_apic_ids();
 }
@@ -909,8 +909,8 @@ assign_cpu_ids(void)
 /*
  * start each AP in our list
  */
-static int
-start_all_aps(void)
+int
+native_start_all_aps(void)
 {
 	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
