@@ -322,20 +322,9 @@ ASENTRY_NP(prefetch_abort_entry)
         sub     lr, lr, #0x00000004     /* Adjust the lr */
 
 	PUSHFRAMEINSVC
-	ldr	r1, Lprefetch_abort_handler_address
 	adr	lr, exception_exit
  	mov	r0, sp			/* pass the stack pointer as r0 */
-	ldr	pc, [r1]
-
-Lprefetch_abort_handler_address:
-	.word	_C_LABEL(prefetch_abort_handler_address)
-
-	.data
-	.global	_C_LABEL(prefetch_abort_handler_address)
-
-_C_LABEL(prefetch_abort_handler_address):
-	.word	prefetch_abort_handler
-
+	b	prefetch_abort_handler
 END(prefetch_abort_entry)
 
 /*
@@ -352,18 +341,9 @@ ASENTRY_NP(data_abort_entry)
         sub     lr, lr, #0x00000008     /* Adjust the lr */
 	PUSHFRAMEINSVC			/* Push trap frame and switch */
 					/* to SVC32 mode */
-	ldr	r1, Ldata_abort_handler_address
 	adr	lr, exception_exit
 	mov	r0, sp			/* pass the stack pointer as r0 */
-	ldr	pc, [r1]
-Ldata_abort_handler_address:
-	.word	_C_LABEL(data_abort_handler_address)
-
-	.data
-	.global	_C_LABEL(data_abort_handler_address)
-_C_LABEL(data_abort_handler_address):
-	.word	data_abort_handler
-
+	b	data_abort_handler
 END(data_abort_entry)
 
 /*
@@ -435,23 +415,10 @@ ASENTRY_NP(undefined_entry)
         sub     lr, lr, #0x00000004     /* Adjust the lr */
 	PUSHFRAMEINSVC			/* Push trap frame and switch */
 					/* to SVC32 mode */
-	ldr	r1, Lundefined_handler_address
 	adr	lr, exception_exit
 	mov	r0, sp			/* pass the stack pointer as r0 */
-	ldr	pc, [r1]
-END(undefined_entry)
-
-ASENTRY_NP(undefinedinstruction_bounce)
 	b	undefinedinstruction
-END(undefinedinstruction_bounce)
-
-Lundefined_handler_address:
-	.word	_C_LABEL(undefined_handler_address)
-
-	.data
-	.global	_C_LABEL(undefined_handler_address)
-_C_LABEL(undefined_handler_address):
-	.word	undefinedinstruction_bounce
+END(undefined_entry)
 
 /*
  * Entry point for FIQ interrupts.
