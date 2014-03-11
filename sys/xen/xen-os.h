@@ -51,6 +51,10 @@
 void force_evtchn_callback(void);
 
 extern shared_info_t *HYPERVISOR_shared_info;
+extern start_info_t *HYPERVISOR_start_info;
+
+/* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
+extern struct xenstore_domain_interface *xen_store;
 
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */

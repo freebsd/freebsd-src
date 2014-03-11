@@ -89,6 +89,7 @@ IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 
 int xendebug_flags; 
 start_info_t *xen_start_info;
+start_info_t *HYPERVISOR_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
@@ -927,6 +928,7 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments_notify);	
 #endif	
 	xen_start_info = startinfo;
+	HYPERVISOR_start_info = startinfo;
 	xen_phys_machine = (xen_pfn_t *)startinfo->mfn_list;
 
 	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
