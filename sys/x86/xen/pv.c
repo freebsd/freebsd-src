@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 
+#include <dev/xen/timer/timer.h>
+
 /* Native initial function */
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 /* Xen initial function */
@@ -65,6 +67,8 @@ static caddr_t xen_pv_parse_preload_data(u_int64_t);
 /* Xen init_ops implementation. */
 struct init_ops xen_init_ops = {
 	.parse_preload_data =	xen_pv_parse_preload_data,
+	.early_clock_source_init =	xen_clock_init,
+	.early_delay =			xen_delay,
 };
 
 /*-------------------------------- Xen PV init -------------------------------*/

@@ -26,20 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef __X86_INIT_H__
-#define __X86_INIT_H__
-/*
- * Struct containing pointers to init functions whose
- * implementation is run time selectable.  Selection can be made,
- * for example, based on detection of a BIOS variant or
- * hypervisor environment.
- */
-struct init_ops {
-	caddr_t	(*parse_preload_data)(u_int64_t);
-	void	(*early_clock_source_init)(void);
-	void	(*early_delay)(int);
-};
+#ifndef _XEN_TIMER_H_
+#define _XEN_TIMER_H_
 
-extern struct init_ops init_ops;
+void xen_clock_init(void);
+void xen_delay(int);
 
-#endif /* __X86_INIT_H__ */
+#endif /* _XEN_TIMER_H_ */

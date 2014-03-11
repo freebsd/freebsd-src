@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/_inttypes.h>
 #include <machine/smp.h>
 
+#include <dev/xen/timer/timer.h>
+
 #include "clock_if.h"
 
 static devclass_t xentimer_devclass;
@@ -590,6 +592,38 @@ static int
 xentimer_suspend(device_t dev)
 {
 	return (0);
+}
+
+/*
+ * Xen early clock init
+ */
+void
+xen_clock_init(void)
+{
+}
+
+/*
+ * Xen PV DELAY function
+ *
+ * When running on PVH mode we don't have an emulated i8524, so
+ * make use of the Xen time info in order to code a simple DELAY
+ * function that can be used during early boot.
+ */
+void
+xen_delay(int n)
+{
+	struct vcpu_info *vcpu = &HYPERVISOR_shared_info->vcpu_info[0];
+	uint64_t end_ns;
+	uint64_t current;
+
+	end_ns = xen_fetch_vcpu_time(vcpu);
+	end_ns += n * NSEC_IN_USEC;
+
+	for (;;) {
+		current = xen_fetch_vcpu_time(vcpu);
+		if (current >= end_ns)
+			break;
+	}
 }
 
 static device_method_t xentimer_methods[] = {

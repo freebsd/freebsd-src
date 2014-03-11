@@ -192,7 +192,7 @@ i8254_init(void)
  * Note: timer had better have been programmed before this is first used!
  */
 void
-DELAY(int n)
+i8254_delay(int n)
 {
 	int delta, ticks_left;
 	uint32_t tick, prev_tick;
