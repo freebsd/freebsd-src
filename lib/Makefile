@@ -114,6 +114,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
+	libucl \
 	libufs \
 	libugidfw \
 	libulog \
