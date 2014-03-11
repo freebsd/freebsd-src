@@ -10,12 +10,10 @@ MAN=	bhyve.8
 
 SRCS=	\
 	acpi.c			\
-	atpic.c			\
 	bhyverun.c		\
 	block_if.c		\
 	consport.c		\
 	dbgport.c		\
-	elcr.c			\
 	inout.c			\
 	ioapic.c		\
 	mem.c			\

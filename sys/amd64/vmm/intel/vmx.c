@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include "vmm_host.h"
+#include "vmm_ioport.h"
 #include "vmm_ipi.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
@@ -1861,6 +1862,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.rep = (qual & 0x20) ? 1 : 0;
 		vmexit->u.inout.port = (uint16_t)(qual >> 16);
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
+		error = emulate_ioport(vmx->vm, vcpu, vmexit);
+		if (error == 0)  {
+			handled = 1;
+			vmxctx->guest_rax = vmexit->u.inout.eax;
+		}
 		break;
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);

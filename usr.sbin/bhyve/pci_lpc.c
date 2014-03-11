@@ -46,8 +46,14 @@ __FBSDID("$FreeBSD$");
 #include "pci_lpc.h"
 #include "uart_emul.h"
 
+#define	IO_ICU1		0x20
+#define	IO_ICU2		0xA0
+
 SET_DECLARE(lpc_dsdt_set, struct lpc_dsdt);
 SET_DECLARE(lpc_sysres_set, struct lpc_sysres);
+
+#define	ELCR_PORT	0x4d0
+SYSRES_IO(ELCR_PORT, 2);
 
 static struct pci_devinst *lpc_bridge;
 
@@ -100,7 +106,7 @@ lpc_uart_intr_assert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	vm_ioapic_pulse_irq(lpc_bridge->pi_vmctx, sc->irq);
+	vm_isa_pulse_irq(lpc_bridge->pi_vmctx, sc->irq, sc->irq);
 }
 
 static void
@@ -192,6 +198,20 @@ pci_lpc_write_dsdt(struct pci_devinst *pi)
 		ldp = *ldpp;
 		ldp->handler();
 	}
+
+	dsdt_line("");
+	dsdt_line("Device (PIC)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0000\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+	dsdt_indent(2);
+	dsdt_fixed_ioport(IO_ICU1, 2);
+	dsdt_fixed_ioport(IO_ICU2, 2);
+	dsdt_fixed_irq(2);
+	dsdt_unindent(2);
+	dsdt_line("  })");
+	dsdt_line("}");
 	dsdt_unindent(1);
 
 	dsdt_line("}");

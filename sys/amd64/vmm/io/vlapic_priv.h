@@ -156,6 +156,8 @@ struct vlapic {
 	uint32_t		esr_pending;
 	int			esr_firing;
 
+	bool			extint_pending;
+
 	struct callout	callout;	/* vlapic timer */
 	struct bintime	timer_fire_bt;	/* callout expiry time */
 	struct bintime	timer_freq_bt;	/* timer frequency */
