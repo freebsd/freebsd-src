@@ -172,6 +172,8 @@ static caddr_t native_parse_preload_data(u_int64_t);
 /* Default init_ops implementation. */
 struct init_ops init_ops = {
 	.parse_preload_data =	native_parse_preload_data,
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
 };
 
 /*
@@ -1822,10 +1824,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	lidt(&r_idt);
 
 	/*
-	 * Initialize the i8254 before the console so that console
+	 * Initialize the clock before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.
