@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <x86/init.h>
+#include <machine/pc/bios.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -60,8 +61,11 @@ extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 /* Xen initial function */
 uint64_t hammer_time_xen(start_info_t *, uint64_t);
 
+#define MAX_E820_ENTRIES	128
+
 /*--------------------------- Forward Declarations ---------------------------*/
 static caddr_t xen_pv_parse_preload_data(u_int64_t);
+static void xen_pv_parse_memmap(caddr_t, vm_paddr_t *, int *);
 
 /*-------------------------------- Global Data -------------------------------*/
 /* Xen init_ops implementation. */
@@ -69,7 +73,10 @@ struct init_ops xen_init_ops = {
 	.parse_preload_data =	xen_pv_parse_preload_data,
 	.early_clock_source_init =	xen_clock_init,
 	.early_delay =			xen_delay,
+	.parse_memmap =			xen_pv_parse_memmap,
 };
+
+static struct bios_smap xen_smap[MAX_E820_ENTRIES];
 
 /*-------------------------------- Xen PV init -------------------------------*/
 /*
@@ -188,4 +195,22 @@ xen_pv_parse_preload_data(u_int64_t modulep)
 	xen_pv_set_boothowto();
 
 	return (NULL);
+}
+
+static void
+xen_pv_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+{
+	struct xen_memory_map memmap;
+	u_int32_t size;
+	int rc;
+
+	/* Fetch the E820 map from Xen */
+	memmap.nr_entries = MAX_E820_ENTRIES;
+	set_xen_guest_handle(memmap.buffer, xen_smap);
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc)
+		panic("unable to fetch Xen E820 memory map");
+	size = memmap.nr_entries * sizeof(xen_smap[0]);
+
+	bios_add_smap_entries(xen_smap, size, physmap, physmap_idx);
 }
