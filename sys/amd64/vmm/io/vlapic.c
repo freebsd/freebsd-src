@@ -1053,8 +1053,12 @@ vlapic_pending_intr(struct vlapic *vlapic, int *vecptr)
 	int	  	 idx, i, bitpos, vector;
 	uint32_t	*irrptr, val;
 
-	if (vlapic->extint_pending)
-		return (vatpic_pending_intr(vlapic->vm, vecptr));
+	if (vlapic->extint_pending) {
+		if (vecptr == NULL)
+			return (1);
+		else
+			return (vatpic_pending_intr(vlapic->vm, vecptr));
+	}
 
 	if (vlapic->ops.pending_intr)
 		return ((*vlapic->ops.pending_intr)(vlapic, vecptr));
