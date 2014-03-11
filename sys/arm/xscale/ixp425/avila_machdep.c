@@ -245,6 +245,8 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
+	if (envmode == 1)
+		kern_envp = static_env;
 	/* Do basic tuning, hz etc */
       	init_param1();
 		
