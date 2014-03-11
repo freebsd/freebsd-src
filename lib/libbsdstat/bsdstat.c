@@ -81,7 +81,7 @@ bsdstat_update_tot(struct bsdstat *sf)
 }
 
 static int 
-bsdstat_get(struct bsdstat *sf, int s, char b[], size_t bs)
+bsdstat_get(struct bsdstat *sf, int s, char b[] __unused, size_t bs __unused)
 {
 	fprintf(stderr, "%s: don't know how to get stat #%u\n", sf->name, s);
 	return 0;
