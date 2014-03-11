@@ -474,7 +474,6 @@ arm_generic_initclocks(void)
 #endif
 #endif
 }
-__weak_reference(arm_generic_initclocks, cpu_initclocks);
 
 int
 fill_regs(struct thread *td, struct reg *regs)
@@ -783,7 +782,6 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	pcb->un_32.pcb32_sp = tf->tf_usr_sp;
 }
 
-#ifndef FDT
 /*
  * Fake up a boot descriptor table
  */

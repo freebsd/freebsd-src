@@ -125,7 +125,6 @@ static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_mask_irq,	gic_mask_irq),
 	PLATFORMMETHOD(platform_unmask_irq,	gic_unmask_irq),
 
-	PLATFORMMETHOD(platform_cpu_initclocks, arm_tmr_cpu_initclocks),
 	PLATFORMMETHOD(platform_delay,		arm_tmr_delay),
 
 	PLATFORMMETHOD_END,

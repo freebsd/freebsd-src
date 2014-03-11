@@ -111,7 +111,6 @@ bcm_2835_cpu_reset(platform_t plat)
 int bcm2835_get_next_irq(platform_t, int);
 void bcm2835_mask_irq(platform_t, uintptr_t);
 void bcm2835_unmask_irq(platform_t, uintptr_t);
-void bcm2835_cpu_initclocks(platform_t);
 void bcm2835_delay(platform_t, int);
 
 static platform_method_t bcm2835_methods[] = {
@@ -125,7 +124,6 @@ static platform_method_t bcm2835_methods[] = {
 	PLATFORMMETHOD(platform_mask_irq,	bcm2835_mask_irq),
 	PLATFORMMETHOD(platform_unmask_irq,	bcm2835_unmask_irq),
 
-	PLATFORMMETHOD(platform_cpu_initclocks, bcm2835_cpu_initclocks),
 	PLATFORMMETHOD(platform_delay,		bcm2835_delay),
 
 	PLATFORMMETHOD_END,

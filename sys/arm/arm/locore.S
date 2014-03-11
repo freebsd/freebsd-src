@@ -123,6 +123,7 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
+#if 0
 	adr	r7, Lunmapped
 	bic     r7, r7, #0xf0000000
 	orr     r7, r7, #PHYSADDR
@@ -142,6 +143,7 @@ disable_mmu:
 	nop
 	mov	pc, r7
 Lunmapped:
+#endif
 	/*
 	 * Build page table from scratch.
 	 */
@@ -172,13 +174,12 @@ Lunmapped:
 	ldr	r2, =(L1_S_OFFSET)
 	bic	r5, r2
 	mov	r1, r5
-	/* Use it as the physical and virtual address */
 	mov	r2, r5
-	/* Map 64MiB */
-	ldr	r3, =64
-
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov	r3, #64
 	bl	build_pagetables
 
+	/* Create the kernel map to jump to */
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
@@ -301,7 +302,6 @@ Lpagetable:
 Lvirtaddr:
 	.word	KERNVIRTADDR
 
-#if defined (FLASHADDR) && defined(LOADERRAMADDR)
 Lreal_start:
 	.word	_start
 Lend:

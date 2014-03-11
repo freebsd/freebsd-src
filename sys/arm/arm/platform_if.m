@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/smp.h>
 
+#include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -90,6 +91,10 @@ CODE {
 #endif
 	}
 #endif
+	static void platform_generic_cpu_initclocks(platform_t plat)
+	{
+		arm_generic_initclocks();
+	}
 };
 
 /**
@@ -190,7 +195,7 @@ METHOD int bus_dma_get_range_nb {
  */
 METHOD void cpu_initclocks {
 	platform_t	_plat;
-};
+} DEFAULT platform_generic_cpu_initclocks;
 
 /**
  */

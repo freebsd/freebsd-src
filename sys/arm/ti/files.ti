@@ -10,7 +10,6 @@ arm/arm/cpufunc_asm_arm10.S			standard
 arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
 
-arm/ti/ti_common.c				standard
 arm/ti/ti_cpuid.c				standard
 arm/ti/ti_machdep.c				standard
 arm/ti/ti_prcm.c				standard

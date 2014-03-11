@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/ktr.h>

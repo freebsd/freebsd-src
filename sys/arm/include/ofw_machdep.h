@@ -34,11 +34,8 @@
 
 #include <vm/vm.h>
 
-typedef	uint32_t	cell_t;
+#include <machine/platform.h>
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
-};
+typedef	uint32_t	cell_t;
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
