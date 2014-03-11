@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/boot.h>
+#include <sys/ctype.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -47,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
+#include <x86/init.h>
+
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 
@@ -55,6 +58,16 @@ extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 /* Xen initial function */
 uint64_t hammer_time_xen(start_info_t *, uint64_t);
 
+/*--------------------------- Forward Declarations ---------------------------*/
+static caddr_t xen_pv_parse_preload_data(u_int64_t);
+
+/*-------------------------------- Global Data -------------------------------*/
+/* Xen init_ops implementation. */
+struct init_ops xen_init_ops = {
+	.parse_preload_data =	xen_pv_parse_preload_data,
+};
+
+/*-------------------------------- Xen PV init -------------------------------*/
 /*
  * First function called by the Xen PVH boot sequence.
  *
@@ -119,6 +132,56 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	}
 	load_cr3(((uint64_t)&PT4[0]) - KERNBASE);
 
+	/* Set the hooks for early functions that diverge from bare metal */
+	init_ops = xen_init_ops;
+
 	/* Now we can jump into the native init function */
 	return (hammer_time(0, physfree));
+}
+
+/*-------------------------------- PV specific -------------------------------*/
+/*
+ * Functions to convert the "extra" parameters passed by Xen
+ * into FreeBSD boot options.
+ */
+static void
+xen_pv_set_env(void)
+{
+	char *cmd_line_next, *cmd_line;
+	size_t env_size;
+
+	cmd_line = HYPERVISOR_start_info->cmd_line;
+	env_size = sizeof(HYPERVISOR_start_info->cmd_line);
+
+	/* Skip leading spaces */
+	for (; isspace(*cmd_line) && (env_size != 0); cmd_line++)
+		env_size--;
+
+	/* Replace ',' with '\0' */
+	for (cmd_line_next = cmd_line; strsep(&cmd_line_next, ",") != NULL;)
+		;
+
+	init_static_kenv(cmd_line, env_size);
+}
+
+static void
+xen_pv_set_boothowto(void)
+{
+	int i;
+
+	/* get equivalents from the environment */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		if (getenv(howto_names[i].ev) != NULL)
+			boothowto |= howto_names[i].mask;
+	}
+}
+
+static caddr_t
+xen_pv_parse_preload_data(u_int64_t modulep)
+{
+	/* Parse the extra boot information given by Xen */
+	xen_pv_set_env();
+	xen_pv_set_boothowto();
+
+	return (NULL);
 }
