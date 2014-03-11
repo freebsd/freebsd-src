@@ -107,7 +107,7 @@ pit_mevent_cb(int fd, enum ev_type type, void *param)
 
 	pit_mev_count++;
 
-	vm_ioapic_pulse_irq(c->ctx, 2);
+	vm_isa_pulse_irq(c->ctx, 0, 2);
 
 	/*
 	 * Delete the timer for one-shots

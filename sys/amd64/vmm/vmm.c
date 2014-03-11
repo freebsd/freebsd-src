@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
+#include "vatpic.h"
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
@@ -116,6 +117,7 @@ struct vm {
 	void		*iommu;		/* iommu-specific data */
 	struct vhpet	*vhpet;		/* virtual HPET */
 	struct vioapic	*vioapic;	/* virtual ioapic */
+	struct vatpic	*vatpic;	/* virtual atpic */
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
@@ -345,6 +347,7 @@ vm_create(const char *name, struct vm **retvm)
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
+	vm->vatpic = vatpic_init(vm);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);
@@ -378,6 +381,7 @@ vm_destroy(struct vm *vm)
 		iommu_destroy_domain(vm->iommu);
 
 	vhpet_cleanup(vm->vhpet);
+	vatpic_cleanup(vm->vatpic);
 	vioapic_cleanup(vm->vioapic);
 
 	for (i = 0; i < vm->num_mem_segs; i++)
@@ -1636,4 +1640,10 @@ restart:
 	mtx_unlock(&vm->rendezvous_mtx);
 
 	vm_handle_rendezvous(vm, vcpuid);
+}
+
+struct vatpic *
+vm_atpic(struct vm *vm)
+{
+	return (vm->vatpic);
 }

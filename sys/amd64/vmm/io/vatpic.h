@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,42 +26,28 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _VATPIC_H_
+#define	_VATPIC_H_
 
-#include <sys/types.h>
+#include <isa/isareg.h>
 
-#include "inout.h"
-#include "pci_lpc.h"
+#define	ICU_IMR_OFFSET	1
 
-/*
- * EISA interrupt Level Control Register.
- *
- * This is a 16-bit register with one bit for each of the IRQ0 through IRQ15.
- * A level triggered irq is indicated by setting the corresponding bit to '1'.
- */
-#define	ELCR_PORT	0x4d0
+#define	IO_ELCR1	0x4d0
+#define	IO_ELCR2	0x4d1
 
-static uint8_t elcr[2] = { 0x00, 0x00 };
+struct vatpic *vatpic_init(struct vm *vm);
+void vatpic_cleanup(struct vatpic *vatpic);
 
-static int
-elcr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-	     uint32_t *eax, void *arg)
-{
-	int idx;
+int vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
+int vatpic_slave_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
+int vatpic_elc_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
 
-	if (bytes != 1)
-		return (-1);
+int vatpic_assert_irq(struct vm *vm, int irq);
+int vatpic_deassert_irq(struct vm *vm, int irq);
+int vatpic_pulse_irq(struct vm *vm, int irq);
 
-	idx = port - ELCR_PORT;
+int vatpic_pending_intr(struct vm *vm, int *vecptr);
+void vatpic_intr_accepted(struct vm *vm, int vector);
 
-	if (in)
-		*eax = elcr[idx];
-	else
-		elcr[idx] = *eax;
-
-	return (0);
-}
-INOUT_PORT(elcr, ELCR_PORT + 0, IOPORT_F_INOUT, elcr_handler);
-INOUT_PORT(elcr, ELCR_PORT + 1, IOPORT_F_INOUT, elcr_handler);
-SYSRES_IO(ELCR_PORT, 2);
+#endif	/* _VATPIC_H_ */

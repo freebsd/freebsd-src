@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include "vlapic.h"
 #include "vlapic_priv.h"
+#include "vatpic.h"
 #include "vioapic.h"
 
 #define	PRIO(x)			((x) >> 4)
@@ -299,6 +300,16 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	return (1);
 }
 
+static VMM_STAT(VLAPIC_EXTINT_COUNT, "number of ExtINTs received by vlapic");
+
+static void
+vlapic_deliver_extint(struct vlapic *vlapic)
+{
+	vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_EXTINT_COUNT, 1);
+	vlapic->extint_pending = true;
+	vcpu_notify_event(vlapic->vm, vlapic->vcpuid, false);
+}
+
 static __inline uint32_t *
 vlapic_get_lvtptr(struct vlapic *vlapic, uint32_t offset)
 {
@@ -447,6 +458,9 @@ vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
 		break;
 	case APIC_LVT_DM_NMI:
 		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
+		break;
+	case APIC_LVT_DM_EXTINT:
+		vlapic_deliver_extint(vlapic);
 		break;
 	default:
 		// Other modes ignored
@@ -650,6 +664,25 @@ int
 vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 {
 	uint32_t lvt;
+
+	if (vlapic_enabled(vlapic) == false) {
+		/*
+		 * When the local APIC is global/hardware disabled,
+		 * LINT[1:0] pins are configured as INTR and NMI pins,
+		 * respectively.
+		*/
+		switch (vector) {
+			case APIC_LVT_LINT0:
+				vlapic_deliver_extint(vlapic);
+				break;
+			case APIC_LVT_LINT1:
+				vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
+				break;
+			default:
+				break;
+		}
+		return (0);
+	}
 
 	switch (vector) {
 	case APIC_LVT_LINT0:
@@ -1020,6 +1053,9 @@ vlapic_pending_intr(struct vlapic *vlapic, int *vecptr)
 	int	  	 idx, i, bitpos, vector;
 	uint32_t	*irrptr, val;
 
+	if (vlapic->extint_pending)
+		return (vatpic_pending_intr(vlapic->vm, vecptr));
+
 	if (vlapic->ops.pending_intr)
 		return ((*vlapic->ops.pending_intr)(vlapic, vecptr));
 
@@ -1053,6 +1089,12 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 	struct LAPIC	*lapic = vlapic->apic_page;
 	uint32_t	*irrptr, *isrptr;
 	int		idx, stk_top;
+
+	if (vlapic->extint_pending) {
+		vlapic->extint_pending = false;
+		vatpic_intr_accepted(vlapic->vm, vector);
+		return;
+	}
 
 	if (vlapic->ops.intr_accepted)
 		return ((*vlapic->ops.intr_accepted)(vlapic, vector));
@@ -1474,11 +1516,13 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	int vcpuid;
 	cpuset_t dmask;
 
-	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+	if (delmode != IOART_DELFIXED &&
+	    delmode != IOART_DELLOPRI &&
+	    delmode != IOART_DELEXINT) {
 		VM_CTR1(vm, "vlapic intr invalid delmode %#x", delmode);
 		return;
 	}
-	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+	lowprio = (delmode == IOART_DELLOPRI);
 
 	/*
 	 * We don't provide any virtual interrupt redirection hardware so
@@ -1490,7 +1534,11 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
 		vcpuid--;
 		CPU_CLR(vcpuid, &dmask);
-		lapic_set_intr(vm, vcpuid, vec, level);
+		if (delmode == IOART_DELEXINT) {
+			vlapic_deliver_extint(vm_lapic(vm, vcpuid));
+		} else {
+			lapic_set_intr(vm, vcpuid, vec, level);
+		}
 	}
 }
 
