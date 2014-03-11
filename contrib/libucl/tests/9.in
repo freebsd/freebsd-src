@@ -1,0 +1,13 @@
+.include "$CURDIR/9.inc"
+.include "$CURDIR/9-empty.inc"
+.include "$CURDIR/9-comment.inc"
+#.include "$CURDIR/9.inc"
+.include "$CURDIR/9.inc"
+
+key = value;
+.include "$CURDIR/9.inc"
+
+.try_include "/non/existent"
+#.try_include "$CURDIR/9.incorrect.inc"
+# 9.incorrect.inc contains '{}}'
+#key = value;
