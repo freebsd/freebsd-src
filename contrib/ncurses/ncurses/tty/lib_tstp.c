@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,11 +42,7 @@
 
 #include <SigAction.h>
 
-#if SVR4_ACTION && !defined(_POSIX_SOURCE)
-#define _POSIX_SOURCE
-#endif
-
-MODULE_ID("$Id: lib_tstp.c,v 1.37 2008/05/03 16:24:56 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.47 2013/04/27 19:50:17 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -59,16 +55,20 @@ static const char *
 signal_name(int sig)
 {
     switch (sig) {
+#ifdef SIGALRM
     case SIGALRM:
 	return "SIGALRM";
+#endif
 #ifdef SIGCONT
     case SIGCONT:
 	return "SIGCONT";
 #endif
     case SIGINT:
 	return "SIGINT";
+#ifdef SIGQUIT
     case SIGQUIT:
 	return "SIGQUIT";
+#endif
     case SIGTERM:
 	return "SIGTERM";
 #ifdef SIGTSTP
@@ -134,8 +134,9 @@ signal_name(int sig)
 
 #if USE_SIGTSTP
 static void
-tstp(int dummy GCC_UNUSED)
+handle_SIGTSTP(int dummy GCC_UNUSED)
 {
+    SCREEN *sp = CURRENT_SCREEN;
     sigset_t mask, omask;
     sigaction_t act, oact;
 
@@ -143,7 +144,8 @@ tstp(int dummy GCC_UNUSED)
     int sigttou_blocked;
 #endif
 
-    T(("tstp() called"));
+    _nc_globals.have_sigtstp = 1;
+    T(("handle_SIGTSTP() called"));
 
     /*
      * The user may have changed the prog_mode tty bits, so save them.
@@ -154,11 +156,11 @@ tstp(int dummy GCC_UNUSED)
      * parent was stopped before us, and we would likely pick up the
      * settings already modified by the shell.
      */
-    if (SP != 0 && !SP->_endwin)	/* don't do this if we're not in curses */
+    if (sp != 0 && !sp->_endwin)	/* don't do this if we're not in curses */
 #if HAVE_TCGETPGRP
 	if (tcgetpgrp(STDIN_FILENO) == getpgrp())
 #endif
-	    def_prog_mode();
+	    NCURSES_SP_NAME(def_prog_mode) (NCURSES_SP_ARG);
 
     /*
      * Block window change and timer signals.  The latter
@@ -166,7 +168,9 @@ tstp(int dummy GCC_UNUSED)
      * to repaint the screen.
      */
     (void) sigemptyset(&mask);
+#ifdef SIGALRM
     (void) sigaddset(&mask, SIGALRM);
+#endif
 #if USE_SIGWINCH
     (void) sigaddset(&mask, SIGWINCH);
 #endif
@@ -185,7 +189,7 @@ tstp(int dummy GCC_UNUSED)
      * End window mode, which also resets the terminal state to the
      * original (pre-curses) modes.
      */
-    endwin();
+    NCURSES_SP_NAME(endwin) (NCURSES_SP_ARG);
 
     /* Unblock SIGTSTP. */
     (void) sigemptyset(&mask);
@@ -212,19 +216,19 @@ tstp(int dummy GCC_UNUSED)
 
     T(("SIGCONT received"));
     sigaction(SIGTSTP, &oact, NULL);
-    flushinp();
+    NCURSES_SP_NAME(flushinp) (NCURSES_SP_ARG);
 
     /*
      * If the user modified the tty state while suspended, he wants
      * those changes to stick.  So save the new "default" terminal state.
      */
-    def_shell_mode();
+    NCURSES_SP_NAME(def_shell_mode) (NCURSES_SP_ARG);
 
     /*
      * This relies on the fact that doupdate() will restore the
      * program-mode tty state, and issue enter_ca_mode if need be.
      */
-    doupdate();
+    NCURSES_SP_NAME(doupdate) (NCURSES_SP_ARG);
 
     /* Reset the signals. */
     (void) sigprocmask(SIG_SETMASK, &omask, NULL);
@@ -232,16 +236,24 @@ tstp(int dummy GCC_UNUSED)
 #endif /* USE_SIGTSTP */
 
 static void
-cleanup(int sig)
+handle_SIGINT(int sig)
 {
+    SCREEN *sp = CURRENT_SCREEN;
+
     /*
-     * Actually, doing any sort of I/O from within an signal handler is
-     * "unsafe".  But we'll _try_ to clean up the screen and terminal
-     * settings on the way out.
+     * Much of this is unsafe from a signal handler.  But we'll _try_ to clean
+     * up the screen and terminal settings on the way out.
+     *
+     * There are at least the following problems:
+     * 1) Walking the SCREEN list is unsafe, since all list management
+     *    is done without any signal blocking.
+     * 2) On systems which have REENTRANT turned on, set_term() uses
+     *    _nc_lock_global() which could deadlock or misbehave in other ways.
+     * 3) endwin() calls all sorts of stuff, many of which use stdio or
+     *    other library functions which are clearly unsafe.
      */
     if (!_nc_globals.cleanup_nested++
-	&& (sig == SIGINT
-	    || sig == SIGQUIT)) {
+	&& (sig == SIGINT || sig == SIGTERM)) {
 #if HAVE_SIGACTION || HAVE_SIGVEC
 	sigaction_t act;
 	sigemptyset(&act.sa_mask);
@@ -256,24 +268,30 @@ cleanup(int sig)
 	    for (each_screen(scan)) {
 		if (scan->_ofp != 0
 		    && isatty(fileno(scan->_ofp))) {
-		    scan->_cleanup = TRUE;
-		    scan->_outch = _nc_outch;
+		    scan->_outch = NCURSES_SP_NAME(_nc_outch);
 		}
 		set_term(scan);
-		endwin();
-		if (SP)
-		    SP->_endwin = FALSE;	/* in case we have an atexit! */
+		NCURSES_SP_NAME(endwin) (NCURSES_SP_ARG);
+		if (sp)
+		    sp->_endwin = FALSE;	/* in case of reuse */
 	    }
 	}
     }
-    exit(EXIT_FAILURE);
+    _exit(EXIT_FAILURE);
 }
 
 #if USE_SIGWINCH
 static void
-sigwinch(int sig GCC_UNUSED)
+handle_SIGWINCH(int sig GCC_UNUSED)
 {
     _nc_globals.have_sigwinch = 1;
+# if USE_PTHREADS_EINTR
+    if (_nc_globals.read_thread) {
+	if (!pthread_equal(pthread_self(), _nc_globals.read_thread))
+	    pthread_kill(_nc_globals.read_thread, SIGWINCH);
+	_nc_globals.read_thread = 0;
+    }
+# endif
 }
 #endif /* USE_SIGWINCH */
 
@@ -282,7 +300,7 @@ sigwinch(int sig GCC_UNUSED)
  * handler.
  */
 static int
-CatchIfDefault(int sig, RETSIGTYPE (*handler) (int))
+CatchIfDefault(int sig, void (*handler) (int))
 {
     int result;
 #if HAVE_SIGACTION || HAVE_SIGVEC
@@ -312,7 +330,7 @@ CatchIfDefault(int sig, RETSIGTYPE (*handler) (int))
 	result = FALSE;
     }
 #else /* !HAVE_SIGACTION */
-    RETSIGTYPE (*ohandler) (int);
+    void (*ohandler) (int);
 
     ohandler = signal(sig, SIG_IGN);
     if (ohandler == SIG_DFL
@@ -345,7 +363,7 @@ CatchIfDefault(int sig, RETSIGTYPE (*handler) (int))
  * the caller later changes its mind, but that doesn't seem correct.
  */
 NCURSES_EXPORT(void)
-_nc_signal_handler(bool enable)
+_nc_signal_handler(int enable)
 {
     T((T_CALLED("_nc_signal_handler(%d)"), enable));
 #if USE_SIGTSTP			/* Xenix 2.x doesn't have SIGTSTP, for example */
@@ -366,7 +384,7 @@ _nc_signal_handler(bool enable)
 #ifdef SA_RESTART
 		new_sigaction.sa_flags |= SA_RESTART;
 #endif /* SA_RESTART */
-		new_sigaction.sa_handler = tstp;
+		new_sigaction.sa_handler = handle_SIGTSTP;
 		(void) sigaction(SIGTSTP, &new_sigaction, NULL);
 	    } else {
 		ignore_tstp = TRUE;
@@ -377,10 +395,10 @@ _nc_signal_handler(bool enable)
 
     if (!_nc_globals.init_signals) {
 	if (enable) {
-	    CatchIfDefault(SIGINT, cleanup);
-	    CatchIfDefault(SIGTERM, cleanup);
+	    CatchIfDefault(SIGINT, handle_SIGINT);
+	    CatchIfDefault(SIGTERM, handle_SIGINT);
 #if USE_SIGWINCH
-	    CatchIfDefault(SIGWINCH, sigwinch);
+	    CatchIfDefault(SIGWINCH, handle_SIGWINCH);
 #endif
 	    _nc_globals.init_signals = TRUE;
 	}

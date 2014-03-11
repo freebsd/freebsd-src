@@ -33,12 +33,14 @@ options		FFS			#Berkeley Fast Filesystem
 options		SOFTUPDATES
 options		UFS_ACL			#Support for access control lists
 options		UFS_DIRHASH		#Improve performance on big directories
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options		MSDOSFS			#MSDOS Filesystem
 options		CD9660			#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem (requires PSEUDOFS)
 options		PSEUDOFS		#Pseudo-filesystem framework
 #options		NANDFS			#NAND Filesystem
-options		TMPFS
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
 options		KTRACE
@@ -61,11 +63,11 @@ options		BREAK_TO_DEBUGGER
 #options	VERBOSE_SYSINIT		#Enable verbose sysinit messages
 options		KDB
 options		DDB			#Enable the kernel debugger
-options		INVARIANTS		#Enable calls of extra sanity checking
-options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options	INVARIANTS		#Enable calls of extra sanity checking
+#options	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options	WITNESS			#Enable checks to detect deadlocks and cycles
 #options	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
-options		DIAGNOSTIC
+#options	DIAGNOSTIC
 
 # NFS support
 options		NFSCL			#Network Filesystem Client
@@ -124,8 +126,8 @@ device		nand
 device		uart
 
 # I2C (TWSI)
-#device		iic
-#device		iicbus
+device		iic
+device		iicbus
 
 # Ethernet
 device		ether

@@ -43,7 +43,7 @@ struct serf__spnego_context_t
 };
 
 static void
-log_error(int verbose_flag, const char *filename,
+log_error(int verbose_flag, apr_socket_t *skt,
           serf__spnego_context_t *ctx,
           OM_uint32 err_maj_stat,
           OM_uint32 err_min_stat,
@@ -70,7 +70,7 @@ log_error(int verbose_flag, const char *filename,
                                           &stat_buff);
         }
 
-        serf__log(verbose_flag, filename,
+        serf__log_skt(verbose_flag, __FILE__, skt,
                   "%s (%x,%d): %s\n", msg,
                   err_maj_stat, err_min_stat, stat_buff.value);
     }
@@ -89,7 +89,7 @@ cleanup_ctx(void *data)
         gss_maj_stat = gss_delete_sec_context(&gss_min_stat, &ctx->gss_ctx,
                                               GSS_C_NO_BUFFER);
         if(GSS_ERROR(gss_maj_stat)) {
-            log_error(AUTH_VERBOSE, __FILE__, ctx,
+            log_error(AUTH_VERBOSE, NULL, ctx,
                       gss_maj_stat, gss_min_stat,
                       "Error cleaning up GSS security context");
             return SERF_ERROR_AUTHN_FAILED;
@@ -146,7 +146,8 @@ serf__spnego_reset_sec_context(serf__spnego_context_t *ctx)
 }
 
 apr_status_t
-serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
+serf__spnego_init_sec_context(serf_connection_t *conn,
+                              serf__spnego_context_t *ctx,
                               const char *service,
                               const char *hostname,
                               serf__spnego_buffer_t *input_buf,
@@ -166,12 +167,13 @@ serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
     /* TODO: should be shared between multiple requests. */
     bufdesc.value = apr_pstrcat(scratch_pool, service, "@", hostname, NULL);
     bufdesc.length = strlen(bufdesc.value);
-    serf__log(AUTH_VERBOSE, __FILE__, "Get principal for %s\n", bufdesc.value);
+    serf__log_skt(AUTH_VERBOSE, __FILE__, conn->skt,
+                  "Get principal for %s\n", bufdesc.value);
     gss_maj_stat = gss_import_name (&gss_min_stat, &bufdesc,
                                     GSS_C_NT_HOSTBASED_SERVICE,
                                     &host_gss_name);
     if(GSS_ERROR(gss_maj_stat)) {
-        log_error(AUTH_VERBOSE, __FILE__, ctx,
+        log_error(AUTH_VERBOSE, conn->skt, ctx,
                   gss_maj_stat, gss_min_stat,
                   "Error converting principal name to GSS internal format ");
         return SERF_ERROR_AUTHN_FAILED;
@@ -214,7 +216,7 @@ serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
     case GSS_S_CONTINUE_NEEDED:
         return APR_EAGAIN;
     default:
-        log_error(AUTH_VERBOSE, __FILE__, ctx,
+        log_error(AUTH_VERBOSE, conn->skt, ctx,
                   gss_maj_stat, gss_min_stat,
                   "Error during Kerberos handshake");
         return SERF_ERROR_AUTHN_FAILED;

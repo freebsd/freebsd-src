@@ -70,7 +70,6 @@
 #endif
 #endif
 #endif
-#define	MID_MACHINE	MID_ARM6
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
@@ -125,10 +124,8 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		KSTACK_PAGES * PAGE_SIZE
-#define USPACE_SVC_STACK_BOTTOM		(USPACE_SVC_STACK_TOP - 0x1000)
-#define USPACE_UNDEF_STACK_TOP		(USPACE_SVC_STACK_BOTTOM - 0x10)
-#define USPACE_UNDEF_STACK_BOTTOM	(FPCONTEXTSIZE + 10)
+#define USPACE_SVC_STACK_TOP		(KSTACK_PAGES * PAGE_SIZE)
+
 /*
  * Mach derived conversion macros
  */

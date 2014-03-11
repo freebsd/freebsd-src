@@ -1,0 +1,44 @@
+/*
+ * Hot-e HL-201 - Warner Losh public domain
+ *
+ * $FreeBSD$
+ */
+/dts-v1/;
+
+/*
+ * The following is a white lie. The HL-201 is a stripped down version of
+ * the SAM9G20EK board with a video output chip.
+ */
+#include "at91sam9g20ek_common.dtsi"
+
+/ {
+	model = "Thinlinx HL201";
+	compatible = "thinlinx,hl201", "atmel,at91sam9g20ek", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	leds {
+		compatible = "gpio-leds";
+
+		ds1 {
+			label = "ds1";
+			gpios = <&pioA 9 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		ds5 {
+			label = "ds5";
+			gpios = <&pioA 6 1>;
+		};
+	};
+
+	/* Missing: one wire serial number, video chip */
+
+	aliases {
+		dbgu = &dbgu;
+	};
+
+
+	chosen {
+		stdin = "dbgu";
+		stdout = "dbgu";
+	};
+};

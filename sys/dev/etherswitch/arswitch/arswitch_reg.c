@@ -111,6 +111,16 @@ arswitch_writedbg(device_t dev, int phy, uint16_t dbg_addr,
 	    MII_ATH_DBG_DATA, dbg_data);
 }
 
+void
+arswitch_writemmd(device_t dev, int phy, uint16_t dbg_addr,
+    uint16_t dbg_data)
+{
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_ADDR, dbg_addr);
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_DATA, dbg_data);
+}
+
 /*
  * Write half a register
  */
@@ -162,10 +172,21 @@ arswitch_readreg(device_t dev, int addr)
 int
 arswitch_writereg(device_t dev, int addr, int value)
 {
+	struct arswitch_softc *sc;
+	int r;
+
+	sc = device_get_softc(dev);
 
 	/* XXX Check the first write too? */
-	arswitch_writereg_msb(dev, addr, value);
-	return (arswitch_writereg_lsb(dev, addr, value));
+	if (sc->mii_lo_first) {
+		r = arswitch_writereg_lsb(dev, addr, value);
+		r |= arswitch_writereg_msb(dev, addr, value);
+	} else {
+		r = arswitch_writereg_msb(dev, addr, value);
+		r |= arswitch_writereg_lsb(dev, addr, value);
+	}
+
+	return r;
 }
 
 int

@@ -333,6 +333,7 @@ Using the Library
 
    Here is a sample program to motivate the discussion:
 #include <curses.h>
+#include <curses.h>
 #include <signal.h>
 
 static void finish(int sig);

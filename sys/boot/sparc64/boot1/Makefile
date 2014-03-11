@@ -9,7 +9,9 @@ CLEANFILES=${FILES} boot1.aout
 
 BOOTBLOCKBASE= 0x4000
 
-CFLAGS+=-mcmodel=medlow -Os -I${.CURDIR}/../../common
+CFLAGS.clang+=-mcmodel=small
+CFLAGS.gcc+=-mcmodel=medlow
+CFLAGS+=-Os -I${.CURDIR}/../../common
 LDFLAGS=-Ttext ${BOOTBLOCKBASE} -Wl,-N
 
 # Construct boot1. sunlabel expects it to contain zeroed-out space for the

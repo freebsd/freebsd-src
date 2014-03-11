@@ -39,7 +39,6 @@ options  	MSDOSFS			# MSDOS Filesystem
 options  	CD9660			# ISO 9660 Filesystem
 #options  	PROCFS			# Process filesystem (requires PSEUDOFS)
 options  	PSEUDOFS		# Pseudo-filesystem framework
-options  	TMPFS			# TMP Memory Filesystem
 options  	GEOM_PART_GPT		# GUID Partition Tables.
 options  	GEOM_LABEL		# Provides labelization
 options  	KTRACE			# ktrace(1) support
@@ -152,4 +151,6 @@ device  	mmc		# SD/MMC protocol
 device  	mmcsd		# SDCard disk device
 
 device  	ffec		# Freescale Fast Ethernet Controller
+
+options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 

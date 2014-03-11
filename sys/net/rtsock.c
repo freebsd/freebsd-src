@@ -154,12 +154,14 @@ int	(*carp_get_vhid_p)(struct ifaddr *);
  */
 #define	RTS_FILTER_FIB	M_PROTO8
 
-static struct {
+typedef struct {
 	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
 	int	ipx_count;	/* attached w/ AF_IPX */
 	int	any_count;	/* total attached */
-} route_cb;
+} route_cb_t;
+static VNET_DEFINE(route_cb_t, route_cb);
+#define	V_route_cb VNET(route_cb)
 
 struct mtx rtsock_mtx;
 MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
@@ -187,10 +189,8 @@ static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so);
-static void	rt_setmetrics(u_long which, const struct rt_metrics *in,
-			struct rt_metrics_lite *out);
-static void	rt_getmetrics(const struct rt_metrics_lite *in,
-			struct rt_metrics *out);
+static void	rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt);
+static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 
 static struct netisr_handler rtsock_nh = {
@@ -317,16 +317,16 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	RTSOCK_LOCK();
 	switch(rp->rcb_proto.sp_protocol) {
 	case AF_INET:
-		route_cb.ip_count++;
+		V_route_cb.ip_count++;
 		break;
 	case AF_INET6:
-		route_cb.ip6_count++;
+		V_route_cb.ip6_count++;
 		break;
 	case AF_IPX:
-		route_cb.ipx_count++;
+		V_route_cb.ipx_count++;
 		break;
 	}
-	route_cb.any_count++;
+	V_route_cb.any_count++;
 	RTSOCK_UNLOCK();
 	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
@@ -360,16 +360,16 @@ rts_detach(struct socket *so)
 	RTSOCK_LOCK();
 	switch(rp->rcb_proto.sp_protocol) {
 	case AF_INET:
-		route_cb.ip_count--;
+		V_route_cb.ip_count--;
 		break;
 	case AF_INET6:
-		route_cb.ip6_count--;
+		V_route_cb.ip6_count--;
 		break;
 	case AF_IPX:
-		route_cb.ipx_count--;
+		V_route_cb.ipx_count--;
 		break;
 	}
-	route_cb.any_count--;
+	V_route_cb.any_count--;
 	RTSOCK_UNLOCK();
 	raw_usrreqs.pru_detach(so);
 }
@@ -678,8 +678,7 @@ route_output(struct mbuf *m, struct socket *so)
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
 #endif
 			RT_LOCK(saved_nrt);
-			rt_setmetrics(rtm->rtm_inits,
-				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
+			rt_setmetrics(rtm, saved_nrt);
 			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
 			RT_UNLOCK(saved_nrt);
@@ -848,7 +847,7 @@ route_output(struct mbuf *m, struct socket *so)
 					(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
 			else
 				rtm->rtm_flags = rt->rt_flags;
-			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
+			rt_getmetrics(rt, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
 
@@ -911,8 +910,7 @@ route_output(struct mbuf *m, struct socket *so)
 			/* Allow some flags to be toggled on change. */
 			rt->rt_flags = (rt->rt_flags & ~RTF_FMASK) |
 				    (rtm->rtm_flags & RTF_FMASK);
-			rt_setmetrics(rtm->rtm_inits, &rtm->rtm_rmx,
-					&rt->rt_rmx);
+			rt_setmetrics(rtm, rt);
 			rtm->rtm_index = rt->rt_ifp->if_index;
 			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
 			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
@@ -943,7 +941,7 @@ flush:
 	 * Check to see if we don't want our own messages.
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
-		if (route_cb.any_count <= 1) {
+		if (V_route_cb.any_count <= 1) {
 			if (rtm)
 				Free(rtm);
 			m_freem(m);
@@ -1000,34 +998,30 @@ flush:
 }
 
 static void
-rt_setmetrics(u_long which, const struct rt_metrics *in,
-	struct rt_metrics_lite *out)
+rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt)
 {
-#define metric(f, e) if (which & (f)) out->e = in->e;
-	/*
-	 * Only these are stored in the routing entry since introduction
-	 * of tcp hostcache. The rest is ignored.
-	 */
-	metric(RTV_MTU, rmx_mtu);
-	metric(RTV_WEIGHT, rmx_weight);
-	/* Userland -> kernel timebase conversion. */
-	if (which & RTV_EXPIRE)
-		out->rmx_expire = in->rmx_expire ?
-		    in->rmx_expire - time_second + time_uptime : 0;
-#undef metric
+
+	if (rtm->rtm_inits & RTV_MTU)
+		rt->rt_mtu = rtm->rtm_rmx.rmx_mtu;
+	if (rtm->rtm_inits & RTV_WEIGHT)
+		rt->rt_weight = rtm->rtm_rmx.rmx_weight;
+	/* Kernel -> userland timebase conversion. */
+	if (rtm->rtm_inits & RTV_EXPIRE)
+		rt->rt_expire = rtm->rtm_rmx.rmx_expire ?
+		    rtm->rtm_rmx.rmx_expire - time_second + time_uptime : 0;
 }
 
 static void
-rt_getmetrics(const struct rt_metrics_lite *in, struct rt_metrics *out)
+rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
 {
-#define metric(e) out->e = in->e;
+
 	bzero(out, sizeof(*out));
-	metric(rmx_mtu);
-	metric(rmx_weight);
+	out->rmx_mtu = rt->rt_mtu;
+	out->rmx_weight = rt->rt_weight;
+	out->rmx_pksent = counter_u64_fetch(rt->rt_pksent);
 	/* Kernel -> userland timebase conversion. */
-	out->rmx_expire = in->rmx_expire ?
-	    in->rmx_expire - time_uptime + time_second : 0;
-#undef metric
+	out->rmx_expire = rt->rt_expire ?
+	    rt->rt_expire - time_uptime + time_second : 0;
 }
 
 /*
@@ -1274,7 +1268,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	struct mbuf *m;
 	struct sockaddr *sa = rtinfo->rti_info[RTAX_DST];
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 	m = rt_msg1(type, rtinfo);
 	if (m == NULL)
@@ -1312,7 +1306,7 @@ rt_ifmsg(struct ifnet *ifp)
 	struct mbuf *m;
 	struct rt_addrinfo info;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 	bzero((caddr_t)&info, sizeof(info));
 	m = rt_msg1(RTM_IFINFO, &info);
@@ -1342,7 +1336,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	struct ifa_msghdr *ifam;
 	struct ifnet *ifp = ifa->ifa_ifp;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return (0);
 
 	ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
@@ -1390,7 +1384,7 @@ rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 	struct mbuf *m;
 	struct rt_msghdr *rtm;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return (0);
 
 	bzero((caddr_t)&info, sizeof(info));
@@ -1428,7 +1422,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	struct ifnet *ifp = ifma->ifma_ifp;
 	struct ifma_msghdr *ifmam;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 
 	bzero((caddr_t)&info, sizeof(info));
@@ -1457,7 +1451,7 @@ rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
 	struct if_announcemsghdr *ifan;
 	struct mbuf *m;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return NULL;
 	bzero((caddr_t)info, sizeof(*info));
 	m = rt_msg1(type, info);
@@ -1594,11 +1588,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
 		else
 			rtm->rtm_flags = rt->rt_flags;
-		/*
-		 * let's be honest about this being a retarded hack
-		 */
-		rtm->rtm_fmask = rt->rt_rmx.rmx_pksent;
-		rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
+		rt_getmetrics(rt, &rtm->rtm_rmx);
 		rtm->rtm_index = rt->rt_ifp->if_index;
 		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
 		rtm->rtm_addrs = info.rti_addrs;

@@ -27,10 +27,16 @@ LIBDEPS=llvmdebuginfo \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
 	llvmpowerpccodegen \
-	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
 	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \

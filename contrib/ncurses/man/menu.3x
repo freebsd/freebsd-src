@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu.3x,v 1.19 2006/11/04 18:38:29 tom Exp $
+.\" $Id: menu.3x,v 1.21 2010/12/04 18:40:45 tom Exp $
 .TH menu 3X ""
 .SH NAME
-\fBmenu\fR - curses extension for programming menus
+\fBmenu\fR \- curses extension for programming menus
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -43,7 +43,7 @@ menus, display menus on the screen, and handle interaction with the user.
 The \fBmenu\fR library uses the \fBcurses\fR libraries, and a curses
 initialization routine such as \fBinitscr\fR must be called before using any of
 these functions.  To use the \fBmenu\fR library, link with the options
-\fB-lmenu -lcurses\fR.
+\fB\-lmenu \-lcurses\fR.
 .
 .SS Current Default Values for Item Attributes
 .
@@ -174,7 +174,7 @@ The header file \fB<menu.h>\fR automatically includes the header files
 \fB<curses.h>\fR and \fB<eti.h>\fR.
 .PP
 In your library list, libmenu.a should be before libncurses.a; that is,
-you want to say `-lmenu -lncurses', not the other way around (which would
+you want to say `\-lmenu \-lncurses', not the other way around (which would
 usually give a link-error).
 .SH PORTABILITY
 These routines emulate the System V menu library.  They were not supported on
@@ -185,9 +185,3 @@ S. Raymond.
 .SH SEE ALSO
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

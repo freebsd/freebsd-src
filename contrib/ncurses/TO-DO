@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: TO-DO,v 1.51 2008/10/11 19:22:27 tom Exp $
+-- $Id: TO-DO,v 1.57 2011/03/28 00:23:02 tom Exp $
 -------------------------------------------------------------------------------
 
 SHORT-TERM TO-DO ITEMS:
@@ -45,7 +45,7 @@ Known Problems:
 + Scrolling optimization has holes:  for example, it forces repaints of the
   screen between calls to refresh().
 
-+ SVr4 uses slightly different rules for determining when softkeys are shown. 
++ SVr4 uses slightly different rules for determining when softkeys are shown.
   For example, they are initially displayed (before the ncurses 'e' test
   activates them), and a touchwin can apparently also force them to be
   displayed.
@@ -58,7 +58,7 @@ Known Problems:
 + The window classes defined in the c++ subdirectory need documentation.  Some
   C++ programmer could earn a lot of good karma by doing this...
 
-+ vid_attr() should support the set_a_attributes (sgr1) string, but does not. 
++ vid_attr() should support the set_a_attributes (sgr1) string, but does not.
   There appear to be no terminals that require that functionality.
 
 + the configure --disable-ext-funcs option does not work for Ada95 tree.
@@ -72,27 +72,28 @@ Known Problems:
   Building those with libtool does not work either.  (This is a problem with
   the BSD platforms).
 
++ more work is needed to make the MinGW port support ordinary terminals.
+
 Portability (or lack thereof):
 
 + Users of older System V UNIXes (but not Solaris, and probably not SVr4) may
   trip over a known problem with the signal-handling code which causes abrupt
   termination of ncurses applications following resume from a ^Z suspend (this
   problem was first seen running lynx).  You will not see this problem if you
-  are running Linux or one of the 4.4BSD derivatives like FreeBSD, NetBSD, or
-  BSDI.  For details, see the analysis in the header comment of
-  ncurses/tty/lib_tstp.c .
+  are using one of the 4.4BSD derivatives like such as, NetBSD, or BSDI, or
+  systems using that convention.  For details, see the analysis in the header
+  comment of ncurses/tty/lib_tstp.c .
 
 + In theory, vwprintw and vwscanf are supposed to use the older varargs.h
   interface for handling variadic argument lists (and are deprecated by X/Open
-  for that reason).  Linux doesn't have varargs.h, it has the newer
-  X/Open-standard stdargs.h equivalent.  So these functions use stdargs
-  instead.  This is unlikely to be a problem unless you're building ncurses on
-  a System V old enough to only have varargs.h.  (Solaris 2.5.1 used the
-  stdarg.h binding as well).
+  for that reason).  Many newer systems do no have varargs.h, instead they have
+  only the newer X/Open-standard stdargs.h equivalent.  So these functions use
+  stdargs instead.  This is unlikely to be a problem unless you're building
+  ncurses on a System V old enough to only have varargs.h.  (Solaris 2.5.1 used
+  the stdarg.h binding as well).
 
-+ If you're using a BSD earlier than 4.4BSD, or a Linux old enough not to have
-  a native vsscanf(3) in its library, vwscanw() will not work.  You lose.  (It
-  should work on any System V, however).  If you want to fix this, add an
++ If you're using a system old enough not to have a native vsscanf(3) in its
+  library, vwscanw() will not work.  If you want to fix this, add an
   implementation to ncurses/vsscanf.c.
 
 + The C++ binding fails to build with a few C++ compilers.
@@ -122,7 +123,7 @@ supporting internationalization.
 2. DOS port
 
 Only a few of the files in the library depend on the terminfo format.
-It should be possible to further kernelize the package, then rewrite 
+It should be possible to further kernelize the package, then rewrite
 a small number of core files to produce a functionally-compatible
 port that would do updates to a memory-mapped screen area.  The first
 result of this would be a DOS port.
@@ -195,10 +196,10 @@ F. Unused VDT capabilities:
 		move_insert, dest_tabs_magic_smso, transparent_underline,
 		needs_xon_xoff, hard_cursor.
 	Numerics: lines_of_memory, buttons.
-	Strings: pkey_key, pkey_local, pkey_xmit, underline_char, 
-		enter_xon_mode,	exit_xon_mode, xon_character, xoff_character, 
+	Strings: pkey_key, pkey_local, pkey_xmit, underline_char,
+		enter_xon_mode,	exit_xon_mode, xon_character, xoff_character,
 		display_clock, remove_clock, user[0-5], display_pc_char,
-		enter_scancode_mode, exit_scancode_mode, pc_term_options, 
+		enter_scancode_mode, exit_scancode_mode, pc_term_options,
 		scancode_escape, alt_scancode_esc.
 
 These are the potentially important ones for ncurses.  Notes:

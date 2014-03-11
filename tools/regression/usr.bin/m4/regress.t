@@ -3,4 +3,4 @@
 
 cd `dirname $0`
 
-sh regress.sh
+m4 ../regress.m4 regress.sh | sh

@@ -6,6 +6,8 @@ NCAL="${CAL_BIN} -N"
 YEARS="2008 2009 2010 2011"
 ONEYEAR="2009"
 
+echo 1..89
+
 REGRESSION_START($1)
 
 #
@@ -14,8 +16,6 @@ REGRESSION_START($1)
 #
 
 # Full year calendars
-
-echo 1..16
 
 for y in ${YEARS}; do
 	# Regular calendar, Month days, No-highlight
@@ -29,8 +29,6 @@ for y in ${YEARS}; do
 done
 
 # 3 month calendars
-
-echo 17 .. 29
 
 for m in $(jot -w %02d 12); do
 	# Regular calendar, Month days, No-highlight

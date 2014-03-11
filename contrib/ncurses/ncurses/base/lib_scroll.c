@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,22 +43,22 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scroll.c,v 1.26 2006/10/14 20:46:08 tom Exp $")
+MODULE_ID("$Id: lib_scroll.c,v 1.29 2011/10/22 16:34:50 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_scroll_window(WINDOW *win,
 		  int const n,
-		  NCURSES_SIZE_T const top,
-		  NCURSES_SIZE_T const bottom,
+		  int const top,
+		  int const bottom,
 		  NCURSES_CH_T blank)
 {
     int limit;
     int line;
     int j;
-    size_t to_copy = (size_t) (sizeof(NCURSES_CH_T) * (win->_maxx + 1));
+    size_t to_copy = (sizeof(NCURSES_CH_T) * (size_t) (win->_maxx + 1));
 
     TR(TRACE_MOVE, ("_nc_scroll_window(%p, %d, %ld, %ld)",
-		    win, n, (long) top, (long) bottom));
+		    (void *) win, n, (long) top, (long) bottom));
 
     if (top < 0
 	|| bottom < top
@@ -135,7 +135,7 @@ _nc_scroll_window(WINDOW *win,
 NCURSES_EXPORT(int)
 wscrl(WINDOW *win, int n)
 {
-    T((T_CALLED("wscrl(%p,%d)"), win, n));
+    T((T_CALLED("wscrl(%p,%d)"), (void *) win, n));
 
     if (!win || !win->_scroll) {
 	TR(TRACE_MOVE, ("...scrollok is false"));

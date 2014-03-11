@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,33 +44,33 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_slkset.c,v 1.17 2007/10/13 20:08:46 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.24 2012/12/08 23:09:25 tom Exp $")
 
 NCURSES_EXPORT(int)
-slk_set(int i, const char *astr, int format)
+NCURSES_SP_NAME(slk_set) (NCURSES_SP_DCLx int i, const char *astr, int format)
 {
     SLK *slk;
-    int offset;
+    int offset = 0;
     int numchrs;
     int numcols;
     int limit;
     const char *str = astr;
     const char *p;
 
-    T((T_CALLED("slk_set(%d, \"%s\", %d)"), i, str, format));
+    T((T_CALLED("slk_set(%p, %d, \"%s\", %d)"), (void *) SP_PARM, i, str, format));
 
-    if (SP == 0
-	|| (slk = SP->_slk) == 0
+    if (SP_PARM == 0
+	|| (slk = SP_PARM->_slk) == 0
 	|| i < 1
 	|| i > slk->labcnt
 	|| format < 0
 	|| format > 2)
 	returnCode(ERR);
-    if (str == NULL)
+    if (str == 0)
 	str = "";
     --i;			/* Adjust numbering of labels */
 
-    limit = MAX_SKEY_LEN(SP->slk_format);
+    limit = MAX_SKEY_LEN(SP_PARM->slk_format);
     while (isspace(UChar(*str)))
 	str++;			/* skip over leading spaces  */
     p = str;
@@ -94,12 +94,12 @@ slk_set(int i, const char *astr, int format)
 	numcols += wcwidth(wc);
 	p += need;
     }
-    numchrs = (p - str);
+    numchrs = (int) (p - str);
 #else
     while (isprint(UChar(*p)))
 	p++;			/* The first non-print stops */
 
-    numcols = (p - str);
+    numcols = (int) (p - str);
     if (numcols > limit)
 	numcols = limit;
     numchrs = numcols;
@@ -111,13 +111,12 @@ slk_set(int i, const char *astr, int format)
     slk->ent[i].ent_text[numchrs] = '\0';
 
     if ((slk->ent[i].form_text = (char *) _nc_doalloc(slk->ent[i].form_text,
-						      (unsigned) (limit +
-								  numchrs + 1))
+						      (size_t) (limit +
+								numchrs + 1))
 	) == 0)
 	returnCode(ERR);
 
     switch (format) {
-    default:
     case 0:			/* left-justified */
 	offset = 0;
 	break;
@@ -131,19 +130,27 @@ slk_set(int i, const char *astr, int format)
     if (offset <= 0)
 	offset = 0;
     else
-	memset(slk->ent[i].form_text, ' ', (unsigned) offset);
+	memset(slk->ent[i].form_text, ' ', (size_t) offset);
 
     memcpy(slk->ent[i].form_text + offset,
 	   slk->ent[i].ent_text,
-	   (unsigned) numchrs);
+	   (size_t) numchrs);
 
     if (offset < limit) {
 	memset(slk->ent[i].form_text + offset + numchrs,
 	       ' ',
-	       (unsigned) (limit - (offset + numcols)));
+	       (size_t) (limit - (offset + numcols)));
     }
 
     slk->ent[i].form_text[numchrs - numcols + limit] = 0;
     slk->ent[i].dirty = TRUE;
     returnCode(OK);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+slk_set(int i, const char *astr, int format)
+{
+    return NCURSES_SP_NAME(slk_set) (CURRENT_SCREEN, i, astr, format);
+}
+#endif

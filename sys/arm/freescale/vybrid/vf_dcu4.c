@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include <sys/consio.h>
 #include <sys/eventhandler.h>
+#include <sys/gpio.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -53,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/vt/vt.h>
 #include <dev/vt/colors/vt_termcolors.h>
+
+#include "gpio_if.h"
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
@@ -74,6 +77,9 @@ __FBSDID("$FreeBSD$");
 #define	 DCU_MODE_TEST		0x2
 #define	 DCU_MODE_COLBAR	0x3
 #define	 RASTER_EN		(1 << 14)	/* Raster scan of pixel data */
+#define	 PDI_EN			(1 << 13)
+#define	 PDI_DE_MODE		(1 << 11)
+#define	 PDI_MODE_M		2
 #define	DCU_BGND		0x014	/* Background */
 #define	DCU_DISP_SIZE		0x018	/* Display Size */
 #define	 DELTA_M		0x7ff
@@ -90,6 +96,9 @@ __FBSDID("$FreeBSD$");
 #define	DCU_SYNPOL		0x024	/* Synchronize Polarity */
 #define	 INV_HS			(1 << 0)
 #define	 INV_VS			(1 << 1)
+#define	 INV_PDI_VS		(1 << 8) /* Polarity of PDI input VSYNC. */
+#define	 INV_PDI_HS		(1 << 9) /* Polarity of PDI input HSYNC. */
+#define	 INV_PDI_DE		(1 << 10) /* Polarity of PDI input DE. */
 #define	DCU_THRESHOLD		0x028	/* Threshold */
 #define	 LS_BF_VS_SHIFT		16
 #define	 OUT_BUF_HIGH_SHIFT	8
@@ -160,8 +169,20 @@ __FBSDID("$FreeBSD$");
 #define DCU_CTRLDESCLn_8(n)	DCU_CTRLDESCL(n, 8)
 #define DCU_CTRLDESCLn_9(n)	DCU_CTRLDESCL(n, 9)
 
-#define DISPLAY_WIDTH		480
-#define DISPLAY_HEIGHT		272
+#define	NUM_LAYERS	64
+
+struct panel_info {
+	uint32_t	width;
+	uint32_t	height;
+	uint32_t	h_back_porch;
+	uint32_t	h_pulse_width;
+	uint32_t	h_front_porch;
+	uint32_t	v_back_porch;
+	uint32_t	v_pulse_width;
+	uint32_t	v_front_porch;
+	uint32_t	clk_div;
+	uint32_t	backlight_pin;
+};
 
 struct dcu_softc {
 	struct resource		*res[2];
@@ -171,6 +192,7 @@ struct dcu_softc {
 	device_t		dev;
 	device_t		sc_fbd;		/* fbd child */
 	struct fb_info		sc_info;
+	struct panel_info	*panel;
 };
 
 static struct resource_spec dcu_spec[] = {
@@ -209,33 +231,84 @@ dcu_intr(void *arg)
 }
 
 static int
+get_panel_info(struct dcu_softc *sc, struct panel_info *panel)
+{
+	phandle_t node;
+	pcell_t dts_value[3];
+	int len;
+
+	if ((node = ofw_bus_get_node(sc->dev)) == -1)
+		return (ENXIO);
+
+	/* panel size */
+	if ((len = OF_getproplen(node, "panel-size")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "panel-size", &dts_value, len);
+	panel->width = fdt32_to_cpu(dts_value[0]);
+	panel->height = fdt32_to_cpu(dts_value[1]);
+
+	/* hsync */
+	if ((len = OF_getproplen(node, "panel-hsync")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "panel-hsync", &dts_value, len);
+	panel->h_back_porch = fdt32_to_cpu(dts_value[0]);
+	panel->h_pulse_width = fdt32_to_cpu(dts_value[1]);
+	panel->h_front_porch = fdt32_to_cpu(dts_value[2]);
+
+	/* vsync */
+	if ((len = OF_getproplen(node, "panel-vsync")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "panel-vsync", &dts_value, len);
+	panel->v_back_porch = fdt32_to_cpu(dts_value[0]);
+	panel->v_pulse_width = fdt32_to_cpu(dts_value[1]);
+	panel->v_front_porch = fdt32_to_cpu(dts_value[2]);
+
+	/* clk divider */
+	if ((len = OF_getproplen(node, "panel-clk-div")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "panel-clk-div", &dts_value, len);
+	panel->clk_div = fdt32_to_cpu(dts_value[0]);
+
+	/* backlight pin */
+	if ((len = OF_getproplen(node, "panel-backlight-pin")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "panel-backlight-pin", &dts_value, len);
+	panel->backlight_pin = fdt32_to_cpu(dts_value[0]);
+
+	return (0);
+}
+
+static int
 dcu_init(struct dcu_softc *sc)
 {
+	struct panel_info *panel;
 	int reg;
+	int i;
+
+	panel = sc->panel;
 
 	/* Configure DCU */
 	reg = ((sc->sc_info.fb_height) << DELTA_Y_S);
 	reg |= (sc->sc_info.fb_width / 16);
 	WRITE4(sc, DCU_DISP_SIZE, reg);
 
-	/* TODO: export panel info to FDT */
-
-	reg = (2 << BP_H_SHIFT);
-	reg |= (41 << PW_H_SHIFT);
-	reg |= (2 << FP_H_SHIFT);
+	reg = (panel->h_back_porch << BP_H_SHIFT);
+	reg |= (panel->h_pulse_width << PW_H_SHIFT);
+	reg |= (panel->h_front_porch << FP_H_SHIFT);
 	WRITE4(sc, DCU_HSYN_PARA, reg);
 
-	reg = (2 << BP_V_SHIFT);
-	reg |= (10 << PW_V_SHIFT);
-	reg |= (2 << FP_V_SHIFT);
+	reg = (panel->v_back_porch << BP_V_SHIFT);
+	reg |= (panel->v_pulse_width << PW_V_SHIFT);
+	reg |= (panel->v_front_porch << FP_V_SHIFT);
 	WRITE4(sc, DCU_VSYN_PARA, reg);
 
 	WRITE4(sc, DCU_BGND, 0);
-	WRITE4(sc, DCU_DIV_RATIO, 30);
+	WRITE4(sc, DCU_DIV_RATIO, panel->clk_div);
 
 	reg = (INV_VS | INV_HS);
 	WRITE4(sc, DCU_SYNPOL, reg);
 
+	/* TODO: export to panel info */
 	reg = (0x3 << LS_BF_VS_SHIFT);
 	reg |= (0x78 << OUT_BUF_HIGH_SHIFT);
 	reg |= (0 << OUT_BUF_LOW_SHIFT);
@@ -243,6 +316,19 @@ dcu_init(struct dcu_softc *sc)
 
 	/* Mask all the interrupts */
 	WRITE4(sc, DCU_INT_MASK, 0xffffffff);
+
+	/* Reset all layers */
+	for (i = 0; i < NUM_LAYERS; i++) {
+		WRITE4(sc, DCU_CTRLDESCLn_1(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_2(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_3(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_4(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_5(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_6(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_7(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_8(i), 0x0);
+		WRITE4(sc, DCU_CTRLDESCLn_9(i), 0x0);
+	}
 
 	/* Setup first layer */
 	reg = (sc->sc_info.fb_width | (sc->sc_info.fb_height << 16));
@@ -273,10 +359,13 @@ dcu_init(struct dcu_softc *sc)
 static int
 dcu_attach(device_t dev)
 {
+	struct panel_info panel;
 	struct dcu_softc *sc;
+	device_t gpio_dev;
 	int err;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, dcu_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -295,11 +384,30 @@ dcu_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	if (get_panel_info(sc, &panel)) {
+		device_printf(dev, "Can't get panel info\n");
+		return (ENXIO);
+	}
+
+	sc->panel = &panel;
+
 	/* Bypass timing control (used for raw lcd panels) */
 	tcon_bypass();
 
-	sc->sc_info.fb_width = DISPLAY_WIDTH;
-	sc->sc_info.fb_height = DISPLAY_HEIGHT;
+	/* Get the GPIO device, we need this to give power to USB */
+	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (gpio_dev == NULL) {
+		device_printf(sc->dev, "Error: failed to get the GPIO dev\n");
+		return (1);
+	}
+
+	/* Turn on backlight */
+	/* TODO: Use FlexTimer/PWM */
+	GPIO_PIN_SETFLAGS(gpio_dev, panel.backlight_pin, GPIO_PIN_OUTPUT);
+	GPIO_PIN_SET(gpio_dev, panel.backlight_pin, GPIO_PIN_HIGH);
+
+	sc->sc_info.fb_width = panel.width;
+	sc->sc_info.fb_height = panel.height;
 	sc->sc_info.fb_stride = sc->sc_info.fb_width * 3;
 	sc->sc_info.fb_bpp = sc->sc_info.fb_depth = 24;
 	sc->sc_info.fb_size = sc->sc_info.fb_height * sc->sc_info.fb_stride;

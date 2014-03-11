@@ -256,11 +256,10 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP3;
+pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
-caddr_t CADDR1 = 0, ptvmmap = 0;
-static caddr_t CADDR3;
+caddr_t ptvmmap = 0;
+caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
 /*
@@ -434,7 +433,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
 	}
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 
 	/*
@@ -752,12 +750,18 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	/*
-	 * If the kernel is running in a virtual machine on an AMD Family 10h
-	 * processor, then it must assume that MCA is enabled by the virtual
-	 * machine monitor.
+	 * If the kernel is running on a virtual machine, then it must assume
+	 * that MCA is enabled by the hypervisor.  Moreover, the kernel must
+	 * be prepared for the hypervisor changing the vendor and family that
+	 * are reported by CPUID.  Consequently, the workaround for AMD Family
+	 * 10h Erratum 383 is enabled if the processor's feature set does not
+	 * include at least one feature that is only supported by older Intel
+	 * or newer AMD processors.
 	 */
-	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+	if (vm_guest == VM_GUEST_VM && (cpu_feature & CPUID_SS) == 0 &&
+	    (cpu_feature2 & (CPUID2_SSSE3 | CPUID2_SSE41 | CPUID2_AESNI |
+	    CPUID2_AVX | CPUID2_XSAVE)) == 0 && (amd_feature2 & (AMDID2_XOP |
+	    AMDID2_FMA4)) == 0)
 		workaround_erratum383 = 1;
 
 	/*

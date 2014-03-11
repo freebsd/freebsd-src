@@ -61,7 +61,6 @@ struct pcb_arm32 {
 	u_int	pcb32_sp;			/* used */
 	u_int	pcb32_lr;
 	u_int	pcb32_pc;
-	u_int	pcb32_und_sp;
 };
 #define	pcb_pagedir	un_32.pcb32_pagedir
 #define	pcb_pl1vec	un_32.pcb32_pl1vec

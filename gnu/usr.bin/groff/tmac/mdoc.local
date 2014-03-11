@@ -34,11 +34,13 @@
 .\" FreeBSD .Lb values
 .ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
 .ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
+.ds doc-str-Lb-libcapsicum Capsicum Library (libcapsicum, \-lcapsicum)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
 .ds doc-str-Lb-libefi      EFI Runtime Services Library (libefi, \-lefi)
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
 .ds doc-str-Lb-libexecinfo Backtrace Access Library (libexecinfo, \-lexecinfo)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
+.ds doc-str-Lb-libnv       Name/value pairs library (libnv, \-lnv)
 .ds doc-str-Lb-libpmc      Performance Monitoring Counters Interface Library (libpmc, \-lpmc)
 .ds doc-str-Lb-libproc     Processor Monitoring and Analysis Library (libproc, \-lproc)
 .ds doc-str-Lb-libprocstat Process and Files Information Retrieval (libprocstat, \-lprocstat)

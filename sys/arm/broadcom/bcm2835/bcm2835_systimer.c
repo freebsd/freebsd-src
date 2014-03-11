@@ -282,12 +282,6 @@ void bcm2835_cpu_initclocks(platform_t);
 void bcm2835_delay(platform_t, int);
 
 void
-bcm2835_cpu_initclocks(platform_t plat)
-{
-	cpu_initclocks_bsp();
-}
-
-void
 bcm2835_delay(platform_t plat, int usec)
 {
 	int32_t counts;

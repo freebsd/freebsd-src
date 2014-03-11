@@ -69,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
+	libbsdstat \
 	libbz2 \
 	libcalendar \
 	libcam \
@@ -119,6 +120,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
+	libucl \
 	libufs \
 	libugidfw \
 	libulog \
@@ -129,7 +131,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
-	libyaml \
 	libz \
 	${_atf} \
 	${_clang} \

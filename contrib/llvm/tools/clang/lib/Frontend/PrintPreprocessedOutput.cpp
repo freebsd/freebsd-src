@@ -140,6 +140,9 @@ public:
   virtual void PragmaCaptured(SourceLocation Loc, StringRef Str);
   virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
                              const std::string &Str);
+  virtual void PragmaDetectMismatch(SourceLocation Loc,
+                                    const std::string &Name,
+                                    const std::string &Value);
   virtual void PragmaMessage(SourceLocation Loc, StringRef Namespace,
                              PragmaMessageKind Kind, StringRef Str);
   virtual void PragmaDebug(SourceLocation Loc, StringRef DebugType);
@@ -149,6 +152,10 @@ public:
                                    StringRef Namespace);
   virtual void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
                                 diag::Mapping Map, StringRef Str);
+  virtual void PragmaWarning(SourceLocation Loc, StringRef WarningSpec,
+                             ArrayRef<int> Ids);
+  virtual void PragmaWarningPush(SourceLocation Loc, int Level);
+  virtual void PragmaWarningPop(SourceLocation Loc);
 
   bool HandleFirstTokOnLine(Token &Tok);
 
@@ -187,11 +194,11 @@ void PrintPPOutputPPCallbacks::WriteLineInfo(unsigned LineNo,
   // Emit #line directives or GNU line markers depending on what mode we're in.
   if (UseLineDirective) {
     OS << "#line" << ' ' << LineNo << ' ' << '"';
-    OS.write(CurFilename.data(), CurFilename.size());
+    OS.write_escaped(CurFilename);
     OS << '"';
   } else {
     OS << '#' << ' ' << LineNo << ' ' << '"';
-    OS.write(CurFilename.data(), CurFilename.size());
+    OS.write_escaped(CurFilename);
     OS << '"';
 
     if (ExtraLen)
@@ -282,7 +289,6 @@ void PrintPPOutputPPCallbacks::FileChanged(SourceLocation Loc,
 
   CurFilename.clear();
   CurFilename += UserLoc.getFilename();
-  Lexer::Stringify(CurFilename);
   FileType = NewFileType;
 
   if (DisableLineMarkers) {
@@ -382,16 +388,8 @@ void PrintPPOutputPPCallbacks::MacroUndefined(const Token &MacroNameTok,
   setEmittedDirectiveOnThisLine();
 }
 
-void PrintPPOutputPPCallbacks::PragmaComment(SourceLocation Loc,
-                                             const IdentifierInfo *Kind,
+static void outputPrintable(llvm::raw_ostream& OS,
                                              const std::string &Str) {
-  startNewLineIfNeeded();
-  MoveToLine(Loc);
-  OS << "#pragma comment(" << Kind->getName();
-
-  if (!Str.empty()) {
-    OS << ", \"";
-
     for (unsigned i = 0, e = Str.size(); i != e; ++i) {
       unsigned char Char = Str[i];
       if (isPrintable(Char) && Char != '\\' && Char != '"')
@@ -402,10 +400,35 @@ void PrintPPOutputPPCallbacks::PragmaComment(SourceLocation Loc,
            << (char)('0'+ ((Char >> 3) & 7))
            << (char)('0'+ ((Char >> 0) & 7));
     }
+}
+
+void PrintPPOutputPPCallbacks::PragmaComment(SourceLocation Loc,
+                                             const IdentifierInfo *Kind,
+                                             const std::string &Str) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma comment(" << Kind->getName();
+
+  if (!Str.empty()) {
+    OS << ", \"";
+    outputPrintable(OS, Str);
     OS << '"';
   }
 
   OS << ')';
+  setEmittedDirectiveOnThisLine();
+}
+
+void PrintPPOutputPPCallbacks::PragmaDetectMismatch(SourceLocation Loc,
+                                                    const std::string &Name,
+                                                    const std::string &Value) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma detect_mismatch(\"" << Name << '"';
+  outputPrintable(OS, Name);
+  OS << "\", \"";
+  outputPrintable(OS, Value);
+  OS << "\")";
   setEmittedDirectiveOnThisLine();
 }
 
@@ -430,16 +453,7 @@ void PrintPPOutputPPCallbacks::PragmaMessage(SourceLocation Loc,
       break;
   }
 
-  for (unsigned i = 0, e = Str.size(); i != e; ++i) {
-    unsigned char Char = Str[i];
-    if (isPrintable(Char) && Char != '\\' && Char != '"')
-      OS << (char)Char;
-    else  // Output anything hard as an octal escape.
-      OS << '\\'
-         << (char)('0'+ ((Char >> 6) & 7))
-         << (char)('0'+ ((Char >> 3) & 7))
-         << (char)('0'+ ((Char >> 0) & 7));
-  }
+  outputPrintable(OS, Str);
   OS << '"';
   if (Kind == PMK_Message)
     OS << ')';
@@ -494,6 +508,36 @@ PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
     break;
   }
   OS << " \"" << Str << '"';
+  setEmittedDirectiveOnThisLine();
+}
+
+void PrintPPOutputPPCallbacks::PragmaWarning(SourceLocation Loc,
+                                             StringRef WarningSpec,
+                                             ArrayRef<int> Ids) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma warning(" << WarningSpec << ':';
+  for (ArrayRef<int>::iterator I = Ids.begin(), E = Ids.end(); I != E; ++I)
+    OS << ' ' << *I;
+  OS << ')';
+  setEmittedDirectiveOnThisLine();
+}
+
+void PrintPPOutputPPCallbacks::PragmaWarningPush(SourceLocation Loc,
+                                                 int Level) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma warning(push";
+  if (Level >= 0)
+    OS << ", " << Level;
+  OS << ')';
+  setEmittedDirectiveOnThisLine();
+}
+
+void PrintPPOutputPPCallbacks::PragmaWarningPop(SourceLocation Loc) {
+  startNewLineIfNeeded();
+  MoveToLine(Loc);
+  OS << "#pragma warning(pop)";
   setEmittedDirectiveOnThisLine();
 }
 
@@ -613,6 +657,11 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
       // -traditional-cpp the lexer keeps /all/ whitespace, including comments.
       SourceLocation StartLoc = Tok.getLocation();
       Callbacks->MoveToLine(StartLoc.getLocWithOffset(Tok.getLength()));
+    } else if (Tok.is(tok::annot_module_include)) {
+      // PrintPPOutputPPCallbacks::InclusionDirective handles producing
+      // appropriate output here. Ignore this token entirely.
+      PP.Lex(Tok);
+      continue;
     } else if (IdentifierInfo *II = Tok.getIdentifierInfo()) {
       OS << II->getName();
     } else if (Tok.isLiteral() && !Tok.needsCleaning() &&
@@ -647,9 +696,7 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
 }
 
 typedef std::pair<const IdentifierInfo *, MacroInfo *> id_macro_pair;
-static int MacroIDCompare(const void* a, const void* b) {
-  const id_macro_pair *LHS = static_cast<const id_macro_pair*>(a);
-  const id_macro_pair *RHS = static_cast<const id_macro_pair*>(b);
+static int MacroIDCompare(const id_macro_pair *LHS, const id_macro_pair *RHS) {
   return LHS->first->getName().compare(RHS->first->getName());
 }
 

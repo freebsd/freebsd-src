@@ -344,7 +344,7 @@ service_message(struct service *service, struct service_connection *sconn)
 		if (sock == -1) {
 			error = errno;
 		} else {
-			nvlist_add_descriptor(nvlout, "sock", sock);
+			nvlist_move_descriptor(nvlout, "sock", sock);
 			error = 0;
 		}
 	} else {

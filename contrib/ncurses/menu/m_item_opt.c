@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_opt.c,v 1.17 2004/12/25 21:32:54 tom Exp $")
+MODULE_ID("$Id: m_item_opt.c,v 1.18 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -53,7 +53,7 @@ MODULE_ID("$Id: m_item_opt.c,v 1.17 2004/12/25 21:32:54 tom Exp $")
 NCURSES_EXPORT(int)
 set_item_opts(ITEM * item, Item_Options opts)
 {
-  T((T_CALLED("set_menu_opts(%p,%d)"), item, opts));
+  T((T_CALLED("set_menu_opts(%p,%d)"), (void *)item, opts));
 
   opts &= ALL_ITEM_OPTS;
 
@@ -100,7 +100,7 @@ item_opts_off(ITEM * item, Item_Options opts)
 
 				   NULL item itself to adjust its behavior */
 
-  T((T_CALLED("item_opts_off(%p,%d)"), item, opts));
+  T((T_CALLED("item_opts_off(%p,%d)"), (void *)item, opts));
 
   if (opts & ~ALL_ITEM_OPTS)
     RETURN(E_BAD_ARGUMENT);
@@ -128,7 +128,7 @@ item_opts_on(ITEM * item, Item_Options opts)
 
 				   NULL item itself to adjust its behavior */
 
-  T((T_CALLED("item_opts_on(%p,%d)"), item, opts));
+  T((T_CALLED("item_opts_on(%p,%d)"), (void *)item, opts));
 
   opts &= ALL_ITEM_OPTS;
   if (opts & ~ALL_ITEM_OPTS)
@@ -152,7 +152,7 @@ item_opts_on(ITEM * item, Item_Options opts)
 NCURSES_EXPORT(Item_Options)
 item_opts(const ITEM * item)
 {
-  T((T_CALLED("item_opts(%p)"), item));
+  T((T_CALLED("item_opts(%p)"), (const void *)item));
   returnItemOpts(ALL_ITEM_OPTS & Normalize_Item(item)->opt);
 }
 

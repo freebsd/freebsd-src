@@ -107,7 +107,7 @@ pit_mevent_cb(int fd, enum ev_type type, void *param)
 
 	pit_mev_count++;
 
-	vm_ioapic_pulse_irq(c->ctx, 2);
+	vm_isa_pulse_irq(c->ctx, 0, 2);
 
 	/*
 	 * Delete the timer for one-shots
@@ -216,11 +216,12 @@ pit_8254_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		
 		c = &counter[sel >> 6];
 		c->ctx = ctx;
-		c->mode = mode;
 		if (rw == TIMER_LATCH)
 			pit_update_counter(c, 1);
-		else
+		else {
+			c->mode = mode;
 			c->olbyte = 0;	/* reset latch after reprogramming */
+		}
 		
 		return (0);
 	}

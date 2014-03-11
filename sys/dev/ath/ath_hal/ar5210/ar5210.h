@@ -108,7 +108,6 @@ struct ath_hal_5210 {
 	uint32_t	ah_txDescInterruptMask;
 	uint32_t	ah_txEolInterruptMask;
 	uint32_t	ah_txUrnInterruptMask;
-	HAL_POWER_MODE	ah_powerMode;
 	uint8_t		ah_bssid[IEEE80211_ADDR_LEN];
 	HAL_TX_QUEUE_INFO ah_txq[HAL_NUM_TX_QUEUES]; /* beacon+cab+data */
 	/*

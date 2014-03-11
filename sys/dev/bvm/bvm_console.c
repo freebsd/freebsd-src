@@ -128,9 +128,8 @@ static void
 bvm_tty_close(struct tty *tp)
 {
 
-	tty_lock(tp);
+	tty_lock_assert(tp, MA_OWNED);
 	callout_stop(&bvm_timer);
-	tty_unlock(tp);
 }
 
 static void

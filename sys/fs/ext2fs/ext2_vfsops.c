@@ -290,7 +290,8 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 		return (1);
 	}
 	if (es->e2fs_rev > E2FS_REV0) {
-		if (es->e2fs_features_incompat & ~EXT2F_INCOMPAT_SUPP) {
+		if (es->e2fs_features_incompat & ~(EXT2F_INCOMPAT_SUPP |
+						   EXT4F_RO_INCOMPAT_SUPP)) {
 			printf(
 "WARNING: mount of %s denied due to unsupported optional features\n",
 			    devtoname(dev));
@@ -673,7 +674,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
- 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	return (0);
 out:
@@ -687,7 +688,7 @@ out:
 		PICKUP_GIANT();
 	}
 	if (ump) {
-	  	mtx_destroy(EXT2_MTX(ump));
+		mtx_destroy(EXT2_MTX(ump));
 		free(ump->um_e2fs->e2fs_gd, M_EXT2MNT);
 		free(ump->um_e2fs->e2fs_contigdirs, M_EXT2MNT);
 		free(ump->um_e2fs->e2fs, M_EXT2MNT);
@@ -722,8 +723,8 @@ ext2_unmount(struct mount *mp, int mntflags)
 	ronly = fs->e2fs_ronly;
 	if (ronly == 0 && ext2_cgupdate(ump, MNT_WAIT) == 0) {
 		if (fs->e2fs_wasvalid)
- 			fs->e2fs->e2fs_state |= E2FS_ISCLEAN;
- 		ext2_sbupdate(ump, MNT_WAIT);
+			fs->e2fs->e2fs_state |= E2FS_ISCLEAN;
+		ext2_sbupdate(ump, MNT_WAIT);
 	}
 
 	DROP_GIANT();

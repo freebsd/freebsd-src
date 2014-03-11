@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "mptbl.h"
 #include "pci_emul.h"
 #include "pci_lpc.h"
+#include "smbiostbl.h"
 #include "xmsr.h"
 #include "spinup_ap.h"
 #include "rtc.h"
@@ -82,10 +83,12 @@ typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 char *vmname;
 
 int guest_ncpus;
+char *guest_uuid_str;
 
 static int pincpu = -1;
-static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
+static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 static int virtio_msix = 1;
+static int x2apic_mode = 0;	/* default is xAPIC */
 
 static int strictio;
 static int strictmsr = 1;
@@ -126,7 +129,7 @@ usage(int code)
         fprintf(stderr,
                 "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>]\n"
 		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
-		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
+		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
@@ -139,7 +142,9 @@ usage(int code)
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
-		"       -w: ignore unimplemented MSRs\n",
+		"       -w: ignore unimplemented MSRs\n"
+		"       -x: local apic is in x2APIC mode\n"
+		"       -U: uuid\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -150,13 +155,6 @@ paddr_guest2host(struct vmctx *ctx, uintptr_t gaddr, size_t len)
 {
 
 	return (vm_map_gpa(ctx, gaddr, len));
-}
-
-int
-fbsdrun_disable_x2apic(void)
-{
-
-	return (disable_x2apic);
 }
 
 int
@@ -326,8 +324,11 @@ vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	if (error != 0) {
 		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
 		    vme->u.msr.code, *pvcpu);
-		if (strictmsr)
-			return (VMEXIT_ABORT);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
 	}
 
 	eax = val;
@@ -350,8 +351,11 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	if (error != 0) {
 		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
 		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
-		if (strictmsr)
-			return (VMEXIT_ABORT);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
 	}
 	return (VMEXIT_CONTINUE);
 }
@@ -570,10 +574,10 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
         }
 
-	if (fbsdrun_disable_x2apic())
-		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
-	else
+	if (x2apic_mode)
 		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+	else
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
 
 	if (err) {
 		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
@@ -598,10 +602,10 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehwAHIPWp:g:c:s:m:l:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxAHIPWp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
-			disable_x2apic = 1;
+			x2apic_mode = 0;
 			break;
 		case 'A':
 			acpi = 1;
@@ -652,11 +656,17 @@ main(int argc, char *argv[])
 		case 'e':
 			strictio = 1;
 			break;
+		case 'U':
+			guest_uuid_str = optarg;
+			break;
 		case 'w':
 			strictmsr = 0;
 			break;
 		case 'W':
 			virtio_msix = 0;
+			break;
+		case 'x':
+			x2apic_mode = 1;
 			break;
 		case 'h':
 			usage(0);			
@@ -718,6 +728,9 @@ main(int argc, char *argv[])
 	 * build the guest tables, MP etc.
 	 */
 	mptable_build(ctx, guest_ncpus);
+
+	error = smbios_build(ctx);
+	assert(error == 0);
 
 	if (acpi) {
 		error = acpi_build(ctx, guest_ncpus);

@@ -111,10 +111,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Static device mappings. */
@@ -428,7 +424,7 @@ at91_try_id(uint32_t dbgu_base)
 	return (1);
 }
 
-static void
+void
 at91_soc_id(void)
 {
 
@@ -590,6 +586,11 @@ initarm(struct arm_boot_params *abp)
 		printf("Warning: No soc support for %s found.\n", soc_info.name);
 
 	memsize = board_init();
+	if (memsize == -1) {
+		printf("board_init() failed, cannot determine ram size; "
+		    "assuming 16MB\n");
+		memsize = 16 * 1024 * 1024;
+	}
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -616,11 +617,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);

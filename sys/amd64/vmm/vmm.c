@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
+#include "vatpic.h"
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
@@ -94,6 +95,8 @@ struct vcpu {
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
+	struct vm_exception exception;
+	int		exception_pending;
 };
 
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
@@ -114,6 +117,7 @@ struct vm {
 	void		*iommu;		/* iommu-specific data */
 	struct vhpet	*vhpet;		/* virtual HPET */
 	struct vioapic	*vioapic;	/* virtual ioapic */
+	struct vatpic	*vatpic;	/* virtual atpic */
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
@@ -157,8 +161,6 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vmgetdesc)(vmi, vcpu, num, desc) : ENXIO)
 #define	VMSETDESC(vmi, vcpu, num, desc)		\
 	(ops != NULL ? (*ops->vmsetdesc)(vmi, vcpu, num, desc) : ENXIO)
-#define	VMINJECT(vmi, vcpu, type, vec, ec, ecv)	\
-	(ops != NULL ? (*ops->vminject)(vmi, vcpu, type, vec, ec, ecv) : ENXIO)
 #define	VMGETCAP(vmi, vcpu, num, retval)	\
 	(ops != NULL ? (*ops->vmgetcap)(vmi, vcpu, num, retval) : ENXIO)
 #define	VMSETCAP(vmi, vcpu, num, val)		\
@@ -206,7 +208,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->hostcpu = NOCPU;
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
-	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
+	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
@@ -345,6 +347,7 @@ vm_create(const char *name, struct vm **retvm)
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
+	vm->vatpic = vatpic_init(vm);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);
@@ -378,6 +381,7 @@ vm_destroy(struct vm *vm)
 		iommu_destroy_domain(vm->iommu);
 
 	vhpet_cleanup(vm->vhpet);
+	vatpic_cleanup(vm->vatpic);
 	vioapic_cleanup(vm->vioapic);
 
 	for (i = 0; i < vm->num_mem_segs; i++)
@@ -870,6 +874,14 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
 		    "vcpu idle state"));
 	}
 
+	if (vcpu->state == VCPU_RUNNING) {
+		KASSERT(vcpu->hostcpu == curcpu, ("curcpu %d and hostcpu %d "
+		    "mismatch for running vcpu", curcpu, vcpu->hostcpu));
+	} else {
+		KASSERT(vcpu->hostcpu == NOCPU, ("Invalid hostcpu %d for a "
+		    "vcpu that is not running", vcpu->hostcpu));
+	}
+
 	/*
 	 * The following state transitions are allowed:
 	 * IDLE -> FROZEN -> IDLE
@@ -894,6 +906,11 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
 		return (EBUSY);
 
 	vcpu->state = newstate;
+	if (newstate == VCPU_RUNNING)
+		vcpu->hostcpu = curcpu;
+	else
+		vcpu->hostcpu = NOCPU;
+
 	if (newstate == VCPU_IDLE)
 		wakeup(&vcpu->state);
 
@@ -1152,9 +1169,7 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	vcpu->hostcpu = curcpu;
 	error = VMRUN(vm->cookie, vcpuid, rip, pmap, &vm->rendezvous_func);
-	vcpu->hostcpu = NOCPU;
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
@@ -1202,19 +1217,91 @@ restart:
 }
 
 int
-vm_inject_event(struct vm *vm, int vcpuid, int type,
-		int vector, uint32_t code, int code_valid)
+vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
+	struct vcpu *vcpu;
+
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
-	if ((type > VM_EVENT_NONE && type < VM_EVENT_MAX) == 0)
+	if (exception->vector < 0 || exception->vector >= 32)
 		return (EINVAL);
 
-	if (vector < 0 || vector > 255)
-		return (EINVAL);
+	vcpu = &vm->vcpu[vcpuid];
 
-	return (VMINJECT(vm->cookie, vcpuid, type, vector, code, code_valid));
+	if (vcpu->exception_pending) {
+		VCPU_CTR2(vm, vcpuid, "Unable to inject exception %d due to "
+		    "pending exception %d", exception->vector,
+		    vcpu->exception.vector);
+		return (EBUSY);
+	}
+
+	vcpu->exception_pending = 1;
+	vcpu->exception = *exception;
+	VCPU_CTR1(vm, vcpuid, "Exception %d pending", exception->vector);
+	return (0);
+}
+
+int
+vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *exception)
+{
+	struct vcpu *vcpu;
+	int pending;
+
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
+
+	vcpu = &vm->vcpu[vcpuid];
+	pending = vcpu->exception_pending;
+	if (pending) {
+		vcpu->exception_pending = 0;
+		*exception = vcpu->exception;
+		VCPU_CTR1(vm, vcpuid, "Exception %d delivered",
+		    exception->vector);
+	}
+	return (pending);
+}
+
+static void
+vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
+{
+	struct vm_exit *vmexit;
+	int error;
+
+	error = vm_inject_exception(vm, vcpuid, exception);
+	KASSERT(error == 0, ("vm_inject_exception error %d", error));
+
+	/*
+	 * A fault-like exception allows the instruction to be restarted
+	 * after the exception handler returns.
+	 *
+	 * By setting the inst_length to 0 we ensure that the instruction
+	 * pointer remains at the faulting instruction.
+	 */
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->inst_length = 0;
+}
+
+void
+vm_inject_gp(struct vm *vm, int vcpuid)
+{
+	struct vm_exception gpf = {
+		.vector = IDT_GP,
+		.error_code_valid = 1,
+		.error_code = 0
+	};
+
+	vm_inject_fault(vm, vcpuid, &gpf);
+}
+
+void
+vm_inject_ud(struct vm *vm, int vcpuid)
+{
+	struct vm_exception udf = {
+		.vector = IDT_UD,
+		.error_code_valid = 0
+	};
+
+	vm_inject_fault(vm, vcpuid, &udf);
 }
 
 static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
@@ -1476,19 +1563,28 @@ vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr)
 
 	vcpu_lock(vcpu);
 	hostcpu = vcpu->hostcpu;
-	if (hostcpu == NOCPU) {
-		if (vcpu->state == VCPU_SLEEPING)
-			wakeup_one(vcpu);
-	} else {
-		if (vcpu->state != VCPU_RUNNING)
-			panic("invalid vcpu state %d", vcpu->state);
+	if (vcpu->state == VCPU_RUNNING) {
+		KASSERT(hostcpu != NOCPU, ("vcpu running on invalid hostcpu"));
 		if (hostcpu != curcpu) {
-			if (lapic_intr)
+			if (lapic_intr) {
 				vlapic_post_intr(vcpu->vlapic, hostcpu,
 				    vmm_ipinum);
-			else
+			} else {
 				ipi_cpu(hostcpu, vmm_ipinum);
+			}
+		} else {
+			/*
+			 * If the 'vcpu' is running on 'curcpu' then it must
+			 * be sending a notification to itself (e.g. SELF_IPI).
+			 * The pending event will be picked up when the vcpu
+			 * transitions back to guest context.
+			 */
 		}
+	} else {
+		KASSERT(hostcpu == NOCPU, ("vcpu state %d not consistent "
+		    "with hostcpu %d", vcpu->state, hostcpu));
+		if (vcpu->state == VCPU_SLEEPING)
+			wakeup_one(vcpu);
 	}
 	vcpu_unlock(vcpu);
 }
@@ -1544,4 +1640,10 @@ restart:
 	mtx_unlock(&vm->rendezvous_mtx);
 
 	vm_handle_rendezvous(vm, vcpuid);
+}
+
+struct vatpic *
+vm_atpic(struct vm *vm)
+{
+	return (vm->vatpic);
 }

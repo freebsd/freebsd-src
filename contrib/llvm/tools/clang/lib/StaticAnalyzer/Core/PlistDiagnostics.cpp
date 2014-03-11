@@ -50,7 +50,6 @@ namespace {
 
     PathGenerationScheme getGenerationScheme() const { return Extensive; }
     bool supportsLogicalOpControlFlow() const { return true; }
-    bool supportsAllBlockEdges() const { return true; }
     virtual bool supportsCrossFileDiagnostics() const {
       return SupportsCrossFileDiagnostics;
     }
@@ -215,12 +214,17 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
                         const SourceManager &SM,
                         const LangOptions &LangOpts,
                         unsigned indent,
-                        unsigned depth) {
+                        unsigned depth,
+                        bool isKeyEvent = false) {
 
   Indent(o, indent) << "<dict>\n";
   ++indent;
 
   Indent(o, indent) << "<key>kind</key><string>event</string>\n";
+
+  if (isKeyEvent) {
+    Indent(o, indent) << "<key>key_event</key><true/>\n";
+  }
 
   // Output the location.
   FullSourceLoc L = P.getLocation().asLocation();
@@ -270,7 +274,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow);
+                        bool includeControlFlow,
+                        bool isKeyEvent = false);
 
 static void ReportCall(raw_ostream &o,
                        const PathDiagnosticCallPiece &P,
@@ -283,7 +288,8 @@ static void ReportCall(raw_ostream &o,
     P.getCallEnterEvent();  
 
   if (callEnter)
-    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true);
+    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true,
+                P.isLastInMainSourceFile());
 
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callEnterWithinCaller =
     P.getCallEnterWithinCallerEvent();
@@ -331,7 +337,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow) {
+                        bool includeControlFlow,
+                        bool isKeyEvent) {
   switch (P.getKind()) {
     case PathDiagnosticPiece::ControlFlow:
       if (includeControlFlow)
@@ -344,7 +351,7 @@ static void ReportPiece(raw_ostream &o,
       break;
     case PathDiagnosticPiece::Event:
       ReportEvent(o, cast<PathDiagnosticSpotPiece>(P), FM, SM, LangOpts,
-                  indent, depth);
+                  indent, depth, isKeyEvent);
       break;
     case PathDiagnosticPiece::Macro:
       ReportMacro(o, cast<PathDiagnosticMacroPiece>(P), FM, SM, LangOpts,
@@ -375,11 +382,10 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
-      const PathPieces &path = *WorkList.back();
-      WorkList.pop_back();
-    
-      for (PathPieces::const_iterator I = path.begin(), E = path.end();
-           I!=E; ++I) {
+      const PathPieces &path = *WorkList.pop_back_val();
+
+      for (PathPieces::const_iterator I = path.begin(), E = path.end(); I != E;
+           ++I) {
         const PathDiagnosticPiece *piece = I->getPtr();
         AddFID(FM, Fids, SM, piece->getLocation().asLocation());
         ArrayRef<SourceRange> Ranges = piece->getRanges();

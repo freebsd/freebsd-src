@@ -367,7 +367,7 @@ static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
 static struct unrhdr pcid_unr;
 static struct mtx pcid_mtx;
-int pmap_pcid_enabled = 1;
+int pmap_pcid_enabled = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
     0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
@@ -812,7 +812,7 @@ void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
-	pt_entry_t *pte, *unused;
+	pt_entry_t *pte;
 
 	/*
 	 * Create an initial set of page tables to run the kernel in.
@@ -858,14 +858,11 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pte = vtopte(va);
 
 	/*
-	 * CMAP1 is only used for the memory test.
+	 * Crashdump maps.  The first page is reused as CMAP1 for the
+	 * memory test.
 	 */
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-
-	/*
-	 * Crashdump maps.
-	 */
-	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
+	SYSMAP(caddr_t, CMAP1, crashdumpmap, MAXDUMPPGS)
+	CADDR1 = crashdumpmap;
 
 	virtual_avail = va;
 
@@ -1008,12 +1005,18 @@ pmap_init(void)
 	}
 
 	/*
-	 * If the kernel is running in a virtual machine on an AMD Family 10h
-	 * processor, then it must assume that MCA is enabled by the virtual
-	 * machine monitor.
+	 * If the kernel is running on a virtual machine, then it must assume
+	 * that MCA is enabled by the hypervisor.  Moreover, the kernel must
+	 * be prepared for the hypervisor changing the vendor and family that
+	 * are reported by CPUID.  Consequently, the workaround for AMD Family
+	 * 10h Erratum 383 is enabled if the processor's feature set does not
+	 * include at least one feature that is only supported by older Intel
+	 * or newer AMD processors.
 	 */
-	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+	if (vm_guest == VM_GUEST_VM && (cpu_feature & CPUID_SS) == 0 &&
+	    (cpu_feature2 & (CPUID2_SSSE3 | CPUID2_SSE41 | CPUID2_AESNI |
+	    CPUID2_AVX | CPUID2_XSAVE)) == 0 && (amd_feature2 & (AMDID2_XOP |
+	    AMDID2_FMA4)) == 0)
 		workaround_erratum383 = 1;
 
 	/*

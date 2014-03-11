@@ -129,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
 #include <machine/vm86.h>
+#include <x86/init.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -219,6 +220,12 @@ struct pcpu __pcpu[MAXCPU];
 struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
+
+ /* Default init_ops implementation. */
+ struct init_ops init_ops = {
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+ };
 
 static void
 cpu_startup(dummy)
@@ -1961,7 +1968,7 @@ getmemsize(int first)
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 	dump_avail[da_indx] = physmap[0];
-	pte = CMAP1;
+	pte = CMAP3;
 
 	/*
 	 * Get dcons buffer address
@@ -1982,7 +1989,7 @@ getmemsize(int first)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR1;
+			int *ptr = (int *)CADDR3;
 
 			full = FALSE;
 			/*
@@ -2267,7 +2274,7 @@ init386(first)
 	 * Initialize the i8254 before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.

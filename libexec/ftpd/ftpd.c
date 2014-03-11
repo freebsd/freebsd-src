@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -965,6 +961,7 @@ sgetpwnam(char *name)
 	if (save.pw_name) {
 		free(save.pw_name);
 		free(save.pw_passwd);
+		free(save.pw_class);
 		free(save.pw_gecos);
 		free(save.pw_dir);
 		free(save.pw_shell);
@@ -972,6 +969,7 @@ sgetpwnam(char *name)
 	save = *p;
 	save.pw_name = sgetsave(p->pw_name);
 	save.pw_passwd = sgetsave(p->pw_passwd);
+	save.pw_class = sgetsave(p->pw_class);
 	save.pw_gecos = sgetsave(p->pw_gecos);
 	save.pw_dir = sgetsave(p->pw_dir);
 	save.pw_shell = sgetsave(p->pw_shell);

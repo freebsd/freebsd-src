@@ -176,6 +176,11 @@
 	<para revision="258830">Support for Broadcom chipsets
 	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
 	  been added to &man.bge.4;.</para>
+
+	<para revision="261975">The deprecated nve(4) driver has been
+	  removed.  Users of NVIDIA nForce MCP network adapters are
+	  advised to use the &man.nfe.4; driver instead, which has been
+	  the default driver for this hardware since &os; 7.0.</para>
       </sect4>
     </sect3>
 
@@ -232,6 +237,13 @@
       which provides access to functionality that is not available in
       the <quote>capability mode</quote> sandbox.</para>
 
+    <para revision="261498">&man.ping.8; protects against malicious
+      network packets using the Capsicum framework to drop
+      privileges.</para>
+
+    <para revision="261504">&os;/&arch.i386; guests can be run under
+      bhyve.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -268,6 +280,13 @@
 
     <para revision="261283"><application>libc++</application> has been
       updated to version 3.4.</para>
+
+    <para revision="261344"><application>mdocml</application> has been
+      updated to version 1.12.3.</para>
+
+    <para revision="261991"><application>LLVM</application> and
+      <application>Clang</application> have been updated to
+      version 3.4.</para>
   </sect2>
 
   <sect2 xml:id="ports">

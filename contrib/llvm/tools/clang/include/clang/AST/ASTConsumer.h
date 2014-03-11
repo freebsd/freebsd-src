@@ -14,6 +14,8 @@
 #ifndef LLVM_CLANG_AST_ASTCONSUMER_H
 #define LLVM_CLANG_AST_ASTCONSUMER_H
 
+#include "llvm/ADT/StringRef.h"
+
 namespace clang {
   class ASTContext;
   class CXXRecordDecl;
@@ -70,6 +72,10 @@ public:
   /// can be defined in declspecs).
   virtual void HandleTagDeclDefinition(TagDecl *D) {}
 
+  /// \brief This callback is invoked the first time each TagDecl is required to
+  /// be complete.
+  virtual void HandleTagDeclRequiredDefinition(const TagDecl *D) {}
+
   /// \brief Invoked when a function is implicitly instantiated.
   /// Note that at this point point it does not have a body, its body is
   /// instantiated at the end of the translation unit and passed to
@@ -85,6 +91,21 @@ public:
   /// inclusion directive.
   /// The default implementation passes it to HandleTopLevelDecl.
   virtual void HandleImplicitImportDecl(ImportDecl *D);
+
+  /// \brief Handle a pragma that appends to Linker Options.  Currently this
+  /// only exists to support Microsoft's #pragma comment(linker, "/foo").
+  virtual void HandleLinkerOptionPragma(llvm::StringRef Opts) {}
+
+  /// \brief Handle a pragma that emits a mismatch identifier and value to the
+  /// object file for the linker to work with.  Currently, this only exists to
+  /// support Microsoft's #pragma detect_mismatch.
+  virtual void HandleDetectMismatch(llvm::StringRef Name,
+                                    llvm::StringRef Value) {}
+
+  /// \brief Handle a dependent library created by a pragma in the source.
+  /// Currently this only exists to support Microsoft's
+  /// #pragma comment(lib, "/foo").
+  virtual void HandleDependentLibrary(llvm::StringRef Lib) {}
 
   /// CompleteTentativeDefinition - Callback invoked at the end of a translation
   /// unit to notify the consumer that the given tentative definition should be

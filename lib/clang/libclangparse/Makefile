@@ -20,10 +20,11 @@ SRCS=	ParseAST.cpp \
 	ParseTentative.cpp \
 	Parser.cpp
 
-TGHDRS=	AttrLateParsed \
+TGHDRS=	AttrIdentifierArg \
+	AttrLateParsed \
 	AttrList \
 	AttrParsedAttrList \
-	AttrExprArgs \
+	AttrTypeArg \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \
