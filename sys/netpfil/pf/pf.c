@@ -5265,7 +5265,6 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			PF_STATE_UNLOCK(s);
 		rt = rtalloc1_fib(sintosa(&dst), 0, 0, M_GETFIB(m0));
 		if (rt == NULL) {
-			RTFREE_LOCKED(rt);
 			KMOD_IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
