@@ -11,6 +11,7 @@ SUBDIR=	${_colldef} \
 	dtrace \
 	${_examples} \
 	${_i18n} \
+	keys \
 	${_man} \
 	${_me} \
 	misc \
