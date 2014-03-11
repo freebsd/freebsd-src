@@ -77,21 +77,11 @@ static void xen_hvm_cpu_resume(void);
 static void xen_hvm_cpu_init(void);
 
 /*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the MMU related IPIs */
-extern volatile int smp_tlb_wait;
-extern vm_offset_t smp_tlb_addr2;
-#ifdef __i386__
-extern vm_offset_t smp_tlb_addr1;
-#else
-extern struct invpcid_descr smp_tlb_invpcid;
-extern uint64_t pcid_cr3;
-extern int invpcid_works;
-extern int pmap_pcid_enabled;
-extern pmap_t smp_tlb_pmap;
-#endif
-
 #ifdef __i386__
 extern void pmap_lazyfix_action(void);
+#endif
+#ifdef __amd64__
+extern int pmap_pcid_enabled;
 #endif
 
 /* Variables used by mp_machdep to perform the bitmap IPI */
@@ -179,10 +169,7 @@ static int
 xen_smp_rendezvous_action(void *arg)
 {
 #ifdef COUNT_IPIS
-	int cpu;
-
-	cpu = PCPU_GET(cpuid);
-	(*ipi_rendezvous_counts[cpu])++;
+	(*ipi_rendezvous_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
 	smp_rendezvous_action();
@@ -192,20 +179,8 @@ xen_smp_rendezvous_action(void *arg)
 static int
 xen_invltlb(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_gbl[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invltlb_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	invltlb();
-	atomic_add_int(&smp_tlb_wait, 1);
+	invltlb_handler();
 	return (FILTER_HANDLED);
 }
 
@@ -213,40 +188,8 @@ xen_invltlb(void *arg)
 static int
 xen_invltlb_pcid(void *arg)
 {
-	uint64_t cr3;
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_gbl[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invltlb_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	cr3 = rcr3();
-	if (smp_tlb_invpcid.pcid != (uint64_t)-1 &&
-	    smp_tlb_invpcid.pcid != 0) {
-
-		if (invpcid_works) {
-			invpcid(&smp_tlb_invpcid, INVPCID_CTX);
-		} else {
-			/* Otherwise reload %cr3 twice. */
-			if (cr3 != pcid_cr3) {
-				load_cr3(pcid_cr3);
-				cr3 |= CR3_PCID_SAVE;
-			}
-			load_cr3(cr3);
-		}
-	} else {
-		invltlb_globpcid();
-	}
-	if (smp_tlb_pmap != NULL)
-		CPU_CLR_ATOMIC(PCPU_GET(cpuid), &smp_tlb_pmap->pm_save);
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invltlb_pcid_handler();
 	return (FILTER_HANDLED);
 }
 #endif
@@ -254,24 +197,8 @@ xen_invltlb_pcid(void *arg)
 static int
 xen_invlpg(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_pg[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlpg_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-#ifdef __i386__
-	invlpg(smp_tlb_addr1);
-#else
-	invlpg(smp_tlb_invpcid.addr);
-#endif
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlpg_handler();
 	return (FILTER_HANDLED);
 }
 
@@ -279,125 +206,25 @@ xen_invlpg(void *arg)
 static int
 xen_invlpg_pcid(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_pg[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlpg_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	if (invpcid_works) {
-		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
-	} else if (smp_tlb_invpcid.pcid == 0) {
-		invlpg(smp_tlb_invpcid.addr);
-	} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
-		invltlb_globpcid();
-	} else {
-		uint64_t cr3;
-
-		/*
-		 * PCID supported, but INVPCID is not.
-		 * Temporarily switch to the target address
-		 * space and do INVLPG.
-		 */
-		cr3 = rcr3();
-		if (cr3 != pcid_cr3)
-			load_cr3(pcid_cr3 | CR3_PCID_SAVE);
-		invlpg(smp_tlb_invpcid.addr);
-		load_cr3(cr3 | CR3_PCID_SAVE);
-	}
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlpg_pcid_handler();
 	return (FILTER_HANDLED);
 }
 #endif
 
-static inline void
-invlpg_range(vm_offset_t start, vm_offset_t end)
-{
-	do {
-		invlpg(start);
-		start += PAGE_SIZE;
-	} while (start < end);
-}
-
 static int
 xen_invlrng(void *arg)
 {
-	vm_offset_t addr;
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_rng[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlrng_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-#ifdef __i386__
-	addr = smp_tlb_addr1;
-	invlpg_range(addr, smp_tlb_addr2);
-#else
-	addr = smp_tlb_invpcid.addr;
-	if (pmap_pcid_enabled) {
-		if (invpcid_works) {
-			struct invpcid_descr d;
-
-			d = smp_tlb_invpcid;
-			do {
-				invpcid(&d, INVPCID_ADDR);
-				d.addr += PAGE_SIZE;
-			} while (d.addr < smp_tlb_addr2);
-		} else if (smp_tlb_invpcid.pcid == 0) {
-			/*
-			 * kernel pmap - use invlpg to invalidate
-			 * global mapping.
-			 */
-			invlpg_range(addr, smp_tlb_addr2);
-		} else if (smp_tlb_invpcid.pcid != (uint64_t)-1) {
-			invltlb_globpcid();
-			if (smp_tlb_pmap != NULL) {
-				CPU_CLR_ATOMIC(PCPU_GET(cpuid),
-				    &smp_tlb_pmap->pm_save);
-			}
-		} else {
-			uint64_t cr3;
-
-			cr3 = rcr3();
-			if (cr3 != pcid_cr3)
-				load_cr3(pcid_cr3 | CR3_PCID_SAVE);
-			invlpg_range(addr, smp_tlb_addr2);
-			load_cr3(cr3 | CR3_PCID_SAVE);
-		}
-	} else {
-		invlpg_range(addr, smp_tlb_addr2);
-	}
-#endif
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlrng_handler();
 	return (FILTER_HANDLED);
 }
 
 static int
 xen_invlcache(void *arg)
 {
-#ifdef COUNT_IPIS
-	int cpu = PCPU_GET(cpuid);
 
-	cpu = PCPU_GET(cpuid);
-	(*ipi_invlcache_counts[cpu])++;
-#endif /* COUNT_IPIS */
-
-	wbinvd();
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlcache_handler();
 	return (FILTER_HANDLED);
 }
 
