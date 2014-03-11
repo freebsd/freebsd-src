@@ -2380,7 +2380,9 @@ igb_allocate_legacy(struct adapter *adapter)
 {
 	device_t		dev = adapter->dev;
 	struct igb_queue	*que = adapter->queues;
+#ifndef IGB_LEGACY_TX
 	struct tx_ring		*txr = adapter->tx_rings;
+#endif
 	int			error, rid = 0;
 
 	/* Turn off all interrupts */
