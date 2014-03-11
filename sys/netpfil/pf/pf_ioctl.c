@@ -2277,6 +2277,7 @@ DIOCGETSTATES_full:
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 			if (newpa->ifname[0])
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newpa->kif = NULL;
 		}
 
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGEADDR_error; }
@@ -2294,8 +2295,8 @@ DIOCGETSTATES_full:
 			if (newpa->ifname[0]) {
 				newpa->kif = pfi_kif_attach(kif, newpa->ifname);
 				pfi_kif_ref(newpa->kif);
-			} else
-				newpa->kif = NULL;
+				kif = NULL;
+			}
 
 			switch (newpa->addr.type) {
 			case PF_ADDR_DYNIFTL:
@@ -2309,32 +2310,24 @@ DIOCGETSTATES_full:
 					error = ENOMEM;
 				break;
 			}
-			if (error) {
-				if (newpa->kif)
-					pfi_kif_unref(newpa->kif);
-				PF_RULES_WUNLOCK();
-				free(newpa, M_PFRULE);
-				break;
-			}
+			if (error)
+				goto DIOCCHANGEADDR_error;
 		}
 
-		if (pca->action == PF_CHANGE_ADD_HEAD)
+		switch (pca->action) {
+		case PF_CHANGE_ADD_HEAD:
 			oldpa = TAILQ_FIRST(&pool->list);
-		else if (pca->action == PF_CHANGE_ADD_TAIL)
+			break;
+		case PF_CHANGE_ADD_TAIL:
 			oldpa = TAILQ_LAST(&pool->list, pf_palist);
-		else {
-			int	i = 0;
-
+			break;
+		default:
 			oldpa = TAILQ_FIRST(&pool->list);
-			while ((oldpa != NULL) && (i < pca->nr)) {
+			for (int i = 0; oldpa && i < pca->nr; i++)
 				oldpa = TAILQ_NEXT(oldpa, entries);
-				i++;
-			}
-			if (oldpa == NULL) {
-				PF_RULES_WUNLOCK();
-				error = EINVAL;
-				break;
-			}
+
+			if (oldpa == NULL)
+				ERROUT(EINVAL);
 		}
 
 		if (pca->action == PF_CHANGE_REMOVE) {
@@ -2362,13 +2355,14 @@ DIOCGETSTATES_full:
 		}
 
 		pool->cur = TAILQ_FIRST(&pool->list);
-		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr,
-		    pca->af);
+		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr, pca->af);
 		PF_RULES_WUNLOCK();
 		break;
 
 #undef ERROUT
 DIOCCHANGEADDR_error:
+		if (newpa->kif)
+			pfi_kif_unref(newpa->kif);
 		PF_RULES_WUNLOCK();
 		if (newpa != NULL)
 			free(newpa, M_PFRULE);
