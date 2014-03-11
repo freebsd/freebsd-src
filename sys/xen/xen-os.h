@@ -82,6 +82,13 @@ xen_hvm_domain(void)
 	return (xen_domain_type == XEN_HVM_DOMAIN);
 }
 
+static inline bool
+xen_initial_domain(void)
+{
+	return (xen_domain() && HYPERVISOR_start_info != NULL &&
+	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
+}
+
 #ifndef xen_mb
 #define xen_mb() mb()
 #endif
