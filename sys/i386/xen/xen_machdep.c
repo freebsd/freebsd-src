@@ -186,21 +186,6 @@ xen_boothowto(char *envp)
 	return howto;
 }
 
-#define XC_PRINTF_BUFSIZE 1024
-void
-xc_printf(const char *fmt, ...)
-{
-        __va_list ap;
-        int retval;
-        static char buf[XC_PRINTF_BUFSIZE];
-
-        va_start(ap, fmt);
-        retval = vsnprintf(buf, XC_PRINTF_BUFSIZE - 1, fmt, ap);
-        va_end(ap);
-        buf[retval] = 0;
-        (void)HYPERVISOR_console_write(buf, retval);
-}
-
 
 #define XPQUEUE_SIZE 128
 
@@ -745,8 +730,6 @@ void initvalues(start_info_t *startinfo);
 struct xenstore_domain_interface;
 extern struct xenstore_domain_interface *xen_store;
 
-char *console_page;
-
 void *
 bootmem_alloc(unsigned int size) 
 {
@@ -969,7 +952,7 @@ initvalues(start_info_t *startinfo)
 	xc_printf("initvalues(): wooh - availmem=%x,%x\n", avail_space,
 	    cur_space);
 
-	xc_printf("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n",
+	xc_printf("KERNBASE=%x,pt_base=%lx, VTOPFN(base)=%x, nr_pt_frames=%lx\n",
 	    KERNBASE,xen_start_info->pt_base, VTOPFN(xen_start_info->pt_base),
 	    xen_start_info->nr_pt_frames);
 	xendebug_flags = 0; /* 0xffffffff; */
@@ -978,7 +961,7 @@ initvalues(start_info_t *startinfo)
 	shift_phys_machine(xen_phys_machine, xen_start_info->nr_pages);
 #endif
 	XENPRINTF("IdlePTD %p\n", IdlePTD);
-	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%lx pt_base: 0x%lx "
+	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%x pt_base: 0x%lx "
 		  "mod_start: 0x%lx mod_len: 0x%lx\n",
 		  xen_start_info->nr_pages, xen_start_info->shared_info, 
 		  xen_start_info->flags, xen_start_info->pt_base, 
