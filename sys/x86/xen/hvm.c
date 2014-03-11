@@ -350,7 +350,7 @@ xen_setup_cpus(void)
 {
 	int i;
 
-	if (!xen_hvm_domain() || !xen_vector_callback_enabled)
+	if (!xen_vector_callback_enabled)
 		return;
 
 #ifdef __amd64__
@@ -421,6 +421,14 @@ static void
 xen_hvm_init_shared_info_page(void)
 {
 	struct xen_add_to_physmap xatp;
+
+	if (xen_pv_domain()) {
+		/*
+		 * Already setup in the PV case, shared_info is passed inside
+		 * of the start_info struct at start of day.
+		 */
+		return;
+	}
 
 	if (HYPERVISOR_shared_info == NULL) {
 		HYPERVISOR_shared_info = malloc(PAGE_SIZE, M_XENHVM, M_NOWAIT);
@@ -498,6 +506,15 @@ enum {
 static void
 xen_hvm_disable_emulated_devices(void)
 {
+
+	if (xen_pv_domain()) {
+		/*
+		 * No emulated devices in the PV case, so no need to unplug
+		 * anything.
+		 */
+		return;
+	}
+
 	if (inw(XEN_MAGIC_IOPORT) != XMI_MAGIC)
 		return;
 
@@ -522,9 +539,19 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 		if (error != 0)
 			return;
 
+		/*
+		 * If xen_domain_type is not set at this point
+		 * it means we are inside a (PV)HVM guest, because
+		 * for PVH the guest type is set much earlier
+		 * (see hammer_time_xen).
+		 */
+		if (!xen_domain()) {
+			xen_domain_type = XEN_HVM_DOMAIN;
+			vm_guest = VM_GUEST_XEN;
+		}
+
 		setup_xen_features();
 		cpu_ops = xen_hvm_cpu_ops;
- 		vm_guest = VM_GUEST_XEN;
 		break;
 	case XEN_HVM_INIT_RESUME:
 		if (error != 0)
@@ -539,9 +566,15 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	}
 
 	xen_vector_callback_enabled = 0;
-	xen_domain_type = XEN_HVM_DOMAIN;
-	xen_hvm_init_shared_info_page();
 	xen_hvm_set_callback(NULL);
+
+	/*
+	 * On (PV)HVM domains we need to request the hypervisor to
+	 * fill the shared info page, for PVH guest the shared_info page
+	 * is passed inside the start_info struct and is already set, so this
+	 * functions are no-ops.
+	 */
+	xen_hvm_init_shared_info_page();
 	xen_hvm_disable_emulated_devices();
 } 
 
@@ -572,6 +605,9 @@ xen_set_vcpu_id(void)
 {
 	struct pcpu *pc;
 	int i;
+
+	if (!xen_hvm_domain())
+		return;
 
 	/* Set vcpu_id to acpi_id */
 	CPU_FOREACH(i) {
@@ -616,7 +652,8 @@ xen_hvm_cpu_init(void)
 
 SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 #ifdef SMP
-SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_FIRST, xen_setup_cpus, NULL);
+/* We need to setup IPIs before APs are started */
+SYSINIT(xen_setup_cpus, SI_SUB_SMP-1, SI_ORDER_FIRST, xen_setup_cpus, NULL);
 #endif
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
 SYSINIT(xen_set_vcpu_id, SI_SUB_CPU, SI_ORDER_ANY, xen_set_vcpu_id, NULL);
