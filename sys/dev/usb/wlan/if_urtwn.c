@@ -1890,8 +1890,8 @@ urtwn_power_on(struct urtwn_softc *sc)
 	urtwn_write_2(sc, R92C_APS_FSMCO,
 	    urtwn_read_2(sc, R92C_APS_FSMCO) | R92C_APS_FSMCO_APFM_ONMAC);
 	for (ntries = 0; ntries < 1000; ntries++) {
-		if (urtwn_read_2(sc, R92C_APS_FSMCO) &
-		    R92C_APS_FSMCO_APFM_ONMAC)
+		if (!(urtwn_read_2(sc, R92C_APS_FSMCO) &
+		    R92C_APS_FSMCO_APFM_ONMAC))
 			break;
 		DELAY(5);
 	}
