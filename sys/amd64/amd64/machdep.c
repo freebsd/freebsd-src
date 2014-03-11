@@ -145,6 +145,7 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isareg.h>
 #include <isa/rtc.h>
+#include <x86/init.h>
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
@@ -164,6 +165,14 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp,
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
+
+/* Preload data parse function */
+static caddr_t native_parse_preload_data(u_int64_t);
+
+/* Default init_ops implementation. */
+struct init_ops init_ops = {
+	.parse_preload_data =	native_parse_preload_data,
+};
 
 /*
  * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
@@ -1685,6 +1694,26 @@ do_next:
 	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
 }
 
+static caddr_t
+native_parse_preload_data(u_int64_t modulep)
+{
+	caddr_t kmdp;
+
+	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
+	preload_bootstrap_relocate(KERNBASE);
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+#ifdef DDB
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
+
+	return (kmdp);
+}
+
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
@@ -1709,17 +1738,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	proc_linkup0(&proc0, &thread0);
 
-	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
-	preload_bootstrap_relocate(KERNBASE);
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
-#ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
+	kmdp = init_ops.parse_preload_data(modulep);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
