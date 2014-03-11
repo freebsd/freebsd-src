@@ -1044,12 +1044,7 @@ csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
 {
 	struct csession *cse;
 
-#ifdef INVARIANTS
-	/* NB: required when mtx_init is built with INVARIANTS */
 	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT | M_ZERO);
-#else
-	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT);
-#endif
 	if (cse == NULL)
 		return NULL;
 	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
