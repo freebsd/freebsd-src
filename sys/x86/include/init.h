@@ -39,6 +39,7 @@ struct init_ops {
 	void	(*early_clock_source_init)(void);
 	void	(*early_delay)(int);
 	void	(*parse_memmap)(caddr_t, vm_paddr_t *, int *);
+	u_int	(*mp_bootaddress)(u_int);
 };
 
 extern struct init_ops init_ops;
