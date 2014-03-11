@@ -85,6 +85,7 @@ void	smp_masked_invlpg_range(cpuset_t mask, struct pmap *pmap,
 	    vm_offset_t startva, vm_offset_t endva);
 void	smp_invltlb(struct pmap *pmap);
 void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
+int	native_start_all_aps(void);
 
 #endif /* !LOCORE */
 #endif /* SMP */

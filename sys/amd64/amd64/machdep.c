@@ -180,6 +180,7 @@ struct init_ops init_ops = {
 	.parse_memmap =			native_parse_memmap,
 #ifdef SMP
 	.mp_bootaddress =		mp_bootaddress,
+	.start_all_aps =		native_start_all_aps,
 #endif
 };
 
