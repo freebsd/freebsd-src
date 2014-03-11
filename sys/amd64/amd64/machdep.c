@@ -178,6 +178,9 @@ struct init_ops init_ops = {
 	.early_clock_source_init =	i8254_init,
 	.early_delay =			i8254_delay,
 	.parse_memmap =			native_parse_memmap,
+#ifdef SMP
+	.mp_bootaddress =		mp_bootaddress,
+#endif
 };
 
 /*
@@ -1490,10 +1493,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (basemem == 0)
 		panic("BIOS smap did not include a basemem segment!");
 
-#ifdef SMP
-	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1] / 1024);
-#endif
+	/*
+	 * Make hole for "AP -> long mode" bootstrap code.  The
+	 * mp_bootaddress vector is only available when the kernel
+	 * is configured to support APs and APs for the system start
+	 * in 32bit mode (e.g. SMP bare metal).
+	 */
+	if (init_ops.mp_bootaddress)
+		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
