@@ -1,8 +1,7 @@
 /*-
- * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
- * Copyright (c) 2012 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,50 +26,37 @@
  * $FreeBSD$
  */
 
-#ifndef ELF_TABLES_H_
-#define ELF_TABLES_H_
-struct _elf_corres {
-	int elf_nb;
-	const char *string;
-};
+#ifndef _PKG_CONFIG_H
+#define _PKG_CONFIG_H
 
-static struct _elf_corres mach_corres[] = {
-	{ EM_386, "x86" },
-	{ EM_AMD64, "x86" },
-	{ EM_ARM, "arm" },
-	{ EM_MIPS, "mips" },
-	{ EM_PPC, "powerpc" },
-	{ EM_PPC64, "powerpc" },
-	{ EM_SPARCV9, "sparc64" },
-	{ EM_IA_64, "ia64" },
-	{ -1, NULL },
-};
+#define _LOCALBASE "/usr/local"
+#define URL_SCHEME_PREFIX "pkg+"
 
-static struct _elf_corres wordsize_corres[] = {
-	{ ELFCLASS32, "32" },
-	{ ELFCLASS64, "64" },
-	{ -1, NULL},
-};
+typedef enum {
+	PACKAGESITE = 0,
+	ABI,
+	MIRROR_TYPE,
+	ASSUME_ALWAYS_YES,
+	SIGNATURE_TYPE,
+	FINGERPRINTS,
+	REPOS_DIR,
+	CONFIG_SIZE
+} pkg_config_key;
 
-static struct _elf_corres endian_corres[] = {
-	{ ELFDATA2MSB, "eb" },
-	{ ELFDATA2LSB, "el" },
-	{ -1, NULL}
-};
+typedef enum {
+	PKG_CONFIG_STRING=0,
+	PKG_CONFIG_BOOL,
+	PKG_CONFIG_LIST,
+} pkg_config_t;
 
-#ifndef EF_ARM_NEW_ABI
-#define EF_ARM_NEW_ABI	0x00000080UL
+typedef enum {
+	CONFFILE_PKG=0,
+	CONFFILE_REPO,
+} pkg_conf_file_t;
+
+int config_init(void);
+void config_finish(void);
+int config_string(pkg_config_key, const char **);
+int config_bool(pkg_config_key, bool *);
+
 #endif
-#ifndef EF_ARM_VFP_FLOAT
-#define EF_ARM_VFP_FLOAT	0x00000400UL
-#endif
-#ifndef EF_MIPS_ABI
-#define EF_MIPS_ABI	0x0000f000
-#endif
-#define E_MIPS_ABI_O32	0x00001000
-#define E_MIPS_ABI_N32	0x00000020
-
-#define NT_VERSION	1
-#define NT_ARCH	2
-
-#endif /* ELF_TABLES_H_ */
