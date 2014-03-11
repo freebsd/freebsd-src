@@ -386,7 +386,7 @@ uart_tty_attach(struct uart_softc *sc)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		sprintf(((struct consdev *)sc->sc_sysdev->cookie)->cn_name,
 		    "ttyu%r", unit);
-		tty_init_console(tp, 0);
+		tty_init_console(tp, sc->sc_sysdev->baudrate);
 	}
 
 	swi_add(&tty_intr_event, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
