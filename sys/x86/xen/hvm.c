@@ -147,7 +147,7 @@ DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 /** Hypercall table accessed via HYPERVISOR_*_op() methods. */
-char *hypercall_stubs;
+extern char *hypercall_page;
 shared_info_t *HYPERVISOR_shared_info;
 start_info_t *HYPERVISOR_start_info;
 
@@ -386,16 +386,21 @@ xen_hvm_cpuid_base(void)
  * Allocate and fill in the hypcall page.
  */
 static int
-xen_hvm_init_hypercall_stubs(void)
+xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t base, regs[4];
 	int i;
+
+	if (xen_pv_domain()) {
+		/* hypercall page is already set in the PV case */
+		return (0);
+	}
 
 	base = xen_hvm_cpuid_base();
 	if (base == 0)
 		return (ENXIO);
 
-	if (hypercall_stubs == NULL) {
+	if (init_type == XEN_HVM_INIT_COLD) {
 		do_cpuid(base + 1, regs);
 		printf("XEN: Hypervisor version %d.%d detected.\n",
 		    regs[0] >> 16, regs[0] & 0xffff);
@@ -405,18 +410,9 @@ xen_hvm_init_hypercall_stubs(void)
 	 * Find the hypercall pages.
 	 */
 	do_cpuid(base + 2, regs);
-	
-	if (hypercall_stubs == NULL) {
-		size_t call_region_size;
-
-		call_region_size = regs[0] * PAGE_SIZE;
-		hypercall_stubs = malloc(call_region_size, M_XENHVM, M_NOWAIT);
-		if (hypercall_stubs == NULL)
-			panic("Unable to allocate Xen hypercall region");
-	}
 
 	for (i = 0; i < regs[0]; i++)
-		wrmsr(regs[1], vtophys(hypercall_stubs + i * PAGE_SIZE) + i);
+		wrmsr(regs[1], vtophys(&hypercall_page + i * PAGE_SIZE) + i);
 
 	return (0);
 }
@@ -519,7 +515,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	if (init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
 		return;
 
-	error = xen_hvm_init_hypercall_stubs();
+	error = xen_hvm_init_hypercall_stubs(init_type);
 
 	switch (init_type) {
 	case XEN_HVM_INIT_COLD:

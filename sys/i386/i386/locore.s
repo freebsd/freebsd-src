@@ -898,3 +898,12 @@ done_pde:
 #endif
 
 	ret
+
+#ifdef XENHVM
+/* Xen Hypercall page */
+	.text
+.p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
+
+NON_GPROF_ENTRY(hypercall_page)
+	.skip	0x1000, 0x90	/* Fill with "nop"s */
+#endif
