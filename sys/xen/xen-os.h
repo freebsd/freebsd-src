@@ -55,6 +55,7 @@ extern start_info_t *HYPERVISOR_start_info;
 
 /* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
 extern struct xenstore_domain_interface *xen_store;
+extern char *console_page;
 
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
@@ -88,6 +89,9 @@ xen_initial_domain(void)
 	return (xen_domain() && HYPERVISOR_start_info != NULL &&
 	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
 }
+
+/* Debug/emergency function, prints directly to hypervisor console */
+void xc_printf(const char *, ...) __printflike(1, 2);
 
 #ifndef xen_mb
 #define xen_mb() mb()

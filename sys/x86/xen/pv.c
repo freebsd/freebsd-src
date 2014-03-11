@@ -73,8 +73,11 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	vm_guest = VM_GUEST_XEN;
 
 	if ((si == NULL) || (xenstack == 0)) {
+		xc_printf("ERROR: invalid start_info or xen stack, halting\n");
 		HYPERVISOR_shutdown(SHUTDOWN_crash);
 	}
+
+	xc_printf("FreeBSD PVH running on %s\n", si->magic);
 
 	/* We use 3 pages of xen stack for the boot pagetables */
 	physfree = xenstack + 3 * PAGE_SIZE - KERNBASE;
@@ -93,6 +96,7 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	 */
 	xen_store = (struct xenstore_domain_interface *)
 	    (ptoa(si->store_mfn) + KERNBASE);
+	console_page = (char *)(ptoa(si->console.domU.mfn) + KERNBASE);
 
 	/*
 	 * Use the stack Xen gives us to build the page tables
