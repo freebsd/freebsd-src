@@ -379,7 +379,6 @@ END(irq_entry)
  * install itself in the FIQ vector using code (that may or may not work
  * these days) in fiq.c.  If nobody does that and an FIQ happens, this
  * default handler just disables FIQs and otherwise ignores it.
-
  */
 ASENTRY_NP(fiq_entry)
 	mrs	r8, cpsr		/* FIQ handling isn't supported, */
@@ -393,12 +392,11 @@ END(fiq_entry)
  * This is an arm26 exception that should never happen.
  */
 ASENTRY_NP(addr_exception_entry)
-	mrs	r1, cpsr
-	mrs	r2, spsr
 	mov	r3, lr
+	mrs	r2, spsr
+	mrs	r1, cpsr
 	adr	r0, Laddr_exception_msg
-	bl	_C_LABEL(printf)	/* XXX CLOBBERS LR!! */
-	b	data_abort_entry
+	b	_C_LABEL(panic)
 Laddr_exception_msg:
 	.asciz	"Address Exception CPSR=0x%08x SPSR=0x%08x LR=0x%08x\n"
 	.balign	4
@@ -409,8 +407,9 @@ END(addr_exception_entry)
  * This should never happen, so panic.
  */
 ASENTRY_NP(reset_entry)
+	mov	r1, lr
 	adr	r0, Lreset_panicmsg
-	bl	_C_LABEL(panic)
+	b	_C_LABEL(panic)
 	/* NOTREACHED */
 Lreset_panicmsg:
 	.asciz	"Reset vector called, LR = 0x%08x"
