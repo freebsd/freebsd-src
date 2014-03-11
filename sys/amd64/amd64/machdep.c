@@ -169,11 +169,15 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 /* Preload data parse function */
 static caddr_t native_parse_preload_data(u_int64_t);
 
+/* Native function to fetch and parse the e820 map */
+static void native_parse_memmap(caddr_t, vm_paddr_t *, int *);
+
 /* Default init_ops implementation. */
 struct init_ops init_ops = {
 	.parse_preload_data =	native_parse_preload_data,
 	.early_clock_source_init =	i8254_init,
 	.early_delay =			i8254_delay,
+	.parse_memmap =			native_parse_memmap,
 };
 
 /*
@@ -1403,21 +1407,12 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	return (1);
 }
 
-static void
-add_smap_entries(struct bios_smap *smapbase, vm_paddr_t *physmap,
-    int *physmap_idx)
+void
+bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
+                      vm_paddr_t *physmap, int *physmap_idx)
 {
 	struct bios_smap *smap, *smapend;
-	u_int32_t smapsize;
 
-	/*
-	 * Memory map from INT 15:E820.
-	 *
-	 * subr_module.c says:
-	 * "Consumer may safely assume that size value precedes data."
-	 * ie: an int32_t immediately precedes smap.
-	 */
-	smapsize = *((u_int32_t *)smapbase - 1);
 	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 
 	for (smap = smapbase; smap < smapend; smap++) {
@@ -1432,6 +1427,29 @@ add_smap_entries(struct bios_smap *smapbase, vm_paddr_t *physmap,
 		    physmap_idx))
 			break;
 	}
+}
+
+static void
+native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+{
+	struct bios_smap *smap;
+	u_int32_t size;
+
+	/*
+	 * Memory map from INT 15:E820.
+	 *
+	 * subr_module.c says:
+	 * "Consumer may safely assume that size value precedes data."
+	 * ie: an int32_t immediately precedes smap.
+	 */
+
+	smap = (struct bios_smap *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_SMAP);
+	if (smap == NULL)
+		panic("No BIOS smap info from loader!");
+	size = *((u_int32_t *)smap - 1);
+
+	bios_add_smap_entries(smap, size, physmap, physmap_idx);
 }
 
 /*
@@ -1451,19 +1469,13 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
-	struct bios_smap *smapbase;
 	quad_t dcons_addr, dcons_size;
 
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
 	physmap_idx = 0;
 
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_SMAP);
-	if (smapbase == NULL)
-		panic("No BIOS smap info from loader!");
-
-	add_smap_entries(smapbase, physmap, &physmap_idx);
+	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
 
 	/*
 	 * Find the 'base memory' segment for SMP
