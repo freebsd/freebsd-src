@@ -57,6 +57,75 @@ __FBSDID("$FreeBSD$");
 	.align	0
 
 /*
+ * ASM macros for pushing and pulling trapframes from the stack
+ *
+ * These macros are used to handle the irqframe and trapframe structures
+ * defined above.
+ */
+
+/*
+ * PUSHFRAME - macro to push a trap frame on the stack in the current mode
+ * Since the current mode is used, the SVC lr field is not defined.
+ *
+ * NOTE: r13 and r14 are stored separately as a work around for the
+ * SA110 rev 2 STM^ bug
+ */
+#ifdef ARM_TP_ADDRESS
+#define PUSHFRAME							   \
+	sub	sp, sp, #4;		/* Align the stack */		   \
+	str	lr, [sp, #-4]!;		/* Push the return address */	   \
+	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
+	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
+	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
+	str	r0, [sp, #-4]!;						   \
+	ldr	r0, =ARM_RAS_START;					   \
+	mov	r1, #0;							   \
+	str	r1, [r0];						   \
+	mov	r1, #0xffffffff;					   \
+	str	r1, [r0, #4];
+#else
+#define PUSHFRAME							   \
+	sub	sp, sp, #4;		/* Align the stack */		   \
+	str	lr, [sp, #-4]!;		/* Push the return address */	   \
+	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
+	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
+	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
+	str	r0, [sp, #-4]!;
+#endif
+
+/*
+ * PULLFRAME - macro to pull a trap frame from the stack in the current mode
+ * Since the current mode is used, the SVC lr field is ignored.
+ */
+
+#ifdef ARM_TP_ADDRESS
+#define PULLFRAME							   \
+        ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
+        msr     spsr_fsxc, r0;						   \
+        ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+ 	ldr	lr, [sp], #0x0004;	/* Pull the return address */	   \
+	add	sp, sp, #4		/* Align the stack */
+#else 
+#define PULLFRAME							   \
+        ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
+        msr     spsr_fsxc, r0;						   \
+	clrex;								   \
+        ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+ 	ldr	lr, [sp], #0x0004;	/* Pull the return address */	   \
+	add	sp, sp, #4		/* Align the stack */
+#endif
+
+/*
  * PUSHFRAMEINSVC - macro to push a trap frame on the stack in SVC32 mode
  * This should only be used if the processor is not currently in SVC32
  * mode. The processor mode is switched to SVC mode and the trap frame is
@@ -194,15 +263,8 @@ __FBSDID("$FreeBSD$");
 	b	1b							;\
 2:
 
-/*
- * If ARM_TP_ADDRESS is defined we're on armv4 or v5 and there is no clrex
- * instruction, or need for one, so just #define it away.
- */
-#ifdef ARM_TP_ADDRESS
-#define	CLREX
-#else
-#define	CLREX	clrex
-#endif
+
+
 
 /*
  * reset_entry:
@@ -219,27 +281,17 @@ Lreset_panicmsg:
 END(reset_entry)
 
 /*
- * Entry point for Software Interrupt (SWI).
- * 
- * The swi instruction switches to svc32 mode, so we're already on the 
- * right stack.  We build a trapframe and invoke swi_handler().
+ * swi_entry
+ *
+ *	Handler for the Software Interrupt exception.
  */
 ASENTRY_NP(swi_entry)
-	sub	sp, sp, #4		/* Align the stack (tf_pad). */
-	str	lr, [sp, #-4]!		/* Push the return address (tf_pc). */
-	sub	sp, sp, #(4*17)		/* Point sp to tf_r0, store the user */
-	stmia	sp, {r0-r14}^		/* registers. Store SPSR in tf_spsr. */
-	mrs	r0, spsr		/* Now sp points to struct trapframe */
-	str	r0, [sp, #-4]!		/* we've constructed on svc32 stack. */
-#ifdef ARM_RAS_START
-	ldr	r0, =ARM_RAS_START	/* If we're using RAS-based atomicity */
-	mov	r1, #0			/* we should never have a SWI in the */
-	str	r1, [r0]		/* midst of a RAS sequence, but */
-	mov	r1, #0xffffffff		/* be safe and reset the RAS vars. */
-	str	r1, [r0, #4]
-#endif
-	mov	r0, sp			/* Pass the trapframe we just built */
-	bl	_C_LABEL(swi_handler)	/* on the stack to the swi handler. */
+	STOP_UNWINDING			/* Don't unwind into user mode. */
+
+	PUSHFRAME
+
+	mov	r0, sp			/* Pass the frame to any function */
+	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
 
 	/*
 	 * The fork_trampoline() code in swtch.S aranges for the MI fork_exit()
@@ -249,17 +301,11 @@ ASENTRY_NP(swi_entry)
 	 */
 ASENTRY_NP(swi_exit)
 
-	DO_AST				/* Do scheduling and signal delivery. */
+	DO_AST				/* Deliver signals. */
 
-	CLREX				/* Should never happen but be safe */
-	ldr	r0, [sp], #4		/* and don't exit with open monitor. */
-	msr	spsr_fsxc, r0		/* Restore SPSR. */
-	ldmia   sp, {r0-r14}^		/* Restore user mode registers. */
-	ldr	lr, [sp, #8]		/* Restore the return address. */
-	add	sp, sp, #12		/* Deallocate the rest of trapframe. */
-	movs	pc, lr			/* Return to user mode. */
+	PULLFRAME
+	movs	pc, lr			/* Exit */
 
-	STOP_UNWINDING			/* Don't unwind into user mode. */
 END(swi_exit)
 END(swi_entry)
 
