@@ -351,11 +351,14 @@ cryptof_truncate(
 static int
 checkforsoftware(int crid)
 {
-	if (crid & CRYPTOCAP_F_SOFTWARE)
-		return EINVAL;		/* XXX */
-	if ((crid & CRYPTOCAP_F_HARDWARE) == 0 &&
-	    (crypto_getcaps(crid) & CRYPTOCAP_F_HARDWARE) == 0)
-		return EINVAL;		/* XXX */
+
+	if (!crypto_devallowsoft) {
+		if (crid & CRYPTOCAP_F_SOFTWARE)
+			return EINVAL;		/* XXX */
+		if ((crid & CRYPTOCAP_F_HARDWARE) == 0 &&
+		    (crypto_getcaps(crid) & CRYPTOCAP_F_HARDWARE) == 0)
+			return EINVAL;		/* XXX */
+	}
 	return 0;
 }
 
