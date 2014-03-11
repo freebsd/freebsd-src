@@ -436,7 +436,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	else
 		r = &V_pf_default_rule;
 
-	if ((r->max_states && r->states_cur >= r->max_states))
+	if ((r->max_states &&
+	    counter_u64_fetch(r->states_cur) >= r->max_states))
 		goto cleanup;
 
 	/*
@@ -514,18 +515,15 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
 
-	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
-	r->states_cur++;
-	r->states_tot++;
-
 	if (!(flags & PFSYNC_SI_IOCTL))
 		st->state_flags |= PFSTATE_NOSYNC;
 
-	if ((error = pf_state_insert(kif, skw, sks, st)) != 0) {
-		/* XXX when we have nat_rule/anchors, use STATE_DEC_COUNTERS */
-		r->states_cur--;
+	if ((error = pf_state_insert(kif, skw, sks, st)) != 0)
 		goto cleanup_state;
-	}
+
+	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
+	counter_u64_add(r->states_cur, 1);
+	counter_u64_add(r->states_tot, 1);
 
 	if (!(flags & PFSYNC_SI_IOCTL)) {
 		st->state_flags &= ~PFSTATE_NOSYNC;
