@@ -225,6 +225,10 @@ pfattach(void)
 	V_pf_default_rule.nr = -1;
 	V_pf_default_rule.rtableid = -1;
 
+	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
+	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
+	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
+
 	/* initialize default timeouts */
 	my_timeout[PFTM_TCP_FIRST_PACKET] = PFTM_TCP_FIRST_PACKET_VAL;
 	my_timeout[PFTM_TCP_OPENING] = PFTM_TCP_OPENING_VAL;
@@ -394,6 +398,9 @@ pf_free_rule(struct pf_rule *rule)
 		pfi_kif_unref(rule->kif);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
+	counter_u64_free(rule->states_cur);
+	counter_u64_free(rule->states_tot);
+	counter_u64_free(rule->src_nodes);
 	free(rule, M_PFRULE);
 }
 
@@ -1145,6 +1152,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		bcopy(&pr->rule, rule, sizeof(struct pf_rule));
 		if (rule->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		rule->states_cur = counter_u64_alloc(M_WAITOK);
+		rule->states_tot = counter_u64_alloc(M_WAITOK);
+		rule->src_nodes = counter_u64_alloc(M_WAITOK);
 		rule->cuid = td->td_ucred->cr_ruid;
 		rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 		TAILQ_INIT(&rule->rpool.list);
@@ -1261,6 +1271,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
+		counter_u64_free(rule->states_cur);
+		counter_u64_free(rule->states_tot);
+		counter_u64_free(rule->src_nodes);
 		free(rule, M_PFRULE);
 		if (kif)
 			free(kif, PFI_MTYPE);
@@ -1332,6 +1345,9 @@ DIOCADDRULE_error:
 			break;
 		}
 		bcopy(rule, &pr->rule, sizeof(struct pf_rule));
+		pr->rule.u_states_cur = counter_u64_fetch(rule->states_cur);
+		pr->rule.u_states_tot = counter_u64_fetch(rule->states_tot);
+		pr->rule.u_src_nodes = counter_u64_fetch(rule->src_nodes);
 		if (pf_anchor_copyout(ruleset, rule, pr)) {
 			PF_RULES_WUNLOCK();
 			error = EBUSY;
@@ -1350,7 +1366,7 @@ DIOCADDRULE_error:
 			rule->evaluations = 0;
 			rule->packets[0] = rule->packets[1] = 0;
 			rule->bytes[0] = rule->bytes[1] = 0;
-			rule->states_tot = 0;
+			counter_u64_zero(rule->states_tot);
 		}
 		PF_RULES_WUNLOCK();
 		break;
@@ -1390,15 +1406,14 @@ DIOCADDRULE_error:
 #endif /* INET6 */
 			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK);
 			bcopy(&pcr->rule, newrule, sizeof(struct pf_rule));
+			if (newrule->ifname[0])
+				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newrule->states_cur = counter_u64_alloc(M_WAITOK);
+			newrule->states_tot = counter_u64_alloc(M_WAITOK);
+			newrule->src_nodes = counter_u64_alloc(M_WAITOK);
 			newrule->cuid = td->td_ucred->cr_ruid;
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->rpool.list);
-			/* Initialize refcounting. */
-			newrule->states_cur = 0;
-			newrule->entries.tqe_prev = NULL;
-
-			if (newrule->ifname[0])
-				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 		}
 
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGERULE_error; }
@@ -1566,8 +1581,12 @@ DIOCADDRULE_error:
 #undef ERROUT
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
-		if (newrule != NULL)
+		if (newrule != NULL) {
+			counter_u64_free(newrule->states_cur);
+			counter_u64_free(newrule->states_tot);
+			counter_u64_free(newrule->src_nodes);
 			free(newrule, M_PFRULE);
+		}
 		if (kif != NULL)
 			free(kif, PFI_MTYPE);
 		break;
@@ -3423,6 +3442,11 @@ shutdown_pf(void)
 	char nn = '\0';
 
 	V_pf_status.running = 0;
+
+	counter_u64_free(V_pf_default_rule.states_cur);
+	counter_u64_free(V_pf_default_rule.states_tot);
+	counter_u64_free(V_pf_default_rule.src_nodes);
+
 	do {
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
 		    != 0) {
