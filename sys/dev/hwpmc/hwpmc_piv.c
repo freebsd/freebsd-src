@@ -1620,8 +1620,7 @@ pmc_p4_initialize(struct pmc_mdep *md, int ncpus)
 	PMCDBG(MDP,INI,1, "%s", "p4-initialize");
 
 	/* Allocate space for pointers to per-cpu descriptors. */
-	p4_pcpu = malloc(sizeof(struct p4_cpu **) * ncpus, M_PMC,
-	    M_ZERO|M_WAITOK);
+	p4_pcpu = malloc(sizeof(*p4_pcpu) * ncpus, M_PMC, M_ZERO | M_WAITOK);
 
 	/* Fill in the class dependent descriptor. */
 	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P4];
