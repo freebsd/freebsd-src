@@ -7,10 +7,16 @@ DIR=`dirname $0`
 LCDIR=`dirname $0`/../../usr.bin/lastcomm
 ARCH=`uname -m`
 
+collapse_whitespace()
+{
+	sed -E 's,[ 	]+, ,g'
+}
+
 check()
 {
 	NUM=$1
 	shift
+	collapse_whitespace | \
 	if diff -q - $1
 	then
 		echo "ok $NUM"
@@ -64,7 +70,8 @@ sa -m -P $DIR/v2c-$ARCH-sav.in -U $DIR/v2c-$ARCH-usr.in /dev/null |
 cp $LCDIR/v1-$ARCH-acct.in $DIR/v1-$ARCH-acct.in
 sa -is -P $DIR/v2c-$ARCH-sav.in -U $DIR/v2c-$ARCH-usr.in $DIR/v1-$ARCH-acct.in >/dev/null
 cp $LCDIR/v1-$ARCH-acct.in $DIR/v1-$ARCH-acct.in
-sa -s -P $DIR/v2c-$ARCH-sav.in -U $DIR/v2c-$ARCH-usr.in $DIR/v1-$ARCH-acct.in >$DIR/double
+sa -s -P $DIR/v2c-$ARCH-sav.in -U $DIR/v2c-$ARCH-usr.in $DIR/v1-$ARCH-acct.in \
+    | collapse_whitespace >$DIR/double
 cp $LCDIR/v1-$ARCH-acct.in $DIR/v1-$ARCH-acct.in
 sa -i $DIR/v1-$ARCH-acct.in $DIR/v1-$ARCH-acct.in | check 13 $DIR/double
 
