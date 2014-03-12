@@ -89,7 +89,6 @@ SRCS=	addrtoname.c \
 	print-olsr.c \
 	print-ospf.c \
 	print-otv.c \
-	print-pfsync.c \
 	print-pgm.c \
 	print-pim.c \
 	print-ppi.c \
@@ -171,7 +170,8 @@ CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 
 .if ${MK_PF} != "no"
-SRCS+=	print-pflog.c
+SRCS+=	print-pflog.c \
+	print-pfsync.c
 CFLAGS+= -DHAVE_NET_PFVAR_H
 .endif
 
