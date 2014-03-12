@@ -2553,9 +2553,9 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		auio.uio_td = td;
 		auio.uio_resid = count;
 		error = VOP_READLINK(vp, &auio, td->td_ucred);
+		td->td_retval[0] = count - auio.uio_resid;
 	}
 	vput(vp);
-	td->td_retval[0] = count - auio.uio_resid;
 	return (error);
 }
 
