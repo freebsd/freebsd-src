@@ -13,6 +13,13 @@ fatal()
 	exit 1
 }
 
+make_is_fmake() {
+	# This test is not very reliable but works for now: the old fmake
+	# does have a -v option while bmake doesn't.
+	${MAKE_PROG} -f Makefile.non-existent -v 2>&1 | \
+	    grep -q "cannot open.*non-existent"
+}
+
 #
 # Check whether the working directory exists - it must.
 #
@@ -322,18 +329,24 @@ eval_compare()
 	while [ ${N} -le ${TEST_N} ] ; do
 		fail=
 		todo=
+		skip=
 		if ! skip_test ${N} ; then
 			do_compare stdout ${N} || fail="${fail}stdout "
 			do_compare stderr ${N} || fail="${fail}stderr "
 			do_compare status ${N} || fail="${fail}status "
 			eval todo=\${TEST_${N}_TODO}
+		else
+			eval skip=\${TEST_${N}_SKIP}
 		fi
 		if [ ! -z "$fail" ]; then
 			echo -n "not "
 		fi
 		echo -n "ok ${N} ${SUBDIR}/${N}"
-		if [ ! -z "$fail" -o ! -z "$todo" ]; then
+		if [ ! -z "$fail" -o ! -z "$todo" -o ! -z "$skip" ]; then
 			echo -n " # "
+		fi
+		if [ ! -z "$skip" ] ; then
+			echo -n "skip $skip; "
 		fi
 		if [ ! -z "$todo" ] ; then
 			echo -n "TODO $todo; "
@@ -471,6 +484,12 @@ eval_cmd()
 	if [ $# -eq 0 ] ; then
 		# if no arguments given default to 'prove'
 		set -- prove
+	fi
+
+	if ! make_is_fmake ; then
+		for i in $(jot ${TEST_N:-1}) ; do
+			eval TEST_${i}_SKIP=\"make is not fmake\"
+		done
 	fi
 
 	for i
