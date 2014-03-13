@@ -913,7 +913,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	if_initbaudrate(ifp, IF_Gbps(10));	/* Approx. */
+	ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vtnet_init;

@@ -438,9 +438,11 @@ intpr(int interval, void (*pfunc)(char *), int af)
 				printf("%*s %-17.17s",
 				    Wflag ? 27 : 25, "", fmt);
 				if (ifma->ifma_addr->sa_family == AF_LINK) {
-					printf(" %8lu", IFA_STAT(imcasts));
+					printf(" %8ju",
+					    (uintmax_t )IFA_STAT(imcasts));
 					printf("%*s", bflag ? 17 : 6, "");
-					printf(" %8lu", IFA_STAT(omcasts));
+					printf(" %8ju",
+					    (uintmax_t )IFA_STAT(omcasts));
 				}
 				putchar('\n');
 			}
