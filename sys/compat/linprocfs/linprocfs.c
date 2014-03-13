@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/user.h>
+#include <sys/uuid.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/bus.h>
@@ -1347,6 +1348,22 @@ linprocfs_dofdescfs(PFS_FILL_ARGS)
 	return (0);
 }
 
+
+/*
+ * Filler function for proc/sys/kernel/random/uuid
+ */
+static int
+linprocfs_douuid(PFS_FILL_ARGS)
+{
+	struct uuid uuid;
+
+	kern_uuidgen(&uuid, 1);
+	sbuf_printf_uuid(sb, &uuid);
+	sbuf_printf(sb, "\n");
+	return(0);
+}
+
+
 /*
  * Constructor
  */
@@ -1444,6 +1461,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sys/kernel/random/... */
+	dir = pfs_create_dir(dir, "random", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "uuid", &linprocfs_douuid,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
