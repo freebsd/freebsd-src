@@ -13321,11 +13321,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
 #endif
     ifp->if_capenable = ifp->if_capabilities;
     ifp->if_capenable &= ~IFCAP_WOL_MAGIC; /* XXX not yet... */
-#if __FreeBSD_version < 1000025
-    ifp->if_baudrate = 1000000000;
-#else
-    if_initbaudrate(ifp, IF_Gbps(10));
-#endif
+    ifp->if_baudrate = IF_Gbps(10);
     ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
     IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);

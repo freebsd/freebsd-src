@@ -322,7 +322,7 @@ vxge_init_locked(vxge_dev_t *vdev)
 		status = vxge_hal_device_mtu_check(vpath_handle, ifp->if_mtu);
 		if (status != VXGE_HAL_OK) {
 			device_printf(vdev->ndev,
-			    "invalid mtu size %ld specified\n", ifp->if_mtu);
+			    "invalid mtu size %u specified\n", ifp->if_mtu);
 			goto _exit1;
 		}
 
@@ -2908,7 +2908,7 @@ vxge_change_mtu(vxge_dev_t *vdev, unsigned long new_mtu)
 		goto _exit0;
 
 	(vdev->ifp)->if_mtu = new_mtu;
-	device_printf(vdev->ndev, "MTU changed to %ld\n", (vdev->ifp)->if_mtu);
+	device_printf(vdev->ndev, "MTU changed to %u\n", (vdev->ifp)->if_mtu);
 
 	if (vdev->is_initialized) {
 		if_down(vdev->ifp);
@@ -3241,7 +3241,7 @@ vxge_device_hw_info_print(vxge_dev_t *vdev)
 
 	snprintf(vdev->config.nic_attr[VXGE_PRINT_MTU_SIZE],
 	    sizeof(vdev->config.nic_attr[VXGE_PRINT_MTU_SIZE]),
-	    "%lu", vdev->ifp->if_mtu);
+	    "%u", vdev->ifp->if_mtu);
 
 	snprintf(vdev->config.nic_attr[VXGE_PRINT_LRO_MODE],
 	    sizeof(vdev->config.nic_attr[VXGE_PRINT_LRO_MODE]),
