@@ -172,6 +172,12 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hv_ata_pci_disengage.4 \
+	hv_kvp.4 \
+	hv_netvsc.4 \
+	hv_storvsc.4 \
+	hv_utils.4 \
+	hv_vmbus.4 \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
