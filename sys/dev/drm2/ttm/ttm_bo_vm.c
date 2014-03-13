@@ -155,8 +155,7 @@ reserve:
 	 */
 
 	mtx_lock(&bdev->fence_lock);
-	if ((atomic_load_acq_long(&bo->priv_flags) &
-	    (1UL << TTM_BO_PRIV_FLAG_MOVING)) != 0) {
+	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
 		/*
 		 * Here, the behavior differs between Linux and FreeBSD.
 		 *
