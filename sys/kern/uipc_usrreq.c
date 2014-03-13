@@ -51,7 +51,6 @@
  *
  * TODO:
  *	RDM
- *	distinguish datagram size limits from flow control limits in SEQPACKET
  *	rethink name space problems
  *	need a proper out-of-band
  */
@@ -789,7 +788,6 @@ uipc_rcvd(struct socket *so, int flags)
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
 	u_int mbcnt, sbcc;
-	u_long newhiwat;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_rcvd: unp == NULL"));
@@ -811,6 +809,15 @@ uipc_rcvd(struct socket *so, int flags)
 	mbcnt = so->so_rcv.sb_mbcnt;
 	sbcc = so->so_rcv.sb_cc;
 	SOCKBUF_UNLOCK(&so->so_rcv);
+	/*
+	 * There is a benign race condition at this point.  If we're planning to
+	 * clear SB_STOP, but uipc_send is called on the connected socket at
+	 * this instant, it might add data to the sockbuf and set SB_STOP.  Then
+	 * we would erroneously clear SB_STOP below, even though the sockbuf is
+	 * full.  The race is benign because the only ill effect is to allow the
+	 * sockbuf to exceed its size limit, and the size limits are not
+	 * strictly guaranteed anyway.
+	 */
 	UNP_PCB_LOCK(unp);
 	unp2 = unp->unp_conn;
 	if (unp2 == NULL) {
@@ -819,13 +826,9 @@ uipc_rcvd(struct socket *so, int flags)
 	}
 	so2 = unp2->unp_socket;
 	SOCKBUF_LOCK(&so2->so_snd);
-	so2->so_snd.sb_mbmax += unp->unp_mbcnt - mbcnt;
-	newhiwat = so2->so_snd.sb_hiwat + unp->unp_cc - sbcc;
-	(void)chgsbsize(so2->so_cred->cr_uidinfo, &so2->so_snd.sb_hiwat,
-	    newhiwat, RLIM_INFINITY);
+	if (sbcc < so2->so_snd.sb_hiwat && mbcnt < so2->so_snd.sb_mbmax)
+		so2->so_snd.sb_flags &= ~SB_STOP;
 	sowwakeup_locked(so2);
-	unp->unp_mbcnt = mbcnt;
-	unp->unp_cc = sbcc;
 	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
@@ -836,8 +839,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 {
 	struct unpcb *unp, *unp2;
 	struct socket *so2;
-	u_int mbcnt_delta, sbcc;
-	u_int newhiwat;
+	u_int mbcnt, sbcc;
 	int error = 0;
 
 	unp = sotounpcb(so);
@@ -991,27 +993,21 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			}
 		}
 
-		/*
-		 * XXXRW: While fine for SOCK_STREAM, this conflates maximum
-		 * datagram size and back-pressure for SOCK_SEQPACKET, which
-		 * can lead to undesired return of EMSGSIZE on send instead
-		 * of more desirable blocking.
-		 */
-		mbcnt_delta = so2->so_rcv.sb_mbcnt - unp2->unp_mbcnt;
-		unp2->unp_mbcnt = so2->so_rcv.sb_mbcnt;
+		mbcnt = so2->so_rcv.sb_mbcnt;
 		sbcc = so2->so_rcv.sb_cc;
 		sorwakeup_locked(so2);
 
+		/*
+		 * The PCB lock on unp2 protects the SB_STOP flag.  Without it,
+		 * it would be possible for uipc_rcvd to be called at this
+		 * point, drain the receiving sockbuf, clear SB_STOP, and then
+		 * we would set SB_STOP below.  That could lead to an empty
+		 * sockbuf having SB_STOP set
+		 */
 		SOCKBUF_LOCK(&so->so_snd);
-		if ((int)so->so_snd.sb_hiwat >= (int)(sbcc - unp2->unp_cc))
-			newhiwat = so->so_snd.sb_hiwat - (sbcc - unp2->unp_cc);
-		else
-			newhiwat = 0;
-		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
-		    newhiwat, RLIM_INFINITY);
-		so->so_snd.sb_mbmax -= mbcnt_delta;
+		if (sbcc >= so->so_snd.sb_hiwat || mbcnt >= so->so_snd.sb_mbmax)
+			so->so_snd.sb_flags |= SB_STOP;
 		SOCKBUF_UNLOCK(&so->so_snd);
-		unp2->unp_cc = sbcc;
 		UNP_PCB_UNLOCK(unp2);
 		m = NULL;
 		break;
@@ -1049,27 +1045,18 @@ release:
 static int
 uipc_sense(struct socket *so, struct stat *sb)
 {
-	struct unpcb *unp, *unp2;
-	struct socket *so2;
+	struct unpcb *unp;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_sense: unp == NULL"));
 
 	sb->st_blksize = so->so_snd.sb_hiwat;
-	UNP_LINK_RLOCK();
 	UNP_PCB_LOCK(unp);
-	unp2 = unp->unp_conn;
-	if ((so->so_type == SOCK_STREAM || so->so_type == SOCK_SEQPACKET) &&
-	    unp2 != NULL) {
-		so2 = unp2->unp_socket;
-		sb->st_blksize += so2->so_rcv.sb_cc;
-	}
 	sb->st_dev = NODEV;
 	if (unp->unp_ino == 0)
 		unp->unp_ino = (++unp_ino == 0) ? ++unp_ino : unp_ino;
 	sb->st_ino = unp->unp_ino;
 	UNP_PCB_UNLOCK(unp);
-	UNP_LINK_RUNLOCK();
 	return (0);
 }
 
@@ -2497,8 +2484,7 @@ DB_SHOW_COMMAND(unpcb, db_show_unpcb)
 	/* XXXRW: Would be nice to print the full address, if any. */
 	db_printf("unp_addr: %p\n", unp->unp_addr);
 
-	db_printf("unp_cc: %d   unp_mbcnt: %d   unp_gencnt: %llu\n",
-	    unp->unp_cc, unp->unp_mbcnt,
+	db_printf("unp_gencnt: %llu\n",
 	    (unsigned long long)unp->unp_gencnt);
 
 	db_printf("unp_flags: %x (", unp->unp_flags);
