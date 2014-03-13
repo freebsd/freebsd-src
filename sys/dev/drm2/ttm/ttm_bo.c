@@ -1723,8 +1723,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 		if (driver->sync_obj_signaled(bo->sync_obj)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
-			atomic_clear_long(&bo->priv_flags,
-					  1UL << TTM_BO_PRIV_FLAG_MOVING);
+			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
 			mtx_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&tmp_obj);
 			mtx_lock(&bdev->fence_lock);
@@ -1747,8 +1746,8 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 		if (likely(bo->sync_obj == sync_obj)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
-			atomic_clear_long(&bo->priv_flags,
-					  1UL << TTM_BO_PRIV_FLAG_MOVING);
+			clear_bit(TTM_BO_PRIV_FLAG_MOVING,
+				  &bo->priv_flags);
 			mtx_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&sync_obj);
 			driver->sync_obj_unref(&tmp_obj);

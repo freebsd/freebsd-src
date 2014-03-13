@@ -138,7 +138,7 @@ i915_gem_wait_for_error(struct drm_device *dev)
 	}
 	mtx_unlock(&dev_priv->error_completion_lock);
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
+	if (atomic_load_acq_int(&dev_priv->mm.wedged)) {
 		mtx_lock(&dev_priv->error_completion_lock);
 		dev_priv->error_completion++;
 		mtx_unlock(&dev_priv->error_completion_lock);
@@ -740,7 +740,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	int ret;
 
 	dev_priv = dev->dev_private;
-	if (atomic_read(&dev_priv->mm.wedged))
+	if (atomic_load_acq_int(&dev_priv->mm.wedged))
 		return (-EIO);
 
 	file_priv = file->driver_priv;
@@ -765,15 +765,15 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		if (ring->irq_get(ring)) {
 			while (ret == 0 &&
 			    !(i915_seqno_passed(ring->get_seqno(ring), seqno) ||
-			    atomic_read(&dev_priv->mm.wedged)))
+			    atomic_load_acq_int(&dev_priv->mm.wedged)))
 				ret = -msleep(ring, &ring->irq_lock, PCATCH,
 				    "915thr", 0);
 			ring->irq_put(ring);
-			if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
+			if (ret == 0 && atomic_load_acq_int(&dev_priv->mm.wedged))
 				ret = -EIO;
 		} else if (_intel_wait_for(dev,
 		    i915_seqno_passed(ring->get_seqno(ring), seqno) ||
-		    atomic_read(&dev_priv->mm.wedged), 3000, 0, "915rtr")) {
+		    atomic_load_acq_int(&dev_priv->mm.wedged), 3000, 0, "915rtr")) {
 			ret = -EBUSY;
 		}
 	}
