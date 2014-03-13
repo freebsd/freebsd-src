@@ -3,6 +3,7 @@
 
 MAN=	crash.8 \
 	diskless.8 \
+	hv_kvp_daemon.8 \
 	intro.8 \
 	nanobsd.8 \
 	picobsd.8 \
