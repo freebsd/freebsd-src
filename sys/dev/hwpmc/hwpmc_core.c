@@ -2679,7 +2679,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	PMCDBG(MDP,INI,1,"core-init pmcmask=0x%jx iafri=%d", core_pmcmask,
 	    core_iaf_ri);
 
-	core_pcpu = malloc(sizeof(struct core_cpu **) * maxcpu, M_PMC,
+	core_pcpu = malloc(sizeof(*core_pcpu) * maxcpu, M_PMC,
 	    M_ZERO | M_WAITOK);
 
 	/*
