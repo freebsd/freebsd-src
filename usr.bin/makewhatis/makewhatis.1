@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2013
-.Dt MAKEWHATIS 8
+.Dd December 3, 2005
+.Dt MAKEWHATIS 1
 .Os
 .Sh NAME
 .Nm makewhatis
-.Nd create whatis database
+.Nd "create whatis database"
 .Sh SYNOPSIS
 .Nm
 .Op Fl a
@@ -98,6 +98,9 @@ option is used.
 .It Ev MACHINE
 If set, its value is used to override the current
 machine type when searching machine specific subdirectories.
+.It Ev MACHINE_ARCH
+If set, its value is used to override the current
+architecture when searching architecture specific subdirectories.
 .It Ev MANPATH
 Determines the set of directories to be processed if none are given on
 the command line.
@@ -130,6 +133,4 @@ program was originally written in Perl and was contributed by
 The current version of
 .Nm
 was rewritten in C by
-.An John Rochester
-with additional contributions by
-.An Franco Fichtner Aq Mt franco@lastsummer.de .
+.An John Rochester .
