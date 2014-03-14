@@ -1175,6 +1175,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 		uio->uio_offset = TMPFS_DIRCOOKIE_DOTDOT;
 		if (cookies != NULL)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
+		/* FALLTHROUGH */
 	case TMPFS_DIRCOOKIE_DOTDOT:
 		error = tmpfs_dir_getdotdotdent(node, uio);
 		if (error != 0)
