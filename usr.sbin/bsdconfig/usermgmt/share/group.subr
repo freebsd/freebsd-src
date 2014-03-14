@@ -156,10 +156,17 @@ f_group_add()
 
 			case "$mtag" in
 			X) # Add/Exit
-			   local cmd="pw groupadd -n '$group_name'"
-			   [ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupadd -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 			   [ "$group_members" ] &&
-			   	cmd="$cmd -M '$group_members'"
+			   	cmd="$cmd -M '$_group_members'"
 
 			   # Execute the command (break on success)
 			   if [ "$group_password_disable" ]; then
@@ -196,10 +203,16 @@ f_group_add()
 			esac
 		done
 	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
 		# Form the command
-		local cmd="pw groupadd -n '$group_name'"
-		[ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
-		[ "$group_members" ] && cmd="$cmd -M '$group_members'"
+		local cmd="pw groupadd -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+		[ "$group_members" ] && cmd="$cmd -M '$_group_members'"
 
 		# Execute the command
 		local retval err
@@ -276,8 +289,10 @@ f_group_delete()
 
 			case "$mtag" in
 			X) # Delete/Exit
+			   local _group_name
+			   f_shell_escape "$group_name" _group_name
 			   f_eval_catch $funcname pw 'pw groupdel "%s"' \
-					"$group_name" && break
+					"$_group_name" && break
 			   ;;
 			1) # Group Name (select different group from list)
 			   f_dialog_menu_group_list "$group_name" || continue
@@ -296,9 +311,10 @@ f_group_delete()
 			esac
 		done
 	else
-		local retval err
+		local retval err _group_name
+		f_shell_escape "$group_name" _group_name
 		f_eval_catch -k err $funcname pw \
-			'pw groupdel "%s"' "$group_name"
+			"pw groupdel '%s'" "$_group_name"
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
 			f_show_err "%s" "$err"
@@ -406,10 +422,17 @@ f_group_edit()
 
 			case "$mtag" in
 			X) # Save/Exit
-			   local cmd="pw groupmod -n '$group_name'"
-			   [ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupmod -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 			   [ "$group_members" -o "$null_members" ] &&
-			   	cmd="$cmd -M '$group_members'"
+			   	cmd="$cmd -M '$_group_members'"
 
 			   # Execute the command (break on success)
 			   if [ "$group_password_disable" ]; then
@@ -451,11 +474,17 @@ f_group_edit()
 			esac
 		done
 	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
 		# Form the command
-		local cmd="pw groupmod -n '$group_name'"
-		[ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+		local cmd="pw groupmod -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 		[ "$group_members" -o "$null_members" ] &&
-			cmd="$cmd -M '$group_members'"
+			cmd="$cmd -M '$_group_members'"
 
 		# Execute the command
 		local retval err

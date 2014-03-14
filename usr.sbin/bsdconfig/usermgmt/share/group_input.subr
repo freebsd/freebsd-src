@@ -53,12 +53,16 @@ f_input_group()
 
 	f_dprintf "$funcname: Getting info for group \`%s'" "$group"
 	eval "$( pw groupshow "$group" 2> /dev/null | awk -F: '
+	function set_value(var, value) {
+		gsub(/'\''/, "'\''\\'\'\''", value)
+		printf "group_%s='\'%s\''\n", var, value
+	}
 	{
 		found = $1 != ""
-		printf "group_name='\'%s\''\n",    $1
-		printf "group_password=\n"
-		printf "group_gid='\'%s\''\n",     $3
-		printf "group_members='\'%s\''\n", $4
+		set_value("name",     $1)
+		set_value("password", "")
+		set_value("gid",      $3)
+		set_value("members",  $4)
 		exit
 	}
 	END { if (!found) print "false" }' )"
@@ -80,10 +84,13 @@ f_dialog_menu_group_list()
 
 	# Add groups from group(5)
 	menu_list="$menu_list $( pw groupshow -a | awk -F: '
-		!/^[[:space:]]*(#|$)/ {
-			printf "'\'%s\'\ \'%s\''\n", $1, $1
-		}'
-	)"
+		function mprint(tag, item) {
+			gsub(/'\''/, "'\''\\'\'\''", tag)
+			gsub(/'\''/, "'\''\\'\'\''", item)
+			printf "'\'%s\'\ \'%s\''\n", tag, item
+		}
+		!/^[[:space:]]*(#|$)/ { mprint($1, $1) }
+	' )"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
@@ -331,16 +338,18 @@ f_dialog_input_group_members()
 		X) # Exit
 			break ;;
 		1) # Select Group Members from a list
-			local __user_list __length=0 __user __check_list=
+			local __check_list= # Calculated below
+			local __user_list __u __user __length=0
 			__user_list=$( pw usershow -a |
 				awk -F: '!/^[[:space:]]*(#|$)/{print $1}' )
 			while [ $__length -ne ${#__user_list} ]; do
-				__user="${__user_list%%$NL*}" # First line
+				__u="${__user_list%%$NL*}" # First line
+				f_shell_escape "$__u" __user
 
 				# Format of a checklist entry: tag item status
 				__check_list="$__check_list '$__user' ''"
 				case "$__input" in
-				"$__user"|"$__user",*|*,"$__user",*|*,"$__user")
+				"$__u"|"$__u",*|*,"$__u",*|*,"$__u")
 					__check_list="$__check_list on" ;;
 				*)
 					__check_list="$__check_list off"
@@ -416,12 +425,20 @@ f_dialog_menu_group_add()
 	local defaultitem="$1"
 	local hline="$hline_arrows_tab_enter"
 
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in gid members name; do
+		local _group_$var
+		eval f_shell_escape \"\$group_$var\" _group_$var
+	done
+
 	menu_list="
 		'X' '$msg_add/$msg_exit'
-		'1' '$msg_group: $group_name'
+		'1' '$msg_group: $_group_name'
 		'2' '$msg_password: -----'
-		'3' '$msg_group_id: $group_gid'
-		'4' '$msg_group_members: $group_members'
+		'3' '$msg_group_id: $_group_gid'
+		'4' '$msg_group_members: $_group_members'
 	" # END-QUOTE
 
 	local height width rows
@@ -470,12 +487,20 @@ f_dialog_menu_group_delete()
 	local group_name group_password group_gid group_members
 	f_input_group "$1"
 
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in gid members name; do
+		local _group_$var
+		eval f_shell_escape \"\$group_$var\" _group_$var
+	done
+
 	menu_list="
 		'X' '$msg_delete/$msg_exit'
-		'1' '$msg_group: $group_name'
+		'1' '$msg_group: $_group_name'
 		'-' '$msg_password: -----'
-		'-' '$msg_group_id: $group_gid'
-		'-' '$msg_group_members: $group_members'
+		'-' '$msg_group_id: $_group_gid'
+		'-' '$msg_group_members: $_group_members'
 	" # END-QUOTE
 
 	local height width rows
@@ -521,12 +546,20 @@ f_dialog_menu_group_edit()
 	local defaultitem="$1"
 	local hline="$hline_arrows_tab_enter"
 
+	# Localize potentially hostile variables and escape their values
+	# to the local variable (see f_shell_escape() of `strings.subr')
+	local var
+	for var in gid members name; do
+		local _group_$var
+		eval f_shell_escape \"\$group_$var\" _group_$var
+	done
+
 	menu_list="
 		'X' '$msg_save/$msg_exit'
-		'1' '$msg_group: $group_name'
+		'1' '$msg_group: $_group_name'
 		'2' '$msg_password: -----'
-		'3' '$msg_group_id: $group_gid'
-		'4' '$msg_group_members: $group_members'
+		'3' '$msg_group_id: $_group_gid'
+		'4' '$msg_group_members: $_group_members'
 	" # END-QUOTE
 
 	local height width rows
