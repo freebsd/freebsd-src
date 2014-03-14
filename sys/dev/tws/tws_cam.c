@@ -1323,7 +1323,7 @@ tws_reinit(void *arg)
 
     tws_turn_on_interrupts(sc);
 
-    wakeup_one(sc->chan);
+    wakeup_one(sc);
 }
 
 
