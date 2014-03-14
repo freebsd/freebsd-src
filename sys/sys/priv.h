@@ -347,11 +347,6 @@
 #define	PRIV_NET80211_MANAGE	441	/* Administer 802.11. */
 
 /*
- * AppleTalk privileges.
- */
-#define	PRIV_NETATALK_RESERVEDPORT	450	/* Bind low port number. */
-
-/*
  * ATM privileges.
  */
 #define	PRIV_NETATM_CFG		460

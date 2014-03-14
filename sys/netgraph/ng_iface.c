@@ -52,7 +52,6 @@
  * This node also includes Berkeley packet filter support.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -103,7 +102,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_APPLETALK,	NG_IFACE_HOOK_ATALK	},
 	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
 	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
@@ -757,11 +755,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 #ifdef INET6
 	case AF_INET6:
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
 		break;
 #endif
 	default:

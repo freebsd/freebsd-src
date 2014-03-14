@@ -36,7 +36,6 @@
  * $FreeBSD$
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -74,15 +73,6 @@
 #ifdef DECNET
 #include <netdnet/dn.h>
 #endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
-
-extern u_char	at_org_code[ 3 ];
-extern u_char	aarp_org_code[ 3 ];
-#endif /* NETATALK */
 
 #include <security/mac/mac_framework.h>
 
@@ -178,40 +168,6 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif /* INET6 */
-#ifdef NETATALK
-	case AF_APPLETALK: {
-	    struct at_ifaddr *aa;
-            if (!aarpresolve(ifp, m, (const struct sockaddr_at *)dst, edst))
-                return (0);
-	    /*
-	     * ifaddr is the first thing in at_ifaddr
-	     */
-	    if ((aa = at_ifawithnet((const struct sockaddr_at *)dst)) == 0)
-		goto bad;
-	    
-	    /*
-	     * In the phase 2 case, we need to prepend an mbuf for the llc header.
-	     * Since we must preserve the value of m, which is passed to us by
-	     * value, we m_copy() the first mbuf, and use it for our llc header.
-	     */
-	    if (aa->aa_flags & AFA_PHASE2) {
-		struct llc llc;
-
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAITOK);
-		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
-		llc.llc_control = LLC_UI;
-		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
-		llc.llc_snap.ether_type = htons(ETHERTYPE_AT);
-		bcopy(&llc, mtod(m, caddr_t), LLC_SNAPFRAMELEN);
-		type = 0;
-	    } else {
-		type = htons(ETHERTYPE_AT);
-	    }
-	    ifa_free(&aa->aa_ifa);
-	    break;
-	}
-#endif /* NETATALK */
-
 	case pseudo_AF_HDRCMPLT:
 	{
 		const struct ether_header *eh;
@@ -459,23 +415,6 @@ fddi_input(ifp, m)
 			ifp->if_noproto++;
 			goto dropanyway;
 		}
-#ifdef NETATALK
-		if (bcmp(&(l->llc_snap.org_code)[0], at_org_code,
-		    sizeof(at_org_code)) == 0 &&
-		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
-			isr = NETISR_ATALK2;
-			m_adj(m, LLC_SNAPFRAMELEN);
-			break;
-		}
-
-		if (bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
-		    sizeof(aarp_org_code)) == 0 &&
-		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
-			m_adj(m, LLC_SNAPFRAMELEN);
-			isr = NETISR_AARP;
-			break;
-		}
-#endif /* NETATALK */
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
 		    l->llc_snap.org_code[2] != 0) {
@@ -510,14 +449,6 @@ fddi_input(ifp, m)
 			isr = NETISR_DECNET;
 			break;
 #endif
-#ifdef NETATALK 
-		case ETHERTYPE_AT:
-	                isr = NETISR_ATALK1;
-			break;
-	        case ETHERTYPE_AARP:
-			isr = NETISR_AARP;
-			break;
-#endif /* NETATALK */
 		default:
 			/* printf("fddi_input: unknown protocol 0x%x\n", type); */
 			ifp->if_noproto++;

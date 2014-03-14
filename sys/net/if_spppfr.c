@@ -260,11 +260,6 @@ drop:		++ifp->if_ierrors;
 		isr = NETISR_IP;
 		break;
 #endif
-#ifdef NETATALK
-        case ETHERTYPE_AT:
-		isr = NETISR_ATALK;
-                break;
-#endif
 	}
 
 	if (! (ifp->if_flags & IFF_UP))
@@ -337,11 +332,6 @@ struct mbuf *sppp_fr_header (struct sppp *sp, struct mbuf *m,
 #ifdef NS
 	case AF_NS:
 		type = 0x8137;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		type = ETHERTYPE_AT;
 		break;
 #endif
 	}

@@ -257,8 +257,6 @@
     ..
     net80211
     ..
-    netatalk
-    ..
     netgraph
         atm
         ..

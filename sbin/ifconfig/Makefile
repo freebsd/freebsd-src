@@ -21,7 +21,6 @@ SRCS+=	af_inet.c		# IPv4 support
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_inet6.c		# IPv6 support
 .endif
-SRCS+=	af_atalk.c		# AppleTalk support
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_nd6.c		# ND6 support
 .endif
