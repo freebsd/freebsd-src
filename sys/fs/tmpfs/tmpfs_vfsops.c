@@ -200,11 +200,13 @@ tmpfs_mount(struct mount *mp)
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max > OFF_MAX - PAGE_SIZE ||
+	if (size_max == 0 || size_max > OFF_MAX - PAGE_SIZE ||
 	    (SIZE_MAX < OFF_MAX && size_max / PAGE_SIZE >= SIZE_MAX))
 		pages = SIZE_MAX;
-	else
+	else {
+		size_max = roundup(size_max, PAGE_SIZE);
 		pages = howmany(size_max, PAGE_SIZE);
+	}
 	MPASS(pages > 0);
 
 	if (nodes_max <= 3) {
