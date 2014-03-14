@@ -197,12 +197,14 @@ build_world ( ) (
 )
 
 build_kernel ( ) (
+	local extra
+
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
 	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		extra="KERNCONFDIR=$(realpath $(dirname ${NANO_KERNEL}))"
 		kernconf=$(basename ${NANO_KERNEL})
 	else
 		kernconf=${NANO_KERNEL}
@@ -216,8 +218,7 @@ build_kernel ( ) (
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
-		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		${extra} __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
 		KERNCONF=${kernconf}
 	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
@@ -277,12 +278,14 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
+	local extra
+
 	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
 
 	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		extra="KERNCONFDIR=$(realpath $(dirname ${NANO_KERNEL}))"
 		kernconf=$(basename ${NANO_KERNEL})
 	else
 		kernconf=${NANO_KERNEL}
@@ -291,8 +294,7 @@ install_kernel ( ) (
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
-		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		${extra} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
 		KERNCONF=${kernconf} \
 		MODULES_OVERRIDE="${NANO_MODULES}"
 	) > ${NANO_OBJ}/_.ik 2>&1
