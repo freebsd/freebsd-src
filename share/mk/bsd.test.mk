@@ -2,15 +2,13 @@
 #
 # Generic build infrastructure for test programs.
 #
-# The code in this file is independent of the implementation of the test
-# programs being built; this file just provides generic infrastructure for the
-# build and the definition of various helper variables and targets.
-#
-# Makefiles should never include this file directly.  Instead, they should
-# include one of the various *.test.mk depending on the specific test programs
-# being built.
+# This is the only public file that should be included by Makefiles when
+# tests are to be built.  All other *.test.mk files are internal and not
+# to be included directly.
 
 .include <bsd.init.mk>
+
+__<bsd.test.mk>__:
 
 # Directory in which to install tests defined by the current Makefile.
 # Makefiles have to override this to point to a subdirectory of TESTSBASE.
@@ -67,17 +65,21 @@ TESTS_ENV+= PATH=${TESTS_PATH:tW:C/ +/:/g}
 TESTS_LD_LIBRARY_PATH+= ${DESTDIR}/lib ${DESTDIR}/usr/lib
 TESTS_ENV+= LD_LIBRARY_PATH=${TESTS_LD_LIBRARY_PATH:tW:C/ +/:/g}
 
-# List of all tests being built.  This variable is internal should not be
-# defined by the Makefile.  The various *.test.mk modules extend this variable
-# as needed.
-_TESTS?=
-
 # Path to the prefix of the installed Kyua CLI, if any.
 #
 # If kyua is installed from ports, we automatically define a realtest target
 # below to run the tests using this tool.  The tools are searched for in the
 # hierarchy specified by this variable.
 KYUA_PREFIX?= /usr/local
+
+# List of all tests being built.  The various *.test.mk modules extend this
+# variable as needed.
+_TESTS=
+
+# Pull in the definitions of all supported test interfaces.
+.include <atf.test.mk>
+.include <plain.test.mk>
+.include <tap.test.mk>
 
 .if !empty(TESTS_SUBDIRS)
 SUBDIR+= ${TESTS_SUBDIRS}
