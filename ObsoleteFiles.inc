@@ -38,6 +38,30 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140314: Remove IPX/SPX
+OLD_LIBS+=lib/libipx.so.5
+OLD_FILES+=usr/include/netipx/ipx.h
+OLD_FILES+=usr/include/netipx/ipx_if.h
+OLD_FILES+=usr/include/netipx/ipx_pcb.h
+OLD_FILES+=usr/include/netipx/ipx_var.h
+OLD_FILES+=usr/include/netipx/spx.h
+OLD_FILES+=usr/include/netipx/spx_debug.h
+OLD_FILES+=usr/include/netipx/spx_timer.h
+OLD_FILES+=usr/include/netipx/spx_var.h
+OLD_DIRS+=usr/include/netipx
+OLD_FILES+=usr/lib/libipx.a
+OLD_FILES+=usr/lib/libipx.so
+OLD_FILES+=usr/lib/libipx_p.a
+OLD_FILES+=usr/lib32/libipx.a
+OLD_FILES+=usr/lib32/libipx.so
+OLD_LIBS+=usr/lib32/libipx.so.5
+OLD_FILES+=usr/lib32/libipx_p.a
+OLD_FILES+=usr/sbin/IPXrouted
+OLD_FILES+=usr/share/man/man3/ipx.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
+OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
+
 # 20140223: Remove libyaml
 OLD_FILES+=usr/lib/private/libyaml.a
 OLD_FILES+=usr/lib/private/libyaml.so

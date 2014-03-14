@@ -1836,8 +1836,6 @@ lomac_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*

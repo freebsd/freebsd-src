@@ -1486,7 +1486,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_lib_atf} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
-		${_lib_libgssapi} ${_lib_libipx} \
+		${_lib_libgssapi} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1586,10 +1586,6 @@ kerberos5/lib/libheimsqlite__L: lib/libthr__L
 
 .if ${MK_GSSAPI} != "no"
 _lib_libgssapi=	lib/libgssapi
-.endif
-
-.if ${MK_IPX} != "no"
-_lib_libipx=	lib/libipx
 .endif
 
 .if ${MK_KERBEROS} != "no"

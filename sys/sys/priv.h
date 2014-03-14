@@ -392,12 +392,6 @@
 #define	PRIV_NETINET_BINDANY	506	/* Allow bind to any address. */
 
 /*
- * IPX/SPX privileges.
- */
-#define	PRIV_NETIPX_RESERVEDPORT	520	/* Bind low port number. */
-#define	PRIV_NETIPX_RAW		521	/* Open netipx raw socket. */
-
-/*
  * NCP privileges.
  */
 #define	PRIV_NETNCP		530	/* Use another user's connection. */

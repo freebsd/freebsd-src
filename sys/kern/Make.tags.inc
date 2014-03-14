@@ -40,7 +40,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/netinet/*.[ch] \
 	${SYS}/netinet6/*.[ch] \
 	${SYS}/netipsec/*.[ch] \
-	${SYS}/netipx/*.[ch] \
 	${SYS}/netnatm/*.[ch] \
 	${SYS}/nfs/*.[ch] \
 	${SYS}/nfsclient/*.[ch] \
@@ -59,7 +58,6 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/netinet \
 	${SYS}/netinet6 \
 	${SYS}/netipsec \
-	${SYS}/netipx \
 	${SYS}/netnatm \
 	${SYS}/nfs \
 	${SYS}/pci \

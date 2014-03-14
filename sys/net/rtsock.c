@@ -129,7 +129,6 @@ int	(*carp_get_vhid_p)(struct ifaddr *);
 typedef struct {
 	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
-	int	ipx_count;	/* attached w/ AF_IPX */
 	int	any_count;	/* total attached */
 } route_cb_t;
 static VNET_DEFINE(route_cb_t, route_cb);
@@ -294,9 +293,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	case AF_INET6:
 		V_route_cb.ip6_count++;
 		break;
-	case AF_IPX:
-		V_route_cb.ipx_count++;
-		break;
 	}
 	V_route_cb.any_count++;
 	RTSOCK_UNLOCK();
@@ -336,9 +332,6 @@ rts_detach(struct socket *so)
 		break;
 	case AF_INET6:
 		V_route_cb.ip6_count--;
-		break;
-	case AF_IPX:
-		V_route_cb.ipx_count--;
 		break;
 	}
 	V_route_cb.any_count--;

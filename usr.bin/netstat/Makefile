@@ -43,11 +43,4 @@ LDADD+=	-lnetgraph
 CFLAGS+=-DNETGRAPH
 .endif
 
-.if ${MK_IPX_SUPPORT} != "no"
-SRCS+=	ipx.c
-DPADD+=	${LIBIPX}
-LDADD+=	-lipx
-CFLAGS+=-DIPX
-.endif
-
 .include <bsd.prog.mk>

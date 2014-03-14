@@ -56,7 +56,7 @@
 #define	NETISR_ATALK2	5		/* Appletalk phase 2 */
 #define	NETISR_ATALK1	6		/* Appletalk phase 1 */
 #define	NETISR_ARP	7		/* same as AF_LINK */
-#define	NETISR_IPX	8		/* same as AF_IPX */
+/*			8		   was IPX */
 #define	NETISR_ETHER	9		/* ethernet input */
 #define	NETISR_IPV6	10
 #define	NETISR_NATM	11
