@@ -170,11 +170,10 @@ f_device_reset()
 	for dev in $DEVICES; do
 		f_device_shutdown $dev
 
-		#
-		# XXX this potentially leaks $dev->private if it's being
+		# XXX This potentially leaks $dev->private if it's being
 		# used to point to something dynamic, but you're not supposed
 		# to call this routine at such times that some open instance
-		# has its private member pointing somewhere anyway. XXX
+		# has its private member pointing somewhere anyway.
 		#
 		f_struct_free device_$dev
 	done
@@ -325,8 +324,7 @@ f_device_get_all()
 
 		case "$diskname" in
 		cd*)
-			# XXX
-			#  Due to unknown reasons, kern.disks returns SCSI
+			# XXX Due to unknown reasons, kern.disks returns SCSI
 			# CDROM as a valid disk. This will prevent bsdconfig
 			# from presenting SCSI CDROMs as available disks in
 			# various menus. Why GEOM treats SCSI CDROM as a disk
