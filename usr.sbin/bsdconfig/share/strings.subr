@@ -195,7 +195,7 @@ f_number_of_lines()
 f_isinteger()
 {
 	local arg="${1#-}"
-	[ "${arg:-x}" = "${arg#[!0-9]*}" ]
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
 }
 
 # f_uriencode [$text]
