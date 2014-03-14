@@ -1147,7 +1147,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
  * error code if another error happens.
  */
 int
-tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
+tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
     u_long *cookies, int *ncookies)
 {
 	struct tmpfs_dir_cursor dc;
@@ -1173,7 +1173,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		if (error != 0)
 			return (error);
 		uio->uio_offset = TMPFS_DIRCOOKIE_DOTDOT;
-		if (cnt != 0)
+		if (cookies != NULL)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
 	case TMPFS_DIRCOOKIE_DOTDOT:
 		error = tmpfs_dir_getdotdotdent(node, uio);
@@ -1181,7 +1181,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 			return (error);
 		de = tmpfs_dir_first(node, &dc);
 		uio->uio_offset = tmpfs_dirent_cookie(de);
-		if (cnt != 0)
+		if (cookies != NULL)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
 		/* EOF. */
 		if (de == NULL)
@@ -1193,7 +1193,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		de = tmpfs_dir_lookup_cookie(node, uio->uio_offset, &dc);
 		if (de == NULL)
 			return (EINVAL);
-		if (cnt != 0)
+		if (cookies != NULL)
 			off = tmpfs_dirent_cookie(de);
 	}
 
@@ -1261,18 +1261,19 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		error = uiomove(&d, d.d_reclen, uio);
 		if (error == 0) {
 			de = tmpfs_dir_next(node, &dc);
-			if (cnt != 0) {
+			if (cookies != NULL) {
 				off = tmpfs_dirent_cookie(de);
-				MPASS(*ncookies < cnt);
+				MPASS(*ncookies < maxcookies);
 				cookies[(*ncookies)++] = off;
 			}
 		}
 	} while (error == 0 && uio->uio_resid > 0 && de != NULL);
 
-	/* Update the offset and cache. */
-	if (cnt == 0)
+	/* Skip setting off when using cookies as it is already done above. */
+	if (cookies == NULL)
 		off = tmpfs_dirent_cookie(de);
 
+	/* Update the offset and cache. */
 	uio->uio_offset = off;
 	node->tn_dir.tn_readdir_lastn = off;
 	node->tn_dir.tn_readdir_lastp = de;
