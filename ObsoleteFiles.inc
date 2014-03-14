@@ -72,6 +72,7 @@ OLD_FILES+=usr/sbin/IPXrouted
 OLD_FILES+=usr/share/man/man3/ipx.3.gz
 OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
 OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
+OLD_FILES+=usr/share/man/man4/ef.4.gz
 OLD_FILES+=usr/share/man/man4/if_ef.4.gz
 OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
 
