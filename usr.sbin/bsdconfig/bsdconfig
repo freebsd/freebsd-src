@@ -381,6 +381,7 @@ if [ "$1" ]; then
 		# Not reached
 	fi
 
+	f_dprintf "cmd=[%s] *=[%s]" "$cmd" "$*"
 	shift
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
 	# Not reached
