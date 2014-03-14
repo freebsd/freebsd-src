@@ -219,8 +219,11 @@ main(int ac, char **av)
 	/*
 	 * Now tear through the trace buffer.
 	 */
-	if (!iflag)
-		i = (index - 1) % entries;
+	if (!iflag) {
+		i = index - 1;
+		if (i < 0)
+			i = entries - 1;
+	}
 	tlast = -1;
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
@@ -288,7 +291,8 @@ next:			if ((c = *p++) == '\0')
 		if (!iflag) {
 			if (i == index)
 				break;
-			i = (i - 1) % entries;
+			if (--i < 0)
+				i = entries - 1;
 		} else {
 			if (++i == entries)
 				break;
