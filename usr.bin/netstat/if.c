@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #include <arpa/inet.h>
 #ifdef PF
 #include <net/pfvar.h>
@@ -325,22 +323,6 @@ intpr(int interval, void (*pfunc)(char *), int af)
 			break;
 	            }
 #endif /* INET6 */
-		case AF_IPX:
-		    {
-			struct sockaddr_ipx *sipx;
-			u_long net;
-			char netnum[10];
-
-			sipx = (struct sockaddr_ipx *)ifa->ifa_addr;
-			*(union ipx_net *) &net = sipx->sipx_addr.x_net;
-
-			sprintf(netnum, "%lx", (u_long)ntohl(net));
-			printf("ipx:%-8s  ", netnum);
-			printf("%-17s ", ipx_phost((struct sockaddr *)sipx));
-
-			network = 1;
-			break;
-		    }
 		case AF_APPLETALK:
 			printf("atalk:%-12.12s ",
 			    atalk_print(ifa->ifa_addr, 0x10));

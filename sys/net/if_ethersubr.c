@@ -33,7 +33,6 @@
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 #include "opt_netgraph.h"
 #include "opt_mbuf_profiling.h"
 
@@ -77,11 +76,6 @@
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
@@ -247,18 +241,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		if (ef_outputp) {
-		    error = ef_outputp(ifp, &m, dst, &type, &hlen);
-		    if (error)
-			goto bad;
-		} else
-		    type = htons(ETHERTYPE_IPX);
-		bcopy(&((const struct sockaddr_ipx *)dst)->sipx_addr.x_host,
-		    edst, sizeof (edst));
 		break;
 #endif
 #ifdef NETATALK
@@ -811,13 +793,6 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		isr = NETISR_ARP;
 		break;
 #endif
-#ifdef IPX
-	case ETHERTYPE_IPX:
-		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
-			return;
-		isr = NETISR_IPX;
-		break;
-#endif
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		isr = NETISR_IPV6;
@@ -832,10 +807,6 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		break;
 #endif /* NETATALK */
 	default:
-#ifdef IPX
-		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
-			return;
-#endif /* IPX */
 #if defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto discard;
@@ -1079,31 +1050,6 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX:
-			{
-			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host =
-				    *(union ipx_host *)
-				    IF_LLADDR(ifp);
-			else {
-				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) IF_LLADDR(ifp),
-				      ETHER_ADDR_LEN);
-			}
-
-			/*
-			 * Set new address
-			 */
-			ifp->if_init(ifp->if_softc);
-			break;
-			}
 #endif
 		default:
 			ifp->if_init(ifp->if_softc);

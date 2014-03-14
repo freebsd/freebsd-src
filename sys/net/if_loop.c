@@ -37,7 +37,6 @@
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,11 +61,6 @@
 #ifdef	INET
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #ifdef INET6
@@ -273,7 +267,6 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
-	case AF_IPX:
 	case AF_APPLETALK:
 		break;
 	default:
@@ -366,11 +359,6 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 	case AF_INET6:
 		m->m_flags |= M_LOOP;
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
 		break;
 #endif
 #ifdef NETATALK

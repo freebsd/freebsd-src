@@ -3087,7 +3087,6 @@ net/if_dead.c			standard
 net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
-net/if_ef.c			optional ef
 net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
 net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether
@@ -3365,16 +3364,6 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 					 ipsec inet6 tcp_signature
-netipx/ipx.c			optional ipx
-netipx/ipx_cksum.c		optional ipx
-netipx/ipx_input.c		optional ipx
-netipx/ipx_outputfl.c		optional ipx
-netipx/ipx_pcb.c		optional ipx
-netipx/ipx_proto.c		optional ipx
-netipx/ipx_usrreq.c		optional ipx
-netipx/spx_debug.c		optional ipx
-netipx/spx_reass.c		optional ipx
-netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
