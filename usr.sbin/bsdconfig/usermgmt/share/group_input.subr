@@ -301,7 +301,7 @@ f_dialog_input_group_members()
 	                        \"\$DIALOG_BACKTITLE\" \
 	                        \"\$__prompt\"         \
 	                        \"\$__hline\"          \
-	                        $menu_list
+	                        $__menu_list
 
 	local __menu_choice __retval
 	while :; do
