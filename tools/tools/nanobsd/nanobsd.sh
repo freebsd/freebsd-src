@@ -228,7 +228,6 @@ build_kernel ( ) (
 	# unset these just in case to avoid compiler complaints
 	# when cross-building
 	unset TARGET_CPUTYPE
-	unset TARGET_BIG_ENDIAN
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
