@@ -136,6 +136,9 @@ NANO_BOOT2CFG="-h"
 # Can be "file" or "swap"
 NANO_MD_BACKING="file"
 
+# for swap type md(4) backing, write out the mbr only
+NANO_IMAGE_MBRONLY=true
+
 # Progress Print level
 PPLEVEL=3
 
@@ -573,6 +576,14 @@ create_i386_diskimage ( ) (
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		if [ ${NANO_IMAGE_MBRONLY} ]; then
+			echo "Writing out _.disk.mbr..."
+			dd if=/dev/${MD} of=${NANO_DISKIMGDIR}/_.disk.mbr bs=512 count=1
+		else
+			echo "Writing out ${NANO_IMGNAME}..."
+			dd if=/dev/${MD} of=${IMG} bs=64k
+		fi
+
 		echo "Writing out ${NANO_IMGNAME}..."
 		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
