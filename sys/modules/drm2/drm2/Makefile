@@ -44,7 +44,8 @@ SRCS	= \
 	ttm_execbuf_util.c \
 	ttm_memory.c \
 	ttm_page_alloc.c \
-	ttm_bo_vm.c
+	ttm_bo_vm.c \
+	ati_pcigart.c
 #ttm_agp_backend.c
 #ttm_page_alloc_dma.c
 
