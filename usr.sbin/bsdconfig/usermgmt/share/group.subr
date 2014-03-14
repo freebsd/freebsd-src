@@ -217,7 +217,7 @@ f_group_add()
 	f_dialog_title "$title"
 	$alert "$msg_group_added"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }
@@ -305,7 +305,7 @@ f_group_delete()
         f_dialog_title "$title"
 	$alert "$msg_group_deleted"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }
@@ -473,7 +473,7 @@ f_group_edit()
 	f_dialog_title "$title"
 	$alert "$msg_group_updated"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }
