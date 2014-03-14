@@ -315,8 +315,7 @@ if [ "$pgm" != "bsdconfig" ]; then
 	if indexfile=$( f_index_file "$pgm" ) &&
 	   cmd=$( f_index_menusel_command "$indexfile" "$pgm" )
 	then
-		f_dprintf "pgm=[%s] indexfile=[%s] cmd=[%s]" \
-		          "$pgm" "$indexfile" "$cmd"
+		f_dprintf "pgm=[%s] cmd=[%s] *=[%s]" "$pgm" "$cmd" "$*"
 		exec "$cmd" "$@" || exit 1
 	else
 		f_include $BSDCFG_SHARE/script.subr
