@@ -93,7 +93,7 @@ main(int ac, char **av)
 	char *p;
 	int version;
 	int entries;
-	int index;
+	int index, index2;
 	int parm;
 	int in;
 	int c;
@@ -182,7 +182,8 @@ main(int ac, char **av)
 		if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
 		    kvm_read(kd, nl[3].n_value, &bufptr,
 		    sizeof(bufptr)) == -1 ||
-		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1)
+		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1 ||
+		    kvm_read(kd, nl[2].n_value, &index2, sizeof(index2)) == -1)
 			errx(1, "%s", kvm_geterr(kd));
 	}
 
@@ -289,7 +290,14 @@ next:			if ((c = *p++) == '\0')
 		    parms[4], parms[5]);
 		fprintf(out, "\n");
 		if (!iflag) {
-			if (i == index)
+			/*
+			 * 'index' and 'index2' are the values of 'ktr_idx'
+			 * before and after the KTR buffer was copied into
+			 * 'buf'. Since the KTR entries between 'index' and
+			 * 'index2' were in flux while the KTR buffer was
+			 * being copied to userspace we don't dump them.
+			 */
+			if (i == index2)
 				break;
 			if (--i < 0)
 				i = entries - 1;
