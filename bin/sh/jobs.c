@@ -95,9 +95,9 @@ static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
 static int waitcmdloop(struct job *);
-static struct job *getjob_nonotfound(char *);
-static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
+static struct job *getjob_nonotfound(const char *);
+static struct job *getjob(const char *);
 static pid_t dowait(int, struct job *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
@@ -558,7 +558,7 @@ jobidcmd(int argc __unused, char **argv __unused)
  */
 
 static struct job *
-getjob_nonotfound(char *name)
+getjob_nonotfound(const char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -628,7 +628,7 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 
 
 static struct job *
-getjob(char *name)
+getjob(const char *name)
 {
 	struct job *jp;
 
