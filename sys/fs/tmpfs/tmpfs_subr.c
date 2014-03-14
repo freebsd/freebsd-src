@@ -348,6 +348,9 @@ tmpfs_dirent_hash(const char *name, u_int len)
 static __inline off_t
 tmpfs_dirent_cookie(struct tmpfs_dirent *de)
 {
+	if (de == NULL)
+		return (TMPFS_DIRCOOKIE_EOF);
+
 	MPASS(de->td_cookie >= TMPFS_DIRCOOKIE_MIN);
 
 	return (de->td_cookie);
@@ -1155,6 +1158,15 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 	TMPFS_VALIDATE_DIR(node);
 
 	off = 0;
+
+	/*
+	 * Lookup the node from the current offset.  The starting offset of
+	 * 0 will lookup both '.' and '..', and then the first real entry,
+	 * or EOF if there are none.  Then find all entries for the dir that
+	 * fit into the buffer.  Once no more entries are found (de == NULL),
+	 * the offset is set to TMPFS_DIRCOOKIE_EOF, which will cause the next
+	 * call to return 0.
+	 */
 	switch (uio->uio_offset) {
 	case TMPFS_DIRCOOKIE_DOT:
 		error = tmpfs_dir_getdotdent(node, uio);
@@ -1168,12 +1180,10 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		if (error != 0)
 			return (error);
 		de = tmpfs_dir_first(node, &dc);
-		if (de == NULL)
-			uio->uio_offset = TMPFS_DIRCOOKIE_EOF;
-		else
-			uio->uio_offset = tmpfs_dirent_cookie(de);
+		uio->uio_offset = tmpfs_dirent_cookie(de);
 		if (cnt != 0)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
+		/* EOF. */
 		if (de == NULL)
 			return (0);
 		break;
@@ -1252,10 +1262,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		if (error == 0) {
 			de = tmpfs_dir_next(node, &dc);
 			if (cnt != 0) {
-				if (de == NULL)
-					off = TMPFS_DIRCOOKIE_EOF;
-				else
-					off = tmpfs_dirent_cookie(de);
+				off = tmpfs_dirent_cookie(de);
 				MPASS(*ncookies < cnt);
 				cookies[(*ncookies)++] = off;
 			}
@@ -1263,12 +1270,8 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 	} while (error == 0 && uio->uio_resid > 0 && de != NULL);
 
 	/* Update the offset and cache. */
-	if (cnt == 0) {
-		if (de == NULL)
-			off = TMPFS_DIRCOOKIE_EOF;
-		else
-			off = tmpfs_dirent_cookie(de);
-	}
+	if (cnt == 0)
+		off = tmpfs_dirent_cookie(de);
 
 	uio->uio_offset = off;
 	node->tn_dir.tn_readdir_lastn = off;
