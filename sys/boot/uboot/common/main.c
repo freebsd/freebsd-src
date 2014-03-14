@@ -298,9 +298,10 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 } 
 
 static int
-probe_disks(int load_type, int load_unit, int load_slice, int load_partition)
+probe_disks(int devidx, int load_type, int load_unit, int load_slice, 
+    int load_partition)
 {
-	int i, open_result, unit;
+	int open_result, unit;
 	struct open_file f;
 
 	currdev.d_disk.slice = load_slice;
@@ -317,7 +318,7 @@ probe_disks(int load_type, int load_unit, int load_slice, int load_partition)
 			printf("Checking unit=%d slice=%d partition=%d...",
 			    currdev.d_unit, currdev.d_disk.slice, 
 			    currdev.d_disk.partition);
-			open_result = devsw[i]->dv_open(&f, &currdev);
+			open_result = devsw[devidx]->dv_open(&f, &currdev);
 			if (open_result == 0) {
 				printf(" good.\n");
 				return (0);
@@ -337,7 +338,7 @@ probe_disks(int load_type, int load_unit, int load_slice, int load_partition)
 			printf("Checking unit=%d slice=%d partition=%d...",
 			    currdev.d_unit, currdev.d_disk.slice, 
 			    currdev.d_disk.partition);
-			open_result = devsw[i]->dv_open(&f, &currdev);
+			open_result = devsw[devidx]->dv_open(&f, &currdev);
 			if (open_result == 0) {
 				printf(" good.\n");
 				return (0);
@@ -351,7 +352,7 @@ probe_disks(int load_type, int load_unit, int load_slice, int load_partition)
 		printf("Checking unit=%d slice=%d partition=%d...",
 		    currdev.d_unit, currdev.d_disk.slice,
 		    currdev.d_disk.partition);
-		open_result = devsw[i]->dv_open(&f,&currdev);
+		open_result = devsw[devidx]->dv_open(&f,&currdev);
 		if (open_result == 0) {
 			printf("good.\n");
 			return (0);
@@ -440,7 +441,7 @@ main(void)
 
 		if ((load_type == -1 || (load_type & DEV_TYP_STOR)) &&
 		    strcmp(devsw[i]->dv_name, "disk") == 0) {
-			if (probe_disks(load_type, load_unit, load_slice, 
+			if (probe_disks(i, load_type, load_unit, load_slice, 
 			    load_partition) == 0)
 				break;
 		}
