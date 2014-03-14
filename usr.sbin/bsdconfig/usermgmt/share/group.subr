@@ -163,7 +163,7 @@ f_group_add()
 			   elif [ "$group_password" ]; then
 			   	echo "$group_password" |
 			   		f_eval_catch $funcname \
-			   		pw '%s -h 0' "$cmd"
+			   			pw '%s -h 0' "$cmd"
 			   else
 			   	f_eval_catch $funcname pw '%s' "$cmd"
 			   fi && break
@@ -324,7 +324,9 @@ f_group_delete()
 # 		unchanged.
 # 	VAR_GROUP_MEMBERS [Optional]
 # 		Comma separated list of users that are a member of this group.
-# 		If NULL or unset, group membership is unmodified.
+# 		If set but NULL, group memberships are reset (no users will be
+# 		a member of this group). If unset, group membership is
+# 		unmodified.
 # 	VAR_GROUP_PASSWORD [Optional]
 # 		newgrp(1) password to set for the group. If unset, the password
 # 		is unmodified. If NULL, the newgrp(1) password is disabled.
@@ -409,9 +411,8 @@ f_group_edit()
 			   if [ "$group_password_disable" ]; then
 			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
 			   elif [ "$group_password" ]; then
-			   	echo "$group_password" |
-			   		f_eval_catch $funcname \
-			   			pw '%s -h 0' "$cmd"
+			   	echo "$group_password" | f_eval_catch \
+			   		$funcname pw '%s -h 0' "$cmd"
 			   else
 			   	f_eval_catch $funcname pw '%s' "$cmd"
 			   fi && break
@@ -424,7 +425,7 @@ f_group_edit()
 
 			   if ! f_input_group "$mtag"; then
 			   	f_show_err "$msg_group_not_found" "$mtag"
-			   	# Attempt to fall back to prevoius selection
+			   	# Attempt to fall back to previous selection
 			   	f_input_group "$input" || return $FAILURE
 			   else
 			   	input="$mtag"
