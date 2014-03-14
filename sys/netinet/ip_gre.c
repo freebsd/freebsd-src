@@ -41,7 +41,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_atalk.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -72,12 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #else
 #error "ip_gre requires INET"
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
 #endif
 
 /* Needs IP headers. */
@@ -177,12 +170,6 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		case ETHERTYPE_IPV6:
 			isr = NETISR_IPV6;
 			af = AF_INET6;
-			break;
-#endif
-#ifdef NETATALK
-		case ETHERTYPE_ATALK:
-			isr = NETISR_ATALK1;
-			af = AF_APPLETALK;
 			break;
 #endif
 		default:

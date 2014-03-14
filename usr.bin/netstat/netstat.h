@@ -130,8 +130,6 @@ void	flowtable_stats(void);
 
 char	*routename(in_addr_t);
 char	*netname(in_addr_t, in_addr_t);
-char	*atalk_print(struct sockaddr *, int);
-char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
 char	*ns_print(struct sockaddr *);
 void	routepr(int, int);
 
@@ -139,9 +137,6 @@ void	nsprotopr(u_long, const char *, int, int);
 void	spp_stats(u_long, const char *, int, int);
 void	idp_stats(u_long, const char *, int, int);
 void	nserr_stats(u_long, const char *, int, int);
-
-void	atalkprotopr(u_long, const char *, int, int);
-void	ddp_stats(u_long, const char *, int, int);
 
 #ifdef NETGRAPH
 void	netgraphprotopr(u_long, const char *, int, int);

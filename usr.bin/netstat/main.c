@@ -80,81 +80,77 @@ static struct nlist nl[] = {
 	{ .n_name = "_mfchashtbl" },
 #define	N_VIFTABLE	4
 	{ .n_name = "_viftable" },
-#define	N_DDPSTAT	5
-	{ .n_name = "_ddpstat"},
-#define	N_DDPCB		6
-	{ .n_name = "_ddpcb"},
-#define	N_NGSOCKS	7
+#define	N_NGSOCKS	5
 	{ .n_name = "_ngsocklist"},
-#define	N_IP6STAT	8
+#define	N_IP6STAT	6
 	{ .n_name = "_ip6stat" },
-#define	N_ICMP6STAT	9
+#define	N_ICMP6STAT	7
 	{ .n_name = "_icmp6stat" },
-#define	N_IPSECSTAT	10
+#define	N_IPSECSTAT	8
 	{ .n_name = "_ipsec4stat" },
-#define	N_IPSEC6STAT	11
+#define	N_IPSEC6STAT	9
 	{ .n_name = "_ipsec6stat" },
-#define	N_PIM6STAT	12
+#define	N_PIM6STAT	10
 	{ .n_name = "_pim6stat" },
-#define	N_MRT6STAT	13
+#define	N_MRT6STAT	11
 	{ .n_name = "_mrt6stat" },
-#define	N_MF6CTABLE	14
+#define	N_MF6CTABLE	12
 	{ .n_name = "_mf6ctable" },
-#define	N_MIF6TABLE	15
+#define	N_MIF6TABLE	13
 	{ .n_name = "_mif6table" },
-#define	N_PFKEYSTAT	16
+#define	N_PFKEYSTAT	14
 	{ .n_name = "_pfkeystat" },
-#define	N_RTTRASH	17
+#define	N_RTTRASH	15
 	{ .n_name = "_rttrash" },
-#define	N_CARPSTAT	18
+#define	N_CARPSTAT	16
 	{ .n_name = "_carpstats" },
-#define	N_PFSYNCSTAT	19
+#define	N_PFSYNCSTAT	17
 	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	20
+#define	N_AHSTAT	18
 	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	21
+#define	N_ESPSTAT	19
 	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	22
+#define	N_IPCOMPSTAT	20
 	{ .n_name = "_ipcompstat" },
-#define	N_TCPSTAT	23
+#define	N_TCPSTAT	21
 	{ .n_name = "_tcpstat" },
-#define	N_UDPSTAT	24
+#define	N_UDPSTAT	22
 	{ .n_name = "_udpstat" },
-#define	N_IPSTAT	25
+#define	N_IPSTAT	23
 	{ .n_name = "_ipstat" },
-#define	N_ICMPSTAT	26
+#define	N_ICMPSTAT	24
 	{ .n_name = "_icmpstat" },
-#define	N_IGMPSTAT	27
+#define	N_IGMPSTAT	25
 	{ .n_name = "_igmpstat" },
-#define	N_PIMSTAT	28
+#define	N_PIMSTAT	26
 	{ .n_name = "_pimstat" },
-#define	N_TCBINFO	29
+#define	N_TCBINFO	27
 	{ .n_name = "_tcbinfo" },
-#define	N_UDBINFO	30
+#define	N_UDBINFO	28
 	{ .n_name = "_udbinfo" },
-#define	N_DIVCBINFO	31
+#define	N_DIVCBINFO	29
 	{ .n_name = "_divcbinfo" },
-#define	N_RIPCBINFO	32
+#define	N_RIPCBINFO	30
 	{ .n_name = "_ripcbinfo" },
-#define	N_UNP_COUNT	33
+#define	N_UNP_COUNT	31
 	{ .n_name = "_unp_count" },
-#define	N_UNP_GENCNT	34
+#define	N_UNP_GENCNT	32
 	{ .n_name = "_unp_gencnt" },
-#define	N_UNP_DHEAD	35
+#define	N_UNP_DHEAD	33
 	{ .n_name = "_unp_dhead" },
-#define	N_UNP_SHEAD	36
+#define	N_UNP_SHEAD	34
 	{ .n_name = "_unp_shead" },
-#define	N_RIP6STAT	37
+#define	N_RIP6STAT	36
 	{ .n_name = "_rip6stat" },
-#define	N_SCTPSTAT	38
+#define	N_SCTPSTAT	36
 	{ .n_name = "_sctpstat" },
-#define	N_MFCTABLESIZE	39
+#define	N_MFCTABLESIZE	37
 	{ .n_name = "_mfctablesize" },
-#define	N_ARPSTAT       40
+#define	N_ARPSTAT       38
 	{ .n_name = "_arpstat" },
-#define	N_UNP_SPHEAD	41
+#define	N_UNP_SPHEAD	39
 	{ .n_name = "unp_sphead" },
-#define	N_SFSTAT	42
+#define	N_SFSTAT	40
 	{ .n_name = "_sfstat"},
 	{ .n_name = NULL },
 };
@@ -254,12 +250,6 @@ struct protox pfkeyprotox[] = {
 };
 #endif
 
-struct protox atalkprotox[] = {
-	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
-	  ddp_stats,	NULL,		"ddp",	0,	0 },
-	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0,	0 }
-};
 #ifdef NETGRAPH
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
@@ -279,7 +269,7 @@ struct protox *protoprotox[] = {
 #ifdef IPSEC
 					 pfkeyprotox,
 #endif
-					 atalkprotox, NULL };
+					 NULL };
 
 static void printproto(struct protox *, const char *);
 static void usage(void);
@@ -380,8 +370,6 @@ main(int argc, char *argv[])
 #endif
 			else if (strcmp(optarg, "unix") == 0)
 				af = AF_UNIX;
-			else if (strcmp(optarg, "atalk") == 0)
-				af = AF_APPLETALK;
 #ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
 			    || strcmp(optarg, "netgraph") == 0)
@@ -595,9 +583,6 @@ main(int argc, char *argv[])
 		for (tp = pfkeyprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif /*IPSEC*/
-	if (af == AF_APPLETALK || af == AF_UNSPEC)
-		for (tp = atalkprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
 #ifdef NETGRAPH
 	if (af == AF_NETGRAPH || af == AF_UNSPEC)
 		for (tp = netgraphprotox; tp->pr_name; tp++)

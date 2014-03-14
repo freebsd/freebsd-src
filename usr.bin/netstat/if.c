@@ -323,12 +323,6 @@ intpr(int interval, void (*pfunc)(char *), int af)
 			break;
 	            }
 #endif /* INET6 */
-		case AF_APPLETALK:
-			printf("atalk:%-12.12s ",
-			    atalk_print(ifa->ifa_addr, 0x10));
-			printf("%-11.11s  ",
-			    atalk_print(ifa->ifa_addr, 0x0b));
-			break;
 		case AF_LINK:
 		    {
 			struct sockaddr_dl *sdl;

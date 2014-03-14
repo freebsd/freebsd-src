@@ -34,7 +34,6 @@
  * Loopback interface driver for protocol testing and timing.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -69,11 +68,6 @@
 #endif
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -267,8 +261,6 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
-	case AF_APPLETALK:
-		break;
 	default:
 		printf("looutput: af=%d unexpected\n", af);
 		m_freem(m);
@@ -359,11 +351,6 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 	case AF_INET6:
 		m->m_flags |= M_LOOP;
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
 		break;
 #endif
 	default:

@@ -41,7 +41,6 @@
  * Also supported:  IP in IP encaps (proto 55) as of RFC 2004
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -438,11 +437,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		case AF_INET6:
 			gre_ip_id = ip_newid();
 			etype = ETHERTYPE_IPV6;
-			break;
-#endif
-#ifdef NETATALK
-		case AF_APPLETALK:
-			etype = ETHERTYPE_ATALK;
 			break;
 #endif
 		default:

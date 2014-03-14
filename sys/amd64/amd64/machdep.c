@@ -41,7 +41,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"

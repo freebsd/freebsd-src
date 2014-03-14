@@ -606,9 +606,6 @@ options 	IPSEC			#IP security (requires device crypto)
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
-options 	NETATALK		#Appletalk communications protocols
-options 	NETATALKDEBUG		#Appletalk debugging
-
 #
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
@@ -1070,7 +1067,7 @@ options 	MD_ROOT
 options 	QUOTA			#enable disk quotas
 
 # If you are running a machine just as a fileserver for PC and MAC
-# users, using SAMBA or Netatalk, you may consider setting this option
+# users, using SAMBA, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similar to group). It's a security hole

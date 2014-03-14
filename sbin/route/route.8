@@ -144,7 +144,6 @@ will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
 .Fl osi ,
 .Fl xns ,
-.Fl atalk ,
 .Fl inet6 ,
 or
 .Fl inet
@@ -255,14 +254,12 @@ if the local or remote addresses change.
 The optional modifiers
 .Fl xns ,
 .Fl osi ,
-.Fl atalk ,
 and
 .Fl link
 specify that all subsequent addresses are in the
-.Tn XNS ,
-.Tn OSI ,
+.Tn XNS
 or
-.Tn AppleTalk
+.Tn OSI
 address families,
 or are specified as link-level addresses,
 and the names must be numeric specifications rather than

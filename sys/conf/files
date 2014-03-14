@@ -3168,14 +3168,6 @@ net80211/ieee80211_tdma.c	optional wlan ieee80211_support_tdma
 net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan wlan_xauth
 net80211/ieee80211_alq.c	optional wlan ieee80211_alq
-netatalk/aarp.c			optional netatalk
-netatalk/at_control.c		optional netatalk
-netatalk/at_proto.c		optional netatalk
-netatalk/at_rmx.c		optional netatalk
-netatalk/ddp_input.c		optional netatalk
-netatalk/ddp_output.c		optional netatalk
-netatalk/ddp_pcb.c		optional netatalk
-netatalk/ddp_usrreq.c		optional netatalk
 netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/atm/ng_atm.c		optional ngatm_atm
@@ -3775,7 +3767,6 @@ security/audit/bsm_errno.c	optional audit
 security/audit/bsm_fcntl.c	optional audit
 security/audit/bsm_socket_type.c	optional audit
 security/audit/bsm_token.c	optional audit
-security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac
 security/mac/mac_framework.c	optional mac
