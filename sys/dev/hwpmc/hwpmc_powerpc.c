@@ -96,7 +96,7 @@ powerpc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	if ((error = copystr(powerpc_name, pi->pm_name, PMC_NAME_MAX,
 	    NULL)) != 0)
 		return error;
-	pi->pm_class = PMC_CLASS_PPC7450;
+	pi->pm_class = powerpc_pcpu[cpu]->pc_class;
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
 		*ppmc          = phw->phw_pmc;
@@ -133,8 +133,6 @@ pmc_md_initialize()
 	/* Just one class */
 	pmc_mdep = pmc_mdep_alloc(1);
 
-	pmc_mdep->pmd_cputype = PMC_CPU_PPC_7450;
-
 	vers = mfpvr() >> 16;
 
 	pmc_mdep->pmd_switch_in  = powerpc_switch_in;
@@ -151,6 +149,8 @@ pmc_md_initialize()
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:
+		error = pmc_ppc970_initialize(pmc_mdep);
+		break;
 	default:
 		error = -1;
 		break;
@@ -159,7 +159,6 @@ pmc_md_initialize()
 	if (error != 0) {
 		pmc_mdep_free(pmc_mdep);
 		pmc_mdep = NULL;
-		return NULL;
 	}
 
 	return (pmc_mdep);
@@ -168,7 +167,9 @@ pmc_md_initialize()
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
-	free(md, M_PMC);
+
+	free(powerpc_pcpu, M_PMC);
+	powerpc_pcpu = NULL;
 }
 
 int
