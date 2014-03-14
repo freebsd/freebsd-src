@@ -87,7 +87,7 @@ vt_efb_init(struct vt_device *vd)
 		kmdp = preload_search_by_type("elf64 kernel");
         efifb = (struct efi_fb *)preload_search_info(kmdp,
             MODINFO_METADATA | MODINFOMD_EFI_FB);
-        if (!efifb->fb_present)
+	if (efifb == NULL)
 		return (CN_DEAD);
 
 	info->fb_height = efifb->fb_height;
