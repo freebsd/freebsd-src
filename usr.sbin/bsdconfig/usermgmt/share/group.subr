@@ -202,8 +202,8 @@ f_group_add()
 		if [ "$group_password_disable" ]; then
 			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			echo "$group_password" | f_eval_catch -k err \
-				$funcname pw '%s -h 0' "$cmd"
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
 		else
 			f_eval_catch -k err $funcname pw '%s' "$cmd"
 		fi
@@ -458,8 +458,8 @@ f_group_edit()
 		if [ "$group_password_disable" ]; then
 			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" -o "$null_password" ]; then
-			echo "$group_password" | f_eval_catch -k err \
-				$funcname pw '%s -h 0' "$cmd"
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
 		else
 			f_eval_catch -k err $funcname pw '%s' "$cmd"
 		fi
