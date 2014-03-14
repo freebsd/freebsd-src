@@ -86,7 +86,7 @@ NANO_CUSTOMIZE=""
 NANO_LATE_CUSTOMIZE=""
 
 # Newfs paramters to use
-NANO_NEWFS="-b 4096 -f 512 -i 8192 -O2 -U"
+NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
 NANO_DRIVE=ad0
