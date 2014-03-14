@@ -27,4 +27,4 @@ ATF_TESTS_SH=	cp_test
 # definitions from above.
 KYUAFILE=	yes
 
-.include <atf.test.mk>
+.include <bsd.test.mk>
