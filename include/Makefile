@@ -37,9 +37,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm netsmb \
-	nfs nfsclient nfsserver \
-	sys vm
+	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
@@ -75,11 +73,6 @@ INCS+=	hesiod.h
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
-
-# XXX unconditionally needed by <netsmb/netbios.h>
-#.if ${MK_IPX} != "no"
-_netipx=	netipx
-#.endif
 
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"

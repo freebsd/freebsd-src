@@ -2074,24 +2074,6 @@ OLD_FILES+=usr/share/man/man8/ipfwpcap.8.gz
 OLD_FILES+=usr/share/man/man8/natd.8.gz
 .endif
 
-.if ${MK_IPX} == no
-OLD_LIBS+=lib/libipx.so.5
-OLD_FILES+=usr/lib/libipx.a
-OLD_FILES+=usr/lib/libipx.so
-OLD_FILES+=usr/lib/libipx_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/libipx.a
-OLD_FILES+=usr/lib32/libipx.so
-OLD_LIBS+=usr/lib32/libipx.so.5
-OLD_FILES+=usr/lib32/libipx_p.a
-.endif
-OLD_FILES+=usr/sbin/IPXrouted
-OLD_FILES+=usr/share/man/man3/ipx.3.gz
-OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
-OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
-OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
-.endif
-
 .if ${MK_JAIL} == no
 OLD_FILES+=usr/sbin/jail
 OLD_FILES+=usr/sbin/jexec
@@ -3688,7 +3670,6 @@ OLD_FILES+=usr/lib/libheimbase_p.a
 OLD_FILES+=usr/lib/libheimsqlite_p.a
 OLD_FILES+=usr/lib/libhistory_p.a
 OLD_FILES+=usr/lib/libipsec_p.a
-OLD_FILES+=usr/lib/libipx_p.a
 OLD_FILES+=usr/lib/libjail_p.a
 OLD_FILES+=usr/lib/libkadm5clnt_p.a
 OLD_FILES+=usr/lib/libkadm5srv_p.a

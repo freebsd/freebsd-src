@@ -67,9 +67,6 @@ LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a
 LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
-.if ${MK_IPX} != "no"
-LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-.endif
 LIBJAIL?=	${DESTDIR}${LIBDIR}/libjail.a
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a
 LIBKADM5SRV?=	${DESTDIR}${LIBDIR}/libkadm5srv.a

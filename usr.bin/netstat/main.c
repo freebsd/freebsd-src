@@ -70,99 +70,91 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 
 static struct nlist nl[] = {
-#define	N_IFNET		0
-	{ .n_name = "_ifnet" },		/* XXXGL: can be deleted */
-#define	N_RTSTAT	1
+#define	N_RTSTAT	0
 	{ .n_name = "_rtstat" },
-#define	N_RTREE		2
+#define	N_RTREE		1
 	{ .n_name = "_rt_tables"},
-#define	N_MRTSTAT	3
+#define	N_MRTSTAT	2
 	{ .n_name = "_mrtstat" },
-#define	N_MFCHASHTBL	4
+#define	N_MFCHASHTBL	3
 	{ .n_name = "_mfchashtbl" },
-#define	N_VIFTABLE	5
+#define	N_VIFTABLE	4
 	{ .n_name = "_viftable" },
-#define	N_IPX		6
-	{ .n_name = "_ipxpcb_list"},
-#define	N_IPXSTAT	7
-	{ .n_name = "_ipxstat"},
-#define	N_SPXSTAT	8
-	{ .n_name = "_spx_istat"},
-#define	N_DDPSTAT	9
+#define	N_DDPSTAT	5
 	{ .n_name = "_ddpstat"},
-#define	N_DDPCB		10
+#define	N_DDPCB		6
 	{ .n_name = "_ddpcb"},
-#define	N_NGSOCKS	11
+#define	N_NGSOCKS	7
 	{ .n_name = "_ngsocklist"},
-#define	N_IP6STAT	12
+#define	N_IP6STAT	8
 	{ .n_name = "_ip6stat" },
-#define	N_ICMP6STAT	13
+#define	N_ICMP6STAT	9
 	{ .n_name = "_icmp6stat" },
-#define	N_IPSECSTAT	14
+#define	N_IPSECSTAT	10
 	{ .n_name = "_ipsec4stat" },
-#define	N_IPSEC6STAT	15
+#define	N_IPSEC6STAT	11
 	{ .n_name = "_ipsec6stat" },
-#define	N_PIM6STAT	16
+#define	N_PIM6STAT	12
 	{ .n_name = "_pim6stat" },
-#define	N_MRT6STAT	17
+#define	N_MRT6STAT	13
 	{ .n_name = "_mrt6stat" },
-#define	N_MF6CTABLE	18
+#define	N_MF6CTABLE	14
 	{ .n_name = "_mf6ctable" },
-#define	N_MIF6TABLE	19
+#define	N_MIF6TABLE	15
 	{ .n_name = "_mif6table" },
-#define	N_PFKEYSTAT	20
+#define	N_PFKEYSTAT	16
 	{ .n_name = "_pfkeystat" },
-#define	N_RTTRASH	21
+#define	N_RTTRASH	17
 	{ .n_name = "_rttrash" },
-#define	N_CARPSTAT	22
+#define	N_CARPSTAT	18
 	{ .n_name = "_carpstats" },
-#define	N_PFSYNCSTAT	23
+#define	N_PFSYNCSTAT	19
 	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	24
+#define	N_AHSTAT	20
 	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	25
+#define	N_ESPSTAT	21
 	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	26
+#define	N_IPCOMPSTAT	22
 	{ .n_name = "_ipcompstat" },
-#define	N_TCPSTAT	27
+#define	N_TCPSTAT	23
 	{ .n_name = "_tcpstat" },
-#define	N_UDPSTAT	28
+#define	N_UDPSTAT	24
 	{ .n_name = "_udpstat" },
-#define	N_IPSTAT	29
+#define	N_IPSTAT	25
 	{ .n_name = "_ipstat" },
-#define	N_ICMPSTAT	30
+#define	N_ICMPSTAT	26
 	{ .n_name = "_icmpstat" },
-#define	N_IGMPSTAT	31
+#define	N_IGMPSTAT	27
 	{ .n_name = "_igmpstat" },
-#define	N_PIMSTAT	32
+#define	N_PIMSTAT	28
 	{ .n_name = "_pimstat" },
-#define	N_TCBINFO	33
+#define	N_TCBINFO	29
 	{ .n_name = "_tcbinfo" },
-#define	N_UDBINFO	34
+#define	N_UDBINFO	30
 	{ .n_name = "_udbinfo" },
-#define	N_DIVCBINFO	35
+#define	N_DIVCBINFO	31
 	{ .n_name = "_divcbinfo" },
-#define	N_RIPCBINFO	36
+#define	N_RIPCBINFO	32
 	{ .n_name = "_ripcbinfo" },
-#define	N_UNP_COUNT	37
+#define	N_UNP_COUNT	33
 	{ .n_name = "_unp_count" },
-#define	N_UNP_GENCNT	38
+#define	N_UNP_GENCNT	34
 	{ .n_name = "_unp_gencnt" },
-#define	N_UNP_DHEAD	39
+#define	N_UNP_DHEAD	35
 	{ .n_name = "_unp_dhead" },
-#define	N_UNP_SHEAD	40
+#define	N_UNP_SHEAD	36
 	{ .n_name = "_unp_shead" },
-#define	N_RIP6STAT	41
+#define	N_RIP6STAT	37
 	{ .n_name = "_rip6stat" },
-#define	N_SCTPSTAT	42
+#define	N_SCTPSTAT	38
 	{ .n_name = "_sctpstat" },
-#define	N_MFCTABLESIZE	43
+#define	N_MFCTABLESIZE	39
 	{ .n_name = "_mfctablesize" },
-#define	N_ARPSTAT       44
+#define	N_ARPSTAT       40
 	{ .n_name = "_arpstat" },
-#define	N_UNP_SPHEAD	45
+#define	N_UNP_SPHEAD	41
 	{ .n_name = "unp_sphead" },
-#define	N_SFSTAT	46
+#define	N_SFSTAT	42
 	{ .n_name = "_sfstat"},
 	{ .n_name = NULL },
 };
@@ -278,16 +270,6 @@ struct protox netgraphprotox[] = {
 	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif
-#ifdef IPX
-struct protox ipxprotox[] = {
-	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
-	  ipx_stats,	NULL,		"ipx",	0,	0 },
-	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
-	  spx_stats,	NULL,		"spx",	0,	0 },
-	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		0,	0,	0 }
-};
-#endif
 
 struct protox *protoprotox[] = {
 					 protox,
@@ -296,9 +278,6 @@ struct protox *protoprotox[] = {
 #endif
 #ifdef IPSEC
 					 pfkeyprotox,
-#endif
-#ifdef IPX
-					 ipxprotox,
 #endif
 					 atalkprotox, NULL };
 
@@ -389,9 +368,7 @@ main(int argc, char *argv[])
 				errx(1, "%s: invalid fib", optarg);
 			break;
 		case 'f':
-			if (strcmp(optarg, "ipx") == 0)
-				af = AF_IPX;
-			else if (strcmp(optarg, "inet") == 0)
+			if (strcmp(optarg, "inet") == 0)
 				af = AF_INET;
 #ifdef INET6
 			else if (strcmp(optarg, "inet6") == 0)
@@ -618,12 +595,6 @@ main(int argc, char *argv[])
 		for (tp = pfkeyprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif /*IPSEC*/
-#ifdef IPX
-	if (af == AF_IPX || af == AF_UNSPEC) {
-		for (tp = ipxprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
-	}
-#endif /* IPX */
 	if (af == AF_APPLETALK || af == AF_UNSPEC)
 		for (tp = atalkprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);

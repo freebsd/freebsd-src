@@ -3744,12 +3744,6 @@ prison_priv_check(struct ucred *cred, int priv)
 
 #ifdef notyet
 		/*
-		 * IPX/SPX privileges.
-		 */
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
-
-		/*
 		 * NCP privileges.
 		 */
 	case PRIV_NETNCP:

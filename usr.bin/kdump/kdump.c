@@ -60,10 +60,6 @@ extern int errno;
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#ifdef IPX
-#include <sys/types.h>
-#include <netipx/ipx.h>
-#endif
 #ifdef NETATALK
 #include <netatalk/at.h>
 #endif
@@ -1686,19 +1682,6 @@ ktrsockaddr(struct sockaddr *sa)
 		printf("[%s]:%u", addr, htons(sa_in6.sin6_port));
 		break;
 	}
-#ifdef IPX
-	case AF_IPX: {
-		struct sockaddr_ipx sa_ipx;
-
-		memset(&sa_ipx, 0, sizeof(sa_ipx));
-		memcpy(&sa_ipx, sa, sa->sa_len);
-		check_sockaddr_len(ipx);
-		/* XXX wish we had ipx_ntop */
-		printf("%s", ipx_ntoa(sa_ipx.sipx_addr));
-		free(sa_ipx);
-		break;
-	}
-#endif
 	case AF_UNIX: {
 		struct sockaddr_un sa_un;
 

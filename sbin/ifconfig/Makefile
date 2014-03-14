@@ -53,11 +53,6 @@ CFLAGS+= -DINET6
 .if ${MK_INET_SUPPORT} != "no"
 CFLAGS+= -DINET
 .endif
-.if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
-SRCS+=	af_ipx.c		# IPX support
-DPADD+=	${LIBIPX}
-LDADD+=	-lipx
-.endif
 .if ${MK_JAIL} != "no" && !defined(RELEASE_CRUNCH) && !defined(RESCUE)
 CFLAGS+= -DJAIL
 DPADD+= ${LIBJAIL}

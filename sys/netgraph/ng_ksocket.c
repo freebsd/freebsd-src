@@ -122,7 +122,6 @@ static const struct ng_ksocket_alias ng_ksocket_families[] = {
 	{ "inet",	PF_INET		},
 	{ "inet6",	PF_INET6	},
 	{ "atalk",	PF_APPLETALK	},
-	{ "ipx",	PF_IPX		},
 	{ "atm",	PF_ATM		},
 	{ NULL,		-1		},
 };
@@ -303,7 +302,6 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 #if 0
 	case PF_APPLETALK:	/* XXX implement these someday */
 	case PF_INET6:
-	case PF_IPX:
 #endif
 
 	default:
@@ -367,7 +365,6 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 #if 0
 	case PF_APPLETALK:	/* XXX implement these someday */
 	case PF_INET6:
-	case PF_IPX:
 #endif
 
 	default:

@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"

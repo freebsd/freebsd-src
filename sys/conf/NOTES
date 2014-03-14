@@ -606,8 +606,6 @@ options 	IPSEC			#IP security (requires device crypto)
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
-options 	IPX			#IPX/SPX communications protocols
-
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
 
@@ -885,14 +883,6 @@ options 	XBONEHACK
 #  The `stf' device implements 6to4 encapsulation.
 device		faith
 device		stf
-
-#  The `ef' device provides support for multiple ethernet frame types
-#  specified via ETHER_* options. See ef(4) for details.
-device		ef
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.

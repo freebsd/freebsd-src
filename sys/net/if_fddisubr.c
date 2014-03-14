@@ -39,7 +39,6 @@
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,11 +69,6 @@
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h> 
-#include <netipx/ipx_if.h>
 #endif
 
 #ifdef DECNET
@@ -184,13 +178,6 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif /* INET6 */
-#ifdef IPX
-	case AF_IPX:
-		type = htons(ETHERTYPE_IPX);
- 		bcopy(&((const struct sockaddr_ipx *)dst)->sipx_addr.x_host,
-		    edst, FDDI_ADDR_LEN);
-		break;
-#endif /* IPX */
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
@@ -518,11 +505,6 @@ fddi_input(ifp, m)
 			isr = NETISR_IPV6;
 			break;
 #endif
-#ifdef IPX      
-		case ETHERTYPE_IPX: 
-			isr = NETISR_IPX;
-			break;  
-#endif   
 #ifdef DECNET
 		case ETHERTYPE_DECNET:
 			isr = NETISR_DECNET;
@@ -638,31 +620,6 @@ fddi_ioctl (ifp, command, data)
 		case AF_INET:	/* before arpwhohas */
 			ifp->if_init(ifp->if_softc);
 			arp_ifinit(ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX: {
-				struct ipx_addr *ina;
-
-				ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina)) {
-					ina->x_host = *(union ipx_host *)
-							IF_LLADDR(ifp);
-				} else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) IF_LLADDR(ifp),
-					      ETHER_ADDR_LEN);
-				}
-	
-				/*
-				 * Set new address
-				 */
-				ifp->if_init(ifp->if_softc);
-			}
 			break;
 #endif
 		default:
