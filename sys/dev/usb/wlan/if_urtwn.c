@@ -2098,6 +2098,10 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	urtwn_write_1(sc, R92C_MCUFWDL + 2,
 	    urtwn_read_1(sc, R92C_MCUFWDL + 2) & ~0x08);
 
+	/* Reset the FWDL checksum. */
+	urtwn_write_1(sc, R92C_MCUFWDL,
+	    urtwn_read_1(sc, R92C_MCUFWDL) | R92C_MCUFWDL_CHKSUM_RPT);
+
 	for (page = 0; len > 0; page++) {
 		mlen = min(len, R92C_FW_PAGE_SIZE);
 		error = urtwn_fw_loadpage(sc, page, ptr, mlen);
