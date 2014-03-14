@@ -283,6 +283,21 @@ f_variable_new VAR_SLOW_ETHER		slowEthernetCard
 f_variable_new VAR_TRY_DHCP		tryDHCP
 f_variable_new VAR_TRY_RTSOL		tryRTSOL
 f_variable_new VAR_UFS_PATH		ufs
+f_variable_new VAR_USER			user
+f_variable_new VAR_USER_ACCOUNT_EXPIRE	userAccountExpire
+f_variable_new VAR_USER_DOTFILES_CREATE	userDotfilesCreate
+f_variable_new VAR_USER_GECOS		userGecos
+f_variable_new VAR_USER_GID		userGid
+f_variable_new VAR_USER_GROUPS		userGroups
+f_variable_new VAR_USER_GROUP_DELETE	userGroupDelete
+f_variable_new VAR_USER_HOME		userHome
+f_variable_new VAR_USER_HOME_CREATE	userHomeCreate
+f_variable_new VAR_USER_HOME_DELETE	userHomeDelete
+f_variable_new VAR_USER_LOGIN_CLASS	userLoginClass
+f_variable_new VAR_USER_PASSWORD	userPassword
+f_variable_new VAR_USER_PASSWORD_EXPIRE	userPasswordExpire
+f_variable_new VAR_USER_SHELL		userShell
+f_variable_new VAR_USER_UID		userUid
 f_variable_new VAR_ZFSINTERACTIVE	zfsInteractive
 
 #
