@@ -167,6 +167,13 @@ NANO_DATADIR=""
 #
 #######################################################################
 
+nano_cleanup ( ) (
+	if [ $? -ne 0 ]; then
+		echo "Error encountered.  Check for errors in last log file." 1>&2
+	fi
+	exit $?
+)
+
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
@@ -576,7 +583,8 @@ create_i386_diskimage ( ) (
 	fi
 	mdconfig -d -u $MD
 
-	trap - 1 2 15 EXIT
+	trap - 1 2 15
+	trap nano_cleanup EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
 )
@@ -928,6 +936,8 @@ if [ $# -gt 0 ] ; then
 	echo "$0: Extraneous arguments supplied"
 	usage
 fi
+
+trap nano_cleanup EXIT
 
 #######################################################################
 # Setup and Export Internal variables
