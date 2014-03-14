@@ -38,6 +38,18 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140314: AppleTalk
+OLD_DIRS+=usr/include/netatalk
+OLD_FILES+=usr/include/netatalk/aarp.h
+OLD_FILES+=usr/include/netatalk/at.h
+OLD_FILES+=usr/include/netatalk/at_extern.h
+OLD_FILES+=usr/include/netatalk/at_var.h
+OLD_FILES+=usr/include/netatalk/ddp.h
+OLD_FILES+=usr/include/netatalk/ddp_pcb.h
+OLD_FILES+=usr/include/netatalk/ddp_var.h
+OLD_FILES+=usr/include/netatalk/endian.h
+OLD_FILES+=usr/include/netatalk/phase2.h
+
 # 20140314: Remove IPX/SPX
 OLD_LIBS+=lib/libipx.so.5
 OLD_FILES+=usr/include/netipx/ipx.h

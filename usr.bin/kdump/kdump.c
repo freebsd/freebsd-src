@@ -60,9 +60,6 @@ extern int errno;
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#ifdef NETATALK
-#include <netatalk/at.h>
-#endif
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <ctype.h>
@@ -1656,21 +1653,6 @@ ktrsockaddr(struct sockaddr *sa)
 		printf("%s:%u", addr, ntohs(sa_in.sin_port));
 		break;
 	}
-#ifdef NETATALK
-	case AF_APPLETALK: {
-		struct sockaddr_at	sa_at;
-		struct netrange		*nr;
-
-		memset(&sa_at, 0, sizeof(sa_at));
-		memcpy(&sa_at, sa, sa->sa_len);
-		check_sockaddr_len(at);
-		nr = &sa_at.sat_range.r_netrange;
-		printf("%d.%d, %d-%d, %d", ntohs(sa_at.sat_addr.s_net),
-			sa_at.sat_addr.s_node, ntohs(nr->nr_firstnet),
-			ntohs(nr->nr_lastnet), nr->nr_phase);
-		break;
-	}
-#endif
 	case AF_INET6: {
 		struct sockaddr_in6 sa_in6;
 

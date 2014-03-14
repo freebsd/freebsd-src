@@ -55,8 +55,6 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <netatalk/at.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
