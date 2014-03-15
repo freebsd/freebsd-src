@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -38,7 +40,6 @@
 #include "keyword.h"
 #include "misc.h"
 #include "stream.h"
-#include "queue.h"
 
 typedef long lineno_t;
 
