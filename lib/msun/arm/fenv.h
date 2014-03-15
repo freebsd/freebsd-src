@@ -54,11 +54,16 @@ typedef	__uint32_t	fexcept_t;
 #endif
 
 /* Rounding modes */
+#define	VFP_FE_TONEAREST	0x00000000
+#define	VFP_FE_UPWARD		0x00400000
+#define	VFP_FE_DOWNWARD		0x00800000
+#define	VFP_FE_TOWARDZERO	0x00c00000
+
 #ifdef __ARM_PCS_VFP
-#define	FE_TONEAREST	0x00000000
-#define	FE_UPWARD	0x00400000
-#define	FE_DOWNWARD	0x00800000
-#define	FE_TOWARDZERO	0x00c00000
+#define	FE_TONEAREST	VFP_FE_TONEAREST
+#define	FE_UPWARD	VFP_FE_UPWARD
+#define	FE_DOWNWARD	VFP_FE_DOWNWARD
+#define	FE_TOWARDZERO	VFP_FE_TOWARDZERO
 #else
 #define	FE_TONEAREST	0x0000
 #define	FE_TOWARDZERO	0x0001
@@ -92,6 +97,11 @@ int fegetenv(fenv_t *__envp);
 int feholdexcept(fenv_t *__envp);
 int fesetenv(const fenv_t *__envp);
 int feupdateenv(const fenv_t *__envp);
+#if __BSD_VISIBLE
+int feenableexcept(int __mask);
+int fedisableexcept(int __mask);
+int fegetexcept(void);
+#endif
 
 #else	/* __ARM_PCS_VFP */
 
