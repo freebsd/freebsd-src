@@ -1901,10 +1901,6 @@ rtrecv(void)
 			if (!rt_deladdr(ifcp, rta[RTAX_IFA], rta[RTAX_NETMASK]))
 				iface++;
 			break;
-		case RTM_OLDADD:
-		case RTM_OLDDEL:
-			trace(1, "\tnot supported yet, ignored\n");
-			break;
 		}
 
 	}
@@ -2467,17 +2463,9 @@ do { \
 	RTTYPE("REDIRECT", RTM_REDIRECT);
 	RTTYPE("MISS", RTM_MISS);
 	RTTYPE("LOCK", RTM_LOCK);
-	RTTYPE("OLDADD", RTM_OLDADD);
-	RTTYPE("OLDDEL", RTM_OLDDEL);
 	RTTYPE("NEWADDR", RTM_NEWADDR);
 	RTTYPE("DELADDR", RTM_DELADDR);
 	RTTYPE("IFINFO", RTM_IFINFO);
-#ifdef RTM_OLDADD
-	RTTYPE("OLDADD", RTM_OLDADD);
-#endif
-#ifdef RTM_OLDDEL
-	RTTYPE("OLDDEL", RTM_OLDDEL);
-#endif
 #ifdef RTM_OIFINFO
 	RTTYPE("OIFINFO", RTM_OIFINFO);
 #endif
@@ -2518,17 +2506,8 @@ do { \
 #ifdef	RTF_MASK
 	RTFLAG("m", RTF_MASK);
 #endif
-#ifdef RTF_CLONING
-	RTFLAG("C", RTF_CLONING);
-#endif
 #ifdef RTF_CLONED
 	RTFLAG("c", RTF_CLONED);
-#endif
-#ifdef RTF_PRCLONING
-	RTFLAG("c", RTF_PRCLONING);
-#endif
-#ifdef RTF_WASCLONED
-	RTFLAG("W", RTF_WASCLONED);
 #endif
 	RTFLAG("X", RTF_XRESOLVE);
 #ifdef RTF_LLINFO
