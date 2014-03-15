@@ -82,6 +82,8 @@ struct vatpic {
 	struct mtx	mtx;
 	struct atpic	atpic[2];
 	uint8_t		elc[2];
+
+	bool		intr_raised;
 };
 
 #define	VATPIC_CTR0(vatpic, fmt)					\
@@ -148,6 +150,9 @@ vatpic_notify_intr(struct vatpic *vatpic)
 
 	KASSERT(VATPIC_LOCKED(vatpic), ("vatpic_notify_intr not locked"));
 
+	if (vatpic->intr_raised == true)
+		return;
+
 	/* XXX master only */
 	atpic = &vatpic->atpic[0];
 
@@ -155,8 +160,32 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		VATPIC_CTR4(vatpic, "atpic notify pin = %d "
 		    "(imr 0x%x irr 0x%x isr 0x%x)", pin,
 		    atpic->mask, atpic->request, atpic->service);
+
+		/*
+		 * PIC interrupts are routed to both the Local APIC
+		 * and the I/O APIC to support operation in 1 of 3
+		 * modes.
+		 *
+		 * 1. Legacy PIC Mode: the PIC effectively bypasses
+		 * all APIC components.  In mode '1' the local APIC is
+		 * disabled and LINT0 is reconfigured as INTR to
+		 * deliver the PIC interrupt directly to the CPU.
+		 *
+		 * 2. Virtual Wire Mode: the APIC is treated as a
+		 * virtual wire which delivers interrupts from the PIC
+		 * to the CPU.  In mode '2' LINT0 is programmed as
+		 * ExtINT to indicate that the PIC is the source of
+		 * the interrupt.
+		 *
+		 * 3. Symmetric I/O Mode: PIC interrupts are fielded
+		 * by the I/O APIC and delivered to the appropriate
+		 * CPU.  In mode '3' the I/O APIC input 0 is
+		 * programmed as ExtINT to indicate that the PIC is
+		 * the source of the interrupt.
+		 */
 		lapic_set_local_intr(vatpic->vm, -1, APIC_LVT_LINT0);
 		vioapic_pulse_irq(vatpic->vm, 0);
+		vatpic->intr_raised = true;
 	} else {
 		VATPIC_CTR3(vatpic, "atpic no eligible interrupts "
 		    "(imr 0x%x irr 0x%x isr 0x%x)",
@@ -384,7 +413,7 @@ vatpic_pulse_irq(struct vm *vm, int irq)
 	return (vatpic_set_irqstate(vm, irq, IRQSTATE_PULSE));
 }
 
-int
+void
 vatpic_pending_intr(struct vm *vm, int *vecptr)
 {
 	struct vatpic *vatpic;
@@ -405,8 +434,6 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 	*vecptr = atpic->irq_base + pin;
 
 	VATPIC_UNLOCK(vatpic);
-
-	return (1);
 }
 
 void
@@ -422,6 +449,8 @@ vatpic_intr_accepted(struct vm *vm, int vector)
 	atpic = &vatpic->atpic[0];
 
 	VATPIC_LOCK(vatpic);
+	vatpic->intr_raised = false;
+
 	pin = vector & 0x7;
 
 	if (atpic->acnt[pin] == 0)
