@@ -95,9 +95,9 @@ static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
 static int waitcmdloop(struct job *);
-pid_t getjobpgrp(char *);
 static struct job *getjob_nonotfound(const char *);
 static struct job *getjob(const char *);
+pid_t killjob(const char *, int);
 static pid_t dowait(int, struct job *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
@@ -639,15 +639,26 @@ getjob(const char *name)
 }
 
 
-pid_t
-getjobpgrp(char *name)
+int
+killjob(const char *name, int sig)
 {
 	struct job *jp;
+	int i, ret;
 
 	jp = getjob(name);
 	if (jp->state == JOBDONE)
 		return 0;
-	return -jp->ps[0].pid;
+	if (jp->jobctl)
+		return kill(-jp->ps[0].pid, sig);
+	ret = -1;
+	errno = ESRCH;
+	for (i = 0; i < jp->nprocs; i++)
+		if (jp->ps[i].status == -1 || WIFSTOPPED(jp->ps[i].status)) {
+			if (kill(jp->ps[i].pid, sig) == 0)
+				ret = 0;
+		} else
+			ret = 0;
+	return ret;
 }
 
 /*
