@@ -3267,6 +3267,7 @@ netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
+netinet/in_rss.c		optional inet rss | inet6 rss
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
@@ -3308,6 +3309,7 @@ netinet/tcp_syncache.c		optional inet | inet6
 netinet/tcp_timer.c		optional inet | inet6
 netinet/tcp_timewait.c		optional inet | inet6
 netinet/tcp_usrreq.c		optional inet | inet6
+netinet/toeplitz.c		optional inet rss | inet6 rss
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
