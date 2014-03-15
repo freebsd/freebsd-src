@@ -34,6 +34,7 @@
 #include "opt_inet6.h"
 #include "opt_netgraph.h"
 #include "opt_mbuf_profiling.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,6 +71,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/in_rss.h>
 #include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #endif
@@ -583,7 +585,22 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 
 /*
  * Ethernet input dispatch; by default, direct dispatch here regardless of
- * global configuration.
+ * global configuration.  However, if RSS is enabled, hook up RSS affinity
+ * so that when deferred or hybrid dispatch is enabled, we can redistribute
+ * load based on RSS.
+ *
+ * XXXRW: Would be nice if the ifnet passed up a flag indicating whether or
+ * not it had already done work distribution via multi-queue.  Then we could
+ * direct dispatch in the event load balancing was already complete and
+ * handle the case of interfaces with different capabilities better.
+ *
+ * XXXRW: Sort of want an M_DISTRIBUTED flag to avoid multiple distributions
+ * at multiple layers?
+ *
+ * XXXRW: For now, enable all this only if RSS is compiled in, although it
+ * works fine without RSS.  Need to characterise the performance overhead
+ * of the detour through the netisr code in the event the result is always
+ * direct dispatch.
  */
 static void
 ether_nh_input(struct mbuf *m)
@@ -596,8 +613,14 @@ static struct netisr_handler	ether_nh = {
 	.nh_name = "ether",
 	.nh_handler = ether_nh_input,
 	.nh_proto = NETISR_ETHER,
+#ifdef RSS
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_DIRECT,
+	.nh_m2cpuid = rss_m2cpuid,
+#else
 	.nh_policy = NETISR_POLICY_SOURCE,
 	.nh_dispatch = NETISR_DISPATCH_DIRECT,
+#endif
 };
 
 static void
