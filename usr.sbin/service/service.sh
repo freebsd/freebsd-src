@@ -145,5 +145,5 @@ done
 
 # If the script was not found
 echo "$script does not exist in /etc/rc.d or the local startup"
-echo "directories (${local_startup})"
+echo "directories (${local_startup}), or is not executable"
 exit 1
