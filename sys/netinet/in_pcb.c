@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pcbgroup.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
@@ -1820,7 +1822,7 @@ struct inpcb *
 in_pcblookup(struct inpcbinfo *pcbinfo, struct in_addr faddr, u_int fport,
     struct in_addr laddr, u_int lport, int lookupflags, struct ifnet *ifp)
 {
-#if defined(PCBGROUP)
+#if defined(PCBGROUP) && !defined(RSS)
 	struct inpcbgroup *pcbgroup;
 #endif
 
@@ -1829,7 +1831,17 @@ in_pcblookup(struct inpcbinfo *pcbinfo, struct in_addr faddr, u_int fport,
 	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
 	    ("%s: LOCKPCB not set", __func__));
 
-#if defined(PCBGROUP)
+	/*
+	 * When not using RSS, use connection groups in preference to the
+	 * reservation table when looking up 4-tuples.  When using RSS, just
+	 * use the reservation table, due to the cost of the Toeplitz hash
+	 * in software.
+	 *
+	 * XXXRW: This policy belongs in the pcbgroup code, as in principle
+	 * we could be doing RSS with a non-Toeplitz hash that is affordable
+	 * in software.
+	 */
+#if defined(PCBGROUP) && !defined(RSS)
 	if (in_pcbgroup_enabled(pcbinfo)) {
 		pcbgroup = in_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
 		    fport);
@@ -1856,16 +1868,27 @@ in_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	    ("%s: LOCKPCB not set", __func__));
 
 #ifdef PCBGROUP
-	if (in_pcbgroup_enabled(pcbinfo)) {
+	/*
+	 * If we can use a hardware-generated hash to look up the connection
+	 * group, use that connection group to find the inpcb.  Otherwise
+	 * fall back on a software hash -- or the reservation table if we're
+	 * using RSS.
+	 *
+	 * XXXRW: As above, that policy belongs in the pcbgroup code.
+	 */
+	if (in_pcbgroup_enabled(pcbinfo) &&
+	    !(M_HASHTYPE_TEST(m, M_HASHTYPE_NONE))) {
 		pcbgroup = in_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
 		    m->m_pkthdr.flowid);
 		if (pcbgroup != NULL)
 			return (in_pcblookup_group(pcbinfo, pcbgroup, faddr,
 			    fport, laddr, lport, lookupflags, ifp));
+#ifndef RSS
 		pcbgroup = in_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
 		    fport);
 		return (in_pcblookup_group(pcbinfo, pcbgroup, faddr, fport,
 		    laddr, lport, lookupflags, ifp));
+#endif
 	}
 #endif
 	return (in_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
