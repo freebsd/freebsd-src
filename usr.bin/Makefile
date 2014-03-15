@@ -273,6 +273,7 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
+SUBDIR+=	bmake
 SUBDIR+=	make
 .endif
 
