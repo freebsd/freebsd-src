@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,11 +30,11 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: form.priv.h,v 0.32 2009/11/07 21:26:43 tom Exp $ */
+/* $Id: form.priv.h,v 0.33 2012/03/11 00:37:46 tom Exp $ */
 
 #ifndef FORM_PRIV_H
 #define FORM_PRIV_H 1
-
+/* *INDENT-OFF*/
 #include "curses.priv.h"
 #include "mf_common.h"
 
@@ -119,7 +119,7 @@ extern NCURSES_EXPORT_VAR(FIELDTYPE *) _nc_Default_FieldType;
 
 /* Calculate the total size of all buffers for this field */
 #define Total_Buffer_Size(field) \
-   ( (Buffer_Length(field) + 1) * (1+(field)->nbuf) * sizeof(FIELD_CELL) )
+   ( (size_t)(Buffer_Length(field) + 1) * (size_t)(1+(field)->nbuf) * sizeof(FIELD_CELL) )
 
 /* Logic to determine whether or not a field is single lined */
 #define Single_Line_Field(field) \
@@ -293,5 +293,6 @@ extern NCURSES_EXPORT(Form_Hook)    _nc_retrace_form_hook (Form_Hook);
       result = ((*buffer || (l < width)) ? FALSE : TRUE); \
     }
 #endif
+/* *INDENT-ON*/
 
 #endif /* FORM_PRIV_H */

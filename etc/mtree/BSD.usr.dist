@@ -301,6 +301,8 @@
             ..
             diskless
             ..
+            dma
+            ..
             drivers
             ..
             etc

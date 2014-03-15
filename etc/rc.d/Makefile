@@ -62,7 +62,6 @@ FILES=	DAEMON \
 	ipmon \
 	ipnat \
 	ipsec \
-	${_ipxrouted} \
 	iscsictl \
 	iscsid \
 	jail \
@@ -163,10 +162,6 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
-
-.if ${MK_IPX} != "no"
-_ipxrouted=	ipxrouted
-.endif
 
 .if ${MK_OFED} != "no"
 _opensm=	opensm

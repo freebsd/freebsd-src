@@ -86,7 +86,7 @@ NANO_CUSTOMIZE=""
 NANO_LATE_CUSTOMIZE=""
 
 # Newfs paramters to use
-NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
+NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
 NANO_DRIVE=ad0
@@ -136,6 +136,9 @@ NANO_BOOT2CFG="-h"
 # Can be "file" or "swap"
 NANO_MD_BACKING="file"
 
+# for swap type md(4) backing, write out the mbr only
+NANO_IMAGE_MBRONLY=true
+
 # Progress Print level
 PPLEVEL=3
 
@@ -160,12 +163,23 @@ NANO_CFGDIR=""
 # Directory to populate /data from
 NANO_DATADIR=""
 
+# src.conf to use when building the image. Defaults to /dev/null for the sake
+# of determinism.
+SRCCONF=${SRCCONF:=/dev/null}
+ 
 #######################################################################
 #
 # The functions which do the real work.
 # Can be overridden from the config file(s)
 #
 #######################################################################
+
+nano_cleanup ( ) (
+	if [ $? -ne 0 ]; then
+		echo "Error encountered.  Check for errors in last log file." 1>&2
+	fi
+	exit $?
+)
 
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
@@ -183,7 +197,6 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
-	echo "SRCCONF=/dev/null" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -192,17 +205,20 @@ build_world ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} \
+		SRCCONF=${SRCCONF} \
 		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} buildworld \
 		> ${MAKEOBJDIRPREFIX}/_.bw 2>&1
 )
 
 build_kernel ( ) (
+	local extra
+
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
 	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		extra="KERNCONFDIR=$(realpath $(dirname ${NANO_KERNEL}))"
 		kernconf=$(basename ${NANO_KERNEL})
 	else
 		kernconf=${NANO_KERNEL}
@@ -212,12 +228,11 @@ build_kernel ( ) (
 	# unset these just in case to avoid compiler complaints
 	# when cross-building
 	unset TARGET_CPUTYPE
-	unset TARGET_BIG_ENDIAN
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
-		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		SRCCONF=${SRCCONF} \
+		${extra} __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
 		KERNCONF=${kernconf}
 	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
@@ -246,7 +261,6 @@ make_conf_install ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
 	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
-	echo "SRCCONF=/dev/null" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
@@ -255,7 +269,8 @@ install_world ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_MAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
+	${NANO_MAKE} SRCCONF=${SRCCONF} \
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.iw 2>&1
 	chflags -R noschg ${NANO_WORLDDIR}
@@ -268,7 +283,8 @@ install_etc ( ) (
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_MAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
+	${NANO_MAKE} SRCCONF=${SRCCONF} \
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
 	# make.conf doesn't get created by default, but some ports need it
@@ -277,12 +293,14 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
+	local extra
+
 	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
 
 	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		extra="KERNCONFDIR=$(realpath $(dirname ${NANO_KERNEL}))"
 		kernconf=$(basename ${NANO_KERNEL})
 	else
 		kernconf=${NANO_KERNEL}
@@ -291,8 +309,8 @@ install_kernel ( ) (
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
-		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		SRCCONF=${SRCCONF} \
+		${extra} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
 		KERNCONF=${kernconf} \
 		MODULES_OVERRIDE="${NANO_MODULES}"
 	) > ${NANO_OBJ}/_.ik 2>&1
@@ -564,6 +582,14 @@ create_i386_diskimage ( ) (
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		if [ ${NANO_IMAGE_MBRONLY} ]; then
+			echo "Writing out _.disk.mbr..."
+			dd if=/dev/${MD} of=${NANO_DISKIMGDIR}/_.disk.mbr bs=512 count=1
+		else
+			echo "Writing out ${NANO_IMGNAME}..."
+			dd if=/dev/${MD} of=${IMG} bs=64k
+		fi
+
 		echo "Writing out ${NANO_IMGNAME}..."
 		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
@@ -574,7 +600,8 @@ create_i386_diskimage ( ) (
 	fi
 	mdconfig -d -u $MD
 
-	trap - 1 2 15 EXIT
+	trap - 1 2 15
+	trap nano_cleanup EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
 )
@@ -926,6 +953,8 @@ if [ $# -gt 0 ] ; then
 	echo "$0: Extraneous arguments supplied"
 	usage
 fi
+
+trap nano_cleanup EXIT
 
 #######################################################################
 # Setup and Export Internal variables

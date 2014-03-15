@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "mptbl.h"
 #include "pci_emul.h"
 #include "pci_lpc.h"
+#include "smbiostbl.h"
 #include "xmsr.h"
 #include "spinup_ap.h"
 #include "rtc.h"
@@ -82,6 +83,7 @@ typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 char *vmname;
 
 int guest_ncpus;
+char *guest_uuid_str;
 
 static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
@@ -141,7 +143,8 @@ usage(int code)
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
 		"       -w: ignore unimplemented MSRs\n"
-		"       -x: local apic is in x2APIC mode\n",
+		"       -x: local apic is in x2APIC mode\n"
+		"       -U: uuid\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -599,7 +602,7 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehwxAHIPWp:g:c:s:m:l:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxAHIPWp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -652,6 +655,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'U':
+			guest_uuid_str = optarg;
 			break;
 		case 'w':
 			strictmsr = 0;
@@ -722,6 +728,9 @@ main(int argc, char *argv[])
 	 * build the guest tables, MP etc.
 	 */
 	mptable_build(ctx, guest_ncpus);
+
+	error = smbios_build(ctx);
+	assert(error == 0);
 
 	if (acpi) {
 		error = acpi_build(ctx, guest_ncpus);

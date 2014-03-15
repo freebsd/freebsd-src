@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: gen-pkgconfig.in,v 1.8 2010/02/06 22:12:07 Miroslav.Lichvar Exp $
+# $Id: gen-pkgconfig.in,v 1.16 2014/01/18 20:21:45 tom Exp $
 ##############################################################################
-# Copyright (c) 2009,2010 Free Software Foundation, Inc.                     #
+# Copyright (c) 2009-2013,2014 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey, 2009
+# Author: Thomas E. Dickey
 #
 # The complete configure script for ncurses is the ncurses5-config (or similar
 # name, depending on the flavor, e.g., ncursesw5-config, ncurses6-config, etc).
@@ -39,22 +39,22 @@
 # library, except that the tinfo library does not depend on ncurses.
 LIB_NAME=@LIB_NAME@
 TINFO_NAME=@TINFO_NAME@
-PANEL_NAME=panel # @PANEL_NAME@
-MENU_NAME=menu # @MENU_NAME@
-FORM_NAME=form # @FORM_NAME@
-CXX_NAME=ncurses++ # @CXX_NAME@
+PANEL_NAME=@PANEL_NAME@
+MENU_NAME=@MENU_NAME@
+FORM_NAME=@FORM_NAME@
+CXX_NAME=@CXX_NAME@
 DFT_DEP_SUFFIX=@DFT_DEP_SUFFIX@
 TINFO_ARG_SUFFIX=@TINFO_ARG_SUFFIX@
 CXX_LIB_SUFFIX=@CXX_LIB_SUFFIX@
 
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
-includedir="@includedir@"
+includedir="@includedir@@includesubdir@"
 libdir="@libdir@"
 
 show_prefix='@prefix@'
 show_exec_prefix='@exec_prefix@'
-show_includedir='@includedir@'
+show_includedir='@includedir@@includesubdir@'
 show_libdir='@libdir@'
 
 MAIN_LIBRARY="${LIB_NAME}@DFT_ARG_SUFFIX@"
@@ -63,59 +63,42 @@ PANEL_LIBRARY="${PANEL_NAME}@DFT_ARG_SUFFIX@"
 MENU_LIBRARY="${MENU_NAME}@DFT_ARG_SUFFIX@"
 FORM_LIBRARY="${FORM_NAME}@DFT_ARG_SUFFIX@"
 
-SUB_LIBRARY_REQ=${SUB_LIBRARY}
-if test $TINFO_NAME = $LIB_NAME ; then
-	SUB_LIBRARY_REQ=
+if test "$includedir" = "/usr/include" ; then
+	CFLAGS=
+else
+	CFLAGS="-I\${includedir}"
 fi
 
-for lib in ../lib/*
+if test "$libdir" = "/usr/lib" ; then
+	LDFLAGS=
+else
+	LDFLAGS="-L\${libdir}"
+fi
+
+for name in @PC_MODULES_TO_MAKE@
 do
-	name=`basename $lib`
-	if test "$name" = "*" ; then
-		break
-	fi
-
-	root=`basename $name "$DFT_DEP_SUFFIX"`
-	if test "$name" = "$root" ; then
-		root=`basename $name "$CXX_LIB_SUFFIX"`
-		if test "$name" = "$root" ; then
-			continue
-		fi
-	fi
-
-	name=`echo "$name" | sed -e 's/^lib//' -e 's/\..*$//'`
+	name="${name}"
 
 	desc="ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@"
+	reqs=
+
 	if test $name = $MAIN_LIBRARY ; then
-		reqs=$SUB_LIBRARY_REQ
 		desc="$desc library"
 	elif test $name = $SUB_LIBRARY ; then
-		reqs=
 		desc="$desc terminal interface library"
 	elif expr $name : ".*${CXX_NAME}.*" >/dev/null ; then
-		reqs="$PANEL_LIBRARY $MENU_LIBRARY $FORM_LIBRARY $MAIN_LIBRARY $SUB_LIBRARY_REQ"
+		reqs="$PANEL_LIBRARY, $MENU_LIBRARY, $FORM_LIBRARY, $MAIN_LIBRARY"
 		desc="$desc add-on library"
 	else
-		reqs="$MAIN_LIBRARY $SUB_LIBRARY_REQ"
+		reqs="$MAIN_LIBRARY"
 		desc="$desc add-on library"
 	fi
 
-	if test "$includedir" = "/usr/include" ; then
-		cflags=
-	else
-		cflags="-I\${includedir}"
-	fi
-
-	if test "$libdir" = "/usr/lib" ; then
-		libs=
-	else
-		libs="-L\${libdir}"
-	fi
-	libs="$libs -l$name"
-
-	# add dependencies that pkg-config cannot guess about
-	if test -z "$reqs" ; then
-		libs="$libs @LIBS@"
+	if test $name != $SUB_LIBRARY && test $SUB_LIBRARY != $MAIN_LIBRARY ; then
+		if test $name != $TINFO_NAME ; then
+			test -n "$reqs" && reqs="$reqs, "
+			reqs="${reqs}${SUB_LIBRARY}"
+		fi
 	fi
 
 	echo "** creating ${name}.pc"
@@ -130,10 +113,13 @@ version=@NCURSES_MAJOR@.@NCURSES_MINOR@.@NCURSES_PATCH@
 Name: $name
 Description: $desc
 Version: \${version}
-Requires: $reqs
-Libs: $libs
-Cflags: $cflags
+URL: http://invisible-island.net/ncurses
+Requires.private: $reqs
+Libs: $LDFLAGS -l$name
+Libs.private: @LIBS@
+Cflags: $CFLAGS
 EOF
-	# pr -f ${name}.pc
+
+	#pr -f ${name}.pc
 done
 # vile:shmode

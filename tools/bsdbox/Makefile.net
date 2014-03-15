@@ -18,11 +18,9 @@ CRUNCH_LIBS+=	-lwrap
 # netstat
 CRUNCH_PROGS_usr.bin+=	netstat
 CRUNCH_LIBS+=	-lmemstat -lnetgraph
-CRUNCH_BUILDOPTS_netstat=-DMK_IPX_SUPPORT=no
 
 # ifconfig
 CRUNCH_PROGS_sbin+=	ifconfig
-CRUNCH_BUILDOPTS_ifconfig=-DMK_IPX_SUPPORT=no
 
 # wlan stuff
 CRUNCH_PROGS_usr.sbin+=	wlandebug

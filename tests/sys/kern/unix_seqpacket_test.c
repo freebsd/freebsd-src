@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #define MIN(x, y)	((x) < (y) ? (x) : (y))
 #define MAX(x, y)	((x) > (y) ? (x) : (y))
 
-void
+static void
 do_socketpair(int *sv)
 {
 	int s;
@@ -55,7 +55,7 @@ do_socketpair(int *sv)
 	ATF_REQUIRE(sv[0] != sv[1]);
 }
 
-void
+static void
 do_socketpair_nonblocking(int *sv)
 {
 	int s;
@@ -73,7 +73,7 @@ do_socketpair_nonblocking(int *sv)
  * Returns a pair of sockets made the hard way: bind, listen, connect & accept
  * @return	const char* The path to the socket
  */
-const char*
+static const char*
 mk_pair_of_sockets(int *sv)
 {
 	struct sockaddr_un sun;
@@ -116,7 +116,7 @@ mk_pair_of_sockets(int *sv)
 
 static volatile sig_atomic_t got_sigpipe = 0;
 static void
-shutdown_send_sigpipe_handler(int x)
+shutdown_send_sigpipe_handler(int __unused x)
 {
 	got_sigpipe = 1;
 }
@@ -124,16 +124,16 @@ shutdown_send_sigpipe_handler(int x)
 /*
  * Parameterized test function bodies
  */
-void
+static void
 test_eagain(size_t sndbufsize, size_t rcvbufsize)
 {
 	int i;
 	int sv[2];
 	const size_t totalsize = (sndbufsize + rcvbufsize) * 2;
 	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
+	const int numpkts = totalsize / pktsize;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
@@ -145,7 +145,7 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 
 	bzero(sndbuf, pktsize);
 	/* Send data until we get EAGAIN */
-	for(i=0; i < totalsize / pktsize; i++) {
+	for(i=0; i < numpkts; i++) {
 		ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 		if (ssize == -1) {
 			if (errno == EAGAIN)
@@ -159,11 +159,11 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 	atf_tc_fail("Never got EAGAIN");
 }
 
-void
+static void
 test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
 	int s;
 	int sv[2];
-	const size_t pktsize = bufsize / 2;
+	const ssize_t pktsize = bufsize / 2;
 	char sndbuf[pktsize];
 	char recv_buf[pktsize];
 	ssize_t ssize, rsize;
@@ -201,12 +201,12 @@ test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
 	    pktsize, rsize);
 }
 
-void
+static void
 test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
 {
-	int s, num_sent, num_received;
+	int num_sent, num_received;
 	int sv[2];
-	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
+	const ssize_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
 	int numpkts;
 	char sndbuf[pktsize];
 	char rcvbuf[pktsize];
@@ -331,12 +331,11 @@ test_pipe_reader(void* args)
 }
 
 
-void
+static void
 test_pipe(size_t sndbufsize, size_t rcvbufsize)
 {
 	test_pipe_thread_data_t writer_data, reader_data;
 	pthread_t writer, reader;
-	int num_sent, num_received;
 	int sv[2];
 	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
 	int numpkts;
@@ -361,6 +360,12 @@ test_pipe(size_t sndbufsize, size_t rcvbufsize)
 	reader_data.so = sv[1];
 	ATF_REQUIRE_EQ(0, pthread_create(&writer, NULL, test_pipe_writer,
 	    				 (void*)&writer_data));
+	/* 
+	 * Give the writer time to start writing, and hopefully block, before
+	 * starting the reader.  This increases the likelihood of the test case
+	 * failing due to PR kern/185812
+	 */
+	usleep(1000);
 	ATF_REQUIRE_EQ(0, pthread_create(&reader, NULL, test_pipe_reader,
 	    				 (void*)&reader_data));
 
@@ -605,12 +610,11 @@ ATF_TC_BODY(resize_connected_buffers, tc)
 ATF_TC_WITHOUT_HEAD(send_recv);
 ATF_TC_BODY(send_recv, tc)
 {
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
@@ -642,12 +646,11 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 {
 	const char* path;
 	struct sockaddr_storage from;
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 	socklen_t fromlen;
 
@@ -690,12 +693,11 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 ATF_TC_WITHOUT_HEAD(send_recv_with_connect);
 ATF_TC_BODY(send_recv_with_connect, tc)
 {
-	const char* path;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	mk_pair_of_sockets(sv);
@@ -751,12 +753,11 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 ATF_TC_WITHOUT_HEAD(send_recv_nonblocking);
 ATF_TC_BODY(send_recv_nonblocking, tc)
 {
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
@@ -788,14 +789,12 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 ATF_TC_WITHOUT_HEAD(emsgsize);
 ATF_TC_BODY(emsgsize, tc)
 {
-	int s;
 	int sv[2];
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair(sv);
@@ -817,14 +816,12 @@ ATF_TC_BODY(emsgsize, tc)
 ATF_TC_WITHOUT_HEAD(emsgsize_nonblocking);
 ATF_TC_BODY(emsgsize_nonblocking, tc)
 {
-	int s;
 	int sv[2];
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
@@ -847,25 +844,21 @@ ATF_TC_BODY(emsgsize_nonblocking, tc)
 ATF_TC_WITHOUT_HEAD(eagain_8k_8k);
 ATF_TC_BODY(eagain_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_8k_128k);
 ATF_TC_BODY(eagain_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 131072);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_8k);
 ATF_TC_BODY(eagain_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_128k);
 ATF_TC_BODY(eagain_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 131072);
 }
 
@@ -877,25 +870,29 @@ ATF_TC_BODY(eagain_128k_128k, tc)
 ATF_TC_WITHOUT_HEAD(rcvbuf_oversized);
 ATF_TC_BODY(rcvbuf_oversized, tc)
 {
-	int s, i, j;
+	int i;
 	int sv[2];
+	const int pktsize = 1024;
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 131072;
-	const size_t geom_mean_bufsize = 32768;
-	const int pktsize = 1024;
+	const size_t geometric_mean_bufsize = 32768;
+	const int numpkts = geometric_mean_bufsize / pktsize;
 	char sndbuf[pktsize];
 	char recv_buf[pktsize];
-	size_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
+	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
+	    sizeof(sndbufsize)));
+	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
+	    sizeof(rcvbufsize)));
 
 	/* 
 	 * Send and receive packets that are collectively greater than the send
 	 * buffer, but less than the receive buffer
 	 */
-	for (i=0; i < geom_mean_bufsize / pktsize; i++) {
+	for (i=0; i < numpkts; i++) {
 		/* Fill the buffer */
 		memset(sndbuf, i, pktsize);
 
@@ -951,7 +948,6 @@ ATF_TC_BODY(pipe_simulator_8k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_simulator_128k_8k);
 ATF_TC_BODY(pipe_simulator_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 SOCK_SEQPACKET AF_UNIX sockets with asymmetrical buffers drop packets");
 	test_pipe_simulator(131072, 8192);
 }
 
@@ -969,37 +965,24 @@ ATF_TC_BODY(pipe_simulator_128k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_8k_8k);
 ATF_TC_BODY(pipe_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_8k_128k);
 ATF_TC_BODY(pipe_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 131072);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_8k);
 ATF_TC_BODY(pipe_128k_8k, tc)
 {
-	/* 
-	 * kern/185812 causes this test case to both fail and timeout.  The
-	 * atf-c-api(3) doesn't have a way to set such an expectation.
-	 * If you use atf_tc_expect_fail, then it will timeout.  If you use
-	 * atf_tc_expect_timeout, then it will fail.  If you use both, then it
-	 * will show up as an unexpected pass, which is much worse
-	 *
-	 * https://code.google.com/p/kyua/issues/detail?id=76
-	 */
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_128k);
 ATF_TC_BODY(pipe_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 131072);
 }
 

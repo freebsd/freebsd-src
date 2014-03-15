@@ -51,7 +51,6 @@ ifn_start()
 	if ! noafif $ifn; then
 		afexists inet && ipv4_up ${ifn} && cfg=0
 		afexists inet6 && ipv6_up ${ifn} && cfg=0
-		afexists ipx && ipx_up ${ifn} && cfg=0
 	fi
 	childif_create ${ifn} && cfg=0
 
@@ -71,7 +70,6 @@ ifn_stop()
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
 	if ! noafif $ifn; then
-		afexists ipx && ipx_down ${ifn} && cfg=0
 		afexists inet6 && ipv6_down ${ifn} && cfg=0
 		afexists inet && ipv4_down ${ifn} && cfg=0
 	fi
@@ -494,9 +492,6 @@ afexists()
 	case ${_af} in
 	inet|inet6)
 		check_kern_features ${_af}
-		;;
-	ipx)
-		${SYSCTL_N} net.ipx > /dev/null 2>&1
 		;;
 	atm)
 		if [ -x /sbin/atmconfig ]; then
@@ -1096,7 +1091,6 @@ ifalias_af_common()
 		case $ifconfig_args in
 		inet\ *)	_iaf=inet ;;
 		inet6\ *)	_iaf=inet6 ;;
-		ipx\ *)		_iaf=ipx ;;
 		link\ *)	_iaf=link ;;
 		ether\ *)	_iaf=ether ;;
 		esac
@@ -1146,7 +1140,7 @@ ifalias_af_common()
 	_tmpargs=
 	for _c in `get_if_var $_if ifconfig_IF_aliases` $_aliasn; do
 		case $_c in
-		inet|inet6|ipx|link|ether)
+		inet|inet6|link|ether)
 			case $_tmpargs in
 			${_af}\ *)
 				eval ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0
@@ -1518,55 +1512,6 @@ ng_create_one()
 			return
 		fi
 	done
-}
-
-# ipx_up ifn
-#	Configure any IPX addresses for interface $ifn. Returns 0 if
-#	IPX arguments were found and configured; returns 1 otherwise.
-#
-ipx_up()
-{
-	local ifn
-	ifn="$1"
-
-	# ifconfig_IF_ipx
-	ifconfig_args=`_ifconfig_getargs $ifn ipx`
-	if [ -n "${ifconfig_args}" ]; then
-		${IFCONFIG_CMD} ${ifn} ${ifconfig_args}
-		return 0
-	fi
-
-	return 1
-}
-
-# ipx_down ifn
-#	Remove IPX addresses for interface $ifn. Returns 0 if IPX
-#	addresses were found and unconfigured. It returns 1, otherwise.
-#
-ipx_down()
-{
-	local _if _ifs _ret ipxList oldifs _ipx
-	_if=$1
-	_ifs="^"
-	_ret=1
-	ipxList="`${IFCONFIG_CMD} ${_if} | grep 'ipx ' | tr "\n" "$_ifs"`"
-	oldifs="$IFS"
-
-	IFS="$_ifs"
-	for _ipx in $ipxList ; do
-		# get rid of extraneous line
-		[ -z "$_ipx" ] && break
-
-		_ipx=`expr "$_ipx" : '.*\(ipx [0-9a-h]\{1,8\}H*\.[0-9a-h]\{1,12\}\).*'`
-
-		IFS="$oldifs"
-		${IFCONFIG_CMD} ${_if} ${_ipx} delete
-		IFS="$_ifs"
-		_ret=0
-	done
-	IFS="$oldifs"
-
-	return $_ret
 }
 
 # ifnet_rename [ifname]

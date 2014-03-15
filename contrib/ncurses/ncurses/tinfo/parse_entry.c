@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.75 2010/05/01 19:35:09 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.79 2012/10/27 21:43:45 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -145,27 +145,27 @@ _nc_extend_names(ENTRY * entryp, char *name, int token_type)
 	case BOOLEAN:
 	    tp->ext_Booleans++;
 	    tp->num_Booleans++;
-	    tp->Booleans = typeRealloc(NCURSES_SBOOL, tp->num_Booleans, tp->Booleans);
+	    TYPE_REALLOC(NCURSES_SBOOL, tp->num_Booleans, tp->Booleans);
 	    for_each_value(tp->num_Booleans)
 		tp->Booleans[last] = tp->Booleans[last - 1];
 	    break;
 	case NUMBER:
 	    tp->ext_Numbers++;
 	    tp->num_Numbers++;
-	    tp->Numbers = typeRealloc(short, tp->num_Numbers, tp->Numbers);
+	    TYPE_REALLOC(short, tp->num_Numbers, tp->Numbers);
 	    for_each_value(tp->num_Numbers)
 		tp->Numbers[last] = tp->Numbers[last - 1];
 	    break;
 	case STRING:
 	    tp->ext_Strings++;
 	    tp->num_Strings++;
-	    tp->Strings = typeRealloc(char *, tp->num_Strings, tp->Strings);
+	    TYPE_REALLOC(char *, tp->num_Strings, tp->Strings);
 	    for_each_value(tp->num_Strings)
 		tp->Strings[last] = tp->Strings[last - 1];
 	    break;
 	}
 	actual = NUM_EXT_NAMES(tp);
-	tp->ext_Names = typeRealloc(char *, actual, tp->ext_Names);
+	TYPE_REALLOC(char *, actual, tp->ext_Names);
 	while (--actual > offset)
 	    tp->ext_Names[actual] = tp->ext_Names[actual - 1];
 	tp->ext_Names[offset] = _nc_save_str(name);
@@ -202,6 +202,8 @@ _nc_extend_names(ENTRY * entryp, char *name, int token_type)
 #define BAD_TC_USAGE if (!bad_tc_usage) \
  	{ bad_tc_usage = TRUE; \
 	 _nc_warning("Legacy termcap allows only a trailing tc= clause"); }
+
+#define MAX_NUMBER 0x7fff	/* positive shorts only */
 
 NCURSES_EXPORT(int)
 _nc_parse_entry(struct entry *entryp, int literal, bool silent)
@@ -444,8 +446,12 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 		break;
 
 	    case NUMBER:
-		entryp->tterm.Numbers[entry_ptr->nte_index] =
-		    (short) _nc_curr_token.tk_valnumber;
+		if (_nc_curr_token.tk_valnumber > MAX_NUMBER) {
+		    entryp->tterm.Numbers[entry_ptr->nte_index] = MAX_NUMBER;
+		} else {
+		    entryp->tterm.Numbers[entry_ptr->nte_index] =
+			(short) _nc_curr_token.tk_valnumber;
+		}
 		break;
 
 	    case STRING:
@@ -654,14 +660,16 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 
 	if (WANTED(carriage_return)) {
 	    if (carriage_return_delay > 0) {
-		sprintf(buf, "%s$<%d>", C_CR, carriage_return_delay);
+		_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+			    "%s$<%d>", C_CR, carriage_return_delay);
 		carriage_return = _nc_save_str(buf);
 	    } else
 		carriage_return = _nc_save_str(C_CR);
 	}
 	if (WANTED(cursor_left)) {
 	    if (backspace_delay > 0) {
-		sprintf(buf, "%s$<%d>", C_BS, backspace_delay);
+		_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+			    "%s$<%d>", C_BS, backspace_delay);
 		cursor_left = _nc_save_str(buf);
 	    } else if (backspaces_with_bs == 1)
 		cursor_left = _nc_save_str(C_BS);
@@ -674,7 +682,8 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 		cursor_down = linefeed_if_not_lf;
 	    else if (linefeed_is_newline != 1) {
 		if (new_line_delay > 0) {
-		    sprintf(buf, "%s$<%d>", C_LF, new_line_delay);
+		    _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+				"%s$<%d>", C_LF, new_line_delay);
 		    cursor_down = _nc_save_str(buf);
 		} else
 		    cursor_down = _nc_save_str(C_LF);
@@ -685,7 +694,8 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 		cursor_down = linefeed_if_not_lf;
 	    else if (linefeed_is_newline != 1) {
 		if (new_line_delay > 0) {
-		    sprintf(buf, "%s$<%d>", C_LF, new_line_delay);
+		    _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+				"%s$<%d>", C_LF, new_line_delay);
 		    scroll_forward = _nc_save_str(buf);
 		} else
 		    scroll_forward = _nc_save_str(C_LF);
@@ -694,7 +704,8 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 	if (WANTED(newline)) {
 	    if (linefeed_is_newline == 1) {
 		if (new_line_delay > 0) {
-		    sprintf(buf, "%s$<%d>", C_LF, new_line_delay);
+		    _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+				"%s$<%d>", C_LF, new_line_delay);
 		    newline = _nc_save_str(buf);
 		} else
 		    newline = _nc_save_str(C_LF);
@@ -736,7 +747,8 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 	 */
 	if (WANTED(tab)) {
 	    if (horizontal_tab_delay > 0) {
-		sprintf(buf, "%s$<%d>", C_HT, horizontal_tab_delay);
+		_nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+			    "%s$<%d>", C_HT, horizontal_tab_delay);
 		tab = _nc_save_str(buf);
 	    } else
 		tab = _nc_save_str(C_HT);

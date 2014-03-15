@@ -15,4 +15,4 @@ TEST_METADATA.legacy_test+= required_user="unprivileged"
 
 SUBDIR+=	builtins errors execution expansion parameters parser set-e
 
-.include <tap.test.mk>
+.include <bsd.test.mk>

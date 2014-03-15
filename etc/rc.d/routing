@@ -33,7 +33,7 @@ routing_start()
 	esac
 
 	case $_af in
-	inet|inet6|ipx|atm)
+	inet|inet6|atm)
 		if afexists $_af; then
 			setroutes $_cmd $_af $_if
 		else
@@ -41,7 +41,7 @@ routing_start()
 		fi
 		;;
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
-		for _a in inet inet6 ipx atm; do
+		for _a in inet inet6 atm; do
 			afexists $_a && setroutes $_cmd $_a $_if
 		done
 		;;
@@ -62,7 +62,7 @@ routing_stop()
 	esac
 
 	case $_af in
-	inet|inet6|ipx|atm)
+	inet|inet6|atm)
 		if afexists $_af; then
 			eval static_${_af} delete $_if 
 			# When $_if is specified, do not flush routes.
@@ -74,7 +74,7 @@ routing_stop()
 		fi
 		;;
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
-		for _a in inet inet6 ipx atm; do
+		for _a in inet inet6 atm; do
 			afexists $_a || continue
 			eval static_${_a} delete $_if
 			# When $_if is specified, do not flush routes.
@@ -123,11 +123,6 @@ routing_stop_inet6()
 }
 
 routing_stop_atm()
-{
-	return 0
-}
-
-routing_stop_ipx()
 {
 	return 0
 }
@@ -290,11 +285,6 @@ static_atm()
 	fi
 }
 
-static_ipx()
-{
-	:
-}
-
 ropts_init()
 {
 	if [ -z "${_ropts_initdone}" ]; then
@@ -383,21 +373,6 @@ options_inet6()
 options_atm()
 {
 	_ropts_initdone=
-
-	[ -n "${_ropts_initdone}" ] && echo '.'
-}
-
-options_ipx()
-{
-	_ropts_initdone=
-
-	if checkyesno ipxgateway_enable; then
-		ropts_init ipx
-		echo -n ' gateway=YES'
-		${SYSCTL} net.ipx.ipx.ipxforwarding=1 > /dev/null
-	else
-		${SYSCTL} net.ipx.ipx.ipxforwarding=0 > /dev/null
-	fi
 
 	[ -n "${_ropts_initdone}" ] && echo '.'
 }

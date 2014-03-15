@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2009,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.16 2011/01/09 00:23:27 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.17 2012/10/27 20:50:50 tom Exp $")
 
 #ifdef TRACE
 #define my_buffer _nc_globals.tracetry_buf
@@ -49,28 +49,31 @@ recur_tries(TRIES * tree, unsigned level)
 	my_buffer = (unsigned char *) _nc_doalloc(my_buffer, my_length);
     }
 
-    while (tree != 0) {
-	if ((my_buffer[level] = tree->ch) == 0)
-	    my_buffer[level] = 128;
-	my_buffer[level + 1] = 0;
-	if (tree->value != 0) {
-	    _tracef("%5d: %s (%s)", tree->value,
-		    _nc_visbuf((char *) my_buffer), keyname(tree->value));
+    if (my_buffer != 0) {
+	while (tree != 0) {
+	    if ((my_buffer[level] = tree->ch) == 0)
+		my_buffer[level] = 128;
+	    my_buffer[level + 1] = 0;
+	    if (tree->value != 0) {
+		_tracef("%5d: %s (%s)", tree->value,
+			_nc_visbuf((char *) my_buffer), keyname(tree->value));
+	    }
+	    if (tree->child)
+		recur_tries(tree->child, level + 1);
+	    tree = tree->sibling;
 	}
-	if (tree->child)
-	    recur_tries(tree->child, level + 1);
-	tree = tree->sibling;
     }
 }
 
 NCURSES_EXPORT(void)
 _nc_trace_tries(TRIES * tree)
 {
-    my_buffer = typeMalloc(unsigned char, my_length = 80);
-    _tracef("BEGIN tries %p", (void *) tree);
-    recur_tries(tree, 0);
-    _tracef(". . . tries %p", (void *) tree);
-    free(my_buffer);
+    if ((my_buffer = typeMalloc(unsigned char, my_length = 80)) != 0) {
+	_tracef("BEGIN tries %p", (void *) tree);
+	recur_tries(tree, 0);
+	_tracef(". . . tries %p", (void *) tree);
+	free(my_buffer);
+    }
 }
 
 #else

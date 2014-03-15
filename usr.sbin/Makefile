@@ -176,10 +176,6 @@ SUBDIR+=	traceroute6
 SUBDIR+=	ipfwpcap
 .endif
 
-.if ${MK_IPX} != "no"
-SUBDIR+=	IPXrouted
-.endif
-
 .if ${MK_JAIL} != "no"
 SUBDIR+=	jail
 SUBDIR+=	jexec

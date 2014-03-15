@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_int.c,v 1.25 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: fty_int.c,v 1.26 2012/02/23 10:02:15 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define isDigit(c) (iswdigit((wint_t)(c)) || isdigit(UChar(c)))
@@ -233,7 +233,8 @@ Check_This_Field(FIELD *field, const void *argp)
 	    }
 	  if (result)
 	    {
-	      sprintf(buf, "%.*ld", (prec > 0 ? prec : 0), val);
+	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+			  "%.*ld", (prec > 0 ? prec : 0), val);
 	      set_field_buffer(field, 0, buf);
 	    }
 	}

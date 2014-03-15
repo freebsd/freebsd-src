@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_driver.c,v 1.3 2010/12/20 00:29:17 tom Exp $")
+MODULE_ID("$Id: lib_driver.c,v 1.4 2012/09/22 19:32:46 tom Exp $")
 
 typedef struct DriverEntry {
     const char *name;
@@ -43,9 +43,9 @@ typedef struct DriverEntry {
 static DRIVER_ENTRY DriverTable[] =
 {
 #ifdef __MINGW32__
-    {"win", &_nc_WIN_DRIVER},
+    {"win32con", &_nc_WIN_DRIVER},
 #endif
-    {"tinfo", &_nc_TINFO_DRIVER}
+    {"tinfo", &_nc_TINFO_DRIVER}	/* must be last */
 };
 
 NCURSES_EXPORT(int)
@@ -63,6 +63,20 @@ _nc_get_driver(TERMINAL_CONTROL_BLOCK * TCB, const char *name, int *errret)
 
     for (i = 0; i < SIZEOF(DriverTable); i++) {
 	res = DriverTable[i].driver;
+	/*
+	 * Use "#" (a character which cannot begin a terminal's name) to
+	 * select specific driver from the table.
+	 *
+	 * In principle, we could have more than one non-terminfo driver,
+	 * e.g., "win32gui".
+	 */
+	if (name != 0 && *name == '#') {
+	    size_t n = strlen(name + 1);
+	    if (n != 0
+		&& strncmp(name + 1, DriverTable[i].name, n)) {
+		continue;
+	    }
+	}
 	if (res->CanHandle(TCB, name, errret)) {
 	    use = res;
 	    break;

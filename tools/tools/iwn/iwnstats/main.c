@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -37,6 +38,9 @@
 #include <err.h>
 #include <net/if.h>
 #include <sys/endian.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include "net80211/ieee80211_ioctl.h"
 #include "net80211/ieee80211_radiotap.h"
@@ -48,7 +52,7 @@
 
 #define	IWN_DEFAULT_IF		"iwn0"
 
-struct iwnstats *
+static struct iwnstats *
 iwnstats_new(const char *ifname)
 {
 	struct iwnstats *is;
@@ -236,8 +240,12 @@ static void
 iwn_print(struct iwnstats *is)
 {
 	struct iwn_stats *s;
+	struct timeval tv;
 
 	s = &is->st;
+
+	gettimeofday(&tv, NULL);
+	printf("time=%ld.%.6ld\n", (long)tv.tv_sec, (long)tv.tv_usec);
 
 	iwn_stats_general_print(is, s);
 
@@ -252,12 +260,59 @@ iwn_print(struct iwnstats *is)
 	printf("--\n");
 }
 
+static void
+usage(void)
+{
+	printf("Usage: iwnstats [-h] [-i ifname]\n");
+	printf("    -h:			Help\n");
+	printf("    -i <ifname>:	Use ifname (default %s)\n",
+	    IWN_DEFAULT_IF);
+}
+
 int
-main(int argc, const char *argv[])
+main(int argc, char *argv[])
 {
 	struct iwnstats *is;
+	int ch;
+	char *ifname;
+	bool first;
+	char *sysctlname;
+	size_t len;
+	int ret;
 
-	is = iwnstats_new(IWN_DEFAULT_IF);
+	ifname = strdup(IWN_DEFAULT_IF);
+
+	/* Parse command line arguments */
+	while ((ch = getopt(argc, argv,
+	    "hi:")) != -1) {
+		switch (ch) {
+		case 'i':
+			if (ifname)
+				free(ifname);
+			ifname = strdup(optarg);
+			if (strncmp(ifname, "wlan", 4) == 0) {
+				free(ifname);
+				len = 0;
+				asprintf(&sysctlname, "net.wlan.%s.%%parent", ifname + 4);
+				ret = sysctlbyname(sysctlname, NULL, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				ifname = calloc(len, 1);
+				ret = sysctlbyname(sysctlname, ifname, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				free(sysctlname);
+			}
+			break;
+		default:
+		case '?':
+		case 'h':
+			usage();
+			exit(1);
+		}
+	}
+
+	is = iwnstats_new(ifname);
 
 	if (is == NULL) {
 		fprintf(stderr, "%s: couldn't allocate new stats structure\n",
@@ -266,9 +321,12 @@ main(int argc, const char *argv[])
 	}
 
 	/* begin fetching data */
+	first = true;
 	while (1) {
 		if (iwn_collect(is) != 0) {
 			fprintf(stderr, "%s: fetch failed\n", argv[0]);
+			if (first)
+				return 1;
 			goto next;
 		}
 
@@ -276,6 +334,7 @@ main(int argc, const char *argv[])
 
 	next:
 		usleep(100 * 1000);
+		first = false;
 	}
 
 	exit(0);

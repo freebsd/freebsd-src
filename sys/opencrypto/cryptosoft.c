@@ -1003,7 +1003,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		goto done;
 	}
 
-	lid = crp->crp_sid & 0xffffffff;
+	lid = CRYPTO_SESID2LID(crp->crp_sid);
 	rw_rlock(&swcr_sessions_lock);
 	if (swcr_sessions == NULL || lid >= swcr_sesnum || lid == 0 ||
 	    swcr_sessions[lid] == NULL) {

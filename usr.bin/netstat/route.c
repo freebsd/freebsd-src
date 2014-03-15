@@ -48,11 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/radix.h>
+#define	_WANT_RTENTRY
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netipx/ipx.h>
-#include <netatalk/at.h>
 #include <netgraph/ng_socket.h>
 
 #include <sys/sysctl.h>
@@ -91,18 +90,11 @@ struct bits {
 	{ RTF_STATIC,	'S' },
 	{ RTF_PROTO1,	'1' },
 	{ RTF_PROTO2,	'2' },
-	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
 	{ RTF_BLACKHOLE,'B' },
 	{ RTF_BROADCAST,'b' },
 #ifdef RTF_LLINFO
 	{ RTF_LLINFO,	'L' },
-#endif
-#ifdef RTF_WASCLONED
-	{ RTF_WASCLONED,'W' },
-#endif
-#ifdef RTF_CLONING
-	{ RTF_CLONING,	'C' },
 #endif
 	{ 0 , 0 }
 };
@@ -181,7 +173,7 @@ routepr(int fibnum, int af)
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
-	 * directly we should do rt_rmx.rmx_expire --> expire_time conversion.
+	 * directly we should do rt_expire --> expire_time conversion.
 	 */
 	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
 		err(EX_OSERR, "clock_gettime() failed");
@@ -215,14 +207,8 @@ pr_family(int af1)
 		afname = "Internet6";
 		break;
 #endif /*INET6*/
-	case AF_IPX:
-		afname = "IPX";
-		break;
 	case AF_ISO:
 		afname = "ISO";
-		break;
-	case AF_APPLETALK:
-		afname = "AppleTalk";
 		break;
 	case AF_CCITT:
 		afname = "X.25";
@@ -256,8 +242,7 @@ pr_family(int af1)
 static int wid_dst;
 static int wid_gw;
 static int wid_flags;
-static int wid_refs;
-static int wid_use;
+static int wid_pksent;
 static int wid_mtu;
 static int wid_if;
 static int wid_expire;
@@ -268,8 +253,7 @@ size_cols(int ef, struct radix_node *rn)
 	wid_dst = WID_DST_DEFAULT(ef);
 	wid_gw = WID_GW_DEFAULT(ef);
 	wid_flags = 6;
-	wid_refs = 6;
-	wid_use = 8;
+	wid_pksent = 8;
 	wid_mtu = 6;
 	wid_if = WID_IF_DEFAULT(ef);
 	wid_expire = 6;
@@ -329,16 +313,10 @@ size_cols_rtentry(struct rtentry *rt)
 	len = strlen(bp);
 	wid_flags = MAX(len, wid_flags);
 
-	if (addr.u_sa.sa_family == AF_INET || Wflag) {
-		len = snprintf(buffer, sizeof(buffer), "%d", rt->rt_refcnt);
-		wid_refs = MAX(len, wid_refs);
-		len = snprintf(buffer, sizeof(buffer), "%lu", rt->rt_use);
-		wid_use = MAX(len, wid_use);
-		if (Wflag && rt->rt_rmx.rmx_mtu != 0) {
-			len = snprintf(buffer, sizeof(buffer),
-				       "%lu", rt->rt_rmx.rmx_mtu);
-			wid_mtu = MAX(len, wid_mtu);
-		}
+	if (Wflag) {
+		len = snprintf(buffer, sizeof(buffer), "%ju",
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
+		wid_pksent = MAX(len, wid_pksent);
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
@@ -349,11 +327,11 @@ size_cols_rtentry(struct rtentry *rt)
 			lastif = rt->rt_ifp;
 			wid_if = MAX(len, wid_if);
 		}
-		if (rt->rt_rmx.rmx_expire) {
+		if (rt->rt_expire) {
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0) {
+			    rt->rt_expire - uptime.tv_sec) > 0) {
 				len = snprintf(buffer, sizeof(buffer), "%d",
 					       (int)expire_time);
 				wid_expire = MAX(len, wid_expire);
@@ -373,10 +351,11 @@ pr_rthdr(int af1)
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	if (Wflag) {
-		printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*s\n",
+		printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*s\n",
 			wid_dst,	wid_dst,	"Destination",
 			wid_gw,		wid_gw,		"Gateway",
 			wid_flags,	wid_flags,	"Flags",
+			wid_pksent,	wid_pksent,	"Use",
 			wid_mtu,	wid_mtu,	"Mtu",
 			wid_if,		wid_if,		"Netif",
 			wid_expire,			"Expire");
@@ -661,6 +640,8 @@ p_rtentry_sysctl(struct rt_msghdr *rtm)
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rtm->rtm_flags, buffer);
 	if (Wflag) {
+		printf("%*lu ", wid_pksent, rtm->rtm_rmx.rmx_pksent);
+
 		if (rtm->rtm_rmx.rmx_mtu != 0)
 			printf("%*lu ", wid_mtu, rtm->rtm_rmx.rmx_mtu);
 		else
@@ -758,23 +739,6 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    }
 #endif /*INET6*/
 
-	case AF_IPX:
-	    {
-		struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-		if (ipx_nullnet(satoipx_addr(work)))
-			cp = "default";
-		else
-			cp = ipx_print(sa);
-		break;
-	    }
-	case AF_APPLETALK:
-	    {
-		if (!(flags & RTF_HOST) && mask)
-			cp = atalk_print2(sa,mask,9);
-		else
-			cp = atalk_print(sa,11);
-		break;
-	    }
 	case AF_NETGRAPH:
 	    {
 		strlcpy(workbuf, ((struct sockaddr_ng *)sa)->sg_data,
@@ -870,17 +834,14 @@ p_rtentry_kvm(struct rtentry *rt)
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, wid_gw);
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rt->rt_flags, buffer);
-	if (addr.u_sa.sa_family == AF_INET || Wflag) {
-#if 0
-		printf("%*d %*lu ", wid_refs, rt->rt_refcnt,
-				     wid_use, rt->rt_use);
-#endif
-		if (Wflag) {
-			if (rt->rt_rmx.rmx_mtu != 0)
-				printf("%*lu ", wid_mtu, rt->rt_rmx.rmx_mtu);
-			else
-				printf("%*s ", wid_mtu, "");
-		}
+	if (Wflag) {
+		printf("%*ju ", wid_pksent,
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
+
+		if (rt->rt_mtu != 0)
+			printf("%*lu ", wid_mtu, rt->rt_mtu);
+		else
+			printf("%*s ", wid_mtu, "");
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
@@ -892,11 +853,11 @@ p_rtentry_kvm(struct rtentry *rt)
 			lastif = rt->rt_ifp;
 		}
 		printf("%*.*s", wid_if, wid_if, prettyname);
-		if (rt->rt_rmx.rmx_expire) {
+		if (rt->rt_expire) {
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0)
+			    rt->rt_expire - uptime.tv_sec) > 0)
 				printf(" %*d", wid_expire, (int)expire_time);
 		}
 		if (rt->rt_nodes[0].rn_dupedkey)
@@ -1140,110 +1101,4 @@ rt_stats(void)
 	if (rttrash || sflag <= 1)
 		printf("\t%u route%s not in table but not freed\n",
 		    rttrash, plural(rttrash));
-}
-
-char *
-ipx_print(struct sockaddr *sa)
-{
-	u_short port;
-	struct servent *sp = 0;
-	const char *net = "", *host = "";
-	char *p;
-	u_char *q;
-	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-	static char mybuf[50];
-	char cport[10], chost[15], cnet[15];
-
-	port = ntohs(work.x_port);
-
-	if (ipx_nullnet(work) && ipx_nullhost(work)) {
-
-		if (port) {
-			if (sp)
-				sprintf(mybuf, "*.%s", sp->s_name);
-			else
-				sprintf(mybuf, "*.%x", port);
-		} else
-			sprintf(mybuf, "*.*");
-
-		return (mybuf);
-	}
-
-	if (ipx_wildnet(work))
-		net = "any";
-	else if (ipx_nullnet(work))
-		net = "*";
-	else {
-		q = work.x_net.c_net;
-		sprintf(cnet, "%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3]);
-		for (p = cnet; *p == '0' && p < cnet + 8; p++)
-			continue;
-		net = p;
-	}
-
-	if (ipx_wildhost(work))
-		host = "any";
-	else if (ipx_nullhost(work))
-		host = "*";
-	else {
-		q = work.x_host.c_host;
-		sprintf(chost, "%02x%02x%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3], q[4], q[5]);
-		for (p = chost; *p == '0' && p < chost + 12; p++)
-			continue;
-		host = p;
-	}
-
-	if (port) {
-		if (strcmp(host, "*") == 0)
-			host = "";
-		if (sp)
-			snprintf(cport, sizeof(cport),
-				"%s%s", *host ? "." : "", sp->s_name);
-		else
-			snprintf(cport, sizeof(cport),
-				"%s%x", *host ? "." : "", port);
-	} else
-		*cport = 0;
-
-	snprintf(mybuf, sizeof(mybuf), "%s.%s%s", net, host, cport);
-	return(mybuf);
-}
-
-char *
-ipx_phost(struct sockaddr *sa)
-{
-	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
-	struct sockaddr_ipx work;
-	static union ipx_net ipx_zeronet;
-	char *p;
-
-	work = *sipx;
-
-	work.sipx_addr.x_port = 0;
-	work.sipx_addr.x_net = ipx_zeronet;
-	p = ipx_print((struct sockaddr *)&work);
-	if (strncmp("*.", p, 2) == 0) p += 2;
-
-	return(p);
-}
-
-void
-upHex(char *p0)
-{
-	char *p = p0;
-
-	for (; *p; p++)
-		switch (*p) {
-
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			*p += ('A' - 'a');
-			break;
-		}
 }

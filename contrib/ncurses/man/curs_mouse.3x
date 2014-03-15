@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_mouse.3x,v 1.38 2010/12/04 18:38:55 tom Exp $
+.\" $Id: curs_mouse.3x,v 1.39 2013/06/22 18:09:42 tom Exp $
 .TH curs_mouse 3X ""
 .na
 .hy 0
@@ -40,20 +40,18 @@
 .ad
 .hy
 .SH SYNOPSIS
+\fB#include <curses.h>\fR
+.PP
+\fBtypedef unsigned long mmask_t;\fR
+.PP
 .nf
-\fB#include <curses.h>
-.PP
-\fBtypedef unsigned long mmask_t;
-.PP
-typedef struct
-{
-    short id;         \fI/* ID to distinguish multiple devices */\fB
-    int x, y, z;      \fI/* event coordinates */\fB
-    mmask_t bstate;   \fI/* button state bits */\fB
-}
-MEVENT;\fR
+\fBtypedef struct {\fR
+\fB    short id;         \fR\fI/* ID to distinguish multiple devices */\fR
+\fB    int x, y, z;      \fR\fI/* event coordinates */\fR
+\fB    mmask_t bstate;   \fR\fI/* button state bits */\fR
+\fB} MEVENT;\fR
 .fi
-.br
+.PP
 \fBbool has_mouse(void);\fR
 .br
 \fBint getmouse(MEVENT *event);\fR

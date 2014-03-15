@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.head,v 1.18 2010/07/31 16:08:48 tom Exp $
+.\" $Id: terminfo.head,v 1.21 2013/03/09 22:11:36 tom Exp $
 .TH terminfo 5 "" "" "File Formats"
 .ds n 5
 .ds d @TERMINFO@
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.IP \(bu 4
+..
 .SH NAME
 terminfo \- terminal capability data base
 .SH SYNOPSIS
@@ -74,7 +81,7 @@ the result can be read by \fB@TIC@\fP.
 Terminal names (except for the last, verbose entry) should
 be chosen using the following conventions.
 The particular piece of hardware making up the terminal should
-have a root name, thus ``hp2621''.
+have a root name, thus \*(``hp2621\*(''.
 This name should not contain hyphens.
 Modes that the hardware can be in, or user preferences, should
 be indicated by appending a hyphen and a mode suffix.
@@ -102,6 +109,6 @@ l l l.
 .TE
 .PP
 For more on terminal naming conventions, see the \fBterm(7)\fR manual page.
-.SS Capabilities
+.SS Predefined Capabilities
 .\" Head of terminfo man page ends here
 .ps -1

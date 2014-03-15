@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_data.c,v 1.15 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: frm_data.c,v 1.16 2013/08/24 22:44:05 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -103,7 +103,7 @@ Only_Padding(WINDOW *w, int len, int pad)
 		}
 	    }
 #else
-	  cell = winch(w);
+	  cell = (FIELD_CELL) winch(w);
 	  if (ChCharOf(cell) != ChCharOf(pad))
 	    {
 	      result = FALSE;

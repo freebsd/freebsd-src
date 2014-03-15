@@ -1297,6 +1297,9 @@ struct ath_hal {
 	uint32_t	ah_intrstate[8];	/* last int state */
 	uint32_t	ah_syncstate;		/* last sync intr state */
 
+	/* Current powerstate from HAL calls */
+	HAL_POWER_MODE	ah_powerMode;
+
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: menu.priv.h,v 1.23 2009/02/28 21:02:57 juergen Exp $ */
+/* $Id: menu.priv.h,v 1.24 2012/03/10 23:43:41 tom Exp $ */
 
 /***************************************************************************
 * Module menu.priv.h                                                       *
@@ -39,6 +39,7 @@
 
 #ifndef MENU_PRIV_H_incl
 #define MENU_PRIV_H_incl 1
+/* *INDENT-OFF* */
 
 #include "curses.priv.h"
 #include "mf_common.h"
@@ -99,10 +100,11 @@ extern NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu;
 */
 #define Adjust_Current_Item(menu,row,item) \
   { if ((item)->y < row) \
-      row = (item)->y;\
-    if ( (item)->y >= (row + (menu)->arows) )\
-      row = ( (item)->y < ((menu)->rows - row) ) ? \
-            (item)->y : (menu)->rows - (menu)->arows;\
+      row = (short) (item)->y; \
+    if ( (item)->y >= (row + (menu)->arows) ) \
+      row = (short) (( (item)->y < ((menu)->rows - row) ) \
+                     ? (item)->y \
+		     : (menu)->rows - (menu)->arows); \
     _nc_New_TopRow_and_CurrentItem(menu,row,item); }
 
 /* Reset the match pattern buffer */
@@ -152,5 +154,6 @@ extern NCURSES_EXPORT(Menu_Options) _nc_retrace_menu_opts (Menu_Options);
 #define returnMenuOpts(code)	return code
 
 #endif /* TRACE/!TRACE */
+/* *INDENT-ON* */
 
 #endif /* MENU_PRIV_H_incl */

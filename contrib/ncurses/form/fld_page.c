@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_page.c,v 1.10 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: fld_page.c,v 1.12 2012/06/10 00:12:47 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -54,9 +54,9 @@ set_new_page(FIELD *field, bool new_page_flag)
     RETURN(E_CONNECTED);
 
   if (new_page_flag)
-    field->status |= _NEWPAGE;
+    SetStatus(field, _NEWPAGE);
   else
-    field->status &= ~_NEWPAGE;
+    ClrStatus(field, _NEWPAGE);
 
   RETURN(E_OK);
 }

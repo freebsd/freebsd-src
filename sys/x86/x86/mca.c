@@ -700,8 +700,8 @@ cmci_setup(void)
 {
 	int i;
 
-	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state **),
-	    M_MCA, M_WAITOK);
+	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state *), M_MCA,
+	    M_WAITOK);
 	for (i = 0; i <= mp_maxid; i++)
 		cmc_state[i] = malloc(sizeof(struct cmc_state) * mca_banks,
 		    M_MCA, M_WAITOK | M_ZERO);

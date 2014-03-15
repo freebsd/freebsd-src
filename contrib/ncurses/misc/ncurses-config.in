@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: ncurses-config.in,v 1.25 2011/03/19 22:43:38 tom Exp $
+# $Id: ncurses-config.in,v 1.30 2012/11/11 00:14:28 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 2006-2011,2012 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -30,22 +30,48 @@
 #
 # Author: Thomas E. Dickey, 2006-on
 
+LANG=C;		export LANG
+LANGUAGE=C;	export LANGUAGE
+LC_ALL=C;	export LC_ALL
+LC_CTYPE=C;	export LC_CTYPE
+
 prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 
 bindir="@bindir@"
 includedir="@includedir@"
 libdir="@libdir@"
+datarootdir="@datarootdir@"
 datadir="@datadir@"
 mandir="@mandir@"
 
 THIS="@LIB_NAME@@DFT_ARG_SUFFIX@"
 TINFO_LIB="@TINFO_ARG_SUFFIX@"
+RPATH_LIST="@RPATH_LIST@"
 
-LANG=C;		export LANG
-LANGUAGE=C;	export LANGUAGE
-LC_ALL=C;	export LC_ALL
-LC_CTYPE=C;	export LC_CTYPE
+# Ensure that RPATH_LIST contains only absolute pathnames, if it is nonempty.
+# We cannot filter it out within the build-process since the variable is used
+# in some special cases of installation using a relative path.
+if test -n "$RPATH_LIST"
+then
+	save_IFS="$IFS"
+	IFS='@PATH_SEPARATOR@'
+	filtered=
+	for item in $RPATH_LIST
+	do
+		case "$item" in
+		./*|../*|*/..|*/../*)
+			;;
+		*)
+			test -n "$filtered" && filtered="${filtered}@PATH_SEPARATOR@"
+			filtered="${filtered}${item}"
+			;;
+		esac
+	done
+	IFS="$save_IFS"
+	# if the result is empty, there is little we can do to fix it
+	RPATH_LIST="$filtered"
+fi
 
 # with --disable-overwrite, we installed into a subdirectory, but transformed
 # the headers to include like this:
@@ -83,13 +109,19 @@ while test $# -gt 0; do
 ENDECHO
 		;;
 	--libs)
+		if test "$libdir" = /usr/lib
+		then
+			LIBDIR=
+		else
+			LIBDIR=-L$libdir
+		fi
 		if test @TINFO_NAME@ = @LIB_NAME@ ; then
 		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			-L$libdir @EXTRA_LDFLAGS@ -l${THIS} @LIBS@
+			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} @LIBS@
 ENDECHO
 		else
 		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
-			-L$libdir @EXTRA_LDFLAGS@ -l${THIS} -l${TINFO_LIB} @LIBS@
+			$LIBDIR @EXTRA_LDFLAGS@ -l${THIS} -l${TINFO_LIB} @LIBS@
 ENDECHO
 		fi
 		;;
@@ -163,4 +195,5 @@ ENDHELP
 	esac
 	shift
 done
+# vi:ts=4 sw=4
 # vile:shmode

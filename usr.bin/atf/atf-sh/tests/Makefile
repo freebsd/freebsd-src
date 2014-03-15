@@ -23,4 +23,4 @@ misc_helpers: misc_helpers.sh
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 
-.include <atf.test.mk>
+.include <bsd.test.mk>

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,12 +38,12 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatr_set.c,v 1.14 2009/10/24 22:47:03 tom Exp $")
+MODULE_ID("$Id: lib_slkatr_set.c,v 1.15 2014/02/01 22:10:42 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
 			       const attr_t attr,
-			       short color_pair_number,
+			       NCURSES_PAIRS_T color_pair_number,
 			       void *opts)
 {
     int code = ERR;
@@ -51,7 +51,7 @@ NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
     T((T_CALLED("slk_attr_set(%p,%s,%d)"),
        (void *) SP_PARM,
        _traceattr(attr),
-       color_pair_number));
+       (int) color_pair_number));
 
     if (SP_PARM != 0
 	&& SP_PARM->_slk != 0
@@ -71,7 +71,7 @@ NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-slk_attr_set(const attr_t attr, short color_pair_number, void *opts)
+slk_attr_set(const attr_t attr, NCURSES_COLOR_T color_pair_number, void *opts)
 {
     return NCURSES_SP_NAME(slk_attr_set) (CURRENT_SCREEN, attr,
 					  color_pair_number, opts);

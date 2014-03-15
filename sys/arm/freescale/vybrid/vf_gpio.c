@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 
 #include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_port.h>
 
 #define	GPIO_PDOR(n)	(0x00 + 0x40 * (n >> 5))
 #define	GPIO_PSOR(n)	(0x04 + 0x40 * (n >> 5))
@@ -68,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
-#define	NPORTS		5
-#define	NGPIO		(NPORTS * 32)
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 /*
@@ -85,39 +84,21 @@ static int vf_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int vf_gpio_pin_toggle(device_t, uint32_t pin);
 
 struct vf_gpio_softc {
-	struct resource		*res[6];
+	struct resource		*res[1];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 
 	struct mtx		sc_mtx;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
-	void			*gpio_ih[NPORTS];
 };
 
 struct vf_gpio_softc *gpio_sc;
 
 static struct resource_spec vf_gpio_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static int
-vf_gpio_intr(void *arg)
-{
-	struct vf_gpio_softc *sc;
-	sc = arg;
-
-	/* TODO: interrupt handling */
-
-	return (FILTER_HANDLED);
-}
-
 
 static int
 vf_gpio_probe(device_t dev)
@@ -137,7 +118,7 @@ static int
 vf_gpio_attach(device_t dev)
 {
 	struct vf_gpio_softc *sc;
-	int irq, i;
+	int i;
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
@@ -147,22 +128,13 @@ vf_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	gpio_sc = sc;
-
 	/* Memory interface */
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
-	sc->gpio_npins = NGPIO;
+	gpio_sc = sc;
 
-	for (irq = 0; irq < NPORTS; irq ++) {
-		if ((bus_setup_intr(dev, sc->res[1 + irq], INTR_TYPE_MISC,
-		    vf_gpio_intr, NULL, sc, &sc->gpio_ih[irq]))) {
-			device_printf(dev,
-			    "WARNING: unable to register interrupt handler\n");
-			return (ENXIO);
-		}
-	}
+	sc->gpio_npins = NGPIO;
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;

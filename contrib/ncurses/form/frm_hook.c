@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,13 +32,13 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_hook.c,v 1.15 2010/01/23 21:12:08 tom Exp $")
+MODULE_ID("$Id: frm_hook.c,v 1.16 2012/03/11 00:37:16 tom Exp $")
 
 /* "Template" macro to generate function to set application specific hook */
 #define GEN_HOOK_SET_FUNCTION( typ, name ) \
 NCURSES_IMPEXP int NCURSES_API set_ ## typ ## _ ## name (FORM *form, Form_Hook func)\
 {\
-   T((T_CALLED("set_" #typ"_"#name"(%p,%p)"), form, func));\
+   T((T_CALLED("set_" #typ"_"#name"(%p,%p)"), (void *) form, func));\
    (Normalize_Form( form ) -> typ ## name) = func ;\
    RETURN(E_OK);\
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_opts.c,v 1.15 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: frm_opts.c,v 1.17 2013/08/24 22:58:47 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -49,8 +49,8 @@ set_form_opts(FORM *form, Form_Options opts)
 {
   T((T_CALLED("set_form_opts(%p,%d)"), (void *)form, opts));
 
-  opts &= ALL_FORM_OPTS;
-  if (opts & ~ALL_FORM_OPTS)
+  opts &= (Form_Options) ALL_FORM_OPTS;
+  if ((unsigned)opts & ~ALL_FORM_OPTS)
     RETURN(E_BAD_ARGUMENT);
   else
     {
@@ -71,7 +71,7 @@ NCURSES_EXPORT(Form_Options)
 form_opts(const FORM *form)
 {
   T((T_CALLED("form_opts(%p)"), (const void *)form));
-  returnCode((int)(Normalize_Form(form)->opts & ALL_FORM_OPTS));
+  returnCode((Form_Options) ((unsigned)Normalize_Form(form)->opts & ALL_FORM_OPTS));
 }
 
 /*---------------------------------------------------------------------------
@@ -89,8 +89,8 @@ form_opts_on(FORM *form, Form_Options opts)
 {
   T((T_CALLED("form_opts_on(%p,%d)"), (void *)form, opts));
 
-  opts &= ALL_FORM_OPTS;
-  if (opts & ~ALL_FORM_OPTS)
+  opts &= (Form_Options) ALL_FORM_OPTS;
+  if ((unsigned)opts & ~ALL_FORM_OPTS)
     RETURN(E_BAD_ARGUMENT);
   else
     {
@@ -114,8 +114,8 @@ form_opts_off(FORM *form, Form_Options opts)
 {
   T((T_CALLED("form_opts_off(%p,%d)"), (void *)form, opts));
 
-  opts &= ALL_FORM_OPTS;
-  if (opts & ~ALL_FORM_OPTS)
+  opts &= (Form_Options) ALL_FORM_OPTS;
+  if ((unsigned)opts & ~ALL_FORM_OPTS)
     RETURN(E_BAD_ARGUMENT);
   else
     {

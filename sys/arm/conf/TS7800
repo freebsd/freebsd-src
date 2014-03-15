@@ -26,6 +26,10 @@ options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=mge0
 
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
+
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores

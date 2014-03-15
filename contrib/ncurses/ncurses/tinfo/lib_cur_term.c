@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,14 +39,12 @@
 #include <curses.priv.h>
 #include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_cur_term.c,v 1.30 2010/12/19 01:38:45 tom Exp $")
+MODULE_ID("$Id: lib_cur_term.c,v 1.32 2013/10/28 00:10:27 tom Exp $")
 
 #undef CUR
 #define CUR termp->type.
 
-#if BROKEN_LINKER && !USE_REENTRANT
-NCURSES_EXPORT_VAR(TERMINAL *) cur_term = 0;
-#elif BROKEN_LINKER || USE_REENTRANT
+#if USE_REENTRANT
 
 NCURSES_EXPORT(TERMINAL *)
 NCURSES_SP_NAME(_nc_get_cur_term) (NCURSES_SP_DCL0)
@@ -55,6 +53,7 @@ NCURSES_SP_NAME(_nc_get_cur_term) (NCURSES_SP_DCL0)
 }
 
 #if NCURSES_SP_FUNCS
+
 NCURSES_EXPORT(TERMINAL *)
 _nc_get_cur_term(void)
 {
@@ -87,10 +86,10 @@ NCURSES_SP_NAME(set_curterm) (NCURSES_SP_DCLx TERMINAL * termp)
     oldterm = cur_term;
     if (SP_PARM)
 	SP_PARM->_term = termp;
-#if BROKEN_LINKER && !USE_REENTRANT
-    cur_term = termp;
-#else
+#if USE_REENTRANT
     CurTerm = termp;
+#else
+    cur_term = termp;
 #endif
     if (termp != 0) {
 #ifdef USE_TERM_DRIVER
@@ -133,9 +132,7 @@ NCURSES_SP_NAME(del_curterm) (NCURSES_SP_DCLx TERMINAL * termp)
 	TERMINAL_CONTROL_BLOCK *TCB = (TERMINAL_CONTROL_BLOCK *) termp;
 #endif
 	TERMINAL *cur = (
-#if BROKEN_LINKER && !USE_REENTRANT
-			    cur_term
-#elif BROKEN_LINKER || USE_REENTRANT
+#if USE_REENTRANT
 			    NCURSES_SP_NAME(_nc_get_cur_term) (NCURSES_SP_ARG)
 #else
 			    cur_term
@@ -148,8 +145,9 @@ NCURSES_SP_NAME(del_curterm) (NCURSES_SP_DCLx TERMINAL * termp)
 
 	FreeIfNeeded(termp->_termname);
 #if USE_HOME_TERMINFO
-	if (_nc_globals.home_terminfo != 0)
+	if (_nc_globals.home_terminfo != 0) {
 	    FreeAndNull(_nc_globals.home_terminfo);
+	}
 #endif
 #ifdef USE_TERM_DRIVER
 	if (TCB->drv)

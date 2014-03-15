@@ -215,7 +215,6 @@ struct ifnet {
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
-#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -325,18 +324,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
 #define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
-
-static __inline void
-if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
-{
-
-	ifp->if_baudrate_pf = 0;
-	while (baud > (u_long)(~0UL)) {
-		baud /= 10;
-		ifp->if_baudrate_pf++;
-	}
-	ifp->if_baudrate = baud;
-}
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
