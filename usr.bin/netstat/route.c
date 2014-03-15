@@ -90,18 +90,11 @@ struct bits {
 	{ RTF_STATIC,	'S' },
 	{ RTF_PROTO1,	'1' },
 	{ RTF_PROTO2,	'2' },
-	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
 	{ RTF_BLACKHOLE,'B' },
 	{ RTF_BROADCAST,'b' },
 #ifdef RTF_LLINFO
 	{ RTF_LLINFO,	'L' },
-#endif
-#ifdef RTF_WASCLONED
-	{ RTF_WASCLONED,'W' },
-#endif
-#ifdef RTF_CLONING
-	{ RTF_CLONING,	'C' },
 #endif
 	{ 0 , 0 }
 };
