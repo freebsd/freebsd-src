@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #include <assert.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -33,7 +35,6 @@
 
 #include "fixups.h"
 #include "misc.h"
-#include "queue.h"
 
 /*
  * A synchronized queue to implement fixups.  The updater thread adds
