@@ -32,7 +32,7 @@
 /*
  * Historically, the key userspace and kernel Capsicum definitions were found
  * in this file.  However, it conflicted with POSIX.1e's capability.h, so has
- * been renamed capability.h.  The file remains for backwards compatibility
+ * been renamed capsicum.h.  The file remains for backwards compatibility
  * reasons as a nested include.
  */
 #ifndef _SYS_CAPABILITY_H_
