@@ -29,6 +29,7 @@
 
 # Various regression tests to test the -F flag to the 'update' command.
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -213,6 +214,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -221,6 +223,7 @@ present()
 {
 	if ! [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be present"
+		FAILED=yes
 	fi
 }
 
@@ -233,15 +236,18 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -254,10 +260,12 @@ conflict()
 
 	if ! [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 missing conflict"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		sum=`md5 -q $CONFLICTS/$1`
 		if [ "$sum" != "$2" ]; then
 			echo "Conflict $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -267,11 +275,13 @@ noconflict()
 {
 	if [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 should not have a conflict"
+		FAILED=yes
 	fi
 }
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -297,7 +307,8 @@ Warnings:
 EOF
 
 echo "Differences for regular:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 file /remove "" 1bb4776213af107077be78fead8a351c
 file /old "" 2f799a7addc4132563ef9b44adc66157
@@ -329,7 +340,8 @@ cat > $WORKDIR/correctF.out <<EOF
 EOF
 
 echo "Differences for -F:"
-diff -u -L "correct" $WORKDIR/correctF.out -L "test" $WORKDIR/testF.out
+diff -u -L "correct" $WORKDIR/correctF.out -L "test" $WORKDIR/testF.out \
+    || FAILED=yes
 
 missing /remove
 file /old "" 6a9f34f109d94406a4de3bc5d72de259
@@ -363,7 +375,8 @@ cat > $WORKDIR/correctAF.out <<EOF
 EOF
 
 echo "Differences for -A '/*' -F:"
-diff -u -L "correct" $WORKDIR/correctAF.out -L "test" $WORKDIR/testAF.out
+diff -u -L "correct" $WORKDIR/correctAF.out -L "test" $WORKDIR/testAF.out \
+    || FAILED=yes
 
 missing /remove
 file /old "" 6a9f34f109d94406a4de3bc5d72de259
@@ -377,3 +390,5 @@ noconflict /conflict
 file /local "" 6a8fc5c2755b7a49015089f5e1dbe092
 file /local-already "" 49045f8b51542dd634655301cd296f66
 file /local-remove "" 5c38322efed4014797d7127f5c652d9d
+
+[ "${FAILED}" = no ]
