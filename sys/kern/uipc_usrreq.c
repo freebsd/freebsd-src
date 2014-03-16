@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */

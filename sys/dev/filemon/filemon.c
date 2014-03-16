@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #if __FreeBSD_version >= 900041
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #endif
 
 #include "filemon.h"
