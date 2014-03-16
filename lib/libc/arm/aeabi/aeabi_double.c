@@ -56,7 +56,7 @@ float64 __aeabi_dsub_vfp(float64, float64);
 /*
  * Depending on the target these will:
  *  On armv6 with a vfp call the above function, or
- *  Call the softfloat cunstion in the 3rd argument.
+ *  Call the softfloat function in the 3rd argument.
  */
 int AEABI_FUNC2(dcmpeq, float64, float64_eq)
 int AEABI_FUNC2(dcmplt, float64, float64_lt)
