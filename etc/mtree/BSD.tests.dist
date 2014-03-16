@@ -95,6 +95,16 @@
                 atf-sh
                 ..
             ..
+            lastcomm
+            ..
+        ..
+        usr.sbin
+            etcupdate
+            ..
+            newsyslog
+            ..
+            sa
+            ..
         ..
     ..
 ..

@@ -6,6 +6,7 @@
 ACCT=acct
 RESULTS=acct.`uname -m`.tar.gz
 TMPDIR=$$.tmp
+TZ=UTC; export TZ
 
 run()
 {
