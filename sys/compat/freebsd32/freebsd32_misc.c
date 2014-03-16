@@ -1504,7 +1504,7 @@ freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 	ap.whence = uap->whence;
 	error = sys_lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
-	pos = *(off_t *)(td->td_retval);
+	pos = td->td_uretoff.tdu_off;
 	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
 	td->td_retval[RETVAL_HI] = pos >> 32;		/* %edx */
 	return error;
