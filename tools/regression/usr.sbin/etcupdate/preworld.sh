@@ -29,6 +29,7 @@
 
 # Regression tests for the pre-world (-p) mode 
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -147,6 +148,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -155,6 +157,7 @@ present()
 {
 	if ! [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be present"
+		FAILED=yes
 	fi
 }
 
@@ -167,15 +170,18 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -188,10 +194,12 @@ conflict()
 
 	if ! [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 missing conflict"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		sum=`md5 -q $CONFLICTS/$1`
 		if [ "$sum" != "$2" ]; then
 			echo "Conflict $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -213,6 +221,7 @@ check_trees()
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -229,11 +238,15 @@ cat > $WORKDIR/correct.out <<EOF
 EOF
 
 echo "Differences for -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || FAILED=yes
 
 $COMMAND -p -s $SRC -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for real:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 check_trees
+
+[ "${FAILED}" = no ]
