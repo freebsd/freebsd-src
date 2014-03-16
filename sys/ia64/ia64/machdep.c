@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/intr.h>
+#include <machine/kdb.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
@@ -559,6 +560,18 @@ spinlock_exit(void)
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
 		intr_restore(intr);
+}
+
+void
+kdb_cpu_trap(int vector, int code __unused)
+{
+
+	__asm __volatile("flushrs;;");
+
+	/* Restart after the break instruction. */
+	if (vector == IA64_VEC_BREAK &&
+	    kdb_frame->tf_special.ifa == IA64_FIXED_BREAK)
+		kdb_frame->tf_special.psr += IA64_PSR_RI_1;
 }
 
 void

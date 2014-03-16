@@ -35,6 +35,8 @@
 
 #define	KDB_STOPPEDPCB(pc)	(&(pc)->pc_md.pcb)
 
+void kdb_cpu_trap(int, int);
+
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {
@@ -60,16 +62,6 @@ kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 		cacheline += 32;
 		size -= 32;
 	}
-}
-
-static __inline void
-kdb_cpu_trap(int vector, int _)
-{
-	__asm __volatile("flushrs;;");
-
-	if (vector == IA64_VEC_BREAK &&
-	    kdb_frame->tf_special.ifa == IA64_FIXED_BREAK)
-                kdb_frame->tf_special.psr += IA64_PSR_RI_1;
 }
 
 #endif /* _MACHINE_KDB_H_ */
