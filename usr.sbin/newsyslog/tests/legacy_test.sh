@@ -3,7 +3,7 @@
 # $FreeBSD$
 
 COUNT=0
-TMPDIR=`mktemp -d -t regress_newsyslog`
+TMPDIR=$(pwd)/work
 if [ $? -ne 0 ]; then
         echo "$0: Can't create temp dir, exiting..."
         exit 1

@@ -6,6 +6,8 @@
 # $FreeBSD$
 #
 
+TZ=UTC; export TZ
+
 # Set this to the path of the current sa command
 SANEW=/usr/sbin/sa
 
