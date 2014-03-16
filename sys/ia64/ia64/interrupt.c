@@ -316,8 +316,8 @@ ia64_handle_intr(struct trapframe *tf)
 
 	critical_enter();
 	do {
-		CTR2(KTR_INTR, "INTR: ITC=%u, XIV=%u",
-		    (u_int)tf->tf_special.ifa, xiv);
+		CTR3(KTR_INTR, "INTR: XIV=%u, #%u: frame=%p", xiv,
+		    PCPU_GET(cnt.v_intr), tf);
 		if (!(ia64_handler[xiv])(td, xiv, tf)) {
 			ia64_set_eoi(0);
 			ia64_srlz_d();
