@@ -56,7 +56,7 @@ float32 __aeabi_fsub_vfp(float32, float32);
 /*
  * Depending on the target these will:
  *  On armv6 with a vfp call the above function, or
- *  Call the softfloat cunstion in the 3rd argument.
+ *  Call the softfloat function in the 3rd argument.
  */
 int AEABI_FUNC2(fcmpeq, float32, float32_eq)
 int AEABI_FUNC2(fcmplt, float32, float32_lt)
