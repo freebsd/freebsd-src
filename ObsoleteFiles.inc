@@ -75,7 +75,10 @@ OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
 OLD_FILES+=usr/share/man/man4/ef.4.gz
 OLD_FILES+=usr/share/man/man4/if_ef.4.gz
 OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
-
+# 20140314: bsdconfig usermgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/userinput
+# 20140307: bsdconfig groupmgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
 # 20140223: Remove libyaml
 OLD_FILES+=usr/lib/private/libyaml.a
 OLD_FILES+=usr/lib/private/libyaml.so
@@ -118,6 +121,9 @@ OLD_FILES+=usr/include/clang/3.3/xopintrin.h
 OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_DIRS+=usr/include/clang/3.3
+# 20140216: nve(4) removed
+OLD_FILES+=usr/share/man/man4/if_nve.4.gz
+OLD_FILES+=usr/share/man/man4/nve.4.gz
 # 20140205: Open Firmware device moved
 OLD_FILES+=usr/include/dev/ofw/ofw_nexus.h
 # 20140128: libelf and libdwarf import
