@@ -1,6 +1,8 @@
 #	@(#)Makefile	5.3 (Berkeley) 5/12/90
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 BYACC_SRC=	${.CURDIR}/../../contrib/byacc
 .PATH: ${BYACC_SRC}
 
@@ -19,5 +21,9 @@ CFLAGS+=	-DYYPATCH=${YYPATCH}
 
 LINKS=	${BINDIR}/yacc ${BINDIR}/byacc
 MLINKS=	yacc.1 byacc.1
+
+.if ${MK_TESTS} != "no"
+SUBDIR+= tests
+.endif
 
 .include <bsd.prog.mk>
