@@ -95,6 +95,13 @@ enum sata_fis_type {
 #define	MODEPAGE_CD_CAPABILITIES	0x2A
 
 /*
+ * ATA commands
+ */
+#define	ATA_SF_ENAB_SATA_SF		0x10
+#define		ATA_SATA_SF_AN		0x05
+#define	ATA_SF_DIS_SATA_SF		0x90
+
+/*
  * Debug printf
  */
 #ifdef AHCI_DEBUG
@@ -1169,6 +1176,17 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_SETFEATURES:
 	{
 		switch (cfis[3]) {
+		case ATA_SF_ENAB_SATA_SF:
+			switch (cfis[12]) {
+			case ATA_SATA_SF_AN:
+				p->tfd = ATA_S_DSC | ATA_S_READY;
+				break;
+			default:
+				p->tfd = ATA_S_ERROR | ATA_S_READY;
+				p->tfd |= (ATA_ERROR_ABORT << 8);
+				break;
+			}
+			break;
 		case ATA_SF_ENAB_WCACHE:
 		case ATA_SF_DIS_WCACHE:
 		case ATA_SF_ENAB_RCACHE:
