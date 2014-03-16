@@ -2080,7 +2080,7 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 	if (error != 0)
 		goto drop;
 	VFS_KNOTE_UNLOCKED(vp, 0);
-	*(off_t *)(td->td_retval) = offset;
+	td->td_uretoff.tdu_off = offset;
 drop:
 	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
