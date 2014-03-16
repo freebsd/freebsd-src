@@ -426,10 +426,21 @@ PLAIN_TESTS_CXX	The names of the plain (legacy) test programs to build.
 
 PLAIN_TESTS_SH	The names of the plain (legacy) test programs to build.
 
+TAP_PERL_INTERPRETER
+		Path to the Perl interpreter to be used for
+		TAP-compliant test programs that are written in Perl.
+		Refer to TAP_TESTS_PERL for details.
+
 TAP_TESTS_C	The names of the TAP-compliant C test programs to build.
 
 TAP_TESTS_CXX	The names of the TAP-compliant C++ test programs to
 		build.
+
+TAP_TESTS_PERL	The names of the TAP-compliant Perl test programs to
+		build.  The corresponding source files should end with
+		the .pl extension; the test program is marked as
+		requiring Perl; and TAP_PERL_INTERPRETER is used in the
+		built scripts as the interpreter of choice.
 
 TAP_TESTS_SH	The names of the TAP-compliant sh test programs to
 		build.
