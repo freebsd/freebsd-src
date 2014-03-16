@@ -29,12 +29,14 @@
 #ifndef _SHA256_H_
 #define _SHA256_H_
 
+#ifndef _KERNEL
 #include <sys/types.h>
+#endif
 
 typedef struct SHA256Context {
 	uint32_t state[8];
 	uint64_t count;
-	unsigned char buf[64];
+	uint8_t buf[64];
 } SHA256_CTX;
 
 __BEGIN_DECLS
@@ -42,9 +44,11 @@ void	SHA256_Init(SHA256_CTX *);
 void	SHA256_Update(SHA256_CTX *, const void *, size_t);
 void	SHA256_Final(unsigned char [32], SHA256_CTX *);
 char   *SHA256_End(SHA256_CTX *, char *);
+char   *SHA256_Data(const void *, unsigned int, char *);
+#ifndef _KERNEL
 char   *SHA256_File(const char *, char *);
 char   *SHA256_FileChunk(const char *, char *, off_t, off_t);
-char   *SHA256_Data(const void *, unsigned int, char *);
+#endif
 __END_DECLS
 
 #endif /* !_SHA256_H_ */

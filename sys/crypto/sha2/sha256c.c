@@ -30,7 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/types.h>
 
+#ifdef _KERNEL
+#include <sys/systm.h>
+#else
 #include <string.h>
+#endif
 
 #include "sha256.h"
 
