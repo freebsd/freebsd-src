@@ -362,9 +362,9 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR9341:
 			case AR71XX_SOC_AR9342:
 			case AR71XX_SOC_AR9344:
-				/* Ack/clear the irq on status register for AR724x */
+				/* ACK/clear the given interrupt */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
-				    reg & ~(1 << irq));
+				    (1 << irq));
 				break;
 			default:
 				/* fallthrough */
@@ -385,7 +385,7 @@ apb_filter(void *arg)
 					continue;
 				}
 				/* Ignore timer interrupts */
-				if (irq != 0)
+				if (irq != 0 && irq != 8 && irq != 9 && irq != 10)
 					printf("Stray APB IRQ %d\n", irq);
 				continue;
 			}
