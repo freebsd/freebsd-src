@@ -68,71 +68,71 @@ options  	ALT_BREAK_TO_DEBUGGER	# Use <CR><tilde><ctrl-b> to enter debugger.
 #options  	WITNESS			# Enable checks to detect deadlocks and cycles
 
 # Note that 'bpf' is required for DHCP.
-device  	bpf		# Berkeley packet filter
+device  	bpf			# Berkeley packet filter
 
 # Pseudo devices.
-device  	loop		# Network loopback
-device  	random		# Entropy device
-device  	vlan		# 802.1Q VLAN support
-device  	tun		# Packet tunnel.
-device  	md		# Memory "disks"
-#device  	gif		# IPv6 and IPv4 tunneling
-#device  	faith		# IPv6-to-IPv4 relaying (translation)
-#device  	firmware	# firmware assist module
-device  	ether		# Ethernet support
-device  	miibus		# Required for ethernet
+device  	loop			# Network loopback
+device  	random			# Entropy device
+device  	vlan			# 802.1Q VLAN support
+device  	tun			# Packet tunnel.
+device  	md			# Memory "disks"
+#device  	gif			# IPv6 and IPv4 tunneling
+#device  	faith			# IPv6-to-IPv4 relaying (translation)
+#device  	firmware		# firmware assist module
+device  	ether			# Ethernet support
+device  	miibus			# Required for ethernet
 
 # Serial (COM) ports
-device  	uart		# Multi-uart driver
+device  	uart			# Multi-uart driver
 
-#device  	iomux		# IO Multiplexor
+#device  	iomux			# IO Multiplexor
 
 # SCSI peripherals
-device  	scbus		# SCSI bus (required for SCSI)
-device  	da		# Direct Access (disks)
-device  	cd		# CD
-device  	pass		# Passthrough device (direct SCSI access)
+device  	scbus			# SCSI bus (required for SCSI)
+device  	da			# Direct Access (disks)
+device  	cd			# CD
+device  	pass			# Passthrough device (direct SCSI access)
 
 # USB support
-#options  	USB_DEBUG	# enable debug msgs
-options  USB_HOST_ALIGN=32	# Required for ARM, set to cache line size.
-device  	ehci		# OHCI USB interface
-device  	usb		# USB Bus (required)
-device  	umass		# Disks/Mass storage - Requires scbus and da
-device  	uhid		# "Human Interface Devices"
-device  	u3g		# USB modems
+#options  	USB_DEBUG		# enable debug msgs
+options  USB_HOST_ALIGN=32		# Required for ARM, set to cache line size.
+device  	ehci			# OHCI USB interface
+device  	usb			# USB Bus (required)
+device  	umass			# Disks/Mass storage - Requires scbus and da
+device  	uhid			# "Human Interface Devices"
+device  	u3g			# USB modems
 
 # USB Ethernet, requires miibus
-#device  	aue		# ADMtek USB Ethernet
-#device  	axe		# ASIX Electronics USB Ethernet
-#device  	cdce		# Generic USB over Ethernet
-#device  	cue		# CATC USB Ethernet
-#device  	kue		# Kawasaki LSI USB Ethernet
-#device  	rue		# RealTek RTL8150 USB Ethernet
-#device  	udav		# Davicom DM9601E USB
+#device  	aue			# ADMtek USB Ethernet
+#device  	axe			# ASIX Electronics USB Ethernet
+#device  	cdce			# Generic USB over Ethernet
+#device  	cue			# CATC USB Ethernet
+#device  	kue			# Kawasaki LSI USB Ethernet
+#device  	rue			# RealTek RTL8150 USB Ethernet
+#device  	udav			# Davicom DM9601E USB
 
 # USB Wireless
-#device  	rum		# Ralink Technology RT2501USB wireless NICs
+#device  	rum			# Ralink Technology RT2501USB wireless NICs
 
 # Watchdog timer.
 # WARNING: can't be disabled!!!
-#device  	imxwdt		# Watchdog
+#device  	imxwdt			# Watchdog
 
 # Wireless NIC cards
-#device  	wlan		# 802.11 support
-#device  	wlan_wep	# 802.11 WEP support
-#device  	wlan_ccmp	# 802.11 CCMP support
-#device  	wlan_tkip	# 802.11 TKIP support
-#device  	wlan_amrr	# AMRR transmit rate control algorithm
+#device  	wlan			# 802.11 support
+#device  	wlan_wep		# 802.11 WEP support
+#device  	wlan_ccmp		# 802.11 CCMP support
+#device  	wlan_tkip		# 802.11 TKIP support
+#device  	wlan_amrr		# AMRR transmit rate control algorithm
 
 # NOTE: serial console will be disabled if syscons enabled
 # Uncomment following lines for framebuffer/syscons support
 # Wandboard has no video console support yet.
 #device  	sc
 #device  	kbdmux
-#options  	SC_DFLT_FONT    # compile font in
+#options  	SC_DFLT_FONT		# compile font in
 #makeoptions  	SC_DFLT_FONT=cp437
-#device  	ukbd		# Allow keyboard like HIDs to control console
+#device  	ukbd			# Allow keyboard like HIDs to control console
 #device  	ums
 
 # required for netbooting
@@ -145,15 +145,15 @@ device  	u3g		# USB modems
 # U-Boot stuff lives on slice 1, FreeBSD on slice 2.
 options  	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
-#device  	fsliic		# Freescale i2c/iic (not ready yet)
-#device  	iic		# iic protocol
-#device  	iicbus		# iic bus
+#device  	fsliic			# Freescale i2c/iic (not ready yet)
+#device  	iic			# iic protocol
+#device  	iicbus			# iic bus
 
-device  	sdhci		# SD controller
-device  	mmc		# SD/MMC protocol
-device  	mmcsd		# SDCard disk device
+device  	sdhci			# SD controller
+device  	mmc			# SD/MMC protocol
+device  	mmcsd			# SDCard disk device
 
-device  	ffec		# Freescale Fast Ethernet Controller
+device  	ffec			# Freescale Fast Ethernet Controller
 
 options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 

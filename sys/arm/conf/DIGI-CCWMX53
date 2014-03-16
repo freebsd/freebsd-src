@@ -41,13 +41,13 @@ options 	NFSCL			# New Network Filesystem Client
 #options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
-options		TMPFS			#Efficient memory filesystem
+options		TMPFS			# Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 #options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_PART_BSD		#BSD partition scheme
-options 	GEOM_PART_MBR		#MBR partition scheme
+options 	GEOM_PART_BSD		# BSD partition scheme
+options 	GEOM_PART_MBR		# MBR partition scheme
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 #options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
@@ -94,33 +94,33 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
-device		bpf		# Berkeley packet filter
+device		bpf			# Berkeley packet filter
 
 # Pseudo devices.
-device		loop		# Network loopback
-device		random		# Entropy device
-device		ether		# Ethernet support
-#device		vlan		# 802.1Q VLAN support
-#device		tun		# Packet tunnel.
-#device		md		# Memory "disks"
-#device		gif		# IPv6 and IPv4 tunneling
-#device		faith		# IPv6-to-IPv4 relaying (translation)
-#device		firmware	# firmware assist module
+device		loop			# Network loopback
+device		random			# Entropy device
+device		ether			# Ethernet support
+#device		vlan			# 802.1Q VLAN support
+#device		tun			# Packet tunnel.
+#device		md			# Memory "disks"
+#device		gif			# IPv6 and IPv4 tunneling
+#device		faith			# IPv6-to-IPv4 relaying (translation)
+#device		firmware		# firmware assist module
 
 # Ethernet
-device		ffec		# Freescale Fast Ethernet Controller
-device		miibus		# Standard mii bus
+device		ffec			# Freescale Fast Ethernet Controller
+device		miibus			# Standard mii bus
 
 # Serial (COM) ports
-device		uart		# Multi-uart driver
+device		uart			# Multi-uart driver
 options 	ALT_BREAK_TO_DEBUGGER
 
 device		ata
-device		atapci		# Only for helper functions
+device		atapci			# Only for helper functions
 device		imxata
-options 	ATA_STATIC_ID	# Static device numbering
+options 	ATA_STATIC_ID		# Static device numbering
 
-device		iomux		# IO Multiplexor
+device		iomux			# IO Multiplexor
 
 device		gpio
 device		gpioled
@@ -130,44 +130,44 @@ device		iic
 device		iicbus
 
 # SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
-device		da		# Direct Access (disks)
-device		cd		# CD
-device		pass		# Passthrough device (direct SCSI access)
+device		scbus			# SCSI bus (required for SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct SCSI access)
 
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
-options 	USB_DEBUG	# enable debug msgs
-device		ehci		# OHCI USB interface
-device		usb		# USB Bus (required)
-device		umass		# Disks/Mass storage - Requires scbus and da
-device		uhid		# "Human Interface Devices"
-#device		ukbd		# Allow keyboard like HIDs to control console
+options 	USB_DEBUG		# enable debug msgs
+device		ehci			# OHCI USB interface
+device		usb			# USB Bus (required)
+device		umass			# Disks/Mass storage - Requires scbus and da
+device		uhid			# "Human Interface Devices"
+#device		ukbd			# Allow keyboard like HIDs to control console
 device		ums
 
 # USB Ethernet, requires miibus
 #device		miibus
-#device		aue		# ADMtek USB Ethernet
-#device		axe		# ASIX Electronics USB Ethernet
-#device		cdce		# Generic USB over Ethernet
-#device		cue		# CATC USB Ethernet
-#device		kue		# Kawasaki LSI USB Ethernet
-#device		rue		# RealTek RTL8150 USB Ethernet
-#device		udav		# Davicom DM9601E USB
+#device		aue			# ADMtek USB Ethernet
+#device		axe			# ASIX Electronics USB Ethernet
+#device		cdce			# Generic USB over Ethernet
+#device		cue			# CATC USB Ethernet
+#device		kue			# Kawasaki LSI USB Ethernet
+#device		rue			# RealTek RTL8150 USB Ethernet
+#device		udav			# Davicom DM9601E USB
 
 # USB Wireless
-#device		rum		# Ralink Technology RT2501USB wireless NICs
+#device		rum			# Ralink Technology RT2501USB wireless NICs
 
 # Watchdog timer.
 # WARNING: can't be disabled!!!
-device		imxwdt		# Watchdog
+device		imxwdt			# Watchdog
 
 # Wireless NIC cards
-device		wlan		# 802.11 support
-device		wlan_wep	# 802.11 WEP support
-device		wlan_ccmp	# 802.11 CCMP support
-device		wlan_tkip	# 802.11 TKIP support
-device		wlan_amrr	# AMRR transmit rate control algorithm
+device		wlan			# 802.11 support
+device		wlan_wep		# 802.11 WEP support
+device		wlan_ccmp		# 802.11 CCMP support
+device		wlan_tkip		# 802.11 TKIP support
+device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # Flattened Device Tree
 options         FDT
@@ -178,5 +178,5 @@ makeoptions     FDT_DTS_FILE=digi-ccwmx53.dts
 # Uncomment following lines for framebuffer/syscons support
 #device		sc
 #device		kbdmux
-#options         SC_DFLT_FONT    # compile font in
+#options         SC_DFLT_FONT		# compile font in
 #makeoptions     SC_DFLT_FONT=cp437
