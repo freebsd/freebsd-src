@@ -65,7 +65,7 @@
  * C Helper macros
  */
 
-#if 1 && defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
+#if defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
 /*
  * Generate a function that will either call into the VFP implementation,
  * or the soft float version for a given __aeabi_* helper. The function
