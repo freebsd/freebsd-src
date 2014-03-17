@@ -393,6 +393,7 @@ _sem_timedwait(sem_t * __restrict sem,
 		return (-1);
 
 	retval = 0;
+	_pthread_testcancel();
 	for (;;) {
 		while ((val = sem->_kern._count) > 0) {
 			if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
