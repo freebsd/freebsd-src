@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * Copyright (c) 2013 SRI International 
  * All rights reserved.
  *
@@ -185,6 +185,7 @@ void
 platform_init_ap(int cpuid)
 {
 	uint32_t status;
+	register_t hwrena;
 	u_int clock_int_mask;
 
 	KASSERT(cpuid < MAXCPU, ("%s: invalid CPU id %d", __func__, cpuid));
@@ -196,6 +197,11 @@ platform_init_ap(int cpuid)
 	status |= MIPS_SR_COP_2_BIT;
 #endif
 	mips_wr_status(status);
+
+	/* Enable HDWRD instruction in userspace. */
+	hwrena = mips_rd_hwrena();
+	hwrena |= (MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM);
+	mips_wr_hwrena(hwrena);
 
 	/*
 	 * Enable per-thread timer.

@@ -161,6 +161,16 @@ VECTOR(_locore, unknown)
 	cmove	$c25, $c0		# Global $udc for now
 #endif
 
+#if defined(CPU_CHERI)
+	/*
+	 * Enable userspace cycle-count, cycle-count resolution, and CPU
+	 * number registers available via rdhwr.
+	 */
+	MFC0	t0, MIPS_COP_0_HWRENA
+	or	t0, MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM
+	MTC0	t0, MIPS_COP_0_HWRENA
+#endif
+
 	/*xxximp
 	 * now that we pass a0...a3 to the platform_init routine, do we need
 	 * to stash this stuff here?
