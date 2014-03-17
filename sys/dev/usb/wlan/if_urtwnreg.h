@@ -1119,6 +1119,7 @@ struct urtwn_softc {
 	int				ac2idx[WME_NUM_AC];
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
+#define URTWN_DETACHED		0x02
 
 	u_int				chip;
 #define URTWN_CHIP_92C		0x01
