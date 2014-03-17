@@ -1890,6 +1890,12 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	int result;
 
 	/*
+	 * XXX Check of someone is calling us from a critical section:
+	 */
+	if (curthread->td_critnest != 0)
+		return (EDEADLK);
+
+	/*
 	 * XXX KDGKBSTATE, KDSKBSTATE and KDSETLED can be called from any
 	 * context where printf(9) can be called, which among other things
 	 * includes interrupt filters and threads with any kinds of locks
