@@ -128,7 +128,7 @@ meminfo(void)
 	for (i = 0; i < 3; i++) {
 		size = memsize(si, t[i]);
 		if (size > 0)
-			printf("%s:\t %lldMB\n", ub_mem_type(t[i]),
+			printf("%s: %lldMB\n", ub_mem_type(t[i]),
 			    size / 1024 / 1024);
 	}
 }
@@ -198,17 +198,19 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	const char *p;
 	char *endp;
 
-	devstr = ub_env_get("loaderdev");
-	if (devstr == NULL)
-		devstr = "";
-	else
-		printf("U-Boot setting: loaderdev=%s\n", devstr);
-
-	p = get_device_type(devstr, type);
-
+	*type = -1;
 	*unit = -1;
 	*slice = 0;
 	*partition = -1;
+
+	devstr = ub_env_get("loaderdev");
+	if (devstr == NULL) {
+		printf("U-Boot env: loaderdev not set, will probe all devices.\n");
+		return;
+	}
+	printf("U-Boot env: loaderdev='%s'\n", devstr);
+
+	p = get_device_type(devstr, type);
 
 	/*
 	 * Empty device string, or unknown device name, or a bare, known 
@@ -297,6 +299,27 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	*partition = -1;
 } 
 
+static void
+print_disk_probe_info()
+{
+	char slice[32];
+	char partition[32];
+
+	if (currdev.d_disk.slice > 0)
+		sprintf(slice, "%d", currdev.d_disk.slice);
+	else
+		strcpy(slice, "<auto>");
+
+	if (currdev.d_disk.partition > 0)
+		sprintf(partition, "%d", currdev.d_disk.partition);
+	else
+		strcpy(partition, "<auto>");
+
+	printf("  Checking unit=%d slice=%s partition=%s...",
+	    currdev.d_unit, slice, partition);
+
+}
+
 static int
 probe_disks(int devidx, int load_type, int load_unit, int load_slice, 
     int load_partition)
@@ -311,13 +334,11 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 	open_result = -1;
 
 	if (load_type == -1) {
-		printf("Probing all storage devices...\n");
+		printf("  Probing all disk devices...\n");
 		/* Try each disk in succession until one works.  */
 		for (currdev.d_unit = 0; currdev.d_unit < UB_MAX_DEV;
 		     currdev.d_unit++) {
-			printf("Checking unit=%d slice=%d partition=%d...",
-			    currdev.d_unit, currdev.d_disk.slice, 
-			    currdev.d_disk.partition);
+			print_disk_probe_info();
 			open_result = devsw[devidx]->dv_open(&f, &currdev);
 			if (open_result == 0) {
 				printf(" good.\n");
@@ -329,15 +350,13 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 	}
 
 	if (load_unit == -1) {
-		printf("Probing all %s devices...\n", device_typename(load_type));
+		printf("  Probing all %s devices...\n", device_typename(load_type));
 		/* Try each disk of given type in succession until one works. */
 		for (unit = 0; unit < UB_MAX_DEV; unit++) {
 			currdev.d_unit = uboot_diskgetunit(load_type, unit);
 			if (currdev.d_unit == -1)
 				break;
-			printf("Checking unit=%d slice=%d partition=%d...",
-			    currdev.d_unit, currdev.d_disk.slice, 
-			    currdev.d_disk.partition);
+			print_disk_probe_info();
 			open_result = devsw[devidx]->dv_open(&f, &currdev);
 			if (open_result == 0) {
 				printf(" good.\n");
@@ -349,18 +368,16 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 	}
 
 	if ((currdev.d_unit = uboot_diskgetunit(load_type, load_unit)) != -1) {
-		printf("Checking unit=%d slice=%d partition=%d...",
-		    currdev.d_unit, currdev.d_disk.slice,
-		    currdev.d_disk.partition);
+		print_disk_probe_info();
 		open_result = devsw[devidx]->dv_open(&f,&currdev);
 		if (open_result == 0) {
-			printf("good.\n");
+			printf(" good.\n");
 			return (0);
 		}
 		printf("\n");
 	}
 
-	printf("Requested disk type/unit not found\n");
+	printf("  Requested disk type/unit not found\n");
 	return (-1);
 }
 
@@ -393,21 +410,26 @@ main(void)
 	bzero(__bss_start, _end - __bss_start);
 
 	/*
-         * Set up console.
-         */
-	cons_probe();
+	 * Initialise the heap as early as possible.  Once this is done,
+	 * alloc() is usable. The stack is buried inside us, so this is safe.
+	 */
+	setheap((void *)end, (void *)(end + 512 * 1024));
 
-	printf("Compatible API signature found @%x\n", (uint32_t)sig);
+	/*
+	 * Set up console.
+	 */
+	cons_probe();
+	printf("Compatible U-Boot API signature found @%x\n", (uint32_t)sig);
+
+	printf("\n");
+	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n");
 
 	dump_sig(sig);
 	dump_addr_info();
 
-	/*
-	 * Initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is
-	 * safe.
-	 */
-	setheap((void *)end, (void *)(end + 512 * 1024));
+	meminfo();
 
 	/*
 	 * Enumerate U-Boot devices
@@ -415,11 +437,6 @@ main(void)
 	if ((devs_no = ub_dev_enum()) == 0)
 		panic("no U-Boot devices found");
 	printf("Number of U-Boot devices: %d\n", devs_no);
-
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-	meminfo();
 
 	get_load_device(&load_type, &load_unit, &load_slice, &load_partition);
 
