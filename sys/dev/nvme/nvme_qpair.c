@@ -498,8 +498,9 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
 
+	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
 	bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
-	    sizeof(uint64_t), PAGE_SIZE, BUS_SPACE_MAXADDR,
+	    4, PAGE_SIZE, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
 	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
