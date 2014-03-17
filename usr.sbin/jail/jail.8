@@ -898,8 +898,9 @@ or for running a virtual server.
 .Pp
 Start a shell in the jail:
 .Bd -literal -offset indent
-jail -c path=/data/jail/testjail mount.devfs host.hostname=testhostname \\
-	ip4.addr=192.0.2.100 command=/bin/sh
+jail -c path=/data/jail/testjail mount.devfs \\
+	host.hostname=testhostname ip4.addr=192.0.2.100 \\
+	command=/bin/sh
 .Ed
 .Pp
 Assuming no errors, you will end up with a shell prompt within the jail.
