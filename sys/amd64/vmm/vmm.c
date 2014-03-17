@@ -1657,6 +1657,8 @@ void
 vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg)
 {
+	int i;
+
 	/*
 	 * Enforce that this function is called without any locks
 	 */
@@ -1686,6 +1688,15 @@ restart:
 	vm->rendezvous_arg = arg;
 	vm_set_rendezvous_func(vm, func);
 	mtx_unlock(&vm->rendezvous_mtx);
+
+	/*
+	 * Wake up any sleeping vcpus and trigger a VM-exit in any running
+	 * vcpus so they handle the rendezvous as soon as possible.
+	 */
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (CPU_ISSET(i, &dest))
+			vcpu_notify_event(vm, i, false);
+	}
 
 	vm_handle_rendezvous(vm, vcpuid);
 }
