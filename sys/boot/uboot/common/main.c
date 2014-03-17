@@ -446,8 +446,8 @@ main(void)
 				break;
 		}
 
-		if (load_type == -1 || ((load_type & DEV_TYP_NET) &&
-		    strcmp(devsw[i]->dv_name, "net") == 0))
+		if ((load_type == -1 || (load_type & DEV_TYP_NET)) &&
+		    strcmp(devsw[i]->dv_name, "net") == 0)
 			break;
 	}
 
