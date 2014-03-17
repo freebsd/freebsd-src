@@ -284,6 +284,15 @@ nvme_notify_consumer(struct nvme_consumer *cons)
 		else
 			ctrlr_cookie = NULL;
 		ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+		if (ctrlr->is_failed) {
+			if (cons->fail_fn != NULL)
+				(*cons->fail_fn)(ctrlr_cookie);
+			/*
+			 * Do not notify consumers about the namespaces of a
+			 *  failed controller.
+			 */
+			continue;
+		}
 		for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
 			ns = &ctrlr->ns[ns_idx];
 			if (cons->ns_fn != NULL)
