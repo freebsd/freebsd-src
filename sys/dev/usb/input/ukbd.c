@@ -1909,7 +1909,7 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	int result;
 
 	/*
-	 * XXX Check of someone is calling us from a critical section:
+	 * XXX Check if someone is calling us from a critical section:
 	 */
 	if (curthread->td_critnest != 0)
 		return (EDEADLK);
