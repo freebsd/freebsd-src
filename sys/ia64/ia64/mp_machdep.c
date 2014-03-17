@@ -113,10 +113,14 @@ ia64_ih_ast(struct thread *td, u_int xiv, struct trapframe *tf)
 static u_int
 ia64_ih_hardclock(struct thread *td, u_int xiv, struct trapframe *tf)
 {
+	struct trapframe *stf;
 
 	PCPU_INC(md.stats.pcs_nhardclocks);
 	CTR1(KTR_SMP, "IPI_HARDCLOCK, cpuid=%d", PCPU_GET(cpuid));
+	stf = td->td_intr_frame;
+	td->td_intr_frame = tf;
 	hardclockintr();
+	td->td_intr_frame = stf;
 	return (0);
 }
 
