@@ -245,8 +245,8 @@ static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
 static void		urtwn_init(void *);
 static void		urtwn_init_locked(void *);
-static void		urtwn_stop(struct ifnet *, int);
-static void		urtwn_stop_locked(struct ifnet *, int);
+static void		urtwn_stop(struct ifnet *);
+static void		urtwn_stop_locked(struct ifnet *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
 static int		urtwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -457,20 +457,40 @@ urtwn_detach(device_t self)
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
 	
-	if (!device_is_attached(self))
-		return (0);
+	/* Prevent further ioctls. */
+	URTWN_LOCK(sc);
+	sc->sc_flags |= URTWN_DETACHED;
+	URTWN_UNLOCK(sc);
 
-	urtwn_stop(ifp, 1);
+	urtwn_stop(ifp);
 
 	callout_drain(&sc->sc_watchdog_ch);
+
+	/* Prevent further allocations from RX/TX data lists. */
+	URTWN_LOCK(sc);
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	URTWN_UNLOCK(sc);
+
+	/* drain USB transfers */
+	for (x = 0; x != URTWN_N_TRANSFER; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
+
+	/* Free data buffers. */
+	URTWN_LOCK(sc);
+	urtwn_free_tx_list(sc);
+	urtwn_free_rx_list(sc);
+	URTWN_UNLOCK(sc);
 
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
 	ieee80211_ifdetach(ic);
-
-	urtwn_free_tx_list(sc);
-	urtwn_free_rx_list(sc);
 
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
@@ -1756,9 +1776,16 @@ urtwn_start_locked(struct ifnet *ifp, struct urtwn_softc *sc)
 static int
 urtwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
+	struct urtwn_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
+
+	URTWN_LOCK(sc);
+	error = (sc->sc_flags & URTWN_DETACHED) ? ENXIO : 0;
+	URTWN_UNLOCK(sc);
+	if (error != 0)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1769,7 +1796,7 @@ urtwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				urtwn_stop(ifp, 1);
+				urtwn_stop(ifp);
 		}
 		if (startall)
 			ieee80211_start_all(ic);
@@ -2068,6 +2095,10 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	    urtwn_read_1(sc, R92C_MCUFWDL) | R92C_MCUFWDL_EN);
 	urtwn_write_1(sc, R92C_MCUFWDL + 2,
 	    urtwn_read_1(sc, R92C_MCUFWDL + 2) & ~0x08);
+
+	/* Reset the FWDL checksum. */
+	urtwn_write_1(sc, R92C_MCUFWDL,
+	    urtwn_read_1(sc, R92C_MCUFWDL) | R92C_MCUFWDL_CHKSUM_RPT);
 
 	for (page = 0; len > 0; page++) {
 		mlen = min(len, R92C_FW_PAGE_SIZE);
@@ -2783,7 +2814,7 @@ urtwn_init_locked(void *arg)
 	int error;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		urtwn_stop_locked(ifp, 0);
+		urtwn_stop_locked(ifp);
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -2941,11 +2972,10 @@ urtwn_init(void *arg)
 }
 
 static void
-urtwn_stop_locked(struct ifnet *ifp, int disable)
+urtwn_stop_locked(struct ifnet *ifp)
 {
 	struct urtwn_softc *sc = ifp->if_softc;
 
-	(void)disable;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	callout_stop(&sc->sc_watchdog_ch);
@@ -2953,12 +2983,12 @@ urtwn_stop_locked(struct ifnet *ifp, int disable)
 }
 
 static void
-urtwn_stop(struct ifnet *ifp, int disable)
+urtwn_stop(struct ifnet *ifp)
 {
 	struct urtwn_softc *sc = ifp->if_softc;
 
 	URTWN_LOCK(sc);
-	urtwn_stop_locked(ifp, disable);
+	urtwn_stop_locked(ifp);
 	URTWN_UNLOCK(sc);
 }
 
