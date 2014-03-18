@@ -1,3 +1,348 @@
+commit b69900ed0b2f914fc6c0a180dcb522dbe5b80ea7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Jun 30 18:02:27 2013 +0300
+
+    Man pages: Use similar syntax for synopsis as in xz.
+    
+    The man pages of lzmainfo, xzmore, and xzdec had similar
+    constructs as the man page of xz had before the commit
+    eb6ca9854b8eb9fbf72497c1cf608d6b19d2d494. Eric S. Raymond
+    didn't mention these man pages in his bug report, but
+    it's nice to be consistent.
+
+commit cf4a1e1879d89be314ef3c064bd2656ea452f87e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Jun 30 15:55:09 2013 +0300
+
+    Update NEWS for 5.0.5.
+
+commit cb94bb6d1f34e1e93c2d634ea9c3b7dfb3981d05
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Jun 30 15:54:38 2013 +0300
+
+    Bump version and soname for 5.0.5.
+
+commit b7dee202d5b041ccae028d0c5433b83cecbe9e5d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 28 23:56:17 2013 +0300
+
+    xz: Fix return value type in io_write_buf().
+    
+    It didn't affect the behavior of the code since -1
+    becomes true anyway.
+
+commit 265e7b44d804b47373f10b7da28350db7611cea6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 28 18:46:13 2013 +0300
+
+    xz: Remove an outdated NetBSD-specific comment.
+    
+    Nowadays errno == EFTYPE is documented in open(2).
+
+commit 78c2f8db902195468b8249c432252a6b281db836
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 28 18:09:47 2013 +0300
+
+    xz: Fix error detection of fcntl(fd, F_SETFL, flags) calls.
+    
+    POSIX says that fcntl(fd, F_SETFL, flags) returns -1 on
+    error and "other than -1" on success. This is how it is
+    documented e.g. on OpenBSD too. On Linux, success with
+    F_SETFL is always 0 (at least accorinding to fcntl(2)
+    from man-pages 3.51).
+
+commit 91750dff8f2c654ff636f12a2acdffe5492374b3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 28 17:36:47 2013 +0300
+
+    xz: Fix use of wrong variable in a fcntl() call.
+    
+    Due to a wrong variable name, when writing a sparse file
+    to standard output, *all* file status flags were cleared
+    (to the extent the operating system allowed it) instead of
+    only clearing the O_APPEND flag. In practice this worked
+    fine in the common situations on GNU/Linux, but I didn't
+    check how it behaved elsewhere.
+    
+    The original flags were still restored correctly. I still
+    changed the code to use a separate boolean variable to
+    indicate when the flags should be restored instead of
+    relying on a special value in stdout_flags.
+
+commit e11888a79a4a77a69afde60445880d44f63d01aa
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 26 13:30:57 2013 +0300
+
+    xz: Check the value of lzma_stream_flags.version in --list.
+    
+    It is a no-op for now, but if an old xz version is used
+    together with a newer liblzma that supports something new,
+    then this check becomes important and will stop the old xz
+    from trying to parse files that it won't understand.
+
+commit f39ddd88f3222219ada88998cf30abfdd3e0e96c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 26 12:17:00 2013 +0300
+
+    Build: Require Automake 1.12 and use serial-tests option.
+    
+    It should actually still work with Automake 1.10 if
+    the serial-tests option is removed. Automake 1.13 started
+    using parallel tests by default and the option to get
+    the old behavior isn't supported before 1.12.
+    
+    At least for now, parallel tests don't improve anything
+    in XZ Utils but they hide the progress output from
+    test_compress.sh.
+
+commit cb84e278027a90e9827a6f4d3bb0b4d4744a2fbb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Jun 23 17:36:47 2013 +0300
+
+    xz: Validate Uncompressed Size from Block Header in list.c.
+    
+    This affects only "xz -lvv". Normal decompression with xz
+    already detected if Block Header and Index had mismatched
+    Uncompressed Size fields. So this just makes "xz -lvv"
+    show such files as corrupt instead of showing the
+    Uncompressed Size from Index.
+
+commit f01780fce454c7489f7dcbf806299b50da5f51b7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 26 10:58:58 2013 +0300
+
+    Update THANKS.
+
+commit d98ede7d700b892e32d9c2f46563b6ebc566786d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 21 22:04:45 2013 +0300
+
+    xz: Make the man page more friendly to doclifter.
+    
+    Thanks to Eric S. Raymond.
+
+commit 19b447b64b3f520cd5b11429000b092f7c76709b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 21 21:54:59 2013 +0300
+
+    xz: A couple of man page fixes.
+    
+    Now the interaction of presets and custom filter chains
+    is described correctly. Earlier it contradicted itself.
+    
+    Thanks to DevHC who reported these issues on IRC to me
+    on 2012-12-14.
+
+commit 45edf2966fc9a4d2eae8f84b2fa027fb4fa1df8b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 21 21:50:26 2013 +0300
+
+    xz: Fix interaction between preset and custom filter chains.
+    
+    There was somewhat illogical behavior when --extreme was
+    specified and mixed with custom filter chains.
+    
+    Before this commit, "xz -9 --lzma2 -e" was equivalent
+    to "xz --lzma2". After it is equivalent to "xz -6e"
+    (all earlier preset options get forgotten when a custom
+    filter chain is specified and the default preset is 6
+    to which -e is applied). I find this less illogical.
+    
+    This also affects the meaning of "xz -9e --lzma2 -7".
+    Earlier it was equivalent to "xz -7e" (the -e specified
+    before a custom filter chain wasn't forgotten). Now it
+    is "xz -7". Note that "xz -7e" still is the same as "xz -e7".
+    
+    Hopefully very few cared about this in the first place,
+    so pretty much no one should even notice this change.
+    
+    Thanks to Conley Moorhous.
+
+commit b065984e5a9272eb50bc0c6d3731e6199c0ae8a8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Apr 8 17:53:05 2011 +0300
+
+    xz: Change size_t to uint32_t in a few places.
+
+commit 32be621f52f2e1686db88baa7b01dc1ae338f426
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Apr 27 22:07:46 2013 +0300
+
+    Build: Use -Wvla with GCC if supported.
+    
+    Variable-length arrays are mandatory in C99 but optional in C11.
+    The code doesn't currently use any VLAs and it shouldn't in the
+    future either to stay compatible with C11 without requiring any
+    optional C11 features.
+
+commit efb07cfba65e9e05984c02cd796c1b0338ce04dc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Apr 15 19:29:09 2013 +0300
+
+    xzdec: Improve the --help message.
+    
+    The options are now ordered in the same order as in xz's help
+    message.
+    
+    Descriptions were added to the options that are ignored.
+    I left them in parenthesis even if it looks a bit weird
+    because I find it easier to spot the ignored vs. non-ignored
+    options from the list that way.
+
+commit e3c8be13699e2813f5e2879d8187444b46d82d89
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Apr 5 19:25:40 2013 +0300
+
+    Update THANKS.
+
+commit ad8282efe483612f6b5544f9a0d2e4914fb2532a
+Author: Jeff Bastian <jbastian@redhat.com>
+Date:   Wed Apr 3 13:59:17 2013 +0200
+
+    xzgrep: make the '-h' option to be --no-filename equivalent
+    
+    * src/scripts/xzgrep.in: Accept the '-h' option in argument parsing.
+
+commit 9271a3eb0e022b23e8712154be851d0afe4c02e4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Apr 5 19:34:09 2013 +0300
+
+    liblzma: Be less picky in lzma_alone_decoder().
+    
+    To avoid false positives when detecting .lzma files,
+    rare values in dictionary size and uncompressed size fields
+    were rejected. They will still be rejected if .lzma files
+    are decoded with lzma_auto_decoder(), but when using
+    lzma_alone_decoder() directly, such files will now be accepted.
+    Hopefully this is an OK compromise.
+    
+    This doesn't affect xz because xz still has its own file
+    format detection code. This does affect lzmadec though.
+    So after this commit lzmadec will accept files that xz or
+    xz-emulating-lzma doesn't.
+    
+    NOTE: lzma_alone_decoder() still won't decode all .lzma files
+    because liblzma's LZMA decoder doesn't support lc + lp > 4.
+    
+    Reported here:
+    http://sourceforge.net/projects/lzmautils/forums/forum/708858/topic/7068827
+    
+    Conflicts:
+    	src/liblzma/common/alone_decoder.c
+    	src/liblzma/common/alone_decoder.h
+
+commit 211b931cee58626c1d2e021810cb108cb5cbc10f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Mar 5 19:14:50 2013 +0200
+
+    Avoid unneeded use of awk in xzless.
+    
+    Use "read" instead of "awk" in xzless to get the version
+    number of "less". The need for awk was introduced in
+    the commit db5c1817fabf7cbb9e4087b1576eb26f0747338e.
+    
+    Thanks to Ariel P for the patch.
+
+commit 9f62fd9605eade23b62b07a235d1f02156f7a5c6
+Author: Jonathan Nieder <jrnieder@gmail.com>
+Date:   Mon Nov 19 00:10:10 2012 -0800
+
+    xzless: Make "less -V" parsing more robust
+    
+    In v4.999.9beta~30 (xzless: Support compressed standard input,
+    2009-08-09), xzless learned to parse ‘less -V’ output to figure out
+    whether less is new enough to handle $LESSOPEN settings starting
+    with “|-”.  That worked well for a while, but the version string from
+    ‘less’ versions 448 (June, 2012) is misparsed, producing a warning:
+    
+    	$ xzless /tmp/test.xz; echo $?
+    	/usr/bin/xzless: line 49: test: 456 (GNU regular expressions): \
+    	integer expression expected
+    	0
+    
+    More precisely, modern ‘less’ lists the regexp implementation along
+    with its version number, and xzless passes the entire version number
+    with attached parenthetical phrase as a number to "test $a -gt $b",
+    producing the above confusing message.
+    
+    	$ less-444 -V | head -1
+    	less 444
+    	$ less -V | head -1
+    	less 456 (no regular expressions)
+    
+    So relax the pattern matched --- instead of expecting "less <number>",
+    look for a line of the form "less <number>[ (extra parenthetical)]".
+    While at it, improve the behavior when no matching line is found ---
+    instead of producing a cryptic message, we can fall back on a LESSPIPE
+    setting that is supported by all versions of ‘less’.
+    
+    The implementation uses "awk" for simplicity.  Hopefully that’s
+    portable enough.
+    
+    Reported-by: Jörg-Volker Peetz <jvpeetz@web.de>
+    Signed-off-by: Jonathan Nieder <jrnieder@gmail.com>
+
+commit 1d05980f5b5c2c94d833001daccacce4a466876e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Oct 3 15:54:24 2012 +0300
+
+    xz: Fix the note about --rsyncable on the man page.
+
+commit fb68497333598688d309a92838d91fd560f7e9f0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 28 20:11:09 2012 +0300
+
+    xz: Improve handling of failed realloc in xrealloc.
+    
+    Thanks to Jim Meyering.
+
+commit 75013db6d4d63c195bd8b8d45729b4be0665a812
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Dec 15 20:01:02 2012 +0200
+
+    A few typo fixes to comments and the xz man page.
+    
+    Thanks to Jim Meyering.
+
+commit e44b21839b1dcbac5097be39b87dd2ddb6e114fd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Aug 2 17:13:30 2012 +0300
+
+    Build: Bump gettext version requirement to 0.18.
+    
+    Otherwise too old version of m4/lib-link.m4 gets included
+    when autoreconf -fi is run.
+
+commit fd3dbb23ca7e75a7a888d7e897c381dc06308307
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jul 5 07:36:28 2012 +0300
+
+    Tests: Remove tests/test_block.c that had gotten committed accidentally.
+
+commit 05a735d279d74af437c31f25f69aded4713c1a3d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jul 5 07:33:35 2012 +0300
+
+    Build: Include macosx/build.sh in the distribution.
+    
+    It has been in the Git repository since 2010 but probably
+    few people have seen it since it hasn't been included in
+    the release tarballs. :-(
+
+commit 4e6d62793b5e7b87edcc93c7ded072c1ecd94173
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jul 5 07:24:45 2012 +0300
+
+    Docs: Fix the name LZMA Utils -> XZ Utils in debug/README.
+
+commit dd95b5e7614baf1f07a1316b5106bd616a9efa79
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jul 5 07:23:17 2012 +0300
+
+    Include debug/translation.bash in the distribution.
+    
+    Also fix the script name mentioned in README.
+
 commit 20778053a07eb90c159c1377ca8dc05a90fd530b
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   Fri Jun 22 14:36:16 2012 +0300
