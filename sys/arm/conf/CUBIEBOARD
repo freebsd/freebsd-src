@@ -31,7 +31,7 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -82,7 +82,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #device		mmcsd			# mmc/sd flash cards
 
 # Boot device is 2nd slice on MMC/SD card
-options		ROOTDEVNAME=\"ufs:/dev/da0s2\"
+options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # ATA controllers
 #device		ahci			# AHCI-compatible SATA controllers
@@ -134,7 +134,7 @@ device		emac
 device		miibus
 
 # Flattened Device Tree
-options		FDT
-options		FDT_DTB_STATIC
+options 	FDT
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard.dts
 

@@ -16,9 +16,9 @@ include		"AR724X_BASE"
 ident		"PICOSTATION_M2HP"
 hints		"PICOSTATION_M2HP.hints"
 
-options		AR71XX_REALMEM=32*1024*1024
+options 	AR71XX_REALMEM=32*1024*1024
 
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
 # Limit inlines
 makeoptions	INLINE_LIMIT=768
@@ -37,8 +37,8 @@ options 	NO_SWAPPING
 
 # uncompress - to boot read-only lzma natively from flash
 device		geom_uncompress
-options		GEOM_UNCOMPRESS
-options		ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+options 	GEOM_UNCOMPRESS
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 
 # Not enough space for these..
 nooptions 	INVARIANTS
