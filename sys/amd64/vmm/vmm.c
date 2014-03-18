@@ -130,7 +130,7 @@ struct vm {
 	 * An active vcpu is one that has been started implicitly (BSP) or
 	 * explicitly (AP) by sending it a startup ipi.
 	 */
-	cpuset_t	active_cpus;
+	volatile cpuset_t active_cpus;
 
 	struct mtx	rendezvous_mtx;
 	cpuset_t	rendezvous_req_cpus;
@@ -969,8 +969,12 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 
 	mtx_lock(&vm->rendezvous_mtx);
 	while (vm->rendezvous_func != NULL) {
+		/* 'rendezvous_req_cpus' must be a subset of 'active_cpus' */
+		CPU_AND(&vm->rendezvous_req_cpus, &vm->active_cpus);
+
 		if (vcpuid != -1 &&
-		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus)) {
+		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus) &&
+		    !CPU_ISSET(vcpuid, &vm->rendezvous_done_cpus)) {
 			VCPU_CTR0(vm, vcpuid, "Calling rendezvous func");
 			(*vm->rendezvous_func)(vm, vcpuid, vm->rendezvous_arg);
 			CPU_SET(vcpuid, &vm->rendezvous_done_cpus);
@@ -997,9 +1001,10 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
-	int t, timo;
+	int t, timo, spindown;
 
 	vcpu = &vm->vcpu[vcpuid];
+	spindown = 0;
 
 	vcpu_lock(vcpu);
 
@@ -1026,16 +1031,24 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			 * Spindown the vcpu if the apic is disabled and it
 			 * had entered the halted state.
 			 */
-			*retu = true;
-			vmexit = vm_exitinfo(vm, vcpuid);
-			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
-			vm_deactivate_cpu(vm, vcpuid);
-			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+			spindown = 1;
 		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
 	vcpu_unlock(vcpu);
+
+	/*
+	 * Since 'vm_deactivate_cpu()' grabs a sleep mutex we must call it
+	 * outside the confines of the vcpu spinlock.
+	 */
+	if (spindown) {
+		*retu = true;
+		vmexit = vm_exitinfo(vm, vcpuid);
+		vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+		vm_deactivate_cpu(vm, vcpuid);
+		VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+	}
 
 	return (0);
 }
@@ -1541,16 +1554,37 @@ void
 vm_activate_cpu(struct vm *vm, int vcpuid)
 {
 
-	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
-		CPU_SET(vcpuid, &vm->active_cpus);
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
+	    ("vm_activate_cpu: invalid vcpuid %d", vcpuid));
+	KASSERT(!CPU_ISSET(vcpuid, &vm->active_cpus),
+	    ("vm_activate_cpu: vcpuid %d is already active", vcpuid));
+
+	VCPU_CTR0(vm, vcpuid, "activated");
+	CPU_SET_ATOMIC(vcpuid, &vm->active_cpus);
 }
 
 static void
 vm_deactivate_cpu(struct vm *vm, int vcpuid)
 {
 
-	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
-		CPU_CLR(vcpuid, &vm->active_cpus);
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
+	    ("vm_deactivate_cpu: invalid vcpuid %d", vcpuid));
+	KASSERT(CPU_ISSET(vcpuid, &vm->active_cpus),
+	    ("vm_deactivate_cpu: vcpuid %d is not active", vcpuid));
+
+	VCPU_CTR0(vm, vcpuid, "deactivated");
+	CPU_CLR_ATOMIC(vcpuid, &vm->active_cpus);
+
+	/*
+	 * If a vcpu rendezvous is in progress then it could be blocked
+	 * on 'vcpuid' - unblock it before disappearing forever.
+	 */
+	mtx_lock(&vm->rendezvous_mtx);
+	if (vm->rendezvous_func != NULL) {
+		VCPU_CTR0(vm, vcpuid, "unblock rendezvous after deactivation");
+		wakeup(&vm->rendezvous_func);
+	}
+	mtx_unlock(&vm->rendezvous_mtx);
 }
 
 cpuset_t
