@@ -536,6 +536,7 @@ MAN=	aac.4 \
 	urtwn.4 \
 	urtwnfw.4 \
 	usb.4 \
+	usb_template.4 \
 	usb_quirk.4 \
 	uslcom.4 \
 	utopia.4 \
