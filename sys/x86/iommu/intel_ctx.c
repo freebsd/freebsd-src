@@ -262,17 +262,15 @@ dmar_ctx_dtr(struct dmar_ctx *ctx, bool gas_inited, bool pgtbl_inited)
 }
 
 struct dmar_ctx *
-dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_init)
+dmar_get_ctx(struct dmar_unit *dmar, device_t dev, int bus, int slot, int func,
+    bool id_mapped, bool rmrr_init)
 {
 	struct dmar_ctx *ctx, *ctx1;
 	dmar_ctx_entry_t *ctxp;
 	struct sf_buf *sf;
-	int bus, slot, func, error, mgaw;
+	int error, mgaw;
 	bool enable;
 
-	bus = pci_get_bus(dev);
-	slot = pci_get_slot(dev);
-	func = pci_get_function(dev);
 	enable = false;
 	TD_PREP_PINNED_ASSERT;
 	DMAR_LOCK(dmar);
@@ -356,6 +354,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 		ctx = dmar_find_ctx_locked(dmar, bus, slot, func);
 		if (ctx == NULL) {
 			ctx = ctx1;
+			ctx->ctx_tag.owner = dev;
 			ctx->domain = alloc_unrl(dmar->domids);
 			if (ctx->domain == -1) {
 				DMAR_UNLOCK(dmar);
@@ -376,9 +375,11 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 			LIST_INSERT_HEAD(&dmar->contexts, ctx, link);
 			ctx_id_entry_init(ctx, ctxp);
 			device_printf(dev,
-			    "dmar%d pci%d:%d:%d:%d domain %d mgaw %d agaw %d\n",
+			    "dmar%d pci%d:%d:%d:%d domain %d mgaw %d "
+			    "agaw %d %s-mapped\n",
 			    dmar->unit, dmar->segment, bus, slot,
-			    func, ctx->domain, ctx->mgaw, ctx->agaw);
+			    func, ctx->domain, ctx->mgaw, ctx->agaw,
+			    id_mapped ? "id" : "re");
 		} else {
 			dmar_ctx_dtr(ctx1, true, true);
 		}
