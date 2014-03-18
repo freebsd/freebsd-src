@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -851,6 +851,9 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	nvme_ctrlr_start(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
+
+	ctrlr->is_initialized = 1;
+	nvme_notify_new_controller(ctrlr);
 }
 
 static void
@@ -1174,6 +1177,8 @@ intx:
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
+	ctrlr->is_initialized = 0;
+	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 
 	TASK_INIT(&ctrlr->fail_req_task, 0, nvme_ctrlr_fail_req_task, ctrlr);
