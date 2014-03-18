@@ -32,6 +32,7 @@ struct ia64_ap_state {
 	void		*as_kstack;
 	void		*as_kstack_top;
 	struct pcpu	*as_pcpu;
+	void		*as_xtrace_buffer;
 	volatile int	as_delay;
 	volatile u_int	as_awake;
 	volatile u_int	as_spin;
