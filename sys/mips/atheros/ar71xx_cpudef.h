@@ -63,6 +63,8 @@ struct ar71xx_cpu_def {
 	void (* ar71xx_chip_reset_wmac) (void);
 
 	void (* ar71xx_chip_init_gmac) (void);
+
+	void (* ar71xx_chip_reset_nfc) (int);
 };
 
 extern struct ar71xx_cpu_def * ar71xx_cpu_ops;
@@ -138,6 +140,13 @@ static inline void ar71xx_init_gmac(void)
 static inline void ar71xx_device_ddr_flush_ip2(void)
 {
 	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ip2();
+}
+
+static inline void ar71xx_reset_nfc(int active)
+{
+
+	if (ar71xx_cpu_ops->ar71xx_chip_reset_nfc)
+		ar71xx_cpu_ops->ar71xx_chip_reset_nfc(active);
 }
 
 /* XXX shouldn't be here! */
