@@ -809,10 +809,9 @@ cust_pkgng () (
 			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
 
 		# Attempt to install more packages
-		# ...but no more than 200 at a time due to (XXX still the case?) pkg_add's internal
 		# limitations.
 		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*txz | xargs -n 200 env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
+			'ls Pkg/*txz | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
 
 		# See what that got us
 		now=`chroot ${NANO_WORLDDIR} sh -c \
