@@ -215,10 +215,6 @@ static struct syscall syscalls[] = {
 	  .args = { { Timespec, 0 } } },
 	{ .name = "kevent", .ret_type = 0, .nargs = 6,
 	  .args = { { Int, 0 }, { Kevent, 1 }, { Int, 2 }, { Kevent | OUT, 3 }, { Int, 4 }, { Timespec, 5 } } },
-	{ .name = "_umtx_lock", .ret_type = 0, .nargs = 1,
-	  .args = { { Umtx, 0 } } },
-	{ .name = "_umtx_unlock", .ret_type = 0, .nargs = 1,
-	  .args = { { Umtx, 0 } } },
 	{ .name = "sigprocmask", .ret_type = 0, .nargs = 3,
 	  .args = { { Sigprocmask, 0 }, { Sigset, 1 }, { Sigset | OUT, 2 } } },
 	{ .name = "unmount", .ret_type = 1, .nargs = 2,
@@ -721,15 +717,6 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			    isprint(IOCGROUP(arg)) ? (char)IOCGROUP(arg) : '?',
 			    arg & 0xFF, IOCPARM_LEN(arg));
 		}
-		break;
-	}
-	case Umtx: {
-		struct umtx umtx;
-		if (get_struct(pid, (void *)args[sc->offset], &umtx,
-		    sizeof(umtx)) != -1)
-			asprintf(&tmp, "{ 0x%lx }", (long)umtx.u_owner);
-		else
-			asprintf(&tmp, "0x%lx", args[sc->offset]);
 		break;
 	}
 	case Timespec: {

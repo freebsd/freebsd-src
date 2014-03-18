@@ -33,10 +33,6 @@
 #include <sys/_types.h>
 #include <sys/_timespec.h>
 
-struct umtx {
-	volatile unsigned long	u_owner;	/* Owner of the mutex. */
-};
-
 struct umutex {
 	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
 	__uint32_t		m_flags;	/* Flags of the mutex */
