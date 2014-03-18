@@ -21,6 +21,6 @@ include		"VYBRID.common"
 ident		COSMIC
 
 #FDT
-options		FDT
-options		FDT_DTB_STATIC
+options 	FDT
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=vybrid-cosmic.dts

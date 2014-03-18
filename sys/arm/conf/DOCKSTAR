@@ -34,7 +34,7 @@ options 	INET6			# IPv6 communications protocols
 options 	SOFTUPDATES
 options 	CD9660			# ISO 9660 filesystem
 options 	FFS			# Berkeley Fast Filesystem
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	MSDOSFS			# MS DOS File System (FAT, FAT32)
 options 	NULLFS			# NULL filesystem
 options 	SYSVSHM			# SYSV-style shared memory

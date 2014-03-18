@@ -13,16 +13,16 @@ hints		"ROUTERSTATION.hints"
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
 device		geom_uzip	# compressed in-memory filesystem support
-options		GEOM_UZIP
+options 	GEOM_UZIP
 
 # For DOS
-options		MSDOSFS
+options 	MSDOSFS
 
 # Etherswitch support
-options		ARGE_MDIO
+options 	ARGE_MDIO
 device		miiproxy
 device		etherswitch
 device		ukswitch
 
 # Boot path - redboot MFS
-options		ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"
+options 	ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"
