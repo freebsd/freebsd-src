@@ -809,7 +809,6 @@ cust_pkgng () (
 			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
 
 		# Attempt to install more packages
-		# limitations.
 		chroot ${NANO_WORLDDIR} sh -c \
 			'ls Pkg/*txz | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
 
