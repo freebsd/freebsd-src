@@ -25,32 +25,32 @@ makeoptions	WITHOUT_MODULES="ahc"
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
 
-options		HZ=100
-options		SCHED_4BSD		# 4BSD scheduler
-options		INET			# InterNETworking
-options		INET6			# IPv6 communications protocols
-options		FFS			# Berkeley Fast Filesystem
-options		SOFTUPDATES
-options		UFS_ACL			# Support for access control lists
-options		UFS_DIRHASH		# Improve performance on big directories
+options 	HZ=100
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
-options		TMPFS			# Efficient memory filesystem
-options		MSDOSFS			# MSDOS Filesystem
-options		CD9660			# ISO 9660 Filesystem
-options		PROCFS			# Process filesystem (requires PSEUDOFS)
-options		PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
 #options 	NANDFS			# NAND Filesystem
-options		COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
-options		KTRACE
-options		SYSVSHM			# SYSV-style shared memory
-options		SYSVMSG			# SYSV-style message queues
-options		SYSVSEM			# SYSV-style semaphores
-options		_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
-options		KBD_INSTALL_CDEV
-options		PREEMPTION
-options		FREEBSD_BOOT_LOADER
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
+options 	KBD_INSTALL_CDEV
+options 	PREEMPTION
+options 	FREEBSD_BOOT_LOADER
 options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
@@ -59,10 +59,10 @@ options 	VFP			# vfp/neon
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options		BREAK_TO_DEBUGGER
+options 	BREAK_TO_DEBUGGER
 #options	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options		KDB
-options		DDB			# Enable the kernel debugger
+options 	KDB
+options 	DDB			# Enable the kernel debugger
 #options	INVARIANTS		# Enable calls of extra sanity checking
 #options	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 #options	WITNESS			# Enable checks to detect deadlocks and cycles
@@ -70,9 +70,9 @@ options		DDB			# Enable the kernel debugger
 #options	DIAGNOSTIC
 
 # NFS support
-options		NFSCL			# Network Filesystem Client
-options		NFSLOCKD		# Network Lock Manager
-options		NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+options 	NFSCL			# Network Filesystem Client
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 
 # Uncomment this for NFS root
 #options	NFS_ROOT		# NFS usable as /, requires NFSCL
@@ -86,9 +86,9 @@ device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		sdhci			# generic sdhci
 
-#options		ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/cosmic\"
-#options		ROOTDEVNAME=\"nandfs:/dev/gnand0s.root\"
-options		ROOTDEVNAME=\"ufs:/dev/da0\"
+#options 	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/cosmic\"
+#options 	ROOTDEVNAME=\"nandfs:/dev/gnand0s.root\"
+options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
 #options	SMP
 
@@ -103,7 +103,7 @@ device		gpio
 # USB support
 options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
-options		USB_DEBUG
+options 	USB_DEBUG
 #options	USB_REQ_DEBUG
 #options	USB_VERBOSE
 #device		musb
@@ -143,6 +143,6 @@ device		sound
 # Framebuffer
 device		vt
 device		kbdmux
-options		SC_DFLT_FONT		# compile font in
+options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp437
 device		ukbd
