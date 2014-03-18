@@ -536,6 +536,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	return (0);
 
 fail:
+	m_freem(m);
 	return (rc);
 	
 }
