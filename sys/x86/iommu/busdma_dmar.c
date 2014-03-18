@@ -237,7 +237,7 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	map->cansleep = false;
 	tag->map_count++;
 	*mapp = (bus_dmamap_t)map;
-	
+
 	return (0);
 }
 
@@ -280,7 +280,7 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	mflags |= (flags & BUS_DMA_ZERO) != 0 ? M_ZERO : 0;
 	attr = (flags & BUS_DMA_NOCACHE) != 0 ? VM_MEMATTR_UNCACHEABLE :
 	    VM_MEMATTR_DEFAULT;
-	
+
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = (struct bus_dmamap_dmar *)*mapp;
 
