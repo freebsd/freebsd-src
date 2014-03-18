@@ -50,62 +50,184 @@ __FBSDID("$FreeBSD$");
 
 	.section .ivt.data, "aw"
 
+	.align	8
 	.global ia64_kptdir
+	.size	ia64_kptdir, 8
 ia64_kptdir:	data8	0
 
-#ifdef EXCEPTION_TRACING
+#ifdef XTRACE
 
-	.global xtrace, xhead
-xtrace:	.space	1024*5*8
-xhead:	data8	xtrace
+	.align	8
+	.global	ia64_xtrace_mask
+	.size	ia64_xtrace_mask, 8
+ia64_xtrace_mask:	data8	0
 
-#define	XTRACE(offset)				\
-{	.mmi ;					\
-	mov	r24=ar.itc ;			\
-	mov	r25=cr.iip ;			\
-	mov	r27=offset ;			\
+	.align	4
+	.global	ia64_xtrace_enabled
+	.size	ia64_xtrace_enabled, 4
+ia64_xtrace_enabled:	data4	0
+
+#define	XTRACE_HOOK(offset)			\
+{	.mii ;					\
+	nop		0 ;			\
+	mov		r31 = b7 ;		\
+	mov		r28 = pr ;		\
 } ;						\
-{	.mlx ;					\
-	mov	r28=cr.ifa ;			\
-	movl	r29=xhead ;;			\
-} ;						\
-{	.mmi ;					\
-	ld8	r29=[r29] ;;			\
-	st8	[r29]=r24,8 ;			\
-	nop	0 ;;				\
-} ;						\
-{	.mmi ;					\
-	st8	[r29]=r27,8 ;;			\
-	mov	r24=cr.isr ;			\
-	add	r27=8,r29 ;;			\
-} ;						\
-{	.mmi ;					\
-	st8	[r29]=r25,16 ;;			\
-	st8	[r27]=r28,16 ;			\
-	mov	r25=pr ;;			\
-} ;						\
-{	.mlx ;					\
-	st8	[r29]=r24 ;			\
-	movl	r28=xhead ;;			\
+{	.mib ;					\
+	nop		0 ;			\
+	mov		r25 = ip ;		\
+	br.sptk		ia64_xtrace_write ;;	\
 } ;						\
 {	.mii ;					\
-	cmp.eq	p15,p0=r27,r28 ;		\
-	addl	r29=1024*5*8,r0 ;;		\
-(p15)	sub	r27=r28,r29 ;;			\
-} ;						\
-{	.mmi ;					\
-	st8	[r28]=r27 ;			\
-	nop	0 ;				\
-	mov	pr=r25,0x1ffff ;;		\
+	nop		0 ;			\
+	mov		b7 = r31 ;		\
+	mov		pr = r28, 0x1ffff ;;	\
 }
 
-#else
+	.section .ivt.text, "ax"
 
-#define	XTRACE(offset)
+// We can only use r25, r26 & r27
+ENTRY_NOPROFILE(ia64_xtrace_write, 0)
+{	.mlx
+	add	r25 = 16, r25
+	movl	r26 = ia64_xtrace_enabled
+	;;
+}
+{	.mmi
+	mov	r27 = ar.k3
+	ld4	r26 = [r26]
+	mov	b7 = r25
+	;;
+}
+{	.mib
+	add	r25 = -32, r25
+	cmp.eq	p15,p0 = r0, r26
+(p15)	br.dptk.few	b7
+	;;
+}
+{	.mib
+	nop	0
+	cmp.eq	p15,p0 = r0, r27
+(p15)	br.dptk.few	b7
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x00 IVT
+	mov	r26 = ar.itc
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x08 ITC
+	mov	r25 = cr.iip
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x10 IIP
+	mov	r26 = cr.ifa
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x18 IFA
+	mov	r25 = cr.isr
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x20 ISR
+	mov	r26 = cr.ipsr
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x28 IPSR
+	mov	r25 = cr.itir
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x30 ITIR
+	mov	r26 = cr.iipa
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x38 IIPA
+	mov	r25 = cr.ifs
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x40 IFS
+	mov	r26 = cr.iim
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x48 IIM
+	mov	r25 = cr.iha
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x50 IHA
+	mov	r26 = ar.unat
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x58 UNAT
+	mov	r25 = ar.rsc
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x60 RSC
+	mov	r26 = ar.bsp
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r26, 8		// 0x68 BSP
+	mov	r25 = r13
+	nop	0
+	;;
+}
+{	.mmi
+	st8	[r27] = r25, 8		// 0x70 PCPU/TLS
+	mov	r26 = r12
+	nop	0
+	;;
+}
+{	.mlx
+	st8	[r27] = r26, 8		// 0x78 SP
+	movl	r25 = ia64_xtrace_mask
+	;;
+}
+{	.mmi
+	ld8	r26 = [r25]
+	;;
+	and	r25 = r27, r26
+	nop	0
+	;;
+}
+{	.mib
+	mov	ar.k3 = r25
+	nop	0
+	br.sptk	b7
+	;;
+}
+END(ia64_xtrace_write)
 
-#endif
+#else /* XTRACE */
+
+#define	XTRACE_HOOK(offset)
 
 	.section .ivt.text, "ax"
+
+#endif /* XTRACE */
 
 /*
  * exception_save: save interrupted state
@@ -632,6 +754,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	ssm		psr.dt
 	;;
 	srlz.d
+	mov		r16 = r25
 
 exception_restore_restart:
 {	.mmi
@@ -649,20 +772,21 @@ exception_restore_restart:
 	;;
 }
 {	.mmi
+	mov		cr.ifs=r16
 	mov		ar.k6=r31
-	mov		ar.rnat=r21
+	mov		pr=r18,0x1ffff
+	;;
+}
+{	.mmi
+	mov		cr.iip=r19
+	mov		ar.unat=r17
 	nop		0
 	;;
 }
 {	.mmi
-	mov		ar.unat=r17
-	mov		cr.iip=r19
-	nop		0
-}
-{	.mmi
 	mov		cr.ipsr=r24
-	mov		cr.ifs=r25
-	mov		pr=r18,0x1ffff
+	mov		ar.rnat=r21
+	nop		0
 	;;
 }
 {	.mmb
@@ -713,7 +837,7 @@ END(exception_restore)
 	.save	rp, r0;				\
 	.body;					\
 ivt_##name:					\
-	XTRACE(offset)
+	XTRACE_HOOK(offset)
 
 #define	IVT_END(name)				\
 	.endp	ivt_##name
