@@ -283,10 +283,10 @@ fail1:
 			if (error) {
 				fip->fi_writers--;
 				if (fip->fi_writers == 0) {
-					socantrcvmore(fip->fi_readsock);
 					mtx_lock(&fifo_mtx);
 					fip->fi_wgen++;
 					mtx_unlock(&fifo_mtx);
+					socantrcvmore(fip->fi_readsock);
 					fifo_cleanup(vp);
 				}
 				return (error);
@@ -404,10 +404,10 @@ fifo_close(ap)
 	if (ap->a_fflag & FWRITE) {
 		fip->fi_writers--;
 		if (fip->fi_writers == 0) {
-			socantrcvmore(fip->fi_readsock);
 			mtx_lock(&fifo_mtx);
 			fip->fi_wgen++;
 			mtx_unlock(&fifo_mtx);
+			socantrcvmore(fip->fi_readsock);
 		}
 	}
 	fifo_cleanup(vp);
