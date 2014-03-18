@@ -134,6 +134,7 @@ struct ahci_port {
 	uint8_t xfermode;
 	uint8_t sense_key;
 	uint8_t asc;
+	uint32_t pending;
 
 	uint32_t clb;
 	uint32_t clbu;
@@ -471,6 +472,10 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	if (iovcnt > BLOCKIF_IOV_MAX) {
 		aior->prdtl = iovcnt - BLOCKIF_IOV_MAX;
 		iovcnt = BLOCKIF_IOV_MAX;
+		/*
+		 * Mark this command in-flight.
+		 */
+		p->pending |= 1 << slot;
 	} else
 		aior->prdtl = 0;
 	breq->br_iovcnt = iovcnt;
@@ -494,7 +499,7 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 		err = blockif_write(p->bctx, breq);
 	assert(err == 0);
 
-	if (!aior->prdtl && ncq)
+	if (ncq)
 		p->ci &= ~(1 << slot);
 }
 
@@ -1327,8 +1332,12 @@ ahci_handle_port(struct ahci_port *p)
 	if (!(p->cmd & AHCI_P_CMD_ST))
 		return;
 
+	/*
+	 * Search for any new commands to issue ignoring those that
+	 * are already in-flight.
+	 */
 	for (i = 0; (i < 32) && p->ci; i++) {
-		if (p->ci & (1 << i))
+		if ((p->ci & (1 << i)) && !(p->pending & (1 << i)))
 			ahci_handle_slot(p, i);
 	}
 }
@@ -1388,6 +1397,11 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 		if (ncq)
 			p->serr |= (1 << slot);
 	}
+
+	/*
+	 * This command is now complete.
+	 */
+	p->pending &= ~(1 << slot);
 
 	if (ncq) {
 		p->sact &= ~(1 << slot);
