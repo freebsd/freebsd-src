@@ -707,6 +707,7 @@ ours:
 	 * ip_reass() will return a different mbuf.
 	 */
 	if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
+		/* XXXGL: shouldn't we save & set m_flags? */
 		m = ip_reass(m);
 		if (m == NULL)
 			return;
@@ -798,6 +799,8 @@ sysctl_maxnipq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
     NULL, 0, sysctl_maxnipq, "I",
     "Maximum number of IPv4 fragment reassembly queue entries");
+
+#define	M_IP_FRAG	M_PROTO9
 
 /*
  * Take incoming datagram fragment and try to reassemble it into
