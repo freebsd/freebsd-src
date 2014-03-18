@@ -2454,20 +2454,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* _umtx_lock */
-	case 434: {
-		struct _umtx_lock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
-		break;
-	}
-	/* _umtx_unlock */
-	case 435: {
-		struct _umtx_unlock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
-		break;
-	}
 	/* jail_attach */
 	case 436: {
 		struct jail_attach_args *p = params;
@@ -7373,26 +7359,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* _umtx_lock */
-	case 434:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* _umtx_unlock */
-	case 435:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* jail_attach */
 	case 436:
 		switch(ndx) {
@@ -10452,16 +10418,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_kill */
 	case 433:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* _umtx_lock */
-	case 434:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* _umtx_unlock */
-	case 435:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
