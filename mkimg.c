@@ -67,13 +67,35 @@ static void
 usage(const char *why)
 {
 	warnx("error: %s", why);
-	fprintf(stderr, "usage: %s <options>\n", getprogname());
+	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
+
 	fprintf(stderr, "    options:\n");
-	fprintf(stderr, "\t-b <bootcode>\n");
-	fprintf(stderr, "\t-o <file>\n");
+	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
+	fprintf(stderr, "\t-h <num>\t-  number of heads to simulate\n");
+	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
-	fprintf(stderr, "\t-z\n");
+	fprintf(stderr, "\t-t <num>\t-  number of tracks to simulate\n");
+	fprintf(stderr, "\t-z\t\t-  write a sparse file\n");
+
+	fprintf(stderr, "    schemes:\n");
+	fprintf(stderr, "\tapm\t-  Apple Partition Map\n");
+	fprintf(stderr, "\tbsd\t-  BSD disk label\n");
+	fprintf(stderr, "\tebr\t-  Extended Boot Record\n");
+	fprintf(stderr, "\tgpt\t-  GUID Partition Table\n");
+	fprintf(stderr, "\tmbr\t-  Master Boot Record\n");
+	fprintf(stderr, "\tpc98\t-  PC-9800 disk partitions\n");
+	fprintf(stderr, "\tvtoc8\t-  SMI VTOC8 disk labels\n");
+
+	fprintf(stderr, "    partition specification:\n");
+	fprintf(stderr, "\t<type>::<size>\t-  empty partition of given size\n");
+	fprintf(stderr, "\t<type>:=<file>\t-  partition content and size\n"
+	    "\t\t\t   determined by the named file\n");
+	fprintf(stderr, "\t<type>:!<cmd>\t-  partition content and size\n"
+	    "\t\t\t   taken from the output of the command to run\n");
+	fprintf(stderr, "\t    where:\n");
+	fprintf(stderr, "\t\ttype\t-  scheme neutral partition type\n");
+
 	exit(EX_USAGE);
 }
 
