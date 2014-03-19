@@ -3115,12 +3115,12 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
 	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex,		/* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wait_umutex,		/* UMTX_OP_MUTEX_WAIT */
+	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
 	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
 	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
 	__umtx_op_nwake_private,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex		/* UMTX_OP_UMUTEX_WAKE2 */
+	__umtx_op_wake2_umutex		/* UMTX_OP_MUTEX_WAKE2 */
 };
 
 int
@@ -3381,12 +3381,12 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
 	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex_compat32, /* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wait_umutex_compat32, /* UMTX_OP_MUTEX_WAIT */
+	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
 	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
 	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
 	__umtx_op_nwake_private32,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex		/* UMTX_OP_UMUTEX_WAKE2 */
+	__umtx_op_wake2_umutex		/* UMTX_OP_MUTEX_WAKE2 */
 };
 
 int
