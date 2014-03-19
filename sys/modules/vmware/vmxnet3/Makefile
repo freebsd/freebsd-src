@@ -31,6 +31,10 @@ KMOD=	if_vmx
 SRCS=	if_vmx.c
 SRCS+=	bus_if.h device_if.h pci_if.h opt_inet.h opt_inet6.h
 
+# With VMXNET3_LEGACY_TX, the driver will use the non-multiqueue
+# capable if_start interface.
+#CFLAGS+= -DVMXNET3_LEGACY_TX
+
 .if !defined(KERNBUILDDIR)
 .if ${MK_INET_SUPPORT} != "no"
 opt_inet.h:

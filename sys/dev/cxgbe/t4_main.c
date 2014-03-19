@@ -494,6 +494,8 @@ CTASSERT(offsetof(struct sge_ofld_rxq, fl) == offsetof(struct sge_rxq, fl));
 CTASSERT(nitems(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
 CTASSERT(nitems(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
 
+CTASSERT(sizeof(struct cluster_metadata) <= CL_METADATA_SIZE);
+
 static int
 t4_probe(device_t dev)
 {

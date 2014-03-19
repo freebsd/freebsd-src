@@ -270,7 +270,7 @@ void ctx_free_pgtbl(struct dmar_ctx *ctx);
 struct dmar_ctx *dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev,
     bool rmrr);
 struct dmar_ctx *dmar_get_ctx(struct dmar_unit *dmar, device_t dev,
-    bool id_mapped, bool rmrr_init);
+    int bus, int slot, int func, bool id_mapped, bool rmrr_init);
 void dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx);
 void dmar_free_ctx(struct dmar_ctx *ctx);
 struct dmar_ctx *dmar_find_ctx_locked(struct dmar_unit *dmar, int bus,

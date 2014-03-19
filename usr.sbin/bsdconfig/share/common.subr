@@ -1,7 +1,7 @@
 if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 #
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -153,7 +153,7 @@ f_debug_init()
 	# Process stored command-line arguments
 	#
 	set -- $ARGV
-	local OPTIND
+	local OPTIND flag
 	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
 	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
@@ -270,9 +270,9 @@ f_getvar()
 {
 	local __var_to_get="$1" __var_to_set="$2"
 	[ "$__var_to_set" ] || local value
-	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
 	eval [ \"\${$__var_to_get+set}\" ]
 	local __retval=$?
+	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
 	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
 		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
 	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
@@ -368,13 +368,10 @@ f_show_msg()
 # f_show_err $format [$arguments ...]
 #
 # Display a message in a dialog box with ``Error'' i18n title (overridden by
-# setting msg_error) using printf(1) syntax. If running non-interactively,
-# the process will terminate (using [above] f_die()).
+# setting msg_error) using printf(1) syntax.
 #
 f_show_err()
 {
-	[ "$nonInteractive" ] && f_die
-
 	local msg
 	msg=$( printf "$@" )
 
@@ -523,7 +520,7 @@ f_include_lang()
 # 	f_usage $file "FOO" "BAR"
 #
 # Will cause instances of "@FOO@" appearing in $file to be replaced with the
-# text "BAR" before bering printed to the screen.
+# text "BAR" before being printed to the screen.
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.

@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <netatalk/at.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -71,8 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 #include <ifaddrs.h>
-
-#define ATALK_BUF_SIZE 20
 
 struct fibl {
 	TAILQ_ENTRY(fibl)	fl_next;
@@ -114,8 +111,6 @@ static struct {
 
 static TAILQ_HEAD(fibl_head_t, fibl) fibl_head;
 
-static int	atalk_aton(const char *, struct at_addr *);
-static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
 static void	printb(int, const char *);
 static void	flushroutes(int argc, char *argv[]);
 static int	flushroutes_fib(int);
@@ -409,9 +404,6 @@ flushroutes(int argc, char *argv[])
 			af = AF_INET6;
 			break;
 #endif
-		case K_ATALK:
-			af = AF_APPLETALK;
-			break;
 		case K_LINK:
 			af = AF_LINK;
 			break;
@@ -526,7 +518,6 @@ routename(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	const char *cp;
-	char atalk_buf[ATALK_BUF_SIZE];
 	int n;
 
 	if (!domain_initialized) {
@@ -604,12 +595,6 @@ routename(struct sockaddr *sa)
 		break;
 	}
 #endif
-	case AF_APPLETALK:
-		(void)snprintf(rt_line, sizeof(rt_line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
-		    atalk_buf));
-		break;
-
 	case AF_LINK:
 		sdl = (struct sockaddr_dl *)(void *)sa;
 
@@ -651,7 +636,6 @@ static const char *
 netname(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
-	char atalk_buf[ATALK_BUF_SIZE];
 	int n;
 #ifdef INET
 	struct netent *np = NULL;
@@ -712,13 +696,6 @@ netname(struct sockaddr *sa)
 		return(net_line);
 	}
 #endif
-
-	case AF_APPLETALK:
-		(void)snprintf(net_line, sizeof(net_line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
-		    atalk_buf));
-		break;
-
 	case AF_LINK:
 		sdl = (struct sockaddr_dl *)(void *)sa;
 
@@ -838,10 +815,6 @@ newroute(int argc, char **argv)
 				aflen = sizeof(struct sockaddr_in6);
 				break;
 #endif
-			case K_ATALK:
-				af = AF_APPLETALK;
-				aflen = sizeof(struct sockaddr_at);
-				break;
 			case K_SA:
 				af = PF_ROUTE;
 				aflen = sizeof(struct sockaddr_storage);
@@ -1304,16 +1277,6 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 		return (0);
 	}
 #endif /* INET6 */
-
-	case AF_APPLETALK:
-	{
-		struct sockaddr_at *sat = (struct sockaddr_at *)(void *)sa;
-
-		if (!atalk_aton(str, &sat->sat_addr))
-			errx(EX_NOHOST, "bad address: %s", str);
-		rtm_addrs |= RTA_NETMASK;
-		return(forcehost || sat->sat_addr.s_node != 0);
-	}
 	case AF_LINK:
 		link_addr(str, (struct sockaddr_dl *)(void *)sa);
 		return (1);
@@ -1892,7 +1855,6 @@ keyword(const char *cp)
 static void
 sodump(struct sockaddr *sa, const char *which)
 {
-	char atalk_buf[ATALK_BUF_SIZE];
 #ifdef INET6
 	char nbuf[INET6_ADDRSTRLEN];
 #endif
@@ -1915,11 +1877,6 @@ sodump(struct sockaddr *sa, const char *which)
 		    sizeof(nbuf)));
 		break;
 #endif
-	case AF_APPLETALK:
-		(void)printf("%s: atalk %s; ", which,
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
-		    atalk_buf));
-		break;
 	}
 	(void)fflush(stdout);
 }
@@ -1972,25 +1929,4 @@ sockaddr(char *addr, struct sockaddr *sa, size_t size)
 		break;
 	} while (cp < cplim);
 	sa->sa_len = cp - (char *)sa;
-}
-
-static int
-atalk_aton(const char *text, struct at_addr *addr)
-{
-	u_int net, node;
-
-	if (sscanf(text, "%u.%u", &net, &node) != 2
-	    || net > 0xffff || node > 0xff)
-		return(0);
-	addr->s_net = htons(net);
-	addr->s_node = node;
-	return(1);
-}
-
-static char *
-atalk_ntoa(struct at_addr at, char buf[ATALK_BUF_SIZE])
-{
-	(void)snprintf(buf, ATALK_BUF_SIZE, "%u.%u", ntohs(at.s_net), at.s_node);
-	buf[ATALK_BUF_SIZE - 1] = '\0';
-	return(buf);
 }

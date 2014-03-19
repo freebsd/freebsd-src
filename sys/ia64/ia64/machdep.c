@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
+#include "opt_xtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -86,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/intr.h>
+#include <machine/kdb.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
@@ -175,9 +177,6 @@ struct msgbuf *msgbufp = NULL;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 
 struct kva_md_info kmi;
-
-#define	Mhz	1000000L
-#define	Ghz	(1000L*Mhz)
 
 static void
 identifycpu(void)
@@ -562,6 +561,21 @@ spinlock_exit(void)
 }
 
 void
+kdb_cpu_trap(int vector, int code __unused)
+{
+
+#ifdef XTRACE
+	ia64_xtrace_stop();
+#endif
+	__asm __volatile("flushrs;;");
+
+	/* Restart after the break instruction. */
+	if (vector == IA64_VEC_BREAK &&
+	    kdb_frame->tf_special.ifa == IA64_FIXED_BREAK)
+		kdb_frame->tf_special.psr += IA64_PSR_RI_1;
+}
+
+void
 map_vhpt(uintptr_t vhpt)
 {
 	pt_entry_t pte;
@@ -878,6 +892,10 @@ ia64_init(void)
 	 * Initialize the virtual memory system.
 	 */
 	pmap_bootstrap();
+
+#ifdef XTRACE
+	ia64_xtrace_init_bsp();
+#endif
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.

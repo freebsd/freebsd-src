@@ -300,7 +300,11 @@ struct thread {
 		TDS_RUNQ,
 		TDS_RUNNING
 	} td_state;			/* (t) thread state */
-	register_t	td_retval[2];	/* (k) Syscall aux returns. */
+	union {
+		register_t	tdu_retval[2];
+		off_t		tdu_off;	
+	} td_uretoff;			/* (k) Syscall aux returns. */
+#define td_retval	td_uretoff.tdu_retval
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */

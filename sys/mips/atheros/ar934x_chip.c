@@ -375,6 +375,7 @@ static void
 ar934x_chip_reset_wmac(void)
 {
 
+	/* XXX TODO */
 }
 
 static void
@@ -388,6 +389,31 @@ ar934x_chip_init_gmac(void)
 		    __func__,
 		    (long) gmac_cfg);
 		ar934x_configure_gmac((uint32_t) gmac_cfg);
+	}
+}
+
+/*
+ * Reset the NAND Flash Controller.
+ *
+ * + active=1 means "make it active".
+ * + active=0 means "make it inactive".
+ */
+static void
+ar934x_chip_reset_nfc(int active)
+{
+
+	if (active) {
+		ar71xx_device_start(AR934X_RESET_NANDF);
+		DELAY(100);
+
+		ar71xx_device_start(AR934X_RESET_ETH_SWITCH_ANALOG);
+		DELAY(250);
+	} else {
+		ar71xx_device_stop(AR934X_RESET_ETH_SWITCH_ANALOG);
+		DELAY(250);
+
+		ar71xx_device_stop(AR934X_RESET_NANDF);
+		DELAY(100);
 	}
 }
 
@@ -407,4 +433,5 @@ struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_reset_ethernet_switch,
 	&ar934x_chip_reset_wmac,
 	&ar934x_chip_init_gmac,
+	&ar934x_chip_reset_nfc,
 };

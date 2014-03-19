@@ -124,7 +124,6 @@ ar5416SetPowerModeNetworkSleep(struct ath_hal *ah, int setChip)
 HAL_BOOL
 ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 {
-	struct ath_hal_5212 *ahp = AH5212(ah);
 #ifdef AH_DEBUG
 	static const char* modes[] = {
 		"AWAKE",
@@ -138,7 +137,7 @@ ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 		return AH_TRUE;
 
 	HALDEBUG(ah, HAL_DEBUG_POWER, "%s: %s -> %s (%s)\n", __func__,
-	    modes[ahp->ah_powerMode], modes[mode], setChip ? "set chip " : "");
+	    modes[ah->ah_powerMode], modes[mode], setChip ? "set chip " : "");
 	switch (mode) {
 	case HAL_PM_AWAKE:
 		status = ar5416SetPowerModeAwake(ah, setChip);
@@ -154,7 +153,7 @@ ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 		    __func__, mode);
 		return AH_FALSE;
 	}
-	ahp->ah_powerMode = mode;
+	ah->ah_powerMode = mode;
 	return status;
 }
 

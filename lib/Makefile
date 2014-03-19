@@ -88,7 +88,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	libipsec \
-	${_libipx} \
 	libjail \
 	libkiconv \
 	liblzma \
@@ -181,10 +180,6 @@ _librpcsec_gss=	librpcsec_gss
 
 .if ${MK_ICONV} != "no"
 _libiconv_modules=	libiconv_modules
-.endif
-
-.if ${MK_IPX} != "no"
-_libipx=	libipx
 .endif
 
 .if ${MK_LDNS} != "no"

@@ -522,6 +522,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp | zfs
+crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random | \
+					 sctp | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
@@ -2527,8 +2529,8 @@ dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xen | xenhvm
 dev/xen/blkfront/blkfront.c	optional xen | xenhvm
 dev/xen/blkback/blkback.c	optional xen | xenhvm
-dev/xen/console/console.c	optional xen
-dev/xen/console/xencons_ring.c	optional xen
+dev/xen/console/console.c	optional xen | xenhvm
+dev/xen/console/xencons_ring.c	optional xen | xenhvm
 dev/xen/control/control.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
@@ -3087,7 +3089,6 @@ net/if_dead.c			standard
 net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
-net/if_ef.c			optional ef
 net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
 net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether
@@ -3169,14 +3170,6 @@ net80211/ieee80211_tdma.c	optional wlan ieee80211_support_tdma
 net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan wlan_xauth
 net80211/ieee80211_alq.c	optional wlan ieee80211_alq
-netatalk/aarp.c			optional netatalk
-netatalk/at_control.c		optional netatalk
-netatalk/at_proto.c		optional netatalk
-netatalk/at_rmx.c		optional netatalk
-netatalk/ddp_input.c		optional netatalk
-netatalk/ddp_output.c		optional netatalk
-netatalk/ddp_pcb.c		optional netatalk
-netatalk/ddp_usrreq.c		optional netatalk
 netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/atm/ng_atm.c		optional ngatm_atm
@@ -3276,6 +3269,7 @@ netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
+netinet/in_rss.c		optional inet rss | inet6 rss
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
@@ -3317,6 +3311,7 @@ netinet/tcp_syncache.c		optional inet | inet6
 netinet/tcp_timer.c		optional inet | inet6
 netinet/tcp_timewait.c		optional inet | inet6
 netinet/tcp_usrreq.c		optional inet | inet6
+netinet/toeplitz.c		optional inet rss | inet6 rss
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
@@ -3365,16 +3360,6 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipip.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 					 ipsec inet6 tcp_signature
-netipx/ipx.c			optional ipx
-netipx/ipx_cksum.c		optional ipx
-netipx/ipx_input.c		optional ipx
-netipx/ipx_outputfl.c		optional ipx
-netipx/ipx_pcb.c		optional ipx
-netipx/ipx_proto.c		optional ipx
-netipx/ipx_usrreq.c		optional ipx
-netipx/spx_debug.c		optional ipx
-netipx/spx_reass.c		optional ipx
-netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
@@ -3786,7 +3771,6 @@ security/audit/bsm_errno.c	optional audit
 security/audit/bsm_fcntl.c	optional audit
 security/audit/bsm_socket_type.c	optional audit
 security/audit/bsm_token.c	optional audit
-security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac
 security/mac/mac_framework.c	optional mac

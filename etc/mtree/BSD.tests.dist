@@ -68,6 +68,14 @@
                 ..
             ..
         ..
+        sbin
+            dhclient
+            ..
+            growfs
+            ..
+            mdconfig
+            ..
+        ..
         share
             examples
                 tests
@@ -83,9 +91,51 @@
             ..
         ..
         usr.bin
+            apply
+            ..
             atf
                 atf-sh
                 ..
+            ..
+            calendar
+            ..
+            comm
+            ..
+            file2c
+            ..
+            join
+            ..
+            jot
+            ..
+            lastcomm
+            ..
+            m4
+            ..
+            ncal
+            ..
+            printf
+            ..
+            sed
+	    	regress.multitest.out
+		..
+            ..
+            tr
+            ..
+            uudecode
+            ..
+            uuencode
+            ..
+            xargs
+            ..
+            yacc
+            ..
+        ..
+        usr.sbin
+            etcupdate
+            ..
+            newsyslog
+            ..
+            sa
             ..
         ..
     ..

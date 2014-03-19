@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -289,6 +289,8 @@ struct nvme_controller {
 	struct task		fail_req_task;
 	struct taskqueue	*taskqueue;
 
+	struct resource		*msi_res[MAXCPU + 1];
+
 	/* For shared legacy interrupt. */
 	int			rid;
 	struct resource		*res;
@@ -330,7 +332,9 @@ struct nvme_controller {
 
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
-	uint32_t		is_resetting;
+	uint32_t			is_resetting;
+	uint32_t			is_initialized;
+	uint32_t			notification_sent;
 
 	boolean_t			is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
@@ -556,5 +560,6 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    uint32_t log_page_id, void *log_page_buffer,
 				    uint32_t log_page_size);
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
+void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 
 #endif /* __NVME_PRIVATE_H__ */

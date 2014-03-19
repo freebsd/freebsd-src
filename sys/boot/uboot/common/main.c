@@ -36,9 +36,26 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 #include "libuboot.h"
 
+#ifndef nitems
+#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
+#endif
+
 struct uboot_devdesc currdev;
 struct arch_switch archsw;		/* MI/MD interface boundary */
 int devs_no;
+
+struct device_type { 
+	const char *name;
+	int type;
+} device_types[] = {
+	{ "disk", DEV_TYP_STOR },
+	{ "ide",  DEV_TYP_STOR | DT_STOR_IDE },
+	{ "mmc",  DEV_TYP_STOR | DT_STOR_MMC },
+	{ "sata", DEV_TYP_STOR | DT_STOR_SATA },
+	{ "scsi", DEV_TYP_STOR | DT_STOR_SCSI },
+	{ "usb",  DEV_TYP_STOR | DT_STOR_USB },
+	{ "net",  DEV_TYP_NET }
+};
 
 extern char end[];
 extern char bootprog_name[];
@@ -111,17 +128,265 @@ meminfo(void)
 	for (i = 0; i < 3; i++) {
 		size = memsize(si, t[i]);
 		if (size > 0)
-			printf("%s:\t %lldMB\n", ub_mem_type(t[i]),
+			printf("%s: %lldMB\n", ub_mem_type(t[i]),
 			    size / 1024 / 1024);
 	}
+}
+
+static const char *
+get_device_type(const char *devstr, int *devtype)
+{
+	int i;
+	int namelen;
+	struct device_type *dt;
+
+	if (devstr) {
+		for (i = 0; i < nitems(device_types); i++) {
+			dt = &device_types[i];
+			namelen = strlen(dt->name);
+			if (strncmp(dt->name, devstr, namelen) == 0) {
+				*devtype = dt->type;
+				return (devstr + namelen);
+			}
+		}
+		printf("Unknown device type '%s'\n", devstr);
+	}
+
+	*devtype = -1;
+	return (NULL);
+}
+
+static const char *
+device_typename(int type)
+{
+	int i;
+
+	for (i = 0; i < nitems(device_types); i++)
+		if (device_types[i].type == type)
+			return (device_types[i].name);
+
+	return ("<unknown>");
+}
+
+/*
+ * Parse a device string into type, unit, slice and partition numbers. A
+ * returned value of -1 for type indicates a search should be done for the
+ * first loadable device, otherwise a returned value of -1 for unit
+ * indicates a search should be done for the first loadable device of the
+ * given type.
+ *
+ * The returned values for slice and partition are interpreted by
+ * disk_open().
+ *
+ * Valid device strings:                     For device types:
+ *
+ * <type_name>                               DEV_TYP_STOR, DEV_TYP_NET
+ * <type_name><unit>                         DEV_TYP_STOR, DEV_TYP_NET
+ * <type_name><unit>:                        DEV_TYP_STOR, DEV_TYP_NET
+ * <type_name><unit>:<slice>                 DEV_TYP_STOR
+ * <type_name><unit>:<slice>.                DEV_TYP_STOR
+ * <type_name><unit>:<slice>.<partition>     DEV_TYP_STOR
+ *
+ * For valid type names, see the device_types array, above.
+ *
+ * Slice numbers are 1-based.  0 is a wildcard.
+ */
+static void
+get_load_device(int *type, int *unit, int *slice, int *partition)
+{
+	char *devstr;
+	const char *p;
+	char *endp;
+
+	*type = -1;
+	*unit = -1;
+	*slice = 0;
+	*partition = -1;
+
+	devstr = ub_env_get("loaderdev");
+	if (devstr == NULL) {
+		printf("U-Boot env: loaderdev not set, will probe all devices.\n");
+		return;
+	}
+	printf("U-Boot env: loaderdev='%s'\n", devstr);
+
+	p = get_device_type(devstr, type);
+
+	/*
+	 * Empty device string, or unknown device name, or a bare, known 
+	 * device name. 
+	 */
+	if ((*type == -1) || (*p == '\0')) {
+		return;
+	}
+
+	/* Malformed unit number. */
+	if (!isdigit(*p)) {
+		*type = -1;
+		return;
+	}
+
+	/* Guaranteed to extract a number from the string, as *p is a digit. */
+	*unit = strtol(p, &endp, 10);
+	p = endp;
+
+	/* Known device name with unit number and nothing else. */
+	if (*p == '\0') {
+		return;
+	}
+
+	/* Device string is malformed beyond unit number. */
+	if (*p != ':') {
+		*type = -1;
+		*unit = -1;
+		return;
+	}
+
+	p++;
+
+	/* No slice and partition specification. */
+	if ('\0' == *p )
+		return;
+
+	/* Only DEV_TYP_STOR devices can have a slice specification. */
+	if (!(*type & DEV_TYP_STOR)) {
+		*type = -1;
+		*unit = -1;
+		return;
+	}
+
+	*slice = strtoul(p, &endp, 10);
+
+	/* Malformed slice number. */
+	if (p == endp) {
+		*type = -1;
+		*unit = -1;
+		*slice = 0;
+		return;
+	}
+
+	p = endp;
+	
+	/* No partition specification. */
+	if (*p == '\0')
+		return;
+
+	/* Device string is malformed beyond slice number. */
+	if (*p != '.') {
+		*type = -1;
+		*unit = -1;
+		*slice = 0;
+		return;
+	}
+
+	p++;
+
+	/* No partition specification. */
+	if (*p == '\0')
+		return;
+
+	*partition = strtol(p, &endp, 10);
+	p = endp;
+
+	/*  Full, valid device string. */
+	if (*endp == '\0')
+		return;
+
+	/* Junk beyond partition number. */
+	*type = -1;
+	*unit = -1;
+	*slice = 0;
+	*partition = -1;
+} 
+
+static void
+print_disk_probe_info()
+{
+	char slice[32];
+	char partition[32];
+
+	if (currdev.d_disk.slice > 0)
+		sprintf(slice, "%d", currdev.d_disk.slice);
+	else
+		strcpy(slice, "<auto>");
+
+	if (currdev.d_disk.partition > 0)
+		sprintf(partition, "%d", currdev.d_disk.partition);
+	else
+		strcpy(partition, "<auto>");
+
+	printf("  Checking unit=%d slice=%s partition=%s...",
+	    currdev.d_unit, slice, partition);
+
+}
+
+static int
+probe_disks(int devidx, int load_type, int load_unit, int load_slice, 
+    int load_partition)
+{
+	int open_result, unit;
+	struct open_file f;
+
+	currdev.d_disk.slice = load_slice;
+	currdev.d_disk.partition = load_partition;
+
+	f.f_devdata = &currdev;
+	open_result = -1;
+
+	if (load_type == -1) {
+		printf("  Probing all disk devices...\n");
+		/* Try each disk in succession until one works.  */
+		for (currdev.d_unit = 0; currdev.d_unit < UB_MAX_DEV;
+		     currdev.d_unit++) {
+			print_disk_probe_info();
+			open_result = devsw[devidx]->dv_open(&f, &currdev);
+			if (open_result == 0) {
+				printf(" good.\n");
+				return (0);
+			}
+			printf("\n");
+		}
+		return (-1);
+	}
+
+	if (load_unit == -1) {
+		printf("  Probing all %s devices...\n", device_typename(load_type));
+		/* Try each disk of given type in succession until one works. */
+		for (unit = 0; unit < UB_MAX_DEV; unit++) {
+			currdev.d_unit = uboot_diskgetunit(load_type, unit);
+			if (currdev.d_unit == -1)
+				break;
+			print_disk_probe_info();
+			open_result = devsw[devidx]->dv_open(&f, &currdev);
+			if (open_result == 0) {
+				printf(" good.\n");
+				return (0);
+			}
+			printf("\n");
+		}
+		return (-1);
+	}
+
+	if ((currdev.d_unit = uboot_diskgetunit(load_type, load_unit)) != -1) {
+		print_disk_probe_info();
+		open_result = devsw[devidx]->dv_open(&f,&currdev);
+		if (open_result == 0) {
+			printf(" good.\n");
+			return (0);
+		}
+		printf("\n");
+	}
+
+	printf("  Requested disk type/unit not found\n");
+	return (-1);
 }
 
 int
 main(void)
 {
 	struct api_signature *sig = NULL;
-	int diskdev, i, netdev, usedev;
-	struct open_file f;
+	int load_type, load_unit, load_slice, load_partition;
+	int i;
 	const char * loaderdev;
 
 	/*
@@ -145,21 +410,26 @@ main(void)
 	bzero(__bss_start, _end - __bss_start);
 
 	/*
-         * Set up console.
-         */
-	cons_probe();
+	 * Initialise the heap as early as possible.  Once this is done,
+	 * alloc() is usable. The stack is buried inside us, so this is safe.
+	 */
+	setheap((void *)end, (void *)(end + 512 * 1024));
 
-	printf("Compatible API signature found @%x\n", (uint32_t)sig);
+	/*
+	 * Set up console.
+	 */
+	cons_probe();
+	printf("Compatible U-Boot API signature found @%x\n", (uint32_t)sig);
+
+	printf("\n");
+	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n");
 
 	dump_sig(sig);
 	dump_addr_info();
 
-	/*
-	 * Initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is
-	 * safe.
-	 */
-	setheap((void *)end, (void *)(end + 512 * 1024));
+	meminfo();
 
 	/*
 	 * Enumerate U-Boot devices
@@ -168,55 +438,11 @@ main(void)
 		panic("no U-Boot devices found");
 	printf("Number of U-Boot devices: %d\n", devs_no);
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-	meminfo();
+	get_load_device(&load_type, &load_unit, &load_slice, &load_partition);
 
 	/*
-	 * March through the device switch probing for things -- sort of.
-	 *
-	 * The devsw array will have one or two items in it. If
-	 * LOADER_DISK_SUPPORT is defined the first item will be a disk (which
-	 * may not actually work if u-boot didn't supply one). If
-	 * LOADER_NET_SUPPORT is defined the next item will be a network
-	 * interface.  Again it may not actually work at the u-boot level.
-	 *
-	 * The original logic was to always use a disk if it could be
-	 * successfully opened, otherwise use the network interface.  Now that
-	 * logic is amended to first check whether the u-boot environment
-	 * contains a loaderdev variable which tells us which device to use.  If
-	 * it does, we use it and skip the original (second) loop which "probes"
-	 * for a device. We still loop over the devsw just in case it ever gets
-	 * expanded to hold more than 2 devices (but then unit numbers, which
-	 * don't currently exist, may come into play).  If the device named by
-	 * loaderdev isn't found, fall back using to the old "probe" loop.
-	 *
-	 * The original probe loop still effectively behaves as it always has:
-	 * the first usable disk device is choosen, and a network device is used
-	 * only if no disk device is found.  The logic has been reworked so that
-	 * it examines (and thus lists) every potential device along the way
-	 * instead of breaking out of the loop when the first device is found.
+	 * March through the device switch probing for things.
 	 */
-	loaderdev = ub_env_get("loaderdev");
-	usedev = -1;
-	if (loaderdev != NULL) {
-		for (i = 0; devsw[i] != NULL; i++) {
-			if (strcmp(loaderdev, devsw[i]->dv_name) == 0) {
-				if (devsw[i]->dv_init == NULL)
-					continue;
-				if ((devsw[i]->dv_init)() != 0)
-					continue;
-				usedev = i;
-				goto have_device;
-			}
-		}
-		printf("U-Boot env contains 'loaderdev=%s', "
-		    "device not found.\n", loaderdev);
-	}
-	printf("Probing for bootable devices...\n");
-	diskdev = -1;
-	netdev = -1;
 	for (i = 0; devsw[i] != NULL; i++) {
 
 		if (devsw[i]->dv_init == NULL)
@@ -224,43 +450,33 @@ main(void)
 		if ((devsw[i]->dv_init)() != 0)
 			continue;
 
-		printf("Bootable device: %s\n", devsw[i]->dv_name);
+		printf("Found U-Boot device: %s\n", devsw[i]->dv_name);
 
-		if (strncmp(devsw[i]->dv_name, "disk",
-		    strlen(devsw[i]->dv_name)) == 0) {
-			f.f_devdata = &currdev;
-			currdev.d_dev = devsw[i];
-			currdev.d_type = currdev.d_dev->dv_type;
-			currdev.d_unit = 0;
-			currdev.d_disk.slice = 0;
-			if (devsw[i]->dv_open(&f, &currdev) == 0) {
-				devsw[i]->dv_close(&f);
-				if (diskdev == -1)
-					diskdev = i;
-			}
-		} else if (strncmp(devsw[i]->dv_name, "net",
-		    strlen(devsw[i]->dv_name)) == 0) {
-			if (netdev == -1)
-				netdev = i;
+		currdev.d_dev = devsw[i];
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_unit = 0;
+
+		if ((load_type == -1 || (load_type & DEV_TYP_STOR)) &&
+		    strcmp(devsw[i]->dv_name, "disk") == 0) {
+			if (probe_disks(i, load_type, load_unit, load_slice, 
+			    load_partition) == 0)
+				break;
 		}
+
+		if ((load_type == -1 || (load_type & DEV_TYP_NET)) &&
+		    strcmp(devsw[i]->dv_name, "net") == 0)
+			break;
 	}
 
-	if (diskdev != -1)
-		usedev = diskdev;
-	else if (netdev != -1)
-		usedev = netdev;
-	else
-		panic("No bootable devices found!\n");
-
-have_device:
-
-	currdev.d_dev = devsw[usedev];
-	currdev.d_type = devsw[usedev]->dv_type;
-	currdev.d_unit = 0;
-	if (currdev.d_type == DEV_TYP_STOR)
-		currdev.d_disk.slice = 0;
-
-	printf("Current device: %s\n", currdev.d_dev->dv_name);
+	/*
+	 * If we couldn't find a boot device, return an error to u-boot.
+	 * U-boot may be running a boot script that can try something different
+	 * so returning an error is better than forcing a reboot.
+	 */
+	if (devsw[i] == NULL) {
+		printf("No boot device found!\n");
+		return (0xbadef1ce);
+	}
 
 	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
 	    uboot_setcurrdev, env_nounset);

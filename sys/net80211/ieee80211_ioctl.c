@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_wlan.h"
 
 #include <sys/endian.h>
@@ -52,11 +51,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #include <net80211/ieee80211_var.h>
@@ -3419,24 +3413,6 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 			arp_ifinit(ifp, ifa);
 			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong,
-		 *	 but has been copied many times.
-		 */
-		case AF_IPX: {
-			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host = *(union ipx_host *)
-				    IF_LLADDR(ifp);
-			else
-				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) IF_LLADDR(ifp),
-				      ETHER_ADDR_LEN);
-			/* fall thru... */
-		}
 #endif
 		default:
 			if ((ifp->if_flags & IFF_UP) == 0) {

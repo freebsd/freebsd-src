@@ -41,13 +41,11 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
-#include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
@@ -129,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
 #include <machine/vm86.h>
+#include <x86/init.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -219,6 +218,12 @@ struct pcpu __pcpu[MAXCPU];
 struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
+
+ /* Default init_ops implementation. */
+ struct init_ops init_ops = {
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+ };
 
 static void
 cpu_startup(dummy)
@@ -2267,7 +2272,7 @@ init386(first)
 	 * Initialize the i8254 before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.

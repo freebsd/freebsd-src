@@ -748,14 +748,8 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-#if __FreeBSD_version >= 1000000
-	if_initbaudrate(ifp, IF_Gbps(10));
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_capabilities = IFCAP_LINKSTATE;
-#else
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
-
-#endif /* #if __FreeBSD_version >= 1000000 */
 
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;

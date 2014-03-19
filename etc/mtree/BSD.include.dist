@@ -257,8 +257,6 @@
     ..
     net80211
     ..
-    netatalk
-    ..
     netgraph
         atm
         ..
@@ -274,8 +272,6 @@
     netinet6
     ..
     netipsec
-    ..
-    netipx
     ..
     netnatm
         api

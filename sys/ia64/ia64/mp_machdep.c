@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kstack_pages.h"
+#include "opt_xtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -113,10 +114,14 @@ ia64_ih_ast(struct thread *td, u_int xiv, struct trapframe *tf)
 static u_int
 ia64_ih_hardclock(struct thread *td, u_int xiv, struct trapframe *tf)
 {
+	struct trapframe *stf;
 
 	PCPU_INC(md.stats.pcs_nhardclocks);
 	CTR1(KTR_SMP, "IPI_HARDCLOCK, cpuid=%d", PCPU_GET(cpuid));
+	stf = td->td_intr_frame;
+	td->td_intr_frame = tf;
 	hardclockintr();
+	td->td_intr_frame = stf;
 	return (0);
 }
 
@@ -231,6 +236,10 @@ ia64_ap_startup(void)
 	map_gateway_page();
 
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+#ifdef XTRACE
+	ia64_xtrace_init_ap(ia64_ap_state.as_xtrace_buffer);
+#endif
 
 	/* Wait until it's time for us to be unleashed */
 	while (ia64_ap_state.as_spin)
@@ -393,6 +402,10 @@ cpu_mp_start()
 		stp = malloc(KSTACK_PAGES * PAGE_SIZE, M_SMP, M_WAITOK);
 		ia64_ap_state.as_kstack = stp;
 		ia64_ap_state.as_kstack_top = stp + KSTACK_PAGES * PAGE_SIZE;
+
+#ifdef XTRACE
+		ia64_ap_state.as_xtrace_buffer = ia64_xtrace_alloc();
+#endif
 
 		ia64_ap_state.as_trace = 0;
 		ia64_ap_state.as_delay = 2000;

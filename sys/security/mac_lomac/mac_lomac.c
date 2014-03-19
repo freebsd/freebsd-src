@@ -1449,17 +1449,6 @@ lomac_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-lomac_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(mlabel);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-}
-
-static void
 lomac_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1832,12 +1821,9 @@ lomac_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -2988,8 +2974,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_mount_create = lomac_mount_create,
 	.mpo_mount_destroy_label = lomac_destroy_label,
 	.mpo_mount_init_label = lomac_init_label,
-
-	.mpo_netatalk_aarp_send = lomac_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = lomac_netinet_arp_send,
 	.mpo_netinet_firewall_reply = lomac_netinet_firewall_reply,

@@ -13,7 +13,7 @@ SRCS=	ieee80211.c ieee80211_action.c ieee80211_ageq.c \
 	ieee80211_ht.c ieee80211_hwmp.c ieee80211_adhoc.c ieee80211_hostap.c \
 	ieee80211_monitor.c ieee80211_sta.c ieee80211_wds.c ieee80211_ddb.c \
 	ieee80211_tdma.c ieee80211_superg.c
-SRCS+=	bus_if.h device_if.h opt_ddb.h opt_inet.h opt_inet6.h opt_ipx.h \
+SRCS+=	bus_if.h device_if.h opt_ddb.h opt_inet.h opt_inet6.h \
 	opt_tdma.h opt_wlan.h
 
 .if !defined(KERNBUILDDIR)
@@ -23,8 +23,6 @@ opt_wlan.h:
 	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
-opt_ipx.h:
-	echo "#define IPX 1" > ${.TARGET}
 # override to get ddb support?
 opt_ddb.h:
 	:> ${.TARGET}

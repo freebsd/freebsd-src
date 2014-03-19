@@ -1358,17 +1358,6 @@ biba_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-biba_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_biba *dest;
-
-	dest = SLOT(mlabel);
-
-	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 biba_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -2065,12 +2054,9 @@ biba_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -3653,8 +3639,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_mount_create = biba_mount_create,
 	.mpo_mount_destroy_label = biba_destroy_label,
 	.mpo_mount_init_label = biba_init_label,
-
-	.mpo_netatalk_aarp_send = biba_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = biba_netinet_arp_send,
 	.mpo_netinet_firewall_reply = biba_netinet_firewall_reply,

@@ -1250,17 +1250,6 @@ mls_mount_create(struct ucred *cred, struct mount *mp, struct label *mplabel)
 }
 
 static void
-mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -3276,8 +3265,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_mount_create = mls_mount_create,
 	.mpo_mount_destroy_label = mls_destroy_label,
 	.mpo_mount_init_label = mls_init_label,
-
-	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = mls_netinet_arp_send,
 	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
