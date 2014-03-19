@@ -5,13 +5,14 @@ base=`basename $0`
 
 echo "1..1"
 
-name="pkill -P <ppid>"
-ppid=$$
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -F <pidfile>"
+pidfile=$(pwd)/pidfile.txt
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -f -P $ppid $sleep
+echo $! > $pidfile
+pkill -f -F $pidfile $sleep
 ec=$?
 case $ec in
 0)
@@ -22,4 +23,5 @@ case $ec in
 	;;
 esac
 
+rm -f $pidfile
 rm -f $sleep

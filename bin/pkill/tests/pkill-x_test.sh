@@ -6,7 +6,7 @@ base=`basename $0`
 echo "1..4"
 
 name="pkill -x"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
@@ -25,7 +25,7 @@ fi
 rm -f $sleep
 
 name="pkill -x -f"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3

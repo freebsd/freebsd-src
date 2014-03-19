@@ -7,7 +7,7 @@ echo "1..2"
 
 name="pkill -g <pgrp>"
 pgrp=`ps -o tpgid -p $$ | tail -1`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
@@ -24,7 +24,7 @@ esac
 rm -f $sleep
 
 name="pkill -g 0"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3

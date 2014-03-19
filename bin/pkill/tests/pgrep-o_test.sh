@@ -5,16 +5,16 @@ base=`basename $0`
 
 echo "1..1"
 
-name="pgrep -n"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pgrep -o"
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 oldpid=$!
 $sleep 5 &
 sleep 0.3
 newpid=$!
-pid=`pgrep -f -n $sleep`
-if [ "$pid" = "$newpid" ]; then
+pid=`pgrep -f -o $sleep`
+if [ "$pid" = "$oldpid" ]; then
 	echo "ok - $name"
 else
 	echo "not ok - $name"

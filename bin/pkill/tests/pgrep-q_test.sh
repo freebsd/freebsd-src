@@ -6,8 +6,8 @@ base=`basename $0`
 echo "1..4"
 
 name="pgrep -q"
-sleep0=`mktemp /tmp/$base.XXXXXX` || exit 1
-sleep1=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep0=$(pwd)/sleep0.txt
+sleep1=$(pwd)/sleep1.txt
 ln -sf /bin/sleep $sleep0
 $sleep0 5 &
 sleep 0.3
