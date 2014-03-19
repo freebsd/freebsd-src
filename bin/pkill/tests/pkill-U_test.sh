@@ -5,13 +5,13 @@ base=`basename $0`
 
 echo "1..2"
 
-name="pkill -G <gid>"
-rgid=`id -gr`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -U <uid>"
+ruid=`id -ur`
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -f -G $rgid $sleep
+pkill -f -U $ruid $sleep
 ec=$?
 case $ec in
 0)
@@ -23,13 +23,13 @@ case $ec in
 esac
 rm -f $sleep
 
-name="pkill -G <group>"
-rgid=`id -grn`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -U <user>"
+ruid=`id -urn`
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -f -G $rgid $sleep
+pkill -f -U $ruid $sleep
 ec=$?
 case $ec in
 0)

@@ -7,7 +7,7 @@ echo "1..2"
 
 name="pgrep -U <uid>"
 ruid=`id -ur`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
@@ -23,7 +23,7 @@ rm -f $sleep
 
 name="pgrep -U <user>"
 ruid=`id -urn`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3

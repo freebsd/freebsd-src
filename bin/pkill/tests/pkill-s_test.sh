@@ -5,13 +5,13 @@ base=`basename $0`
 
 echo "1..2"
 
-name="pkill -U <uid>"
-ruid=`id -ur`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -s <sid>"
+sid=`ps -o tsid -p $$ | tail -1`
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -f -U $ruid $sleep
+pkill -f -s $sid $sleep
 ec=$?
 case $ec in
 0)
@@ -23,13 +23,12 @@ case $ec in
 esac
 rm -f $sleep
 
-name="pkill -U <user>"
-ruid=`id -urn`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -s 0"
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -f -U $ruid $sleep
+pkill -f -s 0 $sleep
 ec=$?
 case $ec in
 0)

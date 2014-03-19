@@ -5,27 +5,29 @@ base=`basename $0`
 
 echo "1..2"
 
-name="pgrep -LF <pidfile>"
-pidfile=`mktemp /tmp/$base.XXXXXX` || exit 1
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pkill -LF <pidfile>"
+pidfile=$(pwd)/pidfile.txt
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 daemon -p $pidfile $sleep 5
 sleep 0.3
-chpid=`cat $pidfile`
-pid=`pgrep -f -L -F $pidfile $sleep`
-if [ "$pid" = "$chpid" ]; then
+pkill -f -L -F $pidfile $sleep
+ec=$?
+case $ec in
+0)
 	echo "ok 1 - $name"
-else
+	;;
+*)
 	echo "not ok 1 - $name"
-fi
-kill "$chpid"
+	;;
+esac
 
-# Be sure we cannot find process which pidfile is not locked.
+# Be sure we cannot kill process which pidfile is not locked.
 $sleep 5 &
 sleep 0.3
 chpid=$!
 echo $chpid > $pidfile
-pgrep -f -L -F $pidfile $sleep 2>/dev/null
+pkill -f -L -F $pidfile $sleep 2>/dev/null
 ec=$?
 case $ec in
 0)

@@ -6,7 +6,7 @@ base=`basename $0`
 echo "1..1"
 
 name="pgrep -i"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+sleep=$(pwd)/sleep.txt
 usleep="${sleep}XXX"
 touch $usleep
 lsleep="${sleep}xxx"
