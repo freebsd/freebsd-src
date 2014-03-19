@@ -36,8 +36,6 @@
 #ifndef _PC98_PC98_PC98_H_
 #define	_PC98_PC98_PC98_H_
 
-/* BEWARE:  Included in both assembler and C code */
-
 /*
  * PC98 Bus conventions
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
@@ -45,12 +43,8 @@
  */
 
 /*
- * Input / Output Port Assignments
+ * Input / Output Port Assignments -- PC98 IO address ... very dirty (^_^;
  */
-#ifndef IO_ISABEGIN
-#define	IO_ISABEGIN	0x000		/* 0x000 - Beginning of I/O Registers */
-
-/* PC98 IO address ... very dirty (^_^; */
 
 #define	IO_ICU1		0x000		/* 8259A Interrupt Controller #1 */
 #define	IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
@@ -60,45 +54,10 @@
 #define	IO_COM2		0x0B1		/* 8251A RS232C serial I/O (ext) */
 #define	IO_COM3		0x0B9		/* 8251A RS232C serial I/O (ext) */
 #define	IO_FDPORT	0x0BE		/* FD I/F port (1M<->640K,EMTON) */
-#define	IO_WD1_EPSON	0x80		/* 386note Hard disk controller */
-#define	IO_ISAEND	0xFFFF		/* - 0x3FF End of I/O Registers */
-#endif /* !IO_ISABEGIN */
 
 /*
- * Input / Output Port Sizes - these are from several sources, and tend
- * to be the larger of what was found, ie COM ports can be 4, but some
- * boards do not fully decode the address, thus 8 ports are used.
+ * Input / Output Port Sizes
  */
-#ifndef	IO_ISASIZES
-#define	IO_ISASIZES
-
 #define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
-#define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
-#define	IO_LPTSIZE_EXTENDED	8	/* "Extended" LPT controllers */
-#define	IO_LPTSIZE_NORMAL	4	/* "Normal" LPT controllers */
-
-#endif /* !IO_ISASIZES */
-
-/*
- * Input / Output Memory Physical Addresses
- */
-#ifndef	IOM_BEGIN
-#define	IOM_BEGIN	0x0A0000	/* Start of I/O Memory "hole" */
-#define	IOM_END		0x100000	/* End of I/O Memory "hole" */
-#define	IOM_SIZE	(IOM_END - IOM_BEGIN)
-#endif /* !IOM_BEGIN */
-
-/*
- * RAM Physical Address Space (ignoring the above mentioned "hole")
- */
-#ifndef	RAM_BEGIN
-#define	RAM_BEGIN	0x0000000	/* Start of RAM Memory */
-#ifdef	EPSON_BOUNCEDMA
-#define	RAM_END		0x0f00000	/* End of EPSON GR?? RAM Memory */
-#else
-#define	RAM_END		0x1000000	/* End of RAM Memory */
-#endif
-#define	RAM_SIZE	(RAM_END - RAM_BEGIN)
-#endif /* !RAM_BEGIN */
 
 #endif /* !_PC98_PC98_PC98_H_ */
