@@ -131,3 +131,4 @@ nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
 release/release.sh	gjb	Pre-commit review and regression tests
 				requested.
+nanobsd		imp	Pre-commit review requested for coordination.
