@@ -5,18 +5,16 @@ base=`basename $0`
 
 echo "1..1"
 
-name="pgrep -P <ppid>"
-ppid=$$
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pgrep -l"
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-chpid=$!
-pid=`pgrep -f -P $ppid $sleep`
-if [ "$pid" = "$chpid" ]; then
+pid=$!
+if [ "$pid $sleep 5" = "`pgrep -f -l $sleep`" ]; then
 	echo "ok - $name"
 else
 	echo "not ok - $name"
 fi
-kill $chpid
+kill $pid
 rm -f $sleep

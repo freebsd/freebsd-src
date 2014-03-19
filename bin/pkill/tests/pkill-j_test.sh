@@ -7,7 +7,7 @@ echo "1..3"
 
 name="pkill -j <jid>"
 if [ `id -u` -eq 0 ]; then
-	sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
 	jail / $base-1 127.0.0.1 $sleep 5 &
 	chpid=$!
@@ -30,7 +30,7 @@ fi
 
 name="pkill -j any"
 if [ `id -u` -eq 0 ]; then
-	sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
 	jail / $base-1 127.0.0.1 $sleep 5 &
 	chpid=$!
@@ -52,7 +52,7 @@ fi
 
 name="pkill -j none"
 if [ `id -u` -eq 0 ]; then
-	sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
 	$sleep 5 &
 	chpid=$!

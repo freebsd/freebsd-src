@@ -5,14 +5,14 @@ base=`basename $0`
 
 echo "1..2"
 
-name="pgrep -s <sid>"
-sid=`ps -o tsid -p $$ | tail -1`
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pgrep -G <gid>"
+rgid=`id -gr`
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
 chpid=$!
-pid=`pgrep -f -s $sid $sleep`
+pid=`pgrep -f -G $rgid $sleep`
 if [ "$pid" = "$chpid" ]; then
 	echo "ok 1 - $name"
 else
@@ -21,13 +21,14 @@ fi
 kill $chpid
 rm -f $sleep
 
-name="pgrep -s 0"
-sleep=`mktemp /tmp/$base.XXXXXX` || exit 1
+name="pgrep -G <group>"
+rgid=`id -grn`
+sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
 chpid=$!
-pid=`pgrep -f -s 0 $sleep`
+pid=`pgrep -f -G $rgid $sleep`
 if [ "$pid" = "$chpid" ]; then
 	echo "ok 2 - $name"
 else

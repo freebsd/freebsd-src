@@ -27,6 +27,8 @@
             ..
             pax
             ..
+            pkill
+            ..
             sh
                 builtins
                 ..
