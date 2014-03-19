@@ -454,6 +454,17 @@ DynamicLoaderPOSIXDYLD::LoadAllCurrentModules()
         const char *module_path = I->path.c_str();
         FileSpec file(module_path, false);
         ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr);
+#ifdef __FreeBSD__ // llvm.org/pr17880
+        if (module_sp == executable)
+        {
+            Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+            if (log)
+                log->Printf("DynamicLoaderPOSIXDYLD::%s reloading main module, ignoring rendezvous base addr %" PRIx64,
+                            __FUNCTION__, I->base_addr);
+            ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, 0);
+        }
+#endif
+ 
         if (module_sp.get())
         {
             module_list.Append(module_sp);
