@@ -53,6 +53,16 @@
 #include "main.h"
 
 /*
+ * If true, some test or preparatory step failed along the execution of this
+ * program.
+ *
+ * Intuitively, we would define a counter instead of a boolean.  However,
+ * we fork to run the subtests and keeping proper track of the number of
+ * failed tests would be tricky and not provide any real value.
+ */
+static int something_failed = 0;
+
+/*
  * Registration table of privilege tests.  Each test registers a name, a test
  * function, and a cleanup function to run after the test has completed,
  * regardless of success/failure.
@@ -358,13 +368,18 @@ expect(const char *test, int error, int expected_error, int expected_errno)
 {
 
 	if (error == 0) {
-		if (expected_error != 0)
+		if (expected_error != 0) {
+			something_failed = 1;
 			warnx("%s: returned 0", test);
+		}
 	} else {
-		if (expected_error == 0)
+		if (expected_error == 0) {
+			something_failed = 1;
 			warn("%s: returned (%d, %d)", test, error, errno);
-		else if (expected_errno != errno)
+		} else if (expected_errno != errno) {
+			something_failed = 1;
 			warn("%s: returned (%d, %d)", test, error, errno);
+		}
 	}
 }
 
@@ -488,14 +503,24 @@ run(struct test *test, int asroot, int injail)
 		run_child(test, asroot, injail);
 		fflush(stdout);
 		fflush(stderr);
-		exit(0);
+		exit(something_failed ? EXIT_FAILURE : EXIT_SUCCESS);
 	} else {
 		while (1) {
-			pid = waitpid(childpid, NULL, 0);
-			if (pid == -1)
+			int status;
+			pid = waitpid(childpid, &status, 0);
+			if (pid == -1) {
+				something_failed = 1;
 				warn("test: waitpid %s", test->t_name);
-			if (pid == childpid)
+			}
+			if (pid == childpid) {
+				if (WIFEXITED(status) &&
+				    WEXITSTATUS(status) == EXIT_SUCCESS) {
+					/* All good in the subprocess! */
+				} else {
+					something_failed = 1;
+				}
 				break;
+			}
 		}
 	}
 	fflush(stdout);
@@ -530,5 +555,5 @@ main(int argc, char *argv[])
 		run(&tests[i], 1, 0);
 		run(&tests[i], 1, 1);
 	}
-	return (0);
+	return (something_failed ? EXIT_FAILURE : EXIT_SUCCESS);
 }
