@@ -1598,9 +1598,8 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 
 	*ifd = ifp->if_data;
 
-	/* Fixup if_data carp(4) vhid. */
-	if (carp_get_vhid_p != NULL)
-		ifd->ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+	/* Some drivers still use ifqueue(9), add its stats. */
+	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
@@ -1633,9 +1632,9 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 	}
 
 	*ifd = ifp->if_data;
-	/* Fixup if_data carp(4) vhid. */
-	if (carp_get_vhid_p != NULL)
-		ifd->ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	/* Some drivers still use ifqueue(9), add its stats. */
+	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
