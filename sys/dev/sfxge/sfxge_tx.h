@@ -159,6 +159,7 @@ struct sfxge_txq {
 	unsigned long			tso_long_headers;
 	unsigned long			collapses;
 	unsigned long			drops;
+	unsigned long			early_drops;
 
 	/* The following fields change more often, and are used mostly
 	 * on the completion path
