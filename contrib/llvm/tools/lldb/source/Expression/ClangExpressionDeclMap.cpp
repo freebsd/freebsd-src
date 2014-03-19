@@ -21,6 +21,7 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectVariable.h"
@@ -514,6 +515,7 @@ FindCodeSymbolInContext
             {
                 case eSymbolTypeCode:
                 case eSymbolTypeResolver:
+                case eSymbolTypeReExported:
                     sc_list.Append(sym_ctx);
                     break;
 
@@ -546,7 +548,8 @@ ClangExpressionDeclMap::GetFunctionAddress
     
     FindCodeSymbolInContext(name, m_parser_vars->m_sym_ctx, sc_list);
 
-    if (!sc_list.GetSize())
+    uint32_t sc_list_size = sc_list.GetSize();
+    if (sc_list_size == 0)
     {
         // We occasionally get debug information in which a const function is reported 
         // as non-const, so the mangled name is wrong.  This is a hack to compensate.
@@ -562,40 +565,64 @@ ClangExpressionDeclMap::GetFunctionAddress
                 log->Printf("Failed to find symbols given non-const name %s; trying %s", name.GetCString(), fixed_name.GetCString());
             
             FindCodeSymbolInContext(fixed_name, m_parser_vars->m_sym_ctx, sc_list);
+            sc_list_size = sc_list.GetSize();
         }
     }
-    
-    if (!sc_list.GetSize())
-        return false;
 
-    SymbolContext sym_ctx;
-    sc_list.GetContextAtIndex(0, sym_ctx);
+    for (uint32_t i=0; i<sc_list_size; ++i)
+    {
+        SymbolContext sym_ctx;
+        sc_list.GetContextAtIndex(i, sym_ctx);
 
-    const Address *func_so_addr = NULL;
-    bool is_indirect_function = false;
+        const Address *func_so_addr = NULL;
+        bool is_indirect_function = false;
+        if (sym_ctx.function)
+            func_so_addr = &sym_ctx.function->GetAddressRange().GetBaseAddress();
+        else if (sym_ctx.symbol)
+        {
+            if (sym_ctx.symbol->GetType() == eSymbolTypeReExported)
+            {
+                Symbol *reexported_symbol = sym_ctx.symbol->ResolveReExportedSymbol(*target);
+                if (reexported_symbol)
+                {
+                    func_so_addr = &reexported_symbol->GetAddress();
+                    is_indirect_function = reexported_symbol->IsIndirect();
+                }
+            }
+            else
+            {
+                func_so_addr = &sym_ctx.symbol->GetAddress();
+                is_indirect_function = sym_ctx.symbol->IsIndirect();
+            }
+        }
 
-    if (sym_ctx.function)
-        func_so_addr = &sym_ctx.function->GetAddressRange().GetBaseAddress();
-    else if (sym_ctx.symbol) {
-        func_so_addr = &sym_ctx.symbol->GetAddress();
-        is_indirect_function = sym_ctx.symbol->IsIndirect();
-    } else
-        return false;
-
-    if (!func_so_addr || !func_so_addr->IsValid())
-        return false;
-
-    func_addr = func_so_addr->GetCallableLoadAddress (target, is_indirect_function);
-
-    return true;
+        if (func_so_addr && func_so_addr->IsValid())
+        {
+            lldb::addr_t load_addr = func_so_addr->GetCallableLoadAddress (target, is_indirect_function);
+            
+            if (load_addr != LLDB_INVALID_ADDRESS)
+            {
+                func_addr = load_addr;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 addr_t
-ClangExpressionDeclMap::GetSymbolAddress (Target &target, Process *process, const ConstString &name, lldb::SymbolType symbol_type)
+ClangExpressionDeclMap::GetSymbolAddress (Target &target,
+                                          Process *process,
+                                          const ConstString &name,
+                                          lldb::SymbolType symbol_type,
+                                          lldb_private::Module *module)
 {
     SymbolContextList sc_list;
     
-    target.GetImages().FindSymbolsWithNameAndType(name, symbol_type, sc_list);
+    if (module)
+        module->FindSymbolsWithNameAndType(name, symbol_type, sc_list);
+    else
+        target.GetImages().FindSymbolsWithNameAndType(name, symbol_type, sc_list);
     
     const uint32_t num_matches = sc_list.GetSize();
     addr_t symbol_load_addr = LLDB_INVALID_ADDRESS;
@@ -621,6 +648,28 @@ ClangExpressionDeclMap::GetSymbolAddress (Target &target, Process *process, cons
 
                 case eSymbolTypeResolver:
                     symbol_load_addr = sym_address->GetCallableLoadAddress (&target, true);
+                    break;
+
+                case eSymbolTypeReExported:
+                    {
+                        ConstString reexport_name = sym_ctx.symbol->GetReExportedSymbolName();
+                        if (reexport_name)
+                        {
+                            ModuleSP reexport_module_sp;
+                            ModuleSpec reexport_module_spec;
+                            reexport_module_spec.GetPlatformFileSpec() = sym_ctx.symbol->GetReExportedSymbolSharedLibrary();
+                            if (reexport_module_spec.GetPlatformFileSpec())
+                            {
+                                reexport_module_sp = target.GetImages().FindFirstModule(reexport_module_spec);
+                                if (!reexport_module_sp)
+                                {
+                                    reexport_module_spec.GetPlatformFileSpec().GetDirectory().Clear();
+                                    reexport_module_sp = target.GetImages().FindFirstModule(reexport_module_spec);
+                                }
+                            }
+                            symbol_load_addr = GetSymbolAddress(target, process, sym_ctx.symbol->GetReExportedSymbolName(), symbol_type, reexport_module_sp.get());
+                        }
+                    }
                     break;
 
                 case eSymbolTypeData:
@@ -680,11 +729,15 @@ ClangExpressionDeclMap::GetSymbolAddress (const ConstString &name, lldb::SymbolT
 
 const Symbol *
 ClangExpressionDeclMap::FindGlobalDataSymbol (Target &target,
-                                              const ConstString &name)
+                                              const ConstString &name,
+                                              lldb_private::Module *module)
 {
     SymbolContextList sc_list;
     
-    target.GetImages().FindSymbolsWithNameAndType(name, eSymbolTypeAny, sc_list);
+    if (module)
+        module->FindSymbolsWithNameAndType(name, eSymbolTypeAny, sc_list);
+    else
+        target.GetImages().FindSymbolsWithNameAndType(name, eSymbolTypeAny, sc_list);
     
     const uint32_t matches = sc_list.GetSize();
     for (uint32_t i=0; i<matches; ++i)
@@ -716,6 +769,28 @@ ClangExpressionDeclMap::FindGlobalDataSymbol (Target &target,
                         }
                         return symbol;
 
+                    case eSymbolTypeReExported:
+                        {
+                            ConstString reexport_name = symbol->GetReExportedSymbolName();
+                            if (reexport_name)
+                            {
+                                ModuleSP reexport_module_sp;
+                                ModuleSpec reexport_module_spec;
+                                reexport_module_spec.GetPlatformFileSpec() = symbol->GetReExportedSymbolSharedLibrary();
+                                if (reexport_module_spec.GetPlatformFileSpec())
+                                {
+                                    reexport_module_sp = target.GetImages().FindFirstModule(reexport_module_spec);
+                                    if (!reexport_module_sp)
+                                    {
+                                        reexport_module_spec.GetPlatformFileSpec().GetDirectory().Clear();
+                                        reexport_module_sp = target.GetImages().FindFirstModule(reexport_module_spec);
+                                    }
+                                }
+                                return FindGlobalDataSymbol(target, symbol->GetReExportedSymbolName(), reexport_module_sp.get());
+                            }
+                        }
+                        break;
+                        
                     case eSymbolTypeCode: // We already lookup functions elsewhere
                     case eSymbolTypeVariable:
                     case eSymbolTypeLocal:
@@ -1286,7 +1361,7 @@ ClangExpressionDeclMap::FindExternalVisibleDecls (NameSearchContext &context,
             
             if (sc_list.GetSize())
             {
-                Symbol *generic_symbol = NULL;
+                Symbol *extern_symbol = NULL;
                 Symbol *non_extern_symbol = NULL;
                 
                 for (uint32_t index = 0, num_indices = sc_list.GetSize();
@@ -1315,8 +1390,15 @@ ClangExpressionDeclMap::FindExternalVisibleDecls (NameSearchContext &context,
                     }
                     else if (sym_ctx.symbol)
                     {
+                        if (sym_ctx.symbol->GetType() == eSymbolTypeReExported)
+                        {
+                            sym_ctx.symbol = sym_ctx.symbol->ResolveReExportedSymbol(*target);
+                            if (sym_ctx.symbol == NULL)
+                                continue;
+                        }
+                        
                         if (sym_ctx.symbol->IsExternal())
-                            generic_symbol = sym_ctx.symbol;
+                            extern_symbol = sym_ctx.symbol;
                         else
                             non_extern_symbol = sym_ctx.symbol;
                     }
@@ -1324,9 +1406,9 @@ ClangExpressionDeclMap::FindExternalVisibleDecls (NameSearchContext &context,
                 
                 if (!context.m_found.function_with_type_info)
                 {
-                    if (generic_symbol)
+                    if (extern_symbol)
                     {
-                        AddOneFunction (context, NULL, generic_symbol, current_id);
+                        AddOneFunction (context, NULL, extern_symbol, current_id);
                         context.m_found.function = true;
                     }
                     else if (non_extern_symbol)
@@ -1418,7 +1500,6 @@ ClangExpressionDeclMap::GetVariableValue (VariableSP &var,
         return false;
     }
     
-    // commented out because of <rdar://problem/11024417>
     ASTContext *ast = var_type->GetClangASTContext().getASTContext();
 
     if (!ast)

@@ -184,11 +184,13 @@ public:
     static const uint32_t default_timeout = 500000;
     EvaluateExpressionOptions() :
         m_execution_policy(eExecutionPolicyOnlyWhenNeeded),
+        m_language (lldb::eLanguageTypeUnknown),
         m_coerce_to_id(false),
         m_unwind_on_error(true),
         m_ignore_breakpoints (false),
         m_keep_in_memory(false),
         m_run_others(true),
+        m_debug(false),
         m_use_dynamic(lldb::eNoDynamicValues),
         m_timeout_usec(default_timeout)
     {}
@@ -203,6 +205,19 @@ public:
     SetExecutionPolicy (ExecutionPolicy policy = eExecutionPolicyAlways)
     {
         m_execution_policy = policy;
+        return *this;
+    }
+    
+    lldb::LanguageType
+    GetLanguage() const
+    {
+        return m_language;
+    }
+    
+    EvaluateExpressionOptions&
+    SetLanguage(lldb::LanguageType language)
+    {
+        m_language = language;
         return *this;
     }
     
@@ -297,13 +312,28 @@ public:
         return *this;
     }
     
+    bool
+    GetDebug() const
+    {
+        return m_debug;
+    }
+    
+    EvaluateExpressionOptions&
+    SetDebug(bool b)
+    {
+        m_debug = b;
+        return *this;
+    }
+
 private:
     ExecutionPolicy m_execution_policy;
+    lldb::LanguageType m_language;
     bool m_coerce_to_id;
     bool m_unwind_on_error;
     bool m_ignore_breakpoints;
     bool m_keep_in_memory;
     bool m_run_others;
+    bool m_debug;
     lldb::DynamicValueType m_use_dynamic;
     uint32_t m_timeout_usec;
 };
@@ -503,26 +533,30 @@ public:
     CreateBreakpoint (const FileSpecList *containingModules,
                       const FileSpec &file,
                       uint32_t line_no,
-                      LazyBool check_inlines = eLazyBoolCalculate,
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool check_inlines,
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create breakpoint that matches regex against the source lines in files given in source_file_list:
     lldb::BreakpointSP
     CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
                                  const FileSpecList *source_file_list,
                                  RegularExpression &source_regex,
-                                 bool internal = false);
+                                 bool internal,
+                                 bool request_hardware);
 
     // Use this to create a breakpoint from a load address
     lldb::BreakpointSP
     CreateBreakpoint (lldb::addr_t load_addr,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create Address breakpoints:
     lldb::BreakpointSP
     CreateBreakpoint (Address &addr,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create a function breakpoint by regexp in containingModule/containingSourceFiles, or all modules if it is NULL
     // When "skip_prologue is set to eLazyBoolCalculate, we use the current target 
@@ -531,8 +565,9 @@ public:
     CreateFuncRegexBreakpoint (const FileSpecList *containingModules,
                                const FileSpecList *containingSourceFiles,
                                RegularExpression &func_regexp,
-                               LazyBool skip_prologue = eLazyBoolCalculate,
-                               bool internal = false);
+                               LazyBool skip_prologue,
+                               bool internal,
+                               bool request_hardware);
 
     // Use this to create a function breakpoint by name in containingModule, or all modules if it is NULL
     // When "skip_prologue is set to eLazyBoolCalculate, we use the current target 
@@ -542,11 +577,12 @@ public:
                       const FileSpecList *containingSourceFiles,
                       const char *func_name,
                       uint32_t func_name_type_mask, 
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
                       
     lldb::BreakpointSP
-    CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_bp, bool throw_bp, bool internal = false);
+    CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_bp, bool throw_bp, bool internal);
     
     // This is the same as the func_name breakpoint except that you can specify a vector of names.  This is cheaper
     // than a regular expression breakpoint in the case where you just want to set a breakpoint on a set of names
@@ -557,23 +593,26 @@ public:
                       const char *func_names[],
                       size_t num_names, 
                       uint32_t func_name_type_mask, 
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
     lldb::BreakpointSP
     CreateBreakpoint (const FileSpecList *containingModules,
                       const FileSpecList *containingSourceFiles,
                       const std::vector<std::string> &func_names,
                       uint32_t func_name_type_mask,
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
 
     // Use this to create a general breakpoint:
     lldb::BreakpointSP
     CreateBreakpoint (lldb::SearchFilterSP &filter_sp,
                       lldb::BreakpointResolverSP &resolver_sp,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create a watchpoint:
     lldb::WatchpointSP
@@ -696,11 +735,14 @@ public:
     ModulesDidLoad (ModuleList &module_list);
 
     void
-    ModulesDidUnload (ModuleList &module_list);
+    ModulesDidUnload (ModuleList &module_list, bool delete_locations);
     
     void
     SymbolsDidLoad (ModuleList &module_list);
     
+    void
+    ClearModules();
+
     //------------------------------------------------------------------
     /// Gets the module for the main executable.
     ///
@@ -1095,21 +1137,7 @@ public:
     {
         return m_suppress_stop_hooks;
     }
-    
-    bool
-    SetSuppressSyntheticValue (bool suppress)
-    {
-        bool old_value = m_suppress_synthetic_value;
-        m_suppress_synthetic_value = suppress;
-        return old_value;
-    }
-    
-    bool
-    GetSuppressSyntheticValue ()
-    {
-        return m_suppress_synthetic_value;
-    }
-    
+
 //    StopHookSP &
 //    GetStopHookByIndex (size_t index);
 //    

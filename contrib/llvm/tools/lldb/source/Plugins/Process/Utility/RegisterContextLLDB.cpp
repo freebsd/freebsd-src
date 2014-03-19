@@ -369,8 +369,13 @@ RegisterContextLLDB::InitializeNonZerothFrame()
         return;
     }
 
+    bool resolve_tail_call_address = true; // m_current_pc can be one past the address range of the function...
+    uint32_t resolved_scope = pc_module_sp->ResolveSymbolContextForAddress (m_current_pc,
+                                                                            eSymbolContextFunction | eSymbolContextSymbol,
+                                                                            m_sym_ctx, resolve_tail_call_address);
+
     // We require that eSymbolContextSymbol be successfully filled in or this context is of no use to us.
-    if ((pc_module_sp->ResolveSymbolContextForAddress (m_current_pc, eSymbolContextFunction| eSymbolContextSymbol, m_sym_ctx) & eSymbolContextSymbol) == eSymbolContextSymbol)
+    if ((resolved_scope & eSymbolContextSymbol) == eSymbolContextSymbol)
     {
         m_sym_ctx_valid = true;
     }
@@ -387,35 +392,18 @@ RegisterContextLLDB::InitializeNonZerothFrame()
     if (m_sym_ctx_valid == false)
        decr_pc_and_recompute_addr_range = true;
 
-    // Or if we're in the middle of the stack (and not "above" an asynchronous event like sigtramp),
-    // and our "current" pc is the start of a function...
+    // Or if we're in the middle of the stack (and not "above" an asynchronous event like sigtramp), and
+    // our "current" pc is the start of a function or our "current" pc is one past the end of a function...
     if (m_sym_ctx_valid
         && GetNextFrame()->m_frame_type != eSigtrampFrame
         && GetNextFrame()->m_frame_type != eDebuggerFrame
         && addr_range.GetBaseAddress().IsValid()
-        && addr_range.GetBaseAddress().GetSection() == m_current_pc.GetSection()
-        && addr_range.GetBaseAddress().GetOffset() == m_current_pc.GetOffset())
+        && addr_range.GetBaseAddress().GetSection() == m_current_pc.GetSection())
     {
-        decr_pc_and_recompute_addr_range = true;
-    }
-
-    // We need to back up the pc by 1 byte and re-search for the Symbol to handle the case where the "saved pc"
-    // value is pointing to the next function, e.g. if a function ends with a CALL instruction.
-    // FIXME this may need to be an architectural-dependent behavior; if so we'll need to add a member function
-    // to the ABI plugin and consult that.
-    if (decr_pc_and_recompute_addr_range)
-    {
-        Address temporary_pc(m_current_pc);
-        temporary_pc.SetOffset(m_current_pc.GetOffset() - 1);
-        m_sym_ctx.Clear(false);
-        m_sym_ctx_valid = false;
-        if ((pc_module_sp->ResolveSymbolContextForAddress (temporary_pc, eSymbolContextFunction| eSymbolContextSymbol, m_sym_ctx) & eSymbolContextSymbol) == eSymbolContextSymbol)
+        if (addr_range.GetBaseAddress().GetOffset() == m_current_pc.GetOffset() ||
+            addr_range.GetBaseAddress().GetOffset() + addr_range.GetByteSize() == m_current_pc.GetOffset())
         {
-            m_sym_ctx_valid = true;
-        }
-        if (!m_sym_ctx.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false,  addr_range))
-        {
-            m_sym_ctx_valid = false;
+            decr_pc_and_recompute_addr_range = true;
         }
     }
 
@@ -632,6 +620,10 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
         arch_default_unwind_plan_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
         abi->CreateDefaultUnwindPlan(*arch_default_unwind_plan_sp);
     }
+    else
+    {
+        UnwindLogMsg ("unable to get architectural default UnwindPlan from ABI plugin");
+    }
 
     bool behaves_like_zeroth_frame = false;
     if (IsFrameZero ()
@@ -648,9 +640,10 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
     // in the zeroth frame, we need to use the "unwind at first instruction" arch default UnwindPlan
     // Also, if this Process can report on memory region attributes, any non-executable region means
     // we jumped through a bad function pointer - handle the same way as 0x0.
-    // Note, if the symbol context has a function for the symbol, then we don't need to do this check.
+    // Note, if we have a symbol context & a symbol, we don't want to follow this code path.  This is
+    // for jumping to memory regions without any information available.
 
-    if ((!m_sym_ctx_valid  || m_sym_ctx.function == NULL) && behaves_like_zeroth_frame && m_current_pc.IsValid())
+    if ((!m_sym_ctx_valid || m_sym_ctx.symbol == NULL) && behaves_like_zeroth_frame && m_current_pc.IsValid())
     {
         uint32_t permissions;
         addr_t current_pc_addr = m_current_pc.GetLoadAddress (exe_ctx.GetTargetPtr());
@@ -757,8 +750,24 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
         return unwind_plan_sp;
     }
 
+    // If we're on the first instruction of a function, and we have an architectural default UnwindPlan
+    // for the initial instruction of a function, use that.
+    if (m_current_offset_backed_up_one == 0)
+    {
+        unwind_plan_sp = func_unwinders_sp->GetUnwindPlanArchitectureDefaultAtFunctionEntry (m_thread);
+        if (unwind_plan_sp)
+        {
+            UnwindLogMsgVerbose ("frame uses %s for full UnwindPlan", unwind_plan_sp->GetSourceName().GetCString());
+            return unwind_plan_sp;
+        }
+    }
+
     // If nothing else, use the architectural default UnwindPlan and hope that does the job.
-    UnwindLogMsgVerbose ("frame uses %s for full UnwindPlan", arch_default_unwind_plan_sp->GetSourceName().GetCString());
+    if (arch_default_unwind_plan_sp)
+        UnwindLogMsgVerbose ("frame uses %s for full UnwindPlan", arch_default_unwind_plan_sp->GetSourceName().GetCString());
+    else
+        UnwindLogMsg ("Unable to find any UnwindPlan for full unwind of this frame.");
+
     return arch_default_unwind_plan_sp;
 }
 
@@ -1101,7 +1110,8 @@ RegisterContextLLDB::SavedLocationForRegister (uint32_t lldb_regnum, lldb_privat
             const RegisterInfo *reg_info = GetRegisterInfoAtIndex(lldb_regnum);
             if (reg_info && abi->RegisterIsVolatile (reg_info))
             {
-                UnwindLogMsg ("did not supply reg location for %d because it is volatile", lldb_regnum);
+                UnwindLogMsg ("did not supply reg location for %d (%s) because it is volatile",
+                    lldb_regnum, reg_info->name ? reg_info->name : "??");
                 return UnwindLLDB::RegisterSearchResult::eRegisterIsVolatile;
             }
         }
@@ -1186,7 +1196,8 @@ RegisterContextLLDB::SavedLocationForRegister (uint32_t lldb_regnum, lldb_privat
         DataExtractor dwarfdata (unwindplan_regloc.GetDWARFExpressionBytes(),
                                  unwindplan_regloc.GetDWARFExpressionLength(),
                                  process->GetByteOrder(), process->GetAddressByteSize());
-        DWARFExpression dwarfexpr (dwarfdata, 0, unwindplan_regloc.GetDWARFExpressionLength());
+        ModuleSP opcode_ctx;
+        DWARFExpression dwarfexpr (opcode_ctx, dwarfdata, 0, unwindplan_regloc.GetDWARFExpressionLength());
         dwarfexpr.SetRegisterKind (unwindplan_registerkind);
         Value result;
         Error error;

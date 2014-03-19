@@ -160,6 +160,10 @@ public:
     bool
     WriteRegisterSet(lldb::tid_t tid, void *buf, size_t buf_size, unsigned int regset);
 
+    /// Reads the value of the thread-specific pointer for a given thread ID.
+    bool
+    ReadThreadPointer(lldb::tid_t tid, lldb::addr_t &value);
+
     /// Writes a ptrace_lwpinfo structure corresponding to the given thread ID
     /// to the memory region pointed to by @p lwpinfo.
     bool
@@ -193,6 +197,10 @@ public:
     void
     StopMonitor();
 
+    // Waits for the initial stop message from a new thread.
+    bool
+    WaitForInitialTIDStop(lldb::tid_t tid);
+
 private:
     ProcessFreeBSD *m_process;
 
@@ -200,12 +208,17 @@ private:
     lldb::thread_t m_monitor_thread;
     lldb::pid_t m_pid;
 
-
-    lldb_private::Mutex m_server_mutex;
     int m_terminal_fd;
-    int m_client_fd;
-    int m_server_fd;
 
+    // current operation which must be executed on the privileged thread
+    Operation *m_operation;
+    lldb_private::Mutex m_operation_mutex;
+
+    // semaphores notified when Operation is ready to be processed and when
+    // the operation is complete.
+    sem_t m_operation_pending;
+    sem_t m_operation_done;
+    
     struct OperationArgs
     {
         OperationArgs(ProcessMonitor *monitor);
@@ -251,9 +264,6 @@ private:
 
     static bool
     Launch(LaunchArgs *args);
-
-    bool
-    EnableIPC();
 
     struct AttachArgs : OperationArgs
     {
@@ -314,9 +324,6 @@ private:
     /// Stops the operation thread used to attach/launch a process.
     void
     StopOpThread();
-
-    void
-    CloseFD(int &fd);
 };
 
 #endif // #ifndef liblldb_ProcessMonitor_H_
