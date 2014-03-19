@@ -39,6 +39,7 @@
 #include <sys/refcount.h>
 #include <sys/bplist.h>
 #include <sys/bpobj.h>
+#include <zfeature_common.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -237,6 +238,9 @@ struct spa {
 	uint64_t	spa_feat_for_write_obj;	/* required to write to pool */
 	uint64_t	spa_feat_for_read_obj;	/* required to read from pool */
 	uint64_t	spa_feat_desc_obj;	/* Feature descriptions */
+	uint64_t	spa_feat_enabled_txg_obj; /* Feature enabled txg */
+	/* cache feature refcounts */
+	uint64_t	spa_feat_refcount_cache[SPA_FEATURES];
 #ifdef illumos
 	cyclic_id_t	spa_deadman_cycid;	/* cyclic id */
 #else	/* FreeBSD */
