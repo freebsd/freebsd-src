@@ -1745,7 +1745,7 @@ public:
     ///     the error object is success.
     //------------------------------------------------------------------
     virtual Error
-    Launch (const ProcessLaunchInfo &launch_info);
+    Launch (ProcessLaunchInfo &launch_info);
 
     virtual Error
     LoadCore ();
@@ -2502,11 +2502,7 @@ public:
     ExecutionResults
     RunThreadPlan (ExecutionContext &exe_ctx,    
                     lldb::ThreadPlanSP &thread_plan_sp,
-                    bool stop_others,
-                    bool run_others,
-                    bool unwind_on_error,
-                    bool ignore_breakpoints,
-                    uint32_t timeout_usec,
+                    const EvaluateExpressionOptions &options,
                     Stream &errors);
 
     static const char *
@@ -3304,6 +3300,23 @@ public:
     {
         return m_thread_list;
     }
+
+    // When ExtendedBacktraces are requested, the HistoryThreads that are
+    // created need an owner -- they're saved here in the Process.  The
+    // threads in this list are not iterated over - driver programs need to
+    // request the extended backtrace calls starting from a root concrete
+    // thread one by one.
+    ThreadList &
+    GetExtendedThreadList ()
+    {
+        return m_extended_thread_list;
+    }
+
+    ThreadList::ThreadIterable
+    Threads ()
+    {
+        return m_thread_list.Threads();
+    }
     
     uint32_t
     GetNextThreadIndexID (uint64_t thread_id);
@@ -3670,6 +3683,8 @@ protected:
     ThreadList                  m_thread_list_real;     ///< The threads for this process as are known to the protocol we are debugging with
     ThreadList                  m_thread_list;          ///< The threads for this process as the user will see them. This is usually the same as
                                                         ///< m_thread_list_real, but might be different if there is an OS plug-in creating memory threads
+    ThreadList                  m_extended_thread_list; ///< Owner for extended threads that may be generated, cleared on natural stops
+    uint32_t                    m_extended_thread_stop_id; ///< The natural stop id when extended_thread_list was last updated
     std::vector<Notifications>  m_notifications;        ///< The list of notifications that this process can deliver.
     std::vector<lldb::addr_t>   m_image_tokens;
     Listener                    &m_listener;

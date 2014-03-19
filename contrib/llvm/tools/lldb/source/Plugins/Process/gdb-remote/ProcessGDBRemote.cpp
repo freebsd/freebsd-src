@@ -819,7 +819,7 @@ ProcessGDBRemote::DoLaunch (Module *exe_module, const ProcessLaunchInfo &launch_
             }
 
             const uint32_t old_packet_timeout = m_gdb_comm.SetPacketTimeout (10);
-            int arg_packet_err = m_gdb_comm.SendArgumentsPacket (launch_info.GetArguments().GetConstArgumentVector());
+            int arg_packet_err = m_gdb_comm.SendArgumentsPacket (launch_info);
             if (arg_packet_err == 0)
             {
                 std::string error_str;
@@ -925,15 +925,13 @@ ProcessGDBRemote::ConnectToDebugserver (const char *connect_url)
     // then we aren't actually connected to anything, so try and do the
     // handshake with the remote GDB server and make sure that goes 
     // alright.
-    if (!m_gdb_comm.HandshakeWithServer (NULL))
+    if (!m_gdb_comm.HandshakeWithServer (&error))
     {
         m_gdb_comm.Disconnect();
         if (error.Success())
             error.SetErrorString("not connected to remote gdb server");
         return error;
     }
-    m_gdb_comm.ResetDiscoverableSettings();
-    m_gdb_comm.QueryNoAckModeSupported ();
     m_gdb_comm.GetThreadSuffixSupported ();
     m_gdb_comm.GetListThreadsInStopReplySupported ();
     m_gdb_comm.GetHostInfo ();
@@ -1156,6 +1154,13 @@ ProcessGDBRemote::DoAttachToProcessWithName (const char *process_name, bool wait
     return error;
 }
 
+
+bool
+ProcessGDBRemote::SetExitStatus (int exit_status, const char *cstr)
+{
+    m_gdb_comm.Disconnect();
+    return Process::SetExitStatus (exit_status, cstr);
+}
 
 void
 ProcessGDBRemote::DidAttach ()
@@ -2788,6 +2793,7 @@ ProcessGDBRemote::MonitorDebugserverProcess
 void
 ProcessGDBRemote::KillDebugserverProcess ()
 {
+    m_gdb_comm.Disconnect();
     if (m_debugserver_pid != LLDB_INVALID_PROCESS_ID)
     {
         Host::Kill (m_debugserver_pid, SIGINT);
