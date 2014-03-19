@@ -939,7 +939,7 @@ public:
         SetHelpLong(
     "Examples: \n\
     \n\
-        watchpoint set variable -w read_wriate my_global_var \n\
+        watchpoint set variable -w read_write my_global_var \n\
         # Watch my_global_var for read/write access, with the region to watch corresponding to the byte size of the data type.\n");
 
         CommandArgumentEntry arg;
@@ -1256,11 +1256,11 @@ protected:
 
         // Use expression evaluation to arrive at the address to watch.
         EvaluateExpressionOptions options;
-        options.SetCoerceToId(false)
-        .SetUnwindOnError(true)
-        .SetKeepInMemory(false)
-        .SetRunOthers(true)
-        .SetTimeoutUsec(0);
+        options.SetCoerceToId(false);
+        options.SetUnwindOnError(true);
+        options.SetKeepInMemory(false);
+        options.SetTryAllThreads(true);
+        options.SetTimeoutUsec(0);
         
         ExecutionResults expr_result = target->EvaluateExpression (expr, 
                                                                    frame, 

@@ -127,7 +127,7 @@ public:
     ///   An empty vector may be returned if no thread origin extended 
     ///   backtrace capabilities are available.
     //------------------------------------------------------------------
-    virtual std::vector<ConstString>
+    virtual const std::vector<ConstString> &
     GetExtendedBacktraceTypes ();
 
     //------------------------------------------------------------------
@@ -158,13 +158,16 @@ public:
     ///   An empty ThreadSP will be returned if no thread origin is available.
     //------------------------------------------------------------------
     virtual lldb::ThreadSP
-    GetExtendedBacktrace (lldb::ThreadSP thread, ConstString type);
+    GetExtendedBacktraceThread (lldb::ThreadSP thread, ConstString type);
 
 protected:
     //------------------------------------------------------------------
     // Member variables.
     //------------------------------------------------------------------
     Process *m_process;
+
+    std::vector<ConstString> m_types;
+
 private:
     DISALLOW_COPY_AND_ASSIGN (SystemRuntime);
 };
