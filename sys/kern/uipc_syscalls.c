@@ -137,6 +137,10 @@ static int sfpgrabnowait = 0;
 SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, pgrabnowait, CTLFLAG_RW,
     &sfpgrabnowait, 0, "Use VM_ALLOC_NOWAIT when SF_NODISKIO is requested");
 
+static int sfreadahead = 0;
+SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
+    &sfreadahead, 0, "Read this more pages than socket buffer can accept");
+
 #ifdef	SFSYNC_DEBUG
 static int sf_sync_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, sf_sync_debug, CTLFLAG_RW,
@@ -2727,9 +2731,10 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 {
 	vm_page_t *pa = sfio->pa;
 	int npages = sfio->npages;
-	int nios, rv;
+	int nios, readahead;
 
 	nios = 0;
+	readahead = sfreadahead;
 	if (sfpgrabnowait && (flags & SF_NODISKIO))
 		flags = VM_ALLOC_NOWAIT;
 	else
@@ -2741,12 +2746,13 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL | flags);
 		if (pa[i] == NULL) {
 			npages = sfio->npages = i;
+			readahead = 0;
 			break;
 		}
 	}
 
 	for (int i = 0; i < npages; i++) {
-		int j, a;
+		int j, a, count, rv;
 
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
 		    xfsize(i, npages, off, len))) {
@@ -2770,9 +2776,19 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		if (i == j)
 			continue;
 
+		count = min(a + 1, npages + readahead - i);
+		for (j = npages; j < i + count; j++) {
+			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
+			    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT);
+			if (pa[j] == NULL) {
+				count = j - i;
+				break;
+			}
+		}
+
 		refcount_acquire(&sfio->nios);
-		rv = vm_pager_get_pages_async(obj, pa + i,
-		    min(a + 1, npages - i), 0, &sf_io_done, sfio);
+		rv = vm_pager_get_pages_async(obj, pa + i, count, 0,
+		    &sf_io_done, sfio);
 
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
@@ -2780,12 +2796,13 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		SFSTAT_INC(sf_iocnt);
 		nios++;
 
-		i += a;
-		for (j = i - a; a > 0 && j < npages; a--, j++)
+		for (j = i; j < i + count; j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
 			    OFF_TO_IDX(vmoff(j, off))),
 			    ("pa[j] %p lookup %p\n", pa[j],
 			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
+
+		i += count - 1;
 	}
 
 	VM_OBJECT_WUNLOCK(obj);
@@ -3064,7 +3081,8 @@ retry_space:
 		else
 			npages = howmany(space, PAGE_SIZE);
 		sfio = malloc(sizeof(struct sf_io) +
-		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
+		    (sfreadahead + npages) * sizeof(vm_page_t),
+		    M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->npages = npages;
 
