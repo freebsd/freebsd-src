@@ -1713,7 +1713,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_object_pip_add(object, 1);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid == VM_PAGE_BITS_ALL) {
-		vm_object_pip_subtract(object, 1);
+		vm_object_pip_wakeup(object);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
@@ -1725,7 +1725,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
-	vm_object_pip_subtract(object, 1);
+	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);
 	vm_page_lock(m);
 	vm_page_deactivate(m);
