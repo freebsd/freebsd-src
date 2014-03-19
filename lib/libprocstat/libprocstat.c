@@ -2053,7 +2053,7 @@ procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
 	mib[3] = pid;
 	len = sizeof(*maskp);
 	error = sysctl(mib, 4, maskp, &len, NULL, 0);
-	if (error != 0 && errno != ESRCH)
+	if (error != 0 && errno != ESRCH && errno != EPERM)
 		warn("sysctl: kern.proc.umask: %d", pid);
 	return (error);
 }
