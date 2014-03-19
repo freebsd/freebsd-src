@@ -543,7 +543,7 @@ main(int argc, char *argv[])
 	 * force the use of privilege, and will likely need checking.
 	 */
 	if (getuid() != 0 && geteuid() != 0)
-		errx(-1, "priv: must be run as root");
+		errx(-1, "must be run as root");
 
 	/*
 	 * Run each test four times, varying whether the process is running
