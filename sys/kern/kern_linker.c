@@ -733,14 +733,11 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	linker_file_t *newdeps;
 
 	sx_assert(&kld_sx, SA_XLOCKED);
-	newdeps = malloc((file->ndeps + 1) * sizeof(linker_file_t *),
-	    M_LINKER, M_WAITOK | M_ZERO);
-	if (newdeps == NULL)
-		return (ENOMEM);
+	newdeps = malloc((file->ndeps + 1) * sizeof(*newdeps), M_LINKER,
+	    M_WAITOK | M_ZERO);
 
 	if (file->deps) {
-		bcopy(file->deps, newdeps,
-		    file->ndeps * sizeof(linker_file_t *));
+		bcopy(file->deps, newdeps, file->ndeps * sizeof(*newdeps));
 		free(file->deps, M_LINKER);
 	}
 	file->deps = newdeps;
