@@ -122,11 +122,47 @@ ProcessFreeBSD::Terminate()
 {
 }
 
+Error
+ProcessFreeBSD::DoDetach(bool keep_stopped)
+{
+    Error error;
+    if (keep_stopped)
+    {
+        error.SetErrorString("Detaching with keep_stopped true is not currently supported on FreeBSD.");
+        return error;
+    }
+
+    error = m_monitor->Detach(GetID());
+
+    if (error.Success())
+        SetPrivateState(eStateDetached);
+
+    return error;
+}
+
 bool
 ProcessFreeBSD::UpdateThreadList(ThreadList &old_thread_list, ThreadList &new_thread_list)
 {
-    // XXX haxx
-    new_thread_list = old_thread_list;
-  
-    return false;
+    Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_THREAD));
+    if (log && log->GetMask().Test(POSIX_LOG_VERBOSE))
+        log->Printf ("ProcessFreeBSD::%s() (pid = %" PRIu64 ")", __FUNCTION__, GetID());
+
+    bool has_updated = false;
+    const lldb::pid_t pid = GetID();
+    // Update the process thread list with this new thread.
+    // FIXME: We should be using tid, not pid.
+    assert(m_monitor);
+    ThreadSP thread_sp (old_thread_list.FindThreadByID (pid, false));
+    if (!thread_sp) {
+        ProcessSP me = this->shared_from_this();
+        thread_sp.reset(new POSIXThread(*me, pid));
+        has_updated = true;
+    }
+
+    if (log && log->GetMask().Test(POSIX_LOG_VERBOSE))
+        log->Printf ("ProcessFreeBSD::%s() updated tid = %" PRIu64, __FUNCTION__, pid);
+
+    new_thread_list.AddThread(thread_sp);
+
+    return has_updated; // the list has been updated
 }

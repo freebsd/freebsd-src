@@ -32,7 +32,7 @@ using namespace std;
 // representation.
 //----------------------------------------------------------------------
 void
-DWARFDebugLine::Parse(const DataExtractor& debug_line_data)
+DWARFDebugLine::Parse(const DWARFDataExtractor& debug_line_data)
 {
     m_lineTableMap.clear();
     lldb::offset_t offset = 0;
@@ -59,7 +59,7 @@ DWARFDebugLine::Parse(const DataExtractor& debug_line_data)
 }
 
 void
-DWARFDebugLine::ParseIfNeeded(const DataExtractor& debug_line_data)
+DWARFDebugLine::ParseIfNeeded(const DWARFDataExtractor& debug_line_data)
 {
     if (m_lineTableMap.empty())
         Parse(debug_line_data);
@@ -110,7 +110,7 @@ DumpStateToFile (dw_offset_t offset, const DWARFDebugLine::State& state, void* u
 bool
 DWARFDebugLine::DumpLineTableRows(Log *log, SymbolFileDWARF* dwarf2Data, dw_offset_t debug_line_offset)
 {
-    const DataExtractor& debug_line_data = dwarf2Data->get_debug_line_data();
+    const DWARFDataExtractor& debug_line_data = dwarf2Data->get_debug_line_data();
 
     if (debug_line_offset == DW_INVALID_OFFSET)
     {
@@ -131,7 +131,7 @@ DWARFDebugLine::DumpLineTableRows(Log *log, SymbolFileDWARF* dwarf2Data, dw_offs
 // DWARFDebugLine::DumpStatementTable
 //----------------------------------------------------------------------
 dw_offset_t
-DWARFDebugLine::DumpStatementTable(Log *log, const DataExtractor& debug_line_data, const dw_offset_t debug_line_offset)
+DWARFDebugLine::DumpStatementTable(Log *log, const DWARFDataExtractor& debug_line_data, const dw_offset_t debug_line_offset)
 {
     if (debug_line_data.ValidOffset(debug_line_offset))
     {
@@ -156,7 +156,7 @@ DWARFDebugLine::DumpStatementTable(Log *log, const DataExtractor& debug_line_dat
 bool
 DWARFDebugLine::DumpOpcodes(Log *log, SymbolFileDWARF* dwarf2Data, dw_offset_t debug_line_offset, uint32_t dump_flags)
 {
-    const DataExtractor& debug_line_data = dwarf2Data->get_debug_line_data();
+    const DWARFDataExtractor& debug_line_data = dwarf2Data->get_debug_line_data();
 
     if (debug_line_data.GetByteSize() == 0)
     {
@@ -183,7 +183,7 @@ DWARFDebugLine::DumpOpcodes(Log *log, SymbolFileDWARF* dwarf2Data, dw_offset_t d
 // DumpStatementOpcodes
 //----------------------------------------------------------------------
 dw_offset_t
-DWARFDebugLine::DumpStatementOpcodes(Log *log, const DataExtractor& debug_line_data, const dw_offset_t debug_line_offset, uint32_t flags)
+DWARFDebugLine::DumpStatementOpcodes(Log *log, const DWARFDataExtractor& debug_line_data, const dw_offset_t debug_line_offset, uint32_t flags)
 {
     lldb::offset_t offset = debug_line_offset;
     if (debug_line_data.ValidOffset(offset))
@@ -386,7 +386,7 @@ DWARFDebugLine::DumpStatementOpcodes(Log *log, const DataExtractor& debug_line_d
 // the line table.
 //----------------------------------------------------------------------
 void
-DWARFDebugLine::Parse(const DataExtractor& debug_line_data, DWARFDebugLine::State::Callback callback, void* userData)
+DWARFDebugLine::Parse(const DWARFDataExtractor& debug_line_data, DWARFDebugLine::State::Callback callback, void* userData)
 {
     lldb::offset_t offset = 0;
     if (debug_line_data.ValidOffset(offset))
@@ -401,7 +401,7 @@ DWARFDebugLine::Parse(const DataExtractor& debug_line_data, DWARFDebugLine::Stat
 // DWARFDebugLine::ParsePrologue
 //----------------------------------------------------------------------
 bool
-DWARFDebugLine::ParsePrologue(const DataExtractor& debug_line_data, lldb::offset_t* offset_ptr, Prologue* prologue)
+DWARFDebugLine::ParsePrologue(const DWARFDataExtractor& debug_line_data, lldb::offset_t* offset_ptr, Prologue* prologue)
 {
     const lldb::offset_t prologue_offset = *offset_ptr;
 
@@ -410,12 +410,12 @@ DWARFDebugLine::ParsePrologue(const DataExtractor& debug_line_data, lldb::offset
     prologue->Clear();
     uint32_t i;
     const char * s;
-    prologue->total_length      = debug_line_data.GetU32(offset_ptr);
+    prologue->total_length      = debug_line_data.GetDWARFInitialLength(offset_ptr);
     prologue->version           = debug_line_data.GetU16(offset_ptr);
     if (prologue->version != 2)
       return false;
 
-    prologue->prologue_length   = debug_line_data.GetU32(offset_ptr);
+    prologue->prologue_length   = debug_line_data.GetDWARFOffset(offset_ptr);
     const lldb::offset_t end_prologue_offset = prologue->prologue_length + *offset_ptr;
     prologue->min_inst_length   = debug_line_data.GetU8(offset_ptr);
     prologue->default_is_stmt   = debug_line_data.GetU8(offset_ptr);
@@ -456,10 +456,11 @@ DWARFDebugLine::ParsePrologue(const DataExtractor& debug_line_data, lldb::offset
             break;
     }
 
+    // XXX GNU as is broken for 64-Bit DWARF
     if (*offset_ptr != end_prologue_offset)
     {
         Host::SystemLog (Host::eSystemLogWarning, 
-                         "warning: parsing line table prologue at 0x%8.8" PRIx64 " should have ended at 0x%8.8" PRIx64 " but it ended ad 0x%8.8" PRIx64 "\n",
+                         "warning: parsing line table prologue at 0x%8.8" PRIx64 " should have ended at 0x%8.8" PRIx64 " but it ended at 0x%8.8" PRIx64 "\n",
                          prologue_offset,
                          end_prologue_offset, 
                          *offset_ptr);
@@ -469,18 +470,20 @@ DWARFDebugLine::ParsePrologue(const DataExtractor& debug_line_data, lldb::offset
 
 bool
 DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
-                                   const DataExtractor& debug_line_data,
+                                   const DWARFDataExtractor& debug_line_data,
                                    const char *cu_comp_dir,
                                    dw_offset_t stmt_list,
                                    FileSpecList &support_files)
 {
-    lldb::offset_t offset = stmt_list + 4;    // Skip the total length
+    lldb::offset_t offset = stmt_list;
+    // Skip the total length
+    (void)debug_line_data.GetDWARFInitialLength(&offset);
     const char * s;
     uint32_t version = debug_line_data.GetU16(&offset);
     if (version != 2)
       return false;
 
-    const dw_offset_t end_prologue_offset = debug_line_data.GetU32(&offset) + offset;
+    const dw_offset_t end_prologue_offset = debug_line_data.GetDWARFOffset(&offset) + offset;
     // Skip instruction length, default is stmt, line base, line range and
     // opcode base, and all opcode lengths
     offset += 4;
@@ -554,7 +557,7 @@ DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
     if (offset != end_prologue_offset)
     {
         Host::SystemLog (Host::eSystemLogError, 
-                         "warning: parsing line table prologue at 0x%8.8x should have ended at 0x%8.8x but it ended ad 0x%8.8" PRIx64 "\n",
+                         "warning: parsing line table prologue at 0x%8.8x should have ended at 0x%8.8x but it ended at 0x%8.8" PRIx64 "\n",
                          stmt_list, 
                          end_prologue_offset, 
                          offset);
@@ -572,7 +575,7 @@ DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
 bool
 DWARFDebugLine::ParseStatementTable
 (
-    const DataExtractor& debug_line_data,
+    const DWARFDataExtractor& debug_line_data,
     lldb::offset_t* offset_ptr,
     DWARFDebugLine::State::Callback callback,
     void* userData
@@ -600,7 +603,7 @@ DWARFDebugLine::ParseStatementTable
     if (log)
         prologue->Dump (log);
 
-    const dw_offset_t end_offset = debug_line_offset + prologue->total_length + sizeof(prologue->total_length);
+    const dw_offset_t end_offset = debug_line_offset + prologue->total_length + (debug_line_data.GetDWARFSizeofInitialLength());
 
     State state(prologue, log, callback, userData);
 
@@ -873,7 +876,7 @@ ParseStatementTableCallback(dw_offset_t offset, const DWARFDebugLine::State& sta
 // the prologue and all rows.
 //----------------------------------------------------------------------
 bool
-DWARFDebugLine::ParseStatementTable(const DataExtractor& debug_line_data, lldb::offset_t *offset_ptr, LineTable* line_table)
+DWARFDebugLine::ParseStatementTable(const DWARFDataExtractor& debug_line_data, lldb::offset_t *offset_ptr, LineTable* line_table)
 {
     return ParseStatementTable(debug_line_data, offset_ptr, ParseStatementTableCallback, line_table);
 }

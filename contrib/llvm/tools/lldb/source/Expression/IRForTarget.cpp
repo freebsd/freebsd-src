@@ -356,7 +356,7 @@ IRForTarget::ResolveFunctionPointers(llvm::Module &llvm_module)
         
         if (value_ptr)
             *value_ptr = value;
-        
+
         fun->replaceAllUsesWith(value);
     }
     
@@ -2014,7 +2014,7 @@ IRForTarget::ReplaceStaticLiterals (llvm::BasicBlock &basic_block)
                 }
                 ss.flush();
                 
-                log->Printf("Found ConstantFP with size %lu and raw data %s", operand_data_size, s.c_str());
+                log->Printf("Found ConstantFP with size %zu and raw data %s", operand_data_size, s.c_str());
             }
             
             lldb_private::DataBufferHeap data(operand_data_size, 0);
@@ -2477,7 +2477,7 @@ IRForTarget::ReplaceVariables (Function &llvm_function)
     }
     
     if (log)
-        log->Printf("Total structure [align %" PRId64 ", size %lu]", alignment, size);
+        log->Printf("Total structure [align %" PRId64 ", size %zu]", alignment, size);
     
     return true;
 }

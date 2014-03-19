@@ -21,7 +21,9 @@
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Symbol/DWARFCallFrameInfo.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/Target.h"
 #include "lldb/Host/Host.h"
 
 #include "llvm/ADT/PointerUnion.h"
@@ -514,7 +516,7 @@ ObjectFileELF::GetDependentModules(FileSpecList &files)
 }
 
 Address
-ObjectFileELF::GetImageInfoAddress()
+ObjectFileELF::GetImageInfoAddress(Target *target)
 {
     if (!ParseDynamicSymbols())
         return Address();
@@ -544,6 +546,17 @@ ObjectFileELF::GetImageInfoAddress()
             // size of d_tag.
             addr_t offset = i * dynsym_hdr->sh_entsize + GetAddressByteSize();
             return Address(dynsym_section_sp, offset);
+        }
+        else if (symbol.d_tag == DT_MIPS_RLD_MAP && target)
+        {
+            addr_t offset = i * dynsym_hdr->sh_entsize + GetAddressByteSize();
+            addr_t dyn_base = dynsym_section_sp->GetLoadBaseAddress(target);
+            if (dyn_base == LLDB_INVALID_ADDRESS)
+                return Address();
+            Address addr;
+            Error error;
+            if (target->ReadPointerFromMemory(dyn_base + offset, false, error, addr))
+                return addr;
         }
     }
 
@@ -1280,6 +1293,11 @@ ObjectFileELF::FindDynamicSymbol(unsigned tag)
 unsigned
 ObjectFileELF::PLTRelocationType()
 {
+    // DT_PLTREL
+    //  This member specifies the type of relocation entry to which the
+    //  procedure linkage table refers. The d_val member holds DT_REL or
+    //  DT_RELA, as appropriate. All relocations in a procedure linkage table
+    //  must use the same relocation.
     const ELFDynamic *symbol = FindDynamicSymbol(DT_PLTREL);
 
     if (symbol)
@@ -1304,7 +1322,10 @@ ParsePLTRelocations(Symtab *symbol_table,
     ELFRelocation rel(rel_type);
     ELFSymbol symbol;
     lldb::offset_t offset = 0;
-    const elf_xword plt_entsize = plt_hdr->sh_entsize;
+    // Clang 3.3 sets entsize to 4 for 32-bit binaries, but the plt entries are 16 bytes.
+    // So round the entsize up by the alignment if addralign is set.
+    const elf_xword plt_entsize = plt_hdr->sh_addralign ?
+        llvm::RoundUpToAlignment (plt_hdr->sh_entsize, plt_hdr->sh_addralign) : plt_hdr->sh_entsize;
     const elf_xword num_relocations = rel_hdr->sh_size / rel_hdr->sh_entsize;
 
     typedef unsigned (*reloc_info_fn)(const ELFRelocation &rel);
@@ -1479,10 +1500,17 @@ ObjectFileELF::GetSymtab()
         if (symtab)
             symbol_id += ParseSymbolTable (m_symtab_ap.get(), symbol_id, symtab);
 
-        // Synthesize trampoline symbols to help navigate the PLT.
+        // DT_JMPREL
+        //      If present, this entry's d_ptr member holds the address of relocation
+        //      entries associated solely with the procedure linkage table. Separating
+        //      these relocation entries lets the dynamic linker ignore them during
+        //      process initialization, if lazy binding is enabled. If this entry is
+        //      present, the related entries of types DT_PLTRELSZ and DT_PLTREL must
+        //      also be present.
         const ELFDynamic *symbol = FindDynamicSymbol(DT_JMPREL);
         if (symbol)
         {
+            // Synthesize trampoline symbols to help navigate the PLT.
             addr_t addr = symbol->d_ptr;
             Section *reloc_section = section_list->FindSectionContainingFileAddress(addr).get();
             if (reloc_section) 
@@ -1497,6 +1525,57 @@ ObjectFileELF::GetSymtab()
     }
     return m_symtab_ap.get();
 }
+
+Symbol *
+ObjectFileELF::ResolveSymbolForAddress(const Address& so_addr, bool verify_unique)
+{
+    if (!m_symtab_ap.get())
+        return nullptr; // GetSymtab() should be called first.
+
+    const SectionList *section_list = GetSectionList();
+    if (!section_list)
+        return nullptr;
+
+    if (DWARFCallFrameInfo *eh_frame = GetUnwindTable().GetEHFrameInfo())
+    {
+        AddressRange range;
+        if (eh_frame->GetAddressRange (so_addr, range))
+        {
+            const addr_t file_addr = range.GetBaseAddress().GetFileAddress();
+            Symbol * symbol = verify_unique ? m_symtab_ap->FindSymbolContainingFileAddress(file_addr) : nullptr;
+            if (symbol)
+                return symbol;
+
+            // Note that a (stripped) symbol won't be found by GetSymtab()...
+            lldb::SectionSP eh_sym_section_sp = section_list->FindSectionContainingFileAddress(file_addr);
+            if (eh_sym_section_sp.get())
+            {
+                addr_t section_base = eh_sym_section_sp->GetFileAddress();
+                addr_t offset = file_addr - section_base;
+                uint64_t symbol_id = m_symtab_ap->GetNumSymbols();
+
+                Symbol eh_symbol(
+                        symbol_id,            // Symbol table index.
+                        "???",                // Symbol name.
+                        false,                // Is the symbol name mangled?
+                        eSymbolTypeCode,      // Type of this symbol.
+                        true,                 // Is this globally visible?
+                        false,                // Is this symbol debug info?
+                        false,                // Is this symbol a trampoline?
+                        true,                 // Is this symbol artificial?
+                        eh_sym_section_sp,    // Section in which this symbol is defined or null.
+                        offset,               // Offset in section or symbol value.
+                        range.GetByteSize(),  // Size in bytes of this symbol.
+                        true,                 // Size is valid.
+                        0);                   // Symbol flags.
+                if (symbol_id == m_symtab_ap->AddSymbol(eh_symbol))
+                    return m_symtab_ap->SymbolAtIndex(symbol_id);
+            }
+        }
+    }
+    return nullptr;
+}
+
 
 bool
 ObjectFileELF::IsStripped ()

@@ -35,11 +35,16 @@
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/StopInfo.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/TargetList.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Target/ThreadPlanBase.h"
+
+#ifndef LLDB_DISABLE_POSIX
+#include <spawn.h>
+#endif
 
 using namespace lldb;
 using namespace lldb_private;
@@ -485,7 +490,8 @@ bool
 ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
                                                         bool localhost,
                                                         bool will_debug,
-                                                        bool first_arg_is_full_shell_command)
+                                                        bool first_arg_is_full_shell_command,
+                                                        int32_t num_resumes)
 {
     error.Clear();
 
@@ -567,14 +573,14 @@ ProcessLaunchInfo::ConvertArgumentsForLaunchingInShell (Error &error,
                     // 1 - stop in shell
                     // 2 - stop in /usr/bin/arch
                     // 3 - then we will stop in our program
-                    SetResumeCount(2);
+                    SetResumeCount(num_resumes + 1);
                 }
                 else
                 {
                     // Set the resume count to 1:
                     // 1 - stop in shell
                     // 2 - then we will stop in our program
-                    SetResumeCount(1);
+                    SetResumeCount(num_resumes);
                 }
             }
         
@@ -663,14 +669,17 @@ ProcessLaunchInfo::FileAction::Duplicate (int fd, int dup_fd)
 
 
 
+#ifndef LLDB_DISABLE_POSIX
 bool
-ProcessLaunchInfo::FileAction::AddPosixSpawnFileAction (posix_spawn_file_actions_t *file_actions,
+ProcessLaunchInfo::FileAction::AddPosixSpawnFileAction (void *_file_actions,
                                                         const FileAction *info,
                                                         Log *log, 
                                                         Error& error)
 {
     if (info == NULL)
         return false;
+
+    posix_spawn_file_actions_t *file_actions = reinterpret_cast<posix_spawn_file_actions_t *>(_file_actions);
 
     switch (info->m_action)
     {
@@ -733,6 +742,7 @@ ProcessLaunchInfo::FileAction::AddPosixSpawnFileAction (posix_spawn_file_actions
     }
     return error.Success();
 }
+#endif
 
 Error
 ProcessLaunchCommandOptions::SetOptionValue (uint32_t option_idx, const char *option_arg)
@@ -808,7 +818,7 @@ ProcessLaunchCommandOptions::SetOptionValue (uint32_t option_idx, const char *op
             if (option_arg && option_arg[0])
                 launch_info.SetShell (option_arg);
             else
-                launch_info.SetShell ("/bin/bash");
+                launch_info.SetShell (LLDB_DEFAULT_SHELL);
             break;
             
         case 'v':
@@ -826,21 +836,21 @@ ProcessLaunchCommandOptions::SetOptionValue (uint32_t option_idx, const char *op
 OptionDefinition
 ProcessLaunchCommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "stop-at-entry", 's', no_argument,       NULL, 0, eArgTypeNone,          "Stop at the entry point of the program when launching a process."},
-{ LLDB_OPT_SET_ALL, false, "disable-aslr",  'A', no_argument,       NULL, 0, eArgTypeNone,          "Disable address space layout randomization when launching a process."},
-{ LLDB_OPT_SET_ALL, false, "plugin",        'p', required_argument, NULL, 0, eArgTypePlugin,        "Name of the process plugin you want to use."},
-{ LLDB_OPT_SET_ALL, false, "working-dir",   'w', required_argument, NULL, 0, eArgTypeDirectoryName,          "Set the current working directory to <path> when running the inferior."},
-{ LLDB_OPT_SET_ALL, false, "arch",          'a', required_argument, NULL, 0, eArgTypeArchitecture,  "Set the architecture for the process to launch when ambiguous."},
-{ LLDB_OPT_SET_ALL, false, "environment",   'v', required_argument, NULL, 0, eArgTypeNone,          "Specify an environment variable name/value stirng (--environement NAME=VALUE). Can be specified multiple times for subsequent environment entries."},
-{ LLDB_OPT_SET_ALL, false, "shell",         'c', optional_argument, NULL, 0, eArgTypeFilename,          "Run the process in a shell (not supported on all platforms)."},
+{ LLDB_OPT_SET_ALL, false, "stop-at-entry", 's', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,          "Stop at the entry point of the program when launching a process."},
+{ LLDB_OPT_SET_ALL, false, "disable-aslr",  'A', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,          "Disable address space layout randomization when launching a process."},
+{ LLDB_OPT_SET_ALL, false, "plugin",        'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypePlugin,        "Name of the process plugin you want to use."},
+{ LLDB_OPT_SET_ALL, false, "working-dir",   'w', OptionParser::eRequiredArgument, NULL, 0, eArgTypeDirectoryName,          "Set the current working directory to <path> when running the inferior."},
+{ LLDB_OPT_SET_ALL, false, "arch",          'a', OptionParser::eRequiredArgument, NULL, 0, eArgTypeArchitecture,  "Set the architecture for the process to launch when ambiguous."},
+{ LLDB_OPT_SET_ALL, false, "environment",   'v', OptionParser::eRequiredArgument, NULL, 0, eArgTypeNone,          "Specify an environment variable name/value string (--environment NAME=VALUE). Can be specified multiple times for subsequent environment entries."},
+{ LLDB_OPT_SET_ALL, false, "shell",         'c', OptionParser::eOptionalArgument, NULL, 0, eArgTypeFilename,          "Run the process in a shell (not supported on all platforms)."},
 
-{ LLDB_OPT_SET_1  , false, "stdin",         'i', required_argument, NULL, 0, eArgTypeFilename,    "Redirect stdin for the process to <filename>."},
-{ LLDB_OPT_SET_1  , false, "stdout",        'o', required_argument, NULL, 0, eArgTypeFilename,    "Redirect stdout for the process to <filename>."},
-{ LLDB_OPT_SET_1  , false, "stderr",        'e', required_argument, NULL, 0, eArgTypeFilename,    "Redirect stderr for the process to <filename>."},
+{ LLDB_OPT_SET_1  , false, "stdin",         'i', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename,    "Redirect stdin for the process to <filename>."},
+{ LLDB_OPT_SET_1  , false, "stdout",        'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename,    "Redirect stdout for the process to <filename>."},
+{ LLDB_OPT_SET_1  , false, "stderr",        'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename,    "Redirect stderr for the process to <filename>."},
 
-{ LLDB_OPT_SET_2  , false, "tty",           't', no_argument,       NULL, 0, eArgTypeNone,    "Start the process in a terminal (not supported on all platforms)."},
+{ LLDB_OPT_SET_2  , false, "tty",           't', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Start the process in a terminal (not supported on all platforms)."},
 
-{ LLDB_OPT_SET_3  , false, "no-stdio",      'n', no_argument,       NULL, 0, eArgTypeNone,    "Do not set up for terminal I/O to go to running process."},
+{ LLDB_OPT_SET_3  , false, "no-stdio",      'n', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Do not set up for terminal I/O to go to running process."},
 
 { 0               , false, NULL,             0,  0,                 NULL, 0, eArgTypeNone,    NULL }
 };
@@ -1134,6 +1144,7 @@ Process::Finalize()
     m_dynamic_checkers_ap.reset();
     m_abi_sp.reset();
     m_os_ap.reset();
+    m_system_runtime_ap.reset();
     m_dyld_ap.reset();
     m_thread_list_real.Destroy();
     m_thread_list.Destroy();
@@ -1221,7 +1232,7 @@ Process::GetNextEvent (EventSP &event_sp)
 
 
 StateType
-Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr)
+Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr, bool wait_always)
 {
     // We can't just wait for a "stopped" event, because the stopped event may have restarted the target.
     // We have to actually check each event, and in the case of a stopped event check the restarted flag
@@ -1233,6 +1244,19 @@ Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp
     // other valid state...
     if (state == eStateDetached || state == eStateExited)
         return state;
+
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
+    if (log)
+        log->Printf ("Process::%s (timeout = %p)", __FUNCTION__, timeout);
+
+    if (!wait_always &&
+        StateIsStoppedState(state, true) &&
+        StateIsStoppedState(GetPrivateState(), true)) {
+        if (log)
+            log->Printf("Process::%s returning without waiting for events; process private and public states are already 'stopped'.",
+                        __FUNCTION__);
+        return state;
+    }
 
     while (state != eStateInvalid)
     {
@@ -1792,35 +1816,36 @@ Process::LoadImage (const FileSpec &image_spec, Error &error)
             {
                 ExecutionContext exe_ctx;
                 frame_sp->CalculateExecutionContext (exe_ctx);
-                const bool unwind_on_error = true;
-                const bool ignore_breakpoints = true;
+                EvaluateExpressionOptions expr_options;
+                expr_options.SetUnwindOnError(true);
+                expr_options.SetIgnoreBreakpoints(true);
+                expr_options.SetExecutionPolicy(eExecutionPolicyAlways);
                 StreamString expr;
                 expr.Printf("dlopen (\"%s\", 2)", path);
                 const char *prefix = "extern \"C\" void* dlopen (const char *path, int mode);\n";
                 lldb::ValueObjectSP result_valobj_sp;
+                Error expr_error;
                 ClangUserExpression::Evaluate (exe_ctx,
-                                               eExecutionPolicyAlways,
-                                               lldb::eLanguageTypeUnknown,
-                                               ClangUserExpression::eResultTypeAny,
-                                               unwind_on_error,
-                                               ignore_breakpoints,
+                                               expr_options,
                                                expr.GetData(),
                                                prefix,
                                                result_valobj_sp,
-                                               true,
-                                               ClangUserExpression::kDefaultTimeout);
-                error = result_valobj_sp->GetError();
-                if (error.Success())
+                                               expr_error);
+                if (expr_error.Success())
                 {
-                    Scalar scalar;
-                    if (result_valobj_sp->ResolveValue (scalar))
+                    error = result_valobj_sp->GetError();
+                    if (error.Success())
                     {
-                        addr_t image_ptr = scalar.ULongLong(LLDB_INVALID_ADDRESS);
-                        if (image_ptr != 0 && image_ptr != LLDB_INVALID_ADDRESS)
+                        Scalar scalar;
+                        if (result_valobj_sp->ResolveValue (scalar))
                         {
-                            uint32_t image_token = m_image_tokens.size();
-                            m_image_tokens.push_back (image_ptr);
-                            return image_token;
+                            addr_t image_ptr = scalar.ULongLong(LLDB_INVALID_ADDRESS);
+                            if (image_ptr != 0 && image_ptr != LLDB_INVALID_ADDRESS)
+                            {
+                                uint32_t image_token = m_image_tokens.size();
+                                m_image_tokens.push_back (image_ptr);
+                                return image_token;
+                            }
                         }
                     }
                 }
@@ -1869,23 +1894,21 @@ Process::UnloadImage (uint32_t image_token)
                     {
                         ExecutionContext exe_ctx;
                         frame_sp->CalculateExecutionContext (exe_ctx);
-                        const bool unwind_on_error = true;
-                        const bool ignore_breakpoints = true;
+                        EvaluateExpressionOptions expr_options;
+                        expr_options.SetUnwindOnError(true);
+                        expr_options.SetIgnoreBreakpoints(true);
+                        expr_options.SetExecutionPolicy(eExecutionPolicyAlways);
                         StreamString expr;
                         expr.Printf("dlclose ((void *)0x%" PRIx64 ")", image_addr);
                         const char *prefix = "extern \"C\" int dlclose(void* handle);\n";
                         lldb::ValueObjectSP result_valobj_sp;
+                        Error expr_error;
                         ClangUserExpression::Evaluate (exe_ctx,
-                                                       eExecutionPolicyAlways,
-                                                       lldb::eLanguageTypeUnknown,
-                                                       ClangUserExpression::eResultTypeAny,
-                                                       unwind_on_error,
-                                                       ignore_breakpoints,
+                                                       expr_options,
                                                        expr.GetData(),
                                                        prefix,
                                                        result_valobj_sp,
-                                                       true,
-                                                       ClangUserExpression::kDefaultTimeout);
+                                                       expr_error);
                         if (result_valobj_sp->GetError().Success())
                         {
                             Scalar scalar;
@@ -2072,10 +2095,20 @@ Process::CreateBreakpointSite (const BreakpointLocationSP &owner, bool use_hardw
             bp_site_sp.reset (new BreakpointSite (&m_breakpoint_site_list, owner, load_addr, use_hardware));
             if (bp_site_sp)
             {
-                if (EnableBreakpointSite (bp_site_sp.get()).Success())
+                Error error = EnableBreakpointSite (bp_site_sp.get());
+                if (error.Success())
                 {
                     owner->SetBreakpointSite (bp_site_sp);
                     return m_breakpoint_site_list.Add (bp_site_sp);
+                }
+                else
+                {
+                    // Report error for setting breakpoint...
+                    m_target.GetDebugger().GetErrorFile().Printf ("warning: failed to set breakpoint site at 0x%" PRIx64 " for breakpoint %i.%i: %s\n",
+                                                                  load_addr,
+                                                                  owner->GetBreakpoint().GetID(),
+                                                                  owner->GetID(),
+                                                                  error.AsCString() ? error.AsCString() : "unkown error");
                 }
             }
         }
@@ -2722,8 +2755,8 @@ Process::AllocateMemory(size_t size, uint32_t permissions, Error &error)
     addr_t allocated_addr = DoAllocateMemory (size, permissions, error);
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
     if (log)
-        log->Printf("Process::AllocateMemory(size=%4zu, permissions=%s) => 0x%16.16" PRIx64 " (m_stop_id = %u m_memory_id = %u)",
-                    size, 
+        log->Printf("Process::AllocateMemory(size=%" PRIu64 ", permissions=%s) => 0x%16.16" PRIx64 " (m_stop_id = %u m_memory_id = %u)",
+                    (uint64_t)size,
                     GetPermissionsAsCString (permissions),
                     (uint64_t)allocated_addr,
                     m_mod_id.GetStopID(),
@@ -2845,6 +2878,7 @@ Process::Launch (const ProcessLaunchInfo &launch_info)
     Error error;
     m_abi_sp.reset();
     m_dyld_ap.reset();
+    m_system_runtime_ap.reset();
     m_os_ap.reset();
     m_process_input_reader.reset();
 
@@ -2913,6 +2947,10 @@ Process::Launch (const ProcessLaunchInfo &launch_info)
                         if (dyld)
                             dyld->DidLaunch();
 
+                        SystemRuntime *system_runtime = GetSystemRuntime ();
+                        if (system_runtime)
+                            system_runtime->DidLaunch();
+
                         m_os_ap.reset (OperatingSystem::FindPlugin (this, NULL));
                         // This delays passing the stopped event to listeners till DidLaunch gets
                         // a chance to complete...
@@ -2956,6 +2994,10 @@ Process::LoadCore ()
         if (dyld)
             dyld->DidAttach();
         
+        SystemRuntime *system_runtime = GetSystemRuntime ();
+        if (system_runtime)
+            system_runtime->DidAttach();
+
         m_os_ap.reset (OperatingSystem::FindPlugin (this, NULL));
         // We successfully loaded a core file, now pretend we stopped so we can
         // show all of the threads in the core file and explore the crashed
@@ -2972,6 +3014,14 @@ Process::GetDynamicLoader ()
     if (m_dyld_ap.get() == NULL)
         m_dyld_ap.reset (DynamicLoader::FindPlugin(this, NULL));
     return m_dyld_ap.get();
+}
+
+SystemRuntime *
+Process::GetSystemRuntime ()
+{
+    if (m_system_runtime_ap.get() == NULL)
+        m_system_runtime_ap.reset (SystemRuntime::FindPlugin(this));
+    return m_system_runtime_ap.get();
 }
 
 
@@ -3036,6 +3086,7 @@ Process::Attach (ProcessAttachInfo &attach_info)
     m_abi_sp.reset();
     m_process_input_reader.reset();
     m_dyld_ap.reset();
+    m_system_runtime_ap.reset();
     m_os_ap.reset();
     
     lldb::pid_t attach_pid = attach_info.GetProcessID();
@@ -3207,6 +3258,10 @@ Process::CompleteAttach ()
     DynamicLoader *dyld = GetDynamicLoader ();
     if (dyld)
         dyld->DidAttach();
+
+    SystemRuntime *system_runtime = GetSystemRuntime ();
+    if (system_runtime)
+        system_runtime->DidAttach();
 
     m_os_ap.reset (OperatingSystem::FindPlugin (this, NULL));
     // Figure out which one is the executable, and set that in our target:
@@ -3968,15 +4023,15 @@ Process::HandlePrivateEvent (EventSP &event_sp)
     m_currently_handling_event.SetValue(false, eBroadcastAlways);
 }
 
-void *
+thread_result_t
 Process::PrivateStateThread (void *arg)
 {
     Process *proc = static_cast<Process*> (arg);
-    void *result = proc->RunPrivateStateThread ();
+    thread_result_t result = proc->RunPrivateStateThread();
     return result;
 }
 
-void *
+thread_result_t
 Process::RunPrivateStateThread ()
 {
     bool control_only = true;
@@ -5095,15 +5150,15 @@ Process::RunThreadPlan (ExecutionContext &exe_ctx,
                         uint64_t remaining_time = final_timeout - TimeValue::Now();
                         if (before_first_timeout)
                             log->Printf ("Process::RunThreadPlan(): Running function with one thread timeout timed out, "
-                                         "running till  for %" PRId64 " usec with all threads enabled.",
+                                         "running till  for %" PRIu64 " usec with all threads enabled.",
                                          remaining_time);
                         else
                             log->Printf ("Process::RunThreadPlan(): Restarting function with all threads enabled "
-                                         "and timeout: %d timed out, abandoning execution.",
+                                         "and timeout: %u timed out, abandoning execution.",
                                          timeout_usec);
                     }
                     else
-                        log->Printf ("Process::RunThreadPlan(): Running function with timeout: %d timed out, "
+                        log->Printf ("Process::RunThreadPlan(): Running function with timeout: %u timed out, "
                                      "abandoning execution.", 
                                      timeout_usec);
                 }
@@ -5349,7 +5404,7 @@ Process::RunThreadPlan (ExecutionContext &exe_ctx,
                     log->Printf("Process::RunThreadPlan(): execution interrupted: %s", s.GetData());
             }
             
-            if (should_unwind && thread_plan_sp)
+            if (should_unwind)
             {
                 if (log)
                     log->Printf ("Process::RunThreadPlan: ExecutionInterrupted - discarding thread plans up to %p.", thread_plan_sp.get());
@@ -5367,7 +5422,7 @@ Process::RunThreadPlan (ExecutionContext &exe_ctx,
             if (log)
                 log->PutCString("Process::RunThreadPlan(): execution set up error.");
                 
-            if (unwind_on_error && thread_plan_sp)
+            if (unwind_on_error)
             {
                 thread->DiscardThreadPlansUpToPlan (thread_plan_sp);
                 thread_plan_sp->SetPrivate (orig_plan_private);
@@ -5578,11 +5633,10 @@ Process::DidExec ()
 {
     Target &target = GetTarget();
     target.CleanupProcess ();
-    ModuleList unloaded_modules (target.GetImages());
-    target.ModulesDidUnload (unloaded_modules);
-    target.GetSectionLoadList().Clear();
+    target.ClearModules();
     m_dynamic_checkers_ap.reset();
     m_abi_sp.reset();
+    m_system_runtime_ap.reset();
     m_os_ap.reset();
     m_dyld_ap.reset();
     m_image_tokens.clear();
@@ -5592,4 +5646,8 @@ Process::DidExec ()
     m_memory_cache.Clear(true);
     DoDidExec();
     CompleteAttach ();
+    // Flush the process (threads and all stack frames) after running CompleteAttach()
+    // in case the dynamic loader loaded things in new locations.
+    Flush();
 }
+

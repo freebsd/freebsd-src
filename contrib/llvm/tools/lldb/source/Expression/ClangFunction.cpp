@@ -80,7 +80,6 @@ ClangFunction::ClangFunction
     m_function_ptr (&function),
     m_function_addr (),
     m_function_return_type (),
-    m_clang_ast_context (ast_context),
     m_wrapper_function_name ("__lldb_function_caller"),
     m_wrapper_struct_name ("__lldb_caller_struct"),
     m_wrapper_args_addrs (),
@@ -112,7 +111,7 @@ ClangFunction::CompileFunction (Stream &errors)
     // FIXME: How does clang tell us there's no return value?  We need to handle that case.
     unsigned num_errors = 0;
     
-    std::string return_type_str (m_function_return_type.GetTypeName());
+    std::string return_type_str (m_function_return_type.GetTypeName().AsCString(""));
     
     // Cons up the function we're going to wrap our call in, then compile it...
     // We declare the function "extern "C"" because the compiler might be in C++
@@ -163,18 +162,18 @@ ClangFunction::CompileFunction (Stream &errors)
 
         if (trust_function)
         {
-            type_name = function_clang_type.GetFunctionArgumentTypeAtIndex(i).GetTypeName();
+            type_name = function_clang_type.GetFunctionArgumentTypeAtIndex(i).GetTypeName().AsCString("");
         }
         else
         {
             ClangASTType clang_qual_type = m_arg_values.GetValueAtIndex(i)->GetClangType ();
             if (clang_qual_type)
             {
-                type_name = clang_qual_type.GetTypeName();
+                type_name = clang_qual_type.GetTypeName().AsCString("");
             }
             else
             {   
-                errors.Printf("Could not determine type of input value %lu.", i);
+                errors.Printf("Could not determine type of input value %zu.", i);
                 return 1;
             }
         }
@@ -345,7 +344,7 @@ ClangFunction::WriteFunctionArguments (ExecutionContext &exe_ctx,
     size_t num_args = arg_values.GetSize();
     if (num_args != m_arg_values.GetSize())
     {
-        errors.Printf ("Wrong number of arguments - was: %lu should be: %lu", num_args, m_arg_values.GetSize());
+        errors.Printf ("Wrong number of arguments - was: %zu should be: %zu", num_args, m_arg_values.GetSize());
         return false;
     }
     
@@ -629,5 +628,7 @@ ClangFunction::ExecuteFunction(
 clang::ASTConsumer *
 ClangFunction::ASTTransformer (clang::ASTConsumer *passthrough)
 {
-    return new ASTStructExtractor(passthrough, m_wrapper_struct_name.c_str(), *this);
+    m_struct_extractor.reset(new ASTStructExtractor(passthrough, m_wrapper_struct_name.c_str(), *this));
+    
+    return m_struct_extractor.get();
 }
