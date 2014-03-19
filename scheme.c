@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/diskmbr.h>
 #include <sys/diskpc98.h>
+#include <sys/queue.h>
 #include <sys/vtoc.h>
 #include <err.h>
 #include <errno.h>
@@ -37,9 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 #include <unistd.h>
 
+#include "mkimg.h"
 #include "scheme.h"
-
-#define	MAX(a, b)	((a < b) ? b : a)
 
 static struct scheme {
 	const char *lexeme;
@@ -57,7 +57,6 @@ static struct scheme {
 
 static u_int scheme = SCHEME_UNDEF;
 static u_int secsz = 512;
-static u_int nparts = 0;
 
 int
 scheme_select(const char *spec)
@@ -83,27 +82,12 @@ scheme_selected(void)
 }
 
 int
-scheme_add_part(u_int idx, const char *type, off_t offset, off_t size)
+scheme_check_part(struct part *p __unused)
 {
 
-	warnx("part: index=%u, type=`%s', offset=%ju, size=%ju", idx,
-	    type, (uintmax_t)offset, (uintmax_t)size);
-	switch (scheme) {
-	case SCHEME_APM:
-		break;
-	case SCHEME_BSD:
-		break;
-	case SCHEME_EBR:
-		break;
-	case SCHEME_GPT:
-		break;
-	case SCHEME_MBR:
-		break;
-	case SCHEME_PC98:
-		break;
-	case SCHEME_VTOC8:
-		break;
-	}
+	warnx("part: index=%u, type=`%s', offset=%ju, size=%ju", p->index,
+	    p->type, (uintmax_t)p->offset, (uintmax_t)p->size);
+
 	return (0);
 }
 
@@ -146,7 +130,6 @@ scheme_first_offset(u_int parts)
 {
 	off_t off;
 
-	nparts = parts;		/* Save nparts for later. */
 	switch (scheme) {
 	case SCHEME_APM:
 		off = parts + 1;
@@ -158,13 +141,13 @@ scheme_first_offset(u_int parts)
 		off = 1;
 		break;
 	case SCHEME_GPT:
-		off = 2 + (MAX(128, parts) + 3) / 4;
+		off = 2 + (parts + 3) / 4;
 		break;
 	case SCHEME_MBR:
 		off = 1;
 		break;
 	case SCHEME_PC98:
-		off = 16;
+		off = 2;
 		break;
 	case SCHEME_VTOC8:
 		off = 1;
@@ -194,7 +177,7 @@ scheme_write(int fd, off_t off)
 
 	switch (scheme) {
 	case SCHEME_GPT:
-		lim = off + secsz * (1 + (MAX(128, nparts) + 3) / 4);
+		lim = off + secsz * (1 + (nparts + 3) / 4);
 		break;
 	case SCHEME_EBR:
 		off -= secsz;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,25 +26,24 @@
  * $FreeBSD$
  */
 
-#ifndef _MKIMG_SCHEME_H_
-#define	_MKIMG_SCHEME_H_
+#ifndef _MKIMG_MKIMG_H_
+#define	_MKIMG_MKIMG_H_
 
-#define	SCHEME_UNDEF	0
-#define	SCHEME_APM	1
-#define	SCHEME_BSD	2
-#define	SCHEME_EBR	3
-#define	SCHEME_GPT	4
-#define	SCHEME_MBR	5
-#define	SCHEME_PC98	6
-#define	SCHEME_VTOC8	7
+struct part {
+	STAILQ_ENTRY(part) link;
+	char	*type;		/* Partition type. */
+	char	*contents;	/* Contents/size specification. */
+	u_int	kind;		/* Content kind. */
+#define	PART_UNDEF	0
+#define	PART_KIND_FILE	1
+#define	PART_KIND_PIPE	2
+#define	PART_KIND_SIZE	3
+	u_int	index;		/* Partition index (0-based). */
+	off_t	offset;		/* Byte-offset of partition in image. */
+	off_t	size;		/* Size in bytes of partition. */
+};
 
-int	scheme_select(const char *);
-u_int	scheme_selected(void);
+extern STAILQ_HEAD(partlisthead, part) partlist;
+extern u_int nparts;
 
-int scheme_check_part(struct part *);
-u_int scheme_max_parts(void);
-off_t scheme_first_offset(u_int);
-off_t scheme_next_offset(off_t, uint64_t);
-void scheme_write(int, off_t);
-
-#endif /* _MKIMG_SCHEME_H_ */
+#endif /* _MKIMG_MKIMG_H_ */

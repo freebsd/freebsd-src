@@ -40,26 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "mkimg.h"
 #include "scheme.h"
 
 #define	BUFFER_SIZE	(1024*1024)
 
-struct part {
-	STAILQ_ENTRY(part) link;
-	char	*type;		/* Partition type. */
-	char	*contents;	/* Contents/size specification. */
-	u_int	kind;		/* Content kind. */
-#define	PART_UNDEF	0
-#define	PART_KIND_FILE	1
-#define	PART_KIND_PIPE	2
-#define	PART_KIND_SIZE	3
-	u_int	index;		/* Partition index (0-based). */
-	off_t	offset;		/* Byte-offset of partition in image. */
-	off_t	size;		/* Size in bytes of partition. */
-};
-
-static STAILQ_HEAD(, part) parts = STAILQ_HEAD_INITIALIZER(parts);
-static u_int nparts = 0;
+struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
+u_int nparts = 0;
 
 static int bcfd = 0;
 static int outfd = 0;
@@ -155,7 +142,7 @@ parse_part(const char *spec)
 	}
 
 	part->index = nparts;
-	STAILQ_INSERT_TAIL(&parts, part, link);
+	STAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;
 	return (0);
 
@@ -208,7 +195,7 @@ mkimg(void)
 		    scheme_max_parts());
 
 	offset = scheme_first_offset(nparts);
-	STAILQ_FOREACH(part, &parts, link) {
+	STAILQ_FOREACH(part, &partlist, link) {
 		part->offset = offset;
 		lseek(tmpfd, offset, SEEK_SET);
 		/* XXX check error */
@@ -237,8 +224,7 @@ mkimg(void)
 			break;
 		}
 		part->size = size;
-		scheme_add_part(part->index, part->type, part->offset,
-		    part->size);
+		scheme_check_part(part);
 		offset = scheme_next_offset(offset, size);
 	}
 
