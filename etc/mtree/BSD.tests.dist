@@ -116,8 +116,8 @@
             printf
             ..
             sed
-	    	regress.multitest.out
-		..
+                regress.multitest.out
+                ..
             ..
             tr
             ..
