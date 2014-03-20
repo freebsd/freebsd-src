@@ -216,6 +216,13 @@ mkimg(void)
 		errc(EX_DATAERR, ENOSPC, "only %d partitions are supported",
 		    scheme_max_parts());
 
+	/* First check partition information */
+	STAILQ_FOREACH(part, &partlist, link) {
+		error = scheme_check_part(part);
+		if (error)
+			errc(EX_DATAERR, error, "partition %d", part->index+1);
+	}
+
 	offset = scheme_first_offset(nparts);
 	STAILQ_FOREACH(part, &partlist, link) {
 		part->offset = offset;
@@ -245,14 +252,14 @@ mkimg(void)
 				error = errno;
 			break;
 		}
-		part->size = size;
-		error = scheme_check_part(part);
 		if (error)
-			errc(EX_DATAERR, error, "partition %d", part->index+1);
+			errc(EX_IOERR, error, "partition %d", part->index+1);
+		size = scheme_round(size);
+		part->size = size;
 		offset = scheme_next_offset(offset, size);
 	}
 
-	scheme_write(tmpfd, offset);
+	error = (scheme_write(tmpfd, offset));
 }
 
 int

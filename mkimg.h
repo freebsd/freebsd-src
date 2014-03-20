@@ -29,6 +29,8 @@
 #ifndef _MKIMG_MKIMG_H_
 #define	_MKIMG_MKIMG_H_
 
+#include <sys/queue.h>
+
 struct part {
 	STAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */

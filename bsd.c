@@ -28,10 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
+#include <sys/disklabel.h>
+#include <sys/errno.h>
 #include <stdlib.h>
-#include <uuid.h>
 
 #include "mkimg.h"
 #include "scheme.h"
@@ -49,11 +48,19 @@ bsd_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 	return (secs);
 }
 
+static int
+bsd_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
+    u_int secsz __unused)
+{
+	return (ENOSYS);
+}
+
 static struct mkimg_scheme bsd_scheme = {
 	.name = "bsd",
 	.description = "BSD disk label",
 	.aliases = bsd_aliases,
 	.metadata = bsd_metadata,
+	.write = bsd_write,
 	.nparts = 20
 };
 

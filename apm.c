@@ -29,8 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/apm.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
+#include <sys/errno.h>
 #include <stdlib.h>
 
 #include "mkimg.h"
@@ -49,11 +48,19 @@ apm_metadata(u_int where, u_int parts, u_int secsz __unused)
 	return (secs);
 }
 
+static int
+apm_write(int fd __unused, off_t imgsz __unused, u_int parts __unused,
+    u_int secsz __unused)
+{
+	return (ENOSYS);
+}
+
 static struct mkimg_scheme apm_scheme = {
 	.name = "apm",
 	.description = "Apple Partition Map",
 	.aliases = apm_aliases,
 	.metadata = apm_metadata,
+	.write = apm_write,
 	.nparts = 4096
 };
 

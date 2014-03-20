@@ -96,6 +96,14 @@ scheme_max_parts(void)
 	return (scheme->nparts);
 }
 
+uint64_t
+scheme_round(uint64_t sz)
+{
+
+	sz = (sz + secsz - 1) & ~(secsz - 1);
+	return (sz);
+}
+
 off_t
 scheme_first_offset(u_int parts)
 {
@@ -111,17 +119,17 @@ scheme_next_offset(off_t off, uint64_t sz)
 {
 	u_int secs;
 
-	sz = (sz + secsz - 1) & ~(secsz - 1);
 	secs = scheme->metadata(SCHEME_META_PART_AFTER, 0, secsz) +
 	    scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
 	sz += (secs * secsz);
 	return (off + sz);
 }
 
-void
+int
 scheme_write(int fd, off_t off)
 {
 	u_int secs;
+	int error;
 
 	/* Fixup offset: it has an extra metadata before the partition */
 	secs = scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
@@ -129,5 +137,9 @@ scheme_write(int fd, off_t off)
 
 	secs = scheme->metadata(SCHEME_META_IMG_END, nparts, secsz);
 	off += (secs * secsz);
-	ftruncate(fd, off);
+	if (ftruncate(fd, off) == -1)
+		return (errno);
+
+	error = scheme->write(fd, off, nparts, secsz);
+	return (error);
 }

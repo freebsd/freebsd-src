@@ -29,6 +29,8 @@
 #ifndef _MKIMG_SCHEME_H_
 #define	_MKIMG_SCHEME_H_
 
+#include <sys/linker_set.h>
+
 struct mkimg_alias {
 	const char	*name;
 	uintptr_t	tp;
@@ -45,6 +47,7 @@ struct mkimg_scheme {
 #define	SCHEME_META_IMG_END	2
 #define	SCHEME_META_PART_BEFORE	3
 #define	SCHEME_META_PART_AFTER	4
+	int		(*write)(int, off_t, u_int, u_int);
 	int		nparts;
 };
 
@@ -56,8 +59,9 @@ struct mkimg_scheme *scheme_selected(void);
 
 int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);
+uint64_t scheme_round(uint64_t);
 off_t scheme_first_offset(u_int);
 off_t scheme_next_offset(off_t, uint64_t);
-void scheme_write(int, off_t);
+int scheme_write(int, off_t);
 
 #endif /* _MKIMG_SCHEME_H_ */

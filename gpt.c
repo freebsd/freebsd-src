@@ -28,9 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/gpt.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
 #include <stdlib.h>
 #include <uuid.h>
 
@@ -58,11 +57,19 @@ gpt_metadata(u_int where, u_int parts, u_int secsz)
 	return (secs);
 }
 
+static int
+gpt_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
+    u_int secsz __unused)
+{
+	return (ENOSYS);
+}
+
 static struct mkimg_scheme gpt_scheme = {
 	.name = "gpt",
 	.description = "GUID Partition Table",
 	.aliases = gpt_aliases,
 	.metadata = gpt_metadata,
+	.write = gpt_write,
 	.nparts = 4096
 };
 

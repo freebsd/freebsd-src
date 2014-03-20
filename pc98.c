@@ -29,10 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskpc98.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
+#include <sys/errno.h>
 #include <stdlib.h>
-#include <uuid.h>
 
 #include "mkimg.h"
 #include "scheme.h"
@@ -50,11 +48,19 @@ pc98_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 	return (secs);
 }
 
+static int
+pc98_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
+    u_int secsz __unused)
+{
+	return (ENOSYS);
+}
+
 static struct mkimg_scheme pc98_scheme = {
 	.name = "pc98",
 	.description = "PC-9800 disk partitions",
 	.aliases = pc98_aliases,
 	.metadata = pc98_metadata,
+	.write = pc98_write,
 	.nparts = PC98_NPARTS
 };
 
