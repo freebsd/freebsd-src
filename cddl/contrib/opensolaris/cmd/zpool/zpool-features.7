@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2013
+.Dd January 2, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -222,12 +222,16 @@ command. Please note that doing so will
 immediately activate the
 .Sy lz4_compress
 feature on the underlying
-pool (even before any data is written). Since this feature is not
-read-only compatible, this operation will render the pool unimportable
-on systems without support for the
+pool
+.Pq even before any data is written ,
+and the feature will not be
+deactivated.
+Since this feature is not read-only compatible, this
+operation will render the pool unimportable on systems without support
+for the
 .Sy lz4_compress
-feature. At the
-moment, this operation cannot be reversed. Booting off of
+feature.
+Booting off of
 .Sy lz4
 -compressed root pools is supported.
 .It Sy multi_vdev_crash_dump
@@ -286,6 +290,25 @@ and will be returned to the
 .Sy enabled
 state when all datasets that use
 this feature are destroyed.
+.It Sy bookmarks
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:bookmarks"
+.It GUID Ta com.delphix:bookmarks
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+This feature enables use of the
+.Nm zfs
+.Cm bookmark
+subcommand.
+.Pp
+This feature is
+.Sy active
+while any bookmarks exist in the pool.
+All bookmarks in the pool can be listed by running
+.Nm zfs
+.Cm list
+.Fl t No bookmark Fl r Ar poolname .
 .It Sy enabled_txg
 .Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:enabled_txg"
 .It GUID Ta com.delphix:enabled_txg
