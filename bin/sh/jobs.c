@@ -1121,7 +1121,8 @@ dowait(int mode, struct job *job)
 			for (sp = jp->ps ; sp < jp->ps + jp->nprocs ; sp++) {
 				if (sp->pid == -1)
 					continue;
-				if (sp->pid == pid) {
+				if (sp->pid == pid && (sp->status == -1 ||
+				    WIFSTOPPED(sp->status))) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
 						   (int)pid, sp->status,
 						   status));
