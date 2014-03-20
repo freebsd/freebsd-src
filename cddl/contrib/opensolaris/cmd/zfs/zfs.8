@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2013
+.Dd December 24, 2013
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -102,7 +102,7 @@
 .Nm
 .Cm list
 .Op Fl r Ns | Ns Fl d Ar depth
-.Op Fl H
+.Op Fl Hp
 .Op Fl o Ar property Ns Oo , Ns property Ns Oc Ns ...
 .Op Fl t Ar type Ns Oo , Ns type Ns Oc Ns ...
 .Oo Fl s Ar property Oc Ns ...
@@ -1807,7 +1807,7 @@ only dataset that can be renamed recursively.
 .Nm
 .Cm list
 .Op Fl r Ns | Ns Fl d Ar depth
-.Op Fl H
+.Op Fl Hp
 .Op Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 .Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Oo Fl s Ar property Oc Ns ...
@@ -1838,6 +1838,8 @@ will display only the dataset and its direct children.
 .It Fl H
 Used for scripting mode. Do not print headers and separate fields by a single
 tab instead of arbitrary white space.
+.It Fl p
+Display numbers in parsable (exact) values.
 .It Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 A comma-separated list of properties to display. The property must be:
 .Bl -bullet -offset 2n
@@ -1978,7 +1980,7 @@ Display output in a form more easily parsed by scripts. Any headers are
 omitted, and fields are explicitly separated by a single tab instead of an
 arbitrary amount of space.
 .It Fl p
-Display numbers in parseable (exact) values.
+Display numbers in parsable (exact) values.
 .It Fl o Cm all | Ar field Ns Oo , Ns Ar field Oc Ns ...
 A comma-separated list of columns to display. Supported values are
 .Sy name,property,value,received,source .
@@ -2820,7 +2822,7 @@ option of
 .It \&P Ta event port (not supported on Fx )
 .El
 .It Fl H
-Give more parseable tab-separated output, without header lines and without
+Give more parsable tab-separated output, without header lines and without
 arrows.
 .It Fl t
 Display the path's inode change time as the first column of output.

@@ -23,11 +23,11 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2012 DEY Storage Systems, Inc.  All rights reserved.
- * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <ctype.h>
@@ -3882,7 +3882,8 @@ zfs_get_recvd_props(zfs_handle_t *zhp)
  *        of the RECEIVED column.
  */
 int
-zfs_expand_proplist(zfs_handle_t *zhp, zprop_list_t **plp, boolean_t received)
+zfs_expand_proplist(zfs_handle_t *zhp, zprop_list_t **plp, boolean_t received,
+    boolean_t literal)
 {
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	zprop_list_t *entry;
@@ -3944,18 +3945,18 @@ zfs_expand_proplist(zfs_handle_t *zhp, zprop_list_t **plp, boolean_t received)
 	 * Now go through and check the width of any non-fixed columns
 	 */
 	for (entry = *plp; entry != NULL; entry = entry->pl_next) {
-		if (entry->pl_fixed)
+		if (entry->pl_fixed && !literal)
 			continue;
 
 		if (entry->pl_prop != ZPROP_INVAL) {
 			if (zfs_prop_get(zhp, entry->pl_prop,
-			    buf, sizeof (buf), NULL, NULL, 0, B_FALSE) == 0) {
+			    buf, sizeof (buf), NULL, NULL, 0, literal) == 0) {
 				if (strlen(buf) > entry->pl_width)
 					entry->pl_width = strlen(buf);
 			}
 			if (received && zfs_prop_get_recvd(zhp,
 			    zfs_prop_to_name(entry->pl_prop),
-			    buf, sizeof (buf), B_FALSE) == 0)
+			    buf, sizeof (buf), literal) == 0)
 				if (strlen(buf) > entry->pl_recvd_width)
 					entry->pl_recvd_width = strlen(buf);
 		} else {
@@ -3968,7 +3969,7 @@ zfs_expand_proplist(zfs_handle_t *zhp, zprop_list_t **plp, boolean_t received)
 			}
 			if (received && zfs_prop_get_recvd(zhp,
 			    entry->pl_user_prop,
-			    buf, sizeof (buf), B_FALSE) == 0)
+			    buf, sizeof (buf), literal) == 0)
 				if (strlen(buf) > entry->pl_recvd_width)
 					entry->pl_recvd_width = strlen(buf);
 		}
