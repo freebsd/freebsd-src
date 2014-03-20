@@ -4125,7 +4125,7 @@ cxgbe_tick(void *arg)
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
 		drops += txq->br->br_drops;
-	ifp->if_snd.ifq_drops = drops;
+	ifp->if_oqdrops = drops;
 
 	ifp->if_oerrors = s->tx_error_frames;
 	ifp->if_ierrors = s->rx_jabber + s->rx_runt + s->rx_too_long +
