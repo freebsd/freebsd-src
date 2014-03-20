@@ -26,8 +26,9 @@
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright 2013 Nexenta Systems, Inc.  All Rights Reserved.
 .\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
 .\"
-.TH ZFS 1M "Oct 16, 2013"
+.TH ZFS 1M "March 6, 2014"
 .SH NAME
 zfs \- configures ZFS file systems
 .SH SYNOPSIS
@@ -175,7 +176,7 @@ zfs \- configures ZFS file systems
 
 .LP
 .nf
-\fBzfs\fR \fBsend\fR [\fB-DnPpRrv\fR] [\fB-\fR[\fBiI\fR] \fIsnapshot\fR] \fIsnapshot\fR
+\fBzfs\fR \fBsend\fR [\fB-DnPpRv\fR] [\fB-\fR[\fBiI\fR] \fIsnapshot\fR] \fIsnapshot\fR
 .fi
 
 .LP
@@ -1381,12 +1382,12 @@ the file system as discussed in the "Snapshots" section. The default value is
 .sp
 .ne 2
 .na
-\fB\fBsync\fR=\fBdefault\fR | \fBalways\fR | \fBdisabled\fR\fR
+\fB\fBsync\fR=\fBstandard\fR | \fBalways\fR | \fBdisabled\fR\fR
 .ad
 .sp .6
 .RS 4n
 Controls the behavior of synchronous requests (e.g. fsync, O_DSYNC).
-\fBdefault\fR is the POSIX specified behavior of ensuring all synchronous
+\fBstandard\fR is the POSIX specified behavior of ensuring all synchronous
 requests are written to stable storage and all devices are flushed to ensure
 data is not cached by device controllers (this is the default). \fBalways\fR
 causes every file system transaction to be written and flushed before its
@@ -2832,7 +2833,6 @@ See \fBzpool-features\fR(5) for details on ZFS feature flags and the
 .RE
 
 
-.RE
 .sp
 .ne 2
 .na
@@ -2957,7 +2957,6 @@ The format of the stream is committed. You will be able to receive your streams
 on future versions of \fBZFS\fR.
 .RE
 
-.RE
 .sp
 .ne 2
 .na

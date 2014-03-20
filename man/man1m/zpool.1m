@@ -14,7 +14,7 @@
 .\" CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
-.TH ZPOOL 1M "Mar 16, 2012"
+.TH ZPOOL 1M "Mar 6, 2014"
 .SH NAME
 zpool \- configures ZFS storage pools
 .SH SYNOPSIS
@@ -77,23 +77,23 @@ zpool \- configures ZFS storage pools
 .LP
 .nf
 \fBzpool import\fR [\fB-o \fImntopts\fR\fR] [\fB-o\fR \fIproperty=value\fR] ... [\fB-d\fR \fIdir\fR | \fB-c\fR \fIcachefile\fR]
-     [\fB-D\fR] [\fB-f\fR] [\fB-R\fR \fIroot\fR] \fB-a\fR
+     [\fB-D\fR] [\fB-f\fR] [\fB-m\fR] [\fB-N\fR] [\fB-R\fR \fIroot\fR] [\fB-F\fR [\fB-n\fR]] \fB-a\fR
 .fi
 
 .LP
 .nf
 \fBzpool import\fR [\fB-o \fImntopts\fR\fR] [\fB-o\fR \fIproperty=value\fR] ... [\fB-d\fR \fIdir\fR | \fB-c\fR \fIcachefile\fR]
-     [\fB-D\fR] [\fB-f\fR] [\fB-R\fR \fIroot\fR] \fIpool\fR |\fIid\fR [\fInewpool\fR]
+     [\fB-D\fR] [\fB-f\fR] [\fB-m\fR] [\fB-R\fR \fIroot\fR] [\fB-F\fR [\fB-n\fR]] \fIpool\fR |\fIid\fR [\fInewpool\fR]
 .fi
 
 .LP
 .nf
-\fBzpool iostat\fR [\fB-T\fR u | d ] [\fB-v\fR] [\fIpool\fR] ... [\fIinterval\fR[\fIcount\fR]]
+\fBzpool iostat\fR [\fB-T\fR \fBu\fR | \fBd\fR ] [\fB-v\fR] [\fIpool\fR] ... [\fIinterval\fR[\fIcount\fR]]
 .fi
 
 .LP
 .nf
-\fBzpool list\fR [\fB-Hv\fR] [\fB-o\fR \fIproperty\fR[,...]] [\fIpool\fR] ...
+\fBzpool list\fR [\fB-T\fR \fBu\fR | \fBd\fR ] [\fB-Hv\fR] [\fB-o\fR \fIproperty\fR[,...]] [\fIpool\fR] ... [\fIinterval\fR[\fIcount\fR]]
 .fi
 
 .LP
@@ -138,7 +138,7 @@ zpool \- configures ZFS storage pools
 
 .LP
 .nf
-\fBzpool status\fR [\fB-xv\fR] [\fIpool\fR] ...
+\fBzpool status\fR [\fB-xvD\fR] [\fB-T\fR \fBu\fR | \fBd\fR ] [\fIpool\fR] ... [\fIinterval\fR [\fIcount\fR]]
 .fi
 
 .LP
@@ -665,6 +665,20 @@ the mount points cannot be trusted, or in an alternate boot environment, where
 the typical paths are not valid. \fBaltroot\fR is not a persistent property. It
 is valid only while the system is up. Setting \fBaltroot\fR defaults to using
 \fBcachefile\fR=none, though this may be overridden using an explicit setting.
+.RE
+
+.sp
+.LP
+The following property can be set only at import time:
+.sp
+.ne 2
+.na
+\fB\fBreadonly\fR=\fBon\fR | \fBoff\fR\fR
+.ad
+.sp .6
+.RS 4n
+If set to \fBon\fR, the pool will be imported in read-only mode. This
+property can also be referred to by its shortened column name, \fBrdonly\fR.
 .RE
 
 .sp
@@ -1234,7 +1248,7 @@ Lists destroyed pools only.
 .na
 \fB\fBzpool import\fR [\fB-o\fR \fImntopts\fR] [ \fB-o\fR
 \fIproperty\fR=\fIvalue\fR] ... [\fB-d\fR \fIdir\fR | \fB-c\fR \fIcachefile\fR]
-[\fB-D\fR] [\fB-f\fR] [\fB-R\fR \fIroot\fR] \fB-a\fR\fR
+[\fB-D\fR] [\fB-f\fR] [\fB-m\fR] [\fB-R\fR \fIroot\fR] [\fB-F\fR [\fB-n\fR]] \fB-a\fR\fR
 .ad
 .sp .6
 .RS 4n
@@ -1306,10 +1320,33 @@ Forces import, even if the pool appears to be potentially active.
 .sp
 .ne 2
 .na
+\fB\fB-F\fR\fR
+.ad
+.RS 21n
+Recovery mode for a non-importable pool. Attempt to return the pool to an importable
+state by discarding the last few transactions. Not all damaged pools can be recovered
+by using this option. If successful, the data from the discarded transactions is
+irretrievably lost. This option is ignored if the pool is importable or already
+imported.
+.RE
+
+.sp
+.ne 2
+.na
 \fB\fB-a\fR\fR
 .ad
 .RS 21n
 Searches for and imports all pools found.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-m\fR\fR
+.ad
+.RS 21n
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
 .RE
 
 .sp
@@ -1322,6 +1359,26 @@ Sets the "\fBcachefile\fR" property to "\fBnone\fR" and the "\fIaltroot\fR"
 property to "\fIroot\fR".
 .RE
 
+.sp
+.ne 2
+.na
+\fB\fB-N\fR\fR
+.ad
+.RS 21n
+Import the pool without mounting any file systems.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-n\fR\fR
+.ad
+.RS 21n
+Used with the \fB-F\fR recovery option. Determines whether a non-importable pool can be made
+importable again, but does not actually perform the pool recovery. For more details about pool
+recovery mode, see the \fB-F\fR option, above.
+.RE
+
 .RE
 
 .sp
@@ -1329,7 +1386,7 @@ property to "\fIroot\fR".
 .na
 \fB\fBzpool import\fR [\fB-o\fR \fImntopts\fR] [ \fB-o\fR
 \fIproperty\fR=\fIvalue\fR] ... [\fB-d\fR \fIdir\fR | \fB-c\fR \fIcachefile\fR]
-[\fB-D\fR] [\fB-f\fR] [\fB-R\fR \fIroot\fR] \fIpool\fR | \fIid\fR
+[\fB-D\fR] [\fB-f\fR] [\fB-m\fR] [\fB-R\fR \fIroot\fR] [\fB-F\fR [\fB-n\fR]] \fIpool\fR | \fIid\fR
 [\fInewpool\fR]\fR
 .ad
 .sp .6
@@ -1412,12 +1469,48 @@ Forces import, even if the pool appears to be potentially active.
 .sp
 .ne 2
 .na
+\fB\fB-F\fR\fR
+.ad
+.sp .6
+.RS 4n
+Recovery mode for a non-importable pool. Attempt to return the pool to an importable
+state by discarding the last few transactions. Not all damaged pools can be recovered
+by using this option. If successful, the data from the discarded transactions is
+irretrievably lost. This option is ignored if the pool is importable or already imported.
+.RE
+
+.sp
+.ne 2
+.na
 \fB\fB-R\fR \fIroot\fR\fR
 .ad
 .sp .6
 .RS 4n
 Sets the "\fBcachefile\fR" property to "\fBnone\fR" and the "\fIaltroot\fR"
 property to "\fIroot\fR".
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-n\fR\fR
+.ad
+.sp .6
+.RS 4n
+Used with the \fB-F\fR recovery option. Determines whether a non-importable pool can be made
+importable again, but does not actually perform the pool recovery. For more details about pool
+recovery mode, see the \fB-F\fR option, above.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-m\fR\fR
+.ad
+.sp .6
+.RS 4n
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
 .RE
 
 .RE
@@ -1665,7 +1758,7 @@ more information on what properties can be set and acceptable values.
 .sp
 .ne 2
 .na
-\fB\fBzpool status\fR [\fB-xv\fR] [\fIpool\fR] ...\fR
+\fBzpool status\fR [\fB-xvD\fR] [\fB-T\fR \fBu\fR | \fBd\fR ] [\fIpool\fR] ... [\fIinterval\fR [\fIcount\fR]]
 .ad
 .sp .6
 .RS 4n
@@ -1722,7 +1815,7 @@ to enable all features on all pools.
 .sp .6
 .RS 4n
 Displays legacy \fBZFS\fR versions supported by the current software. See
-\fBzfs-features\fR(5) for a description of feature flags features supported
+\fBzpool-features\fR(5) for a description of feature flags features supported
 by the current software.
 .RE
 
@@ -1735,7 +1828,7 @@ by the current software.
 .RS 4n
 Enables all supported features on the given pool. Once this is done, the
 pool will no longer be accessible on systems that do not support feature
-flags. See \fBzfs-features\fR(5) for details on compatability with systems
+flags. See \fBzpool-features\fR(5) for details on compatibility with systems
 that support feature flags, but do not support all features enabled on the
 pool.
 .sp
@@ -2075,7 +2168,7 @@ The command to remove the mirrored log \fBmirror-2\fR is:
 .LP
 The following command dipslays the detailed information for the \fIdata\fR
 pool. This pool is comprised of a single \fIraidz\fR vdev where one of its
-devices increased its capacity by 1GB. In this example, the pool will not 
+devices increased its capacity by 1GB. In this example, the pool will not
 be able to utilized this extra capacity until all the devices under the
 \fIraidz\fR vdev have been expanded.
 
