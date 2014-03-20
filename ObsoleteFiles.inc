@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140314: libssh becomes private
+OLD_LIBS+=usr/lib/libssh.so.5
+OLD_LIBS+=usr/lib32/libssh.so.5
 # 20131109: extattr(2) mlinks fixed
 OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
 OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz

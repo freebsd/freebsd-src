@@ -8,6 +8,7 @@ BINMODE=4555
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD=	-lssh -lcrypt -lcrypto -lz
+USEPRIVATELIB= ssh
 
 .include <bsd.prog.mk>
 

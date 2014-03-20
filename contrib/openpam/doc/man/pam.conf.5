@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pam.conf.5 610 2012-05-26 14:03:45Z des $
+.\" $Id: pam.conf.5 741 2013-09-07 13:34:02Z des $
 .\"
-.Dd May 26, 2012
+.Dd September 7, 2013
 .Dt PAM.CONF 5
 .Os
 .Sh NAME
@@ -65,15 +65,16 @@ Entries in
 policy files are of the same form, but are prefixed by an additional
 field specifying the name of the service they apply to.
 .Pp
-In both types of policy files, blank lines are ignored, as is anything
-to the right of a
+In both cases, blank lines and comments introduced by a
 .Ql #
-sign.
+sign are ignored, and the normal shell quoting rules apply.
+The precise details of how the file is tokenized are described in
+.Xr openpam_readword 3 .
 .Pp
 The
 .Ar facility
 field specifies the facility the entry applies to, and is one of:
-.Bl -tag -width ".Cm password"
+.Bl -tag -width 12n
 .It Cm auth
 Authentication functions
 .Po
@@ -99,7 +100,7 @@ The
 field determines how the result returned by the module affects the
 flow of control through (and the final result of) the rest of the
 chain, and is one of:
-.Bl -tag -width ".Cm sufficient"
+.Bl -tag -width 12n
 .It Cm required
 If this module succeeds, the result of the chain will be success
 unless a later module fails.
@@ -141,16 +142,18 @@ phase of
 .Pp
 The
 .Ar module-path
-field specifies the name, or optionally the full path, of the module
-to call.
+field specifies the name or full path of the module to call.
+If only the name is specified, the PAM library will search for it in
+the following locations:
+.Bl -enum
+.It
+.Pa /usr/lib
+.It
+.Pa /usr/local/lib
+.El
 .Pp
-The remaining fields are passed as arguments to the module if and when
-it is invoked.
-As a special case, if an argument is of the form ``name=value'' and
-the right-hand side is surrounded by single or double quotes, any
-whitespace between the quote characters will be considered part of the
-same argument rather than a separator between this argument and the
-next.
+The remaining fields, if any, are passed unmodified to the module if
+and when it is invoked.
 .Pp
 The
 .Cm include
@@ -161,6 +164,37 @@ This allows one to define system-wide policies which are then included
 into service-specific policies.
 The system-wide policy can then be modified without having to also
 modify each and every service-specific policy.
+.Pp
+.Bf -symbolic
+Take care not to introduce loops when using
+.Cm include
+rules, as there is currently no loop detection in place.
+.Ef
+.Sh MODULE OPTIONS
+Some PAM library functions may alter their behavior when called by a
+service module if certain module options were specified, regardless of
+whether the module itself accords them any importance.
+One such option is
+.Cm debug ,
+which causes the dispatcher to enable debugging messages before
+calling each service function, and disable them afterwards (unless
+they were already enabled).
+Other special options include:
+.Bl -tag -width 12n
+.It Cm authtok_prompt Ns = Ns Ar prompt , Cm oldauthtok_prompt Ns = Ns Ar prompt , Cm user_prompt Ns = Ns Ar prompt
+These options can be used to override the prompts used by
+.Xr pam_get_authtok 3
+and
+.Xr pam_get_user 3 .
+.It Cm echo_pass
+This option controls whether
+.Xr pam_get_authtok 3
+will allow the user to see what they are typing.
+.It Cm try_first_pass , Cm use_first_pass
+These options control
+.Xr pam_get_authtok 3 Ns 's
+use of cached authentication tokens.
+.El
 .Sh SEE ALSO
 .Xr pam 3
 .Sh STANDARDS
