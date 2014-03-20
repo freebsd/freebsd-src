@@ -39,8 +39,14 @@
 # done
 
 # 20140314: libssh becomes private
+OLD_FILES+=usr/lib/libssh.a
+OLD_FILES+=usr/lib/libssh.so
 OLD_LIBS+=usr/lib/libssh.so.5
+OLD_FILES+=usr/lib/libssh_p.a
+OLD_FILES+=usr/lib32/libssh.a
+OLD_FILES+=usr/lib32/libssh.so
 OLD_LIBS+=usr/lib32/libssh.so.5
+OLD_FILES+=usr/lib32/libssh_p.a
 # 20131109: extattr(2) mlinks fixed
 OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
 OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
