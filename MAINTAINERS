@@ -77,7 +77,7 @@ ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
-contrib/pf	mlaier	Pre-commit review requested.
+contrib/pf	glebius	Pre-commit review recommended.
 binutils	obrien	Insists on BU blocked from unapproved commits
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
