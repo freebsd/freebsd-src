@@ -18,7 +18,7 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2012 by Delphix. All rights reserved.
+.\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
@@ -26,10 +26,11 @@
 .\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
+.\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2013
+.Dd January 2, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -57,10 +58,15 @@
 .Cm destroy
 .Op Fl dnpRrv
 .Sm off
-.Ar snapshot
-.Op % Ns Ar snapname
+.Ar filesystem Ns | Ns volume
+.Ns @snap
+.Op % Ns Ar snap
+.Op , Ns Ar snap Op % Ns Ar snap
 .Op , Ns ...
 .Sm on
+.Nm
+.Cm destroy
+.Ar filesystem Ns | Ns Ar volume Ns # Ns Ar bookmark
 .Nm
 .Cm snapshot Ns | Ns Cm snap
 .Op Fl r
@@ -168,10 +174,18 @@
 .Cm unshare
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
+.Cm bookmark
+.Ar snapshot
+.Ar bookmark
+.Nm
 .Cm send
 .Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
+.Nm
+.Cm send
+.Op Fl i Ar snapshot Ns | Ns bookmark
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
@@ -1654,6 +1668,13 @@ options, as they can destroy large portions of a pool and cause unexpected
 behavior for mounted file systems in use.
 .It Xo
 .Nm
+.Cm destroy
+.Ar filesystem Ns | Ns Ar volume Ns # Ns Ar bookmark
+.Xc
+.Pp
+The given bookmark is destroyed.
+.It Xo
+.Nm
 .Cm snapshot Ns | Ns Cm snap
 .Op Fl r
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
@@ -1686,14 +1707,24 @@ Roll back the given dataset to a previous snapshot. When a dataset is rolled
 back, all data that has changed since the snapshot is discarded, and the
 dataset reverts to the state at the time of the snapshot. By default, the
 command refuses to roll back to a snapshot other than the most recent one. In
-order to do so, all intermediate snapshots must be destroyed by specifying the
+order to do so, all intermediate snapshots and bookmarks must be destroyed
+by specifying the
 .Fl r
 option.
+.Pp
+The
+.Fl rR
+options do not recursively destroy the child snapshots of a
+recursive snapshot.
+Only direct snapshots of the specified filesystem
+are destroyed by either of these options.
+To completely roll back a
+recursive snapshot, you must rollback the individual child snapshots.
 .Bl -tag -width indent
 .It Fl r
-Recursively destroy any snapshots more recent than the one specified.
+Destroy any snapshots and bookmarks more recent than the one specified.
 .It Fl R
-Recursively destroy any more recent snapshots, as well as any clones of those
+Destroy any more recent snapshots and bookmarks, as well as any clones of those
 snapshots.
 .It Fl f
 Used with the
@@ -1868,7 +1899,7 @@ syntax.
 A comma-separated list of types to display, where
 .Ar type
 is one of
-.Sy filesystem , snapshot , snap,  volume , No or Sy all .
+.Sy filesystem , snapshot , snap , volume , bookmark , No or Sy all .
 For example, specifying
 .Fl t Cm snapshot
 displays only snapshots.
@@ -1965,7 +1996,7 @@ sections.
 The special value
 .Cm all
 can be used to display all properties that apply to the given dataset's type
-(filesystem, volume, or snapshot).
+(filesystem, volume, snapshot, or bookmark).
 .Bl -tag -width indent
 .It Fl r
 Recursively display properties for any children.
@@ -2283,6 +2314,26 @@ file system shared on the system.
 .El
 .It Xo
 .Nm
+.Cm bookmark
+.Ar snapshot
+.Ar bookmark
+.Xc
+.Pp
+Creates a bookmark of the given snapshot.
+Bookmarks mark the point in time
+when the snapshot was created, and can be used as the incremental source for
+a
+.Qq Nm Cm send
+command.
+.Pp
+This feature must be enabled to be used.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy bookmark
+feature.
+.It Xo
+.Nm
 .Cm send
 .Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
@@ -2301,17 +2352,15 @@ a file or to a different system (for example, using
 By default, a full stream is generated.
 .Bl -tag -width indent
 .It Fl i Ar snapshot
-Generate an incremental stream from the
-.Fl i Ar snapshot
-to the last
-.Ar snapshot .
-The incremental source (the
-.Fl i Ar snapshot )
-can be specified as the last component of the snapshot name (for example, the
-part after the
-.Sy @ ) ,
-and it is assumed to be from the same file system as the last
-.Ar snapshot .
+Generate an incremental stream from the first
+.Ar snapshot Pq the incremental source
+to the second
+.Ar snapshot Pq the incremental target .
+The incremental source can be specified as the last component of the
+snapshot name
+.Pq the Em @ No character and following
+and
+it is assumed to be from the same file system as the incremental target.
 .Pp
 If the destination is a clone, the source may be the origin snapshot, which
 must be fully specified (for example,
@@ -2319,15 +2368,16 @@ must be fully specified (for example,
 not just
 .Cm @origin ) .
 .It Fl I Ar snapshot
-Generate a stream package that sends all intermediary snapshots from the
-.Fl I Ar snapshot
-to the last
+Generate a stream package that sends all intermediary snapshots from the first
+.Ar snapshot
+to the second
 .Ar snapshot .
 For example,
 .Ic -I @a fs@d
 is similar to
 .Ic -i @a fs@b; -i @b fs@c; -i @c fs@d .
-The incremental source snapshot may be specified as with the
+The incremental
+source may be specified as with the
 .Fl i
 option.
 .It Fl R
@@ -2378,6 +2428,35 @@ This information includes a per-second report of how much data has been sent.
 The format of the stream is committed. You will be able to receive your streams
 on future versions of
 .Tn ZFS .
+.It Xo
+.Nm
+.Cm send
+.Op Fl i Ar snapshot Ns | Ns Ar bookmark
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Xc
+.Pp
+Generate a send stream, which may be of a filesystem, and may be
+incremental from a bookmark.
+If the destination is a filesystem or volume,
+the pool must be read-only, or the filesystem must not be mounted.
+When the
+stream generated from a filesystem or volume is received, the default snapshot
+name will be
+.Pq --head-- .
+.Bl -tag -width indent
+.It Fl i Ar snapshot Ns | Ns bookmark
+Generate an incremental send stream.
+The incremental source must be an earlier
+snapshot in the destination's history.
+It will commonly be an earlier
+snapshot in the destination's filesystem, in which case it can be
+specified as the last component of the name
+.Pq the Em # No or Em @ No character and following .
+.Pp
+If the incremental target is a clone, the incremental source can
+be the origin snapshot, or an earlier snapshot in the origin's filesystem,
+or the origin's origin, etc.
+.El
 .It Xo
 .Nm
 .Cm receive Ns | Ns Cm recv

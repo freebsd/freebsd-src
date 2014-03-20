@@ -47,6 +47,7 @@ ZFS_COMMON_OBJS +=		\
 	dmu_tx.o		\
 	dnode.o			\
 	dnode_sync.o		\
+	dsl_bookmark.o		\
 	dsl_dir.o		\
 	dsl_dataset.o		\
 	dsl_deadlist.o		\
