@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl CVgp
+.Op Fl I Ar path
 .Op Fl d Ar destdir
 .Ar SYSTEM_NAME
 .Nm
@@ -69,6 +70,12 @@ If the INCLUDE_CONFIG_FILE is present in a configuration file,
 kernel image will contain full configuration files included
 literally (preserving comments).
 This flag is kept for backward compatibility.
+.It Fl I Ar path
+Search in
+.Ar path
+for any file included by the 
+.Ic include
+directive.  This option may be specified more than once.
 .It Fl d Ar destdir
 Use
 .Ar destdir
