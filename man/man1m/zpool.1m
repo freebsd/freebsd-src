@@ -764,6 +764,19 @@ can provide additional information about a pool using this property.
 .sp
 .ne 2
 .na
+\fB\fBdedupditto\fR=\fB\fInumber\fR\fR
+.ad
+.sp .6
+.RS 4n
+Threshold for the number of block ditto copies. If the reference count for a
+deduplicated block increases above this number, a new ditto copy of this block
+is automatically stored. The default setting is 0 which causes no ditto copies
+to be created for deduplicated blocks. The miniumum legal nonzero setting is 100.
+.RE
+
+.sp
+.ne 2
+.na
 \fB\fBdelegation\fR=\fBon\fR | \fBoff\fR\fR
 .ad
 .sp .6
@@ -1790,6 +1803,29 @@ not be included.
 .RS 6n
 Displays verbose data error information, printing out a complete list of all
 data errors since the last complete pool scrub.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-D\fR\fR
+.ad
+.RS 6n
+Display a histogram of deduplication statistics, showing the allocated (physically present on disk) and
+referenced (logically referenced in the pool) block counts and sizes by reference count.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-T\fR \fBu\fR | \fBd\fR\fR
+.ad
+.RS 12n
+Display a time stamp.
+.sp
+Specify \fBu\fR for a printed representation of the internal representation of
+time. See \fBtime\fR(2). Specify \fBd\fR for standard date format. See
+\fBdate\fR(1).
 .RE
 
 .RE
