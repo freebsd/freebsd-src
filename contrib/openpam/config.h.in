@@ -3,11 +3,17 @@
 /* Whether loading unversioned modules support is disabled */
 #undef DISABLE_UNVERSIONED_MODULES
 
+/* Define to 1 if you have the `asprintf' function. */
+#undef HAVE_ASPRINTF
+
 /* Define to 1 if you have the <crypt.h> header file. */
 #undef HAVE_CRYPT_H
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the `dlfunc' function. */
+#undef HAVE_DLFUNC
 
 /* Define to 1 if you have the `fdlopen' function. */
 #undef HAVE_FDLOPEN
@@ -21,11 +27,17 @@
 /* Define to 1 if you have the `crypt' library (-lcrypt). */
 #undef HAVE_LIBCRYPT
 
+/* Define to 1 if you have the `crypto' library (-lcrypto). */
+#undef HAVE_LIBCRYPTO
+
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `setlogmask' function. */
+#undef HAVE_SETLOGMASK
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -57,6 +69,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to 1 if you have the `vasprintf' function. */
+#undef HAVE_VASPRINTF
+
 /* OpenPAM library major number */
 #undef LIB_MAJ
 
@@ -64,7 +79,7 @@
    */
 #undef LT_OBJDIR
 
-/* Turn debugging on by default */
+/* Turn debugging macros on */
 #undef OPENPAM_DEBUG
 
 /* OpenPAM modules directory */
