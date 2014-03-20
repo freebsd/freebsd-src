@@ -253,6 +253,12 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 
+	/* Debug - complain if we haven't fully waken things up */
+	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
+		    __func__, reg, val, ah->ah_powerMode);
+	}
+
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
@@ -277,6 +283,12 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
+
+	/* Debug - complain if we haven't fully waken things up */
+	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
+		    __func__, reg, ah->ah_powerMode);
+	}
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
@@ -330,6 +342,12 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 
+	/* Debug - complain if we haven't fully waken things up */
+	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
+		    __func__, reg, val, ah->ah_powerMode);
+	}
+
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
 	bus_space_write_4(tag, h, reg, val);
@@ -343,6 +361,12 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
+
+	/* Debug - complain if we haven't fully waken things up */
+	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
+		    __func__, reg, ah->ah_powerMode);
+	}
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
