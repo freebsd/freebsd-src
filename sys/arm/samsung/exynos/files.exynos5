@@ -19,5 +19,6 @@ arm/samsung/exynos/exynos5_common.c		standard
 arm/samsung/exynos/exynos5_machdep.c		standard
 arm/samsung/exynos/uart.c			optional	uart
 arm/samsung/exynos/ehci_exynos5.c		optional	ehci
+arm/samsung/exynos/exynos5_fimd.c		optional	vt
 
 #dev/sdhci/sdhci_fdt.c				optional	sdhci
