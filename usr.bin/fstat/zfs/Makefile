@@ -7,6 +7,7 @@ OBJS=	zfs.o
 WARNS?=	1
 
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
+CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
