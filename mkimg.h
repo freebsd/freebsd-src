@@ -31,7 +31,7 @@
 
 struct part {
 	STAILQ_ENTRY(part) link;
-	char	*type;		/* Partition type. */
+	char	*alias;		/* Partition type alias. */
 	char	*contents;	/* Contents/size specification. */
 	u_int	kind;		/* Content kind. */
 #define	PART_UNDEF	0

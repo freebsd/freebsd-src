@@ -67,10 +67,24 @@ scheme_selected(void)
 int
 scheme_check_part(struct part *p)
 {
+	struct mkimg_alias *alias, *iter;
 
 	warnx("part(%s): index=%u, type=`%s', offset=%ju, size=%ju",
-	    scheme->name, p->index, p->type, (uintmax_t)p->offset,
+	    scheme->name, p->index, p->alias, (uintmax_t)p->offset,
 	    (uintmax_t)p->size);
+
+	/* Check the partition type alias */
+	alias = NULL;
+	iter = scheme->aliases;
+	while (iter->name != NULL) {
+		if (strcasecmp(p->alias, iter->name) == 0) {
+			alias = iter;
+			break;
+		}
+		iter++;
+	}
+	if (alias == NULL)
+		return (EINVAL);
 
 	return (0);
 }

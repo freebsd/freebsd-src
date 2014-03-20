@@ -133,12 +133,12 @@ parse_part(const char *spec)
 		error = EINVAL;
 		goto errout;
 	}
-	part->type = malloc(len);
-	if (part->type == NULL) {
+	part->alias = malloc(len);
+	if (part->alias == NULL) {
 		error = ENOMEM;
 		goto errout;
 	}
-	strlcpy(part->type, spec, len);
+	strlcpy(part->alias, spec, len);
 	spec = sep + 1;
 
 	switch (*spec) {
@@ -169,8 +169,8 @@ parse_part(const char *spec)
 	return (0);
 
  errout:
-	if (part->type != NULL)
-		free(part->type);
+	if (part->alias != NULL)
+		free(part->alias);
 	free(part);
 	return (error);
 }
@@ -246,7 +246,9 @@ mkimg(void)
 			break;
 		}
 		part->size = size;
-		scheme_check_part(part);
+		error = scheme_check_part(part);
+		if (error)
+			errc(EX_DATAERR, error, "partition %d", part->index+1);
 		offset = scheme_next_offset(offset, size);
 	}
 
