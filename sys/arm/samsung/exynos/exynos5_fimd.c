@@ -256,12 +256,10 @@ fimd_init(struct fimd_softc *sc)
 	reg = panel->ivclk | panel->fixvclk;
 	DWRITE4(sc,VIDCON1,reg);
 
-	printf("print to VIDCON0\n");
 	reg = (VIDCON0_ENVID | VIDCON0_ENVID_F);
 	reg |= (panel->clkval_f << CLKVAL_F_OFFSET);
 	WRITE4(sc,VIDCON0,reg);
 
-	printf("print to VIDCON0 2nd\n");
 	reg = (panel->v_pulse_width << VSYNC_PULSE_WIDTH_OFFSET);
 	reg |= (panel->v_front_porch << V_FRONT_PORCH_OFFSET);
 	reg |= (panel->v_back_porch << V_BACK_PORCH_OFFSET);
@@ -275,10 +273,6 @@ fimd_init(struct fimd_softc *sc)
 	reg = ((panel->width - 1) << HOZVAL_OFFSET);
 	reg |= ((panel->height - 1) << LINEVAL_OFFSET);
 	DWRITE4(sc,VIDTCON2,reg);
-
-	printf("set pbase\n");
-	printf("vbase is 0x%08x\n", sc->sc_info.fb_vbase);
-	printf("pbase is 0x%08x\n", sc->sc_info.fb_pbase);
 
 	WRITE4(sc,VIDW00ADD0B0, sc->sc_info.fb_pbase);
 	WRITE4(sc,VIDW00ADD1B0, sc->sc_info.fb_pbase + sc->sc_info.fb_size);
