@@ -98,7 +98,7 @@ static int acpi;
 static char *progname;
 static const int BSP = 0;
 
-static int cpumask;
+static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
@@ -199,30 +199,26 @@ fbsdrun_start_thread(void *param)
 }
 
 void
-fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
+fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 {
 	int error;
 
-	if (cpumask & (1 << vcpu)) {
-		fprintf(stderr, "addcpu: attempting to add existing cpu %d\n",
-		    vcpu);
-		exit(1);
-	}
+	assert(fromcpu == BSP);
 
-	atomic_set_int(&cpumask, 1 << vcpu);
+	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
 	 * at the given RIP
 	 */
-	vmexit[vcpu].rip = rip;
-	vmexit[vcpu].inst_length = 0;
+	vmexit[newcpu].rip = rip;
+	vmexit[newcpu].inst_length = 0;
 
-	mt_vmm_info[vcpu].mt_ctx = ctx;
-	mt_vmm_info[vcpu].mt_vcpu = vcpu;
+	mt_vmm_info[newcpu].mt_ctx = ctx;
+	mt_vmm_info[newcpu].mt_vcpu = newcpu;
 
-	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	error = pthread_create(&mt_vmm_info[newcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[newcpu]);
 	assert(error == 0);
 }
 
@@ -230,14 +226,14 @@ static int
 fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
-	if ((cpumask & (1 << vcpu)) == 0) {
+	if (!CPU_ISSET(vcpu, &cpumask)) {
 		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
 		    vcpu);
 		exit(1);
 	}
 
-	atomic_clear_int(&cpumask, 1 << vcpu);
-	return (cpumask == 0);
+	CPU_CLR_ATOMIC(vcpu, &cpumask);
+	return (CPU_EMPTY(&cpumask));
 }
 
 static int
@@ -745,7 +741,7 @@ main(int argc, char *argv[])
 	/*
 	 * Add CPU 0
 	 */
-	fbsdrun_addcpu(ctx, BSP, rip);
+	fbsdrun_addcpu(ctx, BSP, BSP, rip);
 
 	/*
 	 * Head off to the main event dispatch loop
