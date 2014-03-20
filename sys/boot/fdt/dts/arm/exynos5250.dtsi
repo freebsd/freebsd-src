@@ -32,7 +32,16 @@
 	#size-cells = <1>;
 	interrupt-parent = <&GIC>;
 
-	Exynos5@0 {
+	aliases {
+		soc = &SOC;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		clk0 = &clk0;
+		dp0 = &dp0;
+		fimd0 = &fimd0;
+	};
+
+	SOC: Exynos5@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -46,6 +55,11 @@
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
+		};
+
+		clk0: clk@10010000 {
+			compatible = "exynos,clk";
+			reg = < 0x10020000 0x20000 >;
 		};
 
 		mct {
@@ -72,8 +86,8 @@
 			reg = <0x12110000 0x1000>, /* EHCI */
 			      <0x12130000 0x1000>, /* EHCI host ctrl */
 			      <0x10040000 0x1000>, /* Power */
-			      <0x10050000 0x1000>, /* Sysreg */
-			      <0x11400000 0x1000>; /* GPIO left */
+			      <0x10050230 0x10>, /* Sysreg */
+			      <0x11400C60 0x10>; /* GPIO left */
 			interrupts = < 103 >;
 			interrupt-parent = <&GIC>;
 		};
@@ -153,5 +167,21 @@
 			current-speed = <115200>;
 		};
 
+		fimd0: fimd@14400000 {
+			compatible = "exynos,fimd";
+			status = "disabled";
+			reg = < 0x14400000 0x10000 >, /* fimd */
+			      < 0x14420000 0x10000 >, /* disp */
+			      < 0x10050000 0x220 >; /* sysreg */
+			interrupt-parent = <&GIC>;
+		};
+
+		dp0: dp@145B0000 {
+			compatible = "exynos,dp";
+			status = "disabled";
+			reg = < 0x145B0000 0x10000 >,
+			      < 0x10040720 0x10 >; /* PHY */
+			interrupt-parent = <&GIC>;
+		};
 	};
 };
