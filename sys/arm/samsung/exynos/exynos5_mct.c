@@ -129,11 +129,11 @@ static device_method_t arm_tmr_methods[] = {
 };
 
 static driver_t arm_tmr_driver = {
-	"arch_timer",
+	"mct",
 	arm_tmr_methods,
 	sizeof(struct arm_tmr_softc),
 };
 
 static devclass_t arm_tmr_devclass;
 
-DRIVER_MODULE(arch_timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
+DRIVER_MODULE(mct, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
