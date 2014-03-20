@@ -245,7 +245,8 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	validflags = IAF_MASK;
 
-	if (core_cputype != PMC_CPU_INTEL_ATOM)
+	if (core_cputype != PMC_CPU_INTEL_ATOM &&
+		core_cputype != PMC_CPU_INTEL_ATOM_SILVERMONT)
 		validflags &= ~IAF_ANY;
 
 	if ((flags & ~validflags) != 0)
@@ -434,7 +435,8 @@ iaf_stop_pmc(int cpu, int ri)
 
 	fc = (IAF_MASK << (ri * 4));
 
-	if (core_cputype != PMC_CPU_INTEL_ATOM)
+	if (core_cputype != PMC_CPU_INTEL_ATOM &&
+		core_cputype != PMC_CPU_INTEL_ATOM_SILVERMONT)
 		fc &= ~IAF_ANY;
 
 	iafc->pc_iafctrl &= ~fc;
@@ -566,7 +568,8 @@ struct iap_event_descr {
 #define	IAP_F_SBX	(1 << 8)	/* CPU: Sandy Bridge Xeon */
 #define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge Xeon */
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
-#define	IAP_F_FM	(1 << 11)	/* Fixed mask */
+#define	IAP_F_CAS	(1 << 11)	/* CPU: Atom Silvermont */
+#define	IAP_F_FM	(1 << 12)	/* Fixed mask */
 
 #define	IAP_F_ALLCPUSCORE2					\
     (IAP_F_CC | IAP_F_CC2 | IAP_F_CC2E | IAP_F_CA)
@@ -607,28 +610,38 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(03H_00H, 0x03, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(03H_01H, 0x03, 0x01, IAP_F_FM | IAP_F_I7O | IAP_F_SB |
-	IAP_F_SBX),
+	IAP_F_SBX | IAP_F_CAS),
     IAPDESCR(03H_02H, 0x03, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(03H_04H, 0x03, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_I7O),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
+	IAP_F_CAS),
+    IAPDESCR(03H_04H, 0x03, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_I7O |
+	IAP_F_CAS),
     IAPDESCR(03H_08H, 0x03, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_SB |
-	IAP_F_SBX),
+	IAP_F_SBX | IAP_F_CAS),
     IAPDESCR(03H_10H, 0x03, 0x10, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_SB |
-	IAP_F_SBX),
-    IAPDESCR(03H_20H, 0x03, 0x20, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
+	IAP_F_SBX | IAP_F_CAS),
+    IAPDESCR(03H_20H, 0x03, 0x20, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_CAS),
+    IAPDESCR(03H_40H, 0x03, 0x40, IAP_F_CAS),
+    IAPDESCR(03H_80H, 0x03, 0x80, IAP_F_CAS),
 
-    IAPDESCR(04H_00H, 0x04, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(04H_01H, 0x04, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_I7O),
-    IAPDESCR(04H_02H, 0x04, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
+    IAPDESCR(04H_00H, 0x04, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CAS),
+    IAPDESCR(04H_01H, 0x04, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_I7O |
+	IAP_F_CAS),
+    IAPDESCR(04H_02H, 0x04, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_CAS),
+    IAPDESCR(04H_04H, 0x04, 0x04, IAP_F_CAS),
     IAPDESCR(04H_07H, 0x04, 0x07, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(04H_08H, 0x04, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
+    IAPDESCR(04H_08H, 0x04, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_CAS),
+    IAPDESCR(04H_10H, 0x04, 0x10, IAP_F_CAS),
+    IAPDESCR(04H_20H, 0x04, 0x20, IAP_F_CAS),
+    IAPDESCR(04H_40H, 0x04, 0x40, IAP_F_CAS),
+    IAPDESCR(04H_80H, 0x04, 0x80, IAP_F_CAS),
 
     IAPDESCR(05H_00H, 0x05, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(05H_01H, 0x05, 0x01, IAP_F_FM | IAP_F_I7O | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(05H_02H, 0x05, 0x02, IAP_F_FM | IAP_F_I7O | IAP_F_WM | IAP_F_SB |
-	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(05H_03H, 0x05, 0x03, IAP_F_FM | IAP_F_I7O),
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
+    IAPDESCR(05H_03H, 0x05, 0x03, IAP_F_FM | IAP_F_I7O | IAP_F_CAS),
 
     IAPDESCR(06H_00H, 0x06, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CC2 |
 	IAP_F_CC2E | IAP_F_CA),
@@ -864,12 +877,16 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(2EH_01H, 0x2E, 0x01, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_02H, 0x2E, 0x02, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_41H, 0x2E, 0x41, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
+	IAP_F_CAS),
     IAPDESCR(2EH_4FH, 0x2E, 0x4F, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
+	IAP_F_CAS),
 
     IAPDESCR(30H, 0x30, IAP_M_CORE | IAP_M_MESI | IAP_M_PREFETCH,
 	IAP_F_ALLCPUSCORE2),
+    IAPDESCR(30H_00H, 0x30, 0x00, IAP_F_CAS),
+    IAPDESCR(31H_00H, 0x31, 0x00, IAP_F_CAS),
     IAPDESCR(32H, 0x32, IAP_M_CORE | IAP_M_MESI | IAP_M_PREFETCH, IAP_F_CC),
     IAPDESCR(32H, 0x32, IAP_M_CORE, IAP_F_CA | IAP_F_CC2),
 
@@ -880,10 +897,10 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(3CH_00H, 0x3C, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
-	IAP_F_HW),
+	IAP_F_HW | IAP_F_CAS),
     IAPDESCR(3CH_01H, 0x3C, 0x01, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
-	IAP_F_HW),
+	IAP_F_HW | IAP_F_CAS),
     IAPDESCR(3CH_02H, 0x3C, 0x02, IAP_F_FM | IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(3DH_01H, 0x3D, 0x01, IAP_F_FM | IAP_F_I7O),
@@ -1100,11 +1117,12 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(7FH, 0x7F, IAP_M_CORE, IAP_F_CA | IAP_F_CC2),
 
     IAPDESCR(80H_00H, 0x80, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
-    IAPDESCR(80H_01H, 0x80, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(80H_01H, 0x80, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_CAS),
     IAPDESCR(80H_02H, 0x80, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_I7 |
-	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
+	IAP_F_CAS),
     IAPDESCR(80H_03H, 0x80, 0x03, IAP_F_FM | IAP_F_CA | IAP_F_I7 |
-	IAP_F_WM),
+	IAP_F_WM | IAP_F_CAS),
     IAPDESCR(80H_04H, 0x80, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
     IAPDESCR(81H_00H, 0x81, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
@@ -1332,9 +1350,11 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(B4H_04H, 0xB4, 0x04, IAP_F_FM | IAP_F_WM),
 
     IAPDESCR(B6H_01H, 0xB6, 0x01, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(B6H_04H, 0xB6, 0x04, IAP_F_CAS),
 
     IAPDESCR(B7H_01H, 0xB7, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
+    IAPDESCR(B7H_02H, 0xB7, 0x02, IAP_F_CAS),
 
     IAPDESCR(B8H_01H, 0xB8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(B8H_02H, 0xB8, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
@@ -1363,7 +1383,8 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(BFH_05H, 0xBF, 0x05, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
     IAPDESCR(C0H_00H, 0xC0, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
-	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW |
+	IAP_F_CAS),
     IAPDESCR(C0H_01H, 0xC0, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW),
@@ -1388,7 +1409,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(C2H_00H, 0xC2, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(C2H_01H, 0xC2, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX | IAP_F_HW),
+	IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(C2H_02H, 0xC2, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW),
@@ -1397,23 +1418,24 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(C2H_07H, 0xC2, 0x07, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
     IAPDESCR(C2H_08H, 0xC2, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
     IAPDESCR(C2H_0FH, 0xC2, 0x0F, IAP_F_FM | IAP_F_CC2),
-    IAPDESCR(C2H_10H, 0xC2, 0x10, IAP_F_FM | IAP_F_CA),
+    IAPDESCR(C2H_10H, 0xC2, 0x10, IAP_F_FM | IAP_F_CA | IAP_F_CAS),
 
     IAPDESCR(C3H_00H, 0xC3, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(C3H_01H, 0xC3, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM),
+	IAP_F_I7 | IAP_F_WM | IAP_F_CAS),
     IAPDESCR(C3H_02H, 0xC3, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(C3H_04H, 0xC3, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX | IAP_F_HW),
+	IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
+    IAPDESCR(C3H_08H, 0xC3, 0x08, IAP_F_CAS),
     IAPDESCR(C3H_10H, 0xC3, 0x10, IAP_F_FM | IAP_F_I7O),
     IAPDESCR(C3H_20H, 0xC3, 0x20, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(C4H_00H, 0xC4, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX | IAP_F_HW),
+	IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(C4H_01H, 0xC4, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW),
@@ -1433,10 +1455,18 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(C4H_40H, 0xC4, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(C4H_7EH, 0xC4, 0x7E, IAP_F_CAS),
+    IAPDESCR(C4H_BFH, 0xC4, 0xBF, IAP_F_CAS),
+    IAPDESCR(C4H_EBH, 0xC4, 0xEB, IAP_F_CAS),
+    IAPDESCR(C4H_F7H, 0xC4, 0xF7, IAP_F_CAS),
+    IAPDESCR(C4H_F9H, 0xC4, 0xF9, IAP_F_CAS),
+    IAPDESCR(C4H_FBH, 0xC4, 0xFB, IAP_F_CAS),
+    IAPDESCR(C4H_FDH, 0xC4, 0xFD, IAP_F_CAS),
+    IAPDESCR(C4H_FEH, 0xC4, 0xFE, IAP_F_CAS),
 
     IAPDESCR(C5H_00H, 0xC5, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX | IAP_F_HW),
+	IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(C5H_01H, 0xC5, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(C5H_02H, 0xC5, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
@@ -1447,6 +1477,14 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(C5H_20H, 0xC5, 0x20, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(C5H_7EH, 0xC5, 0x7E, IAP_F_CAS),
+    IAPDESCR(C5H_BFH, 0xC5, 0xBF, IAP_F_CAS),
+    IAPDESCR(C5H_EBH, 0xC5, 0xEB, IAP_F_CAS),
+    IAPDESCR(C5H_F7H, 0xC5, 0xF7, IAP_F_CAS),
+    IAPDESCR(C5H_F9H, 0xC5, 0xF9, IAP_F_CAS),
+    IAPDESCR(C5H_FBH, 0xC5, 0xFB, IAP_F_CAS),
+    IAPDESCR(C5H_FDH, 0xC5, 0xFD, IAP_F_CAS),
+    IAPDESCR(C5H_FEH, 0xC5, 0xFE, IAP_F_CAS),
 
     IAPDESCR(C6H_00H, 0xC6, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(C6H_01H, 0xC6, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
@@ -1471,7 +1509,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(C9H_00H, 0xC9, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(CAH_00H, 0xCA, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(CAH_01H, 0xCA, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
+    IAPDESCR(CAH_01H, 0xCA, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_CAS),
     IAPDESCR(CAH_02H, 0xCA, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(CAH_04H, 0xCA, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
@@ -1482,9 +1520,12 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(CAH_1EH, 0xCA, 0x1E, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(CAH_20H, 0xCA, 0x20, IAP_F_CAS),
+    IAPDESCR(CAH_3FH, 0xCA, 0x3F, IAP_F_CAS),
+    IAPDESCR(CAH_50H, 0xCA, 0x50, IAP_F_CAS),
 
     IAPDESCR(CBH_01H, 0xCB, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM),
+	IAP_F_I7 | IAP_F_WM | IAP_F_CAS),
     IAPDESCR(CBH_02H, 0xCB, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM),
     IAPDESCR(CBH_04H, 0xCB, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
@@ -1493,6 +1534,7 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_I7 | IAP_F_WM),
     IAPDESCR(CBH_10H, 0xCB, 0x10, IAP_F_FM | IAP_F_CC2 | IAP_F_I7 |
 	IAP_F_WM),
+    IAPDESCR(CBH_1FH, 0xCB, 0x1F, IAP_F_CAS),
     IAPDESCR(CBH_40H, 0xCB, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(CBH_80H, 0xCB, 0x80, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
@@ -1507,7 +1549,7 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(CDH_00H, 0xCD, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
     IAPDESCR(CDH_01H, 0xCD, 0x01, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW | IAP_F_CAS),
     IAPDESCR(CDH_02H, 0xCD, 0x02, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX),
 
@@ -1622,9 +1664,13 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(E6H_00H, 0xE6, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CC2),
     IAPDESCR(E6H_01H, 0xE6, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_I7 |
-	IAP_F_WM | IAP_F_SBX),
+	IAP_F_WM | IAP_F_SBX | IAP_F_CAS),
     IAPDESCR(E6H_02H, 0xE6, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
+    IAPDESCR(E6H_08H, 0xE6, 0x08, IAP_F_CAS),
+    IAPDESCR(E6H_10H, 0xE6, 0x10, IAP_F_CAS),
     IAPDESCR(E6H_1FH, 0xE6, 0x1F, IAP_F_FM | IAP_F_IBX | IAP_F_HW),
+
+    IAPDESCR(E7H_01H, 0xE7, 0x01, IAP_F_CAS),
 
     IAPDESCR(E8H_01H, 0xE8, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(E8H_02H, 0xE8, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
@@ -2005,6 +2051,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	case PMC_CPU_INTEL_ATOM:
 		cpuflag = IAP_F_CA;
 		break;
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
+		cpuflag = IAP_F_CAS;
+		break;
 	case PMC_CPU_INTEL_CORE:
 		cpuflag = IAP_F_CC;
 		break;
@@ -2119,6 +2168,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	 * Only Atom and SandyBridge CPUs support the 'ANY' qualifier.
 	 */
 	if (core_cputype == PMC_CPU_INTEL_ATOM ||
+		core_cputype == PMC_CPU_INTEL_ATOM_SILVERMONT ||
 		core_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
 		core_cputype == PMC_CPU_INTEL_SANDYBRIDGE_XEON)
 		evsel |= (config & IAP_ANY);
