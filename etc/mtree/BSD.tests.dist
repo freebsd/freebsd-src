@@ -75,6 +75,8 @@
             ..
             growfs
             ..
+            ifconfig
+            ..
             mdconfig
             ..
         ..
@@ -90,6 +92,8 @@
         ..
         sys
             kern
+            ..
+            netinet
             ..
         ..
         usr.bin
