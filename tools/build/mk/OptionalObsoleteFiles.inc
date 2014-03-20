@@ -3119,9 +3119,29 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_OPENSSH} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSH} == no
+OLD_FILES+=usr/bin/sftp
+OLD_FILES+=usr/bin/ssh
+OLD_FILES+=usr/bin/ssh-add
+OLD_FILES+=usr/bin/ssh-agent
+OLD_FILES+=usr/bin/ssh-copy-id
+OLD_FILES+=usr/bin/ssh-keygen
+OLD_FILES+=usr/bin/ssh-keyscan
+OLD_FILES+=usr/lib/private/libssh.a
+OLD_FILES+=usr/lib/private/libssh.so
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_FILES+=usr/lib/private/libssh_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libssh.a
+OLD_FILES+=usr/lib32/private/libssh.so
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_FILES+=usr/lib32/private/libssh_p.a
+.endif
+OLD_FILES+=usr/libexec/sftp-server
+OLD_FILES+=usr/libexec/ssh-keysign
+OLD_FILES+=usr/libexec/ssh-pkcs11-helper
+OLD_FILES+=usr/sbin/sshd
+.endif
 
 #.if ${MK_OPENSSL} == no
 # to be filled in
@@ -3384,7 +3404,6 @@ OLD_FILES+=usr/lib/librt_p.a
 OLD_FILES+=usr/lib/libsbuf_p.a
 OLD_FILES+=usr/lib/libsdp_p.a
 OLD_FILES+=usr/lib/libsmb_p.a
-OLD_FILES+=usr/lib/libssh_p.a
 OLD_FILES+=usr/lib/libssl_p.a
 OLD_FILES+=usr/lib/libstdc++_p.a
 OLD_FILES+=usr/lib/libsupc++_p.a
@@ -3406,6 +3425,8 @@ OLD_FILES+=usr/lib/libwrap_p.a
 OLD_FILES+=usr/lib/liby_p.a
 OLD_FILES+=usr/lib/libypclnt_p.a
 OLD_FILES+=usr/lib/libz_p.a
+OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/private/libssh_p.a
 .endif
 
 .if ${MK_RCMDS} == no
