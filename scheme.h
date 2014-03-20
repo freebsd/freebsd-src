@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013,2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,28 @@
 #ifndef _MKIMG_SCHEME_H_
 #define	_MKIMG_SCHEME_H_
 
-#define	SCHEME_UNDEF	0
-#define	SCHEME_APM	1
-#define	SCHEME_BSD	2
-#define	SCHEME_EBR	3
-#define	SCHEME_GPT	4
-#define	SCHEME_MBR	5
-#define	SCHEME_PC98	6
-#define	SCHEME_VTOC8	7
+struct mkimg_alias {
+	const char *name;
+	uintptr_t tp;
+#define	ALIAS_PTR(p)	(uintptr_t)(p)
+#define	ALIAS_INT(i)	(uintptr_t)(i)
+};
+
+struct mkimg_scheme {
+	const char *name;
+	const char *description;
+	int	nparts;
+	int	padding;
+	struct mkimg_alias *aliases;
+	off_t (*get_leader)(u_int);
+	off_t (*get_trailer)(u_int);
+};
+
+SET_DECLARE(schemes, struct mkimg_scheme);
+#define	SCHEME_DEFINE(nm)	DATA_SET(schemes, nm)
 
 int	scheme_select(const char *);
-u_int	scheme_selected(void);
+struct mkimg_scheme *scheme_selected(void);
 
 int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013,2014 Juniper Networks, Inc.
+ * Copyright (c) 2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,84 +28,41 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/diskmbr.h>
 #include <sys/linker_set.h>
 #include <sys/queue.h>
-#include <err.h>
-#include <errno.h>
-#include <stdint.h>
-#include <strings.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <uuid.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
-static struct mkimg_scheme *scheme;
-static u_int secsz = 512;
+static struct mkimg_alias mbr_aliases[] = {
+    {	NULL, 0 }
+};
 
-int
-scheme_select(const char *spec)
+static off_t
+mbr_get_leader(u_int parts __unused)
 {
-	struct mkimg_scheme *s, **iter;
 
-	SET_FOREACH(iter, schemes) {
-		s = *iter;
-		if (strcasecmp(spec, s->name) == 0) {
-			scheme = s;
-			return (0);
-		}
-	}
-	return (EINVAL);
+	return (1);
 }
 
-struct mkimg_scheme *
-scheme_selected(void)
+static off_t
+mbr_get_trailer(u_int parts __unused)
 {
-
-	return (scheme);
-}
-
-int
-scheme_check_part(struct part *p)
-{
-
-	warnx("part(%s): index=%u, type=`%s', offset=%ju, size=%ju",
-	    scheme->name, p->index, p->type, (uintmax_t)p->offset,
-	    (uintmax_t)p->size);
 
 	return (0);
 }
 
-u_int
-scheme_max_parts(void)
-{
+static struct mkimg_scheme mbr_scheme = {
+	.name = "mbr",
+	.description = "Master Boot Record",
+	.nparts = NDOSPART,
+	.padding = 0,
+	.aliases = mbr_aliases,
+	.get_leader = mbr_get_leader,
+	.get_trailer = mbr_get_trailer
+};
 
-	return (scheme->nparts);
-}
-
-off_t
-scheme_first_offset(u_int parts)
-{
-	off_t off;
-
-	off = scheme->get_leader(parts);
-	off *= secsz;
-	return (off);
-}
-
-off_t
-scheme_next_offset(off_t off, uint64_t sz)
-{
-
-	sz = (sz + secsz - 1) & ~(secsz - 1);
-	sz += scheme->padding * secsz;
-	return (off + sz);
-}
-
-void
-scheme_write(int fd, off_t off)
-{
-	off_t trailer;
-
-	trailer = scheme->get_trailer(nparts) * secsz;
-	ftruncate(fd, off + trailer);
-}
+SCHEME_DEFINE(mbr_scheme);

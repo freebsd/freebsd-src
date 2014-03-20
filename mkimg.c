@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013,2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/linker_set.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -66,6 +67,8 @@ cleanup(void)
 static void
 usage(const char *why)
 {
+	struct mkimg_scheme *s, **iter;
+
 	warnx("error: %s", why);
 	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
 
@@ -79,13 +82,10 @@ usage(const char *why)
 	fprintf(stderr, "\t-z\t\t-  write a sparse file\n");
 
 	fprintf(stderr, "    schemes:\n");
-	fprintf(stderr, "\tapm\t-  Apple Partition Map\n");
-	fprintf(stderr, "\tbsd\t-  BSD disk label\n");
-	fprintf(stderr, "\tebr\t-  Extended Boot Record\n");
-	fprintf(stderr, "\tgpt\t-  GUID Partition Table\n");
-	fprintf(stderr, "\tmbr\t-  Master Boot Record\n");
-	fprintf(stderr, "\tpc98\t-  PC-9800 disk partitions\n");
-	fprintf(stderr, "\tvtoc8\t-  SMI VTOC8 disk labels\n");
+	SET_FOREACH(iter, schemes) {
+		s = *iter;
+		fprintf(stderr, "\t%s\t-  %s\n", s->name, s->description);
+	}
 
 	fprintf(stderr, "    partition specification:\n");
 	fprintf(stderr, "\t<type>::<size>\t-  empty partition of given size\n");
@@ -283,7 +283,7 @@ main(int argc, char *argv[])
 				errc(EX_DATAERR, error, "partition");
 			break;
 		case 's':	/* SCHEME */
-			if (scheme_selected() != SCHEME_UNDEF)
+			if (scheme_selected() != NULL)
 				usage("multiple schemes given");
 			error = scheme_select(optarg);
 			if (error)
@@ -299,7 +299,7 @@ main(int argc, char *argv[])
 	}
 	if (argc > optind)
 		usage("trailing arguments");
-	if (scheme_selected() == SCHEME_UNDEF)
+	if (scheme_selected() == NULL)
 		usage("no scheme");
 	if (nparts == 0)
 		usage("no partitions");
