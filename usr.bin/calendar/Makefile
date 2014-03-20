@@ -12,8 +12,6 @@ DE_LINKS=       de_DE.ISO8859-15
 FR_LINKS=       fr_FR.ISO8859-15
 TEXTMODE?=	444
 
-WARNS?=		7
-
 beforeinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
