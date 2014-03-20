@@ -40,28 +40,21 @@ static struct mkimg_alias bsd_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-bsd_get_leader(u_int parts __unused)
+static u_int
+bsd_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (16);
-}
-
-static off_t
-bsd_get_trailer(u_int parts __unused)
-{
-
-	return (0);
+	secs = (where == SCHEME_META_IMG_START) ? 16 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme bsd_scheme = {
 	.name = "bsd",
-	.description = "GUID Partition Table",
-	.nparts = 20,
-	.padding = 0,
+	.description = "BSD disk label",
 	.aliases = bsd_aliases,
-	.get_leader = bsd_get_leader,
-	.get_trailer = bsd_get_trailer
+	.metadata = bsd_metadata,
+	.nparts = 20
 };
 
 SCHEME_DEFINE(bsd_scheme);

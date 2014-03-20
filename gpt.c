@@ -44,28 +44,26 @@ static struct mkimg_alias gpt_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-gpt_get_leader(u_int parts)
+static u_int
+gpt_metadata(u_int where, u_int parts, u_int secsz)
 {
+	u_int ents, secs;
 
-	return (2 + (parts + 3) / 4);
-}
+	if (where != SCHEME_META_IMG_START && where != SCHEME_META_IMG_START)
+		return (0);
 
-static off_t
-gpt_get_trailer(u_int parts)
-{
-
-	return (1 + (parts + 3) / 4);
+	ents = secsz / sizeof(struct gpt_ent);
+	secs = (parts + ents - 1) / ents;
+	secs += (where == SCHEME_META_IMG_START) ? 2 : 1;
+	return (secs);
 }
 
 static struct mkimg_scheme gpt_scheme = {
 	.name = "gpt",
 	.description = "GUID Partition Table",
-	.nparts = 4096,
-	.padding = 0,
 	.aliases = gpt_aliases,
-	.get_leader = gpt_get_leader,
-	.get_trailer = gpt_get_trailer
+	.metadata = gpt_metadata,
+	.nparts = 4096
 };
 
 SCHEME_DEFINE(gpt_scheme);

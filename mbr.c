@@ -41,28 +41,21 @@ static struct mkimg_alias mbr_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-mbr_get_leader(u_int parts __unused)
+static u_int
+mbr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (1);
-}
-
-static off_t
-mbr_get_trailer(u_int parts __unused)
-{
-
-	return (0);
+	secs = (where == SCHEME_META_IMG_START) ? 1 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme mbr_scheme = {
 	.name = "mbr",
 	.description = "Master Boot Record",
-	.nparts = NDOSPART,
-	.padding = 0,
 	.aliases = mbr_aliases,
-	.get_leader = mbr_get_leader,
-	.get_trailer = mbr_get_trailer
+	.metadata = mbr_metadata,
+	.nparts = NDOSPART
 };
 
 SCHEME_DEFINE(mbr_scheme);

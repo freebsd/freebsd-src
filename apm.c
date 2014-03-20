@@ -40,28 +40,21 @@ static struct mkimg_alias apm_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-apm_get_leader(u_int parts)
+static u_int
+apm_metadata(u_int where, u_int parts, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (parts + 1);
-}
-
-static off_t
-apm_get_trailer(u_int parts __unused)
-{
-
-	return (0);
+	secs = (where == SCHEME_META_IMG_START) ? parts + 1 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme apm_scheme = {
 	.name = "apm",
 	.description = "Apple Partition Map",
-	.nparts = 4096,
-	.padding = 0,
 	.aliases = apm_aliases,
-	.get_leader = apm_get_leader,
-	.get_trailer = apm_get_trailer
+	.metadata = apm_metadata,
+	.nparts = 4096
 };
 
 SCHEME_DEFINE(apm_scheme);

@@ -30,20 +30,22 @@
 #define	_MKIMG_SCHEME_H_
 
 struct mkimg_alias {
-	const char *name;
-	uintptr_t tp;
+	const char	*name;
+	uintptr_t	tp;
 #define	ALIAS_PTR(p)	(uintptr_t)(p)
 #define	ALIAS_INT(i)	(uintptr_t)(i)
 };
 
 struct mkimg_scheme {
-	const char *name;
-	const char *description;
-	int	nparts;
-	int	padding;
+	const char	*name;
+	const char	*description;
 	struct mkimg_alias *aliases;
-	off_t (*get_leader)(u_int);
-	off_t (*get_trailer)(u_int);
+	u_int		(*metadata)(u_int, u_int, u_int);
+#define	SCHEME_META_IMG_START	1
+#define	SCHEME_META_IMG_END	2
+#define	SCHEME_META_PART_BEFORE	3
+#define	SCHEME_META_PART_AFTER	4
+	int		nparts;
 };
 
 SET_DECLARE(schemes, struct mkimg_scheme);

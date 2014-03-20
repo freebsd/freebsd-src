@@ -40,32 +40,21 @@ static struct mkimg_alias ebr_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-ebr_get_leader(u_int parts __unused)
+static u_int
+ebr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (1);
-}
-
-static off_t
-ebr_get_trailer(u_int parts __unused)
-{
-
-	/*
-	 * Compensate for having reserved a sector for the EBR after
-	 * the last partition.
-	 */
-	return (-1);
+	secs = (where == SCHEME_META_PART_BEFORE) ? 1 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme ebr_scheme = {
 	.name = "ebr",
 	.description = "Extended Boot Record",
-	.nparts = 4096,
-	.padding = 1,	/* See ebr_get_trailer() above */
 	.aliases = ebr_aliases,
-	.get_leader = ebr_get_leader,
-	.get_trailer = ebr_get_trailer
+	.metadata = ebr_metadata,
+	.nparts = 4096
 };
 
 SCHEME_DEFINE(ebr_scheme);

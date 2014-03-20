@@ -99,27 +99,35 @@ scheme_max_parts(void)
 off_t
 scheme_first_offset(u_int parts)
 {
-	off_t off;
+	u_int secs;
 
-	off = scheme->get_leader(parts);
-	off *= secsz;
-	return (off);
+	secs = scheme->metadata(SCHEME_META_IMG_START, parts, secsz) +
+	    scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
+	return (secs * secsz);
 }
 
 off_t
 scheme_next_offset(off_t off, uint64_t sz)
 {
+	u_int secs;
 
 	sz = (sz + secsz - 1) & ~(secsz - 1);
-	sz += scheme->padding * secsz;
+	secs = scheme->metadata(SCHEME_META_PART_AFTER, 0, secsz) +
+	    scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
+	sz += (secs * secsz);
 	return (off + sz);
 }
 
 void
 scheme_write(int fd, off_t off)
 {
-	off_t trailer;
+	u_int secs;
 
-	trailer = scheme->get_trailer(nparts) * secsz;
-	ftruncate(fd, off + trailer);
+	/* Fixup offset: it has an extra metadata before the partition */
+	secs = scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
+	off -= (secs * secsz);
+
+	secs = scheme->metadata(SCHEME_META_IMG_END, nparts, secsz);
+	off += (secs * secsz);
+	ftruncate(fd, off);
 }

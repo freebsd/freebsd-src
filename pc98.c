@@ -41,28 +41,21 @@ static struct mkimg_alias pc98_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-pc98_get_leader(u_int parts __unused)
+static u_int
+pc98_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (2);
-}
-
-static off_t
-pc98_get_trailer(u_int parts __unused)
-{
-
-	return (0);
+	secs = (where == SCHEME_META_IMG_START) ? 2 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme pc98_scheme = {
 	.name = "pc98",
 	.description = "PC-9800 disk partitions",
-	.nparts = PC98_NPARTS,
-	.padding = 0,
 	.aliases = pc98_aliases,
-	.get_leader = pc98_get_leader,
-	.get_trailer = pc98_get_trailer
+	.metadata = pc98_metadata,
+	.nparts = PC98_NPARTS
 };
 
 SCHEME_DEFINE(pc98_scheme);

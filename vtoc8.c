@@ -41,28 +41,21 @@ static struct mkimg_alias vtoc8_aliases[] = {
     {	NULL, 0 }
 };
 
-static off_t
-vtoc8_get_leader(u_int parts __unused)
+static u_int
+vtoc8_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 {
+	u_int secs;
 
-	return (1);
-}
-
-static off_t
-vtoc8_get_trailer(u_int parts __unused)
-{
-
-	return (0);
+	secs = (where == SCHEME_META_IMG_START) ? 1 : 0;
+	return (secs);
 }
 
 static struct mkimg_scheme vtoc8_scheme = {
 	.name = "vtoc8",
 	.description = "SMI VTOC8 disk labels",
-	.nparts = VTOC8_NPARTS,
-	.padding = 0,
 	.aliases = vtoc8_aliases,
-	.get_leader = vtoc8_get_leader,
-	.get_trailer = vtoc8_get_trailer
+	.metadata = vtoc8_metadata,
+	.nparts = VTOC8_NPARTS
 };
 
 SCHEME_DEFINE(vtoc8_scheme);
