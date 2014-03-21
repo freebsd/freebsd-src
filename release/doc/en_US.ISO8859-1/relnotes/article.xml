@@ -152,6 +152,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262988">TTM, a memory manager used by video
+	drivers, has been merged.</para>
+
       <para revision="263103">Support for
 	<literal>/sys/kernel/random/uuid</literal> has been added
 	to &man.linprocfs.5;.</para>
