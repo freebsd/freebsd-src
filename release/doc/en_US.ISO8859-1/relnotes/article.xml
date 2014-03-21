@@ -216,6 +216,10 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="260252">The &man.bxe.4; driver has been
+	    merged from <literal>head/</literal>, providing support
+	    for Broadcom NetXtreme II 10Gb PCIe adapters.</para>
+
 	  <para revision="261865">The &man.run.4; driver has been
 	    updated to include support for the MediaTek/Ralink RT3593
 	    chipset.</para>
