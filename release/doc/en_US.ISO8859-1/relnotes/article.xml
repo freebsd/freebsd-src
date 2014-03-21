@@ -248,6 +248,11 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262160">Receiving a &man.zfs.8; dataset with
+	<command>zfs recv -F</command> now properly destroys any
+	snapshots that were created since the incremental source
+	snapshot.</para>
+
       <para revision="262706"><application>BIND</application> has
 	been updated to version 9.9.5.</para>
 
