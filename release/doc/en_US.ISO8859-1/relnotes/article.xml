@@ -98,6 +98,13 @@
 
 	  <tbody>
 	    <row>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:01.bsnmpd.asc">FreeBSD-SA-14:01.bsnmpd</link></entry>
+	      <entry>1&nbsp;January&nbsp;2014</entry>
+	      <entry><para>Fix &man.bsnmpd.1; remote denial of service
+		  vulnerability</para></entry>
+	    </row>
+
+	    <row>
 	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:02.ntpd.asc">FreeBSD-SA-14:02.ntpd</link></entry>
 	      <entry>1&nbsp;January&nbsp;2014</entry>
 	      <entry><para>Disable <quote>monitor</quote> feature in
