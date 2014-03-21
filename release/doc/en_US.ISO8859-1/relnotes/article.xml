@@ -926,6 +926,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263421"><application>OpenPAM</application> has
+	been updated to Nummularia (20130907), which incorporates
+	several bug fixes and documentation improvements.</para>
+
       <para revision="238481">&man.auth.conf.5; has been removed
 	because it was deprecated years ago.</para>
 
