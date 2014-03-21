@@ -293,8 +293,8 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
-      <para revision="259406">Several updates to &man.gcc.1; have
-	been imported from Google.</para>
+      <para revision="259269,259406">Several updates to &man.gcc.1;
+	have been imported from Google.</para>
 
       <para revision="259448">A byte-order bug in the Heimdal
 	<literal>gss_pseudo_random()</literal> function which would
