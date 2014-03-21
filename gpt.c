@@ -169,9 +169,10 @@ gpt_write_pmbr(int fd, off_t nblocks, u_int secsz)
 static struct gpt_ent *
 gpt_mktbl(u_int tblsz, u_int secsz)
 {
+	uuid_t uuid;
 	struct gpt_ent *tbl, *ent;
 	struct part *part;
-	uint64_t partsize;
+	uint64_t limit;
 
 	tbl = calloc(tblsz, secsz);
 	if (tbl == NULL)
@@ -179,12 +180,12 @@ gpt_mktbl(u_int tblsz, u_int secsz)
 
 	STAILQ_FOREACH(part, &partlist, link) {
 		ent = tbl + part->index;
-		memcpy(&ent->ent_type, ALIAS_TYPE2PTR(part->type),
-		    sizeof(uuid_t));
-		uuidgen(&ent->ent_uuid, 1);
-		ent->ent_lba_start = part->offset / secsz;
-		partsize = part->size / secsz;
-		ent->ent_lba_end =  ent->ent_lba_start + partsize - 1;
+		uuid_enc_le(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
+		uuidgen(&uuid, 1);
+		uuid_enc_le(&ent->ent_uuid, &uuid);
+		le64enc(&ent->ent_lba_start, part->offset / secsz);
+		limit = (part->offset + part->size) / secsz;
+		le64enc(&ent->ent_lba_end, limit - 1);
 		/* TODO add support for labels */
 	}
 	return (tbl);
@@ -194,21 +195,25 @@ static int
 gpt_write_hdr(int fd, struct gpt_hdr *hdr, uint64_t self, uint64_t alt,
     uint64_t tbl, u_int secsz)
 {
+	uint32_t crc;
 
-	hdr->hdr_lba_self = self;
-	hdr->hdr_lba_alt = alt;
-	hdr->hdr_lba_table = tbl;
+	le64enc(&hdr->hdr_lba_self, self);
+	le64enc(&hdr->hdr_lba_alt, alt);
+	le64enc(&hdr->hdr_lba_table, tbl);
 	hdr->hdr_crc_self = 0;
-	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+	crc = crc32(hdr, offsetof(struct gpt_hdr, padding));
+	le64enc(&hdr->hdr_crc_self, crc);
 	return (gpt_filewrite(fd, self * secsz, hdr, secsz));
 }
 
 static int
 gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
 {
+	uuid_t uuid;
 	struct gpt_ent *tbl;
 	struct gpt_hdr *hdr;
 	off_t nblocks;
+	uint32_t crc;
 	u_int tblsz;
 	int error;
 
@@ -240,14 +245,16 @@ gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
 	}
 	memset(hdr, 0, secsz);
 	memcpy(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig));
-	hdr->hdr_revision = GPT_HDR_REVISION;
-	hdr->hdr_size = offsetof(struct gpt_hdr, padding);
-	hdr->hdr_lba_start = 2 + tblsz;
-	hdr->hdr_lba_end = nblocks - tblsz - 2;
-	uuidgen(&hdr->hdr_uuid, 1);
-	hdr->hdr_entries = parts;
-	hdr->hdr_entsz = sizeof(struct gpt_ent);
-	hdr->hdr_crc_table = crc32(tbl, hdr->hdr_entries * hdr->hdr_entsz);
+	le32enc(&hdr->hdr_revision, GPT_HDR_REVISION);
+	le32enc(&hdr->hdr_size, offsetof(struct gpt_hdr, padding));
+	le64enc(&hdr->hdr_lba_start, 2 + tblsz);
+	le64enc(&hdr->hdr_lba_end, nblocks - tblsz - 2);
+	uuidgen(&uuid, 1);
+	uuid_enc_le(&hdr->hdr_uuid, &uuid);
+	le32enc(&hdr->hdr_entries, parts);
+	le32enc(&hdr->hdr_entsz, sizeof(struct gpt_ent));
+	crc = crc32(tbl, parts * sizeof(struct gpt_ent));
+	le32enc(&hdr->hdr_crc_table, crc);
 	error = gpt_write_hdr(fd, hdr, 1, nblocks - 1, 2, secsz);
 	if (!error)
 		error = gpt_write_hdr(fd, hdr, nblocks - 1, 1,
