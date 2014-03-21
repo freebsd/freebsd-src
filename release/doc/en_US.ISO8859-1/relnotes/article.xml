@@ -276,6 +276,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="261375"><application>Sendmail</application> has
+	been updated to version 8.14.8.</para>
+
       <para revision="261674">A bug that could trigger an infinite
 	loop in KDE and X has been fixed.</para>
 
