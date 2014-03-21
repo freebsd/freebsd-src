@@ -152,6 +152,11 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262153">The &man.netmap.4; framework has been
+	updated to match the version in <literal>head/</literal>,
+	which includes netmap pipes, kqueue support, and enhanced
+	VALE switch port.</para>
+
       <para revision="262175">A deadlock triggered by sending
 	a mounted &man.zfs.8; snapshot has been fixed.</para>
 
