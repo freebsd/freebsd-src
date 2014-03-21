@@ -510,22 +510,6 @@ ext2_dirpref(struct inode *pip)
 	 * Limit number of dirs in one cg and reserve space for 
 	 * regular files, but only if we have no deficit in
 	 * inodes or space.
-	 *
-	 * We are trying to find a suitable cylinder group nearby
-	 * our preferred cylinder group to place a new directory.
-	 * We scan from our preferred cylinder group forward looking
-	 * for a cylinder group that meets our criterion. If we get
-	 * to the final cylinder group and do not find anything,
-	 * we start scanning backwards from our preferred cylinder
-	 * group. The ideal would be to alternate looking forward
-	 * and backward, but that is just too complex to code for
-	 * the gain it would get. The most likely place where the
-	 * backward scan would take effect is when we start near
-	 * the end of the filesystem and do not find anything from
-	 * where we are to the end. In that case, scanning backward
-	 * will likely find us a suitable cylinder group much closer
-	 * to our desired location than if we were to start scanning
-	 * forward from the beginning of the filesystem.
 	 */
 	prefcg = ino_to_cg(fs, pip->i_number);
 	for (cg = prefcg; cg < fs->e2fs_gcount; cg++)
@@ -535,7 +519,7 @@ ext2_dirpref(struct inode *pip)
 			if (fs->e2fs_contigdirs[cg] < maxcontigdirs)
 				return (cg);
 		}
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_ndirs < maxndir &&
 		    fs->e2fs_gd[cg].ext2bgd_nifree >= minifree &&
 		    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
@@ -548,7 +532,7 @@ ext2_dirpref(struct inode *pip)
 	for (cg = prefcg; cg < fs->e2fs_gcount; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree)
 			return (cg);
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree)
 			break;
 	return (cg);
