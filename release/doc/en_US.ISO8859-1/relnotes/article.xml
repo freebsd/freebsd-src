@@ -276,6 +276,11 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260651">The &man.find.1; utility has been
+	updated to fix incorrect behavior with the
+	<literal>-lname</literal> and <literal>-ilname</literal>
+	flags.</para>
+
       <para revision="260868,260869">The
 	<literal>hw.uart.console</literal> is now always updated when
 	the comconsole setup changes.</para>
