@@ -221,7 +221,7 @@ ddp_route(struct mbuf *m, struct route *ro)
 		elh->el_type = ELAP_DDPEXTEND;
 		elh->el_dnode = gate.sat_addr.s_node;
 	}
-	ro->ro_rt->rt_use++;
+	counter_u64_add(ro->ro_rt->rt_pksent, 1);
 
 #ifdef NETATALK_DEBUG
 	printf ("ddp_route: from %d.%d to %d.%d, via %d.%d (%s)\n",

@@ -85,7 +85,7 @@ rn_mpath_count(struct radix_node *rn)
 	
 	while (rn != NULL) {
 		rt = (struct rtentry *)rn;
-		i += rt->rt_rmx.rmx_weight;
+		i += rt->rt_weight;
 		rn = rn_mpath_next(rn);
 	}
 	return (i);
@@ -288,8 +288,8 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 	hash += hashjitter;
 	hash %= n;
 	for (weight = abs((int32_t)hash), rt = ro->ro_rt;
-	     weight >= rt->rt_rmx.rmx_weight && rn; 
-	     weight -= rt->rt_rmx.rmx_weight) {
+	     weight >= rt->rt_weight && rn; 
+	     weight -= rt->rt_weight) {
 		
 		/* stay within the multipath routes */
 		if (rn->rn_dupedkey && rn->rn_mask != rn->rn_dupedkey->rn_mask)

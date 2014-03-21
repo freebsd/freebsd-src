@@ -1471,7 +1471,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 
 	if (error == EMSGSIZE && ro.ro_rt)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		mtu = ro.ro_rt->rt_mtu;
 	RO_RTFREE(&ro);
 
 	if (error)

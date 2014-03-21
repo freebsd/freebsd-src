@@ -749,6 +749,19 @@ kread(u_long addr, void *buf, size_t size)
 }
 
 /*
+ * Read single counter(9).
+ */
+uint64_t
+kread_counter(u_long addr)
+{
+
+	if (kvmd_init() < 0)
+		return (-1);
+
+	return (kvm_counter_u64_fetch(kvmd, addr));
+}
+
+/*
  * Read an array of N counters in kernel memory into array of N uint64_t's.
  */
 int

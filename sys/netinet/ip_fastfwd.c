@@ -491,8 +491,7 @@ passout:
 	 * Check if route is dampned (when ARP is unable to resolve)
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
-	    (ro.ro_rt->rt_rmx.rmx_expire == 0 ||
-	    time_uptime < ro.ro_rt->rt_rmx.rmx_expire)) {
+	    (ro.ro_rt->rt_expire == 0 || time_uptime < ro.ro_rt->rt_expire)) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
@@ -520,8 +519,8 @@ passout:
 	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
-	if (ro.ro_rt->rt_rmx.rmx_mtu)
-		mtu = min(ro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+	if (ro.ro_rt->rt_mtu)
+		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
 	else
 		mtu = ifp->if_mtu;
 
@@ -586,7 +585,7 @@ passout:
 	if (error != 0)
 		IPSTAT_INC(ips_odropped);
 	else {
-		ro.ro_rt->rt_rmx.rmx_pksent++;
+		counter_u64_add(ro.ro_rt->rt_pksent, 1);
 		IPSTAT_INC(ips_forward);
 		IPSTAT_INC(ips_fastforward);
 	}

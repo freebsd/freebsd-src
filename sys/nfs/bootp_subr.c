@@ -342,7 +342,7 @@ bootpboot_p_rtentry(struct rtentry *rt)
 	bootpboot_p_sa(rt->rt_gateway, NULL);
 	printf(" ");
 	printf("flags %x", (unsigned short) rt->rt_flags);
-	printf(" %d", (int) rt->rt_rmx.rmx_expire);
+	printf(" %d", (int) rt->rt_expire);
 	printf(" %s\n", rt->rt_ifp->if_xname);
 }
 

@@ -296,7 +296,7 @@ again:
 		}
 		ia = ifatoia(rte->rt_ifa);
 		ifp = rte->rt_ifp;
-		rte->rt_rmx.rmx_pksent++;
+		counter_u64_add(rte->rt_pksent, 1);
 		if (rte->rt_flags & RTF_GATEWAY)
 			gw = (struct sockaddr_in *)rte->rt_gateway;
 		if (rte->rt_flags & RTF_HOST)
@@ -316,9 +316,9 @@ again:
 		 * them, there is no way for one to update all its
 		 * routes when the MTU is changed.
 		 */
-		if (rte->rt_rmx.rmx_mtu > ifp->if_mtu)
-			rte->rt_rmx.rmx_mtu = ifp->if_mtu;
-		mtu = rte->rt_rmx.rmx_mtu;
+		if (rte->rt_mtu > ifp->if_mtu)
+			rte->rt_mtu = ifp->if_mtu;
+		mtu = rte->rt_mtu;
 	} else {
 		mtu = ifp->if_mtu;
 	}
