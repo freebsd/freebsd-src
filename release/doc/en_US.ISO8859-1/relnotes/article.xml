@@ -339,7 +339,7 @@
       <title>Upgrading using &man.freebsd-update.8; or a source-based
 	procedure</title>
 
-      <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE, binary
+      <para arch="amd64,i386">Binary
 	upgrades between RELEASE versions (and snapshots of the
 	various security branches) are supported using the
 	&man.freebsd-update.8; utility.  The binary upgrade procedure
