@@ -125,6 +125,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="259002">A kernel panic when listing sysctls
+	on a system with <literal>INVARIANTS</literal> enabled has
+	been fixed.</para>
+
       <para revision="259466">A new &man.sysctl.8;,
 	<literal>kern.supported_archs</literal> has been added,
 	which will list the <envar>MACHINE_ARCH</envar> values
