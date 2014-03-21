@@ -226,6 +226,10 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="261933">The &man.run.4; driver has been
+	    updated to include support for the DLINK DWA-127 wireless
+	    adapter.</para>
+
 	  <para revision="262153">The &man.axge.4; driver has been
 	    added.</para>
 
