@@ -252,6 +252,14 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260507">The &man.gmirror.8; utility now prevents
+	deactivating the last component of a mirror.</para>
+
+      <para revision="260507">A new &man.gmirror.8; command,
+	<command>gmirror destroy</command>, has been added, which will
+	destroy the &man.geom.8; and erase the &man.gmirror.8;
+	metadata.</para>
+
       <para revision="260650">The &man.etcupdate.8; utility, a tool
 	for managing updates to files in <filename
 	  class="directory">/etc</filename>, has been merged from
