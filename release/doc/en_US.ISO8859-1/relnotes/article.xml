@@ -293,6 +293,13 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="259448">A byte-order bug in the Heimdal
+	<literal>gss_pseudo_random()</literal> function which would
+	prevent interoperability with other
+	<application>Kerberos</application> implementations.
+	In particular, this would prevent interoperability with the
+	MIT implementation.</para>
+
       <para revision="260007">The &man.hastctl.8; utility has been
 	updated to output the current queue sizes.</para>
 
