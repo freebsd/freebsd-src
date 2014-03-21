@@ -98,51 +98,10 @@
 
 	  <tbody>
 	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc">SA-12:01.openssl</link></entry>
-	      <entry>3&nbsp;May&nbsp;2012</entry>
-	      <entry><para>OpenSSL multiple vulnerabilities</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc">SA-12:02.crypt</link></entry>
-	      <entry>30&nbsp;May&nbsp;2012</entry>
-	      <entry><para>Incorrect <function>crypt()</function> hashing</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc">SA-12:03.bind</link></entry>
-	      <entry>12&nbsp;June&nbsp;2012</entry>
-	      <entry><para>Incorrect handling of zero-length RDATA fields in &man.named.8;</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc">SA-12:04.sysret</link></entry>
-	      <entry>12&nbsp;June&nbsp;2012</entry>
-	      <entry><para>Privilege escalation when returning from kernel</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc">SA-12:05.bind</link></entry>
-	      <entry>6&nbsp;August&nbsp;2012</entry>
-	      <entry><para>&man.named.8; DNSSEC validation Denial of Service</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc">SA-12:06.bind</link></entry>
-	      <entry>22&nbsp;November&nbsp;2012</entry>
-	      <entry><para>Multiple Denial of Service vulnerabilities with &man.named.8;</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc">SA-12:07.hostapd</link></entry>
-	      <entry>22&nbsp;November&nbsp;2012</entry>
-	      <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
-	    </row>
-
-	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc">SA-12:08.linux</link></entry>
-	      <entry>22&nbsp;November&nbsp;2012</entry>
-	      <entry><para>Linux compatibility layer input validation error</para></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:04.bind.asc">FreeBSD-SA-14:04.bind</link></entry>
+	      <entry>1&nbsp;January&nbsp;2014</entry>
+	      <entry><para>Remote denial of service
+		  vulnerability</para></entry>
 	    </row>
 	  </tbody>
 	</tgroup>
