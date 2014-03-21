@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/radix.h>
+#define	_WANT_RTENTRY
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -181,7 +182,7 @@ routepr(int fibnum, int af)
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
-	 * directly we should do rt_rmx.rmx_expire --> expire_time conversion.
+	 * directly we should do rt_expire --> expire_time conversion.
 	 */
 	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
 		err(EX_OSERR, "clock_gettime() failed");
@@ -256,8 +257,7 @@ pr_family(int af1)
 static int wid_dst;
 static int wid_gw;
 static int wid_flags;
-static int wid_refs;
-static int wid_use;
+static int wid_pksent;
 static int wid_mtu;
 static int wid_if;
 static int wid_expire;
@@ -268,8 +268,7 @@ size_cols(int ef, struct radix_node *rn)
 	wid_dst = WID_DST_DEFAULT(ef);
 	wid_gw = WID_GW_DEFAULT(ef);
 	wid_flags = 6;
-	wid_refs = 6;
-	wid_use = 8;
+	wid_pksent = 8;
 	wid_mtu = 6;
 	wid_if = WID_IF_DEFAULT(ef);
 	wid_expire = 6;
@@ -329,16 +328,10 @@ size_cols_rtentry(struct rtentry *rt)
 	len = strlen(bp);
 	wid_flags = MAX(len, wid_flags);
 
-	if (addr.u_sa.sa_family == AF_INET || Wflag) {
-		len = snprintf(buffer, sizeof(buffer), "%d", rt->rt_refcnt);
-		wid_refs = MAX(len, wid_refs);
-		len = snprintf(buffer, sizeof(buffer), "%lu", rt->rt_use);
-		wid_use = MAX(len, wid_use);
-		if (Wflag && rt->rt_rmx.rmx_mtu != 0) {
-			len = snprintf(buffer, sizeof(buffer),
-				       "%lu", rt->rt_rmx.rmx_mtu);
-			wid_mtu = MAX(len, wid_mtu);
-		}
+	if (Wflag) {
+		len = snprintf(buffer, sizeof(buffer), "%lu",
+		    kread_counter((u_long )rt->rt_pksent));
+		wid_pksent = MAX(len, wid_pksent);
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
@@ -349,11 +342,11 @@ size_cols_rtentry(struct rtentry *rt)
 			lastif = rt->rt_ifp;
 			wid_if = MAX(len, wid_if);
 		}
-		if (rt->rt_rmx.rmx_expire) {
+		if (rt->rt_expire) {
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0) {
+			    rt->rt_expire - uptime.tv_sec) > 0) {
 				len = snprintf(buffer, sizeof(buffer), "%d",
 					       (int)expire_time);
 				wid_expire = MAX(len, wid_expire);
@@ -373,10 +366,11 @@ pr_rthdr(int af1)
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	if (Wflag) {
-		printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*s\n",
+		printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*s\n",
 			wid_dst,	wid_dst,	"Destination",
 			wid_gw,		wid_gw,		"Gateway",
 			wid_flags,	wid_flags,	"Flags",
+			wid_pksent,	wid_pksent,	"Use",
 			wid_mtu,	wid_mtu,	"Mtu",
 			wid_if,		wid_if,		"Netif",
 			wid_expire,			"Expire");
@@ -661,6 +655,8 @@ p_rtentry_sysctl(struct rt_msghdr *rtm)
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rtm->rtm_flags, buffer);
 	if (Wflag) {
+		printf("%*lu ", wid_pksent, rtm->rtm_rmx.rmx_pksent);
+
 		if (rtm->rtm_rmx.rmx_mtu != 0)
 			printf("%*lu ", wid_mtu, rtm->rtm_rmx.rmx_mtu);
 		else
@@ -870,17 +866,14 @@ p_rtentry_kvm(struct rtentry *rt)
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, wid_gw);
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rt->rt_flags, buffer);
-	if (addr.u_sa.sa_family == AF_INET || Wflag) {
-#if 0
-		printf("%*d %*lu ", wid_refs, rt->rt_refcnt,
-				     wid_use, rt->rt_use);
-#endif
-		if (Wflag) {
-			if (rt->rt_rmx.rmx_mtu != 0)
-				printf("%*lu ", wid_mtu, rt->rt_rmx.rmx_mtu);
-			else
-				printf("%*s ", wid_mtu, "");
-		}
+	if (Wflag) {
+		printf("%*lu ", wid_pksent,
+		    kread_counter((u_long )rt->rt_pksent));
+
+		if (rt->rt_mtu != 0)
+			printf("%*lu ", wid_mtu, rt->rt_mtu);
+		else
+			printf("%*s ", wid_mtu, "");
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
@@ -892,11 +885,11 @@ p_rtentry_kvm(struct rtentry *rt)
 			lastif = rt->rt_ifp;
 		}
 		printf("%*.*s", wid_if, wid_if, prettyname);
-		if (rt->rt_rmx.rmx_expire) {
+		if (rt->rt_expire) {
 			time_t expire_time;
 
 			if ((expire_time =
-			    rt->rt_rmx.rmx_expire - uptime.tv_sec) > 0)
+			    rt->rt_expire - uptime.tv_sec) > 0)
 				printf(" %*d", wid_expire, (int)expire_time);
 		}
 		if (rt->rt_nodes[0].rn_dupedkey)

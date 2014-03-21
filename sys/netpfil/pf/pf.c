@@ -5267,7 +5267,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		}
 
 		ifp = rt->rt_ifp;
-		rt->rt_rmx.rmx_pksent++;
+		counter_u64_add(rt->rt_pksent, 1);
 
 		if (rt->rt_flags & RTF_GATEWAY)
 			bcopy(satosin(rt->rt_gateway), &dst, sizeof(dst));

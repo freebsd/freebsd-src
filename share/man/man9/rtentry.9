@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2008
+.Dd March 5, 2014
 .Dt RTENTRY 9
 .Os
 .Sh NAME
@@ -78,6 +78,12 @@ intermediate stop on the way to that destination (if the
 flag is set).
 .It Vt "int rt_flags" ;
 See below.
+If the
+.Dv RTF_UP
+flag is not present, the
+.Fn rtfree
+function will delete the route from the radix tree when the last
+reference drops.
 .It Vt "int rt_refcnt" ;
 Route entries are reference-counted; this field indicates the number
 of external (to the radix tree) references.
@@ -89,14 +95,14 @@ as it were, to the question posed by a route lookup; that is, they
 name the interface and interface address to be used in sending a
 packet to the destination or set of destinations which this route
 represents.
-.It Vt "struct rt_metrics_lite rt_rmx" ;
-See below.
-If the
-.Dv RTF_UP
-flag is not present, the
-.Fn rtfree
-function will delete the route from the radix tree when the last
-reference drops.
+.It Vt "u_long rt_mtu";
+See description of rmx_mtu below.
+.It Vt "u_long rt_weight";
+See description of rmx_weight below.
+.It Vt "u_long rt_expire";
+See description of rmx_expire below.
+.It Vt "counter64_t rt_pksent";
+See description of rmx_pksent below.
 .It Vt "struct rtentry *rt_gwroute" ;
 This member is a reference to a route whose destination is
 .Va rt_gateway .
@@ -165,9 +171,7 @@ Indicates that the destination is a broadcast address.
 Indicates that the destination is a multicast address.
 .El
 .Pp
-Every route has associated with it a set of metrics, stored in
-.Vt "struct rt_metrics_lite" .
-Metrics are supplied in
+Several metrics are supplied in
 .Vt "struct rt_metrics"
 passed with routing control messages via
 .Xr route 4
@@ -176,8 +180,7 @@ Currently only
 .Vt rmx_mtu , rmx_expire ,
 and
 .Vt rmx_pksent
-metrics are used in
-.Vt "struct rt_metrics_lite" .
+metrics are supplied.
 All others are ignored.
 .Pp
 The following metrics are defined by

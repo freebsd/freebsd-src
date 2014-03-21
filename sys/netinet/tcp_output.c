@@ -1195,7 +1195,7 @@ send:
 		    NULL, NULL, tp->t_inpcb);
 
 		if (error == EMSGSIZE && ro.ro_rt != NULL)
-			mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+			mtu = ro.ro_rt->rt_mtu;
 		RO_RTFREE(&ro);
 	}
 #endif /* INET6 */
@@ -1233,7 +1233,7 @@ send:
 	    tp->t_inpcb);
 
 	if (error == EMSGSIZE && ro.ro_rt != NULL)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		mtu = ro.ro_rt->rt_mtu;
 	RO_RTFREE(&ro);
     }
 #endif /* INET */
