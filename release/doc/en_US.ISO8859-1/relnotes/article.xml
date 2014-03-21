@@ -228,6 +228,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263032">The <literal>libucl</literal> library
+	a JSON-compatible configuration file parsing library,has been
+	imported.</para>
+
       <para revision="263038">The &man.pkg.7; package management
 	utility has been syncronized with <literal>head/</literal>.
 	This implements binary package signature verification when
