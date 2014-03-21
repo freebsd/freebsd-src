@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/_limits.h>
+#include <x86/_limits.h>
