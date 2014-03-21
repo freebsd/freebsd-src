@@ -152,6 +152,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="263128">A memory leak in the
+	<literal>zpool_in_use()</literal> function has been
+	fixed.</para>
+
       <para revision="263170,263171">The Radeon KMS driver has been
 	added.</para>
 
