@@ -209,6 +209,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263406">A new flag, <literal>-p</literal>, has
+	been added to the &man.zfs.8; <literal>list</literal> command,
+	providing output in a parseable form.</para>
+
       <para revision="263421"><application>OpenPAM</application> has
 	been updated to Nummularia (20130907), which incorporates
 	several bug fixes and documentation improvements.  The
