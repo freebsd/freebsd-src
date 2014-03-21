@@ -39,8 +39,38 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+static struct {
+	const char *name;
+	enum alias alias;
+} scheme_alias[] = {
+	{ "efi", ALIAS_EFI },
+	{ "freebsd", ALIAS_FREEBSD },
+	{ "freebsd-boot", ALIAS_FREEBSD_BOOT },
+	{ "freebsd-nandfs", ALIAS_FREEBSD_NANDFS },
+	{ "freebsd-swap", ALIAS_FREEBSD_SWAP },
+	{ "freebsd-ufs", ALIAS_FREEBSD_UFS },
+	{ "freebsd-vinum", ALIAS_FREEBSD_VINUM },
+	{ "freebsd-zfs", ALIAS_FREEBSD_ZFS },
+	{ "mbr", ALIAS_MBR },
+	{ NULL, ALIAS_NONE }		/* Keep last! */
+};
+
 static struct mkimg_scheme *scheme;
 static u_int secsz = 512;
+
+static enum alias
+scheme_parse_alias(const char *name)
+{
+	u_int idx;
+
+	idx = 0;
+	while (scheme_alias[idx].name != NULL) {
+		if (strcasecmp(scheme_alias[idx].name, name) == 0)
+			return (scheme_alias[idx].alias);
+		idx++;
+	}
+	return (ALIAS_NONE);
+}
 
 int
 scheme_select(const char *spec)
@@ -67,30 +97,32 @@ scheme_selected(void)
 int
 scheme_check_part(struct part *p)
 {
-	struct mkimg_alias *alias, *iter;
+	struct mkimg_alias *iter;
+	enum alias alias;
 
 	warnx("part(%s): index=%u, type=`%s', offset=%ju, size=%ju",
 	    scheme->name, p->index, p->alias, (uintmax_t)p->offset,
 	    (uintmax_t)p->size);
 
 	/* Check the partition type alias */
-	alias = NULL;
+	alias = scheme_parse_alias(p->alias);
+	if (alias == ALIAS_NONE)
+		return (EINVAL);
+
 	iter = scheme->aliases;
-	while (iter->name != NULL) {
-		if (strcasecmp(p->alias, iter->name) == 0) {
-			alias = iter;
+	while (iter->alias != ALIAS_NONE) {
+		if (alias == iter->alias)
 			break;
-		}
 		iter++;
 	}
-	if (alias == NULL)
+	if (iter->alias == ALIAS_NONE)
 		return (EINVAL);
 	p->type = iter->type;
 
 	/* Validate the optional label. */
 	if (p->label != NULL) {
 		if (strlen(p->label) > scheme->labellen)
-			return (EOPNOTSUPP);
+			return (EINVAL);
 	}
 
 	return (0);

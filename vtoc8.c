@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "scheme.h"
 
 static struct mkimg_alias vtoc8_aliases[] = {
-    {	NULL, 0 }
+    {	ALIAS_NONE, 0 }
 };
 
 static u_int

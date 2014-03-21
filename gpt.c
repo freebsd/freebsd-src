@@ -43,10 +43,26 @@ __FBSDID("$FreeBSD$");
 #include "scheme.h"
 
 static uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
+static uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
+static uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
+static uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+static uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+static uuid_t gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+static uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static uuid_t gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 
 static struct mkimg_alias gpt_aliases[] = {
-    {	"efi", ALIAS_PTR2TYPE(&gpt_uuid_efi) },
-    {	NULL, 0 }
+    {	ALIAS_EFI, ALIAS_PTR2TYPE(&gpt_uuid_efi) },
+    {	ALIAS_FREEBSD, ALIAS_PTR2TYPE(&gpt_uuid_freebsd) },
+    {	ALIAS_FREEBSD_BOOT, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_boot) },
+    {	ALIAS_FREEBSD_NANDFS, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_nandfs) },
+    {	ALIAS_FREEBSD_SWAP, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_swap) },
+    {	ALIAS_FREEBSD_UFS, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_ufs) },
+    {	ALIAS_FREEBSD_VINUM, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_vinum) },
+    {	ALIAS_FREEBSD_ZFS, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_zfs) },
+    {	ALIAS_MBR, ALIAS_PTR2TYPE(&gpt_uuid_mbr) },
+    {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 
 /* CRC32 code derived from work by Gary S. Brown. */

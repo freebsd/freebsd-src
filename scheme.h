@@ -31,8 +31,24 @@
 
 #include <sys/linker_set.h>
 
+enum alias {
+	ALIAS_NONE,		/* Keep first! */
+	/* start */
+	ALIAS_EFI,
+	ALIAS_FREEBSD,
+	ALIAS_FREEBSD_BOOT,
+	ALIAS_FREEBSD_NANDFS,
+	ALIAS_FREEBSD_SWAP,
+	ALIAS_FREEBSD_UFS,
+	ALIAS_FREEBSD_VINUM,
+	ALIAS_FREEBSD_ZFS,
+	ALIAS_MBR,
+	/* end */
+	ALIAS_COUNT		/* Keep last! */
+};
+
 struct mkimg_alias {
-	const char	*name;
+	u_int		alias;
 	uintptr_t	type;
 #define	ALIAS_PTR2TYPE(p)	(uintptr_t)(p)
 #define	ALIAS_INT2TYPE(i)	(i)
