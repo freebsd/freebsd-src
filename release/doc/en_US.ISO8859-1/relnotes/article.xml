@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="260082">A kernel panic triggered by some
+	multi-threaded applications has been fixed.</para>
+
       <para revision="260134">The &man.runfw.4; firmware has been
 	renamed from <literal>runfw</literal> to
 	<literal>run.fw</literal> for consistency with other firmware
