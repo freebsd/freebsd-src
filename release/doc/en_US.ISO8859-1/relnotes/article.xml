@@ -264,6 +264,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260197">The &man.ps.1; utility will no longer
+	truncate the <literal>command</literal> output column.</para>
+
       <para revision="260208">The &man.protect.1; command has been
 	added, which allows exempting processes from being killed
 	when swap is exhausted.</para>
