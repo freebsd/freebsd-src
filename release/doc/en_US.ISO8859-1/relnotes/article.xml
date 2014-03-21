@@ -233,6 +233,11 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="259460">The &man.usb.4; wireless radiotap
+	    headers have been realigned, allowing wireless adapters
+	    to work on &arch.arm;, &arch.mips;, and other similar
+	    platforms where alignment is important.</para>
+
 	  <para revision="260119">The &man.run.4; firmware has been
 	    updated to version 0.33.</para>
 
