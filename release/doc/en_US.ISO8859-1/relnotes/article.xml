@@ -248,6 +248,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262158">A bug that would allow creating
+	a &man.zfs.8; snapshot of an inconsistent dataset has been
+	fixed.</para>
+
       <para revision="262160">Receiving a &man.zfs.8; dataset with
 	<command>zfs recv -F</command> now properly destroys any
 	snapshots that were created since the incremental source
