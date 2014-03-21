@@ -86,7 +86,7 @@ namespace {
     void ProcessPHI(MachineInstr *MI, MachineBasicBlock *TailBB,
                     MachineBasicBlock *PredBB,
                     DenseMap<unsigned, unsigned> &LocalVRMap,
-                    SmallVector<std::pair<unsigned,unsigned>, 4> &Copies,
+                    SmallVectorImpl<std::pair<unsigned,unsigned> > &Copies,
                     const DenseSet<unsigned> &UsedByPhi,
                     bool Remove);
     void DuplicateInstruction(MachineInstr *MI,
@@ -96,7 +96,7 @@ namespace {
                               DenseMap<unsigned, unsigned> &LocalVRMap,
                               const DenseSet<unsigned> &UsedByPhi);
     void UpdateSuccessorsPHIs(MachineBasicBlock *FromBB, bool isDead,
-                              SmallVector<MachineBasicBlock*, 8> &TDBBs,
+                              SmallVectorImpl<MachineBasicBlock *> &TDBBs,
                               SmallSetVector<MachineBasicBlock*, 8> &Succs);
     bool TailDuplicateBlocks(MachineFunction &MF);
     bool shouldTailDuplicate(const MachineFunction &MF,
@@ -104,14 +104,14 @@ namespace {
     bool isSimpleBB(MachineBasicBlock *TailBB);
     bool canCompletelyDuplicateBB(MachineBasicBlock &BB);
     bool duplicateSimpleBB(MachineBasicBlock *TailBB,
-                           SmallVector<MachineBasicBlock*, 8> &TDBBs,
+                           SmallVectorImpl<MachineBasicBlock *> &TDBBs,
                            const DenseSet<unsigned> &RegsUsedByPhi,
-                           SmallVector<MachineInstr*, 16> &Copies);
+                           SmallVectorImpl<MachineInstr *> &Copies);
     bool TailDuplicate(MachineBasicBlock *TailBB,
                        bool IsSimple,
                        MachineFunction &MF,
-                       SmallVector<MachineBasicBlock*, 8> &TDBBs,
-                       SmallVector<MachineInstr*, 16> &Copies);
+                       SmallVectorImpl<MachineBasicBlock *> &TDBBs,
+                       SmallVectorImpl<MachineInstr *> &Copies);
     bool TailDuplicateAndUpdate(MachineBasicBlock *MBB,
                                 bool IsSimple,
                                 MachineFunction &MF);
@@ -382,13 +382,11 @@ void TailDuplicatePass::AddSSAUpdateEntry(unsigned OrigReg, unsigned NewReg,
 /// ProcessPHI - Process PHI node in TailBB by turning it into a copy in PredBB.
 /// Remember the source register that's contributed by PredBB and update SSA
 /// update map.
-void TailDuplicatePass::ProcessPHI(MachineInstr *MI,
-                                   MachineBasicBlock *TailBB,
-                                   MachineBasicBlock *PredBB,
-                                   DenseMap<unsigned, unsigned> &LocalVRMap,
-                           SmallVector<std::pair<unsigned,unsigned>, 4> &Copies,
-                                   const DenseSet<unsigned> &RegsUsedByPhi,
-                                   bool Remove) {
+void TailDuplicatePass::ProcessPHI(
+    MachineInstr *MI, MachineBasicBlock *TailBB, MachineBasicBlock *PredBB,
+    DenseMap<unsigned, unsigned> &LocalVRMap,
+    SmallVectorImpl<std::pair<unsigned, unsigned> > &Copies,
+    const DenseSet<unsigned> &RegsUsedByPhi, bool Remove) {
   unsigned DefReg = MI->getOperand(0).getReg();
   unsigned SrcOpIdx = getPHISrcRegOpIdx(MI, PredBB);
   assert(SrcOpIdx && "Unable to find matching PHI source?");
@@ -452,7 +450,7 @@ void TailDuplicatePass::DuplicateInstruction(MachineInstr *MI,
 /// instructions in them accordingly.
 void
 TailDuplicatePass::UpdateSuccessorsPHIs(MachineBasicBlock *FromBB, bool isDead,
-                                  SmallVector<MachineBasicBlock*, 8> &TDBBs,
+                                  SmallVectorImpl<MachineBasicBlock *> &TDBBs,
                                   SmallSetVector<MachineBasicBlock*,8> &Succs) {
   for (SmallSetVector<MachineBasicBlock*, 8>::iterator SI = Succs.begin(),
          SE = Succs.end(); SI != SE; ++SI) {
@@ -640,8 +638,6 @@ bothUsedInPHI(const MachineBasicBlock &A,
 
 bool
 TailDuplicatePass::canCompletelyDuplicateBB(MachineBasicBlock &BB) {
-  SmallPtrSet<MachineBasicBlock*, 8> Succs(BB.succ_begin(), BB.succ_end());
-
   for (MachineBasicBlock::pred_iterator PI = BB.pred_begin(),
        PE = BB.pred_end(); PI != PE; ++PI) {
     MachineBasicBlock *PredBB = *PI;
@@ -662,9 +658,9 @@ TailDuplicatePass::canCompletelyDuplicateBB(MachineBasicBlock &BB) {
 
 bool
 TailDuplicatePass::duplicateSimpleBB(MachineBasicBlock *TailBB,
-                                     SmallVector<MachineBasicBlock*, 8> &TDBBs,
-                                     const DenseSet<unsigned> &UsedByPhi,
-                                     SmallVector<MachineInstr*, 16> &Copies) {
+                                    SmallVectorImpl<MachineBasicBlock *> &TDBBs,
+                                    const DenseSet<unsigned> &UsedByPhi,
+                                    SmallVectorImpl<MachineInstr *> &Copies) {
   SmallPtrSet<MachineBasicBlock*, 8> Succs(TailBB->succ_begin(),
                                            TailBB->succ_end());
   SmallVector<MachineBasicBlock*, 8> Preds(TailBB->pred_begin(),
@@ -742,8 +738,8 @@ bool
 TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
                                  bool IsSimple,
                                  MachineFunction &MF,
-                                 SmallVector<MachineBasicBlock*, 8> &TDBBs,
-                                 SmallVector<MachineInstr*, 16> &Copies) {
+                                 SmallVectorImpl<MachineBasicBlock *> &TDBBs,
+                                 SmallVectorImpl<MachineInstr *> &Copies) {
   DEBUG(dbgs() << "\n*** Tail-duplicating BB#" << TailBB->getNumber() << '\n');
 
   DenseSet<unsigned> UsedByPhi;

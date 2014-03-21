@@ -25,6 +25,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/Mutex.h"
 #include "llvm/Support/SwapByteOrder.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
@@ -80,14 +81,18 @@ public:
   unsigned SectionID;
 
   /// Offset - offset into the section.
-  uintptr_t Offset;
+  uint64_t Offset;
 
   /// RelType - relocation type.
   uint32_t RelType;
 
   /// Addend - the relocation addend encoded in the instruction itself.  Also
   /// used to make a relocation section relative instead of symbol relative.
-  intptr_t Addend;
+  int64_t Addend;
+
+  /// SymOffset - Section offset of the relocation entry's symbol (used for GOT
+  /// lookup).
+  uint64_t SymOffset;
 
   /// True if this is a PCRel relocation (MachO specific).
   bool IsPCRel;
@@ -97,26 +102,39 @@ public:
 
   RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend)
     : SectionID(id), Offset(offset), RelType(type), Addend(addend),
-      IsPCRel(false), Size(0) {}
+      SymOffset(0), IsPCRel(false), Size(0) {}
+
+  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend,
+                  uint64_t symoffset)
+    : SectionID(id), Offset(offset), RelType(type), Addend(addend),
+      SymOffset(symoffset), IsPCRel(false), Size(0) {}
 
   RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend,
                   bool IsPCRel, unsigned Size)
     : SectionID(id), Offset(offset), RelType(type), Addend(addend),
-      IsPCRel(IsPCRel), Size(Size) {}
+      SymOffset(0), IsPCRel(IsPCRel), Size(Size) {}
 };
 
 class RelocationValueRef {
 public:
   unsigned  SectionID;
-  intptr_t  Addend;
+  uint64_t  Offset;
+  int64_t   Addend;
   const char *SymbolName;
-  RelocationValueRef(): SectionID(0), Addend(0), SymbolName(0) {}
+  RelocationValueRef(): SectionID(0), Offset(0), Addend(0), SymbolName(0) {}
 
   inline bool operator==(const RelocationValueRef &Other) const {
-    return std::memcmp(this, &Other, sizeof(RelocationValueRef)) == 0;
+    return SectionID == Other.SectionID && Offset == Other.Offset &&
+           Addend == Other.Addend && SymbolName == Other.SymbolName;
   }
   inline bool operator <(const RelocationValueRef &Other) const {
-    return std::memcmp(this, &Other, sizeof(RelocationValueRef)) < 0;
+    if (SectionID != Other.SectionID)
+      return SectionID < Other.SectionID;
+    if (Offset != Other.Offset)
+      return Offset < Other.Offset;
+    if (Addend != Other.Addend)
+      return Addend < Other.Addend;
+    return SymbolName < Other.SymbolName;
   }
 };
 
@@ -129,6 +147,9 @@ protected:
   // referenced in the code by means of their index in this list - SectionID.
   typedef SmallVector<SectionEntry, 64> SectionList;
   SectionList Sections;
+
+  typedef unsigned SID; // Type for SectionIDs
+  #define RTDYLD_INVALID_SECTION_ID ((SID)(-1)) 
 
   // Keep a map of sections from object file to the SectionID which
   // references it.
@@ -164,30 +185,22 @@ protected:
   typedef std::map<RelocationValueRef, uintptr_t> StubMap;
 
   Triple::ArchType Arch;
+  bool IsTargetLittleEndian;
 
-  inline unsigned getMaxStubSize() {
-    if (Arch == Triple::aarch64)
-      return 20; // movz; movk; movk; movk; br
-    if (Arch == Triple::arm || Arch == Triple::thumb)
-      return 8; // 32-bit instruction and 32-bit address
-    else if (Arch == Triple::mipsel || Arch == Triple::mips)
-      return 16;
-    else if (Arch == Triple::ppc64)
-      return 44;
-    else if (Arch == Triple::x86_64)
-      return 8; // GOT
-    else if (Arch == Triple::systemz)
-      return 16;
-    else
-      return 0;
-  }
+  // This mutex prevents simultaneously loading objects from two different
+  // threads.  This keeps us from having to protect individual data structures
+  // and guarantees that section allocation requests to the memory manager
+  // won't be interleaved between modules.  It is also used in mapSectionAddress
+  // and resolveRelocations to protect write access to internal data structures.
+  //
+  // loadObject may be called on the same thread during the handling of of
+  // processRelocations, and that's OK.  The handling of the relocation lists
+  // is written in such a way as to work correctly if new elements are added to
+  // the end of the list while the list is being processed.
+  sys::Mutex lock;
 
-  inline unsigned getStubAlignment() {
-    if (Arch == Triple::systemz)
-      return 8;
-    else
-      return 1;
-  }
+  virtual unsigned getMaxStubSize() = 0;
+  virtual unsigned getStubAlignment() = 0;
 
   bool HasError;
   std::string ErrorStr;
@@ -208,14 +221,14 @@ protected:
   }
 
   void writeInt16BE(uint8_t *Addr, uint16_t Value) {
-    if (sys::IsLittleEndianHost)
+    if (IsTargetLittleEndian)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 8) & 0xFF;
     *(Addr+1) = Value & 0xFF;
   }
 
   void writeInt32BE(uint8_t *Addr, uint32_t Value) {
-    if (sys::IsLittleEndianHost)
+    if (IsTargetLittleEndian)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 24) & 0xFF;
     *(Addr+1) = (Value >> 16) & 0xFF;
@@ -224,7 +237,7 @@ protected:
   }
 
   void writeInt64BE(uint8_t *Addr, uint64_t Value) {
-    if (sys::IsLittleEndianHost)
+    if (IsTargetLittleEndian)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 56) & 0xFF;
     *(Addr+1) = (Value >> 48) & 0xFF;
@@ -292,6 +305,11 @@ protected:
 
   /// \brief Resolve relocations to external symbols.
   void resolveExternalSymbols();
+
+  /// \brief Update GOT entries for external symbols.
+  // The base class does nothing.  ELF overrides this.
+  virtual void updateGOTEntries(StringRef Name, uint64_t Addr) {}
+
   virtual ObjectImage *createObjectImage(ObjectBuffer *InputBuffer);
 public:
   RuntimeDyldImpl(RTDyldMemoryManager *mm) : MemMgr(mm), HasError(false) {}
@@ -303,18 +321,20 @@ public:
   void *getSymbolAddress(StringRef Name) {
     // FIXME: Just look up as a function for now. Overly simple of course.
     // Work in progress.
-    if (GlobalSymbolTable.find(Name) == GlobalSymbolTable.end())
+    SymbolTableMap::const_iterator pos = GlobalSymbolTable.find(Name);
+    if (pos == GlobalSymbolTable.end())
       return 0;
-    SymbolLoc Loc = GlobalSymbolTable.lookup(Name);
+    SymbolLoc Loc = pos->second;
     return getSectionAddress(Loc.first) + Loc.second;
   }
 
   uint64_t getSymbolLoadAddress(StringRef Name) {
     // FIXME: Just look up as a function for now. Overly simple of course.
     // Work in progress.
-    if (GlobalSymbolTable.find(Name) == GlobalSymbolTable.end())
+    SymbolTableMap::const_iterator pos = GlobalSymbolTable.find(Name);
+    if (pos == GlobalSymbolTable.end())
       return 0;
-    SymbolLoc Loc = GlobalSymbolTable.lookup(Name);
+    SymbolLoc Loc = pos->second;
     return getSectionLoadAddress(Loc.first) + Loc.second;
   }
 
@@ -335,7 +355,11 @@ public:
 
   virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const = 0;
 
-  virtual StringRef getEHFrameSection();
+  virtual void registerEHFrames();
+
+  virtual void deregisterEHFrames();
+
+  virtual void finalizeLoad(ObjSectionToIDMap &SectionMap) {}
 };
 
 } // end namespace llvm

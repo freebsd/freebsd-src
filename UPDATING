@@ -17,6 +17,9 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 
+20140321:
+	Clang and llvm have been upgraded to 3.4 release.
+
 20140306:
 	If a Makefile in a tests/ directory was auto-generating a Kyuafile
 	instead of providing an explicit one, this would prevent such

@@ -82,13 +82,14 @@ AttrDump.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-dump -o ${.TARGET} ${.ALLSRC}
 
-AttrExprArgs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+AttrIdentifierArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
-	    -gen-clang-attr-expr-args-list -o ${.TARGET} ${.ALLSRC}
+	    -gen-clang-attr-identifier-arg-list -o ${.TARGET} ${.ALLSRC}
 
 AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-impl -o ${.TARGET} ${.ALLSRC}
+
 AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-late-parsed-list -o ${.TARGET} ${.ALLSRC}
@@ -96,6 +97,10 @@ AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-list -o ${.TARGET} ${.ALLSRC}
+
+AttrParsedAttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
+	    -gen-clang-attr-parsed-attr-impl -o ${.TARGET} ${.ALLSRC}
 
 AttrParsedAttrKinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
@@ -124,6 +129,10 @@ AttrSpellingListIndex.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrTemplateInstantiate.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-template-instantiate -o ${.TARGET} ${.ALLSRC}
+
+AttrTypeArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
+	    -gen-clang-attr-type-arg-list -o ${.TARGET} ${.ALLSRC}
 
 CommentCommandInfo.inc.h: ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
 	${CLANG_TBLGEN} \
@@ -160,6 +169,10 @@ StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
 	${CLANG_TBLGEN} \
 	    -gen-clang-stmt-nodes -o ${.TARGET} ${.ALLSRC}
 
+arm_neon.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	${CLANG_TBLGEN} \
+	    -gen-arm-neon -o ${.TARGET} ${.ALLSRC}
+
 arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 	${CLANG_TBLGEN} \
 	    -gen-arm-neon-sema -o ${.TARGET} ${.ALLSRC}
@@ -180,11 +193,11 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 .endfor
 
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver \
+	${TBLGEN} -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
-	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver \
+	${TBLGEN} -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td \

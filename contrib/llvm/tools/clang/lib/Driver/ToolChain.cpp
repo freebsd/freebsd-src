@@ -8,20 +8,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "Tools.h"
-#include "clang/Driver/ToolChain.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Driver/Action.h"
-#include "clang/Driver/Arg.h"
-#include "clang/Driver/ArgList.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Option/Arg.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Option/Option.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 using namespace clang::driver;
 using namespace clang;
+using namespace llvm::opt;
 
 ToolChain::ToolChain(const Driver &D, const llvm::Triple &T,
                      const ArgList &A)
@@ -41,6 +43,12 @@ bool ToolChain::useIntegratedAs() const {
                       IsIntegratedAssemblerDefault());
 }
 
+const SanitizerArgs& ToolChain::getSanitizerArgs() const {
+  if (!SanitizerArguments.get())
+    SanitizerArguments.reset(new SanitizerArgs(*this, Args));
+  return *SanitizerArguments.get();
+}
+
 std::string ToolChain::getDefaultUniversalArchName() const {
   // In universal driver terms, the arch name accepted by -arch isn't exactly
   // the same as the ones that appear in the triple. Roughly speaking, this is
@@ -51,6 +59,8 @@ std::string ToolChain::getDefaultUniversalArchName() const {
     return "ppc";
   case llvm::Triple::ppc64:
     return "ppc64";
+  case llvm::Triple::ppc64le:
+    return "ppc64le";
   default:
     return Triple.getArchName();
   }
@@ -173,11 +183,17 @@ static const char *getARMTargetCPU(const ArgList &Args,
     MArch = Triple.getArchName();
   }
 
-  return llvm::StringSwitch<const char *>(MArch)
+  if (Triple.getOS() == llvm::Triple::NetBSD) {
+    if (MArch == "armv6")
+      return "arm1176jzf-s";
+  }
+
+  const char *result = llvm::StringSwitch<const char *>(MArch)
     .Cases("armv2", "armv2a","arm2")
     .Case("armv3", "arm6")
     .Case("armv3m", "arm7m")
-    .Cases("armv4", "armv4t", "arm7tdmi")
+    .Case("armv4", "strongarm")
+    .Case("armv4t", "arm7tdmi")
     .Cases("armv5", "armv5t", "arm10tdmi")
     .Cases("armv5e", "armv5te", "arm1026ejs")
     .Case("armv5tej", "arm926ej-s")
@@ -193,11 +209,21 @@ static const char *getARMTargetCPU(const ArgList &Args,
     .Cases("armv7r", "armv7-r", "cortex-r4")
     .Cases("armv7m", "armv7-m", "cortex-m3")
     .Cases("armv7em", "armv7e-m", "cortex-m4")
+    .Cases("armv8", "armv8a", "armv8-a", "cortex-a53")
     .Case("ep9312", "ep9312")
     .Case("iwmmxt", "iwmmxt")
     .Case("xscale", "xscale")
-    // If all else failed, return the most base CPU LLVM supports.
-    .Default("arm7tdmi");
+    // If all else failed, return the most base CPU with thumb interworking
+    // supported by LLVM.
+    .Default(0);
+
+  if (result)
+    return result;
+
+  return
+    Triple.getEnvironment() == llvm::Triple::GNUEABIHF
+      ? "arm1176jzf-s"
+      : "arm7tdmi";
 }
 
 /// getLLVMArchSuffixForARM - Get the LLVM arch name to use for a particular
@@ -207,6 +233,7 @@ static const char *getARMTargetCPU(const ArgList &Args,
 // FIXME: tblgen this, or kill it!
 static const char *getLLVMArchSuffixForARM(StringRef CPU) {
   return llvm::StringSwitch<const char *>(CPU)
+    .Case("strongarm", "v4")
     .Cases("arm7tdmi", "arm7tdmi-s", "arm710t", "v4t")
     .Cases("arm720t", "arm9", "arm9tdmi", "v4t")
     .Cases("arm920", "arm920t", "arm922t", "v4t")
@@ -219,22 +246,37 @@ static const char *getLLVMArchSuffixForARM(StringRef CPU) {
     .Cases("arm1176jzf-s",  "mpcorenovfp",  "mpcore", "v6")
     .Cases("arm1156t2-s",  "arm1156t2f-s", "v6t2")
     .Cases("cortex-a5", "cortex-a7", "cortex-a8", "v7")
-    .Cases("cortex-a9", "cortex-a15", "v7")
-    .Case("cortex-r5", "v7r")
+    .Cases("cortex-a9", "cortex-a12", "cortex-a15", "v7")
+    .Cases("cortex-r4", "cortex-r5", "v7r")
     .Case("cortex-m0", "v6m")
     .Case("cortex-m3", "v7m")
     .Case("cortex-m4", "v7em")
     .Case("cortex-a9-mp", "v7f")
     .Case("swift", "v7s")
+    .Cases("cortex-a53", "cortex-a57", "v8")
     .Default("");
 }
 
-std::string ToolChain::ComputeLLVMTriple(const ArgList &Args, 
+std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
                                          types::ID InputType) const {
   switch (getTriple().getArch()) {
   default:
     return getTripleString();
 
+  case llvm::Triple::x86_64: {
+    llvm::Triple Triple = getTriple();
+    if (!Triple.isOSDarwin())
+      return getTripleString();
+
+    if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
+      // x86_64h goes in the triple. Other -march options just use the
+      // vanilla triple we already have.
+      StringRef MArch = A->getValue();
+      if (MArch == "x86_64h")
+        Triple.setArchName(MArch);
+    }
+    return Triple.getTriple();
+  }
   case llvm::Triple::arm:
   case llvm::Triple::thumb: {
     // FIXME: Factor into subclasses.

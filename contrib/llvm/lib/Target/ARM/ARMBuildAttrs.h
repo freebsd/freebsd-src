@@ -15,11 +15,13 @@
 #ifndef __TARGET_ARMBUILDATTRS_H__
 #define __TARGET_ARMBUILDATTRS_H__
 
+namespace llvm {
 namespace ARMBuildAttrs {
+
   enum SpecialAttr {
     // This is for the .cpu asm attr. It translates into one or more
     // AttrType (below) entries in the .ARM.attributes section in the ELF.
-    SEL_CPU 
+    SEL_CPU
   };
 
   enum AttrType {
@@ -57,7 +59,7 @@ namespace ARMBuildAttrs {
     ABI_FP_optimization_goals = 31,
     compatibility             = 32,
     CPU_unaligned_access      = 34,
-    VFP_HP_extension          = 36,
+    FP_HP_extension           = 36,
     ABI_FP_16bit_format       = 38,
     MPextension_use           = 42, // was 70, 2.08 ABI
     DIV_use                   = 44,
@@ -89,10 +91,11 @@ namespace ARMBuildAttrs {
     v7       = 10,  // e.g. Cortex A8, Cortex M3
     v6_M     = 11,  // e.g. Cortex M1
     v6S_M    = 12,  // v6_M with the System extensions
-    v7E_M    = 13   // v7_M with DSP extensions
+    v7E_M    = 13,  // v7_M with DSP extensions
+    v8       = 14   // v8, AArch32
   };
 
-  enum CPUArchProfile { // (=7), uleb128 
+  enum CPUArchProfile { // (=7), uleb128
     Not_Applicable = 0, // pre v7, or cross-profile code
     ApplicationProfile = (0x41), // 'A' (e.g. for Cortex A8)
     RealTimeProfile = (0x52), // 'R' (e.g. for Cortex R4)
@@ -101,31 +104,67 @@ namespace ARMBuildAttrs {
   };
 
   // The following have a lot of common use cases
-  enum { 
-    //ARMISAUse (=8), uleb128  and THUMBISAUse (=9), uleb128
+  enum {
     Not_Allowed = 0,
     Allowed = 1,
 
-    // FP_arch (=10), uleb128 (formerly Tag_VFP_arch = 10)
+    // Tag_ARM_ISA_use (=8), uleb128
+
+    // Tag_THUMB_ISA_use, (=9), uleb128
+    AllowThumb32 = 2, // 32-bit Thumb (implies 16-bit instructions)
+
+    // Tag_FP_arch (=10), uleb128 (formerly Tag_VFP_arch = 10)
     AllowFPv2  = 2, // v2 FP ISA permitted (implies use of the v1 FP ISA)
     AllowFPv3A = 3, // v3 FP ISA permitted (implies use of the v2 FP ISA)
-    AllowFPv3B = 4, // v3 FP ISA permitted, but only D0-D15, S0-S31 
-    AllowFPv4A = 5, // v4 FP ISA permitted (implies use of v3 FP ISA) 
+    AllowFPv3B = 4, // v3 FP ISA permitted, but only D0-D15, S0-S31
+    AllowFPv4A = 5, // v4 FP ISA permitted (implies use of v3 FP ISA)
     AllowFPv4B = 6, // v4 FP ISA was permitted, but only D0-D15, S0-S31
+    AllowFPARMv8A = 7, // Use of the ARM v8-A FP ISA was permitted
+    AllowFPARMv8B = 8, // Use of the ARM v8-A FP ISA was permitted, but only D0-D15, S0-S31
 
     // Tag_WMMX_arch, (=11), uleb128
-    AllowThumb32 = 2, // 32-bit Thumb (implies 16-bit instructions)
-    
-    // Tag_WMMX_arch, (=11), uleb128
-    AllowWMMXv1 = 2,  // The user permitted this entity to use WMMX v2
+    AllowWMMXv1 = 1,  // The user permitted this entity to use WMMX v1
+    AllowWMMXv2 = 2,  // The user permitted this entity to use WMMX v2
 
-    // Tag_ABI_FP_denormal, (=20), uleb128 
+    // Tag_Advanced_SIMD_arch, (=12), uleb128
+    AllowNeon = 1, // SIMDv1 was permitted
+    AllowNeon2 = 2, // SIMDv2 was permitted (Half-precision FP, MAC operations)
+    AllowNeonARMv8 = 3, // ARM v8-A SIMD was permitted
+
+    // Tag_ABI_FP_denormal, (=20), uleb128
     PreserveFPSign = 2, // sign when flushed-to-zero is preserved
 
     // Tag_ABI_FP_number_model, (=23), uleb128
     AllowRTABI = 2,  // numbers, infinities, and one quiet NaN (see [RTABI])
-    AllowIEE754 = 3 // this code to use all the IEEE 754-defined FP encodings
+    AllowIEE754 = 3, // this code to use all the IEEE 754-defined FP encodings
+
+    // Tag_ABI_HardFP_use, (=27), uleb128
+    HardFPImplied = 0, // FP use should be implied by Tag_FP_arch
+    HardFPSinglePrecision = 1, // Single-precision only
+
+    // Tag_ABI_VFP_args, (=28), uleb128
+    BaseAAPCS = 0,
+    HardFPAAPCS = 1,
+
+    // Tag_FP_HP_extension, (=36), uleb128
+    AllowHPFP = 1, // Allow use of Half Precision FP
+
+    // Tag_MPextension_use, (=42), uleb128
+    AllowMP = 1, // Allow use of MP extensions
+
+    // Tag_DIV_use, (=44), uleb128
+    AllowDIVIfExists = 0, // Allow hardware divide if available in arch, or no info exists.
+    DisallowDIV = 1, // Hardware divide explicitly disallowed
+    AllowDIVExt = 2, // Allow hardware divide as optional architecture extension above
+                     // the base arch specified by Tag_CPU_arch and Tag_CPU_arch_profile.
+
+    // Tag_Virtualization_use, (=68), uleb128
+    AllowTZ = 1,
+    AllowVirtualization = 2,
+    AllowTZVirtualization = 3
   };
-}
+
+} // namespace ARMBuildAttrs
+} // namespace llvm
 
 #endif // __TARGET_ARMBUILDATTRS_H__
