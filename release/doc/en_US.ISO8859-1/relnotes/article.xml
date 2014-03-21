@@ -232,6 +232,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262706"><application>BIND</application> has
+	been updated to version 9.9.5.</para>
+
       <para revision="263031">Installation from a read-only
 	<envar>.OBJDIR</envar> has been fixed.</para>
 
