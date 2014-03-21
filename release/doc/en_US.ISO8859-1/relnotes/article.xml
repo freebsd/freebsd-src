@@ -228,6 +228,12 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263038">The &man.pkg.7; package management
+	utility has been syncronized with <literal>head/</literal>.
+	This implements binary package signature verification when
+	bootstrapping the system with <command>pkg
+	  bootstrap</command>.</para>
+
       <para revision="263042">The system timezone data files have
 	been updated to version tzdata2014a.</para>
 
