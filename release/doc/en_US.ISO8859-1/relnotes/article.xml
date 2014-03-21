@@ -258,6 +258,11 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262076">The &man.newsyslog.8; utility has been
+	changed to use the size of the file, instead of the blocks the
+	file takes on the disk to matche the behavior documented in
+	&man.newsyslog.conf.5;.</para>
+
       <para revision="262105">A bug in &man.zdb.8; which would cause
 	numeric parameters to a flag as being treated as additional
 	flags has been fixed.</para>
