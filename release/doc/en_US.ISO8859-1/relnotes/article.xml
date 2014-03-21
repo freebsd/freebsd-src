@@ -198,7 +198,9 @@
       <sect3 xml:id="fs">
 	<title>File Systems</title>
 
-	<para>&nbsp;</para>
+	<para revision="263410">The &man.zfs.8; filesystem has been
+	  updated to support the <literal>bookmarks</literal>
+	  feature.</para>
 
       </sect3>
     </sect2>
