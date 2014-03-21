@@ -31,11 +31,12 @@ AArch64ELFMCAsmInfo::AArch64ELFMCAsmInfo() {
 
   UseDataRegionDirectives = true;
 
-  WeakRefDirective = "\t.weak\t";
-
   HasLEB128 = true;
   SupportsDebugInformation = true;
 
   // Exceptions handling
   ExceptionsType = ExceptionHandling::DwarfCFI;
 }
+
+// Pin the vtable to this file.
+void AArch64ELFMCAsmInfo::anchor() {}

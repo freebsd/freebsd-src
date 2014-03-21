@@ -14,13 +14,15 @@
 #ifndef LLVM_AARCH64TARGETASMINFO_H
 #define LLVM_AARCH64TARGETASMINFO_H
 
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCAsmInfoELF.h"
 
 namespace llvm {
 
-  struct AArch64ELFMCAsmInfo : public MCAsmInfo {
-    explicit AArch64ELFMCAsmInfo();
-  };
+struct AArch64ELFMCAsmInfo : public MCAsmInfoELF {
+  explicit AArch64ELFMCAsmInfo();
+private:
+  virtual void anchor();
+};
 
 } // namespace llvm
 

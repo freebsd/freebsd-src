@@ -22,26 +22,29 @@
 
 namespace llvm {
 
-class Constant;
+class APInt;
 class Argument;
-class Instruction;
+class AssemblyAnnotationWriter;
 class BasicBlock;
-class GlobalValue;
+class Constant;
+class DataLayout;
 class Function;
-class GlobalVariable;
 class GlobalAlias;
+class GlobalValue;
+class GlobalVariable;
 class InlineAsm;
+class Instruction;
+class LLVMContext;
+class MDNode;
+class StringRef;
+class Twine;
+class Type;
+class ValueHandleBase;
 class ValueSymbolTable;
+class raw_ostream;
+
 template<typename ValueTy> class StringMapEntry;
 typedef StringMapEntry<Value*> ValueName;
-class raw_ostream;
-class AssemblyAnnotationWriter;
-class ValueHandleBase;
-class LLVMContext;
-class Twine;
-class MDNode;
-class Type;
-class StringRef;
 
 //===----------------------------------------------------------------------===//
 //                                 Value Class
@@ -260,37 +263,53 @@ public:
   /// this value.
   bool hasValueHandle() const { return HasValueHandle; }
 
-  /// \brief This method strips off any unneeded pointer casts,
-  /// all-zero GEPs and aliases from the specified value, returning the original
-  /// uncasted value. If this is called on a non-pointer value, it returns
-  /// 'this'.
+  /// \brief Strips off any unneeded pointer casts, all-zero GEPs and aliases
+  /// from the specified value, returning the original uncasted value.
+  ///
+  /// If this is called on a non-pointer value, it returns 'this'.
   Value *stripPointerCasts();
   const Value *stripPointerCasts() const {
     return const_cast<Value*>(this)->stripPointerCasts();
   }
 
-  /// \brief This method strips off any unneeded pointer casts and
-  /// all-zero GEPs from the specified value, returning the original
-  /// uncasted value. If this is called on a non-pointer value, it returns
-  /// 'this'.
+  /// \brief Strips off any unneeded pointer casts and all-zero GEPs from the
+  /// specified value, returning the original uncasted value.
+  ///
+  /// If this is called on a non-pointer value, it returns 'this'.
   Value *stripPointerCastsNoFollowAliases();
   const Value *stripPointerCastsNoFollowAliases() const {
     return const_cast<Value*>(this)->stripPointerCastsNoFollowAliases();
   }
 
-  /// stripInBoundsConstantOffsets - This method strips off unneeded pointer casts and
-  /// all-constant GEPs from the specified value, returning the original
-  /// pointer value. If this is called on a non-pointer value, it returns
-  /// 'this'.
+  /// \brief Strips off unneeded pointer casts and all-constant GEPs from the
+  /// specified value, returning the original pointer value.
+  ///
+  /// If this is called on a non-pointer value, it returns 'this'.
   Value *stripInBoundsConstantOffsets();
   const Value *stripInBoundsConstantOffsets() const {
     return const_cast<Value*>(this)->stripInBoundsConstantOffsets();
   }
 
-  /// stripInBoundsOffsets - This method strips off unneeded pointer casts and
-  /// any in-bounds Offsets from the specified value, returning the original
-  /// pointer value. If this is called on a non-pointer value, it returns
-  /// 'this'.
+  /// \brief Strips like \c stripInBoundsConstantOffsets but also accumulates
+  /// the constant offset stripped.
+  ///
+  /// Stores the resulting constant offset stripped into the APInt provided.
+  /// The provided APInt will be extended or truncated as needed to be the
+  /// correct bitwidth for an offset of this pointer type.
+  ///
+  /// If this is called on a non-pointer value, it returns 'this'.
+  Value *stripAndAccumulateInBoundsConstantOffsets(const DataLayout &DL,
+                                                   APInt &Offset);
+  const Value *stripAndAccumulateInBoundsConstantOffsets(const DataLayout &DL,
+                                                         APInt &Offset) const {
+    return const_cast<Value *>(this)
+        ->stripAndAccumulateInBoundsConstantOffsets(DL, Offset);
+  }
+
+  /// \brief Strips off unneeded pointer casts and any in-bounds offsets from
+  /// the specified value, returning the original pointer value.
+  ///
+  /// If this is called on a non-pointer value, it returns 'this'.
   Value *stripInBoundsOffsets();
   const Value *stripInBoundsOffsets() const {
     return const_cast<Value*>(this)->stripInBoundsOffsets();

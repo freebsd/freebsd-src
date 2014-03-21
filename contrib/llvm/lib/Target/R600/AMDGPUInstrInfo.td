@@ -23,12 +23,6 @@ def AMDGPUDTIntTernaryOp : SDTypeProfile<1, 3, [
 // AMDGPU DAG Nodes
 //
 
-// out = ((a << 32) | b) >> c)
-//
-// Can be used to optimize rtol:
-// rotl(a, b) = bitalign(a, a, 32 - b)
-def AMDGPUbitalign : SDNode<"AMDGPUISD::BITALIGN", AMDGPUDTIntTernaryOp>;
-
 // This argument to this node is a dword address.
 def AMDGPUdwordaddr : SDNode<"AMDGPUISD::DWORDADDR", SDTIntUnaryOp>;
 
@@ -71,8 +65,6 @@ def AMDGPUumin : SDNode<"AMDGPUISD::UMIN", SDTIntBinOp,
 // e is rounding error
 def AMDGPUurecip : SDNode<"AMDGPUISD::URECIP", SDTIntUnaryOp>;
 
-def fpow : SDNode<"ISD::FPOW", SDTFPBinOp>;
-
 def AMDGPUregister_load : SDNode<"AMDGPUISD::REGISTER_LOAD",
                           SDTypeProfile<1, 2, [SDTCisPtrTy<1>, SDTCisInt<2>]>,
                           [SDNPHasChain, SDNPMayLoad]>;
@@ -80,3 +72,17 @@ def AMDGPUregister_load : SDNode<"AMDGPUISD::REGISTER_LOAD",
 def AMDGPUregister_store : SDNode<"AMDGPUISD::REGISTER_STORE",
                            SDTypeProfile<0, 3, [SDTCisPtrTy<1>, SDTCisInt<2>]>,
                            [SDNPHasChain, SDNPMayStore]>;
+
+// MSKOR instructions are atomic memory instructions used mainly for storing
+// 8-bit and 16-bit values.  The definition is:
+//
+// MSKOR(dst, mask, src) MEM[dst] = ((MEM[dst] & ~mask) | src)
+//
+// src0: vec4(src, 0, 0, mask)
+// src1: dst - rat offset (aka pointer) in dwords  
+def AMDGPUstore_mskor : SDNode<"AMDGPUISD::STORE_MSKOR",
+                        SDTypeProfile<0, 2, []>,
+                        [SDNPHasChain, SDNPMayStore, SDNPMemOperand]>;
+
+def AMDGPUround : SDNode<"ISD::FROUND",
+                         SDTypeProfile<1, 1, [SDTCisFP<0>, SDTCisSameAs<0,1>]>>;

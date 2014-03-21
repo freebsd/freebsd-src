@@ -14,7 +14,11 @@
 #include "PPCSubtarget.h"
 #include "PPC.h"
 #include "PPCRegisterInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/IR/Attributes.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
@@ -29,32 +33,70 @@ using namespace llvm;
 PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
                            const std::string &FS, bool is64Bit)
   : PPCGenSubtargetInfo(TT, CPU, FS)
-  , StackAlignment(16)
-  , DarwinDirective(PPC::DIR_NONE)
-  , HasMFOCRF(false)
-  , Has64BitSupport(false)
-  , Use64BitRegs(false)
   , IsPPC64(is64Bit)
-  , HasAltivec(false)
-  , HasQPX(false)
-  , HasFSQRT(false)
-  , HasFRE(false)
-  , HasFRES(false)
-  , HasFRSQRTE(false)
-  , HasFRSQRTES(false)
-  , HasRecipPrec(false)
-  , HasSTFIWX(false)
-  , HasLFIWAX(false)
-  , HasFPRND(false)
-  , HasFPCVT(false)
-  , HasISEL(false)
-  , HasPOPCNTD(false)
-  , HasLDBRX(false)
-  , IsBookE(false)
-  , HasLazyResolverStubs(false)
-  , IsJITCodeModel(false)
   , TargetTriple(TT) {
+  initializeEnvironment();
+  resetSubtargetFeatures(CPU, FS);
+}
 
+/// SetJITMode - This is called to inform the subtarget info that we are
+/// producing code for the JIT.
+void PPCSubtarget::SetJITMode() {
+  // JIT mode doesn't want lazy resolver stubs, it knows exactly where
+  // everything is.  This matters for PPC64, which codegens in PIC mode without
+  // stubs.
+  HasLazyResolverStubs = false;
+
+  // Calls to external functions need to use indirect calls
+  IsJITCodeModel = true;
+}
+
+void PPCSubtarget::resetSubtargetFeatures(const MachineFunction *MF) {
+  AttributeSet FnAttrs = MF->getFunction()->getAttributes();
+  Attribute CPUAttr = FnAttrs.getAttribute(AttributeSet::FunctionIndex,
+                                           "target-cpu");
+  Attribute FSAttr = FnAttrs.getAttribute(AttributeSet::FunctionIndex,
+                                          "target-features");
+  std::string CPU =
+    !CPUAttr.hasAttribute(Attribute::None) ? CPUAttr.getValueAsString() : "";
+  std::string FS =
+    !FSAttr.hasAttribute(Attribute::None) ? FSAttr.getValueAsString() : "";
+  if (!FS.empty()) {
+    initializeEnvironment();
+    resetSubtargetFeatures(CPU, FS);
+  }
+}
+
+void PPCSubtarget::initializeEnvironment() {
+  StackAlignment = 16;
+  DarwinDirective = PPC::DIR_NONE;
+  HasMFOCRF = false;
+  Has64BitSupport = false;
+  Use64BitRegs = false;
+  HasAltivec = false;
+  HasQPX = false;
+  HasFCPSGN = false;
+  HasFSQRT = false;
+  HasFRE = false;
+  HasFRES = false;
+  HasFRSQRTE = false;
+  HasFRSQRTES = false;
+  HasRecipPrec = false;
+  HasSTFIWX = false;
+  HasLFIWAX = false;
+  HasFPRND = false;
+  HasFPCVT = false;
+  HasISEL = false;
+  HasPOPCNTD = false;
+  HasLDBRX = false;
+  IsBookE = false;
+  DeprecatedMFTB = false;
+  DeprecatedDST = false;
+  HasLazyResolverStubs = false;
+  IsJITCodeModel = false;
+}
+
+void PPCSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Determine default and user specified characteristics
   std::string CPUName = CPU;
   if (CPUName.empty())
@@ -72,7 +114,7 @@ PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
   std::string FullFS = FS;
 
   // If we are generating code for ppc64, verify that options make sense.
-  if (is64Bit) {
+  if (IsPPC64) {
     Has64BitSupport = true;
     // Silently force 64-bit register use on ppc64.
     Use64BitRegs = true;
@@ -99,20 +141,10 @@ PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
   // is enabled because external functions will assume this alignment.
   if (hasQPX() || isBGQ())
     StackAlignment = 32;
+
+  // Determine endianness.
+  IsLittleEndian = (TargetTriple.getArch() == Triple::ppc64le);
 }
-
-/// SetJITMode - This is called to inform the subtarget info that we are
-/// producing code for the JIT.
-void PPCSubtarget::SetJITMode() {
-  // JIT mode doesn't want lazy resolver stubs, it knows exactly where
-  // everything is.  This matters for PPC64, which codegens in PIC mode without
-  // stubs.
-  HasLazyResolverStubs = false;
-
-  // Calls to external functions need to use indirect calls
-  IsJITCodeModel = true;
-}
-
 
 /// hasLazyResolverStub - Return true if accesses to the specified global have
 /// to go through a dyld lazy resolution stub.  This means that an extra load
@@ -135,14 +167,7 @@ bool PPCSubtarget::enablePostRAScheduler(
            CodeGenOpt::Level OptLevel,
            TargetSubtargetInfo::AntiDepBreakMode& Mode,
            RegClassVector& CriticalPathRCs) const {
-  // FIXME: It would be best to use TargetSubtargetInfo::ANTIDEP_ALL here,
-  // but we can't because we can't reassign the cr registers. There is a
-  // dependence between the cr register and the RLWINM instruction used
-  // to extract its value which the anti-dependency breaker can't currently
-  // see. Maybe we should make a late-expanded pseudo to encode this dependency.
-  // (the relevant code is in PPCDAGToDAGISel::SelectSETCC)
-
-  Mode = TargetSubtargetInfo::ANTIDEP_CRITICAL;
+  Mode = TargetSubtargetInfo::ANTIDEP_ALL;
 
   CriticalPathRCs.clear();
 
@@ -151,9 +176,44 @@ bool PPCSubtarget::enablePostRAScheduler(
   else
     CriticalPathRCs.push_back(&PPC::GPRCRegClass);
     
-  CriticalPathRCs.push_back(&PPC::F8RCRegClass);
-  CriticalPathRCs.push_back(&PPC::VRRCRegClass);
-
   return OptLevel >= CodeGenOpt::Default;
+}
+
+// Embedded cores need aggressive scheduling.
+static bool needsAggressiveScheduling(unsigned Directive) {
+  switch (Directive) {
+  default: return false;
+  case PPC::DIR_440:
+  case PPC::DIR_A2:
+  case PPC::DIR_E500mc:
+  case PPC::DIR_E5500:
+    return true;
+  }
+}
+
+bool PPCSubtarget::enableMachineScheduler() const {
+  // Enable MI scheduling for the embedded cores.
+  // FIXME: Enable this for all cores (some additional modeling
+  // may be necessary).
+  return needsAggressiveScheduling(DarwinDirective);
+}
+
+void PPCSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
+                                       MachineInstr *begin,
+                                       MachineInstr *end,
+                                       unsigned NumRegionInstrs) const {
+  if (needsAggressiveScheduling(DarwinDirective)) {
+    Policy.OnlyTopDown = false;
+    Policy.OnlyBottomUp = false;
+  }
+
+  // Spilling is generally expensive on all PPC cores, so always enable
+  // register-pressure tracking.
+  Policy.ShouldTrackPressure = true;
+}
+
+bool PPCSubtarget::useAA() const {
+  // Use AA during code generation for the embedded cores.
+  return needsAggressiveScheduling(DarwinDirective);
 }
 
