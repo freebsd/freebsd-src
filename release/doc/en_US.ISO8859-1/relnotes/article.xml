@@ -276,6 +276,11 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260650">The &man.etcupdate.8; utility, a tool
+	for managing updates to files in <filename
+	  class="directory">/etc</filename>, has been merged from
+	<literal>head/</literal>.</para>
+
       <para revision="260651">The &man.find.1; utility has been
 	updated to fix incorrect behavior with the
 	<literal>-lname</literal> and <literal>-ilname</literal>
