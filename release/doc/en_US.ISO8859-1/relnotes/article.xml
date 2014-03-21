@@ -308,6 +308,11 @@
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
+      <para revision="262879">The <filename>release.sh</filename>
+	script and release <filename>Makefile</filename> have been
+	updated to use &man.pkg.7; to populate the dvd installation
+	medium.</para>
+
       <para revision="263028">The &man.services.mkdb.8; utility has
 	been updated to support multiple byte orders.  Similar to
 	&man.cap.mkdb.1;, the <filename>services.db</filename> will
