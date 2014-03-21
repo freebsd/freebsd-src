@@ -152,6 +152,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262116">A memory leak of compressed buffers
+	has been fixed in
+	<literal>l2arc_write_done()</literal>.</para>
+
       <para revision="262153">The &man.netmap.4; framework has been
 	updated to match the version in <literal>head/</literal>,
 	which includes netmap pipes, kqueue support, and enhanced
