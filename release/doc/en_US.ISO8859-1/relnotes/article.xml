@@ -276,9 +276,6 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
-      <para revision="261375"><application>Sendmail</application> has
-	been updated to version 8.14.8.</para>
-
       <para revision="261674">A bug that could trigger an infinite
 	loop in KDE and X has been fixed.</para>
 
@@ -310,9 +307,6 @@
 	snapshots that were created since the incremental source
 	snapshot.</para>
 
-      <para revision="262706"><application>BIND</application> has
-	been updated to version 9.9.5.</para>
-
       <para revision="263031">Installation from a read-only
 	<envar>.OBJDIR</envar> has been fixed.</para>
 
@@ -342,9 +336,6 @@
 	with the &os;&nbsp;Ports Collection.  It is installed as
 	<command>bmake</command>, and the <command>make</command>
 	remains the &os; version.</para>
-
-      <para revision="263286">The &man.xz.1; utility has been updated
-	to a post-5.0.5 snapshot.</para>
 
       <para revision="263326">The &man.fetch.3; library now
 	supports <literal>Last-Modified</literal> timestamps which
@@ -382,7 +373,14 @@
     <sect2 xml:id="contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="261375"><application>Sendmail</application> has
+	been updated to version 8.14.8.</para>
+
+      <para revision="262706"><application>BIND</application> has
+	been updated to version 9.9.5.</para>
+
+      <para revision="263286">The &man.xz.1; utility has been updated
+	to a post-5.0.5 snapshot.</para>
 
     </sect2>
 
