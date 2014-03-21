@@ -376,7 +376,9 @@
       <sect3 xml:id="rc-scripts">
 	<title>&man.rc.8; Scripts</title>
 
-	<para>&nbsp;</para>
+	<para revision="260432">The &man.rc.8; system will now
+	  re-source &man.rc.conf.5; on receipt of
+	  <literal>SIGALRM</literal>.</para>
 
       </sect3>
     </sect2>
