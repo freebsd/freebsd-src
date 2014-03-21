@@ -203,6 +203,10 @@
       <sect3 xml:id="proc">
 	<title>Hardware Support</title>
 
+	<para revision="261973">The &man.nve.4; driver has been
+	  deprecated, and the &man.nfe.4; driver should be used
+	  instead.</para>
+
 	<para revision="262968">The &man.mfi.4; driver has been
 	  updated to support MegaRAID Fury cards.</para>
 
