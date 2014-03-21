@@ -125,6 +125,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="259519">Several problems that could trigger
+	kernel panic on &man.kldload.8; and &man.kldunload.8; have
+	been fixed.</para>
+
       <para revision="260082">A kernel panic triggered by some
 	multi-threaded applications has been fixed.</para>
 
