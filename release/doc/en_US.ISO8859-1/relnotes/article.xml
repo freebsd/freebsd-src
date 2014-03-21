@@ -218,6 +218,9 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="262153">The &man.axge.4; driver has been
+	    added.</para>
+
 	  <para revision="262362">The &man.urndis.4; driver has been
 	    imported from OpenBSD.</para>
 
