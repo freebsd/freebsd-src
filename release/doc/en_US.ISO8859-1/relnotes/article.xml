@@ -276,6 +276,11 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260909">The &man.kldload.8; utility has been
+	updated to display a message directing to &man.dmesg.8;,
+	instead of the cryptic message <quote>Exec format
+	  error</quote>.</para>
+
       <para revision="261674">A bug that could trigger an infinite
 	loop in KDE and X has been fixed.</para>
 
