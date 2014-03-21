@@ -217,6 +217,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263286">The &man.xz.1; utility has been updated
+	to a post-5.0.5 snapshot.</para>
+
       <para revision="263326">The &man.fetch.3; library now
 	supports <literal>Last-Modified</literal> timestamps which
 	return UTC instead of GMT.</para>
