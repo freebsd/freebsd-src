@@ -46,7 +46,7 @@ public:
                                               MachineBasicBlock::iterator &MBBI,
                                               LiveVariables *LV) const;
 
-  virtual const ARMBaseRegisterInfo &getRegisterInfo() const =0;
+  virtual const ARMBaseRegisterInfo &getRegisterInfo() const = 0;
   const ARMSubtarget &getSubtarget() const { return Subtarget; }
 
   ScheduleHazardRecognizer *
@@ -124,12 +124,6 @@ public:
                                     const TargetRegisterInfo *TRI) const;
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
-
-  virtual MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
-                                                 int FrameIx,
-                                                 uint64_t Offset,
-                                                 const MDNode *MDPtr,
-                                                 DebugLoc DL) const;
 
   virtual void reMaterialize(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator MI,
@@ -270,6 +264,8 @@ private:
                         const MCInstrDesc &UseMCID,
                         unsigned UseIdx, unsigned UseAlign) const;
 
+  unsigned getPredicationCost(const MachineInstr *MI) const;
+
   unsigned getInstrLatency(const InstrItineraryData *ItinData,
                            const MachineInstr *MI,
                            unsigned *PredCost = 0) const;
@@ -366,6 +362,17 @@ bool isIndirectBranchOpcode(int Opc) {
   return Opc == ARM::BX || Opc == ARM::MOVPCRX || Opc == ARM::tBRIND;
 }
 
+static inline bool isPopOpcode(int Opc) {
+  return Opc == ARM::tPOP_RET || Opc == ARM::LDMIA_RET ||
+         Opc == ARM::t2LDMIA_RET || Opc == ARM::tPOP || Opc == ARM::LDMIA_UPD ||
+         Opc == ARM::t2LDMIA_UPD || Opc == ARM::VLDMDIA_UPD;
+}
+
+static inline bool isPushOpcode(int Opc) {
+  return Opc == ARM::tPUSH || Opc == ARM::t2STMDB_UPD ||
+         Opc == ARM::STMDB_UPD || Opc == ARM::VSTMDDB_UPD;
+}
+
 /// getInstrPredicate - If instruction is predicated, returns its predicate
 /// condition, otherwise returns AL. It also returns the condition code
 /// register by reference.
@@ -405,6 +412,13 @@ void emitThumbRegPlusImmediate(MachineBasicBlock &MBB,
                                const ARMBaseRegisterInfo& MRI,
                                unsigned MIFlags = 0);
 
+/// Tries to add registers to the reglist of a given base-updating
+/// push/pop instruction to adjust the stack by an additional
+/// NumBytes. This can save a few bytes per function in code-size, but
+/// obviously generates more memory traffic. As such, it only takes
+/// effect in functions being optimised for size.
+bool tryFoldSPUpdateIntoPushPop(MachineFunction &MF, MachineInstr *MI,
+                                unsigned NumBytes);
 
 /// rewriteARMFrameIndex / rewriteT2FrameIndex -
 /// Rewrite MI to access 'Offset' bytes from the FP. Return false if the

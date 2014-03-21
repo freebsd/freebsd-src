@@ -19,7 +19,7 @@ include "llvm/Target/Target.td"
 //===----------------------------------------------------------------------===//
 // SPARC Subtarget features.
 //
- 
+
 def FeatureV9
   : SubtargetFeature<"v9", "IsV9", "true",
                      "Enable SPARC-V9 instructions">;
@@ -29,6 +29,10 @@ def FeatureV8Deprecated
 def FeatureVIS
   : SubtargetFeature<"vis", "IsVIS", "true",
                      "Enable UltraSPARC Visual Instruction Set extensions">;
+
+def FeatureHardQuad
+  : SubtargetFeature<"hard-quad-float", "HasHardQuad", "true",
+                     "Enable quad-word floating point instructions">;
 
 //===----------------------------------------------------------------------===//
 // Register File, Calling Conv, Instruction Descriptions

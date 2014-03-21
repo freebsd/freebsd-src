@@ -21,10 +21,12 @@ class SystemZRegWithSubregs<string n, list<Register> subregs>
 }
 
 let Namespace = "SystemZ" in {
-def subreg_32bit  : SubRegIndex; // could also be known as "subreg_high32"
-def subreg_high   : SubRegIndex;
-def subreg_low    : SubRegIndex;
-def subreg_low32  : SubRegIndex<[subreg_low, subreg_32bit]>;
+def subreg_l32   : SubRegIndex<32, 0>;  // Also acts as subreg_ll32.
+def subreg_h32   : SubRegIndex<32, 32>; // Also acts as subreg_lh32.
+def subreg_l64   : SubRegIndex<64, 0>;
+def subreg_h64   : SubRegIndex<64, 64>;
+def subreg_hh32  : ComposedSubRegIndex<subreg_h64, subreg_h32>;
+def subreg_hl32  : ComposedSubRegIndex<subreg_h64, subreg_l32>;
 }
 
 // Define a register class that contains values of type TYPE and an
@@ -54,36 +56,49 @@ class GPR32<bits<16> num, string n> : SystemZReg<n> {
 }
 
 // One of the 16 64-bit general-purpose registers.
-class GPR64<bits<16> num, string n, GPR32 low>
- : SystemZRegWithSubregs<n, [low]> {
+class GPR64<bits<16> num, string n, GPR32 low, GPR32 high>
+ : SystemZRegWithSubregs<n, [low, high]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_32bit];
+  let SubRegIndices = [subreg_l32, subreg_h32];
 }
 
 // 8 even-odd pairs of GPR64s.
-class GPR128<bits<16> num, string n, GPR64 high, GPR64 low>
- : SystemZRegWithSubregs<n, [high, low]> {
+class GPR128<bits<16> num, string n, GPR64 low, GPR64 high>
+ : SystemZRegWithSubregs<n, [low, high]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_high, subreg_low];
+  let SubRegIndices = [subreg_l64, subreg_h64];
 }
 
 // General-purpose registers
 foreach I = 0-15 in {
-  def R#I#W : GPR32<I, "r"#I>;
-  def R#I#D : GPR64<I, "r"#I, !cast<GPR32>("R"#I#"W")>, DwarfRegNum<[I]>;
+  def R#I#L : GPR32<I, "r"#I>;
+  def R#I#H : GPR32<I, "r"#I>;
+  def R#I#D : GPR64<I, "r"#I, !cast<GPR32>("R"#I#"L"), !cast<GPR32>("R"#I#"H")>,
+                    DwarfRegNum<[I]>;
 }
 
 foreach I = [0, 2, 4, 6, 8, 10, 12, 14] in {
-  def R#I#Q : GPR128<I, "r"#I, !cast<GPR64>("R"#I#"D"),
-                     !cast<GPR64>("R"#!add(I, 1)#"D")>;
+  def R#I#Q : GPR128<I, "r"#I, !cast<GPR64>("R"#!add(I, 1)#"D"),
+                     !cast<GPR64>("R"#I#"D")>;
 }
 
 /// Allocate the callee-saved R6-R13 backwards. That way they can be saved
 /// together with R14 and R15 in one prolog instruction.
-defm GR32 : SystemZRegClass<"GR32", i32, 32, (add (sequence "R%uW",  0, 5),
-                                                  (sequence "R%uW", 15, 6))>;
-defm GR64 : SystemZRegClass<"GR64", i64, 64, (add (sequence "R%uD",  0, 5),
-                                                  (sequence "R%uD", 15, 6))>;
+defm GR32  : SystemZRegClass<"GR32",  i32, 32, (add (sequence "R%uL",  0, 5),
+                                                    (sequence "R%uL", 15, 6))>;
+defm GRH32 : SystemZRegClass<"GRH32", i32, 32, (add (sequence "R%uH",  0, 5),
+                                                    (sequence "R%uH", 15, 6))>;
+defm GR64  : SystemZRegClass<"GR64",  i64, 64, (add (sequence "R%uD",  0, 5),
+                                                    (sequence "R%uD", 15, 6))>;
+
+// Combine the low and high GR32s into a single class.  This can only be
+// used for virtual registers if the high-word facility is available.
+defm GRX32 : SystemZRegClass<"GRX32", i32, 32,
+                             (add (sequence "R%uL",  0, 5),
+                                  (sequence "R%uH",  0, 5),
+                                  R15L, R15H, R14L, R14H, R13L, R13H,
+                                  R12L, R12H, R11L, R11H, R10L, R10H,
+                                  R9L, R9H, R8L, R8H, R7L, R7H, R6L, R6H)>;
 
 // The architecture doesn't really have any i128 support, so model the
 // register pairs as untyped instead.
@@ -93,7 +108,7 @@ defm GR128 : SystemZRegClass<"GR128", untyped, 128, (add R0Q, R2Q, R4Q,
 
 // Base and index registers.  Everything except R0, which in an address
 // context evaluates as 0.
-defm ADDR32 : SystemZRegClass<"ADDR32", i32, 32, (sub GR32Bit, R0W)>;
+defm ADDR32 : SystemZRegClass<"ADDR32", i32, 32, (sub GR32Bit, R0L)>;
 defm ADDR64 : SystemZRegClass<"ADDR64", i64, 64, (sub GR64Bit, R0D)>;
 
 // Not used directly, but needs to exist for ADDR32 and ADDR64 subregs
@@ -113,14 +128,14 @@ class FPR32<bits<16> num, string n> : SystemZReg<n> {
 class FPR64<bits<16> num, string n, FPR32 low>
  : SystemZRegWithSubregs<n, [low]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_32bit];
+  let SubRegIndices = [subreg_h32];
 }
 
 // 8 pairs of FPR64s, with a one-register gap inbetween.
-class FPR128<bits<16> num, string n, FPR64 high, FPR64 low>
- : SystemZRegWithSubregs<n, [high, low]> {
+class FPR128<bits<16> num, string n, FPR64 low, FPR64 high>
+ : SystemZRegWithSubregs<n, [low, high]> {
   let HWEncoding = num;
-  let SubRegIndices = [subreg_high, subreg_low];
+  let SubRegIndices = [subreg_l64, subreg_h64];
 }
 
 // Floating-point registers
@@ -131,8 +146,8 @@ foreach I = 0-15 in {
 }
 
 foreach I = [0, 1, 4, 5, 8, 9, 12, 13] in {
-  def F#I#Q  : FPR128<I, "f"#I, !cast<FPR64>("F"#I#"D"),
-                     !cast<FPR64>("F"#!add(I, 2)#"D")>;
+  def F#I#Q  : FPR128<I, "f"#I, !cast<FPR64>("F"#!add(I, 2)#"D"),
+                     !cast<FPR64>("F"#I#"D")>;
 }
 
 // There's no store-multiple instruction for FPRs, so we're not fussy
@@ -146,5 +161,7 @@ defm FP128 : SystemZRegClass<"FP128", f128, 128, (add F0Q, F1Q, F4Q, F5Q,
 // Other registers
 //===----------------------------------------------------------------------===//
 
-// Status register
-def PSW : SystemZReg<"psw">;
+// The 2-bit condition code field of the PSW.  Every register named in an
+// inline asm needs a class associated with it.
+def CC : SystemZReg<"cc">;
+def CCRegs : RegisterClass<"SystemZ", [i32], 32, (add CC)>;

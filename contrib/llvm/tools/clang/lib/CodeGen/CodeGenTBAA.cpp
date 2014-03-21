@@ -50,16 +50,11 @@ llvm::MDNode *CodeGenTBAA::getRoot() {
   return Root;
 }
 
-// For struct-path aware TBAA, the scalar type has the same format as
-// the struct type: name, offset, pointer to another node in the type DAG.
-// For scalar TBAA, the scalar type is the same as the scalar tag:
-// name and a parent pointer.
+// For both scalar TBAA and struct-path aware TBAA, the scalar type has the
+// same format: name, parent node, and offset.
 llvm::MDNode *CodeGenTBAA::createTBAAScalarType(StringRef Name,
                                                 llvm::MDNode *Parent) {
-  if (CodeGenOpts.StructPathTBAA)
-    return MDHelper.createTBAAScalarTypeNode(Name, Parent);
-  else
-    return MDHelper.createTBAANode(Name, Parent);
+  return MDHelper.createTBAAScalarTypeNode(Name, Parent);
 }
 
 llvm::MDNode *CodeGenTBAA::getChar() {
@@ -91,7 +86,7 @@ static bool TypeHasMayAlias(QualType QTy) {
 
 llvm::MDNode *
 CodeGenTBAA::getTBAAInfo(QualType QTy) {
-  // At -O0 TBAA is not emitted for regular types.
+  // At -O0 or relaxed aliasing, TBAA is not emitted for regular types.
   if (CodeGenOpts.OptimizationLevel == 0 || CodeGenOpts.RelaxedAliasing)
     return NULL;
 
@@ -150,27 +145,16 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
   // Enum types are distinct types. In C++ they have "underlying types",
   // however they aren't related for TBAA.
   if (const EnumType *ETy = dyn_cast<EnumType>(Ty)) {
-    // In C mode, two anonymous enums are compatible iff their members
-    // are the same -- see C99 6.2.7p1. For now, be conservative. We could
-    // theoretically implement this by combining information about all the
-    // members into a single identifying MDNode.
-    if (!Features.CPlusPlus &&
-        ETy->getDecl()->getTypedefNameForAnonDecl())
-      return MetadataCache[Ty] = getChar();
-
     // In C++ mode, types have linkage, so we can rely on the ODR and
     // on their mangled names, if they're external.
     // TODO: Is there a way to get a program-wide unique name for a
     // decl with local linkage or no linkage?
-    if (Features.CPlusPlus &&
-        ETy->getDecl()->getLinkage() != ExternalLinkage)
+    if (!Features.CPlusPlus || !ETy->getDecl()->isExternallyVisible())
       return MetadataCache[Ty] = getChar();
 
-    // TODO: This is using the RTTI name. Is there a better way to get
-    // a unique string for a type?
     SmallString<256> OutName;
     llvm::raw_svector_ostream Out(OutName);
-    MContext.mangleCXXRTTIName(QualType(ETy, 0), Out);
+    MContext.mangleTypeName(QualType(ETy, 0), Out);
     Out.flush();
     return MetadataCache[Ty] = createTBAAScalarType(OutName, getChar());
   }
@@ -204,18 +188,8 @@ CodeGenTBAA::CollectFields(uint64_t BaseOffset,
     const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
     unsigned idx = 0;
-    const FieldDecl *LastFD = 0;
-    bool IsMsStruct = RD->isMsStruct(Context);
     for (RecordDecl::field_iterator i = RD->field_begin(),
          e = RD->field_end(); i != e; ++i, ++idx) {
-      if (IsMsStruct) {
-        // Zero-length bitfields following non-bitfield members are ignored.
-        if (Context.ZeroBitfieldFollowsNonBitfield(*i, LastFD)) {
-          --idx;
-          continue;
-        }
-        LastFD = *i;
-      }
       uint64_t Offset = BaseOffset +
                         Layout.getFieldOffset(idx) / Context.getCharWidth();
       QualType FieldQTy = i->getType();
@@ -230,8 +204,7 @@ CodeGenTBAA::CollectFields(uint64_t BaseOffset,
   uint64_t Offset = BaseOffset;
   uint64_t Size = Context.getTypeSizeInChars(QTy).getQuantity();
   llvm::MDNode *TBAAInfo = MayAlias ? getChar() : getTBAAInfo(QTy);
-  llvm::MDNode *TBAATag = CodeGenOpts.StructPathTBAA ?
-                          getTBAAScalarTagInfo(TBAAInfo) : TBAAInfo;
+  llvm::MDNode *TBAATag = getTBAAScalarTagInfo(TBAAInfo);
   Fields.push_back(llvm::MDBuilder::TBAAStructField(Offset, Size, TBAATag));
   return true;
 }
@@ -279,19 +252,8 @@ CodeGenTBAA::getTBAAStructTypeInfo(QualType QTy) {
     const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
     SmallVector <std::pair<llvm::MDNode*, uint64_t>, 4> Fields;
     unsigned idx = 0;
-    const FieldDecl *LastFD = 0;
-    bool IsMsStruct = RD->isMsStruct(Context);
     for (RecordDecl::field_iterator i = RD->field_begin(),
          e = RD->field_end(); i != e; ++i, ++idx) {
-      if (IsMsStruct) {
-        // Zero-length bitfields following non-bitfield members are ignored.
-        if (Context.ZeroBitfieldFollowsNonBitfield(*i, LastFD)) {
-          --idx;
-          continue;
-        }
-        LastFD = *i;
-      }
-
       QualType FieldQTy = i->getType();
       llvm::MDNode *FieldNode;
       if (isTBAAPathStruct(FieldQTy))
@@ -304,12 +266,15 @@ CodeGenTBAA::getTBAAStructTypeInfo(QualType QTy) {
           FieldNode, Layout.getFieldOffset(idx) / Context.getCharWidth()));
     }
 
-    // TODO: This is using the RTTI name. Is there a better way to get
-    // a unique string for a type?
     SmallString<256> OutName;
-    llvm::raw_svector_ostream Out(OutName);
-    MContext.mangleCXXRTTIName(QualType(Ty, 0), Out);
-    Out.flush();
+    if (Features.CPlusPlus) {
+      // Don't use the mangler for C code.
+      llvm::raw_svector_ostream Out(OutName);
+      MContext.mangleTypeName(QualType(Ty, 0), Out);
+      Out.flush();
+    } else {
+      OutName = RD->getName();
+    }
     // Create the struct type node with a vector of pairs (offset, type).
     return StructTypeMetadataCache[Ty] =
       MDHelper.createTBAAStructTypeNode(OutName, Fields);
@@ -318,11 +283,15 @@ CodeGenTBAA::getTBAAStructTypeInfo(QualType QTy) {
   return StructMetadataCache[Ty] = NULL;
 }
 
+/// Return a TBAA tag node for both scalar TBAA and struct-path aware TBAA.
 llvm::MDNode *
 CodeGenTBAA::getTBAAStructTagInfo(QualType BaseQTy, llvm::MDNode *AccessNode,
                                   uint64_t Offset) {
+  if (!AccessNode)
+    return NULL;
+
   if (!CodeGenOpts.StructPathTBAA)
-    return AccessNode;
+    return getTBAAScalarTagInfo(AccessNode);
 
   const Type *BTy = Context.getCanonicalType(BaseQTy).getTypePtr();
   TBAAPathTag PathTag = TBAAPathTag(BTy, AccessNode, Offset);
@@ -342,6 +311,8 @@ CodeGenTBAA::getTBAAStructTagInfo(QualType BaseQTy, llvm::MDNode *AccessNode,
 
 llvm::MDNode *
 CodeGenTBAA::getTBAAScalarTagInfo(llvm::MDNode *AccessNode) {
+  if (!AccessNode)
+    return NULL;
   if (llvm::MDNode *N = ScalarTagMetadataCache[AccessNode])
     return N;
 

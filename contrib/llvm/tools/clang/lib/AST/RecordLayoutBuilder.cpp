@@ -211,7 +211,7 @@ void EmptySubobjectMap::AddSubobjectAtOffset(const CXXRecordDecl *RD,
   if (!RD->isEmpty())
     return;
 
-  // If we have empty structures inside an union, we can assign both
+  // If we have empty structures inside a union, we can assign both
   // the same offset. Just avoid pushing them twice in the list.
   ClassVectorTy& Classes = EmptyClassOffsets[Offset];
   if (std::find(Classes.begin(), Classes.end(), RD) != Classes.end())
@@ -573,10 +573,14 @@ protected:
   
   unsigned IsMsStruct : 1;
 
-  /// UnfilledBitsInLastByte - If the last field laid out was a bitfield,
-  /// this contains the number of bits in the last byte that can be used for
-  /// an adjacent bitfield if necessary.
-  unsigned char UnfilledBitsInLastByte;
+  /// UnfilledBitsInLastUnit - If the last field laid out was a bitfield,
+  /// this contains the number of bits in the last unit that can be used for
+  /// an adjacent bitfield if necessary.  The unit in question is usually
+  /// a byte, but larger units are used if IsMsStruct.
+  unsigned char UnfilledBitsInLastUnit;
+  /// LastBitfieldTypeSize - If IsMsStruct, represents the size of the type
+  /// of the previous field if it was a bitfield.
+  unsigned char LastBitfieldTypeSize;
 
   /// MaxFieldAlignment - The maximum allowed field alignment. This is set by
   /// #pragma pack.
@@ -587,8 +591,6 @@ protected:
 
   CharUnits NonVirtualSize;
   CharUnits NonVirtualAlignment;
-
-  FieldDecl *ZeroLengthBitfield;
 
   /// PrimaryBase - the primary base class (if one exists) of the class
   /// we're laying out.
@@ -601,9 +603,6 @@ protected:
   /// HasOwnVFPtr - Whether the class provides its own vtable/vftbl
   /// pointer, as opposed to inheriting one from a primary base class.
   bool HasOwnVFPtr;
-
-  /// VBPtrOffset - Virtual base table offset. Only for MS layout.
-  CharUnits VBPtrOffset;
 
   typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsetsMapTy;
 
@@ -646,13 +645,12 @@ protected:
       Alignment(CharUnits::One()), UnpackedAlignment(CharUnits::One()),
       ExternalLayout(false), InferAlignment(false), 
       Packed(false), IsUnion(false), IsMac68kAlign(false), IsMsStruct(false),
-      UnfilledBitsInLastByte(0), MaxFieldAlignment(CharUnits::Zero()), 
+      UnfilledBitsInLastUnit(0), LastBitfieldTypeSize(0),
+      MaxFieldAlignment(CharUnits::Zero()), 
       DataSize(0), NonVirtualSize(CharUnits::Zero()), 
       NonVirtualAlignment(CharUnits::One()), 
-      ZeroLengthBitfield(0), PrimaryBase(0), 
-      PrimaryBaseIsVirtual(false),
+      PrimaryBase(0), PrimaryBaseIsVirtual(false),
       HasOwnVFPtr(false),
-      VBPtrOffset(CharUnits::fromQuantity(-1)),
       FirstNearlyEmptyVBase(0) { }
 
   /// Reset this RecordLayoutBuilder to a fresh state, using the given
@@ -679,12 +677,6 @@ protected:
   TargetCXXABI getCXXABI() const {
     return Context.getTargetInfo().getCXXABI();
   }
-
-  bool isMicrosoftCXXABI() const {
-    return getCXXABI().isMicrosoft();
-  }
-
-  void MSLayoutVirtualBases(const CXXRecordDecl *RD);
 
   /// BaseSubobjectInfoAllocator - Allocator for BaseSubobjectInfo objects.
   llvm::SpecificBumpPtrAllocator<BaseSubobjectInfo> BaseSubobjectInfoAllocator;
@@ -727,21 +719,12 @@ protected:
   void AddPrimaryVirtualBaseOffsets(const BaseSubobjectInfo *Info,
                                     CharUnits Offset);
 
-  bool needsVFTable(const CXXRecordDecl *RD) const;
-  bool hasNewVirtualFunction(const CXXRecordDecl *RD,
-                             bool IgnoreDestructor = false) const;
-  bool isPossiblePrimaryBase(const CXXRecordDecl *Base) const;
-
-  void computeVtordisps(const CXXRecordDecl *RD, 
-                        ClassSetTy &VtordispVBases);
-
   /// LayoutVirtualBases - Lays out all the virtual bases.
   void LayoutVirtualBases(const CXXRecordDecl *RD,
                           const CXXRecordDecl *MostDerivedClass);
 
   /// LayoutVirtualBase - Lays out a single virtual base.
-  void LayoutVirtualBase(const BaseSubobjectInfo *Base, 
-                         bool IsVtordispNeed = false);
+  void LayoutVirtualBase(const BaseSubobjectInfo *Base);
 
   /// LayoutBase - Will lay out a base and return the offset where it was
   /// placed, in chars.
@@ -851,18 +834,12 @@ void RecordLayoutBuilder::DeterminePrimaryBase(const CXXRecordDecl *RD) {
     const CXXRecordDecl *Base =
       cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
 
-    if (isPossiblePrimaryBase(Base)) {
+    if (Base->isDynamicClass()) {
       // We found it.
       PrimaryBase = Base;
       PrimaryBaseIsVirtual = false;
       return;
     }
-  }
-
-  // The Microsoft ABI doesn't have primary virtual bases.
-  if (isMicrosoftCXXABI()) {
-    assert(!PrimaryBase && "Should not get here with a primary base!");
-    return;
   }
 
   // Under the Itanium ABI, if there is no non-virtual primary base class,
@@ -1043,7 +1020,7 @@ RecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD) {
 
   // If this class needs a vtable/vf-table and didn't get one from a
   // primary base, add it in now.
-  } else if (needsVFTable(RD)) {
+  } else if (RD->isDynamicClass()) {
     assert(DataSize == 0 && "Vtable pointer must be at offset zero!");
     CharUnits PtrWidth = 
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
@@ -1055,25 +1032,16 @@ RecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD) {
     setDataSize(getSize());
   }
 
-  bool HasDirectVirtualBases = false;
-  bool HasNonVirtualBaseWithVBTable = false;
-
   // Now lay out the non-virtual bases.
   for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
 
-    // Ignore virtual bases, but remember that we saw one.
-    if (I->isVirtual()) {
-      HasDirectVirtualBases = true;
+    // Ignore virtual bases.
+    if (I->isVirtual())
       continue;
-    }
 
     const CXXRecordDecl *BaseDecl =
       cast<CXXRecordDecl>(I->getType()->castAs<RecordType>()->getDecl());
-
-    // Remember if this base has virtual bases itself.
-    if (BaseDecl->getNumVBases())
-      HasNonVirtualBaseWithVBTable = true;
 
     // Skip the primary base, because we've already laid it out.  The
     // !PrimaryBaseIsVirtual check is required because we might have a
@@ -1086,37 +1054,6 @@ RecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD) {
     assert(BaseInfo && "Did not find base info for non-virtual base!");
 
     LayoutNonVirtualBase(BaseInfo);
-  }
-
-  // In the MS ABI, add the vb-table pointer if we need one, which is
-  // whenever we have a virtual base and we can't re-use a vb-table
-  // pointer from a non-virtual base.
-  if (isMicrosoftCXXABI() &&
-      HasDirectVirtualBases && !HasNonVirtualBaseWithVBTable) {
-    CharUnits PtrWidth = 
-      Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
-    CharUnits PtrAlign = 
-      Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerAlign(0));
-
-    // MSVC potentially over-aligns the vb-table pointer by giving it
-    // the max alignment of all the non-virtual objects in the class.
-    // This is completely unnecessary, but we're not here to pass
-    // judgment.
-    //
-    // Note that we've only laid out the non-virtual bases, so on the
-    // first pass Alignment won't be set correctly here, but if the
-    // vb-table doesn't end up aligned correctly we'll come through
-    // and redo the layout from scratch with the right alignment.
-    //
-    // TODO: Instead of doing this, just lay out the fields as if the
-    // vb-table were at offset zero, then retroactively bump the field
-    // offsets up.
-    PtrAlign = std::max(PtrAlign, Alignment);
-
-    EnsureVTablePointerAlignment(PtrAlign);
-    VBPtrOffset = getSize();
-    setSize(getSize() + PtrWidth);
-    setDataSize(getSize());
   }
 }
 
@@ -1164,249 +1101,6 @@ RecordLayoutBuilder::AddPrimaryVirtualBaseOffsets(const BaseSubobjectInfo *Info,
     CharUnits BaseOffset = Offset + Layout.getBaseClassOffset(Base->Class);
     AddPrimaryVirtualBaseOffsets(Base, BaseOffset);
   }
-}
-
-/// needsVFTable - Return true if this class needs a vtable or vf-table
-/// when laid out as a base class.  These are treated the same because
-/// they're both always laid out at offset zero.
-///
-/// This function assumes that the class has no primary base.
-bool RecordLayoutBuilder::needsVFTable(const CXXRecordDecl *RD) const {
-  assert(!PrimaryBase);
-
-  // In the Itanium ABI, every dynamic class needs a vtable: even if
-  // this class has no virtual functions as a base class (i.e. it's
-  // non-polymorphic or only has virtual functions from virtual
-  // bases),x it still needs a vtable to locate its virtual bases.
-  if (!isMicrosoftCXXABI())
-    return RD->isDynamicClass();
-
-  // In the MS ABI, we need a vfptr if the class has virtual functions
-  // other than those declared by its virtual bases.  The AST doesn't
-  // tell us that directly, and checking manually for virtual
-  // functions that aren't overrides is expensive, but there are
-  // some important shortcuts:
-
-  //  - Non-polymorphic classes have no virtual functions at all.
-  if (!RD->isPolymorphic()) return false;
-
-  //  - Polymorphic classes with no virtual bases must either declare
-  //    virtual functions directly or inherit them, but in the latter
-  //    case we would have a primary base.
-  if (RD->getNumVBases() == 0) return true;
-
-  return hasNewVirtualFunction(RD);
-}
-
-/// Does the given class inherit non-virtually from any of the classes
-/// in the given set?
-static bool hasNonVirtualBaseInSet(const CXXRecordDecl *RD, 
-                                   const ClassSetTy &set) {
-  for (CXXRecordDecl::base_class_const_iterator
-         I = RD->bases_begin(), E = RD->bases_end(); I != E; ++I) {
-    // Ignore virtual links.
-    if (I->isVirtual()) continue;
-
-    // Check whether the set contains the base.
-    const CXXRecordDecl *base = I->getType()->getAsCXXRecordDecl();
-    if (set.count(base))
-      return true;
-
-    // Otherwise, recurse and propagate.
-    if (hasNonVirtualBaseInSet(base, set))
-      return true;
-  }
-
-  return false;
-}
-
-/// Does the given method (B::foo()) already override a method (A::foo())
-/// such that A requires a vtordisp in B?  If so, we don't need to add a
-/// new vtordisp for B in a yet-more-derived class C providing C::foo().
-static bool overridesMethodRequiringVtorDisp(const ASTContext &Context,
-                                             const CXXMethodDecl *M) {
-  CXXMethodDecl::method_iterator
-    I = M->begin_overridden_methods(), E = M->end_overridden_methods();
-  if (I == E) return false;
-
-  const ASTRecordLayout::VBaseOffsetsMapTy &offsets =
-    Context.getASTRecordLayout(M->getParent()).getVBaseOffsetsMap();
-  do {
-    const CXXMethodDecl *overridden = *I;
-
-    // If the overridden method's class isn't recognized as a virtual
-    // base in the derived class, ignore it.
-    ASTRecordLayout::VBaseOffsetsMapTy::const_iterator
-      it = offsets.find(overridden->getParent());
-    if (it == offsets.end()) continue;
-
-    // Otherwise, check if the overridden method's class needs a vtordisp.
-    if (it->second.hasVtorDisp()) return true;
-
-  } while (++I != E);
-  return false;
-}                                             
-
-/// In the Microsoft ABI, decide which of the virtual bases require a
-/// vtordisp field.
-void RecordLayoutBuilder::computeVtordisps(const CXXRecordDecl *RD,
-                                           ClassSetTy &vtordispVBases) {
-  // Bail out if we have no virtual bases.
-  assert(RD->getNumVBases());
-
-  // Build up the set of virtual bases that we haven't decided yet.
-  ClassSetTy undecidedVBases;
-  for (CXXRecordDecl::base_class_const_iterator
-         I = RD->vbases_begin(), E = RD->vbases_end(); I != E; ++I) {
-    const CXXRecordDecl *vbase = I->getType()->getAsCXXRecordDecl();
-    undecidedVBases.insert(vbase);
-  }
-  assert(!undecidedVBases.empty());
-
-  // A virtual base requires a vtordisp field in a derived class if it
-  // requires a vtordisp field in a base class.  Walk all the direct
-  // bases and collect this information.
-  for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
-       E = RD->bases_end(); I != E; ++I) {
-    const CXXRecordDecl *base = I->getType()->getAsCXXRecordDecl();
-    const ASTRecordLayout &baseLayout = Context.getASTRecordLayout(base);
-
-    // Iterate over the set of virtual bases provided by this class.
-    for (ASTRecordLayout::VBaseOffsetsMapTy::const_iterator
-           VI = baseLayout.getVBaseOffsetsMap().begin(),
-           VE = baseLayout.getVBaseOffsetsMap().end(); VI != VE; ++VI) {
-      // If it doesn't need a vtordisp in this base, ignore it.
-      if (!VI->second.hasVtorDisp()) continue;
-
-      // If we've already seen it and decided it needs a vtordisp, ignore it.
-      if (!undecidedVBases.erase(VI->first)) 
-        continue;
-
-      // Add it.
-      vtordispVBases.insert(VI->first);
-
-      // Quit as soon as we've decided everything.
-      if (undecidedVBases.empty()) 
-        return;
-    }
-  }
-
-  // Okay, we have virtual bases that we haven't yet decided about.  A
-  // virtual base requires a vtordisp if any the non-destructor
-  // virtual methods declared in this class directly override a method
-  // provided by that virtual base.  (If so, we need to emit a thunk
-  // for that method, to be used in the construction vftable, which
-  // applies an additional 'vtordisp' this-adjustment.)
-
-  // Collect the set of bases directly overridden by any method in this class.
-  // It's possible that some of these classes won't be virtual bases, or won't be
-  // provided by virtual bases, or won't be virtual bases in the overridden
-  // instance but are virtual bases elsewhere.  Only the last matters for what
-  // we're doing, and we can ignore those:  if we don't directly override
-  // a method provided by a virtual copy of a base class, but we do directly
-  // override a method provided by a non-virtual copy of that base class,
-  // then we must indirectly override the method provided by the virtual base,
-  // and so we should already have collected it in the loop above.
-  ClassSetTy overriddenBases;
-  for (CXXRecordDecl::method_iterator
-         M = RD->method_begin(), E = RD->method_end(); M != E; ++M) {
-    // Ignore non-virtual methods and destructors.
-    if (isa<CXXDestructorDecl>(*M) || !M->isVirtual())
-      continue;
-    
-    for (CXXMethodDecl::method_iterator I = M->begin_overridden_methods(),
-          E = M->end_overridden_methods(); I != E; ++I) {
-      const CXXMethodDecl *overriddenMethod = (*I);
-
-      // Ignore methods that override methods from vbases that require
-      // require vtordisps.
-      if (overridesMethodRequiringVtorDisp(Context, overriddenMethod))
-        continue;
-
-      // As an optimization, check immediately whether we're overriding
-      // something from the undecided set.
-      const CXXRecordDecl *overriddenBase = overriddenMethod->getParent();
-      if (undecidedVBases.erase(overriddenBase)) {
-        vtordispVBases.insert(overriddenBase);
-        if (undecidedVBases.empty()) return;
-
-        // We can't 'continue;' here because one of our undecided
-        // vbases might non-virtually inherit from this base.
-        // Consider:
-        //   struct A { virtual void foo(); };
-        //   struct B : A {};
-        //   struct C : virtual A, virtual B { virtual void foo(); };
-        // We need a vtordisp for B here.
-      }
-
-      // Otherwise, just collect it.
-      overriddenBases.insert(overriddenBase);
-    }
-  }
-
-  // Walk the undecided v-bases and check whether they (non-virtually)
-  // provide any of the overridden bases.  We don't need to consider
-  // virtual links because the vtordisp inheres to the layout
-  // subobject containing the base.
-  for (ClassSetTy::const_iterator
-         I = undecidedVBases.begin(), E = undecidedVBases.end(); I != E; ++I) {
-    if (hasNonVirtualBaseInSet(*I, overriddenBases))
-      vtordispVBases.insert(*I);
-  }
-}
-
-/// hasNewVirtualFunction - Does the given polymorphic class declare a
-/// virtual function that does not override a method from any of its
-/// base classes?
-bool 
-RecordLayoutBuilder::hasNewVirtualFunction(const CXXRecordDecl *RD, 
-                                           bool IgnoreDestructor) const {
-  if (!RD->getNumBases()) 
-    return true;
-
-  for (CXXRecordDecl::method_iterator method = RD->method_begin();
-       method != RD->method_end();
-       ++method) {
-    if (method->isVirtual() && !method->size_overridden_methods() &&
-        !(IgnoreDestructor && method->getKind() == Decl::CXXDestructor)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/// isPossiblePrimaryBase - Is the given base class an acceptable
-/// primary base class?
-bool 
-RecordLayoutBuilder::isPossiblePrimaryBase(const CXXRecordDecl *base) const {
-  // In the Itanium ABI, a class can be a primary base class if it has
-  // a vtable for any reason.
-  if (!isMicrosoftCXXABI())
-    return base->isDynamicClass();
-
-  // In the MS ABI, a class can only be a primary base class if it
-  // provides a vf-table at a static offset.  That means it has to be
-  // non-virtual base.  The existence of a separate vb-table means
-  // that it's possible to get virtual functions only from a virtual
-  // base, which we have to guard against.
-
-  // First off, it has to have virtual functions.
-  if (!base->isPolymorphic()) return false;
-
-  // If it has no virtual bases, then the vfptr must be at a static offset.
-  if (!base->getNumVBases()) return true;
-  
-  // Otherwise, the necessary information is cached in the layout.
-  const ASTRecordLayout &layout = Context.getASTRecordLayout(base);
-
-  // If the base has its own vfptr, it can be a primary base.
-  if (layout.hasOwnVFPtr()) return true;
-
-  // If the base has a primary base class, then it can be a primary base.
-  if (layout.getPrimaryBase()) return true;
-
-  // Otherwise it can't.
-  return false;
 }
 
 void
@@ -1458,39 +1152,7 @@ RecordLayoutBuilder::LayoutVirtualBases(const CXXRecordDecl *RD,
   }
 }
 
-void RecordLayoutBuilder::MSLayoutVirtualBases(const CXXRecordDecl *RD) {
-  if (!RD->getNumVBases())
-    return;
-
-  ClassSetTy VtordispVBases;
-  computeVtordisps(RD, VtordispVBases);
-  
-  // This is substantially simplified because there are no virtual
-  // primary bases.
-  for (CXXRecordDecl::base_class_const_iterator I = RD->vbases_begin(),
-       E = RD->vbases_end(); I != E; ++I) {
-    const CXXRecordDecl *BaseDecl = I->getType()->getAsCXXRecordDecl();
-    const BaseSubobjectInfo *BaseInfo = VirtualBaseInfo.lookup(BaseDecl);
-    assert(BaseInfo && "Did not find virtual base info!");
-
-    // If this base requires a vtordisp, add enough space for an int field.
-    // This is apparently always 32-bits, even on x64.
-    bool vtordispNeeded = false;
-    if (VtordispVBases.count(BaseDecl)) {
-      CharUnits IntSize = 
-        CharUnits::fromQuantity(Context.getTargetInfo().getIntWidth() / 8);
-
-      setSize(getSize() + IntSize);
-      setDataSize(getSize());
-      vtordispNeeded = true;
-    }
-
-    LayoutVirtualBase(BaseInfo, vtordispNeeded);
-  }
-}
-
-void RecordLayoutBuilder::LayoutVirtualBase(const BaseSubobjectInfo *Base,
-                                            bool IsVtordispNeed) {
+void RecordLayoutBuilder::LayoutVirtualBase(const BaseSubobjectInfo *Base) {
   assert(!Base->Derived && "Trying to lay out a primary virtual base!");
   
   // Layout the base.
@@ -1499,10 +1161,9 @@ void RecordLayoutBuilder::LayoutVirtualBase(const BaseSubobjectInfo *Base,
   // Add its base class offset.
   assert(!VBases.count(Base->Class) && "vbase offset already exists!");
   VBases.insert(std::make_pair(Base->Class, 
-                       ASTRecordLayout::VBaseInfo(Offset, IsVtordispNeed)));
+                       ASTRecordLayout::VBaseInfo(Offset, false)));
 
-  if (!isMicrosoftCXXABI())
-    AddPrimaryVirtualBaseOffsets(Base, Offset);
+  AddPrimaryVirtualBaseOffsets(Base, Offset);
 }
 
 CharUnits RecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
@@ -1530,17 +1191,18 @@ CharUnits RecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
     }
   }
   
+  CharUnits UnpackedBaseAlign = Layout.getNonVirtualAlign();
+  CharUnits BaseAlign = (Packed) ? CharUnits::One() : UnpackedBaseAlign;
+ 
   // If we have an empty base class, try to place it at offset 0.
   if (Base->Class->isEmpty() &&
       (!HasExternalLayout || Offset == CharUnits::Zero()) &&
       EmptySubobjects->CanPlaceBaseAtOffset(Base, CharUnits::Zero())) {
     setSize(std::max(getSize(), Layout.getSize()));
+    UpdateAlignment(BaseAlign, UnpackedBaseAlign);
 
     return CharUnits::Zero();
   }
-
-  CharUnits UnpackedBaseAlign = Layout.getNonVirtualAlign();
-  CharUnits BaseAlign = (Packed) ? CharUnits::One() : UnpackedBaseAlign;
 
   // The maximum field alignment overrides base align.
   if (!MaxFieldAlignment.isZero()) {
@@ -1655,24 +1317,8 @@ void RecordLayoutBuilder::Layout(const CXXRecordDecl *RD) {
                                  Context.getTargetInfo().getCharAlign()));
   NonVirtualAlignment = Alignment;
 
-  if (isMicrosoftCXXABI()) {
-    if (NonVirtualSize != NonVirtualSize.RoundUpToAlignment(Alignment)) {
-    CharUnits AlignMember = 
-      NonVirtualSize.RoundUpToAlignment(Alignment) - NonVirtualSize;
-
-    setSize(getSize() + AlignMember);
-    setDataSize(getSize());
-
-    NonVirtualSize = Context.toCharUnitsFromBits(
-                             llvm::RoundUpToAlignment(getSizeInBits(),
-                             Context.getTargetInfo().getCharAlign()));
-    }
-
-    MSLayoutVirtualBases(RD);
-  } else {
-    // Lay out the virtual bases and add the primary virtual base offsets.
-    LayoutVirtualBases(RD, RD);
-  }
+  // Lay out the virtual bases and add the primary virtual base offsets.
+  LayoutVirtualBases(RD, RD);
 
   // Finally, round the size of the total struct up to the alignment
   // of the struct itself.
@@ -1728,123 +1374,9 @@ void RecordLayoutBuilder::Layout(const ObjCInterfaceDecl *D) {
 void RecordLayoutBuilder::LayoutFields(const RecordDecl *D) {
   // Layout each field, for now, just sequentially, respecting alignment.  In
   // the future, this will need to be tweakable by targets.
-  const FieldDecl *LastFD = 0;
-  ZeroLengthBitfield = 0;
-  unsigned RemainingInAlignment = 0;
   for (RecordDecl::field_iterator Field = D->field_begin(),
-       FieldEnd = D->field_end(); Field != FieldEnd; ++Field) {
-    if (IsMsStruct) {
-      FieldDecl *FD = *Field;
-      if (Context.ZeroBitfieldFollowsBitfield(FD, LastFD))
-        ZeroLengthBitfield = FD;
-      // Zero-length bitfields following non-bitfield members are
-      // ignored:
-      else if (Context.ZeroBitfieldFollowsNonBitfield(FD, LastFD))
-        continue;
-      // FIXME. streamline these conditions into a simple one.
-      else if (Context.BitfieldFollowsBitfield(FD, LastFD) ||
-               Context.BitfieldFollowsNonBitfield(FD, LastFD) ||
-               Context.NonBitfieldFollowsBitfield(FD, LastFD)) {
-        // 1) Adjacent bit fields are packed into the same 1-, 2-, or
-        // 4-byte allocation unit if the integral types are the same
-        // size and if the next bit field fits into the current
-        // allocation unit without crossing the boundary imposed by the
-        // common alignment requirements of the bit fields.
-        // 2) Establish a new alignment for a bitfield following
-        // a non-bitfield if size of their types differ.
-        // 3) Establish a new alignment for a non-bitfield following
-        // a bitfield if size of their types differ.
-        std::pair<uint64_t, unsigned> FieldInfo = 
-          Context.getTypeInfo(FD->getType());
-        uint64_t TypeSize = FieldInfo.first;
-        unsigned FieldAlign = FieldInfo.second;
-        // This check is needed for 'long long' in -m32 mode.
-        if (TypeSize > FieldAlign &&
-            (Context.hasSameType(FD->getType(), 
-                                Context.UnsignedLongLongTy) 
-             ||Context.hasSameType(FD->getType(), 
-                                   Context.LongLongTy)))
-          FieldAlign = TypeSize;
-        FieldInfo = Context.getTypeInfo(LastFD->getType());
-        uint64_t TypeSizeLastFD = FieldInfo.first;
-        unsigned FieldAlignLastFD = FieldInfo.second;
-        // This check is needed for 'long long' in -m32 mode.
-        if (TypeSizeLastFD > FieldAlignLastFD &&
-            (Context.hasSameType(LastFD->getType(), 
-                                Context.UnsignedLongLongTy)
-             || Context.hasSameType(LastFD->getType(), 
-                                    Context.LongLongTy)))
-          FieldAlignLastFD = TypeSizeLastFD;
-        
-        if (TypeSizeLastFD != TypeSize) {
-          if (RemainingInAlignment &&
-              LastFD && LastFD->isBitField() &&
-              LastFD->getBitWidthValue(Context)) {
-            // If previous field was a bitfield with some remaining unfilled
-            // bits, pad the field so current field starts on its type boundary.
-            uint64_t FieldOffset = 
-            getDataSizeInBits() - UnfilledBitsInLastByte;
-            uint64_t NewSizeInBits = RemainingInAlignment + FieldOffset;
-            setDataSize(llvm::RoundUpToAlignment(NewSizeInBits,
-                                                 Context.getTargetInfo().getCharAlign()));
-            setSize(std::max(getSizeInBits(), getDataSizeInBits()));
-            RemainingInAlignment = 0;
-          }
-          
-          uint64_t UnpaddedFieldOffset = 
-            getDataSizeInBits() - UnfilledBitsInLastByte;
-          FieldAlign = std::max(FieldAlign, FieldAlignLastFD);
-          
-          // The maximum field alignment overrides the aligned attribute.
-          if (!MaxFieldAlignment.isZero()) {
-            unsigned MaxFieldAlignmentInBits = 
-              Context.toBits(MaxFieldAlignment);
-            FieldAlign = std::min(FieldAlign, MaxFieldAlignmentInBits);
-          }
-          
-          uint64_t NewSizeInBits = 
-            llvm::RoundUpToAlignment(UnpaddedFieldOffset, FieldAlign);
-          setDataSize(llvm::RoundUpToAlignment(NewSizeInBits,
-                                               Context.getTargetInfo().getCharAlign()));
-          UnfilledBitsInLastByte = getDataSizeInBits() - NewSizeInBits;
-          setSize(std::max(getSizeInBits(), getDataSizeInBits()));
-        }
-        if (FD->isBitField()) {
-          uint64_t FieldSize = FD->getBitWidthValue(Context);
-          assert (FieldSize > 0 && "LayoutFields - ms_struct layout");
-          if (RemainingInAlignment < FieldSize)
-            RemainingInAlignment = TypeSize - FieldSize;
-          else
-            RemainingInAlignment -= FieldSize;
-        }
-      }
-      else if (FD->isBitField()) {
-        uint64_t FieldSize = FD->getBitWidthValue(Context);
-        std::pair<uint64_t, unsigned> FieldInfo = 
-          Context.getTypeInfo(FD->getType());
-        uint64_t TypeSize = FieldInfo.first;
-        RemainingInAlignment = TypeSize - FieldSize;
-      }
-      LastFD = FD;
-    }
-    else if (!Context.getTargetInfo().useBitFieldTypeAlignment() &&
-             Context.getTargetInfo().useZeroLengthBitfieldAlignment()) {             
-      if (Field->isBitField() && Field->getBitWidthValue(Context) == 0)
-        ZeroLengthBitfield = *Field;
-    }
+       FieldEnd = D->field_end(); Field != FieldEnd; ++Field)
     LayoutField(*Field);
-  }
-  if (IsMsStruct && RemainingInAlignment &&
-      LastFD && LastFD->isBitField() && LastFD->getBitWidthValue(Context)) {
-    // If we ended a bitfield before the full length of the type then
-    // pad the struct out to the full length of the last type.
-    uint64_t FieldOffset = 
-      getDataSizeInBits() - UnfilledBitsInLastByte;
-    uint64_t NewSizeInBits = RemainingInAlignment + FieldOffset;
-    setDataSize(llvm::RoundUpToAlignment(NewSizeInBits,
-                                         Context.getTargetInfo().getCharAlign()));
-    setSize(std::max(getSizeInBits(), getDataSizeInBits()));
-  }
 }
 
 void RecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
@@ -1878,10 +1410,11 @@ void RecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
   CharUnits TypeAlign = Context.getTypeAlignInChars(Type);
 
   // We're not going to use any of the unfilled bits in the last byte.
-  UnfilledBitsInLastByte = 0;
+  UnfilledBitsInLastUnit = 0;
+  LastBitfieldTypeSize = 0;
 
   uint64_t FieldOffset;
-  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastByte;
+  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastUnit;
 
   if (IsUnion) {
     setDataSize(std::max(getDataSizeInBits(), FieldSize));
@@ -1896,7 +1429,7 @@ void RecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
 
     setDataSize(llvm::RoundUpToAlignment(NewSizeInBits, 
                                          Context.getTargetInfo().getCharAlign()));
-    UnfilledBitsInLastByte = getDataSizeInBits() - NewSizeInBits;
+    UnfilledBitsInLastUnit = getDataSizeInBits() - NewSizeInBits;
   }
 
   // Place this field at the current location.
@@ -1914,47 +1447,41 @@ void RecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
 
 void RecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
   bool FieldPacked = Packed || D->hasAttr<PackedAttr>();
-  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastByte;
-  uint64_t FieldOffset = IsUnion ? 0 : UnpaddedFieldOffset;
   uint64_t FieldSize = D->getBitWidthValue(Context);
-
   std::pair<uint64_t, unsigned> FieldInfo = Context.getTypeInfo(D->getType());
   uint64_t TypeSize = FieldInfo.first;
   unsigned FieldAlign = FieldInfo.second;
-  
-  // This check is needed for 'long long' in -m32 mode.
-  if (IsMsStruct && (TypeSize > FieldAlign) && 
-      (Context.hasSameType(D->getType(), 
-                           Context.UnsignedLongLongTy) 
-       || Context.hasSameType(D->getType(), Context.LongLongTy)))
-    FieldAlign = TypeSize;
 
-  if (ZeroLengthBitfield) {
-    std::pair<uint64_t, unsigned> FieldInfo;
-    unsigned ZeroLengthBitfieldAlignment;
-    if (IsMsStruct) {
-      // If a zero-length bitfield is inserted after a bitfield,
-      // and the alignment of the zero-length bitfield is
-      // greater than the member that follows it, `bar', `bar' 
-      // will be aligned as the type of the zero-length bitfield.
-      if (ZeroLengthBitfield != D) {
-        FieldInfo = Context.getTypeInfo(ZeroLengthBitfield->getType());
-        ZeroLengthBitfieldAlignment = FieldInfo.second;
-        // Ignore alignment of subsequent zero-length bitfields.
-        if ((ZeroLengthBitfieldAlignment > FieldAlign) || (FieldSize == 0))
-          FieldAlign = ZeroLengthBitfieldAlignment;
-        if (FieldSize)
-          ZeroLengthBitfield = 0;
-      }
-    } else {
-      // The alignment of a zero-length bitfield affects the alignment
-      // of the next member.  The alignment is the max of the zero 
-      // length bitfield's alignment and a target specific fixed value.
-      unsigned ZeroLengthBitfieldBoundary =
-        Context.getTargetInfo().getZeroLengthBitfieldBoundary();
-      if (ZeroLengthBitfieldBoundary > FieldAlign)
-        FieldAlign = ZeroLengthBitfieldBoundary;
+  if (IsMsStruct) {
+    // The field alignment for integer types in ms_struct structs is
+    // always the size.
+    FieldAlign = TypeSize;
+    // Ignore zero-length bitfields after non-bitfields in ms_struct structs.
+    if (!FieldSize && !LastBitfieldTypeSize)
+      FieldAlign = 1;
+    // If a bitfield is followed by a bitfield of a different size, don't
+    // pack the bits together in ms_struct structs.
+    if (LastBitfieldTypeSize != TypeSize) {
+      UnfilledBitsInLastUnit = 0;
+      LastBitfieldTypeSize = 0;
     }
+  }
+
+  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastUnit;
+  uint64_t FieldOffset = IsUnion ? 0 : UnpaddedFieldOffset;
+
+  bool ZeroLengthBitfield = false;
+  if (!Context.getTargetInfo().useBitFieldTypeAlignment() &&
+      Context.getTargetInfo().useZeroLengthBitfieldAlignment() &&
+      FieldSize == 0) {
+    // The alignment of a zero-length bitfield affects the alignment
+    // of the next member.  The alignment is the max of the zero 
+    // length bitfield's alignment and a target specific fixed value.
+    ZeroLengthBitfield = true;
+    unsigned ZeroLengthBitfieldBoundary =
+      Context.getTargetInfo().getZeroLengthBitfieldBoundary();
+    if (ZeroLengthBitfieldBoundary > FieldAlign)
+      FieldAlign = ZeroLengthBitfieldBoundary;
   }
 
   if (FieldSize > TypeSize) {
@@ -1982,6 +1509,13 @@ void RecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
     UnpackedFieldAlign = std::min(UnpackedFieldAlign, MaxFieldAlignmentInBits);
   }
 
+  // ms_struct bitfields always have to start at a round alignment.
+  if (IsMsStruct && !LastBitfieldTypeSize) {
+    FieldOffset = llvm::RoundUpToAlignment(FieldOffset, FieldAlign);
+    UnpackedFieldOffset = llvm::RoundUpToAlignment(UnpackedFieldOffset,
+                                                   UnpackedFieldAlign);
+  }
+
   // Check if we need to add padding to give the field the correct alignment.
   if (FieldSize == 0 || 
       (MaxFieldAlignment.isZero() &&
@@ -1996,11 +1530,10 @@ void RecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
 
   // Padding members don't affect overall alignment, unless zero length bitfield
   // alignment is enabled.
-  if (!D->getIdentifier() && !Context.getTargetInfo().useZeroLengthBitfieldAlignment())
+  if (!D->getIdentifier() &&
+      !Context.getTargetInfo().useZeroLengthBitfieldAlignment() &&
+      !IsMsStruct)
     FieldAlign = UnpackedFieldAlign = 1;
-
-  if (!IsMsStruct)
-    ZeroLengthBitfield = 0;
 
   if (ExternalLayout)
     FieldOffset = updateExternalFieldOffset(D, FieldOffset);
@@ -2017,11 +1550,29 @@ void RecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
     // FIXME: I think FieldSize should be TypeSize here.
     setDataSize(std::max(getDataSizeInBits(), FieldSize));
   } else {
-    uint64_t NewSizeInBits = FieldOffset + FieldSize;
-
-    setDataSize(llvm::RoundUpToAlignment(NewSizeInBits, 
-                                         Context.getTargetInfo().getCharAlign()));
-    UnfilledBitsInLastByte = getDataSizeInBits() - NewSizeInBits;
+    if (IsMsStruct && FieldSize) {
+      // Under ms_struct, a bitfield always takes up space equal to the size
+      // of the type.  We can't just change the alignment computation on the
+      // other codepath because of the way this interacts with #pragma pack:
+      // in a packed struct, we need to allocate misaligned space in the
+      // struct to hold the bitfield.
+      if (!UnfilledBitsInLastUnit) {
+        setDataSize(FieldOffset + TypeSize);
+        UnfilledBitsInLastUnit = TypeSize - FieldSize;
+      } else if (UnfilledBitsInLastUnit < FieldSize) {
+        setDataSize(getDataSizeInBits() + TypeSize);
+        UnfilledBitsInLastUnit = TypeSize - FieldSize;
+      } else {
+        UnfilledBitsInLastUnit -= FieldSize;
+      }
+      LastBitfieldTypeSize = TypeSize;
+    } else {
+      uint64_t NewSizeInBits = FieldOffset + FieldSize;
+      uint64_t BitfieldAlignment = Context.getTargetInfo().getCharAlign();
+      setDataSize(llvm::RoundUpToAlignment(NewSizeInBits, BitfieldAlignment));
+      UnfilledBitsInLastUnit = getDataSizeInBits() - NewSizeInBits;
+      LastBitfieldTypeSize = 0;
+    }
   }
 
   // Update the size.
@@ -2038,10 +1589,11 @@ void RecordLayoutBuilder::LayoutField(const FieldDecl *D) {
     return;
   }
 
-  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastByte;
+  uint64_t UnpaddedFieldOffset = getDataSizeInBits() - UnfilledBitsInLastUnit;
 
   // Reset the unfilled bits.
-  UnfilledBitsInLastByte = 0;
+  UnfilledBitsInLastUnit = 0;
+  LastBitfieldTypeSize = 0;
 
   bool FieldPacked = Packed || D->hasAttr<PackedAttr>();
   CharUnits FieldOffset = 
@@ -2068,30 +1620,6 @@ void RecordLayoutBuilder::LayoutField(const FieldDecl *D) {
       Context.getTypeInfoInChars(D->getType());
     FieldSize = FieldInfo.first;
     FieldAlign = FieldInfo.second;
-
-    if (ZeroLengthBitfield) {
-      CharUnits ZeroLengthBitfieldBoundary = 
-        Context.toCharUnitsFromBits(
-          Context.getTargetInfo().getZeroLengthBitfieldBoundary());
-      if (ZeroLengthBitfieldBoundary == CharUnits::Zero()) {
-        // If a zero-length bitfield is inserted after a bitfield,
-        // and the alignment of the zero-length bitfield is
-        // greater than the member that follows it, `bar', `bar' 
-        // will be aligned as the type of the zero-length bitfield.
-        std::pair<CharUnits, CharUnits> FieldInfo = 
-          Context.getTypeInfoInChars(ZeroLengthBitfield->getType());
-        CharUnits ZeroLengthBitfieldAlignment = FieldInfo.second;        
-        if (ZeroLengthBitfieldAlignment > FieldAlign)
-          FieldAlign = ZeroLengthBitfieldAlignment;
-      } else if (ZeroLengthBitfieldBoundary > FieldAlign) {
-        // Align 'bar' based on a fixed alignment specified by the target.
-        assert(Context.getTargetInfo().useZeroLengthBitfieldAlignment() &&
-               "ZeroLengthBitfieldBoundary should only be used in conjunction"
-               " with useZeroLengthBitfieldAlignment.");
-        FieldAlign = ZeroLengthBitfieldBoundary;
-      }
-      ZeroLengthBitfield = 0;
-    }
 
     if (IsMsStruct) {
       // If MS bitfield layout is required, figure out what type is being
@@ -2189,7 +1717,7 @@ void RecordLayoutBuilder::FinishLayout(const NamedDecl *D) {
 
   // Finally, round the size of the record up to the alignment of the
   // record itself.
-  uint64_t UnpaddedSize = getSizeInBits() - UnfilledBitsInLastByte;
+  uint64_t UnpaddedSize = getSizeInBits() - UnfilledBitsInLastUnit;
   uint64_t UnpackedSizeInBits =
   llvm::RoundUpToAlignment(getSizeInBits(),
                            Context.toBits(UnpackedAlignment));
@@ -2207,13 +1735,6 @@ void RecordLayoutBuilder::FinishLayout(const NamedDecl *D) {
     }
     setSize(ExternalSize);
     return;
-  }
-
-
-  // MSVC doesn't round up to the alignment of the record with virtual bases.
-  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
-    if (isMicrosoftCXXABI() && RD->getNumVBases())
-      return;
   }
 
   // Set the size to the final size.
@@ -2354,7 +1875,7 @@ static const CXXMethodDecl *computeKeyFunction(ASTContext &Context,
   // A class that is not externally visible doesn't have a key function. (Or
   // at least, there's no point to assigning a key function to such a class;
   // this doesn't affect the ABI.)
-  if (RD->getLinkage() != ExternalLinkage)
+  if (!RD->isExternallyVisible())
     return 0;
 
   // Template instantiations don't have key functions,see Itanium C++ ABI 5.2.6.
@@ -2453,6 +1974,732 @@ static bool mustSkipTailPadding(TargetCXXABI ABI, const CXXRecordDecl *RD) {
   llvm_unreachable("bad tail-padding use kind");
 }
 
+static bool isMsLayout(const RecordDecl* D) {
+  return D->getASTContext().getTargetInfo().getCXXABI().isMicrosoft();
+}
+
+// This section contains an implementation of struct layout that is, up to the
+// included tests, compatible with cl.exe (2012).  The layout produced is
+// significantly different than those produced by the Itanium ABI.  Here we note
+// the most important differences.
+//
+// * The alignment of bitfields in unions is ignored when computing the
+//   alignment of the union.
+// * The existance of zero-width bitfield that occurs after anything other than
+//   a non-zero length bitfield is ignored.
+// * The Itanium equivalent vtable pointers are split into a vfptr (virtual
+//   function pointer) and a vbptr (virtual base pointer).  They can each be
+//   shared with a, non-virtual bases. These bases need not be the same.  vfptrs
+//   always occur at offset 0.  vbptrs can occur at an
+//   arbitrary offset and are placed after non-virtual bases but before fields.
+// * Virtual bases sometimes require a 'vtordisp' field that is laid out before
+//   the virtual base and is used in conjunction with virtual overrides during
+//   construction and destruction.
+// * vfptrs are allocated in a block of memory equal to the alignment of the
+//   fields and non-virtual bases at offset 0 in 32 bit mode and in a pointer
+//   sized block of memory in 64 bit mode.
+// * vbptrs are allocated in a block of memory equal to the alignment of the
+//   fields and non-virtual bases.  This block is at a potentially unaligned
+//   offset.  If the allocation slot is unaligned and the alignment is less than
+//   or equal to the pointer size, additional space is allocated so that the
+//   pointer can be aligned properly.  This causes very strange effects on the
+//   placement of objects after the allocated block. (see the code).
+// * vtordisps are allocated in a block of memory with size and alignment equal
+//   to the alignment of the completed structure (before applying __declspec(
+//   align())).  The vtordisp always occur at the end of the allocation block,
+//   immediately prior to the virtual base.
+// * The last zero sized non-virtual base is allocated after the placement of
+//   vbptr if one exists and can be placed at the end of the struct, potentially
+//   aliasing either the first member or another struct allocated after this
+//   one.
+// * The last zero size virtual base may be placed at the end of the struct.
+//   and can potentially alias a zero sized type in the next struct.
+// * If the last field is a non-zero length bitfield and we have any virtual
+//   bases then some extra padding is added before the virtual bases for no
+//   obvious reason.
+// * When laying out empty non-virtual bases, an extra byte of padding is added
+//   if the non-virtual base before the empty non-virtual base has a vbptr.
+
+
+namespace {
+struct MicrosoftRecordLayoutBuilder {
+  typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsetsMapTy;
+  MicrosoftRecordLayoutBuilder(const ASTContext &Context) : Context(Context) {}
+private:
+  MicrosoftRecordLayoutBuilder(const MicrosoftRecordLayoutBuilder &)
+  LLVM_DELETED_FUNCTION;
+  void operator=(const MicrosoftRecordLayoutBuilder &) LLVM_DELETED_FUNCTION;
+public:
+
+  void layout(const RecordDecl *RD);
+  void cxxLayout(const CXXRecordDecl *RD);
+  /// \brief Initializes size and alignment and honors some flags.
+  void initializeLayout(const RecordDecl *RD);
+  /// \brief Initialized C++ layout, compute alignment and virtual alignment and
+  /// existance of vfptrs and vbptrs.  Alignment is needed before the vfptr is
+  /// laid out.
+  void initializeCXXLayout(const CXXRecordDecl *RD);
+  void layoutVFPtr(const CXXRecordDecl *RD);
+  void layoutNonVirtualBases(const CXXRecordDecl *RD);
+  void layoutNonVirtualBase(const CXXRecordDecl *RD);
+  void layoutVBPtr(const CXXRecordDecl *RD);
+  /// \brief Lays out the fields of the record.  Also rounds size up to
+  /// alignment.
+  void layoutFields(const RecordDecl *RD);
+  void layoutField(const FieldDecl *FD);
+  void layoutBitField(const FieldDecl *FD);
+  /// \brief Lays out a single zero-width bit-field in the record and handles
+  /// special cases associated with zero-width bit-fields.
+  void layoutZeroWidthBitField(const FieldDecl *FD);
+  void layoutVirtualBases(const CXXRecordDecl *RD);
+  void layoutVirtualBase(const CXXRecordDecl *RD, bool HasVtordisp);
+  /// \brief Flushes the lazy virtual base and conditionally rounds up to
+  /// alignment.
+  void finalizeCXXLayout(const CXXRecordDecl *RD);
+  void honorDeclspecAlign(const RecordDecl *RD);
+
+  /// \brief Updates the alignment of the type.  This function doesn't take any
+  /// properties (such as packedness) into account.  getAdjustedFieldInfo()
+  /// adjustes for packedness.
+  void updateAlignment(CharUnits NewAlignment) {
+    Alignment = std::max(Alignment, NewAlignment);
+  }
+  /// \brief Gets the size and alignment taking attributes into account.
+  std::pair<CharUnits, CharUnits> getAdjustedFieldInfo(const FieldDecl *FD);
+  /// \brief Places a field at offset 0.
+  void placeFieldAtZero() { FieldOffsets.push_back(0); }
+  /// \brief Places a field at an offset in CharUnits.
+  void placeFieldAtOffset(CharUnits FieldOffset) {
+    FieldOffsets.push_back(Context.toBits(FieldOffset));
+  }
+  /// \brief Places a bitfield at a bit offset.
+  void placeFieldAtBitOffset(uint64_t FieldOffset) {
+    FieldOffsets.push_back(FieldOffset);
+  }
+  /// \brief Compute the set of virtual bases for which vtordisps are required.
+  llvm::SmallPtrSet<const CXXRecordDecl *, 2>
+  computeVtorDispSet(const CXXRecordDecl *RD);
+
+  const ASTContext &Context;
+  /// \brief The size of the record being laid out.
+  CharUnits Size;
+  /// \brief The current alignment of the record layout.
+  CharUnits Alignment;
+  /// \brief The collection of field offsets.
+  SmallVector<uint64_t, 16> FieldOffsets;
+  /// \brief The maximum allowed field alignment. This is set by #pragma pack.
+  CharUnits MaxFieldAlignment;
+  /// \brief Alignment does not occur for virtual bases unless something
+  /// forces it to by explicitly using __declspec(align())
+  bool AlignAfterVBases : 1;
+  bool IsUnion : 1;
+  /// \brief True if the last field laid out was a bitfield and was not 0
+  /// width.
+  bool LastFieldIsNonZeroWidthBitfield : 1;
+  /// \brief The size of the allocation of the currently active bitfield.
+  /// This value isn't meaningful unless LastFieldIsNonZeroWidthBitfield
+  /// is true.
+  CharUnits CurrentBitfieldSize;
+  /// \brief The number of remaining bits in our last bitfield allocation.
+  /// This value isn't meaningful unless LastFieldIsNonZeroWidthBitfield is
+  /// true.
+  unsigned RemainingBitsInField;
+
+  /// \brief The data alignment of the record layout.
+  CharUnits DataSize;
+  /// \brief The alignment of the non-virtual portion of the record layout
+  /// without the impact of the virtual pointers.
+  /// Only used for C++ layouts.
+  CharUnits BasesAndFieldsAlignment;
+  /// \brief The alignment of the non-virtual portion of the record layout
+  /// Only used for C++ layouts.
+  CharUnits NonVirtualAlignment;
+  /// \brief The additional alignment imposed by the virtual bases.
+  CharUnits VirtualAlignment;
+  /// \brief The primary base class (if one exists).
+  const CXXRecordDecl *PrimaryBase;
+  /// \brief The class we share our vb-pointer with.
+  const CXXRecordDecl *SharedVBPtrBase;
+  /// \brief True if the class has a vftable pointer that can be extended
+  /// by this class or classes derived from it.  Such a vfptr will always occur
+  /// at offset 0.
+  bool HasExtendableVFPtr : 1;
+  /// \brief True if the class has a (not necessarily its own) vbtable pointer.
+  bool HasVBPtr : 1;
+  /// \brief Offset to the virtual base table pointer (if one exists).
+  CharUnits VBPtrOffset;
+  /// \brief Base classes and their offsets in the record.
+  BaseOffsetsMapTy Bases;
+  /// \brief virtual base classes and their offsets in the record.
+  ASTRecordLayout::VBaseOffsetsMapTy VBases;
+  /// \brief The size of a pointer.
+  CharUnits PointerSize;
+  /// \brief The alignment of a pointer.
+  CharUnits PointerAlignment;
+  /// \brief Holds an empty base we haven't yet laid out.
+  const CXXRecordDecl *LazyEmptyBase;
+  /// \brief Lets us know if the last base we laid out was empty.  Only used
+  /// when adjusting the placement of a last zero-sized base in 64 bit mode.
+  bool LastBaseWasEmpty;
+  /// \brief Lets us know if we're in 64-bit mode
+  bool Is64BitMode;
+  /// \brief True if the last non-virtual base has a vbptr.
+  bool LastNonVirtualBaseHasVBPtr;
+};
+} // namespace
+
+std::pair<CharUnits, CharUnits>
+MicrosoftRecordLayoutBuilder::getAdjustedFieldInfo(const FieldDecl *FD) {
+  std::pair<CharUnits, CharUnits> FieldInfo =
+      Context.getTypeInfoInChars(FD->getType());
+
+  // If we're not on win32 and using ms_struct the field alignment will be wrong
+  // for 64 bit types, so we fix that here.
+  if (FD->getASTContext().getTargetInfo().getTriple().getOS() !=
+      llvm::Triple::Win32) {
+    QualType T = Context.getBaseElementType(FD->getType());
+    if (const BuiltinType *BTy = T->getAs<BuiltinType>()) {
+      CharUnits TypeSize = Context.getTypeSizeInChars(BTy);
+      if (TypeSize > FieldInfo.second)
+        FieldInfo.second = TypeSize;
+    }
+  }
+
+  // Respect packed attribute.
+  if (FD->hasAttr<PackedAttr>())
+    FieldInfo.second = CharUnits::One();
+  // Respect pack pragma.
+  else if (!MaxFieldAlignment.isZero())
+    FieldInfo.second = std::min(FieldInfo.second, MaxFieldAlignment);
+  // Respect alignment attributes.
+  if (unsigned fieldAlign = FD->getMaxAlignment()) {
+    CharUnits FieldAlign = Context.toCharUnitsFromBits(fieldAlign);
+    AlignAfterVBases = true;
+    FieldInfo.second = std::max(FieldInfo.second, FieldAlign);
+  }
+  return FieldInfo;
+}
+
+void MicrosoftRecordLayoutBuilder::initializeLayout(const RecordDecl *RD) {
+  IsUnion = RD->isUnion();
+  Is64BitMode = Context.getTargetInfo().getPointerWidth(0) == 64;
+
+  Size = CharUnits::Zero();
+  Alignment = CharUnits::One();
+  AlignAfterVBases = false;
+
+  // Compute the maximum field alignment.
+  MaxFieldAlignment = CharUnits::Zero();
+  // Honor the default struct packing maximum alignment flag.
+  if (unsigned DefaultMaxFieldAlignment = Context.getLangOpts().PackStruct)
+    MaxFieldAlignment = CharUnits::fromQuantity(DefaultMaxFieldAlignment);
+  // Honor the packing attribute.
+  if (const MaxFieldAlignmentAttr *MFAA = RD->getAttr<MaxFieldAlignmentAttr>())
+    MaxFieldAlignment = Context.toCharUnitsFromBits(MFAA->getAlignment());
+  // Packed attribute forces max field alignment to be 1.
+  if (RD->hasAttr<PackedAttr>())
+    MaxFieldAlignment = CharUnits::One();
+}
+
+void MicrosoftRecordLayoutBuilder::layout(const RecordDecl *RD) {
+  initializeLayout(RD);
+  layoutFields(RD);
+  honorDeclspecAlign(RD);
+}
+
+void MicrosoftRecordLayoutBuilder::cxxLayout(const CXXRecordDecl *RD) {
+  initializeLayout(RD);
+  initializeCXXLayout(RD);
+  layoutVFPtr(RD);
+  layoutNonVirtualBases(RD);
+  layoutVBPtr(RD);
+  layoutFields(RD);
+  DataSize = Size;
+  NonVirtualAlignment = Alignment;
+  layoutVirtualBases(RD);
+  finalizeCXXLayout(RD);
+  honorDeclspecAlign(RD);
+}
+
+void
+MicrosoftRecordLayoutBuilder::initializeCXXLayout(const CXXRecordDecl *RD) {
+  // Calculate pointer size and alignment.
+  PointerSize =
+      Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
+  PointerAlignment = PointerSize;
+  if (!MaxFieldAlignment.isZero())
+    PointerAlignment = std::min(PointerAlignment, MaxFieldAlignment);
+
+  // Initialize information about the bases.
+  HasVBPtr = false;
+  HasExtendableVFPtr = false;
+  SharedVBPtrBase = 0;
+  PrimaryBase = 0;
+  VirtualAlignment = CharUnits::One();
+  AlignAfterVBases = Is64BitMode;
+
+  // If the record has a dynamic base class, attempt to choose a primary base
+  // class. It is the first (in direct base class order) non-virtual dynamic
+  // base class, if one exists.
+  for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
+                                                e = RD->bases_end();
+       i != e; ++i) {
+    const CXXRecordDecl *BaseDecl =
+        cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(BaseDecl);
+    // Handle forced alignment.
+    if (Layout.getAlignAfterVBases())
+      AlignAfterVBases = true;
+    // Handle virtual bases.
+    if (i->isVirtual()) {
+      VirtualAlignment = std::max(VirtualAlignment, Layout.getAlignment());
+      HasVBPtr = true;
+      continue;
+    }
+    // We located a primary base class!
+    if (!PrimaryBase && Layout.hasExtendableVFPtr()) {
+      PrimaryBase = BaseDecl;
+      HasExtendableVFPtr = true;
+    }
+    // We located a base to share a VBPtr with!
+    if (!SharedVBPtrBase && Layout.hasVBPtr()) {
+      SharedVBPtrBase = BaseDecl;
+      HasVBPtr = true;
+    }
+    updateAlignment(Layout.getAlignment());
+  }
+
+  // Use LayoutFields to compute the alignment of the fields.  The layout
+  // is discarded.  This is the simplest way to get all of the bit-field
+  // behavior correct and is not actually very expensive.
+  layoutFields(RD);
+  Size = CharUnits::Zero();
+  BasesAndFieldsAlignment = Alignment;
+  FieldOffsets.clear();
+}
+
+void MicrosoftRecordLayoutBuilder::layoutVFPtr(const CXXRecordDecl *RD) {
+  // If we have a primary base then our VFPtr was already laid out
+  if (PrimaryBase)
+    return;
+
+  // Look at all of our methods to determine if we need a VFPtr.  We need a
+  // vfptr if we define a new virtual function.
+  if (!HasExtendableVFPtr && RD->isDynamicClass())
+    for (CXXRecordDecl::method_iterator i = RD->method_begin(),
+                                        e = RD->method_end();
+         !HasExtendableVFPtr && i != e; ++i)
+      HasExtendableVFPtr = i->isVirtual() && i->size_overridden_methods() == 0;
+  if (!HasExtendableVFPtr)
+    return;
+
+  // MSVC 32 (but not 64) potentially over-aligns the vf-table pointer by giving
+  // it the max alignment of all the non-virtual data in the class.  The
+  // resulting layout is essentially { vftbl, { nvdata } }.  This is completely
+  // unnecessary, but we're not here to pass judgment.
+  updateAlignment(PointerAlignment);
+  if (Is64BitMode)
+    Size = Size.RoundUpToAlignment(PointerAlignment) + PointerSize;
+  else
+    Size = Size.RoundUpToAlignment(PointerAlignment) + Alignment;
+}
+
+void
+MicrosoftRecordLayoutBuilder::layoutNonVirtualBases(const CXXRecordDecl *RD) {
+  LazyEmptyBase = 0;
+  LastBaseWasEmpty = false;
+  LastNonVirtualBaseHasVBPtr = false;
+
+  // Lay out the primary base first.
+  if (PrimaryBase)
+    layoutNonVirtualBase(PrimaryBase);
+
+  // Iterate through the bases and lay out the non-virtual ones.
+  for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
+                                                e = RD->bases_end();
+       i != e; ++i) {
+    if (i->isVirtual())
+      continue;
+    const CXXRecordDecl *BaseDecl =
+        cast<CXXRecordDecl>(i->getType()->castAs<RecordType>()->getDecl());
+    if (BaseDecl != PrimaryBase)
+      layoutNonVirtualBase(BaseDecl);
+  }
+}
+
+void
+MicrosoftRecordLayoutBuilder::layoutNonVirtualBase(const CXXRecordDecl *RD) {
+  const ASTRecordLayout *Layout = RD ? &Context.getASTRecordLayout(RD) : 0;
+
+  // If we have a lazy empty base we haven't laid out yet, do that now.
+  if (LazyEmptyBase) {
+    const ASTRecordLayout &LazyLayout =
+        Context.getASTRecordLayout(LazyEmptyBase);
+    Size = Size.RoundUpToAlignment(LazyLayout.getAlignment());
+    // If the last non-virtual base has a vbptr we add a byte of padding for no
+    // obvious reason.
+    if (LastNonVirtualBaseHasVBPtr)
+      Size++;
+    Bases.insert(std::make_pair(LazyEmptyBase, Size));
+    // Empty bases only consume space when followed by another empty base.
+    if (RD && Layout->getNonVirtualSize().isZero()) {
+      LastBaseWasEmpty = true;
+      Size++;
+    }
+    LazyEmptyBase = 0;
+    LastNonVirtualBaseHasVBPtr = false;
+  }
+
+  // RD is null when flushing the final lazy base.
+  if (!RD)
+    return;
+
+  if (Layout->getNonVirtualSize().isZero()) {
+    LazyEmptyBase = RD;
+    return;
+  }
+
+  // Insert the base here.
+  CharUnits BaseOffset = Size.RoundUpToAlignment(Layout->getAlignment());
+  Bases.insert(std::make_pair(RD, BaseOffset));
+  Size = BaseOffset + Layout->getDataSize();
+  // Note: we don't update alignment here because it was accounted
+  // for during initalization.
+  LastBaseWasEmpty = false;
+  LastNonVirtualBaseHasVBPtr = Layout->hasVBPtr();
+}
+
+void MicrosoftRecordLayoutBuilder::layoutVBPtr(const CXXRecordDecl *RD) {
+  if (!HasVBPtr)
+    VBPtrOffset = CharUnits::fromQuantity(-1);
+  else if (SharedVBPtrBase) {
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(SharedVBPtrBase);
+    VBPtrOffset = Bases[SharedVBPtrBase] + Layout.getVBPtrOffset();
+  } else {
+    VBPtrOffset = Size.RoundUpToAlignment(PointerAlignment);
+    CharUnits OldSize = Size;
+    Size = VBPtrOffset + PointerSize;
+    if (BasesAndFieldsAlignment <= PointerAlignment) {
+      // Handle strange padding rules for the lazily placed base.  I have no
+      // explanation for why the last virtual base is padded in such an odd way.
+      // Two things to note about this padding are that the rules are different
+      // if the alignment of the bases+fields is <= to the alignemnt of a
+      // pointer and that the rule in 64-bit mode behaves differently depending
+      // on if the second to last base was also zero sized.
+      Size += OldSize % BasesAndFieldsAlignment.getQuantity();
+    } else {
+      if (Is64BitMode)
+        Size += LastBaseWasEmpty ? CharUnits::One() : CharUnits::Zero();
+      else
+        Size = OldSize + BasesAndFieldsAlignment;
+    }
+    updateAlignment(PointerAlignment);
+  }
+
+  // Flush the lazy empty base.
+  layoutNonVirtualBase(0);
+}
+
+void MicrosoftRecordLayoutBuilder::layoutFields(const RecordDecl *RD) {
+  LastFieldIsNonZeroWidthBitfield = false;
+  for (RecordDecl::field_iterator Field = RD->field_begin(),
+                                  FieldEnd = RD->field_end();
+       Field != FieldEnd; ++Field)
+    layoutField(*Field);
+  Size = Size.RoundUpToAlignment(Alignment);
+}
+
+void MicrosoftRecordLayoutBuilder::layoutField(const FieldDecl *FD) {
+  if (FD->isBitField()) {
+    layoutBitField(FD);
+    return;
+  }
+  LastFieldIsNonZeroWidthBitfield = false;
+
+  std::pair<CharUnits, CharUnits> FieldInfo = getAdjustedFieldInfo(FD);
+  CharUnits FieldSize = FieldInfo.first;
+  CharUnits FieldAlign = FieldInfo.second;
+
+  updateAlignment(FieldAlign);
+  if (IsUnion) {
+    placeFieldAtZero();
+    Size = std::max(Size, FieldSize);
+  } else {
+    // Round up the current record size to the field's alignment boundary.
+    CharUnits FieldOffset = Size.RoundUpToAlignment(FieldAlign);
+    placeFieldAtOffset(FieldOffset);
+    Size = FieldOffset + FieldSize;
+  }
+}
+
+void MicrosoftRecordLayoutBuilder::layoutBitField(const FieldDecl *FD) {
+  unsigned Width = FD->getBitWidthValue(Context);
+  if (Width == 0) {
+    layoutZeroWidthBitField(FD);
+    return;
+  }
+
+  std::pair<CharUnits, CharUnits> FieldInfo = getAdjustedFieldInfo(FD);
+  CharUnits FieldSize = FieldInfo.first;
+  CharUnits FieldAlign = FieldInfo.second;
+
+  // Clamp the bitfield to a containable size for the sake of being able
+  // to lay them out.  Sema will throw an error.
+  if (Width > Context.toBits(FieldSize))
+    Width = Context.toBits(FieldSize);
+
+  // Check to see if this bitfield fits into an existing allocation.  Note:
+  // MSVC refuses to pack bitfields of formal types with different sizes
+  // into the same allocation.
+  if (!IsUnion && LastFieldIsNonZeroWidthBitfield &&
+      CurrentBitfieldSize == FieldSize && Width <= RemainingBitsInField) {
+    placeFieldAtBitOffset(Context.toBits(Size) - RemainingBitsInField);
+    RemainingBitsInField -= Width;
+    return;
+  }
+
+  LastFieldIsNonZeroWidthBitfield = true;
+  CurrentBitfieldSize = FieldSize;
+  if (IsUnion) {
+    placeFieldAtZero();
+    Size = std::max(Size, FieldSize);
+    // TODO: Add a Sema warning that MS ignores bitfield alignment in unions.
+  } else {
+    // Allocate a new block of memory and place the bitfield in it.
+    CharUnits FieldOffset = Size.RoundUpToAlignment(FieldAlign);
+    placeFieldAtOffset(FieldOffset);
+    Size = FieldOffset + FieldSize;
+    updateAlignment(FieldAlign);
+    RemainingBitsInField = Context.toBits(FieldSize) - Width;
+  }
+}
+
+void
+MicrosoftRecordLayoutBuilder::layoutZeroWidthBitField(const FieldDecl *FD) {
+  // Zero-width bitfields are ignored unless they follow a non-zero-width
+  // bitfield.
+  std::pair<CharUnits, CharUnits> FieldInfo = getAdjustedFieldInfo(FD);
+  CharUnits FieldSize = FieldInfo.first;
+  CharUnits FieldAlign = FieldInfo.second;
+
+  if (!LastFieldIsNonZeroWidthBitfield) {
+    placeFieldAtOffset(IsUnion ? CharUnits::Zero() : Size);
+    // TODO: Add a Sema warning that MS ignores alignment for zero
+    // sized bitfields that occur after zero-size bitfields or non bitfields.
+    return;
+  }
+
+  LastFieldIsNonZeroWidthBitfield = false;
+  if (IsUnion) {
+    placeFieldAtZero();
+    Size = std::max(Size, FieldSize);
+  } else {
+    // Round up the current record size to the field's alignment boundary.
+    CharUnits FieldOffset = Size.RoundUpToAlignment(FieldAlign);
+    placeFieldAtOffset(FieldOffset);
+    Size = FieldOffset;
+    updateAlignment(FieldAlign);
+  }
+}
+
+void MicrosoftRecordLayoutBuilder::layoutVirtualBases(const CXXRecordDecl *RD) {
+  if (!HasVBPtr)
+    return;
+
+  updateAlignment(VirtualAlignment);
+
+  // Zero-sized v-bases obey the alignment attribute so apply it here.  The
+  // alignment attribute is normally accounted for in FinalizeLayout.
+  if (unsigned MaxAlign = RD->getMaxAlignment())
+    updateAlignment(Context.toCharUnitsFromBits(MaxAlign));
+
+  llvm::SmallPtrSet<const CXXRecordDecl *, 2> HasVtordisp =
+      computeVtorDispSet(RD);
+
+  // If the last field we laid out was a non-zero length bitfield then add some
+  // extra padding for no obvious reason.
+  if (LastFieldIsNonZeroWidthBitfield)
+    Size += CurrentBitfieldSize;
+
+  // Iterate through the virtual bases and lay them out.
+  for (CXXRecordDecl::base_class_const_iterator i = RD->vbases_begin(),
+                                                e = RD->vbases_end();
+       i != e; ++i) {
+    const CXXRecordDecl *BaseDecl =
+        cast<CXXRecordDecl>(i->getType()->castAs<RecordType>()->getDecl());
+    layoutVirtualBase(BaseDecl, HasVtordisp.count(BaseDecl));
+  }
+}
+
+void MicrosoftRecordLayoutBuilder::layoutVirtualBase(const CXXRecordDecl *RD,
+                                                     bool HasVtordisp) {
+  if (LazyEmptyBase) {
+    const ASTRecordLayout &LazyLayout =
+        Context.getASTRecordLayout(LazyEmptyBase);
+    Size = Size.RoundUpToAlignment(LazyLayout.getAlignment());
+    VBases.insert(
+        std::make_pair(LazyEmptyBase, ASTRecordLayout::VBaseInfo(Size, false)));
+    // Empty bases only consume space when followed by another empty base.
+    // The space consumed is in an Alignment sized/aligned block and the v-base
+    // is placed at its alignment offset into the chunk, unless its alignment
+    // is less than 4 bytes, at which it is placed at 4 byte offset in the
+    // chunk.  We have no idea why.
+    if (RD && Context.getASTRecordLayout(RD).getNonVirtualSize().isZero())
+      Size = Size.RoundUpToAlignment(Alignment) + CharUnits::fromQuantity(4);
+    LazyEmptyBase = 0;
+  }
+
+  // RD is null when flushing the final lazy virtual base.
+  if (!RD)
+    return;
+
+  const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+  if (Layout.getNonVirtualSize().isZero() && !HasVtordisp) {
+    LazyEmptyBase = RD;
+    return;
+  }
+
+  CharUnits BaseNVSize = Layout.getNonVirtualSize();
+  CharUnits BaseAlign = Layout.getAlignment();
+
+  // vtordisps are always 4 bytes (even in 64-bit mode)
+  if (HasVtordisp)
+    Size = Size.RoundUpToAlignment(Alignment) + CharUnits::fromQuantity(4);
+  Size = Size.RoundUpToAlignment(BaseAlign);
+
+  // Insert the base here.
+  CharUnits BaseOffset = Size.RoundUpToAlignment(BaseAlign);
+  VBases.insert(
+      std::make_pair(RD, ASTRecordLayout::VBaseInfo(BaseOffset, HasVtordisp)));
+  Size = BaseOffset + BaseNVSize;
+  // Note: we don't update alignment here because it was accounted for in
+  // InitializeLayout.
+}
+
+void MicrosoftRecordLayoutBuilder::finalizeCXXLayout(const CXXRecordDecl *RD) {
+  // Flush the lazy virtual base.
+  layoutVirtualBase(0, false);
+
+  if (RD->vbases_begin() == RD->vbases_end() || AlignAfterVBases)
+    Size = Size.RoundUpToAlignment(Alignment);
+
+  if (Size.isZero())
+    Size = Alignment;
+}
+
+void MicrosoftRecordLayoutBuilder::honorDeclspecAlign(const RecordDecl *RD) {
+  if (unsigned MaxAlign = RD->getMaxAlignment()) {
+    AlignAfterVBases = true;
+    updateAlignment(Context.toCharUnitsFromBits(MaxAlign));
+    Size = Size.RoundUpToAlignment(Alignment);
+  }
+}
+
+static bool
+RequiresVtordisp(const llvm::SmallPtrSet<const CXXRecordDecl *, 2> &HasVtordisp,
+                 const CXXRecordDecl *RD) {
+  if (HasVtordisp.count(RD))
+    return true;
+  // If any of a virtual bases non-virtual bases (recursively) requires a
+  // vtordisp than so does this virtual base.
+  for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
+                                                e = RD->bases_end();
+       i != e; ++i)
+    if (!i->isVirtual() &&
+        RequiresVtordisp(
+            HasVtordisp,
+            cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl())))
+      return true;
+  return false;
+}
+
+llvm::SmallPtrSet<const CXXRecordDecl *, 2>
+MicrosoftRecordLayoutBuilder::computeVtorDispSet(const CXXRecordDecl *RD) {
+  llvm::SmallPtrSet<const CXXRecordDecl *, 2> HasVtordisp;
+
+  // If any of our bases need a vtordisp for this type, so do we.  Check our
+  // direct bases for vtordisp requirements.
+  for (CXXRecordDecl::base_class_const_iterator i = RD->bases_begin(),
+                                                e = RD->bases_end();
+       i != e; ++i) {
+    const CXXRecordDecl *BaseDecl =
+        cast<CXXRecordDecl>(i->getType()->getAs<RecordType>()->getDecl());
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(BaseDecl);
+    for (ASTRecordLayout::VBaseOffsetsMapTy::const_iterator
+             bi = Layout.getVBaseOffsetsMap().begin(),
+             be = Layout.getVBaseOffsetsMap().end();
+         bi != be; ++bi)
+      if (bi->second.hasVtorDisp())
+        HasVtordisp.insert(bi->first);
+  }
+
+  // If we define a constructor or destructor and override a function that is
+  // defined in a virtual base's vtable, that virtual bases need a vtordisp.
+  // Here we collect a list of classes with vtables for which our virtual bases
+  // actually live.  The virtual bases with this property will require
+  // vtordisps.  In addition, virtual bases that contain non-virtual bases that
+  // define functions we override also require vtordisps, this case is checked
+  // explicitly below.
+  if (RD->hasUserDeclaredConstructor() || RD->hasUserDeclaredDestructor()) {
+    llvm::SmallPtrSet<const CXXMethodDecl *, 8> Work;
+    // Seed the working set with our non-destructor virtual methods.
+    for (CXXRecordDecl::method_iterator i = RD->method_begin(),
+                                        e = RD->method_end();
+         i != e; ++i)
+      if ((*i)->isVirtual() && !isa<CXXDestructorDecl>(*i))
+        Work.insert(*i);
+    while (!Work.empty()) {
+      const CXXMethodDecl *MD = *Work.begin();
+      CXXMethodDecl::method_iterator i = MD->begin_overridden_methods(),
+                                     e = MD->end_overridden_methods();
+      if (i == e)
+        // If a virtual method has no-overrides it lives in its parent's vtable.
+        HasVtordisp.insert(MD->getParent());
+      else
+        Work.insert(i, e);
+      // We've finished processing this element, remove it from the working set.
+      Work.erase(MD);
+    }
+  }
+
+  // Re-check all of our vbases for vtordisp requirements (in case their
+  // non-virtual bases have vtordisp requirements).
+  for (CXXRecordDecl::base_class_const_iterator i = RD->vbases_begin(),
+                                                e = RD->vbases_end();
+       i != e; ++i) {
+    const CXXRecordDecl *BaseDecl =  i->getType()->getAsCXXRecordDecl();
+    if (!HasVtordisp.count(BaseDecl) && RequiresVtordisp(HasVtordisp, BaseDecl))
+      HasVtordisp.insert(BaseDecl);
+  }
+
+  return HasVtordisp;
+}
+
+/// \brief Get or compute information about the layout of the specified record
+/// (struct/union/class), which indicates its size and field position
+/// information.
+const ASTRecordLayout *
+ASTContext::BuildMicrosoftASTRecordLayout(const RecordDecl *D) const {
+  MicrosoftRecordLayoutBuilder Builder(*this);
+  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
+    Builder.cxxLayout(RD);
+    return new (*this) ASTRecordLayout(
+        *this, Builder.Size, Builder.Alignment,
+        Builder.HasExtendableVFPtr && !Builder.PrimaryBase,
+        Builder.HasExtendableVFPtr,
+        Builder.VBPtrOffset, Builder.DataSize, Builder.FieldOffsets.data(),
+        Builder.FieldOffsets.size(), Builder.DataSize,
+        Builder.NonVirtualAlignment, CharUnits::Zero(), Builder.PrimaryBase,
+        false, Builder.SharedVBPtrBase, Builder.AlignAfterVBases, Builder.Bases,
+        Builder.VBases);
+  } else {
+    Builder.layout(D);
+    return new (*this) ASTRecordLayout(
+        *this, Builder.Size, Builder.Alignment, Builder.Size,
+        Builder.FieldOffsets.data(), Builder.FieldOffsets.size());
+  }
+}
+
 /// getASTRecordLayout - Get or compute information about the layout of the
 /// specified record (struct/union/class), which indicates its size and field
 /// position information.
@@ -2468,6 +2715,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
     
   D = D->getDefinition();
   assert(D && "Cannot get layout of forward declarations!");
+  assert(!D->isInvalidDecl() && "Cannot get layout of invalid decl!");
   assert(D->isCompleteDefinition() && "Cannot layout type before complete!");
 
   // Look up this layout, if already laid out, return what we have.
@@ -2476,26 +2724,14 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
   const ASTRecordLayout *Entry = ASTRecordLayouts[D];
   if (Entry) return *Entry;
 
-  const ASTRecordLayout *NewEntry;
+  const ASTRecordLayout *NewEntry = 0;
 
-  if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
+  if (isMsLayout(D) && !D->getASTContext().getExternalSource()) {
+    NewEntry = BuildMicrosoftASTRecordLayout(D);
+  } else if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
     EmptySubobjectMap EmptySubobjects(*this, RD);
     RecordLayoutBuilder Builder(*this, &EmptySubobjects);
     Builder.Layout(RD);
-
-    // MSVC gives the vb-table pointer an alignment equal to that of
-    // the non-virtual part of the structure.  That's an inherently
-    // multi-pass operation.  If our first pass doesn't give us
-    // adequate alignment, try again with the specified minimum
-    // alignment.  This is *much* more maintainable than computing the
-    // alignment in advance in a separately-coded pass; it's also
-    // significantly more efficient in the common case where the
-    // vb-table doesn't need extra padding.
-    if (Builder.VBPtrOffset != CharUnits::fromQuantity(-1) &&
-        (Builder.VBPtrOffset % Builder.NonVirtualAlignment) != 0) {
-      Builder.resetWithTargetAlignment(Builder.NonVirtualAlignment);
-      Builder.Layout(RD);
-    }
 
     // In certain situations, we are allowed to lay out objects in the
     // tail-padding of base classes.  This is ABI-dependent.
@@ -2508,12 +2744,12 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
       skipTailPadding ? Builder.getSize() : Builder.getDataSize();
     CharUnits NonVirtualSize = 
       skipTailPadding ? DataSize : Builder.NonVirtualSize;
-
     NewEntry =
       new (*this) ASTRecordLayout(*this, Builder.getSize(), 
                                   Builder.Alignment,
                                   Builder.HasOwnVFPtr,
-                                  Builder.VBPtrOffset,
+                                  RD->isDynamicClass(),
+                                  CharUnits::fromQuantity(-1),
                                   DataSize, 
                                   Builder.FieldOffsets.data(),
                                   Builder.FieldOffsets.size(),
@@ -2522,6 +2758,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
                                   EmptySubobjects.SizeOfLargestEmptySubobject,
                                   Builder.PrimaryBase,
                                   Builder.PrimaryBaseIsVirtual,
+                                  0, true,
                                   Builder.Bases, Builder.VBases);
   } else {
     RecordLayoutBuilder Builder(*this, /*EmptySubobjects=*/0);
@@ -2538,43 +2775,45 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
   ASTRecordLayouts[D] = NewEntry;
 
   if (getLangOpts().DumpRecordLayouts) {
-    llvm::errs() << "\n*** Dumping AST Record Layout\n";
-    DumpRecordLayout(D, llvm::errs(), getLangOpts().DumpRecordLayoutsSimple);
+    llvm::outs() << "\n*** Dumping AST Record Layout\n";
+    DumpRecordLayout(D, llvm::outs(), getLangOpts().DumpRecordLayoutsSimple);
   }
 
   return *NewEntry;
 }
 
 const CXXMethodDecl *ASTContext::getCurrentKeyFunction(const CXXRecordDecl *RD) {
+  if (!getTargetInfo().getCXXABI().hasKeyFunctions())
+    return 0;
+
   assert(RD->getDefinition() && "Cannot get key function for forward decl!");
   RD = cast<CXXRecordDecl>(RD->getDefinition());
 
-  const CXXMethodDecl *&entry = KeyFunctions[RD];
-  if (!entry) {
-    entry = computeKeyFunction(*this, RD);
-  }
+  LazyDeclPtr &Entry = KeyFunctions[RD];
+  if (!Entry)
+    Entry = const_cast<CXXMethodDecl*>(computeKeyFunction(*this, RD));
 
-  return entry;
+  return cast_or_null<CXXMethodDecl>(Entry.get(getExternalSource()));
 }
 
-void ASTContext::setNonKeyFunction(const CXXMethodDecl *method) {
-  assert(method == method->getFirstDeclaration() &&
+void ASTContext::setNonKeyFunction(const CXXMethodDecl *Method) {
+  assert(Method == Method->getFirstDecl() &&
          "not working with method declaration from class definition");
 
   // Look up the cache entry.  Since we're working with the first
   // declaration, its parent must be the class definition, which is
   // the correct key for the KeyFunctions hash.
-  llvm::DenseMap<const CXXRecordDecl*, const CXXMethodDecl*>::iterator
-    i = KeyFunctions.find(method->getParent());
+  llvm::DenseMap<const CXXRecordDecl*, LazyDeclPtr>::iterator
+    I = KeyFunctions.find(Method->getParent());
 
   // If it's not cached, there's nothing to do.
-  if (i == KeyFunctions.end()) return;
+  if (I == KeyFunctions.end()) return;
 
   // If it is cached, check whether it's the target method, and if so,
   // remove it from the cache.
-  if (i->second == method) {
+  if (I->second.get(getExternalSource()) == Method) {
     // FIXME: remember that we did this for module / chained PCH state?
-    KeyFunctions.erase(i);
+    KeyFunctions.erase(I);
   }
 }
 
@@ -2676,16 +2915,19 @@ static void DumpCXXRecordLayout(raw_ostream &OS,
   IndentLevel++;
 
   const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
-  bool HasVfptr = Layout.hasOwnVFPtr();
-  bool HasVbptr = Layout.getVBPtrOffset() != CharUnits::fromQuantity(-1);
+  bool HasOwnVFPtr = Layout.hasOwnVFPtr();
+  bool HasOwnVBPtr = Layout.hasOwnVBPtr();
 
   // Vtable pointer.
-  if (RD->isDynamicClass() && !PrimaryBase &&
-      !C.getTargetInfo().getCXXABI().isMicrosoft()) {
+  if (RD->isDynamicClass() && !PrimaryBase && !isMsLayout(RD)) {
     PrintOffset(OS, Offset, IndentLevel);
     OS << '(' << *RD << " vtable pointer)\n";
+  } else if (HasOwnVFPtr) {
+    PrintOffset(OS, Offset, IndentLevel);
+    // vfptr (for Microsoft C++ ABI)
+    OS << '(' << *RD << " vftable pointer)\n";
   }
-  
+
   // Dump (non-virtual) bases
   for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
@@ -2704,12 +2946,8 @@ static void DumpCXXRecordLayout(raw_ostream &OS,
                         /*IncludeVirtualBases=*/false);
   }
 
-  // vfptr and vbptr (for Microsoft C++ ABI)
-  if (HasVfptr) {
-    PrintOffset(OS, Offset, IndentLevel);
-    OS << '(' << *RD << " vftable pointer)\n";
-  }
-  if (HasVbptr) {
+  // vbptr (for Microsoft C++ ABI)
+  if (HasOwnVBPtr) {
     PrintOffset(OS, Offset + Layout.getVBPtrOffset(), IndentLevel);
     OS << '(' << *RD << " vbtable pointer)\n";
   }
@@ -2762,7 +3000,8 @@ static void DumpCXXRecordLayout(raw_ostream &OS,
 
   PrintIndentNoOffset(OS, IndentLevel - 1);
   OS << "[sizeof=" << Layout.getSize().getQuantity();
-  OS << ", dsize=" << Layout.getDataSize().getQuantity();
+  if (!isMsLayout(RD))
+    OS << ", dsize=" << Layout.getDataSize().getQuantity();
   OS << ", align=" << Layout.getAlignment().getQuantity() << '\n';
 
   PrintIndentNoOffset(OS, IndentLevel - 1);
@@ -2789,7 +3028,8 @@ void ASTContext::DumpRecordLayout(const RecordDecl *RD,
   OS << "\nLayout: ";
   OS << "<ASTRecordLayout\n";
   OS << "  Size:" << toBits(Info.getSize()) << "\n";
-  OS << "  DataSize:" << toBits(Info.getDataSize()) << "\n";
+  if (!isMsLayout(RD))
+    OS << "  DataSize:" << toBits(Info.getDataSize()) << "\n";
   OS << "  Alignment:" << toBits(Info.getAlignment()) << "\n";
   OS << "  FieldOffsets: [";
   for (unsigned i = 0, e = Info.getFieldCount(); i != e; ++i) {

@@ -55,11 +55,10 @@ namespace {
 /// by MachO. Beware!
 class AArch64ELFStreamer : public MCELFStreamer {
 public:
-  AArch64ELFStreamer(MCContext &Context, MCAsmBackend &TAB,
-                 raw_ostream &OS, MCCodeEmitter *Emitter)
-    : MCELFStreamer(Context, TAB, OS, Emitter),
-      MappingSymbolCounter(0), LastEMS(EMS_None) {
-  }
+  AArch64ELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
+                     MCCodeEmitter *Emitter)
+      : MCELFStreamer(Context, 0, TAB, OS, Emitter), MappingSymbolCounter(0),
+        LastEMS(EMS_None) {}
 
   ~AArch64ELFStreamer() {}
 
@@ -85,18 +84,17 @@ public:
   /// This is one of the functions used to emit data into an ELF section, so the
   /// AArch64 streamer overrides it to add the appropriate mapping symbol ($d)
   /// if necessary.
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace) {
+  virtual void EmitBytes(StringRef Data) {
     EmitDataMappingSymbol();
-    MCELFStreamer::EmitBytes(Data, AddrSpace);
+    MCELFStreamer::EmitBytes(Data);
   }
 
   /// This is one of the functions used to emit data into an ELF section, so the
   /// AArch64 streamer overrides it to add the appropriate mapping symbol ($d)
   /// if necessary.
-  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                             unsigned AddrSpace) {
+  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size) {
     EmitDataMappingSymbol();
-    MCELFStreamer::EmitValueImpl(Value, Size, AddrSpace);
+    MCELFStreamer::EmitValueImpl(Value, Size);
   }
 
 private:
@@ -130,7 +128,7 @@ private:
     MCELF::SetType(SD, ELF::STT_NOTYPE);
     MCELF::SetBinding(SD, ELF::STB_LOCAL);
     SD.setExternal(false);
-    Symbol->setSection(*getCurrentSection().first);
+    AssignSection(Symbol, getCurrentSection().first);
 
     const MCExpr *Value = MCSymbolRefExpr::Create(Start, getContext());
     Symbol->setVariableValue(Value);

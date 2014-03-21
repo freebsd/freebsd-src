@@ -7,14 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern> : Instruction {
+class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern>
+          : Instruction {
   field bits<32> Inst;
 
   let Namespace = "SP";
 
   bits<2> op;
   let Inst{31-30} = op;               // Top two bits are the 'op' field
-  
+
   dag OutOperandList = outs;
   dag InOperandList = ins;
   let AsmString   = asmstr;
@@ -46,12 +47,11 @@ class F2_1<bits<3> op2Val, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{29-25} = rd;
 }
 
-class F2_2<bits<4> condVal, bits<3> op2Val, dag outs, dag ins, string asmstr, 
+class F2_2<bits<3> op2Val, dag outs, dag ins, string asmstr,
            list<dag> pattern> : F2<outs, ins, asmstr, pattern> {
   bits<4>   cond;
   bit       annul = 0;     // currently unused
 
-  let cond        = condVal;
   let op2         = op2Val;
 
   let Inst{29}    = annul;
@@ -88,7 +88,7 @@ class F3_1<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
   let Inst{4-0}  = rs2;
 }
 
-class F3_2<bits<2> opVal, bits<6> op3val, dag outs, dag ins, 
+class F3_2<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
            string asmstr, list<dag> pattern> : F3<outs, ins, asmstr, pattern> {
   bits<13> simm13;
 
@@ -106,6 +106,32 @@ class F3_3<bits<2> opVal, bits<6> op3val, bits<9> opfval, dag outs, dag ins,
 
   let op         = opVal;
   let op3        = op3val;
+
+  let Inst{13-5} = opfval;   // fp opcode
+  let Inst{4-0}  = rs2;
+}
+
+// floating-point unary operations.
+class F3_3u<bits<2> opVal, bits<6> op3val, bits<9> opfval, dag outs, dag ins,
+           string asmstr, list<dag> pattern> : F3<outs, ins, asmstr, pattern> {
+  bits<5> rs2;
+
+  let op         = opVal;
+  let op3        = op3val;
+  let rs1        = 0;
+
+  let Inst{13-5} = opfval;   // fp opcode
+  let Inst{4-0}  = rs2;
+}
+
+// floating-point compares.
+class F3_3c<bits<2> opVal, bits<6> op3val, bits<9> opfval, dag outs, dag ins,
+           string asmstr, list<dag> pattern> : F3<outs, ins, asmstr, pattern> {
+  bits<5> rs2;
+
+  let op         = opVal;
+  let op3        = op3val;
+  let rd         = 0;
 
   let Inst{13-5} = opfval;   // fp opcode
   let Inst{4-0}  = rs2;
@@ -148,4 +174,60 @@ multiclass F3_S<string OpcStr, bits<6> Op3Val, bit XVal, SDNode OpNode,
   def ri : F3_Si<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs, i32imm:$shcnt),
                  !strconcat(OpcStr, " $rs, $shcnt, $rd"),
                  [(set VT:$rd, (OpNode VT:$rs, (i32 imm:$shcnt)))]>;
+}
+
+class F4<bits<6> op3, dag outs, dag ins, string asmstr, list<dag> pattern>
+      : InstSP<outs, ins, asmstr, pattern> {
+  bits<5> rd;
+
+  let op          = 2;
+  let Inst{29-25} = rd;
+  let Inst{24-19} = op3;
+}
+
+
+class F4_1<bits<6> op3, dag outs, dag ins,
+            string asmstr, list<dag> pattern>
+      : F4<op3, outs, ins, asmstr, pattern> {
+
+  bits<3> cc;
+  bits<4> cond;
+  bits<5> rs2;
+
+  let Inst{4-0}   = rs2;
+  let Inst{11}    = cc{0};
+  let Inst{12}    = cc{1};
+  let Inst{13}    = 0;
+  let Inst{17-14} = cond;
+  let Inst{18}    = cc{2};
+
+}
+
+class F4_2<bits<6> op3, dag outs, dag ins,
+            string asmstr, list<dag> pattern>
+      : F4<op3, outs, ins, asmstr, pattern> {
+  bits<3>  cc;
+  bits<4>  cond;
+  bits<11> simm11;
+
+  let Inst{10-0}  = simm11;
+  let Inst{11}    = cc{0};
+  let Inst{12}    = cc{1};
+  let Inst{13}    = 1;
+  let Inst{17-14} = cond;
+  let Inst{18}    = cc{2};
+}
+
+class F4_3<bits<6> op3, bits<6> opf_low, dag outs, dag ins,
+           string asmstr, list<dag> pattern>
+      : F4<op3, outs, ins, asmstr, pattern> {
+  bits<4> cond;
+  bits<3> opf_cc;
+  bits<5> rs2;
+
+  let Inst{18}     = 0;
+  let Inst{17-14}  = cond;
+  let Inst{13-11}  = opf_cc;
+  let Inst{10-5}   = opf_low;
+  let Inst{4-0}    = rs2;
 }
