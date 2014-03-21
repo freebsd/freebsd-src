@@ -270,6 +270,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="261674">A bug that could trigger an infinite
+	loop in KDE and X has been fixed.</para>
+
       <para revision="262076">The &man.newsyslog.8; utility has been
 	changed to use the size of the file, instead of the blocks the
 	file takes on the disk to matche the behavior documented in
