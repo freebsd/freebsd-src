@@ -233,6 +233,10 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="259457">The &man.run.4; driver has been
+	    updated to support MediaTek/Ralink chipsets RT5370 and
+	    RT5372.</para>
+
 	  <para revision="259460">The &man.usb.4; wireless radiotap
 	    headers have been realigned, allowing wireless adapters
 	    to work on &arch.arm;, &arch.mips;, and other similar
