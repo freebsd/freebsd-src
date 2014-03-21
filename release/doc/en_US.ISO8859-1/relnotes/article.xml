@@ -217,6 +217,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263326">The &man.fetch.3; library now
+	supports <literal>Last-Modified</literal> timestamps which
+	return UTC instead of GMT.</para>
+
       <para revision="263404">Aliases for the &man.zfs.8; commands
 	<literal>list -t snap</literal> and <literal>snap</literal>
 	have been added to match &oracle;&nbsp;Solaris 11.</para>
