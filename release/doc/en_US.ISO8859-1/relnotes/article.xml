@@ -125,6 +125,14 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="260433">A new &man.sysctl.8;,
+	<literal>kern.panic_reboot_wait_time</literal>, has been
+	added.  This allows tuning the amount of time the system
+	will wait before rebooting after &man.panic.9;.  The
+	<literal>kern.panic_reboot_wait_time</literal> value defaults
+	to the kernel configuration option,
+	<literal>PANIC_REBOOT_WAIT_TIME</literal>.</para>
+
       <para revision="260644">Hardware Random Number Generators have
 	been disabled by default.</para>
 
