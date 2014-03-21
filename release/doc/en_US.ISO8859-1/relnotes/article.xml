@@ -264,6 +264,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260208">The &man.protect.1; command has been
+	added, which allows exempting processes from being killed
+	when swap is exhausted.</para>
+
       <para revision="260507">The &man.gmirror.8; utility now prevents
 	deactivating the last component of a mirror.</para>
 
