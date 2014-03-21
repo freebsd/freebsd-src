@@ -152,7 +152,7 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
-      <para revision="263171">The Radeon KMS driver has been
+      <para revision="263170,263171">The Radeon KMS driver has been
 	added.</para>
 
       <para revision="263340">The &man.aacraid.4; driver has been
