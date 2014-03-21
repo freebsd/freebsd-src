@@ -293,6 +293,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="259243">A segmentation fault and internal
+	compiler error bug in &man.gcc.1; triggered by throwing
+	a warning before parsing any tokens has been fixed.</para>
+
       <para revision="259269,259406">Several updates to &man.gcc.1;
 	have been imported from Google.</para>
 
