@@ -928,7 +928,9 @@
 
       <para revision="263421"><application>OpenPAM</application> has
 	been updated to Nummularia (20130907), which incorporates
-	several bug fixes and documentation improvements.</para>
+	several bug fixes and documentation improvements.  The
+	&man.openpam.ttyconv.3; library has been completely
+	rewritten.</para>
 
       <para revision="238481">&man.auth.conf.5; has been removed
 	because it was deprecated years ago.</para>
