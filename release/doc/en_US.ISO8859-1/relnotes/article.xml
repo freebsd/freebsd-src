@@ -217,6 +217,12 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263212">The NetBSD &man.make.1; utility,
+	<command>bmake</command> has been imported for compatibility
+	with the &os;&nbsp;Ports Collection.  It is installed as
+	<command>bmake</command>, and the <command>make</command>
+	remains the &os; version.</para>
+
       <para revision="263286">The &man.xz.1; utility has been updated
 	to a post-5.0.5 snapshot.</para>
 
