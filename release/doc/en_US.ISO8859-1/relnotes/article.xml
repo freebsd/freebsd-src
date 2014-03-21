@@ -152,6 +152,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="261483">Support for GPS ports has been added
+	to the &man.uhso.4; driver.</para>
+
       <para revision="262116">A memory leak of compressed buffers
 	has been fixed in
 	<literal>l2arc_write_done()</literal>.</para>
