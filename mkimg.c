@@ -88,13 +88,16 @@ usage(const char *why)
 	}
 
 	fprintf(stderr, "    partition specification:\n");
-	fprintf(stderr, "\t<type>::<size>\t-  empty partition of given size\n");
-	fprintf(stderr, "\t<type>:=<file>\t-  partition content and size\n"
-	    "\t\t\t   determined by the named file\n");
-	fprintf(stderr, "\t<type>:!<cmd>\t-  partition content and size\n"
-	    "\t\t\t   taken from the output of the command to run\n");
+	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
+	    "size\n");
+	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
+	    "are determined\n\t\t\t\t   by the named file\n");
+	fprintf(stderr, "\t<t>[/<l>]:!<cmd>\t-  partition content and size "
+	    "are taken from\n\t\t\t\t   the output of the command to run\n");
 	fprintf(stderr, "\t    where:\n");
-	fprintf(stderr, "\t\ttype\t-  scheme neutral partition type\n");
+	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
+	fprintf(stderr, "\t\t<l>\t-  optional scheme-dependent partition "
+	    "label\n");
 
 	exit(EX_USAGE);
 }
