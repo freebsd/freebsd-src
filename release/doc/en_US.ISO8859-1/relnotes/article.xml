@@ -152,6 +152,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262594">A kernel panic triggered by inserting
+	a USB ethernet device on VIMAGE-enabled systems has been
+	fixed.</para>
+
       <para revision="262988">TTM, a memory manager used by video
 	drivers, has been merged.</para>
 
