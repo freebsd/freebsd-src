@@ -221,6 +221,9 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="260119">The &man.run.4; firmware has been
+	    updated to version 0.33.</para>
+
 	  <para revision="260252">The &man.bxe.4; driver has been
 	    merged from <literal>head/</literal>, providing support
 	    for Broadcom NetXtreme II 10Gb PCIe adapters.</para>
