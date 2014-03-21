@@ -125,6 +125,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="258870">The &man.mmap.2; system call has been
+	updated to more optimally use superpages and provide support
+	for tweaking the alignment of virtual mappings.</para>
+
       <para revision="258962">A workaround has been implemented
 	in the &man.bge.4; driver for hung transmission on BCM5719
 	and BCM5720 chipsets.</para>
