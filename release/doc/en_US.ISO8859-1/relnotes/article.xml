@@ -237,6 +237,10 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="258967">The &man.bge.4; driver has been
+	    updated to support the BCM57764, BCM57767, BCM57782,
+	    BCM57786 and BCM57787 chipsets.</para>
+
 	  <para revision="259457">The &man.run.4; driver has been
 	    updated to support MediaTek/Ralink chipsets RT5370 and
 	    RT5372.</para>
