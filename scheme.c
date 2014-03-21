@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <stdint.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "mkimg.h"
@@ -86,6 +86,13 @@ scheme_check_part(struct part *p)
 	if (alias == NULL)
 		return (EINVAL);
 	p->type = iter->type;
+
+	/* Validate the optional label. */
+	if (p->label != NULL) {
+		if (strlen(p->label) > scheme->labellen)
+			return (EOPNOTSUPP);
+	}
+
 	return (0);
 }
 

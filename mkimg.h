@@ -44,6 +44,7 @@ struct part {
 	uintptr_t type;		/* Scheme-specific partition type. */
 	off_t	offset;		/* Byte-offset of partition in image. */
 	off_t	size;		/* Size in bytes of partition. */
+	char	*label;		/* Partition label. */
 };
 
 extern STAILQ_HEAD(partlisthead, part) partlist;

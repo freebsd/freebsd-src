@@ -50,7 +50,8 @@ struct mkimg_scheme {
 #define	SCHEME_META_PART_BEFORE	3
 #define	SCHEME_META_PART_AFTER	4
 	int		(*write)(int, off_t, u_int, u_int);
-	int		nparts;
+	u_int		nparts;
+	u_int		labellen;
 };
 
 SET_DECLARE(schemes, struct mkimg_scheme);

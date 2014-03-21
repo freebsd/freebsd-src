@@ -163,6 +163,21 @@ parse_part(const char *spec)
 		goto errout;
 	}
 
+	spec = part->alias;
+	sep = strchr(spec, '/');
+	if (sep != NULL) {
+		*sep++ = '\0';
+		if (strlen(part->alias) == 0 || strlen(sep) == 0) {
+			error = EINVAL;
+			goto errout;
+		}
+		part->label = strdup(sep);
+		if (part->label == NULL) {
+			error = ENOMEM;
+			goto errout;
+		}
+	}
+
 	part->index = nparts;
 	STAILQ_INSERT_TAIL(&partlist, part, link);
 	nparts++;

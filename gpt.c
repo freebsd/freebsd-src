@@ -173,6 +173,7 @@ gpt_mktbl(u_int tblsz, u_int secsz)
 	struct gpt_ent *tbl, *ent;
 	struct part *part;
 	uint64_t limit;
+	int c, idx;
 
 	tbl = calloc(tblsz, secsz);
 	if (tbl == NULL)
@@ -186,7 +187,13 @@ gpt_mktbl(u_int tblsz, u_int secsz)
 		le64enc(&ent->ent_lba_start, part->offset / secsz);
 		limit = (part->offset + part->size) / secsz;
 		le64enc(&ent->ent_lba_end, limit - 1);
-		/* TODO add support for labels */
+		if (part->label != NULL) {
+			idx = 0;
+			while ((c = part->label[idx]) != '\0') {
+				le16enc(ent->ent_name + idx, c);
+				idx++;
+			}
+		}
 	}
 	return (tbl);
 }
@@ -272,7 +279,8 @@ static struct mkimg_scheme gpt_scheme = {
 	.aliases = gpt_aliases,
 	.metadata = gpt_metadata,
 	.write = gpt_write,
-	.nparts = 4096
+	.nparts = 4096,
+	.labellen = 36
 };
 
 SCHEME_DEFINE(gpt_scheme);
