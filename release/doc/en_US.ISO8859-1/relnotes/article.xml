@@ -275,6 +275,9 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260007">The &man.hastctl.8; utility has been
+	updated to output the current queue sizes.</para>
+
       <para revision="260197">The &man.ps.1; utility will no longer
 	truncate the <literal>command</literal> output column.</para>
 
