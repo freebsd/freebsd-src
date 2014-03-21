@@ -276,6 +276,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="260868,260869">The
+	<literal>hw.uart.console</literal> is now always updated when
+	the comconsole setup changes.</para>
+
       <para revision="260909">The &man.kldload.8; utility has been
 	updated to display a message directing to &man.dmesg.8;,
 	instead of the cryptic message <quote>Exec format
