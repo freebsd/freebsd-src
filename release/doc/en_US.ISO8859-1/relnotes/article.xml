@@ -152,6 +152,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262175">A deadlock triggered by sending
+	a mounted &man.zfs.8; snapshot has been fixed.</para>
+
       <para revision="262231">Support for SIIG X1 PCI-e has been added
 	to &man.ppc.4;.</para>
 
