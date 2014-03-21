@@ -60,11 +60,7 @@
 
 
 #define	cheri_getdefault()	__builtin_cheri_get_global_data_cap()
-#if 0
 #define	cheri_getidc()		__builtin_cheri_get_invoke_data_cap()
-#else
-#define	cheri_getidc()		cheri_getreg(26)
-#endif
 #define	cheri_getkr0c()		__builtin_cheri_get_kernel_cap1()
 #define	cheri_getkr1c()		__builtin_cheri_get_kernel_cap2()
 #define	cheri_getkcc()		__builtin_cheri_get_kernel_code_cap()
