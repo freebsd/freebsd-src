@@ -254,6 +254,12 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262124">The default number of &man.nfsd.8;
+	threads has been increased from <literal>4</literal> to
+	<literal>(8 * N)</literal>, where <literal>N</literal> is
+	the number of CPUs as reported by
+	<command>sysctl -n hw.ncpu</command>.</para>
+
       <para revision="262134">The &man.pciconf.8; utility now has
 	a <literal>-V</literal> flag, which lists VPD data for
 	each device.</para>
