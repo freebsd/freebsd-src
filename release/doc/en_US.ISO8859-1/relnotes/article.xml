@@ -254,6 +254,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="262134">The &man.pciconf.8; utility now has
+	a <literal>-V</literal> flag, which lists VPD data for
+	each device.</para>
+
       <para revision="262158">A bug that would allow creating
 	a &man.zfs.8; snapshot of an inconsistent dataset has been
 	fixed.</para>
