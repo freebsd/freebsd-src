@@ -85,7 +85,7 @@ scheme_check_part(struct part *p)
 	}
 	if (alias == NULL)
 		return (EINVAL);
-
+	p->type = iter->type;
 	return (0);
 }
 

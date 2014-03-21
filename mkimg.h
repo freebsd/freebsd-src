@@ -41,6 +41,7 @@ struct part {
 #define	PART_KIND_PIPE	2
 #define	PART_KIND_SIZE	3
 	u_int	index;		/* Partition index (0-based). */
+	uintptr_t type;		/* Scheme-specific partition type. */
 	off_t	offset;		/* Byte-offset of partition in image. */
 	off_t	size;		/* Size in bytes of partition. */
 };

@@ -33,9 +33,11 @@
 
 struct mkimg_alias {
 	const char	*name;
-	uintptr_t	tp;
-#define	ALIAS_PTR(p)	(uintptr_t)(p)
-#define	ALIAS_INT(i)	(uintptr_t)(i)
+	uintptr_t	type;
+#define	ALIAS_PTR2TYPE(p)	(uintptr_t)(p)
+#define	ALIAS_INT2TYPE(i)	(i)
+#define	ALIAS_TYPE2PTR(p)	(void *)(p)
+#define	ALIAS_TYPE2INT(i)	(i)
 };
 
 struct mkimg_scheme {
