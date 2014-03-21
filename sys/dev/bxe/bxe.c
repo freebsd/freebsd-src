@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.77"
+#define BXE_DRIVER_VERSION "1.78.78"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -911,7 +911,7 @@ bxe_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
         dma->paddr = segs->ds_addr;
         dma->nseg  = nseg;
 #if 0
-        BLOGD(dma->sc, DBG_LOAD,,
+        BLOGD(dma->sc, DBG_LOAD,
               "DMA alloc '%s': vaddr=%p paddr=%p nseg=%d size=%lu\n",
               dma->msg, dma->vaddr, (void *)dma->paddr,
               dma->nseg, dma->size);
@@ -5494,7 +5494,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
     }
 
     /* make sure it fits in the packet window */
-    if (__predict_false(nsegs > 12)) {
+    if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
         /*
          * The mbuf may be to big for the controller to handle. If the frame
          * is a TSO frame we'll need to do an additional check.
@@ -5509,8 +5509,9 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
             fp->eth_q_stats.tx_window_violation_std++;
         }
 
-        /* lets try to defragment this mbuf */
+        /* lets try to defragment this mbuf and remap it */
         fp->eth_q_stats.mbuf_defrag_attempts++;
+        bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
 
         m0 = m_defrag(*m_head, M_DONTWAIT);
         if (m0 == NULL) {
@@ -5528,10 +5529,12 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
                 /* No sense in trying to defrag/copy chain, drop it. :( */
                 rc = error;
             }
-
-            /* if the chain is still too long then drop it */
-            if (__predict_false(nsegs > 12)) {
-                rc = ENODEV;
+            else {
+                /* if the chain is still too long then drop it */
+                if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
+                    bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
+                    rc = ENODEV;
+                }
             }
         }
     }
@@ -9405,13 +9408,13 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
         }
 
         if (((sc->devinfo.pcie_cap_flags & BXE_MSI_CAPABLE_FLAG) == 0) ||
-            (msi_count < 2)) {
+            (msi_count < 1)) {
             sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
             break;
         }
 
-        /* ask for the necessary number of MSI vectors */
-        num_requested = min((sc->num_queues + 1), msi_count);
+        /* ask for a single MSI vector */
+        num_requested = 1;
 
         BLOGD(sc, DBG_LOAD, "Requesting %d MSI vectors\n", num_requested);
 
@@ -9422,8 +9425,8 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
             break;
         }
 
-        if (num_allocated < 2) { /* possible? */
-            BLOGE(sc, "MSI allocation less than 2!\n");
+        if (num_allocated != 1) { /* possible? */
+            BLOGE(sc, "MSI allocation is not 1!\n");
             sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
             pci_release_msi(sc->dev);
             break;
@@ -9434,38 +9437,26 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
 
         /* best effort so use the number of vectors allocated to us */
         sc->intr_count = num_allocated;
-        sc->num_queues = num_allocated - 1;
+        sc->num_queues = num_allocated;
 
         rid = 1; /* initial resource identifier */
 
-        /* allocate the MSI vectors */
-        for (i = 0; i < num_allocated; i++) {
-            sc->intr[i].rid = (rid + i);
+        sc->intr[0].rid = rid;
 
-            if ((sc->intr[i].resource =
-                 bus_alloc_resource_any(sc->dev,
-                                        SYS_RES_IRQ,
-                                        &sc->intr[i].rid,
-                                        RF_ACTIVE)) == NULL) {
-                BLOGE(sc, "Failed to map MSI[%d] (rid=%d)!\n",
-                      i, (rid + i));
-
-                for (j = (i - 1); j >= 0; j--) {
-                    bus_release_resource(sc->dev,
-                                         SYS_RES_IRQ,
-                                         sc->intr[j].rid,
-                                         sc->intr[j].resource);
-                }
-
-                sc->intr_count = 0;
-                sc->num_queues = 0;
-                sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
-                pci_release_msi(sc->dev);
-                break;
-            }
-
-            BLOGD(sc, DBG_LOAD, "Mapped MSI[%d] (rid=%d)\n", i, (rid + i));
+        if ((sc->intr[0].resource =
+             bus_alloc_resource_any(sc->dev,
+                                    SYS_RES_IRQ,
+                                    &sc->intr[0].rid,
+                                    RF_ACTIVE)) == NULL) {
+            BLOGE(sc, "Failed to map MSI[0] (rid=%d)!\n", rid);
+            sc->intr_count = 0;
+            sc->num_queues = 0;
+            sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
+            pci_release_msi(sc->dev);
+            break;
         }
+
+        BLOGD(sc, DBG_LOAD, "Mapped MSI[0] (rid=%d)\n", rid);
     } while (0);
 
     do { /* try allocating INTx vector resources */
@@ -9644,54 +9635,21 @@ bxe_interrupt_attach(struct bxe_softc *sc)
             fp->state = BXE_FP_STATE_IRQ;
         }
     } else if (sc->interrupt_mode == INTR_MODE_MSI) {
-        BLOGD(sc, DBG_LOAD, "Enabling slowpath MSI[0] vector.\n");
+        BLOGD(sc, DBG_LOAD, "Enabling MSI[0] vector\n");
 
         /*
-         * Setup the interrupt handler. Note that we pass the driver instance
-         * to the interrupt handler for the slowpath.
+         * Setup the interrupt handler. Note that we pass the
+         * driver instance to the interrupt handler which
+         * will handle both the slowpath and fastpath.
          */
         if ((rc = bus_setup_intr(sc->dev, sc->intr[0].resource,
                                  (INTR_TYPE_NET | INTR_MPSAFE),
-                                 NULL, bxe_intr_sp, sc,
+                                 NULL, bxe_intr_legacy, sc,
                                  &sc->intr[0].tag)) != 0) {
             BLOGE(sc, "Failed to allocate MSI[0] vector (%d)\n", rc);
             goto bxe_interrupt_attach_exit;
         }
 
-        bus_describe_intr(sc->dev, sc->intr[0].resource,
-                          sc->intr[0].tag, "sp");
-
-        /* bus_bind_intr(sc->dev, sc->intr[0].resource, 0); */
-
-        /* initialize the fastpath vectors (note the first was used for sp) */
-        for (i = 0; i < sc->num_queues; i++) {
-            fp = &sc->fp[i];
-            BLOGD(sc, DBG_LOAD, "Enabling MSI[%d] vector\n", (i + 1));
-
-            /*
-             * Setup the interrupt handler. Note that we pass the
-             * fastpath context to the interrupt handler in this
-             * case.
-             */
-            if ((rc = bus_setup_intr(sc->dev, sc->intr[i + 1].resource,
-                                     (INTR_TYPE_NET | INTR_MPSAFE),
-                                     NULL, bxe_intr_fp, fp,
-                                     &sc->intr[i + 1].tag)) != 0) {
-                BLOGE(sc, "Failed to allocate MSI[%d] vector (%d)\n",
-                      (i + 1), rc);
-                goto bxe_interrupt_attach_exit;
-            }
-
-            bus_describe_intr(sc->dev, sc->intr[i + 1].resource,
-                              sc->intr[i + 1].tag, "fp%02d", i);
-
-            /* bind the fastpath instance to a cpu */
-            if (sc->num_queues > 1) {
-                bus_bind_intr(sc->dev, sc->intr[i + 1].resource, i);
-            }
-
-            fp->state = BXE_FP_STATE_IRQ;
-        }
     } else { /* (sc->interrupt_mode == INTR_MODE_INTX) */
         BLOGD(sc, DBG_LOAD, "Enabling INTx interrupts\n");
 
