@@ -152,6 +152,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262231">Support for SIIG X1 PCI-e has been added
+	to &man.ppc.4;.</para>
+
       <para revision="262564">Support for the ext4 filesystem
 	has been enabled, supporting read-only mounts.</para>
 
