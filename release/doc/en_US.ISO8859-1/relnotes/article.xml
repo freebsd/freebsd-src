@@ -392,6 +392,11 @@
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
+      <para revision="260891">As part of the release build, the
+	&man.etcupdate.8; utility will bootstrap the system, allowing
+	&man.etcupdate.8; to work after the first upgrade of a
+	system.</para>
+
       <para revision="262879">The <filename>release.sh</filename>
 	script and release <filename>Makefile</filename> have been
 	updated to use &man.pkg.7; to populate the dvd installation
