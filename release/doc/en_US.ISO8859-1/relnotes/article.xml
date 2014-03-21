@@ -126,7 +126,8 @@
       <title>Kernel Changes</title>
 
       <para revision="258962">A workaround has been implemented
-	for hung transmission on BCM5719 and BCM5720 chipsets.</para>
+	in the &man.bge.4; driver for hung transmission on BCM5719
+	and BCM5720 chipsets.</para>
 
       <para revision="259002">A kernel panic when listing sysctls
 	on a system with <literal>INVARIANTS</literal> enabled has
