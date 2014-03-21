@@ -339,13 +339,12 @@
       <title>Upgrading using &man.freebsd-update.8; or a source-based
 	procedure</title>
 
-      <para arch="amd64,i386">Binary
-	upgrades between RELEASE versions (and snapshots of the
-	various security branches) are supported using the
-	&man.freebsd-update.8; utility.  The binary upgrade procedure
-	will update unmodified userland utilities, as well as an
-	unmodified <filename>GENERIC</filename> kernel, distributed as
-	a part of an official &os; release.  The
+      <para arch="amd64,i386">Binary upgrades between RELEASE versions
+	(and snapshots of the various security branches) are supported
+	using the &man.freebsd-update.8; utility.  The binary upgrade
+	procedure will update unmodified userland utilities, as well
+	as an unmodified <filename>GENERIC</filename> kernel,
+	distributed as a part of an official &os; release.  The
 	&man.freebsd-update.8; utility requires that the host being
 	upgraded have Internet connectivity.</para>
 
