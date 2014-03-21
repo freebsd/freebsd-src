@@ -241,6 +241,9 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="258898">The &man.qlxgbe.4; driver has been
+	    imported from <literal>head/</literal>.</para>
+
 	  <para revision="258936">The &man.qlxge.4; driver has been
 	    imported from <literal>head/</literal>.</para>
 
