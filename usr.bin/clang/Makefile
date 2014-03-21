@@ -18,8 +18,6 @@ SUBDIR+=bugpoint \
 	llvm-mc \
 	llvm-nm \
 	llvm-objdump \
-	llvm-prof \
-	llvm-ranlib \
 	llvm-rtdyld \
 	macho-dump \
 	opt

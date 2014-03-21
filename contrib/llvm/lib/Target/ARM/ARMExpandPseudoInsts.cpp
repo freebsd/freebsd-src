@@ -692,10 +692,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned newOpc = Opcode == ARM::VMOVScc ? ARM::VMOVS : ARM::VMOVD;
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(newOpc),
               MI.getOperand(1).getReg())
-        .addReg(MI.getOperand(2).getReg(),
-                getKillRegState(MI.getOperand(2).isKill()))
+        .addOperand(MI.getOperand(2))
         .addImm(MI.getOperand(3).getImm()) // 'pred'
-        .addReg(MI.getOperand(4).getReg());
+        .addOperand(MI.getOperand(4));
 
       MI.eraseFromParent();
       return true;
@@ -705,10 +704,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned Opc = AFI->isThumbFunction() ? ARM::t2MOVr : ARM::MOVr;
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opc),
               MI.getOperand(1).getReg())
-        .addReg(MI.getOperand(2).getReg(),
-                getKillRegState(MI.getOperand(2).isKill()))
+        .addOperand(MI.getOperand(2))
         .addImm(MI.getOperand(3).getImm()) // 'pred'
-        .addReg(MI.getOperand(4).getReg())
+        .addOperand(MI.getOperand(4))
         .addReg(0); // 's' bit
 
       MI.eraseFromParent();
@@ -717,39 +715,36 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::MOVCCsi: {
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsi),
               (MI.getOperand(1).getReg()))
-        .addReg(MI.getOperand(2).getReg(),
-                getKillRegState(MI.getOperand(2).isKill()))
+        .addOperand(MI.getOperand(2))
         .addImm(MI.getOperand(3).getImm())
         .addImm(MI.getOperand(4).getImm()) // 'pred'
-        .addReg(MI.getOperand(5).getReg())
+        .addOperand(MI.getOperand(5))
         .addReg(0); // 's' bit
 
       MI.eraseFromParent();
       return true;
     }
-
     case ARM::MOVCCsr: {
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsr),
               (MI.getOperand(1).getReg()))
-        .addReg(MI.getOperand(2).getReg(),
-                getKillRegState(MI.getOperand(2).isKill()))
-        .addReg(MI.getOperand(3).getReg(),
-                getKillRegState(MI.getOperand(3).isKill()))
+        .addOperand(MI.getOperand(2))
+        .addOperand(MI.getOperand(3))
         .addImm(MI.getOperand(4).getImm())
         .addImm(MI.getOperand(5).getImm()) // 'pred'
-        .addReg(MI.getOperand(6).getReg())
+        .addOperand(MI.getOperand(6))
         .addReg(0); // 's' bit
 
       MI.eraseFromParent();
       return true;
     }
+    case ARM::t2MOVCCi16:
     case ARM::MOVCCi16: {
-      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVi16),
+      unsigned NewOpc = AFI->isThumbFunction() ? ARM::t2MOVi16 : ARM::MOVi16;
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(NewOpc),
               MI.getOperand(1).getReg())
         .addImm(MI.getOperand(2).getImm())
         .addImm(MI.getOperand(3).getImm()) // 'pred'
-        .addReg(MI.getOperand(4).getReg());
-
+        .addOperand(MI.getOperand(4));
       MI.eraseFromParent();
       return true;
     }
@@ -760,20 +755,44 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
               MI.getOperand(1).getReg())
         .addImm(MI.getOperand(2).getImm())
         .addImm(MI.getOperand(3).getImm()) // 'pred'
-        .addReg(MI.getOperand(4).getReg())
+        .addOperand(MI.getOperand(4))
         .addReg(0); // 's' bit
 
       MI.eraseFromParent();
       return true;
     }
+    case ARM::t2MVNCCi:
     case ARM::MVNCCi: {
-      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MVNi),
+      unsigned Opc = AFI->isThumbFunction() ? ARM::t2MVNi : ARM::MVNi;
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opc),
               MI.getOperand(1).getReg())
         .addImm(MI.getOperand(2).getImm())
         .addImm(MI.getOperand(3).getImm()) // 'pred'
-        .addReg(MI.getOperand(4).getReg())
+        .addOperand(MI.getOperand(4))
         .addReg(0); // 's' bit
 
+      MI.eraseFromParent();
+      return true;
+    }
+    case ARM::t2MOVCClsl:
+    case ARM::t2MOVCClsr:
+    case ARM::t2MOVCCasr:
+    case ARM::t2MOVCCror: {
+      unsigned NewOpc;
+      switch (Opcode) {
+      case ARM::t2MOVCClsl: NewOpc = ARM::t2LSLri; break;
+      case ARM::t2MOVCClsr: NewOpc = ARM::t2LSRri; break;
+      case ARM::t2MOVCCasr: NewOpc = ARM::t2ASRri; break;
+      case ARM::t2MOVCCror: NewOpc = ARM::t2RORri; break;
+      default: llvm_unreachable("unexpeced conditional move");
+      }
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(NewOpc),
+              MI.getOperand(1).getReg())
+        .addOperand(MI.getOperand(2))
+        .addImm(MI.getOperand(3).getImm())
+        .addImm(MI.getOperand(4).getImm()) // 'pred'
+        .addOperand(MI.getOperand(5))
+        .addReg(0); // 's' bit
       MI.eraseFromParent();
       return true;
     }
@@ -823,7 +842,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
 
     case ARM::MOVsrl_flag:
     case ARM::MOVsra_flag: {
-      // These are just fancy MOVs insructions.
+      // These are just fancy MOVs instructions.
       AddDefaultPred(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::MOVsi),
                              MI.getOperand(0).getReg())
                      .addOperand(MI.getOperand(1))
@@ -938,6 +957,18 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       ExpandMOV32BitImm(MBB, MBBI);
       return true;
 
+    case ARM::SUBS_PC_LR: {
+      MachineInstrBuilder MIB =
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::SUBri), ARM::PC)
+              .addReg(ARM::LR)
+              .addOperand(MI.getOperand(0))
+              .addOperand(MI.getOperand(1))
+              .addOperand(MI.getOperand(2))
+              .addReg(ARM::CPSR, RegState::Undef);
+      TransferImpOps(MI, MIB, MIB);
+      MI.eraseFromParent();
+      return true;
+    }
     case ARM::VLDMQIA: {
       unsigned NewOpc = ARM::VLDMDIA;
       MachineInstrBuilder MIB =

@@ -91,8 +91,7 @@ private:
 
 public:
   SILowerControlFlowPass(TargetMachine &tm) :
-    MachineFunctionPass(ID), TRI(tm.getRegisterInfo()),
-    TII(tm.getInstrInfo()) { }
+    MachineFunctionPass(ID), TRI(0), TII(0) { }
 
   virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -378,10 +377,13 @@ void SILowerControlFlowPass::IndirectSrc(MachineInstr &MI) {
   unsigned Dst = MI.getOperand(0).getReg();
   unsigned Vec = MI.getOperand(2).getReg();
   unsigned Off = MI.getOperand(4).getImm();
+  unsigned SubReg = TRI->getSubReg(Vec, AMDGPU::sub0);
+  if (!SubReg)
+    SubReg = Vec;
 
-  MachineInstr *MovRel = 
+  MachineInstr *MovRel =
     BuildMI(*MBB.getParent(), DL, TII->get(AMDGPU::V_MOVRELS_B32_e32), Dst)
-            .addReg(TRI->getSubReg(Vec, AMDGPU::sub0) + Off)
+            .addReg(SubReg + Off)
             .addReg(AMDGPU::M0, RegState::Implicit)
             .addReg(Vec, RegState::Implicit);
 
@@ -396,10 +398,13 @@ void SILowerControlFlowPass::IndirectDst(MachineInstr &MI) {
   unsigned Dst = MI.getOperand(0).getReg();
   unsigned Off = MI.getOperand(4).getImm();
   unsigned Val = MI.getOperand(5).getReg();
+  unsigned SubReg = TRI->getSubReg(Dst, AMDGPU::sub0);
+  if (!SubReg)
+    SubReg = Dst;
 
   MachineInstr *MovRel = 
     BuildMI(*MBB.getParent(), DL, TII->get(AMDGPU::V_MOVRELD_B32_e32))
-            .addReg(TRI->getSubReg(Dst, AMDGPU::sub0) + Off, RegState::Define)
+            .addReg(SubReg + Off, RegState::Define)
             .addReg(Val)
             .addReg(AMDGPU::M0, RegState::Implicit)
             .addReg(Dst, RegState::Implicit);
@@ -408,8 +413,12 @@ void SILowerControlFlowPass::IndirectDst(MachineInstr &MI) {
 }
 
 bool SILowerControlFlowPass::runOnMachineFunction(MachineFunction &MF) {
+  TII = MF.getTarget().getInstrInfo();
+  TRI = MF.getTarget().getRegisterInfo();
+  SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
 
   bool HaveKill = false;
+  bool NeedM0 = false;
   bool NeedWQM = false;
   unsigned Depth = 0;
 
@@ -474,11 +483,20 @@ bool SILowerControlFlowPass::runOnMachineFunction(MachineFunction &MF) {
           IndirectSrc(MI);
           break;
 
+        case AMDGPU::SI_INDIRECT_DST_V1:
         case AMDGPU::SI_INDIRECT_DST_V2:
         case AMDGPU::SI_INDIRECT_DST_V4:
         case AMDGPU::SI_INDIRECT_DST_V8:
         case AMDGPU::SI_INDIRECT_DST_V16:
           IndirectDst(MI);
+          break;
+
+        case AMDGPU::DS_READ_B32:
+          NeedWQM = true;
+          // Fall through
+        case AMDGPU::DS_WRITE_B32:
+        case AMDGPU::DS_ADD_U32_RTN:
+          NeedM0 = true;
           break;
 
         case AMDGPU::V_INTERP_P1_F32:
@@ -491,7 +509,15 @@ bool SILowerControlFlowPass::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
-  if (NeedWQM) {
+  if (NeedM0) {
+    MachineBasicBlock &MBB = MF.front();
+    // Initialize M0 to a value that won't cause LDS access to be discarded
+    // due to offset clamping
+    BuildMI(MBB, MBB.getFirstNonPHI(), DebugLoc(), TII->get(AMDGPU::S_MOV_B32),
+            AMDGPU::M0).addImm(0xffffffff);
+  }
+
+  if (NeedWQM && MFI->ShaderType != ShaderType::COMPUTE) {
     MachineBasicBlock &MBB = MF.front();
     BuildMI(MBB, MBB.getFirstNonPHI(), DebugLoc(), TII->get(AMDGPU::S_WQM_B64),
             AMDGPU::EXEC).addReg(AMDGPU::EXEC);

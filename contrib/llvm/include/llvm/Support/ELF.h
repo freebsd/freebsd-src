@@ -20,6 +20,7 @@
 #ifndef LLVM_SUPPORT_ELF_H
 #define LLVM_SUPPORT_ELF_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cstring>
 
@@ -276,7 +277,6 @@ enum {
   EM_STM8          = 186, // STMicroeletronics STM8 8-bit microcontroller
   EM_TILE64        = 187, // Tilera TILE64 multicore architecture family
   EM_TILEPRO       = 188, // Tilera TILEPro multicore architecture family
-  EM_MICROBLAZE    = 189, // Xilinx MicroBlaze 32-bit RISC soft processor core
   EM_CUDA          = 190, // NVIDIA CUDA architecture
   EM_TILEGX        = 191, // Tilera TILE-Gx multicore architecture family
   EM_CLOUDSHIELD   = 192, // CloudShield architecture family
@@ -287,8 +287,7 @@ enum {
   EM_RL78          = 197, // Renesas RL78 family
   EM_VIDEOCORE5    = 198, // Broadcom VideoCore V processor
   EM_78KOR         = 199, // Renesas 78KOR family
-  EM_56800EX       = 200, // Freescale 56800EX Digital Signal Controller (DSC)
-  EM_MBLAZE        = 47787 // Xilinx MicroBlaze
+  EM_56800EX       = 200  // Freescale 56800EX Digital Signal Controller (DSC)
 };
 
 // Object file classes.
@@ -310,7 +309,8 @@ enum {
   ELFOSABI_NONE = 0,          // UNIX System V ABI
   ELFOSABI_HPUX = 1,          // HP-UX operating system
   ELFOSABI_NETBSD = 2,        // NetBSD
-  ELFOSABI_LINUX = 3,         // GNU/Linux
+  ELFOSABI_GNU = 3,           // GNU/Linux
+  ELFOSABI_LINUX = 3,         // Historical alias for ELFOSABI_GNU.
   ELFOSABI_HURD = 4,          // GNU/Hurd
   ELFOSABI_SOLARIS = 6,       // Solaris
   ELFOSABI_AIX = 7,           // AIX
@@ -417,32 +417,6 @@ enum {
   R_386_NUM           = 43
 };
 
-// MBlaze relocations.
-enum {
-  R_MICROBLAZE_NONE           = 0,
-  R_MICROBLAZE_32             = 1,
-  R_MICROBLAZE_32_PCREL       = 2,
-  R_MICROBLAZE_64_PCREL       = 3,
-  R_MICROBLAZE_32_PCREL_LO    = 4,
-  R_MICROBLAZE_64             = 5,
-  R_MICROBLAZE_32_LO          = 6,
-  R_MICROBLAZE_SRO32          = 7,
-  R_MICROBLAZE_SRW32          = 8,
-  R_MICROBLAZE_64_NONE        = 9,
-  R_MICROBLAZE_32_SYM_OP_SYM  = 10,
-  R_MICROBLAZE_GNU_VTINHERIT  = 11,
-  R_MICROBLAZE_GNU_VTENTRY    = 12,
-  R_MICROBLAZE_GOTPC_64       = 13,
-  R_MICROBLAZE_GOT_64         = 14,
-  R_MICROBLAZE_PLT_64         = 15,
-  R_MICROBLAZE_REL            = 16,
-  R_MICROBLAZE_JUMP_SLOT      = 17,
-  R_MICROBLAZE_GLOB_DAT       = 18,
-  R_MICROBLAZE_GOTOFF_64      = 19,
-  R_MICROBLAZE_GOTOFF_32      = 20,
-  R_MICROBLAZE_COPY           = 21
-};
-
 // ELF Relocation types for PPC32
 enum {
   R_PPC_NONE                  = 0,      /* No relocation. */
@@ -459,45 +433,131 @@ enum {
   R_PPC_REL14                 = 11,
   R_PPC_REL14_BRTAKEN         = 12,
   R_PPC_REL14_BRNTAKEN        = 13,
+  R_PPC_GOT16                 = 14,
+  R_PPC_GOT16_LO              = 15,
+  R_PPC_GOT16_HI              = 16,
+  R_PPC_GOT16_HA              = 17,
   R_PPC_REL32                 = 26,
+  R_PPC_TLS                   = 67,
+  R_PPC_DTPMOD32              = 68,
+  R_PPC_TPREL16               = 69,
   R_PPC_TPREL16_LO            = 70,
-  R_PPC_TPREL16_HA            = 72
+  R_PPC_TPREL16_HI            = 71,
+  R_PPC_TPREL16_HA            = 72,
+  R_PPC_TPREL32               = 73,
+  R_PPC_DTPREL16              = 74,
+  R_PPC_DTPREL16_LO           = 75,
+  R_PPC_DTPREL16_HI           = 76,
+  R_PPC_DTPREL16_HA           = 77,
+  R_PPC_DTPREL32              = 78,
+  R_PPC_GOT_TLSGD16           = 79,
+  R_PPC_GOT_TLSGD16_LO        = 80,
+  R_PPC_GOT_TLSGD16_HI        = 81,
+  R_PPC_GOT_TLSGD16_HA        = 82,
+  R_PPC_GOT_TLSLD16           = 83,
+  R_PPC_GOT_TLSLD16_LO        = 84,
+  R_PPC_GOT_TLSLD16_HI        = 85,
+  R_PPC_GOT_TLSLD16_HA        = 86,
+  R_PPC_GOT_TPREL16           = 87,
+  R_PPC_GOT_TPREL16_LO        = 88,
+  R_PPC_GOT_TPREL16_HI        = 89,
+  R_PPC_GOT_TPREL16_HA        = 90,
+  R_PPC_GOT_DTPREL16          = 91,
+  R_PPC_GOT_DTPREL16_LO       = 92,
+  R_PPC_GOT_DTPREL16_HI       = 93,
+  R_PPC_GOT_DTPREL16_HA       = 94,
+  R_PPC_TLSGD                 = 95,
+  R_PPC_TLSLD                 = 96,
+  R_PPC_REL16                 = 249,
+  R_PPC_REL16_LO              = 250,
+  R_PPC_REL16_HI              = 251,
+  R_PPC_REL16_HA              = 252
 };
 
 // ELF Relocation types for PPC64
 enum {
   R_PPC64_NONE                = 0,
   R_PPC64_ADDR32              = 1,
+  R_PPC64_ADDR24              = 2,
+  R_PPC64_ADDR16              = 3,
   R_PPC64_ADDR16_LO           = 4,
   R_PPC64_ADDR16_HI           = 5,
+  R_PPC64_ADDR16_HA           = 6,
   R_PPC64_ADDR14              = 7,
+  R_PPC64_ADDR14_BRTAKEN      = 8,
+  R_PPC64_ADDR14_BRNTAKEN     = 9,
   R_PPC64_REL24               = 10,
+  R_PPC64_REL14               = 11,
+  R_PPC64_REL14_BRTAKEN       = 12,
+  R_PPC64_REL14_BRNTAKEN      = 13,
+  R_PPC64_GOT16               = 14,
+  R_PPC64_GOT16_LO            = 15,
+  R_PPC64_GOT16_HI            = 16,
+  R_PPC64_GOT16_HA            = 17,
   R_PPC64_REL32               = 26,
   R_PPC64_ADDR64              = 38,
   R_PPC64_ADDR16_HIGHER       = 39,
+  R_PPC64_ADDR16_HIGHERA      = 40,
   R_PPC64_ADDR16_HIGHEST      = 41,
+  R_PPC64_ADDR16_HIGHESTA     = 42,
   R_PPC64_REL64               = 44,
   R_PPC64_TOC16               = 47,
   R_PPC64_TOC16_LO            = 48,
+  R_PPC64_TOC16_HI            = 49,
   R_PPC64_TOC16_HA            = 50,
   R_PPC64_TOC                 = 51,
   R_PPC64_ADDR16_DS           = 56,
   R_PPC64_ADDR16_LO_DS        = 57,
+  R_PPC64_GOT16_DS            = 58,
+  R_PPC64_GOT16_LO_DS         = 59,
   R_PPC64_TOC16_DS            = 63,
   R_PPC64_TOC16_LO_DS         = 64,
   R_PPC64_TLS                 = 67,
+  R_PPC64_DTPMOD64            = 68,
+  R_PPC64_TPREL16             = 69,
   R_PPC64_TPREL16_LO          = 70,
+  R_PPC64_TPREL16_HI          = 71,
   R_PPC64_TPREL16_HA          = 72,
+  R_PPC64_TPREL64             = 73,
+  R_PPC64_DTPREL16            = 74,
   R_PPC64_DTPREL16_LO         = 75,
+  R_PPC64_DTPREL16_HI         = 76,
   R_PPC64_DTPREL16_HA         = 77,
+  R_PPC64_DTPREL64            = 78,
+  R_PPC64_GOT_TLSGD16         = 79,
   R_PPC64_GOT_TLSGD16_LO      = 80,
+  R_PPC64_GOT_TLSGD16_HI      = 81,
   R_PPC64_GOT_TLSGD16_HA      = 82,
+  R_PPC64_GOT_TLSLD16         = 83,
   R_PPC64_GOT_TLSLD16_LO      = 84,
+  R_PPC64_GOT_TLSLD16_HI      = 85,
   R_PPC64_GOT_TLSLD16_HA      = 86,
+  R_PPC64_GOT_TPREL16_DS      = 87,
   R_PPC64_GOT_TPREL16_LO_DS   = 88,
+  R_PPC64_GOT_TPREL16_HI      = 89,
   R_PPC64_GOT_TPREL16_HA      = 90,
+  R_PPC64_GOT_DTPREL16_DS     = 91,
+  R_PPC64_GOT_DTPREL16_LO_DS  = 92,
+  R_PPC64_GOT_DTPREL16_HI     = 93,
+  R_PPC64_GOT_DTPREL16_HA     = 94,
+  R_PPC64_TPREL16_DS          = 95,
+  R_PPC64_TPREL16_LO_DS       = 96,
+  R_PPC64_TPREL16_HIGHER      = 97,
+  R_PPC64_TPREL16_HIGHERA     = 98,
+  R_PPC64_TPREL16_HIGHEST     = 99,
+  R_PPC64_TPREL16_HIGHESTA    = 100,
+  R_PPC64_DTPREL16_DS         = 101,
+  R_PPC64_DTPREL16_LO_DS      = 102,
+  R_PPC64_DTPREL16_HIGHER     = 103,
+  R_PPC64_DTPREL16_HIGHERA    = 104,
+  R_PPC64_DTPREL16_HIGHEST    = 105,
+  R_PPC64_DTPREL16_HIGHESTA   = 106,
   R_PPC64_TLSGD               = 107,
-  R_PPC64_TLSLD               = 108
+  R_PPC64_TLSLD               = 108,
+  R_PPC64_REL16               = 249,
+  R_PPC64_REL16_LO            = 250,
+  R_PPC64_REL16_HI            = 251,
+  R_PPC64_REL16_HA            = 252
 };
 
 // ELF Relocation types for AArch64
@@ -591,7 +651,7 @@ enum {
 };
 
 // ARM Specific e_flags
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   EF_ARM_SOFT_FLOAT =     0x00000200U,
   EF_ARM_VFP_FLOAT =      0x00000400U,
   EF_ARM_EABI_UNKNOWN =   0x00000000U,
@@ -741,7 +801,7 @@ enum {
 };
 
 // Mips Specific e_flags
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
   EF_MIPS_PIC       = 0x00000002, // Position independent code
   EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
@@ -781,6 +841,8 @@ enum {
   R_MIPS_PC16              = 10,
   R_MIPS_CALL16            = 11,
   R_MIPS_GPREL32           = 12,
+  R_MIPS_UNUSED1           = 13,
+  R_MIPS_UNUSED2           = 14,
   R_MIPS_SHIFT5            = 16,
   R_MIPS_SHIFT6            = 17,
   R_MIPS_64                = 18,
@@ -819,6 +881,19 @@ enum {
   R_MIPS_GLOB_DAT          = 51,
   R_MIPS_COPY              = 126,
   R_MIPS_JUMP_SLOT         = 127,
+  R_MICROMIPS_26_S1        = 133,
+  R_MICROMIPS_HI16         = 134,
+  R_MICROMIPS_LO16         = 135,
+  R_MICROMIPS_GOT16        = 138,
+  R_MICROMIPS_PC16_S1      = 141,
+  R_MICROMIPS_CALL16       = 142,
+  R_MICROMIPS_GOT_DISP     = 145,
+  R_MICROMIPS_GOT_PAGE     = 146,
+  R_MICROMIPS_GOT_OFST     = 147,
+  R_MICROMIPS_TLS_DTPREL_HI16 = 164,
+  R_MICROMIPS_TLS_DTPREL_LO16 = 165,
+  R_MICROMIPS_TLS_TPREL_HI16  = 169,
+  R_MICROMIPS_TLS_TPREL_LO16  = 170,
   R_MIPS_NUM               = 218
 };
 
@@ -1055,7 +1130,7 @@ enum {
 };
 
 // Section types.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   SHT_NULL          = 0,  // No associated section (inactive entry).
   SHT_PROGBITS      = 1,  // Program-defined contents.
   SHT_SYMTAB        = 2,  // Symbol table.
@@ -1103,7 +1178,7 @@ enum {
 };
 
 // Section flags.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   // Section data should be writable during execution.
   SHF_WRITE = 0x1,
 
@@ -1135,6 +1210,9 @@ enum {
   // This section holds Thread-Local Storage.
   SHF_TLS = 0x400U,
 
+  // This section is excluded from the final executable or shared library.
+  SHF_EXCLUDE = 0x80000000U,
+
   // Start of target-specific flags.
 
   /// XCORE_SHF_CP_SECTION - All sections with the "c" flag are grouped
@@ -1165,12 +1243,34 @@ enum {
   // for faster accesses
   SHF_HEX_GPREL = 0x10000000,
 
-  // Do not strip this section. FIXME: We need target specific SHF_ enums.
-  SHF_MIPS_NOSTRIP = 0x8000000
+  // Section contains text/data which may be replicated in other sections.
+  // Linker must retain only one copy.
+  SHF_MIPS_NODUPES = 0x01000000,
+
+  // Linker must generate implicit hidden weak names.
+  SHF_MIPS_NAMES   = 0x02000000,
+
+  // Section data local to process.
+  SHF_MIPS_LOCAL   = 0x04000000,
+
+  // Do not strip this section.
+  SHF_MIPS_NOSTRIP = 0x08000000,
+
+  // Section must be part of global data area.
+  SHF_MIPS_GPREL   = 0x10000000,
+
+  // This section should be merged.
+  SHF_MIPS_MERGE   = 0x20000000,
+
+  // Address size to be inferred from section entry size.
+  SHF_MIPS_ADDR    = 0x40000000,
+
+  // Section data is string data by default.
+  SHF_MIPS_STRING  = 0x80000000
 };
 
 // Section Group Flags
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   GRP_COMDAT = 0x1,
   GRP_MASKOS = 0x0ff00000,
   GRP_MASKPROC = 0xf0000000
@@ -1383,11 +1483,16 @@ enum {
   PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility info
   // These all contain stack unwind tables.
   PT_ARM_EXIDX   = 0x70000001,
-  PT_ARM_UNWIND  = 0x70000001
+  PT_ARM_UNWIND  = 0x70000001,
+
+  // MIPS program header types.
+  PT_MIPS_REGINFO  = 0x70000000,  // Register usage information.
+  PT_MIPS_RTPROC   = 0x70000001,  // Runtime procedure table.
+  PT_MIPS_OPTIONS  = 0x70000002   // Options segment.
 };
 
 // Segment flag bits.
-enum {
+enum LLVM_ENUM_INT_TYPE(unsigned) {
   PF_X        = 1,         // Execute
   PF_W        = 2,         // Write
   PF_R        = 4,         // Read
@@ -1465,10 +1570,85 @@ enum {
   DT_RELCOUNT     = 0x6FFFFFFA, // ELF32_Rel count.
 
   DT_FLAGS_1      = 0X6FFFFFFB, // Flags_1.
+  DT_VERSYM       = 0x6FFFFFF0, // The address of .gnu.version section.
   DT_VERDEF       = 0X6FFFFFFC, // The address of the version definition table.
   DT_VERDEFNUM    = 0X6FFFFFFD, // The number of entries in DT_VERDEF.
   DT_VERNEED      = 0X6FFFFFFE, // The address of the version Dependency table.
-  DT_VERNEEDNUM   = 0X6FFFFFFF  // The number of entries in DT_VERNEED.
+  DT_VERNEEDNUM   = 0X6FFFFFFF, // The number of entries in DT_VERNEED.
+
+  // Mips specific dynamic table entry tags.
+  DT_MIPS_RLD_VERSION   = 0x70000001, // 32 bit version number for runtime
+                                      // linker interface.
+  DT_MIPS_TIME_STAMP    = 0x70000002, // Time stamp.
+  DT_MIPS_ICHECKSUM     = 0x70000003, // Checksum of external strings
+                                      // and common sizes.
+  DT_MIPS_IVERSION      = 0x70000004, // Index of version string
+                                      // in string table.
+  DT_MIPS_FLAGS         = 0x70000005, // 32 bits of flags.
+  DT_MIPS_BASE_ADDRESS  = 0x70000006, // Base address of the segment.
+  DT_MIPS_MSYM          = 0x70000007, // Address of .msym section.
+  DT_MIPS_CONFLICT      = 0x70000008, // Address of .conflict section.
+  DT_MIPS_LIBLIST       = 0x70000009, // Address of .liblist section.
+  DT_MIPS_LOCAL_GOTNO   = 0x7000000a, // Number of local global offset
+                                      // table entries.
+  DT_MIPS_CONFLICTNO    = 0x7000000b, // Number of entries
+                                      // in the .conflict section.
+  DT_MIPS_LIBLISTNO     = 0x70000010, // Number of entries
+                                      // in the .liblist section.
+  DT_MIPS_SYMTABNO      = 0x70000011, // Number of entries
+                                      // in the .dynsym section.
+  DT_MIPS_UNREFEXTNO    = 0x70000012, // Index of first external dynamic symbol
+                                      // not referenced locally.
+  DT_MIPS_GOTSYM        = 0x70000013, // Index of first dynamic symbol
+                                      // in global offset table.
+  DT_MIPS_HIPAGENO      = 0x70000014, // Number of page table entries
+                                      // in global offset table.
+  DT_MIPS_RLD_MAP       = 0x70000016, // Address of run time loader map,
+                                      // used for debugging.
+  DT_MIPS_DELTA_CLASS       = 0x70000017, // Delta C++ class definition.
+  DT_MIPS_DELTA_CLASS_NO    = 0x70000018, // Number of entries
+                                          // in DT_MIPS_DELTA_CLASS.
+  DT_MIPS_DELTA_INSTANCE    = 0x70000019, // Delta C++ class instances.
+  DT_MIPS_DELTA_INSTANCE_NO = 0x7000001A, // Number of entries
+                                          // in DT_MIPS_DELTA_INSTANCE.
+  DT_MIPS_DELTA_RELOC       = 0x7000001B, // Delta relocations.
+  DT_MIPS_DELTA_RELOC_NO    = 0x7000001C, // Number of entries
+                                          // in DT_MIPS_DELTA_RELOC.
+  DT_MIPS_DELTA_SYM         = 0x7000001D, // Delta symbols that Delta
+                                          // relocations refer to.
+  DT_MIPS_DELTA_SYM_NO      = 0x7000001E, // Number of entries
+                                          // in DT_MIPS_DELTA_SYM.
+  DT_MIPS_DELTA_CLASSSYM    = 0x70000020, // Delta symbols that hold
+                                          // class declarations.
+  DT_MIPS_DELTA_CLASSSYM_NO = 0x70000021, // Number of entries
+                                          // in DT_MIPS_DELTA_CLASSSYM.
+  DT_MIPS_CXX_FLAGS         = 0x70000022, // Flags indicating information
+                                          // about C++ flavor.
+  DT_MIPS_PIXIE_INIT        = 0x70000023, // Pixie information.
+  DT_MIPS_SYMBOL_LIB        = 0x70000024, // Address of .MIPS.symlib
+  DT_MIPS_LOCALPAGE_GOTIDX  = 0x70000025, // The GOT index of the first PTE
+                                          // for a segment
+  DT_MIPS_LOCAL_GOTIDX      = 0x70000026, // The GOT index of the first PTE
+                                          // for a local symbol
+  DT_MIPS_HIDDEN_GOTIDX     = 0x70000027, // The GOT index of the first PTE
+                                          // for a hidden symbol
+  DT_MIPS_PROTECTED_GOTIDX  = 0x70000028, // The GOT index of the first PTE
+                                          // for a protected symbol
+  DT_MIPS_OPTIONS           = 0x70000029, // Address of `.MIPS.options'.
+  DT_MIPS_INTERFACE         = 0x7000002A, // Address of `.interface'.
+  DT_MIPS_DYNSTR_ALIGN      = 0x7000002B, // Unknown.
+  DT_MIPS_INTERFACE_SIZE    = 0x7000002C, // Size of the .interface section.
+  DT_MIPS_RLD_TEXT_RESOLVE_ADDR = 0x7000002D, // Size of rld_text_resolve
+                                              // function stored in the GOT.
+  DT_MIPS_PERF_SUFFIX       = 0x7000002E, // Default suffix of DSO to be added
+                                          // by rld on dlopen() calls.
+  DT_MIPS_COMPACT_SIZE      = 0x7000002F, // Size of compact relocation
+                                          // section (O32).
+  DT_MIPS_GP_VALUE          = 0x70000030, // GP value for auxiliary GOTs.
+  DT_MIPS_AUX_DYNAMIC       = 0x70000031, // Address of auxiliary .dynamic.
+  DT_MIPS_PLTGOT            = 0x70000032, // Address of the base of the PLTGOT.
+  DT_MIPS_RWPLT             = 0x70000034  // Points to the base
+                                          // of a writable PLT.
 };
 
 // DT_FLAGS values.
@@ -1499,6 +1679,31 @@ enum {
   DF_1_ENDFILTEE  = 0x00004000, // Filtee terminates filters search.
   DF_1_DISPRELDNE = 0x00008000, // Disp reloc applied at build time.
   DF_1_DISPRELPND = 0x00010000  // Disp reloc applied at run-time.
+};
+
+// DT_MIPS_FLAGS values.
+enum {
+  RHF_NONE                    = 0x00000000, // No flags.
+  RHF_QUICKSTART              = 0x00000001, // Uses shortcut pointers.
+  RHF_NOTPOT                  = 0x00000002, // Hash size is not a power of two.
+  RHS_NO_LIBRARY_REPLACEMENT  = 0x00000004, // Ignore LD_LIBRARY_PATH.
+  RHF_NO_MOVE                 = 0x00000008, // DSO address may not be relocated.
+  RHF_SGI_ONLY                = 0x00000010, // SGI specific features.
+  RHF_GUARANTEE_INIT          = 0x00000020, // Guarantee that .init will finish
+                                            // executing before any non-init
+                                            // code in DSO is called.
+  RHF_DELTA_C_PLUS_PLUS       = 0x00000040, // Contains Delta C++ code.
+  RHF_GUARANTEE_START_INIT    = 0x00000080, // Guarantee that .init will start
+                                            // executing before any non-init
+                                            // code in DSO is called.
+  RHF_PIXIE                   = 0x00000100, // Generated by pixie.
+  RHF_DEFAULT_DELAY_LOAD      = 0x00000200, // Delay-load DSO by default.
+  RHF_REQUICKSTART            = 0x00000400, // Object may be requickstarted
+  RHF_REQUICKSTARTED          = 0x00000800, // Object has been requickstarted
+  RHF_CORD                    = 0x00001000, // Generated by cord.
+  RHF_NO_UNRES_UNDEF          = 0x00002000, // Object contains no unresolved
+                                            // undef symbols.
+  RHF_RLD_ORDER_SAFE          = 0x00004000  // Symbol table is in a safe order.
 };
 
 // ElfXX_VerDef structure version (GNU versioning)

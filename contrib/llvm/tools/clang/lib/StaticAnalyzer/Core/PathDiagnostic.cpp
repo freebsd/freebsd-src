@@ -48,10 +48,11 @@ static StringRef StripTrailingDots(StringRef s) {
 
 PathDiagnosticPiece::PathDiagnosticPiece(StringRef s,
                                          Kind k, DisplayHint hint)
-  : str(StripTrailingDots(s)), kind(k), Hint(hint) {}
+  : str(StripTrailingDots(s)), kind(k), Hint(hint),
+    LastInMainSourceFile(false) {}
 
 PathDiagnosticPiece::PathDiagnosticPiece(Kind k, DisplayHint hint)
-  : kind(k), Hint(hint) {}
+  : kind(k), Hint(hint), LastInMainSourceFile(false) {}
 
 PathDiagnosticPiece::~PathDiagnosticPiece() {}
 PathDiagnosticEventPiece::~PathDiagnosticEventPiece() {}
@@ -119,6 +120,71 @@ PathDiagnostic::PathDiagnostic(const Decl *declWithIssue,
     UniqueingDecl(DeclToUnique),
     path(pathImpl) {}
 
+static PathDiagnosticCallPiece *
+getFirstStackedCallToHeaderFile(PathDiagnosticCallPiece *CP,
+                                const SourceManager &SMgr) {
+  SourceLocation CallLoc = CP->callEnter.asLocation();
+
+  // If the call is within a macro, don't do anything (for now).
+  if (CallLoc.isMacroID())
+    return 0;
+
+  assert(SMgr.isInMainFile(CallLoc) &&
+         "The call piece should be in the main file.");
+
+  // Check if CP represents a path through a function outside of the main file.
+  if (!SMgr.isInMainFile(CP->callEnterWithin.asLocation()))
+    return CP;
+
+  const PathPieces &Path = CP->path;
+  if (Path.empty())
+    return 0;
+
+  // Check if the last piece in the callee path is a call to a function outside
+  // of the main file.
+  if (PathDiagnosticCallPiece *CPInner =
+      dyn_cast<PathDiagnosticCallPiece>(Path.back())) {
+    return getFirstStackedCallToHeaderFile(CPInner, SMgr);
+  }
+
+  // Otherwise, the last piece is in the main file.
+  return 0;
+}
+
+void PathDiagnostic::resetDiagnosticLocationToMainFile() {
+  if (path.empty())
+    return;
+
+  PathDiagnosticPiece *LastP = path.back().getPtr();
+  assert(LastP);
+  const SourceManager &SMgr = LastP->getLocation().getManager();
+
+  // We only need to check if the report ends inside headers, if the last piece
+  // is a call piece.
+  if (PathDiagnosticCallPiece *CP = dyn_cast<PathDiagnosticCallPiece>(LastP)) {
+    CP = getFirstStackedCallToHeaderFile(CP, SMgr);
+    if (CP) {
+      // Mark the piece.
+       CP->setAsLastInMainSourceFile();
+
+      // Update the path diagnostic message.
+      const NamedDecl *ND = dyn_cast<NamedDecl>(CP->getCallee());
+      if (ND) {
+        SmallString<200> buf;
+        llvm::raw_svector_ostream os(buf);
+        os << " (within a call to '" << ND->getDeclName() << "')";
+        appendToDesc(os.str());
+      }
+
+      // Reset the report containing declaration and location.
+      DeclWithIssue = CP->getCaller();
+      Loc = CP->getLocation();
+      
+      return;
+    }
+  }
+}
+
 void PathDiagnosticConsumer::anchor() { }
 
 PathDiagnosticConsumer::~PathDiagnosticConsumer() {
@@ -150,11 +216,10 @@ void PathDiagnosticConsumer::HandlePathDiagnostic(PathDiagnostic *D) {
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
-      const PathPieces &path = *WorkList.back();
-      WorkList.pop_back();
+      const PathPieces &path = *WorkList.pop_back_val();
 
-      for (PathPieces::const_iterator I = path.begin(), E = path.end();
-           I != E; ++I) {
+      for (PathPieces::const_iterator I = path.begin(), E = path.end(); I != E;
+           ++I) {
         const PathDiagnosticPiece *piece = I->getPtr();
         FullSourceLoc L = piece->getLocation().asLocation().getExpansionLoc();
       
@@ -493,6 +558,10 @@ getLocationForCaller(const StackFrameContext *SFC,
     const CFGAutomaticObjDtor &Dtor = Source.castAs<CFGAutomaticObjDtor>();
     return PathDiagnosticLocation::createEnd(Dtor.getTriggerStmt(),
                                              SM, CallerCtx);
+  }
+  case CFGElement::DeleteDtor: {
+    const CFGDeleteDtor &Dtor = Source.castAs<CFGDeleteDtor>();
+    return PathDiagnosticLocation(Dtor.getDeleteExpr(), SM, CallerCtx);
   }
   case CFGElement::BaseDtor:
   case CFGElement::MemberDtor: {
@@ -916,7 +985,7 @@ IntrusiveRefCntPtr<PathDiagnosticEventPiece>
 PathDiagnosticCallPiece::getCallEnterWithinCallerEvent() const {
   if (!callEnterWithin.asLocation().isValid())
     return 0;
-  if (Callee->isImplicit())
+  if (Callee->isImplicit() || !Callee->hasBody())
     return 0;
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(Callee))
     if (MD->isDefaulted())

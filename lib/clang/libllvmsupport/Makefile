@@ -18,6 +18,7 @@ SRCS=	APFloat.cpp \
 	ConvertUTFWrapper.cpp \
 	CrashRecoveryContext.cpp \
 	DAGDeltaAlgorithm.cpp \
+	DataExtractor.cpp \
 	Debug.cpp \
 	DeltaAlgorithm.cpp \
 	Dwarf.cpp \
@@ -38,13 +39,13 @@ SRCS=	APFloat.cpp \
 	IsNAN.cpp \
 	Locale.cpp \
 	LockFileManager.cpp \
+	MD5.cpp \
 	ManagedStatic.cpp \
 	Memory.cpp \
 	MemoryBuffer.cpp \
 	MemoryObject.cpp \
 	Mutex.cpp \
 	Path.cpp \
-	PathV2.cpp \
 	PluginLoader.cpp \
 	PrettyStackTrace.cpp \
 	Process.cpp \
@@ -62,6 +63,7 @@ SRCS=	APFloat.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
+	StringRefMemoryObject.cpp \
 	TargetRegistry.cpp \
 	ThreadLocal.cpp \
 	Threading.cpp \
@@ -70,6 +72,7 @@ SRCS=	APFloat.cpp \
 	ToolOutputFile.cpp \
 	Triple.cpp \
 	Twine.cpp \
+	Unicode.cpp \
 	Valgrind.cpp \
 	Watchdog.cpp \
 	YAMLParser.cpp \
@@ -86,7 +89,6 @@ SRCS=	APFloat.cpp \
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SRCS+=	Compression.cpp \
-	DataExtractor.cpp \
 	DataStream.cpp \
 	Disassembler.cpp \
 	FileUtilities.cpp \

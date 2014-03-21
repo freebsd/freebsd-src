@@ -17,50 +17,17 @@
 #define LLVM_CLANG_FORMAT_TOKEN_ANNOTATOR_H
 
 #include "UnwrappedLineParser.h"
-#include "clang/Basic/OperatorPrecedence.h"
 #include "clang/Format/Format.h"
 #include <string>
 
 namespace clang {
-class Lexer;
 class SourceManager;
 
 namespace format {
 
-enum TokenType {
-  TT_BinaryOperator,
-  TT_BlockComment,
-  TT_CastRParen,
-  TT_ConditionalExpr,
-  TT_CtorInitializerColon,
-  TT_ImplicitStringLiteral,
-  TT_InlineASMColon,
-  TT_InheritanceColon,
-  TT_LineComment,
-  TT_ObjCArrayLiteral,
-  TT_ObjCBlockLParen,
-  TT_ObjCDecl,
-  TT_ObjCForIn,
-  TT_ObjCMethodExpr,
-  TT_ObjCMethodSpecifier,
-  TT_ObjCProperty,
-  TT_ObjCSelectorName,
-  TT_OverloadedOperatorLParen,
-  TT_PointerOrReference,
-  TT_PureVirtualSpecifier,
-  TT_RangeBasedForLoopColon,
-  TT_StartOfName,
-  TT_TemplateCloser,
-  TT_TemplateOpener,
-  TT_TrailingUnaryOperator,
-  TT_UnaryOperator,
-  TT_Unknown
-};
-
 enum LineType {
   LT_Invalid,
   LT_Other,
-  LT_BuilderTypeCall,
   LT_PreprocessorDirective,
   LT_VirtualFunctionDecl,
   LT_ObjCDecl, // An @interface, @implementation, or @protocol line.
@@ -68,175 +35,50 @@ enum LineType {
   LT_ObjCProperty // An @property line.
 };
 
-class AnnotatedToken {
-public:
-  explicit AnnotatedToken(const FormatToken &FormatTok)
-      : FormatTok(FormatTok), Type(TT_Unknown), SpacesRequiredBefore(0),
-        CanBreakBefore(false), MustBreakBefore(false),
-        ClosesTemplateDeclaration(false), MatchingParen(NULL),
-        ParameterCount(0), BindingStrength(0), SplitPenalty(0),
-        LongestObjCSelectorName(0), Parent(NULL),
-        FakeRParens(0), LastInChainOfCalls(false),
-        PartOfMultiVariableDeclStmt(false), NoMoreTokensOnLevel(false) {}
-
-  bool is(tok::TokenKind Kind) const { return FormatTok.Tok.is(Kind); }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2) const {
-    return is(K1) || is(K2);
-  }
-
-  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3) const {
-    return is(K1) || is(K2) || is(K3);
-  }
-
-  bool isOneOf(
-      tok::TokenKind K1, tok::TokenKind K2, tok::TokenKind K3,
-      tok::TokenKind K4, tok::TokenKind K5 = tok::NUM_TOKENS,
-      tok::TokenKind K6 = tok::NUM_TOKENS, tok::TokenKind K7 = tok::NUM_TOKENS,
-      tok::TokenKind K8 = tok::NUM_TOKENS, tok::TokenKind K9 = tok::NUM_TOKENS,
-      tok::TokenKind K10 = tok::NUM_TOKENS,
-      tok::TokenKind K11 = tok::NUM_TOKENS,
-      tok::TokenKind K12 = tok::NUM_TOKENS) const {
-    return is(K1) || is(K2) || is(K3) || is(K4) || is(K5) || is(K6) || is(K7) ||
-           is(K8) || is(K9) || is(K10) || is(K11) || is(K12);
-  }
-
-  bool isNot(tok::TokenKind Kind) const { return FormatTok.Tok.isNot(Kind); }
-
-  bool isObjCAtKeyword(tok::ObjCKeywordKind Kind) const {
-    return FormatTok.Tok.isObjCAtKeyword(Kind);
-  }
-
-  bool isAccessSpecifier(bool ColonRequired = true) const {
-    return isOneOf(tok::kw_public, tok::kw_protected, tok::kw_private) &&
-           (!ColonRequired ||
-            (!Children.empty() && Children[0].is(tok::colon)));
-  }
-
-  bool isObjCAccessSpecifier() const {
-    return is(tok::at) && !Children.empty() &&
-           (Children[0].isObjCAtKeyword(tok::objc_public) ||
-            Children[0].isObjCAtKeyword(tok::objc_protected) ||
-            Children[0].isObjCAtKeyword(tok::objc_package) ||
-            Children[0].isObjCAtKeyword(tok::objc_private));
-  }
-
-  /// \brief Returns whether \p Tok is ([{ or a template opening <.
-  bool opensScope() const;
-  /// \brief Returns whether \p Tok is )]} or a template opening >.
-  bool closesScope() const;
-
-  bool isUnaryOperator() const;
-  bool isBinaryOperator() const;
-  bool isTrailingComment() const;
-
-  FormatToken FormatTok;
-
-  TokenType Type;
-
-  unsigned SpacesRequiredBefore;
-  bool CanBreakBefore;
-  bool MustBreakBefore;
-
-  bool ClosesTemplateDeclaration;
-
-  AnnotatedToken *MatchingParen;
-
-  /// \brief Number of parameters, if this is "(", "[" or "<".
-  ///
-  /// This is initialized to 1 as we don't need to distinguish functions with
-  /// 0 parameters from functions with 1 parameter. Thus, we can simply count
-  /// the number of commas.
-  unsigned ParameterCount;
-
-  /// \brief The total length of the line up to and including this token.
-  unsigned TotalLength;
-
-  // FIXME: Come up with a 'cleaner' concept.
-  /// \brief The binding strength of a token. This is a combined value of
-  /// operator precedence, parenthesis nesting, etc.
-  unsigned BindingStrength;
-
-  /// \brief Penalty for inserting a line break before this token.
-  unsigned SplitPenalty;
-
-  /// \brief If this is the first ObjC selector name in an ObjC method
-  /// definition or call, this contains the length of the longest name.
-  unsigned LongestObjCSelectorName;
-
-  std::vector<AnnotatedToken> Children;
-  AnnotatedToken *Parent;
-
-  /// \brief Stores the number of required fake parentheses and the
-  /// corresponding operator precedence.
-  ///
-  /// If multiple fake parentheses start at a token, this vector stores them in
-  /// reverse order, i.e. inner fake parenthesis first.
-  SmallVector<prec::Level, 4>  FakeLParens;
-  /// \brief Insert this many fake ) after this token for correct indentation.
-  unsigned FakeRParens;
-
-  /// \brief Is this the last "." or "->" in a builder-type call?
-  bool LastInChainOfCalls;
-
-  /// \brief Is this token part of a \c DeclStmt defining multiple variables?
-  ///
-  /// Only set if \c Type == \c TT_StartOfName.
-  bool PartOfMultiVariableDeclStmt;
-
-  /// \brief Set to \c true for "("-tokens if this is the last token other than
-  /// ")" in the next higher parenthesis level.
-  ///
-  /// If this is \c true, no more formatting decisions have to be made on the
-  /// next higher parenthesis level, enabling optimizations.
-  ///
-  /// Example:
-  /// \code
-  /// aaaaaa(aaaaaa());
-  ///              ^  // Set to true for this parenthesis.
-  /// \endcode
-  bool NoMoreTokensOnLevel;
-
-  /// \brief Returns the previous token ignoring comments.
-  AnnotatedToken *getPreviousNoneComment() const;
-
-  /// \brief Returns the next token ignoring comments.
-  const AnnotatedToken *getNextNoneComment() const;
-};
-
 class AnnotatedLine {
 public:
   AnnotatedLine(const UnwrappedLine &Line)
-      : First(Line.Tokens.front()), Level(Line.Level),
+      : First(Line.Tokens.front().Tok), Level(Line.Level),
         InPPDirective(Line.InPPDirective),
         MustBeDeclaration(Line.MustBeDeclaration), MightBeFunctionDecl(false),
         StartsDefinition(false) {
     assert(!Line.Tokens.empty());
-    AnnotatedToken *Current = &First;
-    for (std::list<FormatToken>::const_iterator I = ++Line.Tokens.begin(),
-                                                E = Line.Tokens.end();
+
+    // Calculate Next and Previous for all tokens. Note that we must overwrite
+    // Next and Previous for every token, as previous formatting runs might have
+    // left them in a different state.
+    First->Previous = NULL;
+    FormatToken *Current = First;
+    for (std::list<UnwrappedLineNode>::const_iterator I = ++Line.Tokens.begin(),
+                                                      E = Line.Tokens.end();
          I != E; ++I) {
-      Current->Children.push_back(AnnotatedToken(*I));
-      Current->Children[0].Parent = Current;
-      Current = &Current->Children[0];
+      const UnwrappedLineNode &Node = *I;
+      Current->Next = I->Tok;
+      I->Tok->Previous = Current;
+      Current = Current->Next;
+      Current->Children.clear();
+      for (SmallVectorImpl<UnwrappedLine>::const_iterator
+               I = Node.Children.begin(),
+               E = Node.Children.end();
+           I != E; ++I) {
+        Children.push_back(new AnnotatedLine(*I));
+        Current->Children.push_back(Children.back());
+      }
     }
     Last = Current;
+    Last->Next = NULL;
   }
-  AnnotatedLine(const AnnotatedLine &Other)
-      : First(Other.First), Type(Other.Type), Level(Other.Level),
-        InPPDirective(Other.InPPDirective),
-        MustBeDeclaration(Other.MustBeDeclaration),
-        MightBeFunctionDecl(Other.MightBeFunctionDecl),
-        StartsDefinition(Other.StartsDefinition) {
-    Last = &First;
-    while (!Last->Children.empty()) {
-      Last->Children[0].Parent = Last;
-      Last = &Last->Children[0];
+
+  ~AnnotatedLine() {
+    for (unsigned i = 0, e = Children.size(); i != e; ++i) {
+      delete Children[i];
     }
   }
 
-  AnnotatedToken First;
-  AnnotatedToken *Last;
+  FormatToken *First;
+  FormatToken *Last;
+
+  SmallVector<AnnotatedLine *, 0> Children;
 
   LineType Type;
   unsigned Level;
@@ -244,42 +86,47 @@ public:
   bool MustBeDeclaration;
   bool MightBeFunctionDecl;
   bool StartsDefinition;
-};
 
-inline prec::Level getPrecedence(const AnnotatedToken &Tok) {
-  return getBinOpPrecedence(Tok.FormatTok.Tok.getKind(), true, true);
-}
+private:
+  // Disallow copying.
+  AnnotatedLine(const AnnotatedLine &) LLVM_DELETED_FUNCTION;
+  void operator=(const AnnotatedLine &) LLVM_DELETED_FUNCTION;
+};
 
 /// \brief Determines extra information about the tokens comprising an
 /// \c UnwrappedLine.
 class TokenAnnotator {
 public:
-  TokenAnnotator(const FormatStyle &Style, SourceManager &SourceMgr, Lexer &Lex,
-                 IdentifierInfo &Ident_in)
-      : Style(Style), SourceMgr(SourceMgr), Lex(Lex), Ident_in(Ident_in) {
-  }
+  TokenAnnotator(const FormatStyle &Style, IdentifierInfo &Ident_in)
+      : Style(Style), Ident_in(Ident_in) {}
+
+  /// \brief Adapts the indent levels of comment lines to the indent of the
+  /// subsequent line.
+  // FIXME: Can/should this be done in the UnwrappedLineParser?
+  void setCommentLineLevels(SmallVectorImpl<AnnotatedLine *> &Lines);
 
   void annotate(AnnotatedLine &Line);
   void calculateFormattingInformation(AnnotatedLine &Line);
 
 private:
   /// \brief Calculate the penalty for splitting before \c Tok.
-  unsigned splitPenalty(const AnnotatedLine &Line, const AnnotatedToken &Tok);
+  unsigned splitPenalty(const AnnotatedLine &Line, const FormatToken &Tok,
+                        bool InFunctionDecl);
 
-  bool spaceRequiredBetween(const AnnotatedLine &Line,
-                            const AnnotatedToken &Left,
-                            const AnnotatedToken &Right);
+  bool spaceRequiredBetween(const AnnotatedLine &Line, const FormatToken &Left,
+                            const FormatToken &Right);
 
-  bool spaceRequiredBefore(const AnnotatedLine &Line,
-                           const AnnotatedToken &Tok);
+  bool spaceRequiredBefore(const AnnotatedLine &Line, const FormatToken &Tok);
 
-  bool canBreakBefore(const AnnotatedLine &Line, const AnnotatedToken &Right);
+  bool mustBreakBefore(const AnnotatedLine &Line, const FormatToken &Right);
+
+  bool canBreakBefore(const AnnotatedLine &Line, const FormatToken &Right);
 
   void printDebugInfo(const AnnotatedLine &Line);
 
+  void calculateUnbreakableTailLengths(AnnotatedLine &Line);
+
   const FormatStyle &Style;
-  SourceManager &SourceMgr;
-  Lexer &Lex;
 
   // Contextual keywords:
   IdentifierInfo &Ident_in;

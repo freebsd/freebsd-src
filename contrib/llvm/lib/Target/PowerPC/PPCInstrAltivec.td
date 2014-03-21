@@ -229,35 +229,45 @@ let Predicates = [HasAltivec] in {
 let isCodeGenOnly = 1 in {
 def DSS      : DSS_Form<822, (outs),
                         (ins u5imm:$ZERO0, u5imm:$STRM,u5imm:$ZERO1,u5imm:$ZERO2),
-                        "dss $STRM", LdStLoad /*FIXME*/, []>;
+                        "dss $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSSALL   : DSS_Form<822, (outs),
                         (ins u5imm:$ONE, u5imm:$ZERO0,u5imm:$ZERO1,u5imm:$ZERO2),
-                        "dssall", LdStLoad /*FIXME*/, []>;
+                        "dssall", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DST      : DSS_Form<342, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, gprc:$rA, gprc:$rB),
-                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTT     : DSS_Form<342, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, gprc:$rA, gprc:$rB),
-                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTST    : DSS_Form<374, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, gprc:$rA, gprc:$rB),
-                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTSTT   : DSS_Form<374, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, gprc:$rA, gprc:$rB),
-                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 
 def DST64    : DSS_Form<342, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, g8rc:$rA, gprc:$rB),
-                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTT64   : DSS_Form<342, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, g8rc:$rA, gprc:$rB),
-                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTST64  : DSS_Form<374, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, g8rc:$rA, gprc:$rB),
-                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 def DSTSTT64 : DSS_Form<374, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, g8rc:$rA, gprc:$rB),
-                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
+                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>,
+                        Deprecated<DeprecatedDST>;
 }
 
 def MFVSCR : VXForm_4<1540, (outs vrrc:$vD), (ins),
@@ -392,7 +402,7 @@ def VCTUXS : VXForm_1<906, (outs vrrc:$vD), (ins u5imm:$UIMM, vrrc:$vB),
 // Defines with the UIM field set to 0 for floating-point
 // to integer (fp_to_sint/fp_to_uint) conversions and integer
 // to floating-point (sint_to_fp/uint_to_fp) conversions.
-let VA = 0 in {
+let isCodeGenOnly = 1, VA = 0 in {
 def VCFSX_0 : VXForm_1<842, (outs vrrc:$vD), (ins vrrc:$vB),
                        "vcfsx $vD, $vB, 0", VecFP,
                        [(set v4f32:$vD,
@@ -664,14 +674,28 @@ def VCMPGTSWo : VCMPo<902, "vcmpgtsw. $vD, $vA, $vB", v4i32>;
 def VCMPGTUW  : VCMP <646, "vcmpgtuw $vD, $vA, $vB" , v4i32>;
 def VCMPGTUWo : VCMPo<646, "vcmpgtuw. $vD, $vA, $vB", v4i32>;
                       
-let isCodeGenOnly = 1 in
-def V_SET0 : VXForm_setzero<1220, (outs vrrc:$vD), (ins),
+let isCodeGenOnly = 1 in {
+def V_SET0B : VXForm_setzero<1220, (outs vrrc:$vD), (ins),
+                      "vxor $vD, $vD, $vD", VecFP,
+                      [(set v16i8:$vD, (v16i8 immAllZerosV))]>;
+def V_SET0H : VXForm_setzero<1220, (outs vrrc:$vD), (ins),
+                      "vxor $vD, $vD, $vD", VecFP,
+                      [(set v8i16:$vD, (v8i16 immAllZerosV))]>;
+def V_SET0  : VXForm_setzero<1220, (outs vrrc:$vD), (ins),
                       "vxor $vD, $vD, $vD", VecFP,
                       [(set v4i32:$vD, (v4i32 immAllZerosV))]>;
+
 let IMM=-1 in {
-def V_SETALLONES : VXForm_3<908, (outs vrrc:$vD), (ins),
+def V_SETALLONESB : VXForm_3<908, (outs vrrc:$vD), (ins),
+                      "vspltisw $vD, -1", VecFP,
+                      [(set v16i8:$vD, (v16i8 immAllOnesV))]>;
+def V_SETALLONESH : VXForm_3<908, (outs vrrc:$vD), (ins),
+                      "vspltisw $vD, -1", VecFP,
+                      [(set v8i16:$vD, (v8i16 immAllOnesV))]>;
+def V_SETALLONES  : VXForm_3<908, (outs vrrc:$vD), (ins),
                       "vspltisw $vD, -1", VecFP,
                       [(set v4i32:$vD, (v4i32 immAllOnesV))]>;
+}
 }
 } // VALU Operations.
 
