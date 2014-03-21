@@ -125,6 +125,11 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="259466">A new &man.sysctl.8;,
+	<literal>kern.supported_archs</literal> has been added,
+	which will list the <envar>MACHINE_ARCH</envar> values
+	whose binaries can be run on the system.</para>
+
       <para revision="259519">Several problems that could trigger
 	kernel panic on &man.kldload.8; and &man.kldunload.8; have
 	been fixed.</para>
