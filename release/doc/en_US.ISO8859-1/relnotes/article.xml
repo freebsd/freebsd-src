@@ -152,7 +152,8 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="263408">A memory leak has been fixed in
+	<literal>libzfs</literal>.</para>
 
       <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
