@@ -209,6 +209,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="263404">Aliases for the &man.zfs.8; commands
+	<literal>list -t snap</literal> and <literal>snap</literal>
+	have been added to match &oracle;&nbsp;Solaris 11.</para>
+
       <para revision="263406">A new flag, <literal>-p</literal>, has
 	been added to the &man.zfs.8; <literal>list</literal> command,
 	providing output in a parseable form.</para>
