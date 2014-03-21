@@ -111,6 +111,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="260644">Hardware Random Number Generators have
+	been disabled by default.</para>
+
       <para revision="261483">Support for GPS ports has been added
 	to the &man.uhso.4; driver.</para>
 
