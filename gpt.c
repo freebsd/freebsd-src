@@ -157,7 +157,7 @@ gpt_filewrite(int fd, off_t ofs, void *buf, ssize_t bufsz)
 }
 
 static int
-gpt_write_pmbr(int fd, off_t nblocks, u_int secsz)
+gpt_write_pmbr(int fd, off_t nblocks, u_int secsz, void *bootcode)
 {
 	u_char *pmbr;
 	uint32_t secs;
@@ -168,7 +168,11 @@ gpt_write_pmbr(int fd, off_t nblocks, u_int secsz)
 	pmbr = malloc(secsz);
 	if (pmbr == NULL)
 		return (errno);
-	memset(pmbr, 0, secsz);
+	if (bootcode != NULL) {
+		memcpy(pmbr, bootcode, DOSPARTOFF);
+		memset(pmbr + DOSPARTOFF, 0, secsz - DOSPARTOFF);
+	} else
+		memset(pmbr, 0, secsz);
 	pmbr[DOSPARTOFF + 2] = 2;
 	pmbr[DOSPARTOFF + 4] = 0xee;
 	pmbr[DOSPARTOFF + 5] = 0xff;
@@ -230,7 +234,7 @@ gpt_write_hdr(int fd, struct gpt_hdr *hdr, uint64_t self, uint64_t alt,
 }
 
 static int
-gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
+gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz, void *bootcode)
 {
 	uuid_t uuid;
 	struct gpt_ent *tbl;
@@ -243,7 +247,7 @@ gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
 	nblocks = imgsz / secsz;
 
 	/* PMBR */
-	error = gpt_write_pmbr(fd, nblocks, secsz);
+	error = gpt_write_pmbr(fd, nblocks, secsz, bootcode);
 	if (error)
 		return (error);
 
@@ -296,7 +300,8 @@ static struct mkimg_scheme gpt_scheme = {
 	.metadata = gpt_metadata,
 	.write = gpt_write,
 	.nparts = 4096,
-	.labellen = 36
+	.labellen = 36,
+	.bootcode = 512
 };
 
 SCHEME_DEFINE(gpt_scheme);

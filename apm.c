@@ -50,7 +50,7 @@ apm_metadata(u_int where, u_int parts, u_int secsz __unused)
 
 static int
 apm_write(int fd __unused, off_t imgsz __unused, u_int parts __unused,
-    u_int secsz __unused)
+    u_int secsz __unused, void *bootcode __unused)
 {
 	return (ENOSYS);
 }

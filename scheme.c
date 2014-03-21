@@ -30,9 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/linker_set.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -57,6 +59,7 @@ static struct {
 
 static struct mkimg_scheme *scheme;
 static u_int secsz = 512;
+static void *bootcode;
 
 static enum alias
 scheme_parse_alias(const char *name)
@@ -92,6 +95,35 @@ scheme_selected(void)
 {
 
 	return (scheme);
+}
+
+int
+scheme_bootcode(int fd)
+{
+	struct stat sb;
+	int error;
+
+	if (fd == -1)
+		return (0);
+	if (scheme->bootcode == 0)
+		return (ENXIO);
+
+	error = fstat(fd, &sb);
+	if (error)
+		return (error);
+	if (sb.st_size > scheme->bootcode)
+		return (EFBIG);
+
+	bootcode = malloc(scheme->bootcode);
+	if (bootcode == NULL)
+		return (ENOMEM);
+	memset(bootcode, 0, scheme->bootcode);
+	if (read(fd, bootcode, sb.st_size) != sb.st_size) {
+		free(bootcode);
+		bootcode = NULL;
+		return (errno);
+	}
+	return (0);
 }
 
 int
@@ -179,6 +211,6 @@ scheme_write(int fd, off_t off)
 	if (ftruncate(fd, off) == -1)
 		return (errno);
 
-	error = scheme->write(fd, off, nparts, secsz);
+	error = scheme->write(fd, off, nparts, secsz, bootcode);
 	return (error);
 }

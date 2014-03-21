@@ -65,9 +65,10 @@ struct mkimg_scheme {
 #define	SCHEME_META_IMG_END	2
 #define	SCHEME_META_PART_BEFORE	3
 #define	SCHEME_META_PART_AFTER	4
-	int		(*write)(int, off_t, u_int, u_int);
+	int		(*write)(int, off_t, u_int, u_int, void *);
 	u_int		nparts;
 	u_int		labellen;
+	u_int		bootcode;
 };
 
 SET_DECLARE(schemes, struct mkimg_scheme);
@@ -76,6 +77,7 @@ SET_DECLARE(schemes, struct mkimg_scheme);
 int	scheme_select(const char *);
 struct mkimg_scheme *scheme_selected(void);
 
+int scheme_bootcode(int fd);
 int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);
 uint64_t scheme_round(uint64_t);

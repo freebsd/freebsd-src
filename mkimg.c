@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
-static int bcfd = 0;
+static int bcfd = -1;
 static int outfd = 0;
 static int tmpfd = -1;
 
@@ -222,7 +222,7 @@ fdcopy(int src, int dst, uint64_t *count)
 }
 
 static void
-mkimg(void)
+mkimg(int bfd)
 {
 	FILE *fp;
 	struct part *part;
@@ -233,6 +233,10 @@ mkimg(void)
 	if (nparts > scheme_max_parts())
 		errc(EX_DATAERR, ENOSPC, "only %d partitions are supported",
 		    scheme_max_parts());
+
+	error = scheme_bootcode(bfd);
+	if (error)
+		errc(EX_DATAERR, error, "boot code");
 
 	/* First check partition information */
 	STAILQ_FOREACH(part, &partlist, link) {
@@ -288,7 +292,7 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "b:h:o:p:s:t:z")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
-			if (bcfd != 0)
+			if (bcfd != -1)
 				usage("multiple bootcode given");
 			bcfd = open(optarg, O_RDONLY, 0);
 			if (bcfd == -1)
@@ -341,7 +345,7 @@ main(int argc, char *argv[])
 	} else
 		tmpfd = outfd;
 
-	mkimg();
+	mkimg(bcfd);
 
 	if (tmpfd != outfd) {
 		if (lseek(tmpfd, 0, SEEK_SET) == 0)
