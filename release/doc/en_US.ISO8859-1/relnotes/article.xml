@@ -187,7 +187,8 @@
       <sect3 xml:id="proc">
 	<title>Hardware Support</title>
 
-	<para>&nbsp;</para>
+	<para revision="262968">The &man.mfi.4; driver has been
+	  updated to support MegaRAID Fury cards.</para>
 
 	<sect4 xml:id="mm">
 	  <title>Multimedia Support</title>
