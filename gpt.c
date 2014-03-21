@@ -121,7 +121,7 @@ gpt_metadata(u_int where, u_int parts, u_int secsz)
 {
 	u_int secs;
 
-	if (where != SCHEME_META_IMG_START && where != SCHEME_META_IMG_START)
+	if (where != SCHEME_META_IMG_START && where != SCHEME_META_IMG_END)
 		return (0);
 
 	secs = gpt_tblsz(parts, secsz);
@@ -243,7 +243,7 @@ gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
 	hdr->hdr_revision = GPT_HDR_REVISION;
 	hdr->hdr_size = offsetof(struct gpt_hdr, padding);
 	hdr->hdr_lba_start = 2 + tblsz;
-	hdr->hdr_lba_end = nblocks - tblsz - 1;
+	hdr->hdr_lba_end = nblocks - tblsz - 2;
 	uuidgen(&hdr->hdr_uuid, 1);
 	hdr->hdr_entries = parts;
 	hdr->hdr_entsz = sizeof(struct gpt_ent);
@@ -251,7 +251,7 @@ gpt_write(int fd, off_t imgsz, u_int parts, u_int secsz)
 	error = gpt_write_hdr(fd, hdr, 1, nblocks - 1, 2, secsz);
 	if (!error)
 		error = gpt_write_hdr(fd, hdr, nblocks - 1, 1,
-		    nblocks - tblsz -1, secsz);
+		    nblocks - tblsz - 1, secsz);
 	free(hdr);
 
  out:
