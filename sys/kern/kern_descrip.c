@@ -2975,7 +2975,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
 #ifdef KINFO_OFILE_SIZE
@@ -3231,8 +3231,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
-    sysctl_kern_proc_ofiledesc, "Process ofiledesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
+    CTLFLAG_RD||CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
+    "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
 
 #ifdef KINFO_FILE_SIZE
@@ -3742,8 +3743,9 @@ fill_shm_info(struct file *fp, struct kinfo_file *kif)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
-    sysctl_kern_proc_filedesc, "Process filedesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
+    "Process filedesc entries");
 
 #ifdef DDB
 /*
