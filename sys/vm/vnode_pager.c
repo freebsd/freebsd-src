@@ -1013,8 +1013,6 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 	int error;
 
 	error = vnode_pager_generic_getpages_done(sc);
-	if (error)
-		printf("zhopa %d\n", error);
 
 	vm_page_xunbusy(sc->m[sc->reqpage]);
 
