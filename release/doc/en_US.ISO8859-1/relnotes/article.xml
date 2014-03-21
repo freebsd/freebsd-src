@@ -152,6 +152,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="262564">Support for the ext4 filesystem
+	has been enabled, supporting read-only mounts.</para>
+
       <para revision="262594">A kernel panic triggered by inserting
 	a USB ethernet device on VIMAGE-enabled systems has been
 	fixed.</para>
