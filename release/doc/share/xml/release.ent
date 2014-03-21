@@ -6,18 +6,18 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "9.1-RELEASE">
+<!ENTITY release.current "9.3-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "9.0-RELEASE">
+<!ENTITY release.prev "9.2-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "9.2-RELEASE">
+<!ENTITY release.next "9.3-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "9.1-STABLE">
+<!ENTITY release.branch "9.3-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://www.FreeBSD.org/releases/">
@@ -48,7 +48,7 @@
 <!ENTITY release.manpath.xorg          "7.5.2">
 <!ENTITY release.manpath.netbsd        "6.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "9.1-RELEASE">
+<!ENTITY release.manpath.freebsd       "9.2-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
