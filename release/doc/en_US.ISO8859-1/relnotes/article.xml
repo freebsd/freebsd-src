@@ -304,7 +304,11 @@
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para>&nbsp;</para>
+      <para revision="263028">The &man.services.mkdb.8; utility has
+	been updated to support multiple byte orders.  Similar to
+	&man.cap.mkdb.1;, the <filename>services.db</filename> will
+	be created with proper endinanness as part of
+	cross-architecture release builds.</para>
 
     </sect2>
   </sect1>
