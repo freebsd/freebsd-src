@@ -125,6 +125,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="257119">A kernel panic triggered in
+	<literal>zfs_root()</literal> after a failed rollback has
+	been fixed.</para>
+
       <para revision="257125">A new &man.sysctl.8;,
 	<literal>debug.devfs_iosize_max_clamp</literal> has been added
 	which enables and disables <literal>SSIZE_MAX</literal>-sized
