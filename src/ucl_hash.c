@@ -21,6 +21,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ucl_internal.h"
 #include "ucl_hash.h"
 #include "utlist.h"
 
