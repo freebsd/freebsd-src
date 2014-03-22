@@ -391,6 +391,10 @@ config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
 				    next);
 			}
 			break;
+		case PKG_CONFIG_BOOL:
+			temp_config[i].value =
+			    strdup(ucl_object_toboolean(cur) ? "yes" : "no");
+			break;
 		default:
 			/* Normal string value. */
 			temp_config[i].value = strdup(ucl_object_tostring(cur));
