@@ -128,6 +128,11 @@ DESCRIPTION
              set to ``always'', then canonicalization is applied to proxied
              connections too.
 
+             If this option is enabled and canonicalisation results in the
+             target hostname changing, then the configuration files are
+             processed again using the new target name to pick up any new
+             configuration in matching Host stanzas.
+
      CanonicalizeMaxDots
              Specifies the maximum number of dot characters in a hostname
              before canonicalization is disabled.  The default, ``1'', allows
@@ -881,4 +886,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.4                    January 19, 2014                    OpenBSD 5.4
+OpenBSD 5.5                    February 23, 2014                   OpenBSD 5.5

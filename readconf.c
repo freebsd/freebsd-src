@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.215 2013/12/06 13:39:49 markus Exp $ */
+/* $OpenBSD: readconf.c,v 1.218 2014/02/23 20:11:36 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -22,6 +22,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -144,7 +145,7 @@ typedef enum {
 	oSendEnv, oControlPath, oControlMaster, oControlPersist,
 	oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
-	oVisualHostKey, oUseRoaming, oZeroKnowledgePasswordAuthentication,
+	oVisualHostKey, oUseRoaming,
 	oKexAlgorithms, oIPQoS, oRequestTTY, oIgnoreUnknown, oProxyUseFdpass,
 	oCanonicalDomains, oCanonicalizeHostname, oCanonicalizeMaxDots,
 	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
@@ -251,12 +252,6 @@ static struct {
 	{ "permitlocalcommand", oPermitLocalCommand },
 	{ "visualhostkey", oVisualHostKey },
 	{ "useroaming", oUseRoaming },
-#ifdef JPAKE
-	{ "zeroknowledgepasswordauthentication",
-	    oZeroKnowledgePasswordAuthentication },
-#else
-	{ "zeroknowledgepasswordauthentication", oUnsupported },
-#endif
 	{ "kexalgorithms", oKexAlgorithms },
 	{ "ipqos", oIPQoS },
 	{ "requesttty", oRequestTTY },
@@ -542,16 +537,27 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			    "r", ruser,
 			    "u", pw->pw_name,
 			    (char *)NULL);
-			r = execute_in_shell(cmd);
-			if (r == -1) {
-				fatal("%.200s line %d: match exec '%.100s' "
-				    "error", filename, linenum, cmd);
-			} else if (r == 0) {
-				debug("%.200s line %d: matched "
-				    "'exec \"%.100s\"' ",
+			if (result != 1) {
+				/* skip execution if prior predicate failed */
+				debug("%.200s line %d: skipped exec \"%.100s\"",
 				    filename, linenum, cmd);
-			} else
-				result = 0;
+			} else {
+				r = execute_in_shell(cmd);
+				if (r == -1) {
+					fatal("%.200s line %d: match exec "
+					    "'%.100s' error", filename,
+					    linenum, cmd);
+				} else if (r == 0) {
+					debug("%.200s line %d: matched "
+					    "'exec \"%.100s\"'", filename,
+					    linenum, cmd);
+				} else {
+					debug("%.200s line %d: no match "
+					    "'exec \"%.100s\"'", filename,
+					    linenum, cmd);
+					result = 0;
+				}
+			}
 			free(cmd);
 		} else {
 			error("Unsupported Match attribute %s", attrib);
@@ -801,10 +807,6 @@ parse_time:
 
 	case oPasswordAuthentication:
 		intptr = &options->password_authentication;
-		goto parse_flag;
-
-	case oZeroKnowledgePasswordAuthentication:
-		intptr = &options->zero_knowledge_password_authentication;
 		goto parse_flag;
 
 	case oKbdInteractiveAuthentication:
@@ -1465,6 +1467,13 @@ read_config_file(const char *filename, struct passwd *pw, const char *host,
 	return 1;
 }
 
+/* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
+int
+option_clear_or_none(const char *o)
+{
+	return o == NULL || strcasecmp(o, "none") == 0;
+}
+
 /*
  * Initializes options to special values that indicate that they have not yet
  * been set.  Read_config_file will only set options with this value. Options
@@ -1549,7 +1558,6 @@ initialize_options(Options * options)
 	options->permit_local_command = -1;
 	options->use_roaming = -1;
 	options->visual_host_key = -1;
-	options->zero_knowledge_password_authentication = -1;
 	options->ip_qos_interactive = -1;
 	options->ip_qos_bulk = -1;
 	options->request_tty = -1;
@@ -1563,10 +1571,24 @@ initialize_options(Options * options)
 }
 
 /*
+ * A petite version of fill_default_options() that just fills the options
+ * needed for hostname canonicalization to proceed.
+ */
+void
+fill_default_options_for_canonicalization(Options *options)
+{
+	if (options->canonicalize_max_dots == -1)
+		options->canonicalize_max_dots = 1;
+	if (options->canonicalize_fallback_local == -1)
+		options->canonicalize_fallback_local = 1;
+	if (options->canonicalize_hostname == -1)
+		options->canonicalize_hostname = SSH_CANONICALISE_NO;
+}
+
+/*
  * Called after processing other sources of option data, this fills those
  * options for which no value has been specified with their default values.
  */
-
 void
 fill_default_options(Options * options)
 {
@@ -1705,8 +1727,6 @@ fill_default_options(Options * options)
 		options->use_roaming = 1;
 	if (options->visual_host_key == -1)
 		options->visual_host_key = 0;
-	if (options->zero_knowledge_password_authentication == -1)
-		options->zero_knowledge_password_authentication = 0;
 	if (options->ip_qos_interactive == -1)
 		options->ip_qos_interactive = IPTOS_LOWDELAY;
 	if (options->ip_qos_bulk == -1)
@@ -1723,7 +1743,7 @@ fill_default_options(Options * options)
 		options->canonicalize_hostname = SSH_CANONICALISE_NO;
 #define CLEAR_ON_NONE(v) \
 	do { \
-		if (v != NULL && strcasecmp(v, "none") == 0) { \
+		if (option_clear_or_none(v)) { \
 			free(v); \
 			v = NULL; \
 		} \

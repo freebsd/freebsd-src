@@ -1,4 +1,4 @@
-/* $OpenBSD: digest.c,v 1.3 2014/01/20 00:08:48 djm Exp $ */
+/* $OpenBSD: digest-openssl.c,v 1.2 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  *
@@ -72,6 +72,12 @@ ssh_digest_bytes(int alg)
 	return digest == NULL ? 0 : digest->digest_len;
 }
 
+size_t
+ssh_digest_blocksize(struct ssh_digest_ctx *ctx)
+{
+	return EVP_MD_CTX_block_size(&ctx->mdctx);
+}
+
 struct ssh_digest_ctx *
 ssh_digest_start(int alg)
 {
@@ -87,6 +93,15 @@ ssh_digest_start(int alg)
 		return NULL;
 	}
 	return ret;
+}
+
+int
+ssh_digest_copy_state(struct ssh_digest_ctx *from, struct ssh_digest_ctx *to)
+{
+	/* we have bcopy-style order while openssl has memcpy-style */
+	if (!EVP_MD_CTX_copy_ex(&to->mdctx, &from->mdctx))
+		return -1;
+	return 0;
 }
 
 int
@@ -123,9 +138,11 @@ ssh_digest_final(struct ssh_digest_ctx *ctx, u_char *d, size_t dlen)
 void
 ssh_digest_free(struct ssh_digest_ctx *ctx)
 {
-	EVP_MD_CTX_cleanup(&ctx->mdctx);
-	memset(ctx, 0, sizeof(*ctx));
-	free(ctx);
+	if (ctx != NULL) {
+		EVP_MD_CTX_cleanup(&ctx->mdctx);
+		explicit_bzero(ctx, sizeof(*ctx));
+		free(ctx);
+	}
 }
 
 int
