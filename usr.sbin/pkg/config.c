@@ -66,6 +66,7 @@ struct config_entry {
 	char *value;
 	STAILQ_HEAD(, config_value) *list;
 	bool envset;
+	bool main_only;				/* Only set in pkg.conf. */
 };
 
 static struct config_entry c[] = {
@@ -76,6 +77,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[ABI] = {
 		PKG_CONFIG_STRING,
@@ -84,6 +86,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[MIRROR_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -91,6 +94,7 @@ static struct config_entry c[] = {
 		"SRV",
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[ASSUME_ALWAYS_YES] = {
@@ -100,6 +104,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[SIGNATURE_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -107,6 +112,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[FINGERPRINTS] = {
@@ -116,6 +122,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[REPOS_DIR] = {
 		PKG_CONFIG_LIST,
@@ -124,6 +131,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 };
 
@@ -596,6 +604,9 @@ config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
 	/* Repo is enabled, copy over all settings from temp_config. */
 	for (i = 0; i < CONFIG_SIZE; i++) {
 		if (c[i].envset)
+			continue;
+		/* Prevent overriding ABI, ASSUME_ALWAYS_YES, etc. */
+		if (conftype != CONFFILE_PKG && c[i].main_only == true)
 			continue;
 		switch (c[i].type) {
 		case PKG_CONFIG_LIST:
