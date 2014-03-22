@@ -8,7 +8,7 @@ CFLAGS+=-I${.CURDIR}/../../contrib/libucl/include
 .PATH:	${.CURDIR}/../../contrib/libucl/include
 DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBUCL} ${LIBSBUF} ${LIBSSL} \
 	${LIBCRYPTO}
-LDADD=	-larchive -lelf -lfetch -lucl -lsbuf -lssl -lcrypto
+LDADD=	-larchive -lelf -lfetch -lucl -lsbuf -lssl -lcrypto -lm
 USEPRIVATELIB=	ucl
 
 .include <bsd.prog.mk>
