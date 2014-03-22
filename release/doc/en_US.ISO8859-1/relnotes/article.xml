@@ -350,6 +350,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="257496">The &man.ddb.8; utility has been updated
+	to add <command>show ioapic</command> and <command>show all
+	  ioapics</command>.</para>
+
       <para revision="258183">Setting <literal>nmbcluster</literal>
 	values to their current value will now be ignored, instead of
 	failing with an error.</para>
