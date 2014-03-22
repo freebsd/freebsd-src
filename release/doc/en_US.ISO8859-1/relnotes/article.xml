@@ -338,6 +338,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="258183">Setting <literal>nmbcluster</literal>
+	values to their current value will now be ignored, instead of
+	failing with an error.</para>
+
       <para revision="258763">The <filename
 	  class="directory">/var/cache</filename> directory is now
 	created with mode <literal>0755</literal> instead of mode
