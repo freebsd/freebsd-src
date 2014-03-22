@@ -321,6 +321,12 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="258818">The &man.uname.1; utility has been
+	updated to include the <literal>-U</literal> and
+	<literal>-K</literal> flags, which print the
+	<envar>__FreeBSD_version</envar> for the running userland
+	and kernel, respectively.</para>
+
       <para revision="258844">The &man.fetch.3; library has been
 	updated to support SNI (Server Name Identification), allowing
 	to use virtual hosts on HTTPS.</para>
