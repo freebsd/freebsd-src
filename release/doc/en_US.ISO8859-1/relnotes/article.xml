@@ -259,6 +259,10 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="257611">The &man.re.4; driver has been
+	    updated to add preliminary support for the RTL8106E
+	    chipset.</para>
+
 	  <para revision="257614,257616">The &man.re.4; driver has
 	    been updated to support the RTL8168G, RTL8168GU and
 	    RTL8411B chipsets.</para>
