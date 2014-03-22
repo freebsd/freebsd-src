@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-        "../../../share/xml/freebsd50.dtd" [
+	"../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
- %release;
+	%release;
 ]>
 <article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
-  <info><title>&os; &release.current; Release Notes</title>
+  <info>
+    <title>&os; &release.current; Release Notes</title>
 
     <author><orgname>The &os; Project</orgname></author>
 
@@ -103,21 +104,24 @@
 
 	  <tbody>
 	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:01.bsnmpd.asc">FreeBSD-SA-14:01.bsnmpd</link></entry>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:01.bsnmpd.asc">FreeBSD-SA-14:01.bsnmpd</link></entry>
 	      <entry>1&nbsp;January&nbsp;2014</entry>
 	      <entry><para>Fix &man.bsnmpd.1; remote denial of service
 		  vulnerability</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:02.ntpd.asc">FreeBSD-SA-14:02.ntpd</link></entry>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:02.ntpd.asc">FreeBSD-SA-14:02.ntpd</link></entry>
 	      <entry>1&nbsp;January&nbsp;2014</entry>
 	      <entry><para>Disable <quote>monitor</quote> feature in
 		  &man.ntpd.8; by default</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:04.bind.asc">FreeBSD-SA-14:04.bind</link></entry>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:04.bind.asc">FreeBSD-SA-14:04.bind</link></entry>
 	      <entry>1&nbsp;January&nbsp;2014</entry>
 	      <entry><para>Remote denial of service
 		  vulnerability</para></entry>
@@ -608,11 +612,11 @@
   </sect1>
 
   <sect1 xml:id="upgrade">
-    <title>Upgrading from previous releases of &os;</title>
+    <title>Upgrading from Previous Releases of &os;</title>
 
     <sect2>
-      <title>Upgrading using &man.freebsd-update.8; or a source-based
-	procedure</title>
+      <title>Upgrading Using &man.freebsd-update.8; or a Source-Based
+	Procedure</title>
 
       <para arch="amd64,i386">Binary upgrades between RELEASE versions
 	(and snapshots of the various security branches) are supported
@@ -630,7 +634,8 @@
 
       <?ignore
       <para>For more specific information about upgrading
-	instructions, see <uri xlink:href="http://www.FreeBSD.org/releases/9.3R/installation.html">http://www.FreeBSD.org/releases/9.3R/installation.html</uri>.</para>
+	instructions, see <uri
+	  xlink:href="http://www.FreeBSD.org/releases/9.3R/installation.html">http://www.FreeBSD.org/releases/9.3R/installation.html</uri>.</para>
 
       ?>
       <important>
@@ -641,8 +646,8 @@
     </sect2>
 
     <sect2>
-      <title xml:id="upgrade-pitfalls">User-visible
-	incompatibilities</title>
+      <title xml:id="upgrade-pitfalls">User-Visible
+	Incompatibilities</title>
 
       <para>FreeBSD 9.0 and later have several incompatibilities in
 	system configuration which you might want to know before
