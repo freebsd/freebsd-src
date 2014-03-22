@@ -380,6 +380,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="256054">A new flag <literal>-c</literal>, has
+	been added to &man.pgrep.1; and &man.pkill.1;, which restricts
+	the process lookup to the specified login class.</para>
+
       <para revision="257496">The &man.ddb.8; utility has been updated
 	to add <command>show ioapic</command> and <command>show all
 	  ioapics</command>.</para>
