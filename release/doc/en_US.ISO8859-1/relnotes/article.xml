@@ -321,6 +321,10 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="258844">The &man.fetch.3; library has been
+	updated to support SNI (Server Name Identification), allowing
+	to use virtual hosts on HTTPS.</para>
+
       <para revision="259243">A segmentation fault and internal
 	compiler error bug in &man.gcc.1; triggered by throwing
 	a warning before parsing any tokens has been fixed.</para>
