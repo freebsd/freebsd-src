@@ -13,7 +13,8 @@
 
     <copyright>
       <year>2014</year>
-      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
+	Project</holder>
     </copyright>
 
     <legalnotice xml:id="trademarks" role="trademarks">
@@ -26,13 +27,13 @@
     </legalnotice>
 
     <abstract>
-      <para>The release notes for &os; &release.current; contain a summary
-	of the changes made to the &os; base system on the
-	&release.branch; development line.
-	This document lists applicable security advisories that were issued since
-	the last release, as well as significant changes to the &os;
-	kernel and userland.
-	Some brief remarks on upgrading are also presented.</para>
+      <para>The release notes for &os; &release.current; contain
+	a summary of the changes made to the &os; base system on the
+	&release.branch; development line.  This document lists
+	applicable security advisories that were issued since the last
+	release, as well as significant changes to the &os; kernel and
+	userland.  Some brief remarks on upgrading are also
+	presented.</para>
     </abstract>
   </info>
 
@@ -44,18 +45,22 @@
       deleted features of &os;.  It also provides some notes on
       upgrading from previous versions of &os;.</para>
 
-    <para>This distribution of &os; &release.current; is a
-      &release.type; distribution.  It can be found at <uri xlink:href="&release.url;">&release.url;</uri> or any of its mirrors.  More
-      information on obtaining this (or other) &release.type;
-      distributions of &os; can be found in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
-      &os;</quote> appendix</link> to the <link xlink:href="&url.books.handbook;/">&os; Handbook</link>.</para>
+    <para>This distribution of &os; &release.current; is
+      a &release.type; distribution.  It can be found at <uri
+	xlink:href="&release.url;">&release.url;</uri> or any of its
+      mirrors.  More information on obtaining this (or other)
+      &release.type; distributions of &os; can be found in the <link
+	xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	  &os;</quote> appendix</link> to the <link
+	xlink:href="&url.books.handbook;/">&os;
+	Handbook</link>.</para>
 
-    <para>All users are encouraged to consult the release errata before
-      installing &os;.  The errata document is updated with
+    <para>All users are encouraged to consult the release errata
+      before installing &os;.  The errata document is updated with
       <quote>late-breaking</quote> information discovered late in the
       release cycle or after the release.  Typically, it contains
-      information on known bugs, security advisories, and corrections to
-      documentation.  An up-to-date copy of the errata for &os;
+      information on known bugs, security advisories, and corrections
+      to documentation.  An up-to-date copy of the errata for &os;
       &release.current; can be found on the &os; Web site.</para>
   </sect1>
 
@@ -78,10 +83,10 @@
     <sect2 xml:id="security">
       <title>Security Advisories</title>
 
-      <para>Problems described in the following security advisories have
-	been fixed.  For more information, consult the individual
-	advisories available from
-	<uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
+      <para>Problems described in the following security advisories
+	have been fixed.  For more information, consult the individual
+	advisories available from <uri
+	  xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="3">
@@ -636,15 +641,17 @@
     </sect2>
 
     <sect2>
-      <title xml:id="upgrade-pitfalls">User-visible incompatibilities</title>
+      <title xml:id="upgrade-pitfalls">User-visible
+	incompatibilities</title>
 
       <para>FreeBSD 9.0 and later have several incompatibilities in
 	system configuration which you might want to know before
 	upgrading your system.  <emphasis>Please read this section and
-	the <link xlink:href="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
-	Section in 9.0-RELEASE Release Notes</link> carefully before
-	submitting a problem report and/or posting a question to the
-	FreeBSD mailing lists.</emphasis></para>
+	  the <link
+	    xlink:href="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
+	    Section in 9.0-RELEASE Release Notes</link> carefully
+	  before submitting a problem report and/or posting a question
+	  to the FreeBSD mailing lists.</emphasis></para>
     </sect2>
   </sect1>
 </article>
