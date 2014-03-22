@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="257253">A kernel panic triggered by unmounting
+	a busy &man.zfs.8; filesystem has been fixed.</para>
+
       <para revision="257373">A deadlock triggered by powering off
 	a USB device has been fixed.</para>
 
