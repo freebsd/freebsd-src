@@ -288,6 +288,9 @@
 	  <para revision="262362">The &man.urndis.4; driver has been
 	    imported from OpenBSD.</para>
 
+	  <para revision="263582">The &man.bxe.4; driver has been
+	    updated to version 1.78.78.</para>
+
 	</sect4>
       </sect3>
 
