@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="258215">The &man.ata.4; driver has been updated
+	to support Coleto Creek devices.</para>
+
       <para revision="258217">The &man.ahci.4; driver has been updated
 	to support the PCI-express solid state drive in the
 	&apple;&nbsp;MacBook Air (model A1465).</para>
