@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="256924">The &man.mfi.4; driver has been updated
+	to support MegaRAID Invader controllers.</para>
+
       <para revision="257119">A kernel panic triggered in
 	<literal>zfs_root()</literal> after a failed rollback has
 	been fixed.</para>
