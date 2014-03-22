@@ -125,6 +125,11 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="257125">A new &man.sysctl.8;,
+	<literal>debug.devfs_iosize_max_clamp</literal> has been added
+	which enables and disables <literal>SSIZE_MAX</literal>-sized
+	I/O requests on &man.devfs.5; files.</para>
+
       <para revision="257126">A new &man.sysctl.8;,
 	<literal>kern.disallow_high_osrel</literal>, has been added
 	which disables executing the images compiled on a userland
