@@ -259,6 +259,9 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="257618">The &man.re.4; driver has been
+	    updated to support the RTL8168EP chipset.</para>
+
 	  <para revision="258586">The &man.oce.4; driver has been
 	    updated to version 10.0.664.0.</para>
 
