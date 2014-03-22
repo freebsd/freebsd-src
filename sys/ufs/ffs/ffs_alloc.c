@@ -1167,16 +1167,17 @@ ffs_dirpref(pip)
 	 * We scan from our preferred cylinder group forward looking
 	 * for a cylinder group that meets our criterion. If we get
 	 * to the final cylinder group and do not find anything,
-	 * we start scanning backwards from our preferred cylinder
-	 * group. The ideal would be to alternate looking forward
-	 * and backward, but that is just too complex to code for
-	 * the gain it would get. The most likely place where the
-	 * backward scan would take effect is when we start near
-	 * the end of the filesystem and do not find anything from
-	 * where we are to the end. In that case, scanning backward
-	 * will likely find us a suitable cylinder group much closer
-	 * to our desired location than if we were to start scanning
-	 * forward from the beginning of the filesystem.
+	 * we start scanning forwards from the beginning of the
+	 * filesystem. While it might seem sensible to start scanning
+	 * backwards or even to alternate looking forward and backward,
+	 * this approach fails badly when the filesystem is nearly full.
+	 * Specifically, we first search all the areas that have no space
+	 * and finally try the one preceeding that. We repeat this on
+	 * every request and in the case of the final block end up
+	 * searching the entire filesystem. By jumping to the front
+	 * of the filesystem, our future forward searches always look
+	 * in new cylinder groups so finds every possible block after
+	 * one pass over the filesystem.
 	 */
 	prefcg = ino_to_cg(fs, pip->i_number);
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
