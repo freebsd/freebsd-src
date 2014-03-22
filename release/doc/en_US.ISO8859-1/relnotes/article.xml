@@ -321,6 +321,13 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
+      <para revision="258763">The <filename
+	  class="directory">/var/cache</filename> directory is now
+	created with mode <literal>0755</literal> instead of mode
+	<literal>0750</literal>, since this directory is used by
+	many third-party applications, which makes dropping group
+	privileges impossible.</para>
+
       <para revision="258818">The &man.uname.1; utility has been
 	updated to include the <literal>-U</literal> and
 	<literal>-K</literal> flags, which print the
