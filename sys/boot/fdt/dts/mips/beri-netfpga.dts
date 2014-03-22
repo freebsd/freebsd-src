@@ -113,6 +113,14 @@
 			soft-interrupt-sources = <64>;
 		};
 
+		serial0: serial@7f000000 {
+			compatible = "altera,jtag_uart-11_0";
+			reg = <0x7f000000 0x40>;
+			interrupts = <0>;
+			interrupt-parent = <&beripic>;
+		};
+
+/*
 		serial0: serial@7f002100 {
 			compatible = "ns16550";
 			reg = <0x7f002100 0x20>;
@@ -121,6 +129,7 @@
 			interrupts = <8>;
 			interrupt-parent = <&beripic>;
 		};
+*/
 	};
 
 	aliases { 
