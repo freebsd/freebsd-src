@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="256033">The &man.arcmsr.4; driver has been
+	updated to version 1.20.00.28.</para>
+
       <para revision="256437">The &man.isci.4; driver is now loadable
 	via &man.kldload.8;.</para>
 
