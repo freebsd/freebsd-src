@@ -25,7 +25,9 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 
+#ifdef HAVE_LIBGEN_H
 #include <libgen.h> /* For dirname */
+#endif
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
@@ -35,17 +37,36 @@
 #include <openssl/evp.h>
 #endif
 
+#ifdef CURL_FOUND
+#include <curl/curl.h>
+#endif
+#ifdef HAVE_FETCH_H
+#include <fetch.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 
+#ifndef PROT_READ
 #define PROT_READ       1
+#endif
+#ifndef PROT_WRITE
 #define PROT_WRITE      2
+#endif
+#ifndef PROT_READWRITE
 #define PROT_READWRITE  3
+#endif
+#ifndef MAP_SHARED
 #define MAP_SHARED      1
+#endif
+#ifndef MAP_PRIVATE
 #define MAP_PRIVATE     2
+#endif
+#ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
+#endif
 
-static void *mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
+static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
 {
 	void *map = NULL;
 	HANDLE handle = INVALID_HANDLE_VALUE;
@@ -83,7 +104,7 @@ static void *mmap(char *addr, size_t length, int prot, int access, int fd, off_t
 	return (void *) ((char *) map + offset);
 }
 
-static int munmap(void *map,size_t length)
+static int ucl_munmap(void *map,size_t length)
 {
 	if (!UnmapViewOfFile(map)) {
 		return(-1);
@@ -91,7 +112,7 @@ static int munmap(void *map,size_t length)
 	return(0);
 }
 
-static char* realpath(const char *path, char *resolved_path) {
+static char* ucl_realpath(const char *path, char *resolved_path) {
     char *p;
     char tmp[MAX_PATH + 1];
     strncpy(tmp, path, sizeof(tmp)-1);
@@ -102,6 +123,10 @@ static char* realpath(const char *path, char *resolved_path) {
     }
     return _fullpath(resolved_path, tmp, MAX_PATH);
 }
+#else
+#define ucl_mmap mmap
+#define ucl_munmap munmap
+#define ucl_realpath realpath
 #endif
 
 /**
@@ -158,6 +183,9 @@ ucl_unescape_json_string (char *str, size_t len)
 	char *t = str, *h = str;
 	int i, uval;
 
+	if (len <= 1) {
+		return len;
+	}
 	/* t is target (tortoise), h is source (hare) */
 
 	while (len) {
@@ -188,45 +216,53 @@ ucl_unescape_json_string (char *str, size_t len)
 			case 'u':
 				/* Unicode escape */
 				uval = 0;
-				for (i = 0; i < 4; i++) {
-					uval <<= 4;
-					if (isdigit (h[i])) {
-						uval += h[i] - '0';
+				if (len > 3) {
+					for (i = 0; i < 4; i++) {
+						uval <<= 4;
+						if (isdigit (h[i])) {
+							uval += h[i] - '0';
+						}
+						else if (h[i] >= 'a' && h[i] <= 'f') {
+							uval += h[i] - 'a' + 10;
+						}
+						else if (h[i] >= 'A' && h[i] <= 'F') {
+							uval += h[i] - 'A' + 10;
+						}
+						else {
+							break;
+						}
 					}
-					else if (h[i] >= 'a' && h[i] <= 'f') {
-						uval += h[i] - 'a' + 10;
+					h += 3;
+					len -= 3;
+					/* Encode */
+					if(uval < 0x80) {
+						t[0] = (char)uval;
+						t ++;
 					}
-					else if (h[i] >= 'A' && h[i] <= 'F') {
-						uval += h[i] - 'A' + 10;
+					else if(uval < 0x800) {
+						t[0] = 0xC0 + ((uval & 0x7C0) >> 6);
+						t[1] = 0x80 + ((uval & 0x03F));
+						t += 2;
 					}
-				}
-				h += 3;
-				len -= 3;
-				/* Encode */
-				if(uval < 0x80) {
-					t[0] = (char)uval;
-					t ++;
-				}
-				else if(uval < 0x800) {
-					t[0] = 0xC0 + ((uval & 0x7C0) >> 6);
-					t[1] = 0x80 + ((uval & 0x03F));
-					t += 2;
-				}
-				else if(uval < 0x10000) {
-					t[0] = 0xE0 + ((uval & 0xF000) >> 12);
-					t[1] = 0x80 + ((uval & 0x0FC0) >> 6);
-					t[2] = 0x80 + ((uval & 0x003F));
-					t += 3;
-				}
-				else if(uval <= 0x10FFFF) {
-					t[0] = 0xF0 + ((uval & 0x1C0000) >> 18);
-					t[1] = 0x80 + ((uval & 0x03F000) >> 12);
-					t[2] = 0x80 + ((uval & 0x000FC0) >> 6);
-					t[3] = 0x80 + ((uval & 0x00003F));
-					t += 4;
+					else if(uval < 0x10000) {
+						t[0] = 0xE0 + ((uval & 0xF000) >> 12);
+						t[1] = 0x80 + ((uval & 0x0FC0) >> 6);
+						t[2] = 0x80 + ((uval & 0x003F));
+						t += 3;
+					}
+					else if(uval <= 0x10FFFF) {
+						t[0] = 0xF0 + ((uval & 0x1C0000) >> 18);
+						t[1] = 0x80 + ((uval & 0x03F000) >> 12);
+						t[2] = 0x80 + ((uval & 0x000FC0) >> 6);
+						t[3] = 0x80 + ((uval & 0x00003F));
+						t += 4;
+					}
+					else {
+						*t++ = '?';
+					}
 				}
 				else {
-					*t++ = '?';
+					*t++ = 'u';
 				}
 				break;
 			default:
@@ -249,6 +285,9 @@ ucl_unescape_json_string (char *str, size_t len)
 UCL_EXTERN char *
 ucl_copy_key_trash (ucl_object_t *obj)
 {
+	if (obj == NULL) {
+		return NULL;
+	}
 	if (obj->trash_stack[UCL_TRASH_KEY] == NULL && obj->key != NULL) {
 		obj->trash_stack[UCL_TRASH_KEY] = malloc (obj->keylen + 1);
 		if (obj->trash_stack[UCL_TRASH_KEY] != NULL) {
@@ -265,6 +304,9 @@ ucl_copy_key_trash (ucl_object_t *obj)
 UCL_EXTERN char *
 ucl_copy_value_trash (ucl_object_t *obj)
 {
+	if (obj == NULL) {
+		return NULL;
+	}
 	if (obj->trash_stack[UCL_TRASH_VALUE] == NULL) {
 		if (obj->type == UCL_STRING) {
 			/* Special case for strings */
@@ -304,6 +346,10 @@ ucl_parser_free (struct ucl_parser *parser)
 	struct ucl_pubkey *key, *ktmp;
 	struct ucl_variable *var, *vtmp;
 
+	if (parser == NULL) {
+		return;
+	}
+
 	if (parser->top_obj != NULL) {
 		ucl_object_unref (parser->top_obj);
 	}
@@ -338,6 +384,10 @@ ucl_parser_free (struct ucl_parser *parser)
 UCL_EXTERN const char *
 ucl_parser_get_error(struct ucl_parser *parser)
 {
+	if (parser == NULL) {
+		return NULL;
+	}
+
 	if (parser->err == NULL)
 		return NULL;
 
@@ -360,6 +410,10 @@ ucl_pubkey_add (struct ucl_parser *parser, const unsigned char *key, size_t len)
 
 	mem = BIO_new_mem_buf ((void *)key, len);
 	nkey = UCL_ALLOC (sizeof (struct ucl_pubkey));
+	if (nkey == NULL) {
+		ucl_create_err (&parser->err, "cannot allocate memory for key");
+		return false;
+	}
 	nkey->key = PEM_read_bio_PUBKEY (mem, &nkey->key, NULL, NULL);
 	BIO_free (mem);
 	if (nkey->key == NULL) {
@@ -527,7 +581,7 @@ ucl_fetch_file (const unsigned char *filename, unsigned char **buf, size_t *bufl
 					filename, strerror (errno));
 			return false;
 		}
-		if ((*buf = mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
+		if ((*buf = ucl_mmap (NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 			close (fd);
 			ucl_create_err (err, "cannot mmap file %s: %s",
 					filename, strerror (errno));
@@ -629,12 +683,12 @@ ucl_include_url (const unsigned char *data, size_t len,
 							urlbuf,
 							ERR_error_string (ERR_get_error (), NULL));
 			if (siglen > 0) {
-				munmap (sigbuf, siglen);
+				ucl_munmap (sigbuf, siglen);
 			}
 			return false;
 		}
 		if (siglen > 0) {
-			munmap (sigbuf, siglen);
+			ucl_munmap (sigbuf, siglen);
 		}
 #endif
 	}
@@ -678,7 +732,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	int prev_state;
 
 	snprintf (filebuf, sizeof (filebuf), "%.*s", (int)len, data);
-	if (realpath (filebuf, realbuf) == NULL) {
+	if (ucl_realpath (filebuf, realbuf) == NULL) {
 		if (!must_exist) {
 			return true;
 		}
@@ -706,12 +760,12 @@ ucl_include_file (const unsigned char *data, size_t len,
 							filebuf,
 							ERR_error_string (ERR_get_error (), NULL));
 			if (siglen > 0) {
-				munmap (sigbuf, siglen);
+				ucl_munmap (sigbuf, siglen);
 			}
 			return false;
 		}
 		if (siglen > 0) {
-			munmap (sigbuf, siglen);
+			ucl_munmap (sigbuf, siglen);
 		}
 #endif
 	}
@@ -734,7 +788,7 @@ ucl_include_file (const unsigned char *data, size_t len,
 	parser->state = prev_state;
 
 	if (buflen > 0) {
-		munmap (buf, buflen);
+		ucl_munmap (buf, buflen);
 	}
 
 	return res;
@@ -803,7 +857,7 @@ ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool n
 
 	if (filename != NULL) {
 		if (need_expand) {
-			if (realpath (filename, realbuf) == NULL) {
+			if (ucl_realpath (filename, realbuf) == NULL) {
 				return false;
 			}
 		}
@@ -834,7 +888,7 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 	bool ret;
 	char realbuf[PATH_MAX];
 
-	if (realpath (filename, realbuf) == NULL) {
+	if (ucl_realpath (filename, realbuf) == NULL) {
 		ucl_create_err (&parser->err, "cannot open file %s: %s",
 				filename,
 				strerror (errno));
@@ -849,7 +903,7 @@ ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 	ret = ucl_parser_add_chunk (parser, buf, len);
 
 	if (len > 0) {
-		munmap (buf, len);
+		ucl_munmap (buf, len);
 	}
 
 	return ret;
@@ -1014,13 +1068,15 @@ ucl_object_fromstring_common (const char *str, size_t len, enum ucl_string_flags
 				if (!ucl_maybe_parse_boolean (obj, dst, obj->len) && (flags & UCL_STRING_PARSE_NUMBER)) {
 					ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos,
 							flags & UCL_STRING_PARSE_DOUBLE,
-							flags & UCL_STRING_PARSE_BYTES);
+							flags & UCL_STRING_PARSE_BYTES,
+							flags & UCL_STRING_PARSE_TIME);
 				}
 			}
 			else {
 				ucl_maybe_parse_number (obj, dst, dst + obj->len, &pos,
 						flags & UCL_STRING_PARSE_DOUBLE,
-						flags & UCL_STRING_PARSE_BYTES);
+						flags & UCL_STRING_PARSE_BYTES,
+						flags & UCL_STRING_PARSE_TIME);
 			}
 		}
 	}
@@ -1083,6 +1139,7 @@ ucl_object_insert_key_common (ucl_object_t *top, ucl_object_t *elt,
 	if (!found) {
 		top->value.ov = ucl_hash_insert_object (top->value.ov, elt);
 		DL_APPEND (found, elt);
+		top->len ++;
 	}
 	else {
 		if (replace) {
@@ -1129,10 +1186,15 @@ ucl_object_delete_keyl(ucl_object_t *top, const char *key, size_t keylen)
 {
 	ucl_object_t *found;
 
+	if (top == NULL || key == NULL) {
+		return false;
+	}
+
 	found = ucl_object_find_keyl(top, key, keylen);
 
-	if (found == NULL)
+	if (found == NULL) {
 		return false;
+	}
 
 	ucl_hash_delete(top->value.ov, found);
 	ucl_object_unref (found);
@@ -1145,6 +1207,31 @@ bool
 ucl_object_delete_key(ucl_object_t *top, const char *key)
 {
 	return ucl_object_delete_keyl(top, key, 0);
+}
+
+ucl_object_t*
+ucl_object_pop_keyl (ucl_object_t *top, const char *key, size_t keylen)
+{
+	ucl_object_t *found;
+
+	if (top == NULL || key == NULL) {
+		return false;
+	}
+	found = ucl_object_find_keyl(top, key, keylen);
+
+	if (found == NULL) {
+		return NULL;
+	}
+	ucl_hash_delete(top->value.ov, found);
+	top->len --;
+
+	return found;
+}
+
+ucl_object_t*
+ucl_object_pop_key (ucl_object_t *top, const char *key)
+{
+	return ucl_object_pop_keyl (top, key, 0);
 }
 
 ucl_object_t *
@@ -1207,6 +1294,10 @@ ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_valu
 {
 	ucl_object_t *elt;
 
+	if (obj == NULL || iter == NULL) {
+		return NULL;
+	}
+
 	if (expand_values) {
 		switch (obj->type) {
 		case UCL_OBJECT:
@@ -1246,4 +1337,499 @@ ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_valu
 
 	/* Not reached */
 	return NULL;
+}
+
+
+ucl_object_t *
+ucl_object_new (void)
+{
+	ucl_object_t *new;
+	new = malloc (sizeof (ucl_object_t));
+	if (new != NULL) {
+		memset (new, 0, sizeof (ucl_object_t));
+		new->ref = 1;
+		new->type = UCL_NULL;
+	}
+	return new;
+}
+
+ucl_object_t *
+ucl_object_typed_new (unsigned int type)
+{
+	ucl_object_t *new;
+	new = malloc (sizeof (ucl_object_t));
+	if (new != NULL) {
+		memset (new, 0, sizeof (ucl_object_t));
+		new->ref = 1;
+		new->type = (type <= UCL_NULL ? type : UCL_NULL);
+	}
+	return new;
+}
+
+ucl_object_t*
+ucl_object_fromstring (const char *str)
+{
+	return ucl_object_fromstring_common (str, 0, UCL_STRING_ESCAPE);
+}
+
+ucl_object_t *
+ucl_object_fromlstring (const char *str, size_t len)
+{
+	return ucl_object_fromstring_common (str, len, UCL_STRING_ESCAPE);
+}
+
+ucl_object_t *
+ucl_object_fromint (int64_t iv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_INT;
+		obj->value.iv = iv;
+	}
+
+	return obj;
+}
+
+ucl_object_t *
+ucl_object_fromdouble (double dv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_FLOAT;
+		obj->value.dv = dv;
+	}
+
+	return obj;
+}
+
+ucl_object_t*
+ucl_object_frombool (bool bv)
+{
+	ucl_object_t *obj;
+
+	obj = ucl_object_new ();
+	if (obj != NULL) {
+		obj->type = UCL_BOOLEAN;
+		obj->value.iv = bv;
+	}
+
+	return obj;
+}
+
+ucl_object_t *
+ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_typed_new (UCL_ARRAY);
+		top->value.av = elt;
+		elt->next = NULL;
+		elt->prev = elt;
+		top->len = 1;
+	}
+	else {
+		head = top->value.av;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev->next = elt;
+			head->prev = elt;
+		}
+		elt->next = NULL;
+		top->len ++;
+	}
+
+	return top;
+}
+
+ucl_object_t *
+ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (elt == NULL) {
+		return NULL;
+	}
+
+	if (top == NULL) {
+		top = ucl_object_typed_new (UCL_ARRAY);
+		top->value.av = elt;
+		elt->next = NULL;
+		elt->prev = elt;
+		top->len = 1;
+	}
+	else {
+		head = top->value.av;
+		if (head == NULL) {
+			top->value.av = elt;
+			elt->prev = elt;
+		}
+		else {
+			elt->prev = head->prev;
+			head->prev = elt;
+		}
+		elt->next = head;
+		top->value.av = elt;
+		top->len ++;
+	}
+
+	return top;
+}
+
+ucl_object_t *
+ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
+{
+	ucl_object_t *head;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	head = top->value.av;
+
+	if (elt->prev == elt) {
+		top->value.av = NULL;
+	}
+	else if (elt == head) {
+		elt->next->prev = elt->prev;
+		top->value.av = elt->next;
+	}
+	else {
+		elt->prev->next = elt->next;
+		if (elt->next) {
+			elt->next->prev = elt->prev;
+		}
+		else {
+			head->prev = elt->prev;
+		}
+	}
+	elt->next = NULL;
+	elt->prev = elt;
+	top->len --;
+
+	return elt;
+}
+
+ucl_object_t *
+ucl_array_head (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av;
+}
+
+ucl_object_t *
+ucl_array_tail (ucl_object_t *top)
+{
+	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
+		return NULL;
+	}
+	return top->value.av->prev;
+}
+
+ucl_object_t *
+ucl_array_pop_last (ucl_object_t *top)
+{
+	return ucl_array_delete (top, ucl_array_tail (top));
+}
+
+ucl_object_t *
+ucl_array_pop_first (ucl_object_t *top)
+{
+	return ucl_array_delete (top, ucl_array_head (top));
+}
+
+ucl_object_t *
+ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
+{
+
+	if (head == NULL) {
+		elt->next = NULL;
+		elt->prev = elt;
+		head = elt;
+	}
+	else {
+		elt->prev = head->prev;
+		head->prev->next = elt;
+		head->prev = elt;
+		elt->next = NULL;
+	}
+
+	return head;
+}
+
+bool
+ucl_object_todouble_safe (ucl_object_t *obj, double *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_INT:
+		*target = obj->value.iv; /* Probaly could cause overflow */
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		*target = obj->value.dv;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+double
+ucl_object_todouble (ucl_object_t *obj)
+{
+	double result = 0.;
+
+	ucl_object_todouble_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_toint_safe (ucl_object_t *obj, int64_t *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_INT:
+		*target = obj->value.iv;
+		break;
+	case UCL_FLOAT:
+	case UCL_TIME:
+		*target = obj->value.dv; /* Loosing of decimal points */
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+int64_t
+ucl_object_toint (ucl_object_t *obj)
+{
+	int64_t result = 0;
+
+	ucl_object_toint_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_toboolean_safe (ucl_object_t *obj, bool *target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_BOOLEAN:
+		*target = (obj->value.iv == true);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+bool
+ucl_object_toboolean (ucl_object_t *obj)
+{
+	bool result = false;
+
+	ucl_object_toboolean_safe (obj, &result);
+	return result;
+}
+
+bool
+ucl_object_tostring_safe (ucl_object_t *obj, const char **target)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+
+	switch (obj->type) {
+	case UCL_STRING:
+		*target = ucl_copy_value_trash (obj);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+const char *
+ucl_object_tostring (ucl_object_t *obj)
+{
+	const char *result = NULL;
+
+	ucl_object_tostring_safe (obj, &result);
+	return result;
+}
+
+const char *
+ucl_object_tostring_forced (ucl_object_t *obj)
+{
+	return ucl_copy_value_trash (obj);
+}
+
+bool
+ucl_object_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
+{
+	if (obj == NULL || target == NULL) {
+		return false;
+	}
+	switch (obj->type) {
+	case UCL_STRING:
+		*target = obj->value.sv;
+		if (tlen != NULL) {
+			*tlen = obj->len;
+		}
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+const char *
+ucl_object_tolstring (ucl_object_t *obj, size_t *tlen)
+{
+	const char *result = NULL;
+
+	ucl_object_tolstring_safe (obj, &result, tlen);
+	return result;
+}
+
+const char *
+ucl_object_key (ucl_object_t *obj)
+{
+	return ucl_copy_key_trash (obj);
+}
+
+const char *
+ucl_object_keyl (ucl_object_t *obj, size_t *len)
+{
+	if (len == NULL || obj == NULL) {
+		return NULL;
+	}
+	*len = obj->keylen;
+	return obj->key;
+}
+
+ucl_object_t *
+ucl_object_ref (ucl_object_t *obj)
+{
+	if (obj != NULL) {
+		obj->ref ++;
+	}
+	return obj;
+}
+
+void
+ucl_object_unref (ucl_object_t *obj)
+{
+	if (obj != NULL && --obj->ref <= 0) {
+		ucl_object_free (obj);
+	}
+}
+
+int
+ucl_object_compare (ucl_object_t *o1, ucl_object_t *o2)
+{
+	ucl_object_t *it1, *it2;
+	ucl_object_iter_t iter = NULL;
+	int ret = 0;
+
+	if (o1->type != o2->type) {
+		return (o1->type) - (o2->type);
+	}
+
+	switch (o1->type) {
+	case UCL_STRING:
+		if (o1->len == o2->len) {
+			ret = strcmp (ucl_object_tostring(o1), ucl_object_tostring(o2));
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_FLOAT:
+	case UCL_INT:
+	case UCL_TIME:
+		ret = ucl_object_todouble (o1) - ucl_object_todouble (o2);
+		break;
+	case UCL_BOOLEAN:
+		ret = ucl_object_toboolean (o1) - ucl_object_toboolean (o2);
+		break;
+	case UCL_ARRAY:
+		if (o1->len == o2->len) {
+			it1 = o1->value.av;
+			it2 = o2->value.av;
+			/* Compare all elements in both arrays */
+			while (it1 != NULL && it2 != NULL) {
+				ret = ucl_object_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+				it1 = it1->next;
+				it2 = it2->next;
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	case UCL_OBJECT:
+		if (o1->len == o2->len) {
+			while ((it1 = ucl_iterate_object (o1, &iter, true)) != NULL) {
+				it2 = ucl_object_find_key (o2, ucl_object_key (it1));
+				if (it2 == NULL) {
+					ret = 1;
+					break;
+				}
+				ret = ucl_object_compare (it1, it2);
+				if (ret != 0) {
+					break;
+				}
+			}
+		}
+		else {
+			ret = o1->len - o2->len;
+		}
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
+void
+ucl_object_array_sort (ucl_object_t *ar,
+		int (*cmp)(ucl_object_t *o1, ucl_object_t *o2))
+{
+	if (cmp == NULL || ar == NULL || ar->type != UCL_ARRAY) {
+		return;
+	}
+
+	DL_SORT (ar->value.av, cmp);
 }
