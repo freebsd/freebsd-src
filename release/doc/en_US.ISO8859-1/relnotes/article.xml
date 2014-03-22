@@ -125,6 +125,12 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="257126">A new &man.sysctl.8;,
+	<literal>kern.disallow_high_osrel</literal>, has been added
+	which disables executing the images compiled on a userland
+	with a higher major version number than the major version
+	number of the running kernel.</para>
+
       <para revision="257253">A kernel panic triggered by unmounting
 	a busy &man.zfs.8; filesystem has been fixed.</para>
 
