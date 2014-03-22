@@ -322,6 +322,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	usb_frcount_t n_frlengths;
 	usb_frcount_t n_frbuffers;
 	usb_frcount_t x;
+	uint16_t maxp_old;
 	uint8_t type;
 	uint8_t zmps;
 
@@ -407,6 +408,11 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	if (xfer->max_packet_count > parm->hc_max_packet_count) {
 		xfer->max_packet_count = parm->hc_max_packet_count;
 	}
+
+	/* store max packet size value before filtering */
+
+	maxp_old = xfer->max_packet_size;
+
 	/* filter "wMaxPacketSize" according to HC capabilities */
 
 	if ((xfer->max_packet_size > parm->hc_max_packet_size) ||
@@ -439,6 +445,13 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		}
 	}
 
+	/*
+	 * Check if the max packet size was outside its allowed range
+	 * and clamped to a valid value:
+	 */
+	if (maxp_old != xfer->max_packet_size)
+		xfer->flags_int.maxp_was_clamped = 1;
+	
 	/* compute "max_frame_size" */
 
 	usbd_update_max_frame_size(xfer);
@@ -3364,4 +3377,14 @@ uint16_t
 usbd_xfer_get_timestamp(struct usb_xfer *xfer)
 {
 	return (xfer->isoc_time_complete);
+}
+
+/*
+ * The following function returns non-zero if the max packet size
+ * field was clamped to a valid value. Else it returns zero.
+ */
+uint8_t
+usbd_xfer_maxp_was_clamped(struct usb_xfer *xfer)
+{
+	return (xfer->flags_int.maxp_was_clamped);
 }
