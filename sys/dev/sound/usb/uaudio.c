@@ -182,7 +182,7 @@ struct uaudio_configure_msg {
 	struct uaudio_softc *sc;
 };
 
-#define	CHAN_MAX_ALT 20
+#define	CHAN_MAX_ALT 24
 
 struct uaudio_chan_alt {
 	union uaudio_asf1d p_asf1d;
@@ -1883,6 +1883,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 /* This structure defines all the supported rates. */
 
 static const uint32_t uaudio_rate_list[CHAN_MAX_ALT] = {
+	384000,
+	352800,
+	192000,
+	176400,
 	96000,
 	88200,
 	88000,
