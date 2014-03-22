@@ -366,8 +366,8 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(cnt.v_free_count),
-	    (uintmax_t)arm32_ptob(cnt.v_free_count) / mbyte);
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count),
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
 		arm_devmap_print_table();
