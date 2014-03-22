@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="256759">System-level &man.sysctl.8; values are
+	now exposed to the system for the &man.ixgbe.4; device.</para>
+
       <para revision="256924">The &man.mfi.4; driver has been updated
 	to support MegaRAID Invader controllers.</para>
 
