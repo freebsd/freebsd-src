@@ -52,23 +52,29 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
+#if defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
+#define	_V6_SUFFIX "v6"
+#else
+#define	_V6_SUFFIX ""
+#endif
+
+#ifdef __ARM_PCS_VFP
+#define	_HF_SUFFIX "hf"
+#else
+#define	_HF_SUFFIX ""
+#endif
+
+#ifdef __ARMEB__
+#define	_EB_SUFFIX "eb"
+#else
+#define	_EB_SUFFIX ""
+#endif
+
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#if defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
-#ifdef __ARMEB__
-#define	MACHINE_ARCH	"armv6eb"
-#else
-#define	MACHINE_ARCH	"armv6"
-#endif
-#else
-#ifdef __ARMEB__
-#define	MACHINE_ARCH	"armeb"
-#else
-#define	MACHINE_ARCH	"arm"
-#endif
-#endif
+#define	MACHINE_ARCH	"arm" _V6_SUFFIX _HF_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
