@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2011
+.Dd March 21, 2014
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -129,7 +129,7 @@ memory
 .Nm
 is allowed to consume.
 The default is 10, so up to
-.Va cnt.v_page_count Ns /10
+.Va vm_cnt.v_page_count Ns /10
 pages can be used.
 .Nm
 will reserve

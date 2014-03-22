@@ -203,7 +203,7 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
-		s = cnt.v_page_count - cnt.v_free_reserved - cnt.v_wire_count;
+		s = vm_cnt.v_page_count - vm_cnt.v_free_reserved - vm_cnt.v_wire_count;
 		s *= PAGE_SIZE;
 	} else
 		s = 0;
@@ -545,7 +545,7 @@ swap_pager_swap_init(void)
 	 * can hold 16 pages, so this is probably overkill.  This reservation
 	 * is typically limited to around 32MB by default.
 	 */
-	n = cnt.v_page_count / 2;
+	n = vm_cnt.v_page_count / 2;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
@@ -2316,7 +2316,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (cnt.v_free_count + cnt.v_cache_count + swap_pager_avail <
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count + swap_pager_avail <
 	    nblks + nswap_lowat) {
 		return (ENOMEM);
 	}
