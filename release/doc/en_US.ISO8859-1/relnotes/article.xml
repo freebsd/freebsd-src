@@ -125,6 +125,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="257373">A deadlock triggered by powering off
+	a USB device has been fixed.</para>
+
       <para revision="258214">The &man.ata.4; driver has been updated
 	to support Intel Lynx Point PCH SMBus devices.</para>
 
