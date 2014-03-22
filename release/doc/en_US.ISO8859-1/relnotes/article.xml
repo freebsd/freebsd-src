@@ -249,6 +249,9 @@
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="258586">The &man.oce.4; driver has been
+	    updated to version 10.0.664.0.</para>
+
 	  <para revision="258898">The &man.qlxgbe.4; driver has been
 	    imported from <literal>head/</literal>.</para>
 
