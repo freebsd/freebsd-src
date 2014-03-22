@@ -649,14 +649,14 @@
       <title xml:id="upgrade-pitfalls">User-Visible
 	Incompatibilities</title>
 
-      <para>FreeBSD 9.0 and later have several incompatibilities in
+      <para>&os;&nbsp;9.0 and later have several incompatibilities in
 	system configuration which you might want to know before
 	upgrading your system.  <emphasis>Please read this section and
 	  the <link
 	    xlink:href="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
 	    Section in 9.0-RELEASE Release Notes</link> carefully
 	  before submitting a problem report and/or posting a question
-	  to the FreeBSD mailing lists.</emphasis></para>
+	  to the &os; mailing lists.</emphasis></para>
     </sect2>
   </sect1>
 </article>
