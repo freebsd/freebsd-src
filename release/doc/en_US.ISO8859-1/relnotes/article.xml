@@ -539,6 +539,10 @@
       <sect3 xml:id="rc-scripts">
 	<title>&man.rc.8; Scripts</title>
 
+	<para revision="256917">Support for <quote>first boot</quote>
+	  scripts has been added to &man.rc.8;.  See &man.rc.8; and
+	  &man.rc.conf.5; for implementation details.</para>
+
 	<para revision="260432">The &man.rc.8; system will now
 	  re-source &man.rc.conf.5; on receipt of
 	  <literal>SIGALRM</literal>.</para>
