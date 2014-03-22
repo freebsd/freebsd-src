@@ -29,14 +29,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
 static struct mkimg_alias mbr_aliases[] = {
-    {	ALIAS_NONE, 0 }
+    {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
+    {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 
 static u_int
@@ -49,10 +53,37 @@ mbr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 }
 
 static int
-mbr_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
-    u_int secsz __unused, void *bootcode __unused)
+mbr_write(int fd, off_t imgsz __unused, u_int parts __unused, u_int secsz,
+    void *bootcode)
 {
-	return (ENOSYS);
+	u_char *mbr;
+	struct dos_partition *dpbase, *dp;
+	struct part *part;
+
+	mbr = malloc(secsz);
+	if (mbr == NULL)
+		return (ENOMEM);
+	if (bootcode != NULL) {
+		memcpy(mbr, bootcode, DOSPARTOFF);
+		memset(mbr + DOSPARTOFF, 0, secsz - DOSPARTOFF);
+	} else
+		memset(mbr, 0, secsz);
+	dpbase = (void *)(mbr + DOSPARTOFF);
+	STAILQ_FOREACH(part, &partlist, link) {
+		dp = dpbase + part->index;
+		dp->dp_flag = (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
+		dp->dp_shd = dp->dp_ssect = dp->dp_scyl = 0xff;	/* XXX */
+		dp->dp_typ = ALIAS_TYPE2INT(part->type);
+		dp->dp_ehd = dp->dp_esect = dp->dp_ecyl = 0xff;	/* XXX */
+		le32enc(&dp[part->index].dp_start, part->offset / secsz);
+		le32enc(&dp[part->index].dp_size, part->size / secsz);
+	}
+	if (lseek(fd, 0, SEEK_SET) != 0 || write(fd, mbr, secsz) != secsz) {
+		free(mbr);
+		return (errno);
+	}
+	free(mbr);
+	return (0);
 }
 
 static struct mkimg_scheme mbr_scheme = {
@@ -61,6 +92,7 @@ static struct mkimg_scheme mbr_scheme = {
 	.aliases = mbr_aliases,
 	.metadata = mbr_metadata,
 	.write = mbr_write,
+	.bootcode = 512,
 	.nparts = NDOSPART
 };
 
