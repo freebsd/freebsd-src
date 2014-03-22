@@ -125,6 +125,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
+      <para revision="258635">The &man.sysctl.8;
+	<literal>vfs.zfs.arc_meta_limit</literal> can now be changed
+	at runtime.</para>
+
       <para revision="258870">The &man.mmap.2; system call has been
 	updated to more optimally use superpages and provide support
 	for tweaking the alignment of virtual mappings.</para>
