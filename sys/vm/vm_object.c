@@ -1957,7 +1957,7 @@ again:
 				    ("inconsistent wire count %d %d %p",
 				    p->wire_count, wirings, p));
 				p->wire_count = 0;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 			}
 		}
 		vm_page_free(p);

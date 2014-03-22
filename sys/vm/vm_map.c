@@ -1840,7 +1840,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 * free pages allocating pv entries.
 		 */
 		if ((flags & MAP_PREFAULT_MADVISE) &&
-		    cnt.v_free_count < cnt.v_free_reserved) {
+		    vm_cnt.v_free_count < vm_cnt.v_free_reserved) {
 			psize = tmpidx;
 			break;
 		}

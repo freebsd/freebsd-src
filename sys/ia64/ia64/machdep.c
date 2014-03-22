@@ -281,8 +281,8 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ld (%ld MB)\n", ptoa(vm_cnt.v_free_count),
+	    ptoa(vm_cnt.v_free_count) / 1048576);
  
 	if (fpswa_iface == NULL)
 		printf("Warning: no FPSWA package supplied\n");
