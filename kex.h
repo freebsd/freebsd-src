@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.61 2014/01/25 10:12:50 dtucker Exp $ */
+/* $OpenBSD: kex.h,v 1.62 2014/01/27 18:58:14 markus Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -105,9 +105,8 @@ struct Mac {
 	u_int	key_len;
 	int	type;
 	int	etm;		/* Encrypt-then-MAC */
-	const EVP_MD	*evp_md;
-	HMAC_CTX	evp_ctx;
-	struct umac_ctx *umac_ctx;
+	struct ssh_hmac_ctx	*hmac_ctx;
+	struct umac_ctx		*umac_ctx;
 };
 struct Comp {
 	int	type;

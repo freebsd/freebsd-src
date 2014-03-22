@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.8 2013/12/06 13:52:46 markus Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.9 2014/01/26 10:22:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"

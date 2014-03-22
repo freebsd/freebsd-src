@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.129 2013/05/19 02:42:42 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.130 2014/01/29 06:18:35 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -71,18 +71,12 @@ extern Authmethod method_hostbased;
 #ifdef GSSAPI
 extern Authmethod method_gssapi;
 #endif
-#ifdef JPAKE
-extern Authmethod method_jpake;
-#endif
 
 Authmethod *authmethods[] = {
 	&method_none,
 	&method_pubkey,
 #ifdef GSSAPI
 	&method_gssapi,
-#endif
-#ifdef JPAKE
-	&method_jpake,
 #endif
 	&method_passwd,
 	&method_kbdint,
@@ -270,9 +264,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	}
 	/* reset state */
 	auth2_challenge_stop(authctxt);
-#ifdef JPAKE
-	auth2_jpake_stop(authctxt);
-#endif
 
 #ifdef GSSAPI
 	/* XXX move to auth2_gssapi_stop() */

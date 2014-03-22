@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.99 2013/10/16 22:49:38 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.101 2014/02/23 20:11:36 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -59,7 +59,6 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication; /* Try keyboard-interactive auth. */
 	char	*kbd_interactive_devices; /* Keyboard-interactive auth devices. */
-	int     zero_knowledge_password_authentication;	/* Try jpake */
 	int     batch_mode;	/* Batch mode: do not ask for passwords. */
 	int     check_host_ip;	/* Also keep track of keys for IP address */
 	int     strict_host_key_checking;	/* Strict host key checking. */
@@ -177,12 +176,14 @@ typedef struct {
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
+void	 fill_default_options_for_canonicalization(Options *);
 int	 process_config_line(Options *, struct passwd *, const char *, char *,
     const char *, int, int *, int);
 int	 read_config_file(const char *, struct passwd *, const char *,
     Options *, int);
 int	 parse_forward(Forward *, const char *, int, int);
 int	 default_ssh_port(void);
+int	 option_clear_or_none(const char *);
 
 void	 add_local_forward(Options *, const Forward *);
 void	 add_remote_forward(Options *, const Forward *);
