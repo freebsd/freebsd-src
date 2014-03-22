@@ -249,7 +249,7 @@ static const char *cheri_exccode_array[] = {
 	"call trap",				/* CHERI_EXCCODE_CALL */
 	"return trap",				/* CHERI_EXCCODE_RETURN */
 	"underflow of trusted system stack",	/* CHERI_EXCCODE_UNDERFLOW */
-	"reserved",				/* TBD */
+	"user-defined capability exception",	/* CHERI_EXCCODE_USER */
 	"reserved",				/* TBD */
 	"reserved",				/* TBD */
 	"reserved",				/* TBD */
