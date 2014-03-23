@@ -329,8 +329,8 @@ size_cols_rtentry(struct rtentry *rt)
 	wid_flags = MAX(len, wid_flags);
 
 	if (Wflag) {
-		len = snprintf(buffer, sizeof(buffer), "%lu",
-		    kread_counter((u_long )rt->rt_pksent));
+		len = snprintf(buffer, sizeof(buffer), "%ju",
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
 		wid_pksent = MAX(len, wid_pksent);
 	}
 	if (rt->rt_ifp) {
@@ -867,8 +867,8 @@ p_rtentry_kvm(struct rtentry *rt)
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rt->rt_flags, buffer);
 	if (Wflag) {
-		printf("%*lu ", wid_pksent,
-		    kread_counter((u_long )rt->rt_pksent));
+		printf("%*ju ", wid_pksent,
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
 
 		if (rt->rt_mtu != 0)
 			printf("%*lu ", wid_mtu, rt->rt_mtu);
