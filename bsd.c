@@ -29,13 +29,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
 static struct mkimg_alias bsd_aliases[] = {
+    {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(FS_NANDFS) },
+    {	ALIAS_FREEBSD_SWAP, ALIAS_INT2TYPE(FS_SWAP) },
+    {	ALIAS_FREEBSD_UFS, ALIAS_INT2TYPE(FS_BSDFFS) },
+    {	ALIAS_FREEBSD_VINUM, ALIAS_INT2TYPE(FS_VINUM) },
+    {	ALIAS_FREEBSD_ZFS, ALIAS_INT2TYPE(FS_ZFS) },
     {	ALIAS_NONE, 0 }
 };
 
@@ -44,14 +52,62 @@ bsd_metadata(u_int where)
 {
 	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? 16 : 0;
-	return (secs);
+	secs = BBSIZE / secsz;
+	return ((where == SCHEME_META_IMG_START) ? secs : 0);
 }
 
 static int
-bsd_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+bsd_write(int fd, lba_t imgsz, void *bootcode)
 {
-	return (ENOSYS);
+	u_char *buf, *p;
+	struct disklabel *d;
+	struct partition *dp;
+	struct part *part;
+	int error;
+	uint16_t checksum;
+
+	buf = malloc(BBSIZE);
+	if (buf == NULL)
+		return (ENOMEM);
+	if (bootcode != NULL) {
+		memcpy(buf, bootcode, BBSIZE);
+		memset(buf + LABELSECTOR * secsz, 0, secsz);
+	} else
+		memset(buf, 0, BBSIZE);
+
+	d = (void *)(buf + LABELSECTOR * secsz + LABELOFFSET);
+	le32enc(&d->d_magic, DISKMAGIC);
+	le32enc(&d->d_secsize, secsz);
+	le32enc(&d->d_nsectors, 1);	/* XXX */
+	le32enc(&d->d_ntracks, 1);	/* XXX */
+	le32enc(&d->d_ncylinders, 0);	/* XXX */
+	le32enc(&d->d_secpercyl, 1);	/* XXX */
+	le32enc(&d->d_secperunit, imgsz);
+	le16enc(&d->d_rpm, 3600);
+	le32enc(&d->d_magic2, DISKMAGIC);
+	le16enc(&d->d_npartitions, (8 > nparts) ? 8 : nparts);
+	le32enc(&d->d_bbsize, BBSIZE);
+
+	STAILQ_FOREACH(part, &partlist, link) {
+		dp = &d->d_partitions[part->index];
+		le32enc(&dp->p_size, part->size);
+		le32enc(&dp->p_offset, part->block);
+		dp->p_fstype = ALIAS_TYPE2INT(part->type);
+	}
+
+	dp = &d->d_partitions[nparts];
+	checksum = 0;
+	for (p = buf; p < (u_char *)dp; p += 2)
+		checksum ^= le16dec(p);
+	le16enc(&d->d_checksum, checksum);
+
+	error = mkimg_seek(fd, 0);
+	if (error == 0) {
+		if (write(fd, buf, BBSIZE) != BBSIZE)
+			error = errno;
+	}
+	free(buf);
+	return (error);
 }
 
 static struct mkimg_scheme bsd_scheme = {
@@ -60,7 +116,8 @@ static struct mkimg_scheme bsd_scheme = {
 	.aliases = bsd_aliases,
 	.metadata = bsd_metadata,
 	.write = bsd_write,
-	.nparts = 20
+	.nparts = 20,
+	.bootcode = BBSIZE
 };
 
 SCHEME_DEFINE(bsd_scheme);
