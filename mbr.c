@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include "scheme.h"
 
 static struct mkimg_alias mbr_aliases[] = {
+    {	ALIAS_EBR, ALIAS_INT2TYPE(DOSPTYP_EXT) },
+    {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
     {	ALIAS_NONE, 0 }		/* Keep last! */
 };
