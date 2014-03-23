@@ -40,17 +40,16 @@ static struct mkimg_alias apm_aliases[] = {
 };
 
 static u_int
-apm_metadata(u_int where, u_int parts, u_int secsz __unused)
+apm_metadata(u_int where)
 {
 	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? parts + 1 : 0;
+	secs = (where == SCHEME_META_IMG_START) ? nparts + 1 : 0;
 	return (secs);
 }
 
 static int
-apm_write(int fd __unused, off_t imgsz __unused, u_int parts __unused,
-    u_int secsz __unused, void *bootcode __unused)
+apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 {
 	return (ENOSYS);
 }

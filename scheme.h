@@ -60,12 +60,12 @@ struct mkimg_scheme {
 	const char	*name;
 	const char	*description;
 	struct mkimg_alias *aliases;
-	u_int		(*metadata)(u_int, u_int, u_int);
+	u_int		(*metadata)(u_int);
 #define	SCHEME_META_IMG_START	1
 #define	SCHEME_META_IMG_END	2
 #define	SCHEME_META_PART_BEFORE	3
 #define	SCHEME_META_PART_AFTER	4
-	int		(*write)(int, off_t, u_int, u_int, void *);
+	int		(*write)(int, lba_t, void *);
 	u_int		nparts;
 	u_int		labellen;
 	u_int		bootcode;
@@ -80,9 +80,8 @@ struct mkimg_scheme *scheme_selected(void);
 int scheme_bootcode(int fd);
 int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);
-uint64_t scheme_round(uint64_t);
-off_t scheme_first_offset(u_int);
-off_t scheme_next_offset(off_t, uint64_t);
-int scheme_write(int, off_t);
+lba_t scheme_first_block(void);
+lba_t scheme_next_block(lba_t, lba_t);
+int scheme_write(int, lba_t);
 
 #endif /* _MKIMG_SCHEME_H_ */

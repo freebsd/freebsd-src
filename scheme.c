@@ -58,7 +58,6 @@ static struct {
 };
 
 static struct mkimg_scheme *scheme;
-static u_int secsz = 512;
 static void *bootcode;
 
 static enum alias
@@ -132,10 +131,6 @@ scheme_check_part(struct part *p)
 	struct mkimg_alias *iter;
 	enum alias alias;
 
-	warnx("part(%s): index=%u, type=`%s', offset=%ju, size=%ju",
-	    scheme->name, p->index, p->alias, (uintmax_t)p->offset,
-	    (uintmax_t)p->size);
-
 	/* Check the partition type alias */
 	alias = scheme_parse_alias(p->alias);
 	if (alias == ALIAS_NONE)
@@ -167,50 +162,37 @@ scheme_max_parts(void)
 	return (scheme->nparts);
 }
 
-uint64_t
-scheme_round(uint64_t sz)
+lba_t
+scheme_first_block(void)
 {
+	lba_t blks;
 
-	sz = (sz + secsz - 1) & ~(secsz - 1);
-	return (sz);
+	blks = scheme->metadata(SCHEME_META_IMG_START) +
+	    scheme->metadata(SCHEME_META_PART_BEFORE);
+	return (blks);
 }
 
-off_t
-scheme_first_offset(u_int parts)
+lba_t
+scheme_next_block(lba_t start, lba_t size)
 {
-	u_int secs;
+	lba_t blks;
 
-	secs = scheme->metadata(SCHEME_META_IMG_START, parts, secsz) +
-	    scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
-	return (secs * secsz);
-}
-
-off_t
-scheme_next_offset(off_t off, uint64_t sz)
-{
-	u_int secs;
-
-	secs = scheme->metadata(SCHEME_META_PART_AFTER, 0, secsz) +
-	    scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
-	sz += (secs * secsz);
-	return (off + sz);
+	blks = scheme->metadata(SCHEME_META_PART_AFTER) +
+	    scheme->metadata(SCHEME_META_PART_BEFORE);
+	return (start + size + blks);
 }
 
 int
-scheme_write(int fd, off_t off)
+scheme_write(int fd, lba_t end)
 {
-	u_int secs;
 	int error;
 
-	/* Fixup offset: it has an extra metadata before the partition */
-	secs = scheme->metadata(SCHEME_META_PART_BEFORE, 0, secsz);
-	off -= (secs * secsz);
-
-	secs = scheme->metadata(SCHEME_META_IMG_END, nparts, secsz);
-	off += (secs * secsz);
-	if (ftruncate(fd, off) == -1)
+	/* Fixup block: it has an extra metadata before the partition */
+	end -= scheme->metadata(SCHEME_META_PART_BEFORE);
+	end += scheme->metadata(SCHEME_META_IMG_END);
+	if (ftruncate(fd, end * secsz) == -1)
 		return (errno);
 
-	error = scheme->write(fd, off, nparts, secsz, bootcode);
+	error = scheme->write(fd, end, bootcode);
 	return (error);
 }

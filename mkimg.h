@@ -31,6 +31,8 @@
 
 #include <sys/queue.h>
 
+typedef int64_t	lba_t;
+
 struct part {
 	STAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */
@@ -42,12 +44,16 @@ struct part {
 #define	PART_KIND_SIZE	3
 	u_int	index;		/* Partition index (0-based). */
 	uintptr_t type;		/* Scheme-specific partition type. */
-	off_t	offset;		/* Byte-offset of partition in image. */
-	off_t	size;		/* Size in bytes of partition. */
+	lba_t	block;		/* Block-offset of partition in image. */
+	lba_t	size;		/* Size in blocks of partition. */
 	char	*label;		/* Partition label. */
 };
 
 extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
+
+extern u_int secsz;
+
+int mkimg_seek(int fd, lba_t blk);
 
 #endif /* _MKIMG_MKIMG_H_ */

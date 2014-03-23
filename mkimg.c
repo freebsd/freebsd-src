@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
+u_int secsz = 512;
+
 static int bcfd = -1;
 static int outfd = 0;
 static int tmpfd = -1;
@@ -221,13 +223,24 @@ fdcopy(int src, int dst, uint64_t *count)
 	return (errno);
 }
 
+int
+mkimg_seek(int fd, lba_t blk)
+{
+	off_t off;
+
+	off = blk * secsz;
+	if (lseek(fd, off, SEEK_SET) != off)
+		return (errno);
+	return (0);
+}
+
 static void
 mkimg(int bfd)
 {
 	FILE *fp;
 	struct part *part;
-	off_t offset;
-	uint64_t size;
+	lba_t block;
+	off_t bytesize;
 	int error, fd;
 
 	if (nparts > scheme_max_parts())
@@ -245,22 +258,19 @@ mkimg(int bfd)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
-	offset = scheme_first_offset(nparts);
+	block = scheme_first_block();
 	STAILQ_FOREACH(part, &partlist, link) {
-		part->offset = offset;
-		lseek(tmpfd, offset, SEEK_SET);
-		/* XXX check error */
-
-		error = 0;
+		part->block = block;
+		error = mkimg_seek(tmpfd, block);
 		switch (part->kind) {
 		case PART_KIND_SIZE:
-			if (expand_number(part->contents, &size) == -1)
+			if (expand_number(part->contents, &bytesize) == -1)
 				error = errno;
 			break;
 		case PART_KIND_FILE:
 			fd = open(part->contents, O_RDONLY, 0);
 			if (fd != -1) {
-				error = fdcopy(fd, tmpfd, &size);
+				error = fdcopy(fd, tmpfd, &bytesize);
 				close(fd);
 			} else
 				error = errno;
@@ -268,7 +278,7 @@ mkimg(int bfd)
 		case PART_KIND_PIPE:
 			fp = popen(part->contents, "r");
 			if (fp != NULL) {
-				error = fdcopy(fileno(fp), tmpfd, &size);
+				error = fdcopy(fileno(fp), tmpfd, &bytesize);
 				pclose(fp);
 			} else
 				error = errno;
@@ -276,12 +286,11 @@ mkimg(int bfd)
 		}
 		if (error)
 			errc(EX_IOERR, error, "partition %d", part->index+1);
-		size = scheme_round(size);
-		part->size = size;
-		offset = scheme_next_offset(offset, size);
+		part->size = (bytesize + secsz - 1) / secsz;
+		block = scheme_next_block(part->block, part->size);
 	}
 
-	error = (scheme_write(tmpfd, offset));
+	error = (scheme_write(tmpfd, block));
 }
 
 int

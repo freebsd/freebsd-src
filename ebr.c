@@ -40,7 +40,7 @@ static struct mkimg_alias ebr_aliases[] = {
 };
 
 static u_int
-ebr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
+ebr_metadata(u_int where)
 {
 	u_int secs;
 
@@ -49,8 +49,7 @@ ebr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 }
 
 static int
-ebr_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
-    u_int secsz __unused, void *bootcode __unused)
+ebr_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 {
 	return (ENOSYS);
 }

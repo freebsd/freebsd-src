@@ -40,7 +40,7 @@ static struct mkimg_alias pc98_aliases[] = {
 };
 
 static u_int
-pc98_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
+pc98_metadata(u_int where)
 {
 	u_int secs;
 
@@ -49,8 +49,7 @@ pc98_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 }
 
 static int
-pc98_write(int fd __unused, off_t imgsz __unused, u_int parts __unused, 
-    u_int secsz __unused, void *bootcode __unused)
+pc98_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 {
 	return (ENOSYS);
 }

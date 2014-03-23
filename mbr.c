@@ -44,7 +44,7 @@ static struct mkimg_alias mbr_aliases[] = {
 };
 
 static u_int
-mbr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
+mbr_metadata(u_int where)
 {
 	u_int secs;
 
@@ -53,12 +53,12 @@ mbr_metadata(u_int where, u_int parts __unused, u_int secsz __unused)
 }
 
 static int
-mbr_write(int fd, off_t imgsz __unused, u_int parts __unused, u_int secsz,
-    void *bootcode)
+mbr_write(int fd, lba_t imgsz __unused, void *bootcode)
 {
 	u_char *mbr;
 	struct dos_partition *dpbase, *dp;
 	struct part *part;
+	int error;
 
 	mbr = malloc(secsz);
 	if (mbr == NULL)
@@ -75,15 +75,16 @@ mbr_write(int fd, off_t imgsz __unused, u_int parts __unused, u_int secsz,
 		dp->dp_shd = dp->dp_ssect = dp->dp_scyl = 0xff;	/* XXX */
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);
 		dp->dp_ehd = dp->dp_esect = dp->dp_ecyl = 0xff;	/* XXX */
-		le32enc(&dp[part->index].dp_start, part->offset / secsz);
-		le32enc(&dp[part->index].dp_size, part->size / secsz);
+		le32enc(&dp[part->index].dp_start, part->block);
+		le32enc(&dp[part->index].dp_size, part->size);
 	}
-	if (lseek(fd, 0, SEEK_SET) != 0 || write(fd, mbr, secsz) != secsz) {
-		free(mbr);
-		return (errno);
+	error = mkimg_seek(fd, 0);
+	if (error == 0) {
+		if (write(fd, mbr, secsz) != secsz)
+			error = errno;
 	}
 	free(mbr);
-	return (0);
+	return (error);
 }
 
 static struct mkimg_scheme mbr_scheme = {
