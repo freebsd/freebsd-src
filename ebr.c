@@ -29,13 +29,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
 static struct mkimg_alias ebr_aliases[] = {
+    {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
+    {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
     {	ALIAS_NONE, 0 }
 };
 
@@ -48,10 +53,67 @@ ebr_metadata(u_int where)
 	return (secs);
 }
 
-static int
-ebr_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+static void
+ebr_chs(u_char *cyl, u_char *hd, u_char *sec, uint32_t lba __unused)
 {
-	return (ENOSYS);
+
+	*cyl = 0xff;		/* XXX */
+	*hd = 0xff;		/* XXX */
+	*sec = 0xff;		/* XXX */
+}
+
+static int
+ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
+{
+	u_char *ebr;
+	struct dos_partition *dp;
+	struct part *part, *next;
+	lba_t block, trksz;
+	int error;
+
+	ebr = malloc(secsz);
+	if (ebr == NULL)
+		return (ENOMEM);
+	memset(ebr, 0, secsz);
+	le16enc(ebr + DOSMAGICOFFSET, DOSMAGIC);
+
+	error = 0;
+	trksz = 1;	/* Sectors/track */
+	STAILQ_FOREACH_SAFE(part, &partlist, link, next) {
+		block = part->block - trksz;
+		dp = (void *)(ebr + DOSPARTOFF);
+		ebr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect, trksz);
+		dp->dp_typ = ALIAS_TYPE2INT(part->type);
+		ebr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
+		    part->block + part->size - 1);
+		le32enc(&dp->dp_start, trksz);
+		le32enc(&dp->dp_size, part->size);
+
+		/* Add link entry */
+		if (next != NULL) {
+			dp++;
+			ebr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
+			    next->block - trksz);
+			dp->dp_typ = DOSPTYP_EXT;
+			ebr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
+			    next->block + next->size - 1);
+			le32enc(&dp->dp_start, next->block - trksz);
+			le32enc(&dp->dp_size, next->size + trksz);
+		}
+
+		error = mkimg_seek(fd, block);
+		if (error == 0) {
+			if (write(fd, ebr, secsz) != secsz)
+				error = errno;
+		}
+		if (error)
+			break;
+
+		memset(ebr + DOSPARTOFF, 0, 2 * DOSPARTSIZE);
+	}
+
+	free(ebr);
+	return (error);
 }
 
 static struct mkimg_scheme ebr_scheme = {
