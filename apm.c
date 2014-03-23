@@ -29,13 +29,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/apm.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
 static struct mkimg_alias apm_aliases[] = {
+    {	ALIAS_FREEBSD, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD) },
+    {	ALIAS_FREEBSD_NANDFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_NANDFS) },
+    {	ALIAS_FREEBSD_SWAP, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_SWAP) },
+    {	ALIAS_FREEBSD_UFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_UFS) },
+    {	ALIAS_FREEBSD_VINUM, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_VINUM) },
+    {	ALIAS_FREEBSD_ZFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_ZFS) },
     {	ALIAS_NONE, 0 }
 };
 
@@ -44,14 +53,56 @@ apm_metadata(u_int where)
 {
 	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? nparts + 1 : 0;
+	secs = (where == SCHEME_META_IMG_START) ? nparts + 2 : 0;
 	return (secs);
 }
 
 static int
 apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 {
-	return (ENOSYS);
+	u_char *buf;
+	struct apm_ddr *ddr;
+	struct apm_ent *ent;
+	struct part *part;
+	ssize_t nbytes;
+	int error;
+
+	buf = calloc(nparts + 2, secsz);
+	if (buf == NULL)
+		return (ENOMEM);
+	ddr = (void *)buf;
+	be16enc(&ddr->ddr_sig, APM_DDR_SIG);
+	be16enc(&ddr->ddr_blksize, secsz);
+	be32enc(&ddr->ddr_blkcount, imgsz);
+
+	/* partition entry for the partition table itself. */
+	ent = (void *)(buf + secsz);
+	be16enc(&ent->ent_sig, APM_ENT_SIG);
+	be32enc(&ent->ent_pmblkcnt, nparts + 1);
+	be32enc(&ent->ent_start, 1);
+	be32enc(&ent->ent_size, nparts + 1);
+	strcpy(ent->ent_type, APM_ENT_TYPE_SELF);
+	strcpy(ent->ent_name, "Apple");
+
+	STAILQ_FOREACH(part, &partlist, link) {
+		ent = (void *)(buf + (part->index + 2) * secsz);
+		be16enc(&ent->ent_sig, APM_ENT_SIG);
+		be32enc(&ent->ent_pmblkcnt, nparts + 1);
+		be32enc(&ent->ent_start, part->block);
+		be32enc(&ent->ent_size, part->size);
+		strcpy(ent->ent_type, ALIAS_TYPE2PTR(part->type));
+		if (part->label != NULL)
+			strcpy(ent->ent_name, part->label);
+	}
+
+	error = mkimg_seek(fd, 0);
+	if (error == 0) {
+		nbytes = (nparts + 2) * secsz;
+		if (write(fd, buf, nbytes) != nbytes)
+			error = errno;
+	}
+	free(buf);
+	return (error);
 }
 
 static struct mkimg_scheme apm_scheme = {
@@ -60,7 +111,8 @@ static struct mkimg_scheme apm_scheme = {
 	.aliases = apm_aliases,
 	.metadata = apm_metadata,
 	.write = apm_write,
-	.nparts = 4096
+	.nparts = 4096,
+	.labellen = APM_ENT_NAMELEN - 1
 };
 
 SCHEME_DEFINE(apm_scheme);
