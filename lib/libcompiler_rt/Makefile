@@ -165,7 +165,9 @@ SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
-. if ${MACHINE_CPUARCH} != "arm" && exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. if ${MACHINE_ARCH} == "armv6hf" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
+SRCS+= ${file}vfp.S
+. elif (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH} == "armv6hf") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=	${file}.S
 . else
 SRCS+=	${file}.c

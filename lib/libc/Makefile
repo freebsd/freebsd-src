@@ -98,7 +98,8 @@ NOASM=
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
 .include "${LIBC_SRCTOP}/uuid/Makefile.inc"
 .include "${LIBC_SRCTOP}/xdr/Makefile.inc"
-.if ${LIBC_ARCH} == "arm" || ${LIBC_ARCH} == "mips"
+.if (${LIBC_ARCH} == "arm" && ${MACHINE_ARCH} != "armv6hf") ||\
+     ${LIBC_ARCH} == "mips"
 .include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"
