@@ -64,9 +64,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #include <sys/uio.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#define	_KERNEL	1
 #include <net/route.h>
-#undef _KERNEL
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
