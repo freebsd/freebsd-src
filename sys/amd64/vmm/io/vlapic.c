@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include "vlapic.h"
 #include "vlapic_priv.h"
-#include "vatpic.h"
 #include "vioapic.h"
 
 #define	PRIO(x)			((x) >> 4)
@@ -300,16 +299,6 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	return (1);
 }
 
-static VMM_STAT(VLAPIC_EXTINT_COUNT, "number of ExtINTs received by vlapic");
-
-static void
-vlapic_deliver_extint(struct vlapic *vlapic)
-{
-	vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_EXTINT_COUNT, 1);
-	vlapic->extint_pending = true;
-	vcpu_notify_event(vlapic->vm, vlapic->vcpuid, false);
-}
-
 static __inline uint32_t *
 vlapic_get_lvtptr(struct vlapic *vlapic, uint32_t offset)
 {
@@ -460,7 +449,7 @@ vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
 		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
 		break;
 	case APIC_LVT_DM_EXTINT:
-		vlapic_deliver_extint(vlapic);
+		vm_inject_extint(vlapic->vm, vlapic->vcpuid);
 		break;
 	default:
 		// Other modes ignored
@@ -673,7 +662,7 @@ vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 		*/
 		switch (vector) {
 			case APIC_LVT_LINT0:
-				vlapic_deliver_extint(vlapic);
+				vm_inject_extint(vlapic->vm, vlapic->vcpuid);
 				break;
 			case APIC_LVT_LINT1:
 				vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
@@ -1053,13 +1042,6 @@ vlapic_pending_intr(struct vlapic *vlapic, int *vecptr)
 	int	  	 idx, i, bitpos, vector;
 	uint32_t	*irrptr, val;
 
-	if (vlapic->extint_pending) {
-		if (vecptr == NULL)
-			return (1);
-		else
-			return (vatpic_pending_intr(vlapic->vm, vecptr));
-	}
-
 	if (vlapic->ops.pending_intr)
 		return ((*vlapic->ops.pending_intr)(vlapic, vecptr));
 
@@ -1093,12 +1075,6 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 	struct LAPIC	*lapic = vlapic->apic_page;
 	uint32_t	*irrptr, *isrptr;
 	int		idx, stk_top;
-
-	if (vlapic->extint_pending) {
-		vlapic->extint_pending = false;
-		vatpic_intr_accepted(vlapic->vm, vector);
-		return;
-	}
 
 	if (vlapic->ops.intr_accepted)
 		return ((*vlapic->ops.intr_accepted)(vlapic, vector));
@@ -1539,7 +1515,7 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 		vcpuid--;
 		CPU_CLR(vcpuid, &dmask);
 		if (delmode == IOART_DELEXINT) {
-			vlapic_deliver_extint(vm_lapic(vm, vcpuid));
+			vm_inject_extint(vm, vcpuid);
 		} else {
 			lapic_set_intr(vm, vcpuid, vec, level);
 		}

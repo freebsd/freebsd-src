@@ -95,6 +95,7 @@ struct vcpu {
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
+	int		extint_pending;
 	struct vm_exception exception;
 	int		exception_pending;
 };
@@ -129,7 +130,7 @@ struct vm {
 	 * An active vcpu is one that has been started implicitly (BSP) or
 	 * explicitly (AP) by sending it a startup ipi.
 	 */
-	cpuset_t	active_cpus;
+	volatile cpuset_t active_cpus;
 
 	struct mtx	rendezvous_mtx;
 	cpuset_t	rendezvous_req_cpus;
@@ -968,8 +969,12 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 
 	mtx_lock(&vm->rendezvous_mtx);
 	while (vm->rendezvous_func != NULL) {
+		/* 'rendezvous_req_cpus' must be a subset of 'active_cpus' */
+		CPU_AND(&vm->rendezvous_req_cpus, &vm->active_cpus);
+
 		if (vcpuid != -1 &&
-		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus)) {
+		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus) &&
+		    !CPU_ISSET(vcpuid, &vm->rendezvous_done_cpus)) {
 			VCPU_CTR0(vm, vcpuid, "Calling rendezvous func");
 			(*vm->rendezvous_func)(vm, vcpuid, vm->rendezvous_arg);
 			CPU_SET(vcpuid, &vm->rendezvous_done_cpus);
@@ -996,9 +1001,10 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
-	int t, timo;
+	int t, timo, spindown;
 
 	vcpu = &vm->vcpu[vcpuid];
+	spindown = 0;
 
 	vcpu_lock(vcpu);
 
@@ -1025,16 +1031,24 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			 * Spindown the vcpu if the apic is disabled and it
 			 * had entered the halted state.
 			 */
-			*retu = true;
-			vmexit = vm_exitinfo(vm, vcpuid);
-			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
-			vm_deactivate_cpu(vm, vcpuid);
-			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+			spindown = 1;
 		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
 	vcpu_unlock(vcpu);
+
+	/*
+	 * Since 'vm_deactivate_cpu()' grabs a sleep mutex we must call it
+	 * outside the confines of the vcpu spinlock.
+	 */
+	if (spindown) {
+		*retu = true;
+		vmexit = vm_exitinfo(vm, vcpuid);
+		vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+		vm_deactivate_cpu(vm, vcpuid);
+		VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+	}
 
 	return (0);
 }
@@ -1351,6 +1365,53 @@ vm_nmi_clear(struct vm *vm, int vcpuid)
 	vmm_stat_incr(vm, vcpuid, VCPU_NMI_COUNT, 1);
 }
 
+static VMM_STAT(VCPU_EXTINT_COUNT, "number of ExtINTs delivered to vcpu");
+
+int
+vm_inject_extint(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	vcpu->extint_pending = 1;
+	vcpu_notify_event(vm, vcpuid, false);
+	return (0);
+}
+
+int
+vm_extint_pending(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		panic("vm_extint_pending: invalid vcpuid %d", vcpuid);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	return (vcpu->extint_pending);
+}
+
+void
+vm_extint_clear(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		panic("vm_extint_pending: invalid vcpuid %d", vcpuid);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	if (vcpu->extint_pending == 0)
+		panic("vm_extint_clear: inconsistent extint_pending state");
+
+	vcpu->extint_pending = 0;
+	vmm_stat_incr(vm, vcpuid, VCPU_EXTINT_COUNT, 1);
+}
+
 int
 vm_get_capability(struct vm *vm, int vcpu, int type, int *retval)
 {
@@ -1493,16 +1554,37 @@ void
 vm_activate_cpu(struct vm *vm, int vcpuid)
 {
 
-	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
-		CPU_SET(vcpuid, &vm->active_cpus);
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
+	    ("vm_activate_cpu: invalid vcpuid %d", vcpuid));
+	KASSERT(!CPU_ISSET(vcpuid, &vm->active_cpus),
+	    ("vm_activate_cpu: vcpuid %d is already active", vcpuid));
+
+	VCPU_CTR0(vm, vcpuid, "activated");
+	CPU_SET_ATOMIC(vcpuid, &vm->active_cpus);
 }
 
 static void
 vm_deactivate_cpu(struct vm *vm, int vcpuid)
 {
 
-	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
-		CPU_CLR(vcpuid, &vm->active_cpus);
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
+	    ("vm_deactivate_cpu: invalid vcpuid %d", vcpuid));
+	KASSERT(CPU_ISSET(vcpuid, &vm->active_cpus),
+	    ("vm_deactivate_cpu: vcpuid %d is not active", vcpuid));
+
+	VCPU_CTR0(vm, vcpuid, "deactivated");
+	CPU_CLR_ATOMIC(vcpuid, &vm->active_cpus);
+
+	/*
+	 * If a vcpu rendezvous is in progress then it could be blocked
+	 * on 'vcpuid' - unblock it before disappearing forever.
+	 */
+	mtx_lock(&vm->rendezvous_mtx);
+	if (vm->rendezvous_func != NULL) {
+		VCPU_CTR0(vm, vcpuid, "unblock rendezvous after deactivation");
+		wakeup(&vm->rendezvous_func);
+	}
+	mtx_unlock(&vm->rendezvous_mtx);
 }
 
 cpuset_t
@@ -1609,6 +1691,8 @@ void
 vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg)
 {
+	int i;
+
 	/*
 	 * Enforce that this function is called without any locks
 	 */
@@ -1638,6 +1722,15 @@ restart:
 	vm->rendezvous_arg = arg;
 	vm_set_rendezvous_func(vm, func);
 	mtx_unlock(&vm->rendezvous_mtx);
+
+	/*
+	 * Wake up any sleeping vcpus and trigger a VM-exit in any running
+	 * vcpus so they handle the rendezvous as soon as possible.
+	 */
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (CPU_ISSET(i, &dest))
+			vcpu_notify_event(vm, i, false);
+	}
 
 	vm_handle_rendezvous(vm, vcpuid);
 }

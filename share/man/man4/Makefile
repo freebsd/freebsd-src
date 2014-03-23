@@ -525,6 +525,7 @@ MAN=	aac.4 \
 	umcs.4 \
 	umct.4 \
 	umodem.4 \
+	umoscom.4 \
 	ums.4 \
 	unix.4 \
 	upgt.4 \
@@ -536,8 +537,10 @@ MAN=	aac.4 \
 	urtwn.4 \
 	urtwnfw.4 \
 	usb.4 \
+	usb_template.4 \
 	usb_quirk.4 \
 	uslcom.4 \
+	usfs.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \

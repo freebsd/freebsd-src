@@ -21,7 +21,6 @@
  * Pollfd -- a pointer to an array of struct pollfd.  Prints .fd and .events.
  * Fd_set -- a pointer to an array of fd_set.  Prints the fds that are set.
  * Sigaction -- a pointer to a struct sigaction.  Prints all elements.
- * Umtx -- a pointer to a struct umtx.  Prints the value of owner.
  * Sigset -- a pointer to a sigset_t.  Prints the signals that are set.
  * Sigprocmask -- the first argument to sigprocmask().  Prints the name.
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
@@ -38,7 +37,7 @@
 enum Argtype { None = 1, Hex, Octal, Int, Name, Ptr, Stat, Ioctl, Quad,
 	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd,
 	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
-	Umtx, Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
+	Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl };
 

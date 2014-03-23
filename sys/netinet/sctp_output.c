@@ -5392,7 +5392,9 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * though we even set the T bit and copy in the 0 tag.. this
 		 * looks no different than if no listener was present.
 		 */
-		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, NULL,
+		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+		    "Address added");
+		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
 		    use_mflowid, mflowid,
 		    vrf_id, port);
 		return;
@@ -5403,6 +5405,13 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    &abort_flag, (struct sctp_chunkhdr *)init_chk, &nat_friendly);
 	if (abort_flag) {
 do_a_abort:
+		if (op_err == NULL) {
+			char msg[SCTP_DIAG_INFO_LEN];
+
+			snprintf(msg, sizeof(msg), "%s:%d at %s\n", __FILE__, __LINE__, __FUNCTION__);
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+			    msg);
+		}
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh,
 		    init_chk->init.initiate_tag, op_err,
 		    use_mflowid, mflowid,

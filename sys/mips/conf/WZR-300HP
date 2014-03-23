@@ -16,11 +16,11 @@ include		"AR724X_BASE"
 ident		"WZR-300HP"
 hints		"WZR-300HP.hints"
 
-options		AR71XX_REALMEM=64*1024*1024
+options 	AR71XX_REALMEM=64*1024*1024
 
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
-options		BOOTVERBOSE
+options 	BOOTVERBOSE
 # Don't include the SCSI/CAM strings in the default build
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
@@ -32,13 +32,13 @@ options 	NO_SYSCTL_DESCR
 device		geom_map	# to get access to the SPI flash partitions
 device		geom_uncompress	# compressed in-memory filesystem hackery!
 
-options		ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 
-# options		MD_ROOT
-# options		MD_ROOT_SIZE="6144"
+# options 	MD_ROOT
+# options 	MD_ROOT_SIZE="6144"
 
-options		AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
-options		ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 device		firmware		# Used by the above
 
 # Options required for miiproxy and mdiobus

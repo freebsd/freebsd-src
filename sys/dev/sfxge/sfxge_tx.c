@@ -500,6 +500,11 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	int locked;
 	int rc;
 
+	if (!SFXGE_LINK_UP(txq->sc)) {
+		rc = ENETDOWN;
+		goto fail;
+	}
+
 	/*
 	 * Try to grab the txq lock.  If we are able to get the lock,
 	 * the packet will be appended to the "get list" of the deferred
@@ -536,6 +541,8 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	return (0);
 
 fail:
+	m_freem(m);
+	atomic_add_long(&txq->early_drops, 1);
 	return (rc);
 	
 }
@@ -585,11 +592,6 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	sc = (struct sfxge_softc *)ifp->if_softc;
 
 	KASSERT(ifp->if_flags & IFF_UP, ("interface not up"));
-
-	if (!SFXGE_LINK_UP(sc)) {
-		m_freem(m);
-		return (0);
-	}
 
 	/* Pick the desired transmit queue. */
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
@@ -1390,6 +1392,7 @@ static const struct {
 	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
 	SFXGE_TX_STAT(tx_collapses, collapses),
 	SFXGE_TX_STAT(tx_drops, drops),
+	SFXGE_TX_STAT(tx_early_drops, early_drops),
 };
 
 static int
