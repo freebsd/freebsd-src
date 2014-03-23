@@ -116,8 +116,10 @@
 		serial0: serial@7f000000 {
 			compatible = "altera,jtag_uart-11_0";
 			reg = <0x7f000000 0x40>;
+/*
 			interrupts = <0>;
 			interrupt-parent = <&beripic>;
+*/
 		};
 
 /*
