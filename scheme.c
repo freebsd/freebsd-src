@@ -45,7 +45,9 @@ static struct {
 	const char *name;
 	enum alias alias;
 } scheme_alias[] = {
+	{ "ebr", ALIAS_EBR },
 	{ "efi", ALIAS_EFI },
+	{ "fat32", ALIAS_FAT32 },
 	{ "freebsd", ALIAS_FREEBSD },
 	{ "freebsd-boot", ALIAS_FREEBSD_BOOT },
 	{ "freebsd-nandfs", ALIAS_FREEBSD_NANDFS },

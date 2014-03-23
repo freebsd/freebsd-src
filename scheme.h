@@ -34,7 +34,9 @@
 enum alias {
 	ALIAS_NONE,		/* Keep first! */
 	/* start */
+	ALIAS_EBR,
 	ALIAS_EFI,
+	ALIAS_FAT32,
 	ALIAS_FREEBSD,
 	ALIAS_FREEBSD_BOOT,
 	ALIAS_FREEBSD_NANDFS,
