@@ -68,6 +68,7 @@ mbr_write(int fd, lba_t imgsz __unused, void *bootcode)
 		memset(mbr + DOSPARTOFF, 0, secsz - DOSPARTOFF);
 	} else
 		memset(mbr, 0, secsz);
+	le16enc(mbr + DOSMAGICOFFSET, DOSMAGIC);
 	dpbase = (void *)(mbr + DOSPARTOFF);
 	STAILQ_FOREACH(part, &partlist, link) {
 		dp = dpbase + part->index;
