@@ -2628,11 +2628,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-#if __FreeBSD_version < 1000025
-	ifp->if_baudrate = 1000000000;
-#else
-	if_initbaudrate(ifp, IF_Gbps(10));
-#endif
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

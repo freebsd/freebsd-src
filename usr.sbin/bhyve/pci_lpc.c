@@ -125,15 +125,27 @@ lpc_uart_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	int offset;
 	struct lpc_uart_softc *sc = arg;
 
-	if (bytes != 1)
-		return (-1);
-
 	offset = port - sc->iobase;
 
-	if (in)
-		*eax = uart_read(sc->uart_softc, offset); 
-	else
-		uart_write(sc->uart_softc, offset, *eax);
+	switch (bytes) {
+	case 1:
+		if (in)
+			*eax = uart_read(sc->uart_softc, offset);
+		else
+			uart_write(sc->uart_softc, offset, *eax);
+		break;
+	case 2:
+		if (in) {
+			*eax = uart_read(sc->uart_softc, offset);
+			*eax |= uart_read(sc->uart_softc, offset + 1) << 8;
+		} else {
+			uart_write(sc->uart_softc, offset, *eax);
+			uart_write(sc->uart_softc, offset + 1, *eax >> 8);
+		}
+		break;
+	default:
+		return (-1);
+	}
 
 	return (0);
 }

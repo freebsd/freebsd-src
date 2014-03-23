@@ -15,10 +15,10 @@ device		pcf2123_rtc
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
 device		geom_uzip	# compressed in-memory filesystem support
-options		GEOM_UZIP
+options 	GEOM_UZIP
 
 # For DOS
-options		MSDOSFS
+options 	MSDOSFS
 
 # .. first DOS-partitioned, BSD sliced flash disk
-options		ROOTDEVNAME=\"ufs:da0s1a\"
+options 	ROOTDEVNAME=\"ufs:da0s1a\"

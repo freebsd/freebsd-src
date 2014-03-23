@@ -1032,7 +1032,7 @@ login(struct connection *conn)
 
 	if (ag->ag_type == AG_TYPE_DENY) {
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type is \"deny\"");
+		log_errx(1, "auth-type is \"deny\"");
 	}
 
 	if (ag->ag_type == AG_TYPE_UNKNOWN) {
@@ -1040,7 +1040,7 @@ login(struct connection *conn)
 		 * This can happen with empty auth-group.
 		 */
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type not set, denying access");
+		log_errx(1, "auth-type not set, denying access");
 	}
 
 	log_debugx("CHAP authentication required");

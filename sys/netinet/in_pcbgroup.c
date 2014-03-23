@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
 #endif /* INET6 */
@@ -60,6 +62,13 @@ __FBSDID("$FreeBSD$");
  * minimal cache line migration and lock contention during steady state
  * operation.
  *
+ * Hardware-offloaded checksums are often inefficient in software -- for
+ * example, Toeplitz, specified by RSS, introduced a significant overhead if
+ * performed during per-packge processing.  It is therefore desirable to fall
+ * back on traditional reservation table lookups without affinity where
+ * hardware-offloaded checksums aren't available, such as for traffic over
+ * non-RSS interfaces.
+ *
  * Internet protocols, such as UDP and TCP, register to use connection groups
  * by providing an ipi_hashfields value other than IPI_HASHFIELDS_NONE; this
  * indicates to the connection group code whether a 2-tuple or 4-tuple is
@@ -71,6 +80,11 @@ __FBSDID("$FreeBSD$");
  * locks.  This means that connection establishment and teardown can be
  * signficantly more expensive than without connection groups, but that
  * steady-state processing can be significantly faster.
+ *
+ * When RSS is used, certain connection group parameters, such as the number
+ * of groups, are provided by the RSS implementation, found in in_rss.c.
+ * Otherwise, in_pcbgroup.c selects possible sensible parameters
+ * corresponding to the degree of parallelism exposed by netisr.
  *
  * Most of the implementation of connection groups is in this file; however,
  * connection group lookup is implemented in in_pcb.c alongside reservation
@@ -126,11 +140,25 @@ in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields,
 	if (mp_ncpus == 1)
 		return;
 
+#ifdef RSS
 	/*
-	 * Use one group per CPU for now.  If we decide to do dynamic
-	 * rebalancing a la RSS, we'll need to shift left by at least 1.
+	 * If we're using RSS, then RSS determines the number of connection
+	 * groups to use: one connection group per RSS bucket.  If for some
+	 * reason RSS isn't able to provide a number of buckets, disable
+	 * connection groups entirely.
+	 *
+	 * XXXRW: Can this ever happen?
+	 */
+	numpcbgroups = rss_getnumbuckets();
+	if (numpcbgroups == 0)
+		return;
+#else
+	/*
+	 * Otherwise, we'll just use one per CPU for now.  If we decide to
+	 * do dynamic rebalancing a la RSS, we'll need similar logic here.
 	 */
 	numpcbgroups = mp_ncpus;
+#endif
 
 	pcbinfo->ipi_hashfields = hashfields;
 	pcbinfo->ipi_pcbgroups = malloc(numpcbgroups *
@@ -146,10 +174,19 @@ in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields,
 
 		/*
 		 * Initialise notional affinity of the pcbgroup -- for RSS,
-		 * we want the same notion of affinity as NICs to be used.
-		 * Just round robin for the time being.
+		 * we want the same notion of affinity as NICs to be used.  In
+		 * the non-RSS case, just round robin for the time being.
+		 *
+		 * XXXRW: The notion of a bucket to CPU mapping is common at
+		 * both pcbgroup and RSS layers -- does that mean that we
+		 * should migrate it all from RSS to here, and just leave RSS
+		 * responsible only for providing hashing and mapping funtions?
 		 */
+#ifdef RSS
+		pcbgroup->ipg_cpu = rss_getcpu(pgn);
+#else
 		pcbgroup->ipg_cpu = (pgn % mp_ncpus);
+#endif
 	}
 }
 
@@ -179,23 +216,38 @@ in_pcbgroup_destroy(struct inpcbinfo *pcbinfo)
 
 /*
  * Given a hash of whatever the covered tuple might be, return a pcbgroup
- * index.
+ * index.  Where RSS is supported, try to align bucket selection with RSS CPU
+ * affinity strategy.
  */
 static __inline u_int
 in_pcbgroup_getbucket(struct inpcbinfo *pcbinfo, uint32_t hash)
 {
 
+#ifdef RSS
+	return (rss_getbucket(hash));
+#else
 	return (hash % pcbinfo->ipi_npcbgroups);
+#endif
 }
 
 /*
  * Map a (hashtype, hash) tuple into a connection group, or NULL if the hash
- * information is insufficient to identify the pcbgroup.
+ * information is insufficient to identify the pcbgroup.  This might occur if
+ * a TCP packet turns up with a 2-tuple hash, or if an RSS hash is present but
+ * RSS is not compiled into the kernel.
  */
 struct inpcbgroup *
 in_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 {
 
+#ifdef RSS
+	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_TCP_IPV4) ||
+	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_IPV4))
+		return (&pcbinfo->ipi_pcbgroups[
+		    in_pcbgroup_getbucket(pcbinfo, hash)]);
+#endif
 	return (NULL);
 }
 
@@ -213,13 +265,26 @@ in_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 {
 	uint32_t hash;
 
+	/*
+	 * RSS note: we pass foreign addr/port as source, and local addr/port
+	 * as destination, as we want to align with what the hardware is
+	 * doing.
+	 */
 	switch (pcbinfo->ipi_hashfields) {
 	case IPI_HASHFIELDS_4TUPLE:
+#ifdef RSS
+		hash = rss_hash_ip4_4tuple(faddr, fport, laddr, lport);
+#else
 		hash = faddr.s_addr ^ fport;
+#endif
 		break;
 
 	case IPI_HASHFIELDS_2TUPLE:
+#ifdef RSS
+		hash = rss_hash_ip4_2tuple(faddr, laddr);
+#else
 		hash = faddr.s_addr ^ laddr.s_addr;
+#endif
 		break;
 
 	default:

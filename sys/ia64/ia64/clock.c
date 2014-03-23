@@ -76,6 +76,7 @@ static u_int
 ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 	struct eventtimer *et;
+	struct trapframe *stf;
 	uint64_t itc, load;
 	uint32_t mode;
 
@@ -96,8 +97,12 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
 	ia64_srlz_d();
 
 	et = &ia64_clock_et;
-	if (et->et_active)
+	if (et->et_active) {
+		stf = td->td_intr_frame;
+		td->td_intr_frame = tf;
 		et->et_event_cb(et, et->et_arg);
+		td->td_intr_frame = stf;
+	}
 	return (1);
 }
 

@@ -43,11 +43,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include "dhcpd.h"
 #include "privsep.h"
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 

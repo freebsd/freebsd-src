@@ -247,13 +247,12 @@ xc_cnputc(struct consdev *dev, int c)
 		xc_cnputc_domu(dev, c);
 }
 
-extern int db_active;
 static boolean_t
 xcons_putc(int c)
 {
 	int force_flush = xc_mute ||
 #ifdef DDB
-		db_active ||
+		kdb_active ||
 #endif
 		panicstr;	/* we're not gonna recover, so force
 				 * flush 

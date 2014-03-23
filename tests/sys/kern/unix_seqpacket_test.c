@@ -844,25 +844,21 @@ ATF_TC_BODY(emsgsize_nonblocking, tc)
 ATF_TC_WITHOUT_HEAD(eagain_8k_8k);
 ATF_TC_BODY(eagain_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_8k_128k);
 ATF_TC_BODY(eagain_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 131072);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_8k);
 ATF_TC_BODY(eagain_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_128k);
 ATF_TC_BODY(eagain_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 131072);
 }
 
@@ -969,37 +965,24 @@ ATF_TC_BODY(pipe_simulator_128k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_8k_8k);
 ATF_TC_BODY(pipe_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_8k_128k);
 ATF_TC_BODY(pipe_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 131072);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_8k);
 ATF_TC_BODY(pipe_128k_8k, tc)
 {
-	/* 
-	 * kern/185812 causes this test case to both fail and timeout.  The
-	 * atf-c-api(3) doesn't have a way to set such an expectation.
-	 * If you use atf_tc_expect_fail, then it will timeout.  If you use
-	 * atf_tc_expect_timeout, then it will fail.  If you use both, then it
-	 * will show up as an unexpected pass, which is much worse
-	 *
-	 * https://code.google.com/p/kyua/issues/detail?id=76
-	 */
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_128k);
 ATF_TC_BODY(pipe_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 131072);
 }
 

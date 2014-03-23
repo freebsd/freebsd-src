@@ -67,7 +67,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int errors, numsig, pid;
+	int errors, numsig, pid, ret;
 	char *ep;
 
 	if (argc < 2)
@@ -133,22 +133,17 @@ main(int argc, char *argv[])
 
 	for (errors = 0; argc; argc--, argv++) {
 #ifdef SHELL
-		if (**argv == '%') {
-			pid = getjobpgrp(*argv);
-			/*
-			 * Silently ignore terminated jobs, like the kernel
-			 * silently ignores zombies.
-			 */
-			if (pid == 0)
-				continue;
-		} else
+		if (**argv == '%')
+			ret = killjob(*argv, numsig);
+		else
 #endif
 		{
 			pid = strtol(*argv, &ep, 10);
 			if (!**argv || *ep)
 				errx(2, "illegal process id: %s", *argv);
+			ret = kill(pid, numsig);
 		}
-		if (kill(pid, numsig) == -1) {
+		if (ret == -1) {
 			warn("%s", *argv);
 			errors = 1;
 		}

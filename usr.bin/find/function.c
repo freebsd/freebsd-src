@@ -1774,6 +1774,7 @@ f_false(PLAN *plan __unused, FTSENT *entry __unused)
 int
 f_quit(PLAN *plan __unused, FTSENT *entry __unused)
 {
+	finish_execplus();
 	exit(0);
 }
 

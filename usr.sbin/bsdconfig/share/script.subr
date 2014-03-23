@@ -38,6 +38,7 @@ f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/networking/services.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 f_include $BSDCFG_SHARE/usermgmt/group.subr
+f_include $BSDCFG_SHARE/usermgmt/user.subr
 f_include $BSDCFG_SHARE/variable.subr
 
 ############################################################ GLOBALS
@@ -203,6 +204,11 @@ f_resword_new packageReinstall	f_package_reinstall
 f_resword_new addGroup		f_group_add
 f_resword_new deleteGroup	f_group_delete
 f_resword_new editGroup		f_group_edit
+
+# usermgmt/user.subr
+f_resword_new addUser		f_user_add
+f_resword_new deleteUser	f_user_delete
+f_resword_new editUser		f_user_edit
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults

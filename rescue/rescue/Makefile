@@ -119,9 +119,6 @@ CRUNCH_PROGS_sbin+= zpool
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -ljail -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
 .endif

@@ -5,6 +5,7 @@
 .PATH: ${.CURDIR}/..
 
 TESTS_SUBDIRS+=		kern
+TESTS_SUBDIRS+=		netinet
 TESTSDIR= ${TESTSBASE}/sys
 
 KYUAFILE= yes

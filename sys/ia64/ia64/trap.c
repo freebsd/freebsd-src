@@ -354,6 +354,12 @@ trap(int vector, struct trapframe *tf)
 	ksiginfo_t ksi;
 
 	user = TRAPF_USERMODE(tf) ? 1 : 0;
+	if (user)
+		ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+#ifdef XTRACE
+	ia64_xtrace_save();
+#endif
 
 	PCPU_INC(cnt.v_trap);
 
@@ -362,7 +368,6 @@ trap(int vector, struct trapframe *tf)
 	ucode = 0;
 
 	if (user) {
-		ia64_set_fpsr(IA64_FPSR_DEFAULT);
 		td->td_pticks = 0;
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)

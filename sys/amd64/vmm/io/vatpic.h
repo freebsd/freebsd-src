@@ -47,7 +47,7 @@ int vatpic_assert_irq(struct vm *vm, int irq);
 int vatpic_deassert_irq(struct vm *vm, int irq);
 int vatpic_pulse_irq(struct vm *vm, int irq);
 
-int vatpic_pending_intr(struct vm *vm, int *vecptr);
+void vatpic_pending_intr(struct vm *vm, int *vecptr);
 void vatpic_intr_accepted(struct vm *vm, int vector);
 
 #endif	/* _VATPIC_H_ */

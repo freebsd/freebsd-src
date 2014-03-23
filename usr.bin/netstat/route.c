@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netipx/ipx.h>
-#include <netatalk/at.h>
 #include <netgraph/ng_socket.h>
 
 #include <sys/sysctl.h>
@@ -92,18 +90,11 @@ struct bits {
 	{ RTF_STATIC,	'S' },
 	{ RTF_PROTO1,	'1' },
 	{ RTF_PROTO2,	'2' },
-	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
 	{ RTF_BLACKHOLE,'B' },
 	{ RTF_BROADCAST,'b' },
 #ifdef RTF_LLINFO
 	{ RTF_LLINFO,	'L' },
-#endif
-#ifdef RTF_WASCLONED
-	{ RTF_WASCLONED,'W' },
-#endif
-#ifdef RTF_CLONING
-	{ RTF_CLONING,	'C' },
 #endif
 	{ 0 , 0 }
 };
@@ -216,14 +207,8 @@ pr_family(int af1)
 		afname = "Internet6";
 		break;
 #endif /*INET6*/
-	case AF_IPX:
-		afname = "IPX";
-		break;
 	case AF_ISO:
 		afname = "ISO";
-		break;
-	case AF_APPLETALK:
-		afname = "AppleTalk";
 		break;
 	case AF_CCITT:
 		afname = "X.25";
@@ -754,23 +739,6 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    }
 #endif /*INET6*/
 
-	case AF_IPX:
-	    {
-		struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-		if (ipx_nullnet(satoipx_addr(work)))
-			cp = "default";
-		else
-			cp = ipx_print(sa);
-		break;
-	    }
-	case AF_APPLETALK:
-	    {
-		if (!(flags & RTF_HOST) && mask)
-			cp = atalk_print2(sa,mask,9);
-		else
-			cp = atalk_print(sa,11);
-		break;
-	    }
 	case AF_NETGRAPH:
 	    {
 		strlcpy(workbuf, ((struct sockaddr_ng *)sa)->sg_data,
@@ -1133,110 +1101,4 @@ rt_stats(void)
 	if (rttrash || sflag <= 1)
 		printf("\t%u route%s not in table but not freed\n",
 		    rttrash, plural(rttrash));
-}
-
-char *
-ipx_print(struct sockaddr *sa)
-{
-	u_short port;
-	struct servent *sp = 0;
-	const char *net = "", *host = "";
-	char *p;
-	u_char *q;
-	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-	static char mybuf[50];
-	char cport[10], chost[15], cnet[15];
-
-	port = ntohs(work.x_port);
-
-	if (ipx_nullnet(work) && ipx_nullhost(work)) {
-
-		if (port) {
-			if (sp)
-				sprintf(mybuf, "*.%s", sp->s_name);
-			else
-				sprintf(mybuf, "*.%x", port);
-		} else
-			sprintf(mybuf, "*.*");
-
-		return (mybuf);
-	}
-
-	if (ipx_wildnet(work))
-		net = "any";
-	else if (ipx_nullnet(work))
-		net = "*";
-	else {
-		q = work.x_net.c_net;
-		sprintf(cnet, "%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3]);
-		for (p = cnet; *p == '0' && p < cnet + 8; p++)
-			continue;
-		net = p;
-	}
-
-	if (ipx_wildhost(work))
-		host = "any";
-	else if (ipx_nullhost(work))
-		host = "*";
-	else {
-		q = work.x_host.c_host;
-		sprintf(chost, "%02x%02x%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3], q[4], q[5]);
-		for (p = chost; *p == '0' && p < chost + 12; p++)
-			continue;
-		host = p;
-	}
-
-	if (port) {
-		if (strcmp(host, "*") == 0)
-			host = "";
-		if (sp)
-			snprintf(cport, sizeof(cport),
-				"%s%s", *host ? "." : "", sp->s_name);
-		else
-			snprintf(cport, sizeof(cport),
-				"%s%x", *host ? "." : "", port);
-	} else
-		*cport = 0;
-
-	snprintf(mybuf, sizeof(mybuf), "%s.%s%s", net, host, cport);
-	return(mybuf);
-}
-
-char *
-ipx_phost(struct sockaddr *sa)
-{
-	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
-	struct sockaddr_ipx work;
-	static union ipx_net ipx_zeronet;
-	char *p;
-
-	work = *sipx;
-
-	work.sipx_addr.x_port = 0;
-	work.sipx_addr.x_net = ipx_zeronet;
-	p = ipx_print((struct sockaddr *)&work);
-	if (strncmp("*.", p, 2) == 0) p += 2;
-
-	return(p);
-}
-
-void
-upHex(char *p0)
-{
-	char *p = p0;
-
-	for (; *p; p++)
-		switch (*p) {
-
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			*p += ('A' - 'a');
-			break;
-		}
 }

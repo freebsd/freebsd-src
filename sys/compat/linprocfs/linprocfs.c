@@ -159,14 +159,14 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	/*
 	 * The correct thing here would be:
 	 *
-	memfree = cnt.v_free_count * PAGE_SIZE;
+	memfree = vm_cnt.v_free_count * PAGE_SIZE;
 	memused = memtotal - memfree;
 	 *
 	 * but it might mislead linux binaries into thinking there
 	 * is very little memory left, so we cheat and tell them that
 	 * all memory that isn't wired down is free.
 	 */
-	memused = cnt.v_wire_count * PAGE_SIZE;
+	memused = vm_cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
@@ -188,7 +188,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = cnt.v_cache_count * PAGE_SIZE;
+	cached = vm_cnt.v_cache_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
 	    "	     total:    used:	free:  shared: buffers:	 cached:\n"
@@ -486,12 +486,12 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    "intr %u\n"
 	    "ctxt %u\n"
 	    "btime %lld\n",
-	    cnt.v_vnodepgsin,
-	    cnt.v_vnodepgsout,
-	    cnt.v_swappgsin,
-	    cnt.v_swappgsout,
-	    cnt.v_intr,
-	    cnt.v_swtch,
+	    vm_cnt.v_vnodepgsin,
+	    vm_cnt.v_vnodepgsout,
+	    vm_cnt.v_swappgsin,
+	    vm_cnt.v_swappgsout,
+	    vm_cnt.v_intr,
+	    vm_cnt.v_swtch,
 	    (long long)boottime.tv_sec);
 	return (0);
 }
@@ -1131,31 +1131,32 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
 		sbuf_printf(sb, "%6.6s: ", ifname);
-		sbuf_printf(sb, "%7lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
-		    ifp->if_ibytes,	/* rx_bytes */
-		    ifp->if_ipackets,	/* rx_packets */
-		    ifp->if_ierrors,	/* rx_errors */
-		    ifp->if_iqdrops,	/* rx_dropped +
-					 * rx_missed_errors */
-		    0UL,		/* rx_fifo_errors */
-		    0UL,		/* rx_length_errors +
-					 * rx_over_errors +
-		    			 * rx_crc_errors +
-					 * rx_frame_errors */
-		    0UL,		/* rx_compressed */
-		    ifp->if_imcasts);	/* multicast, XXX-BZ rx only? */
-		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
-		    ifp->if_obytes,	/* tx_bytes */
-		    ifp->if_opackets,	/* tx_packets */
-		    ifp->if_oerrors,	/* tx_errors */
-		    0UL,		/* tx_dropped */
-		    0UL,		/* tx_fifo_errors */
-		    ifp->if_collisions,	/* collisions */
-		    0UL,		/* tx_carrier_errors +
-					 * tx_aborted_errors +
-					 * tx_window_errors +
-					 * tx_heartbeat_errors */
-		    0UL);		/* tx_compressed */
+		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
+		    (uintmax_t )ifp->if_ibytes,	/* rx_bytes */
+		    (uintmax_t )ifp->if_ipackets,	/* rx_packets */
+		    (uintmax_t )ifp->if_ierrors,	/* rx_errors */
+		    (uintmax_t )ifp->if_iqdrops,	/* rx_dropped +
+							 * rx_missed_errors */
+		    0UL,				/* rx_fifo_errors */
+		    0UL,				/* rx_length_errors +
+							 * rx_over_errors +
+							 * rx_crc_errors +
+							 * rx_frame_errors */
+		    0UL,				/* rx_compressed */
+		    (uintmax_t )ifp->if_imcasts);	/* multicast,
+							 * XXX-BZ rx only? */
+		sbuf_printf(sb, "%8ju %7ju %4ju %4lu %4lu %5ju %7lu %10lu\n",
+		    (uintmax_t )ifp->if_obytes,	/* tx_bytes */
+		    (uintmax_t )ifp->if_opackets,	/* tx_packets */
+		    (uintmax_t )ifp->if_oerrors,	/* tx_errors */
+		    0UL,				/* tx_dropped */
+		    0UL,				/* tx_fifo_errors */
+		    (uintmax_t )ifp->if_collisions,	/* collisions */
+		    0UL,				/* tx_carrier_errors +
+							 * tx_aborted_errors +
+							 * tx_window_errors +
+							 * tx_heartbeat_errors*/
+		    0UL);				/* tx_compressed */
 	}
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();

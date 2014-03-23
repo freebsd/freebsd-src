@@ -28,4 +28,4 @@ SRCS.${_T}=	${_T}.cpp test_helpers.cpp
 
 ATF_TESTS_SH=	pkg_config_test
 
-.include <atf.test.mk>
+.include <bsd.test.mk>

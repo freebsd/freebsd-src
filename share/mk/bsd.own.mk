@@ -297,7 +297,6 @@ __DEFAULT_YES_OPTIONS = \
     INSTALLLIB \
     IPFILTER \
     IPFW \
-    IPX \
     JAIL \
     KDUMP \
     KERBEROS \
@@ -572,7 +571,6 @@ MK_TESTS:= no
     GNU \
     INET \
     INET6 \
-    IPX \
     KERBEROS \
     KVM \
     NETGRAPH \

@@ -104,8 +104,8 @@ static char *expari(char *);
 static void expbackq(union node *, int, int);
 static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
-static int varisset(char *, int);
-static void varvalue(char *, int, int, int);
+static int varisset(const char *, int);
+static void varvalue(const char *, int, int, int);
 static void recordregion(int, int, int);
 static void removerecordregions(int);
 static void ifsbreakup(char *, struct arglist *);
@@ -633,7 +633,7 @@ evalvar(char *p, int flag)
 	int subtype;
 	int varflags;
 	char *var;
-	char *val;
+	const char *val;
 	int patloc;
 	int c;
 	int set;
@@ -827,7 +827,7 @@ record:
  */
 
 static int
-varisset(char *name, int nulok)
+varisset(const char *name, int nulok)
 {
 
 	if (*name == '!')
@@ -876,7 +876,7 @@ strtodest(const char *p, int flag, int subtype, int quoted)
  */
 
 static void
-varvalue(char *name, int quoted, int subtype, int flag)
+varvalue(const char *name, int quoted, int subtype, int flag)
 {
 	int num;
 	char *p;

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
+#include "vatpic.h"
 #include "vlapic.h"
 #include "vlapic_priv.h"
 
@@ -1144,7 +1145,7 @@ static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
 	struct vm_exception exc;
-	int vector, need_nmi_exiting;
+	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags;
 	uint32_t gi, info;
 
@@ -1196,7 +1197,9 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 			vmx_set_nmi_window_exiting(vmx, vcpu);
 	}
 
-	if (virtual_interrupt_delivery) {
+	extint_pending = vm_extint_pending(vmx->vm, vcpu);
+
+	if (!extint_pending && virtual_interrupt_delivery) {
 		vmx_inject_pir(vlapic);
 		return;
 	}
@@ -1212,9 +1215,14 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-	/* Ask the local apic for a vector to inject */
-	if (!vlapic_pending_intr(vlapic, &vector))
-		return;
+	if (!extint_pending) {
+		/* Ask the local apic for a vector to inject */
+		if (!vlapic_pending_intr(vlapic, &vector))
+			return;
+	} else {
+		/* Ask the legacy pic for a vector to inject */
+		vatpic_pending_intr(vmx->vm, &vector);
+	}
 
 	KASSERT(vector >= 32 && vector <= 255, ("invalid vector %d", vector));
 
@@ -1252,8 +1260,22 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
-	/* Update the Local APIC ISR */
-	vlapic_intr_accepted(vlapic, vector);
+	if (!extint_pending) {
+		/* Update the Local APIC ISR */
+		vlapic_intr_accepted(vlapic, vector);
+	} else {
+		vm_extint_clear(vmx->vm, vcpu);
+		vatpic_intr_accepted(vmx->vm, vector);
+
+		/*
+		 * After we accepted the current ExtINT the PIC may
+		 * have posted another one.  If that is the case, set
+		 * the Interrupt Window Exiting execution control so
+		 * we can inject that one too.
+		 */
+		if (vm_extint_pending(vmx->vm, vcpu))
+			vmx_set_int_window_exiting(vmx, vcpu);
+	}
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
 

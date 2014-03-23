@@ -96,6 +96,10 @@ f_group_add()
 		[ "$group_name" ] ||
 			f_show_err "$msg_please_enter_a_group_name"
 	done
+	if [ ! "$group_name" ]; then
+		f_show_err "$msg_no_group_specified"
+		return $FAILURE
+	fi
 
 	local group_password group_gid group_members
 	f_getvar $VAR_GROUP_PASSWORD	group_password
@@ -152,10 +156,17 @@ f_group_add()
 
 			case "$mtag" in
 			X) # Add/Exit
-			   local cmd="pw groupadd -n '$group_name'"
-			   [ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupadd -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 			   [ "$group_members" ] &&
-			   	cmd="$cmd -M '$group_members'"
+			   	cmd="$cmd -M '$_group_members'"
 
 			   # Execute the command (break on success)
 			   if [ "$group_password_disable" ]; then
@@ -163,7 +174,7 @@ f_group_add()
 			   elif [ "$group_password" ]; then
 			   	echo "$group_password" |
 			   		f_eval_catch $funcname \
-			   		pw '%s -h 0' "$cmd"
+			   			pw '%s -h 0' "$cmd"
 			   else
 			   	f_eval_catch $funcname pw '%s' "$cmd"
 			   fi && break
@@ -192,18 +203,24 @@ f_group_add()
 			esac
 		done
 	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
 		# Form the command
-		local cmd="pw groupadd -n '$group_name'"
-		[ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
-		[ "$group_members" ] && cmd="$cmd -M '$group_members'"
+		local cmd="pw groupadd -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
+		[ "$group_members" ] && cmd="$cmd -M '$_group_members'"
 
 		# Execute the command
 		local retval err
 		if [ "$group_password_disable" ]; then
 			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			echo "$group_password" | f_eval_catch -k err \
-				$funcname pw '%s -h 0' "$cmd"
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
 		else
 			f_eval_catch -k err $funcname pw '%s' "$cmd"
 		fi
@@ -217,7 +234,7 @@ f_group_add()
 	f_dialog_title "$title"
 	$alert "$msg_group_added"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }
@@ -272,8 +289,10 @@ f_group_delete()
 
 			case "$mtag" in
 			X) # Delete/Exit
+			   local _group_name
+			   f_shell_escape "$group_name" _group_name
 			   f_eval_catch $funcname pw 'pw groupdel "%s"' \
-					"$group_name" && break
+					"$_group_name" && break
 			   ;;
 			1) # Group Name (select different group from list)
 			   f_dialog_menu_group_list "$group_name" || continue
@@ -292,9 +311,10 @@ f_group_delete()
 			esac
 		done
 	else
-		local retval err
+		local retval err _group_name
+		f_shell_escape "$group_name" _group_name
 		f_eval_catch -k err $funcname pw \
-			'pw groupdel "%s"' "$group_name"
+			"pw groupdel '%s'" "$_group_name"
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
 			f_show_err "%s" "$err"
@@ -305,7 +325,7 @@ f_group_delete()
         f_dialog_title "$title"
 	$alert "$msg_group_deleted"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }
@@ -324,7 +344,9 @@ f_group_delete()
 # 		unchanged.
 # 	VAR_GROUP_MEMBERS [Optional]
 # 		Comma separated list of users that are a member of this group.
-# 		If NULL or unset, group membership is unmodified.
+# 		If set but NULL, group memberships are reset (no users will be
+# 		a member of this group). If unset, group membership is
+# 		unmodified.
 # 	VAR_GROUP_PASSWORD [Optional]
 # 		newgrp(1) password to set for the group. If unset, the password
 # 		is unmodified. If NULL, the newgrp(1) password is disabled.
@@ -400,18 +422,24 @@ f_group_edit()
 
 			case "$mtag" in
 			X) # Save/Exit
-			   local cmd="pw groupmod -n '$group_name'"
-			   [ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+			   local var
+			   for var in gid members name; do
+			   	local _group_$var
+			   	eval f_shell_escape \
+			   		\"\$group_$var\" _group_$var
+			   done
+
+			   local cmd="pw groupmod -n '$_group_name'"
+			   [ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 			   [ "$group_members" -o "$null_members" ] &&
-			   	cmd="$cmd -M '$group_members'"
+			   	cmd="$cmd -M '$_group_members'"
 
 			   # Execute the command (break on success)
 			   if [ "$group_password_disable" ]; then
 			   	f_eval_catch $funcname pw '%s -h -' "$cmd"
 			   elif [ "$group_password" ]; then
-			   	echo "$group_password" |
-			   		f_eval_catch $funcname \
-			   			pw '%s -h 0' "$cmd"
+			   	echo "$group_password" | f_eval_catch \
+			   		$funcname pw '%s -h 0' "$cmd"
 			   else
 			   	f_eval_catch $funcname pw '%s' "$cmd"
 			   fi && break
@@ -424,7 +452,7 @@ f_group_edit()
 
 			   if ! f_input_group "$mtag"; then
 			   	f_show_err "$msg_group_not_found" "$mtag"
-			   	# Attempt to fall back to prevoius selection
+			   	# Attempt to fall back to previous selection
 			   	f_input_group "$input" || return $FAILURE
 			   else
 			   	input="$mtag"
@@ -446,19 +474,25 @@ f_group_edit()
 			esac
 		done
 	else
+		local var
+		for var in gid members name; do
+			local _group_$var
+			eval f_shell_escape \"\$group_$var\" _group_$var
+		done
+
 		# Form the command
-		local cmd="pw groupmod -n '$group_name'"
-		[ "$group_gid" ] && cmd="$cmd -g '$group_gid'"
+		local cmd="pw groupmod -n '$_group_name'"
+		[ "$group_gid" ] && cmd="$cmd -g '$_group_gid'"
 		[ "$group_members" -o "$null_members" ] &&
-			cmd="$cmd -M '$group_members'"
+			cmd="$cmd -M '$_group_members'"
 
 		# Execute the command
 		local retval err
 		if [ "$group_password_disable" ]; then
 			f_eval_catch -k err $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" -o "$null_password" ]; then
-			echo "$group_password" | f_eval_catch -k err \
-				$funcname pw '%s -h 0' "$cmd"
+			err=$( echo "$group_password" | f_eval_catch -de \
+				$funcname pw '%s -h 0' "$cmd" 2>&1 )
 		else
 			f_eval_catch -k err $funcname pw '%s' "$cmd"
 		fi
@@ -472,7 +506,7 @@ f_group_edit()
 	f_dialog_title "$title"
 	$alert "$msg_group_updated"
 	f_dialog_title_restore
-	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 2
+	[ "$no_confirm" -a "$USE_DIALOG" ] && sleep 1
 
 	return $SUCCESS
 }

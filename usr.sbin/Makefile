@@ -176,10 +176,6 @@ SUBDIR+=	traceroute6
 SUBDIR+=	ipfwpcap
 .endif
 
-.if ${MK_IPX} != "no"
-SUBDIR+=	IPXrouted
-.endif
-
 .if ${MK_JAIL} != "no"
 SUBDIR+=	jail
 SUBDIR+=	jexec
@@ -286,6 +282,10 @@ SUBDIR+=	mailstats
 SUBDIR+=	makemap
 SUBDIR+=	praliases
 SUBDIR+=	sendmail
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"

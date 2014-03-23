@@ -1733,15 +1733,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	return (error);
 }
 
-#ifndef BURN_BRIDGES
-/* special one for inet internal use. may not use. */
-int
-rtinit_fib(struct ifaddr *ifa, int cmd, int flags)
-{
-	return (rtinit1(ifa, cmd, flags, RT_ALL_FIBS));
-}
-#endif
-
 /*
  * Set up a routing table entry, normally
  * for an interface.
