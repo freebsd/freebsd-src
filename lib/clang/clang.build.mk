@@ -23,12 +23,14 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
     ${MK_ARM_EABI} != "no"
 TARGET_ABI=	gnueabi
+.elif ${TARGET_ARCH} == "armv6hf"
+TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	unknown
 .endif
 
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
-BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd11.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-${TARGET_ABI}-freebsd11.0
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-unknown-freebsd11.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
