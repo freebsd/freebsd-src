@@ -85,6 +85,8 @@ usage(void)
 	fprintf(stderr, "cheritest creturn\n");
 	fprintf(stderr, "cheritest ccall_creturn\n");
 	fprintf(stderr, "cheritest ccall_nop_creturn\n");
+	fprintf(stderr, "cheritest ccheck_user_fail\n");
+	fprintf(stderr, "cheritest ccheck_user_pass\n");
 	fprintf(stderr, "cheritest copyregs\n");
 	fprintf(stderr, "cheritest invoke_abort\n");
 	fprintf(stderr, "cheritest invoke_cp2_bound\n");
@@ -182,6 +184,26 @@ cheritest_ccall_nop_creturn(void)
 	cheritest_sandbox_setup(&sandbox_nop_creturn,
 	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
 	cheritest_ccall(codecap, datacap);
+}
+
+static void
+cheritest_ccheck_user_fail(void)
+{
+	__capability void *cp;
+	char ch;
+
+	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_USER0);
+	cheri_ccheckperm(cp, CHERI_PERM_USER0);
+}
+
+static void
+cheritest_ccheck_user_pass(void)
+{
+	__capability void *cp;
+	char ch;
+
+	cp = cheri_ptrperm(&ch, sizeof(ch), 0);
+	cheri_ccheckperm(cp, CHERI_PERM_USER0);
 }
 
 static void
@@ -414,6 +436,10 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_ccall_creturn();
 		else if (strcmp(argv[i], "ccall_nop_creturn") == 0)
 			cheritest_ccall_nop_creturn();
+		else if (strcmp(argv[i], "ccheck_user_fail") == 0)
+			cheritest_ccheck_user_fail();
+		else if (strcmp(argv[i], "ccheck_user_pass") == 0)
+			cheritest_ccheck_user_pass();
 		else if (strcmp(argv[i], "creturn") == 0)
 			cheritest_creturn();
 		else if (strcmp(argv[i], "copyregs") == 0)
