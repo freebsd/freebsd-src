@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
+#include <net/drbr.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -986,7 +987,7 @@ vmxnet3_init_txq(struct vmxnet3_softc *sc, int q)
 #ifndef VMXNET3_LEGACY_TX
 	TASK_INIT(&txq->vxtxq_defrtask, 0, vmxnet3_txq_tq_deferred, txq);
 
-	txq->vxtxq_br = buf_ring_alloc(VMXNET3_DEF_BUFRING_SIZE, M_DEVBUF,
+	txq->vxtxq_br = drbr_alloc(M_DEVBUF,
 	    M_NOWAIT, &txq->vxtxq_mtx);
 	if (txq->vxtxq_br == NULL)
 		return (ENOMEM);
@@ -1068,7 +1069,7 @@ vmxnet3_destroy_txq(struct vmxnet3_txqueue *txq)
 
 #ifndef VMXNET3_LEGACY_TX
 	if (txq->vxtxq_br != NULL) {
-		buf_ring_free(txq->vxtxq_br, M_DEVBUF);
+		drbr_free(txq->vxtxq_br, M_DEVBUF);
 		txq->vxtxq_br = NULL;
 	}
 #endif
@@ -2901,9 +2902,10 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 {
 	struct vmxnet3_softc *sc;
 	struct vmxnet3_txring *txr;
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	struct ifnet *ifp;
 	int tx, avail, error;
+	uint8_t qused;
 
 	sc = txq->vxtxq_sc;
 	br = txq->vxtxq_br;
@@ -2928,13 +2930,13 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 	}
 
 	while ((avail = VMXNET3_TXRING_AVAIL(txr)) >= 2) {
-		m = drbr_peek(ifp, br);
+		m = drbr_peek(ifp, br, &qused);
 		if (m == NULL)
 			break;
 
 		/* Assume worse case if this mbuf is the head of a chain. */
 		if (m->m_next != NULL && avail < VMXNET3_TX_MAXSEGS) {
-			drbr_putback(ifp, br, m);
+			drbr_putback(ifp, br, m, qused);
 			error = ENOBUFS;
 			break;
 		}
@@ -2942,12 +2944,12 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		error = vmxnet3_txq_encap(txq, &m);
 		if (error) {
 			if (m != NULL)
-				drbr_putback(ifp, br, m);
+				drbr_putback(ifp, br, m, qused);
 			else
-				drbr_advance(ifp, br);
+				drbr_advance(ifp, br, qused);
 			break;
 		}
-		drbr_advance(ifp, br);
+		drbr_advance(ifp, br, qused);
 
 		tx++;
 		ETHER_BPF_MTAP(ifp, m);
@@ -3267,7 +3269,6 @@ vmxnet3_qflush(struct ifnet *ifp)
 {
 	struct vmxnet3_softc *sc;
 	struct vmxnet3_txqueue *txq;
-	struct mbuf *m;
 	int i;
 
 	sc = ifp->if_softc;
@@ -3276,8 +3277,7 @@ vmxnet3_qflush(struct ifnet *ifp)
 		txq = &sc->vmx_txq[i];
 
 		VMXNET3_TXQ_LOCK(txq);
-		while ((m = buf_ring_dequeue_sc(txq->vxtxq_br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txq->vxtxq_br);
 		VMXNET3_TXQ_UNLOCK(txq);
 	}
 

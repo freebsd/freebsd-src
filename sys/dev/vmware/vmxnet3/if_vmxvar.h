@@ -132,7 +132,7 @@ struct vmxnet3_txqueue {
 	struct mtx			 vxtxq_mtx;
 	struct vmxnet3_softc		*vxtxq_sc;
 #ifndef VMXNET3_TX_LEGACY
-	struct buf_ring			*vxtxq_br;
+	struct 	drbr_ring		*vxtxq_br;
 #endif
 	int				 vxtxq_id;
 	int				 vxtxq_intr_idx;
