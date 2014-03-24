@@ -1,4 +1,5 @@
 /* $OpenBSD: packet.c,v 1.191 2013/12/06 13:34:54 markus Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,6 +39,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
  
 #include <sys/types.h>
 #include "openbsd-compat/sys-queue.h"

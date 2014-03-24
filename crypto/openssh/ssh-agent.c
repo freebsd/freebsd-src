@@ -1,4 +1,5 @@
 /* $OpenBSD: ssh-agent.c,v 1.181 2013/12/19 01:19:41 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
