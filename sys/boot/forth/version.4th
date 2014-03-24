@@ -30,7 +30,7 @@ variable versionX
 variable versionY
 
 \ Default $loader_version value if not overridden or using tribute screen
-: str_loader_version ( -- C-ADDR/U|-1 ) s" FreeBSD `Nakatomi Socrates' 9.2" ;
+: str_loader_version ( -- C-ADDR/U|-1 ) s" " ;
 
 \ Initialize text placement to defaults
 80 versionX !	\ NOTE: this is the ending column (text is right-justified)
