@@ -653,7 +653,6 @@ m_pkthdr_init(struct mbuf *m, int how)
 	m->m_pkthdr.flowid = 0;
 	m->m_pkthdr.csum_flags = 0;
 	m->m_pkthdr.fibnum = 0;
-	m->m_pkthdr.cosqos = 0;
 	m->m_pkthdr.rsstype = 0;
 	m->m_pkthdr.l2hlen = 0;
 	m->m_pkthdr.l3hlen = 0;
@@ -661,6 +660,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	m->m_pkthdr.l5hlen = 0;
 	m->m_pkthdr.PH_per.sixtyfour[0] = 0;
 	m->m_pkthdr.PH_loc.sixtyfour[0] = 0;
+	m->m_pkthdr.cosqos = 0xff; /*drbr_maxq-1;*/
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

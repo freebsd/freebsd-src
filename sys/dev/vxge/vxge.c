@@ -31,6 +31,7 @@
 /*$FreeBSD$*/
 
 #include <dev/vxge/vxge.h>
+#include <net/drbr.h>
 
 static int vxge_pci_bd_no = -1;
 static u32 vxge_drv_copyright = 0;
@@ -729,7 +730,6 @@ void
 vxge_mq_qflush(ifnet_t ifp)
 {
 	int i;
-	mbuf_t m_head;
 	vxge_vpath_t *vpath;
 
 	vxge_dev_t *vdev = (vxge_dev_t *) ifp->if_softc;
@@ -740,9 +740,7 @@ vxge_mq_qflush(ifnet_t ifp)
 			continue;
 
 		VXGE_TX_LOCK(vpath);
-		while ((m_head = buf_ring_dequeue_sc(vpath->br)) != NULL)
-			vxge_free_packet(m_head);
-
+		drbr_flush(ifp, vpath->br);
 		VXGE_TX_UNLOCK(vpath);
 	}
 	if_qflush(ifp);
@@ -2294,7 +2292,7 @@ vxge_vpath_open(vxge_dev_t *vdev)
 			break;
 		}
 #if __FreeBSD_version >= 800000
-		vpath->br = buf_ring_alloc(VXGE_DEFAULT_BR_SIZE, M_DEVBUF,
+		vpath->br = drbr_alloc(M_DEVBUF,
 		    M_WAITOK, &vpath->mtx_tx);
 		if (vpath->br == NULL) {
 			err = ENOMEM;
@@ -2433,7 +2431,7 @@ vxge_vpath_close(vxge_dev_t *vdev)
 
 #if __FreeBSD_version >= 800000
 		if (vpath->br != NULL)
-			buf_ring_free(vpath->br, M_DEVBUF);
+			drbr_free(vpath->br, M_DEVBUF);
 #endif
 		/* Free LRO memory */
 		if (vpath->lro_enable)

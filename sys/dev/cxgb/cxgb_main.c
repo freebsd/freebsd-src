@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -2361,7 +2362,7 @@ cxgb_tick_handler(void *arg, int count)
 
 		drops = 0;
 		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets; j++)
-			drops += sc->sge.qs[j].txq[TXQ_ETH].txq_mr->br_drops;
+			drops += drbr_get_dropcnt(sc->sge.qs[j].txq[TXQ_ETH].txq_mr);
 		ifp->if_snd.ifq_drops = drops;
 
 		ifp->if_oerrors =

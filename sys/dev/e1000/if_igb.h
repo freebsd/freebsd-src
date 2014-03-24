@@ -309,12 +309,14 @@ struct tx_ring {
 	    IGB_QUEUE_DEPLETED = 8,
 	}			queue_status;
 	u32			txd_cmd;
-	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
 #ifndef IGB_LEGACY_TX
-	struct buf_ring		*br;
+	struct drbr_ring	*br;
 	struct task		txq_task;
 #endif
+	bus_dma_tag_t		txtag;
+	volatile u_long		bytes_on_ring;
+
 	u32			bytes;  /* used for AIM */
 	u32			packets;
 	/* Soft Stats */
@@ -371,17 +373,17 @@ struct adapter {
 	struct device		*dev;
 	struct cdev		*led_dev;
 
-	struct resource		*pci_mem;
-	struct resource		*msix_mem;
-	int			memrid;
-
+	struct resource *pci_mem;
+	struct resource *msix_mem;
+	uint64_t	ring_bytes_max;
+	int		memrid;
 	/*
 	 * Interrupt resources: this set is
 	 * either used for legacy, or for Link
 	 * when doing MSIX
 	 */
-	void			*tag;
-	struct resource 	*res;
+	void		*tag;
+	struct resource	*res;
 
 	struct ifmedia		media;
 	struct callout		timer;

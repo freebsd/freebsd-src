@@ -445,7 +445,7 @@ struct sge_txq {
 
 	struct ifnet *ifp;	/* the interface this txq belongs to */
 	bus_dma_tag_t tx_tag;	/* tag for transmit buffers */
-	struct buf_ring *br;	/* tx buffer ring */
+	struct drbr_ring *br;	/* tx buffer ring */
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct mbuf *m;		/* held up due to temporary resource shortage */
 

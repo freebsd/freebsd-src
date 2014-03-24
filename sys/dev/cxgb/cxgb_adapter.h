@@ -252,7 +252,7 @@ struct sge_txq {
 	bus_dma_tag_t   entry_tag;
 	struct mbuf_head sendq;
 
-	struct buf_ring *txq_mr;
+	struct drbr_ring *txq_mr;
 	struct ifaltq	*txq_ifq;
 	struct callout	txq_timer;
 	struct callout	txq_watchdog;

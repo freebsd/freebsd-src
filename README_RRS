@@ -1,0 +1,57 @@
+Welcome to my little side project. It has taken
+me a while to get around to finding the time to
+put this back in.. whew.
+
+What we have here currently is some basic changes that were
+done at Adara Networks to the way the lower level stack works
+with device drivers. Basically all mbufs have a priority
+field (cosqos), this field gets set to the highest number
+by default (usually queue 7 by default if we have
+8 queues defined 0-7). Now whenever a driver goes
+to send out data, it starts at queue 0, and works
+its way out. This means that *yes* you can get
+packet starvation of things placed in queue 7 while
+other things are going to queue 0.
+
+There are also some new methods added to if_net that
+deal with managment of the queues/rings. This is
+the start of where I plan on putting an AQM module
+in place. Right now its just drop-tail if the queue
+gets full, at some point I will try to add in both
+codel and possibly Cisco's Pi. Pi will need to be a
+klm since C has patents on it (the typical C patent
+of you can have a free license unless you sue me).
+Codel is open created by Van Jacobson and Kathy Nichols
+only it was done in Linux first, so I will have to 
+read the latest RFC's and try to do a clean implementation
+of that so we have no GNU contamination (this may take
+a while depending on how much time I can pull away
+from Adara, or if I can justify doing it as an
+Adara project). 
+
+Now once I have all this settled in to head and know it
+all compiles (not sure since I was merging old code from
+quite a while ago that this branch yet compiles :-D), I
+want to move on and make the IP packet processing stack
+lock-less. What I mean by that is I would like to see
+*no* locks in the packet forwarding path. Only when you
+change things (radix trees etc) will locks be applied.
+How I will do this is by adding a garbage collector entity
+that "defers" removal of things long enough for packets
+being forwarded (during a change) to be out of the system
+*before* removal of the old entity. This sounds a bit
+strange but it works quite well as long as one can
+bound the time period needed before the garbage
+collector gets active.
+
+This will come later assuming I get time.. of course
+my life as been full of ENOTIME errors, but hopefully
+is slowing down here a bit :-)
+
+You are welcome to play in here and contribute. You can
+email me at rrs at freebsd.org (or rrs at lakerest.net.. thats
+where the mail goes anyway :D)
+
+Best wishes
+Randall Stewart
+

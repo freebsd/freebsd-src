@@ -337,7 +337,7 @@ typedef struct _vxge_vpath_t {
 	struct		lro_ctrl lro;
 
 #if __FreeBSD_version >= 800000
-	struct		buf_ring *br;
+	struct		drbr_ring *br;
 #endif
 
 } vxge_vpath_t;

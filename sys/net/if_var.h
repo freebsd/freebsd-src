@@ -198,7 +198,13 @@ struct ifnet {
 	char	if_cspare[3];
 	int	if_ispare[4];
 	void	*if_unused[2];
-	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
+	/* Set max bytes on ring - buffer bloat managment */
+	void    (*if_maxbytes)(struct ifnet *, uint64_t maxbytes);
+	/* Get a drbr ring to peak at */
+	struct drbr_ring * (*if_getdrbr_ring)(struct ifnet *, int queuenum);
+	/* Is this mbuf on one of your rings? */
+	int    (*if_mbuf_on_ring)(struct ifnet *, struct mbuf *);
+	void    *if_pspare[5];          /* 1 netmap, 4 TDB */
 };
 
 #include <net/ifq.h>	/* XXXAO: temporary unconditional include */

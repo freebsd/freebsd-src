@@ -2722,7 +2722,7 @@ device_probe(device_t dev)
 	}
 	return (0);
 }
-
+uint32_t simp_bus_debug=0;
 /**
  * @brief Probe a device and attach a driver if possible
  *
@@ -2742,6 +2742,11 @@ device_probe_and_attach(device_t dev)
 		return (error);
 
 	CURVNET_SET_QUIET(vnet0);
+	if (simp_bus_debug) {
+		printf("%s:Attach for device 0x%x\n", 
+		       __FUNCTION__,
+		       (uint32_t)dev);
+	}
 	error = device_attach(dev);
 	CURVNET_RESTORE();
 	return error;
@@ -2778,12 +2783,20 @@ device_attach(device_t dev)
 			 device_printf(dev, "disabled via hints entry\n");
 		return (ENXIO);
 	}
-
+	if (simp_bus_debug) {
+		device_printf(dev, "init its sysctl info\n");
+	}
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
 	attachtime = get_cyclecount();
 	dev->state = DS_ATTACHING;
+	if (simp_bus_debug) {
+		device_printf(dev, "Calling attach\n");
+	}
+	if (simp_bus_debug) {
+		device_printf(dev, "call the attach\n");
+	}
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
@@ -2812,6 +2825,9 @@ device_attach(device_t dev)
 	else
 		dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
+	if (simp_bus_debug) {
+		device_printf(dev, "finish out...\n");
+	}
 	devadded(dev);
 	return (0);
 }

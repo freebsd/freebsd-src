@@ -163,7 +163,7 @@ typedef struct
 {
 	struct mtx mtx;
 #ifdef IFNET_BUF_RING
-	struct buf_ring *br;
+	struct drbr_ring *br;
 #endif
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
 	volatile uint32_t *send_go;		/* doorbell for sendq */

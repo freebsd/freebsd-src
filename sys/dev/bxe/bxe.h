@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/zlib.h>
 #include <net/bpf.h>
+#include <net/drbr.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -734,7 +735,7 @@ struct bxe_fastpath {
 
 #if __FreeBSD_version >= 800000
 #define BXE_BR_SIZE 4096
-    struct buf_ring *tx_br;
+    struct drbr_ring *tx_br;
 #endif
 }; /* struct bxe_fastpath */
 

@@ -70,6 +70,7 @@
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
 #include <net/if_dl.h>
+#include <net/drbr.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -528,18 +529,18 @@ struct oce_lock {
 };
 #define OCE_LOCK				struct oce_lock
 
-#define LOCK_CREATE(lock, desc) 		{ \
+#define LOCK_CREATE_OCE(lock, desc) 		{ \
 	strncpy((lock)->name, (desc), MAX_LOCK_DESC_LEN); \
 	(lock)->name[MAX_LOCK_DESC_LEN] = '\0'; \
 	mtx_init(&(lock)->mutex, (lock)->name, NULL, MTX_DEF); \
 }
-#define LOCK_DESTROY(lock) 			\
+#define LOCK_DESTROY_OCE(lock) 			\
 		if (mtx_initialized(&(lock)->mutex))\
 			mtx_destroy(&(lock)->mutex)
-#define TRY_LOCK(lock)				mtx_trylock(&(lock)->mutex)
-#define LOCK(lock)				mtx_lock(&(lock)->mutex)
-#define LOCKED(lock)				mtx_owned(&(lock)->mutex)
-#define UNLOCK(lock)				mtx_unlock(&(lock)->mutex)
+#define TRY_LOCK_OCE(lock)			mtx_trylock(&(lock)->mutex)
+#define LOCK_OCE(lock)				mtx_lock(&(lock)->mutex)
+#define LOCKED_OCE(lock)			mtx_owned(&(lock)->mutex)
+#define UNLOCK_OCE(lock)			mtx_unlock(&(lock)->mutex)
 
 #define	DEFAULT_MQ_MBOX_TIMEOUT			(5 * 1000 * 1000)
 #define	MBX_READY_TIMEOUT			(1 * 1000 * 1000)
@@ -702,7 +703,7 @@ struct oce_wq {
 	struct wq_config cfg;
 	int queue_index;
 	struct oce_tx_queue_stats tx_stats;
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	struct task txtask;
 	uint32_t db_offset;
 };

@@ -298,8 +298,9 @@ struct tx_ring {
 	u8			last_hw_tucso;
 	u8			last_hw_tucss;
 #if __FreeBSD_version >= 800000
-	struct buf_ring         *br;
+	struct drbr_ring        *br;
 #endif
+	volatile u_long		bytes_on_ring;
 	/* Interrupt resources */
         bus_dma_tag_t           txtag;
 	void                    *tag;
@@ -346,6 +347,7 @@ struct rx_ring {
 /* Our adapter structure */
 struct adapter {
 	struct ifnet	*ifp;
+	uint64_t	ring_bytes_max;
 	struct e1000_hw	hw;
 
 	/* FreeBSD operating-system-specific structures. */

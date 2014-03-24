@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -1799,9 +1800,10 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 	struct port_info *pi = (void *)ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct sge_eq *eq = &txq->eq;
-	struct buf_ring *br = txq->br;
+	struct drbr_ring *br = txq->br;
 	struct mbuf *next;
 	int rc, coalescing, can_reclaim;
+	uint8_t qused;
 	struct txpkts txpkts;
 	struct sgl sgl;
 
@@ -1828,8 +1830,7 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 
 	if (__predict_false(eq->flags & EQ_DOOMED)) {
 		m_freem(m);
-		while ((m = buf_ring_dequeue_sc(txq->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, br);
 		return (ENETDOWN);
 	}
 
@@ -1844,7 +1845,7 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 		next = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 
-		if (next || buf_ring_peek(br))
+		if (next || drbr_peek(ifp, br, &qused))
 			coalescing = 1;
 
 		rc = get_pkt_sgl(txq, &m, &sgl, coalescing);
@@ -2868,7 +2869,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 
 	txq->sdesc = malloc(eq->cap * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
-	txq->br = buf_ring_alloc(eq->qsize, M_CXGBE, M_WAITOK, &eq->eq_lock);
+	txq->br = drbr_alloc(M_CXGBE, M_WAITOK, &eq->eq_lock);
 
 	rc = bus_dma_tag_create(sc->dmat, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 64 * 1024, TX_SGL_SEGS,
@@ -2923,8 +2924,8 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "txpkts_pkts", CTLFLAG_RD,
 	    &txq->txpkts_pkts, "# of frames tx'd using txpkts work requests");
 
-	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "br_drops", CTLFLAG_RD,
-	    &txq->br->br_drops, "# of drops in the buf_ring for this queue");
+/*	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "br_drops", CTLFLAG_RD,
+	&txq->br->br_drops, "# of drops in the buf_ring for this queue");*/
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_dmamap", CTLFLAG_RD,
 	    &txq->no_dmamap, 0, "# of times txq ran out of DMA maps");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_desc", CTLFLAG_RD,
@@ -2953,7 +2954,7 @@ free_txq(struct port_info *pi, struct sge_txq *txq)
 	if (txq->txmaps.maps)
 		t4_free_tx_maps(&txq->txmaps, txq->tx_tag);
 
-	buf_ring_free(txq->br, M_CXGBE);
+	drbr_free(txq->br, M_CXGBE);
 
 	if (txq->tx_tag)
 		bus_dma_tag_destroy(txq->tx_tag);

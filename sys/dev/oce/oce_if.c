@@ -296,8 +296,8 @@ oce_attach(device_t dev)
 	sc->flow_control = OCE_DEFAULT_FLOW_CONTROL;
 	sc->promisc	 = OCE_DEFAULT_PROMISCUOUS;
 
-	LOCK_CREATE(&sc->bmbx_lock, "Mailbox_lock");
-	LOCK_CREATE(&sc->dev_lock,  "Device_lock");
+	LOCK_CREATE_OCE(&sc->bmbx_lock, "Mailbox_lock");
+	LOCK_CREATE_OCE(&sc->dev_lock,  "Device_lock");
 
 	/* initialise the hardware */
 	rc = oce_hw_init(sc);
@@ -372,8 +372,8 @@ mbox_free:
 	oce_dma_free(sc, &sc->bsmbx);
 pci_res_free:
 	oce_hw_pci_free(sc);
-	LOCK_DESTROY(&sc->dev_lock);
-	LOCK_DESTROY(&sc->bmbx_lock);
+	LOCK_DESTROY_OCE(&sc->dev_lock);
+	LOCK_DESTROY_OCE(&sc->bmbx_lock);
 	return rc;
 
 }
@@ -384,9 +384,9 @@ oce_detach(device_t dev)
 {
 	POCE_SOFTC sc = device_get_softc(dev);
 
-	LOCK(&sc->dev_lock);
+	LOCK_OCE(&sc->dev_lock);
 	oce_if_deactivate(sc);
-	UNLOCK(&sc->dev_lock);
+	UNLOCK_OCE(&sc->dev_lock);
 
 	callout_drain(&sc->timer);
 	
@@ -447,13 +447,13 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 			device_printf(sc->dev, "Interface Up\n");	
 		} else {
-			LOCK(&sc->dev_lock);
+			LOCK_OCE(&sc->dev_lock);
 
 			sc->ifp->if_drv_flags &=
 			    ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 			oce_if_deactivate(sc);
 
-			UNLOCK(&sc->dev_lock);
+			UNLOCK_OCE(&sc->dev_lock);
 
 			device_printf(sc->dev, "Interface Down\n");
 		}
@@ -543,14 +543,14 @@ oce_init(void *arg)
 {
 	POCE_SOFTC sc = arg;
 	
-	LOCK(&sc->dev_lock);
+	LOCK_OCE(&sc->dev_lock);
 
 	if (sc->ifp->if_flags & IFF_UP) {
 		oce_if_deactivate(sc);
 		oce_if_activate(sc);
 	}
 	
-	UNLOCK(&sc->dev_lock);
+	UNLOCK_OCE(&sc->dev_lock);
 
 }
 
@@ -571,9 +571,9 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 
 	wq = sc->wq[queue_index];
 
-	LOCK(&wq->tx_lock);
+	LOCK_OCE(&wq->tx_lock);
 	status = oce_multiq_transmit(ifp, m, wq);
-	UNLOCK(&wq->tx_lock);
+	UNLOCK_OCE(&wq->tx_lock);
 
 	return status;
 
@@ -584,12 +584,10 @@ static void
 oce_multiq_flush(struct ifnet *ifp)
 {
 	POCE_SOFTC sc = ifp->if_softc;
-	struct mbuf     *m;
 	int i = 0;
 
 	for (i = 0; i < sc->nwqs; i++) {
-		while ((m = buf_ring_dequeue_sc(sc->wq[i]->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, sc->wq[i]->br);
 	}
 	if_qflush(ifp);
 }
@@ -1140,13 +1138,13 @@ oce_tx_task(void *arg, int npending)
 	int rc = 0;
 
 #if __FreeBSD_version >= 800000
-	LOCK(&wq->tx_lock);
+	LOCK_OCE(&wq->tx_lock);
 	rc = oce_multiq_transmit(ifp, NULL, wq);
 	if (rc) {
 		device_printf(sc->dev,
 				"TX[%d] restart failed\n", wq->queue_index);
 	}
-	UNLOCK(&wq->tx_lock);
+	UNLOCK_OCE(&wq->tx_lock);
 #else
 	oce_start(ifp);
 #endif
@@ -1174,9 +1172,9 @@ oce_start(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 
-		LOCK(&sc->wq[def_q]->tx_lock);
+		LOCK_OCE(&sc->wq[def_q]->tx_lock);
 		rc = oce_tx(sc, &m, def_q);
-		UNLOCK(&sc->wq[def_q]->tx_lock);
+		UNLOCK_OCE(&sc->wq[def_q]->tx_lock);
 		if (rc) {
 			if (m != NULL) {
 				sc->wq[def_q]->tx_stats.tx_stops ++;
@@ -1239,7 +1237,8 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 	POCE_SOFTC sc = ifp->if_softc;
 	int status = 0, queue_index = 0;
 	struct mbuf *next = NULL;
-	struct buf_ring *br = NULL;
+	struct drbr_ring *br = NULL;
+	uint8_t qused;
 
 	br  = wq->br;
 	queue_index = wq->queue_index;
@@ -1255,19 +1254,19 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 		if ((status = drbr_enqueue(ifp, br, m)) != 0)
 			return status;
 	} 
-	while ((next = drbr_peek(ifp, br)) != NULL) {
+	while ((next = drbr_peek(ifp, br, &qused)) != NULL) {
 		if (oce_tx(sc, &next, queue_index)) {
 			if (next == NULL) {
-				drbr_advance(ifp, br);
+				drbr_advance(ifp, br, qused);
 			} else {
-				drbr_putback(ifp, br, next);
+				drbr_putback(ifp, br, next, qused);
 				wq->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				status = drbr_enqueue(ifp, br, next);
 			}  
 			break;
 		}
-		drbr_advance(ifp, br);
+		drbr_advance(ifp, br, qused);
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
 			ifp->if_omcasts++;
@@ -2069,13 +2068,13 @@ oce_if_deactivate(POCE_SOFTC sc)
 	   any other lock. So unlock device lock and require after
 	   completing taskqueue_drain.
 	*/
-	UNLOCK(&sc->dev_lock);
+	UNLOCK_OCE(&sc->dev_lock);
 	for (i = 0; i < sc->intr_count; i++) {
 		if (sc->intrs[i].tq != NULL) {
 			taskqueue_drain(sc->intrs[i].tq, &sc->intrs[i].task);
 		}
 	}
-	LOCK(&sc->dev_lock);
+	LOCK_OCE(&sc->dev_lock);
 
 	/* Delete RX queue in card with flush param */
 	oce_stop_rx(sc);

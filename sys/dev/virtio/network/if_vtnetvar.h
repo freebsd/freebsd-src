@@ -103,7 +103,7 @@ struct vtnet_txq {
 	struct virtqueue	*vtntx_vq;
 	struct sglist		*vtntx_sg;
 #ifndef VTNET_LEGACY_TX
-	struct buf_ring		*vtntx_br;
+	struct drbr_ring	*vtntx_br;
 #endif
 	int			 vtntx_id;
 	int			 vtntx_watchdog;

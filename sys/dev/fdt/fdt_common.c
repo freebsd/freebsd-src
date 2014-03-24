@@ -182,7 +182,6 @@ fdt_is_compatible(phandle_t node, const char *compatstr)
 		compat += l;
 		len -= l;
 	}
-
 	return (rv);
 }
 
@@ -544,15 +543,18 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
 	    sizeof(phy_handle)) <= 0)
 		return (ENXIO);
-
 	phy_node = OF_xref_phandle(phy_handle);
+	device_printf(dev, "phy-handle:0x%x phy_ihandle:0x%x phy_node:0x%x\n", 
+		      (uint32_t)phy_handle, (uint32_t)phy_ihandle,
+		      (uint32_t)phy_node);
 
 	if (OF_getprop(phy_node, "reg", (void *)&phy_reg,
 	    sizeof(phy_reg)) <= 0)
 		return (ENXIO);
 
+	device_printf(dev, "reg:0x%x\n", (uint32_t)phy_reg);
 	*phy_addr = fdt32_to_cpu(phy_reg);
-
+	device_printf(dev, "tran to reg:0x%x\n", (uint32_t)*phy_addr);
 	/*
 	 * Search for softc used to communicate with phy.
 	 */

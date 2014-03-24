@@ -67,6 +67,7 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/drbr.h>
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
@@ -273,6 +274,9 @@ static int 	em_is_valid_ether_addr(u8 *);
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	em_add_int_delay_sysctl(struct adapter *, const char *,
 		    const char *, struct em_int_delay_info *, int, int);
+static void 	em_max_bytes(struct ifnet *, uint64_t max);
+static struct drbr_ring *em_get_ring(struct ifnet *ifp, int num);
+static int	em_ring_query(struct ifnet *ifp, struct mbuf *);
 /* Management and WOL Support */
 static void	em_init_manageability(struct adapter *);
 static void	em_release_manageability(struct adapter *);
@@ -897,6 +901,37 @@ em_resume(device_t dev)
 	return bus_generic_resume(dev);
 }
 
+void
+em_max_bytes(struct ifnet *ifp, uint64_t max)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	adapter->ring_bytes_max = max;
+}
+
+struct drbr_ring *
+em_get_ring(struct ifnet *ifp, int num)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	struct tx_ring	*txr;
+	if (num >= adapter->num_queues) {
+		return (NULL);
+	}
+	if (adapter->tx_rings) {
+		txr = &adapter->tx_rings[num];
+		return (txr->br);
+	} else {
+		return (NULL);
+	}
+}
+ 
+int
+em_ring_query(struct ifnet *ifp, struct mbuf *m)
+{
+	struct adapter *adapter = ifp->if_softc;
+	struct tx_ring	*txr;
+	txr = &adapter->tx_rings[0];
+	return(drbr_is_on_ring(txr->br, m));
+}
 
 #ifdef EM_MULTIQUEUE
 /*********************************************************************
@@ -913,6 +948,7 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
         int             err = 0, enq = 0;
+	uint8_t qused;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || adapter->link_active == 0) {
@@ -929,20 +965,26 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	} 
 
 	/* Process the queue */
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br, &qused)) != NULL) {
 		if ((err = em_xmit(txr, &next)) != 0) {
 			if (next == NULL)
-				drbr_advance(ifp, txr->br);
+				drbr_advance(ifp, txr->br, qused);
 			else 
-				drbr_putback(ifp, txr->br, next);
+				drbr_putback(ifp, txr->br, next, qused);
 			break;
 		}
-		drbr_advance(ifp, txr->br);
+		drbr_advance(ifp, txr->br, qused);
+ 		atomic_add_long(&txr->bytes_on_ring, 
+ 			(uint64_t)next->m_pkthdr.len);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
 			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
+		if (adapter->ring_bytes_max && 
+		    (txr->bytes_on_ring >= adapter->ring_bytes_max)) {
+			break;
+		}
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
 	}
@@ -991,8 +1033,7 @@ em_qflush(struct ifnet *ifp)
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		EM_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txr->br);
 		EM_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
@@ -2984,6 +3025,9 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = em_ioctl;
+	ifp->if_maxbytes = em_max_bytes;
+	ifp->if_getdrbr_ring = em_get_ring;
+	ifp->if_mbuf_on_ring = em_ring_query;
 #ifdef EM_MULTIQUEUE
 	/* Multiqueue stack interface */
 	ifp->if_transmit = em_mq_start;
@@ -3222,7 +3266,7 @@ em_allocate_queues(struct adapter *adapter)
         	}
 #if __FreeBSD_version >= 800000
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(4096, M_DEVBUF,
+		txr->br = drbr_alloc(M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 #endif
 	}
@@ -3272,7 +3316,7 @@ err_tx_desc:
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
 #if __FreeBSD_version >= 800000
-	buf_ring_free(txr->br, M_DEVBUF);
+	drbr_free(txr->br, M_DEVBUF);
 #endif
 	free(adapter->tx_rings, M_DEVBUF);
 fail:
@@ -3396,6 +3440,7 @@ em_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
+	txr->bytes_on_ring = 0;
 	txr->queue_status = EM_QUEUE_IDLE;
 
 	/* Clear checksum offload context. */
@@ -3579,7 +3624,7 @@ em_free_transmit_buffers(struct tx_ring *txr)
 	}
 #if __FreeBSD_version >= 800000
 	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
+		drbr_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -3876,6 +3921,8 @@ em_txeof(struct tx_ring *txr)
 			++processed;
 
 			if (tx_buffer->m_head) {
+				atomic_subtract_long(&txr->bytes_on_ring,
+						     (u_long)tx_buffer->m_head->m_pkthdr.len);
 				bus_dmamap_sync(txr->txtag,
 				    tx_buffer->map,
 				    BUS_DMASYNC_POSTWRITE);
@@ -5332,7 +5379,7 @@ em_add_hw_stats(struct adapter *adapter)
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
-
+		drbr_add_sysctl_stats(dev, queue_list, txr->br);
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
 				CTLTYPE_UINT | CTLFLAG_RD, adapter,
 				E1000_TDH(txr->me),

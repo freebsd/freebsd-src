@@ -58,6 +58,7 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/drbr.h>
 
 #include <net/bpf.h>
 #include <net/if_types.h>
@@ -313,7 +314,7 @@ struct tx_ring {
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
 #ifndef IXGBE_LEGACY_TX
-	struct buf_ring		*br;
+	struct drbr_ring	*br;
 	struct task		txq_task;
 #endif
 #ifdef IXGBE_FDIR

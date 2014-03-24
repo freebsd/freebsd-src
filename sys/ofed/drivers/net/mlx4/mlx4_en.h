@@ -285,7 +285,7 @@ struct mlx4_en_tx_ring {
 	void *buf;
 	u16 poll_cnt;
 	int blocked;
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	struct mlx4_en_tx_info *tx_info;
 	u8 *bounce_buf;
 	u32 last_nr_txbb;

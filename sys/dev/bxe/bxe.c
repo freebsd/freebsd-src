@@ -5946,10 +5946,11 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
                        struct bxe_fastpath *fp,
                        struct mbuf         *m)
 {
-    struct buf_ring *tx_br = fp->tx_br;
+    struct drbr_ring *tx_br = fp->tx_br;
     struct mbuf *next;
     int depth, rc, tx_count;
     uint16_t tx_bd_avail;
+    uint8_t qused;
 
     rc = tx_count = 0;
 
@@ -5966,25 +5967,16 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
 
     BXE_FP_TX_LOCK_ASSERT(fp);
 
-    if (m == NULL) {
-        /* no new work, check for pending frames */
-        next = drbr_dequeue(ifp, tx_br);
-    } else if (drbr_needs_enqueue(ifp, tx_br)) {
-        /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue(ifp, tx_br, m);
-        if (rc != 0) {
-            fp->eth_q_stats.tx_soft_errors++;
-            goto bxe_tx_mq_start_locked_exit;
-        }
-        next = drbr_dequeue(ifp, tx_br);
-    } else {
-        /* new work only and nothing pending */
-        next = m;
+    if (m != NULL) {
+	rc = drbr_enqueue(ifp, tx_br, m);
+	if (rc != 0) {
+	    fp->eth_q_stats.tx_soft_errors++;
+	    goto bxe_tx_mq_start_locked_exit;
+	}
     }
 
     /* keep adding entries while there are frames to send */
-    while (next != NULL) {
-
+    while ((next = drbr_peek(ifp, fp->tx_br, &qused)) != NULL) {
         /* the mbuf now belongs to us */
         fp->eth_q_stats.mbuf_alloc_tx++;
 
@@ -5996,19 +5988,22 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         rc = bxe_tx_encap(fp, &next);
         if (__predict_false(rc != 0)) {
             fp->eth_q_stats.tx_encap_failures++;
-            if (next != NULL) {
-                /* mark the TX queue as full and save the frame */
-                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-                /* XXX this may reorder the frame */
-                rc = drbr_enqueue(ifp, tx_br, next);
-                fp->eth_q_stats.mbuf_alloc_tx--;
-                fp->eth_q_stats.tx_frames_deferred++;
-            }
-
+            if (next == NULL) {
+                   drbr_advance(ifp, fp->tx_br, qused);
+            } else {
+                   drbr_putback(ifp, fp->tx_br, next, qused);
+                   /*
+                    * Mark the TX queue as full and save
+                    * the frame.
+                    */
+                   ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+                   fp->eth_q_stats.mbuf_alloc_tx--;
+                   fp->eth_q_stats.tx_frames_deferred++;
+           }
             /* stop looking for more work */
             break;
         }
-
+	drbr_advance(ifp, fp->tx_br, qused);
         /* the transmit frame was enqueued successfully */
         tx_count++;
 
@@ -6087,7 +6082,6 @@ bxe_mq_flush(struct ifnet *ifp)
 {
     struct bxe_softc *sc = ifp->if_softc;
     struct bxe_fastpath *fp;
-    struct mbuf *m;
     int i;
 
     for (i = 0; i < sc->num_queues; i++) {
@@ -6102,9 +6096,7 @@ bxe_mq_flush(struct ifnet *ifp)
         if (fp->tx_br != NULL) {
             BLOGD(sc, DBG_LOAD, "Clearing fp[%02d] buf_ring\n", fp->index);
             BXE_FP_TX_LOCK(fp);
-            while ((m = buf_ring_dequeue_sc(fp->tx_br)) != NULL) {
-                m_freem(m);
-            }
+	    drbr_flush(ifp, fp->tx_br);
             BXE_FP_TX_UNLOCK(fp);
         }
     }
@@ -6505,12 +6497,9 @@ bxe_free_fp_buffers(struct bxe_softc *sc)
 
 #if __FreeBSD_version >= 800000
         if (fp->tx_br != NULL) {
-            struct mbuf *m;
             /* just in case bxe_mq_flush() wasn't called */
-            while ((m = buf_ring_dequeue_sc(fp->tx_br)) != NULL) {
-                m_freem(m);
-            }
-            buf_ring_free(fp->tx_br, M_DEVBUF);
+	    drbr_flush(sc->ifnet, fp->tx_br);
+	    drbr_free(fp->tx_br, M_DEVBUF);
             fp->tx_br = NULL;
         }
 #endif
@@ -6771,8 +6760,7 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
         fp = &sc->fp[i];
 
 #if __FreeBSD_version >= 800000
-        fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
-                                   M_NOWAIT, &fp->tx_mtx);
+	fp->tx_br = drbr_alloc(M_DEVBUF, M_NOWAIT, &fp->tx_mtx);
         if (fp->tx_br == NULL) {
             BLOGE(sc, "buf_ring alloc fail for fp[%02d]\n", i);
             goto bxe_alloc_fp_buffers_error;

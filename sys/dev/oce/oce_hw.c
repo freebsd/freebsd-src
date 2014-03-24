@@ -360,8 +360,8 @@ oce_hw_shutdown(POCE_SOFTC sc)
 	/* release PCI resources */
 	oce_hw_pci_free(sc);
 	/* free mbox specific resources */
-	LOCK_DESTROY(&sc->bmbx_lock);
-	LOCK_DESTROY(&sc->dev_lock);
+	LOCK_DESTROY_OCE(&sc->bmbx_lock);
+	LOCK_DESTROY_OCE(&sc->dev_lock);
 
 	oce_dma_free(sc, &sc->bsmbx);
 }

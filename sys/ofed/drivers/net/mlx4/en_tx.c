@@ -39,6 +39,7 @@
 
 #include <net/ethernet.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 #include <sys/mbuf.h>
 
 #include <netinet/in_systm.h>
@@ -78,7 +79,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	mtx_init(&ring->comp_lock.m, "mlx4 comp", NULL, MTX_DEF);
 
 	/* Allocate the buf ring */
-	ring->br = buf_ring_alloc(MLX4_EN_DEF_TX_QUEUE_SIZE, M_DEVBUF,
+	ring->br = drbr_alloc(M_DEVBUF,
 	    M_WAITOK, &ring->tx_lock.m);
 	if (ring->br == NULL) {
 		en_err(priv, "Failed allocating tx_info ring\n");
@@ -155,7 +156,7 @@ err_bounce:
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
 err_tx:
-	buf_ring_free(ring->br, M_DEVBUF);
+	drbr_free(ring->br, M_DEVBUF);
 	kfree(ring->tx_info);
 	ring->tx_info = NULL;
 	return err;
@@ -167,7 +168,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
-	buf_ring_free(ring->br, M_DEVBUF);
+	drbr_free(ring->br, M_DEVBUF);
 	if (ring->bf_enabled)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
@@ -925,6 +926,7 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 	struct mlx4_en_tx_ring *ring;
 	struct mbuf *next;
 	int enqueued, err = 0;
+	uint8_t queue;
 
 	ring = &priv->tx_ring[tx_ind];
 	if ((dev->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
@@ -940,16 +942,16 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 			return (err);
 	}
 	/* Process the queue */
-	while ((next = drbr_peek(dev, ring->br)) != NULL) {
+	while ((next = drbr_peek(dev, ring->br, &queue)) != NULL) {
 		if ((err = mlx4_en_xmit(dev, tx_ind, &next)) != 0) {
 			if (next == NULL) {
-				drbr_advance(dev, ring->br);
+				drbr_advance(dev, ring->br, queue);
 			} else {
-				drbr_putback(dev, ring->br, next);
+				drbr_putback(dev, ring->br, next, queue);
 			}
 			break;
 		}
-		drbr_advance(dev, ring->br);
+		drbr_advance(dev, ring->br, queue);
 		enqueued++;
 		dev->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -1027,12 +1029,10 @@ mlx4_en_qflush(struct ifnet *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring;
-	struct mbuf *m;
 
 	for (int i = 0; i < priv->tx_ring_num; i++, ring++) {
 		spin_lock(&ring->tx_lock);
-		while ((m = buf_ring_dequeue_sc(ring->br)) != NULL)
-			m_freem(m);
+		drbr_flush(dev, ring->br);
 		spin_unlock(&ring->tx_lock);
 	}
 	if_qflush(dev);

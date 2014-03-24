@@ -72,6 +72,7 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/drbr.h>
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
@@ -216,6 +217,9 @@ static void	igb_reset(struct adapter *);
 static int	igb_setup_interface(device_t, struct adapter *);
 static int	igb_allocate_queues(struct adapter *);
 static void	igb_configure_queues(struct adapter *);
+static void 	igb_max_bytes(struct ifnet *, uint64_t max);
+static struct drbr_ring *igb_get_ring(struct ifnet *ifp, int num);
+static int	igb_ring_query(struct ifnet *ifp, struct mbuf *m);
 
 static int	igb_allocate_transmit_buffers(struct tx_ring *);
 static void	igb_setup_transmit_structures(struct adapter *);
@@ -883,6 +887,42 @@ igb_resume(device_t dev)
 	return bus_generic_resume(dev);
 }
 
+void
+igb_max_bytes(struct ifnet *ifp, uint64_t max)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	adapter->ring_bytes_max = max;
+
+}
+
+struct drbr_ring *
+igb_get_ring(struct ifnet *ifp, int num)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	struct tx_ring *txr;
+
+	if (num >= adapter->num_queues) {
+		return (NULL);
+	}
+	if (adapter->tx_rings) {
+		txr = &adapter->tx_rings[num];
+		return (txr->br);
+	} else {
+		return (NULL);
+	}
+}
+
+int
+igb_ring_query(struct ifnet *ifp, struct mbuf *m)
+{
+	struct adapter *adapter = ifp->if_softc;
+	struct tx_ring	*txr;
+	/* For this hack, we only use 0, since adara stuff
+	 * sends out on queue 0 always.
+	 */
+	txr = &adapter->tx_rings[0];
+	return(drbr_is_on_ring(txr->br, m));
+}
 
 #ifdef IGB_LEGACY_TX
 
@@ -1003,6 +1043,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
         int             err = 0, enq = 0;
+	uint8_t		qused;
 
 	IGB_TX_LOCK_ASSERT(txr);
 
@@ -1012,22 +1053,24 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 
 
 	/* Process the queue */
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br, &qused)) != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
 			if (next == NULL) {
 				/* It was freed, move forward */
-				drbr_advance(ifp, txr->br);
+				drbr_advance(ifp, txr->br, qused);
 			} else {
 				/* 
 				 * Still have one left, it may not be
 				 * the same since the transmit function
 				 * may have changed it.
 				 */
-				drbr_putback(ifp, txr->br, next);
+				drbr_putback(ifp, txr->br, next, qused);
 			}
 			break;
 		}
-		drbr_advance(ifp, txr->br);
+		drbr_advance(ifp, txr->br, qused);
+		atomic_add_long(&txr->bytes_on_ring, 
+			 (u_long)next->m_pkthdr.len);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -1035,6 +1078,11 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
+		if (adapter->ring_bytes_max && 
+		    (txr->bytes_on_ring >= adapter->ring_bytes_max)) {
+			break;
+		}
+
 	}
 	if (enq > 0) {
 		/* Set the watchdog */
@@ -1072,12 +1120,10 @@ igb_qflush(struct ifnet *ifp)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct tx_ring	*txr = adapter->tx_rings;
-	struct mbuf	*m;
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		IGB_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txr->br);
 		IGB_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
@@ -3119,6 +3165,9 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 #ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
+	ifp->if_maxbytes = igb_max_bytes;
+	ifp->if_getdrbr_ring = igb_get_ring;
+	ifp->if_mbuf_on_ring = igb_ring_query;
 #else
 	ifp->if_start = igb_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
@@ -3363,7 +3412,7 @@ igb_allocate_queues(struct adapter *adapter)
         	}
 #ifndef IGB_LEGACY_TX
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(igb_buf_ring_size, M_DEVBUF,
+		txr->br = drbr_alloc(M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 #endif
 	}
@@ -3423,7 +3472,7 @@ err_tx_desc:
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
 #ifndef IGB_LEGACY_TX
-	buf_ring_free(txr->br, M_DEVBUF);
+	drbr_free(txr->br, M_DEVBUF);
 #endif
 	free(adapter->tx_rings, M_DEVBUF);
 tx_fail:
@@ -3541,6 +3590,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
+	txr->bytes_on_ring = 0;
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3682,7 +3732,7 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 	}
 #ifndef IGB_LEGACY_TX
 	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
+		drbr_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -4016,6 +4066,8 @@ igb_txeof(struct tx_ring *txr)
 			if (buf->m_head) {
 				txr->bytes +=
 				    buf->m_head->m_pkthdr.len;
+				atomic_subtract_long(&txr->bytes_on_ring,
+				    (uint64_t)buf->m_head->m_pkthdr.len);
 				bus_dmamap_sync(txr->txtag,
 				    buf->map,
 				    BUS_DMASYNC_POSTWRITE);
@@ -5639,7 +5691,7 @@ igb_add_hw_stats(struct adapter *adapter)
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
-
+		drbr_add_sysctl_stats(dev, queue_list, txr->br);
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate", 
 				CTLFLAG_RD, &adapter->queues[i],
 				sizeof(&adapter->queues[i]),

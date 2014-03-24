@@ -3081,6 +3081,7 @@ net/bridgestp.c			optional bridge | if_bridge
 net/flowtable.c			optional flowtable inet | flowtable inet6
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
+net/drbr.c			standard
 net/if_arcsubr.c		optional arcnet
 net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional bridge inet | if_bridge inet

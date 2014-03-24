@@ -278,6 +278,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
 	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+	m->m_pkthdr.cosqos = 0; /* Highest Priority */
 	(*ifp->if_output)(ifp, m, &sa, NULL);
 	ARPSTAT_INC(txrequests);
 }

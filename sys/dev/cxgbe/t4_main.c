@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/drbr.h>
 #include <net/if_vlan_var.h>
 #if defined(__i386__) || defined(__amd64__)
 #include <vm/vm.h>
@@ -1284,7 +1285,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct sge_txq *txq = &sc->sge.txq[pi->first_txq];
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	int rc;
 
 	M_ASSERTPKTHDR(m);
@@ -1326,7 +1327,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
-	if (drbr_needs_enqueue(ifp, br) || txq->m) {
+	if (txq->m) {
 
 		/* Queued for transmission. */
 
@@ -1352,7 +1353,6 @@ cxgbe_qflush(struct ifnet *ifp)
 	struct port_info *pi = ifp->if_softc;
 	struct sge_txq *txq;
 	int i;
-	struct mbuf *m;
 
 	/* queues do not exist if !PORT_INIT_DONE. */
 	if (pi->flags & PORT_INIT_DONE) {
@@ -1360,8 +1360,7 @@ cxgbe_qflush(struct ifnet *ifp)
 			TXQ_LOCK(txq);
 			m_freem(txq->m);
 			txq->m = NULL;
-			while ((m = buf_ring_dequeue_sc(txq->br)) != NULL)
-				m_freem(m);
+			drbr_flush(ifp, txq->br);
 			TXQ_UNLOCK(txq);
 		}
 	}
@@ -4125,7 +4124,7 @@ cxgbe_tick(void *arg)
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
-		drops += txq->br->br_drops;
+		drops += drbr_get_dropcnt(txq->br);
 	ifp->if_oqdrops = drops;
 
 	ifp->if_oerrors = s->tx_error_frames;
@@ -6616,7 +6615,7 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 static inline void
 txq_start(struct ifnet *ifp, struct sge_txq *txq)
 {
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	struct mbuf *m;
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
@@ -7857,7 +7856,6 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 				txq->txpkt_wrs = 0;
 				txq->txpkts_wrs = 0;
 				txq->txpkts_pkts = 0;
-				txq->br->br_drops = 0;
 				txq->no_dmamap = 0;
 				txq->no_desc = 0;
 			}

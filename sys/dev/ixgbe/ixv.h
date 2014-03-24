@@ -61,6 +61,7 @@
 #include <net/bpf.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -267,7 +268,7 @@ struct tx_ring {
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
-	struct buf_ring		*br;
+	struct drbr_ring	*br;
 	/* Soft Stats */
 	u32			bytes;
 	u32			packets;

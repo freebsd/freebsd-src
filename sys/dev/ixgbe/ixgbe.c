@@ -845,7 +845,8 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
         int             enqueued = 0, err = 0;
-
+	uint8_t		qused;
+	
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
 	    adapter->link_active == 0)
 		return (ENETDOWN);
@@ -858,18 +859,18 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 			if (next != NULL)
 				err = drbr_enqueue(ifp, txr->br, next);
 #else
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br, &qused)) != NULL) {
 		if ((err = ixgbe_xmit(txr, &next)) != 0) {
 			if (next == NULL) {
-				drbr_advance(ifp, txr->br);
+				drbr_advance(ifp, txr->br, qused);
 			} else {
-				drbr_putback(ifp, txr->br, next);
+				drbr_putback(ifp, txr->br, next, qused);
 			}
 #endif
 			break;
 		}
 #if __FreeBSD_version >= 901504
-		drbr_advance(ifp, txr->br);
+		drbr_advance(ifp, txr->br, qused);
 #endif
 		enqueued++;
 		/* Send a copy of the frame to the BPF listener */
@@ -917,12 +918,10 @@ ixgbe_qflush(struct ifnet *ifp)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct tx_ring	*txr = adapter->tx_rings;
-	struct mbuf	*m;
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		IXGBE_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txr->br);
 		IXGBE_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
@@ -2887,7 +2886,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
         	}
 #ifndef IXGBE_LEGACY_TX
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IXGBE_BR_SIZE, M_DEVBUF,
+		txr->br = drbr_alloc(M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 		if (txr->br == NULL) {
 			device_printf(dev,
@@ -3249,7 +3248,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 	}
 #ifdef IXGBE_LEGACY_TX
 	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
+		drbr_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);

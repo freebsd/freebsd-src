@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>	
 #include <net/ethernet.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -1684,7 +1685,7 @@ cxgb_transmit_locked(struct ifnet *ifp, struct sge_qset *qs, struct mbuf *m)
 {
 	struct port_info *pi = qs->port;
 	struct sge_txq *txq = &qs->txq[TXQ_ETH];
-	struct buf_ring *br = txq->txq_mr;
+	struct drbr_ring *br = txq->txq_mr;
 	int error, avail;
 
 	avail = txq->size - txq->in_use;
@@ -1980,7 +1981,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	
 	reclaim_completed_tx(q, 0, TXQ_ETH);
 	if (q->txq[TXQ_ETH].txq_mr != NULL) 
-		buf_ring_free(q->txq[TXQ_ETH].txq_mr, M_DEVBUF);
+		drbr_free(q->txq[TXQ_ETH].txq_mr, M_DEVBUF);
 	if (q->txq[TXQ_ETH].txq_ifq != NULL) {
 		ifq_delete(q->txq[TXQ_ETH].txq_ifq);
 		free(q->txq[TXQ_ETH].txq_ifq, M_DEVBUF);
@@ -2430,8 +2431,8 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->port = pi;
 	q->adap = sc;
 
-	if ((q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
-	    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
+	if ((q->txq[TXQ_ETH].txq_mr = drbr_alloc(M_DEVBUF, M_WAITOK, 
+	    &q->lock)) == NULL) {
 		device_printf(sc->dev, "failed to allocate mbuf ring\n");
 		goto err;
 	}
@@ -3523,9 +3524,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
 			    0, t3_dump_rspq, "A", "dump of the response queue");
 
-			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
+/* RRS FIXME    	SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "dropped",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
-			    "#tunneled packets dropped");
+			    "#tunneled packets dropped");*/
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");

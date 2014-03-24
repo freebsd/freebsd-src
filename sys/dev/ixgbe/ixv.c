@@ -603,6 +603,7 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
         int             enqueued, err = 0;
+	uint8_t 	qused;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || adapter->link_active == 0) {
@@ -623,16 +624,16 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		}
 	}
 	/* Process the queue */
-	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br, &qused)) != NULL) {
 		if ((err = ixv_xmit(txr, &next)) != 0) {
 			if (next == NULL) {
-				drbr_advance(ifp, txr->br);
+				drbr_advance(ifp, txr->br, qused);
 			} else {
-				drbr_putback(ifp, txr->br, next);
+				drbr_putback(ifp, txr->br, next, qused);
 			}
 			break;
 		}
-		drbr_advance(ifp, txr->br);
+		drbr_advance(ifp, txr->br, qused);
 		enqueued++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -664,12 +665,10 @@ ixv_qflush(struct ifnet *ifp)
 {
 	struct adapter  *adapter = ifp->if_softc;
 	struct tx_ring  *txr = adapter->tx_rings;
-	struct mbuf     *m;
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		IXV_TX_LOCK(txr);
-		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txr->br);
 		IXV_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
@@ -2053,8 +2052,7 @@ ixv_allocate_queues(struct adapter *adapter)
         	}
 #if __FreeBSD_version >= 800000
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IXV_BR_SIZE, M_DEVBUF,
-		    M_WAITOK, &txr->tx_mtx);
+		txr->br = drbr_alloc(M_DEVBUF, M_WAITOK, &txr->tx_mtx);
 		if (txr->br == NULL) {
 			device_printf(dev,
 			    "Critical Failure setting up buf ring\n");
@@ -2355,7 +2353,7 @@ ixv_free_transmit_buffers(struct tx_ring *txr)
 	}
 #if __FreeBSD_version >= 800000
 	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
+		drbr_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);

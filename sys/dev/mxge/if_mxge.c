@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/zlib.h>
+#include <net/drbr.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -2243,14 +2244,12 @@ mxge_qflush(struct ifnet *ifp)
 {
 	mxge_softc_t *sc = ifp->if_softc;
 	mxge_tx_ring_t *tx;
-	struct mbuf *m;
 	int slice;
 
 	for (slice = 0; slice < sc->num_slices; slice++) {
 		tx = &sc->ss[slice].tx;
 		mtx_lock(&tx->mtx);
-		while ((m = buf_ring_dequeue_sc(tx->br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, tx->br);
 		mtx_unlock(&tx->mtx);
 	}
 	if_qflush(ifp);
@@ -4058,7 +4057,7 @@ mxge_update_stats(mxge_softc_t *sc)
 #ifdef IFNET_BUF_RING
 		obytes += ss->obytes;
 		omcasts += ss->omcasts;
-		odrops += ss->tx.br->br_drops;
+		odrops += drbr_get_dropcnt(ss->tx.br);
 #endif
 		oerrors += ss->oerrors;
 	}
@@ -4434,7 +4433,7 @@ mxge_alloc_slices(mxge_softc_t *sc)
 			 "%s:tx(%d)", device_get_nameunit(sc->dev), i);
 		mtx_init(&ss->tx.mtx, ss->tx.mtx_name, NULL, MTX_DEF);
 #ifdef IFNET_BUF_RING
-		ss->tx.br = buf_ring_alloc(2048, M_DEVBUF, M_WAITOK,
+		ss->tx.br = drbr_alloc(M_DEVBUF, M_WAITOK,
 					   &ss->tx.mtx);
 #endif
 	}

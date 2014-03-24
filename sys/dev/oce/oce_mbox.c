@@ -345,7 +345,7 @@ oce_mbox_post(POCE_SOFTC sc, struct oce_mbx *mbx, struct oce_mbx_ctx *mbxctx)
 	uint32_t cstatus = 0;
 	uint32_t xstatus = 0;
 
-	LOCK(&sc->bmbx_lock);
+	LOCK_OCE(&sc->bmbx_lock);
 
 	mb = OCE_DMAPTR(&sc->bsmbx, struct oce_bmbx);
 	mb_mbx = &mb->mbx;
@@ -387,7 +387,7 @@ oce_mbox_post(POCE_SOFTC sc, struct oce_mbx *mbx, struct oce_mbx_ctx *mbxctx)
 		}
 	}
 
-	UNLOCK(&sc->bmbx_lock);
+	UNLOCK_OCE(&sc->bmbx_lock);
 
 	return rc;
 }

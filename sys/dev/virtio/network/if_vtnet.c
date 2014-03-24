@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
+#include <net/drbr.h>
 
 #include <net/bpf.h>
 
@@ -708,7 +709,7 @@ vtnet_init_txq(struct vtnet_softc *sc, int id)
 		return (ENOMEM);
 
 #ifndef VTNET_LEGACY_TX
-	txq->vtntx_br = buf_ring_alloc(VTNET_DEFAULT_BUFRING_SIZE, M_DEVBUF,
+	txq->vtntx_br = drbr_alloc(M_DEVBUF,
 	    M_NOWAIT, &txq->vtntx_mtx);
 	if (txq->vtntx_br == NULL)
 		return (ENOMEM);
@@ -782,7 +783,7 @@ vtnet_destroy_txq(struct vtnet_txq *txq)
 
 #ifndef VTNET_LEGACY_TX
 	if (txq->vtntx_br != NULL) {
-		buf_ring_free(txq->vtntx_br, M_DEVBUF);
+		drbr_free(txq->vtntx_br, M_DEVBUF);
 		txq->vtntx_br = NULL;
 	}
 #endif
@@ -2231,9 +2232,10 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
-	struct buf_ring *br;
+	struct drbr_ring *br;
 	struct ifnet *ifp;
 	int enq, error;
+	uint8_t qnum;
 
 	sc = txq->vtntx_sc;
 	vq = txq->vtntx_vq;
@@ -2259,7 +2261,7 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 
 	vtnet_txq_eof(txq);
 
-	while ((m = drbr_peek(ifp, br)) != NULL) {
+	while ((m = drbr_peek(ifp, br, &qnum)) != NULL) {
 		if (virtqueue_full(vq)) {
 			drbr_putback(ifp, br, m);
 			error = ENOBUFS;
@@ -2269,12 +2271,12 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 		error = vtnet_txq_encap(txq, &m);
 		if (error) {
 			if (m != NULL)
-				drbr_putback(ifp, br, m);
+				drbr_putback(ifp, br, m, qnum);
 			else
-				drbr_advance(ifp, br);
+				drbr_advance(ifp, br, qnum);
 			break;
 		}
-		drbr_advance(ifp, br);
+		drbr_advance(ifp, br, qnum);
 
 		enq++;
 		ETHER_BPF_MTAP(ifp, m);
@@ -2483,7 +2485,6 @@ vtnet_qflush(struct ifnet *ifp)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
-	struct mbuf *m;
 	int i;
 
 	sc = ifp->if_softc;
@@ -2492,8 +2493,7 @@ vtnet_qflush(struct ifnet *ifp)
 		txq = &sc->vtnet_txqs[i];
 
 		VTNET_TXQ_LOCK(txq);
-		while ((m = buf_ring_dequeue_sc(txq->vtntx_br)) != NULL)
-			m_freem(m);
+		drbr_flush(ifp, txq->vtntx_br);
 		VTNET_TXQ_UNLOCK(txq);
 	}
 

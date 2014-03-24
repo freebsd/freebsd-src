@@ -253,12 +253,11 @@ oce_wq *oce_wq_init(POCE_SOFTC sc, uint32_t q_len, uint32_t wq_type)
 		goto free_wq;
 
 
-	LOCK_CREATE(&wq->tx_lock, "TX_lock");
+	LOCK_CREATE_OCE(&wq->tx_lock, "TX_lock");
 	
 #if __FreeBSD_version >= 800000
 	/* Allocate buf ring for multiqueue*/
-	wq->br = buf_ring_alloc(4096, M_DEVBUF,
-			M_WAITOK, &wq->tx_lock.mutex);
+	wq->br = drbr_alloc(M_DEVBUF, M_WAITOK, &wq->tx_lock.mutex);
 	if (!wq->br)
 		goto free_wq;
 #endif
@@ -301,9 +300,9 @@ oce_wq_free(struct oce_wq *wq)
 	if (wq->tag != NULL)
 		bus_dma_tag_destroy(wq->tag);
 	if (wq->br != NULL)
-		buf_ring_free(wq->br, M_DEVBUF);
+		drbr_free(wq->br, M_DEVBUF);
 
-	LOCK_DESTROY(&wq->tx_lock);
+	LOCK_DESTROY_OCE(&wq->tx_lock);
 	free(wq, M_DEVBUF);
 }
 
@@ -451,7 +450,7 @@ oce_rq *oce_rq_init(POCE_SOFTC sc,
 	if (!rq->ring)
 		goto free_rq;
 
-	LOCK_CREATE(&rq->rx_lock, "RX_lock");
+	LOCK_CREATE_OCE(&rq->rx_lock, "RX_lock");
 
 	return rq;
 
@@ -493,7 +492,7 @@ oce_rq_free(struct oce_rq *rq)
 	if (rq->tag != NULL)
 		bus_dma_tag_destroy(rq->tag);
 
-	LOCK_DESTROY(&rq->rx_lock);
+	LOCK_DESTROY_OCE(&rq->rx_lock);
 	free(rq, M_DEVBUF);
 }
 
