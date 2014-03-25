@@ -66,9 +66,10 @@ struct auth_portal {
 };
 
 #define	AG_TYPE_UNKNOWN			0
-#define	AG_TYPE_NO_AUTHENTICATION	1
-#define	AG_TYPE_CHAP			2
-#define	AG_TYPE_CHAP_MUTUAL		3
+#define	AG_TYPE_DENY			1
+#define	AG_TYPE_NO_AUTHENTICATION	2
+#define	AG_TYPE_CHAP			3
+#define	AG_TYPE_CHAP_MUTUAL		4
 
 struct auth_group {
 	TAILQ_ENTRY(auth_group)		ag_next;

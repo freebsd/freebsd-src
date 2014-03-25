@@ -1034,6 +1034,11 @@ login(struct connection *conn)
 		return;
 	}
 
+	if (ag->ag_type == AG_TYPE_DENY) {
+		login_send_error(request, 0x02, 0x01);
+		log_errx(1, "auth-group type is \"deny\"");
+	}
+
 	if (ag->ag_type == AG_TYPE_UNKNOWN) {
 		/*
 		 * This can happen with empty auth-group.
