@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2013
+.Dd November 13, 2013
 .Dt LOADER.4TH 8
 .Os
 .Sh NAME
@@ -158,6 +158,13 @@ files to specify the action after a module loading fails.
 Used inside
 .Xr loader.conf 5
 files to specify the action after a module loading fails.
+.It Ic try-include Ar file Op Ar
+Process script files if they exist.
+Each file, in turn, is completely read into memory,
+and then each of its lines is passed to the command line interpreter.
+If any error is returned by the interpreter, the try-include
+command aborts immediately, without reading any other files, and
+silently returns without error.
 .El
 .Sh FILES
 .Bl -tag -width /boot/loader.4th -compact
