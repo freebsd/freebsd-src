@@ -98,29 +98,38 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RW,
     &maxcmdsn_delta, 256, "Number of commands the initiator can send "
     "without confirmation");
 
-#define	CFISCSI_DEBUG(X, ...)					\
-	if (debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	CFISCSI_DEBUG(X, ...)						\
+	do {								\
+		if (debug > 1) {					\
+			printf("%s: " X "\n",				\
+			    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
-#define	CFISCSI_WARN(X, ...)					\
-	if (debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	CFISCSI_WARN(X, ...)						\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+			    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
-#define	CFISCSI_SESSION_DEBUG(S, X, ...)			\
-	if (debug > 1) {					\
-		printf("%s: %s (%s): " X "\n",			\
-		    __func__, S->cs_initiator_addr,		\
-		    S->cs_initiator_name, ## __VA_ARGS__);	\
+#define	CFISCSI_SESSION_DEBUG(S, X, ...)				\
+	do {								\
+		if (debug > 1) {					\
+			printf("%s: %s (%s): " X "\n",			\
+			    __func__, S->cs_initiator_addr,		\
+			    S->cs_initiator_name, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
-#define	CFISCSI_SESSION_WARN(S, X, ...)				\
-	if (debug > 0) {					\
-		printf("WARNING: %s (%s): " X "\n",		\
-		    S->cs_initiator_addr,			\
-		    S->cs_initiator_name, ## __VA_ARGS__);	\
+#define	CFISCSI_SESSION_WARN(S, X, ...)					\
+	do  {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s (%s): " X "\n",		\
+			    S->cs_initiator_addr,			\
+			    S->cs_initiator_name, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
 #define CFISCSI_SESSION_LOCK(X)		mtx_lock(&X->cs_lock)
