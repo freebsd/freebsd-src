@@ -146,6 +146,9 @@ struct conf {
 
 	uint16_t			conf_last_portal_group_tag;
 	struct pidfh			*conf_pidfh;
+
+	bool				conf_default_pg_defined;
+	bool				conf_default_ag_defined;
 };
 
 #define	CONN_SESSION_TYPE_NONE		0
