@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140325:
+	It is no longer necessary to include the dwarf version in your DEBUG
+	options in your kernel config file. The bug that required it to be
+	placed in the config file has bene fixed. DEBUG should now just
+	contain -g. The build system will automatically update things
+	to do the right thing. Ignore the entry from 20140216.
+
 20140306:
 	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
 	to improve performance.  To re-enable it, if needed, run rpcbind
@@ -44,16 +51,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	to do so. Set WITHOUT_GPL_DTC if you require the BSDL compiler.
 
 20140216:
-	Clang and llvm have been upgraded to 3.4 release.  Please note that
-	clang 3.4 now defaults to DWARF4 debug information format when you
-	specify -g.  Since kgdb(1) only supports DWARF2, you should update any
-	customized kernel configurations which include debug information to
-	explicitly use -gdwarf-2, e.g:
+	Clang and llvm have been upgraded to 3.4 release.
+
+	Please note that clang 3.4 now defaults to DWARF4 debug information
+	format when you specify -g.  Since kgdb(1) only supports DWARF2, you
+	should update any customized kernel configurations which include debug
+	information to explicitly use -gdwarf-2, e.g:
 
 	  makeoptions	DEBUG=-gdwarf-2
 
 	This has already been applied to the appropriate GENERIC configuration
 	files, so if you inherit from those, no changes are required.
+	Please note: this bug has been fixed, please see 20140325.
 
 20140216:
 	The nve(4) driver has been removed.  Please use the nfe(4) driver
