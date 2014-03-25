@@ -1057,8 +1057,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		if (newtarg == NULL) {
 			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
 			    tmplun) {
-				log_debugx("target %s not found in the "
-				    "configuration file; removing its lun %d, "
+				log_debugx("target %s not found in new "
+				    "configuration; removing its lun %d, "
 				    "backed by CTL lun %d",
 				    oldtarg->t_iqn, oldlun->l_lun,
 				    oldlun->l_ctl_lun);
@@ -1084,7 +1084,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			newlun = lun_find(newtarg, oldlun->l_lun);
 			if (newlun == NULL) {
 				log_debugx("lun %d, target %s, CTL lun %d "
-				    "not found in the configuration file; "
+				    "not found in new configuration; "
 				    "removing", oldlun->l_lun, oldtarg->t_iqn,
 				    oldlun->l_ctl_lun);
 				error = kernel_lun_remove(oldlun);
