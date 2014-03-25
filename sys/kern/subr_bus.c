@@ -421,8 +421,6 @@ static int
 devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 
-	if (devsoftc.inuse)
-		return (EBUSY);
 	mtx_lock(&devsoftc.mtx);
 	if (devsoftc.inuse) {
 		mtx_unlock(&devsoftc.mtx);
