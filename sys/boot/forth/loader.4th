@@ -41,6 +41,7 @@ s" arch-i386" environment? [if] [if]
 
 include /boot/support.4th
 include /boot/color.4th
+include /boot/delay.4th
 
 only forth also support-functions also builtins definitions
 
@@ -141,8 +142,17 @@ include /boot/check-password.4th
   \ Will *NOT* try to load kernel and modules if no configuration file
   \ was succesfully loaded!
   any_conf_read? if
-    load_kernel
-    load_modules
+    s" loader_delay" getenv -1 = if
+      load_kernel
+      load_modules
+    else
+      drop
+      ." Loading Kernel and Modules (Ctrl-C to Abort)" cr
+      s" also support-functions" evaluate
+      s" set delay_command='load_kernel load_modules'" evaluate
+      s" set delay_showdots" evaluate
+      delay_execute
+    then
   then
 ;
 
