@@ -490,6 +490,21 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 			devsoftc.nonblock = 0;
 		return (0);
 	case FIOASYNC:
+		/*
+		 * FIXME:
+		 * Since this is a simple assignment there is no guarantee that
+		 * devsoftc.async_proc consumers will get a valid pointer.
+		 *
+		 * Example scenario where things break (processes A and B):
+		 * 1. A opens devctl
+		 * 2. A sends fd to B
+		 * 3. B sets itself as async_proc
+		 * 4. B exits
+		 *
+		 * However, normally this requires root privileges and the only
+		 * in-tree consumer does not behave in a dangerous way so the
+		 * issue is not critical.
+		 */
 		if (*(int*)data)
 			devsoftc.async_proc = td->td_proc;
 		else
@@ -575,6 +590,7 @@ devctl_queue_data_f(char *data, int flags)
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
+	/* XXX see a comment in devioctl */
 	p = devsoftc.async_proc;
 	if (p != NULL) {
 		PROC_LOCK(p);
