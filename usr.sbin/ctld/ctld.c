@@ -1644,14 +1644,6 @@ main(int argc, char **argv)
 		newconf->conf_debug = debug;
 	}
 
-	if (dont_daemonize == false) {
-		if (daemon(0, 0) == -1) {
-			log_warn("cannot daemonize");
-			pidfile_remove(newconf->conf_pidfh);
-			exit(1);
-		}
-	}
-
 #ifdef ICL_KERNEL_PROXY
 	log_debugx("enabling CTL iSCSI port");
 	error = kernel_port_on();
@@ -1673,6 +1665,15 @@ main(int argc, char **argv)
 	if (error != 0)
 		log_errx(1, "failed to enable CTL iSCSI port, exiting");
 #endif
+
+	if (dont_daemonize == false) {
+		log_debugx("daemonizing");
+		if (daemon(0, 0) == -1) {
+			log_warn("cannot daemonize");
+			pidfile_remove(newconf->conf_pidfh);
+			exit(1);
+		}
+	}
 
 	for (;;) {
 		main_loop(newconf, dont_daemonize);
