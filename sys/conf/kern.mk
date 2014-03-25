@@ -164,8 +164,10 @@ CFLAGS+=	-fstack-protector
 .endif
 
 #
-# Add -gdwarf-2 when compiling -g
+# Add -gdwarf-2 when compiling -g on clang. The default starting in v3.4
+# is to generate DWARF version 4. However, our tools don't cope well with
+# DWARF 4, so force it to genereate DWARF2, which they understand.
 #
-.if ${COMPILER_TYPE} == "clang" && ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf} == ""
+.if ${COMPILER_TYPE} == "clang" && ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf*} == ""
 CFLAGS+=	-gdwarf-2
 .endif
