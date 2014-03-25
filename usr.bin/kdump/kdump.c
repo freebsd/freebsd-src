@@ -117,6 +117,11 @@ void limitfd(int fd);
 void usage(void);
 void ioctlname(unsigned long, int);
 
+#define	TIMESTAMP_NONE		0x0
+#define	TIMESTAMP_ABSOLUTE	0x1
+#define	TIMESTAMP_ELAPSED	0x2
+#define	TIMESTAMP_RELATIVE	0x4
+
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
     resolv = 0, abiflag = 0;
 const char *tracefile = DEF_TRACEFILE;
@@ -254,6 +259,8 @@ main(int argc, char *argv[])
 
 	setlocale(LC_CTYPE, "");
 
+	timestamp = TIMESTAMP_NONE;
+
 	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrsTt:")) != -1)
 		switch (ch) {
 		case 'A':
@@ -284,16 +291,16 @@ main(int argc, char *argv[])
 			suppressdata = 1;
 			break;
 		case 'E':
-			timestamp = 3;	/* elapsed timestamp */
+			timestamp |= TIMESTAMP_ELAPSED;
 			break;
 		case 'H':
 			threads = 1;
 			break;
 		case 'R':
-			timestamp = 2;	/* relative timestamp */
+			timestamp |= TIMESTAMP_RELATIVE;
 			break;
 		case 'T':
-			timestamp = 1;
+			timestamp |= TIMESTAMP_ABSOLUTE;
 			break;
 		case 't':
 			trpoints = getpoints(optarg);
@@ -567,7 +574,7 @@ void
 dumpheader(struct ktr_header *kth)
 {
 	static char unknown[64];
-	static struct timeval prevtime, temp;
+	static struct timeval prevtime, prevtime_e, temp;
 	const char *type;
 
 	switch (kth->ktr_type) {
@@ -631,19 +638,26 @@ dumpheader(struct ktr_header *kth)
 	else
 		printf("%6jd %-8.*s ", (intmax_t)kth->ktr_pid, MAXCOMLEN,
 		    kth->ktr_comm);
-	if (timestamp) {
-		if (timestamp == 3) {
-			if (prevtime.tv_sec == 0)
-				prevtime = kth->ktr_time;
-			timevalsub(&kth->ktr_time, &prevtime);
+        if (timestamp) {
+		if (timestamp & TIMESTAMP_ABSOLUTE) {
+			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+			    kth->ktr_time.tv_usec);
 		}
-		if (timestamp == 2) {
+		if (timestamp & TIMESTAMP_ELAPSED) {
+			if (prevtime_e.tv_sec == 0)
+				prevtime_e = kth->ktr_time;
+			timevalsub(&kth->ktr_time, &prevtime_e);
+			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+			    kth->ktr_time.tv_usec);
+			timevaladd(&kth->ktr_time, &prevtime_e);
+		}
+		if (timestamp & TIMESTAMP_RELATIVE) {
 			temp = kth->ktr_time;
 			timevalsub(&kth->ktr_time, &prevtime);
 			prevtime = temp;
+			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+			    kth->ktr_time.tv_usec);
 		}
-		printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
-		    kth->ktr_time.tv_usec);
 	}
 	printf("%s  ", type);
 }
