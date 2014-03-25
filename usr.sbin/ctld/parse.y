@@ -132,7 +132,17 @@ auth_group:	AUTH_GROUP auth_group_name
 
 auth_group_name:	STR
 	{
-		auth_group = auth_group_new(conf, $1);
+		/*
+		 * Make it possible to redefine default
+		 * auth-group. but only once.
+		 */
+		if (strcmp($1, "default") == 0 &&
+		    conf->conf_default_ag_defined == false) {
+			auth_group = auth_group_find(conf, $1);
+			conf->conf_default_ag_defined = true;
+		} else {
+			auth_group = auth_group_new(conf, $1);
+		}
 		free($1);
 		if (auth_group == NULL)
 			return (1);
@@ -712,6 +722,9 @@ conf_new_from_file(const char *path)
 
 	conf = conf_new();
 
+	ag = auth_group_new(conf, "default");
+	assert(ag != NULL);
+
 	ag = auth_group_new(conf, "no-authentication");
 	assert(ag != NULL);
 	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
@@ -745,6 +758,14 @@ conf_new_from_file(const char *path)
 	if (error != 0) {
 		conf_delete(conf);
 		return (NULL);
+	}
+
+	if (conf->conf_default_ag_defined == false) {
+		log_debugx("auth-group \"default\" not defined; "
+		    "going with defaults");
+		ag = auth_group_find(conf, "default");
+		assert(ag != NULL);
+		ag->ag_type = AG_TYPE_CHAP;
 	}
 
 	if (conf->conf_default_pg_defined == false) {
