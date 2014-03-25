@@ -149,6 +149,94 @@ auth_find(struct auth_group *ag, const char *user)
 	return (NULL);
 }
 
+const struct auth_name *
+auth_name_new(struct auth_group *ag, const char *name)
+{
+	struct auth_name *an;
+
+	an = calloc(1, sizeof(*an));
+	if (an == NULL)
+		log_err(1, "calloc");
+	an->an_auth_group = ag;
+	an->an_initator_name = checked_strdup(name);
+	TAILQ_INSERT_TAIL(&ag->ag_names, an, an_next);
+	return (an);
+}
+
+static void
+auth_name_delete(struct auth_name *an)
+{
+	TAILQ_REMOVE(&an->an_auth_group->ag_names, an, an_next);
+
+	free(an->an_initator_name);
+	free(an);
+}
+
+bool
+auth_name_defined(const struct auth_group *ag)
+{
+	if (TAILQ_EMPTY(&ag->ag_names))
+		return (false);
+	return (true);
+}
+
+const struct auth_name *
+auth_name_find(const struct auth_group *ag, const char *name)
+{
+	const struct auth_name *auth_name;
+
+	TAILQ_FOREACH(auth_name, &ag->ag_names, an_next) {
+		if (strcmp(auth_name->an_initator_name, name) == 0)
+			return (auth_name);
+	}
+
+	return (NULL);
+}
+
+const struct auth_portal *
+auth_portal_new(struct auth_group *ag, const char *portal)
+{
+	struct auth_portal *ap;
+
+	ap = calloc(1, sizeof(*ap));
+	if (ap == NULL)
+		log_err(1, "calloc");
+	ap->ap_auth_group = ag;
+	ap->ap_initator_portal = checked_strdup(portal);
+	TAILQ_INSERT_TAIL(&ag->ag_portals, ap, ap_next);
+	return (ap);
+}
+
+static void
+auth_portal_delete(struct auth_portal *ap)
+{
+	TAILQ_REMOVE(&ap->ap_auth_group->ag_portals, ap, ap_next);
+
+	free(ap->ap_initator_portal);
+	free(ap);
+}
+
+bool
+auth_portal_defined(const struct auth_group *ag)
+{
+	if (TAILQ_EMPTY(&ag->ag_portals))
+		return (false);
+	return (true);
+}
+
+const struct auth_portal *
+auth_portal_find(const struct auth_group *ag, const char *portal)
+{
+	const struct auth_portal *auth_portal;
+
+	TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next) {
+		if (strcmp(auth_portal->ap_initator_portal, portal) == 0)
+			return (auth_portal);
+	}
+
+	return (NULL);
+}
+
 struct auth_group *
 auth_group_new(struct conf *conf, const char *name)
 {
@@ -168,6 +256,8 @@ auth_group_new(struct conf *conf, const char *name)
 	if (name != NULL)
 		ag->ag_name = checked_strdup(name);
 	TAILQ_INIT(&ag->ag_auths);
+	TAILQ_INIT(&ag->ag_names);
+	TAILQ_INIT(&ag->ag_portals);
 	ag->ag_conf = conf;
 	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
 
@@ -177,12 +267,19 @@ auth_group_new(struct conf *conf, const char *name)
 void
 auth_group_delete(struct auth_group *ag)
 {
-	struct auth *auth, *tmp;
+	struct auth *auth, *auth_tmp;
+	struct auth_name *auth_name, *auth_name_tmp;
+	struct auth_portal *auth_portal, *auth_portal_tmp;
 
 	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
 
-	TAILQ_FOREACH_SAFE(auth, &ag->ag_auths, a_next, tmp)
+	TAILQ_FOREACH_SAFE(auth, &ag->ag_auths, a_next, auth_tmp)
 		auth_delete(auth);
+	TAILQ_FOREACH_SAFE(auth_name, &ag->ag_names, an_next, auth_name_tmp)
+		auth_name_delete(auth_name);
+	TAILQ_FOREACH_SAFE(auth_portal, &ag->ag_portals, ap_next,
+	    auth_portal_tmp)
+		auth_portal_delete(auth_portal);
 	free(ag->ag_name);
 	free(ag);
 }
@@ -832,6 +929,8 @@ conf_print(struct conf *conf)
 {
 	struct auth_group *ag;
 	struct auth *auth;
+	struct auth_name *auth_name;
+	struct auth_portal *auth_portal;
 	struct portal_group *pg;
 	struct portal *portal;
 	struct target *targ;
@@ -844,6 +943,12 @@ conf_print(struct conf *conf)
 			fprintf(stderr, "\t chap-mutual %s %s %s %s\n",
 			    auth->a_user, auth->a_secret,
 			    auth->a_mutual_user, auth->a_mutual_secret);
+		TAILQ_FOREACH(auth_name, &ag->ag_names, an_next)
+			fprintf(stderr, "\t initiator-name %s\n",
+			    auth_name->an_initator_name);
+		TAILQ_FOREACH(auth_portal, &ag->ag_portals, an_next)
+			fprintf(stderr, "\t initiator-portal %s\n",
+			    auth_portal->an_initator_portal);
 		fprintf(stderr, "}\n");
 	}
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
