@@ -148,9 +148,10 @@ Assigns human-readable description to that target.
 There is no default.
 .It Ic auth-group Aq Ar name
 Assigns previously defined authentication group to that target.
-There is no default; every target must use either auth-group,
-or chap, or chap-mutual statements.
-A special auth-group, "no-authentication", may be used to permit access
+By default, targets that do not specify their own auth settings,
+using clauses such as "chap" or "initiator-name", are assigned
+predefined auth-group "default", which denies all access.
+Another predefined auth-group, "no-authentication", may be used to permit access
 without authentication.
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
