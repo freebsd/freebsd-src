@@ -873,6 +873,7 @@ static int
 conf_verify_lun(struct lun *lun)
 {
 	const struct lun *lun2;
+	const struct target *targ2;
 
 	if (lun->l_backend == NULL)
 		lun_set_backend(lun, "block");
@@ -901,16 +902,6 @@ conf_verify_lun(struct lun *lun)
 		    lun->l_target->t_iqn);
 		return (1);
 	}
-#if 1 /* Should we? */
-	TAILQ_FOREACH(lun2, &lun->l_target->t_luns, l_next) {
-		if (lun == lun2)
-			continue;
-		if (lun->l_path != NULL && lun2->l_path != NULL &&
-		    strcmp(lun->l_path, lun2->l_path) == 0)
-			log_debugx("WARNING: duplicate path for lun %d, "
-			    "target \"%s\"", lun->l_lun, lun->l_target->t_iqn);
-	}
-#endif
 	if (lun->l_blocksize == 0) {
 		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
 	} else if (lun->l_blocksize < 0) {
@@ -923,6 +914,20 @@ conf_verify_lun(struct lun *lun)
 		    "must be multiple of blocksize", lun->l_lun,
 		    lun->l_target->t_iqn);
 		return (1);
+	}
+	TAILQ_FOREACH(targ2, &lun->l_target->t_conf->conf_targets, t_next) {
+		TAILQ_FOREACH(lun2, &targ2->t_luns, l_next) {
+			if (lun == lun2)
+				continue;
+			if (lun->l_path != NULL && lun2->l_path != NULL &&
+			    strcmp(lun->l_path, lun2->l_path) == 0) {
+				log_debugx("WARNING: path \"%s\" duplicated "
+				    "between lun %d, target \"%s\", and "
+				    "lun %d, target \"%s\"", lun->l_path,
+				    lun->l_lun, lun->l_target->t_iqn,
+				    lun2->l_lun, lun2->l_target->t_iqn);
+			}
+		}
 	}
 
 	return (0);
