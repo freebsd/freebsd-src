@@ -29,13 +29,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskpc98.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
+#define	PC98_BOOTCODESZ		8192
+
 static struct mkimg_alias pc98_aliases[] = {
+    {	ALIAS_FREEBSD, ALIAS_INT2TYPE(PC98_PTYP_386BSD) },
     {	ALIAS_NONE, 0 }
 };
 
@@ -44,14 +50,56 @@ pc98_metadata(u_int where)
 {
 	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? 2 : 0;
-	return (secs);
+	secs = PC98_BOOTCODESZ / secsz;
+	return ((where == SCHEME_META_IMG_START) ? secs : 0);
+}
+
+static void
+pc98_chs(u_short *cyl, u_char *hd, u_char *sec, uint32_t lba __unused)
+{
+
+	*cyl = 0xffff;		/* XXX */
+	*hd = 0xff;		/* XXX */
+	*sec = 0xff;		/* XXX */
 }
 
 static int
-pc98_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+pc98_write(int fd, lba_t imgsz __unused, void *bootcode)
 {
-	return (ENOSYS);
+	struct part *part;
+	struct pc98_partition *dpbase, *dp;
+	u_char *buf;
+	int error, ptyp;
+
+	buf = malloc(PC98_BOOTCODESZ);
+	if (buf == NULL)
+		return (ENOMEM);
+	if (bootcode != NULL) {
+		memcpy(buf, bootcode, PC98_BOOTCODESZ);
+		memset(buf + secsz, 0, secsz);
+	} else
+		memset(buf, 0, PC98_BOOTCODESZ);
+	le16enc(buf + PC98_MAGICOFS, PC98_MAGIC);
+	dpbase = (void *)(buf + secsz);
+	STAILQ_FOREACH(part, &partlist, link) {
+		dp = dpbase + part->index;
+		ptyp = ALIAS_TYPE2INT(part->type);
+		dp->dp_mid = ptyp;
+		dp->dp_sid = ptyp >> 8;
+		pc98_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
+		    part->block);
+		pc98_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
+		    part->block + part->size - 1);
+		if (part->label != NULL)
+			memcpy(dp->dp_name, part->label, strlen(part->label));
+	}
+	error = mkimg_seek(fd, 0);
+	if (error == 0) {
+		if (write(fd, buf, PC98_BOOTCODESZ) != PC98_BOOTCODESZ)
+			error = errno;
+	}
+	free(buf);
+	return (error);
 }
 
 static struct mkimg_scheme pc98_scheme = {
@@ -60,6 +108,8 @@ static struct mkimg_scheme pc98_scheme = {
 	.aliases = pc98_aliases,
 	.metadata = pc98_metadata,
 	.write = pc98_write,
+	.bootcode = PC98_BOOTCODESZ,
+	.labellen = 16,
 	.nparts = PC98_NPARTS
 };
 
