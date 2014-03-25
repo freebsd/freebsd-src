@@ -869,14 +869,74 @@ conf_print(struct conf *conf)
 }
 #endif
 
+static int
+conf_verify_lun(struct lun *lun)
+{
+	const struct lun *lun2;
+
+	if (lun->l_backend == NULL)
+		lun_set_backend(lun, "block");
+	if (strcmp(lun->l_backend, "block") == 0) {
+		if (lun->l_path == NULL) {
+			log_warnx("missing path for lun %d, target \"%s\"",
+			    lun->l_lun, lun->l_target->t_iqn);
+			return (1);
+		}
+	} else if (strcmp(lun->l_backend, "ramdisk") == 0) {
+		if (lun->l_size == 0) {
+			log_warnx("missing size for ramdisk-backed lun %d, "
+			    "target \"%s\"", lun->l_lun, lun->l_target->t_iqn);
+			return (1);
+		}
+		if (lun->l_path != NULL) {
+			log_warnx("path must not be specified "
+			    "for ramdisk-backed lun %d, target \"%s\"",
+			    lun->l_lun, lun->l_target->t_iqn);
+			return (1);
+		}
+	}
+	if (lun->l_lun < 0 || lun->l_lun > 255) {
+		log_warnx("invalid lun number for lun %d, target \"%s\"; "
+		    "must be between 0 and 255", lun->l_lun,
+		    lun->l_target->t_iqn);
+		return (1);
+	}
+#if 1 /* Should we? */
+	TAILQ_FOREACH(lun2, &lun->l_target->t_luns, l_next) {
+		if (lun == lun2)
+			continue;
+		if (lun->l_path != NULL && lun2->l_path != NULL &&
+		    strcmp(lun->l_path, lun2->l_path) == 0)
+			log_debugx("WARNING: duplicate path for lun %d, "
+			    "target \"%s\"", lun->l_lun, lun->l_target->t_iqn);
+	}
+#endif
+	if (lun->l_blocksize == 0) {
+		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
+	} else if (lun->l_blocksize < 0) {
+		log_warnx("invalid blocksize for lun %d, target \"%s\"; "
+		    "must be larger than 0", lun->l_lun, lun->l_target->t_iqn);
+		return (1);
+	}
+	if (lun->l_size != 0 && lun->l_size % lun->l_blocksize != 0) {
+		log_warnx("invalid size for lun %d, target \"%s\"; "
+		    "must be multiple of blocksize", lun->l_lun,
+		    lun->l_target->t_iqn);
+		return (1);
+	}
+
+	return (0);
+}
+
 int
 conf_verify(struct conf *conf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
 	struct target *targ;
-	struct lun *lun, *lun2;
+	struct lun *lun;
 	bool found_lun0;
+	int error;
 
 	if (conf->conf_pidfile_path == NULL)
 		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
@@ -895,65 +955,11 @@ conf_verify(struct conf *conf)
 		}
 		found_lun0 = false;
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
+			error = conf_verify_lun(lun);
+			if (error != 0)
+				return (error);
 			if (lun->l_lun == 0)
 				found_lun0 = true;
-			if (lun->l_backend == NULL)
-				lun_set_backend(lun, "block");
-			if (strcmp(lun->l_backend, "block") == 0 &&
-			    lun->l_path == NULL) {
-				log_warnx("missing path for lun %d, "
-				    "target \"%s\"", lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-			if (strcmp(lun->l_backend, "ramdisk") == 0) {
-				if (lun->l_size == 0) {
-					log_warnx("missing size for "
-					    "ramdisk-backed lun %d, "
-					    "target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-					return (1);
-				}
-				if (lun->l_path != NULL) {
-					log_warnx("path must not be specified "
-					    "for ramdisk-backed lun %d, "
-					    "target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-					return (1);
-				}
-			}
-			if (lun->l_lun < 0 || lun->l_lun > 255) {
-				log_warnx("invalid lun number for lun %d, "
-				    "target \"%s\"; must be between 0 and 255",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-#if 1 /* Should we? */
-			TAILQ_FOREACH(lun2, &targ->t_luns, l_next) {
-				if (lun == lun2)
-					continue;
-				if (lun->l_path != NULL &&
-				    lun2->l_path != NULL &&
-				    strcmp(lun->l_path, lun2->l_path) == 0)
-					log_debugx("WARNING: duplicate path "
-					    "for lun %d, target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-			}
-#endif
-			if (lun->l_blocksize == 0) {
-				lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
-			} else if (lun->l_blocksize <= 0) {
-				log_warnx("invalid blocksize for lun %d, "
-				    "target \"%s\"; must be larger than 0",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-			if (lun->l_size != 0 &&
-			    lun->l_size % lun->l_blocksize != 0) {
-				log_warnx("invalid size for lun %d, target "
-				    "\"%s\"; must be multiple of blocksize",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
 		}
 		if (!found_lun0) {
 			log_warnx("mandatory LUN 0 not configured "
