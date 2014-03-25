@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.397 2013/12/29 05:42:16 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.401 2014/02/26 20:18:37 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -233,16 +233,26 @@ tilde_expand_paths(char **paths, u_int num_paths)
 	}
 }
 
+/*
+ * Attempt to resolve a host name / port to a set of addresses and
+ * optionally return any CNAMEs encountered along the way.
+ * Returns NULL on failure.
+ * NB. this function must operate with a options having undefined members.
+ */
 static struct addrinfo *
-resolve_host(const char *name, u_int port, int logerr, char *cname, size_t clen)
+resolve_host(const char *name, int port, int logerr, char *cname, size_t clen)
 {
 	char strport[NI_MAXSERV];
 	struct addrinfo hints, *res;
 	int gaierr, loglevel = SYSLOG_LEVEL_DEBUG1;
 
+	if (port <= 0)
+		port = default_ssh_port();
+
 	snprintf(strport, sizeof strport, "%u", port);
-	bzero(&hints, sizeof(hints));
-	hints.ai_family = options.address_family;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = options.address_family == -1 ?
+	    AF_UNSPEC : options.address_family;
 	hints.ai_socktype = SOCK_STREAM;
 	if (cname != NULL)
 		hints.ai_flags = AI_CANONNAME;
@@ -267,6 +277,7 @@ resolve_host(const char *name, u_int port, int logerr, char *cname, size_t clen)
 /*
  * Check whether the cname is a permitted replacement for the hostname
  * and perform the replacement if it is.
+ * NB. this function must operate with a options having undefined members.
  */
 static int
 check_follow_cname(char **namep, const char *cname)
@@ -283,7 +294,7 @@ check_follow_cname(char **namep, const char *cname)
 	 * Don't attempt to canonicalize names that will be interpreted by
 	 * a proxy unless the user specifically requests so.
 	 */
-	if (options.proxy_command != NULL &&
+	if (!option_clear_or_none(options.proxy_command) &&
 	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
 		return 0;
 	debug3("%s: check \"%s\" CNAME \"%s\"", __func__, *namep, cname);
@@ -307,9 +318,10 @@ check_follow_cname(char **namep, const char *cname)
  * Attempt to resolve the supplied hostname after applying the user's
  * canonicalization rules. Returns the address list for the host or NULL
  * if no name was found after canonicalization.
+ * NB. this function must operate with a options having undefined members.
  */
 static struct addrinfo *
-resolve_canonicalize(char **hostp, u_int port)
+resolve_canonicalize(char **hostp, int port)
 {
 	int i, ndots;
 	char *cp, *fullhost, cname_target[NI_MAXHOST];
@@ -317,13 +329,15 @@ resolve_canonicalize(char **hostp, u_int port)
 
 	if (options.canonicalize_hostname == SSH_CANONICALISE_NO)
 		return NULL;
+
 	/*
 	 * Don't attempt to canonicalize names that will be interpreted by
 	 * a proxy unless the user specifically requests so.
 	 */
-	if (options.proxy_command != NULL &&
+	if (!option_clear_or_none(options.proxy_command) &&
 	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
 		return NULL;
+
 	/* Don't apply canonicalization to sufficiently-qualified hostnames */
 	ndots = 0;
 	for (cp = *hostp; *cp != '\0'; cp++) {
@@ -340,7 +354,9 @@ resolve_canonicalize(char **hostp, u_int port)
 		*cname_target = '\0';
 		xasprintf(&fullhost, "%s.%s.", *hostp,
 		    options.canonical_domains[i]);
-		if ((addrs = resolve_host(fullhost, options.port, 0,
+		debug3("%s: attempting \"%s\" => \"%s\"", __func__,
+		    *hostp, fullhost);
+		if ((addrs = resolve_host(fullhost, port, 0,
 		    cname_target, sizeof(cname_target))) == NULL) {
 			free(fullhost);
 			continue;
@@ -357,8 +373,38 @@ resolve_canonicalize(char **hostp, u_int port)
 		return addrs;
 	}
 	if (!options.canonicalize_fallback_local)
-		fatal("%s: Could not resolve host \"%s\"", __progname, host);
+		fatal("%s: Could not resolve host \"%s\"", __progname, *hostp);
+	debug2("%s: host %s not found in any suffix", __func__, *hostp);
 	return NULL;
+}
+
+/*
+ * Read per-user configuration file.  Ignore the system wide config
+ * file if the user specifies a config file on the command line.
+ */
+static void
+process_config_files(struct passwd *pw)
+{
+	char buf[MAXPATHLEN];
+	int r;
+
+	if (config != NULL) {
+		if (strcasecmp(config, "none") != 0 &&
+		    !read_config_file(config, pw, host, &options,
+		    SSHCONF_USERCONF))
+			fatal("Can't open user config file %.100s: "
+			    "%.100s", config, strerror(errno));
+	} else {
+		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
+		    _PATH_SSH_USER_CONFFILE);
+		if (r > 0 && (size_t)r < sizeof(buf))
+			(void)read_config_file(buf, pw, host, &options,
+			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
+
+		/* Read systemwide configuration file after user config. */
+		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw, host,
+		    &options, 0);
+	}
 }
 
 /*
@@ -799,7 +845,6 @@ main(int ac, char **av)
 	if (!host)
 		usage();
 
-	lowercase(host);
 	host_arg = xstrdup(host);
 
 	OpenSSL_add_all_algorithms();
@@ -852,31 +897,62 @@ main(int ac, char **av)
 	if (debug_flag)
 		logit("%s, %s", SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
 
-	/*
-	 * Read per-user configuration file.  Ignore the system wide config
-	 * file if the user specifies a config file on the command line.
-	 */
-	if (config != NULL) {
-		if (strcasecmp(config, "none") != 0 &&
-		    !read_config_file(config, pw, host, &options,
-		    SSHCONF_USERCONF))
-			fatal("Can't open user config file %.100s: "
-			    "%.100s", config, strerror(errno));
-	} else {
-		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
-		    _PATH_SSH_USER_CONFFILE);
-		if (r > 0 && (size_t)r < sizeof(buf))
-			(void)read_config_file(buf, pw, host, &options,
-			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
+	/* Parse the configuration files */
+	process_config_files(pw);
 
-		/* Read systemwide configuration file after user config. */
-		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw, host,
-		    &options, 0);
+	/* Hostname canonicalisation needs a few options filled. */
+	fill_default_options_for_canonicalization(&options);
+
+	/* If the user has replaced the hostname then take it into use now */
+	if (options.hostname != NULL) {
+		/* NB. Please keep in sync with readconf.c:match_cfg_line() */
+		cp = percent_expand(options.hostname,
+		    "h", host, (char *)NULL);
+		free(host);
+		host = cp;
+	}
+
+	/* If canonicalization requested then try to apply it */
+	lowercase(host);
+	if (options.canonicalize_hostname != SSH_CANONICALISE_NO)
+		addrs = resolve_canonicalize(&host, options.port);
+
+	/*
+	 * If CanonicalizePermittedCNAMEs have been specified but
+	 * other canonicalization did not happen (by not being requested
+	 * or by failing with fallback) then the hostname may still be changed
+	 * as a result of CNAME following. 
+	 *
+	 * Try to resolve the bare hostname name using the system resolver's
+	 * usual search rules and then apply the CNAME follow rules.
+	 *
+	 * Skip the lookup if a ProxyCommand is being used unless the user
+	 * has specifically requested canonicalisation for this case via
+	 * CanonicalizeHostname=always
+	 */
+	if (addrs == NULL && options.num_permitted_cnames != 0 &&
+	    (option_clear_or_none(options.proxy_command) ||
+            options.canonicalize_hostname == SSH_CANONICALISE_ALWAYS)) {
+		if ((addrs = resolve_host(host, options.port, 1,
+		    cname, sizeof(cname))) == NULL)
+			cleanup_exit(255); /* resolve_host logs the error */
+		check_follow_cname(&host, cname);
+	}
+
+	/*
+	 * If the target hostname has changed as a result of canonicalisation
+	 * then re-parse the configuration files as new stanzas may match.
+	 */
+	if (strcasecmp(host_arg, host) != 0) {
+		debug("Hostname has changed; re-reading configuration");
+		process_config_files(pw);
 	}
 
 	/* Fill configuration defaults. */
 	fill_default_options(&options);
 
+	if (options.port == 0)
+		options.port = default_ssh_port();
 	channel_set_af(options.address_family);
 
 	/* Tidy and check options */
@@ -919,36 +995,6 @@ main(int ac, char **av)
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
 
-	/* Get default port if port has not been set. */
-	if (options.port == 0)
-		options.port = default_ssh_port();
-
-	/* preserve host name given on command line for %n expansion */
-	if (options.hostname != NULL) {
-		/* NB. Please keep in sync with readconf.c:match_cfg_line() */
-		cp = percent_expand(options.hostname,
-		    "h", host, (char *)NULL);
-		free(host);
-		host = cp;
-	}
-
-	/* If canonicalization requested then try to apply it */
-	if (options.canonicalize_hostname != SSH_CANONICALISE_NO)
-		addrs = resolve_canonicalize(&host, options.port);
-	/*
-	 * If canonicalization not requested, or if it failed then try to
-	 * resolve the bare hostname name using the system resolver's usual
-	 * search rules. Skip the lookup if a ProxyCommand is being used
-	 * unless the user has specifically requested canonicalisation.
-	 */
-	if (addrs == NULL && (options.proxy_command == NULL ||
-            options.canonicalize_hostname == SSH_CANONICALISE_ALWAYS)) {
-		if ((addrs = resolve_host(host, options.port, 1,
-		    cname, sizeof(cname))) == NULL)
-			cleanup_exit(255); /* resolve_host logs the error */
-		check_follow_cname(&host, cname);
-	}
-
 	if (gethostname(thishost, sizeof(thishost)) == -1)
 		fatal("gethostname: %s", strerror(errno));
 	strlcpy(shorthost, thishost, sizeof(shorthost));
@@ -980,6 +1026,16 @@ main(int ac, char **av)
 		fatal("No ControlPath specified for \"-O\" command");
 	if (options.control_path != NULL)
 		muxclient(options.control_path);
+
+	/*
+	 * If hostname canonicalisation was not enabled, then we may not
+	 * have yet resolved the hostname. Do so now.
+	 */
+	if (addrs == NULL && options.proxy_command == NULL) {
+		if ((addrs = resolve_host(host, options.port, 1,
+		    cname, sizeof(cname))) == NULL)
+			cleanup_exit(255); /* resolve_host logs the error */
+	}
 
 	timeout_ms = options.connection_timeout * 1000;
 
@@ -1757,8 +1813,8 @@ load_public_identity_files(void)
 #endif /* PKCS11 */
 
 	n_ids = 0;
-	bzero(identity_files, sizeof(identity_files));
-	bzero(identity_keys, sizeof(identity_keys));
+	memset(identity_files, 0, sizeof(identity_files));
+	memset(identity_keys, 0, sizeof(identity_keys));
 
 #ifdef ENABLE_PKCS11
 	if (options.pkcs11_provider != NULL &&
@@ -1833,9 +1889,9 @@ load_public_identity_files(void)
 	memcpy(options.identity_files, identity_files, sizeof(identity_files));
 	memcpy(options.identity_keys, identity_keys, sizeof(identity_keys));
 
-	bzero(pwname, strlen(pwname));
+	explicit_bzero(pwname, strlen(pwname));
 	free(pwname);
-	bzero(pwdir, strlen(pwdir));
+	explicit_bzero(pwdir, strlen(pwdir));
 	free(pwdir);
 }
 

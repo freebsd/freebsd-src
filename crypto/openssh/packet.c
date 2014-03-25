@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.191 2013/12/06 13:34:54 markus Exp $ */
+/* $OpenBSD: packet.c,v 1.192 2014/02/02 03:44:31 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -769,9 +769,9 @@ set_newkeys(int mode)
 		mac  = &active_state->newkeys[mode]->mac;
 		comp = &active_state->newkeys[mode]->comp;
 		mac_clear(mac);
-		memset(enc->iv,  0, enc->iv_len);
-		memset(enc->key, 0, enc->key_len);
-		memset(mac->key, 0, mac->key_len);
+		explicit_bzero(enc->iv,  enc->iv_len);
+		explicit_bzero(enc->key, enc->key_len);
+		explicit_bzero(mac->key, mac->key_len);
 		free(enc->name);
 		free(enc->iv);
 		free(enc->key);
@@ -792,9 +792,9 @@ set_newkeys(int mode)
 	cipher_init(cc, enc->cipher, enc->key, enc->key_len,
 	    enc->iv, enc->iv_len, crypt_type);
 	/* Deleting the keys does not gain extra security */
-	/* memset(enc->iv,  0, enc->block_size);
-	   memset(enc->key, 0, enc->key_len);
-	   memset(mac->key, 0, mac->key_len); */
+	/* explicit_bzero(enc->iv,  enc->block_size);
+	   explicit_bzero(enc->key, enc->key_len);
+	   explicit_bzero(mac->key, mac->key_len); */
 	if ((comp->type == COMP_ZLIB ||
 	    (comp->type == COMP_DELAYED &&
 	     active_state->after_authentication)) && comp->enabled == 0) {
@@ -933,7 +933,7 @@ packet_send2_wrapped(void)
 		}
 	} else {
 		/* clear padding */
-		memset(cp, 0, padlen);
+		explicit_bzero(cp, padlen);
 	}
 	/* sizeof (packet_len + pad_len + payload + padding) */
 	len = buffer_len(&active_state->outgoing_packet);

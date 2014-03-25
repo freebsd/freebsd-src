@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.184 2014/01/19 04:48:08 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.185 2014/02/23 20:11:36 djm Exp $
 .\" $FreeBSD$
-.Dd January 19, 2014
+.Dd February 23, 2014
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -264,6 +264,12 @@ If
 is set to
 .Dq always ,
 then canonicalization is applied to proxied connections too.
+.Pp
+If this option is enabled and canonicalisation results in the target hostname
+changing, then the configuration files are processed again using the new
+target name to pick up any new configuration in matching
+.Cm Host
+stanzas.
 .It Cm CanonicalizeMaxDots
 Specifies the maximum number of dot characters in a hostname before
 canonicalization is disabled.
@@ -1417,7 +1423,7 @@ See also VERIFYING HOST KEYS in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20140130 .
+.Dq FreeBSD-20140324 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,
