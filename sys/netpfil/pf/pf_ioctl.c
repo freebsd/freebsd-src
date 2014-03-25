@@ -1601,7 +1601,7 @@ DIOCCHANGERULE_error:
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
 		u_int			 i, killed = 0;
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCCLRSTATES:
@@ -1646,7 +1646,7 @@ relock_DIOCCLRSTATES:
 			break;
 		}
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCKILLSTATES:
@@ -1749,7 +1749,7 @@ relock_DIOCKILLSTATES:
 		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK);
 		nr = 0;
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 			PF_HASHROW_LOCK(ih);
@@ -3095,7 +3095,7 @@ DIOCCHANGEADDR_error:
 		uint32_t		 i, nr = 0;
 
 		if (psn->psn_len == 0) {
-			for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
+			for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 			    i++, sh++) {
 				PF_HASHROW_LOCK(sh);
 				LIST_FOREACH(n, &sh->nodes, entry)
@@ -3107,7 +3107,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
-		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3312,7 +3312,7 @@ pf_clear_states(void)
 	struct pf_state	*s;
 	u_int i;
 
-	for (i = 0; i <= V_pf_hashmask; i++) {
+	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 relock:
 		PF_HASHROW_LOCK(ih);
@@ -3347,7 +3347,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	struct pf_state *s;
 	int i;
 
-	for (i = 0; i <= V_pf_hashmask; i++) {
+	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		PF_HASHROW_LOCK(ih);
@@ -3363,7 +3363,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	if (n == NULL) {
 		struct pf_srchash *sh;
 
-		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
 			PF_HASHROW_LOCK(sh);
 			LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3385,7 +3385,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 	struct pf_src_node_list	 kill;
 
 	LIST_INIT(&kill);
-	for (int i = 0; i <= V_pf_srchashmask; i++) {
+	for (int i = 0; i <= pf_srchashmask; i++) {
 		struct pf_srchash *sh = &V_pf_srchash[i];
 		struct pf_src_node *sn, *tmp;
 
@@ -3406,7 +3406,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 		PF_HASHROW_UNLOCK(sh);
 	}
 
-	for (int i = 0; i <= V_pf_hashmask; i++) {
+	for (int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 		struct pf_state *s;
 
