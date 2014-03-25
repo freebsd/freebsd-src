@@ -922,11 +922,11 @@ login(struct connection *conn)
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",
-			    conn->conn_target->t_iqn,
+			    conn->conn_target->t_name,
 			    conn->conn_target->t_auth_group->ag_name);
 		} else {
 			log_debugx("initiator requests to connect "
-			    "to target \"%s\"", conn->conn_target->t_iqn);
+			    "to target \"%s\"", conn->conn_target->t_name);
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
