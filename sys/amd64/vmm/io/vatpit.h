@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -26,20 +27,14 @@
  * $FreeBSD$
  */
 
-#ifndef _PIT_8254_H_
-#define	_PIT_8254_H_
+#ifndef _VATPIT_H_
+#define	_VATPIT_H_
 
-/*
- * Borrowed from amd64/include/timerreg.h because in that file it is
- * conditionally compiled for #ifdef _KERNEL only.
- */
+#include <machine/timerreg.h>
 
-#include <dev/ic/i8253reg.h>
+struct vatpit *vatpit_init(struct vm *vm);
+void vatpit_cleanup(struct vatpit *vatpit);
 
-#define	IO_TIMER1	0x40		/* 8253 Timer #1 */
-#define	TIMER_CNTR0	(IO_TIMER1 + TIMER_REG_CNTR0)
-#define	TIMER_CNTR1	(IO_TIMER1 + TIMER_REG_CNTR1)
-#define	TIMER_CNTR2	(IO_TIMER1 + TIMER_REG_CNTR2)
-#define	TIMER_MODE	(IO_TIMER1 + TIMER_REG_MODE)
+int vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
 
-#endif	/* _PIT_8254_H_ */
+#endif	/* _VATPIT_H_ */

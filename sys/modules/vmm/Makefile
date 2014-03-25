@@ -29,6 +29,7 @@ SRCS+=	vmm.c		\
 SRCS+=	iommu.c		\
 	ppt.c           \
 	vatpic.c	\
+	vatpit.c	\
 	vhpet.c		\
 	vioapic.c	\
 	vlapic.c
