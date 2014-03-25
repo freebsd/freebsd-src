@@ -128,10 +128,6 @@ login_receive(struct connection *conn, bool initial)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-min 0x%x", bhslr->bhslr_version_min);
 	}
-	if (request->pdu_data_len == 0) {
-		login_send_error(request, 0x02, 0x00);
-		log_errx(1, "received Login PDU with empty data segment");
-	}
 	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with decreasing CmdSN: "
