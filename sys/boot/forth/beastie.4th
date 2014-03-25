@@ -28,8 +28,6 @@
 
 marker task-beastie.4th
 
-include /boot/delay.4th
-
 only forth definitions also support-functions
 
 variable logoX
