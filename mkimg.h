@@ -52,7 +52,11 @@ struct part {
 extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
-extern u_int secsz;
+extern u_int ncyls;
+extern u_int nheads;
+extern u_int nsecs;
+extern u_int secsz;	/* Logical block size. */
+extern u_int blksz;	/* Physical block size. */
 
 int mkimg_seek(int fd, lba_t blk);
 

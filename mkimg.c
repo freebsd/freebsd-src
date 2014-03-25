@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,11 @@ __FBSDID("$FreeBSD$");
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
+u_int ncyls = 0;
+u_int nheads = 1;
+u_int nsecs = 1;
 u_int secsz = 512;
+u_int blksz = 512;
 
 static int bcfd = -1;
 static int outfd = 0;
@@ -76,11 +81,13 @@ usage(const char *why)
 
 	fprintf(stderr, "    options:\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
-	fprintf(stderr, "\t-h <num>\t-  number of heads to simulate\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
-	fprintf(stderr, "\t-t <num>\t-  number of tracks to simulate\n");
+	fprintf(stderr, "\t-H <num>\t-  number of heads to simulate\n");
+	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
+	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
+	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
 	fprintf(stderr, "\t-z\t\t-  write a sparse file\n");
 
 	fprintf(stderr, "    schemes:\n");
@@ -102,6 +109,26 @@ usage(const char *why)
 	    "label\n");
 
 	exit(EX_USAGE);
+}
+
+static int
+parse_number(u_int *valp, u_int min, u_int max, const char *arg)
+{
+	uint64_t val;
+
+	if (expand_number(arg, &val) == -1)
+		return (errno);
+	if (val > UINT_MAX || val < (uint64_t)min || val > (uint64_t)max)
+		return (EINVAL);
+	*valp = (u_int)val;
+	return (0);
+}
+
+static int
+pwr_of_two(u_int nr)
+{
+
+	return (((nr & (nr - 1)) == 0) ? 1 : 0);
 }
 
 /*
@@ -298,7 +325,7 @@ main(int argc, char *argv[])
 {
 	int c, error;
 
-	while ((c = getopt(argc, argv, "b:h:o:p:s:t:z")) != -1) {
+	while ((c = getopt(argc, argv, "b:o:p:s:zH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -306,8 +333,6 @@ main(int argc, char *argv[])
 			bcfd = open(optarg, O_RDONLY, 0);
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
-			break;
-		case 'h':	/* GEOMETRY: HEADS */
 			break;
 		case 'o':	/* OUTPUT FILE */
 			if (outfd != 0)
@@ -329,9 +354,31 @@ main(int argc, char *argv[])
 			if (error)
 				errc(EX_DATAERR, error, "scheme");
 			break;
-		case 't':	/* GEOMETRY: TRACK SIZE */
-			break;
 		case 'z':	/* SPARSE OUTPUT */
+			break;
+		case 'H':	/* GEOMETRY: HEADS */
+			error = parse_number(&nheads, 1, 255, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "number of heads");
+			break;
+		case 'P':	/* GEOMETRY: PHYSICAL SECTOR SIZE */
+			error = parse_number(&blksz, 512, INT_MAX + 1, optarg);
+			if (error == 0 && !pwr_of_two(blksz))
+				error = EINVAL;
+			if (error)
+				errc(EX_DATAERR, error, "physical sector size");
+			break;
+		case 'S':	/* GEOMETRY: LOGICAL SECTOR SIZE */
+			error = parse_number(&secsz, 512, INT_MAX + 1, optarg);
+			if (error == 0 && !pwr_of_two(blksz))
+				error = EINVAL;
+			if (error)
+				errc(EX_DATAERR, error, "logical sector size");
+			break;
+		case 'T':	/* GEOMETRY: TRACK SIZE */
+			error = parse_number(&nsecs, 1, 63, optarg);
+			if (error)
+				errc(EX_DATAERR, error, "track size");
 			break;
 		default:
 			usage("unknown option");
