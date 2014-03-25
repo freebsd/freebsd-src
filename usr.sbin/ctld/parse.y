@@ -598,7 +598,7 @@ conf_new_from_file(const char *path)
 		return (NULL);
 	}
 	check_perms(path);
-	lineno = 0;
+	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
 	auth_group = NULL;
