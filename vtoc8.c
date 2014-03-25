@@ -28,14 +28,23 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/vtoc.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "mkimg.h"
 #include "scheme.h"
 
 static struct mkimg_alias vtoc8_aliases[] = {
+    {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_NANDFS) },
+    {	ALIAS_FREEBSD_SWAP, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_SWAP) },
+    {	ALIAS_FREEBSD_UFS, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_UFS) },
+    {	ALIAS_FREEBSD_VINUM, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_VINUM) },
+    {	ALIAS_FREEBSD_ZFS, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_NANDFS) },
     {	ALIAS_NONE, 0 }
 };
 
@@ -49,9 +58,39 @@ vtoc8_metadata(u_int where)
 }
 
 static int
-vtoc8_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 {
-	return (ENOSYS);
+	struct vtoc8 vtoc8;
+	struct part *part;
+	int error;
+
+	memset(&vtoc8, 0, sizeof(vtoc8));
+	sprintf(vtoc8.ascii, "FreeBSD%lldM", (long long)(imgsz / 2048));
+	be32enc(&vtoc8.version, VTOC_VERSION);
+	be16enc(&vtoc8.nparts, VTOC8_NPARTS);
+	be32enc(&vtoc8.sanity, VTOC_SANITY);
+	be16enc(&vtoc8.rpm, 3600);
+	be16enc(&vtoc8.physcyls, 2);	/* XXX */
+	be16enc(&vtoc8.ncyls, 0);	/* XXX */
+	be16enc(&vtoc8.altcyls, 2);
+	be16enc(&vtoc8.nheads, 1);	/* XXX */
+	be16enc(&vtoc8.nsecs, 1);	/* XXX */
+	be16enc(&vtoc8.magic, VTOC_MAGIC);
+
+	STAILQ_FOREACH(part, &partlist, link) {
+		be16enc(&vtoc8.part[part->index].tag,
+		    ALIAS_TYPE2INT(part->type));
+		be32enc(&vtoc8.map[part->index].cyl,
+		    part->block);				/* XXX */
+		be32enc(&vtoc8.map[part->index].nblks,
+		    part->size);
+	}
+	error = mkimg_seek(fd, 0);
+	if (error == 0) {
+		if (write(fd, &vtoc8, sizeof(vtoc8)) != sizeof(vtoc8))
+			error = errno;
+	}
+	return (error);
 }
 
 static struct mkimg_scheme vtoc8_scheme = {
