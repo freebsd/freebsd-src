@@ -82,4 +82,5 @@ timeout			{ return TIMEOUT; }
 #.*$			/* ignore comments */;
 \n			{ lineno++; }
 [ \t]+			/* ignore whitespace */;
+.			{ yylval.str = strdup(yytext); return STR; }
 %%
