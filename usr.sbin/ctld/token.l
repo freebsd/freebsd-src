@@ -57,6 +57,8 @@ chap-mutual		{ return CHAP_MUTUAL; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
+initiator-name		{ return INITIATOR_NAME; }
+initiator-portal	{ return INITIATOR_PORTAL; }
 listen			{ return LISTEN; }
 listen-iser		{ return LISTEN_ISER; }
 lun			{ return LUN; }

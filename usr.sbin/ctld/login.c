@@ -940,6 +940,33 @@ login(struct connection *conn)
 	}
 
 	/*
+	 * Enforce initiator-name and initiator-portal.
+	 */
+	if (auth_name_defined(ag)) {
+		if (auth_name_find(ag, initiator_name) == NULL) {
+			login_send_error(request, 0x02, 0x02);
+			log_errx(1, "initiator does not match allowed "
+			    "initiator names");
+		}
+		log_debugx("initiator matches allowed initiator names");
+	} else {
+		log_debugx("auth-group does not define initiator name "
+		    "restrictions");
+	}
+
+	if (auth_portal_defined(ag)) {
+		if (auth_portal_find(ag, conn->conn_initiator_addr) == NULL) {
+			login_send_error(request, 0x02, 0x02);
+			log_errx(1, "initiator does not match allowed "
+			    "initiator portals");
+		}
+		log_debugx("initiator matches allowed initiator portals");
+	} else {
+		log_debugx("auth-group does not define initiator portal "
+		    "restrictions");
+	}
+
+	/*
 	 * Let's see if the initiator intends to do any kind of authentication
 	 * at all.
 	 */

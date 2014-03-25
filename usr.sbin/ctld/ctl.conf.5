@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2013
+.Dd February 11, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -107,6 +107,18 @@ Specifies CHAP authentication credentials.
 Specifies mutual CHAP authentication credentials.
 Note that for any auth-group, configuration may contain either chap,
 or chap-mutual entries; it's an error to mix them.
+.It Ic initiator-name Ao Ar initiator-name Ac
+Specifies iSCSI initiator name.
+If not defined, there will be no restrictions based on initiator
+name.
+Otherwise, only initiators with names matching one of defined
+ones will be allowed to connect.
+.It Ic initiator-portal Ao Ar address Ac
+Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+If not defined, there will be no restrictions based on initiator
+address.
+Otherwise, only initiators with addresses matching one of defined
+ones will be allowed to connect.
 .El
 .Ss portal-group level
 The following statements are available at the portal-group level:
@@ -143,6 +155,22 @@ or chap-mutual clauses; it's a configuration error to mix them in one target.
 Specifies mutual CHAP authentication credentials.
 Note that targets must use either auth-group, chap, or
 chap-mutual clauses; it's a configuration error to mix them in one target.
+.It Ic initiator-name Ao Ar initiator-name Ac
+Specifies iSCSI initiator name.
+If not defined, there will be no restrictions based on initiator
+name.
+Otherwise, only initiators with names matching one of defined
+ones will be allowed to connect.
+This clause is mutually exclusive with auth-group; one cannot use
+both in a single target.
+.It Ic initiator-portal Ao Ar address Ac
+Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+If not defined, there will be no restrictions based on initiator
+address.
+Otherwise, only initiators with addresses matching one of defined
+ones will be allowed to connect.
+This clause is mutually exclusive with auth-group; one cannot use
+both in a single target.
 .It Ic portal-group Aq Ar name
 Assigns previously defined portal group to that target.
 Default portal group is "default", which makes the target available
