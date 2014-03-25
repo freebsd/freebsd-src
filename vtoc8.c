@@ -99,7 +99,8 @@ static struct mkimg_scheme vtoc8_scheme = {
 	.aliases = vtoc8_aliases,
 	.metadata = vtoc8_metadata,
 	.write = vtoc8_write,
-	.nparts = VTOC8_NPARTS
+	.nparts = VTOC8_NPARTS,
+	.maxsecsz = 512
 };
 
 SCHEME_DEFINE(vtoc8_scheme);

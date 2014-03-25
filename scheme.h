@@ -71,6 +71,7 @@ struct mkimg_scheme {
 	u_int		nparts;
 	u_int		labellen;
 	u_int		bootcode;
+	u_int		maxsecsz;
 };
 
 SET_DECLARE(schemes, struct mkimg_scheme);

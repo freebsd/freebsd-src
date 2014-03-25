@@ -97,7 +97,8 @@ static struct mkimg_scheme mbr_scheme = {
 	.metadata = mbr_metadata,
 	.write = mbr_write,
 	.bootcode = 512,
-	.nparts = NDOSPART
+	.nparts = NDOSPART,
+	.maxsecsz = 4096
 };
 
 SCHEME_DEFINE(mbr_scheme);

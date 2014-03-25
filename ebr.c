@@ -122,7 +122,8 @@ static struct mkimg_scheme ebr_scheme = {
 	.aliases = ebr_aliases,
 	.metadata = ebr_metadata,
 	.write = ebr_write,
-	.nparts = 4096
+	.nparts = 4096,
+	.maxsecsz = 4096
 };
 
 SCHEME_DEFINE(ebr_scheme);

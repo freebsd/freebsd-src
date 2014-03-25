@@ -117,7 +117,8 @@ static struct mkimg_scheme bsd_scheme = {
 	.metadata = bsd_metadata,
 	.write = bsd_write,
 	.nparts = 20,
-	.bootcode = BBSIZE
+	.bootcode = BBSIZE,
+	.maxsecsz = 512
 };
 
 SCHEME_DEFINE(bsd_scheme);

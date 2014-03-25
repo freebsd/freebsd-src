@@ -110,7 +110,8 @@ static struct mkimg_scheme pc98_scheme = {
 	.write = pc98_write,
 	.bootcode = PC98_BOOTCODESZ,
 	.labellen = 16,
-	.nparts = PC98_NPARTS
+	.nparts = PC98_NPARTS,
+	.maxsecsz = 512
 };
 
 SCHEME_DEFINE(pc98_scheme);

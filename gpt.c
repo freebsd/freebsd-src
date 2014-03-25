@@ -296,7 +296,8 @@ static struct mkimg_scheme gpt_scheme = {
 	.write = gpt_write,
 	.nparts = 4096,
 	.labellen = 36,
-	.bootcode = 512
+	.bootcode = 512,
+	.maxsecsz = 4096
 };
 
 SCHEME_DEFINE(gpt_scheme);

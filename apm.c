@@ -112,7 +112,8 @@ static struct mkimg_scheme apm_scheme = {
 	.metadata = apm_metadata,
 	.write = apm_write,
 	.nparts = 4096,
-	.labellen = APM_ENT_NAMELEN - 1
+	.labellen = APM_ENT_NAMELEN - 1,
+	.maxsecsz = 4096
 };
 
 SCHEME_DEFINE(apm_scheme);
