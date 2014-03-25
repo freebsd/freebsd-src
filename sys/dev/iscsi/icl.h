@@ -76,7 +76,9 @@ void			icl_pdu_free(struct icl_pdu *ip);
 struct icl_conn {
 	struct mtx		ic_lock;
 	struct socket		*ic_socket;
+#ifdef DIAGNOSTIC
 	volatile u_int		ic_outstanding_pdus;
+#endif
 	TAILQ_HEAD(, icl_pdu)	ic_to_send;
 	size_t			ic_receive_len;
 	int			ic_receive_state;
