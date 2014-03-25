@@ -352,7 +352,7 @@ retry:
 			log_warnx("found CTL lun %ju, backing lun %d, target "
 			    "%s, also backed by CTL lun %d; ignoring",
 			    (uintmax_t) lun->lun_id, cl->l_lun,
-			    cl->l_target->t_iqn, cl->l_ctl_lun);
+			    cl->l_target->t_name, cl->l_ctl_lun);
 			continue;
 		}
 
@@ -382,7 +382,7 @@ retry:
 				log_warnx("unable to add CTL lun option %s "
 				    "for CTL lun %ju for lun %d, target %s",
 				    nv->name, (uintmax_t) lun->lun_id,
-				    cl->l_lun, cl->l_target->t_iqn);
+				    cl->l_lun, cl->l_target->t_name);
 		}
 	}
 
@@ -434,10 +434,10 @@ kernel_lun_add(struct lun *lun)
 
 	lo = lun_option_find(lun, "cfiscsi_target");
 	if (lo != NULL) {
-		lun_option_set(lo, lun->l_target->t_iqn);
+		lun_option_set(lo, lun->l_target->t_name);
 	} else {
 		lo = lun_option_new(lun, "cfiscsi_target",
-		    lun->l_target->t_iqn);
+		    lun->l_target->t_name);
 		assert(lo != NULL);
 	}
 
@@ -598,7 +598,7 @@ kernel_handoff(struct connection *conn)
 		    conn->conn_initiator_alias, sizeof(req.data.handoff.initiator_alias));
 	}
 	strlcpy(req.data.handoff.target_name,
-	    conn->conn_target->t_iqn, sizeof(req.data.handoff.target_name));
+	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
 	req.data.handoff.socket = conn->conn_socket;
 	req.data.handoff.portal_group_tag =
 	    conn->conn_portal->p_portal_group->pg_tag;

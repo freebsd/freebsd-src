@@ -186,10 +186,10 @@ discovery(struct connection *conn)
 			    conn->conn_portal->p_portal_group) {
 				log_debugx("not returning target \"%s\"; "
 				    "belongs to a different portal group",
-				    targ->t_iqn);
+				    targ->t_name);
 				continue;
 			}
-			keys_add(response_keys, "TargetName", targ->t_iqn);
+			keys_add(response_keys, "TargetName", targ->t_name);
 		}
 	} else {
 		targ = target_find(conn->conn_portal->p_portal_group->pg_conf,
@@ -198,7 +198,7 @@ discovery(struct connection *conn)
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
 		} else {
-			keys_add(response_keys, "TargetName", targ->t_iqn);
+			keys_add(response_keys, "TargetName", targ->t_name);
 		}
 	}
 	keys_save(response_keys, response);
