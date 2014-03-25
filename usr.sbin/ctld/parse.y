@@ -729,13 +729,9 @@ conf_new_from_file(const char *path)
 	assert(ag != NULL);
 	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
 
-	/*
-	 * Here, the type doesn't really matter, as the group doesn't contain
-	 * any entries and thus will always deny access.
-	 */
 	ag = auth_group_new(conf, "no-access");
 	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_CHAP;
+	ag->ag_type = AG_TYPE_DENY;
 
 	pg = portal_group_new(conf, "default");
 	assert(pg != NULL);
@@ -765,7 +761,7 @@ conf_new_from_file(const char *path)
 		    "going with defaults");
 		ag = auth_group_find(conf, "default");
 		assert(ag != NULL);
-		ag->ag_type = AG_TYPE_CHAP;
+		ag->ag_type = AG_TYPE_DENY;
 	}
 
 	if (conf->conf_default_pg_defined == false) {

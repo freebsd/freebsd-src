@@ -103,7 +103,7 @@ The following statements are available at the auth-group level:
 .Bl -tag -width indent
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
-Type can be either "none", "chap", or "chap-mutual".
+Type can be either "none", "deny", "chap", or "chap-mutual".
 In most cases it is not neccessary to set the type using this clause;
 it is usually used to disable authentication for a given auth-group.
 .It Ic chap Ao Ar user Ac Aq Ar secret
@@ -157,7 +157,7 @@ Another predefined auth-group, "no-authentication", may be used to permit access
 without authentication.
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
-Type can be either "none", "chap", or "chap-mutual".
+Type can be either "none", "deny", "chap", or "chap-mutual".
 In most cases it is not neccessary to set the type using this clause;
 it is usually used to disable authentication for a given target.
 This clause is mutually exclusive with auth-group; one cannot use
