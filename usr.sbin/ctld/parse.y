@@ -79,40 +79,40 @@ statements:
 	;
 
 statement:
-	debug_statement
+	debug
 	|
-	timeout_statement
+	timeout
 	|
-	maxproc_statement
+	maxproc
 	|
-	pidfile_statement
+	pidfile
 	|
-	auth_group_definition
+	auth_group
 	|
-	portal_group_definition
+	portal_group
 	|
-	target_statement
+	target
 	;
 
-debug_statement:	DEBUG NUM
+debug:		DEBUG NUM
 	{
 		conf->conf_debug = $2;
 	}
 	;
 
-timeout_statement:	TIMEOUT NUM
+timeout:	TIMEOUT NUM
 	{
 		conf->conf_timeout = $2;
 	}
 	;
 
-maxproc_statement:	MAXPROC NUM
+maxproc:	MAXPROC NUM
 	{
 		conf->conf_maxproc = $2;
 	}
 	;
 
-pidfile_statement:	PIDFILE STR
+pidfile:	PIDFILE STR
 	{
 		if (conf->conf_pidfile_path != NULL) {
 			log_warnx("pidfile specified more than once");
@@ -123,7 +123,7 @@ pidfile_statement:	PIDFILE STR
 	}
 	;
 
-auth_group_definition:	AUTH_GROUP auth_group_name
+auth_group:	AUTH_GROUP auth_group_name
     OPENING_BRACKET auth_group_entries CLOSING_BRACKET
 	{
 		auth_group = NULL;
@@ -202,7 +202,7 @@ auth_group_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-portal_group_definition:	PORTAL_GROUP portal_group_name
+portal_group:	PORTAL_GROUP portal_group_name
     OPENING_BRACKET portal_group_entries CLOSING_BRACKET
 	{
 		portal_group = NULL;
@@ -273,14 +273,14 @@ portal_group_listen_iser:	LISTEN_ISER STR
 	}
 	;
 
-target_statement:	TARGET target_iqn
+target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
 		target = NULL;
 	}
 	;
 
-target_iqn:	STR
+target_name:	STR
 	{
 		target = target_new(conf, $1);
 		free($1);
@@ -295,24 +295,24 @@ target_entries:
 	;
 
 target_entry:
-	alias_statement
+	target_alias
 	|
-	auth_group_statement
+	target_auth_group
 	|
-	chap_statement
+	target_chap
 	|
-	chap_mutual_statement
+	target_chap_mutual
 	|
-	initiator_name_statement
+	target_initiator_name
 	|
-	initiator_portal_statement
+	target_initiator_portal
 	|
-	portal_group_statement
+	target_portal_group
 	|
-	lun_statement
+	target_lun
 	;
 
-alias_statement:	ALIAS STR
+target_alias:	ALIAS STR
 	{
 		if (target->t_alias != NULL) {
 			log_warnx("alias for target \"%s\" "
@@ -323,7 +323,7 @@ alias_statement:	ALIAS STR
 	}
 	;
 
-auth_group_statement:	AUTH_GROUP STR
+target_auth_group:	AUTH_GROUP STR
 	{
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL)
@@ -345,7 +345,7 @@ auth_group_statement:	AUTH_GROUP STR
 	}
 	;
 
-chap_statement:	CHAP STR STR
+target_chap:	CHAP STR STR
 	{
 		const struct auth *ca;
 
@@ -375,7 +375,7 @@ chap_statement:	CHAP STR STR
 	}
 	;
 
-chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
+target_chap_mutual:	CHAP_MUTUAL STR STR STR STR
 	{
 		const struct auth *ca;
 
@@ -412,7 +412,7 @@ chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
 	}
 	;
 
-initiator_name_statement:	INITIATOR_NAME STR
+target_initiator_name:	INITIATOR_NAME STR
 	{
 		const struct auth_name *an;
 
@@ -439,7 +439,7 @@ initiator_name_statement:	INITIATOR_NAME STR
 	}
 	;
 
-initiator_portal_statement:	INITIATOR_PORTAL STR
+target_initiator_portal:	INITIATOR_PORTAL STR
 	{
 		const struct auth_portal *ap;
 
@@ -466,7 +466,7 @@ initiator_portal_statement:	INITIATOR_PORTAL STR
 	}
 	;
 
-portal_group_statement:	PORTAL_GROUP STR
+target_portal_group:	PORTAL_GROUP STR
 	{
 		if (target->t_portal_group != NULL) {
 			log_warnx("portal-group for target \"%s\" "
@@ -485,8 +485,8 @@ portal_group_statement:	PORTAL_GROUP STR
 	}
 	;
 
-lun_statement:	LUN lun_number
-    OPENING_BRACKET lun_statement_entries CLOSING_BRACKET
+target_lun:	LUN lun_number
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
 	{
 		lun = NULL;
 	}
@@ -500,28 +500,28 @@ lun_number:	NUM
 	}
 	;
 
-lun_statement_entries:
+lun_entries:
 	|
-	lun_statement_entries lun_statement_entry
+	lun_entries lun_entry
 	;
 
-lun_statement_entry:
-	backend_statement
+lun_entry:
+	lun_backend
 	|
-	blocksize_statement
+	lun_blocksize
 	|
-	device_id_statement
+	lun_device_id
 	|
-	option_statement
+	lun_option
 	|
-	path_statement
+	lun_path
 	|
-	serial_statement
+	lun_serial
 	|
-	size_statement
+	lun_size
 	;
 
-backend_statement:	BACKEND STR
+lun_backend:	BACKEND STR
 	{
 		if (lun->l_backend != NULL) {
 			log_warnx("backend for lun %d, target \"%s\" "
@@ -535,7 +535,7 @@ backend_statement:	BACKEND STR
 	}
 	;
 
-blocksize_statement:	BLOCKSIZE NUM
+lun_blocksize:	BLOCKSIZE NUM
 	{
 		if (lun->l_blocksize != 0) {
 			log_warnx("blocksize for lun %d, target \"%s\" "
@@ -547,7 +547,7 @@ blocksize_statement:	BLOCKSIZE NUM
 	}
 	;
 
-device_id_statement:	DEVICE_ID STR
+lun_device_id:	DEVICE_ID STR
 	{
 		if (lun->l_device_id != NULL) {
 			log_warnx("device_id for lun %d, target \"%s\" "
@@ -561,7 +561,7 @@ device_id_statement:	DEVICE_ID STR
 	}
 	;
 
-option_statement:	OPTION STR STR
+lun_option:	OPTION STR STR
 	{
 		struct lun_option *clo;
 		
@@ -573,7 +573,7 @@ option_statement:	OPTION STR STR
 	}
 	;
 
-path_statement:	PATH STR
+lun_path:	PATH STR
 	{
 		if (lun->l_path != NULL) {
 			log_warnx("path for lun %d, target \"%s\" "
@@ -587,7 +587,7 @@ path_statement:	PATH STR
 	}
 	;
 
-serial_statement:	SERIAL STR
+lun_serial:	SERIAL STR
 	{
 		if (lun->l_serial != NULL) {
 			log_warnx("serial for lun %d, target \"%s\" "
@@ -601,7 +601,7 @@ serial_statement:	SERIAL STR
 	}
 	;
 
-size_statement:	SIZE NUM
+lun_size:	SIZE NUM
 	{
 		if (lun->l_size != 0) {
 			log_warnx("size for lun %d, target \"%s\" "
