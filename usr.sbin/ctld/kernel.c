@@ -678,8 +678,15 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	req.data.listen.addr = ai->ai_addr;
 	req.data.listen.addrlen = ai->ai_addrlen;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+		log_err(1, "error issuing CTL_ISCSI ioctl");
+		return;
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI listen: %s",
+		    req.error_str);
+	}
 }
 
 int
@@ -692,7 +699,13 @@ kernel_accept(void)
 	req.type = CTL_ISCSI_ACCEPT;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
+		log_warn("error issuing CTL_ISCSI ioctl");
+		return (0);
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_warnx("error returned from CTL iSCSI accept: %s",
+		    req.error_str);
 		return (0);
 	}
 
@@ -712,13 +725,15 @@ kernel_send(struct pdu *pdu)
 	req.data.send.data_segment_len = pdu->pdu_data_len;
 	req.data.send.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI send: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 void
@@ -738,13 +753,15 @@ kernel_receive(struct pdu *pdu)
 	req.data.receive.data_segment_len = MAX_DATA_SEGMENT_LENGTH;
 	req.data.receive.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI receive: "
 		    "%s; dropping connection", req.error_str);
+	}
 
 }
 
