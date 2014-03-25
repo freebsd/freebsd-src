@@ -1132,7 +1132,7 @@ conf_verify(struct conf *conf)
 		assert(pg->pg_name != NULL);
 		if (pg->pg_discovery_auth_group == NULL) {
 			pg->pg_discovery_auth_group =
-			    auth_group_find(conf, "no-access");
+			    auth_group_find(conf, "default");
 			assert(pg->pg_discovery_auth_group != NULL);
 		}
 
@@ -1159,6 +1159,7 @@ conf_verify(struct conf *conf)
 				break;
 		}
 		if (targ == NULL && ag->ag_name != NULL &&
+		    strcmp(ag->ag_name, "default") != 0 &&
 		    strcmp(ag->ag_name, "no-authentication") != 0 &&
 		    strcmp(ag->ag_name, "no-access") != 0) {
 			log_warnx("auth-group \"%s\" not assigned "
