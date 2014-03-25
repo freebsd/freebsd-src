@@ -255,45 +255,66 @@ subnet_route_with_multiple_fibs_on_same_subnet_cleanup()
 	cleanup_tap
 }
 
-# Test that source address selection works correctly for UDP packets with
-# SO_DONTROUTE set that are sent on non-default FIBs.
+# Regression test for kern/187553 "Source address selection for UDP packets
+# with SO_DONTROUTE uses the default FIB".  The original complaint was that a
+# UDP packet with SO_DONTROUTE set would select a source address from an
+# interface on the default FIB instead of the process FIB.
 # This bug was discovered with "setfib 1 netperf -t UDP_STREAM -H some_host"
 # Regression test for kern/187553
-atf_test_case udp_dontroute cleanup
-udp_dontroute_head()
+
+# The root cause was that ifa_ifwithnet() did not have a fib argument.  It
+# would return an address from an interface on any FIB that had a subnet route
+# for the destination.  If more than one were available, it would choose the
+# most specific.  The root cause is most easily tested by creating two
+# interfaces with overlapping subnet routes, adding a default route to the
+# interface with the less specific subnet route, and looking up a host that
+# requires the default route using the FIB of the interface with the less
+# specific subnet route.  "route get" should provide a route that uses the
+# interface on the chosen FIB.  However, absent the patch for this bug it will
+# instead use the other interface.
+atf_test_case src_addr_selection_by_subnet cleanup
+src_addr_selection_by_subnet_head()
 {
 	atf_set "descr" "Source address selection for UDP packets with SO_DONTROUTE on non-default FIBs works"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
 
-udp_dontroute_body()
+src_addr_selection_by_subnet_body()
 {
 	atf_expect_fail "kern/187553 Source address selection for UDP packets with SO_DONTROUTE uses the default FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
-	ADDR="192.0.2.2"
+	ADDR0="192.0.2.2"
+	ADDR1="192.0.2.3"
+	GATEWAY0="192.0.2.1"
+	TARGET="192.0.2.128"
 	SUBNET="192.0.2.0"
-	MASK="24"
-	# Use a different IP on the same subnet as the target
-	TARGET="192.0.2.100"
+	MASK0="25"
+	MASK1="26"
 
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
 		atf_skip "This test requires net.add_addr_allfibs=0"
 	fi
-	get_fibs 1
+	get_fibs 2
 
 	# Configure a TAP interface
-	setup_tap ${FIB0} ${ADDR} ${MASK}
+	setup_tap ${FIB0} ${ADDR0} ${MASK0}
+	TAP0=${TAP}
+	setup_tap ${FIB1} ${ADDR1} ${MASK1}
+	TAP1=${TAP}
 
-	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
-	# return ENETUNREACH
-	SRCDIR=`atf_get_srcdir`
-	atf_check -o ignore setfib ${FIB0} ${SRCDIR}/udp_dontroute ${TARGET}
+	# Add a gateway to the interface with the less specific subnet route
+	setfib ${FIB0} route add default ${GATEWAY0}
+
+	# Lookup a route
+	echo "Looking up route to ${TARGET} with fib ${FIB0}"
+	echo "Expected behavior is to use interface ${TAP0}"
+	atf_check -o match:"interface:.${TAP0}" setfib ${FIB0} route -n get ${TARGET}
 }
 
-udp_dontroute_cleanup()
+src_addr_selection_by_subnet_cleanup()
 {
 	cleanup_tap
 }
@@ -305,7 +326,7 @@ atf_init_test_cases()
 	atf_add_test_case loopback_and_network_routes_on_nondefault_fib 
 	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet 
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet 
-	atf_add_test_case udp_dontroute
+	atf_add_test_case src_addr_selection_by_subnet
 }
 
 # Looks up one or more fibs from the configuration data and validates them.
