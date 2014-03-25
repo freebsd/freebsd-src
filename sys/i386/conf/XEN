@@ -6,7 +6,7 @@
 cpu		I686_CPU
 ident		XEN
 
-makeoptions	DEBUG=-gdwarf-2		# Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g
 makeoptions	WITHOUT_MODULES="aha ahb amd ctl cxgb dpt drm drm2 hptnr hptmv ida malo mps mwl rdma sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
