@@ -30,6 +30,8 @@ marker task-beastie.4th
 
 include /boot/delay.4th
 
+only forth definitions also support-functions
+
 variable logoX
 variable logoY
 
@@ -345,7 +347,11 @@ variable logoY
 	s" beastie_disable" getenv
 	dup -1 <> if
 		s" YES" compare-insensitive 0= if
-			exit
+			any_conf_read? if
+				load_kernel
+				load_modules
+			then
+			exit \ to autoboot (default)
 		then
 	else
 		drop
@@ -362,3 +368,5 @@ variable logoY
 		delay_execute
 	then
 ;
+
+only forth also

@@ -5,7 +5,7 @@
 include /boot/loader.4th
 
 \ Reads and processes loader.conf variables
-start
+initialize
 
 \ Tests for password -- executes autoboot first if a password was defined
 check-password

@@ -55,10 +55,14 @@ set mainmenu_reboot
 \ 
 set mainmenu_options=5
 
-set mainmenu_caption[5]="Configure Boot [O]ptions..."
-set mainmenu_command[5]="2 goto_menu"
-set mainmenu_keycode[5]=111
-set mainansi_caption[5]="Configure Boot [1mO[37mptions..."
+set mainmenu_kernel=5
+set mainmenu_command[5]="cycle_kernel"
+set mainmenu_keycode[5]=107
+
+set mainmenu_caption[6]="Configure Boot [O]ptions..."
+set mainmenu_command[6]="2 goto_menu"
+set mainmenu_keycode[6]=111
+set mainansi_caption[6]="Configure Boot [1mO[37mptions..."
 
 \ 
 \ BOOT OPTIONS MENU

@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@ include /boot/menusets.4th
 
 variable kernel_state
 variable root_state
+0 kernel_state !
+0 root_state !
 
 \ 
 \ Boot
@@ -279,21 +281,21 @@ variable root_state
 	init_cyclestate ( n k -- n )
 ;
 
-: cycle_kernel ( N -- N TRUE )
-	cycle_menuitem
-	menu-redraw
-
-	\ Now we're going to make the change effective
-
-	dup cycle_stateN @
-	dup kernel_state !       \ save a copy for re-initialization
-	48 +                     \ convert to ASCII numeral
+: activate_kernel ( N -- N )
+	dup cycle_stateN @	( n -- n n2 )
+	dup kernel_state !	( n n2 -- n n2 )  \ copy for re-initialization
+	48 +			( n n2 -- n n2' ) \ kernel_state to ASCII num
 
 	s" set kernel=${kernel_prefix}${kernel[N]}${kernel_suffix}"
-	36 +c!   \ replace 'N' with ASCII numeral
-	evaluate \ sets $kernel to full kernel-path
+	36 +c!		( n n2 c-addr/u -- n c-addr/u ) \ 'N' to ASCII num
+	evaluate	( n c-addr/u -- n ) \ sets $kernel to full kernel-path
+;
 
-	TRUE \ loop menu again
+: cycle_kernel ( N -- N TRUE )
+	cycle_menuitem	\ cycle cycle_stateN to next value
+	activate_kernel \ apply current cycle_stateN
+	menu-redraw	\ redraw menu
+	TRUE		\ loop menu again
 ;
 
 \ 
@@ -305,21 +307,21 @@ variable root_state
 	init_cyclestate ( n k -- n )
 ;
 
-: cycle_root ( N -- N TRUE )
-	cycle_menuitem
-	menu-redraw
-
-	\ Now we're going to make the change effective
-
-	dup cycle_stateN @
-	dup root_state !         \ save a copy for re-initialization
-	48 +                     \ convert to ASCII numeral
+: activate_root ( N -- N )
+	dup cycle_stateN @	( n -- n n2 )
+	dup root_state !	( n n2 -- n n2 )  \ copy for re-initialization
+	48 +			( n n2 -- n n2' ) \ root_state to ASCII num
 
 	s" set root=${root_prefix}${root[N]}${root_suffix}"
-	30 +c!   \ replace 'N' with ASCII numeral
-	evaluate \ sets $root to full root-path
+	30 +c!		( n n2 c-addr/u -- n c-addr/u ) \ 'N' to ASCII num
+	evaluate	( n c-addr/u -- n ) \ sets $root to full kernel-path
+;
 
-	TRUE \ loop menu again
+: cycle_root ( N -- N TRUE )
+	cycle_menuitem	\ cycle cycle_stateN to next value
+	activate_root	\ apply current cycle_stateN
+	menu-redraw	\ redraw menu
+	TRUE		\ loop menu again
 ;
 
 \ 
