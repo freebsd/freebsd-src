@@ -224,7 +224,17 @@ portal_group:	PORTAL_GROUP portal_group_name
 
 portal_group_name:	STR
 	{
-		portal_group = portal_group_new(conf, $1);
+		/*
+		 * Make it possible to redefine default
+		 * portal-group. but only once.
+		 */
+		if (strcmp($1, "default") == 0 &&
+		    conf->conf_default_pg_defined == false) {
+			portal_group = portal_group_find(conf, $1);
+			conf->conf_default_pg_defined = true;
+		} else {
+			portal_group = portal_group_new(conf, $1);
+		}
 		free($1);
 		if (portal_group == NULL)
 			return (1);
@@ -703,6 +713,7 @@ conf_new_from_file(const char *path)
 	conf = conf_new();
 
 	ag = auth_group_new(conf, "no-authentication");
+	assert(ag != NULL);
 	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
 
 	/*
@@ -710,11 +721,11 @@ conf_new_from_file(const char *path)
 	 * any entries and thus will always deny access.
 	 */
 	ag = auth_group_new(conf, "no-access");
+	assert(ag != NULL);
 	ag->ag_type = AG_TYPE_CHAP;
 
 	pg = portal_group_new(conf, "default");
-	portal_group_add_listen(pg, "0.0.0.0:3260", false);
-	portal_group_add_listen(pg, "[::]:3260", false);
+	assert(pg != NULL);
 
 	yyin = fopen(path, "r");
 	if (yyin == NULL) {
@@ -734,6 +745,15 @@ conf_new_from_file(const char *path)
 	if (error != 0) {
 		conf_delete(conf);
 		return (NULL);
+	}
+
+	if (conf->conf_default_pg_defined == false) {
+		log_debugx("portal-group \"default\" not defined; "
+		    "going with defaults");
+		pg = portal_group_find(conf, "default");
+		assert(pg != NULL);
+		portal_group_add_listen(pg, "0.0.0.0:3260", false);
+		portal_group_add_listen(pg, "[::]:3260", false);
 	}
 
 	error = conf_verify(conf);
