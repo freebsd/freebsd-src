@@ -182,6 +182,15 @@ ctx_init_rmrr(struct dmar_ctx *ctx, device_t dev)
 		end = entry->end;
 		entry->start = trunc_page(start);
 		entry->end = round_page(end);
+		if (entry->start == entry->end) {
+			/* Workaround for some AMI (?) BIOSes */
+			if (bootverbose) {
+				device_printf(dev, "BIOS bug: dmar%d RMRR "
+				    "region (%jx, %jx) corrected\n",
+				    ctx->dmar->unit, start, end);
+			}
+			entry->end += DMAR_PAGE_SIZE * 0x20;
+		}
 		size = OFF_TO_IDX(entry->end - entry->start);
 		ma = malloc(sizeof(vm_page_t) * size, M_TEMP, M_WAITOK);
 		for (i = 0; i < size; i++) {
