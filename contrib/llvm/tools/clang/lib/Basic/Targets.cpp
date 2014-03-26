@@ -4529,6 +4529,13 @@ public:
       UIntMaxType = UnsignedLong;
     }
     Int64Type = IntMaxType;
+
+    // The SPARCv8 System V ABI has long double 128-bits in size, but 64-bit
+    // aligned. The SPARCv9 SCD 2.4.1 says 16-byte aligned.
+    LongDoubleWidth = 128;
+    LongDoubleAlign = 128;
+    LongDoubleFormat = &llvm::APFloat::IEEEquad;
+    MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 64;
   }
 
   virtual void getTargetDefines(const LangOptions &Opts,
@@ -4544,6 +4551,22 @@ public:
       Builder.defineMacro("__sparc_v9__");
       Builder.defineMacro("__sparcv9__");
     }
+  }
+
+  virtual bool setCPU(const std::string &Name) {
+    bool CPUKnown = llvm::StringSwitch<bool>(Name)
+      .Case("v9", true)
+      .Case("ultrasparc", true)
+      .Case("ultrasparc3", true)
+      .Case("niagara", true)
+      .Case("niagara2", true)
+      .Case("niagara3", true)
+      .Case("niagara4", true)
+      .Default(false);
+
+    // No need to store the CPU yet.  There aren't any CPU-specific
+    // macros to define.
+    return CPUKnown;
   }
 };
 

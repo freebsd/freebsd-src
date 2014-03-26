@@ -74,6 +74,12 @@ SUBDIR=	libclanganalysis \
 	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \
 	libllvmpowerpcinstprinter \
+	libllvmsparcasmparser \
+	libllvmsparccodegen \
+	libllvmsparcdesc \
+	libllvmsparcdisassembler \
+	libllvmsparcinfo \
+	libllvmsparcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
 	libllvmx86desc \
