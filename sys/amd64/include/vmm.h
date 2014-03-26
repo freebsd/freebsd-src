@@ -53,7 +53,8 @@ typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie);
+				  struct pmap *pmap, void *rendezvous_cookie,
+				  void *suspend_cookie);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -114,6 +115,7 @@ int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
+int vm_suspend(struct vm *vm);
 int vm_inject_nmi(struct vm *vm, int vcpu);
 int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
@@ -156,6 +158,13 @@ vcpu_rendezvous_pending(void *rendezvous_cookie)
 {
 
 	return (*(uintptr_t *)rendezvous_cookie != 0);
+}
+
+static __inline int
+vcpu_suspended(void *suspend_cookie)
+{
+
+	return (*(int *)suspend_cookie);
 }
 
 /*
@@ -311,6 +320,7 @@ enum vm_exitcode {
 	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
+	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_MAX
 };
 

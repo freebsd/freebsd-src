@@ -239,6 +239,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vmrun = (struct vm_run *)data;
 		error = vm_run(sc->vm, vmrun);
 		break;
+	case VM_SUSPEND:
+		error = vm_suspend(sc->vm);
+		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
 		error = vmm_stat_desc_copy(statdesc->index,
