@@ -14,7 +14,7 @@
 
 #define DEBUG_TYPE "jit"
 #include "Sparc.h"
-#include "MCTargetDesc/SparcBaseInfo.h"
+#include "MCTargetDesc/SparcMCExpr.h"
 #include "SparcRelocations.h"
 #include "SparcTargetMachine.h"
 #include "llvm/ADT/Statistic.h"
@@ -71,6 +71,11 @@ private:
   /// operand requires relocation, record the relocation and return zero.
   unsigned getMachineOpValue(const MachineInstr &MI,
                              const MachineOperand &MO) const;
+
+  unsigned getCallTargetOpValue(const MachineInstr &MI,
+                                unsigned) const;
+  unsigned getBranchTargetOpValue(const MachineInstr &MI,
+                                  unsigned) const;
 
   void emitWord(unsigned Word);
 
@@ -181,20 +186,32 @@ unsigned SparcCodeEmitter::getMachineOpValue(const MachineInstr &MI,
     llvm_unreachable("Unable to encode MachineOperand!");
   return 0;
 }
+unsigned SparcCodeEmitter::getCallTargetOpValue(const MachineInstr &MI,
+                                                unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
+unsigned SparcCodeEmitter::getBranchTargetOpValue(const MachineInstr &MI,
+                                                  unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
 unsigned SparcCodeEmitter::getRelocation(const MachineInstr &MI,
                                          const MachineOperand &MO) const {
 
   unsigned TF = MO.getTargetFlags();
   switch (TF) {
   default:
-  case SPII::MO_NO_FLAG: break;
-  case SPII::MO_LO: return SP::reloc_sparc_lo;
-  case SPII::MO_HI: return SP::reloc_sparc_hi;
-  case SPII::MO_H44:
-  case SPII::MO_M44:
-  case SPII::MO_L44:
-  case SPII::MO_HH:
-  case SPII::MO_HM: assert(0 && "FIXME: Implement Medium/Large code model.");
+  case SparcMCExpr::VK_Sparc_None:  break;
+  case SparcMCExpr::VK_Sparc_LO:    return SP::reloc_sparc_lo;
+  case SparcMCExpr::VK_Sparc_HI:    return SP::reloc_sparc_hi;
+  case SparcMCExpr::VK_Sparc_H44:   return SP::reloc_sparc_h44;
+  case SparcMCExpr::VK_Sparc_M44:   return SP::reloc_sparc_m44;
+  case SparcMCExpr::VK_Sparc_L44:   return SP::reloc_sparc_l44;
+  case SparcMCExpr::VK_Sparc_HH:    return SP::reloc_sparc_hh;
+  case SparcMCExpr::VK_Sparc_HM:    return SP::reloc_sparc_hm;
   }
 
   unsigned Opc = MI.getOpcode();
