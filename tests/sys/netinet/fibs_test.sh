@@ -55,7 +55,6 @@ arpresolve_checks_interface_fib_head()
 }
 arpresolve_checks_interface_fib_body()
 {
-	atf_expect_fail "kern/167947 arpresolve checks only the default FIB for the interface route"
 	# Configure the TAP interfaces to use a RFC5737 nonrouteable addresses
 	# and a non-default fib
 	ADDR0="192.0.2.2"
