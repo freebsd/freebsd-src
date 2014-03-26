@@ -67,7 +67,8 @@ amdv_vminit(struct vm *vm, struct pmap *pmap)
 }
 
 static int
-amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap, void *cookie)
+amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap,
+    void *rptr, void *sptr)
 {
 
 	printf("amdv_vmrun: not implemented\n");
