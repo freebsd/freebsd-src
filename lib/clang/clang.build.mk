@@ -52,7 +52,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td \
 	    -gen-intrinsic -o ${.TARGET} \
 	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 .for arch in \
-	ARM/ARM Mips/Mips PowerPC/PPC X86/X86
+	ARM/ARM Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
