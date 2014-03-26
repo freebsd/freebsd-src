@@ -2780,7 +2780,8 @@ freebsd32_copyout_strings(struct image_params *imgp)
 {
 	int argc, envc, i;
 	u_int32_t *vectp;
-	char *stringp, *destp;
+	char *stringp;
+	uintptr_t destp;
 	u_int32_t *stack_base;
 	struct freebsd32_ps_strings *arginfo;
 	char canary[sizeof(long) * 8];
@@ -2802,35 +2803,34 @@ freebsd32_copyout_strings(struct image_params *imgp)
 		szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	else
 		szsigcode = 0;
-	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-	    roundup(execpath_len, sizeof(char *)) -
-	    roundup(sizeof(canary), sizeof(char *)) -
-	    roundup(sizeof(pagesizes32), sizeof(char *)) -
-	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+	destp =	(uintptr_t)arginfo;
 
 	/*
 	 * install sigcode
 	 */
-	if (szsigcode != 0)
-		copyout(imgp->proc->p_sysent->sv_sigcode,
-			((caddr_t)arginfo - szsigcode), szsigcode);
+	if (szsigcode != 0) {
+		destp -= szsigcode;
+		destp = rounddown2(destp, sizeof(uint32_t));
+		copyout(imgp->proc->p_sysent->sv_sigcode, (void *)destp,
+		    szsigcode);
+	}
 
 	/*
 	 * Copy the image path for the rtld.
 	 */
 	if (execpath_len != 0) {
-		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
-		copyout(imgp->execpath, (void *)imgp->execpathp,
-		    execpath_len);
+		destp -= execpath_len;
+		imgp->execpathp = destp;
+		copyout(imgp->execpath, (void *)destp, execpath_len);
 	}
 
 	/*
 	 * Prepare the canary for SSP.
 	 */
 	arc4rand(canary, sizeof(canary), 0);
-	imgp->canary = (uintptr_t)arginfo - szsigcode - execpath_len -
-	    sizeof(canary);
-	copyout(canary, (void *)imgp->canary, sizeof(canary));
+	destp -= sizeof(canary);
+	imgp->canary = destp;
+	copyout(canary, (void *)destp, sizeof(canary));
 	imgp->canarylen = sizeof(canary);
 
 	/*
@@ -2838,10 +2838,14 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	 */
 	for (i = 0; i < MAXPAGESIZES; i++)
 		pagesizes32[i] = (uint32_t)pagesizes[i];
-	imgp->pagesizes = (uintptr_t)arginfo - szsigcode - execpath_len -
-	    roundup(sizeof(canary), sizeof(char *)) - sizeof(pagesizes32);
-	copyout(pagesizes32, (void *)imgp->pagesizes, sizeof(pagesizes32));
+	destp -= sizeof(pagesizes32);
+	destp = rounddown2(destp, sizeof(uint32_t));
+	imgp->pagesizes = destp;
+	copyout(pagesizes32, (void *)destp, sizeof(pagesizes32));
 	imgp->pagesizeslen = sizeof(pagesizes32);
+
+	destp -= ARG_MAX - imgp->args->stringspace;
+	destp = rounddown2(destp, sizeof(uint32_t));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -2862,13 +2866,14 @@ freebsd32_copyout_strings(struct image_params *imgp)
 		vectp = (u_int32_t *) (destp - (imgp->args->argc +
 		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
 		    sizeof(u_int32_t));
-	} else
+	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (u_int32_t *)
-			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
+		vectp = (u_int32_t *)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2) * sizeof(u_int32_t));
+	}
 
 	/*
 	 * vectp also becomes our initial stack base
@@ -2881,7 +2886,7 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+	copyout(stringp, (void *)destp, ARG_MAX - imgp->args->stringspace);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
