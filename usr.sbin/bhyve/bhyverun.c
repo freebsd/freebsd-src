@@ -463,6 +463,33 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
+static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
+static int resetcpu = -1;
+
+static int
+vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+	
+	assert(resetcpu != -1);
+
+	fbsdrun_deletecpu(ctx, *pvcpu);
+
+	if (*pvcpu != resetcpu) {
+		pthread_mutex_lock(&resetcpu_mtx);
+		pthread_cond_signal(&resetcpu_cond);
+		pthread_mutex_unlock(&resetcpu_mtx);
+		pthread_exit(NULL);
+	}
+
+	pthread_mutex_lock(&resetcpu_mtx);
+	while (!CPU_EMPTY(&cpumask)) {
+		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
+	}
+	pthread_mutex_unlock(&resetcpu_mtx);
+	exit(0);
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
@@ -473,6 +500,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
 };
 
 static void
@@ -514,7 +542,12 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                         rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_RESET:
-			exit(0);
+			if (vm_suspend(ctx) == 0) {
+				assert(resetcpu == -1);
+				resetcpu = vcpu;
+			}
+                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
+			break;
 		default:
 			exit(1);
 		}
