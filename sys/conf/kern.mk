@@ -90,7 +90,11 @@ INLINE_LIMIT?=	15000
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_CPUARCH} == "sparc64"
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-mcmodel=large -fno-dwarf2-cfi-asm
+.else
 CFLAGS+=	-mcmodel=medany -msoft-float
+.endif
 INLINE_LIMIT?=	15000
 .endif
 
