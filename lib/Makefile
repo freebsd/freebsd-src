@@ -276,4 +276,8 @@ afterinstall:
 	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
+.if !make(install)
+SUBDIR_PARALLEL=
+.endif
+
 .include <bsd.subdir.mk>
