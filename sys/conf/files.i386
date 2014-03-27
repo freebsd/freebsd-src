@@ -232,7 +232,7 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd
+dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
 dev/lindev/full.c		optional lindev
 dev/lindev/lindev.c		optional lindev
@@ -275,6 +275,7 @@ dev/uart/uart_cpu_i386.c	optional uart
 dev/viawd/viawd.c		optional viawd
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
+dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
 dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci

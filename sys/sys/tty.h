@@ -166,6 +166,7 @@ void	tty_rel_gone(struct tty *tp);
 
 #define	tty_lock(tp)		mtx_lock((tp)->t_mtx)
 #define	tty_unlock(tp)		mtx_unlock((tp)->t_mtx)
+#define	tty_lock_owned(tp)	mtx_owned((tp)->t_mtx)
 #define	tty_lock_assert(tp,ma)	mtx_assert((tp)->t_mtx, (ma))
 #define	tty_getlock(tp)		((tp)->t_mtx)
 
@@ -192,6 +193,7 @@ int	tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td);
 int	tty_ioctl_compat(struct tty *tp, u_long cmd, caddr_t data,
     int fflag, struct thread *td);
+void	tty_set_winsize(struct tty *tp, const struct winsize *wsz);
 void	tty_init_console(struct tty *tp, speed_t speed);
 void	tty_flush(struct tty *tp, int flags);
 void	tty_hiwat_in_block(struct tty *tp);
