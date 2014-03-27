@@ -68,7 +68,7 @@ ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
 	u_char *ebr;
 	struct dos_partition *dp;
 	struct part *part, *next;
-	lba_t block, trksz;
+	lba_t block;
 	int error;
 
 	ebr = malloc(secsz);
@@ -78,27 +78,26 @@ ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
 	le16enc(ebr + DOSMAGICOFFSET, DOSMAGIC);
 
 	error = 0;
-	trksz = 1;	/* Sectors/track */
 	STAILQ_FOREACH_SAFE(part, &partlist, link, next) {
-		block = part->block - trksz;
+		block = part->block - nsecs;
 		dp = (void *)(ebr + DOSPARTOFF);
-		ebr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect, trksz);
+		ebr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect, nsecs);
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);
 		ebr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
 		    part->block + part->size - 1);
-		le32enc(&dp->dp_start, trksz);
+		le32enc(&dp->dp_start, nsecs);
 		le32enc(&dp->dp_size, part->size);
 
 		/* Add link entry */
 		if (next != NULL) {
 			dp++;
 			ebr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
-			    next->block - trksz);
+			    next->block - nsecs);
 			dp->dp_typ = DOSPTYP_EXT;
 			ebr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
 			    next->block + next->size - 1);
-			le32enc(&dp->dp_start, next->block - trksz);
-			le32enc(&dp->dp_size, next->size + trksz);
+			le32enc(&dp->dp_start, next->block - nsecs);
+			le32enc(&dp->dp_size, next->size + nsecs);
 		}
 
 		error = mkimg_seek(fd, block);
