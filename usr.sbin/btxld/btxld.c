@@ -426,7 +426,7 @@ puthdr(int fd, struct hdr *hdr)
 	    le32toh(eh.p[0].p_filesz));
 	eh.p[1].p_vaddr = eh.p[1].p_paddr =
 	    htole32(align(le32toh(eh.p[0].p_paddr) + le32toh(eh.p[0].p_memsz),
-	    4));
+	    4096));
 	eh.p[1].p_filesz = eh.p[1].p_memsz = htole32(hdr->data);
 	eh.sh[2].sh_addr = eh.p[0].p_vaddr;
 	eh.sh[2].sh_offset = eh.p[0].p_offset;
