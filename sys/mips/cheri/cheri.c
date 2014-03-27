@@ -172,7 +172,15 @@ cheri_capability_set_priv(struct chericap *cp)
 }
 
 void
-cheri_capability_set_user(struct chericap *cp)
+cheri_capability_set_user_c0(struct chericap *cp)
+{
+
+	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+}
+
+void
+cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
@@ -234,8 +242,8 @@ cheri_exec_setregs(struct thread *td)
 	 */
 	cfp = &td->td_pcb->pcb_cheriframe;
 	bzero(cfp, sizeof(*cfp));
-	cheri_capability_set_user(&cfp->cf_c0);
-	cheri_capability_set_user(&cfp->cf_pcc);
+	cheri_capability_set_user_c0(&cfp->cf_c0);
+	cheri_capability_set_user_pcc(&cfp->cf_pcc);
 
 	/* XXXRW: Trusted stack initialisation here? */
 }

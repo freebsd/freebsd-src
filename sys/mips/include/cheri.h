@@ -460,7 +460,8 @@ void	cheri_capability_copy(struct chericap *cp_to,
 void	cheri_capability_set(struct chericap *cp, uint32_t uperms,
 	    void *otypep /* eaddr */, void *basep, uint64_t length);
 void	cheri_capability_set_priv(struct chericap *cp);
-void	cheri_capability_set_user(struct chericap *cp);
+void	cheri_capability_set_user_c0(struct chericap *cp);
+void	cheri_capability_set_user_pcc(struct chericap *cp);
 void	cheri_capability_set_null(struct chericap *cp);
 
 /*
