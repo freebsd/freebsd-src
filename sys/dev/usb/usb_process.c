@@ -493,3 +493,15 @@ usb_proc_rewakeup(struct usb_process *up)
 		cv_signal(&up->up_cv);
 	}
 }
+
+/*------------------------------------------------------------------------*
+ *	usb_proc_is_called_from
+ *
+ * This function will return non-zero if called from inside the USB
+ * process passed as first argument. Else this function returns zero.
+ *------------------------------------------------------------------------*/
+int
+usb_proc_is_called_from(struct usb_process *up)
+{
+	return (up->up_curtd == curthread);
+}
