@@ -44,6 +44,9 @@
 #include "acpi.h"
 #include "accommon.h"
 
+#define _COMPONENT          ACPI_UTILITIES
+        ACPI_MODULE_NAME    ("ahpredef")
+
 /*
  * iASL only needs a partial table (short descriptions only).
  * AcpiHelp needs the full table.
@@ -321,3 +324,34 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_Wxx",    "Wake Event", "Method executed as a result of a wake event"),
     AH_PREDEF (NULL,      NULL, NULL)
 };
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiAhMatchPredefinedName
+ *
+ * PARAMETERS:  Nameseg                 - Predefined name string
+ *
+ * RETURN:      ID info struct. NULL if Nameseg not found
+ *
+ * DESCRIPTION: Lookup a predefined name.
+ *
+ ******************************************************************************/
+
+const AH_PREDEFINED_NAME *
+AcpiAhMatchPredefinedName (
+    char                        *Nameseg)
+{
+    const AH_PREDEFINED_NAME    *Info;
+
+
+    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    {
+        if (ACPI_COMPARE_NAME (Nameseg, Info->Name))
+        {
+            return (Info);
+        }
+    }
+
+    return (NULL);
+}

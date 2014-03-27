@@ -180,6 +180,11 @@ AcpiDbSetMethodData (
     if (Type == 'N')
     {
         Node = AcpiDbConvertToNode (IndexArg);
+        if (!Node)
+        {
+            return;
+        }
+
         if (Node->Type != ACPI_TYPE_INTEGER)
         {
             AcpiOsPrintf ("Can only set Integer nodes\n");

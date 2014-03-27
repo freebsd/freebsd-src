@@ -203,11 +203,16 @@ FlGenerateFilename (
 
 
     /*
-     * Copy the original filename to a new buffer. Leave room for the worst case
-     * where we append the suffix, an added dot and the null terminator.
+     * Copy the original filename to a new buffer. Leave room for the worst
+     * case where we append the suffix, an added dot and the null terminator.
      */
     NewFilename = ACPI_ALLOCATE_ZEROED ((ACPI_SIZE)
         strlen (InputFilename) + strlen (Suffix) + 2);
+    if (!NewFilename)
+    {
+        return (NULL);
+    }
+
     strcpy (NewFilename, InputFilename);
 
     /* Try to find the last dot in the filename */

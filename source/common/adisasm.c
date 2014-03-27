@@ -79,10 +79,6 @@ NsSetupNamespaceListing (
 
 /* Local prototypes */
 
-static UINT32
-AdGetFileSize (
-    FILE                    *File);
-
 static void
 AdCreateTableHeader (
     char                    *Filename,
@@ -157,38 +153,6 @@ static ACPI_PARSE_OBJECT    *AcpiGbl_ParseOpRoot;
 
 /*******************************************************************************
  *
- * FUNCTION:    AdGetFileSize
- *
- * PARAMETERS:  File                - Open file handle
- *
- * RETURN:      File Size
- *
- * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
- *
- ******************************************************************************/
-
-static UINT32
-AdGetFileSize (
-    FILE                    *File)
-{
-    UINT32                  FileSize;
-    long                    Offset;
-
-
-    Offset = ftell (File);
-
-    fseek (File, 0, SEEK_END);
-    FileSize = (UINT32) ftell (File);
-
-    /* Restore file pointer */
-
-    fseek (File, Offset, SEEK_SET);
-    return (FileSize);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AdInitialize
  *
  * PARAMETERS:  None
@@ -206,7 +170,7 @@ AdInitialize (
     ACPI_STATUS             Status;
 
 
-    /* ACPI CA subsystem initialization */
+    /* ACPICA subsystem initialization */
 
     Status = AcpiOsInitialize ();
     if (ACPI_FAILURE (Status))
@@ -381,7 +345,7 @@ AdAmlDisassemble (
         /* Create/Open a disassembly output file */
 
         DisasmFilename = FlGenerateFilename (Prefix, FILE_SUFFIX_DISASSEMBLY);
-        if (!OutFilename)
+        if (!DisasmFilename)
         {
             fprintf (stderr, "Could not generate output filename\n");
             Status = AE_ERROR;
@@ -413,7 +377,7 @@ AdAmlDisassemble (
         fprintf (stderr, "Acpi Data Table [%4.4s] decoded\n",
             Table->Signature);
         fprintf (stderr, "Formatted output:  %s - %u bytes\n",
-            DisasmFilename, AdGetFileSize (File));
+            DisasmFilename, CmGetFileSize (File));
     }
     else
     {
@@ -469,9 +433,10 @@ AdAmlDisassemble (
                 "reparsing with new information\n",
                 AcpiDmGetExternalMethodCount ());
 
-            /* Reparse, rebuild namespace. no need to xref namespace */
+            /* Reparse, rebuild namespace */
 
             AcpiPsDeleteParseTree (AcpiGbl_ParseOpRoot);
+            AcpiGbl_ParseOpRoot = NULL;
             AcpiNsDeleteNamespaceSubtree (AcpiGbl_RootNode);
 
             AcpiGbl_RootNode                    = NULL;
@@ -485,6 +450,9 @@ AdAmlDisassemble (
             AcpiGbl_RootNodeStruct.Flags        = 0;
 
             Status = AcpiNsRootInitialize ();
+
+            /* New namespace, add the external definitions first */
+
             AcpiDmAddExternalsToNamespace ();
 
             /* Parse the table again. No need to reload it, however */
@@ -496,6 +464,14 @@ AdAmlDisassemble (
                     AcpiFormatException (Status));
                 goto Cleanup;
             }
+
+            /* Cross reference the namespace again */
+
+            AcpiDmFinishNamespaceLoad (AcpiGbl_ParseOpRoot,
+                AcpiGbl_RootNode, OwnerId);
+
+            AcpiDmCrossReferenceNamespace (AcpiGbl_ParseOpRoot,
+                AcpiGbl_RootNode, OwnerId);
 
             if (AslCompilerdebug)
             {
@@ -531,7 +507,7 @@ AdAmlDisassemble (
 
             fprintf (stderr, "Disassembly completed\n");
             fprintf (stderr, "ASL Output:    %s - %u bytes\n",
-                DisasmFilename, AdGetFileSize (File));
+                DisasmFilename, CmGetFileSize (File));
         }
     }
 
@@ -568,7 +544,7 @@ Cleanup:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Create the disassembler header, including ACPI CA signon with
+ * DESCRIPTION: Create the disassembler header, including ACPICA signon with
  *              current time and date.
  *
  *****************************************************************************/
@@ -600,7 +576,7 @@ AdDisassemblerHeader (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Create the ASL table header, including ACPI CA signon with
+ * DESCRIPTION: Create the ASL table header, including ACPICA signon with
  *              current time and date.
  *
  *****************************************************************************/
@@ -678,8 +654,17 @@ AdCreateTableHeader (
     else
     {
         NewFilename = ACPI_ALLOCATE_ZEROED (9);
-        strncat (NewFilename, Table->Signature, 4);
-        strcat (NewFilename, ".aml");
+        if (NewFilename)
+        {
+            strncat (NewFilename, Table->Signature, 4);
+            strcat (NewFilename, ".aml");
+        }
+    }
+
+    if (!NewFilename)
+    {
+        AcpiOsPrintf (" **** Could not generate AML output filename\n");
+        return;
     }
 
     /* Open the ASL definition block */
@@ -872,7 +857,8 @@ AdParseTable (
     if (LoadTable)
     {
         Status = AcpiTbStoreTable ((ACPI_PHYSICAL_ADDRESS) Table, Table,
-                    Table->Length, ACPI_TABLE_ORIGIN_ALLOCATED, &TableIndex);
+                    Table->Length, ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
+                    &TableIndex);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -907,9 +893,12 @@ AdParseTable (
         return (AE_OK);
     }
 
-    /* Pass 3: Parse control methods and link their parse trees into the main parse tree */
-
-    fprintf (stderr, "Parsing Deferred Opcodes (Methods/Buffers/Packages/Regions)\n");
+    /*
+     * Pass 3: Parse control methods and link their parse trees
+     * into the main parse tree
+     */
+    fprintf (stderr,
+        "Parsing Deferred Opcodes (Methods/Buffers/Packages/Regions)\n");
     Status = AcpiDmParseDeferredOps (AcpiGbl_ParseOpRoot);
     fprintf (stderr, "\n");
 

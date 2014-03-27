@@ -343,10 +343,6 @@ DtStrtoul64 (
     char                    *String,
     UINT64                  *ReturnInteger);
 
-UINT32
-DtGetFileSize (
-    FILE                    *Handle);
-
 char*
 DtGetFieldValue (
     DT_FIELD                *Field);

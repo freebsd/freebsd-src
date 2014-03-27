@@ -31,6 +31,7 @@ OBJECTS = \
 	$(OBJDIR)/ahaslkey.o\
 	$(OBJDIR)/ahaslops.o\
 	$(OBJDIR)/ahdecode.o\
+	$(OBJDIR)/ahids.o\
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/ahmain.o\
 	$(OBJDIR)/getopt.o\

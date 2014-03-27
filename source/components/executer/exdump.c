@@ -155,10 +155,11 @@ static ACPI_EXDUMP_INFO     AcpiExDumpMethod[9] =
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Method.AmlStart),              "Aml Start"}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpMutex[5] =
+static ACPI_EXDUMP_INFO     AcpiExDumpMutex[6] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpMutex),          NULL},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Mutex.SyncLevel),              "Sync Level"},
+    {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Mutex.OriginalSyncLevel),      "Original Sync Level"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Mutex.OwnerThread),            "Owner Thread"},
     {ACPI_EXD_UINT16,   ACPI_EXD_OFFSET (Mutex.AcquisitionDepth),       "Acquire Depth"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Mutex.OsMutex),                "OsMutex"}

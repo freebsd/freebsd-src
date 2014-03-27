@@ -296,7 +296,7 @@ char                        *AslMessages [] =
 /*    ASL_MSG_CONNECTION_INVALID */         "Invalid OpRegion SpaceId for use of Connection operator",
 /*    ASL_MSG_CONSTANT_EVALUATION */        "Could not evaluate constant expression",
 /*    ASL_MSG_CONSTANT_FOLDED */            "Constant expression evaluated and reduced",
-/*    ASL_MSG_CORE_EXCEPTION */             "From ACPI CA Subsystem",
+/*    ASL_MSG_CORE_EXCEPTION */             "From ACPICA Subsystem",
 /*    ASL_MSG_DEBUG_FILE_OPEN */            "Could not open debug file",
 /*    ASL_MSG_DEBUG_FILENAME */             "Could not create debug filename",
 /*    ASL_MSG_DEPENDENT_NESTING */          "Dependent function macros cannot be nested",\

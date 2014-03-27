@@ -47,14 +47,12 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20140214
+#define ACPI_CA_VERSION                 0x20140325
 
 #include "acconfig.h"
 #include "actypes.h"
 #include "actbl.h"
 #include "acbuffer.h"
-
-#pragma pack(push) /* Set default struct packing */
 
 /*
  * Globals that are publically available
@@ -76,7 +74,7 @@ extern UINT8                AcpiGbl_AutoSerializeMethods;
 extern UINT8                AcpiGbl_CopyDsdtLocally;
 extern UINT8                AcpiGbl_CreateOsiMethod;
 extern UINT8                AcpiGbl_DisableAutoRepair;
-extern UINT8                AcpiGbl_DisableSsdtTableLoad;
+extern UINT8                AcpiGbl_DisableSsdtTableInstall;
 extern UINT8                AcpiGbl_DoNotUseXsdt;
 extern UINT8                AcpiGbl_EnableAmlDebugObject;
 extern UINT8                AcpiGbl_EnableInterpreterSlack;
@@ -203,6 +201,11 @@ AcpiDecodePldBuffer (
 /*
  * ACPI table load/unload interfaces
  */
+ACPI_STATUS
+AcpiInstallTable (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    BOOLEAN                 Physical);
+
 ACPI_STATUS
 AcpiLoadTable (
     ACPI_TABLE_HEADER       *Table);
@@ -832,7 +835,5 @@ AcpiDebugPrintRaw (
     const char              *Format,
     ...);
 #endif
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACXFACE_H__ */

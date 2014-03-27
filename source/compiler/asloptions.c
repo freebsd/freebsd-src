@@ -269,6 +269,7 @@ AslDoOptions (
         /* Get entire list of external files */
 
         AcpiGbl_Optind--;
+        argv[AcpiGbl_Optind] = AcpiGbl_Optarg;
 
         while (argv[AcpiGbl_Optind] &&
               (argv[AcpiGbl_Optind][0] != '-'))

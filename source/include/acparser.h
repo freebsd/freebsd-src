@@ -46,8 +46,6 @@
 #define __ACPARSER_H__
 
 
-#pragma pack(push) /* Set default struct packing */
-
 #define OP_HAS_RETURN_VALUE             1
 
 /* Variable number of arguments. This field must be 32 bits */
@@ -354,7 +352,5 @@ void
 AcpiPsShow (
     ACPI_PARSE_OBJECT       *op);
 
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACPARSER_H__ */

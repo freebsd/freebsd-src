@@ -874,14 +874,14 @@ AslError (
  * FUNCTION:    AslCoreSubsystemError
  *
  * PARAMETERS:  Op                  - Parse node where error happened
- *              Status              - The ACPI CA Exception
+ *              Status              - The ACPICA Exception
  *              ExtraMessage        - additional error message
  *              Abort               - TRUE -> Abort compilation
  *
  * RETURN:      None
  *
- * DESCRIPTION: Error reporting routine for exceptions returned by the ACPI
- *              CA core subsystem.
+ * DESCRIPTION: Error reporting routine for exceptions returned by the ACPICA
+ *              core subsystem.
  *
  ******************************************************************************/
 

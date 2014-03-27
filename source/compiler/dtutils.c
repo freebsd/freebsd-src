@@ -286,36 +286,6 @@ DtStrtoul64 (
 
 /******************************************************************************
  *
- * FUNCTION:    DtGetFileSize
- *
- * PARAMETERS:  Handle              - Open file handler
- *
- * RETURN:      Current file size
- *
- * DESCRIPTION: Get the current size of a file. Seek to the EOF and get the
- *              offset. Seek back to the original location.
- *
- *****************************************************************************/
-
-UINT32
-DtGetFileSize (
-    FILE                    *Handle)
-{
-    int                     CurrentOffset;
-    int                     LastOffset;
-
-
-    CurrentOffset = ftell (Handle);
-    fseek (Handle, 0, SEEK_END);
-    LastOffset = ftell (Handle);
-    fseek (Handle, CurrentOffset, SEEK_SET);
-
-    return ((UINT32) LastOffset);
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    DtGetFieldValue
  *
  * PARAMETERS:  Field               - Current field list pointer

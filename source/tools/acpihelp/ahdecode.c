@@ -48,41 +48,6 @@
 #include "acpredef.h"
 
 
-/* Device IDs defined in the ACPI specification */
-
-static const AH_DEVICE_ID  AhDeviceIds[] =
-{
-    {"PNP0A05",     "Generic Container Device"},
-    {"PNP0A06",     "Generic Container Device"},
-    {"PNP0C08",     "ACPI core hardware"},
-    {"PNP0C09",     "Embedded Controller Device"},
-    {"PNP0C0A",     "Control Method Battery"},
-    {"PNP0C0B",     "Fan"},
-    {"PNP0C0C",     "Power Button Device"},
-    {"PNP0C0D",     "Lid Device"},
-    {"PNP0C0E",     "Sleep Button Device"},
-    {"PNP0C0F",     "PCI Interrupt Link Device"},
-    {"PNP0C80",     "Memory Device"},
-
-    {"ACPI0001",    "SMBus 1.0 Host Controller"},
-    {"ACPI0002",    "Smart Battery Subsystem"},
-    {"ACPI0003",    "Power Source Device"},
-    {"ACPI0004",    "Module Device"},
-    {"ACPI0005",    "SMBus 2.0 Host Controller"},
-    {"ACPI0006",    "GPE Block Device"},
-    {"ACPI0007",    "Processor Device"},
-    {"ACPI0008",    "Ambient Light Sensor Device"},
-    {"ACPI0009",    "I/O xAPIC Device"},
-    {"ACPI000A",    "I/O APIC Device"},
-    {"ACPI000B",    "I/O SAPIC Device"},
-    {"ACPI000C",    "Processor Aggregator Device"},
-    {"ACPI000D",    "Power Meter Device"},
-    {"ACPI000E",    "Time/Alarm Device"},
-    {"ACPI000F",    "User Presence Detection Device"},
-
-    {NULL, NULL}
-};
-
 #define AH_DISPLAY_EXCEPTION(Status, Name) \
     printf ("%.4X: %s\n", Status, Name)
 
@@ -589,7 +554,7 @@ AhDisplayAslKeyword (
 
 /*******************************************************************************
  *
- * FUNCTION:    AhFindAslOperators (entry point for ASL operator search)
+ * FUNCTION:    AhFindAslAndAmlOperators
  *
  * PARAMETERS:  Name                - Name or prefix for an ASL operator.
  *                                    NULL means "find all"
@@ -597,16 +562,46 @@ AhDisplayAslKeyword (
  * RETURN:      None
  *
  * DESCRIPTION: Find all ASL operators that match the input Name or name
- *              prefix.
+ *              prefix. Also displays the AML information if only one entry
+ *              matches.
  *
  ******************************************************************************/
 
 void
+AhFindAslAndAmlOperators (
+    char                    *Name)
+{
+    UINT32                  MatchCount;
+
+
+    MatchCount = AhFindAslOperators (Name);
+    if (MatchCount == 1)
+    {
+        AhFindAmlOpcode (Name);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AhFindAslOperators (entry point for ASL operator search)
+ *
+ * PARAMETERS:  Name                - Name or prefix for an ASL operator.
+ *                                    NULL means "find all"
+ *
+ * RETURN:      Number of operators that matched the name prefix.
+ *
+ * DESCRIPTION: Find all ASL operators that match the input Name or name
+ *              prefix.
+ *
+ ******************************************************************************/
+
+UINT32
 AhFindAslOperators (
     char                    *Name)
 {
     const AH_ASL_OPERATOR   *Operator;
-    BOOLEAN                 Found = FALSE;
+    BOOLEAN                 MatchCount = 0;
 
 
     AhStrupr (Name);
@@ -618,7 +613,7 @@ AhFindAslOperators (
         if (!Name)
         {
             AhDisplayAslOperator (Operator);
-            Found = TRUE;
+            MatchCount++;
             continue;
         }
 
@@ -630,14 +625,16 @@ AhFindAslOperators (
         if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
         {
             AhDisplayAslOperator (Operator);
-            Found = TRUE;
+            MatchCount++;
         }
     }
 
-    if (!Found)
+    if (!MatchCount)
     {
         printf ("%s, no matching ASL operators\n", Name);
     }
+
+    return (MatchCount);
 }
 
 
@@ -805,26 +802,71 @@ AhPrintOneField (
  *
  * FUNCTION:    AhDisplayDeviceIds
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Name                - Device Hardware ID string.
+ *                                    NULL means "find all"
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display all PNP* and ACPI* device IDs defined in the ACPI spec.
+ * DESCRIPTION: Display PNP* and ACPI* device IDs.
  *
  ******************************************************************************/
 
 void
 AhDisplayDeviceIds (
-    void)
+    char                    *Name)
 {
-    const AH_DEVICE_ID      *DeviceId = AhDeviceIds;
+    const AH_DEVICE_ID      *Info;
+    UINT32                  Length;
+    BOOLEAN                 Matched;
+    UINT32                  i;
+    BOOLEAN                 Found = FALSE;
 
 
-    printf ("ACPI and PNP Device IDs defined in the ACPI specification:\n\n");
-    while (DeviceId->Name)
+    /* Null input name indicates "display all" */
+
+    if (!Name)
     {
-        printf ("%8s   %s\n", DeviceId->Name, DeviceId->Description);
-        DeviceId++;
+        printf ("ACPI and PNP Device/Hardware IDs:\n\n");
+        for (Info = AslDeviceIds; Info->Name; Info++)
+        {
+            printf ("%8s   %s\n", Info->Name, Info->Description);
+        }
+
+        return;
+    }
+
+    Length = strlen (Name);
+    if (Length > 8)
+    {
+        printf ("%.8s: Hardware ID must be 8 characters maximum\n", Name);
+        return;
+    }
+
+    /* Find/display all names that match the input name prefix */
+
+    AhStrupr (Name);
+    for (Info = AslDeviceIds; Info->Name; Info++)
+    {
+        Matched = TRUE;
+        for (i = 0; i < Length; i++)
+        {
+            if (Info->Name[i] != Name[i])
+            {
+                Matched = FALSE;
+                break;
+            }
+        }
+
+        if (Matched)
+        {
+            Found = TRUE;
+            printf ("%8s   %s\n", Info->Name, Info->Description);
+        }
+    }
+
+    if (!Found)
+    {
+        printf ("%s, Hardware ID not found\n", Name);
     }
 }
 

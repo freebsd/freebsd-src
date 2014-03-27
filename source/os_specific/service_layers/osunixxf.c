@@ -1345,7 +1345,7 @@ AcpiOsWritable (
  *
  * FUNCTION:    AcpiOsSignal
  *
- * PARAMETERS:  Function            - ACPI CA signal function code
+ * PARAMETERS:  Function            - ACPI A signal function code
  *              Info                - Pointer to function-dependent structure
  *
  * RETURN:      Status

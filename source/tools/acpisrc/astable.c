@@ -637,6 +637,10 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"PR_MACRO_ARG",                        SRC_TYPE_STRUCT},
     {"PR_OPERATOR_INFO",                    SRC_TYPE_STRUCT},
 
+    /* AcpiDump utility */
+
+    {"AP_DUMP_ACTION",                      SRC_TYPE_STRUCT},
+
     /* AcpiHelp utility */
 
     {"AH_AML_OPCODE",                       SRC_TYPE_STRUCT},
@@ -647,6 +651,11 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     /* AcpiXtract utility */
 
     {"AX_TABLE_INFO",                       SRC_TYPE_STRUCT},
+
+    /* OS service layers */
+
+    {"EXTERNAL_FIND_INFO",                  SRC_TYPE_STRUCT},
+    {"OSL_TABLE_INFO",                      SRC_TYPE_STRUCT},
 
     {NULL, 0}
 };

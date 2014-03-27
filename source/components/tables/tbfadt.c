@@ -365,14 +365,14 @@ AcpiTbParseFadt (
 
     /* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
-    AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XDsdt,
+    AcpiTbInstallFixedTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XDsdt,
         ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
     /* If Hardware Reduced flag is set, there is no FACS */
 
     if (!AcpiGbl_ReducedHardware)
     {
-        AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XFacs,
+        AcpiTbInstallFixedTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XFacs,
             ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
     }
 }

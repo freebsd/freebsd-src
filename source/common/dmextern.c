@@ -67,7 +67,7 @@
  */
 static const char           *AcpiGbl_DmTypeNames[] =
 {
-    /* 00 */ "",                    /* Type ANY */
+    /* 00 */ ", UnknownObj",        /* Type ANY */
     /* 01 */ ", IntObj",
     /* 02 */ ", StrObj",
     /* 03 */ ", BuffObj",
@@ -397,6 +397,7 @@ AcpiDmGetExternalsFromFile (
     {
         fprintf (stderr, "Could not open external reference file \"%s\"\n",
             Gbl_ExternalRefFilename);
+        AslAbort ();
         return;
     }
 
@@ -791,7 +792,8 @@ AcpiDmCreateNewExternal (
             /* Duplicate method, check that the Value (ArgCount) is the same */
 
             if ((NextExternal->Type == ACPI_TYPE_METHOD) &&
-                (NextExternal->Value != Value))
+                (NextExternal->Value != Value) &&
+                (Value > 0))
             {
                 ACPI_ERROR ((AE_INFO,
                     "External method arg count mismatch %s: Current %u, attempted %u",
@@ -1065,9 +1067,8 @@ AcpiDmEmitExternals (
                 NextExternal->Path,
                 AcpiDmGetObjectTypeName (NextExternal->Type));
 
-            AcpiOsPrintf (
-                ")    // Warning: Unresolved Method, "
-                "guessing %u arguments (may be incorrect, see warning above)\n",
+            AcpiOsPrintf (")    // Warning: Unresolved method, "
+                "guessing %u arguments\n",
                 NextExternal->Value);
 
             NextExternal->Flags |= ACPI_EXT_EXTERNAL_EMITTED;
@@ -1275,8 +1276,14 @@ AcpiDmUnresolvedWarning (
                 "     * control method external declarations with the associated method\n"
                 "     * argument counts. Each line of the file must be of the form:\n"
                 "     *     External (<method pathname>, MethodObj, <argument count>)\n"
+                "     * Invocation:\n"
+                "     *     iasl -fe refs.txt -d dsdt.aml\n"
+                "     *\n"
+                "     * The following methods were unresolved and many not compile properly\n"
+                "     * because the disassembler had to guess at the number of arguments\n"
+                "     * required for each:\n"
                 "     */\n",
-                AcpiGbl_NumExternalMethods);
+               AcpiGbl_NumExternalMethods);
         }
         else if (AcpiGbl_NumExternalMethods != AcpiGbl_ResolvedExternalMethods)
         {
@@ -1294,6 +1301,12 @@ AcpiDmUnresolvedWarning (
                 "     * control method external declarations with the associated method\n"
                 "     * argument counts. Each line of the file must be of the form:\n"
                 "     *     External (<method pathname>, MethodObj, <argument count>)\n"
+                "     * Invocation:\n"
+                "     *     iasl -fe refs.txt -d dsdt.aml\n"
+                "     *\n"
+                "     * The following methods were unresolved and many not compile properly\n"
+                "     * because the disassembler had to guess at the number of arguments\n"
+                "     * required for each:\n"
                 "     */\n",
                 AcpiGbl_NumExternalMethods, AcpiGbl_ResolvedExternalMethods,
                 (AcpiGbl_ResolvedExternalMethods > 1 ? "were" : "was"),
@@ -1321,7 +1334,9 @@ AcpiDmUnresolvedWarning (
                 "In addition, the -fe option can be used to specify a file containing\n"
                 "control method external declarations with the associated method\n"
                 "argument counts. Each line of the file must be of the form:\n"
-                "    External (<method pathname>, MethodObj, <argument count>)\n",
+                "    External (<method pathname>, MethodObj, <argument count>)\n"
+                "Invocation:\n"
+                "    iasl -fe refs.txt -d dsdt.aml\n",
                 AcpiGbl_NumExternalMethods);
         }
         else if (AcpiGbl_NumExternalMethods != AcpiGbl_ResolvedExternalMethods)
@@ -1339,7 +1354,9 @@ AcpiDmUnresolvedWarning (
                 "If necessary, the -fe option can be used to specify a file containing\n"
                 "control method external declarations with the associated method\n"
                 "argument counts. Each line of the file must be of the form:\n"
-                "    External (<method pathname>, MethodObj, <argument count>)\n",
+                "    External (<method pathname>, MethodObj, <argument count>)\n"
+                "Invocation:\n"
+                "    iasl -fe refs.txt -d dsdt.aml\n",
                 AcpiGbl_NumExternalMethods, AcpiGbl_ResolvedExternalMethods,
                 (AcpiGbl_ResolvedExternalMethods > 1 ? "were" : "was"),
                 (AcpiGbl_NumExternalMethods - AcpiGbl_ResolvedExternalMethods));

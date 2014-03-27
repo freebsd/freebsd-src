@@ -46,6 +46,7 @@ OBJECTS = \
 	$(OBJDIR)/adfile.o\
 	$(OBJDIR)/adisasm.o\
 	$(OBJDIR)/adwalk.o\
+	$(OBJDIR)/ahids.o\
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/aslanalyze.o\
 	$(OBJDIR)/aslbtypes.o\
@@ -89,6 +90,7 @@ OBJECTS = \
 	$(OBJDIR)/asluuid.o\
 	$(OBJDIR)/aslwalks.o\
 	$(OBJDIR)/aslxref.o\
+	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/dtcompile.o\
 	$(OBJDIR)/dtexpress.o\
 	$(OBJDIR)/dtfield.o\
@@ -171,6 +173,7 @@ OBJECTS = \
 	$(OBJDIR)/pstree.o\
 	$(OBJDIR)/psutils.o\
 	$(OBJDIR)/pswalk.o\
+	$(OBJDIR)/tbdata.o\
 	$(OBJDIR)/tbfadt.o\
 	$(OBJDIR)/tbinstal.o\
 	$(OBJDIR)/tbprint.o\

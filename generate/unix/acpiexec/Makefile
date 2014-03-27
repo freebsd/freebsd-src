@@ -44,6 +44,8 @@ OBJECTS = \
 	$(OBJDIR)/aehandlers.o\
 	$(OBJDIR)/aemain.o\
 	$(OBJDIR)/aetables.o\
+	$(OBJDIR)/ahids.o\
+	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/dbcmds.o\
 	$(OBJDIR)/dbconvert.o\
 	$(OBJDIR)/dbdisply.o\
@@ -179,6 +181,7 @@ OBJECTS = \
 	$(OBJDIR)/rsserial.o\
 	$(OBJDIR)/rsutils.o\
 	$(OBJDIR)/rsxface.o\
+	$(OBJDIR)/tbdata.o\
 	$(OBJDIR)/tbfadt.o\
 	$(OBJDIR)/tbfind.o\
 	$(OBJDIR)/tbinstal.o\

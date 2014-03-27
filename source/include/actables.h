@@ -45,8 +45,6 @@
 #define __ACTABLES_H__
 
 
-#pragma pack(push) /* Set default struct packing */
-
 ACPI_STATUS
 AcpiAllocateRootTable (
     UINT32                  InitialTableCount);
@@ -62,6 +60,40 @@ UINT8 *
 AcpiTbScanMemoryForRsdp (
     UINT8                   *StartAddress,
     UINT32                  Length);
+
+
+/*
+ * tbdata - table data structure management
+ */
+ACPI_STATUS
+AcpiTbGetNextRootIndex (
+    UINT32                  *TableIndex);
+
+void
+AcpiTbInitTableDescriptor (
+    ACPI_TABLE_DESC         *TableDesc,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT8                   Flags,
+    ACPI_TABLE_HEADER       *Table);
+
+ACPI_STATUS
+AcpiTbAcquireTempTable (
+    ACPI_TABLE_DESC         *TableDesc,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT8                   Flags);
+
+void
+AcpiTbReleaseTempTable (
+    ACPI_TABLE_DESC         *TableDesc);
+
+BOOLEAN
+AcpiTbIsTableLoaded (
+    UINT32                  TableIndex);
+
+void
+AcpiTbSetTableLoadedFlag (
+    UINT32                  TableIndex,
+    BOOLEAN                 IsLoaded);
 
 
 /*
@@ -96,17 +128,41 @@ AcpiTbResizeRootTableList (
     void);
 
 ACPI_STATUS
-AcpiTbVerifyTable (
+AcpiTbValidateTable (
     ACPI_TABLE_DESC         *TableDesc);
 
-ACPI_TABLE_HEADER *
-AcpiTbTableOverride (
-    ACPI_TABLE_HEADER       *TableHeader,
+void
+AcpiTbInvalidateTable (
     ACPI_TABLE_DESC         *TableDesc);
 
 ACPI_STATUS
-AcpiTbAddTable (
+AcpiTbVerifyTable (
     ACPI_TABLE_DESC         *TableDesc,
+    char                    *Signature);
+
+void
+AcpiTbOverrideTable (
+    ACPI_TABLE_DESC         *OldTableDesc);
+
+ACPI_STATUS
+AcpiTbAcquireTable (
+    ACPI_TABLE_DESC         *TableDesc,
+    ACPI_TABLE_HEADER       **TablePtr,
+    UINT32                  *TableLength,
+    UINT8                   *TableFlags);
+
+void
+AcpiTbReleaseTable (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  TableLength,
+    UINT8                   TableFlags);
+
+ACPI_STATUS
+AcpiTbInstallStandardTable (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT8                   Flags,
+    BOOLEAN                 Reload,
+    BOOLEAN                 Override,
     UINT32                  *TableIndex);
 
 ACPI_STATUS
@@ -118,7 +174,7 @@ AcpiTbStoreTable (
     UINT32                  *TableIndex);
 
 void
-AcpiTbDeleteTable (
+AcpiTbUninstallTable (
     ACPI_TABLE_DESC        *TableDesc);
 
 void
@@ -141,15 +197,6 @@ ACPI_STATUS
 AcpiTbGetOwnerId (
     UINT32                  TableIndex,
     ACPI_OWNER_ID           *OwnerId);
-
-BOOLEAN
-AcpiTbIsTableLoaded (
-    UINT32                  TableIndex);
-
-void
-AcpiTbSetTableLoadedFlag (
-    UINT32                  TableIndex,
-    BOOLEAN                 IsLoaded);
 
 
 /*
@@ -187,7 +234,13 @@ AcpiTbCopyDsdt (
     UINT32                  TableIndex);
 
 void
-AcpiTbInstallTable (
+AcpiTbInstallTableWithOverride (
+    UINT32                  TableIndex,
+    ACPI_TABLE_DESC         *NewTableDesc,
+    BOOLEAN                 Override);
+
+ACPI_STATUS
+AcpiTbInstallFixedTable (
     ACPI_PHYSICAL_ADDRESS   Address,
     char                    *Signature,
     UINT32                  TableIndex);
@@ -195,7 +248,5 @@ AcpiTbInstallTable (
 ACPI_STATUS
 AcpiTbParseRootTable (
     ACPI_PHYSICAL_ADDRESS   RsdpAddress);
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACTABLES_H__ */
