@@ -492,7 +492,7 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		ioapic_set_triggermode(ioapic, pin,
 		    interrupt_trigger(nmi->IntiFlags, 0));
-	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
+	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
 		ioapic_set_polarity(ioapic, pin,
 		    interrupt_polarity(nmi->IntiFlags, 0));
 }
