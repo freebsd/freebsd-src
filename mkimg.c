@@ -50,11 +50,13 @@ __FBSDID("$FreeBSD$");
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
+u_int verbose;
+
 u_int ncyls = 0;
 u_int nheads = 1;
 u_int nsecs = 1;
 u_int secsz = 512;
-u_int blksz = 512;
+u_int blksz = 0;
 
 static int bcfd = -1;
 static int outfd = 0;
@@ -270,10 +272,6 @@ mkimg(int bfd)
 	off_t bytesize;
 	int error, fd;
 
-	if (nparts > scheme_max_parts())
-		errc(EX_DATAERR, ENOSPC, "only %d partitions are supported",
-		    scheme_max_parts());
-
 	error = scheme_bootcode(bfd);
 	if (error)
 		errc(EX_DATAERR, error, "boot code");
@@ -325,7 +323,7 @@ main(int argc, char *argv[])
 {
 	int c, error;
 
-	while ((c = getopt(argc, argv, "b:o:p:s:zH:P:S:T:")) != -1) {
+	while ((c = getopt(argc, argv, "b:o:p:s:vzH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -354,6 +352,9 @@ main(int argc, char *argv[])
 			if (error)
 				errc(EX_DATAERR, error, "scheme");
 			break;
+		case 'v':
+			verbose++;
+			break;
 		case 'z':	/* SPARSE OUTPUT */
 			break;
 		case 'H':	/* GEOMETRY: HEADS */
@@ -370,7 +371,7 @@ main(int argc, char *argv[])
 			break;
 		case 'S':	/* GEOMETRY: LOGICAL SECTOR SIZE */
 			error = parse_number(&secsz, 512, INT_MAX + 1, optarg);
-			if (error == 0 && !pwr_of_two(blksz))
+			if (error == 0 && !pwr_of_two(secsz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "logical sector size");
@@ -384,12 +385,28 @@ main(int argc, char *argv[])
 			usage("unknown option");
 		}
 	}
+
 	if (argc > optind)
 		usage("trailing arguments");
 	if (scheme_selected() == NULL)
 		usage("no scheme");
 	if (nparts == 0)
 		usage("no partitions");
+
+	if (secsz > blksz) {
+		if (blksz != 0)
+			errx(EX_DATAERR, "the physical block size cannot "
+			    "be smaller than the sector size");
+		blksz = secsz;
+	}
+
+	if (secsz > scheme_max_secsz())
+		errx(EX_DATAERR, "maximum sector size supported is %u; "
+		    "size specified is %u", scheme_max_secsz(), secsz);
+
+	if (nparts > scheme_max_parts())
+		errx(EX_DATAERR, "%d partitions supported; %d given",
+		    scheme_max_parts(), nparts);
 
 	if (outfd == 0) {
 		if (atexit(cleanup) == -1)
@@ -400,6 +417,11 @@ main(int argc, char *argv[])
 			err(EX_OSERR, "cannot create temporary file");
 	} else
 		tmpfd = outfd;
+
+	if (verbose) {
+		printf("Logical sector size: %u\n", secsz);
+		printf("Physical block size: %u\n", blksz);
+	}
 
 	mkimg(bcfd);
 

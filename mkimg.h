@@ -52,6 +52,8 @@ struct part {
 extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
+extern u_int verbose;
+
 extern u_int ncyls;
 extern u_int nheads;
 extern u_int nsecs;
