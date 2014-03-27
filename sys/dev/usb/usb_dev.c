@@ -214,12 +214,13 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		DPRINTFN(2, "device is detached\n");
 		goto error;
 	}
-	if (cpd->udev->refcount == USB_DEV_REF_MAX) {
-		DPRINTFN(2, "no dev ref\n");
-		goto error;
-	}
 	if (need_uref) {
 		DPRINTFN(2, "ref udev - needed\n");
+
+		if (cpd->udev->refcount == USB_DEV_REF_MAX) {
+			DPRINTFN(2, "no dev ref\n");
+			goto error;
+		}
 		cpd->udev->refcount++;
 
 		mtx_unlock(&usb_ref_lock);
@@ -293,9 +294,8 @@ error:
 		usbd_enum_unlock(cpd->udev);
 
 	if (crd->is_uref) {
-		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(&cpd->udev->ref_cv);
-		}
+		cpd->udev->refcount--;
+		cv_broadcast(&cpd->udev->ref_cv);
 	}
 	mtx_unlock(&usb_ref_lock);
 	DPRINTFN(2, "fail\n");
@@ -361,10 +361,9 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 		crd->is_write = 0;
 	}
 	if (crd->is_uref) {
-		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(&cpd->udev->ref_cv);
-		}
 		crd->is_uref = 0;
+		cpd->udev->refcount--;
+		cv_broadcast(&cpd->udev->ref_cv);
 	}
 	mtx_unlock(&usb_ref_lock);
 }
