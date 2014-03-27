@@ -68,6 +68,7 @@
 #define	cheri_getkcc()		__builtin_cheri_get_kernel_code_cap()
 #define	cheri_getkdc()		__builtin_cheri_get_kernel_data_cap()
 #define	cheri_getepcc()		__builtin_cheri_get_exception_program_counter_cap()
+#define	cheri_getpcc()		__builtin_cheri_get_program_counter_cap()
 
 static __inline __capability void *
 cheri_setlentype(__capability void *cap, size_t len, register_t type)
