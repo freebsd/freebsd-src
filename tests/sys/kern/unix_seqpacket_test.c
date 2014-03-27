@@ -360,6 +360,12 @@ test_pipe(size_t sndbufsize, size_t rcvbufsize)
 	reader_data.so = sv[1];
 	ATF_REQUIRE_EQ(0, pthread_create(&writer, NULL, test_pipe_writer,
 	    				 (void*)&writer_data));
+	/* 
+	 * Give the writer time to start writing, and hopefully block, before
+	 * starting the reader.  This increases the likelihood of the test case
+	 * failing due to PR kern/185812
+	 */
+	usleep(1000);
 	ATF_REQUIRE_EQ(0, pthread_create(&reader, NULL, test_pipe_reader,
 	    				 (void*)&reader_data));
 
@@ -946,7 +952,6 @@ ATF_TC_BODY(pipe_simulator_8k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_simulator_128k_8k);
 ATF_TC_BODY(pipe_simulator_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 SOCK_SEQPACKET AF_UNIX sockets with asymmetrical buffers drop packets");
 	test_pipe_simulator(131072, 8192);
 }
 
