@@ -75,13 +75,16 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 	} else
 		memset(buf, 0, BBSIZE);
 
+	imgsz = ncyls * nheads * nsecs;
+	ftruncate(fd, imgsz * secsz);
+
 	d = (void *)(buf + LABELSECTOR * secsz + LABELOFFSET);
 	le32enc(&d->d_magic, DISKMAGIC);
 	le32enc(&d->d_secsize, secsz);
-	le32enc(&d->d_nsectors, 1);	/* XXX */
-	le32enc(&d->d_ntracks, 1);	/* XXX */
-	le32enc(&d->d_ncylinders, 0);	/* XXX */
-	le32enc(&d->d_secpercyl, 1);	/* XXX */
+	le32enc(&d->d_nsectors, nsecs);
+	le32enc(&d->d_ntracks, nheads);
+	le32enc(&d->d_ncylinders, ncyls);
+	le32enc(&d->d_secpercyl, nsecs * nheads);
 	le32enc(&d->d_secperunit, imgsz);
 	le16enc(&d->d_rpm, 3600);
 	le32enc(&d->d_magic2, DISKMAGIC);
