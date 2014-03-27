@@ -62,7 +62,9 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 {
 	struct vtoc8 vtoc8;
 	struct part *part;
+	u_char *p;
 	int error;
+	uint16_t ofs, sum;
 
 	memset(&vtoc8, 0, sizeof(vtoc8));
 	sprintf(vtoc8.ascii, "FreeBSD%lldM", (long long)(imgsz / 2048));
@@ -70,21 +72,31 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.nparts, VTOC8_NPARTS);
 	be32enc(&vtoc8.sanity, VTOC_SANITY);
 	be16enc(&vtoc8.rpm, 3600);
-	be16enc(&vtoc8.physcyls, 2);	/* XXX */
-	be16enc(&vtoc8.ncyls, 0);	/* XXX */
-	be16enc(&vtoc8.altcyls, 2);
-	be16enc(&vtoc8.nheads, 1);	/* XXX */
-	be16enc(&vtoc8.nsecs, 1);	/* XXX */
+	be16enc(&vtoc8.physcyls, ncyls);
+	be16enc(&vtoc8.ncyls, ncyls);
+	be16enc(&vtoc8.altcyls, 0);
+	be16enc(&vtoc8.nheads, nheads);
+	be16enc(&vtoc8.nsecs, nsecs);
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
+
+	ftruncate(fd, ncyls * nheads * nsecs *secsz);
 
 	STAILQ_FOREACH(part, &partlist, link) {
 		be16enc(&vtoc8.part[part->index].tag,
 		    ALIAS_TYPE2INT(part->type));
 		be32enc(&vtoc8.map[part->index].cyl,
-		    part->block);				/* XXX */
+		    part->block / (nsecs * nheads));
 		be32enc(&vtoc8.map[part->index].nblks,
 		    part->size);
 	}
+
+	/* Calculate checksum. */
+	sum = 0;
+	p = (void *)&vtoc8;
+	for (ofs = 0; ofs < sizeof(vtoc8) - 2; ofs += 2)
+		sum ^= be16dec(p + ofs);
+	be16enc(&vtoc8.cksum, sum);
+
 	error = mkimg_seek(fd, 0);
 	if (error == 0) {
 		if (write(fd, &vtoc8, sizeof(vtoc8)) != sizeof(vtoc8))
