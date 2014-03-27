@@ -56,13 +56,8 @@
 
 #include "cheritest_sandbox.h"
 
-#define	CHERI_CAPREG_PRINT(crn) do {					\
-	__capability void *cap;						\
-	if (crn == 0)							\
-		cap = cheri_getdefault();				\
-	else								\
-		cap = cheri_getreg(crn);				\
-	printf("C%u tag %ju u %ju perms %04jx type %016jx\n", crn,	\
+#define	CHERI_CAP_PRINT(cap) do {					\
+	printf("tag %ju u %ju perms %04jx type %016jx\n",		\
 	    (uintmax_t)cheri_gettag(cap),				\
 	    (uintmax_t)cheri_getunsealed(cap),				\
 	    (uintmax_t)cheri_getperm(cap),				\
@@ -70,6 +65,23 @@
 	printf("\tbase %016jx length %016jx\n",				\
 	    (uintmax_t)cheri_getbase(cap),				\
 	    (uintmax_t)cheri_getlen(cap));				\
+} while (0)
+
+#define	CHERI_CAPREG_PRINT(crn) do {					\
+	__capability void *cap;						\
+	if (crn == 0)							\
+		cap = cheri_getdefault();				\
+	else								\
+		cap = cheri_getreg(crn);				\
+	printf("C%u ", crn);						\
+	CHERI_CAP_PRINT(cap);						\
+} while (0)
+
+#define	CHERI_PCC_PRINT() do {						\
+	__capability void *cap;						\
+	cap = cheri_getpcc();						\
+	printf("PCC ");							\
+	CHERI_CAP_PRINT(cap);						\
 } while (0)
 
 static struct sandbox_class	*cheritest_classp;
@@ -280,6 +292,7 @@ cheritest_listregs(void)
 	CHERI_CAPREG_PRINT(24);
 	CHERI_CAPREG_PRINT(25);
 	CHERI_CAPREG_PRINT(26);
+	CHERI_PCC_PRINT();
 }
 
 static void
