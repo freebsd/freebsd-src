@@ -127,6 +127,8 @@ int	sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
 int	sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
+int	sbappendaddr_nospacecheck_locked(struct sockbuf *sb,
+	    const struct sockaddr *asa, struct mbuf *m0, struct mbuf *control);
 int	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
 int	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
