@@ -431,6 +431,65 @@ usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep)
 }
 
 /*------------------------------------------------------------------------*
+ *	usb_wait_pending_ref_locked
+ *
+ * This function will wait for any USB references to go away before
+ * returning and disable further USB device refcounting on the
+ * specified USB device. This function is used when detaching a USB
+ * device.
+ *------------------------------------------------------------------------*/
+static void
+usb_wait_pending_ref_locked(struct usb_device *udev)
+{
+#if USB_HAVE_UGEN
+	const uint16_t refcount =
+	    usb_proc_is_called_from(
+	    &udev->bus->explore_proc) ? 1 : 2;
+
+	DPRINTF("Refcount = %d\n", (int)refcount); 
+
+	while (1) {
+		/* wait for any pending references to go away */
+		mtx_lock(&usb_ref_lock);
+		if (udev->refcount == refcount) {
+			/* prevent further refs being taken */
+			udev->refcount = USB_DEV_REF_MAX;
+			mtx_unlock(&usb_ref_lock);
+			break;
+		}
+		usbd_enum_unlock(udev);
+		cv_wait(&udev->ref_cv, &usb_ref_lock);
+		mtx_unlock(&usb_ref_lock);
+		(void) usbd_enum_lock(udev);
+	}
+#endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_ref_restore_locked
+ *
+ * This function will restore the reference count value after a call
+ * to "usb_wait_pending_ref_locked()".
+ *------------------------------------------------------------------------*/
+static void
+usb_ref_restore_locked(struct usb_device *udev)
+{
+#if USB_HAVE_UGEN
+	const uint16_t refcount =
+	    usb_proc_is_called_from(
+	    &udev->bus->explore_proc) ? 1 : 2;
+
+	DPRINTF("Refcount = %d\n", (int)refcount); 
+
+	/* restore reference count and wakeup waiters, if any */
+	mtx_lock(&usb_ref_lock);
+	udev->refcount = refcount;
+	cv_broadcast(&udev->ref_cv);
+	mtx_unlock(&usb_ref_lock);
+#endif
+}
+
+/*------------------------------------------------------------------------*
  *	usb_unconfigure
  *
  * This function will free all USB interfaces and USB endpoints belonging
@@ -1091,6 +1150,9 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 
 	sx_assert(&udev->enum_sx, SA_LOCKED);
 
+	/* wait for pending refs to go away */
+	usb_wait_pending_ref_locked(udev);
+
 	/*
 	 * First detach the child to give the child's detach routine a
 	 * chance to detach the sub-devices in the correct order.
@@ -1117,6 +1179,8 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 		usb_detach_device_sub(udev, &iface->subdev,
 		    &iface->pnpinfo, flag);
 	}
+
+	usb_ref_restore_locked(udev);
 }
 
 /*------------------------------------------------------------------------*
@@ -2054,14 +2118,6 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 		udev->ugen_symlink = NULL;
 	}
 
-	/* wait for all pending references to go away: */
-	mtx_lock(&usb_ref_lock);
-	udev->refcount--;
-	while (udev->refcount != 0) {
-		cv_wait(&udev->ref_cv, &usb_ref_lock);
-	}
-	mtx_unlock(&usb_ref_lock);
-
 	usb_destroy_dev(udev->ctrl_dev);
 #endif
 
@@ -2578,8 +2634,14 @@ usb_fifo_free_wrap(struct usb_device *udev,
 			/* no need to free this FIFO */
 			continue;
 		}
+		/* wait for pending refs to go away */
+		usb_wait_pending_ref_locked(udev);
+
 		/* free this FIFO */
 		usb_fifo_free(f);
+
+		/* restore refcount */
+		usb_ref_restore_locked(udev);
 	}
 }
 #endif
