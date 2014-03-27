@@ -108,7 +108,7 @@ AcpiTbFindTable (
         {
             /* Table is not currently mapped, map it */
 
-            Status = AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[i]);
+            Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[i]);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);

@@ -33,8 +33,9 @@ OBJECTS = \
     $(OBJDIR)/asremove.o\
     $(OBJDIR)/astable.o\
     $(OBJDIR)/asutils.o\
-    $(OBJDIR)/osunixdir.o\
-    $(OBJDIR)/getopt.o
+	$(OBJDIR)/cmfsize.o\
+    $(OBJDIR)/getopt.o \
+    $(OBJDIR)/osunixdir.o
 
 #
 # Compile flags specific to acpisrc

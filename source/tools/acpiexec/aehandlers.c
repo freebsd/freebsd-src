@@ -312,7 +312,7 @@ AeCommonNotifyHandler (
 
         printf ("[AcpiExec] Handler %u: Received a %s Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
             HandlerId, Type, AcpiUtGetNodeName (Device), Device, Value,
-            AcpiUtGetNotifyName (Value));
+            AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
         if (AcpiGbl_DebugFile)
         {
             AcpiOsPrintf ("[AcpiExec] Handler %u: Received a %s notify, Value 0x%2.2X\n",
@@ -348,7 +348,7 @@ AeSystemNotifyHandler (
 
     printf ("[AcpiExec] Global:    Received a System Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
         AcpiUtGetNodeName (Device), Device, Value,
-        AcpiUtGetNotifyName (Value));
+        AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
     if (AcpiGbl_DebugFile)
     {
         AcpiOsPrintf ("[AcpiExec] Global:    Received a System Notify, Value 0x%2.2X\n", Value);
@@ -381,7 +381,7 @@ AeDeviceNotifyHandler (
 
     printf ("[AcpiExec] Global:    Received a Device Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
         AcpiUtGetNodeName (Device), Device, Value,
-        AcpiUtGetNotifyName (Value));
+        AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
     if (AcpiGbl_DebugFile)
     {
         AcpiOsPrintf ("[AcpiExec] Global:    Received a Device Notify, Value 0x%2.2X\n", Value);

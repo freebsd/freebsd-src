@@ -53,7 +53,7 @@
 
 
 /*
- * Stubs to simplify linkage to the ACPI CA core subsystem.
+ * Stubs to simplify linkage to the ACPICA core subsystem.
  * Things like Events, Global Lock, etc. are not used
  * by the compiler, so they are stubbed out here.
  */

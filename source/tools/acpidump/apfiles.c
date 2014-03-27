@@ -215,8 +215,8 @@ ApGetTableFromFile (
 
     /* Need file size to allocate a buffer */
 
-    FileSize = ApGetFileSize (File);
-    if (!FileSize)
+    FileSize = CmGetFileSize (File);
+    if (FileSize == ACPI_UINT32_MAX)
     {
         fprintf (stderr,
             "Could not get input file size: %s\n", Pathname);
@@ -250,42 +250,4 @@ ApGetTableFromFile (
 Cleanup:
     fclose (File);
     return (Buffer);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    ApGetFileSize
- *
- * PARAMETERS:  File                - Open file descriptor
- *
- * RETURN:      File size in bytes
- *
- * DESCRIPTION: Get the size of an open file
- *
- ******************************************************************************/
-
-UINT32
-ApGetFileSize (
-    FILE                    *File)
-{
-    UINT32                  FileSize;
-    long                    Offset;
-
-
-    Offset = ftell (File);
-    if (fseek (File, 0, SEEK_END))
-    {
-        return (0);
-    }
-
-    /* Get size and restore file pointer */
-
-    FileSize = (UINT32) ftell (File);
-    if (fseek (File, Offset, SEEK_SET))
-    {
-        return (0);
-    }
-
-    return (FileSize);
 }

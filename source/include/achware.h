@@ -45,8 +45,6 @@
 #define __ACHWARE_H__
 
 
-#pragma pack(push) /* Set default struct packing */
-
 /* Values for the _SST predefined method */
 
 #define ACPI_SST_INDICATOR_OFF  0
@@ -225,7 +223,5 @@ AcpiHwDerivePciId (
     ACPI_HANDLE             RootPciDevice,
     ACPI_HANDLE             PciRegion);
 
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACHWARE_H__ */

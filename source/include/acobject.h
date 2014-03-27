@@ -44,8 +44,6 @@
 #ifndef _ACOBJECT_H
 #define _ACOBJECT_H
 
-#pragma pack(push) /* Set default struct packing */
-
 /* acpisrc:StructDefs -- for acpisrc conversion */
 
 
@@ -234,7 +232,8 @@ typedef struct acpi_object_method
 #define ACPI_METHOD_INTERNAL_ONLY       0x02    /* Method is implemented internally (_OSI) */
 #define ACPI_METHOD_SERIALIZED          0x04    /* Method is serialized */
 #define ACPI_METHOD_SERIALIZED_PENDING  0x08    /* Method is to be marked serialized */
-#define ACPI_METHOD_MODIFIED_NAMESPACE  0x10    /* Method modified the namespace */
+#define ACPI_METHOD_IGNORE_SYNC_LEVEL   0x10    /* Method was auto-serialized at table load time */
+#define ACPI_METHOD_MODIFIED_NAMESPACE  0x20    /* Method modified the namespace */
 
 
 /******************************************************************************
@@ -583,6 +582,6 @@ typedef union acpi_descriptor
 
 } ACPI_DESCRIPTOR;
 
-#pragma pack(pop) /* Restore original struct packing */
+#pragma pack()
 
 #endif /* _ACOBJECT_H */

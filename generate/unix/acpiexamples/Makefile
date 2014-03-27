@@ -103,6 +103,7 @@ OBJECTS = \
 	$(OBJDIR)/psutils.o\
 	$(OBJDIR)/pswalk.o\
 	$(OBJDIR)/psxface.o\
+	$(OBJDIR)/tbdata.o\
 	$(OBJDIR)/tbfadt.o\
 	$(OBJDIR)/tbfind.o\
 	$(OBJDIR)/tbinstal.o\

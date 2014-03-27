@@ -55,9 +55,9 @@
 
 /* List of information about obtained ACPI tables */
 
-typedef struct          table_info
+typedef struct osl_table_info
 {
-    struct table_info       *Next;
+    struct osl_table_info   *Next;
     UINT32                  Instance;
     char                    Signature[ACPI_NAME_SIZE];
 
@@ -253,22 +253,22 @@ AcpiOsGetTableByAddress (
     if (TableLength == 0)
     {
         Status = AE_BAD_HEADER;
-        goto ErrorExit;
+        goto Exit;
     }
 
     LocalTable = calloc (1, TableLength);
     if (!LocalTable)
     {
         Status = AE_NO_MEMORY;
-        goto ErrorExit;
+        goto Exit;
     }
 
     ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
 
-ErrorExit:
+Exit:
     OslUnmapTable (MappedTable);
     *Table = LocalTable;
-    return (AE_OK);
+    return (Status);
 }
 
 
@@ -1003,7 +1003,7 @@ OslGetBiosTable (
     if (TableLength == 0)
     {
         Status = AE_BAD_HEADER;
-        goto ErrorExit;
+        goto Exit;
     }
 
     /* Copy table to local buffer and return it */
@@ -1012,16 +1012,16 @@ OslGetBiosTable (
     if (!LocalTable)
     {
         Status = AE_NO_MEMORY;
-        goto ErrorExit;
+        goto Exit;
     }
 
     ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
     *Address = TableAddress;
     *Table = LocalTable;
 
-ErrorExit:
+Exit:
     OslUnmapTable (MappedTable);
-    return (AE_OK);
+    return (Status);
 }
 
 
@@ -1290,7 +1290,7 @@ OslReadTableFromFile (
     {
         fprintf (stderr, "Could not read table header: %s\n", Filename);
         Status = AE_BAD_HEADER;
-        goto ErrorExit;
+        goto Exit;
     }
 
     /* If signature is specified, it must match the table */
@@ -1301,14 +1301,14 @@ OslReadTableFromFile (
         fprintf (stderr, "Incorrect signature: Expecting %4.4s, found %4.4s\n",
             Signature, Header.Signature);
         Status = AE_BAD_SIGNATURE;
-        goto ErrorExit;
+        goto Exit;
     }
 
     TableLength = ApGetTableLength (&Header);
     if (TableLength == 0)
     {
         Status = AE_BAD_HEADER;
-        goto ErrorExit;
+        goto Exit;
     }
 
     /* Read the entire table into a local buffer */
@@ -1320,7 +1320,7 @@ OslReadTableFromFile (
             "%4.4s: Could not allocate buffer for table of length %X\n",
             Header.Signature, TableLength);
         Status = AE_NO_MEMORY;
-        goto ErrorExit;
+        goto Exit;
     }
 
     fseek (TableFile, FileOffset, SEEK_SET);
@@ -1333,7 +1333,7 @@ OslReadTableFromFile (
             fprintf (stderr, "%4.4s: Could not read table content\n",
                 Header.Signature);
             Status = AE_INVALID_TABLE_LENGTH;
-            goto ErrorExit;
+            goto Exit;
         }
 
         Total += Count;
@@ -1343,7 +1343,7 @@ OslReadTableFromFile (
 
     (void) ApIsValidChecksum (LocalTable);
 
-ErrorExit:
+Exit:
     fclose (TableFile);
     *Table = LocalTable;
     return (Status);

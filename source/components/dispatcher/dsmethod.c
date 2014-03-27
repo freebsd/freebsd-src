@@ -186,8 +186,15 @@ AcpiDsDetectNamedOpcodes (
      * At this point, we know we have a Named object opcode.
      * Mark the method as serialized. Later code will create a mutex for
      * this method to enforce serialization.
+     *
+     * Note, ACPI_METHOD_IGNORE_SYNC_LEVEL flag means that we will ignore the
+     * Sync Level mechanism for this method, even though it is now serialized.
+     * Otherwise, there can be conflicts with existing ASL code that actually
+     * uses sync levels.
      */
-    WalkState->MethodDesc->Method.InfoFlags |= ACPI_METHOD_SERIALIZED;
+    WalkState->MethodDesc->Method.SyncLevel = 0;
+    WalkState->MethodDesc->Method.InfoFlags |=
+        (ACPI_METHOD_SERIALIZED | ACPI_METHOD_IGNORE_SYNC_LEVEL);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Method serialized [%4.4s] %p - [%s] (%4.4X)\n",
@@ -377,11 +384,16 @@ AcpiDsBeginMethodExecution (
         /*
          * The CurrentSyncLevel (per-thread) must be less than or equal to
          * the sync level of the method. This mechanism provides some
-         * deadlock prevention
+         * deadlock prevention.
+         *
+         * If the method was auto-serialized, we just ignore the sync level
+         * mechanism, because auto-serialization of methods can interfere
+         * with ASL code that actually uses sync levels.
          *
          * Top-level method invocation has no walk state at this point
          */
         if (WalkState &&
+            (!(ObjDesc->Method.InfoFlags & ACPI_METHOD_IGNORE_SYNC_LEVEL)) &&
             (WalkState->Thread->CurrentSyncLevel > ObjDesc->Method.Mutex->Mutex.SyncLevel))
         {
             ACPI_ERROR ((AE_INFO,
@@ -849,7 +861,8 @@ AcpiDsTerminateControlMethod (
              * thread exits here.
              */
             MethodDesc->Method.InfoFlags &= ~ACPI_METHOD_SERIALIZED_PENDING;
-            MethodDesc->Method.InfoFlags |= ACPI_METHOD_SERIALIZED;
+            MethodDesc->Method.InfoFlags |=
+                (ACPI_METHOD_SERIALIZED | ACPI_METHOD_IGNORE_SYNC_LEVEL);
             MethodDesc->Method.SyncLevel = 0;
         }
 

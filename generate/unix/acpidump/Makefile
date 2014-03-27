@@ -31,6 +31,8 @@ OBJECTS = \
 	$(OBJDIR)/apdump.o\
 	$(OBJDIR)/apfiles.o\
 	$(OBJDIR)/apmain.o\
+	$(OBJDIR)/cmfsize.o\
+	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/osunixdir.o\
 	$(OBJDIR)/osunixmap.o\
 	$(OBJDIR)/tbprint.o\
@@ -39,8 +41,7 @@ OBJECTS = \
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utstring.o\
-	$(OBJDIR)/utxferror.o\
-	$(OBJDIR)/getopt.o
+	$(OBJDIR)/utxferror.o
 
 #
 # Per-host interfaces

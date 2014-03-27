@@ -29,6 +29,8 @@ HEADERS = \
 OBJECTS = \
 	$(OBJDIR)/abcompare.o\
 	$(OBJDIR)/abmain.o\
+	$(OBJDIR)/cmfsize.o\
+	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/utalloc.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
@@ -42,8 +44,7 @@ OBJECTS = \
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utxferror.o\
-	$(OBJDIR)/osunixxf.o\
-	$(OBJDIR)/getopt.o
+	$(OBJDIR)/osunixxf.o
 
 #
 # Flags specific to acpibin

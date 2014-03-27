@@ -76,12 +76,6 @@ AbCompareAmlFiles (
     char                    *File2Path);
 
 int
-AbExtractAmlFile (
-    char                    *TableSig,
-    char                    *File1Path,
-    char                    *File2Path);
-
-int
 AbDumpAmlFile (
     char                    *File1Path,
     char                    *File2Path);

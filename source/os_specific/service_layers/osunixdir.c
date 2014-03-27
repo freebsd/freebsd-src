@@ -41,7 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <acpi.h>
+#include "acpi.h"
 
 #include <stdio.h>
 #include <stdlib.h>

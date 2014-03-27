@@ -266,7 +266,7 @@ AcpiRemoveNotifyHandler (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_OPERAND_OBJECT     *HandlerObj;
     ACPI_OPERAND_OBJECT     *PreviousHandlerObj;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
     UINT32                  i;
 
 
@@ -281,16 +281,6 @@ AcpiRemoveNotifyHandler (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Make sure all deferred notify tasks are completed */
-
-    AcpiOsWaitEventsComplete ();
-
-    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
     /* Root Object. Global handlers are removed here */
 
     if (Device == ACPI_ROOT_OBJECT)
@@ -299,6 +289,12 @@ AcpiRemoveNotifyHandler (
         {
             if (HandlerType & (i+1))
             {
+                Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
+
                 if (!AcpiGbl_GlobalNotify[i].Handler ||
                     (AcpiGbl_GlobalNotify[i].Handler != Handler))
                 {
@@ -311,18 +307,23 @@ AcpiRemoveNotifyHandler (
 
                 AcpiGbl_GlobalNotify[i].Handler = NULL;
                 AcpiGbl_GlobalNotify[i].Context = NULL;
+
+                (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+
+                /* Make sure all deferred notify tasks are completed */
+
+                AcpiOsWaitEventsComplete ();
             }
         }
 
-        goto UnlockAndExit;
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* All other objects: Are Notifies allowed on this object? */
 
     if (!AcpiEvIsNotifyObject (Node))
     {
-        Status = AE_TYPE;
-        goto UnlockAndExit;
+        return_ACPI_STATUS (AE_TYPE);
     }
 
     /* Must have an existing internal object */
@@ -330,8 +331,7 @@ AcpiRemoveNotifyHandler (
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (!ObjDesc)
     {
-        Status = AE_NOT_EXIST;
-        goto UnlockAndExit;
+        return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
     /* Internal object exists. Find the handler and remove it */
@@ -340,6 +340,12 @@ AcpiRemoveNotifyHandler (
     {
         if (HandlerType & (i+1))
         {
+            Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+
             HandlerObj = ObjDesc->CommonNotify.NotifyList[i];
             PreviousHandlerObj = NULL;
 
@@ -371,9 +377,16 @@ AcpiRemoveNotifyHandler (
                     HandlerObj->Notify.Next[i];
             }
 
+            (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+
+            /* Make sure all deferred notify tasks are completed */
+
+            AcpiOsWaitEventsComplete ();
             AcpiUtRemoveReference (HandlerObj);
         }
     }
+
+    return_ACPI_STATUS (Status);
 
 
 UnlockAndExit:
@@ -520,6 +533,8 @@ Exit:
     return_ACPI_STATUS (Status);
 }
 
+ACPI_EXPORT_SYMBOL (AcpiInstallSciHandler)
+
 
 /*******************************************************************************
  *
@@ -595,6 +610,8 @@ UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
     return_ACPI_STATUS (Status);
 }
+
+ACPI_EXPORT_SYMBOL (AcpiRemoveSciHandler)
 
 
 /*******************************************************************************
@@ -970,10 +987,6 @@ AcpiRemoveGpeHandler (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Make sure all deferred GPE tasks are completed */
-
-    AcpiOsWaitEventsComplete ();
-
     Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
     if (ACPI_FAILURE (Status))
     {
@@ -1030,10 +1043,17 @@ AcpiRemoveGpeHandler (
         (void) AcpiEvAddGpeReference (GpeEventInfo);
     }
 
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+    /* Make sure all deferred GPE tasks are completed */
+
+    AcpiOsWaitEventsComplete ();
+
     /* Now we can free the handler object */
 
     ACPI_FREE (Handler);
-
+    return_ACPI_STATUS (Status);
 
 UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);

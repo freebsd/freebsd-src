@@ -45,8 +45,6 @@
 #define _ACUTILS_H
 
 
-#pragma pack(push) /* Set default struct packing */
-
 extern const UINT8                      AcpiGbl_ResourceAmlSizes[];
 extern const UINT8                      AcpiGbl_ResourceAmlSerialBusSizes[];
 
@@ -191,8 +189,8 @@ AcpiUtGetMutexName (
 
 const char *
 AcpiUtGetNotifyName (
-    UINT32                  NotifyValue);
-
+    UINT32                  NotifyValue,
+    ACPI_OBJECT_TYPE        Type);
 #endif
 
 char *
@@ -1101,7 +1099,15 @@ AcpiUtMethodError (
     const char              *Path,
     ACPI_STATUS             LookupStatus);
 
+/*
+ * Utility functions for ACPI names and IDs
+ */
+const AH_PREDEFINED_NAME *
+AcpiAhMatchPredefinedName (
+    char                    *Nameseg);
 
-#pragma pack(pop) /* Restore original struct packing */
+const AH_DEVICE_ID *
+AcpiAhMatchHardwareId (
+    char                    *Hid);
 
 #endif /* _ACUTILS_H */

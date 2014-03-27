@@ -262,7 +262,7 @@ AcpiGetTableHeader (
         {
             if ((AcpiGbl_RootTableList.Tables[i].Flags &
                     ACPI_TABLE_ORIGIN_MASK) ==
-                ACPI_TABLE_ORIGIN_MAPPED)
+                ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL)
             {
                 Header = AcpiOsMapMemory (
                             AcpiGbl_RootTableList.Tables[i].Address,
@@ -345,7 +345,7 @@ AcpiGetTable (
             continue;
         }
 
-        Status = AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[i]);
+        Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[i]);
         if (ACPI_SUCCESS (Status))
         {
             *OutTable = AcpiGbl_RootTableList.Tables[i].Pointer;
@@ -406,7 +406,7 @@ AcpiGetTableByIndex (
     {
         /* Table is not mapped, map it */
 
-        Status = AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[TableIndex]);
+        Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[TableIndex]);
         if (ACPI_FAILURE (Status))
         {
             (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);

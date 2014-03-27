@@ -69,6 +69,7 @@ BOOLEAN
 ApIsValidHeader (
     ACPI_TABLE_HEADER       *Table)
 {
+
     if (!ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
         /* Make sure signature is all ASCII and a valid ACPI name */
@@ -100,9 +101,9 @@ ApIsValidHeader (
  *
  * PARAMETERS:  Table               - Pointer to table to be validated
  *
- * RETURN:      TRUE if the checksum appears to be valid. FALSE otherwise
+ * RETURN:      TRUE if the checksum appears to be valid. FALSE otherwise.
  *
- * DESCRIPTION: Check for a valid ACPI table checksum
+ * DESCRIPTION: Check for a valid ACPI table checksum.
  *
  ******************************************************************************/
 
@@ -120,7 +121,6 @@ ApIsValidChecksum (
          * Checksum for RSDP.
          * Note: Other checksums are computed during the table dump.
          */
-
         Rsdp = ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table);
         Status = AcpiTbValidateRsdp (Rsdp);
     }
@@ -131,7 +131,7 @@ ApIsValidChecksum (
 
     if (ACPI_FAILURE (Status))
     {
-        fprintf (stderr, "%4.4s: Warning: wrong checksum\n",
+        fprintf (stderr, "%4.4s: Warning: wrong checksum in table\n",
             Table->Signature);
     }
 
@@ -147,7 +147,7 @@ ApIsValidChecksum (
  *
  * RETURN:      Table length
  *
- * DESCRIPTION: Obtain table length according to table signature
+ * DESCRIPTION: Obtain table length according to table signature.
  *
  ******************************************************************************/
 
@@ -170,10 +170,10 @@ ApGetTableLength (
         Rsdp = ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table);
         return (Rsdp->Length);
     }
-    else
-    {
-        return (Table->Length);
-    }
+
+    /* Normal ACPI table */
+
+    return (Table->Length);
 }
 
 
@@ -219,7 +219,7 @@ ApDumpTableBuffer (
     }
 
     /*
-     * Dump the table with header for use with acpixtract utility
+     * Dump the table with header for use with acpixtract utility.
      * Note: simplest to just always emit a 64-bit address. AcpiXtract
      * utility can handle this.
      */
@@ -254,6 +254,7 @@ ApDumpAllTables (
     UINT32                  Instance = 0;
     ACPI_PHYSICAL_ADDRESS   Address;
     ACPI_STATUS             Status;
+    int                     TableStatus;
     UINT32                  i;
 
 
@@ -284,11 +285,13 @@ ApDumpAllTables (
             }
         }
 
-        if (ApDumpTableBuffer (Table, Instance, Address))
-        {
-            return (-1);
-        }
+        TableStatus = ApDumpTableBuffer (Table, Instance, Address);
         free (Table);
+
+        if (TableStatus)
+        {
+            break;
+        }
     }
 
     /* Something seriously bad happened if the loop terminates here */
@@ -368,6 +371,7 @@ ApDumpTableByName (
     ACPI_TABLE_HEADER       *Table;
     ACPI_PHYSICAL_ADDRESS   Address;
     ACPI_STATUS             Status;
+    int                     TableStatus;
 
 
     if (strlen (Signature) != ACPI_NAME_SIZE)
@@ -415,11 +419,13 @@ ApDumpTableByName (
             return (-1);
         }
 
-        if (ApDumpTableBuffer (Table, Instance, Address))
-        {
-            return (-1);
-        }
+        TableStatus = ApDumpTableBuffer (Table, Instance, Address);
         free (Table);
+
+        if (TableStatus)
+        {
+            break;
+        }
     }
 
     /* Something seriously bad happened if the loop terminates here */
@@ -446,7 +452,7 @@ ApDumpTableFromFile (
 {
     ACPI_TABLE_HEADER       *Table;
     UINT32                  FileSize = 0;
-    int                     TableStatus;
+    int                     TableStatus = -1;
 
 
     /* Get the entire ACPI table from the file */
@@ -464,7 +470,7 @@ ApDumpTableFromFile (
         fprintf (stderr,
             "Table length (0x%X) is too large for input file (0x%X) %s\n",
             Table->Length, FileSize, Pathname);
-        return (-1);
+        goto Exit;
     }
 
     if (Gbl_VerboseMode)
@@ -475,6 +481,8 @@ ApDumpTableFromFile (
     }
 
     TableStatus = ApDumpTableBuffer (Table, 0, 0);
+
+Exit:
     free (Table);
     return (TableStatus);
 }

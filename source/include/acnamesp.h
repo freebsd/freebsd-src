@@ -45,8 +45,6 @@
 #define __ACNAMESP_H__
 
 
-#pragma pack(push) /* Set default struct packing */
-
 /* To search the entire name space, pass this as SearchBase */
 
 #define ACPI_NS_ALL                 ((ACPI_HANDLE)0)
@@ -536,7 +534,5 @@ AcpiNsValidateHandle (
 void
 AcpiNsTerminate (
     void);
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACNAMESP_H__ */

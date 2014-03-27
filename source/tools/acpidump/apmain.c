@@ -358,7 +358,7 @@ main (
         {
             /* Summary for the output file */
 
-            FileSize = ApGetFileSize (Gbl_OutputFile);
+            FileSize = CmGetFileSize (Gbl_OutputFile);
             fprintf (stderr, "Output file %s contains 0x%X (%u) bytes\n\n",
                 Gbl_OutputFilename, FileSize, FileSize);
         }

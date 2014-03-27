@@ -42,13 +42,10 @@
  */
 
 #include "aslcompiler.h"
+#include "acapps.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfileio")
-
-long
-UtGetFileSize (
-    FILE                    *fp);
 
 
 /*******************************************************************************
@@ -115,65 +112,6 @@ FlOpenFile (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtGetFileSize
- *
- * PARAMETERS:  fp              - Open file handle
- *
- * RETURN:      File Size. -1 on error.
- *
- * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
- *              TBD: This function should be used to replace other similar
- *              functions in ACPICA.
- *
- ******************************************************************************/
-
-long
-UtGetFileSize (
-    FILE                    *fp)
-{
-    long                    FileSize;
-    long                    CurrentOffset;
-
-
-    CurrentOffset = ftell (fp);
-    if (CurrentOffset < 0)
-    {
-        goto OffsetError;
-    }
-
-    if (fseek (fp, 0, SEEK_END))
-    {
-        goto SeekError;
-    }
-
-    FileSize = ftell (fp);
-    if (FileSize < 0)
-    {
-        goto OffsetError;
-    }
-
-    /* Restore file pointer */
-
-    if (fseek (fp, CurrentOffset, SEEK_SET))
-    {
-        goto SeekError;
-    }
-
-    return (FileSize);
-
-
-OffsetError:
-    perror ("Could not get file offset");
-    return (-1);
-
-SeekError:
-    perror ("Could not seek file");
-    return (-1);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    FlGetFileSize
  *
  * PARAMETERS:  FileId              - Index into file info array
@@ -189,16 +127,16 @@ UINT32
 FlGetFileSize (
     UINT32                  FileId)
 {
-    long                    FileSize;
+    UINT32                  FileSize;
 
 
-    FileSize = UtGetFileSize (Gbl_Files[FileId].Handle);
-    if (FileSize == -1)
+    FileSize = CmGetFileSize (Gbl_Files[FileId].Handle);
+    if (FileSize == ACPI_UINT32_MAX)
     {
         AslAbort();
     }
 
-    return ((UINT32) FileSize);
+    return (FileSize);
 }
 
 

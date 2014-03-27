@@ -47,6 +47,7 @@
 #include "acdisasm.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acinterp.h"
 
 
 #ifdef ACPI_DISASSEMBLER
@@ -61,7 +62,7 @@ AcpiDmUnicode (
     ACPI_PARSE_OBJECT       *Op);
 
 static void
-AcpiDmIsEisaIdElement (
+AcpiDmGetHardwareIdType (
     ACPI_PARSE_OBJECT       *Op);
 
 static void
@@ -537,19 +538,20 @@ AcpiDmUnicode (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmIsEisaIdElement
+ * FUNCTION:    AcpiDmGetHardwareIdType
  *
  * PARAMETERS:  Op              - Op to be examined
  *
  * RETURN:      None
  *
- * DESCRIPTION: Determine if an Op (argument to _HID or _CID) can be converted
- *              to an EISA ID.
+ * DESCRIPTION: Determine the type of the argument to a _HID or _CID
+ *              1) Strings are allowed
+ *              2) If Integer, determine if it is a valid EISAID
  *
  ******************************************************************************/
 
 static void
-AcpiDmIsEisaIdElement (
+AcpiDmGetHardwareIdType (
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  BigEndianId;
@@ -557,55 +559,66 @@ AcpiDmIsEisaIdElement (
     UINT32                  i;
 
 
-    /* The parameter must be either a word or a dword */
-
-    if ((Op->Common.AmlOpcode != AML_DWORD_OP) &&
-        (Op->Common.AmlOpcode != AML_WORD_OP))
+    switch (Op->Common.AmlOpcode)
     {
-        return;
-    }
+    case AML_STRING_OP:
 
-    /* Swap from little-endian to big-endian to simplify conversion */
+        /* Mark this string as an _HID/_CID string */
 
-    BigEndianId = AcpiUtDwordByteSwap ((UINT32) Op->Common.Value.Integer);
+        Op->Common.DisasmOpcode = ACPI_DASM_HID_STRING;
+        break;
 
-    /* Create the 3 leading ASCII letters */
+    case AML_WORD_OP:
+    case AML_DWORD_OP:
 
-    Prefix[0] = ((BigEndianId >> 26) & 0x1F) + 0x40;
-    Prefix[1] = ((BigEndianId >> 21) & 0x1F) + 0x40;
-    Prefix[2] = ((BigEndianId >> 16) & 0x1F) + 0x40;
+        /* Determine if a Word/Dword is a valid encoded EISAID */
 
-    /* Verify that all 3 are ascii and alpha */
+        /* Swap from little-endian to big-endian to simplify conversion */
 
-    for (i = 0; i < 3; i++)
-    {
-        if (!ACPI_IS_ASCII (Prefix[i]) ||
-            !ACPI_IS_ALPHA (Prefix[i]))
+        BigEndianId = AcpiUtDwordByteSwap ((UINT32) Op->Common.Value.Integer);
+
+        /* Create the 3 leading ASCII letters */
+
+        Prefix[0] = ((BigEndianId >> 26) & 0x1F) + 0x40;
+        Prefix[1] = ((BigEndianId >> 21) & 0x1F) + 0x40;
+        Prefix[2] = ((BigEndianId >> 16) & 0x1F) + 0x40;
+
+        /* Verify that all 3 are ascii and alpha */
+
+        for (i = 0; i < 3; i++)
         {
-            return;
+            if (!ACPI_IS_ASCII (Prefix[i]) ||
+                !ACPI_IS_ALPHA (Prefix[i]))
+            {
+                return;
+            }
         }
+
+        /* Mark this node as convertable to an EISA ID string */
+
+        Op->Common.DisasmOpcode = ACPI_DASM_EISAID;
+        break;
+
+    default:
+        break;
     }
-
-    /* OK - mark this node as convertable to an EISA ID */
-
-    Op->Common.DisasmOpcode = ACPI_DASM_EISAID;
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmIsEisaId
+ * FUNCTION:    AcpiDmCheckForHardwareId
  *
  * PARAMETERS:  Op              - Op to be examined
  *
  * RETURN:      None
  *
- * DESCRIPTION: Determine if a Name() Op can be converted to an EisaId.
+ * DESCRIPTION: Determine if a Name() Op is a _HID/_CID.
  *
  ******************************************************************************/
 
 void
-AcpiDmIsEisaId (
+AcpiDmCheckForHardwareId (
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  Name;
@@ -630,7 +643,7 @@ AcpiDmIsEisaId (
 
     if (ACPI_COMPARE_NAME (&Name, METHOD_NAME__HID))
     {
-        AcpiDmIsEisaIdElement (NextOp);
+        AcpiDmGetHardwareIdType (NextOp);
         return;
     }
 
@@ -645,11 +658,11 @@ AcpiDmIsEisaId (
 
     if (NextOp->Common.AmlOpcode != AML_PACKAGE_OP)
     {
-        AcpiDmIsEisaIdElement (NextOp);
+        AcpiDmGetHardwareIdType (NextOp);
         return;
     }
 
-    /* _CID with Package: get the package length */
+    /* _CID with Package: get the package length, check all elements */
 
     NextOp = AcpiPsGetDepthNext (NULL, NextOp);
 
@@ -658,7 +671,7 @@ AcpiDmIsEisaId (
     NextOp = NextOp->Common.Next;
     while (NextOp)
     {
-        AcpiDmIsEisaIdElement (NextOp);
+        AcpiDmGetHardwareIdType (NextOp);
         NextOp = NextOp->Common.Next;
     }
 }
@@ -666,41 +679,38 @@ AcpiDmIsEisaId (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDmEisaId
+ * FUNCTION:    AcpiDmDecompressEisaId
  *
  * PARAMETERS:  EncodedId       - Raw encoded EISA ID.
  *
  * RETURN:      None
  *
- * DESCRIPTION: Convert an encoded EISAID back to the original ASCII String.
+ * DESCRIPTION: Convert an encoded EISAID back to the original ASCII String
+ *              and emit the correct ASL statement. If the ID is known, emit
+ *              a description of the ID as a comment.
  *
  ******************************************************************************/
 
 void
-AcpiDmEisaId (
+AcpiDmDecompressEisaId (
     UINT32                  EncodedId)
 {
-    UINT32                  BigEndianId;
+    char                    IdBuffer[ACPI_EISAID_STRING_SIZE];
+    const AH_DEVICE_ID      *Info;
 
 
-    /* Swap from little-endian to big-endian to simplify conversion */
+    /* Convert EISAID to a string an emit the statement */
 
-    BigEndianId = AcpiUtDwordByteSwap (EncodedId);
+    AcpiExEisaIdToString (IdBuffer, EncodedId);
+    AcpiOsPrintf ("EisaId (\"%s\")", IdBuffer);
 
+    /* If we know about the ID, emit the description */
 
-    /* Split to form "AAANNNN" string */
-
-    AcpiOsPrintf ("EisaId (\"%c%c%c%4.4X\")",
-
-        /* Three Alpha characters (AAA), 5 bits each */
-
-        (int) ((BigEndianId >> 26) & 0x1F) + 0x40,
-        (int) ((BigEndianId >> 21) & 0x1F) + 0x40,
-        (int) ((BigEndianId >> 16) & 0x1F) + 0x40,
-
-        /* Numeric part (NNNN) is simply the lower 16 bits */
-
-        (UINT32) (BigEndianId & 0xFFFF));
+    Info = AcpiAhMatchHardwareId (IdBuffer);
+    if (Info)
+    {
+        AcpiOsPrintf (" /* %s */", Info->Description);
+    }
 }
 
 #endif

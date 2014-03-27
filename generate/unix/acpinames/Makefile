@@ -38,6 +38,7 @@ OBJECTS = \
 	$(OBJDIR)/anmain.o\
 	$(OBJDIR)/anstubs.o\
 	$(OBJDIR)/antables.o\
+	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/dbfileio.o\
 	$(OBJDIR)/dsfield.o\
 	$(OBJDIR)/dsmthdat.o\
@@ -79,6 +80,7 @@ OBJECTS = \
 	$(OBJDIR)/psutils.o\
 	$(OBJDIR)/pswalk.o\
 	$(OBJDIR)/psxface.o\
+	$(OBJDIR)/tbdata.o\
 	$(OBJDIR)/tbfadt.o\
 	$(OBJDIR)/tbfind.o\
 	$(OBJDIR)/tbinstal.o\

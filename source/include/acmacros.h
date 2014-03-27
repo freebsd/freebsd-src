@@ -45,8 +45,6 @@
 #define __ACMACROS_H__
 
 
-#pragma pack(push) /* Set default struct packing */
-
 /*
  * Extract data using a pointer. Any more than a byte and we
  * get into potential aligment issues -- see the STORE macros below.
@@ -434,7 +432,5 @@
 
 #define ACPI_IS_OCTAL_DIGIT(d)              (((char)(d) >= '0') && ((char)(d) <= '7'))
 
-
-#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* ACMACROS_H */

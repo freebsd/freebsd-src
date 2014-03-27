@@ -116,7 +116,7 @@ AcpiDbConvertToNode (
         Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
-            AcpiOsPrintf ("Address %p is invalid in this address space\n",
+            AcpiOsPrintf ("Address %p is invalid",
                 Node);
             return (NULL);
         }
@@ -125,7 +125,7 @@ AcpiDbConvertToNode (
 
         if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
         {
-            AcpiOsPrintf ("Address %p is not a valid NS node [%s]\n",
+            AcpiOsPrintf ("Address %p is not a valid namespace node [%s]\n",
                     Node, AcpiUtGetDescriptorName (Node));
             return (NULL);
         }
@@ -139,6 +139,8 @@ AcpiDbConvertToNode (
         Node = AcpiDbLocalNsLookup (InString);
         if (!Node)
         {
+            AcpiOsPrintf ("Could not find [%s] in namespace, defaulting to root node\n",
+                InString);
             Node = AcpiGbl_RootNode;
         }
     }
@@ -362,24 +364,19 @@ AcpiDbDisplayTableInfo (
 
         switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
         {
-        case ACPI_TABLE_ORIGIN_UNKNOWN:
+        case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-            AcpiOsPrintf ("Unknown   ");
+            AcpiOsPrintf ("External virtual  ");
             break;
 
-        case ACPI_TABLE_ORIGIN_MAPPED:
+        case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
 
-            AcpiOsPrintf ("Mapped    ");
+            AcpiOsPrintf ("Internal physical ");
             break;
 
-        case ACPI_TABLE_ORIGIN_ALLOCATED:
+        case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 
-            AcpiOsPrintf ("Allocated ");
-            break;
-
-        case ACPI_TABLE_ORIGIN_OVERRIDE:
-
-            AcpiOsPrintf ("Override  ");
+            AcpiOsPrintf ("Internal virtual  ");
             break;
 
         default:
@@ -390,7 +387,7 @@ AcpiDbDisplayTableInfo (
 
         /* Make sure that the table is mapped */
 
-        Status = AcpiTbVerifyTable (TableDesc);
+        Status = AcpiTbValidateTable (TableDesc);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -440,8 +437,6 @@ AcpiDbUnloadAcpiTable (
     Node = AcpiDbConvertToNode (ObjectName);
     if (!Node)
     {
-        AcpiOsPrintf ("Could not find [%s] in namespace\n",
-            ObjectName);
         return;
     }
 
