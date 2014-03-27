@@ -90,7 +90,6 @@ usage(const char *why)
 	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
-	fprintf(stderr, "\t-z\t\t-  write a sparse file\n");
 
 	fprintf(stderr, "    schemes:\n");
 	SET_FOREACH(iter, schemes) {
@@ -334,7 +333,7 @@ main(int argc, char *argv[])
 {
 	int c, error;
 
-	while ((c = getopt(argc, argv, "b:o:p:s:vzH:P:S:T:")) != -1) {
+	while ((c = getopt(argc, argv, "b:o:p:s:vH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -365,8 +364,6 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			verbose++;
-			break;
-		case 'z':	/* SPARSE OUTPUT */
 			break;
 		case 'H':	/* GEOMETRY: HEADS */
 			error = parse_number(&nheads, 1, 255, optarg);
