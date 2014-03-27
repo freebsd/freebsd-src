@@ -335,11 +335,9 @@ ProcessPOSIX::DoDestroy()
 
     if (!HasExited())
     {
-        // Drive the exit event to completion (do not keep the inferior in
-        // limbo).
+        assert (m_monitor);
         m_exit_now = true;
-
-        if ((m_monitor == NULL || kill(m_monitor->GetPID(), SIGKILL)) && error.Success())
+        if (m_monitor->BringProcessIntoLimbo())
         {
             error.SetErrorToErrno();
             return error;

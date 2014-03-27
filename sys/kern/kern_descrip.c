@@ -1808,7 +1808,7 @@ fdinit(struct filedesc *fdp)
 	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
 	FILEDESC_LOCK_INIT(&newfdp->fd_fd);
 	if (fdp != NULL) {
-		FILEDESC_XLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 		if (newfdp->fd_fd.fd_cdir)
 			VREF(newfdp->fd_fd.fd_cdir);
@@ -1818,7 +1818,7 @@ fdinit(struct filedesc *fdp)
 		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
 		if (newfdp->fd_fd.fd_jdir)
 			VREF(newfdp->fd_fd.fd_jdir);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 
 	/* Create the file descriptor table. */
@@ -2975,7 +2975,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
 #ifdef KINFO_OFILE_SIZE
@@ -3231,8 +3231,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
-    sysctl_kern_proc_ofiledesc, "Process ofiledesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
+    CTLFLAG_RD||CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
+    "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
 
 #ifdef KINFO_FILE_SIZE
@@ -3742,8 +3743,9 @@ fill_shm_info(struct file *fp, struct kinfo_file *kif)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
-    sysctl_kern_proc_filedesc, "Process filedesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
+    "Process filedesc entries");
 
 #ifdef DDB
 /*

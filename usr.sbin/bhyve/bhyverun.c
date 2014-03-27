@@ -98,7 +98,7 @@ static int acpi;
 static char *progname;
 static const int BSP = 0;
 
-static int cpumask;
+static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
@@ -199,30 +199,26 @@ fbsdrun_start_thread(void *param)
 }
 
 void
-fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
+fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 {
 	int error;
 
-	if (cpumask & (1 << vcpu)) {
-		fprintf(stderr, "addcpu: attempting to add existing cpu %d\n",
-		    vcpu);
-		exit(1);
-	}
+	assert(fromcpu == BSP);
 
-	atomic_set_int(&cpumask, 1 << vcpu);
+	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
 	 * at the given RIP
 	 */
-	vmexit[vcpu].rip = rip;
-	vmexit[vcpu].inst_length = 0;
+	vmexit[newcpu].rip = rip;
+	vmexit[newcpu].inst_length = 0;
 
-	mt_vmm_info[vcpu].mt_ctx = ctx;
-	mt_vmm_info[vcpu].mt_vcpu = vcpu;
+	mt_vmm_info[newcpu].mt_ctx = ctx;
+	mt_vmm_info[newcpu].mt_vcpu = newcpu;
 
-	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	error = pthread_create(&mt_vmm_info[newcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[newcpu]);
 	assert(error == 0);
 }
 
@@ -230,14 +226,14 @@ static int
 fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
-	if ((cpumask & (1 << vcpu)) == 0) {
+	if (!CPU_ISSET(vcpu, &cpumask)) {
 		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
 		    vcpu);
 		exit(1);
 	}
 
-	atomic_clear_int(&cpumask, 1 << vcpu);
-	return (cpumask == 0);
+	CPU_CLR_ATOMIC(vcpu, &cpumask);
+	return (CPU_EMPTY(&cpumask));
 }
 
 static int
@@ -467,6 +463,33 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
+static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
+static int resetcpu = -1;
+
+static int
+vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+	
+	assert(resetcpu != -1);
+
+	fbsdrun_deletecpu(ctx, *pvcpu);
+
+	if (*pvcpu != resetcpu) {
+		pthread_mutex_lock(&resetcpu_mtx);
+		pthread_cond_signal(&resetcpu_cond);
+		pthread_mutex_unlock(&resetcpu_mtx);
+		pthread_exit(NULL);
+	}
+
+	pthread_mutex_lock(&resetcpu_mtx);
+	while (!CPU_EMPTY(&cpumask)) {
+		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
+	}
+	pthread_mutex_unlock(&resetcpu_mtx);
+	exit(0);
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
@@ -477,6 +500,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
 };
 
 static void
@@ -518,7 +542,12 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                         rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_RESET:
-			exit(0);
+			if (vm_suspend(ctx) == 0) {
+				assert(resetcpu == -1);
+				resetcpu = vcpu;
+			}
+                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
+			break;
 		default:
 			exit(1);
 		}
@@ -745,7 +774,7 @@ main(int argc, char *argv[])
 	/*
 	 * Add CPU 0
 	 */
-	fbsdrun_addcpu(ctx, BSP, rip);
+	fbsdrun_addcpu(ctx, BSP, BSP, rip);
 
 	/*
 	 * Head off to the main event dispatch loop

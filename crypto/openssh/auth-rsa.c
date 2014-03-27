@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.85 2013/07/12 00:19:58 djm Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.86 2014/01/27 19:18:54 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -20,7 +20,6 @@
 #include <sys/stat.h>
 
 #include <openssl/rsa.h>
-#include <openssl/md5.h>
 
 #include <pwd.h>
 #include <stdio.h>
@@ -47,6 +46,8 @@
 #include "monitor_wrap.h"
 #include "ssh.h"
 #include "misc.h"
+
+#include "digest.h"
 
 /* import */
 extern ServerOptions options;
@@ -91,12 +92,13 @@ int
 auth_rsa_verify_response(Key *key, BIGNUM *challenge, u_char response[16])
 {
 	u_char buf[32], mdbuf[16];
-	MD5_CTX md;
+	struct ssh_digest_ctx *md;
 	int len;
 
 	/* don't allow short keys */
 	if (BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE) {
-		error("auth_rsa_verify_response: RSA modulus too small: %d < minimum %d bits",
+		error("%s: RSA modulus too small: %d < minimum %d bits",
+		    __func__,
 		    BN_num_bits(key->rsa->n), SSH_RSA_MINIMUM_MODULUS_SIZE);
 		return (0);
 	}
@@ -104,13 +106,15 @@ auth_rsa_verify_response(Key *key, BIGNUM *challenge, u_char response[16])
 	/* The response is MD5 of decrypted challenge plus session id. */
 	len = BN_num_bytes(challenge);
 	if (len <= 0 || len > 32)
-		fatal("auth_rsa_verify_response: bad challenge length %d", len);
+		fatal("%s: bad challenge length %d", __func__, len);
 	memset(buf, 0, 32);
 	BN_bn2bin(challenge, buf + 32 - len);
-	MD5_Init(&md);
-	MD5_Update(&md, buf, 32);
-	MD5_Update(&md, session_id, 16);
-	MD5_Final(mdbuf, &md);
+	if ((md = ssh_digest_start(SSH_DIGEST_MD5)) == NULL ||
+	    ssh_digest_update(md, buf, 32) < 0 ||
+	    ssh_digest_update(md, session_id, 16) < 0 ||
+	    ssh_digest_final(md, mdbuf, sizeof(mdbuf)) < 0)
+		fatal("%s: md5 failed", __func__);
+	ssh_digest_free(md);
 
 	/* Verify that the response is the original challenge. */
 	if (timingsafe_bcmp(response, mdbuf, 16) != 0) {

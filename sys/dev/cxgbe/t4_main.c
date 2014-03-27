@@ -2669,6 +2669,7 @@ build_medialist(struct port_info *pi)
 		ifmedia_set(media, m | IFM_10G_CX4);
 		break;
 
+	case FW_PORT_TYPE_QSFP_10G:
 	case FW_PORT_TYPE_SFP:
 	case FW_PORT_TYPE_FIBER_XFI:
 	case FW_PORT_TYPE_FIBER_XAUI:
@@ -4085,6 +4086,7 @@ static void
 cxgbe_tick(void *arg)
 {
 	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 	struct ifnet *ifp = pi->ifp;
 	struct sge_txq *txq;
 	int i, drops;
@@ -4096,7 +4098,7 @@ cxgbe_tick(void *arg)
 		return;	/* without scheduling another callout */
 	}
 
-	t4_get_port_stats(pi->adapter, pi->tx_chan, s);
+	t4_get_port_stats(sc, pi->tx_chan, s);
 
 	ifp->if_opackets = s->tx_frames - s->tx_pause;
 	ifp->if_ipackets = s->rx_frames - s->rx_pause;
@@ -4107,11 +4109,24 @@ cxgbe_tick(void *arg)
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
 	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
 	    s->rx_trunc3;
+	for (i = 0; i < 4; i++) {
+		if (pi->rx_chan_map & (1 << i)) {
+			uint32_t v;
+
+			/*
+			 * XXX: indirect reads from the same ADDR/DATA pair can
+			 * race with each other.
+			 */
+			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
+			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			ifp->if_iqdrops += v;
+		}
+	}
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
 		drops += txq->br->br_drops;
-	ifp->if_snd.ifq_drops = drops;
+	ifp->if_oqdrops = drops;
 
 	ifp->if_oerrors = s->tx_error_frames;
 	ifp->if_ierrors = s->rx_jabber + s->rx_runt + s->rx_too_long +

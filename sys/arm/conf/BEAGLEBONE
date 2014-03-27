@@ -105,6 +105,9 @@ device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 device		gpio
 device		gpioled
 
+# ADC support
+device		ti_adc
+
 # USB support
 device		usb
 options 	USB_HOST_ALIGN=64	# Cacheline size is 64 on AM335x.

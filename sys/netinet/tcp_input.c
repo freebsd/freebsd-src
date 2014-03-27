@@ -1990,13 +1990,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		} else {
 			/*
 			 * Received initial SYN in SYN-SENT[*] state =>
-			 * simultaneous open.  If segment contains CC option
-			 * and there is a cached CC, apply TAO test.
+			 * simultaneous open.
 			 * If it succeeds, connection is * half-synchronized.
 			 * Otherwise, do 3-way handshake:
 			 *        SYN-SENT -> SYN-RECEIVED
 			 *        SYN-SENT* -> SYN-RECEIVED*
-			 * If there was no CC option, clear cached CC value.
 			 */
 			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			tcp_timer_activate(tp, TT_REXMT, 0);

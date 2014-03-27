@@ -165,6 +165,7 @@ enum {
 	IOCNUM_RUN = 1,
 	IOCNUM_SET_CAPABILITY = 2,
 	IOCNUM_GET_CAPABILITY = 3,
+	IOCNUM_SUSPEND = 4,
 
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,
@@ -212,6 +213,8 @@ enum {
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
+#define	VM_SUSPEND	\
+	_IO('v', IOCNUM_SUSPEND)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \

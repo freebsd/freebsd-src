@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519.c,v 1.1 2013/12/06 13:39:49 markus Exp $ */
+/* $OpenBSD: ssh-ed25519.c,v 1.3 2014/02/23 20:03:42 djm Exp $ */
 /*
  * Copyright (c) 2013 Markus Friedl <markus@openbsd.org>
  *
@@ -21,6 +21,7 @@
 
 #include "crypto_api.h"
 
+#include <limits.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -45,6 +46,11 @@ ssh_ed25519_sign(const Key *key, u_char **sigp, u_int *lenp,
 		error("%s: no ED25519 key", __func__);
 		return -1;
 	}
+
+	if (datalen >= UINT_MAX - crypto_sign_ed25519_BYTES) {
+		error("%s: datalen %u too long", __func__, datalen);
+		return -1;
+	}
 	smlen = slen = datalen + crypto_sign_ed25519_BYTES;
 	sig = xmalloc(slen);
 
@@ -66,7 +72,7 @@ ssh_ed25519_sign(const Key *key, u_char **sigp, u_int *lenp,
 		memcpy(*sigp, buffer_ptr(&b), len);
 	}
 	buffer_free(&b);
-	memset(sig, 's', slen);
+	explicit_bzero(sig, slen);
 	free(sig);
 
 	return 0;
@@ -130,9 +136,9 @@ ssh_ed25519_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	}
 	/* XXX compare 'm' and 'data' ? */
 
-	memset(sigblob, 's', len);
-	memset(sm, 'S', smlen);
-	memset(m, 'm', smlen); /* NB. mlen may be invalid if ret != 0 */
+	explicit_bzero(sigblob, len);
+	explicit_bzero(sm, smlen);
+	explicit_bzero(m, smlen); /* NB. mlen may be invalid if ret != 0 */
 	free(sigblob);
 	free(sm);
 	free(m);

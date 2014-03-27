@@ -75,13 +75,13 @@
 #define	VM_TOTAL		1	/* struct vmtotal */
 #define	VM_METER                VM_TOTAL/* deprecated, use VM_TOTAL */
 #define	VM_LOADAVG	 	2	/* struct loadavg */
-#define VM_V_FREE_MIN		3	/* cnt.v_free_min */
-#define VM_V_FREE_TARGET	4	/* cnt.v_free_target */
-#define VM_V_FREE_RESERVED	5	/* cnt.v_free_reserved */
-#define VM_V_INACTIVE_TARGET	6	/* cnt.v_inactive_target */
-#define	VM_V_CACHE_MIN		7	/* cnt.v_cache_min */
-#define	VM_V_CACHE_MAX		8	/* cnt.v_cache_max */
-#define VM_V_PAGEOUT_FREE_MIN	9	/* cnt.v_pageout_free_min */
+#define VM_V_FREE_MIN		3	/* vm_cnt.v_free_min */
+#define VM_V_FREE_TARGET	4	/* vm_cnt.v_free_target */
+#define VM_V_FREE_RESERVED	5	/* vm_cnt.v_free_reserved */
+#define VM_V_INACTIVE_TARGET	6	/* vm_cnt.v_inactive_target */
+#define	VM_V_CACHE_MIN		7	/* vm_cnt.v_cache_min */
+#define	VM_V_CACHE_MAX		8	/* vm_cnt.v_cache_max */
+#define VM_V_PAGEOUT_FREE_MIN	9	/* vm_cnt.v_pageout_free_min */
 #define	VM_OBSOLETE_10		10	/* pageout algorithm */
 #define VM_SWAPPING_ENABLED	11	/* swapping enabled */
 #define	VM_MAXID		12	/* number of valid vm ids */
