@@ -39,6 +39,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 ############################################################ GLOBALS
 
 CATEGORIES=
+NCATEGORIES=0
 
 ############################################################ FUNCTIONS
 
@@ -199,8 +200,9 @@ f_category x11-wm        "$msg_x11_wm_desc"
 f_category xfce          "$msg_xfce_desc"
 f_category zope          "$msg_zope_desc"
 
+f_count NCATEGORIES $CATEGORIES
 f_dprintf "%s: Initialized %u package category descriptions." \
-          packages/categories.subr "$( set -- $CATEGORIES; echo $# )"
+          packages/categories.subr $NCATEGORIES
 
 f_dprintf "%s: Successfully loaded." packages/categories.subr
 

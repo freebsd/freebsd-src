@@ -101,7 +101,7 @@ f_dialog_menu_media_http()
 		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	) || return $FAILURE
+	) || return $DIALOG_CANCEL
 	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
@@ -112,7 +112,7 @@ f_dialog_menu_media_http()
 		setvar $VAR_HTTP_PATH "http://$value"
 	esac
 	
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_media_set_http
@@ -321,7 +321,7 @@ f_media_set_http()
 	device_http set type     $DEVICE_TYPE_HTTP
 	device_http set init     f_media_init_http
 	device_http set get      f_media_get_http
-	device_http set shutdown f_media_shutdown_http
+	device_http set shutdown :
 	device_http set private  network
 	f_struct_copy device_http device_media
 	f_struct_free device_http
@@ -481,7 +481,7 @@ f_media_init_http()
 
 		case "$rel" in
 		__RELEASE|any)
-			setvar $VAR_HTTP_PATH "$VAR_HTTP_DIR"
+			f_getvar $VAR_HTTP_DIR $VAR_HTTP_PATH
 			f_http_check_access
 			http_found=$?
 			;;
@@ -515,13 +515,15 @@ f_media_init_http()
 	return $http_found
 }
 
-# f_media_get_http $device $file [$probe_only]
+# f_media_get_http $device $file [$probe_type]
 #
 # Returns data from $file on an HTTP server using nc(1). Please note that
 # $device is unused but must be present (even if null). Information is instead
-# gathered from the environment. If $probe_only is both present and non-NULL,
+# gathered from the environment. If $probe_type is both present and non-NULL,
 # this function exits after receiving the HTTP header response from the server
 # (if the HTTP response code is 200, success is returned; otherwise failure).
+# If $probe_type is equal to $PROBE_SIZE, prints the content-length in bytes
+# from the response (or -1 if not found) to standard-out.
 #
 # The variables used to configure the connection are as follows (all of which
 # are configured by f_media_set_http above):
@@ -547,10 +549,10 @@ f_media_init_http()
 #
 f_media_get_http()
 {
-	local dev="$1" file="$2" probe_only="$3" hosts=
+	local dev="$1" file="$2" probe_type="$3" hosts=
 
-	f_dprintf "f_media_get_http: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_http: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	local http_host http_port
 	f_getvar $VAR_HTTP_HOST http_host
@@ -593,6 +595,7 @@ f_media_get_http()
 
 	local url="$http_path/$file" rx
 	f_dprintf "sending http request for: %s" "$url"
+	f_dprintf "using nc to connect to: %s:%s" "$host" "$http_port"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$http_port" |
 	(
 		#
@@ -600,13 +603,19 @@ f_media_get_http()
 		# this is extremely quick'n dirty
 		#
 
-		rv=0
+		rv=0 length=-1
 		while read LINE; do
 			case "$LINE" in
 			HTTP*)
 				f_dprintf "received response: %s" "$LINE"
 				set -- $LINE; rv=$2
 				f_isinteger "$rv" || rv=0
+				;;
+			"Content-Length: "*)
+				length="${LINE%}"
+				length="${length#Content-Length: }"
+				f_dprintf "received content-length: %s" \
+				          "$length"
 				;;
 			*)
 				[ "${LINE%}" ] || break # End of headers
@@ -619,14 +628,17 @@ f_media_get_http()
 		[ $rv -ge 300 ] && exit 3
 		[ $rv -eq 200 ] || exit $FAILURE
 
-		if [ ! "$probe_only" ]; then
+		if [ ! "$probe_type" ]; then
 			cat # output the rest ``as-is''
+		elif [ "$probe_type" = "$PROBE_SIZE" ]; then
+			f_isinteger "$length" || length=-1
+			echo "$length"
 		fi
 		exit 200
 	)
 	local retval=$?
 	[ $retval -eq 200 ] && return $SUCCESS
-	[ "$probe_only" ] && return $FAILURE
+	[ "$probe_type" ] && return $FAILURE
 
 	case "$retval" in
 	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;

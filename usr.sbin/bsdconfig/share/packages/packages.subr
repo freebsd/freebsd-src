@@ -132,7 +132,7 @@ f_package_select()
 		package="$1"
 		shift 1 # package
 		for pkgsel in $SELECTED_PACKAGES; do
-			[ "$package" = "$pkgsel" ] && return
+			[ "$package" = "$pkgsel" ] && return $SUCCESS
 		done
 		SELECTED_PACKAGES="$SELECTED_PACKAGES $package"
 		f_dprintf "Added %s to selection list" "$package"
@@ -312,7 +312,7 @@ f_package_menu_categories()
 		# creates _{varcat}_ninstalled and _{varcat}_nselected
 
 	local category_list
-	debug= f_getvar "$var_to_get" category_list || return $FAILURE
+	debug= f_getvar "$var_to_get" category_list || return $DIALOG_CANCEL
 
 	# Accent the category menu list with ninstalled/nselected
 	eval f_package_accent_category_menu category_list $category_list
@@ -395,7 +395,7 @@ f_package_menu_select()
 	local defaultitem="$3"
 	local hline="$hline_arrows_tab_punc_enter"
 
-	f_isinteger "$page" || return $FAILURE
+	f_isinteger "$page" || return $DIALOG_CANCEL
 
 	local varcat
 	f_str2varname "$category" varcat
@@ -483,8 +483,7 @@ f_package_menu_select()
 	"$msg_all"|"") f_category_desc_get "All" prompt ;;
 	            *) f_category_desc_get "$category" prompt ;;
 	esac
-	prompt="$prompt $( printf "$msg_page_of_npages" \
-	                          "$page" "$npages" )"
+	f_sprintf prompt "%s $msg_page_of_npages" "$prompt" "$page" "$npages"
 
 	local mheight mwidth mrows
 	eval f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
@@ -518,7 +517,7 @@ f_package_menu_select()
 	f_dialog_data_sanitize menu_choice
 	f_dialog_menutag_store "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
 		             	\"\$menu_choice\" $menu_list )
@@ -547,7 +546,7 @@ f_package_menu_deselect()
 	" # End-Quote
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
+	f_sprintf prompt "$msg_what_would_you_like_to_do_with" "$package"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
@@ -582,14 +581,14 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
+	local funcname=f_package_review
 	local prompt # Calculated below
 	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	local fname=f_package_review
-	f_dprintf "%s: SELECTED_PACKAGES=[%s]" $fname "$SELECTED_PACKAGES"
+	f_dprintf "$funcname: SELECTED_PACKAGES=[%s]" "$SELECTED_PACKAGES"
 
-	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
+	f_sprintf prompt "$msg_reviewing_selected_packages" "$_All_nselected"
 
 	local package varpkg mark
 	for package in $SELECTED_PACKAGES; do
@@ -603,7 +602,7 @@ f_package_review()
 	done
 	if [ ! "$menu_list" ]; then
 		f_show_msg "$msg_no_packages_were_selected_for_extraction"
-		return $FAILURE # They might have selected this by accident
+		return $DIALOG_CANCEL # Might have selected this by accident
 	fi
 	menu_list=$( echo "$menu_list" | sort )
 
@@ -639,7 +638,7 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
-		f_dprintf "%s: Installing %s package" $fname "$package"
+		f_dprintf "$funcname: Installing %s package" "$package"
 		f_package_add "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
@@ -647,7 +646,7 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "R" ] || continue
-		f_dprintf "%s: Reinstalling %s package" $fname "$package"
+		f_dprintf "$funcname: Reinstalling %s package" "$package"
 		f_package_reinstall "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
@@ -655,12 +654,12 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "U" ] || continue
-		f_dprintf "%s: Uninstalling %s package" $fname "$package"
+		f_dprintf "$funcname: Uninstalling %s package" "$package"
 		f_package_delete "$package" || continue
 		f_package_deselect "$package"
 	done
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_package_config
@@ -693,7 +692,7 @@ f_package_config()
 		f_dprintf "retval=%u mtag=[%s]" $retval "$category"
 		category_defaultitem="$category"
 
-		[ $retval -eq $SUCCESS ] || break
+		[ $retval -eq $DIALOG_OK ] || break
 
 		# Maybe the user chose an action (like `Review')
 		case "$category" in
@@ -729,14 +728,14 @@ f_package_config()
 			# the Cancel button because stdout will be NULL.
 			# Alternatively, Xdialog(1) will terminate with 1
 			# if/when Cancel is chosen on any widget.
-			if [ $retval -eq 255 -o ! "$menu_choice" ]; then
-				# User pressed ESC or chose Cancel
+			if [ $retval -eq $DIALOG_ESC -o ! "$menu_choice" ]
+			then
 				break
-			elif [ $retval -eq 1 ]; then
+			elif [ $retval -eq $DIALOG_CANCEL ]; then
 				# Using X11, Xdialog(1) returned 1 for Cancel
 				f_show_msg "%s" "$menu_choice"
 				break
-			elif [ $retval -ne $SUCCESS ]; then
+			elif [ $retval -ne $DIALOG_OK ]; then
 				# X11-related error occurred using Xdialog(1)
 				f_show_msg "%s" "$menu_choice"
 				break
@@ -954,11 +953,11 @@ f_package_add()
 #
 f_package_extract()
 {
+	local funcname=f_package_extract
 	local device="$1" name="$2" depended="$3"
 
-	local fname=f_package_extract
-	f_dprintf "%s: device=[%s] name=[%s] depended=[%s]" \
-	          $fname "$device" "$name" "$depended"
+	f_dprintf "$funcname: device=[%s] name=[%s] depended=[%s]" \
+	          "$device" "$name" "$depended"
 
 	# Check to make sure it's not already there
 	local varpkg mark=
@@ -993,12 +992,12 @@ f_package_extract()
 	esac
 
 	# We have a path, call the device strategy routine to get the file
-	local pkg_ext probe_only=1 found=
+	local pkg_ext found=
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
-		if f_device_get $device "$path$pkg_ext" $probe_only; then
+		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
 			path="$path$pkg_ext"
-			f_dprintf "%s: found path=[%s] dev=[%s]" \
-			          $fname "$path" "$device"
+			f_dprintf "$funcname: found path=[%s] dev=[%s]" \
+			          "$path" "$device"
 			found=1
 			break
 		fi
@@ -1009,8 +1008,8 @@ f_package_extract()
 	[ "$no_confirm" ] && alert=f_show_info
 
 	if [ ! "$found" ]; then
-		f_dprintf "%s: No such %s file on %s device" \
-	                  $fname "$path" "$device"
+		f_dprintf "$funcname: No such %s file on %s device" \
+	                  "$path" "$device"
 		$alert "$msg_unable_to_fetch_package_from_selected_media" \
 		       "$name"
 		[ "$no_confirm" ] && sleep 2
@@ -1063,8 +1062,8 @@ f_package_extract()
 #
 f_package_delete()
 {
+	local funcname=f_package_delete
 	local name="$1"
-	local fname=f_package_delete
 
 	if ! { [ "$name" ] || { f_getvar $VAR_PACKAGE name && [ "$name" ]; }; }
 	then
@@ -1073,7 +1072,7 @@ f_package_delete()
 		return $FAILURE
 	fi
 
-	f_dprintf "%s: name=[%s]" $fname "$name"
+	f_dprintf "$funcname: name=[%s]" "$name"
 
 	[ "$name" ] || return $FAILURE
 
@@ -1110,7 +1109,7 @@ f_package_delete()
 	# detected the installed packages -- something we should do only once.
 	#
 	if [ ! "$PACKAGES_DETECTED" ]; then
-		f_dprintf "%s: Detecting installed packages" $fname
+		f_dprintf "$funcname: Detecting installed packages"
 		f_package_detect_installed
 		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 	fi
@@ -1162,8 +1161,8 @@ f_package_delete()
 	# Chase dependencies that are marked for uninstallation
 	#
 	for pkgsel in $udeps; do
-		f_dprintf "%s: Uninstalling dependecy %s (marked for delete)" \
-		          $fname "$pkgsel"
+		f_dprintf "$funcname: Uninstalling dependency %s (%s)" \
+		          "$pkgsel" "marked for delete"
 		f_package_delete "$pkgsel"
 	done
 
@@ -1180,7 +1179,7 @@ f_package_delete()
 		f_show_msg "$msg_pkg_delete_failed" "$name"
 		return $FAILURE
 	else
-		f_dprintf "%s: pkg_delete(1) of %s successful" $fname "$name"
+		f_dprintf "$funcname: pkg-delete(8) of %s successful" "$name"
 		f_str2varname "$name" varpkg
 		setvar _mark_$varpkg ""
 	fi

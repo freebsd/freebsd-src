@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -92,7 +92,7 @@ dialog_menu_main()
 	local retval=$?
 	f_dialog_menutag_store -s "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item \
 		        	\"\$menu_choice\" $menu_list )
@@ -108,23 +108,28 @@ dialog_menu_main()
 #
 ttys_set_type()
 {
+	local funcname=ttys_set_type
 	local consterm="$1" err
 
 	#
 	# Create new temporary file to write our ttys(5) update with new types.
 	#
-	local tmpfile="$( mktemp -t "pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
+	local tmpfile
+	f_eval_catch -k tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm" ||
+		return $FAILURE
 
 	#
 	# Fixup permissions and ownership (mktemp(1) creates the temporary file
 	# with 0600 permissions -- change the permissions and ownership to
 	# match ttys(5) before we write it out and mv(1) it into place).
 	#
-	local mode="$( stat -f '%#Lp' "$ETC_TTYS" 2> /dev/null )"
-	local owner="$( stat -f '%u:%g' "$ETC_TTYS" 2> /dev/null )"
-	f_quietly chmod "${mode:-0644}" "$tmpfile"
-	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+	local mode owner
+	f_eval_catch -dk mode $funcname stat \
+		'stat -f "%%#Lp" "%s"' "$ETC_TTYS" || mode=0644
+	f_eval_catch -dk owner $funcname stat \
+		'stat -f "%%u:%%g" "%s"' "$ETC_TTYS" || owner="root:wheel"
+	f_eval_catch -d $funcname chmod 'chmod "%s" "%s"' "$mode" "$tmpfile"
+	f_eval_catch -d $funcname chown 'chown "%s" "%s"' "$owner" "$tmpfile"
 
 	#
 	# Operate on ttys(5), replacing only the types of `ttyv*' and
@@ -156,10 +161,8 @@ ttys_set_type()
 		f_dialog_msgbox "$err"
 		return $FAILURE
 	fi
-	if ! err=$( mv -f "$tmpfile" "$ETC_TTYS" 2>&1 ); then
-		f_dialog_msgbox "$err"
+	f_eval_catch $funcname mv 'mv -f "%s" "%s"' "$tmpfile" "$ETC_TTYS" ||
 		return $FAILURE
-	fi
 
 	return $SUCCESS
 }
