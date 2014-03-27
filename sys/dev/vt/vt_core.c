@@ -1872,6 +1872,9 @@ vt_upgrade(struct vt_device *vd)
 		if (vw == NULL) {
 			/* New window. */
 			vw = vt_allocate_window(vd, i);
+		} else if (vw->vw_flags & VWF_CONSOLE) {
+			/* For existing console window. */
+			callout_init(&vw->vw_proc_dead_timer, 0);
 		}
 		if (i == VT_CONSWINDOW) {
 			/* Console window. */
