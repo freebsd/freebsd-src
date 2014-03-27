@@ -164,6 +164,13 @@ scheme_max_parts(void)
 	return (scheme->nparts);
 }
 
+u_int
+scheme_max_secsz(void)
+{
+
+	return (scheme->maxsecsz);
+}
+
 lba_t
 scheme_first_block(void)
 {
