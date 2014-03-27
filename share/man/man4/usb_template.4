@@ -23,14 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 21, 2008
-.Dt USB2_TEMPLATE 4
+.Dd March 18, 2014
+.Dt USB_TEMPLATE 4
 .Os
 .
 .Sh NAME
 .
 .
-.Nm usb2_template
+.Nm usb_template
 .
 .Nd "USB templates"
 .
@@ -39,13 +39,13 @@
 To compile this module into the kernel, place the following line in
 your kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device usb2_template"
+.Cd "device usb_template"
 .Ed
 .Pp
 To load the module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-usb2_template_load="YES"
+usb_template_load="YES"
 .Ed
 .
 .Sh DESCRIPTION
@@ -62,21 +62,20 @@ descriptors.
 The USB template module currently has templates for USB Mass Storage,
 USB CDC Ethernet and Message Transfer Protocol.
 .
-USB templates are currently selected using the "hw.usb2.template"
+USB templates are currently selected using the "hw.usb.template"
 sysctl.
 .
-The "hw.usb2.template" value can be changed at any time, but will not
+The "hw.usb.template" value can be changed at any time, but will not
 have any effect until the USB device has been re-enumerated.
 .
 .
 .
 .Sh SEE ALSO
-.Xr usb2_controller 4
-.Xr usb2_core 4
+.Xr usb 4
 .Sh STANDARDS
 The
 .Nm
-module complies with the USB 2.0 standard.
+module complies to the USB 1.0, 2.0 and 3.0 standard.
 .Sh HISTORY
 The
 .Nm
