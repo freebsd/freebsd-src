@@ -13,6 +13,7 @@ LDADD=	-ll -lutil
 
 YFLAGS+=-v
 CFLAGS+=-I. -I${.CURDIR}
+CFLAGS.clang+=-Wno-keyword-compat
 
 CLEANFILES= y.output
 
