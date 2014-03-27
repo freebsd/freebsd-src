@@ -12,7 +12,16 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 20140321:
-	Clang and llvm have been upgraded to 3.4 release.
+	Clang and llvm have been upgraded to 3.4 release.  Please note that
+	clang 3.4 now defaults to DWARF4 debug information format when you
+	specify -g.  Since kgdb(1) only supports DWARF2, you should update any
+	customized kernel configurations which include debug information to
+	explicitly use -gdwarf-2, e.g:
+
+	  makeoptions	DEBUG=-gdwarf-2
+
+	This has already been applied to the appropriate GENERIC configuration
+	files, so if you inherit from those, no changes are required.
 
 20140216:
 	The nve(4) driver for NVIDIA nForce MCP Ethernet adapters has
