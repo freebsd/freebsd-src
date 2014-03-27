@@ -56,7 +56,7 @@ f_media_set_dos()
 
 	local devs ndevs
 	f_device_find "" $DEVICE_TYPE_DOS devs
-	ndevs=$( set -- $devs; echo $# )
+	f_count ndevs $devs
 
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_show_msg "$msg_no_dos_primary_partitions_found"
@@ -93,6 +93,7 @@ f_media_set_dos()
 #
 f_media_init_dos()
 {
+	local funcname=f_media_init_dos
 	local dev="$1" devname err
 
 	device_$dev get devname devname || return $FAILURE
@@ -104,14 +105,13 @@ f_media_init_dos()
 		return $SUCCESS
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
-	if ! err=$( mount_msdosfs "$devname" "$MOUNTPOINT" 2>&1 )
+	if ! f_eval_catch -dk err $funcname mount_msdosfs \
+		'mount_msdosfs "%s" "%s"' "$devname" "$MOUNTPOINT"
 	then
 		err="${err#mount_msdosfs: }"; err="${err#$devname: }"
 		f_show_msg "$msg_error_mounting_device" \
@@ -122,19 +122,21 @@ f_media_init_dos()
 	return $SUCCESS
 }
 
-# f_media_get_dos $device $file [$probe_only]
+# f_media_get_dos $device $file [$probe_type]
 #
 # Returns data from $file on a mounted DOS partition device. Similar to cat(1).
-# If $probe_only is present and non-NULL, returns success if $file exists.
+# If $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
 #
 f_media_get_dos()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_type="$3"
 
-	f_dprintf "f_media_get_dos: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_dos: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
-	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_only"
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }
 
 # f_media_shutdown_dos $device
@@ -144,11 +146,14 @@ f_media_get_dos()
 #
 f_media_shutdown_dos()
 {
+	local funcname=f_media_shutdown_dos
 	local dev="$1" err
 
-	[ "$DOS_MOUNTED" ] || return
+	[ "$DOS_MOUNTED" ] || return $FAILURE
 
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_dos_partition" \
 		           "$MOUNTPOINT" "$err"

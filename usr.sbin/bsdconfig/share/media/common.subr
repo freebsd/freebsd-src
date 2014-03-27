@@ -42,6 +42,13 @@ f_include $BSDCFG_SHARE/struct.subr
 #
 MOUNTPOINT=/dist
 
+#
+# Media probe values to use for `f_media_get_TYPE media $file $PROBE' or
+# `f_device_get media $file $PROBE' (where $PROBE is one of the below values).
+#
+PROBE_EXIST=1
+PROBE_SIZE=2
+
 ############################################################ FUNCTIONS
 
 # f_media_open
@@ -83,18 +90,21 @@ f_media_verify()
 	f_struct device_media || f_media_get_type
 }
 
-# f_media_generic_get $base $file [$probe_only]
+# f_media_generic_get $base $file [$probe_type]
 #
 # A generic open which follows a well-known "path" of places to look. If
-# $probe_only is present and non-NULL, returns success if $file exists.
+# $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
 # 
 f_media_generic_get()
 {
-	local base="$1" file="$2" probe_only="$3"
+	local funcname=f_media_generic_get
+	local base="$1" file="$2" probe_type="$3"
 
 	local fname=f_media_generic_get
-	f_dprintf "%s: base=[%s] files=[%s] probe_only=%s" \
-	          $fname "$base" "$file" "$probe_only"
+	f_dprintf "%s: base=[%s] files=[%s] probe_type=%s" \
+	          $fname "$base" "$file" "$probe_type"
 
 	local rel path
 	f_getvar $VAR_RELNAME rel
@@ -106,17 +116,32 @@ f_media_generic_get()
 	; do
 		if [ -f "$path" -a -r "$path" ]; then
 			f_dprintf "%s: file exists path=[%s]" $fname "$path"
-			[ "$probe_only" ] && return $SUCCESS
+			if [ "$probe_type" = "$PROBE_SIZE" ]; then
+				local size
+				f_eval_catch -dk size $funcname stat \
+					'stat -f %%z "%s"' "$path" || size=-1
+				f_isinteger "$size" || size=-1
+				echo $size
+			fi
+			[ "$probe_type" ] && return $SUCCESS
 			cat "$path"
-			return
+			return $?
 		fi
 	done
 
 	path="$base/releases/$rel/$file" # Final path to try
 	if [ -f "$path" -a -r "$path" ]; then
 		f_dprintf "%s: file exists path=[%s]" $fname "$path"
-		[ "$probe_only" ] && return $SUCCESS
-	elif [ "$probe_only" ]; then
+		if [ "$probe_type" = "$PROBE_SIZE" ]; then
+			local size
+			f_eval_catch -dk size $funcname stat \
+				'stat -f %%z "%s"' "$path" || size=-1
+			f_isinteger "$size" || size=-1
+			echo $size
+		fi
+		[ "$probe_type" ] && return $SUCCESS
+	elif [ "$probe_type" ]; then
+		[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
 		return $FAILURE
 	fi
 	cat "$base/releases/$rel/$file" # Final path to try

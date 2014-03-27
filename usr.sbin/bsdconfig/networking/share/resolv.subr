@@ -162,20 +162,23 @@ END {
 '
 f_dialog_resolv_conf_update()
 {
+	local funcname=f_dialog_resolv_conf_update
 	local hostname="$1"
 
 	#
 	# Extrapolate the desired domain search parameter for resolv.conf(5)
 	#
-	local search ndots domain="${hostname#*.}"
+	local search nfields ndots domain="${hostname#*.}"
 	if [ "$RESOLVER_SEARCH_DOMAINS_ALL" = "1" ]; then
-		search=""
-		ndots=$( IFS=.; set -- $domain; echo $(( $# - 1 )) )
+		search=
+		IFS=. f_count_ifs nfields "$domain"
+		ndots=$(( $nfields - 1 ))
 		while [ $ndots -ge ${RESOLVER_SEARCH_NDOTS:-1} ]; do
-			search="$search${search:+ }$domain"
+			search="$search $domain"
 			domain="${domain#*.}"
 			ndots=$(( $ndots - 1 ))
 		done
+		search="${search# }"
 		domain="${hostname#*.}"
 	else
 		search="$domain"
@@ -194,8 +197,9 @@ f_dialog_resolv_conf_update()
 		# Create a new temporary file to write our resolv.conf(5)
 		# update with our new `domain' and `search' directives.
 		#
-		local tmpfile="$( mktemp -t "$pgm" )"
-		[ "$tmpfile" ] || return $FAILURE
+		local tmpfile
+		f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$tmpfile" || return $DIALOG_CANCEL
 
 		#
 		# Fixup permissions and ownership (mktemp(1) creates the
@@ -203,10 +207,16 @@ f_dialog_resolv_conf_update()
 		# permissions and ownership to match resolv.conf(5) before
 		# we write it out and mv(1) it into place).
 		#
-		local mode="$( stat -f '%#Lp' "$RESOLV_CONF" 2> /dev/null )"
-		local owner="$( stat -f '%u:%g' "$RESOLV_CONF" 2> /dev/null )"
-		f_quietly chmod "${mode:-0644}" "$tmpfile"
-		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+		local mode owner
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$RESOLV_CONF" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$RESOLV_CONF" ||
+			owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
 
 		#
 		# Operate on resolv.conf(5), replacing only the last
@@ -235,8 +245,10 @@ f_dialog_resolv_conf_update()
 		# Write the temporary file contents and move the temporary
 		# file into place.
 		#
-		echo "$new_contents" | tail -r > "$tmpfile" || return $FAILURE
-		f_quietly mv "$tmpfile" "$RESOLV_CONF"
+		echo "$new_contents" | tail -r > "$tmpfile" ||
+			return $DIALOG_CANCEL
+		f_eval_catch -d $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$RESOLV_CONF"
 
 	fi
 }
@@ -287,14 +299,15 @@ END { if ( ! found ) exit 3 }
 '
 f_dialog_input_nameserver()
 {
+	local funcname=f_dialog_input_nameserver
 	local index="${1:-0}" old_ns="$2" new_ns
 	local ns="$old_ns"
 
 	#
 	# Perform sanity checks
 	#
-	f_isinteger "$index" || return $FAILURE
-	[ $index -ge 0 ] || return $FAILURE
+	f_isinteger "$index" || return $DIALOG_CANCEL
+	[ $index -ge 0 ] || return $DIALOG_CANCEL
 
 	local msg
 	if [ $index -gt 0 ]; then
@@ -312,7 +325,7 @@ f_dialog_input_nameserver()
 	#
 	while :; do
 		f_dialog_input new_ns "$msg" "$ns" \
-		               "$hline_num_punc_tab_enter" || return
+		               "$hline_num_punc_tab_enter" || return $?
 
 		# Take only the first "word" of the user's input
 		new_ns="${new_ns%%[$IFS]*}"
@@ -331,7 +344,7 @@ f_dialog_input_nameserver()
 	if [ $index -eq "0" -a "$new_ns" ]; then
 		f_dialog_info "$msg_saving_nameserver"
 		printf "nameserver\t%s\n" "$new_ns" >> "$RESOLV_CONF"
-		return $SUCCESS
+		return $DIALOG_OK
 	elif [ $index -gt 0 -a "$old_ns" != "$new_ns" ]; then
 		if [ "$new_ns" ]; then
 			msg="$msg_saving_nameserver_existing"
@@ -343,17 +356,23 @@ f_dialog_input_nameserver()
 		#
 		# Create a new temporary file to write our new resolv.conf(5)
 		#
-		local tmpfile="$( mktemp -t "$pgm" )"
-		[ "$tmpfile" ] || return $FAILURE
+		local tmpfile
+		f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$pgm" || return $DIALOG_CANCEL
 
 		#
 		# Quietly fixup permissions and ownership
 		#
 		local mode owner
-		mode=$( stat -f '%#Lp' "$RESOLV_CONF" 2> /dev/null )
-		owner=$( stat -f '%u:%g' "$RESOLV_CONF" 2> /dev/null )
-		f_quietly chmod "${mode:-0644}" "$tmpfile"
-		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$RESOLV_CONF" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$RESOLV_CONF" ||
+			owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
 
 		#
 		# Operate on resolv.conf(5)
@@ -381,8 +400,9 @@ f_dialog_input_nameserver()
 		# Write the temporary file contents and move the temporary
 		# file into place.
 		#
-		echo "$new_contents" > "$tmpfile" || return $FAILURE
-		f_quietly mv "$tmpfile" "$RESOLV_CONF"
+		echo "$new_contents" > "$tmpfile" || return $DIALOG_CANCEL
+		f_eval_catch -d $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$RESOLV_CONF"
 	fi
 }
 
@@ -408,7 +428,8 @@ f_dialog_menu_nameservers()
 		#
 		# Re/Build list of nameservers
 		#
-		local nameservers="$( f_resolv_conf_nameservers )"
+		local nameservers
+		f_resolv_conf_nameservers nameservers
 		menu_list=$(
 			index=1
 
@@ -452,7 +473,7 @@ f_dialog_menu_nameservers()
 		f_dialog_data_sanitize tag
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
-		if [ $retval -ne $SUCCESS ]; then
+		if [ $retval -ne $DIALOG_OK ]; then
 			return $retval
 		else
 			# Only update default-item on success

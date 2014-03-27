@@ -38,14 +38,15 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="030.packages"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ MAIN
 
@@ -73,6 +74,7 @@ f_device_get_all
 #
 # Display the package configuration menu and exit
 #
+trap 'f_media_close' EXIT
 f_package_config
 
 ################################################################################

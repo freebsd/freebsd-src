@@ -329,14 +329,16 @@ f_media_init_http_proxy()
 	return $http_found
 }
 
-# f_media_get_http_proxy $device $file [$probe_only]
+# f_media_get_http_proxy $device $file [$probe_type]
 #
 # Returns data from $file on an FTP server via HTTP proxy using nc(1). Please
 # note that $device is unused but must be present (even if null). Information
-# is instead gathered from the environment. If $probe_only is both present and
+# is instead gathered from the environment. If $probe_type is both present and
 # non-NULL, this function exits after receiving the HTTP header response from
 # the proxy server (if the HTTP response code is 200, success is returned;
-# otherwise failure).
+# otherwise failure). If $probe_type is equal to $PROBE_SIZE, prints the
+# content-length in bytes from the response (or -1 if not found) to standard-
+# out.
 #
 # The variables used to configure the connection are as follows (all of which
 # are configured by f_media_set_http_proxy above):
@@ -358,10 +360,10 @@ f_media_init_http_proxy()
 #
 f_media_get_http_proxy()
 {
-	local dev="$1" file="$2" probe_only="$3" hosts=
+	local dev="$1" file="$2" probe_type="$3" hosts=
 
-	f_dprintf "f_media_get_http_proxy: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_http_proxy: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	local proxy_host proxy_port
 	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
@@ -408,13 +410,19 @@ f_media_get_http_proxy()
 		# this is extremely quick'n dirty
 		#
 
-		rv=0
+		rv=0 length=-1
 		while read LINE; do
 			case "$LINE" in
 			HTTP*)
 				f_dprintf "received response: %s" "$LINE"
 				set -- $LINE; rv=$2
 				f_isinteger "$rv" || rv=0
+				;;
+			"Content-Length: "*)
+				length="${LINE%}"
+				length="${length#Content-Length: }"
+				f_dprintf "received content-length: %s" \
+				          "$length"
 				;;
 			*)
 				[ "${LINE%}" ] || break # End of headers
@@ -427,14 +435,17 @@ f_media_get_http_proxy()
 		[ $rv -ge 300 ] && exit 3
 		[ $rv -eq 200 ] || exit $FAILURE
 
-		if [ ! "$probe_only" ]; then
+		if [ ! "$probe_type" ]; then
 			cat # output the rest ``as-is''
+		elif [ "$probe_type" = "$PROBE_SIZE" ]; then
+			f_isinteger "$length" || length=-1
+			echo "$length"
 		fi
 		exit 200
 	)
 	local retval=$?
 	[ $retval -eq 200 ] && return $SUCCESS
-	[ "$probe_only" ] && return $FAILURE
+	[ "$probe_type" ] && return $FAILURE
 
 	case "$retval" in
 	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;

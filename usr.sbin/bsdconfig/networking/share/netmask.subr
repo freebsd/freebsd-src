@@ -94,16 +94,18 @@ f_dialog_input_netmask()
 	# the system may hang (if any NFS mounts are using that interface).
 	#
 	if f_nfs_mounted && ! f_jailed; then
-		local setting="$( printf "$msg_current_subnet" \
-		                         "$interface" "$_netmask" )"
+		local setting
+		f_sprintf setting "$msg_current_subnet" \
+		                  "$interface" "$_netmask"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
-			return $FAILURE
+			return $DIALOG_CANCEL
 	fi
 
 	#
 	# Loop until the user provides taint-free input.
 	#
-	local msg="$( printf "$msg_please_enter_subnet_mask" "$interface" )"
+	local msg
+	f_sprintf msg "$msg_please_enter_subnet_mask" "$interface"
 	while :; do
 		#
 		# Return error status if:
@@ -111,11 +113,11 @@ f_dialog_input_netmask()
 		# - User has not made any changes to the given value
 		#
 		f_dialog_input _input "$msg" "$_netmask" \
-		               "$hline_num_punc_tab_enter" || return
-		[ "$_netmask" = "$_input" ] && return $FAILURE
+		               "$hline_num_punc_tab_enter" || return $?
+		[ "$_netmask" = "$_input" ] && return $DIALOG_CANCEL
 
 		# Return success if NULL value was entered
-		[ "$_input" ] || return $SUCCESS
+		[ "$_input" ] || return $DIALOG_OK
 
 		# Take only the first "word" of the user's input
 		_netmask="$_input"

@@ -224,11 +224,10 @@ f_media_options_menu()
 		defaultitem="$mtag"
 		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
 
-		if [ $retval -eq 2 ]; then
-			# The Help button was pressed
+		if [ $retval -eq $DIALOG_HELP ]; then
 			f_show_help "$OPTIONS_HELPFILE"
 			continue
-		elif [ $retval -ne 0 ]; then
+		elif [ $retval -ne $DIALOG_OK ]; then
 			break # to success
 		fi
 
