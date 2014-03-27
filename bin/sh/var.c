@@ -330,8 +330,11 @@ setvareq(char *s, int flags)
 				ckfree(s);
 			error("%.*s: is read only", vp->name_len, s);
 		}
-		if (flags & VNOSET)
+		if (flags & VNOSET) {
+			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+				ckfree(s);
 			return;
+		}
 		INTOFF;
 
 		if (vp->func && (flags & VNOFUNC) == 0)
@@ -364,8 +367,11 @@ setvareq(char *s, int flags)
 		return;
 	}
 	/* not found */
-	if (flags & VNOSET)
+	if (flags & VNOSET) {
+		if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+			ckfree(s);
 		return;
+	}
 	INTOFF;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
