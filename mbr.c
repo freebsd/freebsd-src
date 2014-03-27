@@ -89,8 +89,8 @@ mbr_write(int fd, lba_t imgsz __unused, void *bootcode)
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);
 		mbr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
 		    part->block + part->size - 1);
-		le32enc(&dp[part->index].dp_start, part->block);
-		le32enc(&dp[part->index].dp_size, part->size);
+		le32enc(&dp->dp_start, part->block);
+		le32enc(&dp->dp_size, part->size);
 	}
 	error = mkimg_seek(fd, 0);
 	if (error == 0) {
