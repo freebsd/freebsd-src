@@ -187,7 +187,7 @@ scheme_write(int fd, lba_t end)
 	int error;
 
 	cylsz = nsecs * nheads;
-	ncyls = end + cylsz - 1 / cylsz;
+	ncyls = (end + cylsz - 1) / cylsz;
 
 	if (ftruncate(fd, end * secsz) == -1)
 		return (errno);
