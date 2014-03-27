@@ -118,7 +118,7 @@ static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
 VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
-VT_SYSCTL_INT(suspendswitch, 0, "Switch to VT0 before suspend");
+VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
 
 static unsigned int vt_unit = 0;
 static MALLOC_DEFINE(M_VT, "vt", "vt device");
