@@ -172,33 +172,23 @@ scheme_max_secsz(void)
 }
 
 lba_t
-scheme_first_block(void)
+scheme_metadata(u_int where, lba_t start)
 {
-	lba_t blks;
+	lba_t secs;
 
-	blks = scheme->metadata(SCHEME_META_IMG_START) +
-	    scheme->metadata(SCHEME_META_PART_BEFORE);
-	return (blks);
-}
-
-lba_t
-scheme_next_block(lba_t start, lba_t size)
-{
-	lba_t blks;
-
-	blks = scheme->metadata(SCHEME_META_PART_AFTER) +
-	    scheme->metadata(SCHEME_META_PART_BEFORE);
-	return (start + size + blks);
+	secs = scheme->metadata(where);
+	return (round_block(start + secs));
 }
 
 int
 scheme_write(int fd, lba_t end)
 {
+	u_int cylsz;
 	int error;
 
-	/* Fixup block: it has an extra metadata before the partition */
-	end -= scheme->metadata(SCHEME_META_PART_BEFORE);
-	end += scheme->metadata(SCHEME_META_IMG_END);
+	cylsz = nsecs * nheads;
+	ncyls = end + cylsz - 1 / cylsz;
+
 	if (ftruncate(fd, end * secsz) == -1)
 		return (errno);
 

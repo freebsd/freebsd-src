@@ -84,8 +84,7 @@ int scheme_bootcode(int fd);
 int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);
 u_int scheme_max_secsz(void);
-lba_t scheme_first_block(void);
-lba_t scheme_next_block(lba_t, lba_t);
+lba_t scheme_metadata(u_int, lba_t);
 int scheme_write(int, lba_t);
 
 #endif /* _MKIMG_SCHEME_H_ */

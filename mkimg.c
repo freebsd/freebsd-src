@@ -283,8 +283,12 @@ mkimg(int bfd)
 			errc(EX_DATAERR, error, "partition %d", part->index+1);
 	}
 
-	block = scheme_first_block();
+	block = scheme_metadata(SCHEME_META_IMG_START, 0);
 	STAILQ_FOREACH(part, &partlist, link) {
+		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
+		if (verbose)
+			printf("partition %d: starting block %llu ... ",
+			    part->index + 1, (long long)block);
 		part->block = block;
 		error = mkimg_seek(tmpfd, block);
 		switch (part->kind) {
@@ -310,11 +314,18 @@ mkimg(int bfd)
 			break;
 		}
 		if (error)
-			errc(EX_IOERR, error, "partition %d", part->index+1);
+			errc(EX_IOERR, error, "partition %d", part->index + 1);
 		part->size = (bytesize + secsz - 1) / secsz;
-		block = scheme_next_block(part->block, part->size);
+		if (verbose) {
+			bytesize = part->size * secsz;
+			printf("size %llu bytes (%llu blocks)\n",
+			     (long long)bytesize, (long long)part->size);
+		}
+		block = scheme_metadata(SCHEME_META_PART_AFTER,
+		    part->block + part->size);
 	}
 
+	block = scheme_metadata(SCHEME_META_IMG_END, block);
 	error = (scheme_write(tmpfd, block));
 }
 
@@ -421,9 +432,14 @@ main(int argc, char *argv[])
 	if (verbose) {
 		printf("Logical sector size: %u\n", secsz);
 		printf("Physical block size: %u\n", blksz);
+		printf("Sectors per track:   %u\n", nsecs);
+		printf("Number of heads:     %u\n", nheads);
 	}
 
 	mkimg(bcfd);
+
+	if (verbose)
+		printf("Number of cylinders: %u\n", ncyls);
 
 	if (tmpfd != outfd) {
 		if (lseek(tmpfd, 0, SEEK_SET) == 0)

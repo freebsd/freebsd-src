@@ -60,6 +60,13 @@ extern u_int nsecs;
 extern u_int secsz;	/* Logical block size. */
 extern u_int blksz;	/* Physical block size. */
 
+static inline lba_t
+round_block(lba_t n)
+{
+	lba_t b = blksz / secsz;
+	return ((n + b - 1) & ~(b - 1));
+}
+
 int mkimg_seek(int fd, lba_t blk);
 
 #endif /* _MKIMG_MKIMG_H_ */
