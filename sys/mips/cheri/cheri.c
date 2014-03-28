@@ -244,8 +244,6 @@ cheri_exec_setregs(struct thread *td)
 	bzero(cfp, sizeof(*cfp));
 	cheri_capability_set_user_c0(&cfp->cf_c0);
 	cheri_capability_set_user_pcc(&cfp->cf_pcc);
-
-	/* XXXRW: Trusted stack initialisation here? */
 }
 
 static const char *cheri_exccode_array[] = {
