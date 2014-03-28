@@ -45,13 +45,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/efi.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-#include <machine/efi.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
