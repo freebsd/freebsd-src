@@ -57,7 +57,7 @@
 #include "cheritest_sandbox.h"
 
 #define	CHERI_CAP_PRINT(cap) do {					\
-	printf("tag %ju u %ju perms %04jx type %016jx\n",		\
+	printf("tag %ju u %ju perms %08jx type %016jx\n",		\
 	    (uintmax_t)cheri_gettag(cap),				\
 	    (uintmax_t)cheri_getunsealed(cap),				\
 	    (uintmax_t)cheri_getperm(cap),				\
