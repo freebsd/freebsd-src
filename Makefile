@@ -248,8 +248,19 @@ tinderbox toolchains kernel-toolchains: .MAKE
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
-# Set a reasonable default
+# The historic default "all" target creates files which may cause stale
+# or (in the cross build case) unlinkable results. Fail with an error
+# when no target is given. The users can set ALLOW_IMPLICIT_TARGET or
+# explicitly specify "all" if they want the historic behavior.
+.ifdef ALLOW_IMPLICIT_TARGET
 .MAIN:	all
+.else
+.MAIN:	_guard
+
+_guard:
+	@echo "Use an explicit target or set ALLOW_IMPLICIT_TARGET"
+	@false
+.endif
 
 STARTTIME!= LC_ALL=C date
 CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
