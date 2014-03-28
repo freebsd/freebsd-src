@@ -182,7 +182,8 @@ netvsc_drv_init(void)
 static void
 netvsc_init(void)
 {
-	printf("Netvsc initializing... ");
+	if (bootverbose)
+		printf("Netvsc initializing... ");
 
 	/*
 	 * XXXKYS: cleanup initialization
@@ -190,9 +191,10 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
-	} else {
+		if (bootverbose)
+			printf("done!\n");
+	} else if (bootverbose)
 		printf("Already initialized!\n");
-	}
 }
 
 /* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
@@ -213,7 +215,8 @@ netvsc_probe(device_t dev)
 	p = vmbus_get_type(dev);
 	if (!memcmp(p, &g_net_vsc_device_type.data, sizeof(hv_guid))) {
 		device_set_desc(dev, "Synthetic Network Interface");
-		printf("Netvsc probe... DONE \n");
+		if (bootverbose)
+			printf("Netvsc probe... DONE \n");
 
 		return (0);
 	}
@@ -299,7 +302,8 @@ netvsc_detach(device_t dev)
 {
 	struct hv_device *hv_device = vmbus_get_devctx(dev); 
 
-	printf("netvsc_detach\n");
+	if (bootverbose)
+		printf("netvsc_detach\n");
 
 	/*
 	 * XXXKYS:  Need to clean up all our
@@ -894,7 +898,8 @@ hn_stop(hn_softc_t *sc)
 
 	ifp = sc->hn_ifp;
 
-	printf(" Closing Device ...\n");
+	if (bootverbose)
+		printf(" Closing Device ...\n");
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->hn_initdone = 0;
