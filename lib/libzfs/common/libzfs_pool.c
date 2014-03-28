@@ -212,7 +212,7 @@ zpool_state_to_name(vdev_state_t state, vdev_aux_t aux)
  */
 int
 zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
-    zprop_source_t *srctype)
+    zprop_source_t *srctype, boolean_t literal)
 {
 	uint64_t intval;
 	const char *strval;
@@ -244,9 +244,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				(void) strlcpy(buf,
 				    zpool_get_prop_string(zhp, prop, &src),
 				    len);
-				if (srctype != NULL)
-					*srctype = src;
-				return (0);
+				break;
 			}
 			/* FALLTHROUGH */
 		default:
@@ -278,12 +276,22 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		case ZPOOL_PROP_FREE:
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_EXPANDSZ:
-			(void) zfs_nicenum(intval, buf, len);
+			if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) zfs_nicenum(intval, buf, len);
+			}
 			break;
 
 		case ZPOOL_PROP_CAPACITY:
-			(void) snprintf(buf, len, "%llu%%",
-			    (u_longlong_t)intval);
+			if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) snprintf(buf, len, "%llu%%",
+				    (u_longlong_t)intval);
+			}
 			break;
 
 		case ZPOOL_PROP_DEDUPRATIO:
@@ -377,7 +385,7 @@ zpool_is_bootable(zpool_handle_t *zhp)
 	char bootfs[ZPOOL_MAXNAMELEN];
 
 	return (zpool_get_prop(zhp, ZPOOL_PROP_BOOTFS, bootfs,
-	    sizeof (bootfs), NULL) == 0 && strncmp(bootfs, "-",
+	    sizeof (bootfs), NULL, B_FALSE) == 0 && strncmp(bootfs, "-",
 	    sizeof (bootfs)) != 0);
 }
 
@@ -774,7 +782,7 @@ zpool_expand_proplist(zpool_handle_t *zhp, zprop_list_t **plp)
 
 		if (entry->pl_prop != ZPROP_INVAL &&
 		    zpool_get_prop(zhp, entry->pl_prop, buf, sizeof (buf),
-		    NULL) == 0) {
+		    NULL, B_FALSE) == 0) {
 			if (strlen(buf) > entry->pl_width)
 				entry->pl_width = strlen(buf);
 		}
