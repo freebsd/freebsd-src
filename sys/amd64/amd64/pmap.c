@@ -321,7 +321,7 @@ SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
     "Number of kernel page table pages allocated on bootup");
 
 static int ndmpdp;
-static vm_paddr_t dmaplimit;
+vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 

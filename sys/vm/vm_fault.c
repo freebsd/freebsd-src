@@ -276,6 +276,10 @@ RetryFault:;
 	map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
+		if ((curthread->td_pflags & TDP_DEVMEMIO) != 0) {
+			vm_map_unlock_read(fs.map);
+			return (KERN_FAILURE);
+		}
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 		    (u_long)vaddr);
 	}
