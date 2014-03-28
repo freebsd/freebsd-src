@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2002,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2005,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey        1996-2002,2005                          *
+ *  Author: Thomas E. Dickey        1996-2005,2010                          *
  ****************************************************************************/
 /* LINTLIBRARY */
 
 /* ./m_attribs.c */
 
-#include "menu.priv.h"
+#include <menu.priv.h>
 
 #undef set_menu_fore
 int	set_menu_fore(
@@ -349,6 +349,12 @@ int	item_count(
 		{ return(*(int *)0); }
 
 /* ./m_new.c */
+
+#undef new_menu_sp
+MENU	*new_menu_sp(
+		SCREEN	*sp, 
+		ITEM	**items)
+		{ return(*(MENU **)0); }
 
 #undef new_menu
 MENU	*new_menu(

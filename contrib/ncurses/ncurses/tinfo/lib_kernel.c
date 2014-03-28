@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey 2002                                           *
+ *     and: Thomas E. Dickey                        2002                    *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -46,9 +47,8 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_kernel.c,v 1.24 2004/05/08 17:11:21 tom Exp $")
+MODULE_ID("$Id: lib_kernel.c,v 1.31 2010/12/19 01:21:19 tom Exp $")
 
 static int
 _nc_vdisable(void)
@@ -59,7 +59,7 @@ _nc_vdisable(void)
 #endif
 #if defined(_PC_VDISABLE)
     if (value == -1) {
-	value = fpathconf(0, _PC_VDISABLE);
+	value = (int) fpathconf(0, _PC_VDISABLE);
 	if (value == -1) {
 	    value = 0377;
 	}
@@ -79,22 +79,32 @@ _nc_vdisable(void)
  */
 
 NCURSES_EXPORT(char)
-erasechar(void)
+NCURSES_SP_NAME(erasechar) (NCURSES_SP_DCL0)
 {
     int result = ERR;
-    T((T_CALLED("erasechar()")));
+    TERMINAL *termp = TerminalOf(SP_PARM);
 
-    if (cur_term != 0) {
+    T((T_CALLED("erasechar(%p)"), (void *) SP_PARM));
+
+    if (termp != 0) {
 #ifdef TERMIOS
-	result = cur_term->Ottyb.c_cc[VERASE];
+	result = termp->Ottyb.c_cc[VERASE];
 	if (result == _nc_vdisable())
 	    result = ERR;
 #else
-	result = cur_term->Ottyb.sg_erase;
+	result = termp->Ottyb.sg_erase;
 #endif
     }
-    returnCode(result);
+    returnChar((char) result);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(char)
+erasechar(void)
+{
+    return NCURSES_SP_NAME(erasechar) (CURRENT_SCREEN);
+}
+#endif
 
 /*
  *	killchar()
@@ -104,22 +114,32 @@ erasechar(void)
  */
 
 NCURSES_EXPORT(char)
-killchar(void)
+NCURSES_SP_NAME(killchar) (NCURSES_SP_DCL0)
 {
     int result = ERR;
-    T((T_CALLED("killchar()")));
+    TERMINAL *termp = TerminalOf(SP_PARM);
 
-    if (cur_term != 0) {
+    T((T_CALLED("killchar(%p)"), (void *) SP_PARM));
+
+    if (termp != 0) {
 #ifdef TERMIOS
-	result = cur_term->Ottyb.c_cc[VKILL];
+	result = termp->Ottyb.c_cc[VKILL];
 	if (result == _nc_vdisable())
 	    result = ERR;
 #else
-	result = cur_term->Ottyb.sg_kill;
+	result = termp->Ottyb.sg_kill;
 #endif
     }
-    returnCode(result);
+    returnChar((char) result);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(char)
+killchar(void)
+{
+    return NCURSES_SP_NAME(killchar) (CURRENT_SCREEN);
+}
+#endif
 
 /*
  *	flushinp()
@@ -129,26 +149,36 @@ killchar(void)
  */
 
 NCURSES_EXPORT(int)
-flushinp(void)
+NCURSES_SP_NAME(flushinp) (NCURSES_SP_DCL0)
 {
-    T((T_CALLED("flushinp()")));
+    TERMINAL *termp = TerminalOf(SP_PARM);
 
-    if (cur_term != 0) {
+    T((T_CALLED("flushinp(%p)"), (void *) SP_PARM));
+
+    if (termp != 0) {
 #ifdef TERMIOS
-	tcflush(cur_term->Filedes, TCIFLUSH);
+	tcflush(termp->Filedes, TCIFLUSH);
 #else
 	errno = 0;
 	do {
-	    ioctl(cur_term->Filedes, TIOCFLUSH, 0);
+	    ioctl(termp->Filedes, TIOCFLUSH, 0);
 	} while
 	    (errno == EINTR);
 #endif
-	if (SP) {
-	    SP->_fifohead = -1;
-	    SP->_fifotail = 0;
-	    SP->_fifopeek = 0;
+	if (SP_PARM) {
+	    SP_PARM->_fifohead = -1;
+	    SP_PARM->_fifotail = 0;
+	    SP_PARM->_fifopeek = 0;
 	}
 	returnCode(OK);
     }
     returnCode(ERR);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+flushinp(void)
+{
+    return NCURSES_SP_NAME(flushinp) (CURRENT_SCREEN);
+}
+#endif

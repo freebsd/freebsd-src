@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.42 2008/07/13 11:05:12 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.49 2013/09/28 20:57:25 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)
@@ -86,17 +86,14 @@ usage(void)
 static void
 check_aliases(const char *name)
 {
-    is_init = (strcmp(name, PROG_INIT) == 0);
-    is_reset = (strcmp(name, PROG_RESET) == 0);
+    is_init = same_program(name, PROG_INIT);
+    is_reset = same_program(name, PROG_RESET);
 }
 
 /*
  * Lookup the type of call we should make to tparm().  This ignores the actual
  * terminfo capability (bad, because it is not extensible), but makes this
  * code portable to platforms where sizeof(int) != sizeof(char *).
- *
- * FIXME: If we want extensibility, analyze the capability string as we do
- * in tparm() to decide how to parse the varargs list.
  */
 static TParams
 tparm_type(const char *name)
@@ -153,6 +150,9 @@ tput(int argc, char *argv[])
     int i, j, c;
     int status;
     FILE *f;
+#if !PURE_TERMINFO
+    bool termcap = FALSE;
+#endif
 
     if ((name = argv[0]) == 0)
 	name = "";
@@ -265,40 +265,45 @@ tput(int argc, char *argv[])
 	return 0;
     }
 #if !PURE_TERMINFO
-    {
-	const struct name_table_entry *np;
-
-	if ((np = _nc_find_entry(name, _nc_get_hash_table(1))) != 0)
-	    switch (np->nte_type) {
-	    case BOOLEAN:
-		if (bool_from_termcap[np->nte_index])
-		    name = boolnames[np->nte_index];
-		break;
-
-	    case NUMBER:
-		if (num_from_termcap[np->nte_index])
-		    name = numnames[np->nte_index];
-		break;
-
-	    case STRING:
-		if (str_from_termcap[np->nte_index])
-		    name = strnames[np->nte_index];
-		break;
-	    }
-    }
+  retry:
 #endif
-
     if ((status = tigetflag(name)) != -1) {
 	return exit_code(BOOLEAN, status);
     } else if ((status = tigetnum(name)) != CANCELLED_NUMERIC) {
 	(void) printf("%d\n", status);
 	return exit_code(NUMBER, 0);
     } else if ((s = tigetstr(name)) == CANCELLED_STRING) {
+#if !PURE_TERMINFO
+	if (!termcap) {
+	    const struct name_table_entry *np;
+
+	    termcap = TRUE;
+	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != 0) {
+		switch (np->nte_type) {
+		case BOOLEAN:
+		    if (bool_from_termcap[np->nte_index])
+			name = boolnames[np->nte_index];
+		    break;
+
+		case NUMBER:
+		    if (num_from_termcap[np->nte_index])
+			name = numnames[np->nte_index];
+		    break;
+
+		case STRING:
+		    if (str_from_termcap[np->nte_index])
+			name = strnames[np->nte_index];
+		    break;
+		}
+		goto retry;
+	    }
+	}
+#endif
 	quit(4, "unknown terminfo capability '%s'", name);
     } else if (s != ABSENT_STRING) {
 	if (argc > 1) {
 	    int k;
-	    int popcount;
+	    int ignored;
 	    long numbers[1 + NUM_PARM];
 	    char *strings[1 + NUM_PARM];
 	    char *p_is_s[NUM_PARM];
@@ -329,8 +334,8 @@ tput(int argc, char *argv[])
 		break;
 	    case Numbers:
 	    default:
-		(void) _nc_tparm_analyze(s, p_is_s, &popcount);
-#define myParam(n) (p_is_s[n - 1] != 0 ? ((long) strings[n]) : numbers[n])
+		(void) _nc_tparm_analyze(s, p_is_s, &ignored);
+#define myParam(n) (p_is_s[n - 1] != 0 ? ((TPARM_ARG) strings[n]) : numbers[n])
 		s = TPARM_9(s,
 			    myParam(1),
 			    myParam(2),

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
+#include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
@@ -253,7 +254,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	panic("sendsig");
 }
 
-void initarm(void);
+void initarm(struct bootinfo *);
 
 #ifdef EARLY_PRINTF
 static void 
@@ -268,9 +269,18 @@ foundation_early_putc(int c)
 early_putc_t *early_putc = foundation_early_putc;
 #endif
 
+typedef struct {
+	uint32_t type;
+	uint64_t phys_start;
+	uint64_t virt_start;
+	uint64_t num_pages;
+	uint64_t attr;
+} EFI_MEMORY_DESCRIPTOR;
+
 void
-initarm(void)
+initarm(struct bootinfo *bi)
 {
+	EFI_MEMORY_DESCRIPTOR *desc;
 	const char str[] = "FreeBSD\r\n";
 	volatile uint32_t *uart;
 	int i;
@@ -280,6 +290,19 @@ initarm(void)
 		*uart = str[i];
 	}
 
-	printf("In initarm on arm64\n");
+	printf("In initarm on arm64 %p\n", bi);
+	printf("%llx\n", bi->bi_memmap);
+	printf("%llx\n", bi->bi_memmap_size);
+	printf("%llx\n", bi->bi_memdesc_size);
+	printf("%llx\n", bi->bi_memdesc_version);
+
+	desc = (void *)bi->bi_memmap;
+	for (i = 0; i < bi->bi_memmap_size / bi->bi_memdesc_size; i++) {
+		printf("%x %llx %llx %llx %llx\n", desc->type,
+		    desc->phys_start, desc->virt_start, desc->num_pages,
+		    desc->attr);
+
+		desc = (void *)((uint8_t *)desc + bi->bi_memdesc_size);
+	}
 }
 

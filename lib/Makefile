@@ -69,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
+	libbsdstat \
 	libbz2 \
 	libcalendar \
 	libcam \
@@ -87,7 +88,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	libipsec \
-	${_libipx} \
 	libjail \
 	libkiconv \
 	liblzma \
@@ -119,6 +119,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
+	libucl \
 	libufs \
 	libugidfw \
 	libulog \
@@ -129,7 +130,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
-	libyaml \
 	libz \
 	${_atf} \
 	${_clang} \
@@ -180,10 +180,6 @@ _librpcsec_gss=	librpcsec_gss
 
 .if ${MK_ICONV} != "no"
 _libiconv_modules=	libiconv_modules
-.endif
-
-.if ${MK_IPX} != "no"
-_libipx=	libipx
 .endif
 
 .if ${MK_LDNS} != "no"
@@ -278,6 +274,10 @@ _libusb=	libusb
 .if !defined(LIBRARIES_ONLY)
 afterinstall:
 	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
+.endif
+
+.if !make(install)
+SUBDIR_PARALLEL=
 .endif
 
 .include <bsd.subdir.mk>

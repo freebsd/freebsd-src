@@ -270,4 +270,3 @@ EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
 EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
 
 #endif /* _SYS_EVENTHANDLER_H_ */
-

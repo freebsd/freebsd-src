@@ -29,8 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/efi.h>
 #include <sys/sysctl.h>
-#include <machine/efi.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 

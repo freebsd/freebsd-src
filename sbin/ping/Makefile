@@ -12,8 +12,8 @@ DPADD=	${LIBM}
 LDADD=	-lm
 
 .if ${MK_CASPER} != "no" && !defined(RESCUE)
-DPADD+=	${LIBCAPSICUM}
-LDADD+=	-lcapsicum
+DPADD+=	${LIBCAPSICUM} ${LIBNV}
+LDADD+=	-lcapsicum -lnv
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 

@@ -74,6 +74,8 @@
     rwho            gname=daemon mode=0775
     ..
     spool
+        dma             uname=root gname=mail mode=0770
+        ..
         lock            uname=uucp gname=dialer mode=0775
         ..
 /set gname=daemon

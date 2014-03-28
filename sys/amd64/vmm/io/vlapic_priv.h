@@ -144,6 +144,7 @@ struct vlapic_ops {
 	void (*intr_accepted)(struct vlapic *vlapic, int vector);
 	void (*post_intr)(struct vlapic *vlapic, int hostcpu);
 	void (*set_tmr)(struct vlapic *vlapic, int vector, bool level);
+	void (*enable_x2apic_mode)(struct vlapic *vlapic);
 };
 
 struct vlapic {

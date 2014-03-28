@@ -131,7 +131,7 @@ static const struct {
 	uint16_t	chip_id;
 	const char	*name;
 	uint32_t	ramdac_freq;
-} const machfb_info[] = {
+} machfb_info[] = {
 	{ ATI_MACH64_CT, "ATI Mach64 CT", 135000 },
 	{ ATI_RAGE_PRO_AGP, "ATI 3D Rage Pro (AGP)", 230000 },
 	{ ATI_RAGE_PRO_AGP1X, "ATI 3D Rage Pro (AGP 1x)", 230000 },
@@ -169,7 +169,7 @@ static const struct machfb_cmap {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
-} const machfb_default_cmap[16] = {
+} machfb_default_cmap[16] = {
 	{0x00, 0x00, 0x00},	/* black */
 	{0x00, 0x00, 0xff},	/* blue */
 	{0x00, 0xff, 0x00},	/* green */
@@ -190,7 +190,7 @@ static const struct machfb_cmap {
 
 #define	MACHFB_CMAP_OFF		16
 
-static const u_char const machfb_mouse_pointer_bits[64][8] = {
+static const u_char machfb_mouse_pointer_bits[64][8] = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -219,7 +219,7 @@ static const u_char const machfb_mouse_pointer_bits[64][8] = {
  * Lookup table to perform a bit-swap of the mouse pointer bits,
  * map set bits to CUR_CLR0 and unset bits to transparent.
  */
-static const u_char const machfb_mouse_pointer_lut[] = {
+static const u_char machfb_mouse_pointer_lut[] = {
 	0xaa, 0x2a, 0x8a, 0x0a, 0xa2, 0x22, 0x82, 0x02,
 	0xa8, 0x28, 0x88, 0x08, 0xa0, 0x20, 0x80, 0x00
 };
@@ -1418,7 +1418,7 @@ static int
 machfb_get_memsize(struct machfb_softc *sc)
 {
 	int tmp, memsize;
-	const int const mem_tab[] = {
+	const int mem_tab[] = {
 		512, 1024, 2048, 4096, 6144, 8192, 12288, 16384
 	};
 

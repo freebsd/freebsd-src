@@ -298,8 +298,7 @@ typedef struct svn_repos_notify_t
    * the revision which just completed. */
   svn_revnum_t revision;
 
-  /** For #svn_repos_notify_warning, the warning object. Must be cleared
-      by the consumer of the notification. */
+  /** For #svn_repos_notify_warning, the warning object. */
   const char *warning_str;
   svn_repos_notify_warning_t warning;
 

@@ -36,13 +36,13 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 
 #include <machine/stdarg.h>
 #else	/* !_KERNEL */
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <assert.h>
 #include <stdarg.h>

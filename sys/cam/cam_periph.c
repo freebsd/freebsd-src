@@ -1655,6 +1655,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_REQ_TOO_BIG:
 	case CAM_LUN_INVALID:
 	case CAM_TID_INVALID:
+	case CAM_FUNC_NOTAVAIL:
 		error = EINVAL;
 		break;
 	case CAM_SCSI_BUS_RESET:

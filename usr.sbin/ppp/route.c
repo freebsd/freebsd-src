@@ -158,25 +158,15 @@ static struct bits {
   { RTF_MODIFIED, 'M' },
   { RTF_DONE, 'd' },
   { RTF_XRESOLVE, 'X' },
-#ifdef RTF_CLONING
-  { RTF_CLONING, 'C' },
-#endif
   { RTF_STATIC, 'S' },
   { RTF_PROTO1, '1' },
   { RTF_PROTO2, '2' },
   { RTF_BLACKHOLE, 'B' },
-
 #ifdef RTF_LLINFO
   { RTF_LLINFO, 'L' },
 #endif
 #ifdef RTF_CLONING  
   { RTF_CLONING, 'C' },
-#endif
-#ifdef RTF_WASCLONED
-  { RTF_WASCLONED, 'W' },
-#endif
-#ifdef RTF_PRCLONING
-  { RTF_PRCLONING, 'c' },
 #endif
 #ifdef RTF_PROTO3
   { RTF_PROTO3, '3' },
@@ -186,10 +176,6 @@ static struct bits {
 #endif
   { 0, '\0' }
 };
-
-#ifndef RTF_WASCLONED
-#define RTF_WASCLONED (0)
-#endif
 
 static void
 p_flags(struct prompt *prompt, u_int32_t f, unsigned max)
@@ -434,7 +420,7 @@ route_IfDelete(struct bundle *bundle, int all)
      * route X was cloned from route Y (and is no longer there 'cos it
      * may have gone with route Y).
      */
-    if (RTF_WASCLONED == 0 && pass == 0)
+    if (pass == 0)
       /* So we can't tell ! */
       continue;
     for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
@@ -461,8 +447,7 @@ route_IfDelete(struct bundle *bundle, int all)
             sa[RTAX_GATEWAY]->sa_family == AF_INET6 ||
 #endif
             sa[RTAX_GATEWAY]->sa_family == AF_LINK) {
-          if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
-              (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
+          if (pass == 1) {
             ncprange_setsa(&range, sa[RTAX_DST], sa[RTAX_NETMASK]);
             rt_Set(bundle, RTM_DELETE, &range, NULL, 0, 0);
           } else

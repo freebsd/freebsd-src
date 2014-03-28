@@ -37,6 +37,9 @@ public:
     //------------------------------------------------------------------
     GDBRemoteCommunicationServer(bool is_platform);
 
+    GDBRemoteCommunicationServer(bool is_platform,
+                                 const lldb::PlatformSP& platform_sp); 
+
     virtual
     ~GDBRemoteCommunicationServer();
 
@@ -138,7 +141,55 @@ public:
         m_port_offset = port_offset;
     }
 
+    //------------------------------------------------------------------
+    /// Specify the program to launch and its arguments.
+    ///
+    /// The LaunchProcess () command can be executed to do the lauching.
+    ///
+    /// @param[in] args
+    ///     The command line to launch.
+    ///
+    /// @param[in] argc
+    ///     The number of elements in the args array of cstring pointers.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of making
+    ///     the setting.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    SetLaunchArguments (const char *const args[], int argc);
+
+    //------------------------------------------------------------------
+    /// Specify the launch flags for the process.
+    ///
+    /// The LaunchProcess () command can be executed to do the lauching.
+    ///
+    /// @param[in] launch_flags
+    ///     The launch flags to use when launching this process.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of making
+    ///     the setting.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    SetLaunchFlags (unsigned int launch_flags);
+
+    //------------------------------------------------------------------
+    /// Launch a process with the current launch settings.
+    ///
+    /// This method supports running an lldb-gdbserver or similar
+    /// server in a situation where the startup code has been provided
+    /// with all the information for a child process to be launched.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of the
+    ///     launch.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    LaunchProcess ();
+
 protected:
+    lldb::PlatformSP m_platform_sp;
     lldb::thread_t m_async_thread;
     lldb_private::ProcessLaunchInfo m_process_launch_info;
     lldb_private::Error m_process_launch_error;
@@ -148,120 +199,123 @@ protected:
     uint32_t m_proc_infos_index;
     PortMap m_port_map;
     uint16_t m_port_offset;
-    
 
-    size_t
+
+    PacketResult
     SendUnimplementedResponse (const char *packet);
 
-    size_t
+    PacketResult
     SendErrorResponse (uint8_t error);
 
-    size_t
+    PacketResult
     SendOKResponse ();
 
-    bool
+    PacketResult
     Handle_A (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qLaunchSuccess (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qHostInfo (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qLaunchGDBServer (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qKillSpawnedProcess (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
+    Handle_k (StringExtractorGDBRemote &packet);
+
+    PacketResult
     Handle_qPlatform_mkdir (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qPlatform_chmod (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qProcessInfoPID (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qfProcessInfo (StringExtractorGDBRemote &packet);
     
-    bool 
+    PacketResult
     Handle_qsProcessInfo (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qC (StringExtractorGDBRemote &packet);
 
-    bool 
+    PacketResult
     Handle_qUserName (StringExtractorGDBRemote &packet);
 
-    bool 
+    PacketResult
     Handle_qGroupName (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qSpeedTest (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QEnvironment  (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_QLaunchArch (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_QSetDisableASLR (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetWorkingDir (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qGetWorkingDir (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QStartNoAckMode (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDIN (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDOUT (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDERR (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_vFile_Open (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_Close (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_pRead (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_pWrite (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_Size (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_vFile_Mode (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_Exists (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_vFile_symlink (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_vFile_unlink (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_vFile_Stat (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_vFile_MD5 (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qPlatform_shell (StringExtractorGDBRemote &packet);
 
 private:
@@ -274,6 +328,19 @@ private:
                             bool exited,
                             int signal,
                             int status);
+
+    bool
+    DebuggedProcessReaped (lldb::pid_t pid);
+
+    static bool
+    ReapDebuggedProcess (void *callback_baton,
+                         lldb::pid_t pid,
+                         bool exited,
+                         int signal,
+                         int status);
+
+    bool
+    KillSpawnedProcess (lldb::pid_t pid);
 
     //------------------------------------------------------------------
     // For GDBRemoteCommunicationServer only

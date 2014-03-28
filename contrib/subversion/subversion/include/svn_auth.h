@@ -966,7 +966,10 @@ svn_auth_get_keychain_ssl_client_cert_pw_provider(
   apr_pool_t *pool);
 #endif /* DARWIN || DOXYGEN */
 
-#if (!defined(DARWIN) && !defined(WIN32)) || defined(DOXYGEN)
+/* Note that the gnome keyring unlock prompt related items below must be
+ * declared for all platforms in order to allow SWIG interfaces to be
+ * used regardless of the platform. */
+
 /** A type of callback function for obtaining the GNOME Keyring password.
  *
  * In this callback, the client should ask the user for default keyring
@@ -996,7 +999,7 @@ typedef svn_error_t *(*svn_auth_gnome_keyring_unlock_prompt_func_t)(
  * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC. */
 #define SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_BATON "gnome-keyring-unlock-prompt-baton"
 
-
+#if (!defined(DARWIN) && !defined(WIN32)) || defined(DOXYGEN)
 /**
  * Get libsvn_auth_gnome_keyring version information.
  *

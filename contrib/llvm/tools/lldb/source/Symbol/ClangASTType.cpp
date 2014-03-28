@@ -38,6 +38,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
@@ -1134,7 +1135,7 @@ ClangASTType::GetTypeName () const
         if (typedef_type)
         {
             const TypedefNameDecl *typedef_decl = typedef_type->getDecl();
-            type_name = typedef_decl->getQualifiedNameAsString(printing_policy);
+            type_name = typedef_decl->getQualifiedNameAsString();
         }
         else
         {

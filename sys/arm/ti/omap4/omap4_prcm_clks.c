@@ -990,7 +990,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 
 
 	/* Calculate the MPU freq */
-	mpuclk = (sysclk * pll_mult) / pll_div;
+	mpuclk = ((uint64_t)sysclk * pll_mult) / pll_div;
 
 	/* Return the value */
 	if (freq)

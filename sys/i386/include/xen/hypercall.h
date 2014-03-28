@@ -39,16 +39,8 @@
 #define	ENOXENSYS	38
 #define CONFIG_XEN_COMPAT	0x030002
 
-
-#if defined(XEN)
 #define HYPERCALL_STR(name)                                     \
         "call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
-#else
-#define HYPERCALL_STR(name)                                     \
-        "mov hypercall_stubs,%%eax; "                           \
-        "add $("STR(__HYPERVISOR_##name)" * 32),%%eax; "        \
-        "call *%%eax"
-#endif
 
 #define _hypercall0(type, name)                 \
 ({                                              \

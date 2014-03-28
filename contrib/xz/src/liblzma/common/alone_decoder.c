@@ -26,6 +26,11 @@ struct lzma_coder_s {
 		SEQ_CODE,
 	} sequence;
 
+	/// If true, reject files that are unlikely to be .lzma files.
+	/// If false, more non-.lzma files get accepted and will give
+	/// LZMA_DATA_ERROR either immediately or after a few output bytes.
+	bool picky;
+
 	/// Position in the header fields
 	size_t pos;
 
@@ -68,13 +73,13 @@ alone_decode(lzma_coder *coder,
 				|= (size_t)(in[*in_pos]) << (coder->pos * 8);
 
 		if (++coder->pos == 4) {
-			if (coder->options.dict_size != UINT32_MAX) {
+			if (coder->picky && coder->options.dict_size
+					!= UINT32_MAX) {
 				// A hack to ditch tons of false positives:
 				// We allow only dictionary sizes that are
 				// 2^n or 2^n + 2^(n-1). LZMA_Alone created
 				// only files with 2^n, but accepts any
-				// dictionary size. If someone complains, this
-				// will be reconsidered.
+				// dictionary size.
 				uint32_t d = coder->options.dict_size - 1;
 				d |= d >> 2;
 				d |= d >> 3;
@@ -103,9 +108,9 @@ alone_decode(lzma_coder *coder,
 
 		// Another hack to ditch false positives: Assume that
 		// if the uncompressed size is known, it must be less
-		// than 256 GiB. Again, if someone complains, this
-		// will be reconsidered.
-		if (coder->uncompressed_size != LZMA_VLI_UNKNOWN
+		// than 256 GiB.
+		if (coder->picky
+				&& coder->uncompressed_size != LZMA_VLI_UNKNOWN
 				&& coder->uncompressed_size
 					>= (LZMA_VLI_C(1) << 38))
 			return LZMA_FORMAT_ERROR;
@@ -189,7 +194,7 @@ alone_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
 
 extern lzma_ret
 lzma_alone_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
-		uint64_t memlimit)
+		uint64_t memlimit, bool picky)
 {
 	lzma_next_coder_init(&lzma_alone_decoder_init, next, allocator);
 
@@ -208,6 +213,7 @@ lzma_alone_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 	}
 
 	next->coder->sequence = SEQ_PROPERTIES;
+	next->coder->picky = picky;
 	next->coder->pos = 0;
 	next->coder->options.dict_size = 0;
 	next->coder->options.preset_dict = NULL;
@@ -223,7 +229,7 @@ lzma_alone_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 extern LZMA_API(lzma_ret)
 lzma_alone_decoder(lzma_stream *strm, uint64_t memlimit)
 {
-	lzma_next_strm_init(lzma_alone_decoder_init, strm, memlimit);
+	lzma_next_strm_init(lzma_alone_decoder_init, strm, memlimit, false);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
 	strm->internal->supported_actions[LZMA_FINISH] = true;

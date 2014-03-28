@@ -172,7 +172,7 @@ lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
 		error = 0;
 	} else {
 		offset = x2apic_msr_to_regoff(msr);
-		error = vlapic_read(vlapic, offset, rval, retu);
+		error = vlapic_read(vlapic, 0, offset, rval, retu);
 	}
 
 	return (error);
@@ -188,11 +188,10 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 	vlapic = vm_lapic(vm, cpu);
 
 	if (msr == MSR_APICBASE) {
-		vlapic_set_apicbase(vlapic, val);
-		error = 0;
+		error = vlapic_set_apicbase(vlapic, val);
 	} else {
 		offset = x2apic_msr_to_regoff(msr);
-		error = vlapic_write(vlapic, offset, val, retu);
+		error = vlapic_write(vlapic, 0, offset, val, retu);
 	}
 
 	return (error);
@@ -216,7 +215,7 @@ lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	error = vlapic_write(vlapic, off, wval, arg);
+	error = vlapic_write(vlapic, 1, off, wval, arg);
 	return (error);
 }
 
@@ -238,6 +237,6 @@ lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	error = vlapic_read(vlapic, off, rval, arg);
+	error = vlapic_read(vlapic, 1, off, rval, arg);
 	return (error);
 }
