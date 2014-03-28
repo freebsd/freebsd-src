@@ -106,7 +106,7 @@ usage(const char *why)
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
 	    "are determined\n\t\t\t\t   by the named file\n");
-	fprintf(stderr, "\t<t>[/<l>]:!<cmd>\t-  partition content and size "
+	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t-  partition content and size "
 	    "are taken from\n\t\t\t\t   the output of the command to run\n");
 	fprintf(stderr, "\t    where:\n");
 	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
@@ -144,7 +144,7 @@ pwr_of_two(u_int nr)
  *	kind	  the interpretation of the contents specification
  *		  ':'   contents holds the size of an empty partition
  *		  '='   contents holds the name of a file to read
- *		  '!'   contents holds a command to run; the output of
+ *		  '-'   contents holds a command to run; the output of
  *			which is the contents of the partition.
  *	contents  the specification of a partition's contents
  */
@@ -185,7 +185,7 @@ parse_part(const char *spec)
 	case '=':
 		part->kind = PART_KIND_FILE;
 		break;
-	case '!':
+	case '-':
 		part->kind = PART_KIND_PIPE;
 		break;
 	default:
