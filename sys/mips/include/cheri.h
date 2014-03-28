@@ -51,8 +51,7 @@ struct chericap {
 #if BYTE_ORDER == BIG_ENDIAN
 	/* XXXRW: This definitely needs some testing. */
 	uint32_t	c_unsealed:1;
-	uint32_t	c_perms:15;
-	uint32_t	_c_padding0:16;
+	uint32_t	c_perms:31;
 #else
 #error	"BYTE_ORDER != BIG_ENDIAN not yet supported"
 #endif
