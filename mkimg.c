@@ -337,8 +337,8 @@ mkimg(int bfd)
 	STAILQ_FOREACH(part, &partlist, link) {
 		block = scheme_metadata(SCHEME_META_PART_BEFORE, block);
 		if (verbose)
-			printf("partition %d: starting block %llu ... ",
-			    part->index + 1, (long long)block);
+			fprintf(stderr, "partition %d: starting block %llu "
+			    "... ", part->index + 1, (long long)block);
 		part->block = block;
 		error = mkimg_seek(tmpfd, block);
 		switch (part->kind) {
@@ -368,7 +368,7 @@ mkimg(int bfd)
 		part->size = (bytesize + secsz - 1) / secsz;
 		if (verbose) {
 			bytesize = part->size * secsz;
-			printf("size %llu bytes (%llu blocks)\n",
+			fprintf(stderr, "size %llu bytes (%llu blocks)\n",
 			     (long long)bytesize, (long long)part->size);
 		}
 		block = scheme_metadata(SCHEME_META_PART_AFTER,
@@ -478,22 +478,23 @@ main(int argc, char *argv[])
 		tmpfd = outfd;
 
 	if (verbose) {
-		printf("Logical sector size: %u\n", secsz);
-		printf("Physical block size: %u\n", blksz);
-		printf("Sectors per track:   %u\n", nsecs);
-		printf("Number of heads:     %u\n", nheads);
+		fprintf(stderr, "Logical sector size: %u\n", secsz);
+		fprintf(stderr, "Physical block size: %u\n", blksz);
+		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
+		fprintf(stderr, "Number of heads:     %u\n", nheads);
 	}
 
 	mkimg(bcfd);
 
 	if (verbose)
-		printf("Number of cylinders: %u\n", ncyls);
+		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
 
 	if (tmpfd != outfd) {
 		error = mkimg_seek(tmpfd, 0);
 		if (error == 0)
 			error = fdcopy(tmpfd, outfd, NULL);
-		errc(EX_IOERR, error, "writing to stdout");
+		if (error)
+			errc(EX_IOERR, error, "writing to stdout");
 	}
 
 	return (0);
