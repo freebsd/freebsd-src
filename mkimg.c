@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#if !defined(SPARSE_WRITE)
+#define	sparse_write	write
+#endif
+
 #define	BUFFER_SIZE	(1024*1024)
 
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
@@ -223,13 +227,58 @@ parse_part(const char *spec)
 	return (error);
 }
 
+#if defined(SPARSE_WRITE)
+static ssize_t
+sparse_write(int fd, const char *buf, size_t sz)
+{
+	const char *p;
+	off_t ofs;
+	size_t len;
+	ssize_t wr, wrsz;
+
+	wrsz = 0;
+	p = memchr(buf, 0, sz);
+	while (sz > 0) {
+		len = (p != NULL) ? p - buf : sz;
+		if (len > 0) {
+			len = (len + secsz - 1) & ~(secsz - 1);
+			if (len > sz)
+				len = sz;
+			wr = write(fd, buf, len);
+			if (wr < 0)
+				return (-1);
+		} else {
+			while (len < sz && *p++ == '\0')
+				len++;
+			if (len < sz)
+				len &= ~(secsz - 1);
+			if (len == 0)
+				continue;
+			ofs = lseek(fd, len, SEEK_CUR);
+			if (ofs < 0)
+				return (-1);
+			wr = len;
+		}
+		buf += wr;
+		sz -= wr;
+		wrsz += wr;
+		p = memchr(buf, 0, sz);
+	}
+	return (wrsz);
+}
+#endif /* SPARSE_WRITE */
+
 static int
 fdcopy(int src, int dst, uint64_t *count)
 {
-	void *buffer;
+	char *buffer;
+	off_t ofs;
 	ssize_t rdsz, wrsz;
 
-	if (count != 0)
+	/* A return value of -1 means that we can't write a sparse file. */
+	ofs = lseek(dst, 0L, SEEK_CUR);
+
+	if (count != NULL)
 		*count = 0;
 
 	buffer = malloc(BUFFER_SIZE);
@@ -243,7 +292,9 @@ fdcopy(int src, int dst, uint64_t *count)
 		}
 		if (count != NULL)
 			*count += rdsz;
-		wrsz = write(dst, buffer, rdsz);
+		wrsz = (ofs == -1) ?
+		    write(dst, buffer, rdsz) :
+		    sparse_write(dst, buffer, rdsz);
 		if (wrsz < 0)
 			break;
 	}
@@ -439,11 +490,10 @@ main(int argc, char *argv[])
 		printf("Number of cylinders: %u\n", ncyls);
 
 	if (tmpfd != outfd) {
-		if (lseek(tmpfd, 0, SEEK_SET) == 0)
+		error = mkimg_seek(tmpfd, 0);
+		if (error == 0)
 			error = fdcopy(tmpfd, outfd, NULL);
-		else
-			error = errno;
-		/* XXX check error */
+		errc(EX_IOERR, error, "writing to stdout");
 	}
 
 	return (0);
