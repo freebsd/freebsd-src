@@ -4,6 +4,8 @@ PROG=	mkimg
 SRCS=	mkimg.c scheme.c
 MAN=	mkimg.8
 
+CFLAGS+=-DSPARSE_WRITE
+
 # List of schemes to support
 SRCS+=	\
 	apm.c \
