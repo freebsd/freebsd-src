@@ -50,7 +50,7 @@ mbr_metadata(u_int where)
 {
 	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? 1 : 0;
+	secs = (where == SCHEME_META_IMG_START) ? nsecs : 0;
 	return (secs);
 }
 
