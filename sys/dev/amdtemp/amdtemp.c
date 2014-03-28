@@ -76,6 +76,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC0F	0x1103
 #define	DEVICEID_AMD_MISC10	0x1203
 #define	DEVICEID_AMD_MISC11	0x1303
+#define	DEVICEID_AMD_MISC16	0x1533
 
 static struct amdtemp_product {
 	uint16_t	amdtemp_vendorid;
@@ -84,6 +85,7 @@ static struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC0F },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC10 },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC11 },
+	{ VENDORID_AMD,	DEVICEID_AMD_MISC16 },
 	{ 0, 0 }
 };
 
@@ -189,6 +191,7 @@ amdtemp_probe(device_t dev)
 		break;
 	case 0x10:
 	case 0x11:
+	case 0x16:
 		break;
 	default:
 		return (ENXIO);
@@ -274,6 +277,7 @@ amdtemp_attach(device_t dev)
 		break;
 	case 0x10:
 	case 0x11:
+	case 0x16:
 		/*
 		 * There is only one sensor per package.
 		 */
