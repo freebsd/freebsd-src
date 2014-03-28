@@ -785,6 +785,12 @@ nogo:
 			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
+		if ((td->td_pflags & TDP_DEVMEMIO) != 0) {
+			KASSERT(curpcb->pcb_onfault != NULL,
+			    ("/dev/mem without pcb_onfault"));
+			frame->tf_rip = (long)curpcb->pcb_onfault;
+			return (0);
+		}
 		trap_fatal(frame, eva);
 		return (-1);
 	}
