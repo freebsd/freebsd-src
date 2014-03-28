@@ -775,7 +775,7 @@ vt_flush(struct vt_device *vd)
 		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
+		vd->vd_driver->vd_maskbitbltchr(vd, m->map, m->mask, bpl,
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
@@ -1930,6 +1930,8 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		printf("%s: Replace existing VT driver.\n", __func__);
 	}
 	vd = main_vd;
+	if (drv->vd_maskbitbltchr == NULL)
+		drv->vd_maskbitbltchr = drv->vd_bitbltchr;
 
 	/* Stop vt_flush periodic task. */
 	if (vd->vd_curwindow != NULL)
