@@ -2,7 +2,7 @@
 
 PROG=	mkimg
 SRCS=	mkimg.c scheme.c
-MAN=	mkimg.8
+MAN=	mkimg.1
 
 CFLAGS+=-DSPARSE_WRITE
 
@@ -16,7 +16,7 @@ SRCS+=	\
 	pc98.c \
 	vtoc8.c
 
-BINDIR?=/usr/sbin
+BINDIR?=/usr/bin
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
