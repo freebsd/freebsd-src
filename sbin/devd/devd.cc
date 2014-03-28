@@ -129,8 +129,9 @@ static const char detach = '-';
 
 static struct pidfh *pfh;
 
-int dflag;
-int nflag;
+static int no_daemon = 0;
+static int daemonize_quick = 0;
+static int quiet_mode = 0;
 static unsigned total_events = 0;
 static volatile sig_atomic_t got_siginfo = 0;
 static volatile sig_atomic_t romeo_must_die = 0;
@@ -291,7 +292,7 @@ match::do_match(config &c)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
-	if (dflag) {
+	if (no_daemon) {
 		devdlog(LOG_DEBUG, "Testing %s=%s against %s, invert=%d\n",
 		    _var.c_str(), value.c_str(), _re.c_str(), _inv);
 	}
@@ -401,7 +402,7 @@ var_list::set_variable(const string &var, const string &val)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
-	if (dflag)
+	if (no_daemon)
 		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
@@ -945,7 +946,7 @@ event_loop(void)
 	accepting = 1;
 	max_fd = max(fd, server_fd) + 1;
 	while (!romeo_must_die) {
-		if (!once && !dflag && !nflag) {
+		if (!once && !no_daemon && !daemonize_quick) {
 			// Check to see if we have any events pending.
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
@@ -1139,9 +1140,9 @@ devdlog(int priority, const char* fmt, ...)
 	va_list argp;
 
 	va_start(argp, fmt);
-	if (dflag)
+	if (no_daemon)
 		vfprintf(stderr, fmt, argp);
-	else
+	else if ((! quiet_mode) || (priority <= LOG_WARNING))
 		vsyslog(priority, fmt, argp);
 	va_end(argp);
 }
@@ -1149,7 +1150,7 @@ devdlog(int priority, const char* fmt, ...)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-dn] [-l connlimit] [-f file]\n",
+	fprintf(stderr, "usage: %s [-dnq] [-l connlimit] [-f file]\n",
 	    getprogname());
 	exit(1);
 }
@@ -1179,10 +1180,10 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "df:l:n")) != -1) {
+	while ((ch = getopt(argc, argv, "df:l:nq")) != -1) {
 		switch (ch) {
 		case 'd':
-			dflag++;
+			no_daemon = 1;
 			break;
 		case 'f':
 			configfile = optarg;
@@ -1191,7 +1192,10 @@ main(int argc, char **argv)
 			max_clients = MAX(1, strtoul(optarg, NULL, 0));
 			break;
 		case 'n':
-			nflag++;
+			daemonize_quick = 1;
+			break;
+		case 'q':
+			quiet_mode = 1;
 			break;
 		default:
 			usage();
@@ -1199,7 +1203,7 @@ main(int argc, char **argv)
 	}
 
 	cfg.parse();
-	if (!dflag && nflag) {
+	if (!no_daemon && daemonize_quick) {
 		cfg.open_pidfile();
 		daemon(0, 0);
 		cfg.write_pidfile();
