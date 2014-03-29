@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_post.c,v 1.9 2004/12/11 22:19:06 tom Exp $")
+MODULE_ID("$Id: frm_post.c,v 1.11 2012/06/10 00:27:49 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -54,7 +54,7 @@ post_form(FORM *form)
   int err;
   int page;
 
-  T((T_CALLED("post_form(%p)"), form));
+  T((T_CALLED("post_form(%p)"), (void *)form));
 
   if (!form)
     RETURN(E_BAD_ARGUMENT);
@@ -77,7 +77,7 @@ post_form(FORM *form)
   if ((err = _nc_Set_Form_Page(form, page, form->current)) != E_OK)
     RETURN(err);
 
-  form->status |= _POSTED;
+  SetStatus(form, _POSTED);
 
   Call_Hook(form, forminit);
   Call_Hook(form, fieldinit);
@@ -100,7 +100,7 @@ post_form(FORM *form)
 NCURSES_EXPORT(int)
 unpost_form(FORM *form)
 {
-  T((T_CALLED("unpost_form(%p)"), form));
+  T((T_CALLED("unpost_form(%p)"), (void *)form));
 
   if (!form)
     RETURN(E_BAD_ARGUMENT);
@@ -117,7 +117,7 @@ unpost_form(FORM *form)
   werase(Get_Form_Window(form));
   delwin(form->w);
   form->w = (WINDOW *)0;
-  form->status &= ~_POSTED;
+  ClrStatus(form, _POSTED);
   RETURN(E_OK);
 }
 

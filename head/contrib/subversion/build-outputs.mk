@@ -1870,82 +1870,82 @@ subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.lo: subversion/bindin
 	$(COMPILE_SWIG_PL) $(canonicalized_srcdir)subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.c
 
 subversion/bindings/swig/perl/native/core.lo: subversion/bindings/swig/perl/native/core.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/core.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/core.c
 
 subversion/bindings/swig/perl/native/svn_client.lo: subversion/bindings/swig/perl/native/svn_client.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_client.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_client.c
 
 subversion/bindings/swig/perl/native/svn_delta.lo: subversion/bindings/swig/perl/native/svn_delta.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_delta.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_delta.c
 
 subversion/bindings/swig/perl/native/svn_diff.lo: subversion/bindings/swig/perl/native/svn_diff.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_diff.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_diff.c
 
 subversion/bindings/swig/perl/native/svn_fs.lo: subversion/bindings/swig/perl/native/svn_fs.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_fs.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_fs.c
 
 subversion/bindings/swig/perl/native/svn_ra.lo: subversion/bindings/swig/perl/native/svn_ra.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_ra.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_ra.c
 
 subversion/bindings/swig/perl/native/svn_repos.lo: subversion/bindings/swig/perl/native/svn_repos.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_repos.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_repos.c
 
 subversion/bindings/swig/perl/native/svn_wc.lo: subversion/bindings/swig/perl/native/svn_wc.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_PL_WRAPPER) subversion/bindings/swig/perl/native/svn_wc.c
+	$(COMPILE_PL_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/perl/native/svn_wc.c
 
 subversion/bindings/swig/python/core.lo: subversion/bindings/swig/python/core.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/core.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/core.c
 
 subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.lo: subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.c subversion/bindings/swig/proxy/swig_python_external_runtime.swg subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/include/private/svn_debug.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_client.h subversion/include/svn_config.h subversion/include/svn_delta.h subversion/include/svn_diff.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_fs.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_opt.h subversion/include/svn_pools.h subversion/include/svn_props.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_wc.h subversion/svn_private_config.h
 	$(COMPILE_SWIG_PY) $(canonicalized_srcdir)subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.c
 
 subversion/bindings/swig/python/svn_client.lo: subversion/bindings/swig/python/svn_client.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_client.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_client.c
 
 subversion/bindings/swig/python/svn_delta.lo: subversion/bindings/swig/python/svn_delta.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_delta.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_delta.c
 
 subversion/bindings/swig/python/svn_diff.lo: subversion/bindings/swig/python/svn_diff.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_diff.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_diff.c
 
 subversion/bindings/swig/python/svn_fs.lo: subversion/bindings/swig/python/svn_fs.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_fs.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_fs.c
 
 subversion/bindings/swig/python/svn_ra.lo: subversion/bindings/swig/python/svn_ra.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_ra.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_ra.c
 
 subversion/bindings/swig/python/svn_repos.lo: subversion/bindings/swig/python/svn_repos.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_repos.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_repos.c
 
 subversion/bindings/swig/python/svn_wc.lo: subversion/bindings/swig/python/svn_wc.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_PY_WRAPPER) subversion/bindings/swig/python/svn_wc.c
+	$(COMPILE_PY_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/python/svn_wc.c
 
 subversion/bindings/swig/ruby/core.lo: subversion/bindings/swig/ruby/core.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/core.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/core.c
 
 subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.lo: subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.c subversion/bindings/swig/proxy/swig_ruby_external_runtime.swg subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/private/svn_debug.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_client.h subversion/include/svn_config.h subversion/include/svn_delta.h subversion/include/svn_diff.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_fs.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_nls.h subversion/include/svn_opt.h subversion/include/svn_pools.h subversion/include/svn_props.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_string.h subversion/include/svn_time.h subversion/include/svn_types.h subversion/include/svn_utf.h subversion/include/svn_wc.h subversion/svn_private_config.h
 	$(COMPILE_SWIG_RB) $(canonicalized_srcdir)subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.c
 
 subversion/bindings/swig/ruby/svn_client.lo: subversion/bindings/swig/ruby/svn_client.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_client.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_client.c
 
 subversion/bindings/swig/ruby/svn_delta.lo: subversion/bindings/swig/ruby/svn_delta.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_delta.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_delta.c
 
 subversion/bindings/swig/ruby/svn_diff.lo: subversion/bindings/swig/ruby/svn_diff.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_delta.h subversion/include/svn_fs.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_diff.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_diff.c
 
 subversion/bindings/swig/ruby/svn_fs.lo: subversion/bindings/swig/ruby/svn_fs.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_fs.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_fs.c
 
 subversion/bindings/swig/ruby/svn_ra.lo: subversion/bindings/swig/ruby/svn_ra.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_ra.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_ra.c
 
 subversion/bindings/swig/ruby/svn_repos.lo: subversion/bindings/swig/ruby/svn_repos.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_ra.h subversion/include/svn_wc.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_repos.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_repos.c
 
 subversion/bindings/swig/ruby/svn_wc.lo: subversion/bindings/swig/ruby/svn_wc.c subversion/bindings/swig/perl/libsvn_swig_perl/swigutil_pl.h subversion/bindings/swig/python/libsvn_swig_py/swigutil_py.h subversion/bindings/swig/ruby/libsvn_swig_ruby/swigutil_rb.h subversion/include/svn_client.h subversion/include/svn_fs.h subversion/include/svn_repos.h subversion/svn_private_config.h
-	$(COMPILE_RB_WRAPPER) subversion/bindings/swig/ruby/svn_wc.c
+	$(COMPILE_RB_WRAPPER) $(canonicalized_srcdir)subversion/bindings/swig/ruby/svn_wc.c
 
 subversion/libsvn_auth_gnome_keyring/gnome_keyring.lo: subversion/libsvn_auth_gnome_keyring/gnome_keyring.c subversion/include/private/svn_auth_private.h subversion/include/private/svn_debug.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_pools.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/svn_private_config.h
 
@@ -2231,7 +2231,7 @@ subversion/libsvn_ra_serf/serf.lo: subversion/libsvn_ra_serf/serf.c subversion/i
 
 subversion/libsvn_ra_serf/update.lo: subversion/libsvn_ra_serf/update.c subversion/include/private/svn_dav_protocol.h subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/private/svn_editor.h subversion/include/private/svn_fspath.h subversion/include/private/svn_ra_private.h subversion/include/private/svn_string_private.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_base64.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dav.h subversion/include/svn_delta.h subversion/include/svn_dirent_uri.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_path.h subversion/include/svn_pools.h subversion/include/svn_props.h subversion/include/svn_ra.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h subversion/include/svn_xml.h subversion/libsvn_ra/ra_loader.h subversion/libsvn_ra_serf/blncache.h subversion/libsvn_ra_serf/ra_serf.h subversion/svn_private_config.h
 
-subversion/libsvn_ra_serf/util.lo: subversion/libsvn_ra_serf/util.c subversion/include/private/svn_dav_protocol.h subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/private/svn_editor.h subversion/include/private/svn_fspath.h subversion/include/private/svn_ra_private.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dav.h subversion/include/svn_delta.h subversion/include/svn_dirent_uri.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_path.h subversion/include/svn_pools.h subversion/include/svn_props.h subversion/include/svn_ra.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h subversion/include/svn_xml.h subversion/libsvn_ra/ra_loader.h subversion/libsvn_ra_serf/blncache.h subversion/libsvn_ra_serf/ra_serf.h subversion/svn_private_config.h
+subversion/libsvn_ra_serf/util.lo: subversion/libsvn_ra_serf/util.c subversion/include/private/svn_auth_private.h subversion/include/private/svn_dav_protocol.h subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/private/svn_editor.h subversion/include/private/svn_fspath.h subversion/include/private/svn_ra_private.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dav.h subversion/include/svn_delta.h subversion/include/svn_dirent_uri.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_path.h subversion/include/svn_pools.h subversion/include/svn_props.h subversion/include/svn_ra.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h subversion/include/svn_xml.h subversion/libsvn_ra/ra_loader.h subversion/libsvn_ra_serf/blncache.h subversion/libsvn_ra_serf/ra_serf.h subversion/svn_private_config.h
 
 subversion/libsvn_ra_serf/util_error.lo: subversion/libsvn_ra_serf/util_error.c subversion/include/private/svn_dav_protocol.h subversion/include/private/svn_debug.h subversion/include/private/svn_editor.h subversion/include/private/svn_error_private.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dav.h subversion/include/svn_delta.h subversion/include/svn_dirent_uri.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_io.h subversion/include/svn_mergeinfo.h subversion/include/svn_pools.h subversion/include/svn_ra.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_utf.h subversion/include/svn_version.h subversion/libsvn_ra_serf/blncache.h subversion/libsvn_ra_serf/ra_serf.h
 
@@ -2291,7 +2291,7 @@ subversion/libsvn_subr/adler32.lo: subversion/libsvn_subr/adler32.c subversion/i
 
 subversion/libsvn_subr/atomic.lo: subversion/libsvn_subr/atomic.c subversion/include/private/svn_atomic.h subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_types.h
 
-subversion/libsvn_subr/auth.lo: subversion/libsvn_subr/auth.c subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dso.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h subversion/libsvn_subr/auth.h subversion/svn_private_config.h
+subversion/libsvn_subr/auth.lo: subversion/libsvn_subr/auth.c subversion/include/private/svn_auth_private.h subversion/include/private/svn_debug.h subversion/include/private/svn_dep_compat.h subversion/include/private/svn_subr_private.h subversion/include/svn_auth.h subversion/include/svn_checksum.h subversion/include/svn_config.h subversion/include/svn_dso.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_hash.h subversion/include/svn_io.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h subversion/libsvn_subr/auth.h subversion/svn_private_config.h
 
 subversion/libsvn_subr/base64.lo: subversion/libsvn_subr/base64.c subversion/include/private/svn_debug.h subversion/include/private/svn_string_private.h subversion/include/private/svn_subr_private.h subversion/include/svn_base64.h subversion/include/svn_checksum.h subversion/include/svn_error.h subversion/include/svn_error_codes.h subversion/include/svn_io.h subversion/include/svn_pools.h subversion/include/svn_string.h subversion/include/svn_types.h subversion/include/svn_version.h
 

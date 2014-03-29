@@ -606,11 +606,6 @@ options 	IPSEC			#IP security (requires device crypto)
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
-options 	IPX			#IPX/SPX communications protocols
-
-options 	NETATALK		#Appletalk communications protocols
-options 	NETATALKDEBUG		#Appletalk debugging
-
 #
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
@@ -886,14 +881,6 @@ options 	XBONEHACK
 device		faith
 device		stf
 
-#  The `ef' device provides support for multiple ethernet frame types
-#  specified via ETHER_* options. See ef(4) for details.
-device		ef
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
-
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
 #  The `pflog' device provides the pflog0 interface which logs packets.
@@ -1080,7 +1067,7 @@ options 	MD_ROOT
 options 	QUOTA			#enable disk quotas
 
 # If you are running a machine just as a fileserver for PC and MAC
-# users, using SAMBA or Netatalk, you may consider setting this option
+# users, using SAMBA, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similar to group). It's a security hole

@@ -1390,6 +1390,15 @@ does_node_exist(svn_boolean_t *exists,
   return svn_error_trace(svn_sqlite__reset(stmt));
 }
 
+svn_error_t *
+svn_wc__db_install_schema_statistics(svn_sqlite__db_t *sdb,
+                                     apr_pool_t *scratch_pool)
+{
+  SVN_ERR(svn_sqlite__exec_statements(sdb, STMT_INSTALL_SCHEMA_STATISTICS));
+
+  return SVN_NO_ERROR;
+}
+
 /* Helper for create_db(). Initializes our wc.db schema.
  */
 static svn_error_t *
@@ -1416,6 +1425,8 @@ init_db(/* output values */
   /* Insert the repository. */
   SVN_ERR(create_repos_id(repos_id, repos_root_url, repos_uuid,
                           db, scratch_pool));
+
+  SVN_ERR(svn_wc__db_install_schema_statistics(db, scratch_pool));
 
   /* Insert the wcroot. */
   /* ### Right now, this just assumes wc metadata is being stored locally. */
@@ -4551,6 +4562,21 @@ db_op_copy(svn_wc__db_wcroot_t *src_wcroot,
     }
   else
     {
+      if (copyfrom_relpath)
+        {
+          const char *repos_root_url;
+          const char *repos_uuid;
+
+          /* Pass the right repos-id for the destination db! */
+
+          SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, &repos_uuid,
+                                              src_wcroot->sdb, copyfrom_id,
+                                              scratch_pool));
+
+          SVN_ERR(create_repos_id(&copyfrom_id, repos_root_url, repos_uuid,
+                                  dst_wcroot->sdb, scratch_pool));
+        }
+
       SVN_ERR(cross_db_copy(src_wcroot, src_relpath, dst_wcroot,
                             dst_relpath, dst_presence, dst_op_depth,
                             dst_np_op_depth, kind,

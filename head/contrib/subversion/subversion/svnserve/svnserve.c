@@ -215,9 +215,7 @@ static const apr_getopt_option_t svnserve__options[] =
         "                             "
         "minimize redundant operations.\n"
         "                             "
-        "Default is 128 for threaded and 16 for non-\n"
-        "                             "
-        "threaded mode.\n"
+        "Default is 16.\n"
         "                             "
         "[used for FSFS repositories only]")},
     {"cache-txdeltas", SVNSERVE_OPT_CACHE_TXDELTAS, 1,

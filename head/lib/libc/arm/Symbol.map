@@ -76,4 +76,6 @@ FBSDprivate_1.0 {
 	__fixunsdfsi;
 	__extendsfdf2;
 	__truncdfsf2;
+
+	_libc_arm_fpu_present;
 };

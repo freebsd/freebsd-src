@@ -250,10 +250,10 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			bn = ap->in_off;
 			if (runb && bn) {
 				for (--bn; bn >= 0 && *runb < maxrun &&
-			    		is_sequential(ump,
+					is_sequential(ump,
 					((e2fs_daddr_t *)bp->b_data)[bn],
 					((e2fs_daddr_t *)bp->b_data)[bn + 1]);
-			    		--bn, ++*runb);
+					--bn, ++*runb);
 			}
 		}
 	}

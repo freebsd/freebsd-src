@@ -115,14 +115,13 @@ void	kmod_udpstat_inc(int statnum);
 #endif
 
 /*
- * Names for UDP sysctl objects.
+ * Identifiers for UDP sysctl nodes.
  */
 #define	UDPCTL_CHECKSUM		1	/* checksum UDP packets */
 #define	UDPCTL_STATS		2	/* statistics (read-only) */
 #define	UDPCTL_MAXDGRAM		3	/* max datagram size */
 #define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
-#define	UDPCTL_MAXID		6
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);

@@ -93,7 +93,11 @@ INLINE_LIMIT?=	15000
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_CPUARCH} == "sparc64"
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-mcmodel=large -fno-dwarf2-cfi-asm
+.else
 CFLAGS+=	-mcmodel=medany -msoft-float
+.endif
 INLINE_LIMIT?=	15000
 .endif
 
@@ -157,4 +161,13 @@ CFLAGS+=	-ffreestanding
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
+.endif
+
+#
+# Add -gdwarf-2 when compiling -g on clang. The default starting in v3.4
+# is to generate DWARF version 4. However, our tools don't cope well with
+# DWARF 4, so force it to genereate DWARF2, which they understand.
+#
+.if ${COMPILER_TYPE} == "clang" && ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf*} == ""
+CFLAGS+=	-gdwarf-2
 .endif

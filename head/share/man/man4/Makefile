@@ -122,7 +122,6 @@ MAN=	aac.4 \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
-	ef.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
@@ -172,6 +171,12 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hv_ata_pci_disengage.4 \
+	hv_kvp.4 \
+	hv_netvsc.4 \
+	hv_storvsc.4 \
+	hv_utils.4 \
+	hv_vmbus.4 \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
@@ -520,6 +525,7 @@ MAN=	aac.4 \
 	umcs.4 \
 	umct.4 \
 	umodem.4 \
+	umoscom.4 \
 	ums.4 \
 	unix.4 \
 	upgt.4 \
@@ -531,8 +537,10 @@ MAN=	aac.4 \
 	urtwn.4 \
 	urtwnfw.4 \
 	usb.4 \
+	usb_template.4 \
 	usb_quirk.4 \
 	uslcom.4 \
+	usfs.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
@@ -609,7 +617,6 @@ MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
 MLINKS+=ed.4 if_ed.4
 MLINKS+=edsc.4 if_edsc.4
-MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4

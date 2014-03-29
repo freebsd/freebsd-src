@@ -27,4 +27,4 @@ PLAIN_TESTS_SH=	cp_test
 # definitions from above.
 KYUAFILE=	yes
 
-.include <plain.test.mk>
+.include <bsd.test.mk>

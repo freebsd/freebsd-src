@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,9 +32,9 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_newftyp.c,v 1.15 2007/10/13 19:30:55 tom Exp $")
+MODULE_ID("$Id: fld_newftyp.c,v 1.19 2010/01/23 21:14:36 tom Exp $")
 
-static FIELDTYPE const default_fieldtype =
+static FIELDTYPE default_fieldtype =
 {
   0,				/* status                                      */
   0L,				/* reference count                             */
@@ -43,13 +43,16 @@ static FIELDTYPE const default_fieldtype =
   NULL,				/* makearg function                            */
   NULL,				/* copyarg function                            */
   NULL,				/* freearg function                            */
-  NULL,				/* field validation function                   */
-  NULL,				/* Character check function                    */
-  NULL,				/* enumerate next function                     */
-  NULL				/* enumerate previous function                 */
+  INIT_FT_FUNC(NULL),		/* field validation function                   */
+  INIT_FT_FUNC(NULL),		/* Character check function                    */
+  INIT_FT_FUNC(NULL),		/* enumerate next function                     */
+  INIT_FT_FUNC(NULL),		/* enumerate previous function                 */
+#if NCURSES_INTEROP_FUNCS
+  NULL				/* generic callback alternative to makearg     */
+#endif
 };
 
-NCURSES_EXPORT_VAR(const FIELDTYPE *)
+NCURSES_EXPORT_VAR(FIELDTYPE *)
 _nc_Default_FieldType = &default_fieldtype;
 
 /*---------------------------------------------------------------------------
@@ -80,10 +83,15 @@ new_fieldtype(bool (*const field_check) (FIELD *, const void *),
 
       if (nftyp)
 	{
-	  T((T_CREATE("fieldtype %p"), nftyp));
+	  T((T_CREATE("fieldtype %p"), (void *)nftyp));
 	  *nftyp = default_fieldtype;
+#if NCURSES_INTEROP_FUNCS
+	  nftyp->fieldcheck.ofcheck = field_check;
+	  nftyp->charcheck.occheck = char_check;
+#else
 	  nftyp->fcheck = field_check;
 	  nftyp->ccheck = char_check;
+#endif
 	}
       else
 	{
@@ -110,7 +118,7 @@ new_fieldtype(bool (*const field_check) (FIELD *, const void *),
 NCURSES_EXPORT(int)
 free_fieldtype(FIELDTYPE *typ)
 {
-  T((T_CALLED("free_fieldtype(%p)"), typ));
+  T((T_CALLED("free_fieldtype(%p)"), (void *)typ));
 
   if (!typ)
     RETURN(E_BAD_ARGUMENT);

@@ -589,3 +589,8 @@ PlatformPOSIX::SetRemoteWorkingDirectory(const lldb_private::ConstString &path)
         return Platform::SetRemoteWorkingDirectory(path);
 }
 
+void
+PlatformPOSIX::CalculateTrapHandlerSymbolNames ()
+{   
+    m_trap_handlers.push_back (ConstString ("_sigtramp"));
+}   

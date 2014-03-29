@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_driver.3x,v 1.16 2008/06/21 21:55:39 tom Exp $
+.\" $Id: form_driver.3x,v 1.22 2010/12/04 18:38:55 tom Exp $
 .TH form_driver 3X ""
+.de bP
+.IP \(bu 4
+..
 .SH NAME
-\fBform_driver\fR - command-processing loop of the form system
+\fBform_driver\fR \- command-processing loop of the form system
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -38,18 +41,15 @@ int form_driver(FORM *form, int c);
 .SH DESCRIPTION
 Once a form has been posted (displayed), you should funnel input events to it
 through \fBform_driver\fR.  This routine has three major input cases:
-.TP 3
--
+.bP
 The input is a form navigation request.
 Navigation request codes are constants defined in \fB<form.h>\fP,
 which are distinct from the key- and character codes returned by \fBwgetch\fP.
-.TP 3
--
+.bP
 The input is a printable character.
 Printable characters (which must be positive, less than 256) are
 checked according to the program's locale settings.
-.TP 3
--
+.bP
 The input is the KEY_MOUSE special key associated with an mouse event.
 .PP
 The form driver requests are as follows:
@@ -238,11 +238,11 @@ requests listed above, that request is executed.
 .PP
 If the second argument is the KEY_MOUSE special key, the associated
 mouse event is translated into one of the above pre-defined requests.
-Currently only clicks in the user window (e.g. inside the form display
+Currently only clicks in the user window (e.g., inside the form display
 area or the decoration window) are handled.
 .PP
 If you click above the display region of the form:
-.RS
+.RS 3
 .TP
 a REQ_PREV_FIELD is generated for a single click,
 .TP
@@ -252,7 +252,7 @@ a REQ_FIRST_FIELD is generated for a triple-click.
 .RE
 .PP
 If you click below the display region of the form:
-.RS
+.RS 3
 .TP
 a REQ_NEXT_FIELD is generated for a single click,
 .TP
@@ -262,12 +262,10 @@ a REQ_LAST_FIELD is generated for a triple-click.
 .RE
 .PP
 If you click at an field inside the display area of the form:
-.RS
-.TP 3
--
+.RS 3
+.bP
 the form cursor is positioned to that field.
-.TP 3
--
+.bP
 If you double-click a field,
 the form cursor is positioned to that field
 and \fBE_UNKNOWN_COMMAND\fR is returned.
@@ -276,8 +274,7 @@ because a double click usually means that an field-specific action should
 be returned.
 It is exactly the purpose of this return value to signal that an
 application specific command should be executed.
-.TP 3
--
+.bP
 If a translation
 into a request was done, \fBform_driver\fR returns the result of this request.
 .RE
@@ -321,7 +318,8 @@ The form driver code saw an unknown request code.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBform\fR(3X),
-\fBwgetch\fR(3X).
+\fBform_variables\fR(3X),
+\fBgetch\fR(3X).
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header files
 \fB<curses.h>\fR.
@@ -331,9 +329,3 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

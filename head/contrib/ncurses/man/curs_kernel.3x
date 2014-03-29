@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2001,2005 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.                        *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_kernel.3x,v 1.15 2005/05/15 16:18:13 tom Exp $
+.\" $Id: curs_kernel.3x,v 1.19 2010/12/04 18:38:55 tom Exp $
 .TH curs_kernel 3X ""
 .na
 .hy 0
@@ -41,7 +41,7 @@
 \fBsetsyx\fR,
 \fBripoffline\fR,
 \fBcurs_set\fR,
-\fBnapms\fR - low-level \fBcurses\fR routines
+\fBnapms\fR \- low-level \fBcurses\fR routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -71,7 +71,7 @@
 .br
 .SH DESCRIPTION
 The following routines give low-level access to various \fBcurses\fR
-capabilities.  Theses routines typically are used inside library
+capabilities.  These routines typically are used inside library
 routines.
 .PP
 The \fBdef_prog_mode\fR and \fBdef_shell_mode\fR routines save the
@@ -94,13 +94,13 @@ last call to \fBsavetty\fR.
 .PP
 The \fBgetsyx\fR routine returns the current coordinates of the virtual screen
 cursor in \fIy\fR and \fIx\fR.  If \fBleaveok\fR is currently \fBTRUE\fR, then
-\fB-1\fR,\fB-1\fR is returned.  If lines have been removed from the top of the
+\fB\-1\fR,\fB\-1\fR is returned.  If lines have been removed from the top of the
 screen, using \fBripoffline\fR, \fIy\fR and \fIx\fR include these lines;
 therefore, \fIy\fR and \fIx\fR should be used only as arguments for
 \fBsetsyx\fR.
 .PP
 The \fBsetsyx\fR routine sets the virtual screen cursor to
-\fIy\fR, \fIx\fR.  If \fIy\fR and \fIx\fR are both \fB-1\fR, then
+\fIy\fR, \fIx\fR.  If \fIy\fR and \fIx\fR are both \fB\-1\fR, then
 \fBleaveok\fR is set.  The two routines \fBgetsyx\fR and \fBsetsyx\fR
 are designed to be used by a library routine, which manipulates
 \fBcurses\fR windows but does not want to change the current position
@@ -127,7 +127,7 @@ routine.
 \fBripoffline\fR can be called up to five times before calling \fBinitscr\fR or
 \fBnewterm\fR.
 .PP
-The \fBcurs_set\fR routine sets the cursor state is set to invisible,
+The \fBcurs_set\fR routine sets the cursor state to invisible,
 normal, or very visible for \fBvisibility\fR equal to \fB0\fR,
 \fB1\fR, or \fB2\fR respectively.  If the terminal supports the
 \fIvisibility\fR requested, the previous \fIcursor\fR state is
@@ -176,11 +176,10 @@ The SVr4 documentation describes \fBsetsyx\fR and \fBgetsyx\fR as having return
 type int. This is misleading, as they are macros with no documented semantics
 for the return value.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),
-\fBcurs_scr_dump\fR(3X), \fBcurs_slk\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_scr_dump\fR(3X),
+\fBcurs_slk\fR(3X),
+\fBcurs_variables\fR(3X).

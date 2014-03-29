@@ -35,7 +35,7 @@
  */
 
 #ifndef _FS_EXT2FS_EXT2FS_H_
-#define _FS_EXT2FS_EXT2FS_H_
+#define	_FS_EXT2FS_EXT2FS_H_
 
 #include <sys/types.h>
 
@@ -77,7 +77,7 @@ struct ext2fs {
 	uint32_t  e2fs_features_rocompat; /* RO-compatible feature set */
 	uint8_t	  e2fs_uuid[16];	/* 128-bit uuid for volume */
 	char      e2fs_vname[16];	/* volume name */
-	char      e2fs_fsmnt[64]; 	/* name mounted on */
+	char      e2fs_fsmnt[64];	/* name mounted on */
 	uint32_t  e2fs_algo;		/* For compression */
 	uint8_t   e2fs_prealloc;	/* # of blocks for old prealloc */
 	uint8_t   e2fs_dir_prealloc;	/* # of blocks for old prealloc dirs */
@@ -103,10 +103,10 @@ struct ext2fs {
 	uint16_t  e4fs_mmpintv;	/* number of seconds to wait in MMP checking */
 	uint64_t  e4fs_mmpblk;	 /* block for multi-mount protection */
 	uint32_t  e4fs_raid_stripe_wid;/* blocks on all data disks (N * stride) */
-	uint8_t   e4fs_log_gpf;	/* FLEX_BG group size */ 
+	uint8_t   e4fs_log_gpf;	/* FLEX_BG group size */
 	uint8_t   e4fs_char_pad2;
 	uint16_t  e4fs_pad;
-	uint32_t  reserved2[162];	/* Padding to the end of the block */	
+	uint32_t  reserved2[162];	/* Padding to the end of the block */
 };
 
 /*
@@ -114,7 +114,7 @@ struct ext2fs {
  * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in
  * the super block for this name.
  */
-#define MAXMNTLEN 512
+#define	MAXMNTLEN 512
 
 /*
  * In-Memory Superblock
@@ -123,25 +123,25 @@ struct ext2fs {
 struct m_ext2fs {
 	struct ext2fs * e2fs;
 	char     e2fs_fsmnt[MAXMNTLEN];/* name mounted on */
-	char     e2fs_ronly;      /* mounted read-only flag */
-	char     e2fs_fmod;       /* super block modified flag */
-	uint32_t e2fs_bsize;      /* Block size */
-	uint32_t e2fs_bshift;     /* calc of logical block no */
+	char     e2fs_ronly;	  /* mounted read-only flag */
+	char     e2fs_fmod;	  /* super block modified flag */
+	uint32_t e2fs_bsize;	  /* Block size */
+	uint32_t e2fs_bshift;	  /* calc of logical block no */
 	uint32_t e2fs_bpg;	  /* Number of blocks per group */
-	int64_t  e2fs_qbmask;     /* = s_blocksize -1 */
-	uint32_t e2fs_fsbtodb;    /* Shift to get disk block */
+	int64_t  e2fs_qbmask;	  /* = s_blocksize -1 */
+	uint32_t e2fs_fsbtodb;	  /* Shift to get disk block */
 	uint32_t e2fs_ipg;	  /* Number of inodes per group */
 	uint32_t e2fs_ipb;	  /* Number of inodes per block */
-	uint32_t e2fs_itpg;       /* Number of inode table per group */
-	uint32_t e2fs_fsize;      /* Size of fragments per block */
+	uint32_t e2fs_itpg;	  /* Number of inode table per group */
+	uint32_t e2fs_fsize;	  /* Size of fragments per block */
 	uint32_t e2fs_fpb;	  /* Number of fragments per block */
 	uint32_t e2fs_fpg;	  /* Number of fragments per group */
-	uint32_t e2fs_gdbcount;   /* Number of group descriptors */
-	uint32_t e2fs_gcount;     /* Number of groups */
+	uint32_t e2fs_gdbcount;	  /* Number of group descriptors */
+	uint32_t e2fs_gcount;	  /* Number of groups */
 	uint32_t e2fs_isize;	  /* Size of inode */
 	uint32_t e2fs_total_dir;  /* Total number of directories */
 	uint8_t	*e2fs_contigdirs; /* (u) # of contig. allocated dirs */
-	char     e2fs_wasvalid;   /* valid at mount time */
+	char     e2fs_wasvalid;	  /* valid at mount time */
 	off_t    e2fs_maxfilesize;
 	struct   ext2_gd *e2fs_gd; /* Group Descriptors */
 	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
@@ -160,39 +160,39 @@ struct csum {
 /*
  * The second extended file system magic number
  */
-#define E2FS_MAGIC		0xEF53
+#define	E2FS_MAGIC		0xEF53
 
 /*
  * Revision levels
  */
-#define E2FS_REV0		0	/* The good old (original) format */
-#define E2FS_REV1		1 	/* V2 format w/ dynamic inode sizes */
+#define	E2FS_REV0		0	/* The good old (original) format */
+#define	E2FS_REV1		1	/* V2 format w/ dynamic inode sizes */
 
-#define E2FS_REV0_INODE_SIZE 128
+#define	E2FS_REV0_INODE_SIZE 128
 
 /*
  * compatible/incompatible features
  */
-#define EXT2F_COMPAT_PREALLOC		0x0001
-#define EXT2F_COMPAT_HASJOURNAL		0x0004
-#define EXT2F_COMPAT_RESIZE		0x0010
-#define EXT2F_COMPAT_DIRHASHINDEX	0x0020
+#define	EXT2F_COMPAT_PREALLOC		0x0001
+#define	EXT2F_COMPAT_HASJOURNAL		0x0004
+#define	EXT2F_COMPAT_RESIZE		0x0010
+#define	EXT2F_COMPAT_DIRHASHINDEX	0x0020
 
-#define EXT2F_ROCOMPAT_SPARSESUPER	0x0001
-#define EXT2F_ROCOMPAT_LARGEFILE	0x0002
-#define EXT2F_ROCOMPAT_BTREE_DIR	0x0004
-#define EXT2F_ROCOMPAT_HUGE_FILE	0x0008
-#define EXT2F_ROCOMPAT_GDT_CSUM		0x0010
-#define EXT2F_ROCOMPAT_DIR_NLINK	0x0020
-#define EXT2F_ROCOMPAT_EXTRA_ISIZE	0x0040
+#define	EXT2F_ROCOMPAT_SPARSESUPER	0x0001
+#define	EXT2F_ROCOMPAT_LARGEFILE	0x0002
+#define	EXT2F_ROCOMPAT_BTREE_DIR	0x0004
+#define	EXT2F_ROCOMPAT_HUGE_FILE	0x0008
+#define	EXT2F_ROCOMPAT_GDT_CSUM		0x0010
+#define	EXT2F_ROCOMPAT_DIR_NLINK	0x0020
+#define	EXT2F_ROCOMPAT_EXTRA_ISIZE	0x0040
 
-#define EXT2F_INCOMPAT_COMP		0x0001
-#define EXT2F_INCOMPAT_FTYPE		0x0002
-#define EXT2F_INCOMPAT_META_BG		0x0010
-#define EXT2F_INCOMPAT_EXTENTS		0x0040
-#define EXT2F_INCOMPAT_64BIT		0x0080
-#define EXT2F_INCOMPAT_MMP		0x0100
-#define EXT2F_INCOMPAT_FLEX_BG		0x0200
+#define	EXT2F_INCOMPAT_COMP		0x0001
+#define	EXT2F_INCOMPAT_FTYPE		0x0002
+#define	EXT2F_INCOMPAT_META_BG		0x0010
+#define	EXT2F_INCOMPAT_EXTENTS		0x0040
+#define	EXT2F_INCOMPAT_64BIT		0x0080
+#define	EXT2F_INCOMPAT_MMP		0x0100
+#define	EXT2F_INCOMPAT_FLEX_BG		0x0200
 
 /*
  * Features supported in this implementation
@@ -200,33 +200,40 @@ struct csum {
  * We support the following REV1 features:
  * - EXT2F_ROCOMPAT_SPARSESUPER
  * - EXT2F_ROCOMPAT_LARGEFILE
+ * - EXT2F_ROCOMPAT_EXTRA_ISIZE
  * - EXT2F_INCOMPAT_FTYPE
  *
  * We partially (read-only) support the following EXT4 features:
  * - EXT2F_ROCOMPAT_HUGE_FILE
- * - EXT2F_ROCOMPAT_EXTRA_ISIZE
  * - EXT2F_INCOMPAT_EXTENTS
+ *
+ * We do not support these EXT4 features but they are irrelevant
+ * for read-only support:
+ * - EXT2F_INCOMPAT_FLEX_BG
+ * - EXT2F_INCOMPAT_META_BG
  */
-#define EXT2F_COMPAT_SUPP		0x0000
-#define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
+#define	EXT2F_COMPAT_SUPP		EXT2F_COMPAT_DIRHASHINDEX
+#define	EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
 					 EXT2F_ROCOMPAT_LARGEFILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
-#define EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE |	\
-					 EXT2F_INCOMPAT_EXTENTS)
+#define	EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
+#define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
+					 EXT2F_INCOMPAT_FLEX_BG | \
+					 EXT2F_INCOMPAT_META_BG )
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
  * macros from user land. */
-#define EXT2_SB(sb)	(sb)
+#define	EXT2_SB(sb)	(sb)
 
 /*
  * Feature set definitions
  */
-#define EXT2_HAS_COMPAT_FEATURE(sb,mask)			\
+#define	EXT2_HAS_COMPAT_FEATURE(sb,mask)			\
 	( EXT2_SB(sb)->e2fs->e2fs_features_compat & htole32(mask) )
-#define EXT2_HAS_RO_COMPAT_FEATURE(sb,mask)			\
+#define	EXT2_HAS_RO_COMPAT_FEATURE(sb,mask)			\
 	( EXT2_SB(sb)->e2fs->e2fs_features_rocompat & htole32(mask) )
-#define EXT2_HAS_INCOMPAT_FEATURE(sb,mask)			\
+#define	EXT2_HAS_INCOMPAT_FEATURE(sb,mask)			\
 	( EXT2_SB(sb)->e2fs->e2fs_features_incompat & htole32(mask) )
 
 /*
@@ -238,8 +245,8 @@ struct csum {
 /*
  * Filesystem miscellaneous flags
  */
-#define E2FS_SIGNED_HASH	0x0001
-#define E2FS_UNSIGNED_HASH	0x0002
+#define	E2FS_SIGNED_HASH	0x0001
+#define	E2FS_UNSIGNED_HASH	0x0002
 
 /* ext2 file system block group descriptor */
 
@@ -263,30 +270,30 @@ struct ext2_gd {
  * helps reading these metadatas
  */
 
-#define e2fs_cgload(old, new, size) memcpy((new), (old), (size));
-#define e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
+#define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));
+#define	e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
 
 /*
  * Macro-instructions used to manage several block sizes
  */
 #define	EXT2_MAX_BLOCK_SIZE		4096
-#define EXT2_MIN_BLOCK_LOG_SIZE		  10
-#define EXT2_BLOCK_SIZE(s)		((s)->e2fs_bsize)
+#define	EXT2_MIN_BLOCK_LOG_SIZE		  10
+#define	EXT2_BLOCK_SIZE(s)		((s)->e2fs_bsize)
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(uint32_t))
-#define EXT2_INODE_SIZE(s)		(EXT2_SB(s)->e2fs_isize)
+#define	EXT2_INODE_SIZE(s)		(EXT2_SB(s)->e2fs_isize)
 
 /*
  * Macro-instructions used to manage fragments
  */
-#define EXT2_MIN_FRAG_SIZE		1024
+#define	EXT2_MIN_FRAG_SIZE		1024
 #define	EXT2_MAX_FRAG_SIZE		4096
-#define EXT2_MIN_FRAG_LOG_SIZE		  10
-#define EXT2_FRAG_SIZE(s)		(EXT2_SB(s)->e2fs_fsize)
-#define EXT2_FRAGS_PER_BLOCK(s)		(EXT2_SB(s)->e2fs_fpb)
+#define	EXT2_MIN_FRAG_LOG_SIZE		  10
+#define	EXT2_FRAG_SIZE(s)		(EXT2_SB(s)->e2fs_fsize)
+#define	EXT2_FRAGS_PER_BLOCK(s)		(EXT2_SB(s)->e2fs_fpb)
 
 /*
  * Macro-instructions used to manage group descriptors
  */
-#define EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->e2fs_bpg)
+#define	EXT2_BLOCKS_PER_GROUP(s)	(EXT2_SB(s)->e2fs_bpg)
 
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */

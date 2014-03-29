@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
+#include "opt_xtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -82,10 +84,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
-#include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/intr.h>
+#include <machine/kdb.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
@@ -131,6 +133,7 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
     "ITC frequency");
 
 int cold = 1;
+int unmapped_buf_allowed = 0;
 
 struct bootinfo *bootinfo;
 
@@ -175,9 +178,6 @@ struct msgbuf *msgbufp = NULL;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 
 struct kva_md_info kmi;
-
-#define	Mhz	1000000L
-#define	Ghz	(1000L*Mhz)
 
 static void
 identifycpu(void)
@@ -281,8 +281,8 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ld (%ld MB)\n", ptoa(vm_cnt.v_free_count),
+	    ptoa(vm_cnt.v_free_count) / 1048576);
  
 	if (fpswa_iface == NULL)
 		printf("Warning: no FPSWA package supplied\n");
@@ -562,6 +562,21 @@ spinlock_exit(void)
 }
 
 void
+kdb_cpu_trap(int vector, int code __unused)
+{
+
+#ifdef XTRACE
+	ia64_xtrace_stop();
+#endif
+	__asm __volatile("flushrs;;");
+
+	/* Restart after the break instruction. */
+	if (vector == IA64_VEC_BREAK &&
+	    kdb_frame->tf_special.ifa == IA64_FIXED_BREAK)
+		kdb_frame->tf_special.psr += IA64_PSR_RI_1;
+}
+
+void
 map_vhpt(uintptr_t vhpt)
 {
 	pt_entry_t pte;
@@ -732,8 +747,8 @@ ia64_init(void)
 		mdlen = md->md_pages * EFI_PAGE_SIZE;
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
-			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
-			    mdlen);
+			ia64_port_base = pmap_mapdev_priv(md->md_phys,
+			    mdlen, VM_MEMATTR_UNCACHEABLE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
 			ia64_pal_base = md->md_phys;
@@ -878,6 +893,10 @@ ia64_init(void)
 	 * Initialize the virtual memory system.
 	 */
 	pmap_bootstrap();
+
+#ifdef XTRACE
+	ia64_xtrace_init_bsp();
+#endif
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.

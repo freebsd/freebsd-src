@@ -713,6 +713,7 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
             "%s: unknown power mode %u\n", __func__, mode);
         return AH_FALSE;
     }
+    ah->ah_powerMode = status;
     return status;
 }
 

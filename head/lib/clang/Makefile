@@ -79,6 +79,12 @@ SUBDIR=	libclanganalysis \
 	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \
 	libllvmpowerpcinstprinter \
+	libllvmsparcasmparser \
+	libllvmsparccodegen \
+	libllvmsparcdesc \
+	libllvmsparcdisassembler \
+	libllvmsparcinfo \
+	libllvmsparcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
 	libllvmx86desc \
@@ -140,5 +146,7 @@ SUBDIR+=liblldb \
 .endif # !make(install)
 
 SUBDIR+= include
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

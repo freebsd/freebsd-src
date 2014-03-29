@@ -200,7 +200,7 @@ ProcessPOSIX::GetFilePath(
 
 Error
 ProcessPOSIX::DoLaunch (Module *module,
-                       const ProcessLaunchInfo &launch_info)
+                        ProcessLaunchInfo &launch_info)
 {
     Error error;
     assert(m_monitor == NULL);
@@ -259,6 +259,31 @@ ProcessPOSIX::DidLaunch()
 {
 }
 
+Error
+ProcessPOSIX::DoResume()
+{
+    StateType state = GetPrivateState();
+
+    assert(state == eStateStopped);
+
+    SetPrivateState(eStateRunning);
+
+    bool did_resume = false;
+
+    Mutex::Locker lock(m_thread_list.GetMutex());
+
+    uint32_t thread_count = m_thread_list.GetSize(false);
+    for (uint32_t i = 0; i < thread_count; ++i)
+    {
+        POSIXThread *thread = static_cast<POSIXThread*>(
+            m_thread_list.GetThreadAtIndex(i, false).get());
+        did_resume = thread->Resume() || did_resume;
+    }
+    assert(did_resume && "Process resume failed!");
+
+    return Error();
+}
+
 addr_t
 ProcessPOSIX::GetImageInfoAddress()
 {
@@ -310,11 +335,9 @@ ProcessPOSIX::DoDestroy()
 
     if (!HasExited())
     {
-        // Drive the exit event to completion (do not keep the inferior in
-        // limbo).
+        assert (m_monitor);
         m_exit_now = true;
-
-        if ((m_monitor == NULL || kill(m_monitor->GetPID(), SIGKILL)) && error.Success())
+        if (m_monitor->BringProcessIntoLimbo())
         {
             error.SetErrorToErrno();
             return error;
@@ -349,6 +372,107 @@ ProcessPOSIX::DoDidExec()
             target->SetExecutableModule(exe_module_sp, true);
         }
     }
+}
+
+void
+ProcessPOSIX::SendMessage(const ProcessMessage &message)
+{
+    Mutex::Locker lock(m_message_mutex);
+
+    Mutex::Locker thread_lock(m_thread_list.GetMutex());
+
+    POSIXThread *thread = static_cast<POSIXThread*>(
+        m_thread_list.FindThreadByID(message.GetTID(), false).get());
+
+    switch (message.GetKind())
+    {
+    case ProcessMessage::eInvalidMessage:
+        return;
+
+    case ProcessMessage::eAttachMessage:
+        SetPrivateState(eStateStopped);
+        return;
+
+    case ProcessMessage::eLimboMessage:
+        assert(thread);
+        thread->SetState(eStateStopped);
+        if (message.GetTID() == GetID())
+        {
+            m_exit_status = message.GetExitStatus();
+            if (m_exit_now)
+            {
+                SetPrivateState(eStateExited);
+                m_monitor->Detach(GetID());
+            }
+            else
+            {
+                StopAllThreads(message.GetTID());
+                SetPrivateState(eStateStopped);
+            }
+        }
+        else
+        {
+            StopAllThreads(message.GetTID());
+            SetPrivateState(eStateStopped);
+        }
+        break;
+
+    case ProcessMessage::eExitMessage:
+        assert(thread);
+        thread->SetState(eStateExited);
+        // FIXME: I'm not sure we need to do this.
+        if (message.GetTID() == GetID())
+        {
+            m_exit_status = message.GetExitStatus();
+            SetExitStatus(m_exit_status, NULL);
+        }
+        else if (!IsAThreadRunning())
+            SetPrivateState(eStateStopped);
+        break;
+
+    case ProcessMessage::eSignalMessage:
+    case ProcessMessage::eSignalDeliveredMessage:
+        if (message.GetSignal() == SIGSTOP &&
+            AddThreadForInitialStopIfNeeded(message.GetTID()))
+            return;
+        // Intentional fall-through
+
+    case ProcessMessage::eBreakpointMessage:
+    case ProcessMessage::eTraceMessage:
+    case ProcessMessage::eWatchpointMessage:
+    case ProcessMessage::eCrashMessage:
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+
+    case ProcessMessage::eNewThreadMessage:
+    {
+        lldb::tid_t  new_tid = message.GetChildTID();
+        if (WaitingForInitialStop(new_tid))
+        {
+            m_monitor->WaitForInitialTIDStop(new_tid);
+        }
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+    }
+
+    case ProcessMessage::eExecMessage:
+    {
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+    }
+    }
+
+
+    m_message_queue.push(message);
 }
 
 void 
@@ -504,20 +628,6 @@ ProcessPOSIX::DoDeallocateMemory(lldb::addr_t addr)
         error.SetErrorStringWithFormat("unable to deallocate memory at 0x%" PRIx64, addr);
 
     return error;
-}
-
-addr_t
-ProcessPOSIX::ResolveIndirectFunction(const Address *address, Error &error)
-{
-    addr_t function_addr = LLDB_INVALID_ADDRESS;
-    if (address == NULL) {
-        error.SetErrorStringWithFormat("unable to determine direct function call for NULL address");
-    } else if (!InferiorCall(this, address, function_addr)) {
-        function_addr = LLDB_INVALID_ADDRESS;
-        error.SetErrorStringWithFormat("unable to determine direct function call for indirect function %s",
-                                       address->CalculateSymbolContextSymbol()->GetName().AsCString());
-    }
-    return function_addr;
 }
 
 size_t

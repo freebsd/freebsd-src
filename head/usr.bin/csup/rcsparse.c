@@ -26,12 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "misc.h"
-#include "queue.h"
 #include "rcsfile.h"
 #include "rcsparse.h"
 #include "rcstokenizer.h"

@@ -33,7 +33,7 @@
 .Nd "device state change daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl dn
+.Op Fl dnq
 .Op Fl f Ar file
 .Op Fl l Ar num
 .Sh DESCRIPTION
@@ -63,6 +63,8 @@ The default connection limit is 10.
 .It Fl n
 Do not process all pending events before becoming a daemon.
 Instead, call daemon right away.
+.It Fl q
+Quiet mode.  Only log messages at priority LOG_WARNING or above.
 .El
 .Sh IMPLEMENTATION NOTES
 The

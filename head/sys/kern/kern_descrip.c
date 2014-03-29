@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
@@ -1533,9 +1533,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	memcpy(ntable, otable, onfiles * sizeof(*otable));
 	fdp->fd_ofiles = ntable;
 
-	/* Allocate a new map only if the old is not large enough.  It will
+	/*
+	 * Allocate a new map only if the old is not large enough.  It will
 	 * grow at a slower rate than the table as it can map more
-	 * entries than the table can hold. */
+	 * entries than the table can hold.
+	 */
 	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
 		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
 		    M_ZERO | M_WAITOK);
@@ -1568,9 +1570,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
 	}
-	/* The map does not have the same possibility of threads still
+	/*
+	 * The map does not have the same possibility of threads still
 	 * holding references to it.  So always free it as long as it
-	 * does not reference the original static allocation. */
+	 * does not reference the original static allocation.
+	 */
 	if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
 		free(omap, M_FILEDESC);
 }
@@ -1804,7 +1808,7 @@ fdinit(struct filedesc *fdp)
 	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
 	FILEDESC_LOCK_INIT(&newfdp->fd_fd);
 	if (fdp != NULL) {
-		FILEDESC_XLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 		if (newfdp->fd_fd.fd_cdir)
 			VREF(newfdp->fd_fd.fd_cdir);
@@ -1814,7 +1818,7 @@ fdinit(struct filedesc *fdp)
 		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
 		if (newfdp->fd_fd.fd_jdir)
 			VREF(newfdp->fd_fd.fd_jdir);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 
 	/* Create the file descriptor table. */
@@ -2971,7 +2975,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
 #ifdef KINFO_OFILE_SIZE
@@ -3056,7 +3060,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (fdp->fd_jdir != NULL)
 		export_vnode_for_osysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
 				fdp, req);
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
@@ -3227,8 +3231,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
-    sysctl_kern_proc_ofiledesc, "Process ofiledesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
+    CTLFLAG_RD||CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
+    "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
 
 #ifdef KINFO_FILE_SIZE
@@ -3424,7 +3429,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
 		    FREAD, -1, -1, NULL, efbuf);
 	}
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
@@ -3738,8 +3743,9 @@ fill_shm_info(struct file *fp, struct kinfo_file *kif)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
-    sysctl_kern_proc_filedesc, "Process filedesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
+    "Process filedesc entries");
 
 #ifdef DDB
 /*

@@ -1677,7 +1677,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	/*
 	 * We must promote to an exclusive lock for vnode creation.  This
 	 * can happen if lookup is passed LOCKSHARED.
- 	 */
+	 */
 	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
 		flags &= ~LK_TYPE_MASK;
 		flags |= LK_EXCLUSIVE;

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.50 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.51 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -70,7 +70,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 	sig = xmalloc(slen);
 
 	ok = RSA_sign(nid, digest, dlen, sig, &len, key->rsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	if (ok != 1) {
 		int ecode = ERR_get_error();
@@ -84,7 +84,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 		u_int diff = slen - len;
 		debug("slen %u > len %u", slen, len);
 		memmove(sig + diff, sig, len);
-		memset(sig, 0, diff);
+		explicit_bzero(sig, diff);
 	} else if (len > slen) {
 		error("%s: slen %u slen2 %u", __func__, slen, len);
 		free(sig);
@@ -102,7 +102,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 		memcpy(*sigp, buffer_ptr(&b), len);
 	}
 	buffer_free(&b);
-	memset(sig, 's', slen);
+	explicit_bzero(sig, slen);
 	free(sig);
 
 	return 0;
@@ -161,7 +161,7 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 		    modlen, len);
 		sigblob = xrealloc(sigblob, 1, modlen);
 		memmove(sigblob + diff, sigblob, len);
-		memset(sigblob, 0, diff);
+		explicit_bzero(sigblob, diff);
 		len = modlen;
 	}
 	/* hash the data */
@@ -178,8 +178,8 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 
 	ret = openssh_RSA_verify(hash_alg, digest, dlen, sigblob, len,
 	    key->rsa);
-	memset(digest, 'd', sizeof(digest));
-	memset(sigblob, 's', len);
+	explicit_bzero(digest, sizeof(digest));
+	explicit_bzero(sigblob, len);
 	free(sigblob);
 	debug("%s: signature %scorrect", __func__, (ret == 0) ? "in" : "");
 	return ret;

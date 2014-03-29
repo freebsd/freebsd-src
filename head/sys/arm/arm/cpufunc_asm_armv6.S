@@ -148,3 +148,9 @@ ENTRY(armv6_dcache_wbinv_all)
 END(armv6_idcache_wbinv_all)
 END(armv6_dcache_wbinv_all)
 
+ENTRY(armv6_idcache_inv_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c7, 0	/* invalidate all I+D cache */
+	RET
+END(armv6_idcache_inv_all)
+

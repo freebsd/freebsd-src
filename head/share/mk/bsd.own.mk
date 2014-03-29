@@ -271,6 +271,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CXX \
     DICT \
+    DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
@@ -286,6 +287,7 @@ __DEFAULT_YES_OPTIONS = \
     GNU \
     GPIB \
     GPIO \
+    GPL_DTC \
     GROFF \
     HTML \
     ICONV \
@@ -295,7 +297,6 @@ __DEFAULT_YES_OPTIONS = \
     INSTALLLIB \
     IPFILTER \
     IPFW \
-    IPX \
     JAIL \
     KDUMP \
     KERBEROS \
@@ -367,7 +368,6 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CTF \
     DEBUG_FILES \
-    GPL_DTC \
     HESIOD \
     INSTALL_AS_USER \
     LLDB \
@@ -400,7 +400,7 @@ __TT=${MACHINE}
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
-.elif ${__T} == "arm" || ${__T} == "armv6"
+.elif ${__T} == "arm" || ${__T} == "armv6" || ${__T} == "armv6hf"
 __DEFAULT_YES_OPTIONS+=CLANG
 # GCC is unable to build the full clang on arm, disable it by default.
 __DEFAULT_NO_OPTIONS+=CLANG_FULL
@@ -409,7 +409,7 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
-    ${__T} == "i386"
+    ${__T} == "armv6hf" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 # The pc98 bootloader requires gcc to build and so we must leave gcc enabled
 # for pc98 for now.
@@ -418,15 +418,6 @@ __DEFAULT_NO_OPTIONS+=GNUCXX
 __DEFAULT_YES_OPTIONS+=GCC
 .else
 __DEFAULT_NO_OPTIONS+=GCC GNUCXX
-.endif
-# The libc++ headers use c++11 extensions.  These are normally silenced because
-# they are treated as system headers, but we explicitly disable that warning
-# suppression when building the base system to catch bugs in our headers.
-# Eventually we'll want to start building the base system C++ code as C++11,
-# but not yet.
-_COMPVERSION!= ${CC} --version
-.if ${_COMPVERSION:Mclang}
-CXXFLAGS+=	-Wno-c++11-extensions
 .endif
 .else
 # If clang is not cc, then build gcc by default
@@ -520,6 +511,7 @@ MK_GROFF:=	no
 .if ${MK_MAIL} == "no"
 MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
+MK_DMAGENT:=	no
 .endif
 
 .if ${MK_NETGRAPH} == "no"
@@ -579,7 +571,6 @@ MK_TESTS:= no
     GNU \
     INET \
     INET6 \
-    IPX \
     KERBEROS \
     KVM \
     NETGRAPH \

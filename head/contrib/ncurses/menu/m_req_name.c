@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_req_name.c,v 1.20 2008/09/13 18:59:17 tom Exp $")
+MODULE_ID("$Id: m_req_name.c,v 1.22 2012/07/21 23:27:32 tom Exp $")
 
 static const char *request_names[MAX_MENU_COMMAND - MIN_MENU_COMMAND + 1] =
 {
@@ -99,23 +99,26 @@ menu_request_by_name(const char *str)
   /* because the table is so small, it doesn't really hurt
      to run sequentially through it.
    */
-  unsigned int i = 0;
+  size_t i = 0;
   char buf[16];
 
   T((T_CALLED("menu_request_by_name(%s)"), _nc_visbuf(str)));
 
-  if (str)
+  if (str != 0 && (i = strlen(str)) != 0)
     {
-      strncpy(buf, str, sizeof(buf));
-      while ((i < sizeof(buf)) && (buf[i] != '\0'))
+      if (i > sizeof(buf) - 2)
+	i = sizeof(buf) - 2;
+      memcpy(buf, str, i);
+      buf[i] = '\0';
+
+      for (i = 0; buf[i] != '\0'; ++i)
 	{
-	  buf[i] = toupper(UChar(buf[i]));
-	  i++;
+	  buf[i] = (char)toupper(UChar(buf[i]));
 	}
 
       for (i = 0; i < A_SIZE; i++)
 	{
-	  if (strncmp(request_names[i], buf, sizeof(buf)) == 0)
+	  if (strcmp(request_names[i], buf) == 0)
 	    returnCode(MIN_MENU_COMMAND + (int)i);
 	}
     }

@@ -32,6 +32,8 @@
         ..
         devd
         ..
+        dma
+        ..
         gnats
         ..
         gss

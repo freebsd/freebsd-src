@@ -88,6 +88,9 @@ rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
 int runasdaemon = 0;
 int insecure = 0;
 int oldstyle_local = 0;
+#ifdef LIBWRAP
+int libwrap = 0;
+#endif
 int verboselog = 0;
 
 char **hosts = NULL;
@@ -785,7 +788,12 @@ parseargs(int argc, char *argv[])
 #else
 #define	WSOP	""
 #endif
-	while ((c = getopt(argc, argv, "6adh:iLls" WSOP)) != -1) {
+#ifdef LIBWRAP
+#define WRAPOP	"W"
+#else
+#define WRAPOP	""
+#endif
+	while ((c = getopt(argc, argv, "6adh:iLls" WRAPOP WSOP)) != -1) {
 		switch (c) {
 		case '6':
 			ipv6_only = 1;
@@ -818,6 +826,11 @@ parseargs(int argc, char *argv[])
 		case 's':
 			runasdaemon = 1;
 			break;
+#ifdef LIBWRAP
+		case 'W':
+			libwrap = 1;
+			break;
+#endif
 #ifdef WARMSTART
 		case 'w':
 			warmstart = 1;
@@ -825,8 +838,8 @@ parseargs(int argc, char *argv[])
 #endif
 		default:	/* error */
 			fprintf(stderr,
-			    "usage: rpcbind [-6adiLls%s] [-h bindip]\n",
-			    WSOP);
+			    "usage: rpcbind [-6adiLls%s%s] [-h bindip]\n",
+			    WRAPOP, WSOP);
 			exit (1);
 		}
 	}

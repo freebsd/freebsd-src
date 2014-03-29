@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2014
+.Dd February 20, 2014
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -97,6 +97,21 @@ CHAP login.
 .It Fl v
 Verbose mode.
 .El
+.Pp
+Certain parameters are neccessary when adding a session.
+One can specify these either via command line (using the
+.Fl t ,
+.Fl p ,
+.Fl u ,
+and
+.Fl s
+options), or configuration file (using the
+.Fl a
+or
+.Fl n
+options).
+Some functionality - for example mutual CHAP - is available only
+via configuration file.
 .Pp
 Since connecting to the target is performed in background, non-zero
 exit status does not mean that the session was successfully established.
