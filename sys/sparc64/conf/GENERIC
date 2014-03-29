@@ -21,7 +21,7 @@
 cpu		SUN4U
 ident		GENERIC
 
-makeoptions	DEBUG=-gdwarf-2		# Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g
 
 # Platforms supported
 #	At this time all platforms are supported, as-is.

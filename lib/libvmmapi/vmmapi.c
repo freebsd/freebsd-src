@@ -342,6 +342,13 @@ vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 	return (error);
 }
 
+int
+vm_suspend(struct vmctx *ctx)
+{
+
+	return (ioctl(ctx->fd, VM_SUSPEND, 0));
+}
+
 static int
 vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
     int error_code, int error_code_valid)

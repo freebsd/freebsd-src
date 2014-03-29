@@ -36,11 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vatpic.h"
+#include "vatpit.h"
 #include "vmm_ioport.h"
 
 #define	MAX_IOPORTS		1280
 
 ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
+	[TIMER_MODE] = vatpit_handler,
+	[TIMER_CNTR0] = vatpit_handler,
+	[TIMER_CNTR1] = vatpit_handler,
+	[TIMER_CNTR2] = vatpit_handler,
 	[IO_ICU1] = vatpic_master_handler,
 	[IO_ICU1 + ICU_IMR_OFFSET] = vatpic_master_handler,
 	[IO_ICU2] = vatpic_slave_handler,

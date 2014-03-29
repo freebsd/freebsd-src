@@ -29,4 +29,6 @@ SUBDIR+=lldb
 .endif
 .endif # TOOLS_PREFIX
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

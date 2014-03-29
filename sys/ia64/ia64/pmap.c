@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_pmap.h"
 
 #include <sys/param.h>
+#include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/bootinfo.h>
-#include <machine/efi.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
 
