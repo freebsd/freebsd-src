@@ -38,6 +38,19 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef PC98_MAGIC
+#define	PC98_MAGIC		0xaa55
+#endif
+#ifndef PC98_MAGICOFS
+#define	PC98_MAGICOFS		510
+#endif
+#ifndef PC98_NPARTS
+#define	PC98_NPARTS		16
+#endif
+#ifndef PC98_PTYP_386BSD
+#define	PC98_PTYP_386BSD	0xc494
+#endif
+
 #define	PC98_BOOTCODESZ		8192
 
 static struct mkimg_alias pc98_aliases[] = {
