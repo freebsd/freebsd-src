@@ -39,6 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef VTOC_TAG_FREEBSD_NANDFS
+#define	VTOC_TAG_FREEBSD_NANDFS	0x0905
+#endif
+
 static struct mkimg_alias vtoc8_aliases[] = {
     {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_NANDFS) },
     {	ALIAS_FREEBSD_SWAP, ALIAS_INT2TYPE(VTOC_TAG_FREEBSD_SWAP) },

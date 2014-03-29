@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef APM_ENT_TYPE_FREEBSD_NANDFS
+#define	APM_ENT_TYPE_FREEBSD_NANDFS	"FreeBSD-nandfs"
+#endif
+
 static struct mkimg_alias apm_aliases[] = {
     {	ALIAS_FREEBSD, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD) },
     {	ALIAS_FREEBSD_NANDFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_NANDFS) },
