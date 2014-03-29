@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef DOSPTYP_FAT32
+#define	DOSPTYP_FAT32	0x0b
+#endif
+
 static struct mkimg_alias ebr_aliases[] = {
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
