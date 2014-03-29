@@ -94,7 +94,7 @@ mbr_write(int fd, lba_t imgsz __unused, void *bootcode)
 	}
 	error = mkimg_seek(fd, 0);
 	if (error == 0) {
-		if (write(fd, mbr, secsz) != secsz)
+		if (write(fd, mbr, secsz) != (ssize_t)secsz)
 			error = errno;
 	}
 	free(mbr);

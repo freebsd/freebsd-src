@@ -102,7 +102,7 @@ ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
 
 		error = mkimg_seek(fd, block);
 		if (error == 0) {
-			if (write(fd, ebr, secsz) != secsz)
+			if (write(fd, ebr, secsz) != (ssize_t)secsz)
 				error = errno;
 		}
 		if (error)
