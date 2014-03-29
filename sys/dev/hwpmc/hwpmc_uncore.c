@@ -1212,7 +1212,7 @@ pmc_uncore_initialize(struct pmc_mdep *md, int maxcpu)
 	PMCDBG(MDP,INI,1,"uncore-init pmcmask=0x%jx ucfri=%d", uncore_pmcmask,
 	    uncore_ucf_ri);
 
-	uncore_pcpu = malloc(sizeof(struct uncore_cpu **) * maxcpu, M_PMC,
+	uncore_pcpu = malloc(sizeof(*uncore_pcpu) * maxcpu, M_PMC,
 	    M_ZERO | M_WAITOK);
 
 	return (0);

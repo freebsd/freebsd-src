@@ -2,18 +2,18 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/sys ${LIBC_SRCTOP}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.include "${.CURDIR}/../../sys/sys/syscall.mk"
+.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
+.sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
 NOASM+=  clock_gettime.o gettimeofday.o
@@ -55,7 +55,7 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
-SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}

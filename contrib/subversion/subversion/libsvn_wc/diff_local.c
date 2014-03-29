@@ -116,13 +116,20 @@ ensure_state(struct diff_baton *eb,
   apr_pool_t *ns_pool;
   if (!eb->cur)
     {
-      if (!svn_dirent_is_ancestor(eb->anchor_abspath, local_abspath))
+      const char *relpath;
+
+      relpath = svn_dirent_skip_ancestor(eb->anchor_abspath, local_abspath);
+      if (! relpath)
         return SVN_NO_ERROR;
 
-      SVN_ERR(ensure_state(eb,
-                           svn_dirent_dirname(local_abspath,scratch_pool),
-                           FALSE,
-                           scratch_pool));
+      /* Don't recurse on the anchor, as that might loop infinately because
+            svn_dirent_dirname("/",...)   -> "/"
+            svn_dirent_dirname("C:/",...) -> "C:/" (Windows) */
+      if (*relpath)
+        SVN_ERR(ensure_state(eb,
+                             svn_dirent_dirname(local_abspath,scratch_pool),
+                             FALSE,
+                             scratch_pool));
     }
   else if (svn_dirent_is_child(eb->cur->local_abspath, local_abspath, NULL))
     SVN_ERR(ensure_state(eb, svn_dirent_dirname(local_abspath,scratch_pool),

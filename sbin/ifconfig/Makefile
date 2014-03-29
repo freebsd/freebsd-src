@@ -21,7 +21,6 @@ SRCS+=	af_inet.c		# IPv4 support
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_inet6.c		# IPv6 support
 .endif
-SRCS+=	af_atalk.c		# AppleTalk support
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	af_nd6.c		# ND6 support
 .endif
@@ -53,11 +52,6 @@ CFLAGS+= -DINET6
 .if ${MK_INET_SUPPORT} != "no"
 CFLAGS+= -DINET
 .endif
-.if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
-SRCS+=	af_ipx.c		# IPX support
-DPADD+=	${LIBIPX}
-LDADD+=	-lipx
-.endif
 .if ${MK_JAIL} != "no" && !defined(RELEASE_CRUNCH) && !defined(RESCUE)
 CFLAGS+= -DJAIL
 DPADD+= ${LIBJAIL}
@@ -68,5 +62,9 @@ MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
 WARNS?=	2
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=    tests
+.endif
 
 .include <bsd.prog.mk>

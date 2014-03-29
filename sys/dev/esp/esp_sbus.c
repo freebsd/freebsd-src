@@ -165,7 +165,7 @@ static int	espattach(struct esp_softc *esc,
 		    const struct ncr53c9x_glue *gluep);
 static int	espdetach(struct esp_softc *esc);
 
-static const struct ncr53c9x_glue const esp_sbus_glue = {
+static const struct ncr53c9x_glue esp_sbus_glue = {
 	esp_read_reg,
 	esp_write_reg,
 	esp_dma_isintr,

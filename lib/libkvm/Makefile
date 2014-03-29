@@ -3,7 +3,7 @@
 
 .if defined(TARGET_ARCH) && !defined(COMPAT_32BIT)
 KVM_XARCH=${TARGET_ARCH}
-KVM_XCPUARCH=${KVM_XARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+KVM_XCPUARCH=${KVM_XARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .else
 KVM_XARCH=${MACHINE_ARCH}
 KVM_XCPUARCH=${MACHINE_CPUARCH}

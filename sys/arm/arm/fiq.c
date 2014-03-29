@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 TAILQ_HEAD(, fiqhandler) fiqhandler_stack =
     TAILQ_HEAD_INITIALIZER(fiqhandler_stack);
 
-extern char fiqvector[];
-extern char fiq_nullhandler[], fiq_nullhandler_end[];
+extern char *fiq_nullhandler_code;
+extern uint32_t fiq_nullhandler_size;
 
 #define	IRQ_BIT		I32_bit
 #define	FIQ_BIT		F32_bit
@@ -61,6 +61,9 @@ extern char fiq_nullhandler[], fiq_nullhandler_end[];
  * fiq_installhandler:
  *
  *	Actually install the FIQ handler down at the FIQ vector.
+ *	
+ *	The FIQ vector is fixed by the hardware definition as the
+ *	seventh 32-bit word in the vector page.
  *
  *	Note: If the FIQ is invoked via an extra layer of
  *	indirection, the actual FIQ code store lives in the
@@ -70,11 +73,13 @@ extern char fiq_nullhandler[], fiq_nullhandler_end[];
 static void
 fiq_installhandler(void *func, size_t size)
 {
+	const uint32_t fiqvector = 7 * sizeof(uint32_t);
+
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ|VM_PROT_WRITE);
 #endif
 
-	memcpy(vector_page + fiqvector, func, size);
+	memcpy((void *)(vector_page + fiqvector), func, size);
 
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
@@ -159,8 +164,7 @@ fiq_release(struct fiqhandler *fh)
 
 	if (TAILQ_FIRST(&fiqhandler_stack) == NULL) {
 		/* Copy the NULL handler back down into the vector. */
-		fiq_installhandler(fiq_nullhandler,
-		    (size_t)(fiq_nullhandler_end - fiq_nullhandler));
+		fiq_installhandler(fiq_nullhandler_code, fiq_nullhandler_size);
 
 		/* Make sure FIQs are disabled when we return. */
 		oldirqstate |= FIQ_BIT;

@@ -489,10 +489,10 @@ static const resolver_option_t text_conflict_options[] =
 /* Resolver options for a property conflict */
 static const resolver_option_t prop_conflict_options[] =
 {
-  { "mf", N_("my version"),       N_("accept my version of entire file (even "
+  { "mf", N_("my version"),       N_("accept my version of entire property (even "
                                      "non-conflicts)  [mine-full]"),
                                   svn_wc_conflict_choose_mine_full },
-  { "tf", N_("their version"),    N_("accept their version of entire file "
+  { "tf", N_("their version"),    N_("accept their version of entire property "
                                      "(same)  [theirs-full]"),
                                   svn_wc_conflict_choose_theirs_full },
   { "dc", N_("display conflict"), N_("show conflicts in this property"), -1 },

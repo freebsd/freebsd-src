@@ -227,10 +227,12 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		else if (arg->ch == 'm') {
 			int	k = 0;
 
-			while (grp->gr_mem[k] != NULL) {
-				if (extendarray(&members, &grmembers, i + 2) != -1)
-					members[i++] = grp->gr_mem[k];
-				k++;
+			if (grp->gr_mem != NULL) {
+				while (grp->gr_mem[k] != NULL) {
+					if (extendarray(&members, &grmembers, i + 2) != -1)
+						members[i++] = grp->gr_mem[k];
+					k++;
+				}
 			}
 		}
 
@@ -310,6 +312,9 @@ delete_members(char ***members, int *grmembers, int *i, struct carg *arg,
 	char *valuePtr;
 	int k;
 	struct passwd *pwd;
+
+	if (grp->gr_mem == NULL)
+		return;
 
 	k = 0;
 	while (grp->gr_mem[k] != NULL) {
@@ -415,8 +420,10 @@ print_group(struct group * grp, int pretty)
 		printf("Group Name: %-15s   #%lu\n"
 		       "   Members: ",
 		       grp->gr_name, (long) grp->gr_gid);
-		for (i = 0; grp->gr_mem[i]; i++)
-			printf("%s%s", i ? "," : "", grp->gr_mem[i]);
+		if (grp->gr_mem != NULL) {
+			for (i = 0; grp->gr_mem[i]; i++)
+				printf("%s%s", i ? "," : "", grp->gr_mem[i]);
+		}
 		fputs("\n\n", stdout);
 	}
 	return EXIT_SUCCESS;

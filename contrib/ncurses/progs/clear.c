@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #define USE_LIBTINFO
 #include <progs.priv.h>
 
-MODULE_ID("$Id: clear.c,v 1.11 2007/10/13 22:16:02 tom Exp $")
+MODULE_ID("$Id: clear.c,v 1.13 2013/06/22 22:20:54 tom Exp $")
 
 static int
 putch(int c)
@@ -52,7 +52,15 @@ main(
 	int argc GCC_UNUSED,
 	char *argv[]GCC_UNUSED)
 {
+    char *E3;
+
     setupterm((char *) 0, STDOUT_FILENO, (int *) 0);
+
+    /* Clear the scrollback buffer if possible. */
+    E3 = tigetstr("E3");
+    if (E3)
+	(void) tputs(E3, lines > 0 ? lines : 1, putch);
+
     ExitProgram((tputs(clear_screen, lines > 0 ? lines : 1, putch) == ERR)
 		? EXIT_FAILURE
 		: EXIT_SUCCESS);

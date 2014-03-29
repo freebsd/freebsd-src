@@ -84,6 +84,7 @@ MAN=	\
 	form_post.3 \
 	form_requestname.3 \
 	form_userptr.3 \
+	form_variables.3 \
 	form_win.3
 
 CLEANFILES+=	${MAN:M*.3}

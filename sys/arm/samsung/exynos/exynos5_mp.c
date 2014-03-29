@@ -39,9 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #define	EXYNOS_SYSRAM			0x02020000
 
-void mpentry(void);
-void mptramp(void);
-
 void
 platform_mp_init_secondary(void)
 {

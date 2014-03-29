@@ -183,7 +183,6 @@ undefinedinstruction(struct trapframe *frame)
 	if (!(frame->tf_spsr & I32_bit))
 		enable_interrupts(I32_bit|F32_bit);
 
-	frame->tf_pc -= INSN_SIZE;
 	PCPU_INC(cnt.v_trap);
 
 	fault_pc = frame->tf_pc;

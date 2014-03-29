@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2012
+.Dd Feburary 28, 2014
 .Dt SSH-COPY-ID 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd copy public keys to a remote host
 .Sh SYNOPSIS
 .Nm
-.Op Fl l
+.Op Fl lv
 .Op Fl i Ar keyfile
 .Op Fl o Ar option
 .Op Fl p Ar port
@@ -48,12 +48,14 @@ file (creating the file and directory, if required).
 The following options are available:
 .Bl -tag -width indent
 .It Fl i Ar file
-Copy the key contained in
+Copy the public key contained in
 .Ar file .
 This option can be specified multiple times and can be combined with
 the
 .Fl l
 option.
+If a private key is specified and a public key is found then the public key
+will be used.
 .It Fl l
 Copy the keys currently held by
 .Xr ssh-agent 1 .
@@ -67,6 +69,9 @@ This option can be specified multiple times.
 .It Fl p Ar port
 Connect to the specified port on the remote host instead of the
 default.
+.It Fl v
+Pass -v to
+.Xr ssh 1 .
 .El
 .Pp
 The remaining arguments are a list of remote hosts to connect to,

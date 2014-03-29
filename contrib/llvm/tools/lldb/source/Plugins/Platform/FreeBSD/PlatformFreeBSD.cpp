@@ -142,7 +142,8 @@ PlatformFreeBSD::Terminate ()
 /// Default Constructor
 //------------------------------------------------------------------
 PlatformFreeBSD::PlatformFreeBSD (bool is_host) :
-Platform(is_host)
+Platform(is_host),
+m_remote_platform_sp()
 {
 }
 
@@ -312,6 +313,7 @@ PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite
 
     case ArchSpec::eCore_x86_32_i386:
     case ArchSpec::eCore_x86_64_x86_64:
+    case ArchSpec::eCore_x86_64_x86_64h:
         {
             static const uint8_t g_i386_opcode[] = { 0xCC };
             trap_opcode = g_i386_opcode;
@@ -571,14 +573,14 @@ PlatformFreeBSD::GetGroupName (uint32_t gid)
 
 // From PlatformMacOSX only
 Error
-PlatformFreeBSD::GetFile (const FileSpec &platform_file,
-                          const UUID *uuid_ptr,
-                          FileSpec &local_file)
+PlatformFreeBSD::GetFileWithUUID (const FileSpec &platform_file,
+                                  const UUID *uuid_ptr,
+                                  FileSpec &local_file)
 {
     if (IsRemote())
     {
         if (m_remote_platform_sp)
-            return m_remote_platform_sp->GetFile (platform_file, uuid_ptr, local_file);
+            return m_remote_platform_sp->GetFileWithUUID (platform_file, uuid_ptr, local_file);
     }
 
     // Default to the local case
@@ -672,4 +674,10 @@ PlatformFreeBSD::GetStatus (Stream &strm)
 #endif
 
     Platform::GetStatus(strm);
+}
+
+void
+PlatformFreeBSD::CalculateTrapHandlerSymbolNames ()
+{
+    m_trap_handlers.push_back (ConstString ("_sigtramp"));
 }

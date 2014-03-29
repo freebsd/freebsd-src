@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -266,39 +266,75 @@ nvme_detach (device_t dev)
 }
 
 static void
-nvme_notify_consumer(struct nvme_consumer *cons)
+nvme_notify(struct nvme_consumer *cons,
+	    struct nvme_controller *ctrlr)
+{
+	struct nvme_namespace	*ns;
+	void			*ctrlr_cookie;
+	int			cmpset, ns_idx;
+
+	/*
+	 * The consumer may register itself after the nvme devices
+	 *  have registered with the kernel, but before the
+	 *  driver has completed initialization.  In that case,
+	 *  return here, and when initialization completes, the
+	 *  controller will make sure the consumer gets notified.
+	 */
+	if (!ctrlr->is_initialized)
+		return;
+
+	cmpset = atomic_cmpset_32(&ctrlr->notification_sent, 0, 1);
+
+	if (cmpset == 0)
+		return;
+
+	if (cons->ctrlr_fn != NULL)
+		ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
+	else
+		ctrlr_cookie = NULL;
+	ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+	if (ctrlr->is_failed) {
+		if (cons->fail_fn != NULL)
+			(*cons->fail_fn)(ctrlr_cookie);
+		/*
+		 * Do not notify consumers about the namespaces of a
+		 *  failed controller.
+		 */
+		return;
+	}
+	for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+		ns = &ctrlr->ns[ns_idx];
+		if (cons->ns_fn != NULL)
+			ns->cons_cookie[cons->id] =
+			    (*cons->ns_fn)(ns, ctrlr_cookie);
+	}
+}
+
+void
+nvme_notify_new_controller(struct nvme_controller *ctrlr)
+{
+	int i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		if (nvme_consumer[i].id != INVALID_CONSUMER_ID) {
+			nvme_notify(&nvme_consumer[i], ctrlr);
+		}
+	}
+}
+
+static void
+nvme_notify_new_consumer(struct nvme_consumer *cons)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	struct nvme_namespace	*ns;
-	void			*ctrlr_cookie;
-	int			dev_idx, ns_idx, devcount;
+	int			dev_idx, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
 	for (dev_idx = 0; dev_idx < devcount; dev_idx++) {
 		ctrlr = DEVICE2SOFTC(devlist[dev_idx]);
-		if (cons->ctrlr_fn != NULL)
-			ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
-		else
-			ctrlr_cookie = NULL;
-		ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
-		if (ctrlr->is_failed) {
-			if (cons->fail_fn != NULL)
-				(*cons->fail_fn)(ctrlr_cookie);
-			/*
-			 * Do not notify consumers about the namespaces of a
-			 *  failed controller.
-			 */
-			continue;
-		}
-		for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
-			ns = &ctrlr->ns[ns_idx];
-			if (cons->ns_fn != NULL)
-				ns->cons_cookie[cons->id] =
-				    (*cons->ns_fn)(ns, ctrlr_cookie);
-		}
+		nvme_notify(cons, ctrlr);
 	}
 
 	free(devlist, M_TEMP);
@@ -353,7 +389,7 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 			nvme_consumer[i].async_fn = async_fn;
 			nvme_consumer[i].fail_fn = fail_fn;
 
-			nvme_notify_consumer(&nvme_consumer[i]);
+			nvme_notify_new_consumer(&nvme_consumer[i]);
 			return (&nvme_consumer[i]);
 		}
 

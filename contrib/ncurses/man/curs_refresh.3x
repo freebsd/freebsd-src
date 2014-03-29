@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2001,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_refresh.3x,v 1.12 2005/05/15 16:18:49 tom Exp $
+.\" $Id: curs_refresh.3x,v 1.15 2010/12/04 18:38:55 tom Exp $
 .TH curs_refresh 3X ""
 .na
 .hy 0
@@ -36,7 +36,7 @@
 \fBrefresh\fR,
 \fBwnoutrefresh\fR,
 \fBwredrawln\fR,
-\fBwrefresh\fR - refresh \fBcurses\fR windows and lines
+\fBwrefresh\fR \- refresh \fBcurses\fR windows and lines
 .ad
 .hy
 .SH SYNOPSIS
@@ -135,10 +135,6 @@ implementations.
 Instead, you can do an explicit \fBtouchwin()\fR before the
 \fBwnoutrefresh()\fR call to guarantee an entire-contents copy anywhere.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_outopts\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_outopts\fR(3X)
+\fBcurs_variables\fR(3X).

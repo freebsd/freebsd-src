@@ -32,9 +32,7 @@ SRCS=	Address.cpp \
 	FileLineResolver.cpp \
 	FileSpecList.cpp \
 	History.cpp \
-	InputReader.cpp \
-	InputReaderEZ.cpp \
-	InputReaderStack.cpp \
+	IOHandler.cpp \
 	Language.cpp \
 	Listener.cpp \
 	Log.cpp \

@@ -25,6 +25,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_xtrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -301,11 +302,15 @@ void
 ia64_handle_intr(struct trapframe *tf)
 {
 	struct thread *td;
-	struct trapframe *stf;
 	u_int xiv;
 
 	td = curthread;
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+#ifdef XTRACE
+	ia64_xtrace_save();
+#endif
+
 	PCPU_INC(cnt.v_intr);
 
 	xiv = ia64_get_ivr();
@@ -316,12 +321,9 @@ ia64_handle_intr(struct trapframe *tf)
 	}
 
 	critical_enter();
-	stf = td->td_intr_frame;
-	td->td_intr_frame = tf;
-
 	do {
-		CTR2(KTR_INTR, "INTR: ITC=%u, XIV=%u",
-		    (u_int)tf->tf_special.ifa, xiv);
+		CTR3(KTR_INTR, "INTR: XIV=%u, #%u: frame=%p", xiv,
+		    PCPU_GET(cnt.v_intr), tf);
 		if (!(ia64_handler[xiv])(td, xiv, tf)) {
 			ia64_set_eoi(0);
 			ia64_srlz_d();
@@ -329,8 +331,6 @@ ia64_handle_intr(struct trapframe *tf)
 		xiv = ia64_get_ivr();
 		ia64_srlz_d();
 	} while (xiv != 15);
-
-	td->td_intr_frame = stf;
 	critical_exit();
 
  out:

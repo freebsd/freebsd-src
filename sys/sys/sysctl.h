@@ -481,7 +481,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	CTL_MACHDEP	7		/* machine dependent */
 #define	CTL_USER	8		/* user-level */
 #define	CTL_P1003_1B	9		/* POSIX 1003.1B */
-#define	CTL_MAXID	10		/* number of valid top-level ids */
 
 /*
  * CTL_KERN identifiers
@@ -523,7 +522,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_IOV_MAX		35	/* int: value of UIO_MAXIOV */
 #define	KERN_HOSTUUID		36	/* string: host UUID identifier */
 #define	KERN_ARND		37	/* int: from arc4rand() */
-#define	KERN_MAXID		38	/* number of valid kern ids */
 /*
  * KERN_PROC subtypes
  */
@@ -585,7 +583,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	HW_FLOATINGPT	10		/* int: has HW floating point? */
 #define	HW_MACHINE_ARCH	11		/* string: machine architecture */
 #define	HW_REALMEM	12		/* int: 'real' memory */
-#define	HW_MAXID	13		/* number of valid hw ids */
 
 /*
  * CTL_USER definitions
@@ -610,7 +607,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	USER_POSIX2_UPE		18	/* int: POSIX2_UPE */
 #define	USER_STREAM_MAX		19	/* int: POSIX2_STREAM_MAX */
 #define	USER_TZNAME_MAX		20	/* int: POSIX2_TZNAME_MAX */
-#define	USER_MAXID		21	/* number of valid user ids */
 
 #define	CTL_P1003_1B_ASYNCHRONOUS_IO		1	/* boolean */
 #define	CTL_P1003_1B_MAPPED_FILES		2	/* boolean */

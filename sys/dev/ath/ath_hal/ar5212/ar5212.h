@@ -270,7 +270,6 @@ struct ath_hal_5212 {
 	uint32_t	ah_intrTxqs;		/* tx q interrupt state */
 						/* decomp mask array */
 	uint8_t		ah_decompMask[HAL_DECOMP_MASK_SIZE];
-	HAL_POWER_MODE	ah_powerMode;
 	HAL_ANT_SETTING ah_antControl;		/* antenna setting */
 	HAL_BOOL	ah_diversity;		/* fast diversity setting */
 	enum {

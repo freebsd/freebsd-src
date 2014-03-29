@@ -347,7 +347,7 @@ out:
 		return ERR_PTR(-ENOMEM);
 	}
         PROC_UNLOCK(proc);
-	if (npages + cnt.v_wire_count > vm_page_max_wired) {
+	if (npages + vm_cnt.v_wire_count > vm_page_max_wired) {
 		kfree(umem);
 		return ERR_PTR(-EAGAIN);
 	}

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sha.h>
 #include <sha256.h>
 #include <sha512.h>
+#include <spawn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +102,8 @@ static enum {
 	DIGEST_SHA256,
 	DIGEST_SHA512,
 } digesttype = DIGEST_NONE;
+
+extern char **environ;
 
 static gid_t gid;
 static uid_t uid;
@@ -1215,27 +1218,33 @@ static void
 strip(const char *to_name)
 {
 	const char *stripbin;
-	int serrno, status;
+	const char *args[3];
+	pid_t pid;
+	int error, status;
 
-	switch (fork()) {
-	case -1:
-		serrno = errno;
+	stripbin = getenv("STRIPBIN");
+	if (stripbin == NULL)
+		stripbin = "strip";
+	args[0] = stripbin;
+	args[1] = to_name;
+	args[2] = NULL;
+	error = posix_spawnp(&pid, stripbin, NULL, NULL,
+	    __DECONST(char **, args), environ);
+	if (error != 0) {
 		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_TEMPFAIL, "fork");
-	case 0:
-		stripbin = getenv("STRIPBIN");
-		if (stripbin == NULL)
-			stripbin = "strip";
-		execlp(stripbin, stripbin, to_name, (char *)NULL);
-		err(EX_OSERR, "exec(%s)", stripbin);
-	default:
-		if (wait(&status) == -1 || status) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errc(EX_SOFTWARE, serrno, "wait");
-			/* NOTREACHED */
-		}
+		errc(error == EAGAIN || error == EPROCLIM || error == ENOMEM ?
+		    EX_TEMPFAIL : EX_OSERR, error, "spawn %s", stripbin);
+	}
+	if (waitpid(pid, &status, 0) == -1) {
+		error = errno;
+		(void)unlink(to_name);
+		errc(EX_SOFTWARE, error, "wait");
+		/* NOTREACHED */
+	}
+	if (status != 0) {
+		(void)unlink(to_name);
+		errx(EX_SOFTWARE, "strip command %s failed on %s",
+		    stripbin, to_name);
 	}
 }
 

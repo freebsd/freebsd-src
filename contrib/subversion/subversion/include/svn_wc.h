@@ -2109,9 +2109,8 @@ typedef struct svn_wc_conflict_result_t
  * Allocate an #svn_wc_conflict_result_t structure in @a pool,
  * initialize and return it.
  *
- * Set the @c choice field of the structure to @a choice, and @c
- * merged_file to @a merged_file.  Set all other fields to their @c
- * _unknown, @c NULL or invalid value, respectively. Make only a shallow
+ * Set the @c choice field of the structure to @a choice, @c merged_file
+ * to @a merged_file, and @c save_merged to false.  Make only a shallow
  * copy of the pointer argument @a merged_file.
  *
  * @since New in 1.5.
@@ -4078,6 +4077,9 @@ typedef void (*svn_wc_status_func_t)(void *baton,
  * @a ignore_patterns is an array of file patterns matching
  * unversioned files to ignore for the purposes of status reporting,
  * or @c NULL if the default set of ignorable file patterns should be used.
+ * Patterns from #SVN_PROP_IGNORE (and, as of 1.8,
+ * #SVN_PROP_INHERITABLE_IGNORES) properties are always used, even if not
+ * specified in @a ignore_patterns.
  *
  * If @a cancel_func is non-NULL, call it with @a cancel_baton while walking
  * to determine if the client has canceled the operation.

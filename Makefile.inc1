@@ -132,14 +132,14 @@ OSRELDATE=	0
 .endif
 
 .if !defined(VERSION)
-REVISION!=	make -C ${SRCDIR}/release -V REVISION
-BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
+REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6hf/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -230,6 +230,9 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
+.endif
+.if defined(TARGET_CFLAGS)
+CROSSENV+=	${TARGET_CFLAGS}
 .endif
 
 # bootstrap-tools stage
@@ -348,6 +351,8 @@ XFLAGS+=	-B${WORLDTMP}/usr/bin
 .if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
 ${MK_ARM_EABI} != "no"
 TARGET_ABI=	gnueabi
+.elif ${TARGET_ARCH} == "armv6hf"
+TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	unknown
 .endif
@@ -1012,7 +1017,7 @@ buildkernel:
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
-			${KERNCONFDIR}/${_kernel}
+			-I ${KERNCONFDIR} ${KERNCONFDIR}/${_kernel}
 .endif
 .if !defined(NO_CLEAN) && !defined(NO_KERNELCLEAN)
 	@echo
@@ -1262,7 +1267,7 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
-# Default to building the BSDL DTC, but build the GPL one if users explicitly
+# Default to building the GPL DTC, but build the BSDL one if users explicitly
 # request it.
 _dtc= usr.bin/dtc
 .if ${MK_GPL_DTC} != "no"
@@ -1486,7 +1491,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_lib_atf} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
-		${_lib_libgssapi} ${_lib_libipx} \
+		${_lib_libgssapi} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1586,10 +1591,6 @@ kerberos5/lib/libheimsqlite__L: lib/libthr__L
 
 .if ${MK_GSSAPI} != "no"
 _lib_libgssapi=	lib/libgssapi
-.endif
-
-.if ${MK_IPX} != "no"
-_lib_libipx=	lib/libipx
 .endif
 
 .if ${MK_KERBEROS} != "no"
@@ -1853,7 +1854,7 @@ builddtb:
 		echo "ERROR: FDT_DTS_FILE must be specified!"; \
 		exit 1; \
 	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE} ]; then \
 		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
 			exist!"; \
 		exit 1;	\
@@ -1863,9 +1864,9 @@ builddtb:
 			directory"; \
 	fi
 	@PATH=${TMPPATH} \
-	dtc -O dtb -o \
-	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
-	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}
+	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
+	    ${FDT_DTS_FILE} \
+	    ${DTBOUTPUTPATH}/`basename ${FDT_DTS_FILE} .dts`
 
 ###############
 
@@ -1898,7 +1899,7 @@ CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
-XDDESTDIR=${DESTDIR}/${XDTP}
+XDDESTDIR?=${DESTDIR}/${XDTP}
 .if !defined(OSREL)
 OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif

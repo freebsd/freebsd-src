@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
@@ -99,29 +100,36 @@ static uma_zone_t iscsi_outstanding_zone;
 #define	CONN_SESSION(X)	((struct iscsi_session *)X->ic_prv0)
 #define	PDU_SESSION(X)	(CONN_SESSION(X->ip_conn))
 
-#define	ISCSI_DEBUG(X, ...)					\
-	if (debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	ISCSI_DEBUG(X, ...)						\
+	do {								\
+		if (debug > 1) 						\
+			printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
 	} while (0)
 
-#define	ISCSI_WARN(X, ...)					\
-	if (debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	ISCSI_WARN(X, ...)						\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+			    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
-#define	ISCSI_SESSION_DEBUG(S, X, ...)				\
-	if (debug > 1) {					\
-		printf("%s: %s (%s): " X "\n",			\
-		    __func__, S->is_conf.isc_target_addr,	\
-		    S->is_conf.isc_target, ## __VA_ARGS__);	\
+#define	ISCSI_SESSION_DEBUG(S, X, ...)					\
+	do {								\
+		if (debug > 1) {					\
+			printf("%s: %s (%s): " X "\n",			\
+			    __func__, S->is_conf.isc_target_addr,	\
+			    S->is_conf.isc_target, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
-#define	ISCSI_SESSION_WARN(S, X, ...)				\
-	if (debug > 0) {					\
-		printf("WARNING: %s (%s): " X "\n",		\
-		    S->is_conf.isc_target_addr,			\
-		    S->is_conf.isc_target, ## __VA_ARGS__);	\
+#define	ISCSI_SESSION_WARN(S, X, ...)					\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s (%s): " X "\n",		\
+			    S->is_conf.isc_target_addr,			\
+			    S->is_conf.isc_target, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
 #define ISCSI_SESSION_LOCK(X)		mtx_lock(&X->is_lock)
@@ -1280,8 +1288,8 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		is->is_conn->ic_data_crc32c = false;
 
 	is->is_cmdsn = 0;
-	is->is_expcmdsn = 1;
-	is->is_maxcmdsn = 1;
+	is->is_expcmdsn = 0;
+	is->is_maxcmdsn = 0;
 	is->is_waiting_for_iscsid = false;
 	is->is_login_phase = false;
 	is->is_timeout = 0;
@@ -1810,40 +1818,6 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	}
 }
 
-static uint64_t
-iscsi_encode_lun(uint32_t lun)
-{
-	uint8_t encoded[8];
-	uint64_t result;
-
-	memset(encoded, 0, sizeof(encoded));
-
-	if (lun < 256) {
-		/*
-		 * Peripheral device addressing.
-		 */
-		encoded[1] = lun;
-	} else if (lun < 16384) {
-		/*
-		 * Flat space addressing.
-		 */
-		encoded[0] = 0x40;
-		encoded[0] |= (lun >> 8) & 0x3f;
-		encoded[1] = lun & 0xff;
-	} else {
-		/*
-		 * Extended flat space addressing.
-		 */
-		encoded[0] = 0xd2;
-		encoded[1] = lun >> 16;
-		encoded[2] = lun >> 8;
-		encoded[3] = lun;
-	}
-
-	memcpy(&result, encoded, sizeof(result));
-	return (result);
-}
-
 static struct iscsi_outstanding *
 iscsi_outstanding_find(struct iscsi_session *is, uint32_t initiator_task_tag)
 {
@@ -1958,7 +1932,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
                 break;
         }
 
-	bhssc->bhssc_lun = iscsi_encode_lun(csio->ccb_h.target_lun);
+	bhssc->bhssc_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 	bhssc->bhssc_initiator_task_tag = is->is_initiator_task_tag;
 	is->is_initiator_task_tag++;
 	bhssc->bhssc_expected_data_transfer_length = htonl(csio->dxfer_len);
@@ -2030,13 +2004,11 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		//cpi->hba_misc = PIM_NOBUSRESET;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_EXTLUNS;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = 255;
-		//cpi->initiator_id = 0; /* XXX */
-		cpi->initiator_id = 64; /* XXX */
+		cpi->max_lun = 0;
+		cpi->initiator_id = ~0;
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
 		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

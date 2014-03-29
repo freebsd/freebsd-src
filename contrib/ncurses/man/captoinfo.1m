@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,38 +27,44 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: captoinfo.1m,v 1.22 2007/06/02 20:40:07 tom Exp $
+.\" $Id: captoinfo.1m,v 1.25 2010/12/04 18:36:44 tom Exp $
 .TH @CAPTOINFO@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fB@CAPTOINFO@\fR - convert a \fItermcap\fR description into a \fIterminfo\fR description
+\fB@CAPTOINFO@\fR \- convert a \fItermcap\fR description into a \fIterminfo\fR description
 .SH SYNOPSIS
-\fB@CAPTOINFO@\fR [\fB-v\fR\fIn\fR \fIwidth\fR]  [\fB-V\fR] [\fB-1\fR] [\fB-w\fR \fIwidth\fR] \fIfile\fR . . .
+\fB@CAPTOINFO@\fR [\fB\-v\fR\fIn\fR \fIwidth\fR]  [\fB\-V\fR] [\fB\-1\fR] [\fB\-w\fR \fIwidth\fR] \fIfile\fR . . .
 .SH DESCRIPTION
-\fB@CAPTOINFO@\fR looks in \fIfile\fR for \fBtermcap\fR descriptions.  For each
+\fB@CAPTOINFO@\fR looks in each given text
+\fIfile\fR for \fBtermcap\fR descriptions.
+For each
 one found, an equivalent \fBterminfo\fR description is written to standard
-output.  Termcap \fBtc\fR capabilities are translated directly to terminfo
+output.
+Termcap \fBtc\fR capabilities are translated directly to terminfo
 \fBuse\fR capabilities.
 .PP
 If no \fIfile\fR is given, then the environment variable \fBTERMCAP\fR is used
-for the filename or entry.  If \fBTERMCAP\fR is a full pathname to a file, only
+for the filename or entry.
+If \fBTERMCAP\fR is a full pathname to a file, only
 the terminal whose name is specified in the environment variable \fBTERM\fR is
-extracted from that file.  If the environment variable \fBTERMCAP\fR is not
+extracted from that file.
+If the environment variable \fBTERMCAP\fR is not
 set, then the file \fB\*d\fR is read.
 .TP 5
-\fB-v\fR
+\fB\-v\fR
 print out tracing information on standard error as the program runs.
 .TP 5
-\fB-V\fR
+\fB\-V\fR
 print out the version of the program in use on standard error and exit.
 .TP 5
-\fB-1\fR
-cause the fields to print out one to a line.  Otherwise, the fields
+\fB\-1\fR
+cause the fields to print out one to a line.
+Otherwise, the fields
 will be printed several to a line to a maximum width of 60
 characters.
 .TP 5
-\fB-w\fR
+\fB\-w\fR
 change the output to \fIwidth\fR characters.
 .SH FILES
 .TP 20
@@ -112,7 +118,8 @@ HS	mh	Iris	enter_dim_mode
 .PP
 XENIX termcap also used to have a set of extension capabilities
 for forms drawing, designed to take advantage of the IBM PC
-high-half graphics.  They were as follows:
+high-half graphics.
+They were as follows:
 .PP
 .TS H
 c c
@@ -145,11 +152,13 @@ GG	acs magic cookie count
 .TE
 .PP
 If the single-line capabilities occur in an entry, they will automatically
-be composed into an \fIacsc\fR string.  The double-line capabilities and
+be composed into an \fIacsc\fR string.
+The double-line capabilities and
 \fBGG\fR are discarded with a warning message.
 .PP
 IBM's AIX has a terminfo facility descended from SVr1 terminfo but incompatible
-with the SVr4 format. The following AIX extensions are automatically
+with the SVr4 format.
+The following AIX extensions are automatically
 translated:
 .TS
 c c
@@ -171,11 +180,12 @@ Hewlett-Packard's terminfo library supports two nonstandard terminfo
 capabilities \fImeml\fR (memory lock) and \fImemu\fR (memory unlock).
 These will be discarded with a warning message.
 .SH NOTES
-This utility is actually a link to \fB@TIC@\fR(1M), running in \fI-I\fR mode.
-You can use other \fB@TIC@\fR options such as \fB-f\fR and  \fB-x\fR.
+This utility is actually a link to \fB@TIC@\fR(1M), running in \fI\-I\fR mode.
+You can use other \fB@TIC@\fR options such as \fB\-f\fR and  \fB\-x\fR.
 .PP
-The trace option is not identical to SVr4's.  Under SVr4, instead of following
-the \fB-v\fR with a trace level n, you repeat it n times.
+The trace option is not identical to SVr4's.
+Under SVr4, instead of following
+the \fB\-v\fR with a trace level n, you repeat it n times.
 .SH SEE ALSO
 \fB@INFOCMP@\fR(1M),
 \fBcurses\fR(3X),
@@ -185,9 +195,6 @@ This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .SH AUTHOR
 Eric S. Raymond <esr@snark.thyrsus.com>
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+and
+.br
+Thomas E. Dickey <dickey@invisible-island.net>

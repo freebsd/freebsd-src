@@ -56,12 +56,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include "dhcpd.h"
 #include "privsep.h"
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <net80211/ieee80211_freebsd.h>
 

@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet.h"

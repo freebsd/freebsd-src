@@ -248,7 +248,6 @@ struct tws_softc {
     struct mtx io_lock;                   /* IO  lock */
     struct tws_ioctl_lock ioctl_lock;     /* ioctl lock */ 
     u_int32_t seq_id;                     /* Sequence id */
-    void *chan;                           /* IOCTL req wait channel */
     struct tws_circular_q aen_q;          /* aen q */
     struct tws_circular_q trace_q;        /* trace q */
     struct tws_stats stats;               /* I/O stats */

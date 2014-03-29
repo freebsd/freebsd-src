@@ -1,7 +1,7 @@
 SERF_MAJOR_VERSION=@MAJOR@
 prefix=@PREFIX@
 exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
+libdir=@LIBDIR@
 includedir=${prefix}/include/@INCLUDE_SUBDIR@
 
 Name: serf
