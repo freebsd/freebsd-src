@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwi/if_iwireg.h>
 #include <dev/iwi/if_iwivar.h>
+#include <dev/iwi/if_iwi_ioctl.h>
 
 #define IWI_DEBUG
 #ifdef IWI_DEBUG
@@ -1373,6 +1374,33 @@ iwi_checkforqos(struct ieee80211vap *vap,
 #undef SUBTYPE
 }
 
+static void
+iwi_notif_link_quality(struct iwi_softc *sc, struct iwi_notif *notif)
+{
+	struct iwi_notif_link_quality *lq;
+	int len;
+
+	len = le16toh(notif->len);
+
+	DPRINTFN(5, ("Notification (%u) - len=%d, sizeof=%d\n",
+	    notif->type,
+	    len,
+	    sizeof(struct iwi_notif_link_quality)
+	    ));
+
+	/* enforce length */
+	if (len != sizeof(struct iwi_notif_link_quality)) {
+		DPRINTFN(5, ("Notification: (%u) too short (%d)\n",
+		    notif->type,
+		    len));
+		return;
+	}
+
+	lq = (struct iwi_notif_link_quality *)(notif + 1);
+	memcpy(&sc->sc_linkqual, lq, sizeof(sc->sc_linkqual));
+	sc->sc_linkqual_valid = 1;
+}
+
 /*
  * Task queue callbacks for iwi_notification_intr used to avoid LOR's.
  */
@@ -1542,8 +1570,11 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 
 	case IWI_NOTIF_TYPE_CALIBRATION:
 	case IWI_NOTIF_TYPE_NOISE:
-	case IWI_NOTIF_TYPE_LINK_QUALITY:
+		/* XXX handle? */
 		DPRINTFN(5, ("Notification (%u)\n", notif->type));
+		break;
+	case IWI_NOTIF_TYPE_LINK_QUALITY:
+		iwi_notif_link_quality(sc, notif);
 		break;
 
 	default:
@@ -2063,11 +2094,25 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	case SIOCGIWISTATS:
+		IWI_LOCK(sc);
+		/* XXX validate permissions/memory/etc? */
+		error = copyout(&sc->sc_linkqual, ifr->ifr_data,
+		    sizeof(struct iwi_notif_link_quality));
+		IWI_UNLOCK(sc);
+		break;
+	case SIOCZIWISTATS:
+		IWI_LOCK(sc);
+		memset(&sc->sc_linkqual, 0,
+		    sizeof(struct iwi_notif_link_quality));
+		IWI_UNLOCK(sc);
+		error = 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
 	}
-	return error;
+		return error;
 }
 
 static void
