@@ -489,16 +489,59 @@ die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
 {
 	Dwarf_Locdesc *loc = NULL;
 	Dwarf_Signed locnum = 0;
+	Dwarf_Attribute at;
+	Dwarf_Half form;
 
-	if (dwarf_locdesc(die, name, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
+	if (name != DW_AT_data_member_location)
+		terminate("die %llu: can only process attribute "
+		    "DW_AT_data_member_location\n", die_off(dw, die));
+
+	if ((at = die_attr(dw, die, name, 0)) == NULL)
 		return (0);
 
-	if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
-		terminate("die %llu: cannot parse member offset\n",
-		    die_off(dw, die));
-	}
+	if (dwarf_whatform(at, &form, &dw->dw_err) != DW_DLV_OK)
+		return (0);
 
-	*valp = loc->ld_s->lr_number;
+	switch (form) {
+	case DW_FORM_block:
+	case DW_FORM_block1:
+	case DW_FORM_block2:
+	case DW_FORM_block4:
+		/*
+		 * GCC in base and Clang (3.3 or below) generates
+		 * DW_AT_data_member_location attribute with DW_FORM_block*
+		 * form. The attribute contains one DW_OP_plus_uconst
+		 * operator. The member offset stores in the operand.
+		 */
+		if (dwarf_locdesc(die, name, &loc, &locnum, &dw->dw_err) !=
+		    DW_DLV_OK)
+			return (0);
+		if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
+			terminate("die %llu: cannot parse member offset\n",
+			    die_off(dw, die));
+		}
+		*valp = loc->ld_s->lr_number;
+		break;
+
+	case DW_FORM_data1:
+	case DW_FORM_data2:
+	case DW_FORM_data4:
+	case DW_FORM_data8:
+	case DW_FORM_udata:
+		/*
+		 * Clang 3.4 generates DW_AT_data_member_location attribute
+		 * with DW_FORM_data* form (constant class). The attribute
+		 * stores a contant value which is the member offset.
+		 */
+		if (dwarf_attrval_unsigned(die, name, valp, &dw->dw_err) !=
+		    DW_DLV_OK)
+			return (0);
+		break;
+
+	default:
+		terminate("die %llu: cannot parse member offset with form "
+		    "%u\n", die_off(dw, die), form);
+	}
 
 	if (loc != NULL)
 		if (dwarf_locdesc_free(loc, &dw->dw_err) != DW_DLV_OK)
@@ -885,6 +928,9 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
     int type, const char *typename)
 {
 	Dwarf_Unsigned sz, bitsz, bitoff, maxsz=0;
+#if BYTE_ORDER == _LITTLE_ENDIAN
+	Dwarf_Unsigned bysz;
+#endif
 	Dwarf_Die mem;
 	mlist_t *ml, **mlastp;
 	iidesc_t *ii;
@@ -959,8 +1005,26 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 #if BYTE_ORDER == _BIG_ENDIAN
 			ml->ml_offset += bitoff;
 #else
-			ml->ml_offset += tdesc_bitsize(ml->ml_type) - bitoff -
-			    ml->ml_size;
+			/*
+			 * Note that Clang 3.4 will sometimes generate
+			 * member DIE before generating the DIE for the
+			 * member's type. The code can not handle this
+			 * properly so that tdesc_bitsize(ml->ml_type) will
+			 * return 0 because ml->ml_type is unknown. As a
+			 * result, a wrong member offset will be calculated.
+			 * To workaround this, we can instead try to
+			 * retrieve the value of DW_AT_byte_size attribute
+			 * which stores the byte size of the space occupied
+			 * by the type. If this attribute exists, its value
+			 * should equal to tdesc_bitsize(ml->ml_type)/NBBY.
+			 */
+			if (die_unsigned(dw, mem, DW_AT_byte_size, &bysz, 0) &&
+			    bysz > 0)
+				ml->ml_offset += bysz * NBBY - bitoff -
+					ml->ml_size;
+			else
+				ml->ml_offset += tdesc_bitsize(ml->ml_type) -
+					bitoff - ml->ml_size;
 #endif
 		}
 
