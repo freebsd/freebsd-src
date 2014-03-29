@@ -71,14 +71,14 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 		return (ENOMEM);
 	if (bootcode != NULL) {
 		memcpy(buf, bootcode, BBSIZE);
-		memset(buf + LABELSECTOR * secsz, 0, secsz);
+		memset(buf + secsz, 0, secsz);
 	} else
 		memset(buf, 0, BBSIZE);
 
 	imgsz = ncyls * nheads * nsecs;
 	ftruncate(fd, imgsz * secsz);
 
-	d = (void *)(buf + LABELSECTOR * secsz + LABELOFFSET);
+	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);
 	le32enc(&d->d_secsize, secsz);
 	le32enc(&d->d_nsectors, nsecs);
