@@ -17,3 +17,4 @@ ident		BERI_DE4_MDROOT
 options 	MD_ROOT			# MD is a potential root device
 options 	MD_ROOT_SIZE=26112	# 25.5MB
 options 	ROOTDEVNAME=\"ufs:md0\"
+#makeoptions	MFS_IMAGE=/foo/baz/baz/mdroot.img
