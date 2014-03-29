@@ -69,6 +69,9 @@ typedef struct fp_extended_precision fp_reg_t;
 struct vfp_state {
 	u_int64_t reg[32];
 	u_int32_t fpscr;
+	u_int32_t fpexec;
+	u_int32_t fpinst;
+	u_int32_t fpinst2;
 };
 
 /*
