@@ -63,7 +63,7 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 	struct disklabel *d;
 	struct partition *dp;
 	struct part *part;
-	int error;
+	int error, n;
 	uint16_t checksum;
 
 	buf = malloc(BBSIZE);
@@ -88,17 +88,20 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 	le32enc(&d->d_secperunit, imgsz);
 	le16enc(&d->d_rpm, 3600);
 	le32enc(&d->d_magic2, DISKMAGIC);
-	le16enc(&d->d_npartitions, (8 > nparts) ? 8 : nparts);
+	le16enc(&d->d_npartitions, (8 > nparts + 1) ? 8 : nparts + 1);
 	le32enc(&d->d_bbsize, BBSIZE);
 
+	dp = &d->d_partitions[RAW_PART];
+	le32enc(&dp->p_size, imgsz);
 	STAILQ_FOREACH(part, &partlist, link) {
-		dp = &d->d_partitions[part->index];
+		n = part->index + ((part->index >= RAW_PART) ? 1 : 0);
+		dp = &d->d_partitions[n];
 		le32enc(&dp->p_size, part->size);
 		le32enc(&dp->p_offset, part->block);
 		dp->p_fstype = ALIAS_TYPE2INT(part->type);
 	}
 
-	dp = &d->d_partitions[nparts];
+	dp = &d->d_partitions[nparts + 1];
 	checksum = 0;
 	for (p = buf; p < (u_char *)dp; p += 2)
 		checksum ^= le16dec(p);
@@ -119,7 +122,7 @@ static struct mkimg_scheme bsd_scheme = {
 	.aliases = bsd_aliases,
 	.metadata = bsd_metadata,
 	.write = bsd_write,
-	.nparts = 20,
+	.nparts = 19,
 	.bootcode = BBSIZE,
 	.maxsecsz = 512
 };

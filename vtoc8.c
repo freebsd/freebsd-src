@@ -63,11 +63,14 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 	struct vtoc8 vtoc8;
 	struct part *part;
 	u_char *p;
-	int error;
+	int error, n;
 	uint16_t ofs, sum;
 
+	imgsz = ncyls * nheads * nsecs;
+
 	memset(&vtoc8, 0, sizeof(vtoc8));
-	sprintf(vtoc8.ascii, "FreeBSD%lldM", (long long)(imgsz / 2048));
+	sprintf(vtoc8.ascii, "FreeBSD%lldM",
+	    (long long)(imgsz * secsz / 1048576));
 	be32enc(&vtoc8.version, VTOC_VERSION);
 	be16enc(&vtoc8.nparts, VTOC8_NPARTS);
 	be32enc(&vtoc8.sanity, VTOC_SANITY);
@@ -79,15 +82,14 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.nsecs, nsecs);
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
 
-	ftruncate(fd, ncyls * nheads * nsecs *secsz);
+	ftruncate(fd, imgsz * secsz);
 
+	be32enc(&vtoc8.map[VTOC_RAW_PART].nblks, imgsz);
 	STAILQ_FOREACH(part, &partlist, link) {
-		be16enc(&vtoc8.part[part->index].tag,
-		    ALIAS_TYPE2INT(part->type));
-		be32enc(&vtoc8.map[part->index].cyl,
-		    part->block / (nsecs * nheads));
-		be32enc(&vtoc8.map[part->index].nblks,
-		    part->size);
+		n = part->index + ((part->index >= VTOC_RAW_PART) ? 1 : 0);
+		be16enc(&vtoc8.part[n].tag, ALIAS_TYPE2INT(part->type));
+		be32enc(&vtoc8.map[n].cyl, part->block / (nsecs * nheads));
+		be32enc(&vtoc8.map[n].nblks, part->size);
 	}
 
 	/* Calculate checksum. */
@@ -111,7 +113,7 @@ static struct mkimg_scheme vtoc8_scheme = {
 	.aliases = vtoc8_aliases,
 	.metadata = vtoc8_metadata,
 	.write = vtoc8_write,
-	.nparts = VTOC8_NPARTS,
+	.nparts = VTOC8_NPARTS - 1,
 	.maxsecsz = 512
 };
 
