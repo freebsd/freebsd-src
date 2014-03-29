@@ -239,7 +239,7 @@ sparse_write(int fd, const char *buf, size_t sz)
 	wrsz = 0;
 	p = memchr(buf, 0, sz);
 	while (sz > 0) {
-		len = (p != NULL) ? p - buf : sz;
+		len = (p != NULL) ? (size_t)(p - buf) : sz;
 		if (len > 0) {
 			len = (len + secsz - 1) & ~(secsz - 1);
 			if (len > sz)
@@ -422,14 +422,14 @@ main(int argc, char *argv[])
 				errc(EX_DATAERR, error, "number of heads");
 			break;
 		case 'P':	/* GEOMETRY: PHYSICAL SECTOR SIZE */
-			error = parse_number(&blksz, 512, INT_MAX + 1, optarg);
+			error = parse_number(&blksz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(blksz))
 				error = EINVAL;
 			if (error)
 				errc(EX_DATAERR, error, "physical sector size");
 			break;
 		case 'S':	/* GEOMETRY: LOGICAL SECTOR SIZE */
-			error = parse_number(&secsz, 512, INT_MAX + 1, optarg);
+			error = parse_number(&secsz, 512, INT_MAX+1U, optarg);
 			if (error == 0 && !pwr_of_two(secsz))
 				error = EINVAL;
 			if (error)

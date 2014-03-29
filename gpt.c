@@ -124,7 +124,7 @@ crc32(const void *buf, size_t sz)
 }
 
 static u_int
-gpt_tblsz()
+gpt_tblsz(void)
 {
 	u_int ents;
 
