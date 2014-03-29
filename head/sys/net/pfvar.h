@@ -1528,6 +1528,8 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
+void				 pf_mtag_initialize(void);
+void				 pf_mtag_cleanup(void);
 void				 pf_vnet_initialize(void);
 void				 pf_cleanup(void);
 

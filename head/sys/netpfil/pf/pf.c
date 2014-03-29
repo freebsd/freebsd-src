@@ -192,8 +192,7 @@ MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
-static VNET_DEFINE(uma_zone_t,	pf_mtag_z);
-#define	V_pf_mtag_z	VNET(pf_mtag_z)
+uma_zone_t		pf_mtag_z;
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
@@ -294,7 +293,7 @@ static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
 static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
-static int		 pf_mtag_init(void *, int, int);
+static int		 pf_mtag_uminit(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
 #ifdef INET
 static void		 pf_route(struct mbuf **, struct pf_rule *, int,
@@ -733,7 +732,16 @@ pf_free_src_nodes(struct pf_src_node_list *head)
 	return (count);
 }
 
-/* Data storage structures initialization. */
+void
+pf_mtag_initialize()
+{
+
+	pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
+	    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_uminit, NULL,
+	    UMA_ALIGN_PTR, 0);
+}
+
+/* Per-vnet data storage structures initialization. */
 void
 pf_vnet_initialize()
 {
@@ -792,10 +800,6 @@ pf_vnet_initialize()
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
-	/* Mbuf tags */
-	V_pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
-	    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
-	    UMA_ALIGN_PTR, 0);
 
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
@@ -804,6 +808,13 @@ pf_vnet_initialize()
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
+}
+
+void
+pf_mtag_cleanup()
+{
+
+	uma_zdestroy(pf_mtag_z);
 }
 
 void
@@ -839,14 +850,13 @@ pf_cleanup()
 		free(pfse, M_PFTEMP);
 	}
 
-	uma_zdestroy(V_pf_mtag_z);
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
 }
 
 static int
-pf_mtag_init(void *mem, int size, int how)
+pf_mtag_uminit(void *mem, int size, int how)
 {
 	struct m_tag *t;
 
@@ -863,7 +873,7 @@ static void
 pf_mtag_free(struct m_tag *t)
 {
 
-	uma_zfree(V_pf_mtag_z, t);
+	uma_zfree(pf_mtag_z, t);
 }
 
 struct pf_mtag *
@@ -874,7 +884,7 @@ pf_get_mtag(struct mbuf *m)
 	if ((mtag = m_tag_find(m, PACKET_TAG_PF, NULL)) != NULL)
 		return ((struct pf_mtag *)(mtag + 1));
 
-	mtag = uma_zalloc(V_pf_mtag_z, M_NOWAIT);
+	mtag = uma_zalloc(pf_mtag_z, M_NOWAIT);
 	if (mtag == NULL)
 		return (NULL);
 	bzero(mtag + 1, sizeof(struct pf_mtag));

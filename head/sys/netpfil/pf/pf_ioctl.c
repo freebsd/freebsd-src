@@ -3676,6 +3676,7 @@ pf_load(void)
 
 	rw_init(&pf_rules_lock, "pf rulesets");
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
+	pf_mtag_initialize();
 
 	return (0);
 }
@@ -3711,6 +3712,7 @@ pf_unload(void)
 	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
+	pf_mtag_cleanup();
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
