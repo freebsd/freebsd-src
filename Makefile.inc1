@@ -1502,6 +1502,9 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
+.if ${MK_GNUCXX} != no
+_prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
+.endif
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
