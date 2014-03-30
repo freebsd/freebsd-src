@@ -229,10 +229,7 @@ COMPRESS_EXT?=	.gz
     MAN \
     PROFILE
 .if defined(NO_${var})
-.if defined(WITH_${var})
-.undef WITH_${var}
-.endif
-WITHOUT_${var}=
+MK_${var}:=no
 .endif
 .endfor
 
@@ -446,12 +443,15 @@ __DEFAULT_NO_OPTIONS+=FDT
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if defined(WITHOUT_${var})
 MK_${var}:=	no
 .else
 MK_${var}:=	yes
+.endif
 .endif
 .endfor
 .undef __DEFAULT_YES_OPTIONS
@@ -464,12 +464,15 @@ MK_${var}:=	yes
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if defined(WITH_${var})
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
+.endif
 .endif
 .endfor
 .undef __DEFAULT_NO_OPTIONS
@@ -620,8 +623,10 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if ${COMPILER_FEATURES:Mc++11}
 .if defined(WITHOUT_${var})
 MK_${var}:=	no
@@ -633,6 +638,7 @@ MK_${var}:=	yes
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
+.endif
 .endif
 .endif
 .endfor
