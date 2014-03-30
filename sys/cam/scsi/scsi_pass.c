@@ -540,7 +540,6 @@ static int
 passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct	cam_periph *periph;
-	struct	pass_softc *softc;
 	int	error;
 	uint32_t priority;
 
@@ -549,7 +548,6 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		return(ENXIO);
 
 	cam_periph_lock(periph);
-	softc = (struct pass_softc *)periph->softc;
 
 	error = 0;
 

@@ -183,7 +183,6 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
     struct acpi_parse_resource_set *set;
     struct acpi_resource_context *arc;
     UINT64 min, max, length, gran;
-    const char *name;
     device_t dev;
 
     arc = context;
@@ -300,21 +299,18 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	    min = res->Data.Address16.Minimum;
 	    max = res->Data.Address16.Maximum;
 	    length = res->Data.Address16.AddressLength;
-	    name = "Address16";
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	    gran = res->Data.Address32.Granularity;
 	    min = res->Data.Address32.Minimum;
 	    max = res->Data.Address32.Maximum;
 	    length = res->Data.Address32.AddressLength;
-	    name = "Address32";
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
 	    gran = res->Data.Address64.Granularity;
 	    min = res->Data.Address64.Minimum;
 	    max = res->Data.Address64.Maximum;
 	    length = res->Data.Address64.AddressLength;
-	    name = "Address64";
 	    break;
 	default:
 	    KASSERT(res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
@@ -323,7 +319,6 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	    min = res->Data.ExtAddress64.Minimum;
 	    max = res->Data.ExtAddress64.Maximum;
 	    length = res->Data.ExtAddress64.AddressLength;
-	    name = "ExtAddress64";
 	    break;
 	}
 	if (length <= 0)
