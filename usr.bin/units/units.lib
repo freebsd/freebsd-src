@@ -298,6 +298,7 @@ N			newton
 joule			nt-m
 J			joule
 cal			4.1868 joule
+ergon			erg
 
 / Electrical
 
