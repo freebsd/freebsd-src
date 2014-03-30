@@ -696,7 +696,6 @@ acpi_set_power_children(device_t dev, int state)
 {
 	device_t child, parent;
 	device_t *devlist;
-	struct pci_devinfo *dinfo;
 	int dstate, i, numdevs;
 
 	if (device_get_children(dev, &devlist, &numdevs) != 0)
@@ -709,7 +708,6 @@ acpi_set_power_children(device_t dev, int state)
 	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
 		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
