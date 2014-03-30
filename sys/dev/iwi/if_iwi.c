@@ -1382,7 +1382,7 @@ iwi_notif_link_quality(struct iwi_softc *sc, struct iwi_notif *notif)
 
 	len = le16toh(notif->len);
 
-	DPRINTFN(5, ("Notification (%u) - len=%d, sizeof=%d\n",
+	DPRINTFN(5, ("Notification (%u) - len=%d, sizeof=%zu\n",
 	    notif->type,
 	    len,
 	    sizeof(struct iwi_notif_link_quality)
