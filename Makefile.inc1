@@ -249,7 +249,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -259,12 +259,12 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no -DNO_TESTS
+		MK_GDB=no MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -420,7 +420,7 @@ LIB32WMAKEFLAGS+=	\
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
 		-DNO_LINT \
-		-DNO_TESTS
+		MK_TESTS=no
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		MK_MAN=no MK_INFO=no MK_HTML=no
@@ -575,7 +575,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-	    -DNO_PROFILE -DNO_TESTS libraries
+	    -DNO_PROFILE MK_TESTS=no libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1509,7 +1509,7 @@ _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
 # Ensure that the ATF libraries will be built during make libraries, even
-# though they will have -DNO_TESTS
+# though they will have WITHOUT_TESTS
 MAKE+=		-DWITH_ATF
 .endif
 _lib_atf=	lib/atf
@@ -1624,11 +1624,11 @@ ${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
-		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
+		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
 		    DIRPRFX=${_lib}/ all && \
-		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1638,10 +1638,10 @@ ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ all && \
-		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ install
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all && \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1651,11 +1651,11 @@ ${_lib}__L: .PHONY .MAKE
 lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam && \
-		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ obj && \
-		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ depend && \
-		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj && \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ depend && \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
 		    -D_NO_LIBPAM_SO_YET all && \
-		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
 		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
@@ -1883,7 +1883,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no -DNO_PROFILE \
-	MK_KERBEROS=no MK_RESCUE=no -DNO_TESTS -DNO_WARNS \
+	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
