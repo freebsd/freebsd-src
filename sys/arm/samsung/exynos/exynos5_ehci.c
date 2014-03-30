@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/condvar.h>
 #include <sys/rman.h>
+#include <sys/gpio.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -54,16 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include "gpio_if.h"
+
 #include "opt_platform.h"
 
 /* GPIO control */
-#define	GPIO_CON(x, v)	((v) << ((x) * 4))
-#define	GPIO_MASK	0xf
 #define	GPIO_OUTPUT	1
 #define	GPIO_INPUT	0
-#define	GPX3CON		0x0
-#define	GPX3DAT		0x4
-#define	PIN_USB		5
+#define	PIN_USB		161
 
 /* PWR control */
 #define	EXYNOS5_PWR_USBHOST_PHY		0x708
@@ -90,16 +89,15 @@ static int	exynos_ehci_detach(device_t dev);
 static int	exynos_ehci_probe(device_t dev);
 
 struct exynos_ehci_softc {
+	device_t		dev;
 	ehci_softc_t		base;
-	struct resource		*res[6];
+	struct resource		*res[5];
 	bus_space_tag_t		host_bst;
 	bus_space_tag_t		pwr_bst;
 	bus_space_tag_t		sysreg_bst;
-	bus_space_tag_t		gpio_bst;
 	bus_space_handle_t	host_bsh;
 	bus_space_handle_t	pwr_bsh;
 	bus_space_handle_t	sysreg_bsh;
-	bus_space_handle_t	gpio_bsh;
 
 };
 
@@ -108,7 +106,6 @@ static struct resource_spec exynos_ehci_spec[] = {
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
 	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
 	{ SYS_RES_MEMORY,	3,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	4,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
@@ -160,19 +157,24 @@ exynos_ehci_probe(device_t dev)
 static int
 gpio_ctrl(struct exynos_ehci_softc *esc, int dir, int power)
 {
-	int reg;
+	device_t gpio_dev;
 
-	/* Power control */
-	reg = bus_space_read_4(esc->gpio_bst, esc->gpio_bsh, GPX3DAT);
-	reg &= ~(1 << PIN_USB);
-	reg |= (power << PIN_USB);
-	bus_space_write_4(esc->gpio_bst, esc->gpio_bsh, GPX3DAT, reg);
+	/* Get the GPIO device, we need this to give power to USB */
+	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (gpio_dev == NULL) {
+		device_printf(esc->dev, "cant find gpio_dev\n");
+		return (1);
+	}
 
-	/* Input/Output control */
-	reg = bus_space_read_4(esc->gpio_bst, esc->gpio_bsh, GPX3CON);
-	reg &= ~GPIO_CON(PIN_USB, GPIO_MASK);
-	reg |= GPIO_CON(PIN_USB, dir);
-	bus_space_write_4(esc->gpio_bst, esc->gpio_bsh, GPX3CON, reg);
+	if (power)
+		GPIO_PIN_SET(gpio_dev, PIN_USB, GPIO_PIN_HIGH);
+	else
+		GPIO_PIN_SET(gpio_dev, PIN_USB, GPIO_PIN_LOW);
+
+	if (dir)
+		GPIO_PIN_SETFLAGS(gpio_dev, PIN_USB, GPIO_PIN_OUTPUT);
+	else
+		GPIO_PIN_SETFLAGS(gpio_dev, PIN_USB, GPIO_PIN_INPUT);
 
 	return (0);
 }
@@ -224,6 +226,7 @@ exynos_ehci_attach(device_t dev)
 	int err;
 
 	esc = device_get_softc(dev);
+	esc->dev = dev;
 	sc = &esc->base;
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
@@ -251,10 +254,6 @@ exynos_ehci_attach(device_t dev)
 	esc->sysreg_bst = rman_get_bustag(esc->res[3]);
 	esc->sysreg_bsh = rman_get_bushandle(esc->res[3]);
 
-	/* GPIO */
-	esc->gpio_bst = rman_get_bustag(esc->res[4]);
-	esc->gpio_bsh = rman_get_bushandle(esc->res[4]);
-
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(dev),
 		&ehci_iterate_hw_softc))
@@ -272,7 +271,7 @@ exynos_ehci_attach(device_t dev)
 	phy_init(esc);
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, esc->res[5], INTR_TYPE_BIO | INTR_MPSAFE,
+	err = bus_setup_intr(dev, esc->res[4], INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc,
 	    &sc->sc_intr_hdl);
 	if (err) {
@@ -285,7 +284,7 @@ exynos_ehci_attach(device_t dev)
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Could not add USB device\n");
-		err = bus_teardown_intr(dev, esc->res[5],
+		err = bus_teardown_intr(dev, esc->res[4],
 		    sc->sc_intr_hdl);
 		if (err)
 			device_printf(dev, "Could not tear down irq,"
@@ -306,7 +305,7 @@ exynos_ehci_attach(device_t dev)
 		device_delete_child(dev, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
 
-		err = bus_teardown_intr(dev, esc->res[5],
+		err = bus_teardown_intr(dev, esc->res[4],
 		    sc->sc_intr_hdl);
 		if (err)
 			device_printf(dev, "Could not tear down irq,"
@@ -345,8 +344,8 @@ exynos_ehci_detach(device_t dev)
 		bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl,
 		    EHCI_USBINTR, 0);
 
-	if (esc->res[5] && sc->sc_intr_hdl) {
-		err = bus_teardown_intr(dev, esc->res[5],
+	if (esc->res[4] && sc->sc_intr_hdl) {
+		err = bus_teardown_intr(dev, esc->res[4],
 		    sc->sc_intr_hdl);
 		if (err) {
 			device_printf(dev, "Could not tear down irq,"
