@@ -992,6 +992,8 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
+buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE
+
 #
 # buildkernel
 #
@@ -1993,5 +1995,3 @@ _xi-links:
 xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
-
-buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE
