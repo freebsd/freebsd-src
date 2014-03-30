@@ -20,6 +20,11 @@
 include		"EXYNOS5250.common"
 ident		CHROMEBOOK
 
+hints		"CHROMEBOOK.hints"
+
+device		chrome_ec	# Chrome Embedded Controller
+device		chrome_kb	# Chrome Keyboard
+
 # Framebuffer
 device		vt
 device		kbdmux

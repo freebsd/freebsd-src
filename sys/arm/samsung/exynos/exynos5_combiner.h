@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,47 +26,4 @@
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-/include/ "exynos5250.dtsi"
-
-/ {
-	model = "Samsung Chromebook";
-
-	memory {
-		device_type = "memory";
-		reg = < 0x40000000 0x80000000 >;  /* 2G */
-	};
-
-	SOC: Exynos5@0 {
-
-		pad0: pad@11400000 {
-			status = "okay";
-		};
-
-		fimd0: fimd@14400000 {
-			status = "okay";
-
-			panel-size = < 1366 768 >;
-			panel-hsync = < 80 32 48 >;
-			panel-vsync = < 14 5 3 >;
-			panel-clk-div = < 17 >;
-			panel-backlight-pin = < 25 >;
-		};
-
-		i2c4: i2c@12CA0000 {
-			status = "okay";
-		};
-
-		keyboard-controller {
-			compatible = "google,cros-ec-keyb";
-			keypad,num-rows = <8>;
-			keypad,num-columns = <13>;
-		};
-	};
-
-	chosen {
-		stdin = &serial2;
-		stdout = &serial2;
-	};
-};
+void combiner_setup_intr(char *source_name, void (*ih)(void *), void *ih_user);
