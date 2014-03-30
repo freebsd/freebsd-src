@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include		"EXYNOS5250"
+include		"EXYNOS5250.common"
 ident		CHROMEBOOK
 
 # Framebuffer
