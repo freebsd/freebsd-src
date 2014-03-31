@@ -191,7 +191,9 @@
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&nbsp;</para>
+      <para>Support for the IPX network transport protocol has
+	been removed, and will not be supported in &os;&nbsp;11
+	and later releases.</para>
     </sect3>
 
     <sect3 xml:id="disks">
