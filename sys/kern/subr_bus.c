@@ -358,15 +358,16 @@ device_sysctl_fini(device_t dev)
 /* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
 /* XXX Need to support old-style tunable hw.bus.devctl_disable" */
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_disable, "I",
+    "devctl disable -- deprecated");
 
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
 TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_queue, "I", "devctl queue length");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -376,7 +377,6 @@ static d_poll_t		devpoll;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
@@ -420,23 +420,29 @@ devinit(void)
 static int
 devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	if (devsoftc.inuse)
+
+	mtx_lock(&devsoftc.mtx);
+	if (devsoftc.inuse) {
+		mtx_unlock(&devsoftc.mtx);
 		return (EBUSY);
+	}
 	/* move to init */
 	devsoftc.inuse = 1;
 	devsoftc.nonblock = 0;
 	devsoftc.async_proc = NULL;
+	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
 static int
 devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	devsoftc.inuse = 0;
+
 	mtx_lock(&devsoftc.mtx);
+	devsoftc.inuse = 0;
+	devsoftc.async_proc = NULL;
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
-	devsoftc.async_proc = NULL;
 	return (0);
 }
 
