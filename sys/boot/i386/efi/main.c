@@ -273,7 +273,8 @@ COMMAND_SET(mode, "mode", "change or display text modes", command_mode);
 static int
 command_mode(int argc, char *argv[])
 {
-	unsigned int cols, rows, mode;
+	UINTN cols, rows;
+	unsigned int mode;
 	int i;
 	char *cp;
 	char rowenv[8];
@@ -327,8 +328,7 @@ command_nvram(int argc, char *argv[])
 	CHAR16 *data;
 	EFI_STATUS status;
 	EFI_GUID varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	unsigned int varsz;
-	unsigned int datasz;
+	UINTN varsz, datasz;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
 	int i;
 
