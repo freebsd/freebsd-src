@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.107 2013/01/03 05:49:36 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.112 2014/01/29 06:18:35 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -66,6 +66,7 @@ typedef struct {
 	int     num_host_key_files;     /* Number of files for host keys. */
 	char   *host_cert_files[MAX_HOSTCERTS];	/* Files containing host certs. */
 	int     num_host_cert_files;     /* Number of files for host certs. */
+	char   *host_key_agent;		 /* ssh-agent socket for host keys. */
 	char   *pid_file;	/* Where to put our pid */
 	int     server_key_bits;/* Size of the server key. */
 	int     login_grace_time;	/* Disconnect if no auth in this time
@@ -82,6 +83,7 @@ typedef struct {
 					 * searching at */
 	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
+	int	permit_tty;	/* If false, deny pty allocation */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
@@ -116,8 +118,6 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
 	int     challenge_response_authentication;
-	int     zero_knowledge_password_authentication;
-					/* If true, permit jpake auth */
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */
@@ -177,6 +177,9 @@ typedef struct {
 	char   *authorized_keys_command;
 	char   *authorized_keys_command_user;
 
+	int64_t rekey_limit;
+	int	rekey_interval;
+
 	char   *version_addendum;	/* Appended to SSH banner */
 
 	int	hpn_disabled;		/* Disable HPN functionality. */
@@ -206,6 +209,9 @@ struct connection_info {
  * Match sub-config and the main config, and must be sent from the
  * privsep slave to the privsep master. We use a macro to ensure all
  * the options are copied and the copies are done in the correct order.
+ *
+ * NB. an option must appear in servconf.c:copy_set_server_options() or
+ * COPY_MATCH_STRING_OPTS here but never both.
  */
 #define COPY_MATCH_STRING_OPTS() do { \
 		M_CP_STROPT(banner); \

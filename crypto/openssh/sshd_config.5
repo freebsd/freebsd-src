@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.156 2013/02/06 00:20:42 dtucker Exp $
+.\" $OpenBSD: sshd_config.5,v 1.172 2014/02/27 22:47:07 djm Exp $
 .\" $FreeBSD$
-.Dd February 6, 2013
+.Dd February 27, 2014
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -118,9 +118,7 @@ The allow/deny directives are processed in the following order:
 and finally
 .Cm AllowGroups .
 .Pp
-See
-.Sx PATTERNS
-in
+See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
 .It Cm AllowTcpForwarding
@@ -160,9 +158,7 @@ The allow/deny directives are processed in the following order:
 and finally
 .Cm AllowGroups .
 .Pp
-See
-.Sx PATTERNS
-in
+See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
 .It Cm AuthenticationMethods
@@ -181,6 +177,20 @@ Only methods that are next in one or more lists are offered at each stage,
 so for this example, it would not be possible to attempt password or
 keyboard-interactive authentication before public key.
 .Pp
+For keyboard interactive authentication it is also possible to
+restrict authentication to a specific device by appending a
+colon followed by the device identifier
+.Dq bsdauth ,
+.Dq pam ,
+or
+.Dq skey ,
+depending on the server configuration.
+For example,
+.Dq keyboard-interactive:bsdauth
+would restrict keyboard interactive authentication to the
+.Dq bsdauth
+device.
+.Pp
 This option is only available for SSH protocol 2 and will yield a fatal
 error if enabled if protocol 1 is also enabled.
 Note that each authentication method listed should also be explicitly enabled
@@ -189,11 +199,10 @@ The default is not to require multiple authentication; successful completion
 of a single authentication method is sufficient.
 .It Cm AuthorizedKeysCommand
 Specifies a program to be used to look up the user's public keys.
-The program will be invoked with a single argument of the username
+The program must be owned by root and not writable by group or others.
+It will be invoked with a single argument of the username
 being authenticated, and should produce on standard output zero or
-more lines of authorized_keys output (see
-.Sx AUTHORIZED_KEYS
-in
+more lines of authorized_keys output (see AUTHORIZED_KEYS in
 .Xr sshd 8 ) .
 If a key supplied by AuthorizedKeysCommand does not successfully authenticate
 and authorize the user then public key authentication continues using the usual
@@ -208,7 +217,7 @@ than running authorized keys commands.
 Specifies the file that contains the public keys that can be used
 for user authentication.
 The format is described in the
-.Sx AUTHORIZED_KEYS FILE FORMAT
+AUTHORIZED_KEYS FILE FORMAT
 section of
 .Xr sshd 8 .
 .Cm AuthorizedKeysFile
@@ -232,9 +241,7 @@ When using certificates signed by a key listed in
 this file lists names, one of which must appear in the certificate for it
 to be accepted for authentication.
 Names are listed one per line preceded by key options (as described
-in
-.Sx AUTHORIZED_KEYS FILE FORMAT
-in
+in AUTHORIZED_KEYS FILE FORMAT in
 .Xr sshd 8 ) .
 Empty lines and comments starting with
 .Ql #
@@ -329,7 +336,8 @@ The default is not to
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
-The supported ciphers are
+The supported ciphers are:
+.Pp
 .Dq 3des-cbc ,
 .Dq aes128-cbc ,
 .Dq aes192-cbc ,
@@ -343,15 +351,23 @@ The supported ciphers are
 .Dq arcfour256 ,
 .Dq arcfour ,
 .Dq blowfish-cbc ,
+.Dq cast128-cbc ,
 and
-.Dq cast128-cbc .
+.Dq chacha20-poly1305@openssh.com .
+.Pp
 The default is:
 .Bd -literal -offset 3n
 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+chacha20-poly1305@openssh.com,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
 aes256-cbc,arcfour
 .Ed
+.Pp
+The list of available ciphers may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1 .
 .It Cm ClientAliveCountMax
 Sets the number of client alive messages (see below) which may be
 sent without
@@ -412,9 +428,7 @@ The allow/deny directives are processed in the following order:
 and finally
 .Cm AllowGroups .
 .Pp
-See
-.Sx PATTERNS
-in
+See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
 .It Cm DenyUsers
@@ -433,9 +447,7 @@ The allow/deny directives are processed in the following order:
 and finally
 .Cm AllowGroups .
 .Pp
-See
-.Sx PATTERNS
-in
+See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
 .It Cm ForceCommand
@@ -529,7 +541,8 @@ The default is
 .Pa /etc/ssh/ssh_host_key
 for protocol version 1, and
 .Pa /etc/ssh/ssh_host_dsa_key ,
-.Pa /etc/ssh/ssh_host_ecdsa_key
+.Pa /etc/ssh/ssh_host_ecdsa_key ,
+.Pa /etc/ssh/ssh_host_ed25519_key
 and
 .Pa /etc/ssh/ssh_host_rsa_key
 for protocol version 2.
@@ -540,10 +553,23 @@ It is possible to have multiple host key files.
 .Dq rsa1
 keys are used for version 1 and
 .Dq dsa ,
-.Dq ecdsa
+.Dq ecdsa ,
+.Dq ed25519
 or
 .Dq rsa
 are used for version 2 of the SSH protocol.
+It is also possible to specify public host key files instead.
+In this case operations on the private key will be delegated
+to an
+.Xr ssh-agent 1 .
+.It Cm HostKeyAgent
+Identifies the UNIX-domain socket used to communicate
+with an agent that has access to the private host keys.
+If
+.Dq SSH_AUTH_SOCK
+is specified, the location of the socket will be read from the
+.Ev SSH_AUTH_SOCK
+environment variable.
 .It Cm IgnoreRhosts
 Specifies that
 .Pa .rhosts
@@ -608,6 +634,17 @@ The default is
 for interactive sessions and
 .Dq throughput
 for non-interactive sessions.
+.It Cm KbdInteractiveAuthentication
+Specifies whether to allow keyboard-interactive authentication.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+The default is to use whatever value
+.Cm ChallengeResponseAuthentication
+is set to
+(by default
+.Dq yes ) .
 .It Cm KerberosAuthentication
 Specifies whether the password provided by the user for
 .Cm PasswordAuthentication
@@ -637,13 +674,14 @@ The default is
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
 The default is
-.Dq ecdh-sha2-nistp256 ,
-.Dq ecdh-sha2-nistp384 ,
-.Dq ecdh-sha2-nistp521 ,
-.Dq diffie-hellman-group-exchange-sha256 ,
-.Dq diffie-hellman-group-exchange-sha1 ,
-.Dq diffie-hellman-group14-sha1 ,
-.Dq diffie-hellman-group1-sha1 .
+.Bd -literal -offset indent
+curve25519-sha256@libssh.org,
+ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+diffie-hellman-group-exchange-sha256,
+diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha1,
+diffie-hellman-group1-sha1
+.Ed
 .It Cm KeyRegenerationInterval
 In protocol version 1, the ephemeral server key is automatically regenerated
 after this many seconds (if it has been used).
@@ -733,10 +771,16 @@ line are satisfied, the keywords on the following lines override those
 set in the global section of the config file, until either another
 .Cm Match
 line or the end of the file.
+If a keyword appears in multiple
+.Cm Match
+blocks that are satisified, only the first instance of the keyword is
+applied.
 .Pp
 The arguments to
 .Cm Match
-are one or more criteria-pattern pairs.
+are one or more criteria-pattern pairs or the single token
+.Cm All
+which matches all criteria.
 The available criteria are
 .Cm User ,
 .Cm Group ,
@@ -747,8 +791,7 @@ and
 .Cm Address .
 The match patterns may consist of single entries or comma-separated
 lists and may use the wildcard and negation operators described in the
-.Sx PATTERNS
-section of
+PATTERNS section of
 .Xr ssh_config 5 .
 .Pp
 The patterns in an
@@ -798,8 +841,10 @@ Available keywords are
 .Cm PermitEmptyPasswords ,
 .Cm PermitOpen ,
 .Cm PermitRootLogin ,
+.Cm PermitTTY ,
 .Cm PermitTunnel ,
 .Cm PubkeyAuthentication ,
+.Cm RekeyLimit ,
 .Cm RhostsRSAAuthentication ,
 .Cm RSAAuthentication ,
 .Cm X11DisplayOffset ,
@@ -935,6 +980,12 @@ and
 .Dq ethernet .
 The default is
 .Dq no .
+.It Cm PermitTTY
+Specifies whether
+.Xr pty 4
+allocation is permitted.
+The default is
+.Dq yes .
 .It Cm PermitUserEnvironment
 Specifies whether
 .Pa ~/.ssh/environment
@@ -1003,6 +1054,32 @@ Specifies whether public key authentication is allowed.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
+.It Cm RekeyLimit
+Specifies the maximum amount of data that may be transmitted before the
+session key is renegotiated, optionally followed a maximum amount of
+time that may pass before the session key is renegotiated.
+The first argument is specified in bytes and may have a suffix of
+.Sq K ,
+.Sq M ,
+or
+.Sq G
+to indicate Kilobytes, Megabytes, or Gigabytes, respectively.
+The default is between
+.Sq 1G
+and
+.Sq 4G ,
+depending on the cipher.
+The optional second value is specified in seconds and may use any of the
+units documented in the
+.Sx TIME FORMATS
+section.
+The default value for
+.Cm RekeyLimit
+is
+.Dq default none ,
+which means that rekeying is performed after the cipher's default amount
+of data has been sent or received and no time based rekeying is done.
+This option applies to protocol version 2 only.
 .It Cm RevokedKeys
 Specifies revoked public keys.
 Keys listed in this file will be refused for public key authentication.
@@ -1011,9 +1088,7 @@ be refused for all users.
 Keys may be specified as a text file, listing one public key per line, or as
 an OpenSSH Key Revocation List (KRL) as generated by
 .Xr ssh-keygen 1 .
-For more information on KRLs, see the
-.Sx KEY REVOCATION LISTS
-section in
+For more information on KRLs, see the KEY REVOCATION LISTS section in
 .Xr ssh-keygen 1 .
 .It Cm RhostsRSAAuthentication
 Specifies whether rhosts or
@@ -1104,9 +1179,7 @@ listed in the certificate's principals list.
 Note that certificates that lack a list of principals will not be permitted
 for authentication using
 .Cm TrustedUserCAKeys .
-For more details on certificates, see the
-.Sx CERTIFICATES
-section in
+For more details on certificates, see the CERTIFICATES section in
 .Xr ssh-keygen 1 .
 .It Cm UseDNS
 Specifies whether
@@ -1180,7 +1253,7 @@ restrictions.
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20130515 .
+.Dq FreeBSD-20140324 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.4 2012/07/02 12:13:26 dtucker Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.7 2013/12/02 02:56:17 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -79,7 +79,7 @@ del_keys_by_name(char *name)
 		nxt = TAILQ_NEXT(ki, next);
 		if (!strcmp(ki->providername, name)) {
 			TAILQ_REMOVE(&pkcs11_keylist, ki, next);
-			xfree(ki->providername);
+			free(ki->providername);
 			key_free(ki->key);
 			free(ki);
 		}
@@ -127,18 +127,19 @@ process_add(void)
 		buffer_put_char(&msg, SSH2_AGENT_IDENTITIES_ANSWER);
 		buffer_put_int(&msg, nkeys);
 		for (i = 0; i < nkeys; i++) {
-			key_to_blob(keys[i], &blob, &blen);
+			if (key_to_blob(keys[i], &blob, &blen) == 0)
+				continue;
 			buffer_put_string(&msg, blob, blen);
 			buffer_put_cstring(&msg, name);
-			xfree(blob);
+			free(blob);
 			add_key(keys[i], name);
 		}
-		xfree(keys);
+		free(keys);
 	} else {
 		buffer_put_char(&msg, SSH_AGENT_FAILURE);
 	}
-	xfree(pin);
-	xfree(name);
+	free(pin);
+	free(name);
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -157,8 +158,8 @@ process_del(void)
 		 buffer_put_char(&msg, SSH_AGENT_SUCCESS);
 	else
 		 buffer_put_char(&msg, SSH_AGENT_FAILURE);
-	xfree(pin);
-	xfree(name);
+	free(pin);
+	free(name);
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -195,10 +196,9 @@ process_sign(void)
 	} else {
 		buffer_put_char(&msg, SSH_AGENT_FAILURE);
 	}
-	xfree(data);
-	xfree(blob);
-	if (signature != NULL)
-		xfree(signature);
+	free(data);
+	free(blob);
+	free(signature);
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -274,7 +274,6 @@ main(int argc, char **argv)
 	LogLevel log_level = SYSLOG_LEVEL_ERROR;
 	char buf[4*4096];
 
-	extern char *optarg;
 	extern char *__progname;
 
 	TAILQ_INIT(&pkcs11_keylist);

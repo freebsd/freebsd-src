@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.161 2013/01/08 18:49:04 markus Exp $
+.\" $OpenBSD: ssh_config.5,v 1.185 2014/02/23 20:11:36 djm Exp $
 .\" $FreeBSD$
-.Dd January 8, 2013
+.Dd February 23, 2014
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -101,6 +101,8 @@ keywords are case-insensitive and arguments are case-sensitive):
 .It Cm Host
 Restricts the following declarations (up to the next
 .Cm Host
+or
+.Cm Match
 keyword) to be only for those hosts that match one of the patterns
 given after the keyword.
 If more than one pattern is provided, they should be separated by whitespace.
@@ -125,6 +127,73 @@ matches.
 See
 .Sx PATTERNS
 for more information on patterns.
+.It Cm Match
+Restricts the following declarations (up to the next
+.Cm Host
+or
+.Cm Match
+keyword) to be used only when the conditions following the
+.Cm Match
+keyword are satisfied.
+Match conditions are specified using one or more keyword/criteria pairs
+or the single token
+.Cm all
+which matches all criteria.
+The available keywords are:
+.Cm exec ,
+.Cm host ,
+.Cm originalhost ,
+.Cm user ,
+and
+.Cm localuser .
+.Pp
+The
+.Cm exec
+keyword executes the specified command under the user's shell.
+If the command returns a zero exit status then the condition is considered true.
+Commands containing whitespace characters must be quoted.
+The following character sequences in the command will be expanded prior to
+execution:
+.Ql %L
+will be substituted by the first component of the local host name,
+.Ql %l
+will be substituted by the local host name (including any domain name),
+.Ql %h
+will be substituted by the target host name,
+.Ql %n
+will be substituted by the original target host name
+specified on the command-line,
+.Ql %p
+the destination port,
+.Ql %r
+by the remote login username, and
+.Ql %u
+by the username of the user running
+.Xr ssh 1 .
+.Pp
+The other keywords' criteria must be single entries or comma-separated
+lists and may use the wildcard and negation operators described in the
+.Sx PATTERNS
+section.
+The criteria for the
+.Cm host
+keyword are matched against the target hostname, after any substitution
+by the
+.Cm Hostname
+option.
+The
+.Cm originalhost
+keyword matches against the hostname as it was specified on the command-line.
+The
+.Cm user
+keyword matches against the target username on the remote host.
+The
+.Cm localuser
+keyword matches against the name of the local user running
+.Xr ssh 1
+(this keyword may be useful in system-wide
+.Nm
+files).
 .It Cm AddressFamily
 Specifies which address family to use when connecting.
 Valid arguments are
@@ -153,6 +222,81 @@ Note that this option does not work if
 .Cm UsePrivilegedPort
 is set to
 .Dq yes .
+.It Cm CanonicalDomains
+When
+.Cm CanonicalizeHostname
+is enabled, this option specifies the list of domain suffixes in which to
+search for the specified destination host.
+.It Cm CanonicalizeFallbackLocal
+Specifies whether to fail with an error when hostname canonicalization fails.
+The default,
+.Dq yes ,
+will attempt to look up the unqualified hostname using the system resolver's
+search rules.
+A value of
+.Dq no
+will cause
+.Xr ssh 1
+to fail instantly if
+.Cm CanonicalizeHostname
+is enabled and the target hostname cannot be found in any of the domains
+specified by
+.Cm CanonicalDomains .
+.It Cm CanonicalizeHostname
+Controls whether explicit hostname canonicalization is performed.
+The default,
+.Dq no ,
+is not to perform any name rewriting and let the system resolver handle all
+hostname lookups.
+If set to
+.Dq yes
+then, for connections that do not use a
+.Cm ProxyCommand ,
+.Xr ssh 1
+will attempt to canonicalize the hostname specified on the command line
+using the
+.Cm CanonicalDomains
+suffixes and
+.Cm CanonicalizePermittedCNAMEs
+rules.
+If
+.Cm CanonicalizeHostname
+is set to
+.Dq always ,
+then canonicalization is applied to proxied connections too.
+.Pp
+If this option is enabled and canonicalisation results in the target hostname
+changing, then the configuration files are processed again using the new
+target name to pick up any new configuration in matching
+.Cm Host
+stanzas.
+.It Cm CanonicalizeMaxDots
+Specifies the maximum number of dot characters in a hostname before
+canonicalization is disabled.
+The default,
+.Dq 1 ,
+allows a single dot (i.e. hostname.subdomain).
+.It Cm CanonicalizePermittedCNAMEs
+Specifies rules to determine whether CNAMEs should be followed when
+canonicalizing hostnames.
+The rules consist of one or more arguments of
+.Ar source_domain_list : Ns Ar target_domain_list ,
+where
+.Ar source_domain_list
+is a pattern-list of domains that may follow CNAMEs in canonicalization,
+and
+.Ar target_domain_list
+is a pattern-list of domains that they may resolve to.
+.Pp
+For example,
+.Dq *.a.example.com:*.b.example.com,*.c.example.com
+will allow hostnames matching
+.Dq *.a.example.com
+to be canonicalized to names in the
+.Dq *.b.example.com
+or
+.Dq *.c.example.com
+domains.
 .It Cm ChallengeResponseAuthentication
 Specifies whether to use challenge-response authentication.
 The argument to this keyword must be
@@ -197,7 +341,8 @@ The default is
 Specifies the ciphers allowed for protocol version 2
 in order of preference.
 Multiple ciphers must be comma-separated.
-The supported ciphers are
+The supported ciphers are:
+.Pp
 .Dq 3des-cbc ,
 .Dq aes128-cbc ,
 .Dq aes192-cbc ,
@@ -211,15 +356,23 @@ The supported ciphers are
 .Dq arcfour256 ,
 .Dq arcfour ,
 .Dq blowfish-cbc ,
+.Dq cast128-cbc ,
 and
-.Dq cast128-cbc .
+.Dq chacha20-poly1305@openssh.com .
+.Pp
 The default is:
 .Bd -literal -offset 3n
 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+chacha20-poly1305@openssh.com,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
 aes256-cbc,arcfour
 .Ed
+.Pp
+The list of available ciphers may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1 .
 .It Cm ClearAllForwardings
 Specifies that all local, remote, and dynamic port forwardings
 specified in the configuration files or on the command line be
@@ -328,7 +481,7 @@ will be substituted by the target host name,
 will be substituted by the original target host name
 specified on the command line,
 .Ql %p
-the port,
+the destination port,
 .Ql %r
 by the remote login username, and
 .Ql %u
@@ -475,8 +628,7 @@ option is also enabled.
 .It Cm ForwardX11Timeout
 Specify a timeout for untrusted X11 forwarding
 using the format described in the
-.Sx TIME FORMATS
-section of
+TIME FORMATS section of
 .Xr sshd_config 5 .
 X11 connections received by
 .Xr ssh 1
@@ -573,10 +725,11 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,ssh-dss-cert-v01@openssh.com,
 ssh-rsa-cert-v00@openssh.com,ssh-dss-cert-v00@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-rsa,ssh-dss
+ssh-ed25519,ssh-rsa,ssh-dss
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
@@ -618,18 +771,21 @@ offers many different identities.
 The default is
 .Dq no .
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA or RSA authentication
+Specifies a file from which the user's DSA, ECDSA, ED25519 or RSA authentication
 identity is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
-.Pa ~/.ssh/id_ecdsa
+.Pa ~/.ssh/id_ecdsa ,
+.Pa ~/.ssh/id_ed25519
 and
 .Pa ~/.ssh/id_rsa
 for protocol version 2.
 Additionally, any identities represented by the authentication agent
-will be used for authentication.
+will be used for authentication unless
+.Cm IdentitiesOnly
+is set.
 .Xr ssh 1
 will try to load certificate information from the filename obtained by
 appending
@@ -658,6 +814,22 @@ Multiple
 .Cm IdentityFile
 directives will add to the list of identities tried (this behaviour
 differs from that of other configuration directives).
+.Pp
+.Cm IdentityFile
+may be used in conjunction with
+.Cm IdentitiesOnly
+to select which identities in an agent are offered during authentication.
+.It Cm IgnoreUnknown
+Specifies a pattern-list of unknown options to be ignored if they are
+encountered in configuration parsing.
+This may be used to suppress errors if
+.Nm
+contains options that are unrecognised by
+.Xr ssh 1 .
+It is recommended that
+.Cm IgnoreUnknown
+be listed early in the configuration file as it will not be applied
+to unknown options that appear before it.
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for connections.
 Accepted values are
@@ -719,6 +891,7 @@ Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
+curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group-exchange-sha1,
@@ -921,6 +1094,14 @@ For example, the following directive would connect via an HTTP proxy at
 .Bd -literal -offset 3n
 ProxyCommand /usr/bin/nc -X connect -x 192.0.2.0:8080 %h %p
 .Ed
+.It Cm ProxyUseFdpass
+Specifies that
+.Cm ProxyCommand
+will pass a connected file descriptor back to
+.Xr ssh 1
+instead of continuing to execute and pass data.
+The default is
+.Dq no .
 .It Cm PubkeyAuthentication
 Specifies whether to try public key authentication.
 The argument to this keyword must be
@@ -932,8 +1113,9 @@ The default is
 This option applies to protocol version 2 only.
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated.
-The argument is the number of bytes, with an optional suffix of
+session key is renegotiated, optionally followed a maximum amount of
+time that may pass before the session key is renegotiated.
+The first argument is specified in bytes and may have a suffix of
 .Sq K ,
 .Sq M ,
 or
@@ -944,6 +1126,16 @@ The default is between
 and
 .Sq 4G ,
 depending on the cipher.
+The optional second value is specified in seconds and may use any of the
+units documented in the
+TIME FORMATS section of
+.Xr sshd_config 5 .
+The default value for
+.Cm RekeyLimit
+is
+.Dq default none ,
+which means that rekeying is performed after the cipher's default amount
+of data has been sent or received and no time based rekeying is done.
 This option applies to protocol version 2 only.
 .It Cm RemoteForward
 Specifies that a TCP port on the remote machine be forwarded over
@@ -1222,15 +1414,13 @@ The default is
 .Dq no .
 Note that this option applies to protocol version 2 only.
 .Pp
-See also
-.Sx VERIFYING HOST KEYS
-in
+See also VERIFYING HOST KEYS in
 .Xr ssh 1 .
 .It Cm VersionAddendum
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20130515 .
+.Dq FreeBSD-20140324 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,
@@ -1278,7 +1468,7 @@ Patterns within pattern-lists may be negated
 by preceding them with an exclamation mark
 .Pq Sq !\& .
 For example,
-to allow a key to be used from anywhere within an organisation
+to allow a key to be used from anywhere within an organization
 except from the
 .Dq dialup
 pool,

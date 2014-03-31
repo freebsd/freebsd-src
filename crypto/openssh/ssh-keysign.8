@@ -1,4 +1,5 @@
-.\" $OpenBSD: ssh-keysign.8,v 1.12 2010/08/31 11:54:45 djm Exp $
+.\" $OpenBSD: ssh-keysign.8,v 1.14 2013/12/07 11:58:46 naddy Exp $
+.\" $FreeBSD$
 .\"
 .\" Copyright (c) 2002 Markus Friedl.  All rights reserved.
 .\"
@@ -22,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 31, 2010
+.Dd December 7, 2013
 .Dt SSH-KEYSIGN 8
 .Os
 .Sh NAME
@@ -63,6 +64,7 @@ is enabled.
 .Pp
 .It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
+.It Pa /etc/ssh/ssh_host_ed25519_key
 .It Pa /etc/ssh/ssh_host_rsa_key
 These files contain the private parts of the host keys used to
 generate the digital signature.
@@ -74,6 +76,7 @@ must be set-uid root if host-based authentication is used.
 .Pp
 .It Pa /etc/ssh/ssh_host_dsa_key-cert.pub
 .It Pa /etc/ssh/ssh_host_ecdsa_key-cert.pub
+.It Pa /etc/ssh/ssh_host_ed25519_key-cert.pub
 .It Pa /etc/ssh/ssh_host_rsa_key-cert.pub
 If these files exist they are assumed to contain public certificate
 information corresponding with the private keys above.
@@ -88,4 +91,4 @@ information corresponding with the private keys above.
 first appeared in
 .Ox 3.2 .
 .Sh AUTHORS
-.An Markus Friedl Aq markus@openbsd.org
+.An Markus Friedl Aq Mt markus@openbsd.org

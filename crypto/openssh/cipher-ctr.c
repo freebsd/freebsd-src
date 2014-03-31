@@ -104,7 +104,7 @@ ssh_aes_ctr_cleanup(EVP_CIPHER_CTX *ctx)
 
 	if ((c = EVP_CIPHER_CTX_get_app_data(ctx)) != NULL) {
 		memset(c, 0, sizeof(*c));
-		xfree(c);
+		free(c);
 		EVP_CIPHER_CTX_set_app_data(ctx, NULL);
 	}
 	return (1);

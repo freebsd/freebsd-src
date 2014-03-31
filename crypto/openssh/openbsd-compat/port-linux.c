@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.17 2012/03/08 23:25:18 djm Exp $ */
+/* $Id: port-linux.c,v 1.18 2013/06/01 22:07:32 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -96,10 +96,8 @@ ssh_selinux_getctxbyname(char *pwname)
 	}
 
 #ifdef HAVE_GETSEUSERBYNAME
-	if (sename != NULL)
-		xfree(sename);
-	if (lvl != NULL)
-		xfree(lvl);
+	free(sename);
+	free(lvl);
 #endif
 
 	return sc;
@@ -217,8 +215,8 @@ ssh_selinux_change_context(const char *newname)
 	if (setcon(newctx) < 0)
 		switchlog("%s: setcon %s from %s failed with %s", __func__,
 		    newctx, oldctx, strerror(errno));
-	xfree(oldctx);
-	xfree(newctx);
+	free(oldctx);
+	free(newctx);
 }
 
 void
