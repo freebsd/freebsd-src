@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/endian.h>
 #include <sys/sysctl.h>
 
@@ -320,6 +321,10 @@ static int     ctl_is_single = 1;
 static int     index_to_aps_page;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
+static int worker_threads = 1;
+TUNABLE_INT("kern.cam.ctl.worker_threads", &worker_threads);
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, worker_threads, CTLFLAG_RDTUN,
+    &worker_threads, 1, "Number of worker threads");
 
 /*
  * Serial number (0x80), device id (0x83), and supported pages (0x00)
@@ -950,10 +955,7 @@ ctl_init(void)
 	struct ctl_frontend *fe;
 	struct ctl_lun *lun;
         uint8_t sc_id =0;
-#if 0
-	int i;
-#endif
-	int error, retval;
+	int i, error, retval;
 	//int isc_retval;
 
 	retval = 0;
@@ -1085,17 +1087,35 @@ ctl_init(void)
 	mtx_unlock(&softc->ctl_lock);
 #endif
 
-	error = kproc_create(ctl_work_thread, softc, &softc->work_thread, 0, 0,
-			 "ctl_thrd");
-	if (error != 0) {
-		printf("error creating CTL work thread!\n");
-		mtx_lock(&softc->ctl_lock);
-		ctl_free_lun(lun);
-		mtx_unlock(&softc->ctl_lock);
-		ctl_pool_free(internal_pool);
-		ctl_pool_free(emergency_pool);
-		ctl_pool_free(other_pool);
-		return (error);
+	if (worker_threads > MAXCPU || worker_threads == 0) {
+		printf("invalid kern.cam.ctl.worker_threads value; "
+		    "setting to 1");
+		worker_threads = 1;
+	} else if (worker_threads < 0) {
+		if (mp_ncpus > 2) {
+			/*
+			 * Using more than two worker threads actually hurts
+			 * performance due to lock contention.
+			 */
+			worker_threads = 2;
+		} else {
+			worker_threads = 1;
+		}
+	}
+
+	for (i = 0; i < worker_threads; i++) {
+		error = kproc_create(ctl_work_thread, softc, &softc->work_thread, 0, 0,
+				"ctl_thrd%d", i);
+		if (error != 0) {
+			printf("error creating CTL work thread!\n");
+			mtx_lock(&softc->ctl_lock);
+			ctl_free_lun(lun);
+			mtx_unlock(&softc->ctl_lock);
+			ctl_pool_free(internal_pool);
+			ctl_pool_free(emergency_pool);
+			ctl_pool_free(other_pool);
+			return (error);
+		}
 	}
 	if (bootverbose)
 		printf("ctl: CAM Target Layer loaded\n");
@@ -12991,7 +13011,11 @@ ctl_work_thread(void *arg)
 			if (io != NULL) {
 				STAILQ_REMOVE_HEAD(&softc->rtr_queue, links);
 				mtx_unlock(&softc->ctl_lock);
-				goto execute;
+				retval = ctl_scsiio(&io->scsiio);
+				if (retval != CTL_RETVAL_COMPLETE)
+					CTL_DEBUG_PRINT(("ctl_scsiio failed\n"));
+				mtx_lock(&softc->ctl_lock);
+				continue;
 			}
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&softc->incoming_queue);
@@ -13022,19 +13046,6 @@ ctl_work_thread(void *arg)
 
 		/* Back to the top of the loop to see what woke us up. */
 		continue;
-
-execute:
-		retval = ctl_scsiio(&io->scsiio);
-		switch (retval) {
-		case CTL_RETVAL_COMPLETE:
-			break;
-		default:
-			/*
-			 * Probably need to make sure this doesn't happen.
-			 */
-			break;
-		}
-		mtx_lock(&softc->ctl_lock);
 	}
 }
 
