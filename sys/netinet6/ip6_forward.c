@@ -634,7 +634,6 @@ pass:
 		}
 	}
 
-senderr:
 	if (mcopy == NULL)
 		goto out;
 	switch (error) {
