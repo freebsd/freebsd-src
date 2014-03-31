@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-passwd.c,v 1.9 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth2-passwd.c,v 1.11 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -59,8 +59,8 @@ userauth_passwd(Authctxt *authctxt)
 	if (change) {
 		/* discard new password from packet */
 		newpass = packet_get_string(&newlen);
-		memset(newpass, 0, newlen);
-		xfree(newpass);
+		explicit_bzero(newpass, newlen);
+		free(newpass);
 	}
 	packet_check_eom();
 
@@ -68,8 +68,8 @@ userauth_passwd(Authctxt *authctxt)
 		logit("password change not supported");
 	else if (PRIVSEP(auth_password(authctxt, password)) == 1)
 		authenticated = 1;
-	memset(password, 0, len);
-	xfree(password);
+	explicit_bzero(password, len);
+	free(password);
 	return authenticated;
 }
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.75 2013/01/08 18:49:04 markus Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.79 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -71,8 +71,6 @@
 #include "atomicio.h"
 #include "monitor_fdpass.h"
 #include "misc.h"
-#include "schnorr.h"
-#include "jpake.h"
 #include "uuencode.h"
 
 #include "channels.h"
@@ -259,8 +257,10 @@ mm_getpwnamallow(const char *username)
 		fatal("%s: struct passwd size mismatch", __func__);
 	pw->pw_name = buffer_get_string(&m, NULL);
 	pw->pw_passwd = buffer_get_string(&m, NULL);
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	pw->pw_gecos = buffer_get_string(&m, NULL);
-#ifdef HAVE_PW_CLASS_IN_PASSWD
+#endif
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
 	pw->pw_class = buffer_get_string(&m, NULL);
 #endif
 	pw->pw_dir = buffer_get_string(&m, NULL);
@@ -286,7 +286,7 @@ out:
 #undef M_CP_STRARRAYOPT
 
 	copy_set_server_options(&options, newopts, 1);
-	xfree(newopts);
+	free(newopts);
 
 	buffer_free(&m);
 
@@ -312,7 +312,7 @@ mm_auth2_read_banner(void)
 
 	/* treat empty banner as missing banner */
 	if (strlen(banner) == 0) {
-		xfree(banner);
+		free(banner);
 		banner = NULL;
 	}
 	return (banner);
@@ -405,7 +405,7 @@ mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
 	buffer_put_cstring(&m, user ? user : "");
 	buffer_put_cstring(&m, host ? host : "");
 	buffer_put_string(&m, blob, len);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYALLOWED, &m);
 
@@ -448,7 +448,7 @@ mm_key_verify(Key *key, u_char *sig, u_int siglen, u_char *data, u_int datalen)
 	buffer_put_string(&m, blob, len);
 	buffer_put_string(&m, sig, siglen);
 	buffer_put_string(&m, data, datalen);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYVERIFY, &m);
 
@@ -480,7 +480,7 @@ mm_newkeys_from_blob(u_char *blob, int blen)
 	buffer_init(&b);
 	buffer_append(&b, blob, blen);
 
-	newkey = xmalloc(sizeof(*newkey));
+	newkey = xcalloc(1, sizeof(*newkey));
 	enc = &newkey->enc;
 	mac = &newkey->mac;
 	comp = &newkey->comp;
@@ -572,7 +572,7 @@ mm_newkeys_to_blob(int mode, u_char **blobp, u_int *lenp)
 		*blobp = xmalloc(len);
 		memcpy(*blobp, buffer_ptr(&b), len);
 	}
-	memset(buffer_ptr(&b), 0, len);
+	explicit_bzero(buffer_ptr(&b), len);
 	buffer_free(&b);
 	return len;
 }
@@ -616,8 +616,8 @@ mm_send_keystate(struct monitor *monitor)
 		key = xmalloc(keylen+1);	/* add 1 if keylen == 0 */
 		keylen = packet_get_encryption_key(key);
 		buffer_put_string(&m, key, keylen);
-		memset(key, 0, keylen);
-		xfree(key);
+		explicit_bzero(key, keylen);
+		free(key);
 
 		ivlen = packet_get_keyiv_len(MODE_OUT);
 		packet_get_keyiv(MODE_OUT, iv, ivlen);
@@ -640,13 +640,13 @@ mm_send_keystate(struct monitor *monitor)
 		fatal("%s: conversion of newkeys failed", __func__);
 
 	buffer_put_string(&m, blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	if (!mm_newkeys_to_blob(MODE_IN, &blob, &bloblen))
 		fatal("%s: conversion of newkeys failed", __func__);
 
 	buffer_put_string(&m, blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	packet_get_state(MODE_OUT, &seqnr, &blocks, &packets, &bytes);
 	buffer_put_int(&m, seqnr);
@@ -666,13 +666,13 @@ mm_send_keystate(struct monitor *monitor)
 	p = xmalloc(plen+1);
 	packet_get_keycontext(MODE_OUT, p);
 	buffer_put_string(&m, p, plen);
-	xfree(p);
+	free(p);
 
 	plen = packet_get_keycontext(MODE_IN, NULL);
 	p = xmalloc(plen+1);
 	packet_get_keycontext(MODE_IN, p);
 	buffer_put_string(&m, p, plen);
-	xfree(p);
+	free(p);
 
 	/* Compression state */
 	debug3("%s: Sending compression state", __func__);
@@ -734,10 +734,10 @@ mm_pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, size_t namebuflen)
 	buffer_free(&m);
 
 	strlcpy(namebuf, p, namebuflen); /* Possible truncation */
-	xfree(p);
+	free(p);
 
 	buffer_append(&loginmsg, msg, strlen(msg));
-	xfree(msg);
+	free(msg);
 
 	if ((*ptyfd = mm_receive_fd(pmonitor->m_recvfd)) == -1 ||
 	    (*ttyfd = mm_receive_fd(pmonitor->m_recvfd)) == -1)
@@ -803,7 +803,7 @@ mm_do_pam_account(void)
 	ret = buffer_get_int(&m);
 	msg = buffer_get_string(&m, NULL);
 	buffer_append(&loginmsg, msg, strlen(msg));
-	xfree(msg);
+	free(msg);
 
 	buffer_free(&m);
 
@@ -1033,7 +1033,7 @@ mm_skey_query(void *ctx, char **name, char **infotxt,
 	mm_chall_setup(name, infotxt, numprompts, prompts, echo_on);
 
 	xasprintf(*prompts, "%s%s", challenge, SKEY_PROMPT);
-	xfree(challenge);
+	free(challenge);
 
 	return (0);
 }
@@ -1107,7 +1107,7 @@ mm_auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		if ((key = key_from_blob(blob, blen)) == NULL)
 			fatal("%s: key_from_blob failed", __func__);
 		*rkey = key;
-		xfree(blob);
+		free(blob);
 	}
 	buffer_free(&m);
 
@@ -1134,7 +1134,7 @@ mm_auth_rsa_generate_challenge(Key *key)
 
 	buffer_init(&m);
 	buffer_put_string(&m, blob, blen);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSACHALLENGE, &m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSACHALLENGE, &m);
@@ -1163,7 +1163,7 @@ mm_auth_rsa_verify_response(Key *key, BIGNUM *p, u_char response[16])
 	buffer_init(&m);
 	buffer_put_string(&m, blob, blen);
 	buffer_put_string(&m, response, 16);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSARESPONSE, &m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSARESPONSE, &m);
@@ -1290,164 +1290,3 @@ mm_ssh_gssapi_userok(char *user)
 }
 #endif /* GSSAPI */
 
-#ifdef JPAKE
-void
-mm_auth2_jpake_get_pwdata(Authctxt *authctxt, BIGNUM **s,
-    char **hash_scheme, char **salt)
-{
-	Buffer m;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	mm_request_send(pmonitor->m_recvfd,
-	    MONITOR_REQ_JPAKE_GET_PWDATA, &m);
-
-	debug3("%s: waiting for MONITOR_ANS_JPAKE_GET_PWDATA", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd,
-	    MONITOR_ANS_JPAKE_GET_PWDATA, &m);
-
-	*hash_scheme = buffer_get_string(&m, NULL);
-	*salt = buffer_get_string(&m, NULL);
-
-	buffer_free(&m);
-}
-
-void
-mm_jpake_step1(struct modp_group *grp,
-    u_char **id, u_int *id_len,
-    BIGNUM **priv1, BIGNUM **priv2, BIGNUM **g_priv1, BIGNUM **g_priv2,
-    u_char **priv1_proof, u_int *priv1_proof_len,
-    u_char **priv2_proof, u_int *priv2_proof_len)
-{
-	Buffer m;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	mm_request_send(pmonitor->m_recvfd,
-	    MONITOR_REQ_JPAKE_STEP1, &m);
-
-	debug3("%s: waiting for MONITOR_ANS_JPAKE_STEP1", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd,
-	    MONITOR_ANS_JPAKE_STEP1, &m);
-
-	if ((*priv1 = BN_new()) == NULL ||
-	    (*priv2 = BN_new()) == NULL ||
-	    (*g_priv1 = BN_new()) == NULL ||
-	    (*g_priv2 = BN_new()) == NULL)
-		fatal("%s: BN_new", __func__);
-
-	*id = buffer_get_string(&m, id_len);
-	/* priv1 and priv2 are, well, private */
-	buffer_get_bignum2(&m, *g_priv1);
-	buffer_get_bignum2(&m, *g_priv2);
-	*priv1_proof = buffer_get_string(&m, priv1_proof_len);
-	*priv2_proof = buffer_get_string(&m, priv2_proof_len);
-
-	buffer_free(&m);
-}
-
-void
-mm_jpake_step2(struct modp_group *grp, BIGNUM *s,
-    BIGNUM *mypub1, BIGNUM *theirpub1, BIGNUM *theirpub2, BIGNUM *mypriv2,
-    const u_char *theirid, u_int theirid_len,
-    const u_char *myid, u_int myid_len,
-    const u_char *theirpub1_proof, u_int theirpub1_proof_len,
-    const u_char *theirpub2_proof, u_int theirpub2_proof_len,
-    BIGNUM **newpub,
-    u_char **newpub_exponent_proof, u_int *newpub_exponent_proof_len)
-{
-	Buffer m;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	/* monitor already has all bignums except theirpub1, theirpub2 */
-	buffer_put_bignum2(&m, theirpub1);
-	buffer_put_bignum2(&m, theirpub2);
-	/* monitor already knows our id */
-	buffer_put_string(&m, theirid, theirid_len);
-	buffer_put_string(&m, theirpub1_proof, theirpub1_proof_len);
-	buffer_put_string(&m, theirpub2_proof, theirpub2_proof_len);
-
-	mm_request_send(pmonitor->m_recvfd,
-	    MONITOR_REQ_JPAKE_STEP2, &m);
-
-	debug3("%s: waiting for MONITOR_ANS_JPAKE_STEP2", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd,
-	    MONITOR_ANS_JPAKE_STEP2, &m);
-
-	if ((*newpub = BN_new()) == NULL)
-		fatal("%s: BN_new", __func__);
-
-	buffer_get_bignum2(&m, *newpub);
-	*newpub_exponent_proof = buffer_get_string(&m,
-	    newpub_exponent_proof_len);
-
-	buffer_free(&m);
-}
-
-void
-mm_jpake_key_confirm(struct modp_group *grp, BIGNUM *s, BIGNUM *step2_val,
-    BIGNUM *mypriv2, BIGNUM *mypub1, BIGNUM *mypub2,
-    BIGNUM *theirpub1, BIGNUM *theirpub2,
-    const u_char *my_id, u_int my_id_len,
-    const u_char *their_id, u_int their_id_len,
-    const u_char *sess_id, u_int sess_id_len,
-    const u_char *theirpriv2_s_proof, u_int theirpriv2_s_proof_len,
-    BIGNUM **k,
-    u_char **confirm_hash, u_int *confirm_hash_len)
-{
-	Buffer m;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	/* monitor already has all bignums except step2_val */
-	buffer_put_bignum2(&m, step2_val);
-	/* monitor already knows all the ids */
-	buffer_put_string(&m, theirpriv2_s_proof, theirpriv2_s_proof_len);
-
-	mm_request_send(pmonitor->m_recvfd,
-	    MONITOR_REQ_JPAKE_KEY_CONFIRM, &m);
-
-	debug3("%s: waiting for MONITOR_ANS_JPAKE_KEY_CONFIRM", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd,
-	    MONITOR_ANS_JPAKE_KEY_CONFIRM, &m);
-
-	/* 'k' is sensitive and stays in the monitor */
-	*confirm_hash = buffer_get_string(&m, confirm_hash_len);
-
-	buffer_free(&m);
-}
-
-int
-mm_jpake_check_confirm(const BIGNUM *k,
-    const u_char *peer_id, u_int peer_id_len,
-    const u_char *sess_id, u_int sess_id_len,
-    const u_char *peer_confirm_hash, u_int peer_confirm_hash_len)
-{
-	Buffer m;
-	int success = 0;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	/* k is dummy in slave, ignored */
-	/* monitor knows all the ids */
-	buffer_put_string(&m, peer_confirm_hash, peer_confirm_hash_len);
-	mm_request_send(pmonitor->m_recvfd,
-	    MONITOR_REQ_JPAKE_CHECK_CONFIRM, &m);
-
-	debug3("%s: waiting for MONITOR_ANS_JPAKE_CHECK_CONFIRM", __func__);
-	mm_request_receive_expect(pmonitor->m_recvfd,
-	    MONITOR_ANS_JPAKE_CHECK_CONFIRM, &m);
-
-	success = buffer_get_int(&m);
-	buffer_free(&m);
-
-	debug3("%s: success = %d", __func__, success);
-	return success;
-}
-#endif /* JPAKE */

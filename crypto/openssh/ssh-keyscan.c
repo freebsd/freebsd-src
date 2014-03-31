@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.85 2011/03/15 10:36:02 okan Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.89 2013/12/06 13:39:49 markus Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -56,6 +56,7 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_DSA		2
 #define KT_RSA		4
 #define KT_ECDSA	8
+#define KT_ED25519	16
 
 int get_keytypes = KT_RSA|KT_ECDSA;/* Get RSA and ECDSA keys by default */
 
@@ -245,15 +246,18 @@ keygrab_ssh2(con *c)
 
 	packet_set_connection(c->c_fd, c->c_fd);
 	enable_compat20();
-	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = c->c_keytype == KT_DSA?
-	    "ssh-dss" : (c->c_keytype == KT_RSA ? "ssh-rsa" :
-	    "ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521");
+	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
+	    c->c_keytype == KT_DSA ?  "ssh-dss" :
+	    (c->c_keytype == KT_RSA ? "ssh-rsa" :
+	    (c->c_keytype == KT_ED25519 ? "ssh-ed25519" :
+	    "ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521"));
 	c->c_kex = kex_setup(myproposal);
 	c->c_kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 	c->c_kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	c->c_kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	c->c_kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 	c->c_kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
+	c->c_kex->kex[KEX_C25519_SHA256] = kexc25519_client;
 	c->c_kex->verify_host_key = hostjump;
 
 	if (!(j = setjmp(kexjmp))) {
@@ -263,7 +267,7 @@ keygrab_ssh2(con *c)
 		exit(1);
 	}
 	nonfatal_fatal = 0;
-	xfree(c->c_kex);
+	free(c->c_kex);
 	c->c_kex = NULL;
 	packet_close();
 
@@ -329,7 +333,7 @@ conalloc(char *iname, char *oname, int keytype)
 	do {
 		name = xstrsep(&namelist, ",");
 		if (!name) {
-			xfree(namebase);
+			free(namebase);
 			return (-1);
 		}
 	} while ((s = tcpconnect(name)) < 0);
@@ -363,10 +367,10 @@ confree(int s)
 	if (s >= maxfd || fdcon[s].c_status == CS_UNUSED)
 		fatal("confree: attempt to free bad fdno %d", s);
 	close(s);
-	xfree(fdcon[s].c_namebase);
-	xfree(fdcon[s].c_output_name);
+	free(fdcon[s].c_namebase);
+	free(fdcon[s].c_output_name);
 	if (fdcon[s].c_status == CS_KEYS)
-		xfree(fdcon[s].c_data);
+		free(fdcon[s].c_data);
 	fdcon[s].c_status = CS_UNUSED;
 	fdcon[s].c_keytype = 0;
 	TAILQ_REMOVE(&tq, &fdcon[s], c_link);
@@ -553,8 +557,8 @@ conloop(void)
 		} else if (FD_ISSET(i, r))
 			conread(i);
 	}
-	xfree(r);
-	xfree(e);
+	free(r);
+	free(e);
 
 	c = TAILQ_FIRST(&tq);
 	while (c && (c->c_tv.tv_sec < now.tv_sec ||
@@ -574,7 +578,7 @@ do_host(char *host)
 
 	if (name == NULL)
 		return;
-	for (j = KT_RSA1; j <= KT_ECDSA; j *= 2) {
+	for (j = KT_RSA1; j <= KT_ED25519; j *= 2) {
 		if (get_keytypes & j) {
 			while (ncon >= MAXCON)
 				conloop();
@@ -680,6 +684,9 @@ main(int argc, char **argv)
 					break;
 				case KEY_RSA:
 					get_keytypes |= KT_RSA;
+					break;
+				case KEY_ED25519:
+					get_keytypes |= KT_ED25519;
 					break;
 				case KEY_UNSPEC:
 					fatal("unknown key type %s", tname);

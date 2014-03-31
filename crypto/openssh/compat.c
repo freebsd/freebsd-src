@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.80 2012/08/17 01:30:00 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.82 2013/12/30 23:52:27 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
@@ -25,6 +25,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -172,8 +173,9 @@ compat_datafellows(const char *version)
 	for (i = 0; check[i].pat; i++) {
 		if (match_pattern_list(version, check[i].pat,
 		    strlen(check[i].pat), 0) == 1) {
-			debug("match: %s pat %s", version, check[i].pat);
 			datafellows = check[i].bugs;
+			debug("match: %s pat %s compat 0x%08x",
+			    version, check[i].pat, datafellows);
 			/*
 			 * Check to see if the remote side is OpenSSH and not
 			 * HPN.  It is utterly strange to check it from the
@@ -215,37 +217,63 @@ proto_spec(const char *spec)
 			break;
 		}
 	}
-	xfree(s);
+	free(s);
 	return ret;
+}
+
+/*
+ * Filters a proposal string, excluding any algorithm matching the 'filter'
+ * pattern list.
+ */
+static char *
+filter_proposal(char *proposal, const char *filter)
+{
+	Buffer b;
+	char *orig_prop, *fix_prop;
+	char *cp, *tmp;
+
+	buffer_init(&b);
+	tmp = orig_prop = xstrdup(proposal);
+	while ((cp = strsep(&tmp, ",")) != NULL) {
+		if (match_pattern_list(cp, filter, strlen(cp), 0) != 1) {
+			if (buffer_len(&b) > 0)
+				buffer_append(&b, ",", 1);
+			buffer_append(&b, cp, strlen(cp));
+		} else
+			debug2("Compat: skipping algorithm \"%s\"", cp);
+	}
+	buffer_append(&b, "\0", 1);
+	fix_prop = xstrdup(buffer_ptr(&b));
+	buffer_free(&b);
+	free(orig_prop);
+
+	return fix_prop;
 }
 
 char *
 compat_cipher_proposal(char *cipher_prop)
 {
-	Buffer b;
-	char *orig_prop, *fix_ciphers;
-	char *cp, *tmp;
-
 	if (!(datafellows & SSH_BUG_BIGENDIANAES))
-		return(cipher_prop);
-
-	buffer_init(&b);
-	tmp = orig_prop = xstrdup(cipher_prop);
-	while ((cp = strsep(&tmp, ",")) != NULL) {
-		if (strncmp(cp, "aes", 3) != 0) {
-			if (buffer_len(&b) > 0)
-				buffer_append(&b, ",", 1);
-			buffer_append(&b, cp, strlen(cp));
-		}
-	}
-	buffer_append(&b, "\0", 1);
-	fix_ciphers = xstrdup(buffer_ptr(&b));
-	buffer_free(&b);
-	xfree(orig_prop);
-	debug2("Original cipher proposal: %s", cipher_prop);
-	debug2("Compat cipher proposal: %s", fix_ciphers);
-	if (!*fix_ciphers)
-		fatal("No available ciphers found.");
-
-	return(fix_ciphers);
+		return cipher_prop;
+	debug2("%s: original cipher proposal: %s", __func__, cipher_prop);
+	cipher_prop = filter_proposal(cipher_prop, "aes*");
+	debug2("%s: compat cipher proposal: %s", __func__, cipher_prop);
+	if (*cipher_prop == '\0')
+		fatal("No supported ciphers found");
+	return cipher_prop;
 }
+
+
+char *
+compat_pkalg_proposal(char *pkalg_prop)
+{
+	if (!(datafellows & SSH_BUG_RSASIGMD5))
+		return pkalg_prop;
+	debug2("%s: original public key proposal: %s", __func__, pkalg_prop);
+	pkalg_prop = filter_proposal(pkalg_prop, "ssh-rsa");
+	debug2("%s: compat public key proposal: %s", __func__, pkalg_prop);
+	if (*pkalg_prop == '\0')
+		fatal("No supported PK algorithms found");
+	return pkalg_prop;
+}
+

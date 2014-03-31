@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.373 2013/02/22 22:09:01 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.401 2014/02/26 20:18:37 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -199,13 +199,13 @@ usage(void)
 {
 	fprintf(stderr,
 "usage: ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
-"           [-D [bind_address:]port] [-e escape_char] [-F configfile]\n"
-"           [-I pkcs11] [-i identity_file]\n"
-"           [-L [bind_address:]port:host:hostport]\n"
-"           [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]\n"
-"           [-R [bind_address:]port:host:hostport] [-S ctl_path]\n"
-"           [-W host:port] [-w local_tun[:remote_tun]]\n"
-"           [user@]hostname [command]\n"
+"           [-D [bind_address:]port] [-E log_file] [-e escape_char]\n"
+"           [-F configfile] [-I pkcs11] [-i identity_file]\n"
+"           [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]\n"
+"           [-O ctl_cmd] [-o option] [-p port]\n"
+"           [-Q cipher | cipher-auth | mac | kex | key]\n"
+"           [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]\n"
+"           [-w local_tun[:remote_tun]] [user@]hostname [command]\n"
 	);
 	exit(255);
 }
@@ -228,8 +228,182 @@ tilde_expand_paths(char **paths, u_int num_paths)
 
 	for (i = 0; i < num_paths; i++) {
 		cp = tilde_expand_filename(paths[i], original_real_uid);
-		xfree(paths[i]);
+		free(paths[i]);
 		paths[i] = cp;
+	}
+}
+
+/*
+ * Attempt to resolve a host name / port to a set of addresses and
+ * optionally return any CNAMEs encountered along the way.
+ * Returns NULL on failure.
+ * NB. this function must operate with a options having undefined members.
+ */
+static struct addrinfo *
+resolve_host(const char *name, int port, int logerr, char *cname, size_t clen)
+{
+	char strport[NI_MAXSERV];
+	struct addrinfo hints, *res;
+	int gaierr, loglevel = SYSLOG_LEVEL_DEBUG1;
+
+	if (port <= 0)
+		port = default_ssh_port();
+
+	snprintf(strport, sizeof strport, "%u", port);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = options.address_family == -1 ?
+	    AF_UNSPEC : options.address_family;
+	hints.ai_socktype = SOCK_STREAM;
+	if (cname != NULL)
+		hints.ai_flags = AI_CANONNAME;
+	if ((gaierr = getaddrinfo(name, strport, &hints, &res)) != 0) {
+		if (logerr || (gaierr != EAI_NONAME && gaierr != EAI_NODATA))
+			loglevel = SYSLOG_LEVEL_ERROR;
+		do_log2(loglevel, "%s: Could not resolve hostname %.100s: %s",
+		    __progname, name, ssh_gai_strerror(gaierr));
+		return NULL;
+	}
+	if (cname != NULL && res->ai_canonname != NULL) {
+		if (strlcpy(cname, res->ai_canonname, clen) >= clen) {
+			error("%s: host \"%s\" cname \"%s\" too long (max %lu)",
+			    __func__, name,  res->ai_canonname, (u_long)clen);
+			if (clen > 0)
+				*cname = '\0';
+		}
+	}
+	return res;
+}
+
+/*
+ * Check whether the cname is a permitted replacement for the hostname
+ * and perform the replacement if it is.
+ * NB. this function must operate with a options having undefined members.
+ */
+static int
+check_follow_cname(char **namep, const char *cname)
+{
+	int i;
+	struct allowed_cname *rule;
+
+	if (*cname == '\0' || options.num_permitted_cnames == 0 ||
+	    strcmp(*namep, cname) == 0)
+		return 0;
+	if (options.canonicalize_hostname == SSH_CANONICALISE_NO)
+		return 0;
+	/*
+	 * Don't attempt to canonicalize names that will be interpreted by
+	 * a proxy unless the user specifically requests so.
+	 */
+	if (!option_clear_or_none(options.proxy_command) &&
+	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
+		return 0;
+	debug3("%s: check \"%s\" CNAME \"%s\"", __func__, *namep, cname);
+	for (i = 0; i < options.num_permitted_cnames; i++) {
+		rule = options.permitted_cnames + i;
+		if (match_pattern_list(*namep, rule->source_list,
+		    strlen(rule->source_list), 1) != 1 ||
+		    match_pattern_list(cname, rule->target_list,
+		    strlen(rule->target_list), 1) != 1)
+			continue;
+		verbose("Canonicalized DNS aliased hostname "
+		    "\"%s\" => \"%s\"", *namep, cname);
+		free(*namep);
+		*namep = xstrdup(cname);
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * Attempt to resolve the supplied hostname after applying the user's
+ * canonicalization rules. Returns the address list for the host or NULL
+ * if no name was found after canonicalization.
+ * NB. this function must operate with a options having undefined members.
+ */
+static struct addrinfo *
+resolve_canonicalize(char **hostp, int port)
+{
+	int i, ndots;
+	char *cp, *fullhost, cname_target[NI_MAXHOST];
+	struct addrinfo *addrs;
+
+	if (options.canonicalize_hostname == SSH_CANONICALISE_NO)
+		return NULL;
+
+	/*
+	 * Don't attempt to canonicalize names that will be interpreted by
+	 * a proxy unless the user specifically requests so.
+	 */
+	if (!option_clear_or_none(options.proxy_command) &&
+	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
+		return NULL;
+
+	/* Don't apply canonicalization to sufficiently-qualified hostnames */
+	ndots = 0;
+	for (cp = *hostp; *cp != '\0'; cp++) {
+		if (*cp == '.')
+			ndots++;
+	}
+	if (ndots > options.canonicalize_max_dots) {
+		debug3("%s: not canonicalizing hostname \"%s\" (max dots %d)",
+		    __func__, *hostp, options.canonicalize_max_dots);
+		return NULL;
+	}
+	/* Attempt each supplied suffix */
+	for (i = 0; i < options.num_canonical_domains; i++) {
+		*cname_target = '\0';
+		xasprintf(&fullhost, "%s.%s.", *hostp,
+		    options.canonical_domains[i]);
+		debug3("%s: attempting \"%s\" => \"%s\"", __func__,
+		    *hostp, fullhost);
+		if ((addrs = resolve_host(fullhost, port, 0,
+		    cname_target, sizeof(cname_target))) == NULL) {
+			free(fullhost);
+			continue;
+		}
+		/* Remove trailing '.' */
+		fullhost[strlen(fullhost) - 1] = '\0';
+		/* Follow CNAME if requested */
+		if (!check_follow_cname(&fullhost, cname_target)) {
+			debug("Canonicalized hostname \"%s\" => \"%s\"",
+			    *hostp, fullhost);
+		}
+		free(*hostp);
+		*hostp = fullhost;
+		return addrs;
+	}
+	if (!options.canonicalize_fallback_local)
+		fatal("%s: Could not resolve host \"%s\"", __progname, *hostp);
+	debug2("%s: host %s not found in any suffix", __func__, *hostp);
+	return NULL;
+}
+
+/*
+ * Read per-user configuration file.  Ignore the system wide config
+ * file if the user specifies a config file on the command line.
+ */
+static void
+process_config_files(struct passwd *pw)
+{
+	char buf[MAXPATHLEN];
+	int r;
+
+	if (config != NULL) {
+		if (strcasecmp(config, "none") != 0 &&
+		    !read_config_file(config, pw, host, &options,
+		    SSHCONF_USERCONF))
+			fatal("Can't open user config file %.100s: "
+			    "%.100s", config, strerror(errno));
+	} else {
+		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
+		    _PATH_SSH_USER_CONFFILE);
+		if (r > 0 && (size_t)r < sizeof(buf))
+			(void)read_config_file(buf, pw, host, &options,
+			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
+
+		/* Read systemwide configuration file after user config. */
+		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw, host,
+		    &options, 0);
 	}
 }
 
@@ -240,16 +414,16 @@ int
 main(int ac, char **av)
 {
 	int i, r, opt, exit_status, use_syslog;
-	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg;
+	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg, *logfile;
 	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
+	char cname[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
-	int dummy, timeout_ms;
+	int timeout_ms;
 	extern int optind, optreset;
 	extern char *optarg;
-
-	struct servent *sp;
 	Forward fwd;
+	struct addrinfo *addrs = NULL;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -301,7 +475,7 @@ main(int ac, char **av)
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		logit("You don't exist, go away!");
+		logit("No user exists for uid %lu", (u_long)original_real_uid);
 		exit(255);
 	}
 	/* Take a copy of the returned structure. */
@@ -324,11 +498,12 @@ main(int ac, char **av)
 	/* Parse command-line arguments. */
 	host = NULL;
 	use_syslog = 0;
+	logfile = NULL;
 	argv0 = av[0];
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
-	    "ACD:F:I:KL:MNO:PR:S:TVw:W:XYy")) != -1) {
+	    "ACD:E:F:I:KL:MNO:PQ:R:S:TVw:W:XYy")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -358,6 +533,9 @@ main(int ac, char **av)
 		case 'y':
 			use_syslog = 1;
 			break;
+		case 'E':
+			logfile = xstrdup(optarg);
+			break;
 		case 'Y':
 			options.forward_x11 = 1;
 			options.forward_x11_trusted = 1;
@@ -386,6 +564,28 @@ main(int ac, char **av)
 			break;
 		case 'P':	/* deprecated */
 			options.use_privileged_port = 0;
+			break;
+		case 'Q':
+			cp = NULL;
+			if (strcmp(optarg, "cipher") == 0)
+				cp = cipher_alg_list('\n', 0);
+			else if (strcmp(optarg, "cipher-auth") == 0)
+				cp = cipher_alg_list('\n', 1);
+			else if (strcmp(optarg, "mac") == 0)
+				cp = mac_alg_list('\n');
+			else if (strcmp(optarg, "kex") == 0)
+				cp = kex_alg_list('\n');
+			else if (strcmp(optarg, "key") == 0)
+				cp = key_alg_list(0, 0);
+			else if (strcmp(optarg, "key-cert") == 0)
+				cp = key_alg_list(1, 0);
+			else if (strcmp(optarg, "key-plain") == 0)
+				cp = key_alg_list(0, 1);
+			if (cp == NULL)
+				fatal("Unsupported query \"%s\"", optarg);
+			printf("%s\n", cp);
+			free(cp);
+			exit(0);
 			break;
 		case 'a':
 			options.forward_agent = 0;
@@ -429,9 +629,8 @@ main(int ac, char **av)
 			} else {
 				if (options.log_level < SYSLOG_LEVEL_DEBUG3)
 					options.log_level++;
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'V':
 			if (options.version_addendum &&
 			    *options.version_addendum != '\0')
@@ -464,7 +663,7 @@ main(int ac, char **av)
 			if (parse_forward(&fwd, optarg, 1, 0)) {
 				stdio_forward_host = fwd.listen_host;
 				stdio_forward_port = fwd.listen_port;
-				xfree(fwd.connect_host);
+				free(fwd.connect_host);
 			} else {
 				fprintf(stderr,
 				    "Bad stdio forwarding specification '%s'\n",
@@ -595,13 +794,12 @@ main(int ac, char **av)
 #endif
 			break;
 		case 'o':
-			dummy = 1;
 			line = xstrdup(optarg);
-			if (process_config_line(&options, host ? host : "",
-			    line, "command-line", 0, &dummy, SSHCONF_USERCONF)
+			if (process_config_line(&options, pw, host ? host : "",
+			    line, "command-line", 0, NULL, SSHCONF_USERCONF)
 			    != 0)
 				exit(255);
-			xfree(line);
+			free(line);
 			break;
 		case 's':
 			subsystem_flag = 1;
@@ -633,9 +831,9 @@ main(int ac, char **av)
 				usage();
 			options.user = p;
 			*cp = '\0';
-			host = ++cp;
+			host = xstrdup(++cp);
 		} else
-			host = *av;
+			host = xstrdup(*av);
 		if (ac > 1) {
 			optind = optreset = 1;
 			goto again;
@@ -646,6 +844,8 @@ main(int ac, char **av)
 	/* Check that we got a host name. */
 	if (!host)
 		usage();
+
+	host_arg = xstrdup(host);
 
 	OpenSSL_add_all_algorithms();
 	ERR_load_crypto_strings();
@@ -682,36 +882,90 @@ main(int ac, char **av)
 
 	/*
 	 * Initialize "log" output.  Since we are the client all output
-	 * actually goes to stderr.
+	 * goes to stderr unless otherwise specified by -y or -E.
 	 */
+	if (use_syslog && logfile != NULL)
+		fatal("Can't specify both -y and -E");
+	if (logfile != NULL) {
+		log_redirect_stderr_to(logfile);
+		free(logfile);
+	}
 	log_init(argv0,
 	    options.log_level == -1 ? SYSLOG_LEVEL_INFO : options.log_level,
 	    SYSLOG_FACILITY_USER, !use_syslog);
 
-	/*
-	 * Read per-user configuration file.  Ignore the system wide config
-	 * file if the user specifies a config file on the command line.
-	 */
-	if (config != NULL) {
-		if (!read_config_file(config, host, &options, SSHCONF_USERCONF))
-			fatal("Can't open user config file %.100s: "
-			    "%.100s", config, strerror(errno));
-	} else {
-		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
-		    _PATH_SSH_USER_CONFFILE);
-		if (r > 0 && (size_t)r < sizeof(buf))
-			(void)read_config_file(buf, host, &options,
-			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
+	if (debug_flag)
+		logit("%s, %s", SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
 
-		/* Read systemwide configuration file after user config. */
-		(void)read_config_file(_PATH_HOST_CONFIG_FILE, host,
-		    &options, 0);
+	/* Parse the configuration files */
+	process_config_files(pw);
+
+	/* Hostname canonicalisation needs a few options filled. */
+	fill_default_options_for_canonicalization(&options);
+
+	/* If the user has replaced the hostname then take it into use now */
+	if (options.hostname != NULL) {
+		/* NB. Please keep in sync with readconf.c:match_cfg_line() */
+		cp = percent_expand(options.hostname,
+		    "h", host, (char *)NULL);
+		free(host);
+		host = cp;
+	}
+
+	/* If canonicalization requested then try to apply it */
+	lowercase(host);
+	if (options.canonicalize_hostname != SSH_CANONICALISE_NO)
+		addrs = resolve_canonicalize(&host, options.port);
+
+	/*
+	 * If CanonicalizePermittedCNAMEs have been specified but
+	 * other canonicalization did not happen (by not being requested
+	 * or by failing with fallback) then the hostname may still be changed
+	 * as a result of CNAME following. 
+	 *
+	 * Try to resolve the bare hostname name using the system resolver's
+	 * usual search rules and then apply the CNAME follow rules.
+	 *
+	 * Skip the lookup if a ProxyCommand is being used unless the user
+	 * has specifically requested canonicalisation for this case via
+	 * CanonicalizeHostname=always
+	 */
+	if (addrs == NULL && options.num_permitted_cnames != 0 &&
+	    (option_clear_or_none(options.proxy_command) ||
+            options.canonicalize_hostname == SSH_CANONICALISE_ALWAYS)) {
+		if ((addrs = resolve_host(host, options.port, 1,
+		    cname, sizeof(cname))) == NULL)
+			cleanup_exit(255); /* resolve_host logs the error */
+		check_follow_cname(&host, cname);
+	}
+
+	/*
+	 * If the target hostname has changed as a result of canonicalisation
+	 * then re-parse the configuration files as new stanzas may match.
+	 */
+	if (strcasecmp(host_arg, host) != 0) {
+		debug("Hostname has changed; re-reading configuration");
+		process_config_files(pw);
 	}
 
 	/* Fill configuration defaults. */
 	fill_default_options(&options);
 
+	if (options.port == 0)
+		options.port = default_ssh_port();
 	channel_set_af(options.address_family);
+
+	/* Tidy and check options */
+	if (options.host_key_alias != NULL)
+		lowercase(options.host_key_alias);
+	if (options.proxy_command != NULL &&
+	    strcmp(options.proxy_command, "-") == 0 &&
+	    options.proxy_use_fdpass)
+		fatal("ProxyCommand=- and ProxyUseFDPass are incompatible");
+#ifndef HAVE_CYGWIN
+	if (original_effective_uid != 0)
+		options.use_privileged_port = 0;
+#endif
 
 	/* reinit */
 	log_init(argv0, options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
@@ -741,19 +995,6 @@ main(int ac, char **av)
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
 
-	/* Get default port if port has not been set. */
-	if (options.port == 0) {
-		sp = getservbyname(SSH_SERVICE_NAME, "tcp");
-		options.port = sp ? ntohs(sp->s_port) : SSH_DEFAULT_PORT;
-	}
-
-	/* preserve host name given on command line for %n expansion */
-	host_arg = host;
-	if (options.hostname != NULL) {
-		host = percent_expand(options.hostname,
-		    "h", host, (char *)NULL);
-	}
-
 	if (gethostname(thishost, sizeof(thishost)) == -1)
 		fatal("gethostname: %s", strerror(errno));
 	strlcpy(shorthost, thishost, sizeof(shorthost));
@@ -768,72 +1009,48 @@ main(int ac, char **av)
 		    "p", portstr, "u", pw->pw_name, "L", shorthost,
 		    (char *)NULL);
 		debug3("expanded LocalCommand: %s", options.local_command);
-		xfree(cp);
-	}
-
-	/* Find canonic host name. */
-	if (strchr(host, '.') == 0) {
-		struct addrinfo hints;
-		struct addrinfo *ai = NULL;
-		int errgai;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = options.address_family;
-		hints.ai_flags = AI_CANONNAME;
-		hints.ai_socktype = SOCK_STREAM;
-		errgai = getaddrinfo(host, NULL, &hints, &ai);
-		if (errgai == 0) {
-			if (ai->ai_canonname != NULL)
-				host = xstrdup(ai->ai_canonname);
-			freeaddrinfo(ai);
-		}
-	}
-
-	/* force lowercase for hostkey matching */
-	if (options.host_key_alias != NULL) {
-		for (p = options.host_key_alias; *p; p++)
-			if (isupper(*p))
-				*p = (char)tolower(*p);
-	}
-
-	if (options.proxy_command != NULL &&
-	    strcmp(options.proxy_command, "none") == 0) {
-		xfree(options.proxy_command);
-		options.proxy_command = NULL;
-	}
-	if (options.control_path != NULL &&
-	    strcmp(options.control_path, "none") == 0) {
-		xfree(options.control_path);
-		options.control_path = NULL;
+		free(cp);
 	}
 
 	if (options.control_path != NULL) {
 		cp = tilde_expand_filename(options.control_path,
 		    original_real_uid);
-		xfree(options.control_path);
+		free(options.control_path);
 		options.control_path = percent_expand(cp, "h", host,
 		    "l", thishost, "n", host_arg, "r", options.user,
 		    "p", portstr, "u", pw->pw_name, "L", shorthost,
 		    (char *)NULL);
-		xfree(cp);
+		free(cp);
 	}
 	if (muxclient_command != 0 && options.control_path == NULL)
 		fatal("No ControlPath specified for \"-O\" command");
 	if (options.control_path != NULL)
 		muxclient(options.control_path);
 
+	/*
+	 * If hostname canonicalisation was not enabled, then we may not
+	 * have yet resolved the hostname. Do so now.
+	 */
+	if (addrs == NULL && options.proxy_command == NULL) {
+		if ((addrs = resolve_host(host, options.port, 1,
+		    cname, sizeof(cname))) == NULL)
+			cleanup_exit(255); /* resolve_host logs the error */
+	}
+
 	timeout_ms = options.connection_timeout * 1000;
 
 	/* Open a connection to the remote host. */
-	if (ssh_connect(host, &hostaddr, options.port,
-	    options.address_family, options.connection_attempts, &timeout_ms,
-	    options.tcp_keep_alive, 
-#ifdef HAVE_CYGWIN
-	    options.use_privileged_port,
-#else
-	    original_effective_uid == 0 && options.use_privileged_port,
-#endif
-	    options.proxy_command) != 0)
-		exit(255);
+	if (ssh_connect(host, addrs, &hostaddr, options.port,
+	    options.address_family, options.connection_attempts,
+	    &timeout_ms, options.tcp_keep_alive,
+	    options.use_privileged_port) != 0)
+ 		exit(255);
+
+	if (addrs != NULL)
+		freeaddrinfo(addrs);
+
+	packet_set_timeout(options.server_alive_interval,
+	    options.server_alive_count_max);
 
 	if (timeout_ms > 0)
 		debug3("timeout: %d ms remain after connect", timeout_ms);
@@ -851,7 +1068,7 @@ main(int ac, char **av)
 	sensitive_data.external_keysign = 0;
 	if (options.rhosts_rsa_authentication ||
 	    options.hostbased_authentication) {
-		sensitive_data.nkeys = 7;
+		sensitive_data.nkeys = 9;
 		sensitive_data.keys = xcalloc(sensitive_data.nkeys,
 		    sizeof(Key));
 		for (i = 0; i < sensitive_data.nkeys; i++)
@@ -868,21 +1085,26 @@ main(int ac, char **av)
 #endif
 		sensitive_data.keys[3] = key_load_private_cert(KEY_RSA,
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL);
-		sensitive_data.keys[4] = key_load_private_type(KEY_DSA,
+		sensitive_data.keys[4] = key_load_private_cert(KEY_ED25519,
+		    _PATH_HOST_ED25519_KEY_FILE, "", NULL);
+		sensitive_data.keys[5] = key_load_private_type(KEY_DSA,
 		    _PATH_HOST_DSA_KEY_FILE, "", NULL, NULL);
 #ifdef OPENSSL_HAS_ECC
-		sensitive_data.keys[5] = key_load_private_type(KEY_ECDSA,
+		sensitive_data.keys[6] = key_load_private_type(KEY_ECDSA,
 		    _PATH_HOST_ECDSA_KEY_FILE, "", NULL, NULL);
 #endif
-		sensitive_data.keys[6] = key_load_private_type(KEY_RSA,
+		sensitive_data.keys[7] = key_load_private_type(KEY_RSA,
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL, NULL);
+		sensitive_data.keys[8] = key_load_private_type(KEY_ED25519,
+		    _PATH_HOST_ED25519_KEY_FILE, "", NULL, NULL);
 		PRIV_END;
 
 		if (options.hostbased_authentication == 1 &&
 		    sensitive_data.keys[0] == NULL &&
-		    sensitive_data.keys[4] == NULL &&
 		    sensitive_data.keys[5] == NULL &&
-		    sensitive_data.keys[6] == NULL) {
+		    sensitive_data.keys[6] == NULL &&
+		    sensitive_data.keys[7] == NULL &&
+		    sensitive_data.keys[8] == NULL) {
 			sensitive_data.keys[1] = key_load_cert(
 			    _PATH_HOST_DSA_KEY_FILE);
 #ifdef OPENSSL_HAS_ECC
@@ -891,14 +1113,18 @@ main(int ac, char **av)
 #endif
 			sensitive_data.keys[3] = key_load_cert(
 			    _PATH_HOST_RSA_KEY_FILE);
-			sensitive_data.keys[4] = key_load_public(
+			sensitive_data.keys[4] = key_load_cert(
+			    _PATH_HOST_ED25519_KEY_FILE);
+			sensitive_data.keys[5] = key_load_public(
 			    _PATH_HOST_DSA_KEY_FILE, NULL);
 #ifdef OPENSSL_HAS_ECC
-			sensitive_data.keys[5] = key_load_public(
+			sensitive_data.keys[6] = key_load_public(
 			    _PATH_HOST_ECDSA_KEY_FILE, NULL);
 #endif
-			sensitive_data.keys[6] = key_load_public(
+			sensitive_data.keys[7] = key_load_public(
 			    _PATH_HOST_RSA_KEY_FILE, NULL);
+			sensitive_data.keys[8] = key_load_public(
+			    _PATH_HOST_ED25519_KEY_FILE, NULL);
 			sensitive_data.external_keysign = 1;
 		}
 	}
@@ -965,13 +1191,11 @@ main(int ac, char **av)
 				sensitive_data.keys[i] = NULL;
 			}
 		}
-		xfree(sensitive_data.keys);
+		free(sensitive_data.keys);
 	}
 	for (i = 0; i < options.num_identity_files; i++) {
-		if (options.identity_files[i]) {
-			xfree(options.identity_files[i]);
-			options.identity_files[i] = NULL;
-		}
+		free(options.identity_files[i]);
+		options.identity_files[i] = NULL;
 		if (options.identity_keys[i]) {
 			key_free(options.identity_keys[i]);
 			options.identity_keys[i] = NULL;
@@ -1031,6 +1255,7 @@ control_persist_detach(void)
 		if (devnull > STDERR_FILENO)
 			close(devnull);
 	}
+	daemon(1, 1);
 	setproctitle("%s [mux]", options.control_path);
 }
 
@@ -1099,7 +1324,7 @@ ssh_init_stdio_forwarding(void)
 
 	if (stdio_forward_host == NULL)
 		return;
-	if (!compat20) 
+	if (!compat20)
 		fatal("stdio forwarding require Protocol 2");
 
 	debug3("%s: %s:%d", __func__, stdio_forward_host, stdio_forward_port);
@@ -1271,7 +1496,7 @@ ssh_session(void)
 		char *proto, *data;
 		/* Get reasonable local authentication information. */
 		client_x11_get_proto(display, options.xauth_location,
-		    options.forward_x11_trusted, 
+		    options.forward_x11_trusted,
 		    options.forward_x11_timeout,
 		    &proto, &data);
 		/* Request forwarding with authentication spoofing. */
@@ -1530,6 +1755,11 @@ ssh_session2(void)
 
 	if (!no_shell_flag || (datafellows & SSH_BUG_DUMMYCHAN))
 		id = ssh_session2_open();
+	else {
+		packet_set_interactive(
+		    options.control_master == SSHCTL_MASTER_NO,
+		    options.ip_qos_interactive, options.ip_qos_bulk);
+	}
 
 	/* If we don't expect to open a new session, then disallow it */
 	if (options.control_master == SSHCTL_MASTER_NO &&
@@ -1583,8 +1813,8 @@ load_public_identity_files(void)
 #endif /* PKCS11 */
 
 	n_ids = 0;
-	bzero(identity_files, sizeof(identity_files));
-	bzero(identity_keys, sizeof(identity_keys));
+	memset(identity_files, 0, sizeof(identity_files));
+	memset(identity_keys, 0, sizeof(identity_keys));
 
 #ifdef ENABLE_PKCS11
 	if (options.pkcs11_provider != NULL &&
@@ -1602,7 +1832,7 @@ load_public_identity_files(void)
 			    xstrdup(options.pkcs11_provider); /* XXX */
 			n_ids++;
 		}
-		xfree(keys);
+		free(keys);
 	}
 #endif /* ENABLE_PKCS11 */
 	if ((pw = getpwuid(original_real_uid)) == NULL)
@@ -1615,7 +1845,7 @@ load_public_identity_files(void)
 	for (i = 0; i < options.num_identity_files; i++) {
 		if (n_ids >= SSH_MAX_IDENTITY_FILES ||
 		    strcasecmp(options.identity_files[i], "none") == 0) {
-			xfree(options.identity_files[i]);
+			free(options.identity_files[i]);
 			continue;
 		}
 		cp = tilde_expand_filename(options.identity_files[i],
@@ -1623,11 +1853,11 @@ load_public_identity_files(void)
 		filename = percent_expand(cp, "d", pwdir,
 		    "u", pwname, "l", thishost, "h", host,
 		    "r", options.user, (char *)NULL);
-		xfree(cp);
+		free(cp);
 		public = key_load_public(filename, NULL);
 		debug("identity file %s type %d", filename,
 		    public ? public->type : -1);
-		xfree(options.identity_files[i]);
+		free(options.identity_files[i]);
 		identity_files[n_ids] = filename;
 		identity_keys[n_ids] = public;
 
@@ -1640,14 +1870,14 @@ load_public_identity_files(void)
 		debug("identity file %s type %d", cp,
 		    public ? public->type : -1);
 		if (public == NULL) {
-			xfree(cp);
+			free(cp);
 			continue;
 		}
 		if (!key_is_cert(public)) {
 			debug("%s: key %s type %s is not a certificate",
 			    __func__, cp, key_type(public));
 			key_free(public);
-			xfree(cp);
+			free(cp);
 			continue;
 		}
 		identity_keys[n_ids] = public;
@@ -1659,10 +1889,10 @@ load_public_identity_files(void)
 	memcpy(options.identity_files, identity_files, sizeof(identity_files));
 	memcpy(options.identity_keys, identity_keys, sizeof(identity_keys));
 
-	bzero(pwname, strlen(pwname));
-	xfree(pwname);
-	bzero(pwdir, strlen(pwdir));
-	xfree(pwdir);
+	explicit_bzero(pwname, strlen(pwname));
+	free(pwname);
+	explicit_bzero(pwdir, strlen(pwdir));
+	free(pwdir);
 }
 
 static void
@@ -1679,4 +1909,3 @@ main_sigchld_handler(int sig)
 	signal(sig, main_sigchld_handler);
 	errno = save_errno;
 }
-

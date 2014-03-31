@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexc.c,v 1.12 2010/11/10 01:33:07 djm Exp $ */
+/* $OpenBSD: kexgexc.c,v 1.17 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -58,7 +58,7 @@ kexgex_client(Kex *kex)
 	int min, max, nbits;
 	DH *dh;
 
-	nbits = dh_estimate(kex->we_need * 8);
+	nbits = dh_estimate(kex->dh_need * 8);
 
 	if (datafellows & SSH_OLD_DHGEX) {
 		/* Old GEX request */
@@ -162,15 +162,15 @@ kexgex_client(Kex *kex)
 		fatal("kexgex_client: BN_new failed");
 	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
 		fatal("kexgex_client: BN_bin2bn failed");
-	memset(kbuf, 0, klen);
-	xfree(kbuf);
+	explicit_bzero(kbuf, klen);
+	free(kbuf);
 
 	if (datafellows & SSH_OLD_DHGEX)
 		min = max = -1;
 
 	/* calc and verify H */
 	kexgex_hash(
-	    kex->evp_md,
+	    kex->hash_alg,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    buffer_ptr(&kex->my), buffer_len(&kex->my),
@@ -186,13 +186,13 @@ kexgex_client(Kex *kex)
 
 	/* have keys, free DH */
 	DH_free(dh);
-	xfree(server_host_key_blob);
+	free(server_host_key_blob);
 	BN_clear_free(dh_server_pub);
 
 	if (key_verify(server_host_key, signature, slen, hash, hashlen) != 1)
 		fatal("key_verify failed for server_host_key");
 	key_free(server_host_key);
-	xfree(signature);
+	free(signature);
 
 	/* save session id */
 	if (kex->session_id == NULL) {
@@ -200,7 +200,7 @@ kexgex_client(Kex *kex)
 		kex->session_id = xmalloc(kex->session_id_len);
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
-	kex_derive_keys(kex, hash, hashlen, shared_secret);
+	kex_derive_keys_bn(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 
 	kex_finish(kex);

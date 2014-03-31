@@ -1,4 +1,5 @@
-/* $OpenBSD: sftp-common.c,v 1.23 2010/01/15 09:24:23 markus Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.26 2014/01/09 03:26:00 guenther Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -25,6 +26,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -33,6 +35,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
@@ -128,8 +131,8 @@ decode_attrib(Buffer *b)
 			type = buffer_get_string(b, NULL);
 			data = buffer_get_string(b, NULL);
 			debug3("Got file attribute \"%s\"", type);
-			xfree(type);
-			xfree(data);
+			free(type);
+			free(data);
 		}
 	}
 	return &a;
@@ -191,9 +194,10 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 {
 	int ulen, glen, sz = 0;
 	struct tm *ltime = localtime(&st->st_mtime);
-	char *user, *group;
+	const char *user, *group;
 	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
+	time_t now;
 
 	strmode(st->st_mode, mode);
 	if (!remote) {
@@ -209,7 +213,9 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 		group = gbuf;
 	}
 	if (ltime != NULL) {
-		if (time(NULL) - st->st_mtime < (365*24*60*60)/2)
+		now = time(NULL);
+		if (now - (365*24*60*60)/2 < st->st_mtime &&
+		    now >= st->st_mtime)
 			sz = strftime(tbuf, sizeof tbuf, "%b %e %H:%M", ltime);
 		else
 			sz = strftime(tbuf, sizeof tbuf, "%b %e  %Y", ltime);

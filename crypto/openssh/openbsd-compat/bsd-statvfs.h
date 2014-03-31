@@ -1,7 +1,7 @@
-/* $Id: bsd-statvfs.h,v 1.1 2008/06/08 17:32:29 dtucker Exp $ */
+/* $Id: bsd-statvfs.h,v 1.3 2014/01/17 07:48:22 dtucker Exp $ */
 
 /*
- * Copyright (c) 2008 Darren Tucker <dtucker@zip.com.au>
+ * Copyright (c) 2008,2014 Darren Tucker <dtucker@zip.com.au>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,13 +18,16 @@
 
 #include "includes.h"
 
+#if !defined(HAVE_STATVFS) || !defined(HAVE_FSTATVFS)
+
 #include <sys/types.h>
 
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
 #ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
-
-#ifndef HAVE_STATVFS
 
 #ifndef HAVE_FSBLKCNT_T
 typedef unsigned long fsblkcnt_t;

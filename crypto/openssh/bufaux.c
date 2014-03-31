@@ -1,4 +1,4 @@
-/* $OpenBSD: bufaux.c,v 1.50 2010/08/31 09:58:37 djm Exp $ */
+/* $OpenBSD: bufaux.c,v 1.56 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -45,6 +45,7 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -181,7 +182,7 @@ buffer_get_string_ret(Buffer *buffer, u_int *length_ptr)
 	/* Get the string. */
 	if (buffer_get_ret(buffer, value, len) == -1) {
 		error("buffer_get_string_ret: buffer_get failed");
-		xfree(value);
+		free(value);
 		return (NULL);
 	}
 	/* Append a null character to make processing easier. */
@@ -215,8 +216,8 @@ buffer_get_cstring_ret(Buffer *buffer, u_int *length_ptr)
 		if (cp == ret + length - 1)
 			error("buffer_get_cstring_ret: string contains \\0");
 		else {
-			bzero(ret, length);
-			xfree(ret);
+			explicit_bzero(ret, length);
+			free(ret);
 			return NULL;
 		}
 	}
@@ -285,7 +286,7 @@ buffer_put_cstring(Buffer *buffer, const char *s)
  * Returns a character from the buffer (0 - 255).
  */
 int
-buffer_get_char_ret(char *ret, Buffer *buffer)
+buffer_get_char_ret(u_char *ret, Buffer *buffer)
 {
 	if (buffer_get_ret(buffer, ret, 1) == -1) {
 		error("buffer_get_char_ret: buffer_get_ret failed");
@@ -297,11 +298,11 @@ buffer_get_char_ret(char *ret, Buffer *buffer)
 int
 buffer_get_char(Buffer *buffer)
 {
-	char ch;
+	u_char ch;
 
 	if (buffer_get_char_ret(&ch, buffer) == -1)
 		fatal("buffer_get_char: buffer error");
-	return (u_char) ch;
+	return ch;
 }
 
 /*
@@ -314,3 +315,76 @@ buffer_put_char(Buffer *buffer, int value)
 
 	buffer_append(buffer, &ch, 1);
 }
+
+/* Pseudo bignum functions */
+
+void *
+buffer_get_bignum2_as_string_ret(Buffer *buffer, u_int *length_ptr)
+{
+	u_int len;
+	u_char *bin, *p, *ret;
+
+	if ((p = bin = buffer_get_string_ret(buffer, &len)) == NULL) {
+		error("%s: invalid bignum", __func__);
+		return NULL;
+	}
+
+	if (len > 0 && (bin[0] & 0x80)) {
+		error("%s: negative numbers not supported", __func__);
+		free(bin);
+		return NULL;
+	}
+	if (len > 8 * 1024) {
+		error("%s: cannot handle BN of size %d", __func__, len);
+		free(bin);
+		return NULL;
+	}
+	/* Skip zero prefix on numbers with the MSB set */
+	if (len > 1 && bin[0] == 0x00 && (bin[1] & 0x80) != 0) {
+		p++;
+		len--;
+	}
+	ret = xmalloc(len);
+	memcpy(ret, p, len);
+	explicit_bzero(p, len);
+	free(bin);
+	return ret;
+}
+
+void *
+buffer_get_bignum2_as_string(Buffer *buffer, u_int *l)
+{
+	void *ret = buffer_get_bignum2_as_string_ret(buffer, l);
+
+	if (ret == NULL)
+		fatal("%s: buffer error", __func__);
+	return ret;
+}
+
+/*
+ * Stores a string using the bignum encoding rules (\0 pad if MSB set).
+ */
+void
+buffer_put_bignum2_from_string(Buffer *buffer, const u_char *s, u_int l)
+{
+	u_char *buf, *p;
+	int pad = 0;
+
+	if (l > 8 * 1024)
+		fatal("%s: length %u too long", __func__, l);
+	p = buf = xmalloc(l + 1);
+	/*
+	 * If most significant bit is set then prepend a zero byte to
+	 * avoid interpretation as a negative number.
+	 */
+	if (l > 0 && (s[0] & 0x80) != 0) {
+		*p++ = '\0';
+		pad = 1;
+	}
+	memcpy(p, s, l);
+	buffer_put_string(buffer, buf, l + pad);
+	explicit_bzero(buf, l + pad);
+	free(buf);
+}
+
+

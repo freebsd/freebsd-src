@@ -1,4 +1,4 @@
-/* $OpenBSD: readpass.c,v 1.48 2010/12/15 00:49:27 djm Exp $ */
+/* $OpenBSD: readpass.c,v 1.50 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -99,13 +99,13 @@ ssh_askpass(char *askpass, const char *msg)
 			break;
 	signal(SIGCHLD, osigchld);
 	if (ret == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		memset(buf, 0, sizeof(buf));
+		explicit_bzero(buf, sizeof(buf));
 		return NULL;
 	}
 
 	buf[strcspn(buf, "\r\n")] = '\0';
 	pass = xstrdup(buf);
-	memset(buf, 0, sizeof(buf));
+	explicit_bzero(buf, sizeof(buf));
 	return pass;
 }
 
@@ -162,7 +162,7 @@ read_passphrase(const char *prompt, int flags)
 	}
 
 	ret = xstrdup(buf);
-	memset(buf, 'x', sizeof buf);
+	explicit_bzero(buf, sizeof(buf));
 	return ret;
 }
 
@@ -186,7 +186,7 @@ ask_permission(const char *fmt, ...)
 		if (*p == '\0' || *p == '\n' ||
 		    strcasecmp(p, "yes") == 0)
 			allowed = 1;
-		xfree(p);
+		free(p);
 	}
 
 	return (allowed);
