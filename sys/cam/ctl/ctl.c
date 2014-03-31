@@ -325,6 +325,10 @@ static int worker_threads = 1;
 TUNABLE_INT("kern.cam.ctl.worker_threads", &worker_threads);
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, worker_threads, CTLFLAG_RDTUN,
     &worker_threads, 1, "Number of worker threads");
+static int verbose = 0;
+TUNABLE_INT("kern.cam.ctl.verbose", &verbose);
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
+    &verbose, 0, "Show SCSI errors returned to initiator");
 
 /*
  * Serial number (0x80), device id (0x83), and supported pages (0x00)
@@ -12349,7 +12353,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		ctl_io_error_print(io, NULL);
+		if (bootverbose || verbose > 0)
+			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
 		else
@@ -12605,7 +12610,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 					    "skipped", skipped_prints);
 #endif
 				}
-				ctl_io_error_print(io, NULL);
+				if (bootverbose || verbose > 0)
+					ctl_io_error_print(io, NULL);
 			}
 		} else {
 			if (have_lock == 0)
@@ -12616,7 +12622,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_TASK:
 		if (have_lock == 0)
 			mtx_unlock(&ctl_softc->ctl_lock);
-		ctl_io_error_print(io, NULL);
+		if (bootverbose || verbose > 0)
+			ctl_io_error_print(io, NULL);
 		break;
 	default:
 		if (have_lock == 0)
