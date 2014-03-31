@@ -11,7 +11,7 @@ INTERNALPROG=
 
 # architecture-specific loader code
 SRCS=	start.S main.c conf.c vers.c reloc.c autoload.c
-SRCS+=	copy.c devicename.c exec.c
+SRCS+=	copy.c devicename.c exec.c bootinfo.c
 
 CFLAGS+=	-fno-builtin
 CFLAGS+=	-I${.CURDIR}

@@ -32,18 +32,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/imgact.h>
+#include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
-#include <machine/bootinfo.h>
 #include <machine/cpu.h>
+#include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
+#include <machine/vmparam.h>
 
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
@@ -52,6 +56,8 @@ vm_paddr_t phys_avail[10];
 
 int cold = 1;
 long realmem = 0;
+
+#define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
 
 void
 bzero(void *buf, size_t len)
@@ -254,7 +260,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	panic("sendsig");
 }
 
-void initarm(struct bootinfo *);
+void initarm(vm_offset_t);
 
 #ifdef EARLY_PRINTF
 static void 
@@ -277,32 +283,195 @@ typedef struct {
 	uint64_t attr;
 } EFI_MEMORY_DESCRIPTOR;
 
-void
-initarm(struct bootinfo *bi)
+static int
+add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
+    int *physmap_idxp)
 {
-	EFI_MEMORY_DESCRIPTOR *desc;
-	const char str[] = "FreeBSD\r\n";
-	volatile uint32_t *uart;
+	int i, insert_idx, physmap_idx;
+
+	physmap_idx = *physmap_idxp;
+
+	if (length == 0)
+		return (1);
+
+	/*
+	 * Find insertion point while checking for overlap.  Start off by
+	 * assuming the new entry will be added to the end.
+	 */
+	insert_idx = physmap_idx + 2;
+	for (i = 0; i <= physmap_idx; i += 2) {
+		if (base < physmap[i + 1]) {
+			if (base + length <= physmap[i]) {
+				insert_idx = i;
+				break;
+			}
+			if (boothowto & RB_VERBOSE)
+				printf(
+		    "Overlapping memory regions, ignoring second region\n");
+			return (1);
+		}
+	}
+
+	/* See if we can prepend to the next entry. */
+	if (insert_idx <= physmap_idx && base + length == physmap[insert_idx]) {
+		physmap[insert_idx] = base;
+		return (1);
+	}
+
+	/* See if we can append to the previous entry. */
+	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += length;
+		return (1);
+	}
+
+	physmap_idx += 2;
+	*physmap_idxp = physmap_idx;
+	if (physmap_idx == PHYSMAP_SIZE) {
+		printf(
+		"Too many segments in the physical address map, giving up\n");
+		return (0);
+	}
+
+	/*
+	 * Move the last 'N' entries down to make room for the new
+	 * entry if needed.
+	 */
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
+		physmap[i] = physmap[i - 2];
+		physmap[i + 1] = physmap[i - 1];
+	}
+
+	/* Insert the new entry. */
+	physmap[insert_idx] = base;
+	physmap[insert_idx + 1] = base + length;
+	return (1);
+}
+
+#define efi_next_descriptor(ptr, size) \
+	((struct efi_md *)(((uint8_t *) ptr) + size))
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
+    int *physmap_idx)
+{
+	struct efi_md *map, *p;
+	const char *type;
+	size_t efisz;
+	int ndesc, i;
+
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode"
+	};
+
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+
+	if (efihdr->descriptor_size == 0)
+		return;
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	if (boothowto & RB_VERBOSE)
+		printf("%23s %12s %12s %8s %4s\n",
+		    "Type", "Physical", "Virtual", "#Pages", "Attr");
+
+	for (i = 0, p = map; i < ndesc; i++,
+	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+		if (boothowto & RB_VERBOSE) {
+			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+				type = types[p->md_type];
+			else
+				type = "<INVALID>";
+			printf("%23s %012llx %12p %08llx ", type, p->md_phys,
+			    p->md_virt, p->md_pages);
+			if (p->md_attr & EFI_MD_ATTR_UC)
+				printf("UC ");
+			if (p->md_attr & EFI_MD_ATTR_WC)
+				printf("WC ");
+			if (p->md_attr & EFI_MD_ATTR_WT)
+				printf("WT ");
+			if (p->md_attr & EFI_MD_ATTR_WB)
+				printf("WB ");
+			if (p->md_attr & EFI_MD_ATTR_UCE)
+				printf("UCE ");
+			if (p->md_attr & EFI_MD_ATTR_WP)
+				printf("WP ");
+			if (p->md_attr & EFI_MD_ATTR_RP)
+				printf("RP ");
+			if (p->md_attr & EFI_MD_ATTR_XP)
+				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_RT)
+				printf("RUNTIME");
+			printf("\n");
+		}
+
+		switch (p->md_type) {
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
+		case EFI_MD_TYPE_BS_CODE:
+		case EFI_MD_TYPE_BS_DATA:
+		case EFI_MD_TYPE_FREE:
+			/*
+			 * We're allowed to use any entry with these types.
+			 */
+			break;
+		default:
+			continue;
+		}
+
+		if (!add_physmap_entry(p->md_phys, (p->md_pages * PAGE_SIZE),
+		    physmap, physmap_idx))
+			break;
+	}
+}
+void
+initarm(vm_offset_t modulep)
+{
+	vm_paddr_t physmap[PHYSMAP_SIZE];
+	struct efi_map_header *efihdr;
+	int physmap_idx;
+	caddr_t kmdp;
+	vm_paddr_t mem_len;
 	int i;
 
-	uart = (uint32_t*)0x1c090000;
-	for (i = 0; i < sizeof(str); i++) {
-		*uart = str[i];
+	printf("In initarm on arm64 %llx\n", modulep);
+
+	/* Find the kernel address */
+	preload_metadata = (caddr_t)(uintptr_t)(modulep);
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+
+	/* Load the physical memory ranges */
+	physmap_idx = 0;
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	add_efi_map_entries(efihdr, physmap, &physmap_idx);
+
+	/* Print the memory map */
+	mem_len = 0;
+	for (i = 0; i <= physmap_idx; i += 2) {
+		mem_len += physmap[i + 1] - physmap[i];
+		printf("%llx - %llx\n", physmap[i], physmap[i + 1]);
 	}
+	printf("Total = %llx\n", mem_len);
 
-	printf("In initarm on arm64 %p\n", bi);
-	printf("%llx\n", bi->bi_memmap);
-	printf("%llx\n", bi->bi_memmap_size);
-	printf("%llx\n", bi->bi_memdesc_size);
-	printf("%llx\n", bi->bi_memdesc_version);
-
-	desc = (void *)bi->bi_memmap;
-	for (i = 0; i < bi->bi_memmap_size / bi->bi_memdesc_size; i++) {
-		printf("%x %llx %llx %llx %llx\n", desc->type,
-		    desc->phys_start, desc->virt_start, desc->num_pages,
-		    desc->attr);
-
-		desc = (void *)((uint8_t *)desc + bi->bi_memdesc_size);
-	}
+	printf("End initarm\n");
 }
 
