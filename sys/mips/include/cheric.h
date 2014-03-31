@@ -118,10 +118,11 @@ cheri_zerocap(void)
 
 #define	cheri_setreg(x, cap) do {					\
 	if ((x) == 0)							\
-		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap));	\
-	else								\
 		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap) :	\
 		    "memory");						\
+	else								\
+		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap));
+
 } while (0)
 #endif
 
