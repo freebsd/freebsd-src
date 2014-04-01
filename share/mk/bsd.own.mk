@@ -283,6 +283,7 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GDB \
     GNU \
+    GNU_GREP_COMPAT \
     GPIB \
     GPIO \
     GPL_DTC \
@@ -310,6 +311,7 @@ __DEFAULT_YES_OPTIONS = \
     LOCATE \
     LPR \
     LS_COLORS \
+    LZMA_SUPPORT \
     MAIL \
     MAILWRAPPER \
     MAKE \
