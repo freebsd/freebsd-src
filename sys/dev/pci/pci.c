@@ -124,6 +124,8 @@ static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
 
+static uint16_t		pci_get_rid_method(device_t dev, device_t child);
+
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
@@ -182,6 +184,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
+	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
 
 	DEVMETHOD_END
 };
@@ -5054,4 +5057,11 @@ pci_restore_state(device_t dev)
 
 	dinfo = device_get_ivars(dev);
 	pci_cfg_restore(dev, dinfo);
+}
+
+static uint16_t
+pci_get_rid_method(device_t dev, device_t child)
+{
+
+	return (PCIB_GET_RID(device_get_parent(dev), child));
 }
