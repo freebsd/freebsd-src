@@ -92,6 +92,21 @@ enum {
 	UFTDI_N_TRANSFER,
 };
 
+enum {
+	DEVT_SIO,
+	DEVT_232A,
+	DEVT_232B,
+	DEVT_2232D,	/* Includes 2232C */
+	DEVT_232R,
+	DEVT_2232H,
+	DEVT_4232H,
+	DEVT_232H,
+	DEVT_230X,
+};
+
+#define	DEVF_BAUDBITS_HINDEX	0x01	/* Baud bits in high byte of index. */
+#define	DEVF_BAUDCLK_12M	0X02	/* Base baud clock is 12MHz. */
+
 struct uftdi_softc {
 	struct ucom_super_softc sc_super_ucom;
 	struct ucom_softc sc_ucom;
@@ -105,15 +120,16 @@ struct uftdi_softc {
 
 	uint16_t sc_last_lcr;
 
-	uint8_t sc_type;
-	uint8_t	sc_iface_index;
+	uint8_t sc_devtype;
+	uint8_t sc_devflags;
 	uint8_t	sc_hdrlen;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
 };
 
 struct uftdi_param_config {
-	uint16_t rate;
+	uint16_t baud_lobits;
+	uint16_t baud_hibits;
 	uint16_t lcr;
 	uint8_t	v_start;
 	uint8_t	v_stop;
@@ -135,8 +151,8 @@ static void	uftdi_cfg_open(struct ucom_softc *);
 static void	uftdi_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uftdi_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uftdi_cfg_set_break(struct ucom_softc *, uint8_t);
-static int	uftdi_set_parm_soft(struct termios *,
-		    struct uftdi_param_config *, uint8_t);
+static int	uftdi_set_parm_soft(struct ucom_softc *, struct termios *,
+		    struct uftdi_param_config *);
 static int	uftdi_pre_param(struct ucom_softc *, struct termios *);
 static void	uftdi_cfg_param(struct ucom_softc *, struct termios *);
 static void	uftdi_cfg_get_status(struct ucom_softc *, uint8_t *,
@@ -145,7 +161,6 @@ static void	uftdi_start_read(struct ucom_softc *);
 static void	uftdi_stop_read(struct ucom_softc *);
 static void	uftdi_start_write(struct ucom_softc *);
 static void	uftdi_stop_write(struct ucom_softc *);
-static uint8_t	uftdi_8u232am_getrate(uint32_t, uint16_t *);
 static void	uftdi_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
@@ -846,6 +861,80 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 #undef UFTDI_DEV
 };
 
+/*
+ * Set up softc fields whose value depends on the device type.
+ *
+ * Note that the 2232C and 2232D devices are the same for our purposes.  In the
+ * silicon the difference is that the D series has CPU FIFO mode and C doesn't.
+ * I haven't found any way of determining the C/D difference from info provided
+ * by the chip other than trying to set CPU FIFO mode and having it work or not.
+ * 
+ * Due to a hardware bug, a 232B chip without an eeprom reports itself as a 
+ * 232A, but if the serial number is also zero we know it's really a 232B. 
+ */
+static void
+uftdi_devtype_setup(struct uftdi_softc *sc, struct usb_attach_arg *uaa)
+{
+	struct usb_device_descriptor *dd;
+
+	switch (uaa->info.bcdDevice) {
+	case 0x200:
+		dd = usbd_get_device_descriptor(sc->sc_udev);
+		if (dd->iSerialNumber == 0) {
+			sc->sc_devtype = DEVT_232B;
+		} else {
+			sc->sc_devtype = DEVT_232A;
+		}
+		sc->sc_ucom.sc_portno = 0;
+		break;
+	case 0x400:
+		sc->sc_devtype = DEVT_232B;
+		sc->sc_ucom.sc_portno = 0;
+		break;
+	case 0x500:
+		sc->sc_devtype = DEVT_2232D;
+		sc->sc_devflags |= DEVF_BAUDBITS_HINDEX;
+		sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
+		break;
+	case 0x600:
+		sc->sc_devtype = DEVT_232R;
+		sc->sc_ucom.sc_portno = 0;
+		break;
+	case 0x700:
+		sc->sc_devtype = DEVT_2232H;
+		sc->sc_devflags |= DEVF_BAUDBITS_HINDEX | DEVF_BAUDCLK_12M;
+		sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
+		break;
+	case 0x800:
+		sc->sc_devtype = DEVT_4232H;
+		sc->sc_devflags |= DEVF_BAUDBITS_HINDEX | DEVF_BAUDCLK_12M;
+		sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
+		break;
+	case 0x900:
+		sc->sc_devtype = DEVT_232H;
+		sc->sc_devflags |= DEVF_BAUDBITS_HINDEX | DEVF_BAUDCLK_12M;
+		sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
+		break;
+	case 0x1000:
+		sc->sc_devtype = DEVT_230X;
+		sc->sc_devflags |= DEVF_BAUDBITS_HINDEX;
+		sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
+		break;
+	default:
+		if (uaa->info.bcdDevice < 0x200) {
+			sc->sc_devtype = DEVT_SIO;
+			sc->sc_hdrlen = 1;
+		} else {
+			sc->sc_devtype = DEVT_232R;
+			device_printf(sc->sc_dev, "Warning: unknown FTDI "
+			    "device type, bcdDevice=0x%04x, assuming 232R", 
+			    uaa->info.bcdDevice);
+		}
+		sc->sc_ucom.sc_portno = 0;
+		break;
+	}
+}
+
 static int
 uftdi_probe(device_t dev)
 {
@@ -885,6 +974,8 @@ uftdi_attach(device_t dev)
 	struct uftdi_softc *sc = device_get_softc(dev);
 	int error;
 
+	DPRINTF("\n");
+
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
@@ -893,34 +984,11 @@ uftdi_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
 
-	DPRINTF("\n");
 
-	sc->sc_iface_index = uaa->info.bIfaceIndex;
-	sc->sc_type = USB_GET_DRIVER_INFO(uaa) & UFTDI_TYPE_MASK;
-
-	switch (sc->sc_type) {
-	case UFTDI_TYPE_AUTO:
-		/* simplified type check */
-		if (uaa->info.bcdDevice >= 0x0200 ||
-		    usbd_get_iface(uaa->device, 1) != NULL) {
-			sc->sc_type = UFTDI_TYPE_8U232AM;
-			sc->sc_hdrlen = 0;
-		} else {
-			sc->sc_type = UFTDI_TYPE_SIO;
-			sc->sc_hdrlen = 1;
-		}
-		break;
-	case UFTDI_TYPE_SIO:
-		sc->sc_hdrlen = 1;
-		break;
-	case UFTDI_TYPE_8U232AM:
-	default:
-		sc->sc_hdrlen = 0;
-		break;
-	}
+	uftdi_devtype_setup(sc, uaa);
 
 	error = usbd_transfer_setup(uaa->device,
-	    &sc->sc_iface_index, sc->sc_xfer, uftdi_config,
+	    &uaa->info.bIfaceIndex, sc->sc_xfer, uftdi_config,
 	    UFTDI_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
@@ -928,8 +996,6 @@ uftdi_attach(device_t dev)
 		    "transfers failed\n");
 		goto detach;
 	}
-	sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;
-
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
 	usbd_xfer_set_stall(sc->sc_xfer[UFTDI_BULK_DT_WR]);
@@ -1192,57 +1258,161 @@ uftdi_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	    &req, NULL, 0, 1000);
 }
 
-static int
-uftdi_set_parm_soft(struct termios *t,
-    struct uftdi_param_config *cfg, uint8_t type)
+/*
+ * Return true if the given speed is within operational tolerance of the target
+ * speed.  FTDI recommends that the hardware speed be within 3% of nominal.
+ */
+static inline boolean_t
+uftdi_baud_within_tolerance(uint64_t speed, uint64_t target)
 {
+	return ((speed >= (target * 100) / 103) &&
+	    (speed <= (target * 100) / 97));
+}
+
+static int
+uftdi_sio_encode_baudrate(struct uftdi_softc *sc, speed_t speed,
+	struct uftdi_param_config *cfg)
+{
+	u_int i;
+	const speed_t sio_speeds[] = {
+		300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
+	};
+
+	/*
+	 * The original SIO chips were limited to a small choice of speeds
+	 * listed in an internal table of speeds chosen by an index value.
+	 */
+	for (i = 0; i < nitems(sio_speeds); ++i) {
+		if (speed == sio_speeds[i]) {
+			cfg->baud_lobits = i;
+			cfg->baud_hibits = 0;
+			return (0);
+		}
+	}
+	return (ERANGE);
+}
+
+static int
+uftdi_encode_baudrate(struct uftdi_softc *sc, speed_t speed,
+	struct uftdi_param_config *cfg)
+{
+	static const uint8_t encoded_fraction[8] = {0, 3, 2, 4, 1, 5, 6, 7};
+	static const uint8_t roundoff_232a[16] = {
+		0,  1,  0,  1,  0, -1,  2,  1,
+		0, -1, -2, -3,  4,  3,  2,  1,
+	};
+	uint32_t clk, divisor, fastclk_flag, frac, hwspeed;
+
+	/*
+	 * If this chip has the fast clock capability and the speed is within
+	 * range, use the 12MHz clock, otherwise the standard clock is 3MHz.
+	 */
+	if ((sc->sc_devflags & DEVF_BAUDCLK_12M) && speed >= 1200) {
+		clk = 12000000;
+		fastclk_flag = (1 << 17);
+	} else {
+		clk = 3000000;
+		fastclk_flag = 0;
+	}
+
+	/*
+	 * Make sure the requested speed is reachable with the available clock
+	 * and a 14-bit divisor.
+	 */
+	if (speed < (clk >> 14) || speed > clk)
+		return (ERANGE);
+
+	/*
+	 * Calculate the divisor, initially yielding a fixed point number with a
+	 * 4-bit (1/16ths) fraction, then round it to the nearest fraction the
+	 * hardware can handle.  When the integral part of the divisor is
+	 * greater than one, the fractional part is in 1/8ths of the base clock.
+	 * The FT8U232AM chips can handle only 0.125, 0.250, and 0.5 fractions.
+	 * Later chips can handle all 1/8th fractions.
+	 *
+	 * If the integral part of the divisor is 1, a special rule applies: the
+	 * fractional part can only be .0 or .5 (this is a limitation of the
+	 * hardware).  We handle this by truncating the fraction rather than
+	 * rounding, because this only applies to the two fastest speeds the
+	 * chip can achieve and rounding doesn't matter, either you've asked for
+	 * that exact speed or you've asked for something the chip can't do.
+	 *
+	 * For the FT8U232AM chips, use a roundoff table to adjust the result
+	 * to the nearest 1/8th fraction that is supported by the hardware,
+	 * leaving a fixed-point number with a 3-bit fraction which exactly
+	 * represents the math the hardware divider will do.  For later-series
+	 * chips that support all 8 fractional divisors, just round 16ths to
+	 * 8ths by adding 1 and dividing by 2.
+	 */
+	divisor = (clk << 4) / speed;
+	if ((divisor & 0xfffffff0) == 1)
+		divisor &= 0xfffffff8;
+	else if (sc->sc_devtype == DEVT_232A)
+		divisor += roundoff_232a[divisor & 0x0f];
+	else
+		divisor += 1;  /* Rounds odd 16ths up to next 8th. */
+	divisor >>= 1;
+
+	/*
+	 * Ensure the resulting hardware speed will be within operational
+	 * tolerance (within 3% of nominal).
+	 */
+	hwspeed = (clk << 3) / divisor;
+	if (!uftdi_baud_within_tolerance(hwspeed, speed))
+		return (ERANGE);
+
+	/*
+	 * Re-pack the divisor into hardware format. The lower 14-bits hold the
+	 * integral part, while the upper bits specify the fraction by indexing
+	 * a table of fractions within the hardware which is laid out as:
+	 *    {0.0, 0.5, 0.25, 0.125, 0.325, 0.625, 0.725, 0.875}
+	 * The A-series chips only have the first four table entries; the
+	 * roundoff table logic above ensures that the fractional part for those
+	 * chips will be one of the first four values.
+	 *
+	 * When the divisor is 1 a special encoding applies:  1.0 is encoded as
+	 * 0.0, and 1.5 is encoded as 1.0.  The rounding logic above has already
+	 * ensured that the fraction is either .0 or .5 if the integral is 1.
+	 */
+	frac = divisor & 0x07;
+	divisor >>= 3;
+	if (divisor == 1) {
+		if (frac == 0)
+			divisor = 0;  /* 1.0 becomes 0.0 */
+		else
+			frac = 0;     /* 1.5 becomes 1.0 */
+	}
+	divisor |= (encoded_fraction[frac] << 14) | fastclk_flag;
+        
+	cfg->baud_lobits = (uint16_t)divisor;
+	cfg->baud_hibits = (uint16_t)(divisor >> 16);
+
+	/*
+	 * If this chip requires the baud bits to be in the high byte of the
+	 * index word, move the bits up to that location.
+	 */
+	if (sc->sc_devflags & DEVF_BAUDBITS_HINDEX) {
+		cfg->baud_hibits <<= 8;
+	}
+
+	return (0);
+}
+
+static int
+uftdi_set_parm_soft(struct ucom_softc *ucom, struct termios *t,
+    struct uftdi_param_config *cfg)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	int err;
 
 	memset(cfg, 0, sizeof(*cfg));
 
-	switch (type) {
-	case UFTDI_TYPE_SIO:
-		switch (t->c_ospeed) {
-		case 300:
-			cfg->rate = ftdi_sio_b300;
-			break;
-		case 600:
-			cfg->rate = ftdi_sio_b600;
-			break;
-		case 1200:
-			cfg->rate = ftdi_sio_b1200;
-			break;
-		case 2400:
-			cfg->rate = ftdi_sio_b2400;
-			break;
-		case 4800:
-			cfg->rate = ftdi_sio_b4800;
-			break;
-		case 9600:
-			cfg->rate = ftdi_sio_b9600;
-			break;
-		case 19200:
-			cfg->rate = ftdi_sio_b19200;
-			break;
-		case 38400:
-			cfg->rate = ftdi_sio_b38400;
-			break;
-		case 57600:
-			cfg->rate = ftdi_sio_b57600;
-			break;
-		case 115200:
-			cfg->rate = ftdi_sio_b115200;
-			break;
-		default:
-			return (EINVAL);
-		}
-		break;
-
-	case UFTDI_TYPE_8U232AM:
-		if (uftdi_8u232am_getrate(t->c_ospeed, &cfg->rate)) {
-			return (EINVAL);
-		}
-		break;
-	}
+	if (sc->sc_devtype == DEVT_SIO)
+		err = uftdi_sio_encode_baudrate(sc, t->c_ospeed, cfg);
+	else
+		err = uftdi_encode_baudrate(sc, t->c_ospeed, cfg);
+	if (err != 0)
+		return (err);
 
 	if (t->c_cflag & CSTOPB)
 		cfg->lcr = FTDI_SIO_SET_DATA_STOP_BITS_2;
@@ -1293,12 +1463,11 @@ uftdi_set_parm_soft(struct termios *t,
 static int
 uftdi_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	struct uftdi_softc *sc = ucom->sc_parent;
 	struct uftdi_param_config cfg;
 
 	DPRINTF("\n");
 
-	return (uftdi_set_parm_soft(t, &cfg, sc->sc_type));
+	return (uftdi_set_parm_soft(ucom, t, &cfg));
 }
 
 static void
@@ -1309,7 +1478,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	struct uftdi_param_config cfg;
 	struct usb_device_request req;
 
-	if (uftdi_set_parm_soft(t, &cfg, sc->sc_type)) {
+	if (uftdi_set_parm_soft(ucom, t, &cfg)) {
 		/* should not happen */
 		return;
 	}
@@ -1319,8 +1488,8 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_SET_BAUD_RATE;
-	USETW(req.wValue, cfg.rate);
-	USETW(req.wIndex, wIndex);
+	USETW(req.wValue, cfg.baud_lobits);
+	USETW(req.wIndex, cfg.baud_hibits | wIndex);
 	USETW(req.wLength, 0);
 	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
@@ -1384,75 +1553,6 @@ uftdi_stop_write(struct ucom_softc *ucom)
 	struct uftdi_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[UFTDI_BULK_DT_WR]);
-}
-
-/*------------------------------------------------------------------------*
- *	uftdi_8u232am_getrate
- *
- * Return values:
- *    0: Success
- * Else: Failure
- *------------------------------------------------------------------------*/
-static uint8_t
-uftdi_8u232am_getrate(uint32_t speed, uint16_t *rate)
-{
-	/* Table of the nearest even powers-of-2 for values 0..15. */
-	static const uint8_t roundoff[16] = {
-		0, 2, 2, 4, 4, 4, 8, 8,
-		8, 8, 8, 8, 16, 16, 16, 16,
-	};
-	uint32_t d;
-	uint32_t freq;
-	uint16_t result;
-
-	if ((speed < 178) || (speed > ((3000000 * 100) / 97)))
-		return (1);		/* prevent numerical overflow */
-
-	/* Special cases for 2M and 3M. */
-	if ((speed >= ((3000000 * 100) / 103)) &&
-	    (speed <= ((3000000 * 100) / 97))) {
-		result = 0;
-		goto done;
-	}
-	if ((speed >= ((2000000 * 100) / 103)) &&
-	    (speed <= ((2000000 * 100) / 97))) {
-		result = 1;
-		goto done;
-	}
-	d = (FTDI_8U232AM_FREQ << 4) / speed;
-	d = (d & ~15) + roundoff[d & 15];
-
-	if (d < FTDI_8U232AM_MIN_DIV)
-		d = FTDI_8U232AM_MIN_DIV;
-	else if (d > FTDI_8U232AM_MAX_DIV)
-		d = FTDI_8U232AM_MAX_DIV;
-
-	/*
-	 * Calculate the frequency needed for "d" to exactly divide down to
-	 * our target "speed", and check that the actual frequency is within
-	 * 3% of this.
-	 */
-	freq = (speed * d);
-	if ((freq < ((FTDI_8U232AM_FREQ * 1600ULL) / 103)) ||
-	    (freq > ((FTDI_8U232AM_FREQ * 1600ULL) / 97)))
-		return (1);
-
-	/*
-	 * Pack the divisor into the resultant value.  The lower 14-bits
-	 * hold the integral part, while the upper 2 bits encode the
-	 * fractional component: either 0, 0.5, 0.25, or 0.125.
-	 */
-	result = (d >> 4);
-	if (d & 8)
-		result |= 0x4000;
-	else if (d & 4)
-		result |= 0x8000;
-	else if (d & 2)
-		result |= 0xc000;
-
-done:
-	*rate = result;
-	return (0);
 }
 
 static void
