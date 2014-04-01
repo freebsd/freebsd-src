@@ -1919,11 +1919,11 @@ _xb-build-tools:
 
 _xb-cross-tools:
 .for _tool in \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
     usr.bin/ar \
     ${_clang_libs} \
-    ${_clang}
+    ${_clang} \
+    ${_cc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool} && \
 	${CDMAKE} DIRPRFX=${_tool}/ obj && \
@@ -1947,10 +1947,11 @@ xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _x
 _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
     usr.bin/ar \
-    ${_clang}
+    ${_clang_libs} \
+    ${_clang} \
+    ${_cc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
