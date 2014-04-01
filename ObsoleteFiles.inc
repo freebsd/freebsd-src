@@ -75,6 +75,10 @@ OLD_FILES+=usr/include/clang/3.3/xopintrin.h
 OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_DIRS+=usr/include/clang/3.3
+# 20140314: bsdconfig usermgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/userinput
+# 20140307: bsdconfig groupmgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
 # 20131109: extattr(2) mlinks fixed
 OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
 OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz

@@ -34,6 +34,12 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ GLOBALS
 
 #
+# A Literal newline (for use with f_replace_all(), or IFS, or whatever)
+#
+NL="
+" # END-QUOTE
+
+#
 # Valid characters that can appear in an sh(1) variable name
 #
 # Please note that the character ranges A-Z and a-z should be avoided because
@@ -189,7 +195,7 @@ f_number_of_lines()
 f_isinteger()
 {
 	local arg="${1#-}"
-	[ "${arg:-x}" = "${arg#[!0-9]*}" ]
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
 }
 
 # f_uriencode [$text]
@@ -264,6 +270,9 @@ f_uridecode()
 # either missing or NULL, the variable name is produced on standard out for
 # capturing in a sub-shell (which is less recommended due to performance
 # degradation).
+#
+# To replace newlines or a sequence containing the newline character, use $NL
+# as `\n' is not supported.
 #
 f_replaceall()
 {
@@ -372,14 +381,13 @@ f_expand_number()
 	local __cp __num __bshift __maxinput
 
 	# Remove any leading non-digits
-	while :; do
-		__cp="$__string"
-		__string="${__cp#[!0-9]}"
-		[ "$__string" = "$__cp" ] && break
-	done
+	__string="${__string#${__string%%[0-9]*}}"
+
+	# Store the numbers (no trailing suffix)
+	__num="${__string%%[!0-9]*}"
 
 	# Produce `-1' if string didn't contain any digits
-	if [ ! "$__string" ]; then
+	if [ ! "$__num" ]; then
 		if [ "$__var_to_set" ]; then
 			setvar "$__var_to_set" -1
 		else
@@ -388,25 +396,8 @@ f_expand_number()
 		return 1 # 1 = "Given $string contains no digits"
 	fi
 
-	# Store the numbers
-	__num="${__string%%[!0-9]*}"
-
-	# Shortcut
-	if [ $__num -eq 0 ]; then
-		if [ "$__var_to_set" ]; then
-			setvar "$__var_to_set" 0
-		else
-			echo 0
-		fi
-		return $SUCCESS
-	fi
-
 	# Remove all the leading numbers from the string to get at the prefix
-	while :; do
-		__cp="$__string"
-		__string="${__cp#[0-9]}"
-		[ "$__string" = "$__cp" ] && break
-	done
+	__string="${__string#"$__num"}"
 
 	#
 	# Test for invalid prefix (and determine bitshift length)
