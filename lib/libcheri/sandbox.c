@@ -71,19 +71,6 @@
  */
 int sb_verbose;
 
-/*
- * Routines for measuring time -- depends on a later MIPS userspace cycle
- * counter.
- */
-static __inline uint64_t
-get_cyclecount(void)
-{
-	uint64_t _time;
-
-	__asm __volatile("rdhwr %0, $2" : "=r" (_time));
-	return (_time);
-}
-
 __attribute__ ((constructor)) static void
 sandbox_init(void)
 {
@@ -247,10 +234,10 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	else
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
-	start = get_cyclecount();
+	start = cheri_get_cyclecount();
 	v0 = cheri_invoke(sbop->sbo_cheri_object, methodnum, a1, a2, a3, a4,
 	    a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
-	sample = get_cyclecount() - start;
+	sample = cheri_get_cyclecount() - start;
 	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
 	    sample);
 	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);

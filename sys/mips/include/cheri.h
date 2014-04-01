@@ -449,6 +449,19 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
 	CHERI_CGETLEN((c).c_length, (crn));				\
 } while (0)
 
+
+/*
+ * Routines for measuring time -- depends on a later MIPS userspace cycle
+ * counter.
+ */
+static __inline uint64_t
+cheri_get_cyclecount(void)
+{
+	uint64_t _time;
+	__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+	return (_time);
+}
+
 #ifdef _KERNEL
 /*
  * APIs that act on C language representations of capabilities -- but not
