@@ -590,6 +590,9 @@
       <para revision="263286">The &man.xz.1; utility has been updated
 	to a post-5.0.5 snapshot.</para>
 
+      <para revision="263970"><application>OpenSSH</application> has
+	been updated to version 6.6p1.</para>
+
     </sect2>
 
     <sect2 xml:id="releng">
