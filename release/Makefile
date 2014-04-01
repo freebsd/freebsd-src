@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # Makefile for building releases and release media.
-# 
+#
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
 #  dvdrom: Builds release DVD-ROM media (dvd1.iso)
@@ -13,7 +13,7 @@
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
-#            (by default, the directory above this one) 
+#            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
 #  NOPKG:    if set, do not distribute third-party packages
@@ -23,7 +23,7 @@
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with gzip(1)
 #		(uncompressed images are not removed)
-#  TARGET/TARGET_ARCH: architecture of built release 
+#  TARGET/TARGET_ARCH: architecture of built release
 #
 
 WORLDDIR?=	${.CURDIR}/..
@@ -65,7 +65,7 @@ NODOC= true
 NOPORTS= true
 .endif
 
-EXTRA_PACKAGES= 
+EXTRA_PACKAGES=
 .if !defined(NOPORTS)
 EXTRA_PACKAGES+= ports.txz
 .endif
