@@ -1225,10 +1225,7 @@ icl_conn_close(struct icl_conn *ic)
 
 	KASSERT(TAILQ_EMPTY(&ic->ic_to_send),
 	    ("destroying session with non-empty send queue"));
-	/*
-	 * XXX
-	 */
-#if 0
+#ifdef DIAGNOSTIC
 	KASSERT(ic->ic_outstanding_pdus == 0,
 	    ("destroying session with %d outstanding PDUs",
 	     ic->ic_outstanding_pdus));
