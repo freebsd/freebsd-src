@@ -408,24 +408,18 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
     ${__T} == "armv6hf" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=GNUCXX
 # The pc98 bootloader requires gcc to build and so we must leave gcc enabled
 # for pc98 for now.
 .if ${__TT} == "pc98"
-__DEFAULT_NO_OPTIONS+=GNUCXX
 __DEFAULT_YES_OPTIONS+=GCC
 .else
-__DEFAULT_NO_OPTIONS+=GCC GNUCXX
+__DEFAULT_NO_OPTIONS+=GCC
 .endif
 .else
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC
-__DEFAULT_YES_OPTIONS+=GCC
-# And if g++ is c++, build the rest of the GNU C++ stack
-.if defined(WITHOUT_CXX)
-__DEFAULT_NO_OPTIONS+=GNUCXX
-.else
-__DEFAULT_YES_OPTIONS+=GNUCXX
-.endif
+__DEFAULT_YES_OPTIONS+=GCC GNUCXX
 .endif
 
 #
