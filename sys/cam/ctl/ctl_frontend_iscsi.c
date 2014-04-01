@@ -967,9 +967,7 @@ cfiscsi_callout(void *context)
 
 	callout_schedule(&cs->cs_callout, 1 * hz);
 
-	CFISCSI_SESSION_LOCK(cs);
-	cs->cs_timeout++;
-	CFISCSI_SESSION_UNLOCK(cs);
+	atomic_add_int(&cs->cs_timeout, 1);
 
 #ifdef ICL_KERNEL_PROXY
 	if (cs->cs_waiting_for_ctld || cs->cs_login_phase) {
@@ -2522,10 +2520,8 @@ cfiscsi_datamove_out(union ctl_io *io)
 	 */
 	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
-	CFISCSI_SESSION_LOCK(cs);
-	target_transfer_tag = cs->cs_target_transfer_tag;
-	cs->cs_target_transfer_tag++;
-	CFISCSI_SESSION_UNLOCK(cs);
+	target_transfer_tag =
+	    atomic_fetchadd_32(&cs->cs_target_transfer_tag, 1);
 
 #if 0
 	CFISCSI_SESSION_DEBUG(cs, "expecting Data-Out with initiator "
