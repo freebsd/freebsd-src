@@ -48,6 +48,9 @@
 #define	PCIE_REGMAX	4095	/* highest supported config register addr. */
 #define	PCI_MAXHDRTYPE	2
 
+#define	PCIE_ARI_SLOTMAX 0
+#define	PCIE_ARI_FUNCMAX 255
+
 #define	PCI_RID_BUS_SHIFT	8
 #define	PCI_RID_SLOT_SHIFT	3
 #define	PCI_RID_FUNC_SHIFT	0
@@ -64,6 +67,9 @@
 #define PCI_RID2BUS(rid) (((rid) >> PCI_RID_BUS_SHIFT) & PCI_BUSMAX)
 #define PCI_RID2SLOT(rid) (((rid) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCI_RID2FUNC(rid) (((rid) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
+
+#define PCIE_ARI_SLOT(func) (((func) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
+#define PCIE_ARI_FUNC(func) (((func) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
 
 /* PCI config header registers for all devices */
 
@@ -791,6 +797,7 @@
 #define	PCIEM_ROOT_STA_PME_STATUS	0x00010000
 #define	PCIEM_ROOT_STA_PME_PEND		0x00020000
 #define	PCIER_DEVICE_CAP2	0x24
+#define	PCIEM_CAP2_ARI		0x20
 #define	PCIER_DEVICE_CTL2	0x28
 #define	PCIEM_CTL2_COMP_TIMEOUT_VAL	0x000f
 #define	PCIEM_CTL2_COMP_TIMEOUT_DIS	0x0010
@@ -911,3 +918,4 @@
 /* Serial Number definitions */
 #define	PCIR_SERIAL_LOW		0x04
 #define	PCIR_SERIAL_HIGH	0x08
+
