@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: citrus_viqr.c,v 1.4 2008/06/14 16:01:08 tnozaki Exp $ */
+/* $NetBSD: citrus_viqr.c,v 1.5 2011/11/19 18:20:13 tnozaki Exp $ */
 
 /*-
  * Copyright (c)2006 Citrus Project,

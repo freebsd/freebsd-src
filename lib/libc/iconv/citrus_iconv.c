@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: citrus_iconv.c,v 1.7 2008/07/25 14:05:25 christos Exp $ */
+/*	$NetBSD: citrus_iconv.c,v 1.10 2011/11/19 18:34:21 tnozaki Exp $	*/
 
 /*-
  * Copyright (c)2003 Citrus Project,
@@ -169,8 +169,10 @@ open_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	    ci->ci_ops->io_uninit_shared == NULL ||
 	    ci->ci_ops->io_init_context == NULL ||
 	    ci->ci_ops->io_uninit_context == NULL ||
-	    ci->ci_ops->io_convert == NULL)
+	    ci->ci_ops->io_convert == NULL) {
+		ret = EINVAL;
 		goto err;
+	}
 
 	/* initialize the converter */
 	ret = (*ci->ci_ops->io_init_shared)(ci, src, dst);
