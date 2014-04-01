@@ -931,12 +931,16 @@ zvol_open(struct g_provider *pp, int flag, int count)
 		return (SET_ERROR(ENXIO));
 	}
 
-	if (zv->zv_total_opens == 0)
+	if (zv->zv_total_opens == 0) {
 		err = zvol_first_open(zv);
-	if (err) {
-		if (locked)
-			mutex_exit(&spa_namespace_lock);
-		return (err);
+		if (err) {
+			if (locked)
+				mutex_exit(&spa_namespace_lock);
+			return (err);
+		}
+		pp->mediasize = zv->zv_volsize;
+		pp->stripeoffset = 0;
+		pp->stripesize = zv->zv_volblocksize;
 	}
 	if ((flag & FWRITE) && (zv->zv_flags & ZVOL_RDONLY)) {
 		err = SET_ERROR(EROFS);
