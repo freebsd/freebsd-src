@@ -253,7 +253,7 @@ install:
 	cp -a ftp ${DESTDIR}/
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
-. if defined(WITH_COMPRESSED_IMAGES) || !empty(WITH_COMPRESSED_IMAGES)
+. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 	gzip -k ${DESTDIR}/${OSRELEASE}-${I}
 . endif
 .endfor
