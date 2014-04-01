@@ -121,8 +121,7 @@ cheri_zerocap(void)
 		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap) :	\
 		    "memory");						\
 	else								\
-		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap));
-
+		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap));  \
 } while (0)
 #endif
 
