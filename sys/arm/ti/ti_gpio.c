@@ -66,92 +66,88 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
- /* Register definitions */
-#define TI_GPIO_REVISION		0x0000
-#define TI_GPIO_SYSCONFIG		0x0010
+/* Register definitions */
+#define	TI_GPIO_REVISION		0x0000
+#define	TI_GPIO_SYSCONFIG		0x0010
 #if defined(SOC_OMAP3)
-#define TI_GPIO_REVISION		0x0000
-#define TI_GPIO_SYSCONFIG		0x0010
-#define TI_GPIO_SYSSTATUS		0x0014
-#define TI_GPIO_IRQSTATUS1		0x0018
-#define TI_GPIO_IRQENABLE1		0x001C
-#define TI_GPIO_WAKEUPENABLE		0x0020
-#define TI_GPIO_IRQSTATUS2		0x0028
-#define TI_GPIO_IRQENABLE2		0x002C
-#define TI_GPIO_CTRL			0x0030
-#define TI_GPIO_OE			0x0034
-#define TI_GPIO_DATAIN			0x0038
-#define TI_GPIO_DATAOUT			0x003C
-#define TI_GPIO_LEVELDETECT0		0x0040
-#define TI_GPIO_LEVELDETECT1		0x0044
-#define TI_GPIO_RISINGDETECT		0x0048
-#define TI_GPIO_FALLINGDETECT		0x004C
-#define TI_GPIO_DEBOUNCENABLE		0x0050
-#define TI_GPIO_DEBOUNCINGTIME		0x0054
-#define TI_GPIO_CLEARIRQENABLE1		0x0060
-#define TI_GPIO_SETIRQENABLE1		0x0064
-#define TI_GPIO_CLEARIRQENABLE2		0x0070
-#define TI_GPIO_SETIRQENABLE2		0x0074
-#define TI_GPIO_CLEARWKUENA		0x0080
-#define TI_GPIO_SETWKUENA		0x0084
-#define TI_GPIO_CLEARDATAOUT		0x0090
-#define TI_GPIO_SETDATAOUT		0x0094
+#define	TI_GPIO_SYSSTATUS		0x0014
+#define	TI_GPIO_IRQSTATUS1		0x0018
+#define	TI_GPIO_IRQENABLE1		0x001C
+#define	TI_GPIO_WAKEUPENABLE		0x0020
+#define	TI_GPIO_IRQSTATUS2		0x0028
+#define	TI_GPIO_IRQENABLE2		0x002C
+#define	TI_GPIO_CTRL			0x0030
+#define	TI_GPIO_OE			0x0034
+#define	TI_GPIO_DATAIN			0x0038
+#define	TI_GPIO_DATAOUT			0x003C
+#define	TI_GPIO_LEVELDETECT0		0x0040
+#define	TI_GPIO_LEVELDETECT1		0x0044
+#define	TI_GPIO_RISINGDETECT		0x0048
+#define	TI_GPIO_FALLINGDETECT		0x004C
+#define	TI_GPIO_DEBOUNCENABLE		0x0050
+#define	TI_GPIO_DEBOUNCINGTIME		0x0054
+#define	TI_GPIO_CLEARIRQENABLE1		0x0060
+#define	TI_GPIO_SETIRQENABLE1		0x0064
+#define	TI_GPIO_CLEARIRQENABLE2		0x0070
+#define	TI_GPIO_SETIRQENABLE2		0x0074
+#define	TI_GPIO_CLEARWKUENA		0x0080
+#define	TI_GPIO_SETWKUENA		0x0084
+#define	TI_GPIO_CLEARDATAOUT		0x0090
+#define	TI_GPIO_SETDATAOUT		0x0094
 #elif defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
-#define TI_GPIO_IRQSTATUS_RAW_0		0x0024
-#define TI_GPIO_IRQSTATUS_RAW_1		0x0028
-#define TI_GPIO_IRQSTATUS_0		0x002C
-#define TI_GPIO_IRQSTATUS_1		0x0030
-#define TI_GPIO_IRQSTATUS_SET_0		0x0034
-#define TI_GPIO_IRQSTATUS_SET_1		0x0038
-#define TI_GPIO_IRQSTATUS_CLR_0		0x003C
-#define TI_GPIO_IRQSTATUS_CLR_1		0x0040
-#define TI_GPIO_IRQWAKEN_0		0x0044
-#define TI_GPIO_IRQWAKEN_1		0x0048
-#define TI_GPIO_SYSSTATUS		0x0114
-#define TI_GPIO_IRQSTATUS1		0x0118
-#define TI_GPIO_IRQENABLE1		0x011C
-#define TI_GPIO_WAKEUPENABLE		0x0120
-#define TI_GPIO_IRQSTATUS2		0x0128
-#define TI_GPIO_IRQENABLE2		0x012C
-#define TI_GPIO_CTRL			0x0130
-#define TI_GPIO_OE			0x0134
-#define TI_GPIO_DATAIN			0x0138
-#define TI_GPIO_DATAOUT			0x013C
-#define TI_GPIO_LEVELDETECT0		0x0140
-#define TI_GPIO_LEVELDETECT1		0x0144
-#define TI_GPIO_RISINGDETECT		0x0148
-#define TI_GPIO_FALLINGDETECT		0x014C
-#define TI_GPIO_DEBOUNCENABLE		0x0150
-#define TI_GPIO_DEBOUNCINGTIME		0x0154
-#define TI_GPIO_CLEARIRQENABLE1		0x0160
-#define TI_GPIO_SETIRQENABLE1		0x0164
-#define TI_GPIO_CLEARIRQENABLE2		0x0170
-#define TI_GPIO_SETIRQENABLE2		0x0174
-#define TI_GPIO_CLEARWKUPENA		0x0180
-#define TI_GPIO_SETWKUENA		0x0184
-#define TI_GPIO_CLEARDATAOUT		0x0190
-#define TI_GPIO_SETDATAOUT		0x0194
+#define	TI_GPIO_IRQSTATUS_RAW_0		0x0024
+#define	TI_GPIO_IRQSTATUS_RAW_1		0x0028
+#define	TI_GPIO_IRQSTATUS_0		0x002C
+#define	TI_GPIO_IRQSTATUS_1		0x0030
+#define	TI_GPIO_IRQSTATUS_SET_0		0x0034
+#define	TI_GPIO_IRQSTATUS_SET_1		0x0038
+#define	TI_GPIO_IRQSTATUS_CLR_0		0x003C
+#define	TI_GPIO_IRQSTATUS_CLR_1		0x0040
+#define	TI_GPIO_IRQWAKEN_0		0x0044
+#define	TI_GPIO_IRQWAKEN_1		0x0048
+#define	TI_GPIO_SYSSTATUS		0x0114
+#define	TI_GPIO_IRQSTATUS1		0x0118
+#define	TI_GPIO_IRQENABLE1		0x011C
+#define	TI_GPIO_WAKEUPENABLE		0x0120
+#define	TI_GPIO_IRQSTATUS2		0x0128
+#define	TI_GPIO_IRQENABLE2		0x012C
+#define	TI_GPIO_CTRL			0x0130
+#define	TI_GPIO_OE			0x0134
+#define	TI_GPIO_DATAIN			0x0138
+#define	TI_GPIO_DATAOUT			0x013C
+#define	TI_GPIO_LEVELDETECT0		0x0140
+#define	TI_GPIO_LEVELDETECT1		0x0144
+#define	TI_GPIO_RISINGDETECT		0x0148
+#define	TI_GPIO_FALLINGDETECT		0x014C
+#define	TI_GPIO_DEBOUNCENABLE		0x0150
+#define	TI_GPIO_DEBOUNCINGTIME		0x0154
+#define	TI_GPIO_CLEARIRQENABLE1		0x0160
+#define	TI_GPIO_SETIRQENABLE1		0x0164
+#define	TI_GPIO_CLEARIRQENABLE2		0x0170
+#define	TI_GPIO_SETIRQENABLE2		0x0174
+#define	TI_GPIO_CLEARWKUPENA		0x0180
+#define	TI_GPIO_SETWKUENA		0x0184
+#define	TI_GPIO_CLEARDATAOUT		0x0190
+#define	TI_GPIO_SETDATAOUT		0x0194
 #else
 #error "Unknown SoC"
 #endif
 
- /*Other SoC Specific definitions*/
+/* Other SoC Specific definitions */
 #if defined(SOC_OMAP3)
-#define MAX_GPIO_BANKS			6
-#define FIRST_GPIO_BANK			1
-#define PINS_PER_BANK			32
-#define TI_GPIO_REV			0x00000025
+#define	MAX_GPIO_BANKS			6
+#define	FIRST_GPIO_BANK			1
+#define	TI_GPIO_REV			0x00000025
 #elif defined(SOC_OMAP4)
-#define MAX_GPIO_BANKS			6
-#define FIRST_GPIO_BANK			1
-#define PINS_PER_BANK			32
-#define TI_GPIO_REV			0x50600801
+#define	MAX_GPIO_BANKS			6
+#define	FIRST_GPIO_BANK			1
+#define	TI_GPIO_REV			0x50600801
 #elif defined(SOC_TI_AM335X)
-#define MAX_GPIO_BANKS			4
-#define FIRST_GPIO_BANK			0
-#define PINS_PER_BANK			32
-#define TI_GPIO_REV			0x50600801
+#define	MAX_GPIO_BANKS			4
+#define	FIRST_GPIO_BANK			0
+#define	TI_GPIO_REV			0x50600801
 #endif
+#define	PINS_PER_BANK			32
 
 /**
  *	ti_gpio_mem_spec - Resource specification used when allocating resources
@@ -189,34 +185,38 @@ static struct resource_spec ti_gpio_irq_spec[] = {
  *	This structure is allocated during driver attach.
  */
 struct ti_gpio_softc {
-	device_t			sc_dev;
+	device_t		sc_dev;
 
-	/* The memory resource(s) for the PRCM register set, when the device is
-	 * created the caller can assign up to 4 memory regions.
+	/*
+	 * The memory resource(s) for the PRCM register set, when the device is
+	 * created the caller can assign up to 6 memory regions depending on
+	 * the SoC type.
 	 */
-	struct resource*    sc_mem_res[MAX_GPIO_BANKS];
-	struct resource*    sc_irq_res[MAX_GPIO_BANKS];
+	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
+	struct resource		*sc_irq_res[MAX_GPIO_BANKS];
 
-	/* The handle for the register IRQ handlers */
-	void*               sc_irq_hdl[MAX_GPIO_BANKS];
+	/* The handle for the register IRQ handlers. */
+	void			*sc_irq_hdl[MAX_GPIO_BANKS];
 
-	/* The following describes the H/W revision of each of the GPIO banks */
-	uint32_t            sc_revision[MAX_GPIO_BANKS];
+	/*
+	 * The following describes the H/W revision of each of the GPIO banks.
+	 */
+	uint32_t		sc_revision[MAX_GPIO_BANKS];
 
-	struct mtx			sc_mtx;
+	struct mtx		sc_mtx;
 };
 
 /**
  *	Macros for driver mutex locking
  */
-#define TI_GPIO_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	TI_GPIO_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
-#define TI_GPIO_LOCK_INIT(_sc) \
+#define	TI_GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	TI_GPIO_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	TI_GPIO_LOCK_INIT(_sc)		\
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "ti_gpio", MTX_DEF)
-#define TI_GPIO_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
-#define TI_GPIO_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define TI_GPIO_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+	    "ti_gpio", MTX_DEF)
+#define	TI_GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx)
+#define	TI_GPIO_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED)
+#define	TI_GPIO_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
 /**
  *	ti_gpio_read_4 - reads a 16-bit value from one of the PADCONFS registers
@@ -441,7 +441,6 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	    (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN))
 		return (EINVAL);
 
-
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
@@ -463,7 +462,6 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	else
 		reg_val &= ~mask;
 	ti_gpio_write_4(sc, bank, TI_GPIO_OE, reg_val);
-
 
 	TI_GPIO_UNLOCK(sc);
 	
@@ -635,6 +633,7 @@ ti_gpio_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "TI General Purpose I/O (GPIO)");
+
 	return (0);
 }
 
@@ -665,7 +664,6 @@ ti_gpio_attach(device_t dev)
 
 	TI_GPIO_LOCK_INIT(sc);
 
-
 	/* There are up to 6 different GPIO register sets located in different
 	 * memory areas on the chip.  The memory range should have been set for
 	 * the driver when it was added as a child.
@@ -684,7 +682,7 @@ ti_gpio_attach(device_t dev)
 	}
 
 	/* Setup the IRQ resources */
-	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_irq_res[i] == NULL)
 			break;
 
@@ -696,15 +694,12 @@ ti_gpio_attach(device_t dev)
 		}
 	}
 
-	/* Store the device handle back in the sc */
-	sc->sc_dev = dev;
-
 	/* We need to go through each block and ensure the clocks are running and
 	 * the module is enabled.  It might be better to do this only when the
 	 * pins are configured which would result in less power used if the GPIO
 	 * pins weren't used ... 
 	 */
-	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
 
 			/* Enable the interface and functional clocks for the module */
@@ -770,7 +765,7 @@ ti_gpio_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
 
 	/* Disable all interrupts */
-	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
@@ -780,7 +775,7 @@ ti_gpio_detach(device_t dev)
 	bus_generic_detach(dev);
 
 	/* Release the memory and IRQ resources */
-	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL)
 			bus_release_resource(dev, SYS_RES_MEMORY, i, sc->sc_mem_res[i]);
 		if (sc->sc_irq_res[i] != NULL)
@@ -789,7 +784,7 @@ ti_gpio_detach(device_t dev)
 
 	TI_GPIO_LOCK_DESTROY(sc);
 
-	return(0);
+	return (0);
 }
 
 static phandle_t
