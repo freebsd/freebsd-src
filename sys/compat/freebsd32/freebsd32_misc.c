@@ -1664,15 +1664,12 @@ freebsd32_do_sendfile(struct thread *td,
 	off_t offset;
 	int error;
 	off_t sbytes;
-	struct sendfile_sync *sfs;
-	int do_kqueue = 0;
 
 	offset = PAIR32TO64(off_t, uap->offset);
 	if (offset < 0)
 		return (EINVAL);
 
 	hdr_uio = trl_uio = NULL;
-	sfs = NULL;
 
 	if (uap->hdtr != NULL) {
 		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
@@ -1714,7 +1711,6 @@ freebsd32_do_sendfile(struct thread *td,
 			CP(hdtr_kq32, hdtr_kq, kq_flags);
 			PTRIN_CP(hdtr_kq32, hdtr_kq, kq_udata);
 			CP(hdtr_kq32, hdtr_kq, kq_ident);
-			do_kqueue = 1;
 		}
 	}
 

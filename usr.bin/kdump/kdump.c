@@ -123,7 +123,7 @@ void ioctlname(unsigned long, int);
 #define	TIMESTAMP_RELATIVE	0x4
 
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
-    resolv = 0, abiflag = 0;
+    resolv = 0, abiflag = 0, syscallno = 0;
 const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
@@ -261,7 +261,7 @@ main(int argc, char *argv[])
 
 	timestamp = TIMESTAMP_NONE;
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrsTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrSsTt:")) != -1)
 		switch (ch) {
 		case 'A':
 			abiflag = 1;
@@ -286,6 +286,9 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			resolv = 1;
+			break;
+		case 'S':
+			syscallno = 1;
 			break;
 		case 's':
 			suppressdata = 1;
@@ -678,8 +681,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
 	    (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0))
 		printf("[%d]", ktr->ktr_code);
-	else
+	else {
 		printf("%s", syscallnames[ktr->ktr_code]);
+		if (syscallno)
+			printf("[%d]", ktr->ktr_code);
+	}
 	ip = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
@@ -1271,8 +1277,12 @@ ktrsysret(struct ktr_sysret *ktr, u_int flags)
 	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
 	    (code >= nsyscalls || code < 0))
 		printf("[%d] ", code);
-	else
-		printf("%s ", syscallnames[code]);
+	else {
+		printf("%s", syscallnames[code]);
+		if (syscallno)
+			printf("[%d]", code);
+		printf(" ");
+	}
 
 	if (error == 0) {
 		if (fancy) {
@@ -1910,8 +1920,11 @@ linux_ktrsyscall(struct ktr_syscall *ktr)
 
 	if (ktr->ktr_code >= nlinux_syscalls || ktr->ktr_code < 0)
 		printf("[%d]", ktr->ktr_code);
-	else
+	else {
 		printf("%s", linux_syscallnames[ktr->ktr_code]);
+		if (syscallno)
+			printf("[%d]", ktr->ktr_code);
+	}
 	ip = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
@@ -1931,8 +1944,12 @@ linux_ktrsysret(struct ktr_sysret *ktr)
 
 	if (code >= nlinux_syscalls || code < 0)
 		printf("[%d] ", code);
-	else
-		printf("%s ", linux_syscallnames[code]);
+	else {
+		printf("%s", linux_syscallnames[code]);
+		if (syscallno)
+			printf("[%d]", code);
+		printf(" ");
+	}
 
 	if (error == 0) {
 		if (fancy) {
@@ -1965,7 +1982,7 @@ linux_ktrsysret(struct ktr_sysret *ktr)
 void
 usage(void)
 {
-	fprintf(stderr, "usage: kdump [-dEnlHRrsTA] [-f trfile] "
+	fprintf(stderr, "usage: kdump [-dEnlHRrSsTA] [-f trfile] "
 	    "[-m maxdata] [-p pid] [-t trstr]\n");
 	exit(1);
 }

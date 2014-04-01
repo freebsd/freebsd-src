@@ -166,20 +166,6 @@ _TARGET_ARCH=	${TARGET:S/pc98/i386/}
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 _TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/}
 .endif
-# Legacy names, for another transition period mips:mips(n32|64)?eb -> mips:mips\1
-.if defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET} == "mips" && ${TARGET_ARCH:Mmips*eb}
-_TARGET_ARCH=		${TARGET_ARCH:C/eb$//}
-.warning "TARGET_ARCH of ${TARGET_ARCH} is deprecated in favor of ${_TARGET_ARCH}"
-.endif
-.if defined(TARGET) && ${TARGET} == "mips" && defined(TARGET_BIG_ENDIAN)
-.warning "TARGET_BIG_ENDIAN is no longer necessary for MIPS.  Big-endian is not the default."
-.endif
-# arm with TARGET_BIG_ENDIAN -> armeb
-.if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
-_TARGET_ARCH=armeb
-.endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}
 .endif

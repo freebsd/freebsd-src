@@ -38,7 +38,7 @@ fi
 
 TESTDIR=$(dirname $(realpath $0))
 
-__PERL__ -w -U $TESTDIR/run $TESTDIR/mdconfig.test > /dev/null
+__PERL__ -w -U $TESTDIR/run.pl $TESTDIR/mdconfig.test > /dev/null
 
 if [ $? -eq 0 ]; then
 	echo "ok 1"

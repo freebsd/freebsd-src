@@ -118,7 +118,7 @@ static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
 VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
-VT_SYSCTL_INT(suspendswitch, 0, "Switch to VT0 before suspend");
+VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
 
 static unsigned int vt_unit = 0;
 static MALLOC_DEFINE(M_VT, "vt", "vt device");
@@ -775,7 +775,7 @@ vt_flush(struct vt_device *vd)
 		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
+		vd->vd_driver->vd_maskbitbltchr(vd, m->map, m->mask, bpl,
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
@@ -1872,6 +1872,9 @@ vt_upgrade(struct vt_device *vd)
 		if (vw == NULL) {
 			/* New window. */
 			vw = vt_allocate_window(vd, i);
+		} else if (vw->vw_flags & VWF_CONSOLE) {
+			/* For existing console window. */
+			callout_init(&vw->vw_proc_dead_timer, 0);
 		}
 		if (i == VT_CONSWINDOW) {
 			/* Console window. */
@@ -1927,6 +1930,8 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		printf("%s: Replace existing VT driver.\n", __func__);
 	}
 	vd = main_vd;
+	if (drv->vd_maskbitbltchr == NULL)
+		drv->vd_maskbitbltchr = drv->vd_bitbltchr;
 
 	/* Stop vt_flush periodic task. */
 	if (vd->vd_curwindow != NULL)

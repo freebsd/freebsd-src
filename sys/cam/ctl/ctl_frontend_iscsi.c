@@ -2315,8 +2315,8 @@ cfiscsi_datamove_in(union ctl_io *io)
 	const struct iscsi_bhs_scsi_command *bhssc;
 	struct iscsi_bhs_data_in *bhsdi;
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	size_t copy_len, len, off;
-	const char *addr;
+	size_t len, expected_len, sg_len, buffer_offset;
+	const char *sg_addr;
 	int ctl_sg_count, error, i;
 
 	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
@@ -2338,26 +2338,49 @@ cfiscsi_datamove_in(union ctl_io *io)
 	}
 
 	/*
-	 * We need to record it so that we can properly report
+	 * This is the total amount of data to be transferred within the current
+	 * SCSI command.  We need to record it so that we can properly report
 	 * underflow/underflow.
 	 */
 	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
 	/*
-	 * This is the offset within the current SCSI command;
-	 * i.e. for the first call of datamove(), it will be 0,
-	 * and for subsequent ones it will be the sum of lengths
-	 * of previous ones.
+	 * This is the offset within the current SCSI command; for the first
+	 * call to cfiscsi_datamove() it will be 0, and for subsequent ones
+	 * it will be the sum of lengths of previous ones.  It's being
+	 * incremented as we append data to the data segment.
 	 */
-	off = htonl(io->scsiio.kern_rel_offset);
+	buffer_offset = io->scsiio.kern_rel_offset;
+
+	/*
+	 * This is the transfer length expected by the initiator.  In theory,
+	 * it could be different from the correct amount of data from the SCSI
+	 * point of view, even if that doesn't make any sense.
+	 */
+	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
+#if 0
+	if (expected_len != io->scsiio.kern_total_len)
+		CFISCSI_SESSION_DEBUG(cs, "expected transfer length = %zd, "
+		    "actual length = %zd", expected_len,
+		    io->scsiio.kern_total_len);
+#endif
+
+	if (buffer_offset >= expected_len) {
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "buffer_offset = %zd, "
+		    "already sent the expected len", buffer_offset);
+#endif
+		io->scsiio.ext_data_filled = io->scsiio.kern_total_len;
+		io->scsiio.be_move_done(io);
+		return;
+	}
 
 	i = 0;
-	addr = NULL;
-	len = 0;
+	sg_addr = NULL;
+	sg_len = 0;
 	response = NULL;
 	bhsdi = NULL;
 	for (;;) {
-		KASSERT(i < ctl_sg_count, ("i >= ctl_sg_count"));
 		if (response == NULL) {
 			response = cfiscsi_pdu_new_response(request, M_NOWAIT);
 			if (response == NULL) {
@@ -2374,22 +2397,43 @@ cfiscsi_datamove_in(union ctl_io *io)
 			    bhssc->bhssc_initiator_task_tag;
 			bhsdi->bhsdi_datasn = htonl(PDU_EXPDATASN(request));
 			PDU_EXPDATASN(request)++;
-			bhsdi->bhsdi_buffer_offset = htonl(off);
+			bhsdi->bhsdi_buffer_offset = htonl(buffer_offset);
 		}
 
-		if (len == 0) {
-			addr = ctl_sglist[i].addr;
-			len = ctl_sglist[i].len;
-			KASSERT(len > 0, ("len <= 0"));
+		KASSERT(i < ctl_sg_count, ("i >= ctl_sg_count"));
+		if (sg_len == 0) {
+			sg_addr = ctl_sglist[i].addr;
+			sg_len = ctl_sglist[i].len;
+			KASSERT(sg_len > 0, ("sg_len <= 0"));
 		}
 
-		copy_len = len;
-		if (response->ip_data_len + copy_len >
+		len = sg_len;
+
+		/*
+		 * Truncate to maximum data segment length.
+		 */
+		KASSERT(response->ip_data_len < cs->cs_max_data_segment_length,
+		    ("max_data_segment_length %zd >= ip_data_len %zd",
+		    response->ip_data_len, cs->cs_max_data_segment_length));
+		if (response->ip_data_len + len >
 		    cs->cs_max_data_segment_length)
-			copy_len = cs->cs_max_data_segment_length -
+			len = cs->cs_max_data_segment_length -
 			    response->ip_data_len;
-		KASSERT(copy_len <= len, ("copy_len > len"));
-		error = icl_pdu_append_data(response, addr, copy_len, M_NOWAIT);
+
+		/*
+		 * Truncate to expected data transfer length.
+		 */
+		KASSERT(buffer_offset + response->ip_data_len < expected_len,
+		    ("%zd >= %zd", buffer_offset + response->ip_data_len, expected_len));
+		if (buffer_offset + response->ip_data_len + len > expected_len) {
+			CFISCSI_SESSION_DEBUG(cs, "truncating from %zd "
+			    "to expected data transfer length %zd",
+			    buffer_offset + response->ip_data_len + len, expected_len);
+			len = expected_len - (buffer_offset + response->ip_data_len);
+		}
+
+		KASSERT(len <= sg_len, ("len > sg_len"));
+		error = icl_pdu_append_data(response, sg_addr, len, M_NOWAIT);
 		if (error != 0) {
 			CFISCSI_SESSION_WARN(cs, "failed to "
 			    "allocate memory; dropping connection");
@@ -2399,12 +2443,19 @@ cfiscsi_datamove_in(union ctl_io *io)
 			cfiscsi_session_terminate(cs);
 			return;
 		}
-		addr += copy_len;
-		len -= copy_len;
-		off += copy_len;
-		io->scsiio.ext_data_filled += copy_len;
+		sg_addr += len;
+		sg_len -= len;
+		buffer_offset += len;
+		io->scsiio.ext_data_filled += len;
 
-		if (len == 0) {
+		if (buffer_offset == expected_len) {
+			/*
+			 * Already have the amount of data the initiator wanted.
+			 */
+			break;
+		}
+
+		if (sg_len == 0) {
 			/*
 			 * End of scatter-gather segment;
 			 * proceed to the next one...
@@ -2427,27 +2478,18 @@ cfiscsi_datamove_in(union ctl_io *io)
 			 * call to cfiscsi_datamove(), and we want
 			 * to set the F flag only on the last of them.
 			 */
-			if (off == io->scsiio.kern_total_len)
+			if (buffer_offset == io->scsiio.kern_total_len ||
+			    buffer_offset == expected_len)
 				bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
-			KASSERT(response->ip_data_len > 0,
-			    ("sending empty Data-In"));
 			cfiscsi_pdu_queue(response);
 			response = NULL;
 			bhsdi = NULL;
 		}
 	}
-	KASSERT(i == ctl_sg_count - 1, ("missed SG segment"));
-	KASSERT(len == 0, ("missed data from SG segment"));
 	if (response != NULL) {
-		if (off == io->scsiio.kern_total_len) {
+		if (buffer_offset == io->scsiio.kern_total_len ||
+		    buffer_offset == expected_len)
 			bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
-#if 0
-		} else {
-			CFISCSI_SESSION_DEBUG(cs, "not setting the F flag; "
-			    "have %zd, need %zd", off,
-			    (size_t)io->scsiio.kern_total_len);
-#endif
-		}
 		KASSERT(response->ip_data_len > 0, ("sending empty Data-In"));
 		cfiscsi_pdu_queue(response);
 	}
