@@ -48,6 +48,12 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
+int
+pcib_maxfuncs(device_t dev)
+{
+	return (PCI_FUNCMAX);
+}
+
 uint16_t
 pcib_get_rid(device_t pcib, device_t dev)
 {
