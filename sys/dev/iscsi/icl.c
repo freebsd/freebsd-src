@@ -974,7 +974,7 @@ icl_pdu_queue(struct icl_pdu *ip)
 }
 
 struct icl_conn *
-icl_conn_new(struct mtx *lock)
+icl_conn_new(const char *name, struct mtx *lock)
 {
 	struct icl_conn *ic;
 
@@ -990,6 +990,7 @@ icl_conn_new(struct mtx *lock)
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
+	ic->ic_name = name;
 
 	return (ic);
 }
@@ -1065,14 +1066,16 @@ icl_conn_start(struct icl_conn *ic)
 	/*
 	 * Start threads.
 	 */
-	error = kthread_add(icl_send_thread, ic, NULL, NULL, 0, 0, "icltx");
+	error = kthread_add(icl_send_thread, ic, NULL, NULL, 0, 0, "%stx",
+	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
 		icl_conn_close(ic);
 		return (error);
 	}
 
-	error = kthread_add(icl_receive_thread, ic, NULL, NULL, 0, 0, "iclrx");
+	error = kthread_add(icl_receive_thread, ic, NULL, NULL, 0, 0, "%srx",
+	    ic->ic_name);
 	if (error != 0) {
 		ICL_WARN("kthread_add(9) failed with error %d", error);
 		icl_conn_close(ic);
