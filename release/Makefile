@@ -21,6 +21,8 @@
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
+#  WITH_COMPRESSED_IMAGES: if set, compress installation images with gzip(1)
+#		(uncompressed images are not removed)
 #  TARGET/TARGET_ARCH: architecture of built release 
 #
 
@@ -251,6 +253,9 @@ install:
 	cp -a ftp ${DESTDIR}/
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
+. if defined(WITH_COMPRESSED_IMAGES) || !empty(WITH_COMPRESSED_IMAGES)
+	gzip -k ${DESTDIR}/${OSRELEASE}-${I}
+. endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
