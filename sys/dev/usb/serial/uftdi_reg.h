@@ -75,30 +75,12 @@
 /*
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_BAUDRATE
- * wValue:         BaudRate value - see below
- * wIndex:         Port
+ * wValue:         BaudRate low bits
+ * wIndex:         Port and BaudRate high bits 
  * wLength:        0
  * Data:           None
  */
 /* FTDI_SIO_SET_BAUDRATE */
-enum {
-	ftdi_sio_b300 = 0,
-	ftdi_sio_b600 = 1,
-	ftdi_sio_b1200 = 2,
-	ftdi_sio_b2400 = 3,
-	ftdi_sio_b4800 = 4,
-	ftdi_sio_b9600 = 5,
-	ftdi_sio_b19200 = 6,
-	ftdi_sio_b38400 = 7,
-	ftdi_sio_b57600 = 8,
-	ftdi_sio_b115200 = 9
-};
-
-#define	FTDI_8U232AM_FREQ 3000000
-
-/* Bounds for normal divisors as 4-bit fixed precision ints. */
-#define	FTDI_8U232AM_MIN_DIV 0x20
-#define	FTDI_8U232AM_MAX_DIV 0x3fff8
 
 /*
  * BmRequestType:  0100 0000B
