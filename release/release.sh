@@ -83,6 +83,7 @@ NOPORTS=
 
 # Set to non-empty value to build dvd1.iso as part of the release.
 WITH_DVD=
+WITH_COMPRESSED_IMAGES=
 
 usage() {
 	echo "Usage: $0 [-c release.conf]"
@@ -128,6 +129,7 @@ if [ -n "${EMBEDDEDBUILD}" ]; then
 		exit 1
 	fi
 	WITH_DVD=
+	WITH_COMPRESSED_IMAGES=
 	NODOC=yes
 fi
 
@@ -262,4 +264,4 @@ eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	release
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	install DESTDIR=/R
+	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES}
