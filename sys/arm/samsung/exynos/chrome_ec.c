@@ -234,9 +234,22 @@ ec_attach(device_t dev)
 	return (0);
 }
 
+static int
+ec_detach(device_t dev)
+{
+	struct ec_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	bus_release(sc);
+
+	return (0);
+}
+
 static device_method_t ec_methods[] = {
 	DEVMETHOD(device_probe,		ec_probe),
 	DEVMETHOD(device_attach,	ec_attach),
+	DEVMETHOD(device_detach,	ec_detach),
 	{ 0, 0 }
 };
 
