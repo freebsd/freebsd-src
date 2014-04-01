@@ -272,6 +272,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
+    FDT \
     FLOPPY \
     FMTREE \
     FORMAT_EXTENSIONS \
@@ -381,8 +382,7 @@ __DEFAULT_NO_OPTIONS = \
 # this means that we have to test TARGET_ARCH (the buildworld case) as well
 # as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
 # used at all in bsd.*.mk, but we have to make an exception here if we want
-# to allow defaults for some things like clang and fdt to vary by target
-# architecture.
+# to allow defaults for some things like clang to vary by target architecture.
 #
 .if defined(TARGET_ARCH)
 __T=${TARGET_ARCH}
@@ -427,13 +427,6 @@ __DEFAULT_NO_OPTIONS+=GNUCXX
 __DEFAULT_YES_OPTIONS+=GNUCXX
 .endif
 .endif
-# FDT is needed only for arm, mips and powerpc
-.if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
-__DEFAULT_YES_OPTIONS+=FDT
-.else
-__DEFAULT_NO_OPTIONS+=FDT
-.endif
-.undef __T
 
 #
 # MK_* options which default to "yes".
