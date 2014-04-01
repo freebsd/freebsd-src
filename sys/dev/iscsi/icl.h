@@ -92,6 +92,7 @@ struct icl_conn {
 	size_t			ic_max_data_segment_length;
 	bool			ic_disconnecting;
 	bool			ic_iser;
+	const char		*ic_name;
 
 	void			(*ic_receive)(struct icl_pdu *);
 	void			(*ic_error)(struct icl_conn *);
@@ -102,7 +103,7 @@ struct icl_conn {
 	void			*ic_prv0;
 };
 
-struct icl_conn		*icl_conn_new(struct mtx *lock);
+struct icl_conn		*icl_conn_new(const char *name, struct mtx *lock);
 void			icl_conn_free(struct icl_conn *ic);
 int			icl_conn_handoff(struct icl_conn *ic, int fd);
 void			icl_conn_shutdown(struct icl_conn *ic);
