@@ -113,6 +113,18 @@ et_deregister(struct eventtimer *et)
 }
 
 /*
+ * Change the frequency of the given timer.  If it is the active timer,
+ * reconfigure it on all CPUs (reschedules all current events based on the new
+ * timer frequency).
+ */
+void
+et_change_frequency(struct eventtimer *et, uint64_t newfreq)
+{
+
+	cpu_et_frequency(et, newfreq);
+}
+
+/*
  * Find free event timer hardware with specified parameters.
  */
 struct eventtimer *
