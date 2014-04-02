@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
  *	OMAP4 devices are different from the previous OMAP3 devices in that there
  *	is no longer a separate functional and interface clock for each module,
  *	instead there is typically an interface clock that spans many modules.
- *
  */
 
 #define FREQ_96MHZ    96000000
