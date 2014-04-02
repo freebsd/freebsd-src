@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
+#include <dev/usb/usb_core.h>
 #include "usbdevs.h"
 
 #define	USB_DEBUG_VAR uftdi_debug
@@ -83,8 +84,34 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX_JTAG	0
 
-#define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
-					 * do size encoding */
+/*
+ * IO buffer sizes and FTDI device procotol sizes.
+ *
+ * Note that the output packet size in the following defines is not the usb
+ * protocol packet size based on bus speed, it is the size dictated by the FTDI
+ * device itself, and is used only on older chips.
+ *
+ * We allocate buffers bigger than the hardware's packet size, and process
+ * multiple packets within each buffer.  This allows the controller to make
+ * optimal use of the usb bus by conducting multiple transfers with the device
+ * during a single bus timeslice to fill or drain the chip's fifos.
+ *
+ * The output data on newer chips has no packet header, and we are able to pack
+ * any number of output bytes into a buffer.  On some older chips, each output
+ * packet contains a 1-byte header and up to 63 bytes of payload.  The size is
+ * encoded in 6 bits of the header, hence the 64-byte limit on packet size.  We
+ * loop to fill the buffer with many of these header+payload packets.
+ *
+ * The input data on all chips consists of packets which contain a 2-byte header
+ * followed by data payload.  The total size of the packet is wMaxPacketSize
+ * which can change based on the bus speed (e.g., 64 for full speed, 512 for
+ * high speed).  We loop to extract the headers and payloads from the packets
+ * packed into an input buffer.
+ */
+#define	UFTDI_IBUFSIZE	2048
+#define	UFTDI_IHDRSIZE	   2
+#define	UFTDI_OBUFSIZE	2048
+#define	UFTDI_OPKTSIZE	  64
 
 enum {
 	UFTDI_BULK_DT_WR,
@@ -178,7 +205,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = 0,		/* use wMaxPacketSize */
+		.bufsize = UFTDI_IBUFSIZE,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uftdi_read_callback,
 	},
@@ -1096,35 +1123,47 @@ uftdi_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uftdi_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	uint32_t actlen;
+	uint32_t pktlen;
+	uint32_t buflen;
 	uint8_t buf[1];
 
 	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_SETUP:
-	case USB_ST_TRANSFERRED:
-tr_setup:
-		pc = usbd_xfer_get_frame(xfer, 0);
-		if (ucom_get_data(&sc->sc_ucom, pc,
-		    sc->sc_hdrlen, UFTDI_OBUFSIZE - sc->sc_hdrlen,
-		    &actlen)) {
-
-			if (sc->sc_hdrlen > 0) {
-				buf[0] =
-				    FTDI_OUT_TAG(actlen, sc->sc_ucom.sc_portno);
-				usbd_copy_in(pc, 0, buf, 1);
-			}
-			usbd_xfer_set_frame_len(xfer, 0, actlen + sc->sc_hdrlen);
-			usbd_transfer_submit(xfer);
-		}
-		return;
-
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
 		}
-		return;
+		/* FALLTHROUGH */
+	case USB_ST_SETUP:
+	case USB_ST_TRANSFERRED:
+		/*
+		 * If output packets don't require headers (the common case) we
+		 * can just load the buffer up with payload bytes all at once.
+		 * Otherwise, loop to format packets into the buffer while there
+		 * is data available, and room for a packet header and at least
+		 * one byte of payload.
+		 */
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (sc->sc_hdrlen == 0) {
+			ucom_get_data(&sc->sc_ucom, pc, 0, UFTDI_OBUFSIZE, 
+			    &buflen);
+		} else {
+			buflen = 0;
+			while (buflen < UFTDI_OBUFSIZE - sc->sc_hdrlen - 1 &&
+			    ucom_get_data(&sc->sc_ucom, pc, buflen + 
+			    sc->sc_hdrlen, UFTDI_OPKTSIZE - sc->sc_hdrlen, 
+			    &pktlen) != 0) {
+				buf[0] = FTDI_OUT_TAG(pktlen, 
+				    sc->sc_ucom.sc_portno);
+				usbd_copy_in(pc, buflen, buf, 1);
+				buflen += pktlen + sc->sc_hdrlen;
+			}
+		}
+		if (buflen != 0) {
+			usbd_xfer_set_frame_len(xfer, 0, buflen);
+			usbd_transfer_submit(xfer);
+		}
+		break;
 	}
 }
 
@@ -1137,23 +1176,47 @@ uftdi_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t ftdi_msr;
 	uint8_t msr;
 	uint8_t lsr;
-	int actlen;
+	int buflen;
+	int pktlen;
+	int pktmax;
+	int offset;
 
-	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+	usbd_xfer_status(xfer, &buflen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-
-		if (actlen < 2) {
+		if (buflen < UFTDI_IHDRSIZE)
 			goto tr_setup;
-		}
 		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_out(pc, 0, buf, 2);
-
-		ftdi_msr = FTDI_GET_MSR(buf);
-		lsr = FTDI_GET_LSR(buf);
-
+		pktmax = xfer->max_packet_size - UFTDI_IHDRSIZE;
+		lsr = 0;
 		msr = 0;
+		offset = 0;
+		/*
+		 * Extract packet headers and payload bytes from the buffer.
+		 * Feed payload bytes to ucom/tty layer; OR-accumulate header
+		 * status bits which are transient and could toggle with each
+		 * packet. After processing all packets in the buffer, process
+		 * the accumulated transient MSR and LSR values along with the
+		 * non-transient bits from the last packet header.
+		 */
+		while (buflen >= UFTDI_IHDRSIZE) {
+			usbd_copy_out(pc, offset, buf, UFTDI_IHDRSIZE);
+			offset += UFTDI_IHDRSIZE;
+			buflen -= UFTDI_IHDRSIZE;
+			lsr |= FTDI_GET_LSR(buf);
+			if (FTDI_GET_MSR(buf) & FTDI_SIO_RI_MASK)
+				msr |= SER_RI;
+			pktlen = min(buflen, pktmax);
+			if (pktlen != 0) {
+				ucom_put_data(&sc->sc_ucom, pc, offset, 
+				    pktlen);
+				offset += pktlen;
+				buflen -= pktlen;
+			}
+		}
+		ftdi_msr = FTDI_GET_MSR(buf);
+
 		if (ftdi_msr & FTDI_SIO_CTS_MASK)
 			msr |= SER_CTS;
 		if (ftdi_msr & FTDI_SIO_DSR_MASK)
@@ -1174,11 +1237,7 @@ uftdi_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			ucom_status_change(&sc->sc_ucom);
 		}
-		actlen -= 2;
-
-		if (actlen > 0) {
-			ucom_put_data(&sc->sc_ucom, pc, 2, actlen);
-		}
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
