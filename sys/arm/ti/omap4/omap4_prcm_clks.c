@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/omap4/omap4_reg.h>
@@ -1404,7 +1405,7 @@ omap4_prcm_attach(device_t dev)
 	omap4_prcm_sc = sc;
 	ti_cpu_reset = omap4_prcm_reset;
 	omap4_clk_get_arm_fclk_freq(NULL, &freq);
-	platform_arm_tmr_freq = freq / 2;
+	arm_tmr_change_frequency(freq / 2);
 
 	return (0);
 }
