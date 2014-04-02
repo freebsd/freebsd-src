@@ -586,7 +586,7 @@ sctp_must_try_again:
 	if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
 	    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
 		if (((so->so_options & SO_LINGER) && (so->so_linger == 0)) ||
-		    (so->so_rcv.sb_cc > 0)) {
+		    (so->so_rcv.sb_ccc > 0)) {
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 13);
 #endif
@@ -751,7 +751,7 @@ sctp_disconnect(struct socket *so)
 			}
 			if (((so->so_options & SO_LINGER) &&
 			    (so->so_linger == 0)) ||
-			    (so->so_rcv.sb_cc > 0)) {
+			    (so->so_rcv.sb_ccc > 0)) {
 				if (SCTP_GET_STATE(asoc) !=
 				    SCTP_STATE_COOKIE_WAIT) {
 					/* Left with Data unread */
@@ -916,7 +916,7 @@ sctp_flush(struct socket *so, int how)
 		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_CANT_READ;
 		SCTP_INP_READ_UNLOCK(inp);
 		SCTP_INP_WUNLOCK(inp);
-		so->so_rcv.sb_cc = 0;
+		so->so_rcv.sb_ccc = 0;
 		so->so_rcv.sb_mbcnt = 0;
 		so->so_rcv.sb_mb = NULL;
 	}
@@ -925,7 +925,7 @@ sctp_flush(struct socket *so, int how)
 		 * First make sure the sb will be happy, we don't use these
 		 * except maybe the count
 		 */
-		so->so_snd.sb_cc = 0;
+		so->so_snd.sb_ccc = 0;
 		so->so_snd.sb_mbcnt = 0;
 		so->so_snd.sb_mb = NULL;
 

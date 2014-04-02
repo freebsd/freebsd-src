@@ -369,7 +369,7 @@ struct sctp_inpcb {
 	}     ip_inp;
 
 
-	/* Socket buffer lock protects read_queue and of course sb_cc */
+	/* Socket buffer lock protects read_queue and of course sb_ccc */
 	struct sctp_readhead read_queue;
 
 	              LIST_ENTRY(sctp_inpcb) sctp_list;	/* lists all endpoints */
