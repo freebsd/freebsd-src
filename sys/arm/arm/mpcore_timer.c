@@ -173,6 +173,9 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	uint32_t load, count;
 	uint32_t ctrl;
 
+	tmr_prv_write_4(PRV_TIMER_CTRL, 0);
+	tmr_prv_write_4(PRV_TIMER_INTR, PRV_TIMER_INTR_EVENT);
+
 	ctrl = PRV_TIMER_CTRL_IRQ_ENABLE | PRV_TIMER_CTRL_TIMER_ENABLE;
 
 	if (period != 0) {
@@ -182,14 +185,14 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		load = 0;
 
 	if (first != 0)
-		count = ((uint32_t)et->et_frequency * first) >> 32;
+		count = (uint32_t)((et->et_frequency * first) >> 32);
 	else
 		count = load;
 
 	tmr_prv_write_4(PRV_TIMER_LOAD, load);
 	tmr_prv_write_4(PRV_TIMER_COUNT, count);
-
 	tmr_prv_write_4(PRV_TIMER_CTRL, ctrl);
+
 	return (0);
 }
 
