@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <errno.h>
 #include <link.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -44,8 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include "atexit.h"
 #include "un-namespace.h"
+#include "block_abi.h"
 
 #include "libc_private.h"
+
+/**
+ * The _Block_copy() function is provided by the block runtime.
+ */
+__attribute__((weak)) void*
+_Block_copy(void*);
 
 #define	ATEXIT_FN_EMPTY	0
 #define	ATEXIT_FN_STD	1
@@ -125,7 +133,32 @@ atexit(void (*func)(void))
 	fn.fn_arg = NULL;
 	fn.fn_dso = NULL;
 
- 	error = atexit_register(&fn);	
+	error = atexit_register(&fn);
+	return (error);
+}
+
+/**
+ * Register a block to be performed at exit.
+ */
+int
+atexit_b(DECLARE_BLOCK(void, func, void))
+{
+	struct atexit_fn fn;
+	int error;
+	if (_Block_copy == 0) {
+		errno = ENOSYS;
+		return -1;
+	}
+	func = _Block_copy(func);
+
+	// Blocks are not C++ destructors, but they have the same signature (a
+	// single void* parameter), so we can pretend that they are.
+	fn.fn_type = ATEXIT_FN_CXA;
+	fn.fn_ptr.cxa_func = (void(*)(void*))GET_BLOCK_FUNCTION(func);
+	fn.fn_arg = func;
+	fn.fn_dso = NULL;
+
+	error = atexit_register(&fn);
 	return (error);
 }
 
@@ -144,7 +177,7 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 	fn.fn_arg = arg;
 	fn.fn_dso = dso;
 
- 	error = atexit_register(&fn);	
+	error = atexit_register(&fn);
 	return (error);
 }
 
