@@ -1048,12 +1048,12 @@ icl_conn_start(struct icl_conn *ic)
 	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
 	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
 	if (sendspace < minspace) {
-		ICL_WARN("kern.icl.sendspace too low; must be at least %jd",
+		ICL_WARN("kern.icl.sendspace too low; must be at least %zd",
 		    minspace);
 		sendspace = minspace;
 	}
 	if (recvspace < minspace) {
-		ICL_WARN("kern.icl.recvspace too low; must be at least %jd",
+		ICL_WARN("kern.icl.recvspace too low; must be at least %zd",
 		    minspace);
 		recvspace = minspace;
 	}
