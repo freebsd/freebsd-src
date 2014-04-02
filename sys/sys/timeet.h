@@ -89,6 +89,7 @@ extern struct mtx	et_eventtimers_mtx;
 /* Driver API */
 int	et_register(struct eventtimer *et);
 int	et_deregister(struct eventtimer *et);
+void	et_change_frequency(struct eventtimer *et, uint64_t newfreq);
 /* Consumer API  */
 struct eventtimer *et_find(const char *name, int check, int want);
 int	et_init(struct eventtimer *et, et_event_cb_t *event,
