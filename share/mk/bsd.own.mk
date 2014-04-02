@@ -219,21 +219,6 @@ COMPRESS_EXT?=	.gz
 #
 
 #
-# Supported NO_* options (if defined, MK_* will be forced to "no",
-# regardless of user's setting).
-#
-.for var in \
-    CTF \
-    DEBUG_FILES \
-    INSTALLLIB \
-    MAN \
-    PROFILE
-.if defined(NO_${var})
-MK_${var}:=no
-.endif
-.endfor
-
-#
 # Older-style variables that enabled behaviour when set.
 #
 .if defined(YES_HESIOD)
@@ -465,6 +450,22 @@ MK_${var}:=	no
 .endif
 .endfor
 .undef __DEFAULT_NO_OPTIONS
+
+
+#
+# Supported NO_* options (if defined, MK_* will be forced to "no",
+# regardless of user's setting).
+#
+.for var in \
+    CTF \
+    DEBUG_FILES \
+    INSTALLLIB \
+    MAN \
+    PROFILE
+.if defined(NO_${var})
+MK_${var}:=no
+.endif
+.endfor
 
 #
 # Force some options off if their dependencies are off.
