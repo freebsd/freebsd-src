@@ -42,6 +42,6 @@
  * Inform the mpcore timer driver of a new clock frequency.  This can be called
  * both before and after the mpcore timer driver attaches.
  */
-void	arm_tmr_change_frequency(uint64_t newfreq);
+void arm_tmr_change_frequency(uint64_t newfreq);
 
 #endif
