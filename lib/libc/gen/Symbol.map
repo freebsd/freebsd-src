@@ -349,7 +349,6 @@ FBSD_1.1 {
 	posix_spawnattr_setsigdefault;
 	posix_spawnattr_setsigmask;
 	posix_spawnp;
-	scandir_b;
 	semctl;
 	tcgetsid;
 	tcsetsid;
@@ -393,6 +392,7 @@ FBSD_1.3 {
 	nvis;
 	pwcache_userdb;
 	pwcache_groupdb;
+	scandir_b;
 	snvis;
 	strenvisx;
 	strnunvis;
