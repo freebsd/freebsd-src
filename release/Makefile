@@ -21,7 +21,7 @@
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
-#  WITH_COMPRESSED_IMAGES: if set, compress installation images with gzip(1)
+#  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
 #  TARGET/TARGET_ARCH: architecture of built release
 #
@@ -96,7 +96,7 @@ IMAGES+=	mini-memstick.img
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
-CLEANFILES+=	${I}.gz
+CLEANFILES+=	${I}.xz
 . endfor
 .endif
 CLEANDIRS=	dist ftp release bootonly dvd
@@ -259,7 +259,7 @@ install:
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
 . if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
-	gzip -k ${DESTDIR}/${OSRELEASE}-${I}
+	xz -k ${DESTDIR}/${OSRELEASE}-${I}
 . endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
