@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
@@ -263,6 +264,8 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, uint32_t cpu_newhz)
 
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
 	    IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
+
+	arm_tmr_change_frequency(sc->cpu_curhz / 2);
 }
 
 static void
