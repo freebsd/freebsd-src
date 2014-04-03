@@ -87,6 +87,8 @@ and current locale settings) in file names as
 where
 .Va xxx
 is the numeric value of the character in octal.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl D Ar format
@@ -104,6 +106,8 @@ different number of columns in the output.
 This option overrides the
 .Fl T
 option.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl F
 Display a slash
 .Pq Ql /
@@ -132,6 +136,8 @@ in the environment.
 (See below.)
 This functionality can be compiled out by removing the definition of
 .Ev COLORLS .
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl H
 Symbolic links on the command line are followed.
 This option is assumed if
@@ -144,6 +150,8 @@ options are specified.
 Prevent
 .Fl A
 from being automatically set for the super-user.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
@@ -171,13 +179,21 @@ month, day, hour, minute, second, and year.
 The
 .Fl D
 option gives even more control over the output format.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl U
 Use time when file was created for sorting or printing.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl W
 Display whiteouts when scanning directories.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl Z
 Display each file's MAC label; see
 .Xr maclabel 7 .
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl a
 Include directory entries whose names begin with a
 dot
@@ -188,6 +204,8 @@ As
 but use
 .Tn C
 escape codes whenever possible.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
@@ -196,19 +214,38 @@ Directories are listed as plain files (not searched recursively).
 Output is not sorted.
 This option turns on
 .Fl a .
+It also negates the effect of the
+.Fl r ,
+.Fl S
+and
+.Fl t
+options.
+As allowd by
+.St -p1003.1-2001 ,
+this option has no effect on the
+.Fl d ,
+.Fl l ,
+.Fl R
+and
+.Fl s
+options.
 .It Fl g
-This option is deprecated and is only available for compatibility
-with
-.Bx 4.3 ;
-it was used to display the group name in the long
+This option has no effect.
+It is only available for compatibility with
+.Bx 4.3 ,
+where it was used to display the group name in the long
 .Pq Fl l
 format output.
+This option is incompatible with
+.St -p1003.1-2001 .
 .It Fl h
 When used with the
 .Fl l
 option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
 and Petabyte in order to reduce the number of digits to four or fewer
 using base 2 for sizes.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -217,6 +254,8 @@ This has the same effect as setting environment variable
 to 1024, except that it also nullifies any
 .Fl h
 options to its left.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl l
 (The lowercase letter
 .Dq ell . )
@@ -234,6 +273,8 @@ output.
 Include the file flags in a long
 .Pq Fl l
 output.
+This option is incompatible with
+.St -p1003.1-2001 .
 See
 .Xr chflags 1
 for a list of file flags and their meanings.
@@ -293,6 +334,8 @@ or printing
 Force raw printing of non-printable characters.
 This is the default
 when output is not to a terminal.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl x
 The same as
 .Fl C ,
@@ -307,6 +350,8 @@ This has the same effect as setting
 See the description of the
 .Fl t
 option for more details.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl 1
 (The numeric digit
 .Dq one . )
@@ -323,6 +368,8 @@ non-monetary separator returned by
 typically a comma or period.
 If no locale is set, or the locale does not have a non-monetary separator, this
 option has no effect.
+This option is not defined in
+.St -p1003.1-2001 .
 .El
 .Pp
 The
@@ -762,12 +809,18 @@ specification.
 .Xr getfmac 8
 .Sh STANDARDS
 With the exception of options
-.Fl I , g , n
+.Fl g , n
 and
 .Fl o ,
 the
 .Nm
 utility conforms to
+.St -p1003.1-2001 .
+The options
+.Fl B , D , G , I , T , U , W , Z , b , h , k , w , y
+and
+.Fl ,
+are compatible extensions not defined in
 .St -p1003.1-2001 .
 .Pp
 The ACL support is compatible with
