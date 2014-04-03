@@ -392,7 +392,6 @@ FBSD_1.3 {
 	nvis;
 	pwcache_userdb;
 	pwcache_groupdb;
-	scandir_b;
 	snvis;
 	strenvisx;
 	strnunvis;
@@ -408,6 +407,10 @@ FBSD_1.3 {
 	uid_from_user;
 	unvis;
 	waitid;
+};
+
+FBSD_1.4 {
+	scandir_b;
 };
 
 FBSDprivate_1.0 {
