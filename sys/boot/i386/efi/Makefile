@@ -10,8 +10,18 @@ PROG=		loader.sym
 INTERNALPROG=
 
 # architecture-specific loader code
-SRCS=	main.c exec.c conf.c vers.c reloc.c start.S elf32_freebsd.c
-SRCS+=	i386_copy.c bootinfo.c autoload.c devicename.c efimd.c
+SRCS=	autoload.c \
+	bootinfo.c \
+	conf.c \
+	devicename.c \
+	efimd.c \
+	elf32_freebsd.c \
+	exec.c \
+	i386_copy.c \
+	main.c \
+	reloc.c \
+	vers.c
+SRCS+=	start.S
 
 CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/i386
