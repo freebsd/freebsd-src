@@ -30,6 +30,7 @@ WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
+XZCMD?=		/usr/bin/xz
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -259,7 +260,7 @@ install:
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
 . if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
-	xz -k ${DESTDIR}/${OSRELEASE}-${I}
+	${XZCMD} -k ${DESTDIR}/${OSRELEASE}-${I}
 . endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
