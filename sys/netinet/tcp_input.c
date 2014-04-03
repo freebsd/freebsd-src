@@ -503,13 +503,14 @@ do { \
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
- *	- there is no delayed ack timer in progress and
- *	- our last ack wasn't a 0-sized window.  We never want to delay
- *	  the ack that opens up a 0-sized window and
- *		- delayed acks are enabled or
- *		- this is a half-synchronized T/TCP connection.
- *	- the segment size is not larger than the MSS and LRO wasn't used
- *	  for this segment.
+ * following conditions are met:
+ *	- There is no delayed ack timer in progress.
+ *	- Our last ack wasn't a 0-sized window. We never want to delay
+ *	  the ack that opens up a 0-sized window.
+ *	- LRO wasn't used for this segment. We make sure by checking that the
+ *	  segment size is not larger than the MSS.
+ *	- Delayed acks are enabled or this is a half-synchronized T/TCP
+ *	  connection.
  */
 #define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
