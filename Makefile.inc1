@@ -1359,6 +1359,9 @@ kernel-tools: .MAKE
 #
 # cross-tools: Build cross-building tools
 #
+.if !defined(TARGET_ARCH) && defined(XDEV_ARCH)
+TARGET_ARCH=	${XDEV_ARCH}
+.endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
@@ -1872,15 +1875,17 @@ NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	CPUTYPE=${XDEV_CPUTYPE}
 
 XDDIR=${XDEV_ARCH}-freebsd
-XDTP=usr/${XDDIR}
+XDTP?=usr/${XDDIR}
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
 	_SHLIBDIRPREFIX=${XDDESTDIR} \
-	TOOLS_PREFIX=${XDDESTDIR}
+	TOOLS_PREFIX=${XDTP}
 CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
-	-B${XDDESTDIR}/usr/lib
-CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
+	--sysroot=${XDDESTDIR}/ -B${XDDESTDIR}/usr/libexec \
+	-B${XDDESTDIR}/usr/bin -B${XDDESTDIR}/usr/lib
+CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CFLAGS}" \
+	CPP="${CPP} ${CD2CFLAGS}" \
 	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
 
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
