@@ -53,7 +53,7 @@ extern STAT st;
 extern void (*cfunc)(void);
 extern uintmax_t cpy_cnt;
 extern size_t cbsz;
-extern u_int ddflags;
+extern u_int64_t ddflags;
 extern uintmax_t files_cnt;
 extern const u_char *ctab;
 extern const u_char a2e_32V[], a2e_POSIX[];
