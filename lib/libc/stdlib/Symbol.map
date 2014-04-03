@@ -86,14 +86,10 @@ FBSD_1.0 {
 
 FBSD_1.3 {
 	at_quick_exit;
-	atexit_b;
 	atof_l;
 	atoi_l;
 	atol_l;
 	atoll_l;
-	heapsort_b;
-	mergesort_b;
-	qsort_b;
 	quick_exit;
 	strtod_l;
 	strtof_l;
@@ -106,6 +102,13 @@ FBSD_1.3 {
 	strtoull_l;
 	strtoumax_l;
 	strtouq_l;
+};
+
+FBSD_1.4 {
+	atexit_b;
+	heapsort_b;
+	mergesort_b;
+	qsort_b;
 };
 
 FBSDprivate_1.0 {
