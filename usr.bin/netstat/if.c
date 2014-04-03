@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
+#define	_IFI_OQDROPS
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -251,7 +252,7 @@ intpr(int interval, void (*pfunc)(char *), int af)
 			printf(" %10.10s","Obytes");
 		printf(" %5s", "Coll");
 		if (dflag)
-			printf(" %s", "Drop");
+			printf("  %s", "Drop");
 		putchar('\n');
 	}
 
@@ -382,7 +383,8 @@ intpr(int interval, void (*pfunc)(char *), int af)
 		if (bflag)
 			show_stat("lu", 10, IFA_STAT(obytes), link|network);
 		show_stat("NRSlu", 5, IFA_STAT(collisions), link);
-		/* XXXGL: output queue drops */
+		if (dflag)
+			show_stat("LSlu", 5, IFA_STAT(oqdrops), link);
 		putchar('\n');
 
 		if (!aflag)
@@ -460,6 +462,7 @@ struct iftot {
 	u_long	ift_id;			/* input drops */
 	u_long	ift_op;			/* output packets */
 	u_long	ift_oe;			/* output errors */
+	u_long	ift_od;			/* output drops */
 	u_long	ift_co;			/* collisions */
 	u_long	ift_ib;			/* input bytes */
 	u_long	ift_ob;			/* output bytes */
@@ -495,6 +498,7 @@ fill_iftot(struct iftot *st)
 		st->ift_ib += IFA_STAT(ibytes);
 		st->ift_op += IFA_STAT(opackets);
 		st->ift_oe += IFA_STAT(oerrors);
+		st->ift_od += IFA_STAT(oqdrops);
 		st->ift_ob += IFA_STAT(obytes);
  		st->ift_co += IFA_STAT(collisions);
 	}
@@ -573,7 +577,8 @@ loop:
 	show_stat("lu", 5, new->ift_oe - old->ift_oe, 1);
 	show_stat("lu", 10, new->ift_ob - old->ift_ob, 1);
 	show_stat("NRSlu", 5, new->ift_co - old->ift_co, 1);
-	/* XXXGL: output queue drops */
+	if (dflag)
+		show_stat("LSlu", 5, new->ift_od - old->ift_od, 1);
 	putchar('\n');
 	fflush(stdout);
 
