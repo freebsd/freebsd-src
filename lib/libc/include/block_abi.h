@@ -60,4 +60,4 @@
 		int flags;\
 		int reserved;\
 		void (*invoke)(void *, ...);\
-	}*)x)->invoke)
+	}*)(void*)x)->invoke)
