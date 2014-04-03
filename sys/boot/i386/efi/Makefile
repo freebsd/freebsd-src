@@ -31,7 +31,11 @@ BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
 CFLAGS+=	-I${.CURDIR}/../../ficl/i386
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
+.else
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 # Include bcache code.
