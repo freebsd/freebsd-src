@@ -167,6 +167,10 @@ boot</screen>
           It disables unmapped I/O at every boot:</para>
 
 	<programlisting>vfs.unmapped_buf_allowed=0</programlisting>
+
+	<para>[2014-04-03 update]  It has been reported that
+	  instability may be present on virtual machines running
+	  on other hypervisors, such as Xen or KVM.</para>
       </listitem>
 
       <listitem>
