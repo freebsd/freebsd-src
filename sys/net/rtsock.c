@@ -52,6 +52,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#define	_IN_NET_RTSOCK_C
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
@@ -105,6 +106,7 @@ struct if_data32 {
 	uint32_t ifi_hwassist;
 	int32_t	ifi_epoch;
 	struct	timeval32 ifi_lastchange;
+	uint32_t ifi_oqdrops;
 };
 
 struct if_msghdr32 {
@@ -1662,6 +1664,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 		if (carp_get_vhid_p != NULL)
 			ifm32->ifm_data.ifi_vhid =
 			    (*carp_get_vhid_p)(ifp->if_addr);
+		ifm32->ifm_data.ifi_oqdrops = ifp->if_snd.ifq_drops;
 
 		return (SYSCTL_OUT(w->w_req, (caddr_t)ifm32, len));
 	}
@@ -1678,6 +1681,9 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 	/* Fixup if_data carp(4) vhid. */
 	if (carp_get_vhid_p != NULL)
 		ifm->ifm_data.ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	ifm->ifm_data.ifi_datalen += sizeof(u_long);
+	ifm->ifi_oqdrops = ifp->if_snd.ifq_drops;
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
