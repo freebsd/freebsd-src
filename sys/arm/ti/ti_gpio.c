@@ -69,6 +69,9 @@ __FBSDID("$FreeBSD$");
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
 #define	TI_GPIO_SYSCONFIG		0x0010
+#define	TI_GPIO_SYSCONFIG_SOFTRESET		(1 << 1)
+#define	TI_GPIO_SYSCONFIG_AUTOIDLE		(1 << 0)
+#define	TI_GPIO_SYSSTATUS_RESETDONE		(1 << 0)
 #if defined(SOC_OMAP3)
 #define	TI_GPIO_SYSSTATUS		0x0014
 #define	TI_GPIO_IRQSTATUS1		0x0018
@@ -637,6 +640,107 @@ ti_gpio_probe(device_t dev)
 	return (0);
 }
 
+static int
+ti_gpio_attach_intr(device_t dev)
+{
+	int i;
+	struct ti_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
+		if (sc->sc_irq_res[i] == NULL)
+			break;
+
+		/*
+		 * Register our interrupt handler for each of the IRQ resources.
+		 */
+		if (bus_setup_intr(dev, sc->sc_irq_res[i],
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, ti_gpio_intr, sc,
+		    &sc->sc_irq_hdl[i]) != 0) {
+			device_printf(dev,
+			    "WARNING: unable to register interrupt handler\n");
+			return (-1);
+		}
+	}
+
+	return (0);
+}
+
+static int
+ti_gpio_detach_intr(device_t dev)
+{
+	int i;
+	struct ti_gpio_softc *sc;
+
+	/* Teardown our interrupt handlers. */
+	sc = device_get_softc(dev);
+	for (i = 0; i < MAX_GPIO_BANKS; i++) {
+		if (sc->sc_irq_res[i] == NULL)
+			break;
+
+		if (sc->sc_irq_hdl[i]) {
+			bus_teardown_intr(dev, sc->sc_irq_res[i],
+			    sc->sc_irq_hdl[i]);
+		}
+	}
+
+	return (0);
+}
+
+static int
+ti_gpio_bank_init(device_t dev, int bank)
+{
+	int pin, timeout;
+	struct ti_gpio_softc *sc;
+	uint32_t flags, reg_oe;
+
+	sc = device_get_softc(dev);
+
+	/* Enable the interface and functional clocks for the module. */
+	ti_prcm_clk_enable(GPIO0_CLK + FIRST_GPIO_BANK + bank);
+
+	/* Reset the GPIO module. */
+	timeout = 0;
+	ti_gpio_write_4(sc, bank, TI_GPIO_SYSCONFIG, TI_GPIO_SYSCONFIG_SOFTRESET);
+	while ((ti_gpio_read_4(sc, bank, TI_GPIO_SYSSTATUS) &
+	    TI_GPIO_SYSSTATUS_RESETDONE) == 0) {
+		if (timeout++ > 100)
+			return (EBUSY);
+		DELAY(100);
+	}
+
+	/*
+	 * Read the revision number of the module.  TI don't publish the
+	 * actual revision numbers, so instead the values have been
+	 * determined by experimentation.
+	 */
+	sc->sc_revision[bank] = ti_gpio_read_4(sc, bank, TI_GPIO_REVISION);
+
+	/* Check the revision. */
+	if (sc->sc_revision[bank] != TI_GPIO_REV) {
+		device_printf(dev, "Warning: could not determine the revision "
+		    "of %u GPIO module (revision:0x%08x)\n",
+		    bank, sc->sc_revision[bank]);
+		return (EINVAL);
+	}
+
+	/* Disable interrupts for all pins. */
+	ti_gpio_write_4(sc, bank, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
+	ti_gpio_write_4(sc, bank, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
+
+	/* Init OE register based on pads configuration. */
+	reg_oe = 0xffffffff;
+	for (pin = 0; pin < PINS_PER_BANK; pin++) {
+		ti_scm_padconf_get_gpioflags(PINS_PER_BANK * bank + pin,
+		    &flags);
+		if (flags & GPIO_PIN_OUTPUT)
+			reg_oe &= ~(1UL << pin);
+	}
+	ti_gpio_write_4(sc, bank, TI_GPIO_OE, reg_oe);
+ 
+	return (0);
+}
+
 /**
  *	ti_gpio_attach - attach function for the driver
  *	@dev: gpio device handle
@@ -653,13 +757,11 @@ ti_gpio_probe(device_t dev)
 static int
 ti_gpio_attach(device_t dev)
 {
-	struct ti_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc;
 	unsigned int i;
-	int err = 0;
-	int pin;
-	uint32_t flags;
-	uint32_t reg_oe;
+	int err;
 
+ 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
 	TI_GPIO_LOCK_INIT(sc);
@@ -668,30 +770,24 @@ ti_gpio_attach(device_t dev)
 	 * memory areas on the chip.  The memory range should have been set for
 	 * the driver when it was added as a child.
 	 */
-	err = bus_alloc_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
-	if (err) {
+	if (bus_alloc_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res) != 0) {
 		device_printf(dev, "Error: could not allocate mem resources\n");
 		return (ENXIO);
 	}
 
 	/* Request the IRQ resources */
-	err = bus_alloc_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
-	if (err) {
+	if (bus_alloc_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res) != 0) {
+		bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
 		device_printf(dev, "Error: could not allocate irq resources\n");
 		return (ENXIO);
 	}
 
 	/* Setup the IRQ resources */
-	for (i = 0; i < MAX_GPIO_BANKS; i++) {
-		if (sc->sc_irq_res[i] == NULL)
-			break;
-
-		/* Register an interrupt handler for each of the IRQ resources */
-		if ((bus_setup_intr(dev, sc->sc_irq_res[i], INTR_TYPE_MISC | INTR_MPSAFE, 
-		                    NULL, ti_gpio_intr, sc, &(sc->sc_irq_hdl[i])))) {
-			device_printf(dev, "WARNING: unable to register interrupt handler\n");
-			return (ENXIO);
-		}
+	if (ti_gpio_attach_intr(dev) != 0) {
+		ti_gpio_detach_intr(dev);
+		bus_release_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
+		bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
+		return (ENXIO);
 	}
 
 	/* We need to go through each block and ensure the clocks are running and
@@ -701,38 +797,16 @@ ti_gpio_attach(device_t dev)
 	 */
 	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
-
-			/* Enable the interface and functional clocks for the module */
-			ti_prcm_clk_enable(GPIO0_CLK + FIRST_GPIO_BANK + i);
-
-			/* Read the revision number of the module. TI don't publish the
-			 * actual revision numbers, so instead the values have been
-			 * determined by experimentation.
-			 */
-			sc->sc_revision[i] = ti_gpio_read_4(sc, i, TI_GPIO_REVISION);
-
-			/* Check the revision */
-			if (sc->sc_revision[i] != TI_GPIO_REV) {
-				device_printf(dev, "Warning: could not determine the revision"
-				              "of %u GPIO module (revision:0x%08x)\n",
-				              i, sc->sc_revision[i]);
-				continue;
+			/* Reset and initialize the GPIO module. */
+			err = ti_gpio_bank_init(dev, i);
+			if (err != 0) {
+				ti_gpio_detach_intr(dev);
+				bus_release_resources(dev, ti_gpio_irq_spec,
+				    sc->sc_irq_res);
+				bus_release_resources(dev, ti_gpio_mem_spec,
+				    sc->sc_mem_res);
+				return (err);
 			}
-
-			/* Disable interrupts for all pins */
-			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
-			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
-
-			/* Init OE register based on pads configuration */
-			reg_oe = 0xffffffff;
-			for (pin = 0; pin < 32; pin++) {
-				ti_scm_padconf_get_gpioflags(
-				    PINS_PER_BANK*i + pin, &flags);
-				if (flags & GPIO_PIN_OUTPUT)
-					reg_oe &= ~(1U << pin);
-			}
-
-			ti_gpio_write_4(sc, i, TI_GPIO_OE, reg_oe);
 		}
 	}
 
@@ -774,13 +848,10 @@ ti_gpio_detach(device_t dev)
 
 	bus_generic_detach(dev);
 
-	/* Release the memory and IRQ resources */
-	for (i = 0; i < MAX_GPIO_BANKS; i++) {
-		if (sc->sc_mem_res[i] != NULL)
-			bus_release_resource(dev, SYS_RES_MEMORY, i, sc->sc_mem_res[i]);
-		if (sc->sc_irq_res[i] != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, i, sc->sc_irq_res[i]);
-	}
+	/* Release the memory and IRQ resources. */
+	ti_gpio_detach_intr(dev);
+	bus_release_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
+	bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
 
 	TI_GPIO_LOCK_DESTROY(sc);
 
