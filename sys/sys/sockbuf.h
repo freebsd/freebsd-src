@@ -52,6 +52,7 @@
 #define	SB_NOCOALESCE	0x200		/* don't coalesce new data into existing mbufs */
 #define	SB_IN_TOE	0x400		/* socket buffer is in the middle of an operation */
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
+#define	SB_STOP		0x1000		/* backpressure indicator */
 
 #define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
 #define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
@@ -168,9 +169,19 @@ void	sbunlock(struct sockbuf *sb);
  * still be negative (cc > hiwat or mbcnt > mbmax).  Should detect
  * overflow and return 0.  Should use "lmin" but it doesn't exist now.
  */
-#define	sbspace(sb) \
-    ((long) imin((int)((sb)->sb_hiwat - (sb)->sb_cc), \
-	 (int)((sb)->sb_mbmax - (sb)->sb_mbcnt)))
+static __inline
+long
+sbspace(struct sockbuf *sb)
+{
+	long bleft;
+	long mleft;
+
+	if (sb->sb_flags & SB_STOP)
+		return(0);
+	bleft = sb->sb_hiwat - sb->sb_cc;
+	mleft = sb->sb_mbmax - sb->sb_mbcnt;
+	return((bleft < mleft) ? bleft : mleft);
+}
 
 /* adjust counters in sb reflecting allocation of m */
 #define	sballoc(sb, m) { \
