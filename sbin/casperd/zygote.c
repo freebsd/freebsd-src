@@ -63,6 +63,9 @@ stdnull(void)
 	if (fd == -1)
 		errx(1, "Unable to open %s", _PATH_DEVNULL);
 
+	if (setsid() == -1)
+		errx(1, "Unable to detach from session");
+
 	if (dup2(fd, STDIN_FILENO) == -1)
 		errx(1, "Unable to cover stdin");
 	if (dup2(fd, STDOUT_FILENO) == -1)
