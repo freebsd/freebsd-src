@@ -1,4 +1,4 @@
-# Kernel configuration for Wandboard
+# Kernel configuration for Freescale i.MX6 systems.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -20,8 +20,8 @@
 ident		IMX6
 include 	"../freescale/imx/std.imx6"
 
-options  	HZ=250			# Scheduling quantum is 4 milliseconds.
-options  	SCHED_4BSD		# 4BSD scheduler
+options  	HZ=500			# Scheduling quantum is 2 milliseconds.
+options  	SCHED_ULE		# ULE scheduler
 options  	PREEMPTION		# Enable kernel thread preemption
 options  	INET			# InterNETworking
 options  	INET6			# IPv6 communications protocols
