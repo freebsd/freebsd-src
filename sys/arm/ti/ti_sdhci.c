@@ -72,6 +72,8 @@ struct ti_sdhci_softc {
 	uint32_t		wp_gpio_pin;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
+	boolean_t		disable_highspeed;
+	boolean_t		force_card_present;
 };
 
 /*
@@ -105,6 +107,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_SYSCONFIG			0x010
 #define	  MMCHS_SYSCONFIG_RESET		  (1 << 1)
 #define	MMCHS_SYSSTATUS			0x014
+#define	  MMCHS_SYSSTATUS_RESETDONE	  (1 << 0)
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
@@ -193,8 +196,24 @@ static uint32_t
 ti_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
+	uint32_t val32;
 
-	return (RD4(sc, off));
+	val32 = RD4(sc, off);
+
+	/*
+	 * If we need to disallow highspeed mode due to the OMAP4 erratum, strip
+	 * that flag from the returned capabilities.
+	 */
+	if (off == SDHCI_CAPABILITIES && sc->disable_highspeed)
+		val32 &= ~SDHCI_CAN_DO_HISPD;
+
+	/*
+	 * Force the card-present state if necessary.
+	 */
+	if (off == SDHCI_PRESENT_STATE && sc->force_card_present)
+		val32 |= SDHCI_CARD_PRESENT;
+
+	return (val32);
 }
 
 static void
@@ -358,7 +377,7 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while ((ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSCONFIG_RESET)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
 			device_printf(dev, "Error: Controller reset operation timed out\n");
 			break;
@@ -458,12 +477,14 @@ ti_sdhci_attach(device_t dev)
 
 	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
+	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
 	if (ti_chip() == CHIP_OMAP_3)
 		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4)
+	else if (ti_chip() == CHIP_OMAP_4) {
 		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_AM335X)
+		sc->disable_highspeed = true;
+        } else if (ti_chip() == CHIP_AM335X)
 		sc->mmchs_reg_off = AM335X_MMCHS_REG_OFFSET;
 	else
 		panic("Unknown OMAP device\n");
@@ -559,6 +580,14 @@ ti_sdhci_attach(device_t dev)
 			break;
 		}
 	}
+
+	/*
+	 * If the slot is flagged with the non-removable property, set our flag
+	 * to always force the SDHCI_CARD_PRESENT bit on.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "non-removable"))
+		sc->force_card_present = true;
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
