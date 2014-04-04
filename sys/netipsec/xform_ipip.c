@@ -170,7 +170,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	struct ip6_hdr *ip6 = NULL;
 	u_int8_t itos;
 #endif
-	u_int8_t nxt;
 	int isr;
 	u_int8_t otos;
 	u_int8_t v;
@@ -275,14 +274,12 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 #ifdef INET
     	case 4:
                 ipo = mtod(m, struct ip *);
-                nxt = ipo->ip_p;
 		ip_ecn_egress(V_ip4_ipsec_ecn, &otos, &ipo->ip_tos);
                 break;
 #endif /* INET */
 #ifdef INET6
     	case 6:
                 ip6 = (struct ip6_hdr *) ipo;
-                nxt = ip6->ip6_nxt;
 		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 		ip_ecn_egress(V_ip6_ipsec_ecn, &otos, &itos);
 		ip6->ip6_flow &= ~htonl(0xff << 20);
