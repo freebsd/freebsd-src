@@ -45,5 +45,17 @@ PORTBRANCH="ports/head@rHEAD"
 ## Set miscellaneous 'make release' settings.
 #NODOC=
 #NOPORTS=
-#RELSTRING=
 #WITH_DVD=
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to skip the chroot environment buildworld/installworld/distribution
+## step if it is expected the build environment will exist via alternate
+## means.
+#CHROOTBUILD_SKIP=
+
+## Set to pass additional flags to make(1) for the build chroot setup, such
+## as TARGET/TARGET_ARCH.
+#CHROOT_MAKEENV=
+
