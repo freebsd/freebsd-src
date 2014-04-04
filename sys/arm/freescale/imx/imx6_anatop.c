@@ -375,11 +375,11 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	    "CPU frequency");
 
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
-	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
 	    cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
 
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
-	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
 	    cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
 
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
@@ -387,7 +387,8 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	    "Maximum CPU frequency allowed by hardware");
 
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
-	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RW, &sc->cpu_overclock_enable, 0, 
+	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RWTUN, 
+	    &sc->cpu_overclock_enable, 0, 
 	    "Allow setting CPU frequency higher than cpu_maxmhz_hw");
 
 	/*
