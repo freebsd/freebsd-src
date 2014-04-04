@@ -1257,7 +1257,7 @@ smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, NULL, 0, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_masked_global++;
 #endif
@@ -1517,6 +1517,7 @@ void
 invltlb_pcid_handler(void)
 {
 	uint64_t cr3;
+	u_int cpuid;
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1524,14 +1525,13 @@ invltlb_pcid_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	cr3 = rcr3();
 	if (smp_tlb_invpcid.pcid != (uint64_t)-1 &&
 	    smp_tlb_invpcid.pcid != 0) {
-
 		if (invpcid_works) {
 			invpcid(&smp_tlb_invpcid, INVPCID_CTX);
 		} else {
 			/* Otherwise reload %cr3 twice. */
+			cr3 = rcr3();
 			if (cr3 != pcid_cr3) {
 				load_cr3(pcid_cr3);
 				cr3 |= CR3_PCID_SAVE;
@@ -1541,8 +1541,11 @@ invltlb_pcid_handler(void)
 	} else {
 		invltlb_globpcid();
 	}
-	if (smp_tlb_pmap != NULL)
-		CPU_CLR_ATOMIC(PCPU_GET(cpuid), &smp_tlb_pmap->pm_save);
+	if (smp_tlb_pmap != NULL) {
+		cpuid = PCPU_GET(cpuid);
+		if (!CPU_ISSET(cpuid, &smp_tlb_pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &smp_tlb_pmap->pm_save);
+	}
 
 	atomic_add_int(&smp_tlb_wait, 1);
 }
@@ -1608,7 +1611,10 @@ invlpg_range(vm_offset_t start, vm_offset_t end)
 void
 invlrng_handler(void)
 {
+	struct invpcid_descr d;
 	vm_offset_t addr;
+	uint64_t cr3;
+	u_int cpuid;
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_rng[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1618,15 +1624,7 @@ invlrng_handler(void)
 
 	addr = smp_tlb_invpcid.addr;
 	if (pmap_pcid_enabled) {
-		if (invpcid_works) {
-			struct invpcid_descr d;
-
-			d = smp_tlb_invpcid;
-			do {
-				invpcid(&d, INVPCID_ADDR);
-				d.addr += PAGE_SIZE;
-			} while (d.addr < smp_tlb_addr2);
-		} else if (smp_tlb_invpcid.pcid == 0) {
+		if (smp_tlb_invpcid.pcid == 0) {
 			/*
 			 * kernel pmap - use invlpg to invalidate
 			 * global mapping.
@@ -1635,12 +1633,18 @@ invlrng_handler(void)
 		} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
 			invltlb_globpcid();
 			if (smp_tlb_pmap != NULL) {
-				CPU_CLR_ATOMIC(PCPU_GET(cpuid),
-				    &smp_tlb_pmap->pm_save);
+				cpuid = PCPU_GET(cpuid);
+				if (!CPU_ISSET(cpuid, &smp_tlb_pmap->pm_active))
+					CPU_CLR_ATOMIC(cpuid,
+					    &smp_tlb_pmap->pm_save);
 			}
+		} else if (invpcid_works) {
+			d = smp_tlb_invpcid;
+			do {
+				invpcid(&d, INVPCID_ADDR);
+				d.addr += PAGE_SIZE;
+			} while (d.addr <= smp_tlb_addr2);
 		} else {
-			uint64_t cr3;
-
 			cr3 = rcr3();
 			if (cr3 != pcid_cr3)
 				load_cr3(pcid_cr3 | CR3_PCID_SAVE);
