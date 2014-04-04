@@ -75,23 +75,23 @@ static struct iscsi_softc	*sc;
 SYSCTL_NODE(_kern, OID_AUTO, iscsi, CTLFLAG_RD, 0, "iSCSI initiator");
 static int debug = 1;
 TUNABLE_INT("kern.iscsi.debug", &debug);
-SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 2, "Enable debug messages");
 static int ping_timeout = 5;
 TUNABLE_INT("kern.iscsi.ping_timeout", &ping_timeout);
-SYSCTL_INT(_kern_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RW, &ping_timeout,
+SYSCTL_INT(_kern_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN, &ping_timeout,
     5, "Timeout for ping (NOP-Out) requests, in seconds");
 static int iscsid_timeout = 60;
 TUNABLE_INT("kern.iscsi.iscsid_timeout", &iscsid_timeout);
-SYSCTL_INT(_kern_iscsi, OID_AUTO, iscsid_timeout, CTLFLAG_RW, &iscsid_timeout,
+SYSCTL_INT(_kern_iscsi, OID_AUTO, iscsid_timeout, CTLFLAG_RWTUN, &iscsid_timeout,
     60, "Time to wait for iscsid(8) to handle reconnection, in seconds");
 static int login_timeout = 60;
 TUNABLE_INT("kern.iscsi.login_timeout", &login_timeout);
-SYSCTL_INT(_kern_iscsi, OID_AUTO, login_timeout, CTLFLAG_RW, &login_timeout,
+SYSCTL_INT(_kern_iscsi, OID_AUTO, login_timeout, CTLFLAG_RWTUN, &login_timeout,
     60, "Time to wait for iscsid(8) to finish Login Phase, in seconds");
 static int maxtags = 255;
 TUNABLE_INT("kern.iscsi.maxtags", &maxtags);
-SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RW, &maxtags,
+SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN, &maxtags,
     255, "Max number of IO requests queued");
 
 static MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI initiator");
