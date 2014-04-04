@@ -101,7 +101,7 @@ elf64_exec(struct preloaded_file *fp)
 		rsdp = efi_get_table(&acpi_guid);
 	}
 	if (rsdp != NULL) {
-		sprintf(buf, "0x%016llx", rsdp);
+		sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
 		setenv("hint.acpi.0.rsdp", buf, 1);
 		revision = rsdp->Revision;
 		if (revision == 0)
@@ -115,7 +115,8 @@ elf64_exec(struct preloaded_file *fp)
 		setenv("hint.acpi.0.rsdt", buf, 1);
 		if (revision >= 2) {
 			/* XXX extended checksum? */
-			sprintf(buf, "0x%016llx", rsdp->XsdtPhysicalAddress);
+			sprintf(buf, "0x%016llx",
+			    (unsigned long long)rsdp->XsdtPhysicalAddress);
 			setenv("hint.acpi.0.xsdt", buf, 1);
 			sprintf(buf, "%d", rsdp->Length);
 			setenv("hint.acpi.0.xsdt_length", buf, 1);
