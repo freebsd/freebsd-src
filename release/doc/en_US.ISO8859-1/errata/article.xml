@@ -243,6 +243,16 @@ boot</screen>
 	  it from mounting any UDF file system.  This has been fixed
   	  in &os;-CURRENT and &os; &release.current;.</para>
       </listitem>
+
+      <listitem>
+	<para>Updating LSI firmware on &man.mps.4; controllers with
+	  the <application>sas2flash</application> utility may cause
+	  the system to hang, or may cause the sytem to panic.  This
+	  is fixed in the <literal>stable/10</literal> branch with
+	  revisions <literal>r262553</literal> and
+	  <literal>r262575</literal>, and will be included in
+	  &os;&nbsp;10.1-RELEASE.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
