@@ -1047,6 +1047,7 @@ small_mappings:
 				cpu_tlb_flushID_SE(pv->pv_va);
 			else if (PTE_BEEN_REFD(opte))
 				cpu_tlb_flushD_SE(pv->pv_va);
+			cpu_cpwait();
 		}
 
 		PMAP_UNLOCK(pmap);
@@ -1134,8 +1135,8 @@ vector_page_setprot(int prot)
 	*ptep |= L2_S_REF;
 
 	pmap_set_prot(ptep, prot|VM_PROT_EXECUTE, 0);
-
-	cpu_tlb_flushD_SE(vector_page);
+	PTE_SYNC(ptep);
+	cpu_tlb_flushID_SE(vector_page);
 	cpu_cpwait();
 }
 
@@ -1643,8 +1644,8 @@ pmap_postinit(void)
 				pte = (pte & ~L2_S_CACHE_MASK) | pte_l2_s_cache_mode_pt;
 				*ptep = pte;
 				PTE_SYNC(ptep);
-				cpu_tlb_flushD_SE(va);
-
+				cpu_tlb_flushID_SE(va);
+				cpu_cpwait();
 				va += PAGE_SIZE;
 		}
 		pmap_init_l1(l1, pl1pt);
@@ -1948,6 +1949,8 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	pmap_init_l1(l1, kernel_l1pt);
 	cpu_dcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
+	cpu_tlb_flushID();
+	cpu_cpwait();
 
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = vm_max_kernel_address;
@@ -2034,6 +2037,8 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	*ptep = L2_S_PROTO | pa | cache_mode | L2_S_REF;
 	pmap_set_prot(ptep, VM_PROT_READ | VM_PROT_WRITE, 0);
 	PTE_SYNC(ptep);
+	cpu_tlb_flushD_SE(va);
+	cpu_cpwait();
 
 	return (0);
 }
@@ -2348,6 +2353,8 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
 		l1->l1_kva[L1_IDX(va)] = pd;
 		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
 	}
+	cpu_tlb_flushID_SE(va);
+	cpu_cpwait();
 }
 
 /*
@@ -2387,13 +2394,6 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *ptep;
-	if (l2pte_valid(opte)) {
-		cpu_tlb_flushD_SE(va);
-		cpu_cpwait();
-	} else {
-		if (opte == 0)
-			l2b->l2b_occupancy++;
-	}
 
 	if (flags & KENTER_CACHE) {
 		*ptep = L2_S_PROTO | pa | pte_l2_s_cache_mode | L2_S_REF;
@@ -2405,10 +2405,19 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		    0);
 	}
 
+	PTE_SYNC(ptep);
+	if (l2pte_valid(opte)) {
+		if (L2_S_EXECUTABLE(opte) || L2_S_EXECUTABLE(*ptep))
+			cpu_tlb_flushID_SE(va);
+		else
+			cpu_tlb_flushD_SE(va);
+	} else {
+		if (opte == 0)
+			l2b->l2b_occupancy++;
+	}
+
 	PDEBUG(1, printf("pmap_kenter: pte = %08x, opte = %08x, npte = %08x\n",
 	    (uint32_t) ptep, opte, *ptep));
-	PTE_SYNC(ptep);
-	cpu_cpwait();
 }
 
 void
@@ -2474,10 +2483,13 @@ pmap_kremove(vm_offset_t va)
 	opte = *ptep;
 	if (l2pte_valid(opte)) {
 		va = va & ~PAGE_MASK;
-		cpu_tlb_flushD_SE(va);
-		cpu_cpwait();
 		*ptep = 0;
 		PTE_SYNC(ptep);
+		if (L2_S_EXECUTABLE(opte))
+			cpu_tlb_flushID_SE(va);
+		else
+			cpu_tlb_flushD_SE(va);
+		cpu_cpwait();
 	}
 }
 
@@ -2710,6 +2722,7 @@ small_mappings:
 			cpu_tlb_flushID();
 		else
 			cpu_tlb_flushD();
+		cpu_cpwait();
 	}
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(&pvh_global_lock);
@@ -2763,6 +2776,7 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 		pmap_l2cache_wbinv_range(tmpva, pte & L2_S_FRAME, PAGE_SIZE);
 		*ptep = pte;
 		cpu_tlb_flushID_SE(tmpva);
+		cpu_cpwait();
 
 		dprintf("%s: for va:%x ptep:%x pte:%x\n",
 		    __func__, tmpva, (uint32_t)ptep, pte);
@@ -2900,6 +2914,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		else
 		if (is_refd)
 			cpu_tlb_flushD();
+		cpu_cpwait();
 	}
 	rw_wunlock(&pvh_global_lock);
 
@@ -3166,6 +3181,7 @@ validate:
 			cpu_tlb_flushID_SE(va);
 		else if (is_refd)
 			cpu_tlb_flushD_SE(va);
+		cpu_cpwait();
 	}
 
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
@@ -3713,6 +3729,7 @@ pmap_remove_section(pmap_t pmap, vm_offset_t sva)
 		cpu_tlb_flushID_SE(sva);
 	else
 		cpu_tlb_flushD_SE(sva);
+	cpu_cpwait();
 }
 
 /*
@@ -3885,6 +3902,7 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 		cpu_tlb_flushID();
 	else
 		cpu_tlb_flushD();
+	cpu_cpwait();
 
 	pmap_section_promotions++;
 	CTR2(KTR_PMAP, "pmap_promote_section: success for va %#x"
@@ -4009,6 +4027,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 		cpu_tlb_flushID_SE(va);
 	else if (L1_S_REFERENCED(l1pd))
 		cpu_tlb_flushD_SE(va);
+	cpu_cpwait();
 
 	pmap_section_demotions++;
 	CTR2(KTR_PMAP, "pmap_demote_section: success for va %#x"
@@ -4380,6 +4399,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				}
 			}
 
+			*ptep = 0;
+			PTE_SYNC(ptep);
 			if (pmap_is_current(pmap)) {
 				total++;
 				if (total < PMAP_REMOVE_CLEAN_LIST_SIZE) {
@@ -4390,8 +4411,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				} else if (total == PMAP_REMOVE_CLEAN_LIST_SIZE)
 					flushall = 1;
 			}
-			*ptep = 0;
-			PTE_SYNC(ptep);
 
 			sva += PAGE_SIZE;
 			ptep++;
@@ -4404,6 +4423,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	rw_wunlock(&pvh_global_lock);
 	if (flushall)
 		cpu_tlb_flushID();
+	cpu_cpwait();
+
 	PMAP_UNLOCK(pmap);
 }
 
@@ -4920,6 +4941,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 					cpu_tlb_flushID_SE(sva);
 				else if (PTE_BEEN_REFD(opte))
 					cpu_tlb_flushD_SE(sva);
+				cpu_cpwait();
 			}
 		}
 	}
