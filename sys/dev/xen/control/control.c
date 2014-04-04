@@ -446,7 +446,7 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.max_pending = 1;
 	xs_register_watch(&xctrl->xctrl_watch);
 
-	if (xen_pv_domain())
+	if (xen_pv_shutdown_handler())
 		EVENTHANDLER_REGISTER(shutdown_final, xen_pv_shutdown_final, NULL,
 		                      SHUTDOWN_PRI_LAST);
 
