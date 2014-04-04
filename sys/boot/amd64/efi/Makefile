@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 NO_MAN=
-BUILDING_EFI=
 
 .include <bsd.own.mk>
 MK_SSP=		no
@@ -13,29 +12,29 @@ INTERNALPROG=
 SRCS=	autoload.c \
 	bootinfo.c \
 	conf.c \
+	copy.c \
 	devicename.c \
-	efimd.c \
-	elf32_freebsd.c \
-	exec.c \
-	i386_copy.c \
+	elf64_freebsd.c \
+	framebuffer.c \
 	main.c \
 	reloc.c \
 	vers.c
-SRCS+=	start.S
+SRCS+=	amd64_tramp.S \
+	start.S
 
+CFLAGS+=	-fPIC
+CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/i386
+CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
+CFLAGS+=	-I${.CURDIR}/../../..
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/i386
-.if ${MACHINE_CPUARCH} == "amd64"
-LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
-.else
+CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_CPUARCH}
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.endif
 .endif
 
 # Include bcache code.
@@ -49,14 +48,14 @@ CFLAGS+=	-I${.CURDIR}/../../common
 FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/ldscript.i386
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
+LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
 
 ${PROG}:	${LDSCRIPT}
 
 CLEANFILES=	vers.c loader.efi
 
-NEWVERSWHAT=	"EFI loader" x86
+NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -64,28 +63,36 @@ vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 OBJCOPY?=	objcopy
 OBJDUMP?=	objdump
 
+.if ${MACHINE_CPUARCH} == "amd64"
+EFI_TARGET=	efi-app-x86_64
+.else
+EFI_TARGET=	efi-app-ia32
+.endif
+
 loader.efi: loader.sym
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
 		exit 1; \
 	fi
-	${OBJCOPY} -j .data -j .dynamic -j .dynstr -j .dynsym -j .hash \
-	    -j .rel.dyn -j .reloc -j .sdata -j .text -j set_Xcommand_set \
-	    --target=efi-app-ia32 ${.ALLSRC} ${.TARGET}
+	${OBJCOPY} -j .text -j .sdata -j .data \
+		-j .dynamic -j .dynsym -j .rel.dyn \
+		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
+		--target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
-LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
-CFLAGS+=	-I${.CURDIR}/../libi386
-CFLAGS+=	-I${.CURDIR}/../btx/lib
+CFLAGS+=	-I${.CURDIR}/../../common
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=        -I.
-beforedepend ${OBJS}: machine
+beforedepend ${OBJS}: machine x86
+
+CLEANFILES+=   machine x86
+
 machine:
-	ln -sf ${.CURDIR}/../../../i386/include machine
-.endif
+	ln -sf ${.CURDIR}/../../../amd64/include machine
+
+x86:
+	ln -sf ${.CURDIR}/../../../x86/include x86
