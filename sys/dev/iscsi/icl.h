@@ -40,7 +40,7 @@
 struct icl_conn;
 
 struct icl_pdu {
-	TAILQ_ENTRY(icl_pdu)	ip_next;
+	STAILQ_ENTRY(icl_pdu)	ip_next;
 	struct icl_conn		*ip_conn;
 	struct iscsi_bhs	*ip_bhs;
 	struct mbuf		*ip_bhs_mbuf;
@@ -79,7 +79,7 @@ struct icl_conn {
 #ifdef DIAGNOSTIC
 	volatile u_int		ic_outstanding_pdus;
 #endif
-	TAILQ_HEAD(, icl_pdu)	ic_to_send;
+	STAILQ_HEAD(, icl_pdu)	ic_to_send;
 	size_t			ic_receive_len;
 	int			ic_receive_state;
 	struct icl_pdu		*ic_receive_pdu;
