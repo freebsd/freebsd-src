@@ -1650,9 +1650,6 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
-	if (!fdavail(td, n))
-		return (EMFILE);
-
 	for (i = 0; i < n; i++)
 		if (fdalloc(td, 0, &fds[i]) != 0)
 			break;
@@ -1663,35 +1660,6 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 		return (EMFILE);
 	}
 
-	return (0);
-}
-
-/*
- * Check to see whether n user file descriptors are available to the process
- * p.
- */
-int
-fdavail(struct thread *td, int n)
-{
-	struct proc *p = td->td_proc;
-	struct filedesc *fdp = td->td_proc->p_fd;
-	int i, lim, last;
-
-	FILEDESC_LOCK_ASSERT(fdp);
-
-	/*
-	 * XXX: This is only called from uipc_usrreq.c:unp_externalize();
-	 *      call racct_add() from there instead of dealing with containers
-	 *      here.
-	 */
-	lim = getmaxfd(p);
-	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
-		return (1);
-	last = min(fdp->fd_nfiles, lim);
-	for (i = fdp->fd_freefile; i < last; i++) {
-		if (fdp->fd_ofiles[i].fde_file == NULL && --n <= 0)
-			return (1);
-	}
 	return (0);
 }
 
