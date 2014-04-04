@@ -761,6 +761,35 @@ carp_send_ad(void *v)
 }
 
 static void
+carp_send_ad_error(struct carp_softc *sc, int error)
+{
+
+	if (error) {
+		if (sc->sc_sendad_errors < INT_MAX)
+			sc->sc_sendad_errors++;
+		if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS) {
+			static const char fmt[] = "send error %d on %s";
+			char msg[sizeof(fmt) + IFNAMSIZ];
+
+			sprintf(msg, fmt, error, sc->sc_carpdev->if_xname);
+			carp_demote_adj(V_carp_senderr_adj, msg);
+		}
+		sc->sc_sendad_success = 0;
+	} else {
+		if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS &&
+		    ++sc->sc_sendad_success >= CARP_SENDAD_MIN_SUCCESS) {
+			static const char fmt[] = "send ok on %s";
+			char msg[sizeof(fmt) + IFNAMSIZ];
+
+			sprintf(msg, fmt, sc->sc_carpdev->if_xname);
+			carp_demote_adj(-V_carp_senderr_adj, msg);
+			sc->sc_sendad_errors = 0;
+		} else
+			sc->sc_sendad_errors = 0;
+	}
+}
+
+static void
 carp_send_ad_locked(struct carp_softc *sc)
 {
 	struct carp_header ch;
@@ -836,25 +865,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets);
 
-		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT,
-		    &sc->sc_carpdev->if_carp->cif_imo, NULL)) {
-			if (sc->sc_sendad_errors < INT_MAX)
-				sc->sc_sendad_errors++;
-			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(V_carp_senderr_adj,
-				    "send error");
-			sc->sc_sendad_success = 0;
-		} else {
-			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
-				if (++sc->sc_sendad_success >=
-				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-V_carp_senderr_adj,
-					    "send ok");
-					sc->sc_sendad_errors = 0;
-				}
-			} else
-				sc->sc_sendad_errors = 0;
-		}
+		carp_send_ad_error(sc, ip_output(m, NULL, NULL, IP_RAWOUTPUT,
+		    &sc->sc_carpdev->if_carp->cif_imo, NULL));
 	}
 #endif /* INET */
 #ifdef INET6
@@ -910,25 +922,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets6);
 
-		if (ip6_output(m, NULL, NULL, 0,
-		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL)) {
-			if (sc->sc_sendad_errors < INT_MAX)
-				sc->sc_sendad_errors++;
-			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(V_carp_senderr_adj,
-				    "send6 error");
-			sc->sc_sendad_success = 0;
-		} else {
-			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
-				if (++sc->sc_sendad_success >=
-				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-V_carp_senderr_adj,
-					    "send6 ok");
-					sc->sc_sendad_errors = 0;
-				}
-			} else
-				sc->sc_sendad_errors = 0;
-		}
+		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
+		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
 	}
 #endif /* INET6 */
 
