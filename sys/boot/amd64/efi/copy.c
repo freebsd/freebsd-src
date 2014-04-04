@@ -51,8 +51,8 @@ x86_efi_copy_init(void)
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 	    STAGE_PAGES, &staging);
 	if (EFI_ERROR(status)) {
-		printf("failed to allocate staging area: %d\n",
-		    status & EFI_ERROR_MASK);
+		printf("failed to allocate staging area: %lu\n",
+		    (unsigned long)(status & EFI_ERROR_MASK));
 		return (status);
 	}
 

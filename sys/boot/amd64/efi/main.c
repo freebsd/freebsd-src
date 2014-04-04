@@ -304,7 +304,7 @@ command_mode(int argc, char *argv[])
 			printf("couldn't set mode %d\n", mode);
 			return (CMD_ERROR);
 		}
-		sprintf(rowenv, "%d", rows);
+		sprintf(rowenv, "%u", (unsigned)rows);
 		setenv("LINES", rowenv, 1);
 
 		return (CMD_OK);
@@ -314,7 +314,8 @@ command_mode(int argc, char *argv[])
 		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
 			break;
-		printf("Mode %d: %d columns, %d rows\n", i, cols, rows);
+		printf("Mode %d: %u columns, %u rows\n", i, (unsigned)cols,
+		    (unsigned)rows);
 	}
 
 	if (i != 0)
