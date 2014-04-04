@@ -1276,6 +1276,31 @@ cpustop_handler(void)
 }
 
 /*
+ * Handlers for TLB related IPIs
+ *
+ * On i386 Xen PV this are no-ops since this port doesn't support SMP.
+ */
+void
+invltlb_handler(void)
+{
+}
+
+void
+invlpg_handler(void)
+{
+}
+
+void
+invlrng_handler(void)
+{
+}
+
+void
+invlcache_handler(void)
+{
+}
+
+/*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
