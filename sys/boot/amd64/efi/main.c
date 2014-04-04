@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 
 #include <bootstrap.h>
-#include "../libi386/libi386.h"
+#include "x86_efi.h"
 
 extern char bootprog_name[];
 extern char bootprog_rev[];
@@ -61,13 +61,18 @@ main(int argc, CHAR16 *argv[])
 	EFI_LOADED_IMAGE *img;
 	int i;
 
-	/* 
+	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
 	 * early, but some console attributes may depend on reading from
 	 * eg. the boot device, which we can't do yet.  We can use
 	 * printf() etc. once this is done.
 	 */
 	cons_probe();
+
+	if (x86_efi_copy_init()) {
+		printf("failed to allocate staging area\n");
+		return (EFI_BUFFER_TOO_SMALL);
+	}
 
 	/*
 	 * March through the device switch probing for things.
@@ -106,18 +111,18 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev),
-	    i386_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&currdev), env_noset,
+	env_setenv("currdev", EV_VOLATILE, x86_efi_fmtdev(&currdev),
+	    x86_efi_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, x86_efi_fmtdev(&currdev), env_noset,
 	    env_nounset);
 
 	setenv("LINES", "24", 1);	/* optional */
-    
-	archsw.arch_autoload = i386_autoload;
-	archsw.arch_getdev = i386_getdev;
-	archsw.arch_copyin = i386_copyin;
-	archsw.arch_copyout = i386_copyout;
-	archsw.arch_readin = i386_readin;
+
+	archsw.arch_autoload = x86_efi_autoload;
+	archsw.arch_getdev = x86_efi_getdev;
+	archsw.arch_copyin = x86_efi_copyin;
+	archsw.arch_copyout = x86_efi_copyout;
+	archsw.arch_readin = x86_efi_readin;
 
 	interact();			/* doesn't return */
 
@@ -195,7 +200,7 @@ command_memmap(int argc, char *argv[])
 	ndesc = sz / dsz;
 	printf("%23s %12s %12s %8s %4s\n",
 	       "Type", "Physical", "Virtual", "#Pages", "Attr");
-	       
+
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 	    printf("%23s %012lx %012lx %08lx ",
@@ -265,7 +270,7 @@ command_configuration(int argc, char *argv[])
 	}
 
 	return CMD_OK;
-}    
+}
 
 
 COMMAND_SET(mode, "mode", "change or display text modes", command_mode);
