@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2013
+.Dd April 4, 2014
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/procdesc.h
-.Ft int
+.Ft pid_t
 .Fn pdfork "int *fdp" "int flags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"

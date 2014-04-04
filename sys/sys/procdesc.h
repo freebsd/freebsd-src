@@ -105,7 +105,7 @@ void	 procdesc_reap(struct proc *);
  * Process descriptor system calls.
  */
 struct rusage;
-int	 pdfork(int *, int);
+pid_t	 pdfork(int *, int);
 int	 pdkill(int, int);
 int	 pdgetpid(int, pid_t *);
 
