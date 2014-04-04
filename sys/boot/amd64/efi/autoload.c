@@ -28,7 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 int
-i386_autoload(void)
+x86_efi_autoload(void)
 {
 
 	return (0);
