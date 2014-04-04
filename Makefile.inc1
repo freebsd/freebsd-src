@@ -1875,7 +1875,11 @@ NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	CPUTYPE=${XDEV_CPUTYPE}
 
 XDDIR=${XDEV_ARCH}-freebsd
-XDTP?=usr/${XDDIR}
+XDTP?=/usr/${XDDIR}
+.if ${XDTP:N/*}
+.error XDTP variable should be an absolute path
+.endif
+
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
