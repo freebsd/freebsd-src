@@ -111,6 +111,9 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define MMCHS_SYSCTL			0x12C
+#define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
+#define   MMCHS_SYSCTL_CLKD_SHIFT	   6
 #define	MMCHS_SD_CAPA			0x140
 #define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
 #define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
@@ -174,9 +177,13 @@ ti_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
-		clkdiv = (val32 >> SDHCI_DIVIDER_HI_SHIFT) & 0xff;
-		val32 &= ~(0xff << SDHCI_DIVIDER_HI_SHIFT);
-		val32 |= (clkdiv / 2) << SDHCI_DIVIDER_SHIFT;
+		clkdiv = ((val32 >> MMCHS_SYSCTL_CLKD_SHIFT) &
+		    MMCHS_SYSCTL_CLKD_MASK) / 2;
+		val32 &= ~(MMCHS_SYSCTL_CLKD_MASK << MMCHS_SYSCTL_CLKD_SHIFT);
+		val32 |= (clkdiv & SDHCI_DIVIDER_MASK) << SDHCI_DIVIDER_SHIFT;
+		if (slot->version >= SDHCI_SPEC_300)
+			val32 |= ((clkdiv >> SDHCI_DIVIDER_MASK_LEN) &
+			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_HI_SHIFT;
 		return (val32 & 0xffff);
 	}
 
@@ -252,10 +259,17 @@ ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
 		clkdiv = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
+		if (slot->version >= SDHCI_SPEC_300)
+			clkdiv |= ((val >> SDHCI_DIVIDER_HI_SHIFT) &
+			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_MASK_LEN;
+		clkdiv *= 2;
+		if (clkdiv > MMCHS_SYSCTL_CLKD_MASK)
+			clkdiv = MMCHS_SYSCTL_CLKD_MASK;
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
 		val32 &= 0xffff0000;
-		val32 |= val & ~(SDHCI_DIVIDER_MASK << SDHCI_DIVIDER_SHIFT);
-		val32 |= (clkdiv * 2) << SDHCI_DIVIDER_HI_SHIFT;
+		val32 |= val & ~(MMCHS_SYSCTL_CLKD_MASK <<
+		    MMCHS_SYSCTL_CLKD_SHIFT);
+		val32 |= clkdiv << MMCHS_SYSCTL_CLKD_SHIFT;
 		WR4(sc, SDHCI_CLOCK_CONTROL, val32);
 		return;
 	}
