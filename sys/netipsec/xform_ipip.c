@@ -65,9 +65,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -208,17 +205,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 			return;
 		}
 	}
-
 	ipo = mtod(m, struct ip *);
-
-#ifdef MROUTING
-	if (ipo->ip_v == IPVERSION && ipo->ip_p == IPPROTO_IPV4) {
-		if (IN_MULTICAST(((struct ip *)((char *) ipo + iphlen))->ip_dst.s_addr)) {
-			ipip_mroute_input (m, iphlen);
-			return;
-		}
-	}
-#endif /* MROUTING */
 
 	/* Keep outer ecn field. */
 	switch (v >> 4) {
