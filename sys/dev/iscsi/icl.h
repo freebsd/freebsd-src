@@ -80,6 +80,7 @@ struct icl_conn {
 	volatile u_int		ic_outstanding_pdus;
 #endif
 	STAILQ_HEAD(, icl_pdu)	ic_to_send;
+	bool			ic_check_send_space;
 	size_t			ic_receive_len;
 	int			ic_receive_state;
 	struct icl_pdu		*ic_receive_pdu;
