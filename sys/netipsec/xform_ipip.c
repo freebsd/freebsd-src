@@ -159,14 +159,8 @@ ip4_input(struct mbuf *m, int off)
 static void
 _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 {
-#ifdef INET
-	register struct sockaddr_in *sin;
-#endif
-	register struct ifnet *ifp;
-	register struct ifaddr *ifa;
 	struct ip *ipo;
 #ifdef INET6
-	register struct sockaddr_in6 *sin6;
 	struct ip6_hdr *ip6 = NULL;
 	u_int8_t itos;
 #endif
@@ -294,47 +288,22 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	if ((m->m_pkthdr.rcvif == NULL ||
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    V_ipip_allow != 2) {
-	    	IFNET_RLOCK_NOSLEEP();
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 #ifdef INET
-				if (ipo) {
-					if (ifa->ifa_addr->sa_family !=
-					    AF_INET)
-						continue;
-
-					sin = (struct sockaddr_in *) ifa->ifa_addr;
-
-					if (sin->sin_addr.s_addr ==
-					    ipo->ip_src.s_addr)	{
-						IPIPSTAT_INC(ipips_spoof);
-						m_freem(m);
-						IFNET_RUNLOCK_NOSLEEP();
-						return;
-					}
-				}
-#endif /* INET */
-
-#ifdef INET6
-				if (ip6) {
-					if (ifa->ifa_addr->sa_family !=
-					    AF_INET6)
-						continue;
-
-					sin6 = (struct sockaddr_in6 *) ifa->ifa_addr;
-
-					if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_src)) {
-						IPIPSTAT_INC(ipips_spoof);
-						m_freem(m);
-						IFNET_RUNLOCK_NOSLEEP();
-						return;
-					}
-
-				}
-#endif /* INET6 */
-			}
+		if ((v >> 4) == IPVERSION &&
+		    in_localip(ipo->ip_src) != 0) {
+			IPIPSTAT_INC(ipips_spoof);
+			m_freem(m);
+			return;
 		}
-		IFNET_RUNLOCK_NOSLEEP();
+#endif
+#ifdef INET6
+		if ((v & IPV6_VERSION_MASK) == IPV6_VERSION &&
+		    in6_localip(&ip6->ip6_src) != 0) {
+			IPIPSTAT_INC(ipips_spoof);
+			m_freem(m);
+			return;
+		}
+#endif
 	}
 
 	/* Statistics */
