@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef I_AM_HEAPSORT_B
 #include "block_abi.h"
 #define COMPAR(x, y) CALL_BLOCK(compar, x, y)
+typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
 #else
 #define COMPAR(x, y) compar(x, y)
 #endif
@@ -149,7 +150,7 @@ int
 heapsort_b(vbase, nmemb, size, compar)
 	void *vbase;
 	size_t nmemb, size;
-	DECLARE_BLOCK(int, compar, const void *, const void *);
+	heapsort_block compar;
 #else
 int
 heapsort(vbase, nmemb, size, compar)
