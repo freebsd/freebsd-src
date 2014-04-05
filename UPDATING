@@ -42,7 +42,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	line in /etc/ttys will now have a real impact.
 	Before upgrading the kernel, make sure that /etc/ttys has the
 	serial console device configured as 3wire without baudrate to
-	preserve teh previous behaviour. E.g:
+	preserve the previous behaviour. E.g:
 	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
 
 20140325:
