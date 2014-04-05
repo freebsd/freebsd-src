@@ -199,14 +199,15 @@ int
 bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 {
 	struct preloaded_file *xp, *kfp;
+	struct file_metadata *md;
 	uint64_t kernend;
 	vm_offset_t addr, size;
 
 	/* find the last module in the chain */
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-	if (addr < (xp->f_addr + xp->f_size))
-		addr = xp->f_addr + xp->f_size;
+		if (addr < (xp->f_addr + xp->f_size))
+			addr = xp->f_addr + xp->f_size;
 	}
 	/* pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
@@ -226,6 +227,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	size = bi_copymodules(0);
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;
+
+	md = file_findmetadata(kfp, MODINFOMD_KERNEND);
+	bcopy(&kernend, md->md_data, sizeof kernend);
 
 	/* copy module list and metadata */
 	(void)bi_copymodules(addr);

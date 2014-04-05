@@ -79,8 +79,6 @@ elf64_exec(struct preloaded_file *fp)
 	if (err != 0)
 		return (err);
 
-	printf("%llx %llx\n", modulep, kernendp);
-
 	status = BS->ExitBootServices(IH, arm64_efi_mapkey);
         if (EFI_ERROR(status)) {
 		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
