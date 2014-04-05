@@ -99,7 +99,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnandfs} \
 	libnetbsd \
 	${_libngatm} \
-	libnv \
 	libopie \
 	libpam \
 	libpcap \
