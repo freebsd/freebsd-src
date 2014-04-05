@@ -234,28 +234,6 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 	return (0);
 }
 
-static int
-vatpit_get_out(struct vatpit *vatpit, int channel)
-{
-	struct channel *c;
-	sbintime_t delta_ticks;
-	int out;
-
-	c = &vatpit->channel[channel];
-
-	switch (c->mode) {
-	case TIMER_INTTC:
-		delta_ticks = (sbinuptime() - c->now_sbt) / vatpit->freq_sbt;
-		out = ((c->initial - delta_ticks) <= 0);
-		break;
-	default:
-		out = 0;
-		break;
-	}
-
-	return (out);
-}
-
 int
 vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 {

@@ -1048,6 +1048,7 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 			invvpid_desc._res1 = 0;
 			invvpid_desc._res2 = 0;
 			invvpid_desc.vpid = vmxstate->vpid;
+			invvpid_desc.linear_addr = 0;
 			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
 		} else {
 			/*
@@ -2742,7 +2743,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	struct pir_desc *pir_desc;
 	struct LAPIC *lapic;
 	uint64_t val, pirval;
-	int rvi, pirbase;
+	int rvi, pirbase = -1;
 	uint16_t intr_status_old, intr_status_new;
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
@@ -2786,6 +2787,11 @@ vmx_inject_pir(struct vlapic *vlapic)
 		lapic->irr7 |= val >> 32;
 		pirbase = 192;
 		pirval = val;
+	}
+	if (pirbase == -1) {
+		VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
+		    "no posted interrupt found");
+		return;
 	}
 	VLAPIC_CTR_IRR(vlapic, "vmx_inject_pir");
 
