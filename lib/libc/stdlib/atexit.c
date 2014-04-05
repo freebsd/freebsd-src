@@ -80,6 +80,7 @@ struct atexit {
 };
 
 static struct atexit *__atexit;		/* points to head of LIFO stack */
+typedef DECLARE_BLOCK(void, atexit_block, void);
 
 /*
  * Register the function described by 'fptr' to be called at application
@@ -141,7 +142,7 @@ atexit(void (*func)(void))
  * Register a block to be performed at exit.
  */
 int
-atexit_b(DECLARE_BLOCK(void, func, void))
+atexit_b(atexit_block func)
 {
 	struct atexit_fn fn;
 	int error;
