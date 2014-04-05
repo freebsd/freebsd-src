@@ -278,9 +278,11 @@ fimd_init(struct fimd_softc *sc)
 	reg |= ((panel->height - 1) << LINEVAL_OFFSET);
 	DWRITE4(sc,VIDTCON2,reg);
 
-	WRITE4(sc,VIDW00ADD0B0, sc->sc_info.fb_pbase);
-	WRITE4(sc,VIDW00ADD1B0, sc->sc_info.fb_pbase + sc->sc_info.fb_size);
-	WRITE4(sc,VIDW00ADD2, panel->width * 2);
+	reg = sc->sc_info.fb_pbase;
+	WRITE4(sc, VIDW00ADD0B0, reg);
+	reg += (sc->sc_info.fb_stride * (sc->sc_info.fb_height + 1));
+	WRITE4(sc, VIDW00ADD1B0, reg);
+	WRITE4(sc, VIDW00ADD2, sc->sc_info.fb_stride);
 
 	reg = ((panel->width - 1) << OSD_RIGHTBOTX_F_OFFSET);
 	reg |= ((panel->height - 1) << OSD_RIGHTBOTY_F_OFFSET);
