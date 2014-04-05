@@ -334,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     SSP \
     SVNLITE \
     SYMVER \
+    SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
     TCSH \
