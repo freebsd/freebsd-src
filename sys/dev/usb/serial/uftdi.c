@@ -38,7 +38,14 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * FTDI FT2232x, FT8U100AX and FT8U232AM serial adapter driver
+ * FTDI FT232x, FT2232x, FT4232x, FT8U100AX and FT8U232xM serial adapters.
+ *
+ * Note that we specifically do not do a reset or otherwise alter the state of
+ * the chip during attach, detach, open, and close, because it could be
+ * pre-initialized (via an attached serial eeprom) to power-on into a mode such
+ * as bitbang in which the pins are being driven to a specific state which we
+ * must not perturb.  The device gets reset at power-on, and doesn't need to be
+ * reset again after that to function, except as directed by ioctl() calls.
  */
 
 #include <sys/stdint.h>
@@ -64,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_core.h>
+#include <dev/usb/usb_ioctl.h>
 #include "usbdevs.h"
 
 #define	USB_DEBUG_VAR uftdi_debug
@@ -72,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/serial/uftdi_reg.h>
+#include <dev/usb/uftdiio.h>
 
 #ifdef USB_DEBUG
 static int uftdi_debug = 0;
@@ -146,6 +155,7 @@ struct uftdi_softc {
 	uint32_t sc_unit;
 
 	uint16_t sc_last_lcr;
+	uint16_t sc_bcdDevice;
 
 	uint8_t sc_devtype;
 	uint8_t sc_devflags;
@@ -175,6 +185,7 @@ static usb_callback_t uftdi_read_callback;
 
 static void	uftdi_free(struct ucom_softc *);
 static void	uftdi_cfg_open(struct ucom_softc *);
+static void	uftdi_cfg_close(struct ucom_softc *);
 static void	uftdi_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uftdi_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uftdi_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -184,6 +195,15 @@ static int	uftdi_pre_param(struct ucom_softc *, struct termios *);
 static void	uftdi_cfg_param(struct ucom_softc *, struct termios *);
 static void	uftdi_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
+static int	uftdi_reset(struct ucom_softc *, int);
+static int	uftdi_set_bitmode(struct ucom_softc *, uint8_t, uint8_t);
+static int	uftdi_get_bitmode(struct ucom_softc *, uint8_t *);
+static int	uftdi_set_latency(struct ucom_softc *, int);
+static int	uftdi_get_latency(struct ucom_softc *, int *);
+static int	uftdi_set_event_char(struct ucom_softc *, int);
+static int	uftdi_set_error_char(struct ucom_softc *, int);
+static int	uftdi_ioctl(struct ucom_softc *, uint32_t, caddr_t, int,
+		    struct thread *);
 static void	uftdi_start_read(struct ucom_softc *);
 static void	uftdi_stop_read(struct ucom_softc *);
 static void	uftdi_start_write(struct ucom_softc *);
@@ -218,7 +238,9 @@ static const struct ucom_callback uftdi_callback = {
 	.ucom_cfg_set_break = &uftdi_cfg_set_break,
 	.ucom_cfg_param = &uftdi_cfg_param,
 	.ucom_cfg_open = &uftdi_cfg_open,
+	.ucom_cfg_close = &uftdi_cfg_close,
 	.ucom_pre_param = &uftdi_pre_param,
+	.ucom_ioctl = &uftdi_ioctl,
 	.ucom_start_read = &uftdi_start_read,
 	.ucom_stop_read = &uftdi_stop_read,
 	.ucom_start_write = &uftdi_start_write,
@@ -905,6 +927,8 @@ uftdi_devtype_setup(struct uftdi_softc *sc, struct usb_attach_arg *uaa)
 {
 	struct usb_device_descriptor *dd;
 
+	sc->sc_bcdDevice = uaa->info.bcdDevice;
+
 	switch (uaa->info.bcdDevice) {
 	case 0x200:
 		dd = usbd_get_device_descriptor(sc->sc_udev);
@@ -1086,37 +1110,25 @@ uftdi_free(struct ucom_softc *ucom)
 static void
 uftdi_cfg_open(struct ucom_softc *ucom)
 {
-	struct uftdi_softc *sc = ucom->sc_parent;
-	uint16_t wIndex = ucom->sc_portno;
-	struct usb_device_request req;
-
-	DPRINTF("");
-
-	/* perform a full reset on the device */
-
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req.bRequest = FTDI_SIO_RESET;
-	USETW(req.wValue, FTDI_SIO_RESET_SIO);
-	USETW(req.wIndex, wIndex);
-	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
-	    &req, NULL, 0, 1000);
-
-	/* turn on RTS/CTS flow control */
-
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req.bRequest = FTDI_SIO_SET_FLOW_CTRL;
-	USETW(req.wValue, 0);
-	USETW2(req.wIndex, FTDI_SIO_RTS_CTS_HS, wIndex);
-	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
-	    &req, NULL, 0, 1000);
 
 	/*
-	 * NOTE: with the new UCOM layer there will always be a
-	 * "uftdi_cfg_param()" call after "open()", so there is no need for
-	 * "open()" to configure anything
+	 * This do-nothing open routine exists for the sole purpose of this
+	 * DPRINTF() so that you can see the point at which open gets called
+	 * when debugging is enabled.
 	 */
+	DPRINTF("");
+}
+
+static void
+uftdi_cfg_close(struct ucom_softc *ucom)
+{
+
+	/*
+	 * This do-nothing close routine exists for the sole purpose of this
+	 * DPRINTF() so that you can see the point at which close gets called
+	 * when debugging is enabled.
+	 */
+	DPRINTF("");
 }
 
 static void
@@ -1581,6 +1593,186 @@ uftdi_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	*msr = sc->sc_msr;
 	*lsr = sc->sc_lsr;
+}
+
+static int
+uftdi_reset(struct ucom_softc *ucom, int reset_type)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_RESET;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 0);
+	USETW(req.wValue, reset_type);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+}
+
+static int
+uftdi_set_bitmode(struct ucom_softc *ucom, uint8_t bitmode, uint8_t iomask)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_SET_BITMODE;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 0);
+
+	if (bitmode == UFTDI_BITMODE_NONE)
+	    USETW2(req.wValue, 0, 0);
+	else
+	    USETW2(req.wValue, (1 << bitmode), iomask);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+}
+
+static int
+uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_GET_BITMODE;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 1);
+	USETW(req.wValue,  0);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, iomask));
+}
+
+static int
+uftdi_set_latency(struct ucom_softc *ucom, int latency)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+
+	if (latency < 0 || latency > 255)
+		return (USB_ERR_INVAL);
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_SET_LATENCY;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 0);
+	USETW2(req.wValue, 0, latency);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+}
+
+static int
+uftdi_get_latency(struct ucom_softc *ucom, int *latency)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+	uint8_t buf;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_GET_LATENCY;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 1);
+	USETW(req.wValue, 0);
+
+	err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, &buf);
+	*latency = buf;
+
+	return (err);
+}
+
+static int
+uftdi_set_event_char(struct ucom_softc *ucom, int echar)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	uint8_t enable;
+
+	enable = (echar == -1) ? 0 : 1;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_SET_EVENT_CHAR;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 0);
+	USETW2(req.wValue, enable, echar & 0xff);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+}
+
+static int
+uftdi_set_error_char(struct ucom_softc *ucom, int echar)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	uint8_t enable;
+
+	enable = (echar == -1) ? 0 : 1;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_SET_ERROR_CHAR;
+
+	USETW(req.wIndex, sc->sc_ucom.sc_portno);
+	USETW(req.wLength, 0);
+	USETW2(req.wValue, enable, echar & 0xff);
+
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+}
+
+static int
+uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
+    int flag, struct thread *td)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	int err;
+	struct uftdi_bitmode * mode;
+
+	DPRINTF("portno: %d cmd: %#x\n", ucom->sc_portno, cmd);
+
+	switch (cmd) {
+	case UFTDIIOC_RESET_IO:
+	case UFTDIIOC_RESET_RX:
+	case UFTDIIOC_RESET_TX:
+		err = uftdi_reset(ucom, 
+		    cmd == UFTDIIOC_RESET_IO ? FTDI_SIO_RESET_SIO :
+		    (cmd == UFTDIIOC_RESET_RX ? FTDI_SIO_RESET_PURGE_RX :
+		    FTDI_SIO_RESET_PURGE_TX));
+		break;
+	case UFTDIIOC_SET_BITMODE:
+		mode = (struct uftdi_bitmode *)data;
+		err = uftdi_set_bitmode(ucom, mode->mode, mode->iomask);
+		break;
+	case UFTDIIOC_GET_BITMODE:
+		mode = (struct uftdi_bitmode *)data;
+		err = uftdi_get_bitmode(ucom, &mode->iomask);
+		break;
+	case UFTDIIOC_SET_LATENCY:
+		err = uftdi_set_latency(ucom, *((int *)data));
+		break;
+	case UFTDIIOC_GET_LATENCY:
+		err = uftdi_get_latency(ucom, (int *)data);
+		break;
+	case UFTDIIOC_SET_ERROR_CHAR:
+		err = uftdi_set_event_char(ucom, *(int *)data);
+		break;
+	case UFTDIIOC_SET_EVENT_CHAR:
+		err = uftdi_set_error_char(ucom, *(int *)data);
+	case UFTDIIOC_GET_HWREV:
+		*(int *)data = sc->sc_bcdDevice;
+		err = 0;
+		break;
+	default:
+		return (ENOIOCTL);
+	}
+	if (err != USB_ERR_NORMAL_COMPLETION)
+		return (EIO);
+	return (0);
 }
 
 static void
