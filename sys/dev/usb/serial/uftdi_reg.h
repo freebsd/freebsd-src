@@ -28,6 +28,10 @@
 					 * reg */
 #define	FTDI_SIO_SET_EVENT_CHAR	6	/* Set the event character */
 #define	FTDI_SIO_SET_ERROR_CHAR	7	/* Set the error character */
+#define	FTDI_SIO_SET_LATENCY	9	/* Set the latency timer */
+#define	FTDI_SIO_GET_LATENCY	10	/* Read the latency timer */
+#define	FTDI_SIO_SET_BITMODE	11	/* Set the bit bang I/O mode */
+#define	FTDI_SIO_GET_BITMODE	12	/* Read pin states in bit bang mode */
 
 /* Port Identifier Table */
 #define	FTDI_PIT_DEFAULT 	0	/* SIOA */
