@@ -231,6 +231,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	default:
+		error = EINVAL;
 		break;
 	}
 
