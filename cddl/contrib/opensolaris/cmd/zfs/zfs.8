@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd April 5, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -1306,6 +1306,38 @@ Consequently, writes to a sparse volume can fail with
 when the pool is low on space. For a sparse volume, changes to
 .Sy volsize
 are not reflected in the reservation.
+.It Sy volmode Ns = Ns Cm default | geom | dev | none
+This property specifies how volumes should be exposed to the OS.
+Setting it to
+.Sy geom
+exposes volumes as
+.Xr geom 4
+providers, providing maximal functionality.
+Setting it to
+.Sy dev
+exposes volumes only as cdev device in devfs.
+Such volumes can be accessed only as raw disk device files, i.e. they
+can not be partitioned, mounted, participate in RAIDs, etc, but they
+are faster, and in some use scenarios with untrusted consumer, such as
+NAS or VM storage, can be more safe.
+Volumes with property set to
+.Sy none
+are not exposed outside ZFS, but can be snapshoted, cloned, replicated, etc,
+that can be suitable for backup purposes.
+Value
+.Sy default
+means that volumes exposition is controlled by system-wide sysctl/tunable
+.Va vfs.zfs.vol.mode ,
+where
+.Sy geom ,
+.Sy dev
+and
+.Sy none
+are encoded as 1, 2 and 3 respectively.
+The default values is
+.Sy geom .
+This property can be changed any time, but so far it is processed only
+during volume creation and pool import.
 .It Sy vscan Ns = Ns Cm off | on
 The
 .Sy vscan
