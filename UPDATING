@@ -31,6 +31,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140405:
+	The uart(4) driver has been changed with respect to its handling
+	of the low-level console. Previously the uart(4) driver prevented
+	any process from changing the baudrate or the CLOCAL and HUPCL
+	control flags. By removing the restrictions, operators can make
+	changes to the serial console port without having to reboot.
+	However, when getty(8) is started on the serial device that is
+	associated with the low-level console, a misconfigured terminal
+	line in /etc/ttys will now have a real impact.
+	Before upgrading the kernel, make sure that /etc/ttys has the
+	serial console device configured as 3wire without baudrate to
+	preserve teh previous behaviour. E.g:
+	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
+
 20140325:
 	It is no longer necessary to include the dwarf version in your DEBUG
 	options in your kernel config file. The bug that required it to be
