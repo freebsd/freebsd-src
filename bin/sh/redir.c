@@ -152,7 +152,7 @@ openredirect(union node *redir, char memory[10])
 {
 	struct stat sb;
 	int fd = redir->nfile.fd;
-	char *fname;
+	const char *fname;
 	int f;
 	int e;
 
@@ -250,7 +250,7 @@ movefd:
 static int
 openhere(union node *redir)
 {
-	char *p;
+	const char *p;
 	int pip[2];
 	size_t len = 0;
 	int flags;
