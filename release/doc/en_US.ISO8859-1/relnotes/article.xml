@@ -104,6 +104,10 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="263754">The &man.sysctl.8;
+      <literal>hw.bus.devctl_disable</literal> has been
+      removed.</para>
+
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
@@ -187,7 +191,9 @@
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&nbsp;</para>
+      <para revision="263140">Support for the IPX network transport
+	protocol has been removed, and will not be supported in
+	&os;&nbsp;11 and later releases.</para>
     </sect3>
 
     <sect3 xml:id="disks">

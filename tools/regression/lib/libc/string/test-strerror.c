@@ -33,7 +33,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <tap.h>
+static int test_count = 1;
+static int exit_status = EXIT_SUCCESS;
+
+#define CHECK(x) \
+	do { \
+		if (x) { \
+			printf("ok %d\n", test_count); \
+		} else { \
+			printf("not ok %d # %s\n", test_count, #x); \
+			exit_status = EXIT_FAILURE; \
+		} \
+		++test_count; \
+	} while (0)
 
 int
 main(void)
@@ -42,7 +54,7 @@ main(void)
 	char *sret;
 	int iret;
 
-	plan_tests(27);
+	printf("1..27\n");
 
 	/*
 	 * strerror() failure tests.
@@ -50,86 +62,86 @@ main(void)
 	errno = 0;
 	sret = strerror(INT_MAX);
 	snprintf(buf, sizeof(buf), "Unknown error: %d", INT_MAX);
-	ok1(strcmp(sret, buf) == 0);
-	ok1(errno == EINVAL);
+	CHECK(strcmp(sret, buf) == 0);
+	CHECK(errno == EINVAL);
 
 	/*
 	 * strerror() success tests.
 	 */
 	errno = 0;
 	sret = strerror(0);
-	ok1(strcmp(sret, "No error: 0") == 0);
-	ok1(errno == 0);
+	CHECK(strcmp(sret, "No error: 0") == 0);
+	CHECK(errno == 0);
 
 	errno = 0;
 	sret = strerror(EPERM);
-	ok1(strcmp(sret, "Operation not permitted") == 0);
-	ok1(errno == 0);
+	CHECK(strcmp(sret, "Operation not permitted") == 0);
+	CHECK(errno == 0);
 
 	errno = 0;
 	sret = strerror(EPFNOSUPPORT);
-	ok1(strcmp(sret, "Protocol family not supported") == 0);
-	ok1(errno == 0);
+	CHECK(strcmp(sret, "Protocol family not supported") == 0);
+	CHECK(errno == 0);
 
 	errno = 0;
 	sret = strerror(ELAST);
-	ok1(errno == 0);
+	CHECK(errno == 0);
 
 	/*
 	 * strerror_r() failure tests.
 	 */
 	memset(buf, '*', sizeof(buf));
 	iret = strerror_r(-1, buf, sizeof(buf));
-	ok1(strcmp(buf, "Unknown error: -1") == 0);
-	ok1(iret == EINVAL);
+	CHECK(strcmp(buf, "Unknown error: -1") == 0);
+	CHECK(iret == EINVAL);
 
 	memset(buf, '*', sizeof(buf));
 	/* One byte too short. */
 	iret = strerror_r(EPERM, buf, strlen("Operation not permitted"));
-	ok1(strcmp(buf, "Operation not permitte") == 0);
-	ok1(iret == ERANGE);
+	CHECK(strcmp(buf, "Operation not permitte") == 0);
+	CHECK(iret == ERANGE);
 
 	memset(buf, '*', sizeof(buf));
 	/* One byte too short. */
 	iret = strerror_r(-1, buf, strlen("Unknown error: -1"));
-	ok1(strcmp(buf, "Unknown error: -") == 0);
-	ok1(iret == EINVAL);
+	CHECK(strcmp(buf, "Unknown error: -") == 0);
+	CHECK(iret == EINVAL);
 
 	memset(buf, '*', sizeof(buf));
 	/* Two bytes too short. */
 	iret = strerror_r(-2, buf, strlen("Unknown error: -2") - 1);
-	ok1(strcmp(buf, "Unknown error: ") == 0);
-	ok1(iret == EINVAL);
+	CHECK(strcmp(buf, "Unknown error: ") == 0);
+	CHECK(iret == EINVAL);
 
 	memset(buf, '*', sizeof(buf));
 	/* Three bytes too short. */
 	iret = strerror_r(-2, buf, strlen("Unknown error: -2") - 2);
-	ok1(strcmp(buf, "Unknown error:") == 0);
-	ok1(iret == EINVAL);
+	CHECK(strcmp(buf, "Unknown error:") == 0);
+	CHECK(iret == EINVAL);
 
 	memset(buf, '*', sizeof(buf));
 	/* One byte too short. */
 	iret = strerror_r(12345, buf, strlen("Unknown error: 12345"));
-	ok1(strcmp(buf, "Unknown error: 1234") == 0);
-	ok1(iret == EINVAL);
+	CHECK(strcmp(buf, "Unknown error: 1234") == 0);
+	CHECK(iret == EINVAL);
 
 	/*
 	 * strerror_r() success tests.
 	 */
 	memset(buf, '*', sizeof(buf));
 	iret = strerror_r(0, buf, sizeof(buf));
-	ok1(strcmp(buf, "No error: 0") == 0);
-	ok1(iret == 0);
+	CHECK(strcmp(buf, "No error: 0") == 0);
+	CHECK(iret == 0);
 
 	memset(buf, '*', sizeof(buf));
 	iret = strerror_r(EDEADLK, buf, sizeof(buf));
-	ok1(strcmp(buf, "Resource deadlock avoided") == 0);
-	ok1(iret == 0);
+	CHECK(strcmp(buf, "Resource deadlock avoided") == 0);
+	CHECK(iret == 0);
 
 	memset(buf, '*', sizeof(buf));
 	iret = strerror_r(EPROCLIM, buf, sizeof(buf));
-	ok1(strcmp(buf, "Too many processes") == 0);
-	ok1(iret == 0);
+	CHECK(strcmp(buf, "Too many processes") == 0);
+	CHECK(iret == 0);
 
-	return exit_status();
+	return exit_status;
 }

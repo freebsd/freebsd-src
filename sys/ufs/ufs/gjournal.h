@@ -27,7 +27,7 @@
  */
 
 #ifndef _UFS_UFS_GJOURNAL_H_
-#define _UFS_UFS_GJOURNAL_H_
+#define	_UFS_UFS_GJOURNAL_H_
 
 /*
  * GEOM journal function prototypes.

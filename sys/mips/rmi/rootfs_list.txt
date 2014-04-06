@@ -222,7 +222,6 @@
 ./etc/rc.d/ipmon
 ./etc/rc.d/ipnat
 ./etc/rc.d/ipsec
-./etc/rc.d/ipxrouted
 ./etc/rc.d/jail
 ./etc/rc.d/kadmind
 ./etc/rc.d/kerberos
@@ -437,7 +436,6 @@
 ./lib/libbsdxml.so.4
 ./lib/libgeom.so.5
 ./lib/libipsec.so.4
-./lib/libipx.so.5
 ./lib/libjail.so.1
 ./lib/libkiconv.so.4
 ./lib/libpcap.so.7

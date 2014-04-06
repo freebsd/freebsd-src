@@ -26,10 +26,10 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_xtrace.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_xtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -585,6 +585,10 @@ db_show_mdpcpu(struct pcpu *pc)
 	db_printf("MD: clock_load = %#lx\n", md->clock_load);
 	db_printf("MD: stats      = %p\n", &md->stats);
 	db_printf("MD: pmap       = %p\n", md->current_pmap);
+#ifdef XTRACE
+	db_printf("MD: xtrace_buffer = %p\n", md->xtrace_buffer);
+	db_printf("MD: xtrace_tail   = %#lx\n", md->xtrace_tail);
+#endif
 }
 
 void
@@ -604,29 +608,3 @@ db_trace_thread(struct thread *td, int count)
 	ctx = kdb_thr_ctx(td);
 	return (db_backtrace(td, ctx, count));
 }
-
-#ifdef EXCEPTION_TRACING
-
-extern long xtrace[];
-extern long *xhead;
-
-DB_COMMAND(xtrace, db_xtrace)
-{
-	long *p;
-
-	p = (*xhead == 0) ? xtrace : xhead;
-
-	db_printf("ITC\t\t IVT\t\t  IIP\t\t   IFA\t\t    ISR\n");
-	if (*p == 0)
-		return;
-
-	do {
-		db_printf("%016lx %016lx %016lx %016lx %016lx\n", p[0], p[1],
-		    p[2], p[3], p[4]);
-		p += 5;
-		if (p == (void *)&xhead)
-			p = xtrace;
-	} while (p != xhead);
-}
-
-#endif

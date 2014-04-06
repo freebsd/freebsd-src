@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,12 +43,12 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_touch.c,v 1.9 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_touch.c,v 1.12 2012/06/09 20:29:33 tom Exp $")
 
 NCURSES_EXPORT(bool)
 is_linetouched(WINDOW *win, int line)
 {
-    T((T_CALLED("is_linetouched(%p,%d)"), win, line));
+    T((T_CALLED("is_linetouched(%p,%d)"), (void *) win, line));
 
     /* XSI doesn't define any error */
     if (!win || (line > win->_maxy) || (line < 0))
@@ -62,7 +62,7 @@ is_wintouched(WINDOW *win)
 {
     int i;
 
-    T((T_CALLED("is_wintouched(%p)"), win));
+    T((T_CALLED("is_wintouched(%p)"), (void *) win));
 
     if (win)
 	for (i = 0; i <= win->_maxy; i++)
@@ -76,7 +76,7 @@ wtouchln(WINDOW *win, int y, int n, int changed)
 {
     int i;
 
-    T((T_CALLED("wtouchln(%p,%d,%d,%d)"), win, y, n, changed));
+    T((T_CALLED("wtouchln(%p,%d,%d,%d)"), (void *) win, y, n, changed));
 
     if (!win || (n < 0) || (y < 0) || (y > win->_maxy))
 	returnCode(ERR);
@@ -84,8 +84,10 @@ wtouchln(WINDOW *win, int y, int n, int changed)
     for (i = y; i < y + n; i++) {
 	if (i > win->_maxy)
 	    break;
-	win->_line[i].firstchar = changed ? 0 : _NOCHANGE;
-	win->_line[i].lastchar = changed ? win->_maxx : _NOCHANGE;
+	win->_line[i].firstchar = (NCURSES_SIZE_T) (changed ? 0 : _NOCHANGE);
+	win->_line[i].lastchar = (NCURSES_SIZE_T) (changed
+						   ? win->_maxx
+						   : _NOCHANGE);
     }
     returnCode(OK);
 }

@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_capsicum.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>

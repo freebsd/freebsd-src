@@ -536,17 +536,18 @@ vm_object_deallocate(vm_object_t object)
 				vhold(vp);
 				VM_OBJECT_WUNLOCK(object);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				vdrop(vp);
 				VM_OBJECT_WLOCK(object);
 				if (object->type == OBJT_DEAD ||
 				    object->ref_count != 1) {
 					VM_OBJECT_WUNLOCK(object);
 					VOP_UNLOCK(vp, 0);
+					vdrop(vp);
 					return;
 				}
 				if ((object->flags & OBJ_TMPFS) != 0)
 					VOP_UNSET_TEXT(vp);
 				VOP_UNLOCK(vp, 0);
+				vdrop(vp);
 			}
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
@@ -1956,7 +1957,7 @@ again:
 				    ("inconsistent wire count %d %d %p",
 				    p->wire_count, wirings, p));
 				p->wire_count = 0;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 			}
 		}
 		vm_page_free(p);

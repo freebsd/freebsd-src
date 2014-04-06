@@ -149,6 +149,7 @@ struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 #include "pmcpl_gprof.h"
 #include "pmcpl_callgraph.h"
 #include "pmcpl_annotate.h"
+#include "pmcpl_annotate_cg.h"
 #include "pmcpl_calltree.h"
 
 static struct pmc_plugins  {
@@ -213,6 +214,11 @@ static struct pmc_plugins  {
 		.pl_topkeypress		= pmcpl_ct_topkeypress,
 		.pl_topdisplay		= pmcpl_ct_topdisplay
 	},
+	{
+		.pl_name		= "annotate_cg",
+		.pl_process		= pmcpl_annotate_cg_process
+	},
+
 	{
 		.pl_name		= NULL
 	}

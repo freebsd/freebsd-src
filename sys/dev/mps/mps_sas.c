@@ -180,6 +180,9 @@ mpssas_startup_increment(struct mpssas_softc *sassc)
 			/* just starting, freeze the simq */
 			mps_dprint(sassc->sc, MPS_INIT,
 			    "%s freezing simq\n", __func__);
+#if __FreeBSD_version >= 1000039
+			xpt_hold_boot();
+#endif
 			xpt_freeze_simq(sassc->sim, 1);
 		}
 		mps_dprint(sassc->sc, MPS_INIT, "%s refcount %u\n", __func__,
@@ -200,10 +203,10 @@ mpssas_startup_decrement(struct mpssas_softc *sassc)
 			mps_dprint(sassc->sc, MPS_INIT,
 			    "%s releasing simq\n", __func__);
 			sassc->flags &= ~MPSSAS_IN_STARTUP;
+			xpt_release_simq(sassc->sim, 1);
 #if __FreeBSD_version >= 1000039
 			xpt_release_boot();
 #else
-			xpt_release_simq(sassc->sim, 1);
 			mpssas_rescan_target(sassc->sc, NULL);
 #endif
 		}
@@ -763,12 +766,8 @@ mps_attach_sas(struct mps_softc *sc)
 	 * Hold off boot until discovery is complete.
 	 */
 	sassc->flags |= MPSSAS_IN_STARTUP | MPSSAS_IN_DISCOVERY;
-#if __FreeBSD_version >= 1000039
-	xpt_hold_boot();
-#else
-	xpt_freeze_simq(sassc->sim, 1);
-#endif
 	sc->sassc->startup_refcount = 0;
+	mpssas_startup_increment(sassc);
 
 	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
 	sassc->discovery_timeouts = 0;
@@ -1139,7 +1138,7 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	mps_dprint(sc, MPS_INIT, "%s startup\n", __func__);
 	sc->sassc->flags |= MPSSAS_IN_STARTUP;
 	sc->sassc->flags |= MPSSAS_IN_DISCOVERY;
-	xpt_freeze_simq(sc->sassc->sim, 1);
+	mpssas_startup_increment(sc->sassc);
 
 	/* notify CAM of a bus reset */
 	mpssas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD, 
@@ -1151,12 +1150,6 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	mps_dprint(sc, MPS_INIT,
 	    "%s startup %u tm %u after command completion\n",
 	    __func__, sc->sassc->startup_refcount, sc->sassc->tm_count);
-
-	/*
-	 * The simq was explicitly frozen above, so set the refcount to 0.
-	 * The simq will be explicitly released after port enable completes.
-	 */
-	sc->sassc->startup_refcount = 0;
 
 	/* zero all the target handles, since they may change after the
 	 * reset, and we have to rediscover all the targets and use the new
@@ -3461,15 +3454,12 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 int
 mpssas_startup(struct mps_softc *sc)
 {
-	struct mpssas_softc *sassc;
 
 	/*
 	 * Send the port enable message and set the wait_for_port_enable flag.
 	 * This flag helps to keep the simq frozen until all discovery events
 	 * are processed.
 	 */
-	sassc = sc->sassc;
-	mpssas_startup_increment(sassc);
 	sc->wait_for_port_enable = 1;
 	mpssas_send_portenable(sc);
 	return (0);
@@ -3554,7 +3544,6 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 	sc->port_enable_complete = 1;
 	wakeup(&sc->port_enable_complete);
 	mpssas_startup_decrement(sassc);
-	xpt_release_simq(sassc->sim, 1);
 }
 
 int

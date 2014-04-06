@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/devmap.h>
 #include <machine/machdep.h>
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
@@ -55,6 +56,8 @@ void
 initarm_early_init(void)
 {
 
+	/* Inform the MPCore timer driver that its clock is variable. */
+	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 }
 
 void

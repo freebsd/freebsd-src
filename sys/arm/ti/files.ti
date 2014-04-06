@@ -9,9 +9,8 @@ arm/arm/cpufunc_asm_armv5.S			standard
 arm/arm/cpufunc_asm_arm10.S			standard
 arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
-arm/arm/irq_dispatch.S				standard
 
-arm/ti/common.c					standard
+arm/ti/ti_common.c				standard
 arm/ti/ti_cpuid.c				standard
 arm/ti/ti_machdep.c				standard
 arm/ti/ti_prcm.c				standard
@@ -20,6 +19,7 @@ dev/mbox/mbox_if.m				standard
 arm/ti/ti_mbox.c				standard
 arm/ti/ti_pruss.c				standard
 
+arm/ti/ti_adc.c					optional	ti_adc
 arm/ti/ti_gpio.c				optional	gpio
 arm/ti/ti_i2c.c					optional	ti_i2c
 

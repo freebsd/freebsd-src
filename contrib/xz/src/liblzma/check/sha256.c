@@ -6,7 +6,6 @@
 /// \todo       Crypto++ has x86 ASM optimizations. They use SSE so if they
 ///             are imported to liblzma, SSE instructions need to be used
 ///             conditionally to keep the code working on older boxes.
-///             We could also support using some external libary for SHA-256.
 //
 //  This code is based on the code found from 7-Zip, which has a modified
 //  version of the SHA-256 found from Crypto++ <http://www.cryptopp.com/>.

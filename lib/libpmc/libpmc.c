@@ -169,6 +169,11 @@ static const struct pmc_event_descr atom_event_table[] =
 	__PMC_EV_ALIAS_ATOM()
 };
 
+static const struct pmc_event_descr atom_silvermont_event_table[] =
+{
+	__PMC_EV_ALIAS_ATOM_SILVERMONT()
+};
+
 static const struct pmc_event_descr core_event_table[] =
 {
 	__PMC_EV_ALIAS_CORE()
@@ -246,6 +251,7 @@ static const struct pmc_event_descr westmereuc_event_table[] =
 	}
 
 PMC_MDEP_TABLE(atom, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(atom_silvermont, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core, IAP, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
@@ -288,6 +294,7 @@ static const struct pmc_class_descr NAME##_class_table_descr =	\
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(iaf, IAF, iaf, iaf);
 PMC_CLASS_TABLE_DESC(atom, IAP, atom, iap);
+PMC_CLASS_TABLE_DESC(atom_silvermont, IAP, atom_silvermont, iap);
 PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
 PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
@@ -597,6 +604,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 
 #define	atom_aliases			core2_aliases
 #define	atom_aliases_without_iaf	core2_aliases_without_iaf
+#define	atom_silvermont_aliases		core2_aliases
+#define	atom_silvermont_aliases_without_iaf	core2_aliases_without_iaf
 #define corei7_aliases			core2_aliases
 #define corei7_aliases_without_iaf	core2_aliases_without_iaf
 #define haswell_aliases			core2_aliases
@@ -842,6 +851,7 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			if (n != 1)
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM_SILVERMONT ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2 ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2EXTREME) {
 			if (KWPREFIXMATCH(p, IAP_KW_SNOOPRESPONSE "=")) {
@@ -2733,6 +2743,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = atom_event_table;
 			count = PMC_EVENT_TABLE_SIZE(atom);
 			break;
+		case PMC_CPU_INTEL_ATOM_SILVERMONT:
+			ev = atom_silvermont_event_table;
+			count = PMC_EVENT_TABLE_SIZE(atom_silvermont);
+			break;
 		case PMC_CPU_INTEL_CORE:
 			ev = core_event_table;
 			count = PMC_EVENT_TABLE_SIZE(core);
@@ -3049,6 +3063,9 @@ pmc_init(void)
 	case PMC_CPU_INTEL_ATOM:
 		PMC_MDEP_INIT_INTEL_V2(atom);
 		break;
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
+		PMC_MDEP_INIT_INTEL_V2(atom_silvermont);
+		break;
 	case PMC_CPU_INTEL_CORE:
 		PMC_MDEP_INIT(core);
 		pmc_class_table[n] = &core_class_table_descr;
@@ -3201,6 +3218,11 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_INTEL_ATOM:
 			ev = atom_event_table;
 			evfence = atom_event_table + PMC_EVENT_TABLE_SIZE(atom);
+			break;
+		case PMC_CPU_INTEL_ATOM_SILVERMONT:
+			ev = atom_silvermont_event_table;
+			evfence = atom_silvermont_event_table +
+			    PMC_EVENT_TABLE_SIZE(atom_silvermont);
 			break;
 		case PMC_CPU_INTEL_CORE:
 			ev = core_event_table;

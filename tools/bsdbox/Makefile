@@ -72,9 +72,6 @@ CRUNCH_SRCDIRS+= sbin
 
 CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 
 ##################################################################

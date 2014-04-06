@@ -357,18 +357,12 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
-/* Deprecated way to adjust queue length */
-static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
-
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
 TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_queue, "I", "devctl queue length");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -378,7 +372,6 @@ static d_poll_t		devpoll;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
@@ -400,11 +393,12 @@ static struct dev_softc
 	int	inuse;
 	int	nonblock;
 	int	queued;
+	int	async;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
 	struct devq devq;
-	struct proc *async_proc;
+	struct sigio *sigio;
 } devsoftc;
 
 static struct cdev *devctl_dev;
@@ -422,23 +416,29 @@ devinit(void)
 static int
 devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	if (devsoftc.inuse)
+
+	mtx_lock(&devsoftc.mtx);
+	if (devsoftc.inuse) {
+		mtx_unlock(&devsoftc.mtx);
 		return (EBUSY);
+	}
 	/* move to init */
 	devsoftc.inuse = 1;
 	devsoftc.nonblock = 0;
-	devsoftc.async_proc = NULL;
+	devsoftc.async = 0;
+	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
 static int
 devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	devsoftc.inuse = 0;
+
 	mtx_lock(&devsoftc.mtx);
+	devsoftc.inuse = 0;
 	cv_broadcast(&devsoftc.cv);
+	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
-	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -494,17 +494,20 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		return (0);
 	case FIOASYNC:
 		if (*(int*)data)
-			devsoftc.async_proc = td->td_proc;
+			devsoftc.async = 1;
 		else
-			devsoftc.async_proc = NULL;
+			devsoftc.async = 0;
+		return (0);
+	case FIOSETOWN:
+		return fsetown(*(int *)data, &devsoftc.sigio);
+	case FIOGETOWN:
+		*(int *)data = fgetown(&devsoftc.sigio);
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
 	case FIOCLEX:
 	case FIONCLEX:
 	case FIONREAD:
-	case FIOSETOWN:
-	case FIOGETOWN:
 	default:
 		break;
 	}
@@ -548,7 +551,6 @@ void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
-	struct proc *p;
 
 	if (strlen(data) == 0)
 		goto out;
@@ -578,12 +580,8 @@ devctl_queue_data_f(char *data, int flags)
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	p = devsoftc.async_proc;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGIO);
-		PROC_UNLOCK(p);
-	}
+	if (devsoftc.async && devsoftc.sigio != NULL)
+		pgsigio(&devsoftc.sigio, SIGIO, 0);
 	return;
 out:
 	/*
@@ -648,9 +646,9 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * Common routine that tries to make sending messages as easy as possible.
  * We allocate memory for the data, copy strings into that, but do not
  * free it unless there's an error.  The dequeue part of the driver should
- * free the data.  We don't send data when the device is disabled.  We do
- * send data, even when we have no listeners, because we wish to avoid
- * races relating to startup and restart of listening applications.
+ * free the data.  We don't send data when queue length is 0.  We do send
+ * data, even when we have no listeners, because we wish to avoid races
+ * relating to startup and restart of listening applications.
  *
  * devaddq is designed to string together the type of event, with the
  * object of that event, plus the plug and play info and location info
@@ -739,33 +737,6 @@ static void
 devnomatch(device_t dev)
 {
 	devaddq("?", "", dev);
-}
-
-static int
-sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
-{
-	struct dev_event_info *n1;
-	int dis, error;
-
-	dis = devctl_queue_length == 0;
-	error = sysctl_handle_int(oidp, &dis, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	mtx_lock(&devsoftc.mtx);
-	if (dis) {
-		while (!TAILQ_EMPTY(&devsoftc.devq)) {
-			n1 = TAILQ_FIRST(&devsoftc.devq);
-			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
-			free(n1->dei_data, M_BUS);
-			free(n1, M_BUS);
-		}
-		devsoftc.queued = 0;
-		devctl_queue_length = 0;
-	} else {
-		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-	}
-	mtx_unlock(&devsoftc.mtx);
-	return (0);
 }
 
 static int

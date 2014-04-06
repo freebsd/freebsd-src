@@ -409,6 +409,10 @@ FBSD_1.3 {
 	waitid;
 };
 
+FBSD_1.4 {
+	scandir_b;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
