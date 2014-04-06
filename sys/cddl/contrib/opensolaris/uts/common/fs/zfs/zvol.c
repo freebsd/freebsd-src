@@ -2440,6 +2440,9 @@ zvol_geom_start(struct bio *bp)
 		zvol_strategy(bp);
 		break;
 	case BIO_GETATTR:
+		if (g_handleattr_int(bp, "GEOM::candelete", 1))
+			return;
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
