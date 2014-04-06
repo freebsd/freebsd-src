@@ -69,9 +69,6 @@ __FBSDID("$FreeBSD$");
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
 #define	TI_GPIO_SYSCONFIG		0x0010
-#define	TI_GPIO_SYSCONFIG_SOFTRESET		(1 << 1)
-#define	TI_GPIO_SYSCONFIG_AUTOIDLE		(1 << 0)
-#define	TI_GPIO_SYSSTATUS_RESETDONE		(1 << 0)
 #if defined(SOC_OMAP3)
 #define	TI_GPIO_SYSSTATUS		0x0014
 #define	TI_GPIO_IRQSTATUS1		0x0018
@@ -715,7 +712,7 @@ ti_gpio_detach_intr(device_t dev)
 static int
 ti_gpio_bank_init(device_t dev, int bank)
 {
-	int pin, timeout;
+	int pin;
 	struct ti_gpio_softc *sc;
 	uint32_t flags, reg_oe;
 
@@ -723,16 +720,6 @@ ti_gpio_bank_init(device_t dev, int bank)
 
 	/* Enable the interface and functional clocks for the module. */
 	ti_prcm_clk_enable(GPIO0_CLK + FIRST_GPIO_BANK + bank);
-
-	/* Reset the GPIO module. */
-	timeout = 0;
-	ti_gpio_write_4(sc, bank, TI_GPIO_SYSCONFIG, TI_GPIO_SYSCONFIG_SOFTRESET);
-	while ((ti_gpio_read_4(sc, bank, TI_GPIO_SYSSTATUS) &
-	    TI_GPIO_SYSSTATUS_RESETDONE) == 0) {
-		if (timeout++ > 100)
-			return (EBUSY);
-		DELAY(100);
-	}
 
 	/*
 	 * Read the revision number of the module.  TI don't publish the
@@ -821,7 +808,7 @@ ti_gpio_attach(device_t dev)
 	 */
 	for (i = 0; i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
-			/* Reset and initialize the GPIO module. */
+			/* Initialize the GPIO module. */
 			err = ti_gpio_bank_init(dev, i);
 			if (err != 0) {
 				ti_gpio_detach_intr(dev);
