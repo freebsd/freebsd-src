@@ -156,6 +156,8 @@ struct ctl_be_block_lun {
 	uint64_t size_bytes;
 	uint32_t blocksize;
 	int blocksize_shift;
+	uint16_t pblockexp;
+	uint16_t pblockoff;
 	struct ctl_be_block_softc *softc;
 	struct devstat *disk_stats;
 	ctl_be_block_lun_flags flags;
@@ -1262,6 +1264,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct cdev		     *dev;
 	struct cdevsw		     *devsw;
 	int			      error;
+	off_t			      ps, pss, po, pos;
 
 	params = &req->reqdata.create;
 
@@ -1357,6 +1360,24 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		}
 
 		be_lun->size_bytes = params->lun_size_bytes;
+	}
+
+	error = devsw->d_ioctl(dev, DIOCGSTRIPESIZE,
+			       (caddr_t)&ps, FREAD, curthread);
+	if (error)
+		ps = po = 0;
+	else {
+		error = devsw->d_ioctl(dev, DIOCGSTRIPEOFFSET,
+				       (caddr_t)&po, FREAD, curthread);
+		if (error)
+			po = 0;
+	}
+	pss = ps / be_lun->blocksize;
+	pos = po / be_lun->blocksize;
+	if ((pss > 0) && (pss * be_lun->blocksize == ps) && (pss >= pos) &&
+	    ((pss & (pss - 1)) == 0) && (pos * be_lun->blocksize == po)) {
+		be_lun->pblockexp = fls(pss) - 1;
+		be_lun->pblockoff = (pss - pos) % pss;
 	}
 
 	return (0);
@@ -1583,6 +1604,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		 * For processor devices, we don't have any size.
 		 */
 		be_lun->blocksize = 0;
+		be_lun->pblockexp = 0;
+		be_lun->pblockoff = 0;
 		be_lun->size_blocks = 0;
 		be_lun->size_bytes = 0;
 		be_lun->ctl_be_lun.maxlba = 0;
@@ -1643,6 +1666,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 	be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
+	be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
+	be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
 	/* Tell the user the blocksize we ended up using */
 	params->blocksize_bytes = be_lun->blocksize;
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {
