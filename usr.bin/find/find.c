@@ -175,13 +175,13 @@ find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;
-	int rval;
+	int e, rval;
 
 	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
 	if (tree == NULL)
 		err(1, "ftsopen");
 
-	for (rval = 0; (entry = fts_read(tree)) != NULL;) {
+	for (rval = 0; errno = 0, (entry = fts_read(tree)) != NULL;) {
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))
 				err(1, "%s", entry->fts_path);
@@ -231,8 +231,9 @@ find_execute(PLAN *plan, char *paths[])
 		 */
 		for (p = plan; p && (p->execute)(p, entry); p = p->next);
 	}
+	e = errno;
 	finish_execplus();
-	if (errno && (!ignore_readdir_race || errno != ENOENT))
-		err(1, "fts_read");
+	if (e && (!ignore_readdir_race || e != ENOENT))
+		errc(1, e, "fts_read");
 	return (rval);
 }
