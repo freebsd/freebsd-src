@@ -364,39 +364,41 @@ procdesc_close(struct file *fp, struct thread *td)
 		 * collected and procdesc_reap() was already called.
 		 */
 		sx_xunlock(&proctree_lock);
-	} else if (p->p_state == PRS_ZOMBIE) {
-		/*
-		 * If the process is already dead and just awaiting reaping,
-		 * do that now.  This will release the process's reference to
-		 * the process descriptor when it calls back into
-		 * procdesc_reap().
-		 */
-		PROC_LOCK(p);
-		PROC_SLOCK(p);
-		proc_reap(curthread, p, NULL, 0);
 	} else {
-		/*
-		 * If the process is not yet dead, we need to kill it, but we
-		 * can't wait around synchronously for it to go away, as that
-		 * path leads to madness (and deadlocks).  First, detach the
-		 * process from its descriptor so that its exit status will
-		 * be reported normally.
-		 */
 		PROC_LOCK(p);
-		pd->pd_proc = NULL;
-		p->p_procdesc = NULL;
-		procdesc_free(pd);
+		if (p->p_state == PRS_ZOMBIE) {
+			/*
+			 * If the process is already dead and just awaiting
+			 * reaping, do that now.  This will release the
+			 * process's reference to the process descriptor when it
+			 * calls back into procdesc_reap().
+			 */
+			PROC_SLOCK(p);
+			proc_reap(curthread, p, NULL, 0);
+		} else {
+			/*
+			 * If the process is not yet dead, we need to kill it,
+			 * but we can't wait around synchronously for it to go
+			 * away, as that path leads to madness (and deadlocks).
+			 * First, detach the process from its descriptor so that
+			 * its exit status will be reported normally.
+			 */
+			pd->pd_proc = NULL;
+			p->p_procdesc = NULL;
+			procdesc_free(pd);
 
-		/*
-		 * Next, reparent it to init(8) so that there's someone to
-		 * pick up the pieces; finally, terminate with prejudice.
-		 */
-		p->p_sigparent = SIGCHLD;
-		proc_reparent(p, initproc);
-		if ((pd->pd_flags & PDF_DAEMON) == 0)
-			kern_psignal(p, SIGKILL);
-		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
+			/*
+			 * Next, reparent it to init(8) so that there's someone
+			 * to pick up the pieces; finally, terminate with
+			 * prejudice.
+			 */
+			p->p_sigparent = SIGCHLD;
+			proc_reparent(p, initproc);
+			if ((pd->pd_flags & PDF_DAEMON) == 0)
+				kern_psignal(p, SIGKILL);
+			PROC_UNLOCK(p);
+			sx_xunlock(&proctree_lock);
+		}
 	}
 
 	/*
