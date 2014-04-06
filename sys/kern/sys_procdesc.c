@@ -55,7 +55,7 @@
  *
  * - How to handle ptrace(2)?
  * - Will we want to add a pidtoprocdesc(2) system call to allow process
- *   descriptors to be created for processes without pfork(2)?
+ *   descriptors to be created for processes without pdfork(2)?
  */
 
 #include <sys/cdefs.h>
