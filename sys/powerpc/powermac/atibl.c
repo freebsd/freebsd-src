@@ -57,6 +57,12 @@ __FBSDID("$FreeBSD$");
 #define  RADEON_LVDS_PLL_RESET        (1   << 17)
 #define RADEON_PIXCLKS_CNTL          0x002d
 #define  RADEON_PIXCLK_LVDS_ALWAYS_ONb (1   << 14)
+#define RADEON_DISP_PWR_MAN          0x0d08
+#define  RADEON_AUTO_PWRUP_EN          (1 << 26)
+#define RADEON_CLOCK_CNTL_DATA       0x000c
+#define RADEON_CLOCK_CNTL_INDEX      0x0008
+#define  RADEON_PLL_WR_EN              (1 << 7)
+#define RADEON_CRTC_GEN_CNTL         0x0050
 
 struct atibl_softc {
 	struct resource *sc_memr;
@@ -151,12 +157,56 @@ atibl_attach(device_t dev)
 	return (0);
 }
 
+static uint32_t __inline
+atibl_pll_rreg(struct atibl_softc *sc, uint32_t reg)
+{
+	uint32_t data, save, tmp;
+
+	bus_write_1(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX,
+	    ((reg & 0x3f) | RADEON_PLL_WR_EN));
+	(void)bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
+	(void)bus_read_4(sc->sc_memr, RADEON_CRTC_GEN_CNTL);
+
+	data = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
+
+	/* Only necessary on R300, bt won't hurt others. */
+	save = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX);
+	tmp = save & (~0x3f | RADEON_PLL_WR_EN);
+	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, tmp);
+	tmp = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
+	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, save);
+
+	return data;
+}
+
+static void __inline
+atibl_pll_wreg(struct atibl_softc *sc, uint32_t reg, uint32_t val)
+{
+	uint32_t save, tmp;
+
+	bus_write_1(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX,
+	    ((reg & 0x3f) | RADEON_PLL_WR_EN));
+	(void)bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
+	(void)bus_read_4(sc->sc_memr, RADEON_CRTC_GEN_CNTL);
+
+	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA, val);
+	DELAY(5000);
+
+	/* Only necessary on R300, bt won't hurt others. */
+	save = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX);
+	tmp = save & (~0x3f | RADEON_PLL_WR_EN);
+	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, tmp);
+	tmp = bus_read_4(sc->sc_memr, RADEON_CLOCK_CNTL_DATA);
+	bus_write_4(sc->sc_memr, RADEON_CLOCK_CNTL_INDEX, save);
+}
+
 static int
 atibl_setlevel(struct atibl_softc *sc, int newlevel)
 {
 	uint32_t lvds_gen_cntl;
 	uint32_t lvds_pll_cntl;
 	uint32_t pixclks_cntl;
+	uint32_t disp_pwr_reg;
 
 	if (newlevel > 100)
 		newlevel = 100;
@@ -168,11 +218,15 @@ atibl_setlevel(struct atibl_softc *sc, int newlevel)
 
 	if (newlevel > 0) {
 		newlevel = (newlevel * 5) / 2 + 5;
+		disp_pwr_reg = bus_read_4(sc->sc_memr, RADEON_DISP_PWR_MAN);
+		disp_pwr_reg |= RADEON_AUTO_PWRUP_EN;
+		bus_write_4(sc->sc_memr, RADEON_DISP_PWR_MAN, disp_pwr_reg);
 		lvds_pll_cntl = bus_read_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL);
 		lvds_pll_cntl |= RADEON_LVDS_PLL_EN;
 		bus_write_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
 		lvds_pll_cntl &= ~RADEON_LVDS_PLL_RESET;
 		bus_write_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
+		DELAY(1000);
 
 		lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS | 
 		    RADEON_LVDS_BL_MOD_LEVEL_MASK);
@@ -181,20 +235,21 @@ atibl_setlevel(struct atibl_softc *sc, int newlevel)
 		lvds_gen_cntl |= (newlevel << RADEON_LVDS_BL_MOD_LEVEL_SHIFT) &
 		    RADEON_LVDS_BL_MOD_LEVEL_MASK;
 		lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
-		DELAY(2000);
+		DELAY(2000000);
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 	} else {
-		pixclks_cntl = bus_read_4(sc->sc_memr, RADEON_PIXCLKS_CNTL);
-		bus_write_4(sc->sc_memr, RADEON_PIXCLKS_CNTL,
+		pixclks_cntl = atibl_pll_rreg(sc, RADEON_PIXCLKS_CNTL);
+		atibl_pll_wreg(sc, RADEON_PIXCLKS_CNTL,
 		    pixclks_cntl & ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
 		lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-		lvds_gen_cntl &= RADEON_LVDS_BL_MOD_EN;
+		lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_EN;
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_EN);
-		DELAY(2000);
+		DELAY(2000000);
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 
-		bus_write_4(sc->sc_memr, RADEON_PIXCLKS_CNTL, pixclks_cntl);
+		atibl_pll_wreg(sc, RADEON_PIXCLKS_CNTL, pixclks_cntl);
+		DELAY(2000000);
 	}
 
 	return (0);
