@@ -235,21 +235,21 @@ atibl_setlevel(struct atibl_softc *sc, int newlevel)
 		lvds_gen_cntl |= (newlevel << RADEON_LVDS_BL_MOD_LEVEL_SHIFT) &
 		    RADEON_LVDS_BL_MOD_LEVEL_MASK;
 		lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
-		DELAY(2000000);
+		DELAY(200000);
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 	} else {
 		pixclks_cntl = atibl_pll_rreg(sc, RADEON_PIXCLKS_CNTL);
 		atibl_pll_wreg(sc, RADEON_PIXCLKS_CNTL,
 		    pixclks_cntl & ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
 		lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-		lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_EN;
+		lvds_gen_cntl &= ~(RADEON_LVDS_BL_MOD_EN | RADEON_LVDS_BL_MOD_LEVEL_MASK);
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_EN);
-		DELAY(2000000);
+		DELAY(200000);
 		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 
 		atibl_pll_wreg(sc, RADEON_PIXCLKS_CNTL, pixclks_cntl);
-		DELAY(2000000);
+		DELAY(200000);
 	}
 
 	return (0);
