@@ -440,7 +440,7 @@ MK_${var}:=	yes
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
-.if ${.MAKE.LEVEL} == 0
+.if defined(.MAKE.LEVEL) && ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
 .else
@@ -601,7 +601,7 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
-.if ${.MAKE.LEVEL} == 0
+.if defined(.MAKE.LEVEL) && ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
 .else
