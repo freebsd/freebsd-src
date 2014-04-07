@@ -68,6 +68,7 @@ struct procdesc {
 	 * In-flight data and notification of events.
 	 */
 	int		 pd_flags;		/* (p) PD_ flags. */
+	u_short		 pd_xstat;		/* (p) Exit status. */
 	struct selinfo	 pd_selinfo;		/* (p) Event notification. */
 	struct mtx	 pd_lock;		/* Protect data + events. */
 };
