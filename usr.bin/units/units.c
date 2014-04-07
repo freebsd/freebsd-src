@@ -32,8 +32,6 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-#define VERSION "1.0"
-
 #ifndef UNITSFILE
 #define UNITSFILE _PATH_UNITSLIB
 #endif
@@ -689,7 +687,7 @@ main(int argc, char **argv)
 	char *userfile = 0;
 	int quiet = 0;
 
-	while ((optchar = getopt(argc, argv, "vqf:")) != -1) {
+	while ((optchar = getopt(argc, argv, "Vqf:")) != -1) {
 		switch (optchar) {
 		case 'f':
 			userfile = optarg;
@@ -697,14 +695,12 @@ main(int argc, char **argv)
 		case 'q':
 			quiet = 1;
 			break;
-		case 'v':
-			fprintf(stderr, "\n  units version %s  Copyright (c) 1993 by Adrian Mariano\n",
-			    VERSION);
-			fprintf(stderr, "                    This program may be freely distributed\n");
-			usage();
-		default:
+		case 'V':
+			fprintf(stderr, "FreeBSD units\n");
 			usage();
 			break;
+		default:
+			usage();
 		}
 	}
 
