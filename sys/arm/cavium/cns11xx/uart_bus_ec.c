@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <arm/econa/econa_reg.h>
+#include <arm/cavium/cns11xx/econa_reg.h>
 
 static int uart_ec_probe(device_t dev);
 
