@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2014
+.Dd April 7, 2014
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -117,6 +117,13 @@ and
 allow waiting for process state transitions; currently only
 .Dv POLLHUP
 is defined, and will be raised when the process dies.
+Process state transitions can also be monitored using
+.Xr kqueue 2
+filter
+.Dv EVFILT_PROCDESC ;
+currently only
+.Dv NOTE_EXIT
+is implemented.
 .Pp
 .Xr close 2
 will close the process descriptor unless
