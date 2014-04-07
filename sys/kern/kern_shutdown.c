@@ -218,9 +218,8 @@ shutdown_nice(int howto)
 		PROC_UNLOCK(initproc);
 	} else {
 		/* No init(8) running, so simply reboot. */
-		kern_reboot(RB_NOSYNC);
+		kern_reboot(howto | RB_NOSYNC);
 	}
-	return;
 }
 
 static void
