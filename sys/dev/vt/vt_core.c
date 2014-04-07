@@ -705,8 +705,8 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 static void
 vt_flush(struct vt_device *vd)
 {
-	struct vt_window *vw = vd->vd_curwindow;
-	struct vt_font *vf = vw->vw_font;
+	struct vt_window *vw;
+	struct vt_font *vf;
 	struct vt_bufmask tmask;
 	unsigned int row, col;
 	term_rect_t tarea;
@@ -716,6 +716,11 @@ vt_flush(struct vt_device *vd)
 	struct mouse_cursor *m;
 	int bpl, h, w;
 #endif
+
+	vw = vd->vd_curwindow;
+	if (vw == NULL) return;
+	vf = vw->vw_font;
+	if ((vf == NULL) && !(vd->vd_flags & VDF_TEXTMODE)) return;
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
@@ -794,6 +799,7 @@ vt_timer(void *arg)
 	vd = arg;
 	/* Update screen if required. */
 	vt_flush(vd);
+
 	/* Schedule for next update. */
 	callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 }
@@ -1882,6 +1888,10 @@ vt_upgrade(struct vt_device *vd)
 			    vt_window_switch, vw, SHUTDOWN_PRI_DEFAULT);
 		}
 		terminal_maketty(vw->vw_terminal, "v%r", VT_UNIT(vw));
+
+		/* Assign default font to window, if not textmode. */
+		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
+			vw->vw_font = vtfont_ref(&vt_font_default);
 	}
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
@@ -1933,9 +1943,21 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	if (drv->vd_maskbitbltchr == NULL)
 		drv->vd_maskbitbltchr = drv->vd_bitbltchr;
 
-	/* Stop vt_flush periodic task. */
-	if (vd->vd_curwindow != NULL)
+	if (vd->vd_flags & VDF_ASYNC) {
+		/* Stop vt_flush periodic task. */
 		callout_drain(&vd->vd_timer);
+		/*
+		 * Mute current terminal until we done. vt_change_font (called
+		 * from vt_resize) will unmute it.
+		 */
+		terminal_mute(vd->vd_curwindow->vw_terminal, 1);
+	}
+
+	/*
+	 * Reset VDF_TEXTMODE flag, driver who require that flag (vt_vga) will
+	 * set it.
+	 */
+	vd->vd_flags &= ~VDF_TEXTMODE;
 
 	vd->vd_driver = drv;
 	vd->vd_softc = softc;
@@ -1951,7 +1973,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		vtterm_splash(vd);
 #endif
 
-	if (vd->vd_curwindow != NULL)
+	if (vd->vd_flags & VDF_ASYNC)
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
