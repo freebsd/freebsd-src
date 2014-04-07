@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/cfi/cfi_var.h>
 
-#include <arm/econa/econa_reg.h>
-#include <arm/econa/econa_var.h>
+#include <arm/cavium/cns11xx/econa_reg.h>
+#include <arm/cavium/cns11xx/econa_var.h>
 
 static int
 cfi_econa_probe(device_t dev)
