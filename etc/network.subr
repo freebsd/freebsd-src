@@ -283,10 +283,8 @@ get_if_var()
 	fi
 
 	_if=$1
-	_punct=". - / +"
-	for _punct_c in $_punct; do
-		_if=`ltr ${_if} ${_punct_c} '_'`
-	done
+	_punct=".-/+"
+	ltr ${_if} "${_punct}" '_' _if
 	_var=$2
 	_default=$3
 
@@ -1076,6 +1074,7 @@ ifalias_af_common_handler()
 ifalias_af_common()
 {
 	local _ret _if _af _action alias ifconfig_args _aliasn _c _tmpargs _iaf
+	local _punct=".-/+"
 
 	_ret=1
 	_aliasn=
@@ -1083,10 +1082,14 @@ ifalias_af_common()
 	_af=$2
 	_action=$3
 
+	# Normalize $_if before using it in a pattern to list_vars()
+	ltr "$_if" "$_punct" "_" _if
+
 	# ifconfig_IF_aliasN which starts with $_af
-	alias=0
-	while : ; do
-		ifconfig_args=`get_if_var $_if ifconfig_IF_alias${alias}`
+	for alias in `list_vars ifconfig_${_if}_alias[0-9]\* |
+		sort_lite -nk1.$((9+${#_if}+7))`
+	do
+		eval ifconfig_args=\"\$$alias\"
 		_iaf=
 		case $ifconfig_args in
 		inet\ *)	_iaf=inet ;;
@@ -1107,15 +1110,15 @@ ifalias_af_common()
 			warn "\$ifconfig_${_if}_alias${alias} needs " \
 			    "\"inet\" keyword for an IPv4 address."
 		esac
-		alias=$(($alias + 1))
 	done
 
 	# backward compatibility: ipv6_ifconfig_IF_aliasN.
 	case $_af in
 	inet6)
-		alias=0
-		while : ; do
-			ifconfig_args=`get_if_var $_if ipv6_ifconfig_IF_alias${alias}`
+		for alias in `list_vars ipv6_ifconfig_${_if}_alias[0-9]\* |
+			sort_lite -nk1.$((14+${#_if}+7))`
+		do
+			eval ifconfig_args=\"\$$alias\"
 			case ${_action}:"${ifconfig_args}" in
 			*:"")
 				break
@@ -1127,7 +1130,6 @@ ifalias_af_common()
 				    "instead."
 			;;
 			esac
-			alias=$(($alias + 1))
 		done
 	esac
 
