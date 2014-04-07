@@ -343,6 +343,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, oip->ip_len - oiphlen));
 	nip->ip_hl = 5;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
+	nip->ip_off = 0;
 	icmp_reflect(m);
 
 freeit:
