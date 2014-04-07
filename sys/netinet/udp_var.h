@@ -158,24 +158,24 @@ get_pcblist(uint8_t protocol)
 	return (protocol == IPPROTO_UDP) ? &V_udb : &V_ulitecb;
 }
 
-int		 udp_newudpcb(struct inpcb *);
-void		 udp_discardcb(struct udpcb *);
+int		udp_newudpcb(struct inpcb *);
+void		udp_discardcb(struct udpcb *);
 
-void		 udp_ctlinput(int, struct sockaddr *, void *);
-void		 udplite_ctlinput(int, struct sockaddr *, void *);
-int		 udp_ctloutput(struct socket *, struct sockopt *);
-void		 udp_init(void);
-void		 udplite_init(void);
+void		udp_ctlinput(int, struct sockaddr *, void *);
+void		udplite_ctlinput(int, struct sockaddr *, void *);
+int		udp_ctloutput(struct socket *, struct sockopt *);
+void		udp_init(void);
+void		udplite_init(void);
 #ifdef VIMAGE
-void		 udp_destroy(void);
-void		 udplite_destroy(void);
+void		udp_destroy(void);
+void		udplite_destroy(void);
 #endif
-void		 udp_input(struct mbuf *, int);
-void		 udplite_input(struct mbuf *, int);
+void		udp_input(struct mbuf *, int);
+void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
-int		 udp_shutdown(struct socket *so);
+int		udp_shutdown(struct socket *so);
 
-int udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
+int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
 
 #endif /* _KERNEL */
 
