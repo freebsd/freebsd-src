@@ -2689,6 +2689,7 @@ fixspace(int old, int new, off_t off, int *space)
 struct sf_io {
 	u_int		nios;
 	int		npages;
+	int		rhpages;
 	struct file	*sock_fp;
 	struct mbuf	*m;
 	vm_page_t	pa[];
@@ -2731,10 +2732,9 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 {
 	vm_page_t *pa = sfio->pa;
 	int npages = sfio->npages;
-	int nios, readahead;
+	int nios;
 
 	nios = 0;
-	readahead = sfreadahead;
 	if (sfpgrabnowait && (flags & SF_NODISKIO))
 		flags = VM_ALLOC_NOWAIT;
 	else
@@ -2746,7 +2746,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL | flags);
 		if (pa[i] == NULL) {
 			npages = sfio->npages = i;
-			readahead = 0;
+			sfio->rhpages = 0;
 			break;
 		}
 	}
@@ -2776,7 +2776,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		if (i == j)
 			continue;
 
-		count = min(a + 1, npages + readahead - i);
+		count = min(a + 1, npages + sfio->rhpages - i);
 		for (j = npages; j < i + count; j++) {
 			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
 			    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT);
@@ -2985,7 +2985,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		struct sf_io *sfio;
 		vm_page_t *pa;
 		struct mbuf *mtail;
-		int nios, space, npages;
+		int nios, space, npages, rhpages;
 
 		mtail = NULL;
 		/*
@@ -3080,11 +3080,15 @@ retry_space:
 			    (PAGE_SIZE - (off & PAGE_MASK)), PAGE_SIZE);
 		else
 			npages = howmany(space, PAGE_SIZE);
+
+		rhpages = min(howmany(obj_size - (off & ~PAGE_MASK) -
+		    (npages * PAGE_SIZE), PAGE_SIZE), sfreadahead);
+
 		sfio = malloc(sizeof(struct sf_io) +
-		    (sfreadahead + npages) * sizeof(vm_page_t),
-		    M_TEMP, M_WAITOK);
+		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->npages = npages;
+		sfio->rhpages = rhpages;
 
 		nios = sendfile_swapin(obj, sfio, off, space, flags);
 
