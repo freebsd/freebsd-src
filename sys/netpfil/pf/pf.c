@@ -284,7 +284,7 @@ static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
-static void		 pf_overload_task(void *c, int pending);
+static void		 pf_overload_task(void *v, int pending);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
 static u_int		 pf_purge_expired_states(u_int, int);
@@ -516,16 +516,18 @@ pf_src_connlimit(struct pf_state **state)
 }
 
 static void
-pf_overload_task(void *c, int pending)
+pf_overload_task(void *v, int pending)
 {
 	struct pf_overload_head queue;
 	struct pfr_addr p;
 	struct pf_overload_entry *pfoe, *pfoe1;
 	uint32_t killed = 0;
 
+	CURVNET_SET((struct vnet *)v);
+
 	PF_OVERLOADQ_LOCK();
-	queue = *(struct pf_overload_head *)c;
-	SLIST_INIT((struct pf_overload_head *)c);
+	queue = V_pf_overloadqueue;
+	SLIST_INIT(&V_pf_overloadqueue);
 	PF_OVERLOADQ_UNLOCK();
 
 	bzero(&p, sizeof(p));
@@ -569,8 +571,10 @@ pf_overload_task(void *c, int pending)
 			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
 
 	/* If nothing to flush, return. */
-	if (SLIST_EMPTY(&queue))
+	if (SLIST_EMPTY(&queue)) {
+		CURVNET_RESTORE();
 		return;
+	}
 
 	for (int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
@@ -599,6 +603,8 @@ pf_overload_task(void *c, int pending)
 		free(pfoe, M_PFTEMP);
 	if (V_pf_status.debug >= PF_DEBUG_MISC)
 		printf("%s: %u states killed", __func__, killed);
+
+	CURVNET_RESTORE();
 }
 
 /*
@@ -795,7 +801,7 @@ pf_initialize()
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
 	SLIST_INIT(&V_pf_overloadqueue);
-	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, &V_pf_overloadqueue);
+	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, curvnet);
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
 	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
 	    MTX_DEF);
