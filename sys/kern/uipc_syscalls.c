@@ -2796,7 +2796,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		SFSTAT_INC(sf_iocnt);
 		nios++;
 
-		for (j = i; j < i + count; j++)
+		for (j = i; j < i + count && j < npages; j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
 			    OFF_TO_IDX(vmoff(j, off))),
 			    ("pa[j] %p lookup %p\n", pa[j],
