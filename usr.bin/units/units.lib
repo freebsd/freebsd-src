@@ -39,8 +39,13 @@ zopto-			1e-21
 zepto-			zopto
 yocto-			1e-24
 
+quarter-		1|4
 semi-			.5
 demi-			.5
+hemi-			.5
+half-			.5
+double-			2
+tripple-		3
 
 Y-			yotta
 Z-			zetta
@@ -55,6 +60,7 @@ da-			deka
 d-			deci
 c-			centi
 m-			milli
+u-			micro
 n-			nano
 p-			pico
 f-			femto
