@@ -215,6 +215,19 @@ struct ip6protosw inet6sw[] = {
 },
 #endif /* SCTP */
 {
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_UDPLITE,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		udp6_input,
+	.pr_ctlinput =		udplite6_ctlinput,
+	.pr_ctloutput =		udp_ctloutput,
+#ifndef INET	/* Do not call initialization twice. */
+	.pr_init =		udplite_init,
+#endif
+	.pr_usrreqs =		&udp6_usrreqs,
+},
+{
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_RAW,

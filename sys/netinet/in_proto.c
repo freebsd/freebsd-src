@@ -184,6 +184,20 @@ struct protosw inetsw[] = {
 },
 #endif /* SCTP */
 {
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_UDPLITE,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		udp_input,
+	.pr_ctlinput =		udplite_ctlinput,
+	.pr_ctloutput =		udp_ctloutput,
+	.pr_init =		udplite_init,
+#ifdef VIMAGE
+	.pr_destroy =		udplite_destroy,
+#endif
+	.pr_usrreqs =		&udp_usrreqs
+},
+{
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_RAW,

@@ -237,6 +237,7 @@ __END_DECLS
 #define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 #define	IPPROTO_SCTP		132		/* SCTP */
 #define	IPPROTO_MH		135		/* IPv6 Mobility Header */
+#define	IPPROTO_UDPLITE		136		/* UDP-Lite */
 #define	IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
 #define	IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
 /* 101-254: Partly Unassigned */

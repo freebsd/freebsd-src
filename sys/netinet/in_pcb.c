@@ -389,13 +389,14 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 		lastport = &pcbinfo->ipi_lastport;
 	}
 	/*
-	 * For UDP, use random port allocation as long as the user
+	 * For UDP(-Lite), use random port allocation as long as the user
 	 * allows it.  For TCP (and as of yet unknown) connections,
 	 * use random port allocation only if the user allows it AND
 	 * ipport_tick() allows it.
 	 */
 	if (V_ipport_randomized &&
-		(!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
+		(!V_ipport_stoprandom || pcbinfo == &V_udbinfo ||
+		pcbinfo == &V_ulitecbinfo))
 		dorandom = 1;
 	else
 		dorandom = 0;
@@ -405,8 +406,8 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 	 */
 	if (first == last)
 		dorandom = 0;
-	/* Make sure to not include UDP packets in the count. */
-	if (pcbinfo != &V_udbinfo)
+	/* Make sure to not include UDP(-Lite) packets in the count. */
+	if (pcbinfo != &V_udbinfo || pcbinfo != &V_ulitecbinfo)
 		V_ipport_tcpallocs++;
 	/*
 	 * Instead of having two loops further down counting up or down
