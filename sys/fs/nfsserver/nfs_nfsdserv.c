@@ -1446,10 +1446,23 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		nfsvno_relpathbuf(&fromnd);
 		goto out;
 	}
+	/*
+	 * Unlock dp in this code section, so it is unlocked before
+	 * tdp gets locked. This avoids a potential LOR if tdp is the
+	 * parent directory of dp.
+	 */
 	if (nd->nd_flag & ND_NFSV4) {
 		tdp = todp;
 		tnes = *toexp;
-		tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred, p, 0);
+		if (dp != tdp) {
+			NFSVOPUNLOCK(dp, 0);
+			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
+			    p, 0);	/* Might lock tdp. */
+		} else {
+			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
+			    p, 1);
+			NFSVOPUNLOCK(dp, 0);
+		}
 	} else {
 		tfh.nfsrvfh_len = 0;
 		error = nfsrv_mtofh(nd, &tfh);
@@ -1470,10 +1483,12 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			tnes = *exp;
 			tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd->nd_cred,
 			    p, 1);
+			NFSVOPUNLOCK(dp, 0);
 		} else {
+			NFSVOPUNLOCK(dp, 0);
 			nd->nd_cred->cr_uid = nd->nd_saveduid;
 			nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL,
-			    0, p);
+			    0, p);	/* Locks tdp. */
 			if (tdp) {
 				tdirfor_ret = nfsvno_getattr(tdp, &tdirfor,
 				    nd->nd_cred, p, 1);
@@ -1488,7 +1503,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		if (error) {
 			if (tdp)
 				vrele(tdp);
-			vput(dp);
+			vrele(dp);
 			nfsvno_relpathbuf(&fromnd);
 			nfsvno_relpathbuf(&tond);
 			goto out;
@@ -1503,7 +1518,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		}
 		if (tdp)
 			vrele(tdp);
-		vput(dp);
+		vrele(dp);
 		nfsvno_relpathbuf(&fromnd);
 		nfsvno_relpathbuf(&tond);
 		goto out;
@@ -1512,7 +1527,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	/*
 	 * Done parsing, now down to business.
 	 */
-	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 1, exp, p, &fdirp);
+	nd->nd_repstat = nfsvno_namei(nd, &fromnd, dp, 0, exp, p, &fdirp);
 	if (nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret,
