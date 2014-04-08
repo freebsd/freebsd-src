@@ -182,7 +182,7 @@ imgact_binmisc_destroy_entry(imgact_binmisc_entry_t *ibe)
 {
 	if (!ibe)
 		return;
-	if (ibe->ibe_mask)
+	if (ibe->ibe_magic)
 		free(ibe->ibe_magic, M_BINMISC);
 	if (ibe->ibe_mask)
 		free(ibe->ibe_mask, M_BINMISC);
