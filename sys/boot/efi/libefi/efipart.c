@@ -93,14 +93,16 @@ efipart_init(void)
 	bzero(aliases, nin * sizeof(EFI_HANDLE));
 
 	for (n = 0; n < nin; n++) {
-		status = BS->HandleProtocol(hin[n], &devpath_guid, &devpath);
+		status = BS->HandleProtocol(hin[n], &devpath_guid,
+		    (void **)&devpath);
 		if (EFI_ERROR(status)) {
 			continue;
 		}
 		node = devpath;
 		while (!IsDevicePathEnd(NextDevicePathNode(node)))
 			node = NextDevicePathNode(node);
-		status = BS->HandleProtocol(hin[n], &blkio_guid, &blkio);
+		status = BS->HandleProtocol(hin[n], &blkio_guid,
+		    (void**)&blkio);
 		if (EFI_ERROR(status))
 			continue;
 		if (!blkio->Media->LogicalPartition)
@@ -147,7 +149,7 @@ efipart_print(int verbose)
 		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
 		pager_output(line);
 
-		status = BS->HandleProtocol(h, &blkio_guid, &blkio);
+		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			sprintf(line, "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
@@ -176,7 +178,7 @@ efipart_open(struct open_file *f, ...)
 	if (h == NULL)
 		return (EINVAL);
 
-	status = BS->HandleProtocol(h, &blkio_guid, &blkio);
+	status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 
