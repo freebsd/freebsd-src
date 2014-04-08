@@ -546,6 +546,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	be_lun->softc = softc;
 
+	unmap = 0;
 	for (i = 0; i < req->num_be_args; i++) {
 		if (strcmp(req->kern_be_args[i].kname, "unmap") == 0 &&
 		    strcmp(req->kern_be_args[i].kvalue, "on") == 0) {
@@ -565,7 +566,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (unmap)
-		be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_UNMAP;
+		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {

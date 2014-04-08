@@ -858,7 +858,7 @@ struct scsi_unmap_header
 {
 	uint8_t	length[2];
 	uint8_t	desc_length[2];
-	uint8_t	reserved[8];
+	uint8_t	reserved[4];
 };
 
 struct scsi_unmap_desc
