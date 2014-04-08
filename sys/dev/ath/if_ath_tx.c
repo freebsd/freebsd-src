@@ -5509,7 +5509,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * a frame; be careful.
 		 */
 		if (! ath_tx_tid_can_tx_or_sched(sc, tid)) {
-			continue;
+			goto loop_done;
 		}
 		if (ath_tx_ampdu_running(sc, tid->an, tid->tid))
 			ath_tx_tid_hw_queue_aggr(sc, tid->an, tid);
@@ -5532,7 +5532,7 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_depth >= sc->sc_hwq_limit_nonaggr) {
 			break;
 		}
-
+loop_done:
 		/*
 		 * If this was the last entry on the original list, stop.
 		 * Otherwise nodes that have been rescheduled onto the end
