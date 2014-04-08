@@ -384,7 +384,6 @@ udp_input(struct mbuf *m, int off)
 	int cscov_partial;
 	uint8_t pr;
 
-	iphlen = off;
 	ifp = m->m_pkthdr.rcvif;
 	UDPSTAT_INC(udps_ipackets);
 
