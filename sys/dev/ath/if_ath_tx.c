@@ -3380,6 +3380,7 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
+	/* And only resume if we had paused before */
 	if (do_resume)
 		ath_tx_tid_resume(sc, tid);
 }
