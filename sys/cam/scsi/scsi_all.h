@@ -854,6 +854,20 @@ struct scsi_unmap
 	uint8_t	control;
 };
 
+struct scsi_unmap_header
+{
+	uint8_t	length[2];
+	uint8_t	desc_length[2];
+	uint8_t	reserved[8];
+};
+
+struct scsi_unmap_desc
+{
+	uint8_t	lba[8];
+	uint8_t	length[4];
+	uint8_t	reserved[4];
+};
+
 struct scsi_write_verify_10
 {
 	uint8_t	opcode;
