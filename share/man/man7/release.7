@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2014
+.Dd April 2, 2014
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -250,6 +250,12 @@ Setting this also sets
 Set to a non-empty value to include the
 .Cm dvdrom
 target.
+.It Va WITH_COMPRESSED_IMAGES
+Set to a non-empty value to compress the release images with
+.Xr xz 1 .
+The original
+.Pq uncompressed
+images are not removed.
 .It Va VCSCMD
 The command run to obtain the source trees.
 Defaults to
