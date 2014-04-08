@@ -414,6 +414,10 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 
 	/*
 	 * Allow threading primitives to be used.
+	 *
+	 * XXXRW: This was enabled for use in our hardware rendering work, but
+	 * is probably not suitable for more general CHERI use, so should be
+	 * garbage-collected soon.
 	 */
 	if (code == SYS__umtx_lock || code == SYS__umtx_unlock ||
 	    code == SYS__umtx_op)
@@ -421,20 +425,29 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 
 	/*
 	 * Check whether userspace holds the rights defined in
-	 * cheri_capability_set_user() in $C0.  Note that object type is
-	 * We might also consider checking $PCC here.
+	 * cheri_capability_set_user() in $PCC.  Note that object type doesn't
+	 * come into play here.
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
+	 *
+	 * XXXRW: Assign a user-assigned permission bit for system-call
+	 * authorization.
 	 */
 	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cheriframe.cf_c0, 0);
+	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	intr_restore(s);
 	if (c.c_perms != CHERI_CAP_USER_PERMS ||
 	    c.c_base != CHERI_CAP_USER_BASE ||
 	    c.c_length != CHERI_CAP_USER_LENGTH) {
 		atomic_add_int(&security_cheri_syscall_violations, 1);
+
+#if DDB
+		if (security_cheri_debugger_on_exception)
+			kdb_enter(KDB_WHY_CHERI,
+			    "blocked system call within sandbox");
+#endif
 		return (ECAPMODE);
 	}
 	return (0);
