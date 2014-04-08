@@ -148,7 +148,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
-	imgact_binmisc \
+	${_imgact_binmisc} \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
@@ -372,6 +372,7 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_imagact_binmisc=	imgact_binmisc
 _vmware=	vmware
 .endif
 

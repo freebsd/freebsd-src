@@ -2963,3 +2963,6 @@ options 	RANDOM_YARROW	# Yarrow RNG
 ##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
 options 	RANDOM_DEBUG	# Debugging messages
 options 	RANDOM_RWFILE	# Read and write entropy cache
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC
