@@ -46,6 +46,7 @@ PORTBRANCH="ports/head@rHEAD"
 #NODOC=
 #NOPORTS=
 #WITH_DVD=
+#WITH_COMPRESSED_IMAGES=
 
 ## Set when building embedded images.
 #EMBEDDEDBUILD=

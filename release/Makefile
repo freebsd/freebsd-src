@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # Makefile for building releases and release media.
-# 
+#
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
 #  dvdrom: Builds release DVD-ROM media (dvd1.iso)
@@ -13,7 +13,7 @@
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
-#            (by default, the directory above this one) 
+#            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
 #  NOPKG:    if set, do not distribute third-party packages
@@ -21,13 +21,16 @@
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
-#  TARGET/TARGET_ARCH: architecture of built release 
+#  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
+#		(uncompressed images are not removed)
+#  TARGET/TARGET_ARCH: architecture of built release
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
+XZCMD?=		/usr/bin/xz
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -63,7 +66,7 @@ NODOC= true
 NOPORTS= true
 .endif
 
-EXTRA_PACKAGES= 
+EXTRA_PACKAGES=
 .if !defined(NOPORTS)
 EXTRA_PACKAGES+= ports.txz
 .endif
@@ -92,6 +95,11 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+.if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+. for I in ${IMAGES}
+CLEANFILES+=	${I}.xz
+. endfor
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
 beforeclean:
 	chflags -R noschg .
@@ -251,6 +259,9 @@ install:
 	cp -a ftp ${DESTDIR}/
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
+. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+	${XZCMD} -k ${DESTDIR}/${OSRELEASE}-${I}
+. endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
