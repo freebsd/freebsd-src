@@ -40,7 +40,7 @@
 #define	IBE_VERSION	1	/* struct ximgact_binmisc_entry version. */
 #define	IBE_NAME_MAX	32	/* Max size for entry name. */
 #define	IBE_MAGIC_MAX	256	/* Max size for header magic and mask. */
-#define IBE_ARG_LEN_MAX	256	/* Max space for optional interpreter command-
+#define	IBE_ARG_LEN_MAX	256	/* Max space for optional interpreter command-
 				   line argruments seperated by white space */
 #define	IBE_INTERP_LEN_MAX	(MAXPATHLEN + IBE_ARG_LEN_MAX)
 #define	IBE_MAX_ENTRIES	64	/* Max number of interpreter entries. */
@@ -70,7 +70,7 @@ typedef struct ximgact_binmisc_entry {
 /*
  * sysctl() command names.
  */
-#define IBE_SYSCTL_NAME		"kern.binmisc"
+#define	IBE_SYSCTL_NAME		"kern.binmisc"
 
 #define	IBE_SYSCTL_NAME_ADD	IBE_SYSCTL_NAME ".add"
 #define	IBE_SYSCTL_NAME_REMOVE	IBE_SYSCTL_NAME ".remove"
@@ -82,7 +82,7 @@ typedef struct ximgact_binmisc_entry {
 #define	KMOD_NAME	"imgact_binmisc"
 
 /*
- * Examples of manipulating he interpreter table using sysctlbyname(3):
+ * Examples of manipulating the interpreter table using sysctlbyname(3):
  *
  * #include <sys/imgact_binmisc.h>
  *
@@ -127,7 +127,7 @@ typedef struct ximgact_binmisc_entry {
  * xbe.xbe_version = IBE_VERSION;
  * strlcpy(xbe.xbe_name, "llvm_bc", IBE_NAME_MAX);
  * error = sysctlbyname(IBE_SYSCTL_NAME_DISABLE, NULL, NULL, &xbe, sizeof(xbe));
- * // OR sysctlbyname(IBE_SYSCTL_NAME_ENABLE", NULL, NULL, &xbe, sizeof(xbe));
+ * // OR sysctlbyname(IBE_SYSCTL_NAME_ENABLE, NULL, NULL, &xbe, sizeof(xbe));
  * // OR sysctlbyname(IBE_SYSCTL_NAME_REMOVE, NULL, NULL, &xbe, sizeof(xbe));
  *
  * // Lookup image activator  "llvm_bc"
