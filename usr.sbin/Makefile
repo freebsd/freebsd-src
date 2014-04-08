@@ -5,6 +5,7 @@
 
 SUBDIR=	adduser \
 	arp \
+	binmiscctl \
 	bootparamd \
 	bsdconfig \
 	bsdinstall \
