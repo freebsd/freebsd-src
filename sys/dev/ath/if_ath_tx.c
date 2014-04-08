@@ -2750,8 +2750,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 		INCR(tid->baw_head, ATH_TID_MAX_BUFS);
 	}
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: baw is now %d:%d, baw head=%d\n",
-	    __func__, tap->txa_start, tap->txa_wnd, tid->baw_head);
+	    "%s: tid=%d: baw is now %d:%d, baw head=%d\n",
+	    __func__, tid->tid, tap->txa_start, tap->txa_wnd, tid->baw_head);
 }
 
 static void
@@ -3336,8 +3336,8 @@ ath_tx_tid_filt_comp_buf(struct ath_softc *sc, struct ath_tid *tid,
 	ATH_TX_LOCK_ASSERT(sc);
 
 	if (! tid->isfiltered) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: filter transition\n",
-		    __func__);
+		DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: tid=%d; filter transition\n",
+		    __func__, tid->tid);
 		tid->isfiltered = 1;
 		ath_tx_tid_pause(sc, tid);
 	}
@@ -3364,8 +3364,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	if (tid->hwq_depth != 0)
 		return;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: hwq=0, transition back\n",
-	    __func__);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: tid=%d, hwq=0, transition back\n",
+	    __func__, tid->tid);
 	if (tid->isfiltered == 1) {
 		tid->isfiltered = 0;
 		do_resume = 1;
@@ -3414,7 +3414,7 @@ ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
 		    "%s: bf=%p, seqno=%d, exceeded retries\n",
 		    __func__,
 		    bf,
-		    bf->bf_state.bfs_seqno);
+		    SEQNO(bf->bf_state.bfs_seqno));
 		retval = 1; /* error */
 		goto finish;
 	}
@@ -3466,10 +3466,11 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
 			sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
-			    "%s: bf=%p, seqno=%d, exceeded retries\n",
+			    "%s: tid=%d, bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
+			    tid->tid,
 			    bf,
-			    bf->bf_state.bfs_seqno);
+			    SEQNO(bf->bf_state.bfs_seqno));
 			TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 			goto next;
 		}
@@ -3477,8 +3478,8 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		if (bf->bf_flags & ATH_BUF_BUSY) {
 			nbf = ath_tx_retry_clone(sc, tid->an, tid, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
-			    "%s: busy buffer cloned: %p -> %p",
-			    __func__, bf, nbf);
+			    "%s: tid=%d, busy buffer cloned: %p -> %p, seqno=%d\n",
+			    __func__, tid->tid, bf, nbf, SEQNO(bf->bf_state.bfs_seqno));
 		} else {
 			nbf = bf;
 		}
@@ -3489,8 +3490,8 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 */
 		if (nbf == NULL) {
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
-			    "%s: buffer couldn't be cloned! (%p)\n",
-			    __func__, bf);
+			    "%s: tid=%d, buffer couldn't be cloned! (%p) seqno=%d\n",
+			    __func__, tid->tid, bf, SEQNO(bf->bf_state.bfs_seqno));
 			TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 		} else {
 			ath_tx_tid_filt_comp_buf(sc, tid, nbf);
@@ -5044,6 +5045,10 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 			    "%s: isfiltered=1, fail=%d\n",
 			    __func__, fail);
 		freeframe = ath_tx_tid_filt_comp_single(sc, atid, bf);
+		/*
+		 * If freeframe=0 then bf is no longer ours; don't
+		 * touch it.
+		 */
 		if (freeframe) {
 			/* Remove from BAW */
 			if (bf->bf_state.bfs_addedbaw)
@@ -5078,7 +5083,6 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		 */
 		if (freeframe)
 			ath_tx_default_comp(sc, bf, fail);
-
 
 		return;
 	}
@@ -5866,19 +5870,43 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 	int attempts = tap->txa_attempts;
+	int old_txa_start;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: called; txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
+	    "%s: %6D: called; txa_tid=%d, atid->tid=%d, status=%d, attempts=%d, txa_start=%d, txa_seqpending=%d\n",
 	    __func__,
 	    ni->ni_macaddr,
 	    ":",
 	    tap->txa_tid,
 	    atid->tid,
 	    status,
-	    attempts);
+	    attempts,
+	    tap->txa_start,
+	    tap->txa_seqpending);
 
 	/* Note: This may update the BAW details */
+	/*
+	 * XXX What if this does slide the BAW along? We need to somehow
+	 * XXX either fix things when it does happen, or prevent the
+	 * XXX seqpending value to be anything other than exactly what
+	 * XXX the hell we want!
+	 *
+	 * XXX So for now, how I do this inside the TX lock for now
+	 * XXX and just correct it afterwards? The below condition should
+	 * XXX never happen and if it does I need to fix all kinds of things.
+	 */
+	ATH_TX_LOCK(sc);
+	old_txa_start = tap->txa_start;
 	sc->sc_bar_response(ni, tap, status);
+	if (tap->txa_start != old_txa_start) {
+		device_printf(sc->sc_dev, "%s: tid=%d; txa_start=%d, old=%d, adjusting\n",
+		    __func__,
+		    tid,
+		    tap->txa_start,
+		    old_txa_start);
+	}
+	tap->txa_start = old_txa_start;
+	ATH_TX_UNLOCK(sc);
 
 	/* Unpause the TID */
 	/*
