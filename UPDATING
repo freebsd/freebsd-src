@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140408:	p1	FreeBSD-SA-14:05.nfsserver
+			FreeBSD-SA-14:06.openssl
+	Fix deadlock in the NFS server. [SA-14:05]
+
+	Fix multiple vulnerabilities in OpenSSL. [SA-14:06]
+
 20131223:
 	The behavior of gss_pseudo_random() for the krb5 mechanism
 	has changed, for applications requesting a longer random string
