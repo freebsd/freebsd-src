@@ -823,7 +823,7 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 			beio->io_len += len;
 			ctl_be_block_unmap_dev_range(be_lun, beio,
 			    scsi_8btou64(buf->lba) * be_lun->blocksize, len,
-			    (end - buf < 32) ? TRUE : FALSE);
+			    (end - buf < 2) ? TRUE : FALSE);
 		}
 	} else
 		ctl_be_block_unmap_dev_range(be_lun, beio,
