@@ -652,23 +652,25 @@ static inline void
 vt_determine_colors(term_char_t c, int cursor,
     term_color_t *fg, term_color_t *bg)
 {
+	term_color_t tmp;
+	int invert;
+
+	invert = 0;
 
 	*fg = TCHAR_FGCOLOR(c);
 	if (TCHAR_FORMAT(c) & TF_BOLD)
 		*fg = TCOLOR_LIGHT(*fg);
 	*bg = TCHAR_BGCOLOR(c);
 
-	if (TCHAR_FORMAT(c) & TF_REVERSE) {
-		term_color_t tmp;
+	if (TCHAR_FORMAT(c) & TF_REVERSE)
+		invert ^= 1;
+	if (cursor)
+		invert ^= 1;
 
+	if (invert) {
 		tmp = *fg;
 		*fg = *bg;
 		*bg = tmp;
-	}
-
-	if (cursor) {
-		*fg = *bg;
-		*bg = TC_WHITE;
 	}
 }
 
