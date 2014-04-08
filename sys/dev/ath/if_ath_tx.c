@@ -3357,6 +3357,7 @@ static void
 ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 {
 	struct ath_buf *bf;
+	int do_resume = 0;
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -3365,7 +3366,11 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: hwq=0, transition back\n",
 	    __func__);
-	tid->isfiltered = 0;
+	if (tid->isfiltered == 1) {
+		tid->isfiltered = 0;
+		do_resume = 1;
+	}
+
 	/* XXX ath_tx_tid_resume() also calls ath_tx_set_clrdmask()! */
 	ath_tx_set_clrdmask(sc, tid->an);
 
@@ -3375,7 +3380,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 	}
 
-	ath_tx_tid_resume(sc, tid);
+	if (do_resume)
+		ath_tx_tid_resume(sc, tid);
 }
 
 /*
