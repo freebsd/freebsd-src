@@ -148,6 +148,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
+	imgact_binmisc \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
