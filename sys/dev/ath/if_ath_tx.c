@@ -3388,10 +3388,13 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 /*
  * Called when a single (aggregate or otherwise) frame is completed.
  *
- * Returns 1 if the buffer could be added to the filtered list
- * (cloned or otherwise), 0 if the buffer couldn't be added to the
+ * Returns 0 if the buffer could be added to the filtered list
+ * (cloned or otherwise), 1 if the buffer couldn't be added to the
  * filtered list (failed clone; expired retry) and the caller should
  * free it and handle it like a failure (eg by sending a BAR.)
+ *
+ * since the buffer may be cloned, bf must be not touched after this
+ * if the return value is 0.
  */
 static int
 ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
@@ -3412,7 +3415,8 @@ ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
 		    __func__,
 		    bf,
 		    bf->bf_state.bfs_seqno);
-		return (0);
+		retval = 1; /* error */
+		goto finish;
 	}
 
 	/*
@@ -3432,11 +3436,12 @@ ath_tx_tid_filt_comp_single(struct ath_softc *sc, struct ath_tid *tid,
 		DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 		    "%s: busy buffer couldn't be cloned (%p)!\n",
 		    __func__, bf);
-		retval = 1;
+		retval = 1; /* error */
 	} else {
 		ath_tx_tid_filt_comp_buf(sc, tid, nbf);
-		retval = 0;
+		retval = 0; /* ok */
 	}
+finish:
 	ath_tx_tid_filt_comp_complete(sc, tid);
 
 	return (retval);
