@@ -27,7 +27,7 @@
 .\"
 .\" Support for miscellaneous binary image activators
 .\"
-.Dd May 14, 2013 
+.Dd April 8, 2014
 .Dt 8 
 .Os
 .Sh NAME
@@ -37,14 +37,14 @@
 .Nm
 .Cm add
 .Ar name
-.Cm --interpreter 
+.Cm --interpreter
 .Ar path
-.Cm --magic 
+.Cm --magic
 .Ar magic
 .Cm --size
 .Ar size
-.Op --mask Ar mask 
-.Op --offset Ar offset 
+.Op --mask Ar mask
+.Op --offset Ar offset
 .Op --set-enabled
 .Nm
 .Cm remove
@@ -65,8 +65,10 @@ The
 .Nm
 utility
 is the management utility for configuring miscellaneous binaries image
-activators in the kernel.  It allows the adding, deleting, disabling,
-enabling, and looking up interpreters. Also, all the interpreters can
+activators in the kernel.
+It allows the adding, deleting, disabling,
+enabling, and looking up interpreters.
+Also, all the interpreters can
 be listed as well.
 .Pp
 The first argument on the command line indicates the operation to be
@@ -76,7 +78,7 @@ Operation must be one of the following:
 .It Xo
 .Cm add
 .Ar name
-.Cm --interpreter 
+.Cm --interpreter
 .Ar path
 .Cm --magic
 .Ar magic
@@ -86,10 +88,11 @@ Operation must be one of the following:
 .Op --offset Ar offset
 .Op --set-enabled
 .Xc
-Add a new activator entry in the kernel.  You must specify an
+Add a new activator entry in the kernel.
+You must specify an
 unique
 .Ar name,
-interpreter path and its arguments 
+interpreter path and its arguments
 .Ar path,
 header
 .Ar magic
@@ -103,25 +106,26 @@ in bytes.
 Optionally you may specify a
 .Ar mask
 to do a bitwise AND with the header bytes.
-
 This effectively allows you to ignore fields in the binary header that
-do not uniquely indentfy binary file's type.
+do not uniquely indentify binary file's type.
 .Pp
 An
 .Ar offset
 may be specified for the magic bytes using the
 .Ar --offset
-argument.  By default the
+argument.
+By default the
 .Ar offset
 is zero.
 .Pp
 To set the activator entry enabled the
 .Ar --set-enabled
-option is used.  The activator default state is disabled.
+option is used.
+The activator default state is disabled.
 .Pp
 The interpreter
 .Ar path
-may also arguments for the interpreter including 
+may also arguments for the interpreter including
 .Ar #a
 which gets replaced by the old argv0 value in the interpreter string.
 .It Cm remove Ar name
@@ -156,31 +160,31 @@ Set the state of the
 .Ar llvmbc
 image activator to disabled.
 .Pp
-.Dl binmiscctl enable llvmbc 
+.Dl binmiscctl enable llvmbc
 .Pp
 Set the state of the 
 .Ar llvmbc
 image activator to enabled.
 .Pp
-.Dl binmiscctl remove llvmbc 
+.Dl binmiscctl remove llvmbc
 .Pp
 Delete the
 .Ar llvmbc
 image activator.
 .Pp
-.Dl binmiscctl lookup llvmbc 
+.Dl binmiscctl lookup llvmbc
 .Pp
 Lookup and list the record for the
 .Ar llvmbc
 image activator.
 .Sh SEE ALSO
+.Xr lli 1 ,
 .Xr execve 2
-.Xr lli 1
 .Sh HISTORY
 The
 .Cm binmiscctl
 command was added in
-.Fx 10.0 .
+.Fx 10.1 .
 It was developed to support the imgact_binmisc kernel module.
 .Sh AUTHORS
 Stacey D Son
