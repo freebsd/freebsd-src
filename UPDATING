@@ -9,6 +9,12 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140408:	p11	FreeBSD-SA-14:05.nfsserver
+			FreeBSD-SA-14:06.openssl
+	Fix deadlock in the NFS server. [SA-14:05]
+
+	Fix for ECDSA Cache Side-channel Attack in OpenSSL. [SA-14:06]
+
 20140114:	p10	FreeBSD-SA-14:01.bsnmpd
 			FreeBSD-SA-14:02.ntpd
 			FreeBSD-SA-14:04.bind
