@@ -46,7 +46,7 @@
 	};
 
 	localbus@18000000 {
-		ipu3@18000000 {
+		ipu3@1E000000 {
 			status = "okay";
 		};
 	};
