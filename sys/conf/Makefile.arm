@@ -44,10 +44,10 @@ CFLAGS += -mno-thumb-interwork
 .endif
 
 .if empty(DDB_ENABLED)
-.if MK_ARM_EABI == "no" && ${COMPILER_TYPE} == "gcc"
+.if ${MK_ARM_EABI} == "no" && ${COMPILER_TYPE} == "gcc"
 CFLAGS += -mno-apcs-frame
 .endif
-.elif MK_ARM_EABI != "no"
+.elif ${MK_ARM_EABI} != "no"
 CFLAGS += -funwind-tables
 .if ${COMPILER_TYPE} == "clang"
 # clang requires us to tell it to emit assembly with unwind information
