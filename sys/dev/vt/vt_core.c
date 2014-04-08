@@ -720,9 +720,11 @@ vt_flush(struct vt_device *vd)
 #endif
 
 	vw = vd->vd_curwindow;
-	if (vw == NULL) return;
+	if (vw == NULL)
+		return;
 	vf = vw->vw_font;
-	if ((vf == NULL) && !(vd->vd_flags & VDF_TEXTMODE)) return;
+	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
+		return;
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
@@ -1891,9 +1893,6 @@ vt_upgrade(struct vt_device *vd)
 		}
 		terminal_maketty(vw->vw_terminal, "v%r", VT_UNIT(vw));
 
-		/* Assign default font to window, if not textmode. */
-		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
-			vw->vw_font = vtfont_ref(&vt_font_default);
 	}
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
@@ -1914,6 +1913,9 @@ vt_resize(struct vt_device *vd)
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
+		/* Assign default font to window, if not textmode. */
+		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
+			vw->vw_font = vtfont_ref(&vt_font_default);
 		/* Resize terminal windows */
 		vt_change_font(vw, vw->vw_font);
 	}
@@ -1975,8 +1977,10 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		vtterm_splash(vd);
 #endif
 
-	if (vd->vd_flags & VDF_ASYNC)
+	if (vd->vd_flags & VDF_ASYNC) {
+		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
+	}
 
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
 
