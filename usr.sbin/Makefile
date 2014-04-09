@@ -520,4 +520,6 @@ _eeprom=	eeprom
 _ofwdump=	ofwdump
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

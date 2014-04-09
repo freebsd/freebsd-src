@@ -63,4 +63,6 @@ _cc=		cc
 _gdb=		gdb
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

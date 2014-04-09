@@ -54,4 +54,6 @@ _rmail=	rmail
 _csh=	csh
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

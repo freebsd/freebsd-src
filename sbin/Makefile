@@ -154,4 +154,6 @@ _mca=		mca
 _sunlabel=	sunlabel
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

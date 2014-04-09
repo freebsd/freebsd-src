@@ -393,4 +393,6 @@ _smbutil=	smbutil
 _smbutil=	smbutil
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
