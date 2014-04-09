@@ -766,19 +766,21 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 {
 	struct bio *bio;
 	struct ctl_be_block_devdata *dev_data;
+	uint64_t maxlen;
 
 	dev_data = &be_lun->backend.dev;
+	maxlen = LONG_MAX - (LONG_MAX % be_lun->blocksize);
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
 		bio->bio_flags	   |= beio->bio_flags;
 		bio->bio_dev	    = dev_data->cdev;
 		bio->bio_offset	    = off;
-		bio->bio_length	    = MIN(len, LONG_MAX);
+		bio->bio_length	    = MIN(len, maxlen);
 		bio->bio_data	    = 0;
 		bio->bio_done	    = ctl_be_block_biodone;
 		bio->bio_caller1    = beio;
-		bio->bio_pblkno     = beio->io_offset / be_lun->blocksize;
+		bio->bio_pblkno     = off / be_lun->blocksize;
 
 		off += bio->bio_length;
 		len -= bio->bio_length;
