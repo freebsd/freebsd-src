@@ -118,4 +118,6 @@ SUBDIR+=	routed
 
 SUBDIR:=	${SUBDIR:O}
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
