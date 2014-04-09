@@ -895,7 +895,7 @@ main(int ac, char **av)
 	    SYSLOG_FACILITY_USER, !use_syslog);
 
 	if (debug_flag)
-		logit("%s, %s", SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
+		logit("%s, %s", SSH_RELEASE, SSLeay_version(SSLEAY_VERSION));
 
 	/* Parse the configuration files */
 	process_config_files(pw);
