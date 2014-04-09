@@ -135,6 +135,24 @@
 
 	    <entry><para>BIND remote denial of service vulnerability</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:05.nfsserver.asc"
+	      >SA-14:05.nfsserver</link></entry>
+
+	    <entry>8&nbsp;April&nbsp;2014</entry>
+
+	    <entry><para>Deadlock in the NFS server</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:06.openssl.asc"
+	      >SA-14:06.openssl</link></entry>
+
+	    <entry>8&nbsp;April&nbsp;2014</entry>
+
+	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
