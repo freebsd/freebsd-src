@@ -54,15 +54,10 @@ struct rthash {
 	struct	rt_entry *rt_back;
 };
 
-#ifdef RTM_ADD
-#define rtentry ortentry
-#endif
-
 struct rt_entry {
 	struct	rt_entry *rt_forw;
 	struct	rt_entry *rt_back;
 	union {
-		struct	rtentry rtu_rt;
 		struct  rtuentry {
 			u_long	rtu_hash;
 			struct	sockaddr rtu_dst;
