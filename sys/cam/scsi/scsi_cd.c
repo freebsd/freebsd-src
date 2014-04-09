@@ -87,8 +87,6 @@ typedef enum {
 	CD_Q_NONE		= 0x00,
 	CD_Q_NO_TOUCH		= 0x01,
 	CD_Q_BCD_TRACKS		= 0x02,
-	CD_Q_NO_CHANGER		= 0x04,
-	CD_Q_CHANGER		= 0x08,
 	CD_Q_10_BYTE_ONLY	= 0x10
 } cd_quirks;
 
@@ -96,8 +94,6 @@ typedef enum {
 	"\020"			\
 	"\001NO_TOUCH"		\
 	"\002BCD_TRACKS"	\
-	"\003NO_CHANGER"	\
-	"\004CHANGER"		\
 	"\00510_BYTE_ONLY"
 
 typedef enum {
@@ -106,7 +102,6 @@ typedef enum {
 	CD_FLAG_DISC_LOCKED	= 0x0004,
 	CD_FLAG_DISC_REMOVABLE	= 0x0008,
 	CD_FLAG_SAW_MEDIA	= 0x0010,
-	CD_FLAG_CHANGER		= 0x0040,
 	CD_FLAG_ACTIVE		= 0x0080,
 	CD_FLAG_SCHED_ON_COMP	= 0x0100,
 	CD_FLAG_RETRY_UA	= 0x0200,
@@ -122,13 +117,6 @@ typedef enum {
 	CD_CCB_TYPE_MASK	= 0x0F,
 	CD_CCB_RETRY_UA		= 0x10
 } cd_ccb_state;
-
-typedef enum {
-	CHANGER_TIMEOUT_SCHED		= 0x01,
-	CHANGER_SHORT_TMOUT_SCHED	= 0x02,
-	CHANGER_MANUAL_CALL		= 0x04,
-	CHANGER_NEED_TIMEOUT		= 0x08
-} cd_changer_flags;
 
 #define ccb_state ppriv_field0
 #define ccb_bp ppriv_ptr1
@@ -157,9 +145,6 @@ struct cd_softc {
 	struct cd_params	params;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
-	STAILQ_ENTRY(cd_softc)	changer_links;
-	struct cdchanger	*changer;
-	int			bufs_left;
 	struct cam_periph	*periph;
 	int			minimum_command_size;
 	int			outstanding_cmds;
@@ -189,13 +174,6 @@ struct cd_quirk_entry {
 };
 
 /*
- * The changer quirk entries aren't strictly necessary.  Basically, what
- * they do is tell cdregister() up front that a device is a changer.
- * Otherwise, it will figure that fact out once it sees a LUN on the device
- * that is greater than 0.  If it is known up front that a device is a changer,
- * all I/O to the device will go through the changer scheduling routines, as
- * opposed to the "normal" CD code.
- *
  * NOTE ON 10_BYTE_ONLY quirks:  Any 10_BYTE_ONLY quirks MUST be because
  * your device hangs when it gets a 10 byte command.  Adding a quirk just
  * to get rid of the informative diagnostic message is not acceptable.  All
@@ -208,18 +186,6 @@ struct cd_quirk_entry {
  */
 static struct cd_quirk_entry cd_quirk_table[] =
 {
-	{
-		{ T_CDROM, SIP_MEDIA_REMOVABLE, "NRC", "MBR-7", "*"},
-		 /*quirks*/ CD_Q_CHANGER
-	},
-	{
-		{ T_CDROM, SIP_MEDIA_REMOVABLE, "PIONEER", "CD-ROM DRM*",
-		  "*"}, /* quirks */ CD_Q_CHANGER
-	},
-	{
-		{ T_CDROM, SIP_MEDIA_REMOVABLE, "NAKAMICH", "MJ-*", "*"},
-		 /* quirks */ CD_Q_CHANGER
-	},
 	{
 		{ T_CDROM, SIP_MEDIA_REMOVABLE, "CHINON", "CD-ROM CDS-535","*"},
 		/* quirks */ CD_Q_BCD_TRACKS
@@ -241,15 +207,11 @@ static	void		cdasync(void *callback_arg, u_int32_t code,
 static	int		cdcmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	void		cdshorttimeout(void *arg);
 static	void		cdschedule(struct cam_periph *periph, int priority);
-static	void		cdrunchangerqueue(void *arg);
-static	void		cdchangerschedule(struct cd_softc *softc);
 static	int		cdrunccb(union ccb *ccb,
 				 int (*error_routine)(union ccb *ccb,
 						      u_int32_t cam_flags,
 						      u_int32_t sense_flags),
 				 u_int32_t cam_flags, u_int32_t sense_flags);
-static	union ccb 	*cdgetccb(struct cam_periph *periph,
-				  u_int32_t priority);
 static	void		cddone(struct cam_periph *periph,
 			       union ccb *start_ccb);
 static	union cd_pages	*cdgetpage(struct cd_mode_params *mode_params);
@@ -311,22 +273,12 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #ifndef	CD_DEFAULT_TIMEOUT
 #define	CD_DEFAULT_TIMEOUT	30000
 #endif
-#ifndef CHANGER_MIN_BUSY_SECONDS
-#define CHANGER_MIN_BUSY_SECONDS	5
-#endif
-#ifndef CHANGER_MAX_BUSY_SECONDS
-#define CHANGER_MAX_BUSY_SECONDS	15
-#endif
 
 static int cd_poll_period = CD_DEFAULT_POLL_PERIOD;
 static int cd_retry_count = CD_DEFAULT_RETRY;
 static int cd_timeout = CD_DEFAULT_TIMEOUT;
-static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
-static int changer_max_busy_seconds = CHANGER_MAX_BUSY_SECONDS;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, cd, CTLFLAG_RD, 0, "CAM CDROM driver");
-static SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0,
-    "CD Changer");
 SYSCTL_INT(_kern_cam_cd, OID_AUTO, poll_period, CTLFLAG_RW,
            &cd_poll_period, 0, "Media polling period in seconds");
 TUNABLE_INT("kern.cam.cd.poll_period", &cd_poll_period);
@@ -336,30 +288,6 @@ TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);
 SYSCTL_INT(_kern_cam_cd, OID_AUTO, timeout, CTLFLAG_RW,
 	   &cd_timeout, 0, "Timeout, in us, for read operations");
 TUNABLE_INT("kern.cam.cd.timeout", &cd_timeout);
-SYSCTL_INT(_kern_cam_cd_changer, OID_AUTO, min_busy_seconds, CTLFLAG_RW,
-	   &changer_min_busy_seconds, 0, "Minimum changer scheduling quantum");
-TUNABLE_INT("kern.cam.cd.changer.min_busy_seconds", &changer_min_busy_seconds);
-SYSCTL_INT(_kern_cam_cd_changer, OID_AUTO, max_busy_seconds, CTLFLAG_RW,
-	   &changer_max_busy_seconds, 0, "Maximum changer scheduling quantum");
-TUNABLE_INT("kern.cam.cd.changer.max_busy_seconds", &changer_max_busy_seconds);
-
-struct cdchanger {
-	path_id_t			 path_id;
-	target_id_t			 target_id;
-	int				 num_devices;
-	struct camq			 devq;
-	struct timeval			 start_time;
-	struct cd_softc			 *cur_device;
-	struct callout			 short_handle;
-	struct callout			 long_handle;
-	volatile cd_changer_flags	 flags;
-	STAILQ_ENTRY(cdchanger)		 changer_links;
-	STAILQ_HEAD(chdevlist, cd_softc) chluns;
-};
-
-static struct mtx changerq_mtx;
-static STAILQ_HEAD(changerlist, cdchanger) changerq;
-static int num_changers;
 
 static MALLOC_DEFINE(M_SCSICD, "scsi_cd", "scsi_cd buffers");
 
@@ -367,9 +295,6 @@ static void
 cdinit(void)
 {
 	cam_status status;
-
-	mtx_init(&changerq_mtx, "cdchangerq", "SCSI CD Changer List", MTX_DEF);
-	STAILQ_INIT(&changerq);
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -417,15 +342,6 @@ cdoninvalidate(struct cam_periph *periph)
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
-	/*
-	 * If this device is part of a changer, and it was scheduled
-	 * to run, remove it from the run queue since we just nuked
-	 * all of its scheduled I/O.
-	 */
-	if ((softc->flags & CD_FLAG_CHANGER)
-	 && (softc->pinfo.index != CAM_UNQUEUED_INDEX))
-		camq_remove(&softc->changer->devq, softc->pinfo.index);
-
 	disk_gone(softc->disk);
 }
 
@@ -436,73 +352,6 @@ cdcleanup(struct cam_periph *periph)
 
 	softc = (struct cd_softc *)periph->softc;
 
-	/*
-	 * In the queued, non-active case, the device in question
-	 * has already been removed from the changer run queue.  Since this
-	 * device is active, we need to de-activate it, and schedule
-	 * another device to run.  (if there is another one to run)
-	 */
-	if ((softc->flags & CD_FLAG_CHANGER)
-	 && (softc->flags & CD_FLAG_ACTIVE)) {
-
-		/*
-		 * The purpose of the short timeout is soley to determine
-		 * whether the current device has finished or not.  Well,
-		 * since we're removing the active device, we know that it
-		 * is finished.  So, get rid of the short timeout.
-		 * Otherwise, if we're in the time period before the short
-		 * timeout fires, and there are no other devices in the
-		 * queue to run, there won't be any other device put in the
-		 * active slot.  i.e., when we call cdrunchangerqueue()
-		 * below, it won't do anything.  Then, when the short
-		 * timeout fires, it'll look at the "current device", which
-		 * we are free below, and possibly panic the kernel on a
-		 * bogus pointer reference.
-		 *
-		 * The long timeout doesn't really matter, since we
-		 * decrement the qfrozen_cnt to indicate that there is
-		 * nothing in the active slot now.  Therefore, there won't
-		 * be any bogus pointer references there.
-		 */
-		if (softc->changer->flags & CHANGER_SHORT_TMOUT_SCHED) {
-			callout_stop(&softc->changer->short_handle);
-			softc->changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
-		}
-		softc->changer->devq.qfrozen_cnt--;
-		softc->changer->flags |= CHANGER_MANUAL_CALL;
-		cdrunchangerqueue(softc->changer);
-	}
-
-	/*
-	 * If we're removing the last device on the changer, go ahead and
-	 * remove the changer device structure.
-	 */
-	if ((softc->flags & CD_FLAG_CHANGER)
-	 && (--softc->changer->num_devices == 0)) {
-
-		/*
-		 * Theoretically, there shouldn't be any timeouts left, but
-		 * I'm not completely sure that that will be the case.  So,
-		 * it won't hurt to check and see if there are any left.
-		 */
-		if (softc->changer->flags & CHANGER_TIMEOUT_SCHED) {
-			callout_stop(&softc->changer->long_handle);
-			softc->changer->flags &= ~CHANGER_TIMEOUT_SCHED;
-		}
-
-		if (softc->changer->flags & CHANGER_SHORT_TMOUT_SCHED) {
-			callout_stop(&softc->changer->short_handle);
-			softc->changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
-		}
-
-		mtx_lock(&changerq_mtx);
-		STAILQ_REMOVE(&changerq, softc->changer, cdchanger,
-			      changer_links);
-		num_changers--;
-		mtx_unlock(&changerq_mtx);
-		xpt_print(periph->path, "removing changer entry\n");
-		free(softc->changer, M_DEVBUF);
-	}
 	cam_periph_unlock(periph);
 	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
 	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
@@ -834,237 +683,16 @@ cdregister(struct cam_periph *periph, void *arg)
 	    AC_SCSI_AEN | AC_UNIT_ATTENTION, cdasync, periph, periph->path);
 
 	/*
-	 * If the target lun is greater than 0, we most likely have a CD
-	 * changer device.  Check the quirk entries as well, though, just
-	 * in case someone has a CD tower with one lun per drive or
-	 * something like that.  Also, if we know up front that a
-	 * particular device is a changer, we can mark it as such starting
-	 * with lun 0, instead of lun 1.  It shouldn't be necessary to have
-	 * a quirk entry to define something as a changer, however.
-	 */
-	if (((cgd->ccb_h.target_lun > 0)
-	  && ((softc->quirks & CD_Q_NO_CHANGER) == 0))
-	 || ((softc->quirks & CD_Q_CHANGER) != 0)) {
-		struct cdchanger *nchanger;
-		struct cam_periph *nperiph;
-		struct cam_path *path;
-		cam_status status;
-		int found;
-
-		/* Set the changer flag in the current device's softc */
-		softc->flags |= CD_FLAG_CHANGER;
-
-		/*
-		 * Now, look around for an existing changer device with the
-		 * same path and target ID as the current device.
-		 */
-		mtx_lock(&changerq_mtx);
-		for (found = 0,
-		     nchanger = (struct cdchanger *)STAILQ_FIRST(&changerq);
-		     nchanger != NULL;
-		     nchanger = STAILQ_NEXT(nchanger, changer_links)){
-			if ((nchanger->path_id == cgd->ccb_h.path_id) 
-			 && (nchanger->target_id == cgd->ccb_h.target_id)) {
-				found = 1;
-				break;
-			}
-		}
-		mtx_unlock(&changerq_mtx);
-
-		/*
-		 * If we found a matching entry, just add this device to
-		 * the list of devices on this changer.
-		 */
-		if (found == 1) {
-			struct chdevlist *chlunhead;
-
-			chlunhead = &nchanger->chluns;
-
-			/*
-			 * XXX KDM look at consolidating this code with the
-			 * code below in a separate function.
-			 */
-
-			/*
-			 * Create a path with lun id 0, and see if we can
-			 * find a matching device
-			 */
-			status = xpt_create_path(&path, /*periph*/ periph,
-						 cgd->ccb_h.path_id,
-						 cgd->ccb_h.target_id, 0);
-
-			if ((status == CAM_REQ_CMP)
-			 && ((nperiph = cam_periph_find(path, "cd")) != NULL)){
-				struct cd_softc *nsoftc;
-
-				nsoftc = (struct cd_softc *)nperiph->softc;
-
-				if ((nsoftc->flags & CD_FLAG_CHANGER) == 0){
-					nsoftc->flags |= CD_FLAG_CHANGER;
-					nchanger->num_devices++;
-					if (camq_resize(&nchanger->devq,
-					   nchanger->num_devices)!=CAM_REQ_CMP){
-						printf("cdregister: "
-						       "camq_resize "
-						       "failed, changer "
-						       "support may "
-						       "be messed up\n");
-					}
-					nsoftc->changer = nchanger;
-					nsoftc->pinfo.index =CAM_UNQUEUED_INDEX;
-
-					STAILQ_INSERT_TAIL(&nchanger->chluns,
-							  nsoftc,changer_links);
-				}
-				xpt_free_path(path);
-			} else if (status == CAM_REQ_CMP)
-				xpt_free_path(path);
-			else {
-				printf("cdregister: unable to allocate path\n"
-				       "cdregister: changer support may be "
-				       "broken\n");
-			}
-
-			nchanger->num_devices++;
-
-			softc->changer = nchanger;
-			softc->pinfo.index = CAM_UNQUEUED_INDEX;
-
-			if (camq_resize(&nchanger->devq,
-			    nchanger->num_devices) != CAM_REQ_CMP) {
-				printf("cdregister: camq_resize "
-				       "failed, changer support may "
-				       "be messed up\n");
-			}
-
-			STAILQ_INSERT_TAIL(chlunhead, softc, changer_links);
-		}
-		/*
-		 * In this case, we don't already have an entry for this
-		 * particular changer, so we need to create one, add it to
-		 * the queue, and queue this device on the list for this
-		 * changer.  Before we queue this device, however, we need
-		 * to search for lun id 0 on this target, and add it to the
-		 * queue first, if it exists.  (and if it hasn't already
-		 * been marked as part of the changer.)
-		 */
-		else {
-			nchanger = malloc(sizeof(struct cdchanger),
-				M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (nchanger == NULL) {
-				softc->flags &= ~CD_FLAG_CHANGER;
-				printf("cdregister: unable to malloc "
-				       "changer structure\ncdregister: "
-				       "changer support disabled\n");
-
-				/*
-				 * Yes, gotos can be gross but in this case
-				 * I think it's justified..
-				 */
-				goto cdregisterexit;
-			}
-			if (camq_init(&nchanger->devq, 1) != 0) {
-				softc->flags &= ~CD_FLAG_CHANGER;
-				printf("cdregister: changer support "
-				       "disabled\n");
-				goto cdregisterexit;
-			}
-
-			nchanger->path_id = cgd->ccb_h.path_id;
-			nchanger->target_id = cgd->ccb_h.target_id;
-
-			/* this is superfluous, but it makes things clearer */
-			nchanger->num_devices = 0;
-
-			STAILQ_INIT(&nchanger->chluns);
-
-			callout_init_mtx(&nchanger->long_handle,
-			    cam_periph_mtx(periph), 0);
-			callout_init_mtx(&nchanger->short_handle,
-			    cam_periph_mtx(periph), 0);
-
-			mtx_lock(&changerq_mtx);
-			num_changers++;
-			STAILQ_INSERT_TAIL(&changerq, nchanger,
-					   changer_links);
-			mtx_unlock(&changerq_mtx);
-			
-			/*
-			 * Create a path with lun id 0, and see if we can
-			 * find a matching device
-			 */
-			status = xpt_create_path(&path, /*periph*/ periph,
-						 cgd->ccb_h.path_id,
-						 cgd->ccb_h.target_id, 0);
-
-			/*
-			 * If we were able to allocate the path, and if we
-			 * find a matching device and it isn't already
-			 * marked as part of a changer, then we add it to
-			 * the current changer.
-			 */
-			if ((status == CAM_REQ_CMP)
-			 && ((nperiph = cam_periph_find(path, "cd")) != NULL)
-			 && ((((struct cd_softc *)periph->softc)->flags &
-			       CD_FLAG_CHANGER) == 0)) {
-				struct cd_softc *nsoftc;
-
-				nsoftc = (struct cd_softc *)nperiph->softc;
-
-				nsoftc->flags |= CD_FLAG_CHANGER;
-				nchanger->num_devices++;
-				if (camq_resize(&nchanger->devq,
-				    nchanger->num_devices) != CAM_REQ_CMP) {
-					printf("cdregister: camq_resize "
-					       "failed, changer support may "
-					       "be messed up\n");
-				}
-				nsoftc->changer = nchanger;
-				nsoftc->pinfo.index = CAM_UNQUEUED_INDEX;
-
-				STAILQ_INSERT_TAIL(&nchanger->chluns,
-						   nsoftc, changer_links);
-				xpt_free_path(path);
-			} else if (status == CAM_REQ_CMP)
-				xpt_free_path(path);
-			else {
-				printf("cdregister: unable to allocate path\n"
-				       "cdregister: changer support may be "
-				       "broken\n");
-			}
-
-			softc->changer = nchanger;
-			softc->pinfo.index = CAM_UNQUEUED_INDEX;
-			nchanger->num_devices++;
-			if (camq_resize(&nchanger->devq,
-			    nchanger->num_devices) != CAM_REQ_CMP) {
-				printf("cdregister: camq_resize "
-				       "failed, changer support may "
-				       "be messed up\n");
-			}
-			STAILQ_INSERT_TAIL(&nchanger->chluns, softc,
-					   changer_links);
-		}
-	}
-
-	/*
 	 * Schedule a periodic media polling events.
 	 */
 	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) &&
-	    (softc->flags & CD_FLAG_CHANGER) == 0 &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&
 	    cd_poll_period != 0)
 		callout_reset(&softc->mediapoll_c, cd_poll_period * hz,
 		    cdmediapoll, periph);
 
-cdregisterexit:
-
-	if ((softc->flags & CD_FLAG_CHANGER) == 0)
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
-	else
-		cdschedule(periph, CAM_PRIORITY_DEV);
-
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
 }
 
@@ -1153,251 +781,6 @@ cdclose(struct disk *dp)
 	return (0);
 }
 
-static void
-cdshorttimeout(void *arg)
-{
-	struct cdchanger *changer;
-
-	changer = (struct cdchanger *)arg;
-
-	/* Always clear the short timeout flag, since that's what we're in */
-	changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
-
-	/*
-	 * Check to see if there is any more pending or outstanding I/O for
-	 * this device.  If not, move it out of the active slot.
-	 */
-	if ((bioq_first(&changer->cur_device->bio_queue) == NULL)
-	 && (changer->cur_device->outstanding_cmds == 0)) {
-		changer->flags |= CHANGER_MANUAL_CALL;
-		cdrunchangerqueue(changer);
-	}
-}
-
-/*
- * This is a wrapper for xpt_schedule.  It only applies to changers.
- */
-static void
-cdschedule(struct cam_periph *periph, int priority)
-{
-	struct cd_softc *softc;
-
-	softc = (struct cd_softc *)periph->softc;
-
-	/*
-	 * If this device isn't currently queued, and if it isn't
-	 * the active device, then we queue this device and run the
-	 * changer queue if there is no timeout scheduled to do it.
-	 * If this device is the active device, just schedule it
-	 * to run again.  If this device is queued, there should be
-	 * a timeout in place already that will make sure it runs.
-	 */
-	if ((softc->pinfo.index == CAM_UNQUEUED_INDEX) 
-	 && ((softc->flags & CD_FLAG_ACTIVE) == 0)) {
-		/*
-		 * We don't do anything with the priority here.
-		 * This is strictly a fifo queue.
-		 */
-		softc->pinfo.priority = CAM_PRIORITY_NORMAL;
-		softc->pinfo.generation = ++softc->changer->devq.generation;
-		camq_insert(&softc->changer->devq, (cam_pinfo *)softc);
-
-		/*
-		 * Since we just put a device in the changer queue,
-		 * check and see if there is a timeout scheduled for
-		 * this changer.  If so, let the timeout handle
-		 * switching this device into the active slot.  If
-		 * not, manually call the timeout routine to
-		 * bootstrap things.
-		 */
-		if (((softc->changer->flags & CHANGER_TIMEOUT_SCHED)==0)
-		 && ((softc->changer->flags & CHANGER_NEED_TIMEOUT)==0)
-		 && ((softc->changer->flags & CHANGER_SHORT_TMOUT_SCHED)==0)){
-			softc->changer->flags |= CHANGER_MANUAL_CALL;
-			cdrunchangerqueue(softc->changer);
-		}
-	} else if ((softc->flags & CD_FLAG_ACTIVE)
-		&& ((softc->flags & CD_FLAG_SCHED_ON_COMP) == 0))
-		xpt_schedule(periph, priority);
-}
-
-static void
-cdrunchangerqueue(void *arg)
-{
-	struct cd_softc *softc;
-	struct cdchanger *changer;
-	int called_from_timeout;
-
-	changer = (struct cdchanger *)arg;
-
-	/*
-	 * If we have NOT been called from cdstrategy() or cddone(), and
-	 * instead from a timeout routine, go ahead and clear the
-	 * timeout flag.
-	 */
-	if ((changer->flags & CHANGER_MANUAL_CALL) == 0) {
-		changer->flags &= ~CHANGER_TIMEOUT_SCHED;
-		called_from_timeout = 1;
-	} else
-		called_from_timeout = 0;
-
-	/* Always clear the manual call flag */
-	changer->flags &= ~CHANGER_MANUAL_CALL;
-
-	/* nothing to do if the queue is empty */
-	if (changer->devq.entries <= 0) {
-		return;
-	}
-
-	/*
-	 * If the changer queue is frozen, that means we have an active
-	 * device.
-	 */
-	if (changer->devq.qfrozen_cnt > 0) {
-
-		/*
-		 * We always need to reset the frozen count and clear the
-		 * active flag.
-		 */
-		changer->devq.qfrozen_cnt--;
-		changer->cur_device->flags &= ~CD_FLAG_ACTIVE;
-		changer->cur_device->flags &= ~CD_FLAG_SCHED_ON_COMP;
-
-		if (changer->cur_device->outstanding_cmds > 0) {
-			changer->cur_device->flags |= CD_FLAG_SCHED_ON_COMP;
-			changer->cur_device->bufs_left = 
-				changer->cur_device->outstanding_cmds;
-			if (called_from_timeout) {
-				callout_reset(&changer->long_handle,
-			            changer_max_busy_seconds * hz,
-				    cdrunchangerqueue, changer);
-				changer->flags |= CHANGER_TIMEOUT_SCHED;
-			}
-			return;
-		}
-
-		/*
-		 * Check to see whether the current device has any I/O left
-		 * to do.  If so, requeue it at the end of the queue.  If
-		 * not, there is no need to requeue it.
-		 */
-		if (bioq_first(&changer->cur_device->bio_queue) != NULL) {
-
-			changer->cur_device->pinfo.generation =
-				++changer->devq.generation;
-			camq_insert(&changer->devq,
-				(cam_pinfo *)changer->cur_device);
-		} 
-	}
-
-	softc = (struct cd_softc *)camq_remove(&changer->devq, CAMQ_HEAD);
-
-	changer->cur_device = softc;
-
-	changer->devq.qfrozen_cnt++;
-	softc->flags |= CD_FLAG_ACTIVE;
-
-	/* Just in case this device is waiting */
-	wakeup(&softc->changer);
-	xpt_schedule(softc->periph, CAM_PRIORITY_NORMAL);
-
-	/*
-	 * Get rid of any pending timeouts, and set a flag to schedule new
-	 * ones so this device gets its full time quantum.
-	 */
-	if (changer->flags & CHANGER_TIMEOUT_SCHED) {
-		callout_stop(&changer->long_handle);
-		changer->flags &= ~CHANGER_TIMEOUT_SCHED;
-	}
-
-	if (changer->flags & CHANGER_SHORT_TMOUT_SCHED) {
-		callout_stop(&changer->short_handle);
-		changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
-	}
-
-	/*
-	 * We need to schedule timeouts, but we only do this after the
-	 * first transaction has completed.  This eliminates the changer
-	 * switch time.
-	 */
-	changer->flags |= CHANGER_NEED_TIMEOUT;
-}
-
-static void
-cdchangerschedule(struct cd_softc *softc)
-{
-	struct cdchanger *changer;
-
-	changer = softc->changer;
-
-	/*
-	 * If this is a changer, and this is the current device,
-	 * and this device has at least the minimum time quantum to
-	 * run, see if we can switch it out.
-	 */
-	if ((softc->flags & CD_FLAG_ACTIVE) 
-	 && ((changer->flags & CHANGER_SHORT_TMOUT_SCHED) == 0)
-	 && ((changer->flags & CHANGER_NEED_TIMEOUT) == 0)) {
-		/*
-		 * We try three things here.  The first is that we
-		 * check to see whether the schedule on completion
-		 * flag is set.  If it is, we decrement the number
-		 * of buffers left, and if it's zero, we reschedule.
-		 * Next, we check to see whether the pending buffer
-		 * queue is empty and whether there are no
-		 * outstanding transactions.  If so, we reschedule.
-		 * Next, we see if the pending buffer queue is empty.
-		 * If it is, we set the number of buffers left to
-		 * the current active buffer count and set the
-		 * schedule on complete flag.
-		 */
-		if (softc->flags & CD_FLAG_SCHED_ON_COMP) {
-		 	if (--softc->bufs_left == 0) {
-				softc->changer->flags |=
-					CHANGER_MANUAL_CALL;
-				softc->flags &= ~CD_FLAG_SCHED_ON_COMP;
-				cdrunchangerqueue(softc->changer);
-			}
-		} else if ((bioq_first(&softc->bio_queue) == NULL)
-		        && (softc->outstanding_cmds == 0)) {
-			softc->changer->flags |= CHANGER_MANUAL_CALL;
-			cdrunchangerqueue(softc->changer);
-		}
-	} else if ((softc->changer->flags & CHANGER_NEED_TIMEOUT) 
-		&& (softc->flags & CD_FLAG_ACTIVE)) {
-
-		/*
-		 * Now that the first transaction to this
-		 * particular device has completed, we can go ahead
-		 * and schedule our timeouts.
-		 */
-		if ((changer->flags & CHANGER_TIMEOUT_SCHED) == 0) {
-			callout_reset(&changer->long_handle,
-			    changer_max_busy_seconds * hz,
-			    cdrunchangerqueue, changer);
-			changer->flags |= CHANGER_TIMEOUT_SCHED;
-		} else
-			printf("cdchangerschedule: already have a long"
-			       " timeout!\n");
-
-		if ((changer->flags & CHANGER_SHORT_TMOUT_SCHED) == 0) {
-			callout_reset(&changer->short_handle,
-			    changer_min_busy_seconds * hz,
-			    cdshorttimeout, changer);
-			changer->flags |= CHANGER_SHORT_TMOUT_SCHED;
-		} else
-			printf("cdchangerschedule: already have a short "
-			       "timeout!\n");
-
-		/*
-		 * We just scheduled timeouts, no need to schedule
-		 * more.
-		 */
-		changer->flags &= ~CHANGER_NEED_TIMEOUT;
-
-	}
-}
-
 static int
 cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 					      u_int32_t cam_flags,
@@ -1414,49 +797,8 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	error = cam_periph_runccb(ccb, error_routine, cam_flags, sense_flags,
 				  softc->disk->d_devstat);
 
-	if (softc->flags & CD_FLAG_CHANGER)
-		cdchangerschedule(softc);
-
 	return(error);
 }
-
-static union ccb *
-cdgetccb(struct cam_periph *periph, u_int32_t priority)
-{
-	struct cd_softc *softc;
-
-	softc = (struct cd_softc *)periph->softc;
-
-	if (softc->flags & CD_FLAG_CHANGER) {
-		/*
-		 * This should work the first time this device is woken up,
-		 * but just in case it doesn't, we use a while loop.
-		 */
-		while ((softc->flags & CD_FLAG_ACTIVE) == 0) {
-			/*
-			 * If this changer isn't already queued, queue it up.
-			 */
-			if (softc->pinfo.index == CAM_UNQUEUED_INDEX) {
-				softc->pinfo.priority = CAM_PRIORITY_NORMAL;
-				softc->pinfo.generation =
-					++softc->changer->devq.generation;
-				camq_insert(&softc->changer->devq,
-					    (cam_pinfo *)softc);
-			}
-			if (((softc->changer->flags & CHANGER_TIMEOUT_SCHED)==0)
-			 && ((softc->changer->flags & CHANGER_NEED_TIMEOUT)==0)
-			 && ((softc->changer->flags
-			      & CHANGER_SHORT_TMOUT_SCHED)==0)) {
-				softc->changer->flags |= CHANGER_MANUAL_CALL;
-				cdrunchangerqueue(softc->changer);
-			} else
-				cam_periph_sleep(periph, &softc->changer,
-				    PRIBIO, "cgticb", 0);
-		}
-	}
-	return(cam_periph_getccb(periph, priority));
-}
-
 
 /*
  * Actually translate the requested transfer into one the physical driver
@@ -1505,14 +847,7 @@ cdstrategy(struct bio *bp)
 	 */
 	bioq_disksort(&softc->bio_queue, bp);
 
-	/*
-	 * Schedule ourselves for performing the work.  We do things
-	 * differently for changers.
-	 */
-	if ((softc->flags & CD_FLAG_CHANGER) == 0)
-		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
-	else
-		cdschedule(periph, CAM_PRIORITY_NORMAL);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 
 	cam_periph_unlock(periph);
 	return;
@@ -1699,9 +1034,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		softc->outstanding_cmds--;
 
-		if (softc->flags & CD_FLAG_CHANGER)
-			cdchangerschedule(softc);
-
 		biofinish(bp, NULL, 0);
 		break;
 	}
@@ -1864,8 +1196,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_announce_periph(periph, announce_buf);
 			xpt_announce_quirks(periph, softc->quirks,
 			    CD_Q_BIT_STRING);
-			if (softc->flags & CD_FLAG_CHANGER)
-				cdchangerschedule(softc);
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
@@ -2841,7 +2171,7 @@ cdprevent(struct cam_periph *periph, int action)
 		return;
 	}
 	    
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_prevent(&ccb->csio, 
 		     /*retries*/ cd_retry_count,
@@ -3021,7 +2351,7 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 
 	softc = (struct cd_softc *)periph->softc;
              
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	/* XXX Should be M_WAITOK */
 	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data), 
@@ -3266,9 +2596,6 @@ cdmediapoll(void *arg)
 	struct cam_periph *periph = arg;
 	struct cd_softc *softc = periph->softc;
 
-	if (softc->flags & CD_FLAG_CHANGER)
-		return;
-
 	if (softc->state == CD_STATE_NORMAL && !softc->tur &&
 	    softc->outstanding_cmds == 0) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
@@ -3297,7 +2624,7 @@ cdreadtoc(struct cam_periph *periph, u_int32_t mode, u_int32_t start,
 	ntoc = len;
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3344,7 +2671,7 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3396,7 +2723,7 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_params *data,
 
 	softc = (struct cd_softc *)periph->softc;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3495,7 +2822,7 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_params *data)
 
 	softc = (struct cd_softc *)periph->softc;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3587,7 +2914,7 @@ cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 	u_int8_t cdb_len;
 
 	error = 0;
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 	csio = &ccb->csio;
 	/*
 	 * Use the smallest possible command to perform the operation.
@@ -3644,7 +2971,7 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3690,7 +3017,7 @@ cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3732,7 +3059,7 @@ cdpause(struct cam_periph *periph, u_int32_t go)
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	csio = &ccb->csio;
 
@@ -3769,7 +3096,7 @@ cdstartunit(struct cam_periph *periph, int load)
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_start_stop(&ccb->csio,
 			/* retries */ cd_retry_count,
@@ -3797,7 +3124,7 @@ cdstopunit(struct cam_periph *periph, u_int32_t eject)
 
 	error = 0;
 
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_start_stop(&ccb->csio,
 			/* retries */ cd_retry_count,
@@ -3826,7 +3153,7 @@ cdsetspeed(struct cam_periph *periph, u_int32_t rdspeed, u_int32_t wrspeed)
 	int error;
 
 	error = 0;
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 	csio = &ccb->csio;
 
 	/* Preserve old behavior: units in multiples of CDROM speed */
@@ -3908,7 +3235,7 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		databuf = NULL;
 
 	cam_periph_lock(periph);
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_report_key(&ccb->csio,
 			/* retries */ cd_retry_count,
@@ -4086,7 +3413,7 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	}
 
 	cam_periph_lock(periph);
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_send_key(&ccb->csio,
 		      /* retries */ cd_retry_count,
@@ -4190,7 +3517,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 		databuf = NULL;
 
 	cam_periph_lock(periph);
-	ccb = cdgetccb(periph, CAM_PRIORITY_NORMAL);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_read_dvd_structure(&ccb->csio,
 				/* retries */ cd_retry_count,
