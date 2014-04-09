@@ -543,12 +543,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	for (i = 0; i < hdr->prdtl && len; i++) {
 		uint8_t *ptr;
 		uint32_t dbcsz;
+		int sublen;
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		memcpy(ptr, from, dbcsz);
-		len -= dbcsz;
-		from += dbcsz;
+		sublen = len < dbcsz ? len : dbcsz;
+		memcpy(ptr, from, sublen);
+		len -= sublen;
+		from += sublen;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
