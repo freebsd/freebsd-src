@@ -351,4 +351,6 @@ SUBDIR+=	wtmpcvt
 
 SUBDIR:=	${SUBDIR:O}
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

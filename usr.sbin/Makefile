@@ -335,4 +335,6 @@ SUBDIR+=	wpa
 
 SUBDIR:=	${SUBDIR:O}
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

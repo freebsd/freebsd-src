@@ -101,4 +101,6 @@ SUBDIR+=libllvmdebuginfo \
 
 SUBDIR+= include
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
