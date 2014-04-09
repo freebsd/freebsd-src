@@ -23,4 +23,6 @@ SUBDIR+=bugpoint \
 	opt
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
