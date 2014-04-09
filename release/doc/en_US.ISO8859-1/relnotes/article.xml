@@ -126,6 +126,21 @@
 	      <entry><para>Remote denial of service
 		  vulnerability</para></entry>
 	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:05.nfsserver.asc">FreeBSD-SA-14:05.nfsserver</link></entry>
+	      <entry>8&nbsp;April&nbsp;2014</entry>
+	      <entry><para>Deadlock in the NFS server</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:06.openssl.asc">FreeBSD-SA-14:06.openssl</link></entry>
+	      <entry>8&nbsp;April&nbsp;2014</entry>
+	      <entry><para>OpenSSL multiple
+		  vulnerabilities</para></entry>
+	    </row>
 	  </tbody>
 	</tgroup>
       </informaltable>
