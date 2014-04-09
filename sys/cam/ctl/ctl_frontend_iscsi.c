@@ -1455,6 +1455,7 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 		mtx_unlock(&cfiscsi_softc.lock);
 		snprintf(ci->error_str, sizeof(ci->error_str), "connection not found");
 		ci->status = CTL_ISCSI_ERROR;
+		cfiscsi_target_release(ct);
 		return;
 	}
 	mtx_unlock(&cfiscsi_softc.lock);
@@ -2093,15 +2094,9 @@ cfiscsi_target_hold(struct cfiscsi_target *ct)
 static void
 cfiscsi_target_release(struct cfiscsi_target *ct)
 {
-	int old;
 	struct cfiscsi_softc *softc;
 
 	softc = ct->ct_softc;
-
-	old = ct->ct_refcount;
-	if (old > 1 && atomic_cmpset_int(&ct->ct_refcount, old, old - 1))
-		return;
-
 	mtx_lock(&softc->lock);
 	if (refcount_release(&ct->ct_refcount)) {
 		TAILQ_REMOVE(&softc->targets, ct, ct_next);
@@ -2278,6 +2273,7 @@ cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 
 	tmp = strtoul(lun, NULL, 10);
 	cfiscsi_target_set_lun(ct, tmp, lun_id);
+	cfiscsi_target_release(ct);
 	return (0);
 }
 
@@ -2297,8 +2293,9 @@ cfiscsi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 				continue;
 			if (ct->ct_luns[i] != lun_id)
 				continue;
+			mtx_unlock(&softc->lock);
 			cfiscsi_target_unset_lun(ct, i);
-			break;
+			return (0);
 		}
 	}
 	mtx_unlock(&softc->lock);
