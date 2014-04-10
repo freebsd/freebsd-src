@@ -205,8 +205,6 @@ static	periph_oninv_t	cdoninvalidate;
 static	void		cdasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
 static	int		cdcmdsizesysctl(SYSCTL_HANDLER_ARGS);
-static	void		cdshorttimeout(void *arg);
-static	void		cdschedule(struct cam_periph *periph, int priority);
 static	int		cdrunccb(union ccb *ccb,
 				 int (*error_routine)(union ccb *ccb,
 						      u_int32_t cam_flags,
