@@ -3,6 +3,10 @@
 NO_MAN=
 
 .include <bsd.own.mk>
+
+# In-tree GCC does not support __attribute__((ms_abi)).
+.if ${COMPILER_TYPE} != "gcc"
+
 MK_SSP=		no
 
 PROG=		loader.sym
@@ -84,6 +88,8 @@ CFLAGS+=	-I${.CURDIR}/../../common
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
+
+.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 
