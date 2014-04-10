@@ -2755,6 +2755,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	}
 
 	pirval = 0;
+	pirbase = -1;
 	lapic = vlapic->apic_page;
 
 	val = atomic_readandclear_long(&pir_desc->pir[0]);
@@ -2788,16 +2789,29 @@ vmx_inject_pir(struct vlapic *vlapic)
 		pirbase = 192;
 		pirval = val;
 	}
-	if (pirbase == -1) {
-		VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
-		    "no posted interrupt found");
-		return;
-	}
+
 	VLAPIC_CTR_IRR(vlapic, "vmx_inject_pir");
 
 	/*
 	 * Update RVI so the processor can evaluate pending virtual
 	 * interrupts on VM-entry.
+	 *
+	 * It is possible for pirval to be 0 here, even though the
+	 * pending bit has been set. The scenario is:
+	 * CPU-Y is sending a posted interrupt to CPU-X, which
+	 * is running a guest and processing posted interrupts in h/w.
+	 * CPU-X will eventually exit and the state seen in s/w is
+	 * the pending bit set, but no PIR bits set.
+	 *
+	 *      CPU-X                      CPU-Y
+	 *   (vm running)                (host running)
+	 *   rx posted interrupt
+	 *   CLEAR pending bit
+	 *				 SET PIR bit
+	 *   READ/CLEAR PIR bits
+	 *				 SET pending bit
+	 *   (vm exit)
+	 *   pending bit set, PIR 0
 	 */
 	if (pirval != 0) {
 		rvi = pirbase + flsl(pirval) - 1;
