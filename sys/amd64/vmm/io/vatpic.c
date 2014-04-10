@@ -473,9 +473,10 @@ vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 {
 	struct vatpic *vatpic;
 	struct atpic *atpic;
-	int error = 0;;
+	int error;
 	uint8_t val;
 
+	error = 0;
 	vatpic = vm_atpic(vm);
 	atpic = &vatpic->atpic[0];
 
