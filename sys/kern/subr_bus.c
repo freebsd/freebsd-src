@@ -367,6 +367,7 @@ static d_close_t	devclose;
 static d_read_t		devread;
 static d_ioctl_t	devioctl;
 static d_poll_t		devpoll;
+static d_kqfilter_t	devkqfilter;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
@@ -375,6 +376,7 @@ static struct cdevsw dev_cdevsw = {
 	.d_read =	devread,
 	.d_ioctl =	devioctl,
 	.d_poll =	devpoll,
+	.d_kqfilter =	devkqfilter,
 	.d_name =	"devctl",
 };
 
@@ -399,6 +401,15 @@ static struct dev_softc
 	struct sigio *sigio;
 } devsoftc;
 
+static void	filt_devctl_detach(struct knote *kn);
+static int	filt_devctl_read(struct knote *kn, long hint);
+
+struct filterops devctl_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_devctl_detach,
+	.f_event = filt_devctl_read,
+};
+
 static struct cdev *devctl_dev;
 
 static void
@@ -409,6 +420,7 @@ devinit(void)
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
 	TAILQ_INIT(&devsoftc.devq);
+	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 }
 
 static int
@@ -529,6 +541,34 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
+static int
+devkqfilter(struct cdev *dev, struct knote *kn)
+{
+	int error;
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = &devctl_rfiltops;
+		knlist_add(&devsoftc.sel.si_note, kn, 0);
+		error = 0;
+	} else
+		error = EINVAL;
+	return (error);
+}
+
+static void
+filt_devctl_detach(struct knote *kn)
+{
+
+	knlist_remove(&devsoftc.sel.si_note, kn, 0);
+}
+
+static int
+filt_devctl_read(struct knote *kn, long hint)
+{
+	kn->kn_data = devsoftc.queued;
+	return (kn->kn_data != 0);
+}
+
 /**
  * @brief Return whether the userland process is running
  */
@@ -576,6 +616,7 @@ devctl_queue_data_f(char *data, int flags)
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
+	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
 	if (devsoftc.async && devsoftc.sigio != NULL)
