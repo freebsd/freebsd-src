@@ -988,13 +988,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
-	/* Prevent puc(4) from attaching, directly use uart(4) instead. */
-	{   0x1fd4, 0x1999, 0x1fd4, 0x0001,
-	    "Sunix SER5xxxx 1-port serial",
-	    DEFAULT_RCLK * 8,
-	    PUC_PORT_1S, 0x10, 0, 8,
-	},
-
 	{   0x1fd4, 0x1999, 0x1fd4, 0x0002,
 	    "Sunix SER5xxxx 2-port serial",
 	    DEFAULT_RCLK * 8,
