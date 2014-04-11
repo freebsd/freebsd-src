@@ -411,9 +411,9 @@ check_addrs(const struct sockaddr_in6 *src, const struct sockaddr_in6 *dst,
 	struct in6_ifaddr *ia;
 
 	/*
-	 * Check that source address is available on the interface.
+	 * Check that source address is available.
 	 */
-	ia = in6ifa_ifpwithaddr(ifp, &src->sin6_addr);
+	ia = in6ifa_ifwithaddr(&src->sin6_addr, src->sin6_scope_id);
 	if (ia == NULL || (
 	    ia->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
 		if (ia != NULL)
