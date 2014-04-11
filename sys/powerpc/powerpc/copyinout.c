@@ -503,7 +503,7 @@ casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
 		"3:\n\t"
 		: "=&r" (val), "=m" (*p)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
-		: "cc", "memory");
+		: "cr0", "memory");
 
 	td->td_pcb->pcb_onfault = NULL;
 
@@ -551,7 +551,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 		"3:\n\t"
 		: "=&r" (val), "=m" (*p)
 		: "r" (p), "r" (old), "r" (new), "m" (*p)
-		: "cc", "memory");
+		: "cr0", "memory");
 
 	td->td_pcb->pcb_onfault = NULL;
 
