@@ -2635,10 +2635,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-gdwarf-4");
     else if (!A->getOption().matches(options::OPT_g0) &&
              !A->getOption().matches(options::OPT_ggdb0)) {
-      // Default is dwarf-2 for darwin and FreeBSD <= 10.
+      // Default is dwarf-2 for darwin and FreeBSD.
       const llvm::Triple &Triple = getToolChain().getTriple();
-      if (Triple.isOSDarwin() || (Triple.getOS() == llvm::Triple::FreeBSD &&
-          Triple.getOSMajorVersion() <= 10))
+      if (Triple.isOSDarwin() || Triple.getOS() == llvm::Triple::FreeBSD)
         CmdArgs.push_back("-gdwarf-2");
       else
         CmdArgs.push_back("-g");
