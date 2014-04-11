@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.112 2013/04/29 00:28:23 okan Exp $ */
+/* $OpenBSD: netcat.c,v 1.117 2013/10/26 21:33:29 sthen Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 
 #include <netinet/in.h>
@@ -74,6 +75,7 @@
 
 /* Command Line Options */
 int	dflag;					/* detached, no stdin */
+int	Fflag;					/* fdpass sock to stdout */
 unsigned int iflag;				/* Interval Flag */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
@@ -94,7 +96,7 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
-u_int	rtableid;
+int	rtableid = -1;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -106,6 +108,7 @@ void	build_ports(char *);
 void	help(void);
 int	local_listen(char *, char *, struct addrinfo);
 void	readwrite(int);
+void	fdpass(int nfd) __attribute__((noreturn));
 int	remote_connect(const char *, const char *, struct addrinfo);
 int	timeout_connect(int, const struct sockaddr *, socklen_t);
 int	socks_connect(const char *, const char *, struct addrinfo,
@@ -152,9 +155,12 @@ main(int argc, char *argv[])
 	host = NULL;
 	uport = NULL;
 	sv = NULL;
+#if 0
+	rtableid = getrtable();
+#endif
 
 	while ((ch = getopt_long(argc, argv,
-	    "46DdEe:hI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
+	    "46DdEe:FhI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -193,6 +199,9 @@ main(int argc, char *argv[])
 #else
 			errx(1, "IPsec support unavailable.");
 #endif
+			break;
+		case 'F':
+			Fflag = 1;
 			break;
 		case 'h':
 			help();
@@ -238,7 +247,7 @@ main(int argc, char *argv[])
 		case 'V':
 			if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 				errx(1, "Multiple FIBS not supported");
-			rtableid = (unsigned int)strtonum(optarg, 0,
+			rtableid = (int)strtonum(optarg, 0,
 			    numfibs - 1, &errstr);
 			if (errstr)
 				errx(1, "rtable %s: %s", errstr, optarg);
@@ -508,7 +517,9 @@ main(int argc, char *argv[])
 				    uflag ? "udp" : "tcp",
 				    sv ? sv->s_name : "*");
 			}
-			if (!zflag)
+			if (Fflag)
+				fdpass(s);
+			else if (!zflag)
 				readwrite(s);
 		}
 	}
@@ -631,12 +642,9 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
 
-		if (rtableid) {
-			if (setsockopt(s, SOL_SOCKET, SO_SETFIB, &rtableid,
-			    sizeof(rtableid)) == -1)
-				err(1, "setsockopt(.., SO_SETFIB, %u, ..)",
-				    rtableid);
-		}
+		if (rtableid >= 0 && (setsockopt(s, SOL_SOCKET, SO_SETFIB,
+		    &rtableid, sizeof(rtableid)) == -1))
+			err(1, "setsockopt SO_SETFIB");
 
 		/* Bind to a local port or source address if specified. */
 		if (sflag || pflag) {
@@ -743,13 +751,9 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rtableid) {
-			ret = setsockopt(s, SOL_SOCKET, SO_SETFIB, &rtableid,
-			    sizeof(rtableid));
-			if (ret == -1)
-				err(1, "setsockopt(.., SO_SETFIB, %u, ..)",
-				    rtableid);
-		}
+		if (rtableid >= 0 && (setsockopt(s, IPPROTO_IP, SO_SETFIB,
+		    &rtableid, sizeof(rtableid)) == -1))
+			err(1, "setsockopt SO_SETFIB");
 
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
@@ -848,6 +852,66 @@ readwrite(int nfd)
 			}
 		}
 	}
+}
+
+/*
+ * fdpass()
+ * Pass the connected file descriptor to stdout and exit.
+ */
+void
+fdpass(int nfd)
+{
+	struct msghdr mh;
+	union {
+		struct cmsghdr hdr;
+		char buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
+	struct cmsghdr *cmsg;
+	struct iovec iov;
+	char c = '\0';
+	ssize_t r;
+	struct pollfd pfd;
+
+	/* Avoid obvious stupidity */
+	if (isatty(STDOUT_FILENO))
+		errx(1, "Cannot pass file descriptor to tty");
+
+	bzero(&mh, sizeof(mh));
+	bzero(&cmsgbuf, sizeof(cmsgbuf));
+	bzero(&iov, sizeof(iov));
+	bzero(&pfd, sizeof(pfd));
+
+	mh.msg_control = (caddr_t)&cmsgbuf.buf;
+	mh.msg_controllen = sizeof(cmsgbuf.buf);
+	cmsg = CMSG_FIRSTHDR(&mh);
+	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	*(int *)CMSG_DATA(cmsg) = nfd;
+
+	iov.iov_base = &c;
+	iov.iov_len = 1;
+	mh.msg_iov = &iov;
+	mh.msg_iovlen = 1;
+
+	bzero(&pfd, sizeof(pfd));
+	pfd.fd = STDOUT_FILENO;
+	for (;;) {
+		r = sendmsg(STDOUT_FILENO, &mh, 0);
+		if (r == -1) {
+			if (errno == EAGAIN || errno == EINTR) {
+				pfd.events = POLLOUT;
+				if (poll(&pfd, 1, -1) == -1)
+					err(1, "poll");
+				continue;
+			}
+			err(1, "sendmsg");
+		} else if (r == -1)
+			errx(1, "sendmsg: unexpected return value %zd", r);
+		else
+			break;
+	}
+	exit(0);
 }
 
 /* Deal with RFC 854 WILL/WONT DO/DONT negotiation. */
@@ -1088,6 +1152,7 @@ help(void)
 	\t-e policy	Use specified IPsec policy\n");
 #endif
 	fprintf(stderr, "\
+	\t-F		Pass socket fd\n\
 	\t-h		This help text\n\
 	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
@@ -1146,9 +1211,9 @@ usage(int ret)
 {
 	fprintf(stderr,
 #ifdef IPSEC
-	    "usage: nc [-46DdEhklNnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdEFhklNnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	    "usage: nc [-46DdhklNnrStUuvz] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdFhklNnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
