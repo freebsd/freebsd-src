@@ -133,23 +133,18 @@ tw_pcbref(struct tcptw *tw)
 }
 
 /*
- * Drop a refcount on an tw elevated using tw_pcbref().  Return
- * the tw lock released.
+ * Drop a refcount on an tw elevated using tw_pcbref().
  */
 static int
 tw_pcbrele(struct tcptw *tw)
 {
 
-	TW_WLOCK_ASSERT(V_tw_lock);
 	KASSERT(tw->tw_refcount > 0, ("%s: refcount 0", __func__));
 
-	if (!refcount_release(&tw->tw_refcount)) {
-		TW_WUNLOCK(V_tw_lock);
+	if (!refcount_release(&tw->tw_refcount))
 		return (0);
-	}
 
 	uma_zfree(V_tcptw_zone, tw);
-	TW_WUNLOCK(V_tw_lock);
 	return (1);
 }
 
@@ -682,13 +677,10 @@ tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 	TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
-
-	if (!reuse) {
-		tw_pcbrele(tw);
-		return;
-	}
-
 	TW_WUNLOCK(V_tw_lock);
+
+	if (!reuse)
+		tw_pcbrele(tw);
 }
 
 struct tcptw *
@@ -730,7 +722,6 @@ tcp_tw_2msl_scan(void)
 
 		/* Close timewait state */
 		if (INP_INFO_TRY_WLOCK(&V_tcbinfo)) {
-			TW_WLOCK(V_tw_lock);
 			if (tw_pcbrele(tw)) {
 				INP_INFO_WUNLOCK(&V_tcbinfo);
 				continue;
@@ -744,7 +735,6 @@ tcp_tw_2msl_scan(void)
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 		} else {
 			/* INP_INFO lock is busy, continue later */
-			TW_WLOCK(V_tw_lock);
 			tw_pcbrele(tw);
 			break;
 		}
