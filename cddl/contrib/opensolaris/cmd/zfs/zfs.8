@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2014
+.Dd March 20, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -1335,10 +1335,21 @@ features being supported, the new file system will have the default values for
 these properties.
 .Bl -tag -width 4n
 .It Sy casesensitivity Ns = Ns Cm sensitive | insensitive | mixed
-The
+Indicates whether the file name matching algorithm used by the file system
+should be case-sensitive, case-insensitive, or allow a combination of both
+styles of matching. The default value for the
 .Sy casesensitivity
-property is currently not supported on
-.Fx .
+property is
+.Cm sensitive .
+Traditionally, UNIX and POSIX file systems have case-sensitive file names.
+.Pp
+The
+.Cm mixed
+value for the
+.Sy casesensitivity
+property indicates that the
+file system can support requests for both case-sensitive and case-insensitive
+matching behavior.
 .It Sy normalization Ns = Ns Cm none | formC | formD | formKC | formKD
 Indicates whether the file system should perform a
 .Sy unicode
