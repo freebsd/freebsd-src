@@ -45,6 +45,7 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -67,7 +68,7 @@ static int coalesce = 1;
 TUNABLE_INT("kern.icl.coalesce", &coalesce);
 SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
     &coalesce, 1, "Try to coalesce PDUs before sending");
-static int partial_receive_len = 1 * 1024; /* XXX: More? */
+static int partial_receive_len = 128 * 1024;
 TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
 SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
     &partial_receive_len, 1 * 1024, "Minimum read size for partially received "
@@ -750,12 +751,19 @@ icl_receive_thread(void *arg)
 			break;
 		}
 
+		/*
+		 * Set the low watermark, to be checked by
+		 * soreadable() in icl_soupcall_receive()
+		 * to avoid unneccessary wakeups until there
+		 * is enough data received to read the PDU.
+		 */
 		SOCKBUF_LOCK(&so->so_rcv);
 		available = so->so_rcv.sb_cc;
 		if (available < ic->ic_receive_len) {
 			so->so_rcv.sb_lowat = ic->ic_receive_len;
 			cv_wait(&ic->ic_receive_cv, &so->so_rcv.sb_mtx);
-		}
+		} else
+			so->so_rcv.sb_lowat = so->so_rcv.sb_hiwat + 1;
 		SOCKBUF_UNLOCK(&so->so_rcv);
 
 		icl_conn_receive_pdus(ic, available);
@@ -771,6 +779,9 @@ static int
 icl_soupcall_receive(struct socket *so, void *arg, int waitflag)
 {
 	struct icl_conn *ic;
+
+	if (!soreadable(so))
+		return (SU_OK);
 
 	ic = arg;
 	cv_signal(&ic->ic_receive_cv);
@@ -854,10 +865,10 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 	available = sbspace(&so->so_snd);
 
 	/*
-	 * Notify the socket layer that it doesn't need to call
-	 * send socket upcall for the time being.
+	 * Notify the socket upcall that we don't need wakeups
+	 * for the time being.
 	 */
-	so->so_snd.sb_lowat = so->so_snd.sb_hiwat;
+	so->so_snd.sb_lowat = so->so_snd.sb_hiwat + 1;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	while (!STAILQ_EMPTY(queue)) {
@@ -873,7 +884,8 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 #endif
 
 			/*
-			 * Set the low watermark on the socket,
+			 * Set the low watermark, to be checked by
+			 * sowritable() in icl_soupcall_send()
 			 * to avoid unneccessary wakeups until there
 			 * is enough space for the PDU to fit.
 			 */
@@ -1015,6 +1027,9 @@ static int
 icl_soupcall_send(struct socket *so, void *arg, int waitflag)
 {
 	struct icl_conn *ic;
+
+	if (!sowriteable(so))
+		return (SU_OK);
 
 	ic = arg;
 
