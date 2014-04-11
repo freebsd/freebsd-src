@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.65 2013/08/20 21:05:20 jmc Exp $
+.\"     $OpenBSD: nc.1,v 1.67 2014/02/26 20:56:11 claudio Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: August 20 2013 $
+.Dd $Mdocdate: February 10 2014 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -227,7 +227,6 @@ unless the
 flag is given.
 .It Fl V Ar rtable
 Set the routing table to be used.
-The default is 0.
 .It Fl v
 Have
 .Nm
@@ -356,7 +355,7 @@ Using a second machine, connect to the listening
 .Nm
 process, feeding it the file which is to be transferred:
 .Pp
-.Dl $ nc host.example.com 1234 \*(Lt filename.in
+.Dl $ nc -N host.example.com 1234 \*(Lt filename.in
 .Pp
 After the file has been transferred, the connection will close automatically.
 .Sh TALKING TO SERVERS
