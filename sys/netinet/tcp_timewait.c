@@ -731,8 +731,10 @@ tcp_tw_2msl_scan(void)
 		/* Close timewait state */
 		if (INP_INFO_TRY_WLOCK(&V_tcbinfo)) {
 			TW_WLOCK(V_tw_lock);
-			if (tw_pcbrele(tw))
+			if (tw_pcbrele(tw)) {
+				INP_INFO_WUNLOCK(&V_tcbinfo);
 				continue;
+			}
 
 			KASSERT(tw->tw_inpcb != NULL,
 			    ("%s: tw->tw_inpcb == NULL", __func__));
