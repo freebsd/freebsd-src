@@ -3352,6 +3352,10 @@ zfs_ioc_clone(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		if (error != 0)
 			(void) dsl_destroy_head(fsname);
 	}
+#ifdef __FreeBSD__
+	if (error == 0)
+		zvol_create_minors(fsname);
+#endif
 	return (error);
 }
 
