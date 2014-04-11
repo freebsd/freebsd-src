@@ -278,12 +278,6 @@ static devclass_t bcm_systimer_devclass;
 DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
 
 void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
-
-void
 DELAY(int usec)
 {
 	int32_t counts;

@@ -1,7 +1,7 @@
-# $Id: modules,v 1.13 2006/12/24 00:53:21 tom Exp $
+# $Id: modules,v 1.17 2010/01/23 17:47:23 tom Exp $
 # Program modules (some are in ncurses lib!)
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -34,10 +34,12 @@
 @ base
 clear		progs		$(srcdir)	$(HEADER_DEPS)
 tic		progs		$(srcdir)	$(HEADER_DEPS) transform.h $(srcdir)/dump_entry.h
-toe		progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/dump_entry.h
+toe		progs		$(srcdir)	$(HEADER_DEPS)             $(INCDIR)/hashed_db.h
 dump_entry	progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/dump_entry.h ../include/parametrized.h $(INCDIR)/capdefaults.c termsort.c
 infocmp		progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/dump_entry.h
-tput		progs		$(srcdir)	$(HEADER_DEPS) transform.h termsort.c
+tabs		progs		$(srcdir)	$(HEADER_DEPS)
+tput		progs		$(srcdir)	$(HEADER_DEPS) transform.h $(srcdir)/dump_entry.h termsort.c
 tset		progs		$(srcdir)	$(HEADER_DEPS) transform.h $(srcdir)/dump_entry.h ../include/termcap.h
+transform	progs		$(srcdir)	$(HEADER_DEPS) transform.h
 
 # vile:makemode

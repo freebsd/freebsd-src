@@ -843,11 +843,30 @@ BUILD_TC(use, "macros_h_test.c",
          "do not cause syntax errors when used",
          "Build of macros_h_test.c failed; some macros in atf-c/macros.h "
          "are broken");
-BUILD_TC_FAIL(detect_unused_tests, "unused_test.c",
-         "Tests that defining an unused test case raises a warning (and thus "
-         "an error)",
-         "Build of unused_test.c passed; unused test cases are not properly "
-         "detected");
+
+ATF_TC(detect_unused_tests);
+ATF_TC_HEAD(detect_unused_tests, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests that defining an unused test case raises a "
+                      "warning (and thus an error)");
+}
+ATF_TC_BODY(detect_unused_tests, tc)
+{
+    const char* validate_compiler =
+        "struct test_struct { int dummy; };\n"
+        "#define define_unused static struct test_struct unused\n"
+        "define_unused;\n";
+
+    atf_utils_create_file("compiler_test.c", "%s", validate_compiler);
+    if (build_check_c_o("compiler_test.c"))
+        atf_tc_expect_fail("Compiler does not raise a warning on an unused "
+                           "static global variable declared by a macro");
+
+    if (build_check_c_o_srcdir(tc, "unused_test.c"))
+        atf_tc_fail("Build of unused_test.c passed; unused test cases are "
+                    "not properly detected");
+}
 
 /* ---------------------------------------------------------------------
  * Main.

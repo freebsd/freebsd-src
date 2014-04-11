@@ -31,6 +31,56 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140405:
+	The uart(4) driver has been changed with respect to its handling
+	of the low-level console. Previously the uart(4) driver prevented
+	any process from changing the baudrate or the CLOCAL and HUPCL
+	control flags. By removing the restrictions, operators can make
+	changes to the serial console port without having to reboot.
+	However, when getty(8) is started on the serial device that is
+	associated with the low-level console, a misconfigured terminal
+	line in /etc/ttys will now have a real impact.
+	Before upgrading the kernel, make sure that /etc/ttys has the
+	serial console device configured as 3wire without baudrate to
+	preserve the previous behaviour. E.g:
+	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
+
+20140306:
+	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
+	to improve performance.  To re-enable it, if needed, run rpcbind
+	with command line option -W.
+
+20140226:
+	Switched back to the GPL dtc compiler due to updates in the upstream
+	dts files not being supported by the BSDL dtc compiler. You will need
+	to rebuild your kernel toolchain to pick up the new compiler. Core dumps
+	may result while building dtb files during a kernel build if you fail
+	to do so. Set WITHOUT_GPL_DTC if you require the BSDL compiler.
+
+20140216:
+	Clang and llvm have been upgraded to 3.4 release.
+
+20140216:
+	The nve(4) driver has been removed.  Please use the nfe(4) driver
+	for NVIDIA nForce MCP Ethernet adapters instead.
+
+20140212:
+	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
+	This could cause certain C++ applications using shared libraries built
+	against the previous version of libc++ to crash.  The incompatibility
+	has now been fixed, but any C++ applications or shared libraries built
+	between r261283 and r261801 should be recompiled.
+
+20140204:
+	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
+	capability mode support.  Please note that enabling the feature in
+	kernel is still highly recommended.
+
+20140131:
+	OpenSSH is now built with sandbox support, and will use sandbox as
+	the default privilege separation method.  This requires Capsicum
+	capability mode support in kernel.
+
 20140128:
 	The libelf and libdwarf libraries have been updated to newer
 	versions from upstream. Shared library version numbers for
@@ -1939,9 +1989,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 
@@ -1976,9 +2026,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 

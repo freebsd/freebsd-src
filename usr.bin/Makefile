@@ -106,6 +106,7 @@ SUBDIR=	alias \
 	mkdep \
 	${_mkesdb} \
 	mkfifo \
+	mkimg \
 	mklocale \
 	mktemp \
 	mkulzma \
@@ -378,5 +379,7 @@ SUBDIR+=	svn
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

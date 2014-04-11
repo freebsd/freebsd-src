@@ -1350,6 +1350,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASK_INITIALIZER.9 \
+	taskqueue.9 taskqueue_block.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \
@@ -1357,13 +1358,15 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASKQUEUE_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_drain.9 \
+	taskqueue.9 taskqueue_drain_all.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
 	taskqueue.9 taskqueue_enqueue_fast.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_member.9 \
-	taskqueue.9 taskqueue_run.9
+	taskqueue.9 taskqueue_run.9 \
+	taskqueue.9 taskqueue_unblock.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9

@@ -64,8 +64,7 @@ struct cbb_softc {
 	bus_space_handle_t bsh;
 	uint32_t	domain;
 	unsigned int	pribus;
-	unsigned int	secbus;
-	unsigned int	subbus;
+	struct pcib_secbus bus;
 	struct mtx	mtx;
 	int		cardok;
 	u_int32_t	flags;

@@ -56,21 +56,42 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/vybrid/vf_iomuxc.h>
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	IBE		(1 << 0) /* Input Buffer Enable Field */
-#define	OBE		(1 << 1) /* Output Buffer Enable Field. */
-#define	PUE		(1 << 2) /* Pull / Keep Select Field. */
-#define	PKE		(1 << 3) /* Pull / Keep Enable Field. */
-#define	PUS_MASK	(3 << 4) /* Pull Up / Down Config Field. */
-#define	DSE_MASK	(7 << 6) /* Drive Strength Field. */
-#define	HYS		(1 << 9) /* Hysteresis Enable Field */
-
 #define	MUX_MODE_MASK		7
 #define	MUX_MODE_SHIFT		20
 #define	MUX_MODE_GPIO		0
 #define	MUX_MODE_VBUS_EN_OTG	2
 
-#define	PUS_22_KOHM_PULL_UP	(3 << 4)
-#define	DSE_25_OHM		(6 << 6)
+#define	IBE		(1 << 0)	/* Input Buffer Enable Field */
+#define	OBE		(1 << 1)	/* Output Buffer Enable Field. */
+#define	PUE		(1 << 2)	/* Pull / Keep Select Field. */
+#define	PKE		(1 << 3)	/* Pull / Keep Enable Field. */
+#define	HYS		(1 << 9)	/* Hysteresis Enable Field */
+#define	ODE		(1 << 10)	/* Open Drain Enable Field. */
+#define	SRE		(1 << 11)	/* Slew Rate Field. */
+
+#define	SPEED_SHIFT		12
+#define	SPEED_MASK		0x3
+#define	SPEED_LOW		0	/* 50 MHz */
+#define	SPEED_MEDIUM		0x1	/* 100 MHz */
+#define	SPEED_HIGH		0x3	/* 200 MHz */
+
+#define	PUS_SHIFT		4	/* Pull Up / Down Config Field Shift */
+#define	PUS_MASK		0x3
+#define	PUS_100_KOHM_PULL_DOWN	0
+#define	PUS_47_KOHM_PULL_UP	0x1
+#define	PUS_100_KOHM_PULL_UP	0x2
+#define	PUS_22_KOHM_PULL_UP	0x3
+
+#define	DSE_SHIFT		6	/* Drive Strength Field Shift */
+#define	DSE_MASK		0x7
+#define	DSE_DISABLED		0	/* Output driver disabled */
+#define	DSE_150_OHM		0x1
+#define	DSE_75_OHM		0x2
+#define	DSE_50_OHM		0x3
+#define	DSE_37_OHM		0x4
+#define	DSE_30_OHM		0x5
+#define	DSE_25_OHM		0x6
+#define	DSE_20_OHM		0x7
 
 #define	MAX_MUX_LEN		1024
 
@@ -101,19 +122,6 @@ iomuxc_probe(device_t dev)
 }
 
 static int
-configure_pad(struct iomuxc_softc *sc, int pad, int mux_mode)
-{
-	int reg;
-
-	reg = READ4(sc, pad);
-	reg &= ~(MUX_MODE_MASK << MUX_MODE_SHIFT);
-	reg |= (mux_mode << MUX_MODE_SHIFT);
-	WRITE4(sc, pad, reg);
-
-	return (0);
-}
-
-static int
 pinmux_set(struct iomuxc_softc *sc)
 {
 	phandle_t child, parent, root;
@@ -121,7 +129,7 @@ pinmux_set(struct iomuxc_softc *sc)
 	int len;
 	int values;
 	int pin;
-	int mux_mode;
+	int pin_cfg;
 	int i;
 
 	root = OF_finddevice("/");
@@ -146,12 +154,12 @@ pinmux_set(struct iomuxc_softc *sc)
 			values = len / (sizeof(uint32_t));
 			for (i = 0; i < values; i += 2) {
 				pin = fdt32_to_cpu(iomux_config[i]);
-				mux_mode = fdt32_to_cpu(iomux_config[i+1]);
+				pin_cfg = fdt32_to_cpu(iomux_config[i+1]);
 #if 0
-				device_printf(sc->dev, "Set pin %d to ALT%d\n",
-				    pin, mux_mode);
+				device_printf(sc->dev, "Set pin %d to 0x%08x\n",
+				    pin, pin_cfg);
 #endif
-				configure_pad(sc, IOMUXC(pin), mux_mode);
+				WRITE4(sc, IOMUXC(pin), pin_cfg);
 			}
 		}
 
@@ -169,7 +177,6 @@ static int
 iomuxc_attach(device_t dev)
 {
 	struct iomuxc_softc *sc;
-	int reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -182,11 +189,6 @@ iomuxc_attach(device_t dev)
 	/* Memory interface */
 	sc->bst = rman_get_bustag(sc->tmr_res[0]);
 	sc->bsh = rman_get_bushandle(sc->tmr_res[0]);
-
-	/* USB */
-	configure_pad(sc, IOMUXC_PTA17, MUX_MODE_VBUS_EN_OTG);
-	reg = (PKE | PUE | PUS_22_KOHM_PULL_UP | DSE_25_OHM | OBE);
-	WRITE4(sc, IOMUXC_PTA7, reg);
 
 	pinmux_set(sc);
 

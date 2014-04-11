@@ -491,7 +491,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_lun_create_params *params;
 	uint32_t blocksize;
 	char tmpstr[32];
-	int i, retval;
+	int i, retval, unmap;
 
 	retval = 0;
 	params = &req->reqdata.create;
@@ -546,19 +546,27 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	be_lun->softc = softc;
 
+	unmap = 0;
 	for (i = 0; i < req->num_be_args; i++) {
-		struct ctl_be_lun_option *opt;
+		if (strcmp(req->kern_be_args[i].kname, "unmap") == 0 &&
+		    strcmp(req->kern_be_args[i].kvalue, "on") == 0) {
+			unmap = 1;
+		} else {
+			struct ctl_be_lun_option *opt;
 
-		opt = malloc(sizeof(*opt), M_RAMDISK, M_WAITOK);
-		opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_RAMDISK, M_WAITOK);
-		strcpy(opt->name, req->kern_be_args[i].kname);
-		opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_RAMDISK, M_WAITOK);
-		strcpy(opt->value, req->kern_be_args[i].kvalue);
-		STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
+			opt = malloc(sizeof(*opt), M_RAMDISK, M_WAITOK);
+			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_RAMDISK, M_WAITOK);
+			strcpy(opt->name, req->kern_be_args[i].kname);
+			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_RAMDISK, M_WAITOK);
+			strcpy(opt->value, req->kern_be_args[i].kvalue);
+			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
+		}
 	}
 
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
+	if (unmap)
+		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {
@@ -882,6 +890,12 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 		ctl_config_write_done(io);
 		break;
 	}
+	case WRITE_SAME_10:
+	case WRITE_SAME_16:
+	case UNMAP:
+		ctl_set_success(&io->scsiio);
+		ctl_config_write_done(io);
+		break;
 	default:
 		ctl_set_invalid_opcode(&io->scsiio);
 		ctl_config_write_done(io);

@@ -164,6 +164,18 @@ struct clk {
 	uint32_t	sel_val;
 };
 
+static struct clk ipg_clk = {
+	.reg = CCM_CACRR,
+	.enable_reg = 0,
+	.div_mask = IPG_CLK_DIV_MASK,
+	.div_shift = IPG_CLK_DIV_SHIFT,
+	.div_val = 1, /* Divide by 2 */
+	.sel_reg = 0,
+	.sel_mask = 0,
+	.sel_shift = 0,
+	.sel_val = 0,
+};
+
 /*
   PLL4 clock divider (before switching the clocks should be gated)
   000 Divide by 1 (only if PLL frequency less than or equal to 650 MHz)
@@ -310,6 +322,7 @@ struct clock_entry {
 };
 
 static struct clock_entry clock_map[] = {
+	{"ipg",		&ipg_clk},
 	{"pll4",	&pll4_clk},
 	{"sai3",	&sai3_clk},
 	{"cko1",	&cko1_clk},

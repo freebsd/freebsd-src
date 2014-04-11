@@ -189,10 +189,6 @@ login_receive(struct connection *conn, bool initial)
 		fail(conn, errorstr);
 		log_errx(1, "target returned error: %s", errorstr);
 	}
-#if 0
-	if (response->pdu_data_len == 0)
-		log_errx(1, "received Login PDU with empty data segment");
-#endif
 	if (initial == false &&
 	    ntohl(bhslr->bhslr_statsn) != conn->conn_statsn + 1) {
 		/*

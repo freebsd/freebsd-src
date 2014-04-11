@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,9 +38,18 @@
  *	Write SLK window to the (virtual) screen.
  */
 #include <curses.priv.h>
-#include <term.h>		/* num_labels, label_*, plab_norm */
 
-MODULE_ID("$Id: lib_slkrefr.c,v 1.17 2008/09/27 14:07:53 juergen Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
+
+MODULE_ID("$Id: lib_slkrefr.c,v 1.29 2013/01/12 17:25:48 tom Exp $")
+
+#ifdef USE_TERM_DRIVER
+#define NumLabels    InfoOf(SP_PARM).numlabels
+#else
+#define NumLabels    num_labels
+#endif
 
 /*
  * Paint the info line for the PC style SLK emulation.
@@ -53,7 +62,7 @@ slk_paint_info(WINDOW *win)
     if (win && sp && (sp->slk_format == 4)) {
 	int i;
 
-	mvwhline(win, 0, 0, 0, getmaxx(win));
+	(void) mvwhline(win, 0, 0, 0, getmaxx(win));
 	wmove(win, 0, 0);
 
 	for (i = 0; i < sp->_slk->maxlab; i++) {
@@ -66,31 +75,47 @@ slk_paint_info(WINDOW *win)
  * Write the soft labels to the soft-key window.
  */
 static void
-slk_intern_refresh(SLK * slk)
+slk_intern_refresh(SCREEN *sp)
 {
     int i;
-    int fmt = SP->slk_format;
+    int fmt;
+    SLK *slk;
+    int numlab;
+
+    if (sp == 0)
+	return;
+
+    slk = sp->_slk;
+    fmt = sp->slk_format;
+    numlab = NumLabels;
+
+    if (slk->hidden)
+	return;
 
     for (i = 0; i < slk->labcnt; i++) {
 	if (slk->dirty || slk->ent[i].dirty) {
 	    if (slk->ent[i].visible) {
-		if (num_labels > 0 && SLK_STDFMT(fmt)) {
+		if (numlab > 0 && SLK_STDFMT(fmt)) {
+#ifdef USE_TERM_DRIVER
+		    CallDriver_2(sp, hwlabel, i + 1, slk->ent[i].form_text);
+#else
 		    if (i < num_labels) {
-			TPUTS_TRACE("plab_norm");
-			putp(TPARM_2(plab_norm, i + 1, slk->ent[i].form_text));
+			NCURSES_PUTP2("plab_norm",
+				      TPARM_2(plab_norm,
+					      i + 1,
+					      slk->ent[i].form_text));
 		    }
+#endif
 		} else {
 		    if (fmt == 4)
 			slk_paint_info(slk->win);
 		    wmove(slk->win, SLK_LINES(fmt) - 1, slk->ent[i].ent_x);
-		    if (SP->_slk) {
-			wattrset(slk->win, AttrOf(SP->_slk->attr));
-		    }
+		    (void) wattrset(slk->win, (int) AttrOf(slk->attr));
 		    waddstr(slk->win, slk->ent[i].form_text);
 		    /* if we simulate SLK's, it's looking much more
 		       natural to use the current ATTRIBUTE also
 		       for the label window */
-		    wattrset(slk->win, WINDOW_ATTRS(stdscr));
+		    (void) wattrset(slk->win, (int) WINDOW_ATTRS(StdScreen(sp)));
 		}
 	    }
 	    slk->ent[i].dirty = FALSE;
@@ -98,14 +123,16 @@ slk_intern_refresh(SLK * slk)
     }
     slk->dirty = FALSE;
 
-    if (num_labels > 0) {
+    if (numlab > 0) {
+#ifdef USE_TERM_DRIVER
+	CallDriver_1(sp, hwlabelOnOff, slk->hidden ? FALSE : TRUE);
+#else
 	if (slk->hidden) {
-	    TPUTS_TRACE("label_off");
-	    putp(label_off);
+	    NCURSES_PUTP2("label_off", label_off);
 	} else {
-	    TPUTS_TRACE("label_on");
-	    putp(label_on);
+	    NCURSES_PUTP2("label_on", label_on);
 	}
+#endif
     }
 }
 
@@ -113,32 +140,48 @@ slk_intern_refresh(SLK * slk)
  * Refresh the soft labels.
  */
 NCURSES_EXPORT(int)
+NCURSES_SP_NAME(slk_noutrefresh) (NCURSES_SP_DCL0)
+{
+    T((T_CALLED("slk_noutrefresh(%p)"), (void *) SP_PARM));
+
+    if (SP_PARM == 0 || SP_PARM->_slk == 0)
+	returnCode(ERR);
+    if (SP_PARM->_slk->hidden)
+	returnCode(OK);
+    slk_intern_refresh(SP_PARM);
+
+    returnCode(wnoutrefresh(SP_PARM->_slk->win));
+}
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
 slk_noutrefresh(void)
 {
-    T((T_CALLED("slk_noutrefresh()")));
-
-    if (SP == NULL || SP->_slk == NULL)
-	returnCode(ERR);
-    if (SP->_slk->hidden)
-	returnCode(OK);
-    slk_intern_refresh(SP->_slk);
-
-    returnCode(wnoutrefresh(SP->_slk->win));
+    return NCURSES_SP_NAME(slk_noutrefresh) (CURRENT_SCREEN);
 }
+#endif
 
 /*
  * Refresh the soft labels.
  */
 NCURSES_EXPORT(int)
+NCURSES_SP_NAME(slk_refresh) (NCURSES_SP_DCL0)
+{
+    T((T_CALLED("slk_refresh(%p)"), (void *) SP_PARM));
+
+    if (SP_PARM == 0 || SP_PARM->_slk == 0)
+	returnCode(ERR);
+    if (SP_PARM->_slk->hidden)
+	returnCode(OK);
+    slk_intern_refresh(SP_PARM);
+
+    returnCode(wrefresh(SP_PARM->_slk->win));
+}
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
 slk_refresh(void)
 {
-    T((T_CALLED("slk_refresh()")));
-
-    if (SP == NULL || SP->_slk == NULL)
-	returnCode(ERR);
-    if (SP->_slk->hidden)
-	returnCode(OK);
-    slk_intern_refresh(SP->_slk);
-
-    returnCode(wrefresh(SP->_slk->win));
+    return NCURSES_SP_NAME(slk_refresh) (CURRENT_SCREEN);
 }
+#endif

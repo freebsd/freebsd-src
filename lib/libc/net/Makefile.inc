@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/net
+.PATH: ${LIBC_SRCTOP}/net
 
 SRCS+=	base64.c ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
@@ -20,7 +20,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 SRCS+=	nscache.c nscachedcli.c
 .endif
 
-SYM_MAPS+=${.CURDIR}/net/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/net/Symbol.map
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
@@ -29,7 +29,7 @@ CFLAGS+=-DINET6
 CFLAGS+=-I${.OBJDIR}
 
 # name6.c refers res_private.h
-CFLAGS+=-I${.CURDIR}/resolv
+CFLAGS+=-I${LIBC_SRCTOP}/resolv
 
 YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy

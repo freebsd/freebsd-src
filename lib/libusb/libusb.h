@@ -192,6 +192,19 @@ enum libusb_transfer_flags {
 	LIBUSB_TRANSFER_FREE_TRANSFER = 1 << 2,
 };
 
+enum libusb_log_level {
+       LIBUSB_LOG_LEVEL_NONE = 0,
+       LIBUSB_LOG_LEVEL_ERROR,
+       LIBUSB_LOG_LEVEL_WARNING,
+       LIBUSB_LOG_LEVEL_INFO,
+       LIBUSB_LOG_LEVEL_DEBUG
+};
+
+/* XXX */
+/* libusb_set_debug should take parameters from libusb_log_level
+ * above according to
+ *   http://libusb.sourceforge.net/api-1.0/group__lib.html
+ */
 enum libusb_debug_level {
 	LIBUSB_DEBUG_NO=0,
 	LIBUSB_DEBUG_FUNCTION=1,

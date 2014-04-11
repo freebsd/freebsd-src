@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2013
+.Dd February 7, 2014
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -71,6 +71,11 @@
 .Fn uma_zone_get_cur "uma_zone_t zone"
 .Ft void
 .Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
+.In sys/sysctl.h
+.Fn SYSCTL_UMA_MAX parent nbr name access zone descr
+.Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
+.Fn SYSCTL_UMA_CUR parent nbr name access zone descr
+.Fn SYSCTL_ADD_UMA_CUR ctx parent nbr name access zone descr
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -307,6 +312,38 @@ Warnings can be turned off globally by setting the
 .Va vm.zone_warnings
 sysctl tunable to
 .Va 0 .
+.Pp
+The
+.Fn SYSCTL_UMA_MAX parent nbr name access zone descr
+macro declares a static
+.Xr sysctl
+oid that exports the effective upper limit number of items for a zone.
+The
+.Fa zone
+argument should be a pointer to
+.Vt uma_zone_t .
+A read of the oid returns value obtained through
+.Fn uma_zone_get_max .
+A write to the oid sets new value via
+.Fn uma_zone_set_max .
+The
+.Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
+macro is provided to create this type of oid dynamically.
+.Pp
+The
+.Fn SYSCTL_UMA_CUR parent nbr name access zone descr
+macro declares a static read only
+.Xr sysctl
+oid that exports the approximate current occupancy of the zone.
+The
+.Fa zone
+argument should be a pointer to 
+.Vt uma_zone_t .
+A read of the oid returns value obtained through
+.Fn uma_zone_get_cur .
+The
+.Fn SYSCTL_ADD_UMA_CUR ctx parent nbr name zone descr
+macro is provided to create this type of oid dynamically.
 .Sh RETURN VALUES
 The
 .Fn uma_zalloc

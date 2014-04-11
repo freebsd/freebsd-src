@@ -555,6 +555,7 @@ arge_attach(device_t dev)
 	long			eeprom_mac_addr = 0;
 	int			miicfg = 0;
 	int			readascii = 0;
+	int			local_mac = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -576,6 +577,7 @@ arge_attach(device_t dev)
 	 */
 	 if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "eeprommac", &eeprom_mac_addr) == 0) {
+		local_mac = 1;
 		int i;
 		const char *mac =
 		    (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
@@ -729,7 +731,22 @@ arge_attach(device_t dev)
 		sc->arge_eaddr[4] = (rnd >> 16) & 0xff;
 		sc->arge_eaddr[5] = (rnd >> 8) & 0xff;
 	}
-	if (sc->arge_mac_unit != 0)
+
+	/*
+	 * This is a little hairy and stupid.
+	 *
+	 * For some older boards, the arge1 mac isn't pulled from anywhere.
+	 * It's just assumed the MAC is the base MAC + 1.
+	 *
+	 * For other boards, there's multiple MAC addresses stored in EEPROM.
+	 *
+	 * So, if we did read the eeprommac for this particular interface,
+	 * let's use the address as given.  Otherwise, just add the MAC unit
+	 * counter to it.
+	 *
+	 * XXX TODO: we really should handle MAC byte wraparound!
+	 */
+	if (local_mac == 0 && sc->arge_mac_unit != 0)
 		sc->arge_eaddr[5] +=  sc->arge_mac_unit;
 
 	if (arge_dma_alloc(sc) != 0) {

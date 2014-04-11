@@ -56,12 +56,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include "dhcpd.h"
 #include "privsep.h"
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <net80211/ieee80211_freebsd.h>
 
@@ -494,7 +494,7 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
-	cap_rights_init(&rights, CAP_POLL_EVENT, CAP_READ);
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 

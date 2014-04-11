@@ -30,7 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
-options		PSERIES			#PAPR-compliant systems
+options 	PSERIES			#PAPR-compliant systems
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -185,8 +185,8 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code

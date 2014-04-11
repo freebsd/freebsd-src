@@ -12,5 +12,9 @@ SRCS+=	g_label_msdosfs.c
 SRCS+=	g_label_ntfs.c
 SRCS+=	g_label_reiserfs.c
 SRCS+=	g_label_ufs.c
+SRCS+=	opt_geom.h
+
+opt_geom.h:
+	echo "#define GEOM_LABEL 1" > ${.TARGET}
 
 .include <bsd.kmod.mk>

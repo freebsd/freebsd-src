@@ -341,47 +341,7 @@ extern int pmap_needs_pte_sync;
 #define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
 #endif
 
-#if ARM_NMMUS > 1
-/* More than one MMU class configured; use variables. */
-#define	L2_S_PROT_U		pte_l2_s_prot_u
-#define	L2_S_PROT_W		pte_l2_s_prot_w
-#define	L2_S_PROT_MASK		pte_l2_s_prot_mask
-
-#define	L1_S_CACHE_MASK		pte_l1_s_cache_mask
-#define	L2_L_CACHE_MASK		pte_l2_l_cache_mask
-#define	L2_S_CACHE_MASK		pte_l2_s_cache_mask
-
-#define	L1_S_PROTO		pte_l1_s_proto
-#define	L1_C_PROTO		pte_l1_c_proto
-#define	L2_S_PROTO		pte_l2_s_proto
-
-#elif (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
-#define	L2_S_PROT_U		L2_S_PROT_U_generic
-#define	L2_S_PROT_W		L2_S_PROT_W_generic
-#define	L2_S_PROT_MASK		L2_S_PROT_MASK_generic
-
-#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_generic
-#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_generic
-#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_generic
-
-#define	L1_S_PROTO		L1_S_PROTO_generic
-#define	L1_C_PROTO		L1_C_PROTO_generic
-#define	L2_S_PROTO		L2_S_PROTO_generic
-
-#elif ARM_MMU_XSCALE == 1
-#define	L2_S_PROT_U		L2_S_PROT_U_xscale
-#define	L2_S_PROT_W		L2_S_PROT_W_xscale
-#define	L2_S_PROT_MASK		L2_S_PROT_MASK_xscale
-
-#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_xscale
-#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_xscale
-#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_xscale
-
-#define	L1_S_PROTO		L1_S_PROTO_xscale
-#define	L1_C_PROTO		L1_C_PROTO_xscale
-#define	L2_S_PROTO		L2_S_PROTO_xscale
-
-#elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 /*
  * AP[2:1] access permissions model:
  *
@@ -486,15 +446,53 @@ extern int pmap_needs_pte_sync;
 #define ARM_L2S_NRML_IWB_OWB	(L2_C|L2_B|L2_SHARED)
 #define ARM_L2S_NRML_IWBA_OWBA	(L2_S_TEX(1)|L2_C|L2_B|L2_SHARED)
 #endif /* SMP */
+
+#elif ARM_NMMUS > 1
+/* More than one MMU class configured; use variables. */
+#define	L2_S_PROT_U		pte_l2_s_prot_u
+#define	L2_S_PROT_W		pte_l2_s_prot_w
+#define	L2_S_PROT_MASK		pte_l2_s_prot_mask
+
+#define	L1_S_CACHE_MASK		pte_l1_s_cache_mask
+#define	L2_L_CACHE_MASK		pte_l2_l_cache_mask
+#define	L2_S_CACHE_MASK		pte_l2_s_cache_mask
+
+#define	L1_S_PROTO		pte_l1_s_proto
+#define	L1_C_PROTO		pte_l1_c_proto
+#define	L2_S_PROTO		pte_l2_s_proto
+
+#elif ARM_MMU_GENERIC != 0
+#define	L2_S_PROT_U		L2_S_PROT_U_generic
+#define	L2_S_PROT_W		L2_S_PROT_W_generic
+#define	L2_S_PROT_MASK		L2_S_PROT_MASK_generic
+
+#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_generic
+#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_generic
+#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_generic
+
+#define	L1_S_PROTO		L1_S_PROTO_generic
+#define	L1_C_PROTO		L1_C_PROTO_generic
+#define	L2_S_PROTO		L2_S_PROTO_generic
+
+#elif ARM_MMU_XSCALE == 1
+#define	L2_S_PROT_U		L2_S_PROT_U_xscale
+#define	L2_S_PROT_W		L2_S_PROT_W_xscale
+#define	L2_S_PROT_MASK		L2_S_PROT_MASK_xscale
+
+#define	L1_S_CACHE_MASK		L1_S_CACHE_MASK_xscale
+#define	L2_L_CACHE_MASK		L2_L_CACHE_MASK_xscale
+#define	L2_S_CACHE_MASK		L2_S_CACHE_MASK_xscale
+
+#define	L1_S_PROTO		L1_S_PROTO_xscale
+#define	L1_C_PROTO		L1_C_PROTO_xscale
+#define	L2_S_PROTO		L2_S_PROTO_xscale
+
 #endif /* ARM_NMMUS > 1 */
 
-#if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
-#define	PMAP_NEEDS_PTE_SYNC	1
-#define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
+#if defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
-#elif (ARM_MMU_SA1 == 0)
+#else
 #define	PMAP_NEEDS_PTE_SYNC	0
 #endif
 
@@ -527,6 +525,7 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROT_MASK		(L1_S_PROT_W|L1_S_PROT_U)
 #define	L1_S_REF		(L1_S_AP(AP_REF))	/* Reference flag */
 #define	L1_S_WRITABLE(pd)	(!((pd) & L1_S_PROT_W))
+#define	L1_S_EXECUTABLE(pd)	(!((pd) & L1_S_XN))
 #define	L1_S_REFERENCED(pd)	((pd) & L1_S_REF)
 
 #define	L1_S_PROT(ku, pr)	(((((ku) == PTE_KERNEL) ? 0 : L1_S_PROT_U) | \
@@ -615,14 +614,11 @@ extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
     vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
+#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7) != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
 void	pmap_pte_init_generic(void);
-#if defined(CPU_ARM8)
-void	pmap_pte_init_arm8(void);
-#endif
 #if defined(CPU_ARM9)
 void	pmap_pte_init_arm9(void);
 #endif /* CPU_ARM9 */
@@ -632,11 +628,7 @@ void	pmap_pte_init_arm10(void);
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
 #endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
-
-#if /* ARM_MMU_SA1 == */1
-void	pmap_pte_init_sa1(void);
-#endif /* ARM_MMU_SA1 == 1 */
+#endif /* (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7) != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void	pmap_copy_page_xscale(vm_paddr_t, vm_paddr_t);
@@ -707,17 +699,6 @@ void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
 extern char *_tmppt;
 
 void	pmap_postinit(void);
-
-#ifdef ARM_USE_SMALL_ALLOC
-void	arm_add_smallalloc_pages(void *, void *, int, int);
-vm_offset_t arm_ptovirt(vm_paddr_t);
-void arm_init_smallalloc(void);
-struct arm_small_page {
-	void *addr;
-	TAILQ_ENTRY(arm_small_page) pg_list;
-};
-
-#endif
 
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */

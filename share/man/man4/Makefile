@@ -60,7 +60,7 @@ MAN=	aac.4 \
 	ath_pci.4 \
 	atkbd.4 \
 	atkbdc.4 \
-	${_atp.4} \
+	atp.4 \
 	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
@@ -122,7 +122,6 @@ MAN=	aac.4 \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
-	ef.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
@@ -172,6 +171,12 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hv_ata_pci_disengage.4 \
+	hv_kvp.4 \
+	hv_netvsc.4 \
+	hv_storvsc.4 \
+	hv_utils.4 \
+	hv_vmbus.4 \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
@@ -344,7 +349,6 @@ MAN=	aac.4 \
 	${_ntb.4} \
 	null.4 \
 	${_nvd.4} \
-	${_nve.4} \
 	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
@@ -506,6 +510,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	udplite.4 \
 	uep.4 \
 	ufm.4 \
 	ufoma.4 \
@@ -521,18 +526,22 @@ MAN=	aac.4 \
 	umcs.4 \
 	umct.4 \
 	umodem.4 \
+	umoscom.4 \
 	ums.4 \
 	unix.4 \
 	upgt.4 \
 	uplcom.4 \
 	ural.4 \
 	urio.4 \
+	urndis.4 \
 	${_urtw.4} \
 	urtwn.4 \
 	urtwnfw.4 \
 	usb.4 \
+	usb_template.4 \
 	usb_quirk.4 \
 	uslcom.4 \
+	usfs.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
@@ -567,6 +576,7 @@ MAN=	aac.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
+	wsp.4 \
 	xe.4 \
 	${_xen.4} \
 	xhci.4 \
@@ -608,7 +618,6 @@ MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
 MLINKS+=ed.4 if_ed.4
 MLINKS+=edsc.4 if_edsc.4
-MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
@@ -628,6 +637,7 @@ MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=geom.4 GEOM.4
 MLINKS+=gif.4 if_gif.4
+MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
@@ -671,7 +681,6 @@ MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=${_ntb.4} ${_if_ntb.4} \
 	${_ntb.4} ${_ntb_hw.4}
-MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
@@ -716,6 +725,7 @@ MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
+MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
@@ -755,7 +765,6 @@ _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
-_atp.4=		atp.4
 _bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
@@ -770,7 +779,6 @@ _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
-_if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
@@ -785,7 +793,6 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nvd.4=		nvd.4
-_nve.4=		nve.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
@@ -828,9 +835,6 @@ MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc"
-_atp.4=		atp.4
-.endif
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
 .endif

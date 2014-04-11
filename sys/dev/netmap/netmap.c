@@ -137,6 +137,7 @@ ports attached to the switch)
 #include <sys/param.h>	/* defines used in kernel.h */
 #include <sys/kernel.h>	/* types used in module initialization */
 #include <sys/conf.h>	/* cdevsw struct, UID, GID */
+#include <sys/filio.h>	/* FIONBIO */
 #include <sys/sockio.h>
 #include <sys/socketvar.h>	/* struct socket */
 #include <sys/malloc.h>
@@ -156,9 +157,11 @@ ports attached to the switch)
 
 
 /* reduce conditional code */
-#define init_waitqueue_head(x)	// only needed in linux
+// linux API, use for the knlist in FreeBSD
+#define init_waitqueue_head(x)	knlist_init_mtx(&(x)->si_note, NULL)
 
-
+void freebsd_selwakeup(struct selinfo *si, int pri);
+#define OS_selwakeup(a, b)	freebsd_selwakeup(a, b)
 
 #elif defined(linux)
 
@@ -231,6 +234,7 @@ static int netmap_admode = NETMAP_ADMODE_BEST;
 
 int netmap_generic_mit = 100*1000;   /* Generic mitigation interval in nanoseconds. */
 int netmap_generic_ringsize = 1024;   /* Generic ringsize. */
+int netmap_generic_rings = 1;   /* number of queues in generic. */
 
 SYSCTL_INT(_dev_netmap, OID_AUTO, flags, CTLFLAG_RW, &netmap_flags, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, fwd, CTLFLAG_RW, &netmap_fwd, 0 , "");
@@ -238,6 +242,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, mmap_unreg, CTLFLAG_RW, &netmap_mmap_unreg, 0,
 SYSCTL_INT(_dev_netmap, OID_AUTO, admode, CTLFLAG_RW, &netmap_admode, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, generic_mit, CTLFLAG_RW, &netmap_generic_mit, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, generic_ringsize, CTLFLAG_RW, &netmap_generic_ringsize, 0 , "");
+SYSCTL_INT(_dev_netmap, OID_AUTO, generic_rings, CTLFLAG_RW, &netmap_generic_rings, 0 , "");
 
 NMG_LOCK_T	netmap_global_lock;
 
@@ -270,28 +275,30 @@ netmap_set_all_rings(struct ifnet *ifp, int stopped)
 {
 	struct netmap_adapter *na;
 	int i;
+	u_int ntx, nrx;
 
 	if (!(ifp->if_capenable & IFCAP_NETMAP))
 		return;
 
 	na = NA(ifp);
 
-	for (i = 0; i <= na->num_tx_rings; i++) {
+	ntx = netmap_real_tx_rings(na);
+	nrx = netmap_real_rx_rings(na);
+
+	for (i = 0; i < ntx; i++) {
 		if (stopped)
 			netmap_disable_ring(na->tx_rings + i);
 		else
 			na->tx_rings[i].nkr_stopped = 0;
-		na->nm_notify(na, i, NR_TX, NAF_DISABLE_NOTIFY |
-			(i == na->num_tx_rings ? NAF_GLOBAL_NOTIFY: 0));
+		na->nm_notify(na, i, NR_TX, NAF_DISABLE_NOTIFY);
 	}
 
-	for (i = 0; i <= na->num_rx_rings; i++) {
+	for (i = 0; i < nrx; i++) {
 		if (stopped)
 			netmap_disable_ring(na->rx_rings + i);
 		else
 			na->rx_rings[i].nkr_stopped = 0;
-		na->nm_notify(na, i, NR_RX, NAF_DISABLE_NOTIFY |
-			(i == na->num_rx_rings ? NAF_GLOBAL_NOTIFY: 0));
+		na->nm_notify(na, i, NR_RX, NAF_DISABLE_NOTIFY);
 	}
 }
 
@@ -426,14 +433,73 @@ netmap_update_config(struct netmap_adapter *na)
 	return 1;
 }
 
+static int
+netmap_txsync_compat(struct netmap_kring *kring, int flags)
+{
+	struct netmap_adapter *na = kring->na;
+	return na->nm_txsync(na, kring->ring_id, flags);
+}
 
+static int
+netmap_rxsync_compat(struct netmap_kring *kring, int flags)
+{
+	struct netmap_adapter *na = kring->na;
+	return na->nm_rxsync(na, kring->ring_id, flags);
+}
+
+static int
+netmap_txsync_to_host_compat(struct netmap_kring *kring, int flags)
+{
+	(void)flags;
+	netmap_txsync_to_host(kring->na);
+	return 0;
+}
+
+static int
+netmap_rxsync_from_host_compat(struct netmap_kring *kring, int flags)
+{
+	(void)flags;
+	netmap_rxsync_from_host(kring->na, NULL, NULL);
+	return 0;
+}
+
+
+
+/* create the krings array and initialize the fields common to all adapters.
+ * The array layout is this:
+ *
+ *                    +----------+
+ * na->tx_rings ----->|          | \
+ *                    |          |  } na->num_tx_ring
+ *                    |          | /
+ *                    +----------+
+ *                    |          |    host tx kring
+ * na->rx_rings ----> +----------+
+ *                    |          | \
+ *                    |          |  } na->num_rx_rings
+ *                    |          | /
+ *                    +----------+
+ *                    |          |    host rx kring
+ *                    +----------+
+ * na->tailroom ----->|          | \
+ *                    |          |  } tailroom bytes
+ *                    |          | /
+ *                    +----------+
+ *
+ * Note: for compatibility, host krings are created even when not needed.
+ * The tailroom space is currently used by vale ports for allocating leases.
+ */
 int
-netmap_krings_create(struct netmap_adapter *na, u_int ntx, u_int nrx, u_int tailroom)
+netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 {
 	u_int i, len, ndesc;
 	struct netmap_kring *kring;
+	u_int ntx, nrx;
 
-	// XXX additional space for extra rings ?
+	/* account for the (possibly fake) host rings */
+	ntx = na->num_tx_rings + 1;
+	nrx = na->num_rx_rings + 1;
+
 	len = (ntx + nrx) * sizeof(struct netmap_kring) + tailroom;
 
 	na->tx_rings = malloc((size_t)len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -454,12 +520,19 @@ netmap_krings_create(struct netmap_adapter *na, u_int ntx, u_int nrx, u_int tail
 		kring->na = na;
 		kring->ring_id = i;
 		kring->nkr_num_slots = ndesc;
+		if (i < na->num_tx_rings) {
+			kring->nm_sync = netmap_txsync_compat; // XXX
+		} else if (i == na->num_tx_rings) {
+			kring->nm_sync = netmap_txsync_to_host_compat;
+		}
 		/*
 		 * IMPORTANT: Always keep one slot empty.
 		 */
 		kring->rhead = kring->rcur = kring->nr_hwcur = 0;
 		kring->rtail = kring->nr_hwtail = ndesc - 1;
 		snprintf(kring->name, sizeof(kring->name) - 1, "%s TX%d", NM_IFPNAME(na->ifp), i);
+		ND("ktx %s h %d c %d t %d",
+			kring->name, kring->rhead, kring->rcur, kring->rtail);
 		mtx_init(&kring->q_lock, "nm_txq_lock", NULL, MTX_DEF);
 		init_waitqueue_head(&kring->si);
 	}
@@ -471,9 +544,16 @@ netmap_krings_create(struct netmap_adapter *na, u_int ntx, u_int nrx, u_int tail
 		kring->na = na;
 		kring->ring_id = i;
 		kring->nkr_num_slots = ndesc;
+		if (i < na->num_rx_rings) {
+			kring->nm_sync = netmap_rxsync_compat; // XXX
+		} else if (i == na->num_rx_rings) {
+			kring->nm_sync = netmap_rxsync_from_host_compat;
+		}
 		kring->rhead = kring->rcur = kring->nr_hwcur = 0;
 		kring->rtail = kring->nr_hwtail = 0;
 		snprintf(kring->name, sizeof(kring->name) - 1, "%s RX%d", NM_IFPNAME(na->ifp), i);
+		ND("krx %s h %d c %d t %d",
+			kring->name, kring->rhead, kring->rcur, kring->rtail);
 		mtx_init(&kring->q_lock, "nm_rxq_lock", NULL, MTX_DEF);
 		init_waitqueue_head(&kring->si);
 	}
@@ -486,17 +566,15 @@ netmap_krings_create(struct netmap_adapter *na, u_int ntx, u_int nrx, u_int tail
 }
 
 
-/* XXX check boundaries */
+/* undo the actions performed by netmap_krings_create */
 void
 netmap_krings_delete(struct netmap_adapter *na)
 {
-	int i;
+	struct netmap_kring *kring = na->tx_rings;
 
-	for (i = 0; i < na->num_tx_rings + 1; i++) {
-		mtx_destroy(&na->tx_rings[i].q_lock);
-	}
-	for (i = 0; i < na->num_rx_rings + 1; i++) {
-		mtx_destroy(&na->rx_rings[i].q_lock);
+	/* we rely on the krings layout described above */
+	for ( ; kring != na->tailroom; kring++) {
+		mtx_destroy(&kring->q_lock);
 	}
 	free(na->tx_rings, M_DEVBUF);
 	na->tx_rings = na->rx_rings = na->tailroom = NULL;
@@ -677,6 +755,20 @@ netmap_do_unregif(struct netmap_priv_d *priv, struct netmap_if *nifp)
 	netmap_mem_if_delete(na, nifp);
 }
 
+static __inline int
+nm_tx_si_user(struct netmap_priv_d *priv)
+{
+	return (priv->np_na != NULL &&
+		(priv->np_txqlast - priv->np_txqfirst > 1));
+}
+
+static __inline int
+nm_rx_si_user(struct netmap_priv_d *priv)
+{
+	return (priv->np_na != NULL &&
+		(priv->np_rxqlast - priv->np_rxqfirst > 1));
+}
+
 
 /*
  * returns 1 if this is the last instance and we can free priv
@@ -702,6 +794,10 @@ netmap_dtor_locked(struct netmap_priv_d *priv)
 	priv->np_nifp = NULL;
 	netmap_drop_memory_locked(priv);
 	if (priv->np_na) {
+		if (nm_tx_si_user(priv))
+			na->tx_si_users--;
+		if (nm_rx_si_user(priv))
+			na->rx_si_users--;
 		netmap_adapter_put(na);
 		priv->np_na = NULL;
 	}
@@ -864,22 +960,8 @@ netmap_txsync_to_host(struct netmap_adapter *na)
 	struct netmap_kring *kring = &na->tx_rings[na->num_tx_rings];
 	struct netmap_ring *ring = kring->ring;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = nm_txsync_prologue(kring);
+	u_int const head = kring->rhead;
 	struct mbq q;
-	int error;
-
-	error = nm_kr_tryget(kring);
-	if (error) {
-		if (error == NM_KR_BUSY)
-			D("ring %p busy (user error)", kring);
-		return;
-	}
-	if (head > lim) {
-		D("invalid ring index in stack TX kring %p", kring);
-		netmap_ring_reinit(kring);
-		nm_kr_put(kring);
-		return;
-	}
 
 	/* Take packets from hwcur to head and pass them up.
 	 * force head = cur since netmap_grab_packets() stops at head
@@ -896,7 +978,6 @@ netmap_txsync_to_host(struct netmap_adapter *na)
 		kring->nr_hwtail -= lim + 1;
 	nm_txsync_finalize(kring);
 
-	nm_kr_put(kring);
 	netmap_send_up(na->ifp, &q);
 }
 
@@ -921,26 +1002,14 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i, n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = nm_rxsync_prologue(kring);
+	u_int const head = kring->rhead;
 	int ret = 0;
 	struct mbq *q = &kring->rx_queue;
 
 	(void)pwait;	/* disable unused warnings */
-
-	if (head > lim) {
-		netmap_ring_reinit(kring);
-		return EINVAL;
-	}
-
-	if (kring->nkr_stopped) /* check a first time without lock */
-		return EBUSY;
+	(void)td;
 
 	mtx_lock(&q->lock);
-
-	if (kring->nkr_stopped) {  /* check again with lock held */
-		ret = EBUSY;
-		goto unlock_out;
-	}
 
 	/* First part: import newly received packets */
 	n = mbq_len(q);
@@ -981,8 +1050,6 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 	/* access copies of cur,tail in the kring */
 	if (kring->rcur == kring->rtail && td) /* no bufs available */
 		selrecord(td, &kring->si);
-
-unlock_out:
 
 	mtx_unlock(&q->lock);
 	return ret;
@@ -1107,18 +1174,25 @@ netmap_get_hw_na(struct ifnet *ifp, struct netmap_adapter **na)
 int
 netmap_get_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = NULL;
 	int error = 0;
-	struct netmap_adapter *ret;
+	struct netmap_adapter *ret = NULL;
 
 	*na = NULL;     /* default return value */
 
 	/* first try to see if this is a bridge port. */
 	NMG_LOCK_ASSERT();
 
-	error = netmap_get_bdg_na(nmr, na, create);
-	if (error || *na != NULL) /* valid match in netmap_get_bdg_na() */
+	error = netmap_get_pipe_na(nmr, na, create);
+	if (error || *na != NULL)
 		return error;
+
+	error = netmap_get_bdg_na(nmr, na, create);
+	if (error)
+		return error;
+
+	if (*na != NULL) /* valid match in netmap_get_bdg_na() */
+		goto pipes;
 
 	ifp = ifunit_ref(nmr->nr_name);
 	if (ifp == NULL) {
@@ -1129,18 +1203,23 @@ netmap_get_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 	if (error)
 		goto out;
 
-	if (ret != NULL) {
-		/* Users cannot use the NIC attached to a bridge directly */
-		if (NETMAP_OWNED_BY_KERN(ret)) {
-			error = EBUSY;
-			goto out;
-		}
-		error = 0;
-		*na = ret;
-		netmap_adapter_get(ret);
+	/* Users cannot use the NIC attached to a bridge directly */
+	if (NETMAP_OWNED_BY_KERN(ret)) {
+		error = EBUSY;
+		goto out;
 	}
+	*na = ret;
+	netmap_adapter_get(ret);
+
+pipes:
+	error = netmap_pipe_alloc(*na, nmr);
+
 out:
-	if_rele(ifp);
+	if (error && ret != NULL)
+		netmap_adapter_put(ret);
+
+	if (ifp)
+		if_rele(ifp);
 
 	return error;
 }
@@ -1365,44 +1444,87 @@ netmap_ring_reinit(struct netmap_kring *kring)
  * for all rings is the same as a single ring.
  */
 static int
-netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
+netmap_set_ringid(struct netmap_priv_d *priv, uint16_t ringid, uint32_t flags)
 {
 	struct netmap_adapter *na = priv->np_na;
-	struct ifnet *ifp = na->ifp;
-	u_int i = ringid & NETMAP_RING_MASK;
-	/* initially (np_qfirst == np_qlast) we don't want to lock */
-	u_int lim = na->num_rx_rings;
+	u_int j, i = ringid & NETMAP_RING_MASK;
+	u_int reg = flags & NR_REG_MASK;
 
-	if (na->num_tx_rings > lim)
-		lim = na->num_tx_rings;
-	if ( (ringid & NETMAP_HW_RING) && i >= lim) {
-		D("invalid ring id %d", i);
-		return (EINVAL);
+	if (reg == NR_REG_DEFAULT) {
+		/* convert from old ringid to flags */
+		if (ringid & NETMAP_SW_RING) {
+			reg = NR_REG_SW;
+		} else if (ringid & NETMAP_HW_RING) {
+			reg = NR_REG_ONE_NIC;
+		} else {
+			reg = NR_REG_ALL_NIC;
+		}
+		D("deprecated API, old ringid 0x%x -> ringid %x reg %d", ringid, i, reg);
 	}
-	priv->np_ringid = ringid;
-	if (ringid & NETMAP_SW_RING) {
-		priv->np_qfirst = NETMAP_SW_RING;
-		priv->np_qlast = 0;
-	} else if (ringid & NETMAP_HW_RING) {
-		priv->np_qfirst = i;
-		priv->np_qlast = i + 1;
-	} else {
-		priv->np_qfirst = 0;
-		priv->np_qlast = NETMAP_HW_RING ;
+	switch (reg) {
+	case NR_REG_ALL_NIC:
+	case NR_REG_PIPE_MASTER:
+	case NR_REG_PIPE_SLAVE:
+		priv->np_txqfirst = 0;
+		priv->np_txqlast = na->num_tx_rings;
+		priv->np_rxqfirst = 0;
+		priv->np_rxqlast = na->num_rx_rings;
+		ND("%s %d %d", "ALL/PIPE",
+			priv->np_rxqfirst, priv->np_rxqlast);
+		break;
+	case NR_REG_SW:
+	case NR_REG_NIC_SW:
+		if (!(na->na_flags & NAF_HOST_RINGS)) {
+			D("host rings not supported");
+			return EINVAL;
+		}
+		priv->np_txqfirst = (reg == NR_REG_SW ?
+			na->num_tx_rings : 0);
+		priv->np_txqlast = na->num_tx_rings + 1;
+		priv->np_rxqfirst = (reg == NR_REG_SW ?
+			na->num_rx_rings : 0);
+		priv->np_rxqlast = na->num_rx_rings + 1;
+		ND("%s %d %d", reg == NR_REG_SW ? "SW" : "NIC+SW",
+			priv->np_rxqfirst, priv->np_rxqlast);
+		break;
+	case NR_REG_ONE_NIC:
+		if (i >= na->num_tx_rings && i >= na->num_rx_rings) {
+			D("invalid ring id %d", i);
+			return EINVAL;
+		}
+		/* if not enough rings, use the first one */
+		j = i;
+		if (j >= na->num_tx_rings)
+			j = 0;
+		priv->np_txqfirst = j;
+		priv->np_txqlast = j + 1;
+		j = i;
+		if (j >= na->num_rx_rings)
+			j = 0;
+		priv->np_rxqfirst = j;
+		priv->np_rxqlast = j + 1;
+		break;
+	default:
+		D("invalid regif type %d", reg);
+		return EINVAL;
 	}
 	priv->np_txpoll = (ringid & NETMAP_NO_TX_POLL) ? 0 : 1;
-    if (netmap_verbose) {
-	if (ringid & NETMAP_SW_RING)
-		D("ringid %s set to SW RING", NM_IFPNAME(ifp));
-	else if (ringid & NETMAP_HW_RING)
-		D("ringid %s set to HW RING %d", NM_IFPNAME(ifp),
-			priv->np_qfirst);
-	else
-		D("ringid %s set to all %d HW RINGS", NM_IFPNAME(ifp), lim);
-    }
+	priv->np_flags = (flags & ~NR_REG_MASK) | reg;
+	if (nm_tx_si_user(priv))
+		na->tx_si_users++;
+	if (nm_rx_si_user(priv))
+		na->rx_si_users++;
+	if (netmap_verbose) {
+		D("%s: tx [%d,%d) rx [%d,%d) id %d", 
+			NM_IFPNAME(na->ifp),
+			priv->np_txqfirst,
+			priv->np_txqlast,
+			priv->np_rxqfirst,
+			priv->np_rxqlast,
+			i);
+	}
 	return 0;
 }
-
 
 /*
  * possibly move the interface to netmap-mode.
@@ -1411,7 +1533,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
  */
 struct netmap_if *
 netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
-	uint16_t ringid, int *err)
+	uint16_t ringid, uint32_t flags, int *err)
 {
 	struct ifnet *ifp = na->ifp;
 	struct netmap_if *nifp = NULL;
@@ -1421,7 +1543,7 @@ netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 	/* ring configuration may have changed, fetch from the card */
 	netmap_update_config(na);
 	priv->np_na = na;     /* store the reference */
-	error = netmap_set_ringid(priv, ringid);
+	error = netmap_set_ringid(priv, ringid, flags);
 	if (error)
 		goto out;
 	/* ensure allocators are ready */
@@ -1501,26 +1623,12 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	struct nmreq *nmr = (struct nmreq *) data;
 	struct netmap_adapter *na = NULL;
 	int error;
-	u_int i, lim;
+	u_int i, qfirst, qlast;
 	struct netmap_if *nifp;
 	struct netmap_kring *krings;
 
 	(void)dev;	/* UNUSED */
 	(void)fflag;	/* UNUSED */
-#ifdef linux
-#define devfs_get_cdevpriv(pp)				\
-	({ *(struct netmap_priv_d **)pp = ((struct file *)td)->private_data; 	\
-		(*pp ? 0 : ENOENT); })
-
-/* devfs_set_cdevpriv cannot fail on linux */
-#define devfs_set_cdevpriv(p, fn)				\
-	({ ((struct file *)td)->private_data = p; (p ? 0 : EINVAL); })
-
-
-#define devfs_clear_cdevpriv()	do {				\
-		netmap_dtor(priv); ((struct file *)td)->private_data = 0;	\
-	} while (0)
-#endif /* linux */
 
 	if (cmd == NIOCGINFO || cmd == NIOCREGIF) {
 		/* truncate name */
@@ -1530,6 +1638,9 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 				nmr->nr_name,
 				nmr->nr_version, NETMAP_API);
 			nmr->nr_version = NETMAP_API;
+		}
+		if (nmr->nr_version < NETMAP_MIN_API ||
+		    nmr->nr_version > NETMAP_MAX_API) {
 			return EINVAL;
 		}
 	}
@@ -1564,7 +1675,8 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 				nmd = na->nm_mem; /* get memory allocator */
 			}
 
-			error = netmap_mem_get_info(nmd, &nmr->nr_memsize, &memflags);
+			error = netmap_mem_get_info(nmd, &nmr->nr_memsize, &memflags,
+				&nmr->nr_arg2);
 			if (error)
 				break;
 			if (na == NULL) /* only memory info */
@@ -1576,8 +1688,6 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			nmr->nr_tx_rings = na->num_tx_rings;
 			nmr->nr_rx_slots = na->num_rx_desc;
 			nmr->nr_tx_slots = na->num_tx_desc;
-			if (memflags & NETMAP_MEM_PRIVATE)
-				nmr->nr_ringid |= NETMAP_PRIV_MEM;
 			netmap_adapter_put(na);
 		} while (0);
 		NMG_UNLOCK();
@@ -1587,7 +1697,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		/* possibly attach/detach NIC and VALE switch */
 		i = nmr->nr_cmd;
 		if (i == NETMAP_BDG_ATTACH || i == NETMAP_BDG_DETACH
-				|| i == NETMAP_BDG_OFFSET) {
+				|| i == NETMAP_BDG_VNET_HDR) {
 			error = netmap_bdg_ctl(nmr, NULL);
 			break;
 		} else if (i != 0) {
@@ -1602,7 +1712,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			u_int memflags;
 
 			if (priv->np_na != NULL) {	/* thread already registered */
-				error = netmap_set_ringid(priv, nmr->nr_ringid);
+				error = EBUSY;
 				break;
 			}
 			/* find the interface and a reference */
@@ -1615,26 +1725,38 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 				error = EBUSY;
 				break;
 			}
-			nifp = netmap_do_regif(priv, na, nmr->nr_ringid, &error);
+			nifp = netmap_do_regif(priv, na, nmr->nr_ringid, nmr->nr_flags, &error);
 			if (!nifp) {    /* reg. failed, release priv and ref */
 				netmap_adapter_put(na);
 				priv->np_nifp = NULL;
 				break;
 			}
+			priv->np_td = td; // XXX kqueue, debugging only
 
 			/* return the offset of the netmap_if object */
 			nmr->nr_rx_rings = na->num_rx_rings;
 			nmr->nr_tx_rings = na->num_tx_rings;
 			nmr->nr_rx_slots = na->num_rx_desc;
 			nmr->nr_tx_slots = na->num_tx_desc;
-			error = netmap_mem_get_info(na->nm_mem, &nmr->nr_memsize, &memflags);
+			error = netmap_mem_get_info(na->nm_mem, &nmr->nr_memsize, &memflags,
+				&nmr->nr_arg2);
 			if (error) {
 				netmap_adapter_put(na);
 				break;
 			}
 			if (memflags & NETMAP_MEM_PRIVATE) {
-				nmr->nr_ringid |= NETMAP_PRIV_MEM;
 				*(uint32_t *)(uintptr_t)&nifp->ni_flags |= NI_PRIV_MEM;
+			}
+			priv->np_txsi = (priv->np_txqlast - priv->np_txqfirst > 1) ?
+				&na->tx_si : &na->tx_rings[priv->np_txqfirst].si;
+			priv->np_rxsi = (priv->np_rxqlast - priv->np_rxqfirst > 1) ?
+				&na->rx_si : &na->rx_rings[priv->np_rxqfirst].si;
+
+			if (nmr->nr_arg3) {
+				D("requested %d extra buffers", nmr->nr_arg3);
+				nmr->nr_arg3 = netmap_extra_alloc(na,
+					&nifp->ni_bufs_head, nmr->nr_arg3);
+				D("got %d extra buffers", nmr->nr_arg3);
 			}
 			nmr->nr_offset = netmap_mem_if_offset(na->nm_mem, nifp);
 		} while (0);
@@ -1666,21 +1788,17 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			break;
 		}
 
-		if (priv->np_qfirst == NETMAP_SW_RING) { /* host rings */
-			if (cmd == NIOCTXSYNC)
-				netmap_txsync_to_host(na);
-			else
-				netmap_rxsync_from_host(na, NULL, NULL);
-			break;
+		if (cmd == NIOCTXSYNC) {
+			krings = na->tx_rings;
+			qfirst = priv->np_txqfirst;
+			qlast = priv->np_txqlast;
+		} else {
+			krings = na->rx_rings;
+			qfirst = priv->np_rxqfirst;
+			qlast = priv->np_rxqlast;
 		}
-		/* find the last ring to scan */
-		lim = priv->np_qlast;
-		if (lim == NETMAP_HW_RING)
-			lim = (cmd == NIOCTXSYNC) ?
-			    na->num_tx_rings : na->num_rx_rings;
 
-		krings = (cmd == NIOCTXSYNC) ? na->tx_rings : na->rx_rings;
-		for (i = priv->np_qfirst; i < lim; i++) {
+		for (i = qfirst; i < qlast; i++) {
 			struct netmap_kring *kring = krings + i;
 			if (nm_kr_tryget(kring)) {
 				error = EBUSY;
@@ -1694,14 +1812,14 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 				if (nm_txsync_prologue(kring) >= kring->nkr_num_slots) {
 					netmap_ring_reinit(kring);
 				} else {
-					na->nm_txsync(na, i, NAF_FORCE_RECLAIM);
+					kring->nm_sync(kring, NAF_FORCE_RECLAIM);
 				}
 				if (netmap_verbose & NM_VERB_TXSYNC)
 					D("post txsync ring %d cur %d hwcur %d",
 					    i, kring->ring->cur,
 					    kring->nr_hwcur);
 			} else {
-				na->nm_rxsync(na, i, NAF_FORCE_READ);
+				kring->nm_sync(kring, NAF_FORCE_READ);
 				microtime(&na->rx_rings[i].ring->ts);
 			}
 			nm_kr_put(kring);
@@ -1710,6 +1828,11 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 
 #ifdef __FreeBSD__
+	case FIONBIO:
+	case FIOASYNC:
+		ND("FIONBIO/FIOASYNC are no-ops");
+		break;
+
 	case BIOCIMMEDIATE:
 	case BIOCGHDRCMPLT:
 	case BIOCSHDRCMPLT:
@@ -1772,9 +1895,9 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	struct ifnet *ifp;
 	struct netmap_kring *kring;
 	u_int i, check_all_tx, check_all_rx, want_tx, want_rx, revents = 0;
-	u_int lim_tx, lim_rx;
 	struct mbq q;		/* packets from hw queues to host stack */
 	void *pwait = dev;	/* linux compatibility */
+	int is_kevent = 0;
 
 	/*
 	 * In order to avoid nested locks, we need to "double check"
@@ -1786,7 +1909,19 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	(void)pwait;
 	mbq_init(&q);
 
-	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
+	/*
+	 * XXX kevent has curthread->tp_fop == NULL,
+	 * so devfs_get_cdevpriv() fails. We circumvent this by passing
+	 * priv as the first argument, which is also useful to avoid
+	 * the selrecord() which are not necessary in that case.
+	 */
+	if (devfs_get_cdevpriv((void **)&priv) != 0) {
+		is_kevent = 1;
+		if (netmap_verbose)
+			D("called from kevent");
+		priv = (struct netmap_priv_d *)dev;
+	}
+	if (priv == NULL)
 		return POLLERR;
 
 	if (priv->np_nifp == NULL) {
@@ -1811,28 +1946,6 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	want_tx = events & (POLLOUT | POLLWRNORM);
 	want_rx = events & (POLLIN | POLLRDNORM);
 
-	lim_tx = na->num_tx_rings;
-	lim_rx = na->num_rx_rings;
-
-	if (priv->np_qfirst == NETMAP_SW_RING) {
-		// XXX locking ?
-		/* handle the host stack ring */
-		if (priv->np_txpoll || want_tx) {
-			/* push any packets up, then we are always ready */
-			netmap_txsync_to_host(na);
-			revents |= want_tx;
-		}
-		if (want_rx) {
-			kring = &na->rx_rings[lim_rx];
-			/* XXX replace with rxprologue etc. */
-			if (nm_ring_empty(kring->ring))
-				netmap_rxsync_from_host(na, td, dev);
-			if (!nm_ring_empty(kring->ring))
-				revents |= want_rx;
-		}
-		return (revents);
-	}
-
 
 	/*
 	 * check_all_{tx|rx} are set if the card has more than one queue AND
@@ -1847,19 +1960,15 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	 * there are pending packets to send. The latter can be disabled
 	 * passing NETMAP_NO_TX_POLL in the NIOCREG call.
 	 */
-	check_all_tx = (priv->np_qlast == NETMAP_HW_RING) && (lim_tx > 1);
-	check_all_rx = (priv->np_qlast == NETMAP_HW_RING) && (lim_rx > 1);
-
-	if (priv->np_qlast != NETMAP_HW_RING) {
-		lim_tx = lim_rx = priv->np_qlast;
-	}
+	check_all_tx = nm_tx_si_user(priv);
+	check_all_rx = nm_rx_si_user(priv);
 
 	/*
 	 * We start with a lock free round which is cheap if we have
 	 * slots available. If this fails, then lock and call the sync
 	 * routines.
 	 */
-	for (i = priv->np_qfirst; want_rx && i < lim_rx; i++) {
+	for (i = priv->np_rxqfirst; want_rx && i < priv->np_rxqlast; i++) {
 		kring = &na->rx_rings[i];
 		/* XXX compare ring->cur and kring->tail */
 		if (!nm_ring_empty(kring->ring)) {
@@ -1867,7 +1976,7 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 			want_rx = 0;	/* also breaks the loop */
 		}
 	}
-	for (i = priv->np_qfirst; want_tx && i < lim_tx; i++) {
+	for (i = priv->np_txqfirst; want_tx && i < priv->np_txqlast; i++) {
 		kring = &na->tx_rings[i];
 		/* XXX compare ring->cur and kring->tail */
 		if (!nm_ring_empty(kring->ring)) {
@@ -1891,7 +2000,7 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 		 * used to skip rings with no pending transmissions.
 		 */
 flush_tx:
-		for (i = priv->np_qfirst; i < lim_tx; i++) {
+		for (i = priv->np_txqfirst; i < priv->np_txqlast; i++) {
 			int found = 0;
 
 			kring = &na->tx_rings[i];
@@ -1899,14 +2008,16 @@ flush_tx:
 				continue;
 			/* only one thread does txsync */
 			if (nm_kr_tryget(kring)) {
-				D("%p lost race on txring %d, ok", priv, i);
+				if (netmap_verbose)
+					RD(2, "%p lost race on txring %d, ok",
+					    priv, i);
 				continue;
 			}
 			if (nm_txsync_prologue(kring) >= kring->nkr_num_slots) {
 				netmap_ring_reinit(kring);
 				revents |= POLLERR;
 			} else {
-				if (na->nm_txsync(na, i, 0))
+				if (kring->nm_sync(kring, 0))
 					revents |= POLLERR;
 			}
 
@@ -1921,12 +2032,12 @@ flush_tx:
 			if (found) { /* notify other listeners */
 				revents |= want_tx;
 				want_tx = 0;
-				na->nm_notify(na, i, NR_TX, NAF_GLOBAL_NOTIFY);
+				na->nm_notify(na, i, NR_TX, 0);
 			}
 		}
-		if (want_tx && retry_tx) {
+		if (want_tx && retry_tx && !is_kevent) {
 			selrecord(td, check_all_tx ?
-			    &na->tx_si : &na->tx_rings[priv->np_qfirst].si);
+			    &na->tx_si : &na->tx_rings[priv->np_txqfirst].si);
 			retry_tx = 0;
 			goto flush_tx;
 		}
@@ -1940,13 +2051,15 @@ flush_tx:
 		int send_down = 0; /* transparent mode */
 		/* two rounds here to for race avoidance */
 do_retry_rx:
-		for (i = priv->np_qfirst; i < lim_rx; i++) {
+		for (i = priv->np_rxqfirst; i < priv->np_rxqlast; i++) {
 			int found = 0;
 
 			kring = &na->rx_rings[i];
 
 			if (nm_kr_tryget(kring)) {
-				D("%p lost race on rxring %d, ok", priv, i);
+				if (netmap_verbose)
+					RD(2, "%p lost race on rxring %d, ok",
+					    priv, i);
 				continue;
 			}
 
@@ -1962,7 +2075,7 @@ do_retry_rx:
 				netmap_grab_packets(kring, &q, netmap_fwd);
 			}
 
-			if (na->nm_rxsync(na, i, 0))
+			if (kring->nm_sync(kring, 0))
 				revents |= POLLERR;
 			if (netmap_no_timestamp == 0 ||
 					kring->ring->flags & NR_TIMESTAMP) {
@@ -1974,24 +2087,26 @@ do_retry_rx:
 			if (found) {
 				revents |= want_rx;
 				retry_rx = 0;
-				na->nm_notify(na, i, NR_RX, NAF_GLOBAL_NOTIFY);
+				na->nm_notify(na, i, NR_RX, 0);
 			}
 		}
 
 		/* transparent mode XXX only during first pass ? */
-		kring = &na->rx_rings[lim_rx];
-		if (check_all_rx
-		    && (netmap_fwd || kring->ring->flags & NR_FORWARD)) {
-			/* XXX fix to use kring fields */
-			if (nm_ring_empty(kring->ring))
-				send_down = netmap_rxsync_from_host(na, td, dev);
-			if (!nm_ring_empty(kring->ring))
-				revents |= want_rx;
+		if (na->na_flags & NAF_HOST_RINGS) {
+			kring = &na->rx_rings[na->num_rx_rings];
+			if (check_all_rx
+			    && (netmap_fwd || kring->ring->flags & NR_FORWARD)) {
+				/* XXX fix to use kring fields */
+				if (nm_ring_empty(kring->ring))
+					send_down = netmap_rxsync_from_host(na, td, dev);
+				if (!nm_ring_empty(kring->ring))
+					revents |= want_rx;
+			}
 		}
 
-		if (retry_rx)
+		if (retry_rx && !is_kevent)
 			selrecord(td, check_all_rx ?
-			    &na->rx_si : &na->rx_rings[priv->np_qfirst].si);
+			    &na->rx_si : &na->rx_rings[priv->np_rxqfirst].si);
 		if (send_down > 0 || retry_rx) {
 			retry_rx = 0;
 			if (send_down)
@@ -2032,14 +2147,14 @@ netmap_notify(struct netmap_adapter *na, u_int n_ring,
 
 	if (tx == NR_TX) {
 		kring = na->tx_rings + n_ring;
-		selwakeuppri(&kring->si, PI_NET);
-		if (flags & NAF_GLOBAL_NOTIFY)
-			selwakeuppri(&na->tx_si, PI_NET);
+		OS_selwakeup(&kring->si, PI_NET);
+		if (na->tx_si_users > 0)
+			OS_selwakeup(&na->tx_si, PI_NET);
 	} else {
 		kring = na->rx_rings + n_ring;
-		selwakeuppri(&kring->si, PI_NET);
-		if (flags & NAF_GLOBAL_NOTIFY)
-			selwakeuppri(&na->rx_si, PI_NET);
+		OS_selwakeup(&kring->si, PI_NET);
+		if (na->rx_si_users > 0)
+			OS_selwakeup(&na->rx_si, PI_NET);
 	}
 	return 0;
 }
@@ -2090,6 +2205,7 @@ netmap_detach_common(struct netmap_adapter *na)
 		D("freeing leftover tx_rings");
 		na->nm_krings_delete(na);
 	}
+	netmap_pipe_dealloc(na);
 	if (na->na_flags & NAF_MEM_OWNER)
 		netmap_mem_private_delete(na->nm_mem);
 	bzero(na, sizeof(*na));
@@ -2120,6 +2236,7 @@ netmap_attach(struct netmap_adapter *arg)
 	if (hwna == NULL)
 		goto fail;
 	hwna->up = *arg;
+	hwna->up.na_flags |= NAF_HOST_RINGS;
 	if (netmap_attach_common(&hwna->up)) {
 		free(hwna, M_DEVBUF);
 		goto fail;
@@ -2177,12 +2294,10 @@ NM_DBG(netmap_adapter_put)(struct netmap_adapter *na)
 	return 1;
 }
 
-
 int
 netmap_hw_krings_create(struct netmap_adapter *na)
 {
-	int ret = netmap_krings_create(na,
-		na->num_tx_rings + 1, na->num_rx_rings + 1, 0);
+	int ret = netmap_krings_create(na, 0);
 	if (ret == 0) {
 		/* initialize the mbq for the sw rx ring */
 		mbq_safe_init(&na->rx_rings[na->num_rx_rings].rx_queue);
@@ -2370,7 +2485,7 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, u_int n,
 	 * We do the wakeup here, but the ring is not yet reconfigured.
 	 * However, we are under lock so there are no races.
 	 */
-	na->nm_notify(na, n, tx, NAF_GLOBAL_NOTIFY);
+	na->nm_notify(na, n, tx, 0);
 	return kring->ring->slot;
 }
 
@@ -2405,15 +2520,13 @@ netmap_common_irq(struct ifnet *ifp, u_int q, u_int *work_done)
 			return;	// not a physical queue
 		kring = na->rx_rings + q;
 		kring->nr_kflags |= NKR_PENDINTR;	// XXX atomic ?
-		na->nm_notify(na, q, NR_RX,
-			(na->num_rx_rings > 1 ? NAF_GLOBAL_NOTIFY : 0));
+		na->nm_notify(na, q, NR_RX, 0);
 		*work_done = 1; /* do not fire napi again */
 	} else { /* TX path */
 		if (q >= na->num_tx_rings)
 			return;	// not a physical queue
 		kring = na->tx_rings + q;
-		na->nm_notify(na, q, NR_TX,
-			(na->num_tx_rings > 1 ? NAF_GLOBAL_NOTIFY : 0));
+		na->nm_notify(na, q, NR_TX, 0);
 	}
 }
 

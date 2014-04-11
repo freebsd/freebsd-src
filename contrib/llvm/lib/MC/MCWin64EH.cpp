@@ -64,7 +64,7 @@ static void EmitAbsDifference(MCStreamer &streamer, MCSymbol *lhs,
 
 static void EmitUnwindCode(MCStreamer &streamer, MCSymbol *begin,
                            MCWin64EHInstruction &inst) {
-  uint8_t b1, b2;
+  uint8_t b2;
   uint16_t w;
   b2 = (inst.getOperation() & 0x0F);
   switch (inst.getOperation()) {
@@ -93,8 +93,7 @@ static void EmitUnwindCode(MCStreamer &streamer, MCSymbol *begin,
     streamer.EmitIntValue(b2, 1);
     break;
   case Win64EH::UOP_SetFPReg:
-    b1 = inst.getOffset() & 0xF0;
-    streamer.EmitIntValue(b1, 1);
+    EmitAbsDifference(streamer, inst.getLabel(), begin);
     streamer.EmitIntValue(b2, 1);
     break;
   case Win64EH::UOP_SaveNonVol:
@@ -129,14 +128,29 @@ static void EmitUnwindCode(MCStreamer &streamer, MCSymbol *begin,
   }
 }
 
+static void EmitSymbolRefWithOfs(MCStreamer &streamer,
+                                 const MCSymbol *Base,
+                                 const MCSymbol *Other) {
+  MCContext &Context = streamer.getContext();
+  const MCSymbolRefExpr *BaseRef = MCSymbolRefExpr::Create(Base, Context);
+  const MCSymbolRefExpr *OtherRef = MCSymbolRefExpr::Create(Other, Context);
+  const MCExpr *Ofs = MCBinaryExpr::CreateSub(OtherRef, BaseRef, Context);
+  const MCSymbolRefExpr *BaseRefRel = MCSymbolRefExpr::Create(Base,
+                                              MCSymbolRefExpr::VK_COFF_IMGREL32,
+                                              Context);
+  streamer.EmitValue(MCBinaryExpr::CreateAdd(BaseRefRel, Ofs, Context), 4);
+}
+
 static void EmitRuntimeFunction(MCStreamer &streamer,
                                 const MCWin64EHUnwindInfo *info) {
   MCContext &context = streamer.getContext();
 
   streamer.EmitValueToAlignment(4);
-  streamer.EmitValue(MCSymbolRefExpr::Create(info->Begin, context), 4);
-  streamer.EmitValue(MCSymbolRefExpr::Create(info->End, context), 4);
-  streamer.EmitValue(MCSymbolRefExpr::Create(info->Symbol, context), 4);
+  EmitSymbolRefWithOfs(streamer, info->Function, info->Begin);
+  EmitSymbolRefWithOfs(streamer, info->Function, info->End);
+  streamer.EmitValue(MCSymbolRefExpr::Create(info->Symbol,
+                                             MCSymbolRefExpr::VK_COFF_IMGREL32,
+                                             context), 4);
 }
 
 static void EmitUnwindInfo(MCStreamer &streamer, MCWin64EHUnwindInfo *info) {
@@ -145,11 +159,11 @@ static void EmitUnwindInfo(MCStreamer &streamer, MCWin64EHUnwindInfo *info) {
 
   MCContext &context = streamer.getContext();
   streamer.EmitValueToAlignment(4);
-  // Upper 3 bits are the version number (currently 1).
-  uint8_t flags = 0x01;
   info->Symbol = context.CreateTempSymbol();
   streamer.EmitLabel(info->Symbol);
 
+  // Upper 3 bits are the version number (currently 1).
+  uint8_t flags = 0x01;
   if (info->ChainedParent)
     flags |= Win64EH::UNW_ChainInfo << 3;
   else {
@@ -185,20 +199,26 @@ static void EmitUnwindInfo(MCStreamer &streamer, MCWin64EHUnwindInfo *info) {
     EmitUnwindCode(streamer, info->Begin, inst);
   }
 
+  // For alignment purposes, the instruction array will always have an even
+  // number of entries, with the final entry potentially unused (in which case
+  // the array will be one longer than indicated by the count of unwind codes
+  // field).
+  if (numCodes & 1) {
+    streamer.EmitIntValue(0, 2);
+  }
+
   if (flags & (Win64EH::UNW_ChainInfo << 3))
     EmitRuntimeFunction(streamer, info->ChainedParent);
   else if (flags &
            ((Win64EH::UNW_TerminateHandler|Win64EH::UNW_ExceptionHandler) << 3))
-    streamer.EmitValue(MCSymbolRefExpr::Create(info->ExceptionHandler, context),
-                       4);
-  else if (numCodes < 2) {
+    streamer.EmitValue(MCSymbolRefExpr::Create(info->ExceptionHandler,
+                                              MCSymbolRefExpr::VK_COFF_IMGREL32,
+                                              context), 4);
+  else if (numCodes == 0) {
     // The minimum size of an UNWIND_INFO struct is 8 bytes. If we're not
     // a chained unwind info, if there is no handler, and if there are fewer
     // than 2 slots used in the unwind code array, we have to pad to 8 bytes.
-    if (numCodes == 1)
-      streamer.EmitIntValue(0, 2);
-    else
-      streamer.EmitIntValue(0, 4);
+    streamer.EmitIntValue(0, 4);
   }
 }
 

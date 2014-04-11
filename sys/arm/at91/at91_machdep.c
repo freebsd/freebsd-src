@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 #include <machine/board.h>
@@ -109,10 +110,6 @@ __FBSDID("$FreeBSD$");
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
-
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
@@ -198,9 +195,6 @@ const struct arm_devmap_entry at91_devmap[] = {
 };
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -430,7 +424,7 @@ at91_try_id(uint32_t dbgu_base)
 	return (1);
 }
 
-static void
+void
 at91_soc_id(void)
 {
 
@@ -463,6 +457,7 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu0_init();
 
@@ -473,7 +468,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)						\
 	alloc_pages((var).pv_va, (np));					\
-	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
 
 #define alloc_pages(var, np)						\
 	(var) = freemempos;						\
@@ -493,7 +488,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
-			    KERNPHYSADDR;
+			    abp->abp_physaddr;
 		}
 	}
 	/*
@@ -591,7 +586,11 @@ initarm(struct arm_boot_params *abp)
 		printf("Warning: No soc support for %s found.\n", soc_info.name);
 
 	memsize = board_init();
-	physmem = memsize / PAGE_SIZE;
+	if (memsize == -1) {
+		printf("board_init() failed, cannot determine ram size; "
+		    "assuming 16MB\n");
+		memsize = 16 * 1024 * 1024;
+	}
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -618,11 +617,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
@@ -630,7 +624,6 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
-	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
 	/* Always use the 256MB of KVA we have available between the kernel and devices */
 	vm_max_kernel_address = KERNVIRTADDR + (256 << 20);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
@@ -638,15 +631,21 @@ initarm(struct arm_boot_params *abp)
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
-#if PHYSADDR != KERNPHYSADDR
-	phys_avail[i++] = PHYSADDR;
-	phys_avail[i++] = KERNPHYSADDR;
-#endif
-	phys_avail[i++] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[i++] = PHYSADDR + memsize;
-	phys_avail[i++] = 0;
-	phys_avail[i++] = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel, and all the things we allocated which immediately
+	 * follow the kernel, from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(PHYSADDR, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
+
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

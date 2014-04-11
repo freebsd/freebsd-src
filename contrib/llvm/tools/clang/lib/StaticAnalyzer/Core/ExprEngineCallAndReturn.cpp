@@ -14,6 +14,7 @@
 #define DEBUG_TYPE "ExprEngine"
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
+#include "PrettyStackTraceLocationContext.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ParentMap.h"
@@ -39,6 +40,8 @@ STATISTIC(NumReachedInlineCountMax,
 void ExprEngine::processCallEnter(CallEnter CE, ExplodedNode *Pred) {
   // Get the entry block in the CFG of the callee.
   const StackFrameContext *calleeCtx = CE.getCalleeContext();
+  PrettyStackTraceLocationContext CrashInfo(calleeCtx);
+
   const CFG *CalleeCFG = calleeCtx->getCFG();
   const CFGBlock *Entry = &(CalleeCFG->getEntry());
   
@@ -214,7 +217,7 @@ static bool isTemporaryPRValue(const CXXConstructExpr *E, SVal V) {
 /// 5. PostStmt<CallExpr>
 void ExprEngine::processCallExit(ExplodedNode *CEBNode) {
   // Step 1 CEBNode was generated before the call.
-
+  PrettyStackTraceLocationContext CrashInfo(CEBNode->getLocationContext());
   const StackFrameContext *calleeCtx =
       CEBNode->getLocationContext()->getCurrentStackFrame();
   
@@ -717,15 +720,30 @@ static bool isContainerCtorOrDtor(const ASTContext &Ctx,
   return isContainerClass(Ctx, RD);
 }
 
+/// Returns true if the given function is the destructor of a class named
+/// "shared_ptr".
+static bool isCXXSharedPtrDtor(const FunctionDecl *FD) {
+  const CXXDestructorDecl *Dtor = dyn_cast<CXXDestructorDecl>(FD);
+  if (!Dtor)
+    return false;
+
+  const CXXRecordDecl *RD = Dtor->getParent();
+  if (const IdentifierInfo *II = RD->getDeclName().getAsIdentifierInfo())
+    if (II->isStr("shared_ptr"))
+        return true;
+
+  return false;
+}
+
 /// Returns true if the function in \p CalleeADC may be inlined in general.
 ///
 /// This checks static properties of the function, such as its signature and
 /// CFG, to determine whether the analyzer should ever consider inlining it,
 /// in any context.
-static bool mayInlineDecl(const CallEvent &Call, AnalysisDeclContext *CalleeADC,
+static bool mayInlineDecl(AnalysisDeclContext *CalleeADC,
                           AnalyzerOptions &Opts) {
   // FIXME: Do not inline variadic calls.
-  if (Call.isVariadic())
+  if (CallEvent::isVariadic(CalleeADC->getDecl()))
     return false;
 
   // Check certain C++-related inlining policies.
@@ -746,9 +764,18 @@ static bool mayInlineDecl(const CallEvent &Call, AnalysisDeclContext *CalleeADC,
       // Conditionally control the inlining of methods on objects that look
       // like C++ containers.
       if (!Opts.mayInlineCXXContainerCtorsAndDtors())
-        if (!Ctx.getSourceManager().isFromMainFile(FD->getLocation()))
+        if (!Ctx.getSourceManager().isInMainFile(FD->getLocation()))
           if (isContainerCtorOrDtor(Ctx, FD))
             return false;
+            
+      // Conditionally control the inlining of the destructor of C++ shared_ptr.
+      // We don't currently do a good job modeling shared_ptr because we can't
+      // see the reference count, so treating as opaque is probably the best
+      // idea.
+      if (!Opts.mayInlineCXXSharedPtrDtor())
+        if (isCXXSharedPtrDtor(FD))
+          return false;
+
     }
   }
 
@@ -780,6 +807,14 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
   AnalysisDeclContextManager &ADCMgr = AMgr.getAnalysisDeclContextManager();
   AnalysisDeclContext *CalleeADC = ADCMgr.getContext(D);
 
+  // Temporary object destructor processing is currently broken, so we never
+  // inline them.
+  // FIXME: Remove this once temp destructors are working.
+  if (isa<CXXDestructorCall>(Call)) {
+    if ((*currBldrCtx->getBlock())[currStmtIdx].getAs<CFGTemporaryDtor>())
+      return false;
+  }
+
   // The auto-synthesized bodies are essential to inline as they are
   // usually small and commonly used. Note: we should do this check early on to
   // ensure we always inline these calls.
@@ -798,7 +833,7 @@ bool ExprEngine::shouldInlineCall(const CallEvent &Call, const Decl *D,
   } else {
     // We haven't actually checked the static properties of this function yet.
     // Do that now, and record our decision in the function summaries.
-    if (mayInlineDecl(Call, CalleeADC, Opts)) {
+    if (mayInlineDecl(CalleeADC, Opts)) {
       Engine.FunctionSummaries->markMayInline(D);
     } else {
       Engine.FunctionSummaries->markShouldNotInline(D);

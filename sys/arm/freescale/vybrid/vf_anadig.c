@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,14 +99,19 @@ __FBSDID("$FreeBSD$");
 #define	CTRL_PLL_EN		(1 << 13)
 #define	EN_USB_CLKS		(1 << 6)
 
+#define	PLL4_CTRL_DIV_SEL_S	0
+#define	PLL4_CTRL_DIV_SEL_M	0x7f
+
 struct anadig_softc {
 	struct resource		*res[1];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 };
 
+struct anadig_softc *anadig_sc;
+
 static struct resource_spec anadig_spec[] = {
-	{ SYS_RES_MEMORY,       0,      RF_ACTIVE },
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
 };
 
@@ -148,6 +153,28 @@ enable_pll(struct anadig_softc *sc, int pll_ctrl)
 	return (0);
 }
 
+uint32_t
+pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd)
+{
+	struct anadig_softc *sc;
+	int reg;
+
+	sc = anadig_sc;
+
+	/*
+	 * PLLout = Fsys * (MFI+(MFN/MFD))
+	 */
+
+	reg = READ4(sc, ANADIG_PLL4_CTRL);
+	reg &= ~(PLL4_CTRL_DIV_SEL_M << PLL4_CTRL_DIV_SEL_S);
+	reg |= (mfi << PLL4_CTRL_DIV_SEL_S);
+	WRITE4(sc, ANADIG_PLL4_CTRL, reg);
+	WRITE4(sc, ANADIG_PLL4_NUM, mfn);
+	WRITE4(sc, ANADIG_PLL4_DENOM, mfd);
+
+	return (0);
+}
+
 static int
 anadig_attach(device_t dev)
 {
@@ -165,11 +192,13 @@ anadig_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
+	anadig_sc = sc;
+
 	/* Enable USB PLLs */
 	enable_pll(sc, ANADIG_PLL3_CTRL);
 	enable_pll(sc, ANADIG_PLL7_CTRL);
 
-	/* Enable other */
+	/* Enable other PLLs */
 	enable_pll(sc, ANADIG_PLL1_CTRL);
 	enable_pll(sc, ANADIG_PLL2_CTRL);
 	enable_pll(sc, ANADIG_PLL4_CTRL);

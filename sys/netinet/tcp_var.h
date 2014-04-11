@@ -353,8 +353,7 @@ struct tcptw {
 	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
-	void		*tw_pspare;	/* TCP_SIGNATURE */
-	u_int		*tw_spare;	/* TCP_SIGNATURE */
+	u_int		tw_refcount;	/* refcount */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -576,7 +575,7 @@ struct	xtcpcb {
 #endif
 
 /*
- * Names for TCP sysctl objects
+ * Identifiers for TCP sysctl nodes
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
@@ -592,8 +591,6 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
-#define	TCPCTL_MAXID		16
-#define TCPCTL_FINWAIT2_TIMEOUT        17
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL

@@ -203,22 +203,22 @@ struct worklist {
 	unsigned int		wk_type:8,	/* type of request */
 				wk_state:24;	/* state flags */
 };
-#define WK_DATA(wk) ((void *)(wk))
-#define WK_PAGEDEP(wk) ((struct pagedep *)(wk))
-#define WK_INODEDEP(wk) ((struct inodedep *)(wk))
-#define WK_BMSAFEMAP(wk) ((struct bmsafemap *)(wk))
+#define	WK_DATA(wk) ((void *)(wk))
+#define	WK_PAGEDEP(wk) ((struct pagedep *)(wk))
+#define	WK_INODEDEP(wk) ((struct inodedep *)(wk))
+#define	WK_BMSAFEMAP(wk) ((struct bmsafemap *)(wk))
 #define	WK_NEWBLK(wk)  ((struct newblk *)(wk))
-#define WK_ALLOCDIRECT(wk) ((struct allocdirect *)(wk))
-#define WK_INDIRDEP(wk) ((struct indirdep *)(wk))
-#define WK_ALLOCINDIR(wk) ((struct allocindir *)(wk))
-#define WK_FREEFRAG(wk) ((struct freefrag *)(wk))
-#define WK_FREEBLKS(wk) ((struct freeblks *)(wk))
-#define WK_FREEWORK(wk) ((struct freework *)(wk))
-#define WK_FREEFILE(wk) ((struct freefile *)(wk))
-#define WK_DIRADD(wk) ((struct diradd *)(wk))
-#define WK_MKDIR(wk) ((struct mkdir *)(wk))
-#define WK_DIRREM(wk) ((struct dirrem *)(wk))
-#define WK_NEWDIRBLK(wk) ((struct newdirblk *)(wk))
+#define	WK_ALLOCDIRECT(wk) ((struct allocdirect *)(wk))
+#define	WK_INDIRDEP(wk) ((struct indirdep *)(wk))
+#define	WK_ALLOCINDIR(wk) ((struct allocindir *)(wk))
+#define	WK_FREEFRAG(wk) ((struct freefrag *)(wk))
+#define	WK_FREEBLKS(wk) ((struct freeblks *)(wk))
+#define	WK_FREEWORK(wk) ((struct freework *)(wk))
+#define	WK_FREEFILE(wk) ((struct freefile *)(wk))
+#define	WK_DIRADD(wk) ((struct diradd *)(wk))
+#define	WK_MKDIR(wk) ((struct mkdir *)(wk))
+#define	WK_DIRREM(wk) ((struct dirrem *)(wk))
+#define	WK_NEWDIRBLK(wk) ((struct newdirblk *)(wk))
 #define	WK_JADDREF(wk) ((struct jaddref *)(wk))
 #define	WK_JREMREF(wk) ((struct jremref *)(wk))
 #define	WK_JMVREF(wk) ((struct jmvref *)(wk))
@@ -272,8 +272,8 @@ TAILQ_HEAD(freeblklst, freeblks);
  * list, any removed operations are done, and the dependency structure
  * is freed.
  */
-#define DAHASHSZ 5
-#define DIRADDHASH(offset) (((offset) >> 2) % DAHASHSZ)
+#define	DAHASHSZ 5
+#define	DIRADDHASH(offset) (((offset) >> 2) % DAHASHSZ)
 struct pagedep {
 	struct	worklist pd_list;	/* page buffer */
 #	define	pd_state pd_list.wk_state /* check for multiple I/O starts */
@@ -363,8 +363,8 @@ struct inodedep {
 	struct	ufs2_dinode *idu_savedino2; /* saved ufs2_dinode contents */
 	} id_un;
 };
-#define id_savedino1 id_un.idu_savedino1
-#define id_savedino2 id_un.idu_savedino2
+#define	id_savedino1 id_un.idu_savedino1
+#define	id_savedino2 id_un.idu_savedino2
 
 /*
  * A "bmsafemap" structure maintains a list of dependency structures
@@ -678,8 +678,8 @@ struct diradd {
 	} da_un;
 	struct workhead da_jwork;	/* Journal work awaiting completion. */
 };
-#define da_previous da_un.dau_previous
-#define da_pagedep da_un.dau_pagedep
+#define	da_previous da_un.dau_previous
+#define	da_pagedep da_un.dau_pagedep
 
 /*
  * Two "mkdir" structures are needed to track the additional dependencies
@@ -735,8 +735,8 @@ struct dirrem {
 	} dm_un;
 	struct workhead dm_jwork;	/* Journal work awaiting completion. */
 };
-#define dm_pagedep dm_un.dmu_pagedep
-#define dm_dirinum dm_un.dmu_dirinum
+#define	dm_pagedep dm_un.dmu_pagedep
+#define	dm_dirinum dm_un.dmu_dirinum
 
 /*
  * A "newdirblk" structure tracks the progress of a newly allocated
@@ -1057,30 +1057,30 @@ struct mount_softdeps {
 /*
  * Keep the old names from when these were in the ufsmount structure.
  */
-#define softdep_workitem_pending	um_softdep->sd_workitem_pending
-#define softdep_worklist_tail		um_softdep->sd_worklist_tail
-#define softdep_journal_pending		um_softdep->sd_journal_pending
-#define softdep_journal_tail		um_softdep->sd_journal_tail
-#define softdep_jblocks			um_softdep->sd_jblocks
-#define softdep_unlinked		um_softdep->sd_unlinked
-#define softdep_dirtycg			um_softdep->sd_dirtycg
-#define softdep_mkdirlisthd		um_softdep->sd_mkdirlisthd
-#define pagedep_hashtbl			um_softdep->sd_pdhash
-#define pagedep_hash_size		um_softdep->sd_pdhashsize
-#define pagedep_nextclean		um_softdep->sd_pdnextclean
-#define inodedep_hashtbl		um_softdep->sd_idhash
-#define inodedep_hash_size		um_softdep->sd_idhashsize
-#define inodedep_nextclean		um_softdep->sd_idnextclean
-#define newblk_hashtbl			um_softdep->sd_newblkhash
-#define newblk_hash_size		um_softdep->sd_newblkhashsize
-#define bmsafemap_hashtbl		um_softdep->sd_bmhash
-#define bmsafemap_hash_size		um_softdep->sd_bmhashsize
-#define indir_hashtbl			um_softdep->sd_indirhash
-#define indir_hash_size			um_softdep->sd_indirhashsize
-#define softdep_numindirdeps		um_softdep->sd_numindirdeps
-#define softdep_on_journal		um_softdep->sd_on_journal
-#define softdep_on_worklist		um_softdep->sd_on_worklist
-#define softdep_deps			um_softdep->sd_deps
-#define softdep_accdeps			um_softdep->sd_accdeps
-#define softdep_req			um_softdep->sd_req
-#define softdep_curdeps			um_softdep->sd_curdeps
+#define	softdep_workitem_pending	um_softdep->sd_workitem_pending
+#define	softdep_worklist_tail		um_softdep->sd_worklist_tail
+#define	softdep_journal_pending		um_softdep->sd_journal_pending
+#define	softdep_journal_tail		um_softdep->sd_journal_tail
+#define	softdep_jblocks			um_softdep->sd_jblocks
+#define	softdep_unlinked		um_softdep->sd_unlinked
+#define	softdep_dirtycg			um_softdep->sd_dirtycg
+#define	softdep_mkdirlisthd		um_softdep->sd_mkdirlisthd
+#define	pagedep_hashtbl			um_softdep->sd_pdhash
+#define	pagedep_hash_size		um_softdep->sd_pdhashsize
+#define	pagedep_nextclean		um_softdep->sd_pdnextclean
+#define	inodedep_hashtbl		um_softdep->sd_idhash
+#define	inodedep_hash_size		um_softdep->sd_idhashsize
+#define	inodedep_nextclean		um_softdep->sd_idnextclean
+#define	newblk_hashtbl			um_softdep->sd_newblkhash
+#define	newblk_hash_size		um_softdep->sd_newblkhashsize
+#define	bmsafemap_hashtbl		um_softdep->sd_bmhash
+#define	bmsafemap_hash_size		um_softdep->sd_bmhashsize
+#define	indir_hashtbl			um_softdep->sd_indirhash
+#define	indir_hash_size			um_softdep->sd_indirhashsize
+#define	softdep_numindirdeps		um_softdep->sd_numindirdeps
+#define	softdep_on_journal		um_softdep->sd_on_journal
+#define	softdep_on_worklist		um_softdep->sd_on_worklist
+#define	softdep_deps			um_softdep->sd_deps
+#define	softdep_accdeps			um_softdep->sd_accdeps
+#define	softdep_req			um_softdep->sd_req
+#define	softdep_curdeps			um_softdep->sd_curdeps

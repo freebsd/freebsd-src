@@ -123,6 +123,7 @@ struct table_xentry {
 #define OFF_LEN_IFACE	(8 * offsetof(struct xaddr_iface, ifname))
 
 
+#ifdef INET6
 static inline void
 ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 {
@@ -132,6 +133,7 @@ ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 		*cp++ = 0xFFFFFFFF;
 	*cp = htonl(mask ? ~((1 << (32 - mask)) - 1) : 0);
 }
+#endif
 
 int
 ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,

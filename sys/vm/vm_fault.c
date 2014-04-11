@@ -269,6 +269,10 @@ RetryFault:;
 	map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
+		if ((curthread->td_pflags & TDP_DEVMEMIO) != 0) {
+			vm_map_unlock_read(fs.map);
+			return (KERN_FAILURE);
+		}
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 		    (u_long)vaddr);
 	}
@@ -652,6 +656,8 @@ vnode_locked:
 			}
 			PCPU_INC(cnt.v_zfod);
 			fs.m->valid = VM_PAGE_BITS_ALL;
+			/* Don't try to prefault neighboring pages. */
+			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			KASSERT(fs.object != next_object,
@@ -897,7 +903,8 @@ vnode_locked:
 	 * won't find it (yet).
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
-	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
+	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
+	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);

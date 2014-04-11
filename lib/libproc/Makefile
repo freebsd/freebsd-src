@@ -25,6 +25,6 @@ DPADD+=		${LIBSTDCPLUSPLUS}
 
 SHLIB_MAJOR=	2
 
-WITHOUT_MAN=
+NO_MAN=
 
 .include <bsd.lib.mk>

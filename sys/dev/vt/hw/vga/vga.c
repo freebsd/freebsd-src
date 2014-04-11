@@ -74,6 +74,9 @@ struct vga_softc {
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
+static vd_maskbitbltchr_t vga_maskbitbltchr;
+static vd_drawrect_t	vga_drawrect;
+static vd_setpixel_t	vga_setpixel;
 static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
@@ -81,6 +84,9 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
+	.vd_maskbitbltchr = vga_maskbitbltchr,
+	.vd_drawrect	= vga_drawrect,
+	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
 	.vd_postswitch	= vga_postswitch,
 	.vd_priority	= VD_PRIORITY_GENERIC,
@@ -139,6 +145,31 @@ vga_bitblt_put(struct vt_device *vd, u_long dst, term_color_t color,
 	}
 }
 
+static void
+vga_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
+{
+
+	vga_bitblt_put(vd, (y * VT_VGA_WIDTH / 8) + (x / 8), color,
+	    0x80 >> (x % 8));
+}
+
+static void
+vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
+    term_color_t color)
+{
+	int x, y;
+
+	for (y = y1; y <= y2; y++) {
+		if (fill || (y == y1) || (y == y2)) {
+			for (x = x1; x <= x2; x++)
+				vga_setpixel(vd, x, y, color);
+		} else {
+			vga_setpixel(vd, x1, y, color);
+			vga_setpixel(vd, x2, y, color);
+		}
+	}
+}
+
 static inline void
 vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
     u_long ldst, uint8_t shift, unsigned int width, unsigned int height,
@@ -172,6 +203,34 @@ vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
 
 static void
 vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
+{
+	u_long dst, ldst;
+	int w;
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
+	    VT_VGA_HEIGHT))
+		return;
+
+	dst = (VT_VGA_WIDTH * top + left) / 8;
+
+	for (; height > 0; height--) {
+		ldst = dst;
+		for (w = width; w > 0; w -= 8) {
+			vga_bitblt_put(vd, ldst, fg, *src);
+			vga_bitblt_put(vd, ldst, bg, ~*src);
+			ldst++;
+			src++;
+		}
+		dst += VT_VGA_WIDTH / 8;
+	}
+}
+
+/* Bitblt with mask support. Slow. */
+static void
+vga_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {

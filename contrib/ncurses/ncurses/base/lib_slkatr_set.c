@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 
 /****************************************************************************
  *  Author:  Juergen Pfeifer, 1998                                          *
- *     and:  Thomas E. Dickey 2005                                          *
+ *     and:  Thomas E. Dickey 2005-on                                       *
  ****************************************************************************/
 
 /*
@@ -38,22 +38,42 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatr_set.c,v 1.10 2005/01/28 21:11:53 tom Exp $")
+MODULE_ID("$Id: lib_slkatr_set.c,v 1.15 2014/02/01 22:10:42 tom Exp $")
 
 NCURSES_EXPORT(int)
-slk_attr_set(const attr_t attr, short color_pair_number, void *opts)
+NCURSES_SP_NAME(slk_attr_set) (NCURSES_SP_DCLx
+			       const attr_t attr,
+			       NCURSES_PAIRS_T color_pair_number,
+			       void *opts)
 {
-    T((T_CALLED("slk_attr_set(%s,%d)"), _traceattr(attr), color_pair_number));
+    int code = ERR;
 
-    if (SP != 0 && SP->_slk != 0 && !opts &&
-	color_pair_number >= 0 && color_pair_number < COLOR_PAIRS) {
-	TR(TRACE_ATTRS, ("... current %s", _tracech_t(CHREF(SP->_slk->attr))));
-	SetAttr(SP->_slk->attr, attr);
+    T((T_CALLED("slk_attr_set(%p,%s,%d)"),
+       (void *) SP_PARM,
+       _traceattr(attr),
+       (int) color_pair_number));
+
+    if (SP_PARM != 0
+	&& SP_PARM->_slk != 0
+	&& !opts
+	&& color_pair_number >= 0
+	&& color_pair_number < SP_PARM->_pair_limit) {
+	TR(TRACE_ATTRS, ("... current %s", _tracech_t(CHREF(SP_PARM->_slk->attr))));
+	SetAttr(SP_PARM->_slk->attr, attr);
 	if (color_pair_number > 0) {
-	    SetPair(SP->_slk->attr, color_pair_number);
+	    SetPair(SP_PARM->_slk->attr, color_pair_number);
 	}
-	TR(TRACE_ATTRS, ("new attribute is %s", _tracech_t(CHREF(SP->_slk->attr))));
-	returnCode(OK);
-    } else
-	returnCode(ERR);
+	TR(TRACE_ATTRS, ("new attribute is %s", _tracech_t(CHREF(SP_PARM->_slk->attr))));
+	code = OK;
+    }
+    returnCode(code);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+slk_attr_set(const attr_t attr, NCURSES_COLOR_T color_pair_number, void *opts)
+{
+    return NCURSES_SP_NAME(slk_attr_set) (CURRENT_SCREEN, attr,
+					  color_pair_number, opts);
+}
+#endif

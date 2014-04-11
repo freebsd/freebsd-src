@@ -14,7 +14,6 @@ SRCS=	ClangASTNodesEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp \
 	ClangSACheckersEmitter.cpp \
 	NeonEmitter.cpp \
-	OptParserEmitter.cpp \
 	TableGen.cpp
 
 LIBDEPS=llvmtablegen \

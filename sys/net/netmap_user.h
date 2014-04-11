@@ -66,6 +66,7 @@
 #define _NET_NETMAP_USER_H_
 
 #include <stdint.h>
+#include <sys/socket.h>		/* apple needs sockaddr */
 #include <net/if.h>		/* IFNAMSIZ */
 
 #ifndef likely
@@ -104,12 +105,12 @@ nm_ring_next(struct netmap_ring *r, uint32_t i)
 
 /*
  * Return 1 if we have pending transmissions in the tx ring.
- * When everything is complete ring->cur = ring->tail + 1 (modulo ring size)
+ * When everything is complete ring->head = ring->tail + 1 (modulo ring size)
  */
 static inline int
 nm_tx_pending(struct netmap_ring *r)
 {
-	return nm_ring_next(r, r->tail) != r->cur;
+	return nm_ring_next(r, r->tail) != r->head;
 }
 
 
@@ -142,13 +143,41 @@ nm_ring_space(struct netmap_ring *ring)
 #include <signal.h>
 #include <stdlib.h>
 
-struct nm_hdr_t {	/* same as pcap_pkthdr */
+#ifndef ND /* debug macros */
+/* debug support */
+#define ND(_fmt, ...) do {} while(0)
+#define D(_fmt, ...)						\
+	do {							\
+		struct timeval t0;				\
+		gettimeofday(&t0, NULL);			\
+		fprintf(stderr, "%03d.%06d %s [%d] " _fmt "\n",	\
+		    (int)(t0.tv_sec % 1000), (int)t0.tv_usec,	\
+		    __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+        } while (0)
+
+/* Rate limited version of "D", lps indicates how many per second */
+#define RD(lps, format, ...)                                    \
+    do {                                                        \
+        static int t0, __cnt;                                   \
+        struct timeval __xxts;                                  \
+        gettimeofday(&__xxts, NULL);                            \
+        if (t0 != __xxts.tv_sec) {                              \
+            t0 = __xxts.tv_sec;                                 \
+            __cnt = 0;                                          \
+        }                                                       \
+        if (__cnt++ < lps) {                                    \
+            D(format, ##__VA_ARGS__);                           \
+        }                                                       \
+    } while (0)
+#endif
+
+struct nm_pkthdr {	/* same as pcap_pkthdr */
 	struct timeval	ts;
 	uint32_t	caplen;
 	uint32_t	len;
 };
 
-struct nm_stat_t { // pcap_stat
+struct nm_stat {	/* same as pcap_stat	*/
 	u_int	ps_recv;
 	u_int	ps_drop;
 	u_int	ps_ifdrop;
@@ -159,19 +188,29 @@ struct nm_stat_t { // pcap_stat
 
 #define NM_ERRBUF_SIZE	512
 
-struct nm_desc_t {
-	struct nm_desc_t *self;
+struct nm_desc {
+	struct nm_desc *self; /* point to self if netmap. */
 	int fd;
 	void *mem;
 	int memsize;
-	struct netmap_if *nifp;
+	int done_mmap;	/* set if mem is the result of mmap */
+	struct netmap_if * const nifp;
 	uint16_t first_tx_ring, last_tx_ring, cur_tx_ring;
 	uint16_t first_rx_ring, last_rx_ring, cur_rx_ring;
 	struct nmreq req;	/* also contains the nr_name = ifname */
-	struct nm_hdr_t hdr;
+	struct nm_pkthdr hdr;
 
-	struct netmap_ring *tx, *rx;	/* shortcuts to base hw/sw rings */
-
+	/*
+	 * The memory contains netmap_if, rings and then buffers.
+	 * Given a pointer (e.g. to nm_inject) we can compare with
+	 * mem/buf_start/buf_end to tell if it is a buffer or
+	 * some other descriptor in our region.
+	 * We also store a pointer to some ring as it helps in the
+	 * translation from buffer indexes to addresses.
+	 */
+	struct netmap_ring * const some_ring;
+	void * const buf_start;
+	void * const buf_end;
 	/* parameters from pcap_open_live */
 	int snaplen;
 	int promisc;
@@ -183,7 +222,7 @@ struct nm_desc_t {
         uint32_t if_reqcap;
         uint32_t if_curcap;
 
-	struct nm_stat_t st;
+	struct nm_stat st;
 	char msg[NM_ERRBUF_SIZE];
 };
 
@@ -191,8 +230,8 @@ struct nm_desc_t {
  * when the descriptor is open correctly, d->self == d
  * Eventually we should also use some magic number.
  */
-#define P2NMD(p)		((struct nm_desc_t *)(p))
-#define IS_NETMAP_DESC(d)	(P2NMD(d)->self == P2NMD(d))
+#define P2NMD(p)		((struct nm_desc *)(p))
+#define IS_NETMAP_DESC(d)	((d) && P2NMD(d)->self == P2NMD(d))
 #define NETMAP_FD(d)		(P2NMD(d)->fd)
 
 
@@ -205,7 +244,7 @@ struct nm_desc_t {
  * XXX only for multiples of 64 bytes, non overlapped.
  */
 static inline void
-pkt_copy(const void *_src, void *_dst, int l)
+nm_pkt_copy(const void *_src, void *_dst, int l)
 {
 	const uint64_t *src = (const uint64_t *)_src;
 	uint64_t *dst = (uint64_t *)_dst;
@@ -230,7 +269,7 @@ pkt_copy(const void *_src, void *_dst, int l)
 /*
  * The callback, invoked on each received packet. Same as libpcap
  */
-typedef void (*nm_cb_t)(u_char *, const struct nm_hdr_t *, const u_char *d);
+typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
 
 /*
  *--- the pcap-like API ---
@@ -238,21 +277,49 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_hdr_t *, const u_char *d);
  * nm_open() opens a file descriptor, binds to a port and maps memory.
  *
  * ifname	(netmap:foo or vale:foo) is the port name
- * flags	can be NETMAP_SW_RING or NETMAP_HW_RING etc.
- * ring_no 	only used if NETMAP_HW_RING is specified, is interpreted
- *		as a string or integer indicating the ring number
- * ring_flags	is stored in all ring flags (e.g. for transparent mode)
- * to open. If successful, t opens the fd and maps the memory.
+ *		a suffix can indicate the follwing:
+ *		^		bind the host (sw) ring pair
+ *		*		bind host and NIC ring pairs (transparent)
+ *		-NN		bind individual NIC ring pair
+ *		{NN		bind master side of pipe NN
+ *		}NN		bind slave side of pipe NN
+ *
+ * req		provides the initial values of nmreq before parsing ifname.
+ *		Remember that the ifname parsing will override the ring
+ *		number in nm_ringid, and part of nm_flags;
+ * flags	special functions, normally 0
+ *		indicates which fields of *arg are significant
+ * arg		special functions, normally NULL
+ *		if passed a netmap_desc with mem != NULL,
+ *		use that memory instead of mmap.
  */
  
-static struct nm_desc_t *nm_open(const char *ifname,
-	 const char *ring_no, int flags, int ring_flags);
+static struct nm_desc *nm_open(const char *ifname, const struct nmreq *req,
+	uint64_t flags, const struct nm_desc *arg);
+
+/*
+ * nm_open can import some fields from the parent descriptor.
+ * These flags control which ones.
+ * Also in flags you can specify NETMAP_NO_TX_POLL and NETMAP_DO_RX_POLL,
+ * which set the initial value for these flags.
+ * Note that the 16 low bits of the flags are reserved for data
+ * that may go into the nmreq.
+ */
+enum {
+	NM_OPEN_NO_MMAP =	0x040000, /* reuse mmap from parent */
+	NM_OPEN_IFNAME =	0x080000, /* nr_name, nr_ringid, nr_flags */
+	NM_OPEN_ARG1 =		0x100000,
+	NM_OPEN_ARG2 =		0x200000,
+	NM_OPEN_ARG3 =		0x400000,
+	NM_OPEN_RING_CFG =	0x800000, /* tx|rx rings|slots */
+};
+
 
 /*
  * nm_close()	closes and restores the port to its previous state
  */
 
-static int nm_close(struct nm_desc_t *);
+static int nm_close(struct nm_desc *);
 
 /*
  * nm_inject() is the same as pcap_inject()
@@ -260,111 +327,226 @@ static int nm_close(struct nm_desc_t *);
  * nm_nextpkt() is the same as pcap_next()
  */
 
-static int nm_inject(struct nm_desc_t *, const void *, size_t);
-static int nm_dispatch(struct nm_desc_t *, int, nm_cb_t, u_char *);
-static u_char *nm_nextpkt(struct nm_desc_t *, struct nm_hdr_t *);
+static int nm_inject(struct nm_desc *, const void *, size_t);
+static int nm_dispatch(struct nm_desc *, int, nm_cb_t, u_char *);
+static u_char *nm_nextpkt(struct nm_desc *, struct nm_pkthdr *);
 
 
 /*
  * Try to open, return descriptor if successful, NULL otherwise.
  * An invalid netmap name will return errno = 0;
+ * You can pass a pointer to a pre-filled nm_desc to add special
+ * parameters. Flags is used as follows
+ * NM_OPEN_NO_MMAP	use the memory from arg, only
+ *			if the nr_arg2 (memory block) matches.
+ * NM_OPEN_ARG1		use req.nr_arg1 from arg
+ * NM_OPEN_ARG2		use req.nr_arg2 from arg
+ * NM_OPEN_RING_CFG	user ring config from arg
  */
-static struct nm_desc_t *
-nm_open(const char *ifname, const char *ring_name, int flags, int ring_flags)
+static struct nm_desc *
+nm_open(const char *ifname, const struct nmreq *req,
+	uint64_t new_flags, const struct nm_desc *arg)
 {
-	struct nm_desc_t *d;
-	u_int n, namelen;
-	char *port = NULL;
+	struct nm_desc *d = NULL;
+	const struct nm_desc *parent = arg;
+	u_int namelen;
+	uint32_t nr_ringid = 0, nr_flags;
+	const char *port = NULL;
+	const char *errmsg = NULL;
 
 	if (strncmp(ifname, "netmap:", 7) && strncmp(ifname, "vale", 4)) {
-		errno = 0; /* name not recognised */
+		errno = 0; /* name not recognised, not an error */
 		return NULL;
 	}
 	if (ifname[0] == 'n')
 		ifname += 7;
-	port = strchr(ifname, '-');
-	if (!port) {
-		namelen = strlen(ifname);
-	} else {
-		namelen = port - ifname;
-		flags &= ~(NETMAP_SW_RING | NETMAP_HW_RING  | NETMAP_RING_MASK);
-		if (port[1] == 's')
-			flags |= NETMAP_SW_RING;
-		else
-			ring_name = port;
+	/* scan for a separator */
+	for (port = ifname; *port && !index("-*^{}", *port); port++)
+		;
+	namelen = port - ifname;
+	if (namelen >= sizeof(d->req.nr_name)) {
+		errmsg = "name too long";
+		goto fail;
 	}
-	if (namelen >= sizeof(d->req.nr_name))
-		namelen = sizeof(d->req.nr_name) - 1;
+	switch (*port) {
+	default:  /* '\0', no suffix */
+		nr_flags = NR_REG_ALL_NIC;
+		break;
+	case '-': /* one NIC */
+		nr_flags = NR_REG_ONE_NIC;
+		nr_ringid = atoi(port + 1);
+		break;
+	case '*': /* NIC and SW, ignore port */
+		nr_flags = NR_REG_NIC_SW;
+		if (port[1]) {
+			errmsg = "invalid port for nic+sw";
+			goto fail;
+		}
+		break;
+	case '^': /* only sw ring */
+		nr_flags = NR_REG_SW;
+		if (port[1]) {
+			errmsg = "invalid port for sw ring";
+			goto fail;
+		}
+		break;
+	case '{':
+		nr_flags = NR_REG_PIPE_MASTER;
+		nr_ringid = atoi(port + 1);
+		break;
+	case '}':
+		nr_flags = NR_REG_PIPE_SLAVE;
+		nr_ringid = atoi(port + 1);
+		break;
+	}
 
-	d = (struct nm_desc_t *)calloc(1, sizeof(*d));
+	if (nr_ringid >= NETMAP_RING_MASK) {
+		errmsg = "invalid ringid";
+		goto fail;
+	}
+	/* add the *XPOLL flags */
+	nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
+
+	d = (struct nm_desc *)calloc(1, sizeof(*d));
 	if (d == NULL) {
+		errmsg = "nm_desc alloc failure";
 		errno = ENOMEM;
 		return NULL;
 	}
 	d->self = d;	/* set this early so nm_close() works */
 	d->fd = open("/dev/netmap", O_RDWR);
-	if (d->fd < 0)
+	if (d->fd < 0) {
+		errmsg = "cannot open /dev/netmap";
 		goto fail;
-
-	if (flags & NETMAP_SW_RING) {
-		d->req.nr_ringid = NETMAP_SW_RING;
-	} else {
-		u_int r;
-		if (flags & NETMAP_HW_RING) /* interpret ring as int */
-			r = (uintptr_t)ring_name;
-		else /* interpret ring as numeric string */
-			r = ring_name ? atoi(ring_name) : ~0;
-		r = (r < NETMAP_RING_MASK) ? (r | NETMAP_HW_RING) : 0;
-		d->req.nr_ringid = r; /* set the ring */
 	}
-	d->req.nr_ringid |= (flags & ~NETMAP_RING_MASK);
+
+	if (req)
+		d->req = *req;
 	d->req.nr_version = NETMAP_API;
+	d->req.nr_ringid &= ~NETMAP_RING_MASK;
+
+	/* these fields are overridden by ifname and flags processing */
+	d->req.nr_ringid |= nr_ringid;
+	d->req.nr_flags = nr_flags;
 	memcpy(d->req.nr_name, ifname, namelen);
 	d->req.nr_name[namelen] = '\0';
+	/* optionally import info from parent */
+	if (IS_NETMAP_DESC(parent) && new_flags) {
+		if (new_flags & NM_OPEN_ARG1)
+			D("overriding ARG1 %d", parent->req.nr_arg1);
+		d->req.nr_arg1 = new_flags & NM_OPEN_ARG1 ?
+			parent->req.nr_arg1 : 4;
+		if (new_flags & NM_OPEN_ARG2)
+			D("overriding ARG2 %d", parent->req.nr_arg2);
+		d->req.nr_arg2 = new_flags & NM_OPEN_ARG2 ?
+			parent->req.nr_arg2 : 0;
+		if (new_flags & NM_OPEN_ARG3)
+			D("overriding ARG3 %d", parent->req.nr_arg3);
+		d->req.nr_arg3 = new_flags & NM_OPEN_ARG3 ?
+			parent->req.nr_arg3 : 0;
+		if (new_flags & NM_OPEN_RING_CFG) {
+			D("overriding RING_CFG");
+			d->req.nr_tx_slots = parent->req.nr_tx_slots;
+			d->req.nr_rx_slots = parent->req.nr_rx_slots;
+			d->req.nr_tx_rings = parent->req.nr_tx_rings;
+			d->req.nr_rx_rings = parent->req.nr_rx_rings;
+		}
+		if (new_flags & NM_OPEN_IFNAME) {
+			D("overriding ifname %s ringid 0x%x flags 0x%x",
+				parent->req.nr_name, parent->req.nr_ringid,
+				parent->req.nr_flags);
+			memcpy(d->req.nr_name, parent->req.nr_name,
+				sizeof(d->req.nr_name));
+			d->req.nr_ringid = parent->req.nr_ringid;
+			d->req.nr_flags = parent->req.nr_flags;
+		}
+	}
 	if (ioctl(d->fd, NIOCREGIF, &d->req)) {
+		errmsg = "NIOCREGIF failed";
 		goto fail;
 	}
 
-	d->memsize = d->req.nr_memsize;
-	d->mem = mmap(0, d->memsize, PROT_WRITE | PROT_READ, MAP_SHARED,
-			d->fd, 0);
-	if (d->mem == NULL)
-		goto fail;
-	d->nifp = NETMAP_IF(d->mem, d->req.nr_offset);
-	if (d->req.nr_ringid & NETMAP_SW_RING) {
+	if (IS_NETMAP_DESC(parent) && parent->mem &&
+	    parent->req.nr_arg2 == d->req.nr_arg2) {
+		/* do not mmap, inherit from parent */
+		d->memsize = parent->memsize;
+		d->mem = parent->mem;
+	} else {
+		d->memsize = d->req.nr_memsize;
+		d->mem = mmap(0, d->memsize, PROT_WRITE | PROT_READ, MAP_SHARED,
+				d->fd, 0);
+		if (d->mem == NULL) {
+			errmsg = "mmap failed";
+			goto fail;
+		}
+		d->done_mmap = 1;
+	}
+	{
+		struct netmap_if *nifp = NETMAP_IF(d->mem, d->req.nr_offset);
+		struct netmap_ring *r = NETMAP_RXRING(nifp, );
+
+		*(struct netmap_if **)(uintptr_t)&(d->nifp) = nifp;
+		*(struct netmap_ring **)(uintptr_t)&d->some_ring = r;
+		*(void **)(uintptr_t)&d->buf_start = NETMAP_BUF(r, 0);
+		*(void **)(uintptr_t)&d->buf_end =
+			(char *)d->mem + d->memsize;
+	}
+
+	if (nr_flags ==  NR_REG_SW) { /* host stack */
 		d->first_tx_ring = d->last_tx_ring = d->req.nr_tx_rings;
 		d->first_rx_ring = d->last_rx_ring = d->req.nr_rx_rings;
-	} else if (d->req.nr_ringid & NETMAP_HW_RING) {
-		/* XXX check validity */
-		d->first_tx_ring = d->last_tx_ring =
-		d->first_rx_ring = d->last_rx_ring =
-			d->req.nr_ringid & NETMAP_RING_MASK;
-	} else {
-		d->first_tx_ring = d->last_rx_ring = 0;
+	} else if (nr_flags ==  NR_REG_ALL_NIC) { /* only nic */
+		d->first_tx_ring = 0;
+		d->first_rx_ring = 0;
 		d->last_tx_ring = d->req.nr_tx_rings - 1;
 		d->last_rx_ring = d->req.nr_rx_rings - 1;
+	} else if (nr_flags ==  NR_REG_NIC_SW) {
+		d->first_tx_ring = 0;
+		d->first_rx_ring = 0;
+		d->last_tx_ring = d->req.nr_tx_rings;
+		d->last_rx_ring = d->req.nr_rx_rings;
+	} else if (nr_flags == NR_REG_ONE_NIC) {
+		/* XXX check validity */
+		d->first_tx_ring = d->last_tx_ring =
+		d->first_rx_ring = d->last_rx_ring = nr_ringid;
+	} else { /* pipes */
+		d->first_tx_ring = d->last_tx_ring = 0;
+		d->first_rx_ring = d->last_rx_ring = 0;
 	}
-	d->tx = NETMAP_TXRING(d->nifp, 0);
-	d->rx = NETMAP_RXRING(d->nifp, 0);
+
+#ifdef DEBUG_NETMAP_USER
+    { /* debugging code */
+	int i;
+
+	D("%s tx %d .. %d %d rx %d .. %d %d", ifname,
+		d->first_tx_ring, d->last_tx_ring, d->req.nr_tx_rings,
+                d->first_rx_ring, d->last_rx_ring, d->req.nr_rx_rings);
+	for (i = 0; i <= d->req.nr_tx_rings; i++) {
+		struct netmap_ring *r = NETMAP_TXRING(d->nifp, i);
+		D("TX%d %p h %d c %d t %d", i, r, r->head, r->cur, r->tail);
+	}
+	for (i = 0; i <= d->req.nr_rx_rings; i++) {
+		struct netmap_ring *r = NETMAP_RXRING(d->nifp, i);
+		D("RX%d %p h %d c %d t %d", i, r, r->head, r->cur, r->tail);
+	}
+    }
+#endif /* debugging */
+		
 	d->cur_tx_ring = d->first_tx_ring;
 	d->cur_rx_ring = d->first_rx_ring;
-	for (n = d->first_tx_ring; n <= d->last_tx_ring; n++) {
-		d->tx[n].flags |= ring_flags;
-	}
-	for (n = d->first_rx_ring; n <= d->last_rx_ring; n++) {
-		d->rx[n].flags |= ring_flags;
-	}
 	return d;
 
 fail:
 	nm_close(d);
+	if (errmsg)
+		D("%s %s", errmsg, ifname);
 	errno = EINVAL;
 	return NULL;
 }
 
 
 static int
-nm_close(struct nm_desc_t *d)
+nm_close(struct nm_desc *d)
 {
 	/*
 	 * ugly trick to avoid unused warnings
@@ -375,7 +557,7 @@ nm_close(struct nm_desc_t *d)
 
 	if (d == NULL || d->self != d)
 		return EINVAL;
-	if (d->mem)
+	if (d->done_mmap && d->mem)
 		munmap(d->mem, d->memsize);
 	if (d->fd != -1)
 		close(d->fd);
@@ -389,7 +571,7 @@ nm_close(struct nm_desc_t *d)
  * Same prototype as pcap_inject(), only need to cast.
  */
 static int
-nm_inject(struct nm_desc_t *d, const void *buf, size_t size)
+nm_inject(struct nm_desc *d, const void *buf, size_t size)
 {
 	u_int c, n = d->last_tx_ring - d->first_tx_ring + 1;
 
@@ -408,7 +590,7 @@ nm_inject(struct nm_desc_t *d, const void *buf, size_t size)
 		i = ring->cur;
 		idx = ring->slot[i].buf_idx;
 		ring->slot[i].len = size;
-		pkt_copy(buf, NETMAP_BUF(ring, idx), size);
+		nm_pkt_copy(buf, NETMAP_BUF(ring, idx), size);
 		d->cur_tx_ring = ri;
 		ring->head = ring->cur = nm_ring_next(ring, i);
 		return size;
@@ -421,7 +603,7 @@ nm_inject(struct nm_desc_t *d, const void *buf, size_t size)
  * Same prototype as pcap_dispatch(), only need to cast.
  */
 static int
-nm_dispatch(struct nm_desc_t *d, int cnt, nm_cb_t cb, u_char *arg)
+nm_dispatch(struct nm_desc *d, int cnt, nm_cb_t cb, u_char *arg)
 {
 	int n = d->last_rx_ring - d->first_rx_ring + 1;
 	int c, got = 0, ri = d->cur_rx_ring;
@@ -457,7 +639,7 @@ nm_dispatch(struct nm_desc_t *d, int cnt, nm_cb_t cb, u_char *arg)
 }
 
 static u_char *
-nm_nextpkt(struct nm_desc_t *d, struct nm_hdr_t *hdr)
+nm_nextpkt(struct nm_desc *d, struct nm_pkthdr *hdr)
 {
 	int ri = d->cur_rx_ring;
 

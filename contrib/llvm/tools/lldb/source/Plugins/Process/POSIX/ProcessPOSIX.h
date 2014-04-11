@@ -58,13 +58,13 @@ public:
 
     virtual lldb_private::Error
     DoLaunch (lldb_private::Module *exe_module, 
-              const lldb_private::ProcessLaunchInfo &launch_info);
+              lldb_private::ProcessLaunchInfo &launch_info);
 
     virtual void
     DidLaunch();
 
     virtual lldb_private::Error
-    DoResume() = 0;
+    DoResume();
 
     virtual lldb_private::Error
     DoHalt(bool &caused_stop);
@@ -103,9 +103,6 @@ public:
 
     virtual lldb_private::Error
     DoDeallocateMemory(lldb::addr_t ptr);
-
-    virtual lldb::addr_t
-    ResolveIndirectFunction(const lldb_private::Address *address, lldb_private::Error &error);
 
     virtual size_t
     GetSoftwareBreakpointTrapOpcode(lldb_private::BreakpointSite* bp_site);
@@ -149,7 +146,7 @@ public:
 
     /// Registers the given message with this process.
     virtual void
-    SendMessage(const ProcessMessage &message) = 0;
+    SendMessage(const ProcessMessage &message);
 
     ProcessMonitor &
     GetMonitor() { assert(m_monitor); return *m_monitor; }

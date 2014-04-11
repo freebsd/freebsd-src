@@ -276,19 +276,28 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
          (Family == 6 && Model == 0x2F) || // Westmere: Westmere-EX
          (Family == 6 && Model == 0x2A) || // SandyBridge
          (Family == 6 && Model == 0x2D) || // SandyBridge: SandyBridge-E*
-         (Family == 6 && Model == 0x3A))) {// IvyBridge
+         (Family == 6 && Model == 0x3A) || // IvyBridge
+         (Family == 6 && Model == 0x3E) || // IvyBridge EP
+         (Family == 6 && Model == 0x3C) || // Haswell
+         (Family == 6 && Model == 0x3F) || // ...
+         (Family == 6 && Model == 0x45) || // ...
+         (Family == 6 && Model == 0x46))) { // ...
       IsUAMemFast = true;
       ToggleFeature(X86::FeatureFastUAMem);
     }
 
-    // Set processor type. Currently only Atom is detected.
+    // Set processor type. Currently only Atom or Silvermont (SLM) is detected.
     if (Family == 6 &&
-        (Model == 28 || Model == 38 || Model == 39
-         || Model == 53 || Model == 54)) {
+        (Model == 28 || Model == 38 || Model == 39 ||
+         Model == 53 || Model == 54)) {
       X86ProcFamily = IntelAtom;
 
       UseLeaForSP = true;
       ToggleFeature(X86::FeatureLeaForSP);
+    }
+    else if (Family == 6 &&
+        (Model == 55 || Model == 74 || Model == 77)) {
+      X86ProcFamily = IntelSLM;
     }
 
     unsigned MaxExtLevel;
@@ -351,14 +360,38 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
         HasRTM = true;
         ToggleFeature(X86::FeatureRTM);
       }
-      if (IsIntel && ((EBX >> 19) & 0x1)) {
-        HasADX = true;
-        ToggleFeature(X86::FeatureADX);
+      if (IsIntel && ((EBX >> 16) & 0x1)) {
+        X86SSELevel = AVX512F;
+        ToggleFeature(X86::FeatureAVX512);
       }
       if (IsIntel && ((EBX >> 18) & 0x1)) {
         HasRDSEED = true;
         ToggleFeature(X86::FeatureRDSEED);
       }
+      if (IsIntel && ((EBX >> 19) & 0x1)) {
+        HasADX = true;
+        ToggleFeature(X86::FeatureADX);
+      }
+      if (IsIntel && ((EBX >> 26) & 0x1)) {
+        HasPFI = true;
+        ToggleFeature(X86::FeaturePFI);
+      }
+      if (IsIntel && ((EBX >> 27) & 0x1)) {
+        HasERI = true;
+        ToggleFeature(X86::FeatureERI);
+      }
+      if (IsIntel && ((EBX >> 28) & 0x1)) {
+        HasCDI = true;
+        ToggleFeature(X86::FeatureCDI);
+      }
+      if (IsIntel && ((EBX >> 29) & 0x1)) {
+        HasSHA = true;
+        ToggleFeature(X86::FeatureSHA);
+      }
+    }
+    if (IsAMD && ((ECX >> 21) & 0x1)) {
+      HasTBM = true;
+      ToggleFeature(X86::FeatureTBM);
     }
   }
 }
@@ -416,8 +449,8 @@ void X86Subtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
 
     // Make sure 64-bit features are available in 64-bit mode.
     if (In64BitMode) {
-      HasX86_64 = true; ToggleFeature(X86::Feature64Bit);
-      HasCMov = true;   ToggleFeature(X86::FeatureCMOV);
+      if (!HasX86_64) { HasX86_64 = true; ToggleFeature(X86::Feature64Bit); }
+      if (!HasCMov)   { HasCMov   = true; ToggleFeature(X86::FeatureCMOV); }
 
       if (X86SSELevel < SSE2) {
         X86SSELevel = SSE2;
@@ -429,9 +462,9 @@ void X86Subtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
 
   // CPUName may have been set by the CPU detection code. Make sure the
   // new MCSchedModel is used.
-  InitMCProcessorInfo(CPUName, FS);
+  InitCPUSchedModel(CPUName);
 
-  if (X86ProcFamily == IntelAtom)
+  if (X86ProcFamily == IntelAtom || X86ProcFamily == IntelSLM)
     PostRAScheduler = true;
 
   InstrItins = getInstrItineraryForCPU(CPUName);
@@ -468,6 +501,7 @@ void X86Subtarget::initializeEnvironment() {
   HasFMA = false;
   HasFMA4 = false;
   HasXOP = false;
+  HasTBM = false;
   HasMOVBE = false;
   HasRDRAND = false;
   HasF16C = false;
@@ -477,7 +511,11 @@ void X86Subtarget::initializeEnvironment() {
   HasBMI2 = false;
   HasRTM = false;
   HasHLE = false;
+  HasERI = false;
+  HasCDI = false;
+  HasPFI = false;
   HasADX = false;
+  HasSHA = false;
   HasPRFCHW = false;
   HasRDSEED = false;
   IsBTMemSlow = false;

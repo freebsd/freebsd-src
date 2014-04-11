@@ -22,14 +22,15 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
+#include <sys/capsicum.h>
 
-#define VERSION "1.0"
+#include "pathnames.h"
 
 #ifndef UNITSFILE
 #define UNITSFILE _PATH_UNITSLIB
@@ -112,6 +113,7 @@ readunits(const char *userfile)
 	FILE *unitfile;
 	char line[512], *lineptr;
 	int len, linenum, i;
+	cap_rights_t unitfilerights;
 
 	unitcount = 0;
 	linenum = 0;
@@ -143,6 +145,12 @@ readunits(const char *userfile)
 				errx(1, "can't find units file '%s'", UNITSFILE);
 		}
 	}
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
+	cap_rights_init(&unitfilerights, CAP_READ, CAP_FSTAT);
+	if (cap_rights_limit(fileno(unitfile), &unitfilerights) < 0
+		&& errno != ENOSYS)
+		err(1, "cap_rights_limit() failed");
 	while (!feof(unitfile)) {
 		if (!fgets(line, sizeof(line), unitfile))
 			break;
@@ -679,7 +687,7 @@ main(int argc, char **argv)
 	char *userfile = 0;
 	int quiet = 0;
 
-	while ((optchar = getopt(argc, argv, "vqf:")) != -1) {
+	while ((optchar = getopt(argc, argv, "Vqf:")) != -1) {
 		switch (optchar) {
 		case 'f':
 			userfile = optarg;
@@ -687,14 +695,12 @@ main(int argc, char **argv)
 		case 'q':
 			quiet = 1;
 			break;
-		case 'v':
-			fprintf(stderr, "\n  units version %s  Copyright (c) 1993 by Adrian Mariano\n",
-			    VERSION);
-			fprintf(stderr, "                    This program may be freely distributed\n");
-			usage();
-		default:
+		case 'V':
+			fprintf(stderr, "FreeBSD units\n");
 			usage();
 			break;
+		default:
+			usage();
 		}
 	}
 

@@ -28,7 +28,7 @@ using namespace llvm;
 
 namespace {
 
-/// \brief Actaul inliner pass implementation.
+/// \brief Actual inliner pass implementation.
 ///
 /// The common implementation of the inlining logic is shared between this
 /// inliner pass and the always inliner pass. The two passes use different cost
@@ -61,7 +61,7 @@ public:
 char SimpleInliner::ID = 0;
 INITIALIZE_PASS_BEGIN(SimpleInliner, "inline",
                 "Function Integration/Inlining", false, false)
-INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_DEPENDENCY(CallGraph)
 INITIALIZE_PASS_DEPENDENCY(InlineCostAnalysis)
 INITIALIZE_PASS_END(SimpleInliner, "inline",
                 "Function Integration/Inlining", false, false)

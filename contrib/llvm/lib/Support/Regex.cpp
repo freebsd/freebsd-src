@@ -43,7 +43,7 @@ bool Regex::isValid(std::string &Error) {
   
   size_t len = llvm_regerror(error, preg, NULL, 0);
   
-  Error.resize(len);
+  Error.resize(len - 1);
   llvm_regerror(error, preg, &Error[0], len);
   return false;
 }
@@ -167,4 +167,11 @@ std::string Regex::sub(StringRef Repl, StringRef String,
   Res += StringRef(Matches[0].end(), String.end() - Matches[0].end());
 
   return Res;
+}
+
+bool Regex::isLiteralERE(StringRef Str) {
+  // Check for regex metacharacters.  This list was derived from our regex
+  // implementation in regcomp.c and double checked against the POSIX extended
+  // regular expression specification.
+  return Str.find_first_of("()^$|*+?.[]\\{}") == StringRef::npos;
 }

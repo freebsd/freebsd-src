@@ -42,7 +42,7 @@
 
 #define	ALC_TSO_MAXSEGSIZE	4096
 #define	ALC_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	ALC_MAXTXSEGS		32
+#define	ALC_MAXTXSEGS		35
 
 #define	ALC_ADDR_LO(x)		((uint64_t) (x) & 0xFFFFFFFF)
 #define	ALC_ADDR_HI(x)		((uint64_t) (x) >> 32)

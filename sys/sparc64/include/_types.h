@@ -92,7 +92,7 @@ typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint64_t	__vm_paddr_t;
 typedef	__uint64_t	__vm_pindex_t;
 typedef	__uint64_t	__vm_size_t;
-typedef	int		__wchar_t;
+typedef	int		___wchar_t;
 
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
 #define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */

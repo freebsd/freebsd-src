@@ -30,17 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/pcpu.h>
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/segments.h>
 #include <machine/specialreg.h>
 
 #include <machine/vmm.h>
 
+#include "vmm_host.h"
 #include "x86.h"
 
 #define	CPUID_VM_HIGH		0x40000000
@@ -53,6 +55,8 @@ int
 x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		  uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
+	const struct xsave_limits *limits;
+	uint64_t cr4;
 	int error, enable_invpcid;
 	unsigned int 	func, regs[4];
 	enum x2apic_state x2apic_state;
@@ -145,13 +149,31 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			if (x2apic_state != X2APIC_DISABLED)
 				regs[2] |= CPUID2_X2APIC;
+			else
+				regs[2] &= ~CPUID2_X2APIC;
 
 			/*
-			 * Hide xsave/osxsave/avx until the FPU save/restore
-			 * issues are resolved
+			 * Only advertise CPUID2_XSAVE in the guest if
+			 * the host is using XSAVE.
 			 */
-			regs[2] &= ~(CPUID2_XSAVE | CPUID2_OSXSAVE |
-				     CPUID2_AVX);
+			if (!(regs[2] & CPUID2_OSXSAVE))
+				regs[2] &= ~CPUID2_XSAVE;
+
+			/*
+			 * If CPUID2_XSAVE is being advertised and the
+			 * guest has set CR4_XSAVE, set
+			 * CPUID2_OSXSAVE.
+			 */
+			regs[2] &= ~CPUID2_OSXSAVE;
+			if (regs[2] & CPUID2_XSAVE) {
+				error = vm_get_register(vm, vcpu_id,
+				    VM_REG_GUEST_CR4, &cr4);
+				if (error)
+					panic("x86_emulate_cpuid: error %d "
+					      "fetching %%cr4", error);
+				if (cr4 & CR4_XSAVE)
+					regs[2] |= CPUID2_OSXSAVE;
+			}
 
 			/*
 			 * Hide monitor/mwait until we know how to deal with
@@ -197,9 +219,18 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			/*
 			 * Do not expose topology.
+			 *
+			 * The maximum number of processor cores in
+			 * this physical processor package and the
+			 * maximum number of threads sharing this
+			 * cache are encoded with "plus 1" encoding.
+			 * Adding one to the value in this register
+			 * field to obtains the actual value.
+			 *
+			 * Therefore 0 for both indicates 1 core per
+			 * package and no cache sharing.
 			 */
 			regs[0] &= 0xffff8000;
-			regs[0] |= 0x04008000;
 			break;
 
 		case CPUID_0000_0007:
@@ -219,7 +250,6 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 		case CPUID_0000_0006:
 		case CPUID_0000_000A:
-		case CPUID_0000_000D:
 			/*
 			 * Handle the access, but report 0 for
 			 * all options
@@ -238,6 +268,57 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			regs[1] = 0;
 			regs[2] = *ecx & 0xff;
 			regs[3] = vcpu_id;
+			break;
+
+		case CPUID_0000_000D:
+			limits = vmm_get_xsave_limits();
+			if (!limits->xsave_enabled) {
+				regs[0] = 0;
+				regs[1] = 0;
+				regs[2] = 0;
+				regs[3] = 0;
+				break;
+			}
+
+			cpuid_count(*eax, *ecx, regs);
+			switch (*ecx) {
+			case 0:
+				/*
+				 * Only permit the guest to use bits
+				 * that are active in the host in
+				 * %xcr0.  Also, claim that the
+				 * maximum save area size is
+				 * equivalent to the host's current
+				 * save area size.  Since this runs
+				 * "inside" of vmrun(), it runs with
+				 * the guest's xcr0, so the current
+				 * save area size is correct as-is.
+				 */
+				regs[0] &= limits->xcr0_allowed;
+				regs[2] = limits->xsave_max_size;
+				regs[3] &= (limits->xcr0_allowed >> 32);
+				break;
+			case 1:
+				/* Only permit XSAVEOPT. */
+				regs[0] &= CPUID_EXTSTATE_XSAVEOPT;
+				regs[1] = 0;
+				regs[2] = 0;
+				regs[3] = 0;
+				break;
+			default:
+				/*
+				 * If the leaf is for a permitted feature,
+				 * pass through as-is, otherwise return
+				 * all zeroes.
+				 */
+				if (!(limits->xcr0_allowed & (1ul << *ecx))) {
+					regs[0] = 0;
+					regs[1] = 0;
+					regs[2] = 0;
+					regs[3] = 0;
+				}
+				break;
+			}
 			break;
 
 		case 0x40000000:

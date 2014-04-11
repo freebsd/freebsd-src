@@ -461,6 +461,9 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 		sfxge_tx_qdpl_swizzle(txq);
 
+		if (stdp->std_count >= SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT)
+			return (ENOBUFS);
+
 		*(stdp->std_getp) = mbuf;
 		stdp->std_getp = &mbuf->m_nextpkt;
 		stdp->std_count++;
@@ -480,8 +483,8 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 				old_len = mp->m_pkthdr.csum_data;
 			} else
 				old_len = 0;
-			if (old_len >= SFXGE_TX_MAX_DEFERRED)
-				return ENOBUFS;
+			if (old_len >= SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT)
+				return (ENOBUFS);
 			mbuf->m_pkthdr.csum_data = old_len + 1;
 			mbuf->m_nextpkt = (void *)old;
 		} while (atomic_cmpset_ptr(putp, old, new) == 0);
@@ -500,6 +503,11 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	int locked;
 	int rc;
 
+	if (!SFXGE_LINK_UP(txq->sc)) {
+		rc = ENETDOWN;
+		goto fail;
+	}
+
 	/*
 	 * Try to grab the txq lock.  If we are able to get the lock,
 	 * the packet will be appended to the "get list" of the deferred
@@ -507,12 +515,9 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 */
 	locked = mtx_trylock(&txq->lock);
 
-	/*
-	 * Can only fail if we weren't able to get the lock.
-	 */
 	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
-		KASSERT(!locked,
-		    ("sfxge_tx_qdpl_put() failed locked"));
+		if (locked)
+			mtx_unlock(&txq->lock);
 		rc = ENOBUFS;
 		goto fail;
 	}
@@ -536,6 +541,8 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	return (0);
 
 fail:
+	m_freem(m);
+	atomic_add_long(&txq->early_drops, 1);
 	return (rc);
 	
 }
@@ -585,11 +592,6 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	sc = (struct sfxge_softc *)ifp->if_softc;
 
 	KASSERT(ifp->if_flags & IFF_UP, ("interface not up"));
-
-	if (!SFXGE_LINK_UP(sc)) {
-		m_freem(m);
-		return (0);
-	}
 
 	/* Pick the desired transmit queue. */
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
@@ -1390,6 +1392,7 @@ static const struct {
 	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
 	SFXGE_TX_STAT(tx_collapses, collapses),
 	SFXGE_TX_STAT(tx_drops, drops),
+	SFXGE_TX_STAT(tx_early_drops, early_drops),
 };
 
 static int

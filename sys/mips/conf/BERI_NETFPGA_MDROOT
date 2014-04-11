@@ -10,11 +10,14 @@ include "BERI_TEMPLATE"
 
 ident		BERI_NETFPGA_MDROOT
 
+options 	HZ=100
+
 options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=beri-netfpga.dts
 
-device		uart
+#device		uart
+device		altera_jtag_uart
 
 #
 # This kernel configuration uses an embedded memory root file system.

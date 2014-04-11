@@ -128,10 +128,6 @@ login_receive(struct connection *conn, bool initial)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-min 0x%x", bhslr->bhslr_version_min);
 	}
-	if (request->pdu_data_len == 0) {
-		login_send_error(request, 0x02, 0x00);
-		log_errx(1, "received Login PDU with empty data segment");
-	}
 	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with decreasing CmdSN: "
@@ -922,11 +918,11 @@ login(struct connection *conn)
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",
-			    conn->conn_target->t_iqn,
+			    conn->conn_target->t_name,
 			    conn->conn_target->t_auth_group->ag_name);
 		} else {
 			log_debugx("initiator requests to connect "
-			    "to target \"%s\"", conn->conn_target->t_iqn);
+			    "to target \"%s\"", conn->conn_target->t_name);
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
@@ -937,6 +933,33 @@ login(struct connection *conn)
 		} else {
 			log_debugx("initiator requests discovery session");
 		}
+	}
+
+	/*
+	 * Enforce initiator-name and initiator-portal.
+	 */
+	if (auth_name_defined(ag)) {
+		if (auth_name_find(ag, initiator_name) == NULL) {
+			login_send_error(request, 0x02, 0x02);
+			log_errx(1, "initiator does not match allowed "
+			    "initiator names");
+		}
+		log_debugx("initiator matches allowed initiator names");
+	} else {
+		log_debugx("auth-group does not define initiator name "
+		    "restrictions");
+	}
+
+	if (auth_portal_defined(ag)) {
+		if (auth_portal_find(ag, conn->conn_initiator_addr) == NULL) {
+			login_send_error(request, 0x02, 0x02);
+			log_errx(1, "initiator does not match allowed "
+			    "initiator portals");
+		}
+		log_debugx("initiator matches allowed initiator portals");
+	} else {
+		log_debugx("auth-group does not define initiator portal "
+		    "restrictions");
 	}
 
 	/*
@@ -1007,12 +1030,17 @@ login(struct connection *conn)
 		return;
 	}
 
+	if (ag->ag_type == AG_TYPE_DENY) {
+		login_send_error(request, 0x02, 0x01);
+		log_errx(1, "auth-type is \"deny\"");
+	}
+
 	if (ag->ag_type == AG_TYPE_UNKNOWN) {
 		/*
 		 * This can happen with empty auth-group.
 		 */
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type not set, denying access");
+		log_errx(1, "auth-type not set, denying access");
 	}
 
 	log_debugx("CHAP authentication required");

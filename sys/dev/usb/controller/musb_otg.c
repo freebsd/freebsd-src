@@ -3776,6 +3776,13 @@ tr_handle_get_descriptor:
 		len = sizeof(musbotg_devd);
 		ptr = (const void *)&musbotg_devd;
 		goto tr_valid;
+	case UDESC_DEVICE_QUALIFIER:
+		if (value & 0xff) {
+			goto tr_stalled;
+		}
+		len = sizeof(musbotg_odevd);
+		ptr = (const void *)&musbotg_odevd;
+		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {
 			goto tr_stalled;

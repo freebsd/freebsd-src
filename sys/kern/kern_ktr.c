@@ -212,9 +212,11 @@ ktr_entries_initializer(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
 	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
-	if (ktr_idx != 0)
+	if (ktr_idx != 0) {
 		memcpy(ktr_buf + KTR_BOOT_ENTRIES - ktr_idx, ktr_buf_init,
 		    ktr_idx * sizeof(*ktr_buf));
+		ktr_idx = KTR_BOOT_ENTRIES;
+	}
 	ktr_entries = KTR_ENTRIES;
 	ktr_mask = mask;
 }

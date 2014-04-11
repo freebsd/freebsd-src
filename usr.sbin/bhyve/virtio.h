@@ -33,7 +33,7 @@
  * These are derived from several virtio specifications.
  *
  * Some useful links:
- *    https://github.com/rustyrussel/virtio-spec
+ *    https://github.com/rustyrussell/virtio-spec
  *    http://people.redhat.com/pbonzini/virtio-spec.pdf
  */
 
@@ -209,6 +209,7 @@ struct vring_used {
 #define	VIRTIO_VENDOR		0x1AF4
 #define	VIRTIO_DEV_NET		0x1000
 #define	VIRTIO_DEV_BLOCK	0x1001
+#define	VIRTIO_DEV_RANDOM	0x1002
 
 /*
  * PCI config space constants.

@@ -186,6 +186,9 @@ int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
 
+int sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS);
+
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS);
@@ -390,11 +393,11 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    sysctl_handle_64, "QU", __DESCR(descr))
 
 /* Oid for a 64-bit unsigned counter(9).  The pointer must be non NULL. */
-#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, val, descr)	\
+#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, descr)	\
 	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
-	    ptr, val, sysctl_handle_counter_u64, "QU", descr)
+	    ptr, 0, sysctl_handle_counter_u64, "QU", descr)
 
 #define	SYSCTL_ADD_COUNTER_U64(ctx, parent, nbr, name, access, ptr, descr)\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
@@ -431,6 +434,30 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	sysctl_add_oid(ctx, parent, nbr, name, (access),			    \
 	ptr, arg, handler, fmt, __DESCR(descr))
 
+/* Oid to handle limits on uma(9) zone specified by pointer. */
+#define	SYSCTL_UMA_MAX(parent, nbr, name, access, ptr, descr)		\
+	SYSCTL_ASSERT_TYPE(INT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    ptr, 0, sysctl_handle_uma_zone_max, "I", descr)
+#define	SYSCTL_ADD_UMA_MAX(ctx, parent, nbr, name, access, ptr, descr)\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(INT, ptr), 0,			\
+	    sysctl_handle_uma_zone_max, "I", __DESCR(descr))
+
+/* Oid to obtain current use of uma(9) zone specified by pointer. */
+#define	SYSCTL_UMA_CUR(parent, nbr, name, access, ptr, descr)		\
+	SYSCTL_ASSERT_TYPE(INT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    ptr, 0, sysctl_handle_uma_zone_cur, "I", descr)
+#define	SYSCTL_ADD_UMA_CUR(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    SYSCTL_ADD_ASSERT_TYPE(INT, ptr), 0,			\
+	    sysctl_handle_uma_zone_cur, "I", __DESCR(descr))
+
 /*
  * A macro to generate a read-only sysctl to indicate the presense of optional
  * kernel features.
@@ -454,7 +481,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	CTL_MACHDEP	7		/* machine dependent */
 #define	CTL_USER	8		/* user-level */
 #define	CTL_P1003_1B	9		/* POSIX 1003.1B */
-#define	CTL_MAXID	10		/* number of valid top-level ids */
 
 /*
  * CTL_KERN identifiers
@@ -496,7 +522,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_IOV_MAX		35	/* int: value of UIO_MAXIOV */
 #define	KERN_HOSTUUID		36	/* string: host UUID identifier */
 #define	KERN_ARND		37	/* int: from arc4rand() */
-#define	KERN_MAXID		38	/* number of valid kern ids */
 /*
  * KERN_PROC subtypes
  */
@@ -558,7 +583,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	HW_FLOATINGPT	10		/* int: has HW floating point? */
 #define	HW_MACHINE_ARCH	11		/* string: machine architecture */
 #define	HW_REALMEM	12		/* int: 'real' memory */
-#define	HW_MAXID	13		/* number of valid hw ids */
 
 /*
  * CTL_USER definitions
@@ -583,7 +607,6 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	USER_POSIX2_UPE		18	/* int: POSIX2_UPE */
 #define	USER_STREAM_MAX		19	/* int: POSIX2_STREAM_MAX */
 #define	USER_TZNAME_MAX		20	/* int: POSIX2_TZNAME_MAX */
-#define	USER_MAXID		21	/* number of valid user ids */
 
 #define	CTL_P1003_1B_ASYNCHRONOUS_IO		1	/* boolean */
 #define	CTL_P1003_1B_MAPPED_FILES		2	/* boolean */

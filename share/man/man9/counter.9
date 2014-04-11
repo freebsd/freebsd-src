@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2013
+.Dd February 7, 2014
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@
 .Ft void
 .Fn counter_u64_zero "counter_u64_t c"
 .In sys/sysctl.h
-.Fn SYSCTL_COUNTER_U64 parent nbr name access ptr val descr
+.Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 .Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
 .Sh DESCRIPTION
 .Nm
@@ -91,7 +91,7 @@ wait flag, should be either
 or
 .Va M_WAITOK .
 If
-.Va M_WAITOK
+.Va M_NOWAIT
 is specified the operation may fail.
 .It Fn counter_u64_free c
 Free the previously allocated counter
@@ -126,7 +126,7 @@ value for any moment.
 Clear the counter
 .Fa c
 and set it to zero.
-.It Fn SYSCTL_COUNTER_U64 parent nbr name access ptr val descr
+.It Fn SYSCTL_COUNTER_U64 parent nbr name access ptr descr
 Declare a static
 .Xr sysctl
 oid that would represent a

@@ -328,7 +328,7 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	 */
 	priv->rx_frames = MLX4_EN_RX_COAL_TARGET / priv->dev->if_mtu + 1;
 	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
-	en_dbg(INTR, priv, "Default coalesing params for mtu:%ld - "
+	en_dbg(INTR, priv, "Default coalesing params for mtu:%u - "
 			   "rx_frames:%d rx_usecs:%d\n",
 		 priv->dev->if_mtu, priv->rx_frames, priv->rx_usecs);
 
@@ -972,7 +972,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 
-	en_dbg(DRV, priv, "Change MTU called - current:%ld new:%d\n",
+	en_dbg(DRV, priv, "Change MTU called - current:%u new:%d\n",
 		 dev->if_mtu, new_mtu);
 
 	if ((new_mtu < MLX4_EN_MIN_MTU) || (new_mtu > priv->max_mtu)) {

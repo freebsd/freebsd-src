@@ -32,6 +32,8 @@
  * is on the board.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -56,6 +58,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/nand/nfc_at91.h>
 #include <arm/at91/at91_smc.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 /*
  * Data cycles are triggered by access to any address within the EBI CS3 region
@@ -108,7 +116,10 @@ dev_write_1(struct at91_nand_softc *sc, bus_size_t offset, u_int8_t value)
 static int
 at91_nand_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-nand"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "AT91 Integrated NAND controller");
 	return (BUS_PROBE_DEFAULT);
 }
@@ -274,5 +285,9 @@ static driver_t at91_nand_driver = {
 };
 
 static devclass_t at91_nand_devclass;
-DRIVER_MODULE(at91_nand, atmelarm, at91_nand_driver, at91_nand_devclass, 0, 0);
 
+#ifdef FDT
+DRIVER_MODULE(at91_nand, simplebus, at91_nand_driver, at91_nand_devclass, 0, 0);
+#else
+DRIVER_MODULE(at91_nand, atmelarm, at91_nand_driver, at91_nand_devclass, 0, 0);
+#endif

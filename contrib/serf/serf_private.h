@@ -23,7 +23,9 @@
 
 /* Windows does not define IOV_MAX, so we need to ensure it is defined. */
 #ifndef IOV_MAX
-#define IOV_MAX 16
+/* There is no limit for iovec count on Windows, but apr_socket_sendv
+   allocates WSABUF structures on stack if vecs_count <= 50. */
+#define IOV_MAX 50
 #endif
 
 /* Older versions of APR do not have this macro.  */
@@ -93,7 +95,7 @@ struct serf_request_t {
 
     serf_bucket_t *resp_bkt;
 
-    int written;
+    int writing_started;
     int priority;
     /* 1 if this is a request to setup a SSL tunnel, 0 for normal requests. */
     int ssltunnel;
@@ -117,6 +119,8 @@ typedef struct serf__authn_info_t {
     const serf__authn_scheme_t *scheme;
 
     void *baton;
+
+    int failed_authn_types;
 } serf__authn_info_t;
 
 struct serf_context_t {
@@ -266,9 +270,8 @@ struct serf_connection_t {
        port values are filled in. */
     apr_uri_t host_info;
 
-    /* connection and authentication scheme specific information */ 
-    void *authn_baton;
-    void *proxy_authn_baton;
+    /* authentication info for this connection. */
+    serf__authn_info_t authn_info;
 
     /* Time marker when connection begins. */
     apr_time_t connect_time;
@@ -291,6 +294,12 @@ struct serf_connection_t {
     Keep internal for now, probably only useful within serf.
  */
 apr_status_t serf_response_full_become_aggregate(serf_bucket_t *bucket);
+
+/**
+ * Remove the header from the list, do nothing if the header wasn't added.
+ */
+void serf__bucket_headers_remove(serf_bucket_t *headers_bucket,
+                                 const char *header);
 
 /*** Authentication handler declarations ***/
 
@@ -352,7 +361,8 @@ typedef apr_status_t
  * (if needed).
  */
 typedef apr_status_t
-(*serf__validate_response_func_t)(peer_t peer,
+(*serf__validate_response_func_t)(const serf__authn_scheme_t *scheme,
+                                  peer_t peer,
                                   int code,
                                   serf_connection_t *conn,
                                   serf_request_t *request,
