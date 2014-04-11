@@ -180,8 +180,6 @@ static int	ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio);
 static void	ciss_cam_poll(struct cam_sim *sim);
 static void	ciss_cam_complete(struct ciss_request *cr);
 static void	ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio);
-static struct cam_periph *ciss_find_periph(struct ciss_softc *sc,
-					   int bus, int target);
 static int	ciss_name_device(struct ciss_softc *sc, int bus, int target);
 
 /* periodic status monitoring */
@@ -3413,27 +3411,6 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
 
 /********************************************************************************
- * Find a peripheral attached at (target)
- */
-static struct cam_periph *
-ciss_find_periph(struct ciss_softc *sc, int bus, int target)
-{
-    struct cam_periph	*periph;
-    struct cam_path	*path;
-    int			status;
-
-    status = xpt_create_path(&path, NULL, cam_sim_path(sc->ciss_cam_sim[bus]),
-			     target, 0);
-    if (status == CAM_REQ_CMP) {
-	periph = cam_periph_find(path, NULL);
-	xpt_free_path(path);
-    } else {
-	periph = NULL;
-    }
-    return(periph);
-}
-
-/********************************************************************************
  * Name the device at (target)
  *
  * XXX is this strictly correct?
@@ -3442,12 +3419,22 @@ static int
 ciss_name_device(struct ciss_softc *sc, int bus, int target)
 {
     struct cam_periph	*periph;
+    struct cam_path	*path;
+    int			status;
 
     if (CISS_IS_PHYSICAL(bus))
 	return (0);
-    if ((periph = ciss_find_periph(sc, bus, target)) != NULL) {
+
+    status = xpt_create_path(&path, NULL, cam_sim_path(sc->ciss_cam_sim[bus]),
+			     target, 0);
+
+    if (status == CAM_REQ_CMP) {
+	xpt_path_lock(path);
+	periph = cam_periph_find(path, NULL);
 	sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
 		periph->periph_name, periph->unit_number);
+	xpt_path_unlock(path);
+	xpt_free_path(path);
 	return(0);
     }
     sc->ciss_logical[bus][target].cl_name[0] = 0;
