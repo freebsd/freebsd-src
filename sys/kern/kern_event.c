@@ -465,7 +465,7 @@ knote_fork(struct knlist *list, int pid)
 			continue;
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
-		if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+		if ((kn->kn_status & (KN_INFLUX | KN_SCAN)) == KN_INFLUX) {
 			KQ_UNLOCK(kq);
 			continue;
 		}
@@ -1129,7 +1129,7 @@ findkn:
 	 * but doing so will not reset any filter which has already been
 	 * triggered.
 	 */
-	kn->kn_status |= KN_INFLUX;
+	kn->kn_status |= KN_INFLUX | KN_SCAN;
 	KQ_UNLOCK(kq);
 	KN_LIST_LOCK(kn);
 	kn->kn_kevent.udata = kev->udata;
@@ -1152,7 +1152,7 @@ done_ev_add:
 	KQ_LOCK(kq);
 	if (event)
 		KNOTE_ACTIVATE(kn, 1);
-	kn->kn_status &= ~KN_INFLUX;
+	kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 	KN_LIST_UNLOCK(kn);
 
 	if ((kev->flags & EV_DISABLE) &&
@@ -1469,7 +1469,7 @@ start:
 			KQ_LOCK(kq);
 			kn = NULL;
 		} else {
-			kn->kn_status |= KN_INFLUX;
+			kn->kn_status |= KN_INFLUX | KN_SCAN;
 			KQ_UNLOCK(kq);
 			if ((kn->kn_status & KN_KQUEUE) == KN_KQUEUE)
 				KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
@@ -1478,7 +1478,8 @@ start:
 				KQ_LOCK(kq);
 				KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 				kn->kn_status &=
-				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX);
+				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX |
+				    KN_SCAN);
 				kq->kq_count--;
 				KN_LIST_UNLOCK(kn);
 				influx = 1;
@@ -1508,7 +1509,7 @@ start:
 			} else
 				TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe);
 			
-			kn->kn_status &= ~(KN_INFLUX);
+			kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 			KN_LIST_UNLOCK(kn);
 			influx = 1;
 		}
@@ -1826,28 +1827,33 @@ knote(struct knlist *list, long hint, int lockflags)
 	 */
 	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
 		kq = kn->kn_kq;
-		if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
+		KQ_LOCK(kq);
+		if ((kn->kn_status & (KN_INFLUX | KN_SCAN)) == KN_INFLUX) {
+			/*
+			 * Do not process the influx notes, except for
+			 * the influx coming from the kq unlock in the
+			 * kqueue_scan().  In the later case, we do
+			 * not interfere with the scan, since the code
+			 * fragment in kqueue_scan() locks the knlist,
+			 * and cannot proceed until we finished.
+			 */
+			KQ_UNLOCK(kq);
+		} else if ((lockflags & KNF_NOKQLOCK) != 0) {
+			kn->kn_status |= KN_INFLUX;
+			KQ_UNLOCK(kq);
+			error = kn->kn_fop->f_event(kn, hint);
 			KQ_LOCK(kq);
-			if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
-				KQ_UNLOCK(kq);
-			} else if ((lockflags & KNF_NOKQLOCK) != 0) {
-				kn->kn_status |= KN_INFLUX;
-				KQ_UNLOCK(kq);
-				error = kn->kn_fop->f_event(kn, hint);
-				KQ_LOCK(kq);
-				kn->kn_status &= ~KN_INFLUX;
-				if (error)
-					KNOTE_ACTIVATE(kn, 1);
-				KQ_UNLOCK_FLUX(kq);
-			} else {
-				kn->kn_status |= KN_HASKQLOCK;
-				if (kn->kn_fop->f_event(kn, hint))
-					KNOTE_ACTIVATE(kn, 1);
-				kn->kn_status &= ~KN_HASKQLOCK;
-				KQ_UNLOCK(kq);
-			}
+			kn->kn_status &= ~KN_INFLUX;
+			if (error)
+				KNOTE_ACTIVATE(kn, 1);
+			KQ_UNLOCK_FLUX(kq);
+		} else {
+			kn->kn_status |= KN_HASKQLOCK;
+			if (kn->kn_fop->f_event(kn, hint))
+				KNOTE_ACTIVATE(kn, 1);
+			kn->kn_status &= ~KN_HASKQLOCK;
+			KQ_UNLOCK(kq);
 		}
-		kq = NULL;
 	}
 	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_unlock(list->kl_lockarg); 
