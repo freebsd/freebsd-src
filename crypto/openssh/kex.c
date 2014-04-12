@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.97 2014/01/25 20:35:37 markus Exp $ */
+/* $OpenBSD: kex.c,v 1.98 2014/02/02 03:44:31 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -690,8 +690,8 @@ derive_ssh1_session_id(BIGNUM *host_modulus, BIGNUM *server_modulus,
 		fatal("%s: ssh_digest_final failed", __func__);
 	memcpy(id, obuf, ssh_digest_bytes(SSH_DIGEST_MD5));
 
-	memset(nbuf, 0, sizeof(nbuf));
-	memset(obuf, 0, sizeof(obuf));
+	explicit_bzero(nbuf, sizeof(nbuf));
+	explicit_bzero(obuf, sizeof(obuf));
 }
 
 #if defined(DEBUG_KEX) || defined(DEBUG_KEXDH) || defined(DEBUG_KEXECDH)

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdhc.c,v 1.6 2014/01/12 08:13:13 djm Exp $ */
+/* $OpenBSD: kexecdhc.c,v 1.7 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -119,7 +119,7 @@ kexecdh_client(Kex *kex)
 		fatal("%s: BN_new failed", __func__);
 	if (BN_bin2bn(kbuf, klen, shared_secret) == NULL)
 		fatal("%s: BN_bin2bn failed", __func__);
-	memset(kbuf, 0, klen);
+	explicit_bzero(kbuf, klen);
 	free(kbuf);
 
 	/* calc and verify H */
