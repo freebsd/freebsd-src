@@ -725,14 +725,8 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	linker_file_t *newdeps;
 
 	sx_assert(&kld_sx, SA_XLOCKED);
-	newdeps = malloc((file->ndeps + 1) * sizeof(*newdeps), M_LINKER,
-	    M_WAITOK | M_ZERO);
-
-	if (file->deps) {
-		bcopy(file->deps, newdeps, file->ndeps * sizeof(*newdeps));
-		free(file->deps, M_LINKER);
-	}
-	file->deps = newdeps;
+	file->deps = realloc(file->deps, (file->ndeps + 1) * sizeof(*newdeps),
+	    M_LINKER, M_WAITOK | M_ZERO);
 	file->deps[file->ndeps] = dep;
 	file->ndeps++;
 	KLD_DPF(FILE, ("linker_file_add_dependency:"
