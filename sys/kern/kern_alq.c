@@ -494,10 +494,12 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	KASSERT((count >= 0), ("%s: count < 0", __func__));
 
 	if (count > 0) {
-		ret = alq_open_flags(alqp, file, cred, cmode, size*count, 0);
-		(*alqp)->aq_flags |= AQ_LEGACY;
-		(*alqp)->aq_entmax = count;
-		(*alqp)->aq_entlen = size;
+		if ((ret = alq_open_flags(alqp, file, cred, cmode,
+		    size*count, 0)) == 0) {
+			(*alqp)->aq_flags |= AQ_LEGACY;
+			(*alqp)->aq_entmax = count;
+			(*alqp)->aq_entlen = size;
+		}
 	} else
 		ret = alq_open_flags(alqp, file, cred, cmode, size, 0);
 
