@@ -27,6 +27,7 @@
     <year>2011</year>
     <year>2012</year>
     <year>2013</year>
+    <year>2014</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -454,6 +455,9 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
+
+    <para revision="264377"><application>OpenSSH</application> has
+      been updated to version 6.6p1.</para>
 
    <para revision="255321">On platforms where &man.clang.1; is the default
       system compiler, (such as i386, amd64, arm) GCC and GNU libstdc++ are no
