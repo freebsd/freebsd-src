@@ -16,9 +16,9 @@
 
 const char *const banner[] =
 {
-    "#ifndef lint",
-    "static const char yysccsid[] = \"@(#)yaccpar	1.9 (Berkeley) 02/21/93\";",
-    "#endif",
+    "/* original parser id follows */",
+    "/* yysccsid[] = \"@(#)yaccpar 1.9 (Berkeley) 02/21/93\" */",
+    "/* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */",
     "",
     "#define YYBYACC 1",
     CONCAT1("#define YYMAJOR ", YYMAJOR),
