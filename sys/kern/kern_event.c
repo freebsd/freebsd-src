@@ -528,8 +528,8 @@ timer2sbintime(intptr_t data)
 {
 
 #ifdef __LP64__
-	if (data > INT64_MAX / SBT_1MS)
-		return INT64_MAX;
+	if (data > SBT_MAX / SBT_1MS)
+		return (SBT_MAX);
 #endif
 	return (SBT_1MS * data);
 }
@@ -1399,7 +1399,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 				rsbt = tstosbt(*tsp);
 				if (TIMESEL(&asbt, rsbt))
 					asbt += tc_tick_sbt;
-				if (asbt <= INT64_MAX - rsbt)
+				if (asbt <= SBT_MAX - rsbt)
 					asbt += rsbt;
 				else
 					asbt = 0;
