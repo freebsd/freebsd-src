@@ -975,6 +975,8 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
+buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE
+
 #
 # buildkernel
 #
@@ -1369,6 +1371,9 @@ build-tools: .MAKE
 #
 # cross-tools: Build cross-building tools
 #
+.if !defined(TARGET_ARCH) && defined(XDEV_ARCH)
+TARGET_ARCH=	${XDEV_ARCH}
+.endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
@@ -1875,15 +1880,21 @@ NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	CPUTYPE=${XDEV_CPUTYPE}
 
 XDDIR=${XDEV_ARCH}-freebsd
-XDTP=usr/${XDDIR}
+XDTP?=/usr/${XDDIR}
+.if ${XDTP:N/*}
+.error XDTP variable should be an absolute path
+.endif
+
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
 	_SHLIBDIRPREFIX=${XDDESTDIR} \
-	TOOLS_PREFIX=${XDDESTDIR}
+	TOOLS_PREFIX=${XDTP}
 CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
-	-B${XDDESTDIR}/usr/lib
-CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
+	--sysroot=${XDDESTDIR}/ -B${XDDESTDIR}/usr/libexec \
+	-B${XDDESTDIR}/usr/bin -B${XDDESTDIR}/usr/lib
+CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CFLAGS}" \
+	CPP="${CPP} ${CD2CFLAGS}" \
 	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
 
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
@@ -1922,11 +1933,11 @@ _xb-build-tools:
 
 _xb-cross-tools:
 .for _tool in \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
     usr.bin/ar \
     ${_clang_libs} \
-    ${_clang}
+    ${_clang} \
+    ${_cc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool} && \
 	${CDMAKE} DIRPRFX=${_tool}/ obj && \
@@ -1950,10 +1961,11 @@ xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _x
 _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
     usr.bin/ar \
-    ${_clang}
+    ${_clang_libs} \
+    ${_clang} \
+    ${_cc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
@@ -1980,5 +1992,3 @@ _xi-links:
 xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
-
-buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE
