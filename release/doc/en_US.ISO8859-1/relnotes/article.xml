@@ -186,8 +186,7 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para revision="264377"><application>OpenSSH</application> has
-      been updated to version 6.6p1.</para>
+    <para>&nbsp;</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -200,7 +199,8 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para>&nbsp;</para>
+    <para revision="264377"><application>OpenSSH</application> has
+      been updated to version 6.6p1.</para>
 
   </sect2>
 
