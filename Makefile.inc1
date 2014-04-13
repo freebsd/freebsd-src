@@ -1234,7 +1234,7 @@ _awk=		usr.bin/awk
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
-.if ${MK_CLANG} != "no"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang" || ${MK_CLANG} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtablegen \
