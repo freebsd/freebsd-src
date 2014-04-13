@@ -35,6 +35,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <machine/cheri.h>
@@ -330,6 +331,37 @@ cheritest_invoke_simple_op(int op)
 	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
 }
 
+static void
+cheritest_invoke_syscall(void)
+{
+	size_t len;
+	int old, new;
+
+	/*
+	 * Track whether or not the number of system-call violations increases
+	 * as a result of triggering a system call in a sandbox.  Note that
+	 * this isn't really authoritative (nor in the strictest sense
+	 * correct), as we can race with other threads that trigger
+	 * violations, but it's still a useful test case.
+	 */
+	len = sizeof(old);
+	if (sysctlbyname("security.cheri.syscall_violations", &old, &len,
+	    NULL, 0) < 0)
+		err(EX_OSERR, "security.cheri.syscall_violations");
+
+	cheritest_invoke_simple_op(CHERITEST_HELPER_OP_SYSCALL);
+
+	len = sizeof(new);
+	if (sysctlbyname("security.cheri.syscall_violations", &new, &len,
+	    NULL, 0) < 0)
+		err(EX_OSERR, "security.cheri.syscall_violations");
+	if (old == new)
+		warnx("security.cheri.syscall_violations unchanged: bug?");
+	else
+		printf("security.cheri.syscall_violations increased as "
+		    "expected\n");
+}
+
 /*
  * XXXRW: c1 and c2 were not getting properly aligned when placed in the
  * stack.  Odd.
@@ -507,8 +539,7 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_SPIN);
 		else if (strcmp(argv[i], "invoke_syscall") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_SYSCALL);
+			cheritest_invoke_syscall();
 		else if (strcmp(argv[i], "invoke_syscap") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_SYSCAP);
