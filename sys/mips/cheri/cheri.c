@@ -424,9 +424,6 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 * come into play here.
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
-	 *
-	 * XXXRW: Assign a user-assigned permission bit for system-call
-	 * authorization.
 	 */
 	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC,
