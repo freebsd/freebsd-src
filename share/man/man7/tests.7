@@ -31,11 +31,11 @@
 .Os
 .Sh NAME
 .Nm tests
-.Nd introduction to the FreeBSD test suite
+.Nd introduction to the FreeBSD Test Suite
 .Sh DESCRIPTION
 The
 .Fx
-test suite provides a collection of automated tests for two major purposes.
+Test Suite provides a collection of automated tests for two major purposes.
 On one hand, the test suite aids
 .Em developers
 to detect bugs and regressions when they modify the source tree.  On the other
@@ -50,7 +50,7 @@ maintenance.
 .Pp
 The
 .Fx
-test suite can be found in the
+Test Suite can be found in the
 .Pa /usr/tests
 hierarchy.
 .Pp
@@ -148,7 +148,7 @@ to its manual page
 .Ss Configuring the tests
 Some test cases in the
 .Fx
-test suite require manual configuration by the administrator before they can be
+Test Suite require manual configuration by the administrator before they can be
 run.  Unless certain properties are defined, the tests that require them will
 be skipped.
 .Pp
@@ -160,7 +160,7 @@ The format of this file is detailed in
 .Pp
 The following configuration variables are available in the
 .Fx
-test suite:
+Test Suite:
 .Bl -tag -width "allow_sysctl_side_effects"
 .It allow_devfs_side_effects
 If defined, enables tests that may destroy and recreate semipermanent device
@@ -211,7 +211,7 @@ Default result database used by Kyua.
 .It Pa /usr/tests/
 Location of the
 .Fx
-test suite.
+Test Suite.
 .It Pa /usr/tests/Kyuafile
 Top-level test suite definition file.
 .El
@@ -219,14 +219,16 @@ Top-level test suite definition file.
 .Xr kyua 1 ,
 .Xr build 7
 .Sh HISTORY
-This test suite first appeared in
-.Fx 11.0 .
+The
+.Fx
+Test Suite first appeared in
+.Fx 10.1 .
 .Pp
 The
 .Nm
 manual page first appeared in
 .Nx 6.0
 and was later ported to
-.Fx 11.0 .
+.Fx 10.1 .
 .Sh AUTHORS
-.An Julio Merino Aq Mt jmmv@google.com
+.An Julio Merino Aq Mt jmmv@FreeBSD.org
