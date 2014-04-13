@@ -204,7 +204,6 @@ dump_file(const char *fname)
 	warnx("%s: this is an ELF program; use objdump to examine", fname);
 	++error_count;
 	munmap(objbase, sb.st_size);
-	close(fd);
 	return;
     }
 
