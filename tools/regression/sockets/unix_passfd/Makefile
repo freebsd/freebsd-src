@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	unix_passfd
-NO_MAN=
+MAN=
 WARNS?=	2
 
 .include <bsd.prog.mk>
