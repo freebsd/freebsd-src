@@ -129,6 +129,11 @@
     <para revision="260385">The &man.geom.4; RAID driver has been
       updated to support unmapped I/O.</para>
 
+    <para revision="260431">A new &man.sysctl.8;,
+      <literal>kern.panic_reboot_wait_time</literal>, has been added,
+      which allows controlling how long the system will wait after
+      &man.panic.9; before rebooting.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
