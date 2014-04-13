@@ -205,6 +205,21 @@ f_netinteractive()
 	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
 }
 
+# f_zfsinteractive()
+#
+# Has the user specifically requested the ZFS-portion of configuration and
+# setup to be performed interactively? Returns success if the user has asked
+# for the ZFS configuration to be done interactively even if perhaps overall
+# non-interactive mode has been requested (by setting nonInteractive).
+#
+# Returns success if $zfsInteractive is set and non-NULL.
+#
+f_zfsinteractive()
+{
+	local value
+	f_getvar $VAR_ZFSINTERACTIVE value && [ "$value" ]
+}
+
 ############################################################ MAIN
 
 #
@@ -283,6 +298,7 @@ f_variable_new VAR_USER_PASSWORD	userPassword
 f_variable_new VAR_USER_PASSWORD_EXPIRE	userPasswordExpire
 f_variable_new VAR_USER_SHELL		userShell
 f_variable_new VAR_USER_UID		userUid
+f_variable_new VAR_ZFSINTERACTIVE	zfsInteractive
 
 #
 # Self-initialize unless requested otherwise
