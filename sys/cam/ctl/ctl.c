@@ -1112,8 +1112,8 @@ ctl_init(void)
 	}
 
 	for (i = 0; i < worker_threads; i++) {
-		error = kproc_create(ctl_work_thread, softc, &softc->work_thread, 0, 0,
-				"ctl_thrd%d", i);
+		error = kproc_kthread_add(ctl_work_thread, softc,
+		    &softc->work_thread, NULL, 0, 0, "ctl", "work%d", i);
 		if (error != 0) {
 			printf("error creating CTL work thread!\n");
 			mtx_lock(&softc->ctl_lock);
@@ -13380,7 +13380,7 @@ ctl_work_thread(void *arg)
 
 		/* XXX KDM use the PDROP flag?? */
 		/* Sleep until we have something to do. */
-		mtx_sleep(softc, &softc->ctl_lock, PRIBIO, "ctl_work", 0);
+		mtx_sleep(softc, &softc->ctl_lock, PRIBIO, "-", 0);
 
 		/* Back to the top of the loop to see what woke us up. */
 		continue;
