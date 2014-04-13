@@ -171,11 +171,9 @@ YFLAGS		?=	-d
 # SINGLE SUFFIX RULES
 .c:
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f:
 	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .sh:
 	cp -f ${.IMPSRC} ${.TARGET}
@@ -185,25 +183,21 @@ YFLAGS		?=	-d
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f.o:
 	${FC} ${FFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c
 	rm -f y.tab.c
 	mv y.tab.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c
 	rm -f lex.yy.c
 	mv lex.yy.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
