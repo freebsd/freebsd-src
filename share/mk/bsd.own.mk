@@ -301,7 +301,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
-    MANCOMPRESS \
     NCURSESW \
     NDIS \
     NETCAT \
@@ -459,14 +458,11 @@ MK_${var}:=	no
 # Supported NO_* options (if defined, MK_* will be forced to "no",
 # regardless of user's setting).
 #
-# These are transitional and will disappaer in the fullness of time.
-#
 .for var in \
     CTF \
     DEBUG_FILES \
     INSTALLLIB \
     MAN \
-    MANCOMPRESS \
     PROFILE
 .if defined(NO_${var})
 MK_${var}:=no
