@@ -55,6 +55,8 @@ boot1.efi: loader.sym
 
 CFLAGS+=	-I${.CURDIR}/../../common
 
+boot1.o: ${.CURDIR}/../../common/ufsread.c
+
 .endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
