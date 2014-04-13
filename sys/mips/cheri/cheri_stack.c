@@ -109,9 +109,6 @@ cheri_stack_copy(struct pcb *pcb2, struct pcb *pcb1)
  * stack simulating a CReturn.  Clear the regular and capability register
  * files.
  *
- * When a signal is thrown in a sandbox, one option is for the kernel to
- * forceably unwind the stack by a frame.
- *
  * Note that the callee has not had a chance to clean up the mess -- and
  * particular, can't clear the register file before returning.  We therefore
  * have to do that for the callee or information/rights may leak!.
@@ -149,18 +146,6 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	KASSERT(td->td_frame == &pcb->pcb_regs,
 	    ("%s: td_frame != pcb_regs", __func__));
 	KASSERT(td->td_frame == tf, ("%s: td_frame != tf", __func__));
-
-	/*
-	 * XXXRW: It would actually be quite nice to print out some exception
-	 * information here.  Otherwise all the state required to debug the
-	 * sandbox failure will be lost.
-	 *
-	 * XXXRW: Or, has it all been sent to printf?
-	 *
-	 * XXXRW: Or, maybe that is actually a bad thing, since printf is
-	 * quite slow and noisy, and not something we want to do on every
-	 * sandbox failure.
-	 */
 
 	/*
 	 * Clear the regular and capability register files to ensure no state
