@@ -408,19 +408,11 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 
 	/*
 	 * Allow the cycle counter to be read via sysarch.
+	 *
+	 * XXXRW: Now that we support a userspace cycle counter, we should
+	 * remove this.
 	 */
 	if (code == SYS_sysarch && args[0] == MIPS_GET_COUNT)
-		return (0);
-
-	/*
-	 * Allow threading primitives to be used.
-	 *
-	 * XXXRW: This was enabled for use in our hardware rendering work, but
-	 * is probably not suitable for more general CHERI use, so should be
-	 * garbage-collected soon.
-	 */
-	if (code == SYS__umtx_lock || code == SYS__umtx_unlock ||
-	    code == SYS__umtx_op)
 		return (0);
 
 	/*
