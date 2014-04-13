@@ -202,8 +202,6 @@ CHERICCall:
 	/*
 	 * Push SP; zero register afterwards since the caller is unable to do
 	 * that before CCall.
-	 *
-	 * XXXRW: Not called for by CHERI spec.
 	 */
 	csd		sp, k0, CHERI_STACKFRAME_SP(CHERI_REG_KDC)
 	move		sp, zero
@@ -336,8 +334,6 @@ CHERICReturn:
 
 	/*
 	 * Pop SP.
-	 *
-	 * XXXRW: Not called for by CHERI spec.
 	 */
 	cld		sp, k0, CHERI_STACKFRAME_SP(CHERI_REG_KDC)
 
