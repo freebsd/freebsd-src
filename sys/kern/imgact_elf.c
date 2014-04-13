@@ -1746,8 +1746,10 @@ __elfN(note_threadmd)(void *arg, struct sbuf *sb, size_t *sizep)
 	size = 0;
 	__elfN(dump_thread)(td, buf, &size);
 	KASSERT(*sizep == size, ("invalid size"));
-	if (size != 0 && sb != NULL)
+	if (size != 0 && sb != NULL) {
 		sbuf_bcat(sb, buf, size);
+		free(buf, M_TEMP);
+	}
 	*sizep = size;
 }
 
