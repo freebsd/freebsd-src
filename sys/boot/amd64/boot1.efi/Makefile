@@ -22,8 +22,8 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 
-# Always add MI sources 
-.PATH:		${.CURDIR}/../../common ../efi
+# Always add MI sources and REGULAR efi loader bits
+.PATH:		${.CURDIR}/../efi ${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../common
 
 FILES=	boot1.efi
