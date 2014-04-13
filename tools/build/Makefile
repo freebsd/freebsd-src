@@ -9,7 +9,7 @@ INCS=
 
 BOOTSTRAPPING?=	0
 
-_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/pwd.h || true
+_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/grp.h || true
 .if ${_WITH_PWCACHEDB} == 0
 .PATH: ${.CURDIR}/../../contrib/libc-pwcache
 CFLAGS+=	-I${.CURDIR}/../../contrib/libc-pwcache \
