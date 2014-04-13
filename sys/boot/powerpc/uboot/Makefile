@@ -6,7 +6,7 @@ PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-NO_MAN=
+MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
