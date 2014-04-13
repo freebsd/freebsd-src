@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/zhack
 
 PROG=	zhack
-NO_MAN=
+MAN=
 
 WARNS?=	0
 CSTD=	c99

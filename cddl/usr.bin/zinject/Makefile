@@ -4,7 +4,7 @@
 
 PROG=	zinject
 SRCS=	zinject.c translate.c
-NO_MAN=
+MAN=
 
 WARNS?=	0
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris

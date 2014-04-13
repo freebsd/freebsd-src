@@ -42,7 +42,7 @@ SRCS=		relocate.S		\
 		cfi.c			\
 		sdcard.c
 
-NO_MAN=
+MAN=
 
 AFLAGS=		-G0
 

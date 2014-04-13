@@ -9,4 +9,4 @@ LDADD=	-lw00t  -lcrypto -lz
 BINDIR=	/usr/local/bin
 CFLAGS=	-g -I${W00T}
 
-NO_MAN=
+MAN=

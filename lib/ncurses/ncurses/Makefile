@@ -549,12 +549,12 @@ MAN+=	\
 	curs_ins_wstr.3 \
 	curs_printw.3 \
 	curs_scanw.3
-.endif
-
-CLEANFILES+=	${MAN:M*.3}
 
 MAN+=	term.5 terminfo.5
 MAN+=	term.7
+.endif
+
+CLEANFILES+=	${MAN:M*.3}
 
 MLINKS=	ncurses.3 curses.3 \
 	curs_addch.3 addch.3 \
