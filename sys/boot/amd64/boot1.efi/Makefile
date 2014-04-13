@@ -1,0 +1,70 @@
+# $FreeBSD$
+
+NO_MAN=
+
+.include <bsd.own.mk>
+
+# In-tree GCC does not support __attribute__((ms_abi)).
+.if ${COMPILER_TYPE} != "gcc"
+
+MK_SSP=		no
+
+PROG=		loader.sym
+INTERNALPROG=
+
+# architecture-specific loader code
+SRCS=	boot1.c reloc.c start.S
+
+CFLAGS+=	-fPIC
+CFLAGS+=	-I.
+CFLAGS+=	-I${.CURDIR}/../../efi/include
+CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
+CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
+CFLAGS+=	-I${.CURDIR}/../../..
+
+# Always add MI sources 
+.PATH:		${.CURDIR}/../../common ../efi
+CFLAGS+=	-I${.CURDIR}/../../common
+
+FILES=	boot1.efi
+FILESMODE_boot1.efi=	${BINMODE}
+
+LDSCRIPT=	${.CURDIR}/../efi/ldscript.${MACHINE_CPUARCH}
+LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
+
+${PROG}:	${LDSCRIPT}
+
+OBJCOPY?=	objcopy
+OBJDUMP?=	objdump
+
+.if ${MACHINE_CPUARCH} == "amd64"
+EFI_TARGET=	efi-app-x86_64
+.else
+EFI_TARGET=	efi-app-ia32
+.endif
+
+boot1.efi: loader.sym
+	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
+		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+		exit 1; \
+	fi
+	${OBJCOPY} -j .text -j .sdata -j .data \
+		-j .dynamic -j .dynsym -j .rel.dyn \
+		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
+		--target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
+
+CFLAGS+=	-I${.CURDIR}/../../common
+
+.endif # ${COMPILER_TYPE} != "gcc"
+
+.include <bsd.prog.mk>
+
+beforedepend ${OBJS}: machine x86
+
+CLEANFILES+=   machine x86
+
+machine:
+	ln -sf ${.CURDIR}/../../../amd64/include machine
+
+x86:
+	ln -sf ${.CURDIR}/../../../x86/include x86

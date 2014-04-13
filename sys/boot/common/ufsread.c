@@ -245,6 +245,8 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 	s = buf;
 	size = DIP(di_size);
 	n = size - fs_off;
+	if (buf == NULL && nbyte == -1)
+		return n;
 	if (nbyte > n)
 		nbyte = n;
 	nb = nbyte;
