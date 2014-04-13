@@ -118,6 +118,9 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="260385">The &man.geom.4; RAID driver has been
+      updated to support unmapped I/O.</para>
+
     <para revision="260338">The <literal>vfs.zfs.zio.use_uma</literal>
       &man.sysctl.8; has been re-enabled.  On multi-CPU machines with
       enough RAM, this can easily double &man.zfs.8; performance or
