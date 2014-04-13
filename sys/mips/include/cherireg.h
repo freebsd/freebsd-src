@@ -58,9 +58,10 @@
  * User-defined permission bits.  The kernel actually snags one for the
  * purposes of authorising system calls from $pcc.  This is a bit of an
  * oddity: normally, we check permissions on data capabilities, not code
- * capabilities.
+ * capabilities, but aligns with 'privilege' checks: e.g., $epcc access.
  */
 #define	CHERI_PERM_USER0			(1 << 15)
+#define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
 #define	CHERI_PERM_USER1			(1 << 16)
 #define	CHERI_PERM_USER2			(1 << 17)
 #define	CHERI_PERM_USER3			(1 << 18)

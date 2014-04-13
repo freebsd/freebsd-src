@@ -396,8 +396,11 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 }
 
 /*
- * Only allow most system calls from sandboxes that hold ambient authority in
- * userspace.
+ * Only allow most system calls from either ambient authority, or from
+ * sandboxes that have been explicitly delegated CHERI_PERM_SYSCALL via their
+ * code capability.  Note that CHERI_PERM_SYSCALL effectively implies ambient
+ * authority, as the kernel does not [currently] interpret pointers/lengths
+ * via userspace $c0.
  */
 int
 cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
@@ -430,9 +433,7 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	intr_restore(s);
-	if (c.c_perms != CHERI_CAP_USER_PERMS ||
-	    c.c_base != CHERI_CAP_USER_BASE ||
-	    c.c_length != CHERI_CAP_USER_LENGTH) {
+	if ((c.c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_syscall_violations, 1);
 
 #if DDB
