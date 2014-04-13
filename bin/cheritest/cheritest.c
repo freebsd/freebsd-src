@@ -204,7 +204,7 @@ cheritest_ccheck_user_fail(void)
 	__capability void *cp;
 	char ch;
 
-	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_USER0);
+	cp = cheri_ptrperm(&ch, sizeof(ch), 0);
 	cheri_ccheckperm(cp, CHERI_PERM_USER0);
 }
 
@@ -214,7 +214,7 @@ cheritest_ccheck_user_pass(void)
 	__capability void *cp;
 	char ch;
 
-	cp = cheri_ptrperm(&ch, sizeof(ch), 0);
+	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_USER0);
 	cheri_ccheckperm(cp, CHERI_PERM_USER0);
 }
 
