@@ -1171,6 +1171,20 @@ Assignments are expanded differently from other words:
 tilde expansion is also performed after the equals sign and after any colon
 and usernames are also terminated by colons,
 and field splitting and pathname expansion are not performed.
+.Pp
+This special expansion applies not only to assignments that form a simple
+command by themselves or precede a command word,
+but also to words passed to the
+.Ic export ,
+.Ic local
+or
+.Ic readonly
+built-in commands that have this form.
+For this, the builtin's name must be literal
+(not the result of an expansion)
+and may optionally be preceded by one or more literal instances of
+.Ic command
+without options.
 .Ss Positional Parameters
 A positional parameter is a parameter denoted by a number greater than zero.
 The shell sets these initially to the values of its command line

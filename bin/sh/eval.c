@@ -657,6 +657,52 @@ out:
 		result->fd, result->buf, result->nleft, result->jp));
 }
 
+static int
+mustexpandto(const char *argtext, const char *mask)
+{
+	for (;;) {
+		if (*argtext == CTLQUOTEMARK || *argtext == CTLQUOTEEND) {
+			argtext++;
+			continue;
+		}
+		if (*argtext == CTLESC)
+			argtext++;
+		else if (BASESYNTAX[(int)*argtext] == CCTL)
+			return (0);
+		if (*argtext != *mask)
+			return (0);
+		if (*argtext == '\0')
+			return (1);
+		argtext++;
+		mask++;
+	}
+}
+
+static int
+isdeclarationcmd(struct narg *arg)
+{
+	int have_command = 0;
+
+	if (arg == NULL)
+		return (0);
+	while (mustexpandto(arg->text, "command")) {
+		have_command = 1;
+		arg = &arg->next->narg;
+		if (arg == NULL)
+			return (0);
+		/*
+		 * To also allow "command -p" and "command --" as part of
+		 * a declaration command, add code here.
+		 * We do not do this, as ksh does not do it either and it
+		 * is not required by POSIX.
+		 */
+	}
+	return (mustexpandto(arg->text, "export") ||
+	    mustexpandto(arg->text, "readonly") ||
+	    (mustexpandto(arg->text, "local") &&
+		(have_command || !isfunc("local"))));
+}
+
 /*
  * Check if a builtin can safely be executed in the same process,
  * even though it should be in a subshell (command substitution).
@@ -728,11 +774,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	exitstatus = 0;
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
 		if (varflag && isassignment(argp->narg.text)) {
-			expandarg(argp, &varlist, EXP_VARTILDE);
+			expandarg(argp, varflag == 1 ? &varlist : &arglist,
+			    EXP_VARTILDE);
 			continue;
-		}
+		} else if (varflag == 1)
+			varflag = isdeclarationcmd(&argp->narg) ? 2 : 0;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
-		varflag = 0;
 	}
 	*arglist.lastp = NULL;
 	*varlist.lastp = NULL;
