@@ -1781,7 +1781,7 @@ int
 f_quit(PLAN *plan __unused, FTSENT *entry __unused)
 {
 	finish_execplus();
-	exit(0);
+	exit(exitstatus);
 }
 
 /* c_quit == c_simple */
