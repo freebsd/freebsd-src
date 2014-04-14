@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2014
+.Dd April 11, 2014
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -272,6 +272,30 @@ build environment setup are skipped.
 This is intended solely for cases where the
 .Xr chroot 8
 userland are provided by alternate means.
+.It Va SRC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/src
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/src
+is expected to exist by alternative means.
+.It Va DOC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/doc
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/doc
+is expected to exist by alternative means.
+.It Va PORTS_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/ports
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/ports
+is expected to exist by alternative means.
 .El
 .Sh EMBEDDED BUILDS
 The following
