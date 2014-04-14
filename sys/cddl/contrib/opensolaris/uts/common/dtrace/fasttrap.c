@@ -61,8 +61,13 @@
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #if !defined(sun)
-#include <sys/user.h>
 #include <sys/dtrace_bsd.h>
+#include <sys/eventhandler.h>
+#include <sys/user.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_param.h>
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 #endif
 
@@ -206,6 +211,10 @@ static void fasttrap_provider_free(fasttrap_provider_t *);
 static fasttrap_proc_t *fasttrap_proc_lookup(pid_t);
 static void fasttrap_proc_release(fasttrap_proc_t *);
 
+#if !defined(sun)
+static void fasttrap_thread_dtor(void *, struct thread *);
+#endif
+
 #define	FASTTRAP_PROVS_INDEX(pid, name) \
 	((fasttrap_hash_str(name) + (pid)) & fasttrap_provs.fth_mask)
 
@@ -213,6 +222,7 @@ static void fasttrap_proc_release(fasttrap_proc_t *);
 
 #if !defined(sun)
 static kmutex_t fasttrap_cpuc_pid_lock[MAXCPU];
+static eventhandler_tag fasttrap_thread_dtor_tag;
 #endif
 
 static int
@@ -288,6 +298,118 @@ fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 	PROC_UNLOCK(p);
 #endif
 }
+
+#if !defined(sun)
+/*
+ * Obtain a chunk of scratch space in the address space of the target process.
+ */
+fasttrap_scrspace_t *
+fasttrap_scraddr(struct thread *td, fasttrap_proc_t *fprc)
+{
+	fasttrap_scrblock_t *scrblk;
+	fasttrap_scrspace_t *scrspc;
+	struct proc *p;
+	vm_offset_t addr;
+	int error, i;
+
+	scrspc = NULL;
+	if (td->t_dtrace_sscr != NULL) {
+		/* If the thread already has scratch space, we're done. */
+		scrspc = (fasttrap_scrspace_t *)td->t_dtrace_sscr;
+		return (scrspc);
+	}
+
+	p = td->td_proc;
+
+	mutex_enter(&fprc->ftpc_mtx);
+	if (LIST_EMPTY(&fprc->ftpc_fscr)) {
+		/*
+		 * No scratch space is available, so we'll map a new scratch
+		 * space block into the traced process' address space.
+		 */
+		addr = 0;
+		error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr,
+		    FASTTRAP_SCRBLOCK_SIZE, 0, VMFS_ANY_SPACE, VM_PROT_ALL,
+		    VM_PROT_ALL, 0);
+		if (error != KERN_SUCCESS)
+			goto done;
+
+		scrblk = malloc(sizeof(*scrblk), M_SOLARIS, M_WAITOK);
+		scrblk->ftsb_addr = addr;
+		LIST_INSERT_HEAD(&fprc->ftpc_scrblks, scrblk, ftsb_next);
+
+		/*
+		 * Carve the block up into chunks and put them on the free list.
+		 */
+		for (i = 0;
+		    i < FASTTRAP_SCRBLOCK_SIZE / FASTTRAP_SCRSPACE_SIZE; i++) {
+			scrspc = malloc(sizeof(*scrspc), M_SOLARIS, M_WAITOK);
+			scrspc->ftss_addr = addr +
+			    i * FASTTRAP_SCRSPACE_SIZE;
+			LIST_INSERT_HEAD(&fprc->ftpc_fscr, scrspc,
+			    ftss_next);
+		}
+	}
+
+	/*
+	 * Take the first scratch chunk off the free list, put it on the
+	 * allocated list, and return its address.
+	 */
+	scrspc = LIST_FIRST(&fprc->ftpc_fscr);
+	LIST_REMOVE(scrspc, ftss_next);
+	LIST_INSERT_HEAD(&fprc->ftpc_ascr, scrspc, ftss_next);
+
+	/*
+	 * This scratch space is reserved for use by td until the thread exits.
+	 */
+	td->t_dtrace_sscr = scrspc;
+
+done:
+	mutex_exit(&fprc->ftpc_mtx);
+
+	return (scrspc);
+}
+
+/*
+ * Return any allocated per-thread scratch space chunks back to the process'
+ * free list.
+ */
+static void
+fasttrap_thread_dtor(void *arg __unused, struct thread *td)
+{
+	fasttrap_bucket_t *bucket;
+	fasttrap_proc_t *fprc;
+	fasttrap_scrspace_t *scrspc;
+	pid_t pid;
+
+	if (td->t_dtrace_sscr == NULL)
+		return;
+
+	pid = td->td_proc->p_pid;
+	bucket = &fasttrap_procs.fth_table[FASTTRAP_PROCS_INDEX(pid)];
+	fprc = NULL;
+
+	/* Look up the fasttrap process handle for this process. */
+	mutex_enter(&bucket->ftb_mtx);
+	for (fprc = bucket->ftb_data; fprc != NULL; fprc = fprc->ftpc_next) {
+		if (fprc->ftpc_pid == pid) {
+			mutex_enter(&fprc->ftpc_mtx);
+			mutex_exit(&bucket->ftb_mtx);
+			break;
+		}
+	}
+	if (fprc == NULL) {
+		mutex_exit(&bucket->ftb_mtx);
+		return;
+	}
+
+	scrspc = (fasttrap_scrspace_t *)td->t_dtrace_sscr;
+	LIST_REMOVE(scrspc, ftss_next);
+	LIST_INSERT_HEAD(&fprc->ftpc_fscr, scrspc, ftss_next);
+
+	mutex_exit(&fprc->ftpc_mtx);
+}
+#endif
 
 /*
  * This function ensures that no threads are actively using the memory
@@ -449,6 +571,10 @@ fasttrap_pid_cleanup(void)
 static void
 fasttrap_fork(proc_t *p, proc_t *cp)
 {
+#if !defined(sun)
+	fasttrap_scrblock_t *scrblk;
+	fasttrap_proc_t *fprc = NULL;
+#endif
 	pid_t ppid = p->p_pid;
 	int i;
 
@@ -534,9 +660,28 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 				 * mid-fork.
 				 */
 				ASSERT(tp->ftt_proc->ftpc_acount != 0);
+#if !defined(sun)
+				fprc = tp->ftt_proc;
+#endif
 			}
 		}
 		mutex_exit(&bucket->ftb_mtx);
+
+#if !defined(sun)
+		/*
+		 * Unmap any scratch space inherited from the parent's address
+		 * space.
+		 */
+		if (fprc != NULL) {
+			mutex_enter(&fprc->ftpc_mtx);
+			LIST_FOREACH(scrblk, &fprc->ftpc_scrblks, ftsb_next) {
+				vm_map_remove(&cp->p_vmspace->vm_map,
+				    scrblk->ftsb_addr,
+				    scrblk->ftsb_addr + FASTTRAP_SCRBLOCK_SIZE);
+			}
+			mutex_exit(&fprc->ftpc_mtx);
+		}
+#endif
 	}
 
 #if defined(sun)
@@ -557,12 +702,24 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 static void
 fasttrap_exec_exit(proc_t *p)
 {
+#if !defined(sun)
+	struct thread *td;
+#endif
+
 #if defined(sun)
 	ASSERT(p == curproc);
-#endif
+#else
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	_PHOLD(p);
+	/*
+	 * Since struct threads may be recycled, we cannot rely on t_dtrace_sscr
+	 * fields to be zeroed by kdtrace_thread_ctor. Thus we must zero it
+	 * ourselves when a process exits.
+	 */
+	FOREACH_THREAD_IN_PROC(p, td)
+		td->t_dtrace_sscr = NULL;
 	PROC_UNLOCK(p);
+#endif
 
 	/*
 	 * We clean up the pid provider for this process here; user-land
@@ -572,9 +729,9 @@ fasttrap_exec_exit(proc_t *p)
 #if !defined(sun)
 	if (p->p_dtrace_helpers)
 		dtrace_helpers_destroy(p);
-#endif
 	PROC_LOCK(p);
 	_PRELE(p);
+#endif
 }
 
 
@@ -1367,6 +1524,12 @@ fasttrap_proc_release(fasttrap_proc_t *proc)
 	fasttrap_bucket_t *bucket;
 	fasttrap_proc_t *fprc, **fprcp;
 	pid_t pid = proc->ftpc_pid;
+#if !defined(sun)
+	fasttrap_scrblock_t *scrblk, *scrblktmp;
+	fasttrap_scrspace_t *scrspc, *scrspctmp;
+	struct proc *p;
+	struct thread *td;
+#endif
 
 	mutex_enter(&proc->ftpc_mtx);
 
@@ -1377,6 +1540,31 @@ fasttrap_proc_release(fasttrap_proc_t *proc)
 		mutex_exit(&proc->ftpc_mtx);
 		return;
 	}
+
+#if !defined(sun)
+	/*
+	 * Free all structures used to manage per-thread scratch space.
+	 */
+	LIST_FOREACH_SAFE(scrblk, &proc->ftpc_scrblks, ftsb_next,
+	    scrblktmp) {
+		LIST_REMOVE(scrblk, ftsb_next);
+		free(scrblk, M_SOLARIS);
+	}
+	LIST_FOREACH_SAFE(scrspc, &proc->ftpc_fscr, ftss_next, scrspctmp) {
+		LIST_REMOVE(scrspc, ftss_next);
+		free(scrspc, M_SOLARIS);
+	}
+	LIST_FOREACH_SAFE(scrspc, &proc->ftpc_ascr, ftss_next, scrspctmp) {
+		LIST_REMOVE(scrspc, ftss_next);
+		free(scrspc, M_SOLARIS);
+	}
+
+	if ((p = pfind(pid)) != NULL) {
+		FOREACH_THREAD_IN_PROC(p, td)
+			td->t_dtrace_sscr = NULL;
+		PROC_UNLOCK(p);
+	}
+#endif
 
 	mutex_exit(&proc->ftpc_mtx);
 
@@ -2363,6 +2551,13 @@ fasttrap_load(void)
 		mutex_init(&fasttrap_cpuc_pid_lock[i], "fasttrap barrier",
 		    MUTEX_DEFAULT, NULL);
 	}
+
+	/*
+	 * This event handler must run before kdtrace_thread_dtor() since it
+	 * accesses the thread's struct kdtrace_thread.
+	 */
+	fasttrap_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
+	    fasttrap_thread_dtor, NULL, EVENTHANDLER_PRI_FIRST);
 #endif
 
 	/*
@@ -2464,6 +2659,8 @@ fasttrap_unload(void)
 #endif
 
 #if !defined(sun)
+	EVENTHANDLER_DEREGISTER(thread_dtor, fasttrap_thread_dtor_tag);
+
 	for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
 		mutex_destroy(&fasttrap_tpoints.fth_table[i].ftb_mtx);
 	for (i = 0; i < fasttrap_provs.fth_nent; i++)
