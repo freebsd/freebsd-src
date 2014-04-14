@@ -41,7 +41,7 @@ your kernel configuration file:
 .Cd "device usb"
 .Ed
 .Pp
-Alternativly, to load the driver as a module at boot time,
+Alternatively, to load the driver as a module at boot time,
 place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
@@ -53,31 +53,28 @@ The
 driver provides support for the Apple Internal Trackpad
 device found in many Apple laptops.
 .Pp
-The driver simulates a three\-button mouse using multi\-finger tap
+The driver simulates a three-button mouse using multi-finger tap
 detection.
-.
-A single\-finger press generates a left button click. 
-A two\-finger tap maps to the right button; whereas a three\-finger tap
+A single-finger press generates a left button click. 
+A two-finger tap maps to the right button; whereas a three-finger tap
 gets treated as a middle button click.
-.
 .Pp
 .Nm
 supports dynamic reconfiguration using
-.Xr sysctl 8 ;
+.Xr sysctl 8
 through nodes under
 .Nm hw.usb.wsp .
 Pointer sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.scale_factor .
-.
 .Sh FILES
 .Nm
-creates a blocking pseudo\-device file,
+creates a blocking pseudo-device file,
 .Pa /dev/wsp0 ,
 which presents the mouse as a
-.Ar sysmouse
+.Em sysmouse
 or
-.Ar mousesystems
-type device\-\-see
+.Em mousesystems
+type device--see
 .Xr moused 8
 for an explanation of these mouse
 types.
