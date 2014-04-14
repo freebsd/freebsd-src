@@ -208,7 +208,7 @@ terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
 		teken_set_winsize(&tm->tm_emulator, &r.tr_end);
 	TERMINAL_UNLOCK(tm);
 
-	if (blank != 0)
+	if ((blank != 0) && !(tm->tm_flags & TF_MUTE))
 		tm->tm_class->tc_fill(tm, &r, TCHAR_CREATE((teken_char_t)' ',
 		    &default_message));
 
