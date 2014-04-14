@@ -6,6 +6,8 @@
 DIR=`dirname $0`
 ARCH=`uname -m`
 
+TZ=UTC; export TZ
+
 check()
 {
 	NUM=$1

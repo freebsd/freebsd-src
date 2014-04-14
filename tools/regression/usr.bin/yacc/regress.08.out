@@ -5,6 +5,7 @@ static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYBYACC 1
 #define YYMAJOR 1
 #define YYMINOR 9
+#define YYPATCH 20140101
 
 #define YYEMPTY        (-1)
 #define yyclearin      (yychar = YYEMPTY)
@@ -302,7 +303,7 @@ haveAnsiParam (void)
     }
     return FALSE;
 }
-#line 305 "/dev/stdout"
+#line 306 "/dev/stdout"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -660,6 +661,7 @@ static const short yycheck[] = {                         38,
 #define YYDEBUG 0
 #endif
 #define YYMAXTOKEN 291
+#define YYTRANSLATE(a) ((a) > YYMAXTOKEN ? (YYMAXTOKEN + 1) : (a))
 #if YYDEBUG
 static const char *yyname[] = {
 
@@ -676,6 +678,7 @@ static const char *yyname[] = {
 "T_UNSIGNED","T_ENUM","T_STRUCT","T_UNION","T_Bool","T_Complex","T_Imaginary",
 "T_TYPE_QUALIFIER","T_BRACKETS","T_LBRACE","T_MATCHRBRACE","T_ELLIPSIS",
 "T_INITIALIZER","T_STRING_LITERAL","T_ASM","T_ASMARG","T_VA_DCL",
+"illegal-symbol",
 };
 static const char *yyrule[] = {
 "$accept : program",
@@ -813,12 +816,12 @@ YYSTYPE  yylval;
 #ifdef YYMAXDEPTH
 #define YYSTACKSIZE YYMAXDEPTH
 #else
-#define YYSTACKSIZE 500
-#define YYMAXDEPTH  500
+#define YYSTACKSIZE 10000
+#define YYMAXDEPTH  10000
 #endif
 #endif
 
-#define YYINITSTACKSIZE 500
+#define YYINITSTACKSIZE 200
 
 typedef struct {
     unsigned stacksize;
@@ -1001,7 +1004,7 @@ free_parser(void)
 #endif
 }
 #endif
-#line 1004 "/dev/stdout"
+#line 1006 "/dev/stdout"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -1025,7 +1028,7 @@ static int yygrowstack(YYSTACKDATA *data)
     else if ((newsize *= 2) > YYMAXDEPTH)
         newsize = YYMAXDEPTH;
 
-    i = data->s_mark - data->s_base;
+    i = (int) (data->s_mark - data->s_base);
     newss = (short *)realloc(data->s_base, newsize * sizeof(*newss));
     if (newss == 0)
         return -1;
@@ -1099,9 +1102,7 @@ yyloop:
 #if YYDEBUG
         if (yydebug)
         {
-            yys = 0;
-            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-            if (!yys) yys = "illegal-symbol";
+            yys = yyname[YYTRANSLATE(yychar)];
             printf("%sdebug: state %d, reading %d (%s)\n",
                     YYPREFIX, yystate, yychar, yys);
         }
@@ -1183,9 +1184,7 @@ yyinrecovery:
 #if YYDEBUG
         if (yydebug)
         {
-            yys = 0;
-            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-            if (!yys) yys = "illegal-symbol";
+            yys = yyname[YYTRANSLATE(yychar)];
             printf("%sdebug: state %d, error recovery discards token %d (%s)\n",
                     YYPREFIX, yystate, yychar, yys);
         }
@@ -1881,7 +1880,7 @@ case 114:
 	    yyval.declarator->func_def = FUNC_ANSI;
 	}
 break;
-#line 1884 "/dev/stdout"
+#line 1882 "/dev/stdout"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
@@ -1903,9 +1902,7 @@ break;
 #if YYDEBUG
             if (yydebug)
             {
-                yys = 0;
-                if (yychar <= YYMAXTOKEN) yys = yyname[yychar];
-                if (!yys) yys = "illegal-symbol";
+                yys = yyname[YYTRANSLATE(yychar)];
                 printf("%sdebug: state %d, reading %d (%s)\n",
                         YYPREFIX, YYFINAL, yychar, yys);
             }

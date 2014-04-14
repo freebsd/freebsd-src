@@ -29,6 +29,7 @@
 
 # Various regression tests to run for the 'resolve' command.
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -134,6 +135,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -142,6 +144,7 @@ present()
 {
 	if ! [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be present"
+		FAILED=yes
 	fi
 }
 
@@ -154,15 +157,18 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -175,10 +181,12 @@ conflict()
 
 	if ! [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 missing conflict"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		sum=`md5 -q $CONFLICTS/$1`
 		if [ "$sum" != "$2" ]; then
 			echo "Conflict $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -188,11 +196,13 @@ resolved()
 {
 	if [ -f $CONFLICTS/$1 ]; then
 		echo "Conflict $1 should be resolved"
+		FAILED=yes
 	fi
 }
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -255,11 +265,13 @@ echo "Checking newalias warning for 'p'":
 echo 'p' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -eq 0 ]; then
 	echo "+ Extra warning"
+	FAILED=yes
 fi
 echo "Checking newalias warning for 'mf'":
 echo 'mf' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -eq 0 ]; then
 	echo "+ Extra warning"
+	FAILED=yes
 fi
 
 # Verify that 'tf' and 'r' do generate the newaliases warning.
@@ -268,6 +280,7 @@ echo "Checking newalias warning for 'tf'":
 echo 'tf' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -ne 0 ]; then
 	echo "- Missing warning"
+	FAILED=yes
 fi
 
 build_aliases_conflict
@@ -275,4 +288,7 @@ cp $TEST/etc/mail/aliases $CONFLICTS/etc/mail/aliases
 echo 'r' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -ne 0 ]; then
 	echo "- Missing warning"
+	FAILED=yes
 fi
+
+[ "${FAILED}" = no ]

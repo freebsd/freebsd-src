@@ -32,8 +32,8 @@
 echo "1..1"
 
 if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+	echo "ok 1 # skip You need to be root to run this test."
+	exit 0
 fi
 
 TESTDIR=$(dirname $(realpath $0))

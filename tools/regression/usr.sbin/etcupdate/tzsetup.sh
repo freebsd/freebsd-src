@@ -29,6 +29,7 @@
 
 # Various regression tests for the tzsetup handling in the 'update' command.
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -85,6 +86,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -96,10 +98,12 @@ link()
 
 	if ! [ -L $TEST/$1 ]; then
 		echo "File $1 should be a link"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		val=`readlink $TEST/$1`
 		if [ "$val" != "$2" ]; then
 			echo "Link $1 should link to \"$2\""
+			FAILED=yes
 		fi
 	fi
 }
@@ -113,21 +117,25 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -144,12 +152,14 @@ cat > $WORKDIR/correct.out <<EOF
 EOF
 
 echo "Differences for no /etc/localtime with -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || FAILED=yes
 
 $COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for no /etc/localtime:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 missing /etc/localtime
 missing /var/db/zoneinfo
@@ -165,12 +175,14 @@ cat > $WORKDIR/correct.out <<EOF
 EOF
 
 echo "Differences for symlinked /etc/localtime with -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || FAILED=yes
 
 $COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for symlinked /etc/localtime:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 link /etc/localtime "/dev/null"
 missing /var/db/zoneinfo
@@ -188,12 +200,14 @@ Warnings:
 EOF
 
 echo "Differences for missing /var/db/zoneinfo with -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || FAILED=yes
 
 $COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for missing /var/db/zoneinfo:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 file /etc/localtime "bar"
 missing /var/db/zoneinfo
@@ -210,12 +224,16 @@ cat > $WORKDIR/correct.out <<EOF
 EOF
 
 echo "Differences for real update with -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || FAILED=yes
 
 $COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for real update:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 file /etc/localtime "foo"
 file /var/db/zoneinfo "foo"
+
+[ "${FAILED}" = no ]

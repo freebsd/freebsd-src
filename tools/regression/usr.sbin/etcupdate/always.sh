@@ -29,6 +29,7 @@
 
 # Various regression tests to test the -A flag to the 'update' command.
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -275,6 +276,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -283,6 +285,7 @@ present()
 {
 	if ! [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be present"
+		FAILED=yes
 	fi
 }
 
@@ -291,6 +294,7 @@ fifo()
 {
 	if ! [ -p $TEST/$1 ]; then
 		echo "File $1 should be a FIFO"
+		FAILED=yes
 	fi
 }
 
@@ -299,6 +303,7 @@ dir()
 {
 	if ! [ -d $TEST/$1 ]; then
 		echo "File $1 should be a directory"
+		FAILED=yes
 	fi
 }
 
@@ -310,10 +315,12 @@ link()
 
 	if ! [ -L $TEST/$1 ]; then
 		echo "File $1 should be a link"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		val=`readlink $TEST/$1`
 		if [ "$val" != "$2" ]; then
 			echo "Link $1 should link to \"$2\""
+			FAILED=yes
 		fi
 	fi
 }
@@ -327,15 +334,18 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -348,10 +358,12 @@ conflict()
 
 	if ! [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 missing conflict"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		sum=`md5 -q $CONFLICTS/$1`
 		if [ "$sum" != "$2" ]; then
 			echo "Conflict $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -361,11 +373,13 @@ noconflict()
 {
 	if [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 should not have a conflict"
+		FAILED=yes
 	fi
 }
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -413,7 +427,8 @@ Warnings:
 EOF
 
 echo "Differences for regular:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || FAILED=yes
 
 ## /first/difftype/second:
 present /first/difftype/second/fifo
@@ -533,7 +548,8 @@ Warnings:
 EOF
 
 echo "Differences for -A '/first*' -A '/second* /*di*':"
-diff -u -L "correct" $WORKDIR/correct1.out -L "test" $WORKDIR/test1.out
+diff -u -L "correct" $WORKDIR/correct1.out -L "test" $WORKDIR/test1.out \
+    || FAILED=yes
 
 ## /first/difftype/second:
 present /first/difftype/second/fifo
@@ -610,3 +626,5 @@ file /dirchange/todir/difffile/file "baz"
 
 ## /dirchange/todir/difftype:
 file /dirchange/todir/difftype/file "baz"
+
+[ "${FAILED}" = no ]
