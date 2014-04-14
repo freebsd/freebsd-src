@@ -929,11 +929,16 @@ dump_dtl(vdev_t *vd, int indent)
 		dump_dtl(vd->vdev_child[c], indent + 4);
 }
 
+/* from spa_history.c: spa_history_create_obj() */
+#define	HIS_BUF_LEN_DEF	(128 << 10)
+#define	HIS_BUF_LEN_MAX	(1 << 30)
+
 static void
 dump_history(spa_t *spa)
 {
 	nvlist_t **events = NULL;
-	char buf[SPA_MAXBLOCKSIZE];
+	char *buf = NULL;
+	uint64_t bufsize = HIS_BUF_LEN_DEF;
 	uint64_t resid, len, off = 0;
 	uint_t num = 0;
 	int error;
@@ -942,8 +947,11 @@ dump_history(spa_t *spa)
 	char tbuf[30];
 	char internalstr[MAXPATHLEN];
 
+	if ((buf = malloc(bufsize)) == NULL)
+		(void) fprintf(stderr, "Unable to read history: "
+		    "out of memory\n");
 	do {
-		len = sizeof (buf);
+		len = bufsize;
 
 		if ((error = spa_history_get(spa, &off, &len, buf)) != 0) {
 			(void) fprintf(stderr, "Unable to read history: "
@@ -953,9 +961,26 @@ dump_history(spa_t *spa)
 
 		if (zpool_history_unpack(buf, len, &resid, &events, &num) != 0)
 			break;
-
 		off -= resid;
+
+		/*
+		 * If the history block is too big, double the buffer
+		 * size and try again.
+		 */
+		if (resid == len) {
+			free(buf);
+			buf = NULL;
+
+			bufsize <<= 1;
+			if ((bufsize >= HIS_BUF_LEN_MAX) ||
+			    ((buf = malloc(bufsize)) == NULL)) {
+				(void) fprintf(stderr, "Unable to read history: "
+				    "out of memory\n");
+				return;
+			}
+		}
 	} while (len != 0);
+	free(buf);
 
 	(void) printf("\nHistory:\n");
 	for (int i = 0; i < num; i++) {
