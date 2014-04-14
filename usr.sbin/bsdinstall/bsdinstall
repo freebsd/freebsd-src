@@ -41,6 +41,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ GLOBALS
 
 : ${BSDINSTALL_TMPETC="/tmp/bsdinstall_etc"}; export BSDINSTALL_TMPETC
+: ${BSDINSTALL_TMPBOOT="/tmp/bsdinstall_boot"}; export BSDINSTALL_TMPBOOT
 : ${PATH_FSTAB="$BSDINSTALL_TMPETC/fstab"}; export PATH_FSTAB
 : ${BSDINSTALL_DISTDIR="/usr/freebsd-dist"}; export BSDINSTALL_DISTDIR
 : ${BSDINSTALL_CHROOT="/mnt"}; export BSDINSTALL_CHROOT
@@ -61,6 +62,7 @@ shift $(( $OPTIND - 1 ))
 VERB="${1:-auto}"; shift
 
 [ -d "$BSDINSTALL_TMPETC" ] || mkdir -p "$BSDINSTALL_TMPETC"
+[ -d "$BSDINSTALL_TMPBOOT" ] || mkdir -p "$BSDINSTALL_TMPBOOT"
 
 # Only enable debugging if debugFile is non-NULL and can be initialized
 f_quietly f_debug_init
