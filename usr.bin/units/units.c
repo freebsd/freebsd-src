@@ -245,7 +245,7 @@ addsubunit(char *product[], char *toadd)
 		return 1;
 	}
 	if (!*ptr)
-		*(ptr + 1) = 0;
+		*(ptr + 1) = NULL;
 	*ptr = dupstr(toadd);
 	return 0;
 }
