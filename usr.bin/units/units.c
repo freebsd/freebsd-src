@@ -81,24 +81,24 @@ static const char * havestr;
 static const char * wantstr;
 
 
-char	*dupstr(const char *str);
-void	 readunits(const char *userfile);
-void	 initializeunit(struct unittype * theunit);
-int	 addsubunit(char *product[], char *toadd);
-void	 showunit(struct unittype * theunit);
-void	 zeroerror(void);
-int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
-int	 compare(const void *item1, const void *item2);
-void	 sortunit(struct unittype * theunit);
-void	 cancelunit(struct unittype * theunit);
-char	*lookupunit(const char *unit);
-int	 reduceproduct(struct unittype * theunit, int flip);
-int	 reduceunit(struct unittype * theunit);
-int	 compareproducts(char **one, char **two);
-int	 compareunits(struct unittype * first, struct unittype * second);
-int	 completereduce(struct unittype * unit);
-void	 showanswer(struct unittype * have, struct unittype * want);
-void	 usage(void);
+static int	 addsubunit(char *product[], char *toadd);
+static int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
+static void	 cancelunit(struct unittype * theunit);
+static int	 compare(const void *item1, const void *item2);
+static int	 compareproducts(char **one, char **two);
+static int	 compareunits(struct unittype * first, struct unittype * second);
+static int	 completereduce(struct unittype * unit);
+static char	*dupstr(const char *str);
+static void	 initializeunit(struct unittype * theunit);
+static char	*lookupunit(const char *unit);
+static void	 readunits(const char *userfile);
+static int	 reduceproduct(struct unittype * theunit, int flip);
+static int	 reduceunit(struct unittype * theunit);
+static void	 showanswer(struct unittype * have, struct unittype * want);
+static void	 showunit(struct unittype * theunit);
+static void	 sortunit(struct unittype * theunit);
+static void	 usage(void);
+static void	 zeroerror(void);
 
 static const char* promptstr = "";
 
