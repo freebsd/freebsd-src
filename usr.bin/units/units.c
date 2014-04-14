@@ -724,11 +724,11 @@ main(int argc, char **argv)
 
 	inhistory = history_init();
 	el = el_init(argv[0], stdin, stdout, stderr);
-	el_source(el, NULL);
 	el_set(el, EL_PROMPT, &prompt);
 	el_set(el, EL_EDITOR, "emacs");
 	el_set(el, EL_SIGNAL, 1);
 	el_set(el, EL_HIST, history, inhistory);
+	el_source(el, NULL);
 	history(inhistory, &ev, H_SETSIZE, 800);
 	if (inhistory == 0)
 		err(1, "Could not initalize history");
