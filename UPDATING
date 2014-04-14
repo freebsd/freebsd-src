@@ -16,18 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-
 20140321:
-	Clang and llvm have been upgraded to 3.4 release.  Please note that
-	clang 3.4 now defaults to DWARF4 debug information format when you
-	specify -g.  Since kgdb(1) only supports DWARF2, you should update any
-	customized kernel configurations which include debug information to
-	explicitly use -gdwarf-2, e.g:
-
-	  makeoptions	DEBUG=-gdwarf-2
-
-	This has already been applied to the appropriate GENERIC configuration
-	files, so if you inherit from those, no changes are required.
+	Clang and llvm have been upgraded to 3.4 release.
 
 20140306:
 	If a Makefile in a tests/ directory was auto-generating a Kyuafile
