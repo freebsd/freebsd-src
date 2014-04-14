@@ -29,6 +29,7 @@
 
 # Various regression tests to run for the 'update' command.
 
+FAILED=no
 WORKDIR=work
 
 usage()
@@ -653,6 +654,7 @@ missing()
 {
 	if [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be missing"
+		FAILED=yes
 	fi
 }
 
@@ -661,6 +663,7 @@ present()
 {
 	if ! [ -e $TEST/$1 -o -L $TEST/$1 ]; then
 		echo "File $1 should be present"
+		FAILED=yes
 	fi
 }
 
@@ -669,6 +672,7 @@ fifo()
 {
 	if ! [ -p $TEST/$1 ]; then
 		echo "File $1 should be a FIFO"
+		FAILED=yes
 	fi
 }
 
@@ -677,6 +681,7 @@ dir()
 {
 	if ! [ -d $TEST/$1 ]; then
 		echo "File $1 should be a directory"
+		FAILED=yes
 	fi
 }
 
@@ -688,10 +693,12 @@ link()
 
 	if ! [ -L $TEST/$1 ]; then
 		echo "File $1 should be a link"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		val=`readlink $TEST/$1`
 		if [ "$val" != "$2" ]; then
 			echo "Link $1 should link to \"$2\""
+			FAILED=yes
 		fi
 	fi
 }
@@ -705,15 +712,18 @@ file()
 
 	if ! [ -f $TEST/$1 ]; then
 		echo "File $1 should be a regular file"
+		FAILED=yes
 	elif [ $# -eq 2 ]; then
 		contents=`cat $TEST/$1`
 		if [ "$contents" != "$2" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	elif [ $# -eq 3 ]; then
 		sum=`md5 -q $TEST/$1`
 		if [ "$sum" != "$3" ]; then
 			echo "File $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -726,10 +736,12 @@ conflict()
 
 	if ! [ -f $CONFLICTS/$1 ]; then
 		echo "File $1 missing conflict"
+		FAILED=yes
 	elif [ $# -gt 1 ]; then
 		sum=`md5 -q $CONFLICTS/$1`
 		if [ "$sum" != "$2" ]; then
 			echo "Conflict $1 has wrong contents"
+			FAILED=yes
 		fi
 	fi
 }
@@ -920,6 +932,7 @@ check_trees()
 
 if [ `id -u` -ne 0 ]; then
 	echo "must be root"
+	exit 0
 fi
 
 if [ -r /etc/etcupdate.conf ]; then
@@ -994,11 +1007,15 @@ Warnings:
 EOF
 
 echo "Differences for -n:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out \
+    || failed=YES
 
 $COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for real:"
-diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
+diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out \
+    || failed=YES
 
 check_trees
+
+[ "${FAILED}" = no ]
