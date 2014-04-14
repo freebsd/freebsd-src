@@ -54,6 +54,20 @@ JID=`$PS -p $$ -o jid=`
 #	functions
 #	---------
 
+# list_vars pattern
+#	List vars matching pattern.
+# 
+list_vars()
+{
+	set | { while read LINE; do
+		var="${LINE%%=*}"
+		case "$var" in
+		"$LINE"|*[!a-zA-Z0-9_]*) continue ;;
+		$1) echo $var
+		esac
+	done; }
+}
+
 # set_rcvar [var] [defval] [desc]
 #
 #	Echo or define a rc.conf(5) variable name.  Global variable
@@ -353,6 +367,246 @@ _find_processes()
 
 #	debug "in _find_processes: proccheck is ($_proccheck)."
 	eval $_proccheck
+}
+
+# sort_lite [-b] [-n] [-k POS] [-t SEP]
+#	A lite version of sort(1) (supporting a few options) that can be used
+#	before the real sort(1) is available (e.g., in scripts that run prior
+#	to mountcritremote). Requires only shell built-in functionality.
+#
+sort_lite()
+{
+	local funcname=sort_lite
+	local sort_sep="$IFS" sort_ignore_leading_space=
+	local sort_field=0 sort_strict_fields= sort_numeric=
+	local nitems=0 skip_leading=0 trim=
+
+	local OPTIND flag
+	while getopts bnk:t: flag; do
+		case "$flag" in
+		b) sort_ignore_leading_space=1 ;;
+		n) sort_numeric=1 sort_ignore_leading_space=1 ;;
+		k) sort_field="${OPTARG%%,*}" ;; # only up to first comma
+			# NB: Unlike sort(1) only one POS allowed
+		t) sort_sep="$OPTARG"
+		   if [ ${#sort_sep} -gt 1 ]; then
+		   	echo "$funcname: multi-character tab \`$sort_sep'" >&2
+		   	return 1
+		   fi
+		   sort_strict_fields=1
+		   ;;
+		\?) return 1 ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	# Create transformation pattern to trim leading text if desired
+	case "$sort_field" in
+	""|[!0-9]*|*[!0-9.]*)
+		echo "$funcname: invalid sort field \`$sort_field'" >&2
+		return 1
+		;;
+	*.*)
+		skip_leading=${sort_field#*.} sort_field=${sort_field%%.*}
+		while [ ${skip_leading:-0} -gt 1 ] 2> /dev/null; do
+			trim="$trim?" skip_leading=$(( $skip_leading - 1 ))
+		done
+	esac
+
+	# Copy input to series of local numbered variables
+	# NB: IFS of NULL preserves leading whitespace
+	local LINE
+	while IFS= read -r LINE || [ "$LINE" ]; do
+		nitems=$(( $nitems + 1 ))
+		local src_$nitems="$LINE"
+	done
+
+	#
+	# Sort numbered locals using insertion sort
+	#
+	local curitem curitem_orig curitem_mod curitem_haskey
+	local dest dest_orig dest_mod dest_haskey
+	local d gt n
+	local i=1 
+	while [ $i -le $nitems ]; do
+		curitem_haskey=1 # Assume sort field (-k POS) exists
+		eval curitem=\"\$src_$i\"
+		curitem_mod="$curitem" # for modified comparison
+		curitem_orig="$curitem" # for original comparison
+
+		# Trim leading whitespace if desired
+		if [ "$sort_ignore_leading_space" ]; then
+			while case "$curitem_orig" in
+				[$IFS]*) : ;; *) false; esac
+			do
+				curitem_orig="${curitem_orig#?}"
+			done
+			curitem_mod="$curitem_orig"
+		fi
+
+		# Shift modified comparison value if sort field (-k POS) is > 1
+		n=$sort_field
+		while [ $n -gt 1 ]; do
+			case "$curitem_mod" in
+			*[$sort_sep]*)
+				# Cut text up-to (and incl.) first separator
+				curitem_mod="${curitem_mod#*[$sort_sep]}"
+
+				# Skip NULLs unless strict field splitting
+				[ "$sort_strict_fields" ] ||
+					[ "${curitem_mod%%[$sort_sep]*}" ] ||
+					[ $n -eq 2 ] ||
+					continue
+				;;
+			*)
+				# Asked for a field that doesn't exist
+				curitem_haskey= break
+			esac
+			n=$(( $n - 1 ))
+		done
+
+		# Trim trailing words if sort field >= 1
+		[ $sort_field -ge 1 -a "$sort_numeric" ] &&
+			curitem_mod="${curitem_mod%%[$sort_sep]*}"
+
+		# Apply optional trim (-k POS.TRIM) to cut leading characters
+		curitem_mod="${curitem_mod#$trim}"
+
+		# Determine the type of modified comparison to use initially
+		# NB: Prefer numerical if requested but fallback to standard
+		case "$curitem_mod" in
+		""|[!0-9]*) # NULL or begins with non-number
+			gt=">"
+			[ "$sort_numeric" ] && curitem_mod=0
+			;;
+		*)
+			if [ "$sort_numeric" ]; then
+				gt="-gt"
+				curitem_mod="${curitem_mod%%[!0-9]*}"
+					# NB: trailing non-digits removed
+					# otherwise numeric comparison fails
+			else
+				gt=">"
+			fi
+		esac
+
+		# If first time through, short-circuit below position-search
+		if [ $i -le 1 ]; then
+			d=0
+		else
+			d=1
+		fi
+
+		#
+		# Find appropriate element position
+		#
+		while [ $d -gt 0 ]
+		do
+			dest_haskey=$curitem_haskey
+			eval dest=\"\$dest_$d\"
+			dest_mod="$dest" # for modified comparison
+			dest_orig="$dest" # for original comparison
+
+			# Trim leading whitespace if desired
+			if [ "$sort_ignore_leading_space" ]; then
+				while case "$dest_orig" in
+					[$IFS]*) : ;; *) false; esac
+				do
+					dest_orig="${dest_orig#?}"
+				done
+				dest_mod="$dest_orig"
+			fi
+
+			# Shift modified value if sort field (-k POS) is > 1
+			n=$sort_field
+			while [ $n -gt 1 ]; do
+				case "$dest_mod" in
+				*[$sort_sep]*)
+					# Cut text up-to (and incl.) 1st sep
+					dest_mod="${dest_mod#*[$sort_sep]}"
+
+					# Skip NULLs unless strict fields
+					[ "$sort_strict_fields" ] ||
+					    [ "${dest_mod%%[$sort_sep]*}" ] ||
+					    [ $n -eq 2 ] ||
+					    continue
+					;;
+				*)
+					# Asked for a field that doesn't exist
+					dest_haskey= break
+				esac
+				n=$(( $n - 1 ))
+			done
+
+			# Trim trailing words if sort field >= 1
+			[ $sort_field -ge 1 -a "$sort_numeric" ] &&
+				dest_mod="${dest_mod%%[$sort_sep]*}"
+
+			# Apply optional trim (-k POS.TRIM), cut leading chars
+			dest_mod="${dest_mod#$trim}"
+
+			# Determine type of modified comparison to use
+			# NB: Prefer numerical if requested, fallback to std
+			case "$dest_mod" in
+			""|[!0-9]*) # NULL or begins with non-number
+				gt=">"
+				[ "$sort_numeric" ] && dest_mod=0
+				;;
+			*)
+				if [ "$sort_numeric" ]; then
+					gt="-gt"
+					dest_mod="${dest_mod%%[!0-9]*}"
+						# NB: kill trailing non-digits
+						# for numeric comparison safety
+				else
+					gt=">"
+				fi
+			esac
+
+			# Break if we've found the proper element position
+			if [ "$curitem_haskey" -a "$dest_haskey" ]; then
+				if [ "$dest_mod" = "$curitem_mod" ]; then
+					[ "$dest_orig" ">" "$curitem_orig" ] &&
+						break
+				elif [ "$dest_mod" $gt "$curitem_mod" ] \
+					2> /dev/null
+				then
+					break
+				fi
+			else
+				[ "$dest_orig" ">" "$curitem_orig" ] && break
+			fi
+
+			# Break if we've hit the end
+			[ $d -ge $i ] && break
+
+			d=$(( $d + 1 ))
+		done
+
+		# Shift remaining positions forward, making room for new item
+		n=$i
+		while [ $n -ge $d ]; do
+			# Shift destination item forward one placement
+			eval dest_$(( $n + 1 ))=\"\$dest_$n\"
+			n=$(( $n - 1 ))
+		done
+
+		# Place the element
+		if [ $i -eq 1 ]; then
+			local dest_1="$curitem"
+		else
+			local dest_$d="$curitem"
+		fi
+
+		i=$(( $i + 1 ))
+	done
+
+	# Print sorted results
+	d=1
+	while [ $d -le $nitems ]; do
+		eval echo \"\$dest_$d\"
+		d=$(( $d + 1 ))
+	done
 }
 
 #
@@ -1580,19 +1834,20 @@ load_kld()
 	return 0
 }
 
-# ltr str src dst
+# ltr str src dst [var]
 #	Change every $src in $str to $dst.
 #	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
-#	awk(1).
+#	awk(1). If var is non-NULL, set it to the result.
 ltr()
 {
-	local _str _src _dst _out _com
-	_str=$1
-	_src=$2
-	_dst=$3
+	local _str _src _dst _out _com _var
+	_str="$1"
+	_src="$2"
+	_dst="$3"
+	_var="$4"
 	_out=""
 
-	IFS=${_src}
+	local IFS="${_src}"
 	for _com in ${_str}; do
 		if [ -z "${_out}" ]; then
 			_out="${_com}"
@@ -1600,7 +1855,11 @@ ltr()
 			_out="${_out}${_dst}${_com}"
 		fi
 	done
-	echo "${_out}"
+	if [ -n "${_var}" ]; then
+		setvar "${_var}" "${_out}"
+	else
+		echo "${_out}"
+	fi
 }
 
 # Creates a list of providers for GELI encryption.
