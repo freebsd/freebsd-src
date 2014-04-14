@@ -1,12 +1,16 @@
 # $FreeBSD$
 #
+# You must include bsd.test.mk instead of this file from your Makefile.
+#
 # Logic to build and install TAP-compliant test programs.
 #
 # This is provided to support existing tests in the FreeBSD source tree
 # (particularly those coming from tools/regression/) that comply with the
 # Test Anything Protocol.  It should not be used for new tests.
 
-.include <bsd.init.mk>
+.if !target(__<bsd.test.mk>__)
+.error tap.test.mk cannot be included directly.
+.endif
 
 # List of C, C++ and shell test programs to build.
 #
@@ -87,5 +91,3 @@ ${_T}: ${TAP_TESTS_SH_SRC_${_T}}
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor
 .endif
-
-.include <bsd.test.mk>

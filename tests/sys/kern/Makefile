@@ -9,4 +9,4 @@ LDADD.unix_seqpacket_test+=		-lpthread
 
 WARNS?=	5
 
-.include <atf.test.mk>
+.include <bsd.test.mk>
