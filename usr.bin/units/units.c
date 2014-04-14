@@ -76,6 +76,10 @@ static char NULLUNIT[] = "";
 
 static int unitcount;
 static int prefixcount;
+static bool verbose = false;
+static const char * havestr;
+static const char * wantstr;
+
 
 char	*dupstr(const char *str);
 void	 readunits(const char *userfile);
@@ -254,7 +258,7 @@ showunit(struct unittype * theunit)
 	int printedslash;
 	int counter = 1;
 
-	printf("\t%.8g", theunit->factor);
+	printf("%.8g", theunit->factor);
 	if (theunit->offset)
 		printf("&%.8g", theunit->offset);
 	for (ptr = theunit->numerator; *ptr; ptr++) {
@@ -289,7 +293,7 @@ showunit(struct unittype * theunit)
 			counter = 1;
 		}
 	}
-	if (counter > 1)
+	if ( counter > 1)
 		printf("%s%d", powerstring, counter);
 	printf("\n");
 }
@@ -645,32 +649,50 @@ completereduce(struct unittype * unit)
 	return 0;
 }
 
-
 void 
 showanswer(struct unittype * have, struct unittype * want)
 {
+	double ans;
+
 	if (compareunits(have, want)) {
 		printf("conformability error\n");
+		if (verbose)
+			printf("\t%s = ", havestr);
+		else
+			printf("\t");
 		showunit(have);
+		if (verbose)
+			printf("\t%s = ", wantstr);
+		else
+			printf("\t");
 		showunit(want);
 	}
 	else if (have->offset != want->offset) {
 		if (want->quantity)
 			printf("WARNING: conversion of non-proportional quantities.\n");
-		printf("\t");
 		if (have->quantity)
-			printf("%.8g\n",
+			printf("\t%.8g\n",
 			    (have->factor + have->offset-want->offset)/want->factor);
-		else
-			printf(" (-> x*%.8g %+.8g)\n\t (<- y*%.8g %+.8g)\n",
+		else {
+			printf("\t (-> x*%.8g %+.8g)\n\t (<- y*%.8g %+.8g)\n",
 			    have->factor / want->factor,
 			    (have->offset-want->offset)/want->factor,
 			    want->factor / have->factor,
 			    (want->offset - have->offset)/have->factor);
+		}
 	}
-	else
-		printf("\t* %.8g\n\t/ %.8g\n", have->factor / want->factor,
-		    want->factor / have->factor);
+	else {
+		ans = have->factor / want->factor;
+		if (verbose)
+			printf("\t%s = %.8g * %s\n", havestr, ans, wantstr);
+		else
+			printf("\t* %.8g\n", ans);
+
+		if (verbose)
+			printf("\t%s = (1 / %.8g) * %s\n", havestr, 1/ans,  wantstr);
+		else
+			printf("\t/ %.8g\n", 1/ans);
+	}
 }
 
 
@@ -688,8 +710,6 @@ main(int argc, char **argv)
 {
 
 	struct unittype have, want;
-	const char * havestr;
-	const char * wantstr;
 	int optchar;
 	bool quiet;
 	bool readfile;
@@ -700,7 +720,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "UVqf:")) != -1) {
+	while ((optchar = getopt(argc, argv, "fqvUV:")) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -711,6 +731,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			quiet = true;
+			break;
+		case 'v':
+			verbose = true;
 			break;
 		case 'U':
 			if (access(UNITSFILE, F_OK) == 0)
