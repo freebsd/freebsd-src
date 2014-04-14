@@ -6354,8 +6354,8 @@ struct fw_info {
 
 #define BCE_TX_TIMEOUT		5
 
-#define BCE_MAX_SEGMENTS	32
-#define BCE_TSO_MAX_SIZE	65536
+#define BCE_MAX_SEGMENTS	35
+#define BCE_TSO_MAX_SIZE	(65535 + sizeof(struct ether_vlan_header))
 #define BCE_TSO_MAX_SEG_SIZE	4096
 
 #define BCE_DMA_ALIGN		8
