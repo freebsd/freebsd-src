@@ -23,6 +23,8 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <histedit.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,7 +83,7 @@ void	 initializeunit(struct unittype * theunit);
 int	 addsubunit(char *product[], char *toadd);
 void	 showunit(struct unittype * theunit);
 void	 zeroerror(void);
-int	 addunit(struct unittype *theunit, char *toadd, int flip, int quantity);
+int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
 int	 compare(const void *item1, const void *item2);
 void	 sortunit(struct unittype * theunit);
 void	 cancelunit(struct unittype * theunit);
@@ -93,6 +95,12 @@ int	 compareunits(struct unittype * first, struct unittype * second);
 int	 completereduce(struct unittype * unit);
 void	 showanswer(struct unittype * have, struct unittype * want);
 void	 usage(void);
+
+static const char* promptstr = "";
+
+static const char * prompt(EditLine *e __unused) {
+	return promptstr;
+}
 
 char *
 dupstr(const char *str)
@@ -304,7 +312,7 @@ zeroerror(void)
 */
 
 int 
-addunit(struct unittype * theunit, char *toadd, int flip, int quantity)
+addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 {
 	char *scratch, *savescr;
 	char *item;
@@ -682,18 +690,25 @@ main(int argc, char **argv)
 {
 
 	struct unittype have, want;
-	char havestr[81], wantstr[81];
+	const char * havestr;
+	const char * wantstr;
 	int optchar;
-	char *userfile = 0;
-	int quiet = 0;
+	char *userfile;
+	bool quiet;
+	History *inhistory;
+	EditLine *el;
+	HistEvent ev;
+	int inputsz;
 
+	userfile = NULL;
+	quiet = false;
 	while ((optchar = getopt(argc, argv, "Vqf:")) != -1) {
 		switch (optchar) {
 		case 'f':
 			userfile = optarg;
 			break;
 		case 'q':
-			quiet = 1;
+			quiet = true;
 			break;
 		case 'V':
 			fprintf(stderr, "FreeBSD units\n");
@@ -707,11 +722,22 @@ main(int argc, char **argv)
 	if (optind != argc - 2 && optind != argc)
 		usage();
 
+	inhistory = history_init();
+	el = el_init(argv[0], stdin, stdout, stderr);
+	el_source(el, NULL);
+	el_set(el, EL_PROMPT, &prompt);
+	el_set(el, EL_EDITOR, "emacs");
+	el_set(el, EL_SIGNAL, 1);
+	el_set(el, EL_HIST, history, inhistory);
+	history(inhistory, &ev, H_SETSIZE, 800);
+	if (inhistory == 0)
+		err(1, "Could not initalize history");
+	
 	readunits(userfile);
 
 	if (optind == argc - 2) {
-		strlcpy(havestr, argv[optind], sizeof(havestr));
-		strlcpy(wantstr, argv[optind + 1], sizeof(wantstr));
+		havestr = argv[optind];
+		wantstr = argv[optind + 1];
 		initializeunit(&have);
 		addunit(&have, havestr, 0, 1);
 		completereduce(&have);
@@ -728,28 +754,31 @@ main(int argc, char **argv)
 			do {
 				initializeunit(&have);
 				if (!quiet)
-					printf("You have: ");
-				if (!fgets(havestr, sizeof(havestr), stdin)) {
-					if (!quiet)
-						putchar('\n');
+					promptstr = "You have: ";
+				havestr = el_gets(el, &inputsz);
+				if (havestr == NULL)
 					exit(0);
-				}
+				if (inputsz > 0)
+					history(inhistory, &ev, H_ENTER,
+					havestr);
 			} while (addunit(&have, havestr, 0, 1) ||
 			    completereduce(&have));
 			do {
 				initializeunit(&want);
 				if (!quiet)
-					printf("You want: ");
-				if (!fgets(wantstr, sizeof(wantstr), stdin)) {
-					if (!quiet)
-						putchar('\n');
+					promptstr = "You want: ";
+				wantstr = el_gets(el, &inputsz);
+				if (wantstr == NULL)
 					exit(0);
-				}
+				if (inputsz > 0)
+					history(inhistory, &ev, H_ENTER,
+					wantstr);
 			} while (addunit(&want, wantstr, 0, 1) ||
 			    completereduce(&want));
 			showanswer(&have, &want);
 		}
 	}
 
+	history_end(inhistory);
 	return(0);
 }
