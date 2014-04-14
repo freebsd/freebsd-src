@@ -678,7 +678,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: units [-f unitsfile] [-q] [-v] [from-unit to-unit]\n");
+		"usage: units [-f unitsfile] [-UVq] [from-unit to-unit]\n");
 	exit(3);
 }
 
@@ -700,7 +700,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "Vqf:")) != -1) {
+	while ((optchar = getopt(argc, argv, "UVqf:")) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -711,6 +711,13 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			quiet = true;
+			break;
+		case 'U':
+			if (access(UNITSFILE, F_OK) == 0)
+				printf("%s\n", UNITSFILE);
+			else
+				printf("Units data file not found");
+			exit(0);
 			break;
 		case 'V':
 			fprintf(stderr, "FreeBSD units\n");
