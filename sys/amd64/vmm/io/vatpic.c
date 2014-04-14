@@ -67,6 +67,7 @@ struct atpic {
 	bool		aeoi;
 	bool		poll;
 	bool		rotate;
+	bool		sfn;		/* special fully-nested mode */
 
 	int		irq_base;
 	uint8_t		request;	/* Interrupt Request Register (IIR) */
@@ -75,6 +76,8 @@ struct atpic {
 
 	int		acnt[8];	/* sum of pin asserts and deasserts */
 	int		priority;	/* current pin priority */
+
+	bool		intr_raised;
 };
 
 struct vatpic {
@@ -82,8 +85,6 @@ struct vatpic {
 	struct mtx	mtx;
 	struct atpic	atpic[2];
 	uint8_t		elc[2];
-
-	bool		intr_raised;
 };
 
 #define	VATPIC_CTR0(vatpic, fmt)					\
@@ -101,6 +102,7 @@ struct vatpic {
 #define	VATPIC_CTR4(vatpic, fmt, a1, a2, a3, a4)			\
 	VM_CTR4((vatpic)->vm, fmt, a1, a2, a3, a4)
 
+static void vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate);
 
 static __inline int
 vatpic_get_highest_isrpin(struct atpic *atpic)
@@ -122,13 +124,23 @@ vatpic_get_highest_isrpin(struct atpic *atpic)
 static __inline int
 vatpic_get_highest_irrpin(struct atpic *atpic)
 {
+	int serviced;
 	int bit, pin;
 	int i, j;
+
+	/*
+	 * In 'Special Fully-Nested Mode' when an interrupt request from
+	 * a slave is in service, the slave is not locked out from the
+	 * master's priority logic.
+	 */
+	serviced = atpic->service;
+	if (atpic->sfn)
+		serviced &= ~(1 << 2);
 
 	for (i = 0; i <= 7; i++) {
 		pin = ((i + 7 - atpic->priority) & 0x7);
 		bit = (1 << pin);
-		if (atpic->service & bit)
+		if (serviced & bit)
 			break;
 	}
 
@@ -150,14 +162,35 @@ vatpic_notify_intr(struct vatpic *vatpic)
 
 	KASSERT(VATPIC_LOCKED(vatpic), ("vatpic_notify_intr not locked"));
 
-	if (vatpic->intr_raised == true)
-		return;
+	/*
+	 * First check the slave.
+	 */
+	atpic = &vatpic->atpic[1];
+	if (!atpic->intr_raised &&
+	    (pin = vatpic_get_highest_irrpin(atpic)) != -1) {
+		VATPIC_CTR4(vatpic, "atpic slave notify pin = %d "
+		    "(imr 0x%x irr 0x%x isr 0x%x)", pin,
+		    atpic->mask, atpic->request, atpic->service);
 
-	/* XXX master only */
+		/*
+		 * Cascade the request from the slave to the master.
+		 */
+		atpic->intr_raised = true;
+		vatpic_set_pinstate(vatpic, 2, true);
+		vatpic_set_pinstate(vatpic, 2, false);
+	} else {
+		VATPIC_CTR3(vatpic, "atpic slave no eligible interrupts "
+		    "(imr 0x%x irr 0x%x isr 0x%x)",
+		    atpic->mask, atpic->request, atpic->service);
+	}
+
+	/*
+	 * Then check the master.
+	 */
 	atpic = &vatpic->atpic[0];
-
-	if ((pin = vatpic_get_highest_irrpin(atpic)) != -1) {
-		VATPIC_CTR4(vatpic, "atpic notify pin = %d "
+	if (!atpic->intr_raised &&
+	    (pin = vatpic_get_highest_irrpin(atpic)) != -1) {
+		VATPIC_CTR4(vatpic, "atpic master notify pin = %d "
 		    "(imr 0x%x irr 0x%x isr 0x%x)", pin,
 		    atpic->mask, atpic->request, atpic->service);
 
@@ -183,11 +216,11 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		 * programmed as ExtINT to indicate that the PIC is
 		 * the source of the interrupt.
 		 */
+		atpic->intr_raised = true;
 		lapic_set_local_intr(vatpic->vm, -1, APIC_LVT_LINT0);
 		vioapic_pulse_irq(vatpic->vm, 0);
-		vatpic->intr_raised = true;
 	} else {
-		VATPIC_CTR3(vatpic, "atpic no eligible interrupts "
+		VATPIC_CTR3(vatpic, "atpic master no eligible interrupts "
 		    "(imr 0x%x irr 0x%x isr 0x%x)",
 		    atpic->mask, atpic->request, atpic->service);
 	}
@@ -422,7 +455,6 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 
 	vatpic = vm_atpic(vm);
 
-	/* XXX master only */
 	atpic = &vatpic->atpic[0];
 
 	VATPIC_LOCK(vatpic);
@@ -430,28 +462,20 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 	pin = vatpic_get_highest_irrpin(atpic);
 	if (pin == -1)
 		pin = 7;
+	if (pin == 2) {
+		atpic = &vatpic->atpic[1];
+		pin = vatpic_get_highest_irrpin(atpic);
+	}
 
 	*vecptr = atpic->irq_base + pin;
 
 	VATPIC_UNLOCK(vatpic);
 }
 
-void
-vatpic_intr_accepted(struct vm *vm, int vector)
+static void
+vatpic_pin_accepted(struct atpic *atpic, int pin)
 {
-	struct vatpic *vatpic;
-	struct atpic *atpic;
-	int pin;
-
-	vatpic = vm_atpic(vm);
-
-	/* XXX master only */
-	atpic = &vatpic->atpic[0];
-
-	VATPIC_LOCK(vatpic);
-	vatpic->intr_raised = false;
-
-	pin = vector & 0x7;
+	atpic->intr_raised = false;
 
 	if (atpic->acnt[pin] == 0)
 		atpic->request &= ~(1 << pin);
@@ -462,52 +486,72 @@ vatpic_intr_accepted(struct vm *vm, int vector)
 	} else {
 		atpic->service |= (1 << pin);
 	}
+}
+
+void
+vatpic_intr_accepted(struct vm *vm, int vector)
+{
+	struct vatpic *vatpic;
+	int pin;
+
+	vatpic = vm_atpic(vm);
+
+	VATPIC_LOCK(vatpic);
+
+	pin = vector & 0x7;
+
+	if ((vector & ~0x7) == vatpic->atpic[1].irq_base) {
+		vatpic_pin_accepted(&vatpic->atpic[1], pin);
+		/*
+		 * If this vector originated from the slave,
+		 * accept the cascaded interrupt too.
+		 */
+		vatpic_pin_accepted(&vatpic->atpic[0], 2);
+	} else {
+		vatpic_pin_accepted(&vatpic->atpic[0], pin);
+	}
 
 	vatpic_notify_intr(vatpic);
 
 	VATPIC_UNLOCK(vatpic);
 }
 
-int
-vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+static int
+vatpic_read(struct vatpic *vatpic, struct atpic *atpic, struct vm_exit *vmexit)
 {
-	struct vatpic *vatpic;
-	struct atpic *atpic;
-	int error;
-	uint8_t val;
+	VATPIC_LOCK(vatpic);
 
-	error = 0;
-	vatpic = vm_atpic(vm);
-	atpic = &vatpic->atpic[0];
-
-	if (vmexit->u.inout.bytes != 1)
+	if (atpic->poll) {
+		VATPIC_CTR0(vatpic, "vatpic polled mode not supported");
+		VATPIC_UNLOCK(vatpic);
 		return (-1);
-
-	if (vmexit->u.inout.in) {
-		VATPIC_LOCK(vatpic);
-		if (atpic->poll) {
-			VATPIC_CTR0(vatpic, "vatpic polled mode not "
-			    "supported");
-			VATPIC_UNLOCK(vatpic);
-			return (-1);
+	} else {
+		if (vmexit->u.inout.port & ICU_IMR_OFFSET) {
+			/* read interrrupt mask register */
+			vmexit->u.inout.eax = atpic->mask;
 		} else {
-			if (vmexit->u.inout.port & ICU_IMR_OFFSET) {
-				/* read interrrupt mask register */
-				vmexit->u.inout.eax = atpic->mask;
+			if (atpic->rd_cmd_reg == OCW3_RIS) {
+				/* read interrupt service register */
+				vmexit->u.inout.eax = atpic->service;
 			} else {
-				if (atpic->rd_cmd_reg == OCW3_RIS) {
-					/* read interrupt service register */
-					vmexit->u.inout.eax = atpic->service;
-				} else {
-					/* read interrupt request register */
-					vmexit->u.inout.eax = atpic->request;
-				}
+				/* read interrupt request register */
+				vmexit->u.inout.eax = atpic->request;
 			}
 		}
-		VATPIC_UNLOCK(vatpic);
-
-		return (0);
 	}
+
+	VATPIC_UNLOCK(vatpic);
+
+	return (0);
+
+}
+
+static int
+vatpic_write(struct vatpic *vatpic, struct atpic *atpic,
+    struct vm_exit *vmexit)
+{
+	int error;
+	uint8_t val;
 
 	val = vmexit->u.inout.eax;
 
@@ -550,22 +594,41 @@ vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 }
 
 int
-vatpic_slave_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 {
+	struct vatpic *vatpic;
+	struct atpic *atpic;
+
+	vatpic = vm_atpic(vm);
+	atpic = &vatpic->atpic[0];
+
 	if (vmexit->u.inout.bytes != 1)
 		return (-1);
  
 	if (vmexit->u.inout.in) {
-		if (vmexit->u.inout.port & ICU_IMR_OFFSET) {
-			/* all interrupts masked */
-			vmexit->u.inout.eax = 0xff;
-		} else {
-			vmexit->u.inout.eax = 0x00;
-		}
+		return (vatpic_read(vatpic, atpic, vmexit));
 	}
  
-	/* Pretend all accesses to the slave 8259 are alright */
-	return (0);
+	return (vatpic_write(vatpic, atpic, vmexit));
+}
+
+int
+vatpic_slave_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+{
+	struct vatpic *vatpic;
+	struct atpic *atpic;
+
+	vatpic = vm_atpic(vm);
+	atpic = &vatpic->atpic[1];
+
+	if (vmexit->u.inout.bytes != 1)
+		return (-1);
+
+	if (vmexit->u.inout.in) {
+		return (vatpic_read(vatpic, atpic, vmexit));
+	}
+
+	return (vatpic_write(vatpic, atpic, vmexit));
 }
 
 int
@@ -579,6 +642,8 @@ vatpic_elc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 
 	if (vmexit->u.inout.bytes != 1)
 		return (-1);
+
+	VATPIC_LOCK(vatpic);
 
 	if (vmexit->u.inout.in) {
 		if (is_master)
@@ -601,6 +666,8 @@ vatpic_elc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 		else
 			vatpic->elc[1] = (vmexit->u.inout.eax & 0xde);
 	}
+
+	VATPIC_UNLOCK(vatpic);
 
 	return (0);
 }
