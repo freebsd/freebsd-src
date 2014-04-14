@@ -2852,7 +2852,7 @@ struct bge_gib {
  */
 
 #define	BGE_NSEG_JUMBO	4
-#define	BGE_NSEG_NEW	32
+#define	BGE_NSEG_NEW	35
 #define	BGE_TSOSEG_SZ	4096
 
 /* Maximum DMA address for controllers that have 40bit DMA address bug. */
