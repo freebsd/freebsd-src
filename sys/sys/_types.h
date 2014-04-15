@@ -87,7 +87,7 @@ typedef int		__cpusetid_t;	/* cpuset identifier. */
  */
 typedef	int		__ct_rune_t;	/* arg type for ctype funcs */
 typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
-typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
+typedef	__ct_rune_t	___wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
 typedef	__uint32_t	__dev_t;	/* device number */
