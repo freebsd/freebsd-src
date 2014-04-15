@@ -74,8 +74,9 @@ __attribute__ ((constructor)) static void
 cheri_enter_init(void)
 {
 
+	/* XXX: Should be MAP_STACK, but that is broken. */
 	__cheri_enter_stack = mmap(NULL, CHERI_ENTER_STACK_SIZE,
-	    PROT_READ | PROT_WRITE, MAP_STACK, -1, 0);
+	    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	assert(__cheri_enter_stack != MAP_FAILED);
 	__cheri_enter_stack_top = (char *)__cheri_enter_stack +
 	    CHERI_ENTER_STACK_SIZE;
