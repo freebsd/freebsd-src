@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2009
+.Dd April 15, 2014
 .Dt POSIX1E 3
 .Os
 .Sh NAME
@@ -65,6 +65,10 @@ However,
 does implement the
 .Xr libbsm
 audit API.
+It also provides
+.Xr capsicum 4 ,
+a lightweight OS capability and sandbox framework implementing a
+hybrid capability system model.
 .Sh ENVIRONMENT
 POSIX.1e assigns security attributes to all objects, extending the security
 functionality described in POSIX.1.
@@ -89,8 +93,10 @@ for mandatory access control labels.
 .Xr extattr 2 ,
 .Xr acl 3 ,
 .Xr extattr 3 ,
+.Xr libcapsicum 3 ,
 .Xr libbsm 3 ,
 .Xr mac 3 ,
+.Xr capsicum 4 ,
 .Xr ffs 7 ,
 .Xr getfmac 8 ,
 .Xr setfmac 8 ,
