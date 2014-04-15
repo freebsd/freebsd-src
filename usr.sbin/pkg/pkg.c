@@ -284,13 +284,10 @@ bootstrap_pkg(void)
 {
 	struct url *u;
 	FILE *remote;
-	FILE *config;
-	char *site;
 	struct dns_srvinfo *mirrors, *current;
 	/* To store _https._tcp. + hostname + \0 */
 	char zone[MAXHOSTNAMELEN + 13];
 	char url[MAXPATHLEN];
-	char conf[MAXPATHLEN];
 	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
 	char buf[10240];
@@ -306,7 +303,6 @@ bootstrap_pkg(void)
 	max_retry = 3;
 	ret = -1;
 	remote = NULL;
-	config = NULL;
 	current = mirrors = NULL;
 
 	printf("Bootstrapping pkg please wait\n");
@@ -387,26 +383,6 @@ bootstrap_pkg(void)
 	if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg);
 
-	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
-
-	if (access(conf, R_OK) == -1) {
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-
-		config = fopen(conf, "w+");
-		if (config == NULL)
-			goto cleanup;
-		fprintf(config, "packagesite: %s\n", url);
-		fclose(config);
-	}
-
 	goto cleanup;
 
 fetchfail:
@@ -423,7 +399,11 @@ cleanup:
 
 static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
-"Do you want to fetch and install it now? [y/N]: ";
+"The mechanism for doing this is not secure on FreeBSD 8. To securely install\n"
+"pkg(8), use ports from a portsnap checkout:\n"
+"  # portsnap fetch extract\n"
+"  # make -C /usr/ports/ports-mgmt/pkg install clean\n"
+"Do you still want to fetch and install it now? [y/N]: ";
 
 static int
 pkg_query_yes_no(void)

@@ -9,6 +9,7 @@ SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
 	${_examples} \
+	keys \
 	${_man} \
 	${_me} \
 	misc \
