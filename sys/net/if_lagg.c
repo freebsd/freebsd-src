@@ -54,11 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #endif
 #ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip.h>
 #endif
 
 #ifdef INET6
@@ -448,7 +448,11 @@ lagg_capabilities(struct lagg_softc *sc)
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
 	u_long hwa = ~0UL;
+#if defined(INET) || defined(INET6)
 	u_int hw_tsomax = IP_MAXPACKET;	/* Initialize to the maximum value. */
+#else
+	u_int hw_tsomax = ~0;	/* if_hw_tsomax is only for INET/INET6, but.. */
+#endif
 
 	LAGG_WLOCK_ASSERT(sc);
 
