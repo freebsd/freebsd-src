@@ -1099,7 +1099,7 @@ conf_verify(struct conf *conf)
 	struct portal_group *pg;
 	struct target *targ;
 	struct lun *lun;
-	bool found_lun0;
+	bool found_lun;
 	int error;
 
 	if (conf->conf_pidfile_path == NULL)
@@ -1116,17 +1116,16 @@ conf_verify(struct conf *conf)
 			    "default");
 			assert(targ->t_portal_group != NULL);
 		}
-		found_lun0 = false;
+		found_lun = false;
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
 			error = conf_verify_lun(lun);
 			if (error != 0)
 				return (error);
-			if (lun->l_lun == 0)
-				found_lun0 = true;
+			found_lun = true;
 		}
-		if (!found_lun0) {
-			log_warnx("mandatory LUN 0 not configured "
-			    "for target \"%s\"", targ->t_name);
+		if (!found_lun) {
+			log_warnx("no LUNs defined for target \"%s\"",
+			    targ->t_name);
 			return (1);
 		}
 	}
