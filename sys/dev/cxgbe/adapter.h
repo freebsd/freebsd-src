@@ -208,6 +208,7 @@ struct port_info {
 	/* These need to be int as they are used in sysctl */
 	int ntxq;	/* # of tx queues */
 	int first_txq;	/* index of first tx queue */
+	int rsrv_noflowq; /* Reserve queue 0 for non-flowid packets */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
 #ifdef TCP_OFFLOAD
