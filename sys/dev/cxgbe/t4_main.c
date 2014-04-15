@@ -197,6 +197,9 @@ TUNABLE_INT("hw.cxgbe.ntxq1g", &t4_ntxq1g);
 static int t4_nrxq1g = -1;
 TUNABLE_INT("hw.cxgbe.nrxq1g", &t4_nrxq1g);
 
+static int t4_rsrv_noflowq = 0;
+TUNABLE_INT("hw.cxgbe.rsrv_noflowq", &t4_rsrv_noflowq);
+
 #ifdef TCP_OFFLOAD
 #define NOFLDTXQ_10G 8
 static int t4_nofldtxq10g = -1;
@@ -299,6 +302,7 @@ struct intrs_and_queues {
 	int nrxq10g;		/* # of NIC rxq's for each 10G port */
 	int ntxq1g;		/* # of NIC txq's for each 1G port */
 	int nrxq1g;		/* # of NIC rxq's for each 1G port */
+	int rsrv_noflowq;	/* Flag whether to reserve queue 0 */
 #ifdef TCP_OFFLOAD
 	int nofldtxq10g;	/* # of TOE txq's for each 10G port */
 	int nofldrxq10g;	/* # of TOE rxq's for each 10G port */
@@ -375,6 +379,7 @@ static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
 static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
+static int sysctl_noflowq(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
@@ -781,6 +786,11 @@ t4_attach(device_t dev)
 			pi->nrxq = iaq.nrxq1g;
 			pi->ntxq = iaq.ntxq1g;
 		}
+
+		if (pi->ntxq > 1)
+			pi->rsrv_noflowq = iaq.rsrv_noflowq ? 1 : 0;
+		else
+			pi->rsrv_noflowq = 0;
 
 		rqidx += pi->nrxq;
 		tqidx += pi->ntxq;
@@ -1267,7 +1277,8 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (m->m_flags & M_FLOWID)
-		txq += (m->m_pkthdr.flowid % pi->ntxq);
+		txq += ((m->m_pkthdr.flowid % (pi->ntxq - pi->rsrv_noflowq))
+		    + pi->rsrv_noflowq);
 	br = txq->br;
 
 	if (TXQ_TRYLOCK(txq) == 0) {
@@ -1719,6 +1730,7 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	iaq->ntxq1g = t4_ntxq1g;
 	iaq->nrxq10g = nrxq10g = t4_nrxq10g;
 	iaq->nrxq1g = nrxq1g = t4_nrxq1g;
+	iaq->rsrv_noflowq = t4_rsrv_noflowq;
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		iaq->nofldtxq10g = t4_nofldtxq10g;
@@ -4498,6 +4510,9 @@ cxgbe_sysctls(struct port_info *pi)
 	    &pi->first_rxq, 0, "index of first rx queue");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_txq", CTLFLAG_RD,
 	    &pi->first_txq, 0, "index of first tx queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rsrv_noflowq", CTLTYPE_INT |
+	    CTLFLAG_RW, pi, 0, sysctl_noflowq, "IU",
+	    "Reserve queue 0 for non-flowid packets");
 
 #ifdef TCP_OFFLOAD
 	if (is_offload(pi->adapter)) {
@@ -4748,6 +4763,25 @@ sysctl_btphy(SYSCTL_HANDLER_ARGS)
 		v /= 256;
 
 	rc = sysctl_handle_int(oidp, &v, 0, req);
+	return (rc);
+}
+
+static int
+sysctl_noflowq(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	int rc, val;
+
+	val = pi->rsrv_noflowq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if ((val >= 1) && (pi->ntxq > 1))
+		pi->rsrv_noflowq = 1;
+	else
+		pi->rsrv_noflowq = 0;
+
 	return (rc);
 }
 
