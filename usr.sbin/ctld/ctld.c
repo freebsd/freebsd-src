@@ -1588,8 +1588,8 @@ wait_for_children(bool block)
 }
 
 static void
-handle_connection(struct portal *portal, int fd, const struct sockaddr_storage *ss,
-    socklen_t sslen, bool dont_fork)
+handle_connection(struct portal *portal, int fd,
+    const struct sockaddr *client_sa, socklen_t client_salen, bool dont_fork)
 {
 	struct connection *conn;
 	int error;
@@ -1624,27 +1624,15 @@ handle_connection(struct portal *portal, int fd, const struct sockaddr_storage *
 	}
 	pidfile_close(conf->conf_pidfh);
 
-#ifdef ICL_KERNEL_PROXY
-	/*
-	 * XXX
-	 */
-	if (proxy_mode) {
-		log_set_peer_addr("XXX");
-	} else {
-#endif
-		assert(proxy_mode == false);
-		error = getnameinfo((struct sockaddr *)ss, sslen,
-		    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-		if (error != 0)
-			log_errx(1, "getnameinfo: %s", gai_strerror(error));
+	error = getnameinfo(client_sa, client_salen,
+	    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+	if (error != 0)
+		log_errx(1, "getnameinfo: %s", gai_strerror(error));
 
-		log_debugx("accepted connection from %s; portal group \"%s\"",
-		    host, portal->p_portal_group->pg_name);
-		log_set_peer_addr(host);
-		setproctitle("%s", host);
-#ifdef ICL_KERNEL_PROXY
-	}
-#endif
+	log_debugx("accepted connection from %s; portal group \"%s\"",
+	    host, portal->p_portal_group->pg_name);
+	log_set_peer_addr(host);
+	setproctitle("%s", host);
 
 	conn = connection_new(portal, fd, host);
 	set_timeout(conf);
@@ -1699,7 +1687,9 @@ main_loop(struct conf *conf, bool dont_fork)
 
 #ifdef ICL_KERNEL_PROXY
 		if (proxy_mode) {
-			kernel_accept(&connection_id, &portal_id);
+			client_salen = sizeof(client_sa);
+			kernel_accept(&connection_id, &portal_id,
+			    (struct sockaddr *)&client_sa, &client_salen);
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
@@ -1715,7 +1705,9 @@ main_loop(struct conf *conf, bool dont_fork)
 			    portal_id);
 
 found:
-			handle_connection(portal, connection_id, NULL, 0, dont_fork);
+			handle_connection(portal, connection_id,
+			    (struct sockaddr *)&client_sa, client_salen,
+			    dont_fork);
 		} else {
 #endif
 			assert(proxy_mode == false);
@@ -1743,7 +1735,8 @@ found:
 					if (client_fd < 0)
 						log_err(1, "accept");
 					handle_connection(portal, client_fd,
-					    &client_sa, client_salen, dont_fork);
+					    (struct sockaddr *)&client_sa,
+					    client_salen, dont_fork);
 					break;
 				}
 			}
