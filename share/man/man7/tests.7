@@ -26,16 +26,16 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 20, 2014
+.Dd April 13, 2014
 .Dt TESTS 7
 .Os
 .Sh NAME
 .Nm tests
-.Nd introduction to the FreeBSD test suite
+.Nd introduction to the FreeBSD Test Suite
 .Sh DESCRIPTION
 The
 .Fx
-test suite provides a collection of automated tests for two major purposes.
+Test Suite provides a collection of automated tests for two major purposes.
 On one hand, the test suite aids
 .Em developers
 to detect bugs and regressions when they modify the source tree.  On the other
@@ -50,12 +50,31 @@ maintenance.
 .Pp
 The
 .Fx
-test suite is installed in the
+Test Suite can be found in the
 .Pa /usr/tests
 hierarchy.
 .Pp
 This manual page describes how to run the test suite and how to configure
 some of its optional features.
+.Ss Installing the test suite
+The test suite is not yet installed by default as part of
+.Fx ,
+but this is bound to change during the development of
+.Fx 11.0 .
+.Pp
+If the
+.Pa /usr/tests
+directory is missing, then you will have to enable the build of the test
+suite, rebuild your system and install the results.
+You can do so by setting
+.Sq WITH_TESTS=yes
+in your
+.Pa /etc/src.conf
+file (see
+.Xr src.conf 5
+for details)
+and rebuilding the system as described in
+.Xr build 7 .
 .Ss When to run the tests?
 Before diving into the details of how to run the test suite, here are some
 scenarios in which you should run it:
@@ -129,7 +148,7 @@ to its manual page
 .Ss Configuring the tests
 Some test cases in the
 .Fx
-test suite require manual configuration by the administrator before they can be
+Test Suite require manual configuration by the administrator before they can be
 run.  Unless certain properties are defined, the tests that require them will
 be skipped.
 .Pp
@@ -141,7 +160,7 @@ The format of this file is detailed in
 .Pp
 The following configuration variables are available in the
 .Fx
-test suite:
+Test Suite:
 .Bl -tag -width "allow_sysctl_side_effects"
 .It allow_devfs_side_effects
 If defined, enables tests that may destroy and recreate semipermanent device
@@ -192,21 +211,24 @@ Default result database used by Kyua.
 .It Pa /usr/tests/
 Location of the
 .Fx
-test suite.
+Test Suite.
 .It Pa /usr/tests/Kyuafile
 Top-level test suite definition file.
 .El
 .Sh SEE ALSO
-.Xr kyua 1 .
+.Xr kyua 1 ,
+.Xr build 7
 .Sh HISTORY
-This test suite first appeared in
-.Fx 11.0 .
+The
+.Fx
+Test Suite first appeared in
+.Fx 10.1 .
 .Pp
 The
 .Nm
 manual page first appeared in
 .Nx 6.0
 and was later ported to
-.Fx 11.0 .
+.Fx 10.1 .
 .Sh AUTHORS
-.An Julio Merino Aq Mt jmmv@google.com
+.An Julio Merino Aq Mt jmmv@FreeBSD.org
