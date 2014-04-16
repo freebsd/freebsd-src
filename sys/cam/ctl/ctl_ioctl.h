@@ -706,8 +706,9 @@ struct ctl_iscsi_listen_params {
 
 struct ctl_iscsi_accept_params {
 	int				connection_id;
-	struct sockaddr			*initiator_addr;
 	int				portal_id;
+	struct sockaddr			*initiator_addr;
+	socklen_t			initiator_addrlen;
 	int				spare[4];
 };
 
