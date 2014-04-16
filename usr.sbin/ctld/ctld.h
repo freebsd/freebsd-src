@@ -88,6 +88,9 @@ struct portal {
 	bool				p_iser;
 	char				*p_listen;
 	struct addrinfo			*p_ai;
+#ifdef ICL_KERNEL_PROXY
+	int				p_id;
+#endif
 
 	TAILQ_HEAD(, target)		p_targets;
 	int				p_socket;
@@ -146,6 +149,9 @@ struct conf {
 	int				conf_maxproc;
 
 	uint16_t			conf_last_portal_group_tag;
+#ifdef ICL_KERNEL_PROXY
+	int				conf_portal_id;
+#endif
 	struct pidfh			*conf_pidfh;
 
 	bool				conf_default_pg_defined;
@@ -265,8 +271,9 @@ void			kernel_capsicate(void);
 /*
  * ICL_KERNEL_PROXY
  */
-void			kernel_listen(struct addrinfo *ai, bool iser);
-int			kernel_accept(void);
+void			kernel_listen(struct addrinfo *ai, bool iser,
+			    int portal_id);
+void			kernel_accept(int *connection_id, int *portal_id);
 void			kernel_send(struct pdu *pdu);
 void			kernel_receive(struct pdu *pdu);
 
