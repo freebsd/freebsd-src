@@ -877,11 +877,6 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		request = STAILQ_FIRST(queue);
 		size = icl_pdu_size(request);
 		if (available < size) {
-#if 1
-			ICL_DEBUG("no space to send; "
-			    "have %zd, need %zd",
-			    available, size);
-#endif
 
 			/*
 			 * Set the low watermark, to be checked by
@@ -890,9 +885,18 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			 * is enough space for the PDU to fit.
 			 */
 			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_lowat = size;
+			available = sbspace(&so->so_snd);
+			if (available < size) {
+#if 1
+				ICL_DEBUG("no space to send; "
+				    "have %zd, need %zd",
+				    available, size);
+#endif
+				so->so_snd.sb_lowat = size;
+				SOCKBUF_UNLOCK(&so->so_snd);
+				return;
+			}
 			SOCKBUF_UNLOCK(&so->so_snd);
-			return;
 		}
 		STAILQ_REMOVE_HEAD(queue, ip_next);
 		error = icl_pdu_finalize(request);
