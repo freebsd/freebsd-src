@@ -82,6 +82,7 @@ struct cfiscsi_session {
 	unsigned int			cs_id;
 	int				cs_ctl_initid;
 #ifdef ICL_KERNEL_PROXY
+	struct sockaddr			*cs_initiator_sa;
 	int				cs_portal_id;
 	bool				cs_login_phase;
 	bool				cs_waiting_for_ctld;

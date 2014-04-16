@@ -700,13 +700,16 @@ kernel_listen(struct addrinfo *ai, bool iser, int portal_id)
 }
 
 void
-kernel_accept(int *connection_id, int *portal_id)
+kernel_accept(int *connection_id, int *portal_id,
+    struct sockaddr *client_sa, socklen_t *client_salen)
 {
 	struct ctl_iscsi req;
+	struct sockaddr_storage ss;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_ACCEPT;
+	req.data.accept.initiator_addr = (struct sockaddr *)&ss;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
 		log_err(1, "error issuing CTL_ISCSI ioctl");
@@ -718,6 +721,8 @@ kernel_accept(int *connection_id, int *portal_id)
 
 	*connection_id = req.data.accept.connection_id;
 	*portal_id = req.data.accept.portal_id;
+	*client_salen = req.data.accept.initiator_addrlen;
+	memcpy(client_sa, &ss, *client_salen);
 }
 
 void
