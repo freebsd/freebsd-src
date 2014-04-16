@@ -885,7 +885,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 
 			/*
 			 * Set the low watermark, to be checked by
-			 * sowritable() in icl_soupcall_send()
+			 * sowriteable() in icl_soupcall_send()
 			 * to avoid unneccessary wakeups until there
 			 * is enough space for the PDU to fit.
 			 */
