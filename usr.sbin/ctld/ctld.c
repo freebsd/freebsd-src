@@ -1209,6 +1209,19 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		}
 	}
 
+	if (oldconf->conf_kernel_port_on != newconf->conf_kernel_port_on) {
+		if (newconf->conf_kernel_port_on == true) {
+			log_debugx("enabling CTL iSCSI port");
+			error = kernel_port_on();
+			if (error != 0)
+				log_errx(1, "failed to enable CTL iSCSI port, exiting");
+		} else {
+			error = kernel_port_off();
+			if (error != 0)
+				log_warnx("failed to disable CTL iSCSI port");
+		}
+	}
+
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
 		/*
 		 * First, remove any targets present in the old configuration
@@ -1837,11 +1850,6 @@ main(int argc, char **argv)
 		newconf->conf_debug = debug;
 	}
 
-	log_debugx("enabling CTL iSCSI port");
-	error = kernel_port_on();
-	if (error != 0)
-		log_errx(1, "failed to enable CTL iSCSI port, exiting");
-
 	error = conf_apply(oldconf, newconf);
 	if (error != 0)
 		log_errx(1, "failed to apply configuration, exiting");
@@ -1886,9 +1894,6 @@ main(int argc, char **argv)
 
 			log_debugx("disabling CTL iSCSI port "
 			    "and terminating all connections");
-			error = kernel_port_off();
-			if (error != 0)
-				log_warnx("failed to disable CTL iSCSI port");
 
 			oldconf = newconf;
 			newconf = conf_new();
