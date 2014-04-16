@@ -194,30 +194,32 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	resolve_addr(conn, to_addr, &to_ai, false);
 
 #ifdef ICL_KERNEL_PROXY
+	if (conn->conn_conf.isc_iser) {
+		memset(&idc, 0, sizeof(idc));
+		idc.idc_session_id = conn->conn_session_id;
+		if (conn->conn_conf.isc_iser)
+			idc.idc_iser = 1;
+		idc.idc_domain = to_ai->ai_family;
+		idc.idc_socktype = to_ai->ai_socktype;
+		idc.idc_protocol = to_ai->ai_protocol;
+		if (from_ai != NULL) {
+			idc.idc_from_addr = from_ai->ai_addr;
+			idc.idc_from_addrlen = from_ai->ai_addrlen;
+		}
+		idc.idc_to_addr = to_ai->ai_addr;
+		idc.idc_to_addrlen = to_ai->ai_addrlen;
 
-	memset(&idc, 0, sizeof(idc));
-	idc.idc_session_id = conn->conn_session_id;
-	if (conn->conn_conf.isc_iser)
-		idc.idc_iser = 1;
-	idc.idc_domain = to_ai->ai_family;
-	idc.idc_socktype = to_ai->ai_socktype;
-	idc.idc_protocol = to_ai->ai_protocol;
-	if (from_ai != NULL) {
-		idc.idc_from_addr = from_ai->ai_addr;
-		idc.idc_from_addrlen = from_ai->ai_addrlen;
+		log_debugx("connecting to %s using ICL kernel proxy", to_addr);
+		error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
+		if (error != 0) {
+			fail(conn, strerror(errno));
+			log_err(1, "failed to connect to %s "
+			    "using ICL kernel proxy: ISCSIDCONNECT", to_addr);
+		}
+
+		return (conn);
 	}
-	idc.idc_to_addr = to_ai->ai_addr;
-	idc.idc_to_addrlen = to_ai->ai_addrlen;
-
-	log_debugx("connecting to %s using ICL kernel proxy", to_addr);
-	error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
-	if (error != 0) {
-		fail(conn, strerror(errno));
-		log_err(1, "failed to connect to %s using ICL kernel proxy",
-		    to_addr);
-	}
-
-#else /* !ICL_KERNEL_PROXY */
+#endif /* ICL_KERNEL_PROXY */
 
 	if (conn->conn_conf.isc_iser) {
 		fail(conn, "iSER not supported");
@@ -246,8 +248,6 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 		log_err(1, "failed to connect to %s", to_addr);
 	}
 
-#endif /* !ICL_KERNEL_PROXY */
-
 	return (conn);
 }
 
@@ -261,9 +261,7 @@ handoff(struct connection *conn)
 
 	memset(&idh, 0, sizeof(idh));
 	idh.idh_session_id = conn->conn_session_id;
-#ifndef ICL_KERNEL_PROXY
 	idh.idh_socket = conn->conn_socket;
-#endif
 	strlcpy(idh.idh_target_alias, conn->conn_target_alias,
 	    sizeof(idh.idh_target_alias));
 	memcpy(idh.idh_isid, conn->conn_isid, sizeof(idh.idh_isid));

@@ -1304,12 +1304,19 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 	ISCSI_SESSION_UNLOCK(is);
 
-#ifndef ICL_KERNEL_PROXY
-	error = icl_conn_handoff(is->is_conn, handoff->idh_socket);
-	if (error != 0) {
-		sx_sunlock(&sc->sc_lock);
-		iscsi_session_terminate(is);
-		return (error);
+#ifdef ICL_KERNEL_PROXY
+	if (handoff->idh_socket != 0) {
+#endif
+		/*
+		 * Handoff without using ICL proxy.
+		 */
+		error = icl_conn_handoff(is->is_conn, handoff->idh_socket);
+		if (error != 0) {
+			sx_sunlock(&sc->sc_lock);
+			iscsi_session_terminate(is);
+			return (error);
+		}
+#ifdef ICL_KERNEL_PROXY
 	}
 #endif
 
@@ -1420,13 +1427,18 @@ iscsi_ioctl_daemon_connect(struct iscsi_softc *sc,
 
 	if (idc->idc_from_addrlen > 0) {
 		error = getsockaddr(&from_sa, (void *)idc->idc_from_addr, idc->idc_from_addrlen);
-		if (error != 0)
+		if (error != 0) {
+			ISCSI_SESSION_WARN(is,
+			    "getsockaddr failed with error %d", error);
 			return (error);
+		}
 	} else {
 		from_sa = NULL;
 	}
 	error = getsockaddr(&to_sa, (void *)idc->idc_to_addr, idc->idc_to_addrlen);
 	if (error != 0) {
+		ISCSI_SESSION_WARN(is, "getsockaddr failed with error %d",
+		    error);
 		free(from_sa, M_SONAME);
 		return (error);
 	}
