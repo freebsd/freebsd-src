@@ -1350,7 +1350,7 @@ cfiscsi_module_event_handler(module_t mod, int what, void *arg)
 
 #ifdef ICL_KERNEL_PROXY
 static void
-cfiscsi_accept(struct socket *so)
+cfiscsi_accept(struct socket *so, int portal_id)
 {
 	struct cfiscsi_session *cs;
 
@@ -1361,6 +1361,7 @@ cfiscsi_accept(struct socket *so)
 	}
 
 	icl_conn_handoff_sock(cs->cs_conn, so);
+	cs->cs_portal_id = portal_id;
 	cs->cs_waiting_for_ctld = true;
 	cv_signal(&cfiscsi_softc.accept_cv);
 }
@@ -1739,7 +1740,7 @@ cfiscsi_ioctl_listen(struct ctl_iscsi *ci)
 	}
 
 	error = icl_listen_add(cfiscsi_softc.listener, cilp->iser, cilp->domain,
-	    cilp->socktype, cilp->protocol, sa);
+	    cilp->socktype, cilp->protocol, sa, cilp->portal_id);
 	if (error != 0) {
 		free(sa, M_SONAME);
 		CFISCSI_DEBUG("icl_listen_add, error %d", error);
@@ -1783,6 +1784,7 @@ cfiscsi_ioctl_accept(struct ctl_iscsi *ci)
 	cs->cs_login_phase = true;
 
 	ciap->connection_id = cs->cs_id;
+	ciap->portal_id = cs->cs_portal_id;
 	ci->status = CTL_ISCSI_OK;
 }
 
@@ -1916,13 +1918,6 @@ cfiscsi_ioctl_receive(struct ctl_iscsi *ci)
 	ci->status = CTL_ISCSI_OK;
 }
 
-static void
-cfiscsi_ioctl_close(struct ctl_iscsi *ci)
-{
-	/*
-	 * XXX
-	 */
-}
 #endif /* !ICL_KERNEL_PROXY */
 
 static int
@@ -1961,15 +1956,11 @@ cfiscsi_ioctl(struct cdev *dev,
 	case CTL_ISCSI_RECEIVE:
 		cfiscsi_ioctl_receive(ci);
 		break;
-	case CTL_ISCSI_CLOSE:
-		cfiscsi_ioctl_close(ci);
-		break;
 #else
 	case CTL_ISCSI_LISTEN:
 	case CTL_ISCSI_ACCEPT:
 	case CTL_ISCSI_SEND:
 	case CTL_ISCSI_RECEIVE:
-	case CTL_ISCSI_CLOSE:
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),
 		    "%s: CTL compiled without ICL_KERNEL_PROXY",
