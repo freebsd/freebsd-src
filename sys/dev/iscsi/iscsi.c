@@ -1552,28 +1552,6 @@ iscsi_ioctl_daemon_receive(struct iscsi_softc *sc,
 
 	return (0);
 }
-
-static int
-iscsi_ioctl_daemon_close(struct iscsi_softc *sc,
-    struct iscsi_daemon_close *idc)
-{
-	struct iscsi_session *is;
-
-	sx_slock(&sc->sc_lock);
-	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
-		if (is->is_id == idc->idc_session_id)
-			break;
-	}
-	if (is == NULL) {
-		sx_sunlock(&sc->sc_lock);
-		return (ESRCH);
-	}
-	sx_sunlock(&sc->sc_lock);
-
-	iscsi_session_reconnect(is);
-
-	return (0);
-}
 #endif /* ICL_KERNEL_PROXY */
 
 static void
@@ -1804,9 +1782,6 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	case ISCSIDRECEIVE:
 		return (iscsi_ioctl_daemon_receive(sc,
 		    (struct iscsi_daemon_receive *)arg));
-	case ISCSIDCLOSE:
-		return (iscsi_ioctl_daemon_close(sc,
-		    (struct iscsi_daemon_close *)arg));
 #endif /* ICL_KERNEL_PROXY */
 	case ISCSISADD:
 		return (iscsi_ioctl_session_add(sc,

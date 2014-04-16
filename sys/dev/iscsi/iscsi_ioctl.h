@@ -175,15 +175,9 @@ struct iscsi_daemon_receive {
 	int				idr_spare[4];
 };
 
-struct iscsi_daemon_close {
-	int				idc_session_id;
-	int				idc_spare[4];
-};
-
 #define	ISCSIDCONNECT	_IOWR('I', 0x04, struct iscsi_daemon_connect)
 #define	ISCSIDSEND	_IOWR('I', 0x05, struct iscsi_daemon_send)
 #define	ISCSIDRECEIVE	_IOWR('I', 0x06, struct iscsi_daemon_receive)
-#define	ISCSIDCLOSE	_IOWR('I', 0x07, struct iscsi_daemon_close)
 
 #endif /* ICL_KERNEL_PROXY */
 
