@@ -139,7 +139,7 @@ auth_delete(struct auth *auth)
 }
 
 const struct auth *
-auth_find(struct auth_group *ag, const char *user)
+auth_find(const struct auth_group *ag, const char *user)
 {
 	const struct auth *auth;
 
@@ -407,7 +407,7 @@ auth_group_delete(struct auth_group *ag)
 }
 
 struct auth_group *
-auth_group_find(struct conf *conf, const char *name)
+auth_group_find(const struct conf *conf, const char *name)
 {
 	struct auth_group *ag;
 
@@ -534,7 +534,7 @@ portal_group_delete(struct portal_group *pg)
 }
 
 struct portal_group *
-portal_group_find(struct conf *conf, const char *name)
+portal_group_find(const struct conf *conf, const char *name)
 {
 	struct portal_group *pg;
 
@@ -833,7 +833,7 @@ lun_delete(struct lun *lun)
 }
 
 struct lun *
-lun_find(struct target *targ, int lun_id)
+lun_find(const struct target *targ, int lun_id)
 {
 	struct lun *lun;
 
@@ -929,7 +929,7 @@ lun_option_delete(struct lun_option *lo)
 }
 
 struct lun_option *
-lun_option_find(struct lun *lun, const char *name)
+lun_option_find(const struct lun *lun, const char *name)
 {
 	struct lun_option *lo;
 
