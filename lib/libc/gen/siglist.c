@@ -67,7 +67,9 @@ const char *const sys_signame[NSIG] = {
 	"WINCH",			/* SIGWINCH */
 	"INFO",				/* SIGINFO */
 	"USR1",				/* SIGUSR1 */
-	"USR2"				/* SIGUSR2 */
+	"USR2",				/* SIGUSR2 */
+	"THR",				/* SIGTHR */
+	"LIBRT",			/* SIGLIBRT */
 };
 
 const char *const sys_siglist[NSIG] = {
@@ -102,6 +104,8 @@ const char *const sys_siglist[NSIG] = {
 	"Window size changes",		/* SIGWINCH */
 	"Information request",		/* SIGINFO */
 	"User defined signal 1",	/* SIGUSR1 */
-	"User defined signal 2"		/* SIGUSR2 */
+	"User defined signal 2",	/* SIGUSR2 */
+	"Reserved by thread library",		/* SIGTHR */
+	"Reserved by real-time library",	/* SIGLIBRT */
 };
 const int sys_nsig = sizeof(sys_siglist) / sizeof(sys_siglist[0]);

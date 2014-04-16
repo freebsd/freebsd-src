@@ -329,7 +329,7 @@ struct sigaction {
 #endif
 
 #if __BSD_VISIBLE
-#define	NSIG		32	/* number of old signals (counting 0) */
+#define	NSIG		34	/* number of old signals (counting 0) */
 #endif
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE

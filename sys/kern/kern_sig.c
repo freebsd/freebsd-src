@@ -225,6 +225,8 @@ static int sigproptbl[NSIG] = {
 	SA_IGNORE,			/* SIGINFO */
 	SA_KILL,			/* SIGUSR1 */
 	SA_KILL,			/* SIGUSR2 */
+	SA_KILL,			/* SIGTHR */
+	SA_KILL,			/* SIGLIBRT */
 };
 
 static void reschedule_signals(struct proc *p, sigset_t block, int flags);
