@@ -65,11 +65,13 @@
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
+#include "ctld.h"
+
 #ifdef ICL_KERNEL_PROXY
 #include <netdb.h>
 #endif
 
-#include "ctld.h"
+extern bool proxy_mode;
 
 static int	ctl_fd = 0;
 
@@ -599,7 +601,14 @@ kernel_handoff(struct connection *conn)
 	}
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		req.data.handoff.connection_id = conn->conn_socket;
+	else
+		req.data.handoff.socket = conn->conn_socket;
+#else
 	req.data.handoff.socket = conn->conn_socket;
+#endif
 	req.data.handoff.portal_group_tag =
 	    conn->conn_portal->p_portal_group->pg_tag;
 	if (conn->conn_header_digest == CONN_DIGEST_CRC32C)
