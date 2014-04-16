@@ -1214,7 +1214,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			log_debugx("enabling CTL iSCSI port");
 			error = kernel_port_on();
 			if (error != 0)
-				log_errx(1, "failed to enable CTL iSCSI port, exiting");
+				log_errx(1, "failed to enable CTL iSCSI port; exiting");
 		} else {
 			error = kernel_port_off();
 			if (error != 0)
@@ -1839,7 +1839,7 @@ main(int argc, char **argv)
 	oldconf = conf_new_from_kernel();
 	newconf = conf_new_from_file(config_path);
 	if (newconf == NULL)
-		log_errx(1, "configuration error, exiting");
+		log_errx(1, "configuration error; exiting");
 	if (debug > 0) {
 		oldconf->conf_debug = debug;
 		newconf->conf_debug = debug;
@@ -1847,7 +1847,8 @@ main(int argc, char **argv)
 
 	error = conf_apply(oldconf, newconf);
 	if (error != 0)
-		log_errx(1, "failed to apply configuration, exiting");
+		log_errx(1, "failed to apply configuration; exiting");
+
 	conf_delete(oldconf);
 	oldconf = NULL;
 
