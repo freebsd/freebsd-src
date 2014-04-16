@@ -617,7 +617,11 @@ typedef enum {
 	CTL_ISCSI_LIST,
 	CTL_ISCSI_LOGOUT,
 	CTL_ISCSI_TERMINATE,
-#ifdef ICL_KERNEL_PROXY
+#if defined(ICL_KERNEL_PROXY) || 1
+	/*
+	 * We actually need those in all cases, but leave the ICL_KERNEL_PROXY,
+	 * to remember to remove them along with rest of proxy code, eventually.
+	 */
 	CTL_ISCSI_LISTEN,
 	CTL_ISCSI_ACCEPT,
 	CTL_ISCSI_SEND,
