@@ -1475,10 +1475,11 @@ log_frame_dump(struct trapframe *frame)
 
 #ifdef IC_REG
 	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\tic: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc, (intmax_t)frame->ic);
+	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc,
+	    (intmax_t)frame->ic);
 #else
 	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc);
+	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc);
 #endif
 }
 
@@ -1522,10 +1523,11 @@ trap_frame_dump(struct trapframe *frame)
 
 #ifdef IC_REG
 	printf("\tcause: %#jx\tpc: %#jx\tic: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc, (intmax_t)frame->ic);
+	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc,
+	    (intmax_t)frame->ic);
 #else
 	printf("\tcause: %#jx\tpc: %#jx\n",
-	    (intmax_t)frame->cause, (intmax_t)frame->pc);
+	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc);
 #endif
 }
 
