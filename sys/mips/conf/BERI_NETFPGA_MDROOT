@@ -19,6 +19,11 @@ makeoptions	FDT_DTS_FILE=beri-netfpga.dts
 #device		uart
 device		altera_jtag_uart
 
+device		bpf
+
+options 	DEVICE_POLLING
+device		netfpga10g_nf10bmac
+
 #
 # This kernel configuration uses an embedded memory root file system.
 # Adjust the following path and size based on local requirements.
