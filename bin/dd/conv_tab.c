@@ -41,6 +41,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <signal.h>
+#include <stdint.h>
+
+#include "dd.h"
+#include "extern.h"
+
 /*
  * There are currently six tables:
  *

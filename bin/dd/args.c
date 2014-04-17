@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -65,6 +66,7 @@ static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
+static void	f_status(char *);
 static uintmax_t get_num(const char *);
 static off_t	get_off_t(const char *);
 
@@ -87,6 +89,7 @@ static const struct arg {
 	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
+	{ "status",	f_status,	C_STATUS,C_STATUS },
 };
 
 static char *oper;
@@ -291,6 +294,18 @@ f_skip(char *arg)
 	in.offset = get_off_t(arg);
 }
 
+static void
+f_status(char *arg)
+{
+
+	if (strcmp(arg, "none") == 0)
+		ddflags |= C_NOINFO;
+	else if (strcmp(arg, "noxfer") == 0)
+		ddflags |= C_NOXFER;
+	else
+		errx(1, "unknown status %s", arg);
+}
+ 
 static const struct conv {
 	const char *name;
 	u_int set, noset;

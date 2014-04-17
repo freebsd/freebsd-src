@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd April 2, 2014
 .Dt DD 1
 .Os
 .Sh NAME
@@ -156,6 +156,17 @@ Otherwise, input data is read and discarded.
 For pipes, the correct number of bytes is read.
 For all other devices, the correct number of blocks is read without
 distinguishing between a partial or complete block being read.
+.It Cm status Ns = Ns Ar value
+Where
+.Cm value
+is one of the symbols from the following list.
+.Bl -tag -width ".Cm noxfer"
+.It Cm noxfer
+Do not print the transfer statistics as the last line of status output.
+.It Cm none
+Do not print the status output.
+Error messages are shown; informational messages are not.
+.El
 .It Cm conv Ns = Ns Ar value Ns Op , Ns Ar value ...
 Where
 .Cm value
@@ -378,12 +389,12 @@ will exit.
 .Sh EXAMPLES
 Check that a disk drive contains no bad blocks:
 .Pp
-.Dl "dd if=/dev/ad0 of=/dev/null bs=1m"
+.Dl "dd if=/dev/ada0 of=/dev/null bs=1m"
 .Pp
 Do a refresh of a disk drive, in order to prevent presently
 recoverable read errors from progressing into unrecoverable read errors:
 .Pp
-.Dl "dd if=/dev/ad0 of=/dev/ad0 bs=1m"
+.Dl "dd if=/dev/ada0 of=/dev/ada0 bs=1m"
 .Pp
 Remove parity bit from a file:
 .Pp
@@ -410,7 +421,9 @@ utility is expected to be a superset of the
 standard.
 The
 .Cm files
-operand and the
+and
+.Cm status
+operands and the
 .Cm ascii ,
 .Cm ebcdic ,
 .Cm ibm ,
