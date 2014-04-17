@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/time.h>
+
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
@@ -41,4 +43,25 @@ clock_gettime(clockid_t clock_id, struct timespec *tp)
 
 	return(cheri_system_clock_gettime(clock_id,
 	    cheri_ptr(tp, sizeof(struct timespec))));
+}
+
+/*
+ * Implement gettimeofday() in terms of clock_gettime() to reduce system
+ * interfaces.  As with FreeBSD's standard gettimeofday() tzp is ignored.
+ */
+int
+gettimeofday(struct timeval *tp, struct timezone *tzp __unused)
+{
+	struct timespec t;
+
+	if (tp == NULL)
+		return (0);
+
+	if (cheri_system_clock_gettime(CLOCK_REALTIME, &t) != 0)
+		return (-1);
+
+	tp->tv_sec = t.tv_sec;
+	tp->tv_usec = t.tv_nsec / 1000;
+
+	return (0);
 }
