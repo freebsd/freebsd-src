@@ -177,12 +177,10 @@ local int gz_decomp(state)
 {
     int ret = Z_OK;
     unsigned had;
-    unsigned char *saved_next_out;
     z_streamp strm = &(state->strm);
 
     /* fill output buffer up to end of deflate stream */
     had = strm->avail_out;
-    saved_next_out = strm->next_out;
     do {
         /* get more input for inflate() */
         if (strm->avail_in == 0 && gz_avail(state) == -1)
@@ -212,8 +210,7 @@ local int gz_decomp(state)
 
     /* update available output */
     state->x.have = had - strm->avail_out;
-    state->x.next = saved_next_out +
-        ((strm->next_out - saved_next_out) - state->x.have);
+    state->x.next = strm->next_out - state->x.have;
 
     /* if the gzip stream completed successfully, look for another */
     if (ret == Z_STREAM_END)
@@ -456,7 +453,7 @@ int ZEXPORT gzungetc(c, file)
     /* if output buffer empty, put byte at end (allows more pushing) */
     if (state->x.have == 0) {
         state->x.have = 1;
-        state->x.next = state->out + ((state->size << 1) - 1);
+        state->x.next = state->out + (state->size << 1) - 1;
         state->x.next[0] = c;
         state->x.pos--;
         state->past = 0;
