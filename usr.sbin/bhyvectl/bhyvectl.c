@@ -273,11 +273,13 @@ dump_vm_run_exitcode(struct vm_exit *vmexit, int vcpu)
 		break;
 	case VM_EXITCODE_VMX:
 		printf("\treason\t\tVMX\n");
-		printf("\terror\t\t%d\n", vmexit->u.vmx.error);
+		printf("\tstatus\t\t%d\n", vmexit->u.vmx.status);
 		printf("\texit_reason\t0x%08x (%u)\n",
 		    vmexit->u.vmx.exit_reason, vmexit->u.vmx.exit_reason);
 		printf("\tqualification\t0x%016lx\n",
 			vmexit->u.vmx.exit_qualification);
+		printf("\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
+		printf("\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
 		break;
 	default:
 		printf("*** unknown vm run exitcode %d\n", vmexit->exitcode);

@@ -388,10 +388,12 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	fprintf(stderr, "\treason\t\tVMX\n");
 	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
 	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
-	fprintf(stderr, "\terror\t\t%d\n", vmexit->u.vmx.error);
+	fprintf(stderr, "\tstatus\t\t%d\n", vmexit->u.vmx.status);
 	fprintf(stderr, "\texit_reason\t%u\n", vmexit->u.vmx.exit_reason);
 	fprintf(stderr, "\tqualification\t0x%016lx\n",
 	    vmexit->u.vmx.exit_qualification);
+	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
+	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
 
 	return (VMEXIT_ABORT);
 }
