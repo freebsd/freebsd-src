@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: citrus_viqr.c,v 1.4 2008/06/14 16:01:08 tnozaki Exp $ */
+/* $NetBSD: citrus_viqr.c,v 1.5 2011/11/19 18:20:13 tnozaki Exp $ */
 
 /*-
  * Copyright (c)2006 Citrus Project,
@@ -456,8 +456,8 @@ _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
 			return (errnum);
 		}
 	}
-#if mnemonic_ext_size > 0
-	for (i = 0; i < mnemonic_ext_size; ++i) {
+	/* a + 1 < b + 1 here to silence gcc warning about unsigned < 0. */
+	for (i = 0; i + 1 < mnemonic_ext_size + 1; ++i) {
 		const mnemonic_def_t *p;
 
 		p = &mnemonic_ext[i];
@@ -471,7 +471,6 @@ _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
 			return (errnum);
 		}
 	}
-#endif
 
 	return (0);
 }

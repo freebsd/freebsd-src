@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
@@ -1650,9 +1650,6 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
-	if (!fdavail(td, n))
-		return (EMFILE);
-
 	for (i = 0; i < n; i++)
 		if (fdalloc(td, 0, &fds[i]) != 0)
 			break;
@@ -1663,35 +1660,6 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 		return (EMFILE);
 	}
 
-	return (0);
-}
-
-/*
- * Check to see whether n user file descriptors are available to the process
- * p.
- */
-int
-fdavail(struct thread *td, int n)
-{
-	struct proc *p = td->td_proc;
-	struct filedesc *fdp = td->td_proc->p_fd;
-	int i, lim, last;
-
-	FILEDESC_LOCK_ASSERT(fdp);
-
-	/*
-	 * XXX: This is only called from uipc_usrreq.c:unp_externalize();
-	 *      call racct_add() from there instead of dealing with containers
-	 *      here.
-	 */
-	lim = getmaxfd(p);
-	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
-		return (1);
-	last = min(fdp->fd_nfiles, lim);
-	for (i = fdp->fd_freefile; i < last; i++) {
-		if (fdp->fd_ofiles[i].fde_file == NULL && --n <= 0)
-			return (1);
-	}
 	return (0);
 }
 
@@ -1808,7 +1776,7 @@ fdinit(struct filedesc *fdp)
 	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
 	FILEDESC_LOCK_INIT(&newfdp->fd_fd);
 	if (fdp != NULL) {
-		FILEDESC_XLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 		if (newfdp->fd_fd.fd_cdir)
 			VREF(newfdp->fd_fd.fd_cdir);
@@ -1818,7 +1786,7 @@ fdinit(struct filedesc *fdp)
 		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
 		if (newfdp->fd_fd.fd_jdir)
 			VREF(newfdp->fd_fd.fd_jdir);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 	}
 
 	/* Create the file descriptor table. */
@@ -2975,7 +2943,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
 #ifdef KINFO_OFILE_SIZE
@@ -3231,8 +3199,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
-    sysctl_kern_proc_ofiledesc, "Process ofiledesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
+    CTLFLAG_RD||CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
+    "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
 
 #ifdef KINFO_FILE_SIZE
@@ -3742,8 +3711,9 @@ fill_shm_info(struct file *fp, struct kinfo_file *kif)
 	return (0);
 }
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
-    sysctl_kern_proc_filedesc, "Process filedesc entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
+    "Process filedesc entries");
 
 #ifdef DDB
 /*

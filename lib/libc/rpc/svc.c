@@ -84,6 +84,9 @@ static struct svc_callout {
 	void		    (*sc_dispatch)(struct svc_req *, SVCXPRT *);
 } *svc_head;
 
+SVCXPRT **__svc_xports;
+int __svc_maxrec;
+
 static struct svc_callout *svc_find(rpcprog_t, rpcvers_t,
     struct svc_callout **, char *);
 static void __xprt_do_unregister (SVCXPRT *xprt, bool_t dolock);

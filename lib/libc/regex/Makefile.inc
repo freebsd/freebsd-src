@@ -2,13 +2,13 @@
 # $FreeBSD$
 
 # regex sources
-.PATH: ${.CURDIR}/regex
+.PATH: ${LIBC_SRCTOP}/regex
 
 CFLAGS+=-DPOSIX_MISTAKE
 
 SRCS+=	regcomp.c regerror.c regexec.c regfree.c
 
-SYM_MAPS+=${.CURDIR}/regex/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/regex/Symbol.map
 
 MAN+=	regex.3
 MAN+=	re_format.7

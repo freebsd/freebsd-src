@@ -1,4 +1,4 @@
-/*	$OpenBSD: inout.c,v 1.15 2009/10/27 23:59:37 deraadt Exp $	*/
+/*	$OpenBSD: inout.c,v 1.17 2012/11/07 11:06:14 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>

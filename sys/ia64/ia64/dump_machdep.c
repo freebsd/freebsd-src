@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #ifdef SW_WATCHDOG
@@ -41,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/bootinfo.h>
-#include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 

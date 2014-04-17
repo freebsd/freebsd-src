@@ -63,6 +63,8 @@ typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
 struct udpcb {
 	udp_tun_func_t	u_tun_func;	/* UDP kernel tunneling callback. */
 	u_int		u_flags;	/* Generic UDP flags. */
+	uint16_t	u_rxcslen;	/* Coverage for incoming datagrams. */
+	uint16_t	u_txcslen;	/* Coverage for outgoing datagrams. */
 };
 
 #define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
@@ -115,14 +117,13 @@ void	kmod_udpstat_inc(int statnum);
 #endif
 
 /*
- * Names for UDP sysctl objects.
+ * Identifiers for UDP sysctl nodes.
  */
 #define	UDPCTL_CHECKSUM		1	/* checksum UDP packets */
 #define	UDPCTL_STATS		2	/* statistics (read-only) */
 #define	UDPCTL_MAXDGRAM		3	/* max datagram size */
 #define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
-#define	UDPCTL_MAXID		6
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);
@@ -130,8 +131,12 @@ SYSCTL_DECL(_net_inet_udp);
 extern struct pr_usrreqs	udp_usrreqs;
 VNET_DECLARE(struct inpcbhead, udb);
 VNET_DECLARE(struct inpcbinfo, udbinfo);
+VNET_DECLARE(struct inpcbhead, ulitecb);
+VNET_DECLARE(struct inpcbinfo, ulitecbinfo);
 #define	V_udb			VNET(udb)
 #define	V_udbinfo		VNET(udbinfo)
+#define	V_ulitecb		VNET(ulitecb)
+#define	V_ulitecbinfo		VNET(ulitecbinfo)
 
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
@@ -141,20 +146,37 @@ VNET_DECLARE(int, udp_blackhole);
 #define	V_udp_blackhole		VNET(udp_blackhole)
 extern int			udp_log_in_vain;
 
-int		 udp_newudpcb(struct inpcb *);
-void		 udp_discardcb(struct udpcb *);
+static __inline struct inpcbinfo *
+get_inpcbinfo(uint8_t protocol)
+{
+	return (protocol == IPPROTO_UDP) ? &V_udbinfo : &V_ulitecbinfo;
+}
 
-void		 udp_ctlinput(int, struct sockaddr *, void *);
-int		 udp_ctloutput(struct socket *, struct sockopt *);
-void		 udp_init(void);
+static __inline struct inpcbhead *
+get_pcblist(uint8_t protocol)
+{
+	return (protocol == IPPROTO_UDP) ? &V_udb : &V_ulitecb;
+}
+
+int		udp_newudpcb(struct inpcb *);
+void		udp_discardcb(struct udpcb *);
+
+void		udp_ctlinput(int, struct sockaddr *, void *);
+void		udplite_ctlinput(int, struct sockaddr *, void *);
+int		udp_ctloutput(struct socket *, struct sockopt *);
+void		udp_init(void);
+void		udplite_init(void);
 #ifdef VIMAGE
-void		 udp_destroy(void);
+void		udp_destroy(void);
+void		udplite_destroy(void);
 #endif
-void		 udp_input(struct mbuf *, int);
+void		udp_input(struct mbuf *, int);
+void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
-int		 udp_shutdown(struct socket *so);
+int		udp_shutdown(struct socket *so);
 
-int udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
-#endif
+int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
 
-#endif
+#endif /* _KERNEL */
+
+#endif /* _NETINET_UDP_VAR_H_ */

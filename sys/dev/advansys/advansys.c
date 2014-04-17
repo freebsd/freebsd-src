@@ -1005,7 +1005,6 @@ adv_run_doneq(struct adv_softc *adv)
 		struct adv_ccb_info *cinfo;
 		u_int done_qaddr;
 		u_int sg_queue_cnt;
-		int   aborted;
 
 		done_qaddr = ADV_QNO_TO_QADDR(done_qno);
 
@@ -1049,8 +1048,6 @@ adv_run_doneq(struct adv_softc *adv)
 			      "queues than are active");
 #endif		
 		adv->cur_active -= sg_queue_cnt + 1;
-
-		aborted = (scsiq.q_status & QS_ABORTED) != 0;
 
 		if ((scsiq.q_status != QS_DONE)
 		 && (scsiq.q_status & QS_ABORTED) == 0)

@@ -2937,8 +2937,6 @@ if_freemulti(struct ifmultiaddr *ifma)
 
 	KASSERT(ifma->ifma_refcount == 0, ("if_freemulti: refcount %d",
 	    ifma->ifma_refcount));
-	KASSERT(ifma->ifma_protospec == NULL,
-	    ("if_freemulti: protospec not NULL"));
 
 	if (ifma->ifma_lladdr != NULL)
 		free(ifma->ifma_lladdr, M_IFMADDR);

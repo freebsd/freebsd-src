@@ -217,13 +217,13 @@ handleevents(sbintime_t now, int fake)
 	} else
 		state->nextprof = state->nextstat;
 	if (now >= state->nextcallopt) {
-		state->nextcall = state->nextcallopt = INT64_MAX;
+		state->nextcall = state->nextcallopt = SBT_MAX;
 		callout_process(now);
 	}
 
 #ifdef KDTRACE_HOOKS
 	if (fake == 0 && now >= state->nextcyc && cyclic_clock_func != NULL) {
-		state->nextcyc = INT64_MAX;
+		state->nextcyc = SBT_MAX;
 		(*cyclic_clock_func)(frame);
 	}
 #endif
@@ -509,7 +509,7 @@ configtimer(int start)
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			state->now = now;
 			if (!smp_started && cpu != CPU_FIRST())
-				state->nextevent = INT64_MAX;
+				state->nextevent = SBT_MAX;
 			else
 				state->nextevent = next;
 			if (periodic)
@@ -598,10 +598,10 @@ cpu_initclocks_bsp(void)
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
 #ifdef KDTRACE_HOOKS
-		state->nextcyc = INT64_MAX;
+		state->nextcyc = SBT_MAX;
 #endif
-		state->nextcall = INT64_MAX;
-		state->nextcallopt = INT64_MAX;
+		state->nextcall = SBT_MAX;
+		state->nextcallopt = SBT_MAX;
 	}
 	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */
@@ -797,6 +797,25 @@ cpu_activeclock(void)
 	handleevents(now, 1);
 	td->td_intr_nesting_level--;
 	spinlock_exit();
+}
+
+/*
+ * Change the frequency of the given timer.  This changes et->et_frequency and
+ * if et is the active timer it reconfigures the timer on all CPUs.  This is
+ * intended to be a private interface for the use of et_change_frequency() only.
+ */
+void
+cpu_et_frequency(struct eventtimer *et, uint64_t newfreq)
+{
+
+	ET_LOCK();
+	if (et == timer) {
+		configtimer(0);
+		et->et_frequency = newfreq;
+		configtimer(1);
+	} else
+		et->et_frequency = newfreq;
+	ET_UNLOCK();
 }
 
 #ifdef KDTRACE_HOOKS

@@ -316,6 +316,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(ZINWELL,		RT3072_2),
     RUN_DEV(ZYXEL,		RT2870_1),
     RUN_DEV(ZYXEL,		RT2870_2),
+    RUN_DEV(ZYXEL,		RT3070),
     RUN_DEV_EJECT(ZYXEL,	NWD2705),
     RUN_DEV_EJECT(RALINK,	RT_STOR),
 #undef RUN_DEV_EJECT
@@ -2508,9 +2509,7 @@ run_ratectl_cb(void *arg, int pending)
 	if (vap == NULL)
 		return;
 
-	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA)
-		run_iter_func(sc, vap->iv_bss);
-	else {
+	if (sc->rvp_cnt > 1 || vap->iv_opmode != IEEE80211_M_STA) {
 		/*
 		 * run_reset_livelock() doesn't do anything with AMRR,
 		 * but Ralink wants us to call it every 1 sec. So, we
@@ -2523,8 +2522,9 @@ run_ratectl_cb(void *arg, int pending)
 		/* just in case, there are some stats to drain */
 		run_drain_fifo(sc);
 		RUN_UNLOCK(sc);
-		ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 	}
+
+	ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 
 	RUN_LOCK(sc);
 	if(sc->ratectl_run != RUN_RATECTL_OFF)
@@ -2604,6 +2604,11 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	int txcnt, success, retrycnt, error;
 
 	RUN_LOCK(sc);
+
+	/* Check for special case */
+	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA &&
+	    ni != vap->iv_bss)
+		goto fail;
 
 	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_STA)) {
@@ -2733,7 +2738,10 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	rn->mgt_ridx = ridx;
 	DPRINTF("rate=%d, mgmt_ridx=%d\n", rate, rn->mgt_ridx);
 
-	usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_LOCK(sc);
+	if(sc->ratectl_run != RUN_RATECTL_OFF)
+		usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_UNLOCK(sc);
 }
 
 /*

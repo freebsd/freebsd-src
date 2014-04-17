@@ -256,6 +256,28 @@ ar8xxx_port_init(struct arswitch_softc *sc, int port)
 }
 
 static int
+ar8xxx_atu_flush(struct arswitch_softc *sc)
+{
+	int ret;
+
+	ret = arswitch_waitreg(sc->sc_dev,
+	    AR8216_REG_ATU,
+	    AR8216_ATU_ACTIVE,
+	    0,
+	    1000);
+
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8216_REG_ATU,
+		    AR8216_ATU_OP_FLUSH);
+
+	return (ret);
+}
+
+static int
 arswitch_attach(device_t dev)
 {
 	struct arswitch_softc *sc;
@@ -280,6 +302,7 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_vlan_setvgroup = ar8xxx_setvgroup;
 	sc->hal.arswitch_vlan_get_pvid = ar8xxx_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8xxx_set_pvid;
+	sc->hal.arswitch_atu_flush = ar8xxx_atu_flush;
 
 	/*
 	 * Attach switch related functions
@@ -469,6 +492,7 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	int portstatus;
+	int port_flap = 0;
 
 	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -484,7 +508,6 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 		else
 			portstatus = arswitch_readreg(sc->sc_dev,
 			    AR8X16_REG_PORT_STS(arswitch_portforphy(i)));
-
 #if 0
 		DPRINTF(sc->sc_dev, "p[%d]=%b\n",
 		    i,
@@ -492,6 +515,27 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 		    "\20\3TXMAC\4RXMAC\5TXFLOW\6RXFLOW\7"
 		    "DUPLEX\11LINK_UP\12LINK_AUTO\13LINK_PAUSE");
 #endif
+		/*
+		 * If the current status is down, but we have a link
+		 * status showing up, we need to do an ATU flush.
+		 */
+		if ((mii->mii_media_status & IFM_ACTIVE) == 0 &&
+		    (portstatus & AR8X16_PORT_STS_LINK_UP) != 0) {
+			device_printf(sc->sc_dev, "%s: port %d: port -> UP\n",
+			    __func__,
+			    i);
+			port_flap = 1;
+		}
+		/*
+		 * and maybe if a port goes up->down?
+		 */
+		if ((mii->mii_media_status & IFM_ACTIVE) != 0 &&
+		    (portstatus & AR8X16_PORT_STS_LINK_UP) == 0) {
+			device_printf(sc->sc_dev, "%s: port %d: port -> DOWN\n",
+			    __func__,
+			    i);
+			port_flap = 1;
+		}
 		arswitch_update_ifmedia(portstatus, &mii->mii_media_status,
 		    &mii->mii_media_active);
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
@@ -501,6 +545,10 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 			mii_phy_update(miisc, MII_POLLSTAT);
 		}
 	}
+
+	/* If a port went from down->up, flush the ATU */
+	if (port_flap)
+		sc->hal.arswitch_atu_flush(sc);
 }
 
 static void

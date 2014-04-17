@@ -101,12 +101,14 @@ pdu_new_response(struct pdu *request)
 
 #ifdef ICL_KERNEL_PROXY
 
-void
-pdu_receive(struct pdu *pdu)
+static void
+pdu_receive_proxy(struct pdu *pdu)
 {
 	struct iscsi_daemon_receive *idr;
 	size_t len;
 	int error;
+
+	assert(pdu->pdu_connection->conn_conf.isc_iser != 0);
 
 	pdu->pdu_data = malloc(ISCSI_MAX_DATA_SEGMENT_LENGTH);
 	if (pdu->pdu_data == NULL)
@@ -136,11 +138,13 @@ pdu_receive(struct pdu *pdu)
 	free(idr);
 }
 
-void
-pdu_send(struct pdu *pdu)
+static void
+pdu_send_proxy(struct pdu *pdu)
 {
 	struct iscsi_daemon_send *ids;
 	int error;
+
+	assert(pdu->pdu_connection->conn_conf.isc_iser != 0);
 
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 
@@ -160,7 +164,7 @@ pdu_send(struct pdu *pdu)
 	free(ids);
 }
 
-#else /* !ICL_KERNEL_PROXY */
+#endif /* ICL_KERNEL_PROXY */
 
 static size_t
 pdu_padding(const struct pdu *pdu)
@@ -195,6 +199,13 @@ pdu_receive(struct pdu *pdu)
 {
 	size_t len, padding;
 	char dummy[4];
+
+#ifdef ICL_KERNEL_PROXY
+	if (pdu->pdu_connection->conn_conf.isc_iser != 0)
+		return (pdu_receive_proxy(pdu));
+#endif
+
+	assert(pdu->pdu_connection->conn_conf.isc_iser == 0);
 
 	pdu_read(pdu->pdu_connection->conn_socket,
 	    (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
@@ -237,6 +248,13 @@ pdu_send(struct pdu *pdu)
 	struct iovec iov[3];
 	int iovcnt;
 
+#ifdef ICL_KERNEL_PROXY
+	if (pdu->pdu_connection->conn_conf.isc_iser != 0)
+		return (pdu_send_proxy(pdu));
+#endif
+
+	assert(pdu->pdu_connection->conn_conf.isc_iser == 0);
+
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 	iov[0].iov_base = pdu->pdu_bhs;
 	iov[0].iov_len = sizeof(*pdu->pdu_bhs);
@@ -268,8 +286,6 @@ pdu_send(struct pdu *pdu)
 	if (ret != total_len)
 		log_errx(1, "short write");
 }
-
-#endif /* !ICL_KERNEL_PROXY */
 
 void
 pdu_delete(struct pdu *pdu)

@@ -773,6 +773,8 @@ conf_new_from_file(const char *path)
 		portal_group_add_listen(pg, "[::]:3260", false);
 	}
 
+	conf->conf_kernel_port_on = true;
+
 	error = conf_verify(conf);
 	if (error != 0) {
 		conf_delete(conf);

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-mc
@@ -27,6 +27,12 @@ LIBDEPS=llvmmcdisassembler \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \

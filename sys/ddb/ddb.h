@@ -118,7 +118,7 @@ struct command {
  * in modules in which case they will be available only when
  * the module is loaded.
  */
-#define _DB_SET(_suffix, _name, _func, list, _flag, _more)	\
+#define	_DB_SET(_suffix, _name, _func, list, _flag, _more)	\
 static struct command __CONCAT(_name,_suffix) = {		\
 	.name	= __STRING(_name),				\
 	.fcn	= _func,					\
@@ -145,27 +145,27 @@ SYSUNINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
  * This macro is mostly used to define commands placed in one of
  * the ddb command tables; see DB_COMMAND, etc. below.
  */
-#define _DB_FUNC(_suffix, _name, _func, list, _flag, _more)	\
+#define	_DB_FUNC(_suffix, _name, _func, list, _flag, _more)	\
 static db_cmdfcn_t _func;					\
 _DB_SET(_suffix, _name, _func, list, _flag, _more);		\
 static void							\
 _func(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 
 /* common idom provided for backwards compatibility */
-#define DB_FUNC(_name, _func, list, _flag, _more)		\
+#define	DB_FUNC(_name, _func, list, _flag, _more)		\
 	_DB_FUNC(_cmd, _name, _func, list, _flag, _more)
 
-#define DB_COMMAND(cmd_name, func_name) \
+#define	DB_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_cmd, cmd_name, func_name, db_cmd_table, 0, NULL)
-#define DB_ALIAS(alias_name, func_name) \
+#define	DB_ALIAS(alias_name, func_name) \
 	_DB_SET(_cmd, alias_name, func_name, db_cmd_table, 0, NULL)
-#define DB_SHOW_COMMAND(cmd_name, func_name) \
+#define	DB_SHOW_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_show, cmd_name, func_name, db_show_table, 0, NULL)
-#define DB_SHOW_ALIAS(alias_name, func_name) \
+#define	DB_SHOW_ALIAS(alias_name, func_name) \
 	_DB_SET(_show, alias_name, func_name, db_show_table, 0, NULL)
-#define DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
+#define	DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table, 0, NULL)
-#define DB_SHOW_ALL_ALIAS(alias_name, func_name) \
+#define	DB_SHOW_ALL_ALIAS(alias_name, func_name) \
 	_DB_SET(_show_all, alias_name, func_name, db_show_all_table, 0, NULL)
 
 extern db_expr_t db_maxoff;

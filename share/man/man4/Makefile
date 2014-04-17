@@ -122,7 +122,6 @@ MAN=	aac.4 \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
-	ef.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
@@ -172,6 +171,12 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hv_ata_pci_disengage.4 \
+	hv_kvp.4 \
+	hv_netvsc.4 \
+	hv_storvsc.4 \
+	hv_utils.4 \
+	hv_vmbus.4 \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
@@ -275,6 +280,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
+	netfpga10g_nf10bmac.4 \
 	netgraph.4 \
 	netintro.4 \
 	netmap.4 \
@@ -505,6 +511,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	udplite.4 \
 	uep.4 \
 	ufm.4 \
 	ufoma.4 \
@@ -520,6 +527,7 @@ MAN=	aac.4 \
 	umcs.4 \
 	umct.4 \
 	umodem.4 \
+	umoscom.4 \
 	ums.4 \
 	unix.4 \
 	upgt.4 \
@@ -531,8 +539,10 @@ MAN=	aac.4 \
 	urtwn.4 \
 	urtwnfw.4 \
 	usb.4 \
+	usb_template.4 \
 	usb_quirk.4 \
 	uslcom.4 \
+	usfs.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
@@ -609,7 +619,6 @@ MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
 MLINKS+=ed.4 if_ed.4
 MLINKS+=edsc.4 if_edsc.4
-MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
@@ -629,6 +638,7 @@ MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=geom.4 GEOM.4
 MLINKS+=gif.4 if_gif.4
+MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
@@ -666,6 +676,7 @@ MLINKS+=mwl.4 if_mwl.4
 MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=${_ndis.4} ${_if_ndis.4}
+MLINKS+=netfpga10g_nf10bmac.4 if_nf10bmac.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}

@@ -581,6 +581,7 @@ dialog_menu_layout()
 			selections=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
+				--separate-output                  \
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_back\"      \

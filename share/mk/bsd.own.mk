@@ -219,24 +219,6 @@ COMPRESS_EXT?=	.gz
 #
 
 #
-# Supported NO_* options (if defined, MK_* will be forced to "no",
-# regardless of user's setting).
-#
-.for var in \
-    CTF \
-    DEBUG_FILES \
-    INSTALLLIB \
-    MAN \
-    PROFILE
-.if defined(NO_${var})
-.if defined(WITH_${var})
-.undef WITH_${var}
-.endif
-WITHOUT_${var}=
-.endif
-.endfor
-
-#
 # Older-style variables that enabled behaviour when set.
 #
 .if defined(YES_HESIOD)
@@ -275,6 +257,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
+    FDT \
     FLOPPY \
     FMTREE \
     FORMAT_EXTENSIONS \
@@ -285,8 +268,10 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GDB \
     GNU \
+    GNU_GREP_COMPAT \
     GPIB \
     GPIO \
+    GPL_DTC \
     GROFF \
     HTML \
     ICONV \
@@ -296,7 +281,6 @@ __DEFAULT_YES_OPTIONS = \
     INSTALLLIB \
     IPFILTER \
     IPFW \
-    IPX \
     JAIL \
     KDUMP \
     KERBEROS \
@@ -312,6 +296,7 @@ __DEFAULT_YES_OPTIONS = \
     LOCATE \
     LPR \
     LS_COLORS \
+    LZMA_SUPPORT \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -349,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     SSP \
     SVNLITE \
     SYMVER \
+    SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
     TCSH \
@@ -368,7 +354,6 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CTF \
     DEBUG_FILES \
-    GPL_DTC \
     HESIOD \
     INSTALL_AS_USER \
     LLDB \
@@ -376,6 +361,7 @@ __DEFAULT_NO_OPTIONS = \
     OFED \
     OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
+    SORT_THREADS \
     SVN \
     TESTS \
     USB_GADGET_EXAMPLES
@@ -385,8 +371,7 @@ __DEFAULT_NO_OPTIONS = \
 # this means that we have to test TARGET_ARCH (the buildworld case) as well
 # as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
 # used at all in bsd.*.mk, but we have to make an exception here if we want
-# to allow defaults for some things like clang and fdt to vary by target
-# architecture.
+# to allow defaults for some things like clang to vary by target architecture.
 #
 .if defined(TARGET_ARCH)
 __T=${TARGET_ARCH}
@@ -401,7 +386,7 @@ __TT=${MACHINE}
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
-.elif ${__T} == "arm" || ${__T} == "armv6"
+.elif ${__T} == "arm" || ${__T} == "armv6" || ${__T} == "armv6hf"
 __DEFAULT_YES_OPTIONS+=CLANG
 # GCC is unable to build the full clang on arm, disable it by default.
 __DEFAULT_NO_OPTIONS+=CLANG_FULL
@@ -410,34 +395,21 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
-    ${__T} == "i386"
+    ${__T} == "armv6hf" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=GNUCXX
 # The pc98 bootloader requires gcc to build and so we must leave gcc enabled
 # for pc98 for now.
 .if ${__TT} == "pc98"
-__DEFAULT_NO_OPTIONS+=GNUCXX
 __DEFAULT_YES_OPTIONS+=GCC
 .else
-__DEFAULT_NO_OPTIONS+=GCC GNUCXX
+__DEFAULT_NO_OPTIONS+=GCC
 .endif
 .else
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC
-__DEFAULT_YES_OPTIONS+=GCC
-# And if g++ is c++, build the rest of the GNU C++ stack
-.if defined(WITHOUT_CXX)
-__DEFAULT_NO_OPTIONS+=GNUCXX
-.else
-__DEFAULT_YES_OPTIONS+=GNUCXX
+__DEFAULT_YES_OPTIONS+=GCC GNUCXX
 .endif
-.endif
-# FDT is needed only for arm, mips and powerpc
-.if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
-__DEFAULT_YES_OPTIONS+=FDT
-.else
-__DEFAULT_NO_OPTIONS+=FDT
-.endif
-.undef __T
 
 #
 # MK_* options which default to "yes".
@@ -447,12 +419,15 @@ __DEFAULT_NO_OPTIONS+=FDT
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if defined(.MAKE.LEVEL) && ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if defined(WITHOUT_${var})
 MK_${var}:=	no
 .else
 MK_${var}:=	yes
+.endif
 .endif
 .endfor
 .undef __DEFAULT_YES_OPTIONS
@@ -465,15 +440,34 @@ MK_${var}:=	yes
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if defined(.MAKE.LEVEL) && ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if defined(WITH_${var})
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
 .endif
+.endif
 .endfor
 .undef __DEFAULT_NO_OPTIONS
+
+
+#
+# Supported NO_* options (if defined, MK_* will be forced to "no",
+# regardless of user's setting).
+#
+.for var in \
+    CTF \
+    DEBUG_FILES \
+    INSTALLLIB \
+    MAN \
+    PROFILE
+.if defined(NO_${var})
+MK_${var}:=no
+.endif
+.endfor
 
 #
 # Force some options off if their dependencies are off.
@@ -545,20 +539,6 @@ MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
 .endif
 
-.if defined(NO_TESTS)
-# This should be handled above along the handling of all other NO_*  options.
-# However, the above is broken when WITH_*=yes are passed to make(1) as
-# command line arguments.  See PR bin/183762.
-#
-# Because the TESTS option is new and it will default to yes, it's likely
-# that people will pass WITHOUT_TESTS=yes to make(1) directly and get a broken
-# build.  So, just in case, it's better to explicitly handle this case here.
-#
-# TODO(jmmv): Either fix make to allow us putting this override where it
-# belongs above or fix this file to cope with the make bug.
-MK_TESTS:= no
-.endif
-
 #
 # Set defaults for the MK_*_SUPPORT variables.
 #
@@ -572,7 +552,6 @@ MK_TESTS:= no
     GNU \
     INET \
     INET6 \
-    IPX \
     KERBEROS \
     KVM \
     NETGRAPH \
@@ -622,8 +601,10 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
+.if defined(.MAKE.LEVEL) && ${.MAKE.LEVEL} == 0
 .error MK_${var} can't be set by a user.
 .endif
+.else
 .if ${COMPILER_FEATURES:Mc++11}
 .if defined(WITHOUT_${var})
 MK_${var}:=	no
@@ -635,6 +616,7 @@ MK_${var}:=	yes
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
+.endif
 .endif
 .endif
 .endfor

@@ -72,11 +72,13 @@ ether_line(const char *l, struct ether_addr *e, char *hostname)
 
 	i = sscanf(l, "%x:%x:%x:%x:%x:%x %s", &o[0], &o[1], &o[2], &o[3],
 	    &o[4], &o[5], hostname);
-	if (i != 7)
-		return (i);
-	for (i=0; i<6; i++)
-		e->octet[i] = o[i];
-	return (0);
+	if (i == 7) {
+		for (i = 0; i < 6; i++)
+			e->octet[i] = o[i];
+		return (0);
+	} else {
+		return (-1);
+	}
 }
 
 /*

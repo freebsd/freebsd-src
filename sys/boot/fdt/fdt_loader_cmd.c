@@ -279,7 +279,7 @@ fdt_load_dtb_file(const char * filename)
 	return (0);
 }
 
-static int
+int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;

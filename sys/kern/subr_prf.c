@@ -248,23 +248,18 @@ ttyprintf(struct tty *tp, const char *fmt, ...)
 	return (retval);
 }
 
-/*
- * Log writes to the log buffer, and guarantees not to sleep (so can be
- * called by interrupt routines).  If there is no process reading the
- * log yet, it writes to the console also.
- */
-void
-log(int level, const char *fmt, ...)
+static int
+_vprintf(int level, int flags, const char *fmt, va_list ap)
 {
-	va_list ap;
 	struct putchar_arg pca;
+	int retval;
 #ifdef PRINTF_BUFR_SIZE
 	char bufr[PRINTF_BUFR_SIZE];
 #endif
 
 	pca.tty = NULL;
 	pca.pri = level;
-	pca.flags = log_open ? TOLOG : TOCONS;
+	pca.flags = flags;
 #ifdef PRINTF_BUFR_SIZE
 	pca.p_bufr = bufr;
 	pca.p_next = pca.p_bufr;
@@ -272,12 +267,11 @@ log(int level, const char *fmt, ...)
 	pca.remain = sizeof(bufr);
 	*pca.p_next = '\0';
 #else
+	/* Don't buffer console output. */
 	pca.p_bufr = NULL;
 #endif
 
-	va_start(ap, fmt);
-	kvprintf(fmt, putchar, &pca, 10, ap);
-	va_end(ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 
 #ifdef PRINTF_BUFR_SIZE
 	/* Write any buffered console/log output: */
@@ -289,6 +283,24 @@ log(int level, const char *fmt, ...)
 			cnputs(pca.p_bufr);
 	}
 #endif
+
+	return (retval);
+}
+
+/*
+ * Log writes to the log buffer, and guarantees not to sleep (so can be
+ * called by interrupt routines).  If there is no process reading the
+ * log yet, it writes to the console also.
+ */
+void
+log(int level, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void)_vprintf(level, log_open ? TOLOG : TOCONS, fmt, ap);
+	va_end(ap);
+
 	msgbuftrigger = 1;
 }
 
@@ -374,35 +386,9 @@ printf(const char *fmt, ...)
 int
 vprintf(const char *fmt, va_list ap)
 {
-	struct putchar_arg pca;
 	int retval;
-#ifdef PRINTF_BUFR_SIZE
-	char bufr[PRINTF_BUFR_SIZE];
-#endif
 
-	pca.tty = NULL;
-	pca.flags = TOCONS | TOLOG;
-	pca.pri = -1;
-#ifdef PRINTF_BUFR_SIZE
-	pca.p_bufr = bufr;
-	pca.p_next = pca.p_bufr;
-	pca.n_bufr = sizeof(bufr);
-	pca.remain = sizeof(bufr);
-	*pca.p_next = '\0';
-#else
-	/* Don't buffer console output. */
-	pca.p_bufr = NULL;
-#endif
-
-	retval = kvprintf(fmt, putchar, &pca, 10, ap);
-
-#ifdef PRINTF_BUFR_SIZE
-	/* Write any buffered console/log output: */
-	if (*pca.p_bufr != '\0') {
-		cnputs(pca.p_bufr);
-		msglogstr(pca.p_bufr, pca.pri, /*filter_cr*/ 1);
-	}
-#endif
+	retval = _vprintf(-1, TOCONS | TOLOG, fmt, ap);
 
 	if (!panicstr)
 		msgbuftrigger = 1;

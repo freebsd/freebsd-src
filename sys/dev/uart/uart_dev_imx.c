@@ -352,7 +352,7 @@ imx_uart_bus_probe(struct uart_softc *sc)
 	sc->sc_rxfifosz = 1;
 	sc->sc_txfifosz = 1;
 
-	device_set_desc(sc->sc_dev, "imx_uart");
+	device_set_desc(sc->sc_dev, "Freescale i.MX UART");
 	return (0);
 }
 

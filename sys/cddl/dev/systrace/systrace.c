@@ -168,7 +168,7 @@ static dtrace_pops_t systrace_pops = {
 static struct cdev		*systrace_cdev;
 static dtrace_provider_id_t	systrace_id;
 
-typedef void (*systrace_dtrace_probe)(dtrace_id_t, uintptr_t, uintptr_t,
+typedef void (*systrace_dtrace_probe_t)(dtrace_id_t, uintptr_t, uintptr_t,
     uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 #if !defined(LINUX_SYSTRACE)
@@ -183,6 +183,7 @@ static void
 systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params,
     int ret)
 {
+	systrace_dtrace_probe_t probe;
 	int		n_args	= 0;
 	u_int64_t	uargs[8];
 
@@ -214,8 +215,9 @@ systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params,
 	}
 
 	/* Process the probe using the converted argments. */
-	((systrace_dtrace_probe)(dtrace_probe))(id, uargs[0], uargs[1],
-	    uargs[2], uargs[3], uargs[4], uargs[5], uargs[6], uargs[7]);
+	probe = (systrace_dtrace_probe_t)dtrace_probe;
+	probe(id, uargs[0], uargs[1], uargs[2], uargs[3], uargs[4], uargs[5],
+	    uargs[6], uargs[7]);
 }
 
 #endif

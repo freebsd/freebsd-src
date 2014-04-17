@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_scale.c,v 1.9 2004/12/11 22:12:34 tom Exp $")
+MODULE_ID("$Id: frm_scale.c,v 1.10 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -47,7 +47,10 @@ MODULE_ID("$Id: frm_scale.c,v 1.9 2004/12/11 22:12:34 tom Exp $")
 NCURSES_EXPORT(int)
 scale_form(const FORM *form, int *rows, int *cols)
 {
-  T((T_CALLED("scale_form(%p,%p,%p)"), form, rows, cols));
+  T((T_CALLED("scale_form(%p,%p,%p)"),
+     (const void *)form,
+     (void *)rows,
+     (void *)cols));
 
   if (!form)
     RETURN(E_BAD_ARGUMENT);

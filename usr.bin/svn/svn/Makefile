@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svn.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 

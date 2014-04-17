@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/efi.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
@@ -37,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/bus.h>
-#include <machine/efi.h>
 #include <machine/iodev.h>
 
 static int iodev_efivar_getvar(struct iodev_efivar_req *req);

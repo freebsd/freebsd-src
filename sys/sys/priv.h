@@ -347,9 +347,9 @@
 #define	PRIV_NET80211_MANAGE	441	/* Administer 802.11. */
 
 /*
- * AppleTalk privileges.
+ * Placeholder for AppleTalk privileges, not supported anymore.
  */
-#define	PRIV_NETATALK_RESERVEDPORT	450	/* Bind low port number. */
+#define	_PRIV_NETATALK_RESERVEDPORT	450	/* Bind low port number. */
 
 /*
  * ATM privileges.
@@ -390,12 +390,13 @@
 #define	PRIV_NETINET_REUSEPORT	504	/* Allow [rapid] port/address reuse. */
 #define	PRIV_NETINET_SETHDROPTS	505	/* Set certain IPv4/6 header options. */
 #define	PRIV_NETINET_BINDANY	506	/* Allow bind to any address. */
+#define	PRIV_NETINET_HASHKEY	507	/* Get and set hash keys for IPv4/6. */
 
 /*
- * IPX/SPX privileges.
+ * Placeholders for IPX/SPX privileges, not supported any more.
  */
-#define	PRIV_NETIPX_RESERVEDPORT	520	/* Bind low port number. */
-#define	PRIV_NETIPX_RAW		521	/* Open netipx raw socket. */
+#define	_PRIV_NETIPX_RESERVEDPORT	520	/* Bind low port number. */
+#define	_PRIV_NETIPX_RAW		521	/* Open netipx raw socket. */
 
 /*
  * NCP privileges.

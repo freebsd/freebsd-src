@@ -22,6 +22,7 @@
 #include "../Commands/CommandObjectDisassemble.h"
 #include "../Commands/CommandObjectExpression.h"
 #include "../Commands/CommandObjectFrame.h"
+#include "../Commands/CommandObjectGUI.h"
 #include "../Commands/CommandObjectHelp.h"
 #include "../Commands/CommandObjectLog.h"
 #include "../Commands/CommandObjectMemory.h"
@@ -42,11 +43,12 @@
 
 
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/InputReader.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/Timer.h"
 
+#include "lldb/Host/Editline.h"
 #include "lldb/Host/Host.h"
 
 #include "lldb/Interpreter/Args.h"
@@ -99,11 +101,13 @@ CommandInterpreter::CommandInterpreter
 ) :
     Broadcaster (&debugger, "lldb.command-interpreter"),
     Properties(OptionValuePropertiesSP(new OptionValueProperties(ConstString("interpreter")))),
+    IOHandlerDelegate (IOHandlerDelegate::Completion::LLDBCommand),
     m_debugger (debugger),
     m_synchronous_execution (synchronous_execution),
     m_skip_lldbinit_files (false),
     m_skip_app_init_files (false),
     m_script_interpreter_ap (),
+    m_command_io_handler_sp (),
     m_comment_char ('#'),
     m_batch_command_mode (false),
     m_truncation_warning(eNoTruncation),
@@ -376,6 +380,7 @@ CommandInterpreter::LoadCommandDictionary ()
     m_command_dict["disassemble"] = CommandObjectSP (new CommandObjectDisassemble (*this));
     m_command_dict["expression"]= CommandObjectSP (new CommandObjectExpression (*this));
     m_command_dict["frame"]     = CommandObjectSP (new CommandObjectMultiwordFrame (*this));
+    m_command_dict["gui"]       = CommandObjectSP (new CommandObjectGUI (*this));
     m_command_dict["help"]      = CommandObjectSP (new CommandObjectHelp (*this));
     m_command_dict["log"]       = CommandObjectSP (new CommandObjectLog (*this));
     m_command_dict["memory"]    = CommandObjectSP (new CommandObjectMemory (*this));
@@ -1929,12 +1934,19 @@ CommandInterpreter::HandleCompletionMatches (Args &parsed_line,
             && matches.GetStringAtIndex(0) != NULL
             && strcmp (parsed_line.GetArgumentAtIndex(0), matches.GetStringAtIndex(0)) == 0)
         {
-            look_for_subcommand = true;
-            num_command_matches = 0;
-            matches.DeleteStringAtIndex(0);
-            parsed_line.AppendArgument ("");
-            cursor_index++;
-            cursor_char_position = 0;
+            if (parsed_line.GetArgumentCount() == 1)
+            {
+                word_complete = true;
+            }
+            else
+            {
+                look_for_subcommand = true;
+                num_command_matches = 0;
+                matches.DeleteStringAtIndex(0);
+                parsed_line.AppendArgument ("");
+                cursor_index++;
+                cursor_char_position = 0;
+            }
         }
     }
 
@@ -2023,7 +2035,7 @@ CommandInterpreter::HandleCompletion (const char *current_line,
         const char *current_elem = partial_parsed_line.GetArgumentAtIndex(cursor_index);
         if (cursor_char_position == 0 || current_elem[cursor_char_position - 1] != ' ')
         {
-            parsed_line.InsertArgumentAtIndex(cursor_index + 1, "", '"');
+            parsed_line.InsertArgumentAtIndex(cursor_index + 1, "", '\0');
             cursor_index++;
             cursor_char_position = 0;
         }
@@ -2086,96 +2098,15 @@ CommandInterpreter::~CommandInterpreter ()
 {
 }
 
-const char *
-CommandInterpreter::GetPrompt ()
-{
-    return m_debugger.GetPrompt();
-}
-
 void
-CommandInterpreter::SetPrompt (const char *new_prompt)
+CommandInterpreter::UpdatePrompt (const char *new_prompt)
 {
-    m_debugger.SetPrompt (new_prompt);
+    EventSP prompt_change_event_sp (new Event(eBroadcastBitResetPrompt, new EventDataBytes (new_prompt)));;
+    BroadcastEvent (prompt_change_event_sp);
+    if (m_command_io_handler_sp)
+        m_command_io_handler_sp->SetPrompt(new_prompt);
 }
 
-size_t
-CommandInterpreter::GetConfirmationInputReaderCallback 
-(
-    void *baton,
-    InputReader &reader,
-    lldb::InputReaderAction action,
-    const char *bytes,
-    size_t bytes_len
-)
-{
-    File &out_file = reader.GetDebugger().GetOutputFile();
-    bool *response_ptr = (bool *) baton;
-    
-    switch (action)
-    {
-    case eInputReaderActivate:
-        if (out_file.IsValid())
-        {
-            if (reader.GetPrompt())
-            {
-                out_file.Printf ("%s", reader.GetPrompt());
-                out_file.Flush ();
-            }
-        }
-        break;
-
-    case eInputReaderDeactivate:
-        break;
-
-    case eInputReaderReactivate:
-        if (out_file.IsValid() && reader.GetPrompt())
-        {
-            out_file.Printf ("%s", reader.GetPrompt());
-            out_file.Flush ();
-        }
-        break;
-        
-    case eInputReaderAsynchronousOutputWritten:
-        break;
-        
-    case eInputReaderGotToken:
-        if (bytes_len == 0)
-        {
-            reader.SetIsDone(true);
-        }
-        else if (bytes[0] == 'y' || bytes[0] == 'Y')
-        {
-            *response_ptr = true;
-            reader.SetIsDone(true);
-        }
-        else if (bytes[0] == 'n' || bytes[0] == 'N')
-        {
-            *response_ptr = false;
-            reader.SetIsDone(true);
-        }
-        else
-        {
-            if (out_file.IsValid() && !reader.IsDone() && reader.GetPrompt())
-            {
-                out_file.Printf ("Please answer \"y\" or \"n\".\n%s", reader.GetPrompt());
-                out_file.Flush ();
-            }
-        }
-        break;
-        
-    case eInputReaderInterrupt:
-    case eInputReaderEndOfFile:
-        *response_ptr = false;  // Assume ^C or ^D means cancel the proposed action
-        reader.SetIsDone (true);
-        break;
-        
-    case eInputReaderDone:
-        break;
-    }
-
-    return bytes_len;
-
-}
 
 bool 
 CommandInterpreter::Confirm (const char *message, bool default_answer)
@@ -2183,31 +2114,13 @@ CommandInterpreter::Confirm (const char *message, bool default_answer)
     // Check AutoConfirm first:
     if (m_debugger.GetAutoConfirm())
         return default_answer;
-        
-    InputReaderSP reader_sp (new InputReader(GetDebugger()));
-    bool response = default_answer;
-    if (reader_sp)
-    {
-        std::string prompt(message);
-        prompt.append(": [");
-        if (default_answer)
-            prompt.append ("Y/n] ");
-        else
-            prompt.append ("y/N] ");
-            
-        Error err (reader_sp->Initialize (CommandInterpreter::GetConfirmationInputReaderCallback,
-                                          &response,                    // baton
-                                          eInputReaderGranularityLine,  // token size, to pass to callback function
-                                          NULL,                         // end token
-                                          prompt.c_str(),               // prompt
-                                          true));                       // echo input
-        if (err.Success())
-        {
-            GetDebugger().PushInputReader (reader_sp);
-        }
-        reader_sp->WaitOnReaderIsDone();
-    }
-    return response;        
+    
+    IOHandlerConfirm *confirm = new IOHandlerConfirm(m_debugger,
+                                                     message,
+                                                     default_answer);
+    IOHandlerSP io_handler_sp (confirm);
+    m_debugger.RunIOHandler (io_handler_sp);
+    return confirm->GetResponse();
 }
     
 OptionArgVectorSP
@@ -2477,13 +2390,16 @@ CommandInterpreter::SourceInitFile (bool in_cwd, CommandReturnObject &result)
 
     if (init_file.Exists())
     {
-        ExecutionContext *exe_ctx = NULL;  // We don't have any context yet.
-        bool stop_on_continue = true;
-        bool stop_on_error    = false;
-        bool echo_commands    = false;
-        bool print_results    = false;
-        
-        HandleCommandsFromFile (init_file, exe_ctx, stop_on_continue, stop_on_error, echo_commands, print_results, eLazyBoolNo, result);
+        const bool saved_batch = SetBatchCommandMode (true);
+        HandleCommandsFromFile (init_file,
+                                NULL,           // Execution context
+                                eLazyBoolYes,   // Stop on continue
+                                eLazyBoolNo,    // Stop on error
+                                eLazyBoolNo,    // Don't echo commands
+                                eLazyBoolNo,    // Don't print command output
+                                eLazyBoolNo,    // Don't add the commands that are sourced into the history buffer
+                                result);
+        SetBatchCommandMode (saved_batch);
     }
     else
     {
@@ -2546,8 +2462,8 @@ CommandInterpreter::HandleCommands (const StringList &commands,
         if (echo_commands)
         {
             result.AppendMessageWithFormat ("%s %s\n", 
-                                             GetPrompt(), 
-                                             cmd);
+                                            m_debugger.GetPrompt(),
+                                            cmd);
         }
 
         CommandReturnObject tmp_result;
@@ -2631,30 +2547,145 @@ CommandInterpreter::HandleCommands (const StringList &commands,
     return;
 }
 
+// Make flags that we can pass into the IOHandler so our delegates can do the right thing
+enum {
+    eHandleCommandFlagStopOnContinue = (1u << 0),
+    eHandleCommandFlagStopOnError    = (1u << 1),
+    eHandleCommandFlagEchoCommand    = (1u << 2),
+    eHandleCommandFlagPrintResult    = (1u << 3)
+};
+
 void
 CommandInterpreter::HandleCommandsFromFile (FileSpec &cmd_file, 
                                             ExecutionContext *context, 
-                                            bool stop_on_continue,
-                                            bool stop_on_error,
-                                            bool echo_command,
-                                            bool print_result,
+                                            LazyBool stop_on_continue,
+                                            LazyBool stop_on_error,
+                                            LazyBool echo_command,
+                                            LazyBool print_result,
                                             LazyBool add_to_history,
                                             CommandReturnObject &result)
 {
     if (cmd_file.Exists())
     {
-        bool success;
-        StringList commands;
-        success = commands.ReadFileLines(cmd_file);
-        if (!success)
+        StreamFileSP input_file_sp (new StreamFile());
+        
+        std::string cmd_file_path = cmd_file.GetPath();
+        Error error = input_file_sp->GetFile().Open(cmd_file_path.c_str(), File::eOpenOptionRead);
+        
+        if (error.Success())
         {
-            result.AppendErrorWithFormat ("Error reading commands from file: %s.\n", cmd_file.GetFilename().AsCString());
-            result.SetStatus (eReturnStatusFailed);
-            return;
+            Debugger &debugger = GetDebugger();
+
+            uint32_t flags = 0;
+
+            if (stop_on_continue == eLazyBoolCalculate)
+            {
+                if (m_command_source_flags.empty())
+                {
+                    // Stop on continue by default
+                    flags |= eHandleCommandFlagStopOnContinue;
+                }
+                else if (m_command_source_flags.back() & eHandleCommandFlagStopOnContinue)
+                {
+                    flags |= eHandleCommandFlagStopOnContinue;
+                }
+            }
+            else if (stop_on_continue == eLazyBoolYes)
+            {
+                flags |= eHandleCommandFlagStopOnContinue;
+            }
+
+            if (stop_on_error == eLazyBoolCalculate)
+            {
+                if (m_command_source_flags.empty())
+                {
+                    if (GetStopCmdSourceOnError())
+                        flags |= eHandleCommandFlagStopOnError;
+                }
+                else if (m_command_source_flags.back() & eHandleCommandFlagStopOnError)
+                {
+                    flags |= eHandleCommandFlagStopOnError;
+                }
+            }
+            else if (stop_on_error == eLazyBoolYes)
+            {
+                flags |= eHandleCommandFlagStopOnError;
+            }
+
+            if (echo_command == eLazyBoolCalculate)
+            {
+                if (m_command_source_flags.empty())
+                {
+                    // Echo command by default
+                    flags |= eHandleCommandFlagEchoCommand;
+                }
+                else if (m_command_source_flags.back() & eHandleCommandFlagEchoCommand)
+                {
+                    flags |= eHandleCommandFlagEchoCommand;
+                }
+            }
+            else if (echo_command == eLazyBoolYes)
+            {
+                flags |= eHandleCommandFlagEchoCommand;
+            }
+
+            if (print_result == eLazyBoolCalculate)
+            {
+                if (m_command_source_flags.empty())
+                {
+                    // Print output by default
+                    flags |= eHandleCommandFlagPrintResult;
+                }
+                else if (m_command_source_flags.back() & eHandleCommandFlagPrintResult)
+                {
+                    flags |= eHandleCommandFlagPrintResult;
+                }
+            }
+            else if (print_result == eLazyBoolYes)
+            {
+                flags |= eHandleCommandFlagPrintResult;
+            }
+
+            if (flags & eHandleCommandFlagPrintResult)
+            {
+                debugger.GetOutputFile()->Printf("Executing commands in '%s'.\n", cmd_file_path.c_str());
+            }
+
+            // Used for inheriting the right settings when "command source" might have
+            // nested "command source" commands
+            lldb::StreamFileSP empty_stream_sp;
+            m_command_source_flags.push_back(flags);
+            IOHandlerSP io_handler_sp (new IOHandlerEditline (debugger,
+                                                              input_file_sp,
+                                                              empty_stream_sp, // Pass in an empty stream so we inherit the top input reader output stream
+                                                              empty_stream_sp, // Pass in an empty stream so we inherit the top input reader error stream
+                                                              flags,
+                                                              NULL, // Pass in NULL for "editline_name" so no history is saved, or written
+                                                              debugger.GetPrompt(),
+                                                              false, // Not multi-line
+                                                              *this));
+            const bool old_async_execution = debugger.GetAsyncExecution();
+            
+            // Set synchronous execution if we not stopping when we continue
+            if ((flags & eHandleCommandFlagStopOnContinue) == 0)
+                debugger.SetAsyncExecution (false);
+
+            m_command_source_depth++;
+            
+            debugger.RunIOHandler(io_handler_sp);
+            if (!m_command_source_flags.empty())
+                m_command_source_flags.pop_back();
+            m_command_source_depth--;
+            result.SetStatus (eReturnStatusSuccessFinishNoResult);
+            debugger.SetAsyncExecution (old_async_execution);
         }
-        m_command_source_depth++;
-        HandleCommands (commands, context, stop_on_continue, stop_on_error, echo_command, print_result, add_to_history, result);
-        m_command_source_depth--;
+        else
+        {
+            result.AppendErrorWithFormat ("error: an error occurred read file '%s': %s\n", cmd_file_path.c_str(), error.AsCString());
+            result.SetStatus (eReturnStatusFailed);
+        }
+        
+
     }
     else
     {
@@ -2894,7 +2925,6 @@ CommandInterpreter::FindCommandsForApropos (const char *search_word, StringList 
     }
 }
 
-
 void
 CommandInterpreter::UpdateExecutionContext (ExecutionContext *override_context)
 {
@@ -2908,3 +2938,195 @@ CommandInterpreter::UpdateExecutionContext (ExecutionContext *override_context)
         m_exe_ctx_ref.SetTargetPtr (m_debugger.GetSelectedTarget().get(), adopt_selected);
     }
 }
+
+
+size_t
+CommandInterpreter::GetProcessOutput ()
+{
+    //  The process has stuff waiting for stderr; get it and write it out to the appropriate place.
+    char stdio_buffer[1024];
+    size_t len;
+    size_t total_bytes = 0;
+    Error error;
+    TargetSP target_sp (m_debugger.GetTargetList().GetSelectedTarget());
+    if (target_sp)
+    {
+        ProcessSP process_sp (target_sp->GetProcessSP());
+        if (process_sp)
+        {
+            while ((len = process_sp->GetSTDOUT (stdio_buffer, sizeof (stdio_buffer), error)) > 0)
+            {
+                size_t bytes_written = len;
+                m_debugger.GetOutputFile()->Write (stdio_buffer, bytes_written);
+                total_bytes += len;
+            }
+            while ((len = process_sp->GetSTDERR (stdio_buffer, sizeof (stdio_buffer), error)) > 0)
+            {
+                size_t bytes_written = len;
+                m_debugger.GetErrorFile()->Write (stdio_buffer, bytes_written);
+                total_bytes += len;
+            }
+        }
+    }
+    return total_bytes;
+}
+
+void
+CommandInterpreter::IOHandlerInputComplete (IOHandler &io_handler, std::string &line)
+{
+    const bool is_interactive = io_handler.GetIsInteractive();
+    if (is_interactive == false)
+    {
+        // When we are not interactive, don't execute blank lines. This will happen
+        // sourcing a commands file. We don't want blank lines to repeat the previous
+        // command and cause any errors to occur (like redefining an alias, get an error
+        // and stop parsing the commands file).
+        if (line.empty())
+            return;
+        
+        // When using a non-interactive file handle (like when sourcing commands from a file)
+        // we need to echo the command out so we don't just see the command output and no
+        // command...
+        if (io_handler.GetFlags().Test(eHandleCommandFlagEchoCommand))
+            io_handler.GetOutputStreamFile()->Printf("%s%s\n", io_handler.GetPrompt(), line.c_str());
+    }
+
+    lldb_private::CommandReturnObject result;
+    HandleCommand(line.c_str(), eLazyBoolCalculate, result);
+    
+    // Now emit the command output text from the command we just executed
+    if (io_handler.GetFlags().Test(eHandleCommandFlagPrintResult))
+    {
+        // Display any STDOUT/STDERR _prior_ to emitting the command result text
+        GetProcessOutput ();
+        
+        if (!result.GetImmediateOutputStream())
+        {
+            const char *output = result.GetOutputData();
+            if (output && output[0])
+                io_handler.GetOutputStreamFile()->PutCString(output);
+        }
+    
+        // Now emit the command error text from the command we just executed
+        if (!result.GetImmediateErrorStream())
+        {
+            const char *error = result.GetErrorData();
+            if (error && error[0])
+                io_handler.GetErrorStreamFile()->PutCString(error);
+        }
+    }
+    
+    switch (result.GetStatus())
+    {
+        case eReturnStatusInvalid:
+        case eReturnStatusSuccessFinishNoResult:
+        case eReturnStatusSuccessFinishResult:
+        case eReturnStatusStarted:
+            break;
+
+        case eReturnStatusSuccessContinuingNoResult:
+        case eReturnStatusSuccessContinuingResult:
+            if (io_handler.GetFlags().Test(eHandleCommandFlagStopOnContinue))
+                io_handler.SetIsDone(true);
+            break;
+
+        case eReturnStatusFailed:
+            if (io_handler.GetFlags().Test(eHandleCommandFlagStopOnError))
+                io_handler.SetIsDone(true);
+            break;
+            
+        case eReturnStatusQuit:
+            io_handler.SetIsDone(true);
+            break;
+    }
+}
+
+void
+CommandInterpreter::GetLLDBCommandsFromIOHandler (const char *prompt,
+                                                  IOHandlerDelegate &delegate,
+                                                  bool asynchronously,
+                                                  void *baton)
+{
+    Debugger &debugger = GetDebugger();
+    IOHandlerSP io_handler_sp (new IOHandlerEditline (debugger,
+                                                      "lldb",       // Name of input reader for history
+                                                      prompt,       // Prompt
+                                                      true,         // Get multiple lines
+                                                      delegate));   // IOHandlerDelegate
+    
+    if (io_handler_sp)
+    {
+        io_handler_sp->SetUserData (baton);
+        if (asynchronously)
+            debugger.PushIOHandler(io_handler_sp);
+        else
+            debugger.RunIOHandler(io_handler_sp);
+    }
+    
+}
+
+
+void
+CommandInterpreter::GetPythonCommandsFromIOHandler (const char *prompt,
+                                                    IOHandlerDelegate &delegate,
+                                                    bool asynchronously,
+                                                    void *baton)
+{
+    Debugger &debugger = GetDebugger();
+    IOHandlerSP io_handler_sp (new IOHandlerEditline (debugger,
+                                                      "lldb-python",    // Name of input reader for history
+                                                      prompt,           // Prompt
+                                                      true,             // Get multiple lines
+                                                      delegate));       // IOHandlerDelegate
+    
+    if (io_handler_sp)
+    {
+        io_handler_sp->SetUserData (baton);
+        if (asynchronously)
+            debugger.PushIOHandler(io_handler_sp);
+        else
+            debugger.RunIOHandler(io_handler_sp);
+    }
+
+}
+
+bool
+CommandInterpreter::IsActive ()
+{
+    return m_debugger.IsTopIOHandler (m_command_io_handler_sp);
+}
+
+void
+CommandInterpreter::RunCommandInterpreter(bool auto_handle_events,
+                                          bool spawn_thread)
+{
+    const bool multiple_lines = false; // Only get one line at a time
+    if (!m_command_io_handler_sp)
+        m_command_io_handler_sp.reset(new IOHandlerEditline (m_debugger,
+                                                             m_debugger.GetInputFile(),
+                                                             m_debugger.GetOutputFile(),
+                                                             m_debugger.GetErrorFile(),
+                                                             eHandleCommandFlagEchoCommand | eHandleCommandFlagPrintResult,
+                                                             "lldb",
+                                                             m_debugger.GetPrompt(),
+                                                             multiple_lines,
+                                                             *this));
+    m_debugger.PushIOHandler(m_command_io_handler_sp);
+    
+    if (auto_handle_events)
+        m_debugger.StartEventHandlerThread();
+    
+    if (spawn_thread)
+    {
+        m_debugger.StartIOHandlerThread();
+    }
+    else
+    {
+        m_debugger.ExecuteIOHanders();
+    
+        if (auto_handle_events)
+            m_debugger.StopEventHandlerThread();
+    }
+
+}
+

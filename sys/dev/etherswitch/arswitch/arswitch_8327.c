@@ -217,6 +217,271 @@ ar8327_get_port_init_status(struct ar8327_port_cfg *cfg)
 }
 
 /*
+ * Fetch the port data for the given port.
+ *
+ * This goes and does dirty things with the hints space
+ * to determine what the configuration parameters should be.
+ *
+ * Returns 1 if the structure was successfully parsed and
+ * the contents are valid; 0 otherwise.
+ */
+static int
+ar8327_fetch_pdata_port(struct arswitch_softc *sc,
+    struct ar8327_port_cfg *pcfg,
+    int port)
+{
+	int val;
+	char sbuf[128];
+
+	/* Check if force_link exists */
+	val = 0;
+	snprintf(sbuf, 128, "port.%d.force_link", port);
+	(void) resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val);
+	if (val != 1)
+		return (0);
+	pcfg->force_link = 1;
+
+	/* force_link is set; let's parse the rest of the fields */
+	snprintf(sbuf, 128, "port.%d.speed", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0) {
+		switch (val) {
+		case 10:
+			pcfg->speed = AR8327_PORT_SPEED_10;
+			break;
+		case 100:
+			pcfg->speed = AR8327_PORT_SPEED_100;
+			break;
+		case 1000:
+			pcfg->speed = AR8327_PORT_SPEED_1000;
+			break;
+		default:
+			device_printf(sc->sc_dev,
+			    "%s: invalid port %d duplex value (%d)\n",
+			    __func__,
+			    port,
+			    val);
+			return (0);
+		}
+	}
+
+	snprintf(sbuf, 128, "port.%d.duplex", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->duplex = val;
+
+	snprintf(sbuf, 128, "port.%d.txpause", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->txpause = val;
+
+	snprintf(sbuf, 128, "port.%d.rxpause", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->rxpause = val;
+
+#if 0
+	device_printf(sc->sc_dev,
+	    "%s: port %d: speed=%d, duplex=%d, txpause=%d, rxpause=%d\n",
+	    __func__,
+	    port,
+	    pcfg->speed,
+	    pcfg->duplex,
+	    pcfg->txpause,
+	    pcfg->rxpause);
+#endif
+
+	return (1);
+}
+
+/*
+ * Parse the pad configuration from the boot hints.
+ *
+ * The (mostly optional) fields are:
+ *
+ * uint32_t mode;
+ * uint32_t rxclk_sel;
+ * uint32_t txclk_sel;
+ * uint32_t txclk_delay_sel;
+ * uint32_t rxclk_delay_sel;
+ * uint32_t txclk_delay_en;
+ * uint32_t rxclk_delay_en;
+ * uint32_t sgmii_delay_en;
+ * uint32_t pipe_rxclk_sel;
+ *
+ * If mode isn't in the hints, 0 is returned.
+ * Else the structure is fleshed out and 1 is returned.
+ */
+static int
+ar8327_fetch_pdata_pad(struct arswitch_softc *sc,
+    struct ar8327_pad_cfg *pc,
+    int pad)
+{
+	int val;
+	char sbuf[128];
+
+	/* Check if mode exists */
+	val = 0;
+	snprintf(sbuf, 128, "pad.%d.mode", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) != 0)
+		return (0);
+
+	/* assume that 'mode' exists and was found */
+	pc->mode = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_delay_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_delay_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_delay_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_delay_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.sgmii_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->sgmii_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.pipe_rxclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->pipe_rxclk_sel = val;
+
+#if 0
+	device_printf(sc->sc_dev,
+	    "%s: pad %d: mode=%d, rxclk_sel=%d, txclk_sel=%d, "
+	    "txclk_delay_sel=%d, rxclk_delay_sel=%d, txclk_delay_en=%d, "
+	    "rxclk_enable_en=%d, sgmii_delay_en=%d, pipe_rxclk_sel=%d\n",
+	    __func__,
+	    pad,
+	    pc->mode,
+	    pc->rxclk_sel,
+	    pc->txclk_sel,
+	    pc->txclk_delay_sel,
+	    pc->rxclk_delay_sel,
+	    pc->txclk_delay_en,
+	    pc->rxclk_delay_en,
+	    pc->sgmii_delay_en,
+	    pc->pipe_rxclk_sel);
+#endif
+
+	return (1);
+}
+
+/*
+ * Fetch the SGMII configuration block from the boot hints.
+ */
+static int
+ar8327_fetch_pdata_sgmii(struct arswitch_softc *sc,
+    struct ar8327_sgmii_cfg *scfg)
+{
+	int val;
+
+	/* sgmii_ctrl */
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "sgmii.ctrl", &val) != 0)
+		return (0);
+	scfg->sgmii_ctrl = val;
+
+	/* serdes_aen */
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "sgmii.serdes_aen", &val) != 0)
+		return (0);
+	scfg->serdes_aen = val;
+
+	return (1);
+}
+
+/*
+ * Fetch the LED configuration from the boot hints.
+ */
+static int
+ar8327_fetch_pdata_led(struct arswitch_softc *sc,
+    struct ar8327_led_cfg *lcfg)
+{
+	int val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl0", &val) != 0)
+		return (0);
+	lcfg->led_ctrl0 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl1", &val) != 0)
+		return (0);
+	lcfg->led_ctrl1 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl2", &val) != 0)
+		return (0);
+	lcfg->led_ctrl2 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl3", &val) != 0)
+		return (0);
+	lcfg->led_ctrl3 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.open_drain", &val) != 0)
+		return (0);
+	lcfg->open_drain = val;
+
+	return (1);
+}
+
+/*
  * Initialise the ar8327 specific hardware features from
  * the hints provided in the boot environment.
  */
@@ -225,51 +490,93 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 {
 	struct ar8327_pad_cfg pc;
 	struct ar8327_port_cfg port_cfg;
-	uint32_t t;
+	struct ar8327_sgmii_cfg scfg;
+	struct ar8327_led_cfg lcfg;
+	uint32_t t, new_pos, pos;
 
-	/* XXX hard-coded DB120 defaults for now! */
-
-	/* Port 0 - rgmii; 1000/full */
+	/* Port 0 */
 	bzero(&port_cfg, sizeof(port_cfg));
-	port_cfg.speed = AR8327_PORT_SPEED_1000;
-	port_cfg.duplex = 1;
-	port_cfg.rxpause = 1;
-	port_cfg.txpause = 1;
-	port_cfg.force_link = 1;
-	sc->ar8327.port0_status = ar8327_get_port_init_status(&port_cfg);
+	sc->ar8327.port0_status = 0;
+	if (ar8327_fetch_pdata_port(sc, &port_cfg, 0))
+		sc->ar8327.port0_status = ar8327_get_port_init_status(&port_cfg);
 
-	/* Port 6 - ignore */
+	/* Port 6 */
 	bzero(&port_cfg, sizeof(port_cfg));
-	sc->ar8327.port6_status = ar8327_get_port_init_status(&port_cfg);
+	sc->ar8327.port6_status = 0;
+	if (ar8327_fetch_pdata_port(sc, &port_cfg, 6))
+		sc->ar8327.port6_status = ar8327_get_port_init_status(&port_cfg);
 
 	/* Pad 0 */
 	bzero(&pc, sizeof(pc));
-	pc.mode = AR8327_PAD_MAC_RGMII,
-	pc.txclk_delay_en = true,
-	pc.rxclk_delay_en = true,
-	pc.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
-	pc.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
-
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 0))
+		t = ar8327_get_pad_cfg(&pc);
 #if 0
-	if (AR8X16_IS_SWITCH(sc, AR8337))
-		t |= AR8337_PAD_MAC06_EXCHANGE_EN;
+		if (AR8X16_IS_SWITCH(sc, AR8337))
+			t |= AR8337_PAD_MAC06_EXCHANGE_EN;
 #endif
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD0_MODE, t);
 
 	/* Pad 5 */
 	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 5))
+		t = ar8327_get_pad_cfg(&pc);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD5_MODE, t);
 
 	/* Pad 6 */
 	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 6))
+		t = ar8327_get_pad_cfg(&pc);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD6_MODE, t);
 
-	/* XXX LED config */
+	pos = arswitch_readreg(sc->sc_dev, AR8327_REG_POWER_ON_STRIP);
+	new_pos = pos;
 
-	/* XXX SGMII config */
+	/* XXX LED config */
+	bzero(&lcfg, sizeof(lcfg));
+	if (ar8327_fetch_pdata_led(sc, &lcfg)) {
+		if (lcfg.open_drain)
+			new_pos |= AR8327_POWER_ON_STRIP_LED_OPEN_EN;
+		else
+			new_pos &= ~AR8327_POWER_ON_STRIP_LED_OPEN_EN;
+
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL0,
+		    lcfg.led_ctrl0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL1,
+		    lcfg.led_ctrl1);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL2,
+		    lcfg.led_ctrl2);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL3,
+		    lcfg.led_ctrl3);
+
+		if (new_pos != pos)
+			new_pos |= AR8327_POWER_ON_STRIP_POWER_ON_SEL;
+	}
+
+	/* SGMII config */
+	bzero(&scfg, sizeof(scfg));
+	if (ar8327_fetch_pdata_sgmii(sc, &scfg)) {
+		t = scfg.sgmii_ctrl;
+		if (sc->chip_rev == 1)
+			t |= AR8327_SGMII_CTRL_EN_PLL |
+			    AR8327_SGMII_CTRL_EN_RX |
+			    AR8327_SGMII_CTRL_EN_TX;
+		else
+			t &= ~(AR8327_SGMII_CTRL_EN_PLL |
+			    AR8327_SGMII_CTRL_EN_RX |
+			    AR8327_SGMII_CTRL_EN_TX);
+
+		arswitch_writereg(sc->sc_dev, AR8327_REG_SGMII_CTRL, t);
+
+		if (scfg.serdes_aen)
+			new_pos &= ~AR8327_POWER_ON_STRIP_SERDES_AEN;
+		else
+			new_pos |= AR8327_POWER_ON_STRIP_SERDES_AEN;
+	}
+
+	arswitch_writereg(sc->sc_dev, AR8327_REG_POWER_ON_STRIP, new_pos);
 
 	return (0);
 }
@@ -330,6 +637,9 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR8327_REG_MODULE_EN,
 	    AR8327_MODULE_EN_MIB, AR8327_MODULE_EN_MIB);
 
+	/* Set the right number of ports */
+	sc->info.es_nports = 6;
+
 	return (0);
 }
 
@@ -346,21 +656,14 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	else if (port == 6)
 		t = sc->ar8327.port6_status;
         else
-#if 0
-	/* XXX DB120 - hard-code port0 to 1000/full */
-	if (port == 0) {
-		t = AR8X16_PORT_STS_SPEED_1000;
-		t |= AR8X16_PORT_STS_TXMAC | AR8X16_PORT_STS_RXMAC;
-		t |= AR8X16_PORT_STS_DUPLEX;
-		t |= AR8X16_PORT_STS_RXFLOW;
-		t |= AR8X16_PORT_STS_TXFLOW;
-	} else
-#endif
 		t = AR8X16_PORT_STS_LINK_AUTO;
 
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_STATUS(port), t);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_HEADER(port), 0);
 
+	/*
+	 * Default to 1 port group.
+	 */
 	t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
 	t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN0(port), t);
@@ -368,8 +671,19 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	t = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH << AR8327_PORT_VLAN1_OUT_MODE_S;
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(port), t);
 
+	/*
+	 * This doesn't configure any ports which this port can "see".
+	 * bits 0-6 control which ports a frame coming into this port
+	 * can be sent out to.
+	 *
+	 * So by doing this, we're making it impossible to send frames out
+	 * to that port.
+	 */
 	t = AR8327_PORT_LOOKUP_LEARN;
 	t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
+
+	/* So this allows traffic to any port except ourselves */
+	t |= (0x3f & ~(1 << port));
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(port), t);
 }
 
@@ -398,13 +712,20 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	uint32_t mode, t;
 
 	/*
+	 * Disable mirroring.
+	 */
+	arswitch_modifyreg(sc->sc_dev, AR8327_REG_FWD_CTRL0,
+	    AR8327_FWD_CTRL0_MIRROR_PORT,
+	    (0xF << AR8327_FWD_CTRL0_MIRROR_PORT_S));
+
+	/*
 	 * For now, let's default to one portgroup, just so traffic
 	 * flows.  All ports can see other ports.
 	 */
 	for (i = 0; i < AR8327_NUM_PORTS; i++) {
-		/* set pvid = i */
-		t = i << AR8327_PORT_VLAN0_DEF_SVID_S;
-		t |= i << AR8327_PORT_VLAN0_DEF_CVID_S;
+		/* set pvid = 1; there's only one vlangroup */
+		t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
+		t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN0(i), t);
 
 		/* set egress == out_keep */
@@ -414,15 +735,26 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 		t |= mode << AR8327_PORT_VLAN1_OUT_MODE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(i), t);
 
-		/* Set ingress = out_keep; members = 0x3f for all ports */
-
-		t = 0x3f;	/* all ports */
+		/* Ports can see other ports */
+		t = (0x3f & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
 		/* in_port_only, forward */
 		t |= AR8X16_PORT_VLAN_MODE_PORT_ONLY << AR8327_PORT_LOOKUP_IN_MODE_S;
 		t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(i), t);
+
+		/*
+		 * Disable port mirroring entirely.
+		 */
+		arswitch_modifyreg(sc->sc_dev,
+		    AR8327_REG_PORT_LOOKUP(i),
+		    AR8327_PORT_LOOKUP_ING_MIRROR_EN,
+		    0);
+		arswitch_modifyreg(sc->sc_dev,
+		    AR8327_REG_PORT_HOL_CTRL1(i),
+		    AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN,
+		    0);
 	}
 }
 
@@ -457,6 +789,28 @@ ar8327_set_pvid(struct arswitch_softc *sc, int port, int pvid)
 	return (0);
 }
 
+static int
+ar8327_atu_flush(struct arswitch_softc *sc)
+{
+
+	int ret;
+
+	ret = arswitch_waitreg(sc->sc_dev,
+	    AR8327_REG_ATU_FUNC,
+	    AR8327_ATU_FUNC_BUSY,
+	    0,
+	    1000);
+
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC,
+		    AR8327_ATU_FUNC_OP_FLUSH);
+	return (ret);
+}
+
 void
 ar8327_attach(struct arswitch_softc *sc)
 {
@@ -473,6 +827,8 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_vlan_setvgroup = ar8327_vlan_setvgroup;
 	sc->hal.arswitch_vlan_get_pvid = ar8327_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8327_set_pvid;
+
+	sc->hal.arswitch_atu_flush = ar8327_atu_flush;
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |

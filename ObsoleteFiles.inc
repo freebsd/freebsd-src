@@ -38,6 +38,47 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140314: AppleTalk
+OLD_DIRS+=usr/include/netatalk
+OLD_FILES+=usr/include/netatalk/aarp.h
+OLD_FILES+=usr/include/netatalk/at.h
+OLD_FILES+=usr/include/netatalk/at_extern.h
+OLD_FILES+=usr/include/netatalk/at_var.h
+OLD_FILES+=usr/include/netatalk/ddp.h
+OLD_FILES+=usr/include/netatalk/ddp_pcb.h
+OLD_FILES+=usr/include/netatalk/ddp_var.h
+OLD_FILES+=usr/include/netatalk/endian.h
+OLD_FILES+=usr/include/netatalk/phase2.h
+
+# 20140314: Remove IPX/SPX
+OLD_LIBS+=lib/libipx.so.5
+OLD_FILES+=usr/include/netipx/ipx.h
+OLD_FILES+=usr/include/netipx/ipx_if.h
+OLD_FILES+=usr/include/netipx/ipx_pcb.h
+OLD_FILES+=usr/include/netipx/ipx_var.h
+OLD_FILES+=usr/include/netipx/spx.h
+OLD_FILES+=usr/include/netipx/spx_debug.h
+OLD_FILES+=usr/include/netipx/spx_timer.h
+OLD_FILES+=usr/include/netipx/spx_var.h
+OLD_DIRS+=usr/include/netipx
+OLD_FILES+=usr/lib/libipx.a
+OLD_FILES+=usr/lib/libipx.so
+OLD_FILES+=usr/lib/libipx_p.a
+OLD_FILES+=usr/lib32/libipx.a
+OLD_FILES+=usr/lib32/libipx.so
+OLD_LIBS+=usr/lib32/libipx.so.5
+OLD_FILES+=usr/lib32/libipx_p.a
+OLD_FILES+=usr/sbin/IPXrouted
+OLD_FILES+=usr/share/man/man3/ipx.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
+OLD_FILES+=usr/share/man/man4/ef.4.gz
+OLD_FILES+=usr/share/man/man4/if_ef.4.gz
+OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
+# 20140314: bsdconfig usermgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/userinput
+# 20140307: bsdconfig groupmgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
 # 20140223: Remove libyaml
 OLD_FILES+=usr/lib/private/libyaml.a
 OLD_FILES+=usr/lib/private/libyaml.so
@@ -80,6 +121,9 @@ OLD_FILES+=usr/include/clang/3.3/xopintrin.h
 OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_DIRS+=usr/include/clang/3.3
+# 20140216: nve(4) removed
+OLD_FILES+=usr/share/man/man4/if_nve.4.gz
+OLD_FILES+=usr/share/man/man4/nve.4.gz
 # 20140205: Open Firmware device moved
 OLD_FILES+=usr/include/dev/ofw/ofw_nexus.h
 # 20140128: libelf and libdwarf import

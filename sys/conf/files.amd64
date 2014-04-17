@@ -108,6 +108,7 @@ amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
 amd64/amd64/locore.S		standard	no-obj
+amd64/amd64/xen-locore.S	optional	xenhvm
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
@@ -439,6 +440,7 @@ dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 dev/virtio/random/virtio_random.c	optional	virtio_random
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/imgact_binmisc.c		optional	imagact_binmisc
 kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 #
@@ -553,5 +555,8 @@ x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xen | xenhvm
+x86/xen/pv.c			optional	xenhvm
+x86/xen/pvcpu_enum.c		optional	xenhvm

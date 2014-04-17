@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * Functions that perform the vfs operations required by the routines in

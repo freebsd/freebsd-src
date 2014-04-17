@@ -74,6 +74,7 @@ struct vga_softc {
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
+static vd_maskbitbltchr_t vga_maskbitbltchr;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_putchar_t	vga_putchar;
@@ -83,6 +84,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
+	.vd_maskbitbltchr = vga_maskbitbltchr,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
@@ -201,6 +203,34 @@ vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
 
 static void
 vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
+{
+	u_long dst, ldst;
+	int w;
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
+	    VT_VGA_HEIGHT))
+		return;
+
+	dst = (VT_VGA_WIDTH * top + left) / 8;
+
+	for (; height > 0; height--) {
+		ldst = dst;
+		for (w = width; w > 0; w -= 8) {
+			vga_bitblt_put(vd, ldst, fg, *src);
+			vga_bitblt_put(vd, ldst, bg, ~*src);
+			ldst++;
+			src++;
+		}
+		dst += VT_VGA_WIDTH / 8;
+	}
+}
+
+/* Bitblt with mask support. Slow. */
+static void
+vga_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {

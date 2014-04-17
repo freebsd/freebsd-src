@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
@@ -2553,9 +2553,9 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		auio.uio_td = td;
 		auio.uio_resid = count;
 		error = VOP_READLINK(vp, &auio, td->td_ucred);
+		td->td_retval[0] = count - auio.uio_resid;
 	}
 	vput(vp);
-	td->td_retval[0] = count - auio.uio_resid;
 	return (error);
 }
 

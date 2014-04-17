@@ -401,6 +401,9 @@ struct wsp_softc {
 	int	dz_count;
 #define	WSP_DZ_MAX_COUNT	32
 	int	dt_sum;			/* T-axis cumulative movement */
+	int	rdx;			/* x axis remainder of divide by scale_factor */
+	int	rdy;			/* y axis remainder of divide by scale_factor */
+	int	rdz;			/* z axis remainder of divide by scale_factor */
 	int	tp_datalen;
 	uint8_t o_ntouch;		/* old touch finger status */
 	uint8_t	finger;			/* 0 or 1 *, check which finger moving */
@@ -669,6 +672,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int dx = 0;
 	int dy = 0;
 	int dz = 0;
+	int rdx = 0;
+	int rdy = 0;
+	int rdz = 0;
 	int len;
 	int i;
 
@@ -830,6 +836,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->dt_sum = 0;
 			sc->dx_sum = 0;
 			sc->dy_sum = 0;
+			sc->rdx = 0;
+			sc->rdy = 0;
+			sc->rdz = 0;
 			sc->scr_mode = WSP_SCR_NONE;
 		} else if (f[0].touch_major >= tun.pressure_touch_threshold &&
 		    sc->sc_touch == WSP_UNTOUCH) {	/* ignore first touch */
@@ -894,13 +903,22 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					DPRINTFN(WSP_LLEVEL_INFO, "dx=%5d, dy=%5d, mov=%5d\n",
 					    dx, dy, sc->finger);
 				}
-				if (sc->dz_count--)
-					sc->dz_sum -= (dy / tun.scale_factor);
+				if (sc->dz_count--) {
+					rdz = (dy + sc->rdz) % tun.scale_factor;
+					sc->dz_sum -= (dy + sc->rdz) / tun.scale_factor;
+					sc->rdz = rdz;
+				}
 				if ((sc->dz_sum / tun.z_factor) != 0)
 					sc->dz_count = 0;
 			}
-			dx /= tun.scale_factor;
-			dy /= tun.scale_factor;
+			rdx = (dx + sc->rdx) % tun.scale_factor;
+			dx = (dx + sc->rdx) / tun.scale_factor;
+			sc->rdx = rdx;
+
+			rdy = (dy + sc->rdy) % tun.scale_factor;
+			dy = (dy + sc->rdy) / tun.scale_factor;
+			sc->rdy = rdy;
+
 			sc->dx_sum += dx;
 			sc->dy_sum += dy;
 
@@ -908,7 +926,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (sc->scr_mode == WSP_SCR_NONE &&
 				    abs(sc->dx_sum) + abs(sc->dy_sum) > tun.scr_hor_threshold)
 					sc->scr_mode = abs(sc->dx_sum) >
-					    abs(sc->dy_sum) ? WSP_SCR_HOR :
+					    abs(sc->dy_sum) * 3 ? WSP_SCR_HOR :
 					    WSP_SCR_VER;
 				DPRINTFN(WSP_LLEVEL_INFO, "scr_mode=%5d, count=%d, dx_sum=%d, dy_sum=%d\n",
 				    sc->scr_mode, sc->intr_count, sc->dx_sum, sc->dy_sum);
@@ -945,8 +963,10 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_status.dz += dz;
 
 			wsp_add_to_queue(sc, dx, -dy, dz, sc->sc_status.button);
-			if (sc->dz_count == 0)
+			if (sc->dz_count == 0) {
 				sc->dz_sum = 0;
+				sc->rdz = 0;
+			}
 
 		}
 		sc->pre_pos_x = sc->pos_x[0];

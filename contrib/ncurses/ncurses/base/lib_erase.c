@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_erase.c,v 1.16 2005/10/30 00:36:36 tom Exp $")
+MODULE_ID("$Id: lib_erase.c,v 1.17 2009/10/24 22:32:29 tom Exp $")
 
 NCURSES_EXPORT(int)
 werase(WINDOW *win)
@@ -51,7 +51,7 @@ werase(WINDOW *win)
     NCURSES_CH_T blank;
     NCURSES_CH_T *sp, *end, *start;
 
-    T((T_CALLED("werase(%p)"), win));
+    T((T_CALLED("werase(%p)"), (void *) win));
 
     if (win) {
 	blank = win->_nc_bkgd;

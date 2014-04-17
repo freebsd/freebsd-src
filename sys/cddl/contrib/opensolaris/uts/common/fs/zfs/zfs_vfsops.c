@@ -2347,7 +2347,7 @@ zfs_vnodes_adjust(void)
 	 * vntblinit(). If it is equal to desiredvnodes, it means that
 	 * it wasn't tuned by the administrator and we can tune it down.
 	 */
-	newdesiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 *
+	newdesiredvnodes = min(maxproc + vm_cnt.v_page_count / 4, 2 *
 	    vm_kmem_size / (5 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode))));
 	if (newdesiredvnodes == desiredvnodes)

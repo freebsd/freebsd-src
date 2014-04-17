@@ -3,7 +3,7 @@
 PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
-NO_MAN=
+MAN=
 SRCS=	${PROG}.S
 
 CFLAGS+=-I${.CURDIR}/../common

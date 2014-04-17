@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.115 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: key.c,v 1.116 2014/02/02 03:44:31 djm Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -242,12 +242,12 @@ key_free(Key *k)
 	case KEY_ED25519:
 	case KEY_ED25519_CERT:
 		if (k->ed25519_pk) {
-			memset(k->ed25519_pk, 0, ED25519_PK_SZ);
+			explicit_bzero(k->ed25519_pk, ED25519_PK_SZ);
 			free(k->ed25519_pk);
 			k->ed25519_pk = NULL;
 		}
 		if (k->ed25519_sk) {
-			memset(k->ed25519_sk, 0, ED25519_SK_SZ);
+			explicit_bzero(k->ed25519_sk, ED25519_SK_SZ);
 			free(k->ed25519_sk);
 			k->ed25519_sk = NULL;
 		}
@@ -415,7 +415,7 @@ key_fingerprint_raw(const Key *k, enum fp_type dgst_type,
 		if ((ssh_digest_memory(hash_alg, blob, len,
 		    retval, SSH_DIGEST_MAX_LENGTH)) != 0)
 			fatal("%s: digest_memory failed", __func__);
-		memset(blob, 0, len);
+		explicit_bzero(blob, len);
 		free(blob);
 		*dgst_raw_length = ssh_digest_bytes(hash_alg);
 	} else {
@@ -623,7 +623,7 @@ key_fingerprint(const Key *k, enum fp_type dgst_type, enum fp_rep dgst_rep)
 		    dgst_rep);
 		break;
 	}
-	memset(dgst_raw, 0, dgst_raw_len);
+	explicit_bzero(dgst_raw, dgst_raw_len);
 	free(dgst_raw);
 	return retval;
 }
@@ -1744,7 +1744,7 @@ to_blob(const Key *key, u_char **blobp, u_int *lenp, int force_plain)
 		*blobp = xmalloc(len);
 		memcpy(*blobp, buffer_ptr(&b), len);
 	}
-	memset(buffer_ptr(&b), 0, len);
+	explicit_bzero(buffer_ptr(&b), len);
 	buffer_free(&b);
 	return len;
 }

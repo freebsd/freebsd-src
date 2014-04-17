@@ -1174,9 +1174,12 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 static void
 g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 {
+	struct g_part_entry *baseentry;
+	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
-	quad_t last;
-	size_t tblsz;
+	quad_t start, end, min, max;
+	quad_t lba, last;
+	size_t spb, tblsz;
 
 	table = (struct g_part_gpt_table *)basetable;
 	last = pp->mediasize / pp->sectorsize - 1;
@@ -1192,11 +1195,31 @@ g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 	table->state[GPT_ELT_SECHDR] = GPT_STATE_OK;
 	table->state[GPT_ELT_SECTBL] = GPT_STATE_OK;
 
-	table->hdr->hdr_lba_start = 2 + tblsz;
-	table->hdr->hdr_lba_end = last - tblsz - 1;
+	max = start = 2 + tblsz;
+	min = end = last - tblsz - 1;
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_deleted)
+			continue;
+		entry = (struct g_part_gpt_entry *)baseentry;
+		if (entry->ent.ent_lba_start < min)
+			min = entry->ent.ent_lba_start;
+		if (entry->ent.ent_lba_end > max)
+			max = entry->ent.ent_lba_end;
+	}
+	spb = 4096 / pp->sectorsize;
+	if (spb > 1) {
+		lba = start + ((start % spb) ? spb - start % spb : 0);
+		if (lba <= min)
+			start = lba;
+		lba = end - (end + 1) % spb;
+		if (max <= lba)
+			end = lba;
+	}
+	table->hdr->hdr_lba_start = start;
+	table->hdr->hdr_lba_end = end;
 
-	basetable->gpt_first = table->hdr->hdr_lba_start;
-	basetable->gpt_last = table->hdr->hdr_lba_end;
+	basetable->gpt_first = start;
+	basetable->gpt_last = end;
 }
 
 static void

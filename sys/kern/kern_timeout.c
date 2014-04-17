@@ -302,7 +302,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
-	cc->cc_firstevent = INT64_MAX;
+	cc->cc_firstevent = SBT_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cce_cleanup(cc, i);
 	if (cc->cc_callout == NULL)	/* Only cpu0 handles timeout(9) */
@@ -574,8 +574,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
-	if (INT64_MAX - c->c_time < c->c_precision)
-		c->c_precision = INT64_MAX - c->c_time;
+	if (SBT_MAX - c->c_time < c->c_precision)
+		c->c_precision = SBT_MAX - c->c_time;
 	sbt = c->c_time + c->c_precision;
 	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
@@ -953,8 +953,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 				to_sbt += tick_sbt;
 		} else
 			to_sbt = sbinuptime();
-		if (INT64_MAX - to_sbt < sbt)
-			to_sbt = INT64_MAX;
+		if (SBT_MAX - to_sbt < sbt)
+			to_sbt = SBT_MAX;
 		else
 			to_sbt += sbt;
 		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
