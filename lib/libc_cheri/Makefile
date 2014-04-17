@@ -160,6 +160,42 @@ SRCS+=		asctime.c		\
 		strftime.c		\
 		timelocal.c
 
+# contrib/compiler-rt/lib
+SRCS+=	adddf3.c			\
+	addsf3.c			\
+	clzdi2.c			\
+	clzsi2.c			\
+	divdf3.c			\
+	divsf3.c			\
+	extendsfdf2.c			\
+	fixdfsi.c			\
+	fixdfdi.c			\
+	fixunsdfsi.c			\
+	floatdidf.c			\
+	floatsidf.c			\
+	floatundidf.c			\
+	floatundisf.c			\
+	floatunsidf.c			\
+	muldf3.c			\
+	mulsf3.c			\
+	subdf3.c			\
+	subsf3.c			\
+	truncdfsf2.c
+
+# lib/libc/softfloat
+SRCS+=	gedf2.c				\
+	gtdf2.c				\
+	gtsf2.c				\
+	ledf2.c				\
+	ltdf2.c				\
+	ltsf2.c				\
+	eqdf2.c				\
+	eqsf2.c				\
+	nedf2.c				\
+	nesf2.c				\
+	softfloat.c			\
+	unorddf2.c
+
 # sys/kern
 CFLAGS.subr_scanf.c=	-Wno-sign-compare
 SRCS+=		subr_scanf.c
@@ -189,7 +225,9 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 
 CFLAGS+=	-I${LIBC_DIR}/include			\
 		-I${LIBC_DIR}/${LIBC_ARCH}		\
+		-I${LIBC_DIR}/${LIBC_ARCH}/softfloat	\
 		-I${LIBC_DIR}/locale			\
+		-I${LIBC_DIR}/softfloat			\
 		-I${LIBC_DIR}/string			\
 		-I${LIBC_DIR}/stdlib			\
 		-I${.CURDIR}/../../contrib/gdtoa	\
@@ -206,8 +244,11 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${LIBC_DIR}/gdtoa
 .PATH: ${LIBC_DIR}/locale
 .PATH: ${LIBC_DIR}/inet
+.PATH: ${LIBC_DIR}/softfloat
+.PATH: ${LIBC_DIR}/softfloat/bits64
 .PATH: ${LIBC_DIR}/stdlib
 .PATH: ${LIBC_DIR}/stdtime
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib
 .PATH: ${.CURDIR}/../../contrib/gdtoa
 .PATH: ${.CURDIR}/../../sys/kern
 .PATH: ${.CURDIR}/../../contrib/tzcode/stdtime
