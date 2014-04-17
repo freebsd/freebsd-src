@@ -234,6 +234,7 @@ SUBDIR=	\
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
+	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfs_common \
