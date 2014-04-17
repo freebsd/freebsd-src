@@ -281,7 +281,7 @@ main(int argc, char *argv[] __unused)
 		if ((fd = open(argv[2], O_RDONLY)) == -1)
 			err(1, "open");
 		if (read_png_fd(fd, image, fb_width, fb_height) == -1)
-			err(1, "read_png_fd");
+			errx(1, "read_png_fd");
 		fb_post(image);
 		/* XXX: A bit too heavyhanded */
 		fb_blend(0,0,255,0);
