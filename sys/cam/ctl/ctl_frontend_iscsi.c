@@ -633,11 +633,11 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 #endif
 		io->taskio.task_action = CTL_TASK_LUN_RESET;
 		break;
-	case BHSTMR_FUNCTION_TARGET_COLD_RESET:
+	case BHSTMR_FUNCTION_TARGET_WARM_RESET:
 #if 0
-		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_COLD_RESET");
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_WARM_RESET");
 #endif
-		io->taskio.task_action = CTL_TASK_BUS_RESET;
+		io->taskio.task_action = CTL_TASK_TARGET_RESET;
 		break;
 	default:
 		CFISCSI_SESSION_DEBUG(cs, "unsupported function 0x%x",
