@@ -188,6 +188,126 @@ struct mmu_map_index {
 			  * Make optional on DEBUG */
 };
 
+/* Scan a page table for valid entries. Return true if any found */
+/* XXX: this is terribly slow - we need a queue/flush model to queue up frees and "flush" them all out together. */
+/* XXX; support huge pages */
+static bool
+pdpt_empty(pdp_entry_t *pdpt)
+{
+	int i;
+	
+	KASSERT(pdpt != NULL,
+		("Invalid pdpt\n"));
+
+	for (i = 0;i < NPDPEPG;i++) {
+		if (pdpt[i] & PG_V) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
+pdt_empty(pd_entry_t *pdt)
+{
+	int i;
+
+	KASSERT(pdt != NULL,
+		("Invalid pdt\n"));
+
+	for (i = 0;i < NPDEPG;i++) {
+		if (pdt[i] & PG_V) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
+pt_empty(pt_entry_t *pt)
+{
+	
+	int i;
+
+	KASSERT(pt != NULL,
+		("Invalid pt\n"));
+
+	for (i = 0;i < NPTEPG;i++) {
+		if (pt[i] & PG_V) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/* Free a table and update its entry in the hierarchy */
+static void
+mmu_map_pdpt_free(struct mmu_map_index *pti, uintptr_t va)
+{
+	vm_paddr_t pml4tep_ma;
+	pml4_entry_t *pml4tep;
+
+	KASSERT(pti->sanity == SANE, ("%s: pti insane!", __func__));
+
+	pml4tep = &pti->pml4t[pml4t_index(va)];
+
+	pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep)
+);
+	xen_queue_pt_update(pml4tep_ma, 0);
+	xen_flush_queue();
+
+	/* The PDPT is empty. Free it and zero the
+	 * pointer 
+	 */
+	//if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdpt);
+	pti->pdpt = NULL;
+}
+
+static void
+mmu_map_pdt_free(struct mmu_map_index *pti, uintptr_t va)
+{
+	vm_paddr_t pdptep_ma;
+	pdp_entry_t *pdptep;
+
+	KASSERT(pti->sanity == SANE, ("%s: pti insane!", __func__));
+
+	pdptep = &pti->pdpt[pdpt_index(va)];
+
+	pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
+	xen_queue_pt_update(pdptep_ma, 0);
+	xen_flush_queue();
+
+	/* The PDT is empty. Free it and zero the
+	 * pointer 
+	 */
+	//	if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdt);
+	pti->pdt = NULL;
+}
+
+static void
+mmu_map_pt_free(struct mmu_map_index *pti, uintptr_t va)
+{
+	vm_paddr_t pdtep_ma;
+	pd_entry_t *pdtep;
+
+	KASSERT(pti->sanity == SANE, ("%s: pti insane!", __func__));
+
+	pdtep = &pti->pdt[pdt_index(va)];
+
+	/* Zap the backing PDT entry */
+	pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
+	xen_queue_pt_update(pdtep_ma, 0);
+	xen_flush_queue();
+
+	/* The PT is empty. Free it and zero the
+	 * pointer */
+	//if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pt);
+	pti->pt = NULL;
+}
+
 size_t
 mmu_map_t_size(void)
 {
@@ -222,8 +342,7 @@ void mmu_map_t_fini(void *addr)
 	pti->sanity = 0;
 
 	if (mb->free != NULL) {
-		/* XXX: go through PT hierarchy and free + unmap
-		 * unused tables */ 
+		/* XXX */
 	}
 }
 
@@ -312,10 +431,12 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 
 	return true;
 }
-
+#include <sys/proc.h>
 bool
 mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 {
+	bool alloced = false;
+
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
 	struct mmu_map_index *pti = addr;
@@ -324,7 +445,6 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 	/* Reset pti */
 	pti->pml4t = pti->pdpt = pti->pdt = pti->pt = 0;
 
-	bool alloced = false; /* Did we have to alloc backing pages ? */
 	vm_paddr_t pt;
 
 	pti->pml4t = pmap_get_pml4t(pm);
@@ -416,12 +536,10 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 
 	if (pti->pdt != NULL) { /* Zap pdte */
 
-		pd_entry_t *pdtep;
-		vm_paddr_t pdtep_ma;
-
-		pdtep = &pti->pdt[pdt_index(va)];
-
 		if (pti->pt == NULL) {
+			pd_entry_t *pdtep;
+			pdtep = &pti->pdt[pdt_index(va)];
+
 			KASSERT(*pdtep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
 		} else {
 
@@ -443,33 +561,23 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 				return;
 			}
 
-			/* We can free the PT only after the PDT entry is zapped */
-			if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
-				/* Zap the backing PDT entry */
-				pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
-				xen_queue_pt_update(pdtep_ma, 0);
-				xen_flush_queue();
-
-				/* The PT is empty. Free it and zero the
-				 * pointer */
-				if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pt);
-				pti->pt = NULL;
+			if (pt_empty(pti->pt)) {
+				mmu_map_pt_free(pti, va);
+#ifdef notyet
+				pm->pm_stats.resident_count--;
+#endif
 
 			}
-
 		}
 
 		KASSERT(pti->pdpt != 0, ("Invalid pdpt\n"));
 	}
 
 	if (pti->pdpt != NULL) { /* Zap pdpte */
-
-		pdp_entry_t *pdptep;
-		vm_paddr_t pdptep_ma;
-
-		pdptep = &pti->pdpt[pdpt_index(va)];
-
 		if (pti->pdt == NULL) {
+			pdp_entry_t *pdptep;
+			pdptep = &pti->pdpt[pdpt_index(va)];
+
 			KASSERT(*pdptep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
 		}
 
@@ -491,28 +599,20 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			return;
 		}
 
-		/* We can free the PDT only after the PDPT entry is zapped */
-		if (memcchr(pti->pdt, 0, PAGE_SIZE) == NULL) {
-			pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
-			xen_queue_pt_update(pdptep_ma, 0);
-			xen_flush_queue();
-
-			/* The PDT is empty. Free it and zero the
-			 * pointer 
-			 */
-			if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdt);
-			pti->pdt = NULL;
+		if (pdt_empty(pti->pdt)) {
+			mmu_map_pdt_free(pti, va);
+#ifdef notyet
+			pm->pm_stats.resident_count--;
+#endif
 		}
 		KASSERT(pti->pml4t != 0, ("Invalid pml4t\n"));
 	}
 
 	if (pti->pml4t != NULL) { /* Zap pml4te */
-		pml4_entry_t *pml4tep;
-		vm_paddr_t pml4tep_ma;
-
-		pml4tep = &pti->pml4t[pml4t_index(va)];
-
 		if (pti->pdpt == NULL) {
+			pml4_entry_t *pml4tep;
+			pml4tep = &pti->pml4t[pml4t_index(va)];
+
 			KASSERT(*pml4tep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
 		}
 
@@ -534,17 +634,12 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			return;
 		}
 
-		if (memcchr(pti->pdpt, 0, PAGE_SIZE) == NULL) {
-			pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep)
-);
-			xen_queue_pt_update(pml4tep_ma, 0);
-			xen_flush_queue();
+		if (pdpt_empty(pti->pdpt)) {
+			mmu_map_pdpt_free(pti, va);
+#ifdef notyet
+			pm->pm_stats.resident_count--;
+#endif
 
-			/* The PDPT is empty. Free it and zero the
-			 * pointer 
-			 */
-			if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdpt);
-			pti->pdpt = NULL;
 		}
 	}			
 
@@ -553,5 +648,6 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 	 * higher level aliasing issues across pmaps and vcpus that
 	 * can't be addressed here.
 	 */
+
 }
 					
