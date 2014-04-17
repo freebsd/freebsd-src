@@ -787,7 +787,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	bool skipped_security;
 
 	if (request == NULL) {
-		log_debugx("beginning parameter negotiation; "
+		log_debugx("beginning operational parameter negotiation; "
 		    "waiting for Login PDU");
 		request = login_receive(conn, false);
 		skipped_security = false;
@@ -813,7 +813,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		    response_keys);
 	}
 
-	log_debugx("parameter negotiation done; "
+	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature Phase");
 
 	keys_save(response_keys, response);
@@ -987,7 +987,7 @@ login(struct connection *conn)
 		 * but we don't need it.
 		 */
 		log_debugx("authentication not required; "
-		    "transitioning to parameter negotiation");
+		    "transitioning to operational parameter negotiation");
 
 		if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0)
 			log_warnx("initiator did not set the \"T\" flag; "
@@ -1032,7 +1032,7 @@ login(struct connection *conn)
 
 	if (ag->ag_type == AG_TYPE_DENY) {
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type is \"deny\"");
+		log_errx(1, "auth-type is \"deny\"");
 	}
 
 	if (ag->ag_type == AG_TYPE_UNKNOWN) {
@@ -1040,7 +1040,7 @@ login(struct connection *conn)
 		 * This can happen with empty auth-group.
 		 */
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type not set, denying access");
+		log_errx(1, "auth-type not set, denying access");
 	}
 
 	log_debugx("CHAP authentication required");

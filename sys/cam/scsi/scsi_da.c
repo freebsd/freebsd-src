@@ -3013,13 +3013,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			struct disk_params *dp;
 			uint32_t block_size;
 			uint64_t maxsector;
-			u_int lbppbe;	/* LB per physical block exponent. */
 			u_int lalba;	/* Lowest aligned LBA. */
 
 			if (state == DA_CCB_PROBE_RC) {
 				block_size = scsi_4btoul(rdcap->length);
 				maxsector = scsi_4btoul(rdcap->addr);
-				lbppbe = 0;
 				lalba = 0;
 
 				/*
@@ -3040,7 +3038,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			} else {
 				block_size = scsi_4btoul(rcaplong->length);
 				maxsector = scsi_8btou64(rcaplong->addr);
-				lbppbe = rcaplong->prot_lbppbe & SRC16_LBPPBE;
 				lalba = scsi_2btoul(rcaplong->lalba_lbp);
 			}
 

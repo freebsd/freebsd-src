@@ -903,7 +903,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		offs = 0;
 		ma_offs += len;
 	}
-	vm_object_pip_subtract(sc->object, 1);
+	vm_object_pip_wakeup(sc->object);
 	VM_OBJECT_WUNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }

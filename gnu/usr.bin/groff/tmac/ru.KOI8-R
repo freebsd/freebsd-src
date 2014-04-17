@@ -86,7 +86,6 @@
 .ds doc-str-Lb-libgeom     Пользовательская API библиотека подсистемы ядра GEOM (libgeom, \-lgeom)
 .ds doc-str-Lb-libi386     Библиотека архитектуры i386 (libi386, \-li386)
 .ds doc-str-Lb-libipsec    Библиотека управления IPsec Policy (libipsec, \-lipsec)
-.ds doc-str-Lb-libipx      Библиотека поддержки конверсии адресов IPX (libipx, \-lipx)
 .ds doc-str-Lb-libkvm      Библиотека доступа к данным ядра (libkvm, \-lkvm)
 .ds doc-str-Lb-libm        Библиотека математических функций (libm, \-lm)
 .\" XXX ds doc-str-Lb-libmd       Message Digest (MD4, MD5, и т.д.) Support Library (libmd, \-lmd)

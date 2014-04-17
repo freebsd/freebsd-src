@@ -74,7 +74,7 @@ trap error EXIT
 SCRIPT="$1"
 shift
 
-f_dprintf "Began Instalation at %s" "$( date )"
+f_dprintf "Began Installation at %s" "$( date )"
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 

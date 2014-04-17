@@ -60,7 +60,6 @@ struct vmxctx {
 	register_t	host_rbp;
 	register_t	host_rsp;
 	register_t	host_rbx;
-	register_t	host_rip;
 	/*
 	 * XXX todo debug registers and fpu state
 	 */

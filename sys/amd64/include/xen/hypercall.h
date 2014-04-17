@@ -51,15 +51,8 @@
 #define CONFIG_XEN_COMPAT	0x030002
 #define __must_check
 
-#ifdef XEN
 #define HYPERCALL_STR(name)					\
 	"call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
-#else
-#define HYPERCALL_STR(name)					\
-	"mov $("STR(__HYPERVISOR_##name)" * 32),%%eax; "\
-	"add hypercall_stubs(%%rip),%%rax; "			\
-	"call *%%rax"
-#endif
 
 #define _hypercall0(type, name)			\
 ({						\

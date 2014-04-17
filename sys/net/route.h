@@ -86,10 +86,6 @@ struct rt_metrics {
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 extern u_int rt_numfibs;	/* number of usable routing tables */
 extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
-/*
- * XXX kernel function pointer `rt_output' is visible to applications.
- */
-struct mbuf;
 
 /*
  * We distinguish between routes to hosts and routes to networks,
@@ -131,20 +127,6 @@ struct rtentry {
 };
 #endif /* _KERNEL || _WANT_RTENTRY */
 
-/*
- * Following structure necessary for 4.3 compatibility;
- * We should eventually move it to a compat file.
- */
-struct ortentry {
-	u_long	rt_hash;		/* to speed lookups */
-	struct	sockaddr rt_dst;	/* key */
-	struct	sockaddr rt_gateway;	/* value */
-	short	rt_flags;		/* up/down?, host/net */
-	short	rt_refcnt;		/* # held references */
-	u_long	rt_use;			/* raw # packets forwarded */
-	struct	ifnet *rt_ifp;		/* the answer: interface to use */
-};
-
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
 #define	RTF_HOST	0x4		/* host entry (net otherwise) */
@@ -162,12 +144,7 @@ struct ortentry {
 #define RTF_BLACKHOLE	0x1000		/* just discard pkts (during updates) */
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */
 #define RTF_PROTO1	0x8000		/* protocol specific routing flag */
-
-/* XXX: temporary to stay API/ABI compatible with userland */
-#ifndef _KERNEL
-#define RTF_PRCLONING	0x10000		/* unused, for compatibility */
-#endif
-
+/*			0x10000		   unused, was RTF_PRCLONING */
 /*			0x20000		   unused, was RTF_WASCLONED */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 /*			0x80000		   unused */
@@ -229,8 +206,8 @@ struct rt_msghdr {
 #define RTM_REDIRECT	0x6	/* Told to use different route */
 #define RTM_MISS	0x7	/* Lookup failed on this address */
 #define RTM_LOCK	0x8	/* fix specified metrics */
-#define RTM_OLDADD	0x9	/* caused by SIOCADDRT */
-#define RTM_OLDDEL	0xa	/* caused by SIOCDELRT */
+		    /*	0x9  */
+		    /*	0xa  */
 #define RTM_RESOLVE	0xb	/* req to resolve dst to LL addr */
 #define RTM_NEWADDR	0xc	/* address being added to iface */
 #define RTM_DELADDR	0xd	/* address being removed from iface */
@@ -404,11 +381,6 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *);
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
-
-#ifndef BURN_BRIDGES
-/* defaults to "all" FIBs */
-int	 rtinit_fib(struct ifaddr *, int, int);
-#endif
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones

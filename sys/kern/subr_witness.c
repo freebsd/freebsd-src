@@ -547,12 +547,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
-	 * netatalk
-	 */
-	{ "ddp_list_mtx", &lock_class_mtx_sleep },
-	{ "ddp_mtx", &lock_class_mtx_sleep },
-	{ NULL, NULL },
-	/*
 	 * BPF
 	 */
 	{ "bpf global lock", &lock_class_mtx_sleep },

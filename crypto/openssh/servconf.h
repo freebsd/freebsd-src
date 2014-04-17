@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.111 2013/12/05 01:16:41 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.112 2014/01/29 06:18:35 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -118,8 +118,6 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
 	int     challenge_response_authentication;
-	int     zero_knowledge_password_authentication;
-					/* If true, permit jpake auth */
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */

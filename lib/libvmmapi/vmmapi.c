@@ -342,6 +342,13 @@ vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 	return (error);
 }
 
+int
+vm_suspend(struct vmctx *ctx)
+{
+
+	return (ioctl(ctx->fd, VM_SUSPEND, 0));
+}
+
 static int
 vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
     int error_code, int error_code_valid)
@@ -455,6 +462,41 @@ vm_ioapic_pincount(struct vmctx *ctx, int *pincount)
 {
 
 	return (ioctl(ctx->fd, VM_IOAPIC_PINCOUNT, pincount));
+}
+
+int
+vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_ASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_DEASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_PULSE_IRQ, &isa_irq));
 }
 
 int

@@ -1275,6 +1275,7 @@ charged:
 	new_entry->protection = prot;
 	new_entry->max_protection = max;
 	new_entry->wired_count = 0;
+	new_entry->wiring_thread = NULL;
 	new_entry->read_ahead = VM_FAULT_READ_AHEAD_INIT;
 	new_entry->next_read = OFF_TO_IDX(offset);
 
@@ -1839,7 +1840,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 * free pages allocating pv entries.
 		 */
 		if ((flags & MAP_PREFAULT_MADVISE) &&
-		    cnt.v_free_count < cnt.v_free_reserved) {
+		    vm_cnt.v_free_count < vm_cnt.v_free_reserved) {
 			psize = tmpidx;
 			break;
 		}

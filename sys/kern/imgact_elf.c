@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_core.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -1740,14 +1740,16 @@ __elfN(note_threadmd)(void *arg, struct sbuf *sb, size_t *sizep)
 
 	td = (struct thread *)arg;
 	size = *sizep;
-	buf = NULL;
 	if (size != 0 && sb != NULL)
 		buf = malloc(size, M_TEMP, M_ZERO | M_WAITOK);
+	else
+		buf = NULL;
 	size = 0;
 	__elfN(dump_thread)(td, buf, &size);
 	KASSERT(*sizep == size, ("invalid size"));
 	if (size != 0 && sb != NULL)
 		sbuf_bcat(sb, buf, size);
+	free(buf, M_TEMP);
 	*sizep = size;
 }
 

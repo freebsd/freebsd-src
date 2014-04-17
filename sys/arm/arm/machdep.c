@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
+#include <machine/vfp.h>
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
@@ -142,10 +143,6 @@ extern vm_offset_t ksym_start, ksym_end;
 #define KERNEL_PT_MAX	78
 
 static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
 
 vm_paddr_t pmap_pa;
 
@@ -370,8 +367,8 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(cnt.v_free_count),
-	    (uintmax_t)arm32_ptob(cnt.v_free_count) / mbyte);
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count),
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
 		arm_devmap_print_table();
@@ -379,8 +376,6 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->un_32.pcb32_und_sp = (u_int)thread0.td_kstack +
-	    USPACE_UNDEF_STACK_TOP;
 	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
@@ -742,28 +737,26 @@ sys_sigreturn(td, uap)
 		const struct __ucontext *sigcntxp;
 	} */ *uap;
 {
-	struct sigframe sf;
-	struct trapframe *tf;
+	ucontext_t uc;
 	int spsr;
 	
 	if (uap == NULL)
 		return (EFAULT);
-	if (copyin(uap->sigcntxp, &sf, sizeof(sf)))
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 	/*
 	 * Make sure the processor mode has not been tampered with and
 	 * interrupts have not been disabled.
 	 */
-	spsr = sf.sf_uc.uc_mcontext.__gregs[_REG_CPSR];
+	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
 	    (spsr & (I32_bit | F32_bit)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
-	tf = td->td_frame;
-	set_mcontext(td, &sf.sf_uc.uc_mcontext);
+	set_mcontext(td, &uc.uc_mcontext);
 
 	/* Restore signal mask. */
-	kern_sigprocmask(td, SIG_SETMASK, &sf.sf_uc.uc_sigmask, NULL, 0);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }
@@ -997,6 +990,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_pcb->pcb_vfpcpu = -1;
+	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
@@ -1282,10 +1277,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);

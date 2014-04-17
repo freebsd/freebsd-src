@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -840,6 +840,16 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	    &zp->z_size, 8);
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs), NULL,
 	    &zp->z_pflags, 8);
+
+	/*
+	 * In a case vp->v_vfsp != zp->z_zfsvfs->z_vfs (e.g. snapshots) our
+	 * callers might not be able to detect properly that we are read-only,
+	 * so check it explicitly here.
+	 */
+	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EROFS));
+	}
 
 	/*
 	 * If immutable or not appending then return EPERM
@@ -3713,9 +3723,8 @@ static int
 zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
     caller_context_t *ct, int flags)
 {
-	znode_t		*tdzp, *szp, *tzp;
-	znode_t		*sdzp = VTOZ(sdvp);
-	zfsvfs_t	*zfsvfs = sdzp->z_zfsvfs;
+	znode_t		*tdzp, *sdzp, *szp, *tzp;
+	zfsvfs_t 	*zfsvfs;
 	zilog_t		*zilog;
 	vnode_t		*realvp;
 	zfs_dirlock_t	*sdl, *tdl;
@@ -3726,24 +3735,27 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	int		zflg = 0;
 	boolean_t	waited = B_FALSE;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(sdzp);
-	zilog = zfsvfs->z_log;
-
-	/*
-	 * Make sure we have the real vp for the target directory.
-	 */
-	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
-		tdvp = realvp;
-
 	tdzp = VTOZ(tdvp);
 	ZFS_VERIFY_ZP(tdzp);
+	zfsvfs = tdzp->z_zfsvfs;
+	ZFS_ENTER(zfsvfs);
+	zilog = zfsvfs->z_log;
+	sdzp = VTOZ(sdvp);
+
+	/*
+	 * In case sdzp is not valid, let's be sure to exit from the right
+	 * zfsvfs_t.
+	 */
+	if (sdzp->z_sa_hdl == NULL) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EIO));
+	}
 
 	/*
 	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
 	 * ctldir appear to have the same v_vfsp.
 	 */
-	if (tdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
+	if (sdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EXDEV));
 	}
@@ -5110,6 +5122,16 @@ zfs_space(vnode_t *vp, int cmd, flock64_t *bfp, int flag,
 	if (cmd != F_FREESP) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EINVAL));
+	}
+
+	/*
+	 * In a case vp->v_vfsp != zp->z_zfsvfs->z_vfs (e.g. snapshots) our
+	 * callers might not be able to detect properly that we are read-only,
+	 * so check it explicitly here.
+	 */
+	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EROFS));
 	}
 
 	if (error = convoff(vp, bfp, 0, offset)) {

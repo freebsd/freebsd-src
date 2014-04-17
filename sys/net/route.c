@@ -1733,15 +1733,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	return (error);
 }
 
-#ifndef BURN_BRIDGES
-/* special one for inet internal use. may not use. */
-int
-rtinit_fib(struct ifaddr *ifa, int cmd, int flags)
-{
-	return (rtinit1(ifa, cmd, flags, RT_ALL_FIBS));
-}
-#endif
-
 /*
  * Set up a routing table entry, normally
  * for an interface.
@@ -1782,6 +1773,16 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+	/*
+	 * notify the SCTP stack
+	 * this will only get called when an address is added/deleted
+	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
+	 */
+	sctp_addr_change(ifa, cmd);
+#endif /* SCTP */
+#endif
 	return (rtsock_addrmsg(cmd, ifa, fibnum));
 }
 
@@ -1832,16 +1833,6 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-	/*
-	 * notify the SCTP stack
-	 * this will only get called when an address is added/deleted
-	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
-	 */
-	sctp_addr_change(ifa, cmd);
-#endif /* SCTP */
-#endif
 	if (cmd == RTM_ADD) {
 		rt_addrmsg(cmd, ifa, fibnum);
 		if (rt != NULL)

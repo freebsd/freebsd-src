@@ -534,13 +534,6 @@ stub_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-stub_netatalk_aarp_send(struct ifnet *ifp, struct label *iflpabel,
-    struct mbuf *m, struct label *mlabel)
-{
-
-}
-
-static void
 stub_netinet_arp_send(struct ifnet *ifp, struct label *iflpabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1755,8 +1748,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_mount_create = stub_mount_create,
 	.mpo_mount_destroy_label = stub_destroy_label,
 	.mpo_mount_init_label = stub_init_label,
-
-	.mpo_netatalk_aarp_send = stub_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = stub_netinet_arp_send,
 	.mpo_netinet_firewall_reply = stub_netinet_firewall_reply,

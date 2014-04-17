@@ -108,13 +108,15 @@ check_access(SVCXPRT *xprt, rpcproc_t proc, void *args, unsigned int rpcbvers)
 	}
 
 #ifdef LIBWRAP
-	if (addr->sa_family == AF_LOCAL)
-		return 1;
-	request_init(&req, RQ_DAEMON, "rpcbind", RQ_CLIENT_SIN, addr, 0);
-	sock_methods(&req);
-	if(!hosts_access(&req)) {
-		logit(deny_severity, addr, proc, prog, ": request from unauthorized host");
-		return 0;
+	if (libwrap && addr->sa_family != AF_LOCAL) {
+		request_init(&req, RQ_DAEMON, "rpcbind", RQ_CLIENT_SIN, addr,
+		    0);
+		sock_methods(&req);
+		if(!hosts_access(&req)) {
+			logit(deny_severity, addr, proc, prog,
+			    ": request from unauthorized host");
+			return 0;
+		}
 	}
 #endif
 	if (verboselog)

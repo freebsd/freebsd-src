@@ -75,7 +75,8 @@ struct sfxge_tx_mapping {
 	enum sfxge_tx_buf_flags	flags;
 };
 
-#define SFXGE_TX_MAX_DEFERRED 64
+#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	64
+#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT	64
 
 /*
  * Deferred packet list.
@@ -159,6 +160,7 @@ struct sfxge_txq {
 	unsigned long			tso_long_headers;
 	unsigned long			collapses;
 	unsigned long			drops;
+	unsigned long			early_drops;
 
 	/* The following fields change more often, and are used mostly
 	 * on the completion path

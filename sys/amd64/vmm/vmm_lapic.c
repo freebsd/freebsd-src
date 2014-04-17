@@ -230,10 +230,12 @@ lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
 	off = gpa - DEFAULT_APIC_BASE;
 
 	/*
-	 * Memory mapped local apic accesses must be 4 bytes wide and
-	 * aligned on a 16-byte boundary.
+	 * Memory mapped local apic accesses should be aligned on a
+	 * 16-byte boundary.  They are also suggested to be 4 bytes
+	 * wide, alas not all OSes follow suggestions.
 	 */
-	if (size != 4 || off & 0xf)
+	off &= ~3;
+	if (off & 0xf)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);

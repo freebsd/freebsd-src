@@ -1,3 +1,26 @@
+# LIBUCL
+
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+
+**Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
+
+- [Introduction](#introduction)
+- [Basic structure](#basic-structure)
+- [Improvements to the json notation](#improvements-to-the-json-notation)
+	- [General syntax sugar](#general-syntax-sugar)
+	- [Automatic arrays creation](#automatic-arrays-creation)
+	- [Named keys hierarchy](#named-keys-hierarchy)
+	- [Convenient numbers and booleans](#convenient-numbers-and-booleans)
+- [General improvements](#general-improvements)
+	- [Commments](#commments)
+	- [Macros support](#macros-support)
+	- [Variables support](#variables-support)
+	- [Multiline strings](#multiline-strings)
+- [Emitter](#emitter)
+- [Validation](#validation)
+- [Performance](#performance)
+- [Conclusion](#conclusion)
+
 ## Introduction
 
 This document describes the main features and principles of the configuration
@@ -261,6 +284,10 @@ Each UCL object can be serialized to one of the three supported formats:
 * `Compacted JSON` - compact json notation (without spaces or newlines);
 * `Configuration` - nginx like notation;
 * `YAML` - yaml inlined notation.
+
+## Validation
+
+UCL allows validation of objects. It uses the same schema that is used for json: [json schema v4](http://json-schema.org). UCL supports the full set of json schema with the exception of remote references. This feature is unlikely useful for configuration objects. Of course, schema definition can be in UCL format instead of JSON that sinplifies schemas writing. Moreover, since UCL supports multiple values for keys in an object it is possible to specify generic integer constraints `maxValues` and `minValues` to define the limits of values in a single key. UCL currently is not absolutely strict about validation schemas themselves, therefore UCL users should supply valid schemas (as it is defined in json-schema draft v4) to ensure that input is validated properly.
 
 ## Performance
 

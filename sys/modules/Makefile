@@ -136,7 +136,6 @@ SUBDIR=	\
 	if_bridge \
 	if_disc \
 	if_edsc \
-	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
@@ -149,6 +148,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
+	${_imgact_binmisc} \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
@@ -234,6 +234,7 @@ SUBDIR=	\
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
+	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfs_common \
@@ -372,6 +373,7 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_imgact_binmisc=	imgact_binmisc
 _vmware=	vmware
 .endif
 

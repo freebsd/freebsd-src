@@ -5948,14 +5948,15 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		ATH_LOCK(sc);
 		if (IS_RUNNING(ifp)) {
 			/*
 			 * To avoid rescanning another access point,
 			 * do not call ath_init() here.  Instead,
 			 * only reflect promisc mode settings.
 			 */
+			ATH_LOCK(sc);
 			ath_mode_init(sc);
+			ATH_UNLOCK(sc);
 		} else if (ifp->if_flags & IFF_UP) {
 			/*
 			 * Beware of being called during attach/detach
@@ -5969,14 +5970,15 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!sc->sc_invalid)
 				ath_init(sc);	/* XXX lose error */
 		} else {
+			ATH_LOCK(sc);
 			ath_stop_locked(ifp);
 #ifdef notyet
 			/* XXX must wakeup in places like ath_vap_delete */
 			if (!sc->sc_invalid)
 				ath_hal_setpower(sc->sc_ah, HAL_PM_FULL_SLEEP);
 #endif
+			ATH_UNLOCK(sc);
 		}
-		ATH_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:

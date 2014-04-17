@@ -43,7 +43,7 @@ CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		sha256.ref sha256hl.c sha512.ref sha512hl.c
 
 CFLAGS+= -I${.CURDIR}
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/${MACHINE_ARCH} ${.CURDIR}/../../sys/crypto/sha2
 
 .if exists(${MACHINE_ARCH}/sha.S)
 SRCS+=	sha.S

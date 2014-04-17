@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 14, 1993
+.Dd April 14, 2014
 .Dt UNITS 1
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar filename
-.Op Fl qv
+.Op Fl qvUV
 .Op Ar from-unit to-unit
 .Sh OPTIONS
 The following options are available:
@@ -18,14 +18,21 @@ Specify the name of the units data file to load.
 .It Fl q
 Suppress prompting of the user for units and the display of statistics
 about the number of units loaded.
-.It Fl v
-Print the version number.
+.It Fl U
+If the default unit file exists prints its location.  If not, print
+.Qo
+Units data file not found
+.Qc
+.It Fl V
+Print the version number, usage, and then exit.
 .It Ar from-unit to-unit
 Allow a single unit conversion to be done directly from the command
 line.
 The program will not print prompts.
 It will print out the
 result of the single specified conversion.
+.It Fl v
+Print the units in the conversion output.  Be more verbose in general.
 .El
 .Sh DESCRIPTION
 The

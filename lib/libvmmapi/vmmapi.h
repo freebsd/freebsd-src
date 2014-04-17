@@ -61,6 +61,7 @@ int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
+int	vm_suspend(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
 int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
@@ -71,6 +72,9 @@ int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
+int	vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);

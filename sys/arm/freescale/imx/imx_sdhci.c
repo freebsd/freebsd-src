@@ -730,9 +730,6 @@ imx_sdhci_attach(device_t dev)
 		sc->baseclk_hz = imx51_get_clock(IMX51CLK_PERCLK_ROOT);
 	}
 
-	sdhci_init_slot(dev, &sc->slot, 0);
-	callout_init(&sc->r1bfix_callout, true);
-
 	/*
 	 * If the slot is flagged with the non-removable property, set our flag
 	 * to always force the SDHCI_CARD_PRESENT bit on.
@@ -751,6 +748,9 @@ imx_sdhci_attach(device_t dev)
 		/* XXX put real gpio hookup here. */
 		sc->force_card_present = true;
 	}
+
+	callout_init(&sc->r1bfix_callout, true);
+	sdhci_init_slot(dev, &sc->slot, 0);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
