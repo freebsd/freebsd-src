@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -87,4 +88,16 @@ cheri_system_putchar(int c)
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
+}
+
+register_t cheri_system_methodnum_clock_gettime = CHERI_SYSTEM_CLOCK_GETTIME;
+int
+cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
+{
+
+	return (cheri_invoke(cheri_system_object,
+	    cheri_system_methodnum_putchar, clock_id, 0, 0, 0, 0, 0, 0, tp,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap()));
 }

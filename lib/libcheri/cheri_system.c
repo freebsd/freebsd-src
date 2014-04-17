@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -76,6 +77,22 @@ cheri_system_putchar(int c)
 	return (putchar(c));
 }
 
+int
+cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
+{
+	int ret;
+	struct timespec ts;
+
+		ret = clock_gettime(clock_id, &ts);
+	if (ret == 0)
+		/*
+		 * XXX-BD: If we have a bad TP pointer the caller should fault
+		 * not the cheri_system context.
+		 */
+		*tp = ts;
+	return (ret);
+}
+
 /*
  * This function implements the "landing pad" for CHERI method invocations on
  * system capabilities.  For now, several pretty critical limitations, which
@@ -124,6 +141,9 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
 
 	case CHERI_SYSTEM_METHOD_PUTCHAR:
 		return (cheri_system_putchar(a1));
+
+	case CHERI_SYSTEM_CLOCK_GETTIME:
+		return (cheri_system_clock_gettime(a1, c3));
 
 	default:
 		if (methodnum >= CHERI_SYSTEM_USER_BASE &&

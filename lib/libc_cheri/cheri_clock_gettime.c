@@ -1,5 +1,4 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -29,47 +28,17 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _CHERI_SYSTEM_H_
-#define	_CHERI_SYSTEM_H_
+#include <machine/cheri.h>
+#include <machine/cheric.h>
 
-/*
- * This header defines the interface for the CHERI system class.  Currently,
- * it is a bit catch-all, and provides a few key service that make it easy to
- * implement (and debug) sandboxed code.  In the future, we anticipate the
- * system class being an entry point to a number of other classes -- e.g.,
- * providing an open() method that returns file-descriptor objects.  We are
- * definitely not yet at that point.
- */
+#include <cheri/cheri_system.h>
 
-#define	CHERI_SYSTEM_METHOD_HELLOWORLD	1	/* printf("hello world\n"); */
-#define	CHERI_SYSTEM_METHOD_PUTS	2	/* puts(). */
-#define	CHERI_SYSTEM_METHOD_PUTCHAR	3	/* putchar(). */
-#define	CHERI_SYSTEM_CLOCK_GETTIME	4	/* clock_gettime(). */
+#include <time.h>
 
-/*
- * In the sandbox: notify the stub implementation of the object capability to
- * invoke.
- */
-void	cheri_system_setup(struct cheri_object system_object);
+int
+clock_gettime(clockid_t clock_id, struct timespec *tp)
+{
 
-/*
- * Methods themselves.
- */
-int	cheri_system_helloworld(void);
-int	cheri_system_puts(__capability const char *str);
-int	cheri_system_putchar(int c);
-
-/*
- * Method numbers, which can be modified to override the bottom layer of the
- * system class stub to invoke alternative methods.
- */
-extern register_t cheri_system_methodnum_helloworld;
-extern register_t cheri_system_methodnum_puts;
-extern register_t cheri_system_methodnum_putchar;
-
-/*
- * XXXRW: This API probably doesn't belong here.  But where does it belong?
- */
-__capability struct sandbox	*cheri_getsandbox(void);
-
-#endif /* !_CHERI_SYSTEM_H_ */
+	return(cheri_system_clock_gettime(clock_id,
+	    cheri_ptr(tp, sizeof(struct timespec))));
+}
