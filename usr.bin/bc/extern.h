@@ -35,8 +35,6 @@ void		tstpcont(int);
 unsigned char	bc_eof(EditLine *, int);
 
 extern int	lineno;
-extern char	*yytext;
-extern FILE	*yyin;
 extern int	fileindex;
 extern int	sargc;
 extern const char	**sargv;
@@ -47,4 +45,3 @@ extern History		*hist;
 extern HistEvent	 he;
 extern char	*cmdexpr;
 extern struct termios ttysaved;
-extern bool		interactive;
