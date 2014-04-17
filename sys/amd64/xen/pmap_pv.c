@@ -118,22 +118,22 @@ __FBSDID("$FreeBSD$");
 static struct {
 	struct rwlock	lock;
 	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
+} pvh_local __aligned(CACHE_LINE_SIZE);
 
-#define	pvh_global_lock	pvh_global.lock
+#define	pvh_local_lock	pvh_local.lock
 
 /*
  * Data for the pv entry allocation mechanism
  */
-static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
+extern TAILQ_HEAD(pch, pv_chunk) pv_chunks;
 #define	NPV_LIST_LOCKS	MAXCPU
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
-static struct mtx pv_chunks_mutex;
-static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
+extern struct mtx pv_chunks_mutex;
+extern struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 
 vm_map_t	pv_map; /* Kernel submap for pc chunk alloc */
 
@@ -246,7 +246,7 @@ pmap_get_pv_entry(pmap_t pmap)
 	struct pv_chunk *pc;
 	vm_page_t m;
 
-	rw_assert(&pvh_global_lock, RA_LOCKED);
+	rw_assert(&pvh_local_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(atomic_add_long(&pv_entry_allocs, 1));
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
@@ -325,13 +325,13 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		return false; /* Duplicate */
 	}
 
-	rw_rlock(&pvh_global_lock);
+	rw_rlock(&pvh_local_lock);
 
 	pv = pmap_get_pv_entry(pmap);
 	pv->pv_va = va;
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 
-	rw_runlock(&pvh_global_lock);
+	rw_runlock(&pvh_local_lock);
 
 	return true;
 }
@@ -346,7 +346,7 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	rw_rlock(&pvh_global_lock);
+	rw_rlock(&pvh_local_lock);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
@@ -362,7 +362,7 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		}
 	}
 
-	rw_runlock(&pvh_global_lock);
+	rw_runlock(&pvh_local_lock);
 	return found;
 }
 
@@ -374,14 +374,14 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	rw_rlock(&pvh_global_lock);
+	rw_rlock(&pvh_local_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			break;
 		}
 	}
 
-	rw_runlock(&pvh_global_lock);
+	rw_runlock(&pvh_local_lock);
 
 	return pv;
 
@@ -397,7 +397,8 @@ pmap_pv_init(void)
  	/*
 	 * Initialize the global pv list lock.
 	 */
-	rw_init(&pvh_global_lock, "pmap pv global");
+	rw_init(&pvh_local_lock, "pmap pv global");
+
 
 	/*
 	 * Initialize the pv chunk list mutex.
@@ -437,15 +438,15 @@ pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m)
 {
 	pv_entry_t pv;
 
-	rw_rlock(&pvh_global_lock);
+	rw_rlock(&pvh_local_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) { /* We return the first hit */
-			rw_runlock(&pvh_global_lock);
+			rw_runlock(&pvh_local_lock);
 			return pv->pv_va;
 		}
 	}
 
-	rw_runlock(&pvh_global_lock);
+	rw_runlock(&pvh_local_lock);
 	return VM_MAX_KERNEL_ADDRESS + 1;
 }
 
@@ -474,10 +475,10 @@ pmap_pv_iterate(vm_page_t m, pv_cb_t cb, iterate_flags iflag)
 
 	switch(iflag) {
 	case PV_RO_ITERATE:
-		rw_rlock(&pvh_global_lock);
+		rw_rlock(&pvh_local_lock);
 		break;
 	case PV_RW_ITERATE:
-		rw_wlock(&pvh_global_lock);
+		rw_wlock(&pvh_local_lock);
 		break;
 	default:
 		panic("%s: unknown iterate flag, %d, requested\n", __func__, iflag);
@@ -490,10 +491,10 @@ pmap_pv_iterate(vm_page_t m, pv_cb_t cb, iterate_flags iflag)
 
 	switch(iflag) {
 	case PV_RO_ITERATE:
-		rw_runlock(&pvh_global_lock);
+		rw_runlock(&pvh_local_lock);
 		break;
 	case PV_RW_ITERATE:
-		rw_wunlock(&pvh_global_lock);
+		rw_wunlock(&pvh_local_lock);
 		break;
 	default:
 		panic("%s: unknown iterate flag, %d, requested\n", __func__, iflag);
@@ -569,10 +570,10 @@ pmap_pv_page_unmap(vm_page_t m)
 {
 	pv_entry_t pv, next_pv;
 
-	rw_wlock(&pvh_global_lock);
+	rw_wlock(&pvh_local_lock);
 	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_next, next_pv) {
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 	}
-	rw_wunlock(&pvh_global_lock);
+	rw_wunlock(&pvh_local_lock);
 	return;
 }
