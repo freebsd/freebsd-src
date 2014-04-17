@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2005
+.Dd February 5, 2014
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -143,6 +143,12 @@ The current password file.
 .It Pa /etc/passwd
 A Version 7 format password file.
 .El
+.Sh EXAMPLES
+Regenerate the password database after manually editing or replacing
+the password file:
+.Bd -literal -offset -indent
+/usr/sbin/pwd_mkdb -p /etc/master.passwd
+.Ed
 .Sh COMPATIBILITY
 Previous versions of the system had a program similar to
 .Nm ,
