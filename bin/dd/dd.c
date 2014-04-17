@@ -81,6 +81,7 @@ size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
 char	fill_char;		/* Character to fill with if defined */
+volatile sig_atomic_t need_summary;
 
 int
 main(int argc __unused, char *argv[])
@@ -89,7 +90,7 @@ main(int argc __unused, char *argv[])
 	jcl(argv);
 	setup();
 
-	(void)signal(SIGINFO, summaryx);
+	(void)signal(SIGINFO, siginfo_handler);
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -98,6 +99,13 @@ main(int argc __unused, char *argv[])
 		dd_in();
 
 	dd_close();
+	/*
+	 * Some devices such as cfi(4) may perform significant amounts
+	 * of work when a write descriptor is closed.  Close the out
+	 * descriptor explicitly so that the summary handler (called
+	 * from an atexit() hook) includes this work.
+	 */
+	close(out.fd);
 	exit(0);
 }
 
@@ -232,8 +240,8 @@ setup(void)
 		ctab = casetab;
 	}
 
-	(void)gettimeofday(&tv, (struct timezone *)NULL);
-	st.start = tv.tv_sec + tv.tv_usec * 1e-6; 
+	(void)gettimeofday(&tv, NULL);
+	st.start = tv.tv_sec + tv.tv_usec * 1e-6;
 }
 
 static void
@@ -368,6 +376,9 @@ dd_in(void)
 
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
+		if (need_summary) {
+			summary();
+		}
 	}
 }
 
