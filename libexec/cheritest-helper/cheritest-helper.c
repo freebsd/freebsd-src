@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -39,6 +40,7 @@
 #include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
 
+#include <inttypes.h>
 #include <md5.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,6 +221,18 @@ invoke_malloc(void)
 	return (0);
 }
 
+static int
+invoke_clock_gettime(void)
+{
+	struct timespec t;
+
+	if (clock_gettime(CLOCK_REALTIME, &t) == -1)
+		return (-1);
+
+	printf("real time since epoch is %jd.%09ld\n", (intmax_t)t.tv_sec,
+	    t.tv_nsec);
+}
+
 /*
  * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
  * c3, and place the checksum in c4.  a0 will hold input data length.  a1
@@ -292,6 +306,9 @@ invoke(register_t op, size_t len, struct cheri_object system_object,
 
 	case CHERITEST_HELPER_OP_FD_WRITE_C:
 		return (invoke_fd_write_c(fd_object));
+
+	case CHERITEST_HELPER_OP_CS_CLOCK_GETTIME:
+		return (invoke_clock_gettime());
 
 	}
 	return (-1);

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -102,6 +103,7 @@ usage(void)
 	fprintf(stderr, "cheritest ccheck_user_pass\n");
 	fprintf(stderr, "cheritest copyregs\n");
 	fprintf(stderr, "cheritest invoke_abort\n");
+	fprintf(stderr, "cheritest invoke_clock_gettime\n");
 	fprintf(stderr, "cheritest invoke_cp2_bound\n");
 	fprintf(stderr, "cheritest invoke_cp2_perm\n");
 	fprintf(stderr, "cheritest invoke_cp2_seal\n");
@@ -433,6 +435,8 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_SYSCAP, "syscap");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MALLOC, "malloc");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME, "clock_gettime");
 	return (0);
 }
 
@@ -491,6 +495,9 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_copyregs();
 		else if (strcmp(argv[i], "invoke_abort") == 0)
 			cheritest_invoke_simple_op(CHERITEST_HELPER_OP_ABORT);
+		else if (strcmp(argv[i], "invoke_clock_gettime") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME);
 		else if (strcmp(argv[i], "invoke_cp2_bound") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_CP2_BOUND);

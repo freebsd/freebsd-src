@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -53,5 +54,6 @@
 #define	CHERITEST_HELPER_OP_FD_LSEEK_C	20
 #define	CHERITEST_HELPER_OP_FD_READ_C	21
 #define	CHERITEST_HELPER_OP_FD_WRITE_C	22
+#define	CHERITEST_HELPER_OP_CS_CLOCK_GETTIME	23
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */
