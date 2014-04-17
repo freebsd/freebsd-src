@@ -136,6 +136,9 @@ SRCS+=		bcopy.S			\
 		strncpy_c.c		\
 		strnlen_c.c
 
+# libc/sys
+SRCS+=		__error.c
+
 # contrib/gdtoa
 CFLAGS.strtod.c=	-Wno-unused-parameter -Wno-uninitialized \
 			-Wno-incompatible-pointer-types-discards-qualifiers
@@ -241,6 +244,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${LIBC_DIR}/${MACHINE}/string
 .PATH: ${LIBC_DIR}/stdio
 .PATH: ${LIBC_DIR}/string
+.PATH: ${LIBC_DIR}/sys
 .PATH: ${LIBC_DIR}/gdtoa
 .PATH: ${LIBC_DIR}/locale
 .PATH: ${LIBC_DIR}/inet
