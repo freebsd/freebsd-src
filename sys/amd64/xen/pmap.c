@@ -1646,9 +1646,31 @@ pmap_remove_all(vm_page_t m)
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	KASSERT(pmap == kernel_pmap, ("XXX: %s: TODO\n", __func__));
 
-	return 	pmap_kextract(va);
+	if (pmap == kernel_pmap) {
+		return pmap_kextract(va);
+	}
+
+	pt_entry_t *pte;
+	vm_paddr_t ma = 0;
+
+	
+	/* Walk the PT hierarchy to get the ma */
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	pte = pmap_vtopte_inspect(pmap, va, &tptr);
+
+	if (pte != NULL && (*pte & PG_V)) {
+		ma = (*pte & PG_FRAME) | (va & PAGE_MASK);
+	}
+
+	pmap_vtopte_release(pmap, va, &tptr);
+
+	return xpmap_mtop(ma);
 }
 
 vm_page_t
