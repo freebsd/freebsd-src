@@ -263,6 +263,7 @@ setvar(const char *name, const char *val, int flags)
 	} else {
 		len += strlen(val);
 	}
+	INTOFF;
 	nameeq = ckmalloc(len);
 	memcpy(nameeq, name, namelen);
 	nameeq[namelen] = '=';
@@ -271,6 +272,7 @@ setvar(const char *name, const char *val, int flags)
 	else
 		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);
+	INTON;
 }
 
 static int
@@ -303,6 +305,7 @@ change_env(const char *s, int set)
 	char *eqp;
 	char *ss;
 
+	INTOFF;
 	ss = savestr(s);
 	if ((eqp = strchr(ss, '=')) != NULL)
 		*eqp = '\0';
@@ -311,6 +314,7 @@ change_env(const char *s, int set)
 	else
 		(void) unsetenv(ss);
 	ckfree(ss);
+	INTON;
 
 	return;
 }
@@ -373,13 +377,13 @@ setvareq(char *s, int flags)
 	/* not found */
 	if (flags & VNOSET)
 		return;
+	INTOFF;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
 	vp->text = s;
 	vp->name_len = nlen;
 	vp->next = *vpp;
 	vp->func = NULL;
-	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
 		change_env(s, 1);
@@ -792,6 +796,7 @@ poplocalvars(void)
 	struct localvar *lvp;
 	struct var *vp;
 
+	INTOFF;
 	while ((lvp = localvars) != NULL) {
 		localvars = lvp->next;
 		vp = lvp->vp;
@@ -809,6 +814,7 @@ poplocalvars(void)
 		}
 		ckfree(lvp);
 	}
+	INTON;
 }
 
 
@@ -847,18 +853,21 @@ unsetcmd(int argc __unused, char **argv __unused)
 	if (flg_func == 0 && flg_var == 0)
 		flg_var = 1;
 
+	INTOFF;
 	for (ap = argptr; *ap ; ap++) {
 		if (flg_func)
 			ret |= unsetfunc(*ap);
 		if (flg_var)
 			ret |= unsetvar(*ap);
 	}
+	INTON;
 	return ret;
 }
 
 
 /*
  * Unset the specified variable.
+ * Called with interrupts off.
  */
 
 int
@@ -872,7 +881,6 @@ unsetvar(const char *s)
 		return (0);
 	if (vp->flags & VREADONLY)
 		return (1);
-	INTOFF;
 	if (vp->text[vp->name_len + 1] != '\0')
 		setvar(s, nullstr, 0);
 	if ((vp->flags & VEXPORT) && localevar(vp->text)) {
@@ -888,7 +896,6 @@ unsetvar(const char *s)
 		*vpp = vp->next;
 		ckfree(vp);
 	}
-	INTON;
 	return (0);
 }
 

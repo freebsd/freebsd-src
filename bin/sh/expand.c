@@ -986,6 +986,7 @@ recordregion(int start, int end, int inquotes)
 {
 	struct ifsregion *ifsp;
 
+	INTOFF;
 	if (ifslastp == NULL) {
 		ifsp = &ifsfirst;
 	} else {
@@ -993,6 +994,7 @@ recordregion(int start, int end, int inquotes)
 		    && ifslastp->inquotes == inquotes) {
 			/* extend previous area */
 			ifslastp->endoff = end;
+			INTON;
 			return;
 		}
 		ifsp = (struct ifsregion *)ckmalloc(sizeof (struct ifsregion));
@@ -1003,6 +1005,7 @@ recordregion(int start, int end, int inquotes)
 	ifslastp->begoff = start;
 	ifslastp->endoff = end;
 	ifslastp->inquotes = inquotes;
+	INTON;
 }
 
 
