@@ -348,7 +348,7 @@ bc_yyinput(char *buf, int maxlen)
 		skipchars = 0;
 		sigprocmask(SIG_SETMASK, &oset, NULL);
 		if (num > maxlen) {
-			el_push(el, (char *)(void *)bp + maxlen);
+			el_push(el, bp + maxlen);
 			num = maxlen;
 		}
 		memcpy(buf, bp, num);
