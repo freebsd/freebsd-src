@@ -413,7 +413,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
 	td->td_md.md_tls = mcp->mc_tls;
-	/* Dont let user to set any bits in Status and casue registers */
+	/* Dont let user to set any bits in status and cause registers. */
 
 	return (0);
 }
