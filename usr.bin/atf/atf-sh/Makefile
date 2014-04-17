@@ -54,6 +54,8 @@ atf-sh.pc: atf-sh.pc.in atf-version
 beforeinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		atf-sh.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+	${INSTALL} -C -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		${ATF}/atf-sh/atf-sh.m4 ${DESTDIR}${SHAREDIR}/aclocal
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests

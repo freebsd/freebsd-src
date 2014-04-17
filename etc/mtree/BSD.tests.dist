@@ -12,6 +12,8 @@
         ..
     ..
     share
+        aclocal
+        ..
         atf
         ..
         doc
