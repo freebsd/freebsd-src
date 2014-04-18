@@ -18,11 +18,6 @@ USE_CHERI=	yes
 
 NO_SHARED=	yes
 
-#
-# For libc files!
-#
-NO_WERROR=	yes
-
 FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
