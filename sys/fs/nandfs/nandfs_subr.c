@@ -1065,42 +1065,12 @@ nandfs_buf_check(struct buf *bp, uint32_t bits)
 int
 nandfs_erase(struct nandfs_device *fsdev, off_t offset, size_t size)
 {
-	struct buf *bp;
-	int read_size, error, i;
-
 	DPRINTF(BLOCK, ("%s: performing erase at offset %jx size %zx\n",
 	    __func__, offset, size));
 
 	MPASS(size % fsdev->nd_erasesize == 0);
 
-	if (fsdev->nd_is_nand) {
-		error = g_delete_data(fsdev->nd_gconsumer, offset, size);
-		return (error);
-	}
-
-	if (size > MAXBSIZE)
-		read_size = MAXBSIZE;
-	else
-		read_size = size;
-
-	error = 0;
-	for (i = 0; i < size / MAXBSIZE; i++) {
-		error = bread(fsdev->nd_devvp, btodb(offset + i * read_size),
-		    read_size, NOCRED, &bp);
-		if (error) {
-			brelse(bp);
-			return (error);
-		}
-		memset(bp->b_data, 0xff, read_size);
-		error = bwrite(bp);
-		if (error) {
-			nandfs_error("%s: err:%d from bwrite\n",
-			    __func__, error);
-			return (error);
-		}
-	}
-
-	return (error);
+	return (g_delete_data(fsdev->nd_gconsumer, offset, size));
 }
 
 int

@@ -913,7 +913,6 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 			 * We conclude that this is not NAND storage
 			 */
 			nandfsdev->nd_erasesize = NANDFS_DEF_ERASESIZE;
-			nandfsdev->nd_is_nand = 0;
 		} else {
 			DROP_GIANT();
 			g_topology_lock();
@@ -924,10 +923,9 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 			free(nandfsdev, M_NANDFSMNT);
 			return (error);
 		}
-	} else {
-		nandfsdev->nd_erasesize = erasesize;
-		nandfsdev->nd_is_nand = 1;
 	}
+
+	nandfsdev->nd_erasesize = erasesize;
 
 	DPRINTF(VOLUMES, ("%s: erasesize %x\n", __func__,
 	    nandfsdev->nd_erasesize));
