@@ -41,52 +41,14 @@ RELENGDIR="$(realpath $(dirname $(basename ${0})))"
 
 # Default settings if a configuration file is not specified:
 CHROOTDIR="/scratch"
-RELDIR="/R"
-EC2DIR="/EC2"
-EC2IMG="${EC2DIR}/ec2.img"
-EC2SIZE="25G"
 CONF="${RELENGDIR}/ec2.conf"
-TGTISCHROOT=1
 
 usage() {
 	echo "${0} [-c /path/to/configuration/file]"
 	exit 1
 }
 
-err() {
-	echo "$@"
-	exit 1
-}
-
-_chroot() {
-	if [ -n "${TGTISCHROOT}" ]; then
-		eval chroot ${CHROOTDIR} "$@"
-	else
-		eval "$@"
-	fi
-	return $?
-}
-
-diskbuild() {
-	if [ -n "${TGTISCHROOT}" ]; then
-		test -d ${CHROOTDIR} || \
-			err "Chroot directory ${CHROOTDIR} missing."
-	fi
-	_chroot mkdir -p ${RELDIR} || \
-		err "Could not create directory ${RELDIR}"
-	_chroot mkdir -p ${EC2DIR} || \
-		err "Could not create directory ${EC2DIR}"
-	_chroot test -e ${EC2IMG} && \
-		err "Image file ${EC2IMG} already exists."
-	_chroot truncate -s ${EC2SIZE} ${EC2IMG} || \
-		err "Could not create file ${EC2IMG}"
-	mddev=$(_chroot mdconfig -a -t vnode -f ${EC2IMG}) || \
-		err "Could not attach ${EC2IMG} to md(4)."
-
-	_chroot mdconfig -d -u ${mddev}
-	return 0
-}
-
+diskbuild() {}
 imagebuild() {}
 pushami() {}
 
@@ -103,8 +65,6 @@ main() {
 	done
 	shift $(( ${OPTIND} - 1 ))
 	. ${CONF}
-
-	diskbuild
 }
 
 main "$@"
