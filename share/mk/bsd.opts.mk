@@ -45,13 +45,6 @@ SRCCONF?=	/etc/src.conf
 # that haven't been converted over.
 #
 
-#
-# Older-style variables that enabled behaviour when set.
-#
-.if defined(YES_HESIOD)
-WITH_HESIOD=
-.endif
-
 __DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
