@@ -237,6 +237,7 @@ __DEFAULT_YES_OPTIONS = \
     AUDIT \
     AUTHPF \
     BINUTILS \
+    BINUTILS_BOOTSTRAP \
     BLUETOOTH \
     BMAKE \
     BOOT \
@@ -387,13 +388,13 @@ __TT=${MACHINE}
 .endif
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .elif ${__T} == "arm" || ${__T} == "armv6" || ${__T} == "armv6hf"
-__DEFAULT_YES_OPTIONS+=CLANG
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP
 # GCC is unable to build the full clang on arm, disable it by default.
 __DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
@@ -403,14 +404,14 @@ __DEFAULT_NO_OPTIONS+=GNUCXX
 # The pc98 bootloader requires gcc to build and so we must leave gcc enabled
 # for pc98 for now.
 .if ${__TT} == "pc98"
-__DEFAULT_YES_OPTIONS+=GCC
+__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP
 .else
-__DEFAULT_NO_OPTIONS+=GCC
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP
 .endif
 .else
 # If clang is not cc, then build gcc by default
-__DEFAULT_NO_OPTIONS+=CLANG_IS_CC
-__DEFAULT_YES_OPTIONS+=GCC GNUCXX
+__DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
+__DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
 .endif
 
 #
@@ -529,6 +530,12 @@ MK_AUTHPF:=	no
 
 .if ${MK_TEXTPROC} == "no"
 MK_GROFF:=	no
+.endif
+
+.if ${MK_CROSS_COMPILER} == "no"
+MK_BINUTILS_BOOTSTRAP:= no
+MK_CLANG_BOOTSTRAP:= no
+MK_GCC_BOOTSTRAP:= no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
