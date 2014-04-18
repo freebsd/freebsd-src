@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140418:
+	The YES_HESIOD knob has been removed. It has been obsolete for
+	a decade. Please move to using WITH_HESIOD instead or your builds
+	will silently lack HESIOD.
+
 20140405:
 	The uart(4) driver has been changed with respect to its handling
 	of the low-level console. Previously the uart(4) driver prevented
