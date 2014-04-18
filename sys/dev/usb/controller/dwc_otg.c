@@ -2149,7 +2149,12 @@ dwc_otg_vbus_interrupt(struct dwc_otg_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	if (is_on) {
+	/*
+	 * If the USB host mode is forced, then assume VBUS is always
+	 * present else rely on the input to this function:
+	 */
+	if ((is_on != 0) || (sc->sc_mode == DWC_MODE_HOST)) {
+
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
 
@@ -3182,7 +3187,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	    sc->sc_host_ch_max);
 
 	/* setup FIFO */
-	if (dwc_otg_init_fifo(sc, DWC_MODE_OTG))
+	if (dwc_otg_init_fifo(sc, sc->sc_mode))
 		return (EINVAL);
 
 	/* enable interrupts */
