@@ -219,9 +219,18 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			    procnum != NFSPROC_COMMITDS) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 				*tl = txdr_unsigned(NFSV4OP_GETATTR);
-				NFSWCCATTR_ATTRBIT(&attrbits);
+				/*
+				 * For Lookup Ops, we want all the directory
+				 * attributes, so we can load the name cache.
+				 */
+				if (procnum == NFSPROC_LOOKUP ||
+				    procnum == NFSPROC_LOOKUPP)
+					NFSGETATTR_ATTRBIT(&attrbits);
+				else {
+					NFSWCCATTR_ATTRBIT(&attrbits);
+					nd->nd_flag |= ND_V4WCCATTR;
+				}
 				(void) nfsrv_putattrbit(nd, &attrbits);
-				nd->nd_flag |= ND_V4WCCATTR;
 			}
 		}
 		if (procnum != NFSPROC_RENEW ||
