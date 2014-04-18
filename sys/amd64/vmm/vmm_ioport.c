@@ -59,6 +59,8 @@ int
 emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit)
 {
 	ioport_handler_func_t handler;
+	uint32_t mask, val;
+	int error;
 
 	if (vmexit->u.inout.port >= MAX_IOPORTS)
 		return (-1);
@@ -67,5 +69,39 @@ emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit)
 	if (handler == NULL)
 		return (-1);
 
-	return ((*handler)(vm, vcpuid, vmexit));
+	if (!vmexit->u.inout.in) {
+		switch (vmexit->u.inout.bytes) {
+		case 1:
+			mask = 0xff;
+			break;
+		case 2:
+			mask = 0xffff;
+			break;
+		default:
+			mask = 0xffffffff;
+			break;
+		}
+		val = vmexit->u.inout.eax & mask;
+	}
+
+	error = (*handler)(vm, vcpuid, vmexit->u.inout.in,
+	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
+
+	if (!error && vmexit->u.inout.in) {
+		switch (vmexit->u.inout.bytes) {
+		case 1:
+			mask = 0xff;
+			break;
+		case 2:
+			mask = 0xffff;
+			break;
+		default:
+			mask = 0xffffffff;
+			break;
+		}
+		vmexit->u.inout.eax &= ~mask;
+		vmexit->u.inout.eax |= val & mask;
+	}
+
+	return (error);
 }
