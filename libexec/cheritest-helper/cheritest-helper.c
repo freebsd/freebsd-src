@@ -231,6 +231,8 @@ invoke_clock_gettime(void)
 
 	printf("real time since epoch is %jd.%09ld\n", (intmax_t)t.tv_sec,
 	    t.tv_nsec);
+
+	return (0);
 }
 
 /*
