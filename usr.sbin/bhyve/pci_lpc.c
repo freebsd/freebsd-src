@@ -229,7 +229,6 @@ pci_lpc_write_dsdt(struct pci_devinst *pi)
 	dsdt_unindent(2);
 	dsdt_line("  })");
 	dsdt_line("}");
-	dsdt_unindent(1);
 
 	dsdt_line("");
 	dsdt_line("Device (TIMR)");
@@ -243,6 +242,7 @@ pci_lpc_write_dsdt(struct pci_devinst *pi)
 	dsdt_unindent(2);
 	dsdt_line("  })");
 	dsdt_line("}");
+	dsdt_unindent(1);
 
 	dsdt_line("}");
 }
