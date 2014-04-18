@@ -718,15 +718,24 @@ nandfs_mount_base(struct nandfs_device *nandfsdev, struct mount *mp,
 	nandfsdev->nd_ts.tv_sec = nandfsdev->nd_last_segsum.ss_create;
 	nandfsdev->nd_last_cno = nandfsdev->nd_super.s_last_cno;
 	nandfsdev->nd_fakevblk = 1;
+	/*
+	 * FIXME: bogus calculation. Should use actual number of usable segments
+	 * instead of total amount.
+	 */
+	nandfsdev->nd_segs_reserved =
+	    nandfsdev->nd_fsdata.f_nsegments *
+	    nandfsdev->nd_fsdata.f_r_segments_percentage / 100;
 	nandfsdev->nd_last_ino  = NANDFS_USER_INO;
 	DPRINTF(VOLUMES, ("%s: last_pseg %#jx last_cno %#jx last_seq %#jx\n"
-	    "fsdev: last_seg: seq %#jx num %#jx, next_seg_num %#jx\n",
+	    "fsdev: last_seg: seq %#jx num %#jx, next_seg_num %#jx "
+	    "segs_reserved %#jx\n",
 	    __func__, (uintmax_t)nandfsdev->nd_last_pseg,
 	    (uintmax_t)nandfsdev->nd_last_cno,
 	    (uintmax_t)nandfsdev->nd_seg_sequence,
 	    (uintmax_t)nandfsdev->nd_seg_sequence,
 	    (uintmax_t)nandfsdev->nd_seg_num,
-	    (uintmax_t)nandfsdev->nd_next_seg_num));
+	    (uintmax_t)nandfsdev->nd_next_seg_num,
+	    (uintmax_t)nandfsdev->nd_segs_reserved));
 
 	DPRINTF(VOLUMES, ("nandfs_mount: accepted super root\n"));
 

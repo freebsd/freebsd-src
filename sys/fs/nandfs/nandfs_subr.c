@@ -910,7 +910,7 @@ nandfs_fs_full(struct nandfs_device *nffsdev)
 	DPRINTF(BUF, ("%s: bufs:%jx space:%jx\n", __func__,
 	    (uintmax_t)nffsdev->nd_dirty_bufs, (uintmax_t)space));
 
-	if (nffsdev->nd_dirty_bufs + (10 * bps) >= space)
+	if (nffsdev->nd_dirty_bufs + (nffsdev->nd_segs_reserved * bps) >= space)
 		return (1);
 
 	return (0);
