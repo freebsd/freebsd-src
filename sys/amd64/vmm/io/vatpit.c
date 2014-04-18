@@ -56,6 +56,15 @@ static MALLOC_DEFINE(M_VATPIT, "atpit", "bhyve virtual atpit (8254)");
 #define	TIMER_MODE_MASK		0x0f
 #define	TIMER_SEL_READBACK	0xc0
 
+#define	TIMER_STS_OUT		0x80
+#define	TIMER_STS_NULLCNT	0x40
+
+#define	TIMER_RB_LCTR		0x20
+#define	TIMER_RB_LSTATUS	0x10
+#define	TIMER_RB_CTR_2		0x08
+#define	TIMER_RB_CTR_1		0x04
+#define	TIMER_RB_CTR_0		0x02
+
 #define	TMR2_OUT_STS		0x20
 
 #define	PIT_8254_FREQ		1193182
@@ -73,6 +82,8 @@ struct channel {
 	sbintime_t	now_sbt;	/* uptime when counter was loaded */
 	uint8_t		cr[2];
 	uint8_t		ol[2];
+	bool		slatched;	/* status latched */
+	uint8_t		status;
 	int		crbyte;
 	int		olbyte;
 	int		frbyte;
@@ -198,6 +209,7 @@ pit_update_counter(struct vatpit *vatpit, struct channel *c, bool latch)
 		 */
 		c->initial = TIMER_DIV(PIT_8254_FREQ, 100);
 		c->now_sbt = sbinuptime();
+		c->status &= ~TIMER_STS_NULLCNT;
 	}
 
 	delta_ticks = (sbinuptime() - c->now_sbt) / vatpit->freq_sbt;
@@ -214,6 +226,57 @@ pit_update_counter(struct vatpit *vatpit, struct channel *c, bool latch)
 }
 
 static int
+pit_readback1(struct vatpit *vatpit, int channel, uint8_t cmd)
+{
+	struct channel *c;
+
+	c = &vatpit->channel[channel];
+
+	/*
+	 * Latch the count/status of the timer if not already latched.
+	 * N.B. that the count/status latch-select bits are active-low.
+	 */
+	if (!(cmd & TIMER_RB_LCTR) && !c->olbyte) {
+		(void) pit_update_counter(vatpit, c, true);
+	}
+
+	if (!(cmd & TIMER_RB_LSTATUS) && !c->slatched) {
+		c->slatched = true;
+		/*
+		 * For mode 0, see if the elapsed time is greater
+		 * than the initial value - this results in the
+		 * output pin being set to 1 in the status byte.
+		 */
+		if (c->mode == TIMER_INTTC && vatpit_get_out(vatpit, channel))
+			c->status |= TIMER_STS_OUT;
+		else
+			c->status &= ~TIMER_STS_OUT;
+	}
+
+	return (0);
+}
+
+static int
+pit_readback(struct vatpit *vatpit, uint8_t cmd)
+{
+	int error;
+
+	/*
+	 * The readback command can apply to all timers.
+	 */
+	error = 0;
+	if (cmd & TIMER_RB_CTR_0)
+		error = pit_readback1(vatpit, 0, cmd);
+	if (!error && cmd & TIMER_RB_CTR_1)
+		error = pit_readback1(vatpit, 1, cmd);
+	if (!error && cmd & TIMER_RB_CTR_2)
+		error = pit_readback1(vatpit, 2, cmd);
+
+	return (error);
+}
+
+
+static int
 vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 {
 	struct channel *c;
@@ -224,7 +287,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 	mode = val & TIMER_MODE_MASK;
 
 	if (sel == TIMER_SEL_READBACK)
-		return (-1);
+		return (pit_readback(vatpit, val));
 
 	if (rw != TIMER_LATCH && rw != TIMER_16BIT)
 		return (-1);
@@ -247,6 +310,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 	else {
 		c->mode = mode;
 		c->olbyte = 0;	/* reset latch after reprogramming */
+		c->status |= TIMER_STS_NULLCNT;
 	}
 
 	return (0);
@@ -287,7 +351,14 @@ vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 	c = &vatpit->channel[port - TIMER_CNTR0];
 
 	VATPIT_LOCK(vatpit);
-	if (in) {
+	if (in && c->slatched) {
+		/*
+		 * Return the status byte if latched
+		 */
+		*eax = c->status;
+		c->slatched = false;
+		c->status = 0;
+	} else if (in) {
 		/*
 		 * The spec says that once the output latch is completely
 		 * read it should revert to "following" the counter. Use
@@ -309,6 +380,7 @@ vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 	} else {
 		c->cr[c->crbyte++] = *eax;
 		if (c->crbyte == 2) {
+			c->status &= ~TIMER_STS_NULLCNT;
 			c->frbyte = 0;
 			c->crbyte = 0;
 			c->initial = c->cr[0] | (uint16_t)c->cr[1] << 8;
