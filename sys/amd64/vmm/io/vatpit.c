@@ -253,24 +253,23 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 }
 
 int
-vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpit *vatpit;
 	struct channel *c;
-	int port;
 	uint8_t val;
 	int error;
 
 	vatpit = vm_atpit(vm);
 
-	if (vmexit->u.inout.bytes != 1)
+	if (bytes != 1)
 		return (-1);
 
-	val = vmexit->u.inout.eax;
-	port = vmexit->u.inout.port;
+	val = *eax;
 
 	if (port == TIMER_MODE) {
-		if (vmexit->u.inout.in) {
+		if (in) {
 			VM_CTR0(vatpit->vm, "vatpit attempt to read mode");
 			return (-1);
 		}
@@ -283,12 +282,12 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 	}
 
 	/* counter ports */
-	KASSERT(port >= TIMER_CNTR0 && vmexit->u.inout.port <= TIMER_CNTR2,
+	KASSERT(port >= TIMER_CNTR0 && port <= TIMER_CNTR2,
 	    ("invalid port 0x%x", port));
 	c = &vatpit->channel[port - TIMER_CNTR0];
 
 	VATPIT_LOCK(vatpit);
-	if (vmexit->u.inout.in) {
+	if (in) {
 		/*
 		 * The spec says that once the output latch is completely
 		 * read it should revert to "following" the counter. Use
@@ -303,12 +302,12 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 			if (c->frbyte)
 				tmp >>= 8;
 			tmp &= 0xff;
-			vmexit->u.inout.eax = tmp;
+			*eax = tmp;
 			c->frbyte ^= 1;
 		}  else
-			vmexit->u.inout.eax = c->ol[--c->olbyte];
+			*eax = c->ol[--c->olbyte];
 	} else {
-		c->cr[c->crbyte++] = vmexit->u.inout.eax;
+		c->cr[c->crbyte++] = *eax;
 		if (c->crbyte == 2) {
 			c->frbyte = 0;
 			c->crbyte = 0;
@@ -329,18 +328,19 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 }
 
 int
-vatpit_nmisc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpit_nmisc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpit *vatpit;
 
 	vatpit = vm_atpit(vm);
 
-	if (vmexit->u.inout.in) {
+	if (in) {
 			VATPIT_LOCK(vatpit);
 			if (vatpit_get_out(vatpit, 2))
-				vmexit->u.inout.eax = TMR2_OUT_STS;
+				*eax = TMR2_OUT_STS;
 			else
-				vmexit->u.inout.eax = 0;
+				*eax = 0;
 
 			VATPIT_UNLOCK(vatpit);
 	}
