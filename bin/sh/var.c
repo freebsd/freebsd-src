@@ -339,8 +339,11 @@ setvareq(char *s, int flags)
 		mklocal(s);
 	vp = find_var(s, &vpp, &nlen);
 	if (vp != NULL) {
-		if (vp->flags & VREADONLY)
+		if (vp->flags & VREADONLY) {
+			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+				ckfree(s);
 			error("%.*s: is read only", vp->name_len, s);
+		}
 		if (flags & VNOSET)
 			return;
 		INTOFF;
