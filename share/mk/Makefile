@@ -24,6 +24,7 @@ FILES=	\
 	bsd.man.mk \
 	bsd.nls.mk \
 	bsd.obj.mk \
+	bsd.opts.mk \
 	bsd.own.mk \
 	bsd.port.mk \
 	bsd.port.options.mk \
