@@ -200,6 +200,8 @@ struct nandfs_device {
 
 	uint32_t		nd_devblocksize;
 
+	uint32_t		nd_segs_reserved;
+
 	/* Segment usage */
 	uint64_t		nd_clean_segs;
 	uint64_t		*nd_free_base;
