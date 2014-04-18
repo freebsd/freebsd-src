@@ -446,7 +446,25 @@ static int
 nf10bmac_reset(struct nf10bmac_softc *sc)
 {
 
-	/* Currently we cannot do anything. */
+	/*
+	 * If we do not have an ether address set, initialize to the same
+	 * OUI as NetFPGA-10G Linux driver does (which luckily seems
+	 * unallocated).  We just change the NIC specific part from
+	 * the slightly long "\0NF10C0" to "\0NFBSD".
+	 * Oh and we keep the way of setting it from a string as they do.
+	 * It's an amazing way to hide it.
+	 * XXX-BZ If NetFPGA gets their own OUI we should fix this.
+	 */
+	if (sc->nf10bmac_eth_addr[0] == 0x00 &&
+	    sc->nf10bmac_eth_addr[1] == 0x00 &&
+	    sc->nf10bmac_eth_addr[2] == 0x00 &&
+	    sc->nf10bmac_eth_addr[3] == 0x00 &&
+	    sc->nf10bmac_eth_addr[4] == 0x00 &&
+	    sc->nf10bmac_eth_addr[5] == 0x00) {
+		memcpy(&sc->nf10bmac_eth_addr, "\0NFBSD", ETHER_ADDR_LEN);
+		sc->nf10bmac_eth_addr[5] += sc->nf10bmac_unit;
+	}
+
 	return (0);
 }
 
