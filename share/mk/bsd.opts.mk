@@ -243,34 +243,7 @@ __DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
 __DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
 .endif
 
-#
-# MK_* options which default to "yes".
-#
-.for var in ${__DEFAULT_YES_OPTIONS}
-.if !defined(MK_${var})
-.if defined(WITHOUT_${var})
-MK_${var}:=	no
-.else
-MK_${var}:=	yes
-.endif
-.endif
-.endfor
-.undef __DEFAULT_YES_OPTIONS
-
-#
-# MK_* options which default to "no".
-#
-.for var in ${__DEFAULT_NO_OPTIONS}
-.if !defined(MK_${var})
-.if defined(WITH_${var})
-MK_${var}:=	yes
-.else
-MK_${var}:=	no
-.endif
-.endif
-.endfor
-.undef __DEFAULT_NO_OPTIONS
-
+.include <bsd.mkopt.mk>
 
 #
 # Supported NO_* options (if defined, MK_* will be forced to "no",
