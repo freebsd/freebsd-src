@@ -81,7 +81,7 @@ cheri_fd_read_c(struct cheri_object fd_object, __capability void *buf_c)
 
 register_t cheri_fd_methodnum_write_c = CHERI_FD_METHOD_WRITE_C;
 struct cheri_fd_ret
-cheri_fd_write_c(struct cheri_object fd_object, __capability void *buf_c)
+cheri_fd_write_c(struct cheri_object fd_object, __capability const void *buf_c)
 {
 
 	return (cheri_invoke(fd_object, cheri_fd_methodnum_write_c, 0, 0,

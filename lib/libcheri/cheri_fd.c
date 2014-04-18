@@ -230,7 +230,7 @@ _cheri_fd_read_c(__capability void *buf_c)
  * Forward write_c() on a cheri_fd to the underlying file descriptor.
  */
 static struct cheri_fd_ret
-_cheri_fd_write_c(__capability void *buf_c)
+_cheri_fd_write_c(__capability const void *buf_c)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;

@@ -71,6 +71,6 @@ struct cheri_fd_ret	cheri_fd_lseek_c(struct cheri_object fd_object,
 struct cheri_fd_ret	cheri_fd_read_c(struct cheri_object fd_object,
 			    __capability void *buf_c);
 struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object fd_object,
-			    __capability void *buf_c);
+			    __capability const void *buf_c);
 
 #endif /* !_CHERI_FD_H_ */
