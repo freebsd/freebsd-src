@@ -561,7 +561,9 @@ _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
+.if ${MK_EISA} != "no"
 _ahb=		ahb
+.endif
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
