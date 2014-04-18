@@ -32,9 +32,12 @@
 
 #include <machine/timerreg.h>
 
+#define	NMISC_PORT	0x61
+
 struct vatpit *vatpit_init(struct vm *vm);
 void vatpit_cleanup(struct vatpit *vatpit);
 
 int vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
+int vatpit_nmisc_handler(void *vm, int vcpuid, struct vm_exit *vmexit);
 
 #endif	/* _VATPIT_H_ */
