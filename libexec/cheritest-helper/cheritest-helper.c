@@ -194,7 +194,7 @@ invoke_fd_write_c(struct cheri_object fd_object)
 	const char *buf = "fd write test\n";
 	__capability const void *buf_c;
 
-	buf_c = cheri_ptr(buf, strlen(buf));
+	buf_c = cheri_ptr((void *)buf, strlen(buf));
 	ret = cheri_fd_write_c(fd_object, buf_c);
 	printf("cheri_fd_write_c returned (%ld, %ld)\n", ret.cfr_retval0,
 	    ret.cfr_retval1);
