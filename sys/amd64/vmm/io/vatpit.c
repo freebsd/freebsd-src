@@ -56,6 +56,8 @@ static MALLOC_DEFINE(M_VATPIT, "atpit", "bhyve virtual atpit (8254)");
 #define	TIMER_MODE_MASK		0x0f
 #define	TIMER_SEL_READBACK	0xc0
 
+#define	TMR2_OUT_STS		0x20
+
 #define	PIT_8254_FREQ		1193182
 #define	TIMER_DIV(freq, hz)	(((freq) + (hz) / 2) / (hz))
 
@@ -88,22 +90,29 @@ struct vatpit {
 	struct channel	channel[3];
 };
 
-#define	VATPIT_CTR0(vatpit, fmt)					\
-	VM_CTR0((vatpit)->vm, fmt)
-
-#define	VATPIT_CTR1(vatpit, fmt, a1)					\
-	VM_CTR1((vatpit)->vm, fmt, a1)
-
-#define	VATPIT_CTR2(vatpit, fmt, a1, a2)				\
-	VM_CTR2((vatpit)->vm, fmt, a1, a2)
-
-#define	VATPIT_CTR3(vatpit, fmt, a1, a2, a3)				\
-	VM_CTR3((vatpit)->vm, fmt, a1, a2, a3)
-
-#define	VATPIT_CTR4(vatpit, fmt, a1, a2, a3, a4)			\
-	VM_CTR4((vatpit)->vm, fmt, a1, a2, a3, a4)
-
 static void pit_timer_start_cntr0(struct vatpit *vatpit);
+
+static int
+vatpit_get_out(struct vatpit *vatpit, int channel)
+{
+	struct channel *c;
+	sbintime_t delta_ticks;
+	int out;
+
+	c = &vatpit->channel[channel];
+
+	switch (c->mode) {
+	case TIMER_INTTC:
+		delta_ticks = (sbinuptime() - c->now_sbt) / vatpit->freq_sbt;
+		out = ((c->initial - delta_ticks) <= 0);
+		break;
+	default:
+		out = 0;
+		break;
+	}
+
+	return (out);
+}
 
 static void
 vatpit_callout_handler(void *a)
@@ -117,7 +126,7 @@ vatpit_callout_handler(void *a)
 	c = &vatpit->channel[arg->channel_num];
 	callout = &c->callout;
 
-	VATPIT_CTR1(vatpit, "atpit t%d fired", arg->channel_num);
+	VM_CTR1(vatpit->vm, "atpit t%d fired", arg->channel_num);
 
 	VATPIT_LOCK(vatpit);
 
@@ -145,13 +154,22 @@ static void
 pit_timer_start_cntr0(struct vatpit *vatpit)
 {
 	struct channel *c;
-	sbintime_t delta, precision;
+	sbintime_t now, delta, precision;
 
 	c = &vatpit->channel[0];
 	if (c->initial != 0) {
 		delta = c->initial * vatpit->freq_sbt;
 		precision = delta >> tc_precexp;
 		c->callout_sbt = c->callout_sbt + delta;
+
+		/*
+		 * Reset 'callout_sbt' if the time that the callout
+		 * was supposed to fire is more than 'c->initial'
+		 * ticks in the past.
+		 */
+		now = sbinuptime();
+		if (c->callout_sbt < now)
+			c->callout_sbt = now + delta;
 
 		callout_reset_sbt(&c->callout, c->callout_sbt,
 		    precision, vatpit_callout_handler, &c->callout_arg,
@@ -252,8 +270,8 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 	port = vmexit->u.inout.port;
 
 	if (port == TIMER_MODE) {
-		if (vmexit->u.inout.in != 0) {
-			VATPIT_CTR0(vatpit, "vatpit attempt to read mode");
+		if (vmexit->u.inout.in) {
+			VM_CTR0(vatpit->vm, "vatpit attempt to read mode");
 			return (-1);
 		}
 
@@ -306,6 +324,26 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 		}
 	}
 	VATPIT_UNLOCK(vatpit);
+
+	return (0);
+}
+
+int
+vatpit_nmisc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+{
+	struct vatpit *vatpit;
+
+	vatpit = vm_atpit(vm);
+
+	if (vmexit->u.inout.in) {
+			VATPIT_LOCK(vatpit);
+			if (vatpit_get_out(vatpit, 2))
+				vmexit->u.inout.eax = TMR2_OUT_STS;
+			else
+				vmexit->u.inout.eax = 0;
+
+			VATPIT_UNLOCK(vatpit);
+	}
 
 	return (0);
 }

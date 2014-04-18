@@ -46,6 +46,7 @@ ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[TIMER_CNTR0] = vatpit_handler,
 	[TIMER_CNTR1] = vatpit_handler,
 	[TIMER_CNTR2] = vatpit_handler,
+	[NMISC_PORT] = vatpit_nmisc_handler,
 	[IO_ICU1] = vatpic_master_handler,
 	[IO_ICU1 + ICU_IMR_OFFSET] = vatpic_master_handler,
 	[IO_ICU2] = vatpic_slave_handler,
