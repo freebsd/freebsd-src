@@ -354,6 +354,7 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CTF \
     DEBUG_FILES \
+    EISA \
     HESIOD \
     INSTALL_AS_USER \
     LLDB \

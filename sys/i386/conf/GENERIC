@@ -94,7 +94,6 @@ device		cpufreq
 
 # Bus support.
 device		acpi
-device		eisa
 device		pci
 
 # Floppy drives
@@ -108,7 +107,6 @@ device		mvs			# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis			# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
-device		ahb			# EISA AHA1742 family
 device		ahc			# AHA2940 and onboard AIC7xxx devices
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.

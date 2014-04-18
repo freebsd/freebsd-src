@@ -1,9 +1,14 @@
 
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH:	${.CURDIR}/../../../dev/aic7xxx
 KMOD=	ahc
-SUBDIR=	ahc_eisa ahc_isa ahc_pci
+.if ${MK_EISA} != "no"
+SUBDIR+= ahc_eisa
+.endif
+SUBDIR+= ahc_isa ahc_pci
 
 GENSRCS= aic7xxx_seq.h aic7xxx_reg.h
 AHC_REG_PRETTY_PRINT=1
