@@ -575,6 +575,7 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE |
 	    SPR_MMCR0_PMCNCE | SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
 	mtspr(SPR_970MMCR1, 0x4218420);
+	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -584,11 +585,14 @@ ppc970_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	register_t mmcr0 = mfspr(SPR_MMCR0);
 
+	mtmsr(mfmsr() & ~PSL_PMM);
 	mmcr0 |= SPR_MMCR0_FC;
 	mmcr0 &= ~SPR_MMCR0_PMXE;
 	mtspr(SPR_MMCR0, mmcr0);
+
 	free(powerpc_pcpu[cpu]->pc_ppcpmcs, M_PMC);
 	free(powerpc_pcpu[cpu], M_PMC);
+
 	return 0;
 }
 
