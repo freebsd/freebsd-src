@@ -120,6 +120,7 @@ SRCS+=		bcopy.S			\
 		memcpy_c.s		\
 		memcpy_c_tofrom.c	\
 		memset.c		\
+		memmove.S		\
 		strcat.c		\
 		strchr.S		\
 		strchr_c.c		\
