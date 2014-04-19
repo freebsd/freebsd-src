@@ -55,6 +55,7 @@ SRCS+=		glue.c			\
 SRCS+=		assert.c		\
 		getprogname.c		\
 		errlst.c		\
+		errno.c			\
 		setprogname.c		\
 		_once_stub.c		\
 		_pthread_stubs.c
