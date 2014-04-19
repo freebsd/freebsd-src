@@ -22,6 +22,7 @@ FILES=	\
 	bsd.libnames.mk \
 	bsd.links.mk \
 	bsd.man.mk \
+	bsd.mkopt.mk \
 	bsd.nls.mk \
 	bsd.obj.mk \
 	bsd.opts.mk \
