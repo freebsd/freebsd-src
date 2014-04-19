@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2009
+.Dd April 19, 2014
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -60,6 +60,10 @@ and one of
 .Xr uhci 4
 or
 .Xr ohci 4
+or
+.Xr ehci 4
+or 
+.Xr xhci 4
 must be configured in the kernel.
 Additionally, since
 .Nm
@@ -236,6 +240,7 @@ when using
 .Xr mount 8 .
 .Sh SEE ALSO
 .Xr ehci 4 ,
+.Xr xhci 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
