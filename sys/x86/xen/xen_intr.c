@@ -140,7 +140,8 @@ static int	xen_intr_vector(struct intsrc *isrc);
 static int	xen_intr_source_pending(struct intsrc *isrc);
 static int	xen_intr_config_intr(struct intsrc *isrc,
 		     enum intr_trigger trig, enum intr_polarity pol);
-static int	xen_intr_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int	xen_intr_assign_cpu(struct intsrc *isrc, u_int to_cpu);
+static int	xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
 /**
  * PIC interface for all event channel port types except physical IRQs.
@@ -156,7 +157,7 @@ struct pic xen_intr_pic = {
 	.pic_suspend        = xen_intr_suspend,
 	.pic_resume         = xen_intr_resume,
 	.pic_config_intr    = xen_intr_config_intr,
-	.pic_assign_cpu     = xen_intr_assign_cpu
+	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
 };
 
 static struct mtx	 xen_intr_isrc_lock;
@@ -444,7 +445,8 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		 * unless specified otherwise, so shuffle them to balance
 		 * the interrupt load.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc, intr_next_cpu(0));
+		xen_intr_assign_cpu(&isrc->xi_intsrc,
+		    apic_cpuid(intr_next_cpu(0)));
 	}
 #endif
 
@@ -695,7 +697,7 @@ xen_rebind_ipi(struct xenisrc *isrc)
 {
 #ifdef SMP
 	int cpu = isrc->xi_cpu;
-	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
+	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	int error;
 	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
 
@@ -714,7 +716,7 @@ static void
 xen_rebind_virq(struct xenisrc *isrc)
 {
 	int cpu = isrc->xi_cpu;
-	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
+	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	int error;
 	struct evtchn_bind_virq bind_virq = { .virq = isrc->xi_virq,
 	                                      .vcpu = vcpu_id };
@@ -752,8 +754,7 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 
 #ifdef SMP
 	isrc->xi_cpu = 0;
-	error = xen_intr_assign_cpu(&isrc->xi_intsrc,
-	                            cpu_apic_ids[cpu]);
+	error = xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
 	if (error)
 		panic("%s(): unable to rebind Xen channel %u to vCPU%u: %d",
 		    __func__, isrc->xi_port, cpu, error);
@@ -884,24 +885,21 @@ xen_intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
  * Configure CPU affinity for interrupt source event delivery.
  *
  * \param isrc     The interrupt source to configure.
- * \param apic_id  The apic id of the CPU for handling future events.
+ * \param to_cpu   The id of the CPU for handling future events.
  *
  * \returns  0 if successful, otherwise an errno.
  */
 static int
-xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
+xen_intr_assign_cpu(struct intsrc *base_isrc, u_int to_cpu)
 {
 #ifdef SMP
 	struct evtchn_bind_vcpu bind_vcpu;
 	struct xenisrc *isrc;
-	u_int to_cpu, vcpu_id;
+	u_int vcpu_id = XEN_CPUID_TO_VCPUID(to_cpu);
 	int error, masked;
 
 	if (!xen_has_percpu_evtchn())
 		return (EOPNOTSUPP);
-
-	to_cpu = apic_cpuid(apic_id);
-	vcpu_id = pcpu_find(to_cpu)->pc_vcpu_id;
 
 	mtx_lock(&xen_intr_isrc_lock);
 	isrc = (struct xenisrc *)base_isrc;
@@ -949,6 +947,14 @@ out:
 #else
 	return (EOPNOTSUPP);
 #endif
+}
+
+/* Wrapper of xen_intr_assign_cpu to use as pic callbacks */
+static int
+xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+{
+
+	return (xen_intr_assign_cpu(isrc, apic_cpuid(apic_id)));
 }
 
 /*------------------- Virtual Interrupt Source PIC Functions -----------------*/
@@ -1119,7 +1125,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, xen_intr_handle_t *port_handlep)
 {
-	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
+	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	struct xenisrc *isrc;
 	struct evtchn_bind_virq bind_virq = { .virq = virq, .vcpu = vcpu_id };
 	int error;
@@ -1160,7 +1166,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu_apic_ids[cpu]);
+		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
 	}
 #endif
 
@@ -1179,7 +1185,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
     enum intr_type flags, xen_intr_handle_t *port_handlep)
 {
 #ifdef SMP
-	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
+	u_int vcpu_id = XEN_CPUID_TO_VCPUID(cpu);
 	struct xenisrc *isrc;
 	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
 	/* Same size as the one used by intr_handler->ih_name. */
@@ -1216,7 +1222,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu_apic_ids[cpu]);
+		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
 	}
 
 	/*

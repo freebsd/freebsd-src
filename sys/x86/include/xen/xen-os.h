@@ -40,6 +40,8 @@
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
+#include <sys/pcpu.h>
+
 /* If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
@@ -50,6 +52,15 @@ extern int xen_disable_pv_disks;
 extern int xen_disable_pv_nics;
 
 extern uint32_t xen_cpuid_base;
+
+static inline u_int
+XEN_CPUID_TO_VCPUID(u_int cpuid)
+{
+
+	return (pcpu_find(cpuid)->pc_vcpu_id);
+}
+
+#define	XEN_VCPUID()	PCPU_GET(vcpu_id)
 
 static inline bool
 xen_has_percpu_evtchn(void)

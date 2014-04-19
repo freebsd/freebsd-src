@@ -78,7 +78,7 @@ xendebug_filter(void *arg __unused)
 
 	mtx_lock_spin(&lock);
 	sbuf_clear(buf);
-	xc_printf("Printing stack trace vCPU%d\n", PCPU_GET(vcpu_id));
+	xc_printf("Printing stack trace vCPU%u\n", XEN_VCPUID());
 	stack_sbuf_print_ddb(buf, &st);
 	sbuf_finish(buf);
 	mtx_unlock_spin(&lock);
