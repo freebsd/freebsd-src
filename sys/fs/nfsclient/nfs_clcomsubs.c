@@ -66,7 +66,7 @@ static struct {
 	{ NFSV4OP_READLINK, 2, "Readlink", 8, },
 	{ NFSV4OP_READ, 1, "Read", 4, },
 	{ NFSV4OP_WRITE, 2, "Write", 5, },
-	{ NFSV4OP_OPEN, 3, "Open", 4, },
+	{ NFSV4OP_OPEN, 5, "Open", 4, },
 	{ NFSV4OP_CREATE, 3, "Create", 6, },
 	{ NFSV4OP_CREATE, 1, "Create", 6, },
 	{ NFSV4OP_CREATE, 3, "Create", 6, },
