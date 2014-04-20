@@ -659,7 +659,7 @@
 
       ?>
       <important>
-	<para>Upgrading &os; should, of course, only be attempted
+	<para>Upgrading &os; should only be attempted
 	  after backing up <emphasis>all</emphasis> data and
 	  configuration files.</para>
       </important>
