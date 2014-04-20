@@ -1,4 +1,4 @@
-/* $OpenBSD: bufaux.c,v 1.56 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: bufaux.c,v 1.57 2014/04/16 23:22:45 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -372,6 +372,9 @@ buffer_put_bignum2_from_string(Buffer *buffer, const u_char *s, u_int l)
 
 	if (l > 8 * 1024)
 		fatal("%s: length %u too long", __func__, l);
+	/* Skip leading zero bytes */
+	for (; l > 0 && *s == 0; l--, s++)
+		;
 	p = buf = xmalloc(l + 1);
 	/*
 	 * If most significant bit is set then prepend a zero byte to
