@@ -2545,10 +2545,12 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	nfsattrbit_t attrbits;
 	int error = 0;
+	struct nfsfh *fhp;
 
 	*nfhpp = NULL;
 	*attrflagp = 0;
 	*dattrflagp = 0;
+	fhp = VTONFS(dvp)->n_fhp;
 	if (namelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
 	NFSCL_REQSTART(nd, NFSPROC_MKDIR, dvp);
@@ -2564,6 +2566,12 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		*tl++ = txdr_unsigned(NFSV4OP_GETFH);
 		*tl = txdr_unsigned(NFSV4OP_GETATTR);
 		(void) nfsrv_putattrbit(nd, &attrbits);
+		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(NFSV4OP_PUTFH);
+		(void) nfsm_fhtom(nd, fhp->nfh_fh, fhp->nfh_len, 0);
+		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(NFSV4OP_GETATTR);
+		(void) nfsrv_putattrbit(nd, &attrbits);
 	}
 	error = nfscl_request(nd, dvp, p, cred, dstuff);
 	if (error)
@@ -2577,6 +2585,14 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		}
 		if (!error)
 			error = nfscl_mtofh(nd, nfhpp, nnap, attrflagp);
+		if (!error) {
+			/* Get rid of the PutFH and Getattr status values. */
+			NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+			/* Load the directory attributes. */
+			error = nfsm_loadattr(nd, dnap);
+			if (error == 0)
+				*dattrflagp = 1;
+		}
 	}
 	if ((nd->nd_flag & ND_NFSV3) && !error)
 		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
