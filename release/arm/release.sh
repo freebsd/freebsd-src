@@ -98,8 +98,9 @@ main() {
 	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
 		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 	# Build the 'xdev' target for crochet.
-	eval chroot ${CHROOTDIR} make -C /usr/src WITHOUT_CLANG_IS_CC=1 \
-		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} WITH_GCC=1 \
+	eval chroot ${CHROOTDIR} make -C /usr/src \
+		WITHOUT_CLANG_IS_CC=1 WITHOUT_CLANG=1 WITH_GCC=1 \
+		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH}
 		${WORLD_FLAGS} xdev
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
