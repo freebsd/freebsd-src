@@ -59,6 +59,7 @@
 #define SSH_BUG_RFWD_ADDR	0x02000000
 #define SSH_NEW_OPENSSH		0x04000000
 #define SSH_BUG_DYNAMIC_RPORT	0x08000000
+#define SSH_BUG_CURVE25519PAD	0x10000000
 
 void     enable_compat13(void);
 void     enable_compat20(void);
@@ -66,6 +67,7 @@ void     compat_datafellows(const char *);
 int	 proto_spec(const char *);
 char	*compat_cipher_proposal(char *);
 char	*compat_pkalg_proposal(char *);
+char	*compat_kex_proposal(char *);
 
 extern int compat13;
 extern int compat20;
