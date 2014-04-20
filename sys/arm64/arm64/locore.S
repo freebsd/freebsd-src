@@ -66,31 +66,55 @@ _start:
 	/* Create the page tables */
 	bl	create_pagetables
 
+	/*
+	 * At this point:
+	 * x27 = TTBR0 table
+	 * x26 = TTBR1 table
+	 */
+
 	/* Enable the mmu */
 	bl	start_mmu
 
-	ldr	x29, .Lvirtdone
-	br	x29
+	/* Jump to the virtual address space */
+	ldr	x15, .Lvirtdone
+	br	x15
 
 virtdone:
 	/* Set up the stack */
-	adr	x29, initstack
-	mov	sp, x29
+	adr	x15, initstack
+	mov	sp, x15
 
 	/* Zero the BSS */
-	ldr	x29, .Lbss
-	ldr	x28, .Lend
+	ldr	x15, .Lbss
+	ldr	x14, .Lend
 	b	2f
 1:
-	str	xzr, [x29], #8
-	cmp	x29, x28
+	str	xzr, [x15], #8
+	cmp	x15, x14
 	b.lo	1b
 2:
+
+	/* Backup the module pointer */
+	mov	x1, x0
+
+	/* Make the page table base a virtual address */
+	sub	x26, x26, x29
+
+	sub	sp, sp, #(64 * 4)
+	mov	x0, sp
+
+	/* Degate the delda so it is VA -> PA */
+	neg	x29, x29
+
+	str	x1,  [x0]	/* modulep */
+	str	x26, [x0, 8]	/* kern_l1pt */
+	str	x29, [x0, 16]	/* kern_delta */
 
 	/* Branch to C code */
 	bl	initarm
 
-3:	b	3b
+3:	wfi
+	b	3b
 
 	.align 3
 .Lvirtdone:

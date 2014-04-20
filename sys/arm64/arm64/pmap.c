@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
+#include <machine/vmparam.h>
+
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -55,6 +57,84 @@ int unmapped_buf_allowed = 0;
 struct pmap kernel_pmap_store;
 
 struct msgbuf *msgbufp = NULL;
+
+void
+pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
+{
+	u_int l1_slot, l2_slot;
+	uint64_t kern_delta;
+	pt_entry_t *ptep;
+	pd_entry_t *pde;
+	vm_offset_t va;
+	vm_paddr_t pa;
+
+	kern_delta = KERNBASE - kernstart;
+
+	printf("pmap_bootstrap %llx %llx %llx\n", l1pt, kernstart, kernlen);
+	printf("%llx\n", l1pt);
+	printf("%lx\n", (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK);
+
+	/*
+	 * Read the page table to find out what is already mapped.
+	 * This assumes we have mapped a block of memory from KERNBASE
+	 * using a single L1 entry.
+	 */
+	pde = (pd_entry_t *)l1pt;
+	l1_slot = (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK;
+
+	/* Sanity check the index, KERNBASE should be the first VA */
+	KASSERT(l1_slot == 0, ("The L1 index is non-zero"));
+	/* Check locore has used a table L1 map */
+	KASSERT((pde[l1_slot] & ATTR_DESCR_MASK) == L1_TABLE,
+	   ("Invalid bootstrap L1 table"));
+
+	/* Find the address of the L2 table */
+	ptep = (pt_entry_t *)((pde[l1_slot] & ~ATTR_MASK) + kern_delta);
+	l2_slot = (KERNBASE >> L2_SHIFT) & Ln_ADDR_MASK;
+	/* Sanity check the index, KERNBASE should be the first VA */
+	KASSERT(l2_slot == 0, ("The L2 index is non-zero"));
+
+	va = KERNBASE;
+	pa = KERNBASE - kern_delta; /* Set to an invalid address */
+
+	/* Find how many pages we have mapped */
+	for (; l2_slot < Ln_ENTRIES; l2_slot++) {
+		if ((ptep[l2_slot] & ATTR_DESCR_MASK) == 0)
+			break;
+
+		printf("ptep[%u] = %016llx\n", l2_slot, ptep[l2_slot]);
+
+		/* Check locore used L2 blocks */
+		KASSERT((ptep[l2_slot] & ATTR_DESCR_MASK) == L2_BLOCK,
+		    ("Invalid bootstrap L2 table"));
+		KASSERT((ptep[l2_slot] & ~ATTR_DESCR_MASK) == pa,
+		    ("Incorrect PA in L2 table"));
+
+		va += L2_SIZE;
+		pa += L2_SIZE;
+	}
+	/* And map the rest of L2 table */
+	for (; l2_slot < Ln_ENTRIES; l2_slot++) {
+		KASSERT(ptep[l2_slot] == 0, ("Invalid bootstrap L2 table"));
+		KASSERT(((va >> L2_SHIFT) & Ln_ADDR_MASK) == l2_slot,
+		    ("VA inconsistency detected"));
+
+		/* TODO: Check if this pa is valid */
+		ptep[l2_slot] = (pa & ~L2_OFFSET) | ATTR_AF | L2_BLOCK;
+
+		va += L2_SIZE;
+		pa += L2_SIZE;
+	}
+
+	/* Flush the cache and tlb to ensure the new entries are valid */
+	/* TODO: Flush the cache, we are relying on it being off */
+	/* TODO: Move this to a function */
+	__asm __volatile(
+	    "dsb  sy		\n"
+	    "tlbi vmalle1is	\n"
+	    "dsb  sy		\n"
+	    "isb		\n");
+}
 
 /*
  * Initialize a vm_page's machine-dependent fields.

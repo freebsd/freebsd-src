@@ -43,7 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
+#include <vm/pmap.h>
+
 #include <machine/cpu.h>
+#include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
@@ -260,8 +263,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	panic("sendsig");
 }
 
-void initarm(vm_offset_t);
-
 #ifdef EARLY_PRINTF
 static void 
 foundation_early_putc(int c)
@@ -440,23 +441,34 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 			break;
 	}
 }
+
 void
-initarm(vm_offset_t modulep)
+initarm(struct arm64_bootparams *abp)
 {
 	vm_paddr_t physmap[PHYSMAP_SIZE];
 	struct efi_map_header *efihdr;
+	vm_offset_t lastaddr;
 	int physmap_idx;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
 	int i;
 
-	printf("In initarm on arm64 %llx\n", modulep);
+	printf("In initarm on arm64\n");
+
+	/* Set the module data location */
+	preload_metadata = (caddr_t)(uintptr_t)(abp->modulep);
 
 	/* Find the kernel address */
-	preload_metadata = (caddr_t)(uintptr_t)(modulep);
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
+
+	/* Find the address to start allocating from */
+	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+
+	/* Bootstrap enough of pmap  to enter the kernel proper */
+	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
+	    lastaddr - KERNBASE);
 
 	/* Load the physical memory ranges */
 	physmap_idx = 0;

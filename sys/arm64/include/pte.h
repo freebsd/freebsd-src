@@ -44,13 +44,17 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 /* Block and Page attributes */
 /* TODO: Add the upper attributes */
-#define	ATTR_MASK_L	0xfff
+#define	ATTR_MASK_H	UINT64_C(0xfff0000000000000)
+#define	ATTR_MASK_L	UINT64_C(0x0000000000000fff)
+#define	ATTR_MASK	(ATTR_MASK_H | ATTR_MASK_L)
 #define	ATTR_nG		(1 << 11)
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)
 #define	ATTR_AP(x)	((x) << 6)
 #define	ATTR_NS		(1 << 5)
 #define	ATTR_IDX(x)	((x) << 3)
+
+#define	ATTR_DESCR_MASK	3
 
 /* Level 0 table, 512GiB per entry */
 #define	L0_SHIFT	39
@@ -61,12 +65,16 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 /* Level 1 table, 1GiB per entry */
 #define	L1_SHIFT	30
+#define	L1_SIZE 	(1 << L1_SHIFT)
+#define	L1_OFFSET 	(L1_SIZE - 1)
 #define	L1_INVAL	L0_INVAL
 #define	L1_BLOCK	L0_BLOCK
 #define	L1_TABLE	L0_TABLE
 
 /* Level 2 table, 2MiB per entry */
 #define	L2_SHIFT	21
+#define	L2_SIZE 	(1 << L2_SHIFT)
+#define	L2_OFFSET 	(L2_SIZE - 1)
 #define	L2_INVAL	L0_INVAL
 #define	L2_BLOCK	L0_BLOCK
 #define	L2_TABLE	L0_TABLE
@@ -80,7 +88,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 	/* 0x2 also marks an invalid address */
 #define	L3_TABLE	0x3
 
-#define	Ln_ADDR_MASK	((1 << 9) - 1)
+#define	Ln_ENTRIES	(1 << 9)
+#define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 
 #endif /* !_MACHINE_PTE_H_ */
 
