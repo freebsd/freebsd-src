@@ -9,3 +9,8 @@ SRCS+=	_ctx_start.S _setjmp.S _set_tp.c alloca.S fabs.c \
 .if ${MK_ARM_EABI} == "no"
 SRCS+=	divsi3.S
 .endif
+
+.if ${MACHINE_ARCH} == "armv6hf"
+SRCS+=	fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c fpsetround.c \
+	fpsetsticky.c
+.endif
