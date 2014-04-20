@@ -58,6 +58,7 @@ creat_f	c_flags;
 creat_f	c_follow;
 creat_f	c_fstype;
 creat_f	c_group;
+creat_f	c_ignore_readdir_race;
 creat_f	c_inum;
 creat_f	c_links;
 creat_f	c_ls;
@@ -111,7 +112,8 @@ exec_f	f_size;
 exec_f	f_type;
 exec_f	f_user;
 
-extern int ftsoptions, isdeprecated, isdepth, isoutput, issort, isxargs;
+extern int ftsoptions, ignore_readdir_race, isdeprecated, isdepth, isoutput;
+extern int issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;
 extern time_t now;
