@@ -51,7 +51,7 @@
  * The 'utc' argument determines if the resulting FATTIME timestamp
  * should be on the UTC or local timezone calendar.
  *
- * The conversion functions below cut time into four-year leap-second
+ * The conversion functions below cut time into four-year leap-year
  * cycles rather than single years and uses table lookups inside those
  * cycles to get the months and years sorted out.
  *
