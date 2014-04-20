@@ -260,7 +260,7 @@
     <filename>/usr/src/UPDATING</filename>.</para>
 
   <important>
-    <para>Upgrading &os; should, of course, only be attempted after
+    <para>Upgrading &os; should only be attempted after
       backing up <emphasis>all</emphasis> data and configuration
       files.</para>
   </important>
