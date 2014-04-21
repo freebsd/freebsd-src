@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -69,6 +70,11 @@ static const char rcsid[] =
 
 #define	PF(f, func) do {						\
 	char *b = NULL;							\
+	int dollar = 0;							\
+	if (*f == '$') 	{						\
+		dollar++;						\
+		*f = '%';						\
+	} 								\
 	if (havewidth)							\
 		if (haveprec)						\
 			(void)asprintf(&b, f, fieldwidth, precision, func); \
@@ -82,6 +88,8 @@ static const char rcsid[] =
 		(void)fputs(b, stdout);					\
 		free(b);						\
 	}								\
+	if (dollar)							\
+		*f = '$';						\
 } while (0)
 
 static int	 asciicode(void);
@@ -96,6 +104,8 @@ static const char
 static char	*mknum(char *, char);
 static void	 usage(void);
 
+static int  myargc;
+static char **myargv;
 static char **gargv;
 
 int
@@ -146,7 +156,13 @@ main(int argc, char *argv[])
 	chopped = escape(fmt, 1, &len);		/* backslash interpretation */
 	rval = end = 0;
 	gargv = ++argv;
+
 	for (;;) {
+		char **maxargv = gargv;
+
+		myargv = gargv;
+		for (myargc = 0; gargv[myargc]; myargc++)
+			/* nop */;
 		start = fmt;
 		while (fmt < format + len) {
 			if (fmt[0] == '%') {
@@ -168,7 +184,10 @@ main(int argc, char *argv[])
 				start = fmt;
 			} else
 				fmt++;
+			if (gargv > maxargv)
+				maxargv = gargv;
 		}
+		gargv = maxargv;
 
 		if (end == 1) {
 			warnx("missing format character");
@@ -202,6 +221,22 @@ printf_doformat(char *start, int *rval)
 	char convch, nextch;
 
 	fmt = start + 1;
+
+	/* look for "n$" field index specifier */
+	fmt += strspn(fmt, skip2);
+	if ((*fmt == '$') && (fmt != (start + 1))) {
+		int idx = atoi(start + 1);
+		if (idx <= myargc) {
+			gargv = &myargv[idx - 1];
+		} else {
+			gargv = &myargv[myargc];
+		}
+		start = fmt;
+		fmt++;
+	} else {
+		fmt = start + 1;
+	}
+
 	/* skip to field width */
 	fmt += strspn(fmt, skip1);
 	if (*fmt == '*') {
