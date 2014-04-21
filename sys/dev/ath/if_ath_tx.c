@@ -3244,8 +3244,11 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 
 	ATH_TX_LOCK_ASSERT(sc);
 	tid->paused++;
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: paused = %d\n",
-	    __func__, tid->paused);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: [%6D]: tid=%d, paused = %d\n",
+	    __func__,
+	    tid->an->an_node.ni_macaddr, ":",
+	    tid->tid,
+	    tid->paused);
 }
 
 /*
@@ -3262,15 +3265,21 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	 * until it's actually resolved.
 	 */
 	if (tid->paused == 0) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-		    "%s: %6D: paused=0?\n", __func__,
-		    tid->an->an_node.ni_macaddr, ":");
+		device_printf(sc->sc_dev,
+		    "%s: [%6D]: tid=%d, paused=0?\n",
+		    __func__,
+		    tid->an->an_node.ni_macaddr, ":",
+		    tid->tid);
 	} else {
 		tid->paused--;
 	}
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
-	    __func__, tid->paused);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	    "%s: [%6D]: tid=%d, unpaused = %d\n",
+	    __func__,
+	    tid->an->an_node.ni_macaddr, ":",
+	    tid->tid,
+	    tid->paused);
 
 	if (tid->paused)
 		return;
