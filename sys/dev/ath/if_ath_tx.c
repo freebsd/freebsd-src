@@ -4600,10 +4600,11 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	ATH_TX_UNLOCK(sc);
 
-	/* Handle frame completion */
+	/* Handle frame completion as individual frames */
 	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
+		bf->bf_next = NULL;
 		ath_tx_default_comp(sc, bf, 1);
 		bf = bf_next;
 	}
@@ -5849,7 +5850,7 @@ ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an)
 		    ":",
 		    i);
 		/*
-	 * In case there's a followup call to this, only call it
+		 * In case there's a followup call to this, only call it
 		 * if we don't have a cleanup in progress.
 		 */
 		if (! tid->cleanup_inprogress) {
