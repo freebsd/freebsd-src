@@ -194,7 +194,7 @@ This is a random permutation of the inputs except that
 the equal keys sort together.
 It is implemented by hashing the input keys and sorting
 the hash values.
-The hash function is choosen randomly.
+The hash function is chosen randomly.
 The hash function is randomized by
 .Cm /dev/random
 content, or by file content if it is specified by
@@ -212,7 +212,7 @@ The files are compared by their prefixes and versions (leading
 zeros are ignored in version numbers, see example below).
 If an input string does not match the pattern, then it is compared
 using the byte compare function.
-All string comparisions are performed in C locale, the locale
+All string comparisons are performed in C locale, the locale
 environment setting is ignored.
 .Bl -tag -width indent
 .It Example:
