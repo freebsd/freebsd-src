@@ -314,7 +314,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 		j.version = j0.version;
 		j.path = j0.path;
 		j.hostname = j0.hostname;
-		j.ip4s = j0.ip_number;
+		j.ip4s = htonl(j0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 
@@ -3047,7 +3047,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip4s ? -1 :
+			switch (ij >= ppr->pr_ip6s ? -1 :
 				qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
@@ -3699,11 +3699,6 @@ prison_priv_check(struct ucred *cred, int priv)
 
 #ifdef notyet
 		/*
-		 * AppleTalk privileges.
-		 */
-	case PRIV_NETATALK_RESERVEDPORT:
-
-		/*
 		 * ATM privileges.
 		 */
 	case PRIV_NETATM_CFG:
@@ -3743,12 +3738,6 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_BINDANY:
 
 #ifdef notyet
-		/*
-		 * IPX/SPX privileges.
-		 */
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
-
 		/*
 		 * NCP privileges.
 		 */

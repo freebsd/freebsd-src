@@ -3,7 +3,7 @@ PUSHDIVERT(-1)
 # Copyright (C) 1997, Philip A. Prindeville and Enteka Enterprise Technology
 #				Services
 #
-# Copyright (c) 1999, 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999, 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -24,7 +24,7 @@ POPDIVERT
 ###   QPAGE Mailer specification   ###
 ######################################
 
-VERSIONID(`$Id: qpage.m4,v 8.10 2001/11/12 23:11:34 ca Exp $')
+VERSIONID(`$Id: qpage.m4,v 8.11 2013/11/22 20:51:14 ca Exp $')
 
 Mqpage, P=QPAGE_MAILER_PATH, F=_MODMF_(QPAGE_MAILER_FLAGS, `QPAGE'),
 	M=QPAGE_MAILER_MAX,  T=DNS/RFC822/X-Unix,_QPAGE_QGRP

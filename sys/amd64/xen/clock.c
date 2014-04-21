@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/timerreg.h>
 
 #include <x86/isa/icu.h>
-#include <x86/isa/isa.h>
 #include <isa/rtc.h>
 
 #include <vm/vm.h>
@@ -204,7 +203,7 @@ i8254_init(void)
  * Note: timer had better have been programmed before this is first used!
  */
 void
-DELAY(int n)
+i8254_delay(int n)
 {
 	int delta, ticks_left;
 	uint32_t tick, prev_tick;

@@ -133,16 +133,8 @@ bool mmu_map_inspect_va(struct pmap *, mmu_map_t, vm_offset_t);
  */
 bool mmu_map_hold_va(struct pmap *,  mmu_map_t, vm_offset_t);
 
-/* Optionally release resources needed to "inspect" a va->pa mapping
- * Note: This function is advisory in nature. The va->pa mapping
- * itself may *NOT* be modified.
- */
+/* Optionally release resources after tear down of a va->pa mapping */
 void mmu_map_release_va(struct pmap *, mmu_map_t, vm_offset_t);
-
-/* 
- * Release all resources allocated via mmu_map_hold_va().
- */
-void mmu_map_destroy(struct pmap *);
 
 /* 
  * Machine dependant "view" into the page table hierarchy FSM.

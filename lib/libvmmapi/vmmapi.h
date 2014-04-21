@@ -61,12 +61,20 @@ int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
+int	vm_suspend(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
-int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-			int vector);
-int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-			 int vector, int error_code);
+int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
+int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_lapic_local_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
+int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
+int	vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
@@ -78,10 +86,11 @@ int	vm_assign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_unassign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 			   vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
-int	vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-		     int dest, int vector, int numvec);
-int	vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-		      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr);
+int	vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot,
+	    int func, uint64_t addr, uint64_t msg, int numvec);
+int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
+	    int func, int idx, uint64_t addr, uint64_t msg,
+	    uint32_t vector_control);
 
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
@@ -93,6 +102,8 @@ const char *vm_get_stat_desc(struct vmctx *ctx, int index);
 int	vm_get_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state *s);
 int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
+int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
+
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
 
@@ -102,5 +113,8 @@ int	vcpu_reset(struct vmctx *ctx, int vcpu);
 int	vm_setup_freebsd_registers(struct vmctx *ctx, int vcpu,
 				uint64_t rip, uint64_t cr3, uint64_t gdtbase,
 				uint64_t rsp);
+int	vm_setup_freebsd_registers_i386(struct vmctx *vmctx, int vcpu,
+					uint32_t eip, uint32_t gdtbase,
+					uint32_t esp);
 void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 #endif	/* _VMMAPI_H_ */

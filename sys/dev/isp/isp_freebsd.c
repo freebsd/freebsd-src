@@ -56,7 +56,6 @@ int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
 int isp_gone_device_time = 30;	/* grace time before reporting device lost */
 int isp_autoconfig = 1;		/* automatically attach/detach devices */
 static const char prom3[] = "Chan %d PortID 0x%06x Departed from Target %u because of %s";
-static const char rqo[] = "%s: Request Queue Overflow\n";
 
 static void isp_freeze_loopdown(ispsoftc_t *, int, char *);
 static d_ioctl_t ispioctl;
@@ -2152,7 +2151,8 @@ isp_target_putback_atio(union ccb *ccb)
 
 	qe = isp_getrqentry(isp);
 	if (qe == NULL) {
-		xpt_print(ccb->ccb_h.path, rqo, __func__);
+		xpt_print(ccb->ccb_h.path,
+		    "%s: Request Queue Overflow\n", __func__);
 		(void) timeout(isp_refire_putback_atio, ccb, 10);
 		return;
 	}

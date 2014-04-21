@@ -397,10 +397,18 @@ checkout_dir(dir_context_t *dir,
     {
       if (p_dir->added)
         {
+          /* Calculate the working_url by skipping the shared ancestor bewteen
+           * the parent->relpath and dir->relpath.  This is safe since an
+           * add is guaranteed to have a parent that is checked out. */
+          dir_context_t *parent = p_dir->parent_dir;
+          const char *relpath = svn_relpath_skip_ancestor(parent->relpath,
+                                                          dir->relpath);
+
           /* Implicitly checkout this dir now. */
+          SVN_ERR_ASSERT(parent->working_url);
           dir->working_url = svn_path_url_add_component2(
-                                   dir->parent_dir->working_url,
-                                   dir->name, dir->pool);
+                                   parent->working_url,
+                                   relpath, dir->pool);
           return SVN_NO_ERROR;
         }
       p_dir = p_dir->parent_dir;
@@ -1630,7 +1638,7 @@ add_directory(const char *path,
   dir->added = TRUE;
   dir->base_revision = SVN_INVALID_REVNUM;
   dir->copy_revision = copyfrom_revision;
-  dir->copy_path = copyfrom_path;
+  dir->copy_path = apr_pstrdup(dir->pool, copyfrom_path);
   dir->relpath = apr_pstrdup(dir->pool, path);
   dir->name = svn_relpath_basename(dir->relpath, NULL);
   dir->changed_props = apr_hash_make(dir->pool);
@@ -1872,7 +1880,7 @@ add_file(const char *path,
   new_file->name = svn_relpath_basename(new_file->relpath, NULL);
   new_file->added = TRUE;
   new_file->base_revision = SVN_INVALID_REVNUM;
-  new_file->copy_path = copy_path;
+  new_file->copy_path = apr_pstrdup(new_file->pool, copy_path);
   new_file->copy_revision = copy_revision;
   new_file->changed_props = apr_hash_make(new_file->pool);
   new_file->removed_props = apr_hash_make(new_file->pool);
@@ -1924,7 +1932,18 @@ add_file(const char *path,
 
       if (handler->sline.code != 404)
         {
-          return svn_error_createf(SVN_ERR_RA_DAV_ALREADY_EXISTS, NULL,
+          if (handler->sline.code != 200)
+            {
+              svn_error_t *err;
+
+              err = svn_ra_serf__error_on_status(handler->sline,
+                                                 handler->path,
+                                                 handler->location);
+
+              SVN_ERR(err);
+            }
+
+          return svn_error_createf(SVN_ERR_FS_ALREADY_EXISTS, NULL,
                                    _("File '%s' already exists"), path);
         }
     }

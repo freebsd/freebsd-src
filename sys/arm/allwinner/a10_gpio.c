@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012 Luiz Otavio O Souza.
  * All rights reserved.
@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
+#include "a10_gpio.h"
 
 /*
  * A10 have 9 banks of gpio.
@@ -101,6 +102,8 @@ struct a10_gpio_softc {
 #define	A10_GPIO_GP_INT_CTL		0x210
 #define	A10_GPIO_GP_INT_STA		0x214
 #define	A10_GPIO_GP_INT_DEB		0x218
+
+static struct a10_gpio_softc *a10_gpio_sc;
 
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
@@ -410,6 +413,10 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 static int
 a10_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-gpio"))
 		return (ENXIO);
 
@@ -469,6 +476,9 @@ a10_gpio_attach(device_t dev)
 
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
+
+	a10_gpio_sc = sc;
+
 	return (bus_generic_attach(dev));
 
 fail:
@@ -514,3 +524,19 @@ static driver_t a10_gpio_driver = {
 };
 
 DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0);
+
+int
+a10_emac_gpio_config(uint32_t pin)
+{
+	struct a10_gpio_softc *sc = a10_gpio_sc;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Configure pin mux settings for MII. */
+	A10_GPIO_LOCK(sc);
+	a10_gpio_set_function(sc, pin, A10_GPIO_PULLDOWN);
+	A10_GPIO_UNLOCK(sc);
+
+	return (0);
+}

@@ -120,8 +120,6 @@
     sbin
     ..
     share
-        atf
-        ..
         bsdconfig
             media
             ..
@@ -164,8 +162,6 @@
         ..
         doc
             IPv6
-            ..
-            atf
             ..
             atm
             ..
@@ -304,6 +300,8 @@
             cvsup
             ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -1442,7 +1440,5 @@
         ..
     ..
     src             nochange
-    ..
-    tests
     ..
 ..

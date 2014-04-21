@@ -1,8 +1,8 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index abd5e6f..1d7491a 100644
+index d8e2e71..330ba2a 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
-@@ -51,12 +51,23 @@
+@@ -57,12 +57,23 @@
      <para>This manual describes jemalloc @jemalloc_version@.  More information
      can be found at the <ulink
      url="http://www.canonware.com/jemalloc/">jemalloc website</ulink>.</para>
@@ -27,7 +27,7 @@ index abd5e6f..1d7491a 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2180,4 +2191,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2342,4 +2353,19 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -42,32 +42,35 @@ index abd5e6f..1d7491a 100644
 +    <function>mallctl*<parameter/></function>, and
 +    <function>*allocm<parameter/></function> functions first appeared in
 +    FreeBSD 10.0.</para>
++
++    <para>The <function>*allocx<parameter/></function> functions first appeared
++    in FreeBSD 11.0.</para>
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 53c135c..c547339 100644
+index 574bbb1..e3eafdf 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
  #ifndef JEMALLOC_INTERNAL_H
- #define JEMALLOC_INTERNAL_H
+ #define	JEMALLOC_INTERNAL_H
 +#include "libc_private.h"
 +#include "namespace.h"
 +
  #include <math.h>
  #ifdef _WIN32
  #  include <windows.h>
-@@ -54,6 +57,9 @@ typedef intptr_t ssize_t;
+@@ -65,6 +68,9 @@ typedef intptr_t ssize_t;
+ #include <valgrind/memcheck.h>
  #endif
- #include <fcntl.h>
  
 +#include "un-namespace.h"
 +#include "libc_private.h"
 +
  #define	JEMALLOC_NO_DEMANGLE
- #include "../jemalloc@install_suffix@.h"
- 
-@@ -95,13 +101,7 @@ static const bool config_fill =
+ #ifdef JEMALLOC_JET
+ #  define JEMALLOC_N(n) jet_##n
+@@ -99,13 +105,7 @@ static const bool config_fill =
      false
  #endif
      ;
@@ -96,36 +99,24 @@ index de44e14..564d604 100644
  #endif
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
-diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
-index cdb0b0e..2a98d1f 100644
---- a/include/jemalloc/internal/private_namespace.h
-+++ b/include/jemalloc/internal/private_namespace.h
-@@ -218,7 +218,6 @@
- #define	iralloc JEMALLOC_N(iralloc)
- #define	irallocx JEMALLOC_N(irallocx)
- #define	isalloc JEMALLOC_N(isalloc)
--#define	isthreaded JEMALLOC_N(isthreaded)
- #define	ivsalloc JEMALLOC_N(ivsalloc)
- #define	jemalloc_postfork_child JEMALLOC_N(jemalloc_postfork_child)
- #define	jemalloc_postfork_parent JEMALLOC_N(jemalloc_postfork_parent)
-diff --git a/include/jemalloc/jemalloc.h.in b/include/jemalloc/jemalloc.h.in
-index 31b1304..c3ef2f5 100644
---- a/include/jemalloc/jemalloc.h.in
-+++ b/include/jemalloc/jemalloc.h.in
-@@ -15,6 +15,7 @@ extern "C" {
- #define	JEMALLOC_VERSION_GID "@jemalloc_version_gid@"
- 
- #include "jemalloc_defs@install_suffix@.h"
-+#include "jemalloc_FreeBSD.h"
- 
- #ifdef JEMALLOC_EXPERIMENTAL
- #define	ALLOCM_LG_ALIGN(la)	(la)
+diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
+index 93516d2..22f9af9 100644
+--- a/include/jemalloc/internal/private_symbols.txt
++++ b/include/jemalloc/internal/private_symbols.txt
+@@ -226,7 +226,6 @@ iralloc
+ iralloct
+ iralloct_realign
+ isalloc
+-isthreaded
+ ivsalloc
+ ixalloc
+ jemalloc_postfork_child
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 0000000..e6c8407
+index 0000000..94554bc
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,134 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -202,6 +193,12 @@ index 0000000..e6c8407
 +#undef je_free
 +#undef je_posix_memalign
 +#undef je_malloc_usable_size
++#undef je_mallocx
++#undef je_rallocx
++#undef je_xallocx
++#undef je_sallocx
++#undef je_dallocx
++#undef je_nallocx
 +#undef je_allocm
 +#undef je_rallocm
 +#undef je_sallocm
@@ -213,6 +210,12 @@ index 0000000..e6c8407
 +#define	je_free			__free
 +#define	je_posix_memalign	__posix_memalign
 +#define	je_malloc_usable_size	__malloc_usable_size
++#define	je_mallocx		__mallocx
++#define	je_rallocx		__rallocx
++#define	je_xallocx		__xallocx
++#define	je_sallocx		__sallocx
++#define	je_dallocx		__dallocx
++#define	je_nallocx		__nallocx
 +#define	je_allocm		__allocm
 +#define	je_rallocm		__rallocm
 +#define	je_sallocm		__sallocm
@@ -236,15 +239,31 @@ index 0000000..e6c8407
 +__weak_reference(__free, free);
 +__weak_reference(__posix_memalign, posix_memalign);
 +__weak_reference(__malloc_usable_size, malloc_usable_size);
++__weak_reference(__mallocx, mallocx);
++__weak_reference(__rallocx, rallocx);
++__weak_reference(__xallocx, xallocx);
++__weak_reference(__sallocx, sallocx);
++__weak_reference(__dallocx, dallocx);
++__weak_reference(__nallocx, nallocx);
 +__weak_reference(__allocm, allocm);
 +__weak_reference(__rallocm, rallocm);
 +__weak_reference(__sallocm, sallocm);
 +__weak_reference(__dallocm, dallocm);
 +__weak_reference(__nallocm, nallocm);
 +#endif
+diff --git a/include/jemalloc/jemalloc_rename.sh b/include/jemalloc/jemalloc_rename.sh
+index f943891..47d032c 100755
+--- a/include/jemalloc/jemalloc_rename.sh
++++ b/include/jemalloc/jemalloc_rename.sh
+@@ -19,4 +19,6 @@ done
+ 
+ cat <<EOF
+ #endif
 +
++#include "jemalloc_FreeBSD.h"
+ EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index ae56db6..1412a5e 100644
+index 204778b..9e5f2df 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
@@ -258,7 +277,7 @@ index ae56db6..1412a5e 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf;
  bool	opt_abort =
-@@ -471,7 +475,8 @@ malloc_conf_init(void)
+@@ -457,7 +461,8 @@ malloc_conf_init(void)
  #endif
  			    ;
  
@@ -269,7 +288,7 @@ index ae56db6..1412a5e 100644
  				 * Do nothing; opts is already initialized to
  				 * the value of the MALLOC_CONF environment
 diff --git a/src/mutex.c b/src/mutex.c
-index 55e18c2..6b6f438 100644
+index 788eca3..6f5954e 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
 @@ -66,6 +66,17 @@ pthread_create(pthread_t *__restrict thread,
@@ -291,7 +310,7 @@ index 55e18c2..6b6f438 100644
  
  bool
 diff --git a/src/util.c b/src/util.c
-index b3a0114..df1c5d5 100644
+index 93a19fd..70b3e45 100644
 --- a/src/util.c
 +++ b/src/util.c
 @@ -58,6 +58,22 @@ wrtmessage(void *cbopaque, const char *s)

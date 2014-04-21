@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -26,7 +26,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: tcpproto.mc,v 8.14 2000/08/03 15:26:50 ca Exp $')
+VERSIONID(`$Id: tcpproto.mc,v 8.15 2013/11/22 20:51:08 ca Exp $')
 OSTYPE(`unknown')
 FEATURE(`nouucp', `reject')
 MAILER(`local')

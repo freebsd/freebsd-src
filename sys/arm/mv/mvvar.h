@@ -46,6 +46,8 @@
 #include <vm/pmap.h>
 #include <machine/vm.h>
 
+#include <dev/ofw/openfirm.h>
+
 #define	MV_TYPE_PCI		0
 #define	MV_TYPE_PCIE		1
 
@@ -66,7 +68,6 @@ struct decode_win {
 	vm_paddr_t	remap;
 };
 
-extern const struct pmap_devmap pmap_devmap[];
 extern const struct gpio_config mv_gpio_config[];
 extern const struct decode_win *cpu_wins;
 extern const struct decode_win *idma_wins;
@@ -135,5 +136,10 @@ void	mv_drbl_set_msg(uint32_t val, int mnr, int dir, int unit);
 uint32_t mv_drbl_get_msg(int mnr, int dir, int unit);
 
 int	mv_msi_data(int irq, uint64_t *addr, uint32_t *data);
+
+struct arm_devmap_entry;
+
+int mv_pci_devmap(phandle_t, struct arm_devmap_entry *, vm_offset_t,
+    vm_offset_t);
 
 #endif /* _MVVAR_H_ */

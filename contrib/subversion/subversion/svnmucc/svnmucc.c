@@ -57,6 +57,7 @@
 #include "private/svn_cmdline_private.h"
 #include "private/svn_ra_private.h"
 #include "private/svn_string_private.h"
+#include "private/svn_subr_private.h"
 
 #include "svn_private_config.h"
 
@@ -85,7 +86,7 @@ init(const char *application)
   if (svn_cmdline_init(application, stderr))
     exit(EXIT_FAILURE);
 
-  err = svn_ver_check_list(&my_version, checklist);
+  err = svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
   if (err)
     handle_error(err, NULL);
 
@@ -1429,7 +1430,14 @@ main(int argc, const char **argv)
           if (! anchor)
             anchor = url;
           else
-            anchor = svn_uri_get_longest_ancestor(anchor, url, pool);
+            {
+              anchor = svn_uri_get_longest_ancestor(anchor, url, pool);
+              if (!anchor || !anchor[0])
+                handle_error(svn_error_createf(SVN_ERR_INCORRECT_PARAMS, NULL,
+                                               "URLs in the action list do not "
+                                               "share a common ancestor"),
+                             pool);
+            }
 
           if ((++i == action_args->nelts) && (j + 1 < num_url_args))
             insufficient(pool);

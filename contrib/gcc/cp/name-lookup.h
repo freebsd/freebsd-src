@@ -76,6 +76,8 @@ struct cxx_binding GTY(())
   cxx_scope *scope;
   unsigned value_is_inherited : 1;
   unsigned is_local : 1;
+  /* APPLE LOCAL blocks 6040305 (ch) */
+  unsigned declared_in_block : 1;
 };
 
 /* Datatype used to temporarily save C++ bindings (for implicit

@@ -459,6 +459,39 @@ default:							\
 	break;							\
 }
 
+#define	MEMORYBARRIERW(isp, type, offset, size, chan)		\
+switch (type) {							\
+case SYNC_SFORDEV:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_PREWRITE);				\
+	break;							\
+}								\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
+	   isp->isp_osinfo.cdmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
+case SYNC_SFORCPU:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_POSTWRITE);				\
+	break;							\
+}								\
+case SYNC_RESULT:						\
+	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
+	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+case SYNC_REG:							\
+	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
+	    isp->isp_osinfo.bus_handle, offset, size,		\
+	    BUS_SPACE_BARRIER_WRITE);				\
+	break;							\
+default:							\
+	break;							\
+}
+
 #define	MBOX_ACQUIRE			isp_mbox_acquire
 #define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
 #define	MBOX_NOTIFY_COMPLETE		isp_mbox_notify_done

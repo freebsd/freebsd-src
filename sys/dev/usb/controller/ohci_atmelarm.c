@@ -131,13 +131,8 @@ ohci_atmelarm_attach(device_t dev)
 
 	strlcpy(sc->sc_ohci.sc_vendor, "Atmel", sizeof(sc->sc_ohci.sc_vendor));
 
-#if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
-#else
-	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
-#endif
 	if (err) {
 		sc->sc_ohci.sc_intr_hdl = NULL;
 		goto error;

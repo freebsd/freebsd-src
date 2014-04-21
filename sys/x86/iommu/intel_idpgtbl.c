@@ -167,6 +167,8 @@ ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
 	vm_page_t m;
 	int leaf, i;
 
+	leaf = 0; /* silence gcc */
+
 	/*
 	 * First, determine where to stop the paging structures.
 	 */
@@ -619,6 +621,7 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	    (uintmax_t)size));
 	KASSERT((flags & ~DMAR_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
+	pg_sz = 0; /* silence gcc */
 	base1 = base;
 	size1 = size;
 	flags |= DMAR_PGF_OBJL;

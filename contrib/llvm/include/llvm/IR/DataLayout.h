@@ -237,13 +237,14 @@ public:
   /// Layout pointer alignment
   /// FIXME: The defaults need to be removed once all of
   /// the backends/clients are updated.
-  unsigned getPointerABIAlignment(unsigned AS = 0)  const {
+  unsigned getPointerABIAlignment(unsigned AS = 0) const {
     DenseMap<unsigned, PointerAlignElem>::const_iterator val = Pointers.find(AS);
     if (val == Pointers.end()) {
       val = Pointers.find(0);
     }
     return val->second.ABIAlign;
   }
+
   /// Return target's alignment for stack-based pointers
   /// FIXME: The defaults need to be removed once all of
   /// the backends/clients are updated.
@@ -257,7 +258,7 @@ public:
   /// Layout pointer size
   /// FIXME: The defaults need to be removed once all of
   /// the backends/clients are updated.
-  unsigned getPointerSize(unsigned AS = 0)          const {
+  unsigned getPointerSize(unsigned AS = 0) const {
     DenseMap<unsigned, PointerAlignElem>::const_iterator val = Pointers.find(AS);
     if (val == Pointers.end()) {
       val = Pointers.find(0);
@@ -267,9 +268,21 @@ public:
   /// Layout pointer size, in bits
   /// FIXME: The defaults need to be removed once all of
   /// the backends/clients are updated.
-  unsigned getPointerSizeInBits(unsigned AS = 0)    const {
+  unsigned getPointerSizeInBits(unsigned AS = 0) const {
     return getPointerSize(AS) * 8;
   }
+
+  /// Layout pointer size, in bits, based on the type.  If this function is
+  /// called with a pointer type, then the type size of the pointer is returned.
+  /// If this function is called with a vector of pointers, then the type size
+  /// of the pointer is returned.  This should only be called with a pointer or
+  /// vector of pointers.
+  unsigned getPointerTypeSizeInBits(Type *) const;
+
+  unsigned getPointerTypeSize(Type *Ty) const {
+    return getPointerTypeSizeInBits(Ty) / 8;
+  }
+
   /// Size examples:
   ///
   /// Type        SizeInBits  StoreSizeInBits  AllocSizeInBits[*]
@@ -356,6 +369,17 @@ public:
   /// least as big as Width bits.
   Type *getSmallestLegalIntType(LLVMContext &C, unsigned Width = 0) const;
 
+  /// getLargestLegalIntType - Return the largest legal integer type, or null if
+  /// none are set.
+  Type *getLargestLegalIntType(LLVMContext &C) const {
+    unsigned LargestSize = getLargestLegalIntTypeSize();
+    return (LargestSize == 0) ? 0 : Type::getIntNTy(C, LargestSize);
+  }
+
+  /// getLargestLegalIntType - Return the size of largest legal integer type
+  /// size, or 0 if none are set.
+  unsigned getLargestLegalIntTypeSize() const;
+
   /// getIndexedOffset - return the offset from the beginning of the type for
   /// the specified indices.  This is used to implement getelementptr.
   uint64_t getIndexedOffset(Type *Ty, ArrayRef<Value *> Indices) const;
@@ -438,7 +462,7 @@ inline uint64_t DataLayout::getTypeSizeInBits(Type *Ty) const {
   case Type::LabelTyID:
     return getPointerSizeInBits(0);
   case Type::PointerTyID:
-    return getPointerSizeInBits(cast<PointerType>(Ty)->getAddressSpace());
+    return getPointerSizeInBits(Ty->getPointerAddressSpace());
   case Type::ArrayTyID: {
     ArrayType *ATy = cast<ArrayType>(Ty);
     return ATy->getNumElements() *
@@ -448,7 +472,7 @@ inline uint64_t DataLayout::getTypeSizeInBits(Type *Ty) const {
     // Get the layout annotation... which is lazily created on demand.
     return getStructLayout(cast<StructType>(Ty))->getSizeInBits();
   case Type::IntegerTyID:
-    return cast<IntegerType>(Ty)->getBitWidth();
+    return Ty->getIntegerBitWidth();
   case Type::HalfTyID:
     return 16;
   case Type::FloatTyID:

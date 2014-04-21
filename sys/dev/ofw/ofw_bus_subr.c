@@ -55,6 +55,7 @@ ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *obd, phandle_t node)
 	OF_getprop_alloc(node, "compatible", 1, (void **)&obd->obd_compat);
 	OF_getprop_alloc(node, "device_type", 1, (void **)&obd->obd_type);
 	OF_getprop_alloc(node, "model", 1, (void **)&obd->obd_model);
+	OF_getprop_alloc(node, "status", 1, (void **)&obd->obd_status);
 	obd->obd_node = node;
 	return (0);
 }
@@ -73,6 +74,8 @@ ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *obd)
 		free(obd->obd_name, M_OFWPROP);
 	if (obd->obd_type != NULL)
 		free(obd->obd_type, M_OFWPROP);
+	if (obd->obd_status != NULL)
+		free(obd->obd_status, M_OFWPROP);
 }
 
 int
@@ -145,6 +148,30 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_type);
+}
+
+const char *
+ofw_bus_get_status(device_t dev)
+{
+	const struct ofw_bus_devinfo *obd;
+
+	obd = OFW_BUS_GET_DEVINFO(device_get_parent(dev), dev);
+	if (obd == NULL)
+		return (NULL);
+
+	return (obd->obd_status);
+}
+
+int
+ofw_bus_status_okay(device_t dev)
+{
+	const char *status;
+
+	status = ofw_bus_get_status(dev);
+	if (status == NULL || strcmp(status, "okay") == 0)
+		return (1);
+	
+	return (0);
 }
 
 int
@@ -251,8 +278,9 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    phandle_t *iparent, void *maskbuf)
+    phandle_t *iparent)
 {
+	uint8_t maskbuf[regsz + pintrsz];
 	int rv;
 
 	if (ii->opi_imapsz <= 0)
@@ -285,7 +313,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
  * maskbuf must point to a buffer of length physsz + intrsz.
  * The interrupt is returned in result, which must point to a buffer of length
  * rintrsz (which gives the expected size of the mapped interrupt).
- * Returns 1 if a mapping was found, 0 otherwise.
+ * Returns number of cells in the interrupt if a mapping was found, 0 otherwise.
  */
 int
 ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
@@ -325,19 +353,13 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 
-		/*
-		 * XXX: Apple hardware uses a second cell to set information
-		 * on the interrupt trigger type.  This information should
-		 * be used somewhere to program the PIC.
-		 */
-
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
-			    result, rintrsz);
+			    result, MIN(rintrsz, pintrsz));
 
 			if (iparent != NULL)
 				*iparent = parent;
-			return (1);
+			return (pintrsz/sizeof(pcell_t));
 		}
 		mptr += tsz;
 		i -= tsz;

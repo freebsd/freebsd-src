@@ -1577,7 +1577,8 @@ struct mbx_common_read_write_flashrom {
 	uint32_t flash_op_type;
 	uint32_t data_buffer_size;
 	uint32_t data_offset;
-	uint8_t  data_buffer[4];	/* + IMAGE_TRANSFER_SIZE */
+	uint8_t  data_buffer[32768];	/* + IMAGE_TRANSFER_SIZE */
+	uint8_t  rsvd[4];
 };
 
 struct oce_phy_info {

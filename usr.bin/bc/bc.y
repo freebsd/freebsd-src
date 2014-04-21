@@ -1,5 +1,5 @@
 %{
-/*	$OpenBSD: bc.y,v 1.33 2009/10/27 23:59:36 deraadt Exp $	*/
+/*	$OpenBSD: bc.y,v 1.44 2013/11/20 21:33:54 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <search.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -53,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-#define BC_VER		"1.0-FreeBSD"
+#define BC_VER		"1.1-FreeBSD"
 #define END_NODE	((ssize_t) -1)
 #define CONST_STRING	((ssize_t) -2)
 #define ALLOC_STRING	((ssize_t) -3)
@@ -971,7 +970,12 @@ yyerror(const char *s)
 	if (yyin != NULL && feof(yyin))
 		n = asprintf(&str, "%s: %s:%d: %s: unexpected EOF",
 		    __progname, filename, lineno, s);
-	else if (isspace(yytext[0]) || !isprint(yytext[0]))
+	else if (yytext[0] == '\n')
+		n = asprintf(&str,
+		    "%s: %s:%d: %s: newline unexpected",
+		    __progname, filename, lineno, s);
+	else if (isspace((unsigned char)yytext[0]) ||
+	    !isprint((unsigned char)yytext[0]))
 		n = asprintf(&str,
 		    "%s: %s:%d: %s: ascii char 0x%02x unexpected",
 		    __progname, filename, lineno, s, yytext[0]);
@@ -1023,7 +1027,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-chlqv] [-e expression] [file ...]\n",
+	fprintf(stderr, "usage: %s [-chlv] [-e expression] [file ...]\n",
 	    __progname);
 	exit(1);
 }
@@ -1085,26 +1089,25 @@ escape(const char *str)
 
 /* ARGSUSED */
 static void
-sigchld(int signo)
+sigchld(int signo __unused)
 {
 	pid_t pid;
-	int status;
+	int status, save_errno = errno;
 
-	switch (signo) {
-	default:
-		for (;;) {
-			pid = waitpid(dc, &status, WUNTRACED);
-			if (pid == -1) {
-				if (errno == EINTR)
-					continue;
-				_exit(0);
-			}
-			if (WIFEXITED(status) || WIFSIGNALED(status))
-				_exit(0);
-			else
-				break;
-		}
+	for (;;) {
+		pid = waitpid(dc, &status, WCONTINUED | WNOHANG);
+		if (pid == -1) {
+			if (errno == EINTR)
+				continue;
+			_exit(0);
+		} else if (pid == 0)
+			break;
+		if (WIFEXITED(status) || WIFSIGNALED(status))
+			_exit(0);
+		else
+			break;
 	}
+	errno = save_errno;
 }
 
 static const char *
@@ -1191,6 +1194,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (interactive) {
+		gettty(&ttysaved);
 		el = el_init("bc", stdin, stderr, stderr);
 		hist = history_init();
 		history(hist, &he, H_SETSIZE, 100);
@@ -1198,6 +1202,8 @@ main(int argc, char *argv[])
 		el_set(el, EL_EDITOR, "emacs");
 		el_set(el, EL_SIGNAL, 1);
 		el_set(el, EL_PROMPT, dummy_prompt);
+		el_set(el, EL_ADDFN, "bc_eof", "", bc_eof);
+		el_set(el, EL_BIND, "^D", "bc_eof", NULL);
 		el_source(el, NULL);
 	}
 	yywrap();

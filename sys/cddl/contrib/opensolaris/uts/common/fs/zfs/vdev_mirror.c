@@ -313,13 +313,16 @@ vdev_mirror_scrub_done(zio_t *zio)
  * single-copy data.
  */
 static int
-vdev_mirror_dva_select(zio_t *zio, int preferred)
+vdev_mirror_dva_select(zio_t *zio, int p)
 {
 	dva_t *dva = zio->io_bp->blk_dva;
 	mirror_map_t *mm = zio->io_vsd;
+	int preferred;
 	int c;
 
-	for (c = preferred - 1; c >= 0; c--) {
+	preferred = mm->mm_preferred[p];
+	for (p-- ; p >= 0; p--) {
+		c = mm->mm_preferred[p];
 		if (DVA_GET_VDEV(&dva[c]) == DVA_GET_VDEV(&dva[preferred]))
 			preferred = c;
 	}
@@ -334,7 +337,7 @@ vdev_mirror_preferred_child_randomize(zio_t *zio)
 
 	if (mm->mm_root) {
 		p = spa_get_random(mm->mm_preferred_cnt);
-		return (vdev_mirror_dva_select(zio, mm->mm_preferred[p]));
+		return (vdev_mirror_dva_select(zio, p));
 	}
 
 	/*
@@ -603,7 +606,7 @@ vdev_mirror_io_done(zio_t *zio)
 			zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
 			    mc->mc_vd, mc->mc_offset,
 			    zio->io_data, zio->io_size,
-			    ZIO_TYPE_WRITE, zio->io_priority,
+			    ZIO_TYPE_WRITE, ZIO_PRIORITY_ASYNC_WRITE,
 			    ZIO_FLAG_IO_REPAIR | (unexpected_errors ?
 			    ZIO_FLAG_SELF_HEAL : 0), NULL, NULL));
 		}

@@ -123,6 +123,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+#include <machine/ofw_machdep.h>
 
 #include <ddb/ddb.h>
 
@@ -141,6 +142,8 @@ int cacheline_size = 32;
 #endif
 int hw_direct_map = 1;
 
+extern void *ap_pcpu;
+
 struct pcpu __pcpu[MAXCPU];
 
 static struct trapframe frame0;
@@ -155,8 +158,6 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
 uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
-
-int             setfault(faultbuf);             /* defined in locore.S */
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -216,8 +217,8 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ld (%ld MB)\n", ptoa(vm_cnt.v_free_count),
+	    ptoa(vm_cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -236,9 +237,7 @@ extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
 extern void	*trapcode64;
 #endif
 
-#ifdef SMP
 extern void	*rstcode, *rstsize;
-#endif
 extern void	*trapcode, *trapsize;
 extern void	*slbtrap, *slbtrapsize;
 extern void	*alitrap, *alisize;
@@ -249,6 +248,7 @@ extern void	*dblow, *dbsize;
 extern void	*imisstrap, *imisssize;
 extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
+char 		save_trap_init[0x2f00];		/* EXC_LAST */
 
 uintptr_t
 powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
@@ -272,6 +272,9 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	kmdp = NULL;
 	trap_offset = 0;
 	cacheline_warn = 0;
+
+	/* Save trap vectors. */
+	ofw_save_trap_vec(save_trap_init);
 
 #ifdef WII
 	/*
@@ -488,11 +491,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	generictrap = &trapcode;
 	#endif
 
-#ifdef SMP
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),  (size_t)&rstsize);
-#else
-	bcopy(generictrap, (void *)EXC_RST,  (size_t)&trapsize);
-#endif
 
 #ifdef KDB
 	bcopy(&dblow,	(void *)(EXC_MCHK + trap_offset), (size_t)&dbsize);
@@ -783,3 +782,171 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 	return (pa);
 }
 
+/* From p3-53 of the MPC7450 RISC Microprocessor Family Reference Manual */
+void
+flush_disable_caches(void)
+{
+	register_t msr;
+	register_t msscr0;
+	register_t cache_reg;
+	volatile uint32_t *memp;
+	uint32_t temp;
+	int i;
+	int x;
+
+	msr = mfmsr();
+	powerpc_sync();
+	mtmsr(msr & ~(PSL_EE | PSL_DR));
+	msscr0 = mfspr(SPR_MSSCR0);
+	msscr0 &= ~MSSCR0_L2PFE;
+	mtspr(SPR_MSSCR0, msscr0);
+	powerpc_sync();
+	isync();
+	__asm__ __volatile__("dssall; sync");
+	powerpc_sync();
+	isync();
+	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
+	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
+	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
+
+	/* Lock the L1 Data cache. */
+	mtspr(SPR_LDSTCR, mfspr(SPR_LDSTCR) | 0xFF);
+	powerpc_sync();
+	isync();
+
+	mtspr(SPR_LDSTCR, 0);
+
+	/*
+	 * Perform this in two stages: Flush the cache starting in RAM, then do it
+	 * from ROM.
+	 */
+	memp = (volatile uint32_t *)0x00000000;
+	for (i = 0; i < 128 * 1024; i++) {
+		temp = *memp;
+		__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
+		memp += 32/sizeof(*memp);
+	}
+
+	memp = (volatile uint32_t *)0xfff00000;
+	x = 0xfe;
+
+	for (; x != 0xff;) {
+		mtspr(SPR_LDSTCR, x);
+		for (i = 0; i < 128; i++) {
+			temp = *memp;
+			__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
+			memp += 32/sizeof(*memp);
+		}
+		x = ((x << 1) | 1) & 0xff;
+	}
+	mtspr(SPR_LDSTCR, 0);
+
+	cache_reg = mfspr(SPR_L2CR);
+	if (cache_reg & L2CR_L2E) {
+		cache_reg &= ~(L2CR_L2IO_7450 | L2CR_L2DO_7450);
+		mtspr(SPR_L2CR, cache_reg);
+		powerpc_sync();
+		mtspr(SPR_L2CR, cache_reg | L2CR_L2HWF);
+		while (mfspr(SPR_L2CR) & L2CR_L2HWF)
+			; /* Busy wait for cache to flush */
+		powerpc_sync();
+		cache_reg &= ~L2CR_L2E;
+		mtspr(SPR_L2CR, cache_reg);
+		powerpc_sync();
+		mtspr(SPR_L2CR, cache_reg | L2CR_L2I);
+		powerpc_sync();
+		while (mfspr(SPR_L2CR) & L2CR_L2I)
+			; /* Busy wait for L2 cache invalidate */
+		powerpc_sync();
+	}
+
+	cache_reg = mfspr(SPR_L3CR);
+	if (cache_reg & L3CR_L3E) {
+		cache_reg &= ~(L3CR_L3IO | L3CR_L3DO);
+		mtspr(SPR_L3CR, cache_reg);
+		powerpc_sync();
+		mtspr(SPR_L3CR, cache_reg | L3CR_L3HWF);
+		while (mfspr(SPR_L3CR) & L3CR_L3HWF)
+			; /* Busy wait for cache to flush */
+		powerpc_sync();
+		cache_reg &= ~L3CR_L3E;
+		mtspr(SPR_L3CR, cache_reg);
+		powerpc_sync();
+		mtspr(SPR_L3CR, cache_reg | L3CR_L3I);
+		powerpc_sync();
+		while (mfspr(SPR_L3CR) & L3CR_L3I)
+			; /* Busy wait for L3 cache invalidate */
+		powerpc_sync();
+	}
+
+	mtspr(SPR_HID0, mfspr(SPR_HID0) & ~HID0_DCE);
+	powerpc_sync();
+	isync();
+
+	mtmsr(msr);
+}
+
+void
+cpu_sleep()
+{
+	static u_quad_t timebase = 0;
+	static register_t sprgs[4];
+	static register_t srrs[2];
+
+	jmp_buf resetjb;
+	struct thread *fputd;
+	struct thread *vectd;
+	register_t hid0;
+	register_t msr;
+	register_t saved_msr;
+
+	ap_pcpu = pcpup;
+
+	PCPU_SET(restore, &resetjb);
+
+	saved_msr = mfmsr();
+	fputd = PCPU_GET(fputhread);
+	vectd = PCPU_GET(vecthread);
+	if (fputd != NULL)
+		save_fpu(fputd);
+	if (vectd != NULL)
+		save_vec(vectd);
+	if (setjmp(resetjb) == 0) {
+		sprgs[0] = mfspr(SPR_SPRG0);
+		sprgs[1] = mfspr(SPR_SPRG1);
+		sprgs[2] = mfspr(SPR_SPRG2);
+		sprgs[3] = mfspr(SPR_SPRG3);
+		srrs[0] = mfspr(SPR_SRR0);
+		srrs[1] = mfspr(SPR_SRR1);
+		timebase = mftb();
+		powerpc_sync();
+		flush_disable_caches();
+		hid0 = mfspr(SPR_HID0);
+		hid0 = (hid0 & ~(HID0_DOZE | HID0_NAP)) | HID0_SLEEP;
+		powerpc_sync();
+		isync();
+		msr = mfmsr() | PSL_POW;
+		mtspr(SPR_HID0, hid0);
+		powerpc_sync();
+
+		while (1)
+			mtmsr(msr);
+	}
+	mttb(timebase);
+	PCPU_SET(curthread, curthread);
+	PCPU_SET(curpcb, curthread->td_pcb);
+	pmap_activate(curthread);
+	powerpc_sync();
+	mtspr(SPR_SPRG0, sprgs[0]);
+	mtspr(SPR_SPRG1, sprgs[1]);
+	mtspr(SPR_SPRG2, sprgs[2]);
+	mtspr(SPR_SPRG3, sprgs[3]);
+	mtspr(SPR_SRR0, srrs[0]);
+	mtspr(SPR_SRR1, srrs[1]);
+	mtmsr(saved_msr);
+	if (fputd == curthread)
+		enable_fpu(curthread);
+	if (vectd == curthread)
+		enable_vec(curthread);
+	powerpc_sync();
+}

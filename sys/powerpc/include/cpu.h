@@ -95,6 +95,8 @@ extern char etext[];
 
 void	cpu_halt(void);
 void	cpu_reset(void);
+void	cpu_sleep(void);
+void	flush_disable_caches(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
 

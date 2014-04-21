@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -47,6 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91_pioreg.h>
 #include <arm/at91/at91_piovar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #define	MAX_CHANGE	64
 
@@ -122,7 +130,10 @@ static int
 at91_pio_probe(device_t dev)
 {
 	const char *name;
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-gpio"))
+		return (ENXIO);
+#endif
 	switch (device_get_unit(dev)) {
 	case 0:
 		name = "PIOA";
@@ -135,6 +146,12 @@ at91_pio_probe(device_t dev)
 		break;
 	case 3:
 		name = "PIOD";
+		break;
+	case 4:
+		name = "PIOE";
+		break;
+	case 5:
+		name = "PIOF";
 		break;
 	default:
 		name = "PIO";
@@ -609,5 +626,10 @@ static driver_t at91_pio_driver = {
 	sizeof(struct at91_pio_softc),
 };
 
+#ifdef FDT
+DRIVER_MODULE(at91_pio, simplebus, at91_pio_driver, at91_pio_devclass, NULL,
+    NULL);
+#else
 DRIVER_MODULE(at91_pio, atmelarm, at91_pio_driver, at91_pio_devclass, NULL,
     NULL);
+#endif

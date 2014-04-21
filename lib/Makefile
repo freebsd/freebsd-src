@@ -32,8 +32,13 @@
 
 SUBDIR_ORDERED=	${_csu} \
 	libc \
+	libc_nonshared \
 	libbsm \
 	libauditd \
+	libutil \
+	libpjdlog \
+	libnv \
+	${_libcapsicum} \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -48,7 +53,6 @@ SUBDIR_ORDERED=	${_csu} \
 	librpcsvc \
 	libsbuf \
 	libtacplus \
-	libutil \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
@@ -65,9 +69,11 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
+	libbsdstat \
 	libbz2 \
 	libcalendar \
 	libcam \
+	${_libcasper} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
@@ -81,9 +87,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
-	${_libiconv_compat} \
 	libipsec \
-	${_libipx} \
 	libjail \
 	libkiconv \
 	liblzma \
@@ -114,6 +118,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
+	libucl \
 	libufs \
 	libugidfw \
 	libulog \
@@ -124,10 +129,10 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
-	libyaml \
 	libz \
 	${_atf} \
-	${_clang}
+	${_clang} \
+	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -141,10 +146,6 @@ _csu=csu
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
 .endif
@@ -156,6 +157,11 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CASPER} != "no"
+_libcapsicum=	libcapsicum
+_libcasper=	libcasper
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
@@ -175,10 +181,6 @@ _librpcsec_gss=	librpcsec_gss
 _libiconv_modules=	libiconv_modules
 .endif
 
-.if ${MK_IPX} != "no"
-_libipx=	libipx
-.endif
-
 .if ${MK_LDNS} != "no"
 _libldns=	libldns
 .endif
@@ -186,10 +188,6 @@ _libldns=	libldns
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.endif
-
-.if ${MK_LIBICONV_COMPAT} != "no"
-_libiconv_compat=	libiconv_compat
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -258,6 +256,11 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
+.endif
+
 .if ${MK_UNBOUND} != "no"
 _libunbound=	libunbound
 .endif
@@ -270,6 +273,10 @@ _libusb=	libusb
 .if !defined(LIBRARIES_ONLY)
 afterinstall:
 	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
+.endif
+
+.if !make(install)
+SUBDIR_PARALLEL=
 .endif
 
 .include <bsd.subdir.mk>

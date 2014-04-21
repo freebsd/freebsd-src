@@ -107,6 +107,7 @@ struct g_part_alias_list {
 	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
 	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
+	{ "vmware-vsanhdr", G_PART_ALIAS_VMVSANHDR },
 };
 
 SYSCTL_DECL(_kern_geom);

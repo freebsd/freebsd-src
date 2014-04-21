@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.95 2013/05/16 04:27:50 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.101 2014/02/23 20:11:36 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -30,7 +30,13 @@ typedef struct {
 /* Data structure for representing option data. */
 
 #define MAX_SEND_ENV		256
-#define SSH_MAX_HOSTS_FILES	256
+#define SSH_MAX_HOSTS_FILES	32
+#define MAX_CANON_DOMAINS	32
+
+struct allowed_cname {
+	char *source_list;
+	char *target_list;
+};
 
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
@@ -54,7 +60,6 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication; /* Try keyboard-interactive auth. */
 	char	*kbd_interactive_devices; /* Keyboard-interactive auth devices. */
-	int     zero_knowledge_password_authentication;	/* Try jpake */
 	int     batch_mode;	/* Batch mode: do not ask for passwords. */
 	int     check_host_ip;	/* Also keep track of keys for IP address */
 	int     strict_host_key_checking;	/* Strict host key checking. */
@@ -139,6 +144,16 @@ typedef struct {
 
 	int	request_tty;
 
+	int	proxy_use_fdpass;
+
+	int	num_canonical_domains;
+	char	*canonical_domains[MAX_CANON_DOMAINS];
+	int	canonicalize_hostname;
+	int	canonicalize_max_dots;
+	int	canonicalize_fallback_local;
+	int	num_permitted_cnames;
+	struct allowed_cname permitted_cnames[MAX_CANON_DOMAINS];
+
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 
 	char   *version_addendum;	/* Appended to SSH banner */
@@ -156,6 +171,10 @@ typedef struct {
 #endif
 }       Options;
 
+#define SSH_CANONICALISE_NO	0
+#define SSH_CANONICALISE_YES	1
+#define SSH_CANONICALISE_ALWAYS	2
+
 #define SSHCTL_MASTER_NO	0
 #define SSHCTL_MASTER_YES	1
 #define SSHCTL_MASTER_AUTO	2
@@ -172,12 +191,14 @@ typedef struct {
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
-int	 read_config_file(const char *, const char *, Options *, int);
+void	 fill_default_options_for_canonicalization(Options *);
+int	 process_config_line(Options *, struct passwd *, const char *, char *,
+    const char *, int, int *, int);
+int	 read_config_file(const char *, struct passwd *, const char *,
+    Options *, int);
 int	 parse_forward(Forward *, const char *, int, int);
-
-int
-process_config_line(Options *, const char *, char *, const char *, int, int *,
-    int);
+int	 default_ssh_port(void);
+int	 option_clear_or_none(const char *);
 
 void	 add_local_forward(Options *, const Forward *);
 void	 add_remote_forward(Options *, const Forward *);

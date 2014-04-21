@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "BUGPOINT" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "BUGPOINT" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 bugpoint \- automatic test case reduction tool
 .
@@ -29,8 +31,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBbugpoint\fP [\fIoptions\fP] [\fIinput LLVM ll/bc files\fP] [\fILLVM passes\fP] \fB\-\-args\fP
@@ -120,14 +120,14 @@ tool.
 .INDENT 0.0
 .INDENT 3.5
 Pass all arguments specified after \fB\-\-gcc\-tool\-args\fP to the invocation of
-\fBgcc\fP.
+\fBgcc\fP\&.
 .UNINDENT
 .UNINDENT
 .sp
 \fB\-\-opt\-args\fP \fIopt args\fP
 .INDENT 0.0
 .INDENT 3.5
-Pass all arguments specified after \fB\-\-opt\-args\fP to the invocation of \fBopt\fP.
+Pass all arguments specified after \fB\-\-opt\-args\fP to the invocation of \fBopt\fP\&.
 .UNINDENT
 .UNINDENT
 .sp
@@ -154,7 +154,7 @@ mis\-management.
 .INDENT 0.0
 .INDENT 3.5
 Continually randomize the specified passes and run them on the test program
-until a bug is found or the user kills \fBbugpoint\fP.
+until a bug is found or the user kills \fBbugpoint\fP\&.
 .UNINDENT
 .UNINDENT
 .sp
@@ -214,7 +214,7 @@ by compiling the program with the "safe" backend and running it.
 \fB\-\-profile\-info\-file\fP \fIfilename\fP
 .INDENT 0.0
 .INDENT 3.5
-Profile file loaded by \fB\-\-profile\-loader\fP.
+Profile file loaded by \fB\-\-profile\-loader\fP\&.
 .UNINDENT
 .UNINDENT
 .sp

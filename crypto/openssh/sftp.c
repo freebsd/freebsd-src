@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.148 2013/07/25 00:56:52 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.158 2013/11/20 20:54:10 deraadt Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -17,6 +17,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -95,6 +96,9 @@ int global_aflag = 0;
 /* When this option is set, the file transfers will always preserve times */
 int global_pflag = 0;
 
+/* When this option is set, transfers will have fsync() called on each file */
+int global_fflag = 0;
+
 /* SIGINT received during command processing */
 volatile sig_atomic_t interrupted = 0;
 
@@ -130,32 +134,34 @@ extern char *__progname;
 #define SORT_FLAGS	(LS_NAME_SORT|LS_TIME_SORT|LS_SIZE_SORT)
 
 /* Commands for interactive mode */
-#define I_CHDIR		1
-#define I_CHGRP		2
-#define I_CHMOD		3
-#define I_CHOWN		4
-#define I_DF		24
-#define I_GET		5
-#define I_HELP		6
-#define I_LCHDIR	7
-#define I_LINK		25
-#define I_LLS		8
-#define I_LMKDIR	9
-#define I_LPWD		10
-#define I_LS		11
-#define I_LUMASK	12
-#define I_MKDIR		13
-#define I_PUT		14
-#define I_PWD		15
-#define I_QUIT		16
-#define I_RENAME	17
-#define I_RM		18
-#define I_RMDIR		19
-#define I_SHELL		20
-#define I_SYMLINK	21
-#define I_VERSION	22
-#define I_PROGRESS	23
-#define I_REGET		26
+enum sftp_command {
+	I_CHDIR = 1,
+	I_CHGRP,
+	I_CHMOD,
+	I_CHOWN,
+	I_DF,
+	I_GET,
+	I_HELP,
+	I_LCHDIR,
+	I_LINK,
+	I_LLS,
+	I_LMKDIR,
+	I_LPWD,
+	I_LS,
+	I_LUMASK,
+	I_MKDIR,
+	I_PUT,
+	I_PWD,
+	I_QUIT,
+	I_RENAME,
+	I_RM,
+	I_RMDIR,
+	I_SHELL,
+	I_SYMLINK,
+	I_VERSION,
+	I_PROGRESS,
+	I_REGET,
+};
 
 struct CMD {
 	const char *c;
@@ -358,7 +364,7 @@ make_absolute(char *p, char *pwd)
 
 static int
 parse_getput_flags(const char *cmd, char **argv, int argc,
-    int *aflag, int *pflag, int *rflag)
+    int *aflag, int *fflag, int *pflag, int *rflag)
 {
 	extern int opterr, optind, optopt, optreset;
 	int ch;
@@ -366,11 +372,14 @@ parse_getput_flags(const char *cmd, char **argv, int argc,
 	optind = optreset = 1;
 	opterr = 0;
 
-	*aflag = *rflag = *pflag = 0;
-	while ((ch = getopt(argc, argv, "aPpRr")) != -1) {
+	*aflag = *fflag = *rflag = *pflag = 0;
+	while ((ch = getopt(argc, argv, "afPpRr")) != -1) {
 		switch (ch) {
 		case 'a':
 			*aflag = 1;
+			break;
+		case 'f':
+			*fflag = 1;
 			break;
 		case 'p':
 		case 'P':
@@ -403,6 +412,30 @@ parse_link_flags(const char *cmd, char **argv, int argc, int *sflag)
 		switch (ch) {
 		case 's':
 			*sflag = 1;
+			break;
+		default:
+			error("%s: Invalid flag -%c", cmd, optopt);
+			return -1;
+		}
+	}
+
+	return optind;
+}
+
+static int
+parse_rename_flags(const char *cmd, char **argv, int argc, int *lflag)
+{
+	extern int opterr, optind, optopt, optreset;
+	int ch;
+
+	optind = optreset = 1;
+	opterr = 0;
+
+	*lflag = 0;
+	while ((ch = getopt(argc, argv, "l")) != -1) {
+		switch (ch) {
+		case 'l':
+			*lflag = 1;
 			break;
 		default:
 			error("%s: Invalid flag -%c", cmd, optopt);
@@ -494,6 +527,26 @@ parse_df_flags(const char *cmd, char **argv, int argc, int *hflag, int *iflag)
 }
 
 static int
+parse_no_flags(const char *cmd, char **argv, int argc)
+{
+	extern int opterr, optind, optopt, optreset;
+	int ch;
+
+	optind = optreset = 1;
+	opterr = 0;
+
+	while ((ch = getopt(argc, argv, "")) != -1) {
+		switch (ch) {
+		default:
+			error("%s: Invalid flag -%c", cmd, optopt);
+			return -1;
+		}
+	}
+
+	return optind;
+}
+
+static int
 is_dir(char *path)
 {
 	struct stat sb;
@@ -529,7 +582,7 @@ pathname_is_dir(char *pathname)
 
 static int
 process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd,
-    int pflag, int rflag, int resume)
+    int pflag, int rflag, int resume, int fflag)
 {
 	char *abs_src = NULL;
 	char *abs_dst = NULL;
@@ -588,11 +641,13 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd,
 			printf("Fetching %s to %s\n", g.gl_pathv[i], abs_dst);
 		if (pathname_is_dir(g.gl_pathv[i]) && (rflag || global_rflag)) {
 			if (download_dir(conn, g.gl_pathv[i], abs_dst, NULL,
-			    pflag || global_pflag, 1, resume) == -1)
+			    pflag || global_pflag, 1, resume,
+			    fflag || global_fflag) == -1)
 				err = -1;
 		} else {
 			if (do_download(conn, g.gl_pathv[i], abs_dst, NULL,
-			    pflag || global_pflag, resume) == -1)
+			    pflag || global_pflag, resume,
+			    fflag || global_fflag) == -1)
 				err = -1;
 		}
 		free(abs_dst);
@@ -607,7 +662,7 @@ out:
 
 static int
 process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd,
-    int pflag, int rflag)
+    int pflag, int rflag, int fflag)
 {
 	char *tmp_dst = NULL;
 	char *abs_dst = NULL;
@@ -648,7 +703,7 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd,
 			error("stat %s: %s", g.gl_pathv[i], strerror(errno));
 			continue;
 		}
-		
+
 		tmp = xstrdup(g.gl_pathv[i]);
 		if ((filename = basename(tmp)) == NULL) {
 			error("basename %s: %s", tmp, strerror(errno));
@@ -674,11 +729,13 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd,
 			printf("Uploading %s to %s\n", g.gl_pathv[i], abs_dst);
 		if (pathname_is_dir(g.gl_pathv[i]) && (rflag || global_rflag)) {
 			if (upload_dir(conn, g.gl_pathv[i], abs_dst,
-			    pflag || global_pflag, 1) == -1)
+			    pflag || global_pflag, 1,
+			    fflag || global_fflag) == -1)
 				err = -1;
 		} else {
 			if (do_upload(conn, g.gl_pathv[i], abs_dst,
-			    pflag || global_pflag) == -1)
+			    pflag || global_pflag,
+			    fflag || global_fflag) == -1)
 				err = -1;
 		}
 	}
@@ -976,7 +1033,7 @@ undo_glob_escape(char *s)
  *
  * If "lastquote" is not NULL, the quoting character used for the last
  * argument is placed in *lastquote ("\0", "'" or "\"").
- * 
+ *
  * If "terminated" is not NULL, *terminated will be set to 1 when the
  * last argument's quote has been properly terminated or 0 otherwise.
  * This parameter is only of use if "sloppy" is set.
@@ -1010,7 +1067,7 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 			error("Too many arguments.");
 			return NULL;
 		}
-		if (isspace(arg[i])) {
+		if (isspace((unsigned char)arg[i])) {
 			if (state == MA_UNQUOTED) {
 				/* Terminate current argument */
 				argvs[j++] = '\0';
@@ -1025,7 +1082,7 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 				state = q;
 				if (lastquote != NULL)
 					*lastquote = arg[i];
-			} else if (state == MA_UNQUOTED) 
+			} else if (state == MA_UNQUOTED)
 				state = q;
 			else if (state == q)
 				state = MA_UNQUOTED;
@@ -1131,9 +1188,9 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 }
 
 static int
-parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
-    int *pflag, int *rflag, int *sflag, unsigned long *n_arg,
-    char **path1, char **path2)
+parse_args(const char **cpp, int *ignore_errors, int *aflag, int *fflag,
+    int *hflag, int *iflag, int *lflag, int *pflag, int *rflag, int *sflag,
+    unsigned long *n_arg, char **path1, char **path2)
 {
 	const char *cmd, *cp = *cpp;
 	char *cp2, **argv;
@@ -1145,9 +1202,9 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	cp = cp + strspn(cp, WHITESPACE);
 
 	/* Check for leading '-' (disable error processing) */
-	*iflag = 0;
+	*ignore_errors = 0;
 	if (*cp == '-') {
-		*iflag = 1;
+		*ignore_errors = 1;
 		cp++;
 		cp = cp + strspn(cp, WHITESPACE);
 	}
@@ -1177,7 +1234,8 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	}
 
 	/* Get arguments and parse flags */
-	*aflag = *lflag = *pflag = *rflag = *hflag = *n_arg = 0;
+	*aflag = *fflag = *hflag = *iflag = *lflag = *pflag = 0;
+	*rflag = *sflag = 0;
 	*path1 = *path2 = NULL;
 	optidx = 1;
 	switch (cmdnum) {
@@ -1185,7 +1243,7 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	case I_REGET:
 	case I_PUT:
 		if ((optidx = parse_getput_flags(cmd, argv, argc,
-		    aflag, pflag, rflag)) == -1)
+		    aflag, fflag, pflag, rflag)) == -1)
 			return -1;
 		/* Get first pathname (mandatory) */
 		if (argc - optidx < 1) {
@@ -1209,8 +1267,15 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	case I_LINK:
 		if ((optidx = parse_link_flags(cmd, argv, argc, sflag)) == -1)
 			return -1;
-	case I_SYMLINK:
+		goto parse_two_paths;
 	case I_RENAME:
+		if ((optidx = parse_rename_flags(cmd, argv, argc, lflag)) == -1)
+			return -1;
+		goto parse_two_paths;
+	case I_SYMLINK:
+		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
+			return -1;
+ parse_two_paths:
 		if (argc - optidx < 2) {
 			error("You must specify two paths after a %s "
 			    "command.", cmd);
@@ -1228,6 +1293,8 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	case I_CHDIR:
 	case I_LCHDIR:
 	case I_LMKDIR:
+		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
+			return -1;
 		/* Get pathname (mandatory) */
 		if (argc - optidx < 1) {
 			error("You must specify a path after a %s command.",
@@ -1269,6 +1336,8 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 		base = 8;
 	case I_CHOWN:
 	case I_CHGRP:
+		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
+			return -1;
 		/* Get numeric arg (mandatory) */
 		if (argc - optidx < 1)
 			goto need_num_arg;
@@ -1299,6 +1368,8 @@ parse_args(const char **cpp, int *aflag, int *hflag, int *iflag, int *lflag,
 	case I_HELP:
 	case I_VERSION:
 	case I_PROGRESS:
+		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
+			return -1;
 		break;
 	default:
 		fatal("Command not implemented");
@@ -1313,8 +1384,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
     int err_abort)
 {
 	char *path1, *path2, *tmp;
-	int aflag = 0, hflag = 0, iflag = 0, lflag = 0, pflag = 0;
-	int rflag = 0, sflag = 0;
+	int ignore_errors = 0, aflag = 0, fflag = 0, hflag = 0, iflag = 0;
+	int lflag = 0, pflag = 0, rflag = 0, sflag = 0;
 	int cmdnum, i;
 	unsigned long n_arg = 0;
 	Attrib a, *aa;
@@ -1323,9 +1394,9 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	glob_t g;
 
 	path1 = path2 = NULL;
-	cmdnum = parse_args(&cmd, &aflag, &hflag, &iflag, &lflag, &pflag,
-	    &rflag, &sflag, &n_arg, &path1, &path2);
-	if (iflag != 0)
+	cmdnum = parse_args(&cmd, &ignore_errors, &aflag, &fflag, &hflag,
+	    &iflag, &lflag, &pflag, &rflag, &sflag, &n_arg, &path1, &path2);
+	if (ignore_errors != 0)
 		err_abort = 0;
 
 	memset(&g, 0, sizeof(g));
@@ -1344,20 +1415,22 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		/* FALLTHROUGH */
 	case I_GET:
 		err = process_get(conn, path1, path2, *pwd, pflag,
-		    rflag, aflag);
+		    rflag, aflag, fflag);
 		break;
 	case I_PUT:
-		err = process_put(conn, path1, path2, *pwd, pflag, rflag);
+		err = process_put(conn, path1, path2, *pwd, pflag,
+		    rflag, fflag);
 		break;
 	case I_RENAME:
 		path1 = make_absolute(path1, *pwd);
 		path2 = make_absolute(path2, *pwd);
-		err = do_rename(conn, path1, path2);
+		err = do_rename(conn, path1, path2, lflag);
 		break;
 	case I_SYMLINK:
 		sflag = 1;
 	case I_LINK:
-		path1 = make_absolute(path1, *pwd);
+		if (!sflag)
+			path1 = make_absolute(path1, *pwd);
 		path2 = make_absolute(path2, *pwd);
 		err = (sflag ? do_symlink : do_hardlink)(conn, path1, path2);
 		break;
@@ -1568,7 +1641,7 @@ complete_display(char **list, u_int len)
 	char *tmp;
 
 	/* Count entries for sort and find longest */
-	for (y = 0; list[y]; y++) 
+	for (y = 0; list[y]; y++)
 		m = MAX(m, strlen(list[y]));
 
 	if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) != -1)
@@ -1613,8 +1686,8 @@ complete_ambiguous(const char *word, char **list, size_t count)
 		for (y = 1; list[y]; y++) {
 			u_int x;
 
-			for (x = 0; x < matchlen; x++) 
-				if (list[0][x] != list[y][x]) 
+			for (x = 0; x < matchlen; x++)
+				if (list[0][x] != list[y][x])
 					break;
 
 			matchlen = x;
@@ -1626,7 +1699,7 @@ complete_ambiguous(const char *word, char **list, size_t count)
 			tmp[matchlen] = '\0';
 			return tmp;
 		}
-	} 
+	}
 
 	return xstrdup(word);
 }
@@ -1646,12 +1719,12 @@ complete_cmd_parse(EditLine *el, char *cmd, int lastarg, char quote,
 	if (cmd == NULL) {
 		for (y = 0; cmds[y].c; y++)
 			list[count++] = xstrdup(cmds[y].c);
-		
+
 		list[count] = NULL;
 		complete_display(list, 0);
 
-		for (y = 0; list[y] != NULL; y++)  
-			free(list[y]);	
+		for (y = 0; list[y] != NULL; y++)
+			free(list[y]);
 		free(list);
 		return count;
 	}
@@ -1659,7 +1732,7 @@ complete_cmd_parse(EditLine *el, char *cmd, int lastarg, char quote,
 	/* Prepare subset of commands that start with "cmd" */
 	cmdlen = strlen(cmd);
 	for (y = 0; cmds[y].c; y++)  {
-		if (!strncasecmp(cmd, cmds[y].c, cmdlen)) 
+		if (!strncasecmp(cmd, cmds[y].c, cmdlen))
 			list[count++] = xstrdup(cmds[y].c);
 	}
 	list[count] = NULL;
@@ -1674,8 +1747,8 @@ complete_cmd_parse(EditLine *el, char *cmd, int lastarg, char quote,
 	if (count > 1)
 		complete_display(list, 0);
 
-	for (y = 0; list[y]; y++)  
-		free(list[y]);	
+	for (y = 0; list[y]; y++)
+		free(list[y]);
 	free(list);
 
 	if (tmp != NULL) {
@@ -1715,7 +1788,7 @@ complete_is_remote(char *cmd) {
 		return -1;
 
 	for (i = 0; cmds[i].c; i++) {
-		if (!strncasecmp(cmd, cmds[i].c, strlen(cmds[i].c))) 
+		if (!strncasecmp(cmd, cmds[i].c, strlen(cmds[i].c)))
 			return cmds[i].t;
 	}
 
@@ -1732,7 +1805,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 	u_int i, hadglob, pwdlen, len, tmplen, filelen, cesc, isesc, isabs;
 	int clen;
 	const LineInfo *lf;
-	
+
 	/* Glob from "file" location */
 	if (file == NULL)
 		tmp = xstrdup("*");
@@ -1746,9 +1819,9 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 	if (remote != LOCAL) {
 		tmp = make_absolute(tmp, remote_path);
 		remote_glob(conn, tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
-	} else 
+	} else
 		glob(tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
-	
+
 	/* Determine length of pwd so we can trim completion display */
 	for (hadglob = tmplen = pwdlen = 0; tmp[tmplen] != 0; tmplen++) {
 		/* Terminate counting on first unescaped glob metacharacter */
@@ -1764,7 +1837,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 	}
 	free(tmp);
 
-	if (g.gl_matchc == 0) 
+	if (g.gl_matchc == 0)
 		goto out;
 
 	if (g.gl_matchc > 1)
@@ -1797,7 +1870,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 
 	if (tmplen > (filelen - cesc)) {
 		tmp2 = tmp + filelen - cesc;
-		len = strlen(tmp2); 
+		len = strlen(tmp2);
 		/* quote argument on way out */
 		for (i = 0; i < len; i += clen) {
 			if ((clen = mblen(tmp2 + i, len - i)) < 0 ||
@@ -1853,7 +1926,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 static unsigned char
 complete(EditLine *el, int ch)
 {
-	char **argv, *line, quote; 
+	char **argv, *line, quote;
 	int argc, carg;
 	u_int cursor, len, terminated, ret = CC_ERROR;
 	const LineInfo *lf;
@@ -1892,7 +1965,7 @@ complete(EditLine *el, int ch)
 	} else if (carg == 1 && cursor > 0 && line[cursor - 1] != ' ')  {
 		/* Handle the command parsing */
 		if (complete_cmd_parse(el, argv[0], argc == carg,
-		    quote, terminated) != 0) 
+		    quote, terminated) != 0)
 			ret = CC_REDISPLAY;
 	} else if (carg >= 1) {
 		/* Handle file parsing */
@@ -1905,11 +1978,11 @@ complete(EditLine *el, int ch)
 		if (remote != 0 &&
 		    complete_match(el, complete_ctx->conn,
 		    *complete_ctx->remote_pathp, filematch,
-		    remote, carg == argc, quote, terminated) != 0) 
+		    remote, carg == argc, quote, terminated) != 0)
 			ret = CC_REDISPLAY;
 	}
 
-	free(line);	
+	free(line);
 	return ret;
 }
 #endif /* USE_LIBEDIT */
@@ -1943,12 +2016,19 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 		el_source(el, NULL);
 
 		/* Tab Completion */
-		el_set(el, EL_ADDFN, "ftp-complete", 
+		el_set(el, EL_ADDFN, "ftp-complete",
 		    "Context sensitive argument completion", complete);
 		complete_ctx.conn = conn;
 		complete_ctx.remote_pathp = &remote_path;
 		el_set(el, EL_CLIENTDATA, (void*)&complete_ctx);
 		el_set(el, EL_BIND, "^I", "ftp-complete", NULL);
+		/* enable ctrl-left-arrow and ctrl-right-arrow */
+		el_set(el, EL_BIND, "\\e[1;5C", "em-next-word", NULL);
+		el_set(el, EL_BIND, "\\e[5C", "em-next-word", NULL);
+		el_set(el, EL_BIND, "\\e[1;5D", "ed-prev-word", NULL);
+		el_set(el, EL_BIND, "\\e\\e[D", "ed-prev-word", NULL);
+		/* make ^w match ksh behaviour */
+		el_set(el, EL_BIND, "^w", "ed-delete-prev-word", NULL);
 	}
 #endif /* USE_LIBEDIT */
 
@@ -2117,7 +2197,7 @@ usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-	    "usage: %s [-1246Cpqrv] [-B buffer_size] [-b batchfile] [-c cipher]\n"
+	    "usage: %s [-1246aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]\n"
 	    "          [-D sftp_server_path] [-F ssh_config] "
 	    "[-i identity_file] [-l limit]\n"
 	    "          [-o ssh_option] [-P port] [-R num_requests] "
@@ -2165,7 +2245,7 @@ main(int argc, char **argv)
 	infile = stdin;
 
 	while ((ch = getopt(argc, argv,
-	    "1246ahpqrvCc:D:i:l:o:s:S:b:B:F:P:R:")) != -1) {
+	    "1246afhpqrvCc:D:i:l:o:s:S:b:B:F:P:R:")) != -1) {
 		switch (ch) {
 		/* Passed through to ssh(1) */
 		case '4':
@@ -2224,6 +2304,9 @@ main(int argc, char **argv)
 			showprogress = 0;
 			quiet = batchmode = 1;
 			addargs(&args, "-obatchmode yes");
+			break;
+		case 'f':
+			global_fflag = 1;
 			break;
 		case 'p':
 			global_pflag = 1;

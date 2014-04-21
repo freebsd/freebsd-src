@@ -289,9 +289,10 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			    vd->vdev_removing);
 	}
 
-	if (vd->vdev_dtl_smo.smo_object != 0)
+	if (vd->vdev_dtl_sm != NULL) {
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_DTL,
-		    vd->vdev_dtl_smo.smo_object);
+		    space_map_object(vd->vdev_dtl_sm));
+	}
 
 	if (vd->vdev_crtxg)
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_CREATE_TXG, vd->vdev_crtxg);
@@ -645,7 +646,7 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	/* Track the creation time for this vdev */
 	vd->vdev_crtxg = crtxg;
 
-	if (!vd->vdev_ops->vdev_op_leaf)
+	if (!vd->vdev_ops->vdev_op_leaf || !spa_writeable(spa))
 		return (0);
 
 	/*

@@ -1,4 +1,4 @@
-/*	$Id: chars.in,v 1.42 2011/10/02 10:02:26 kristaps Exp $ */
+/*	$Id: chars.in,v 1.43 2013/06/20 22:39:30 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -42,6 +42,7 @@ CHAR("&",			"",		0)
 CHAR("^",			"",		0)
 CHAR("|",			"",		0)
 CHAR("}",			"",		0)
+CHAR("t",			"",		0)
 
 /* Accents. */
 CHAR("a\"",			"\"",		779)

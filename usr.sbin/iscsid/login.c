@@ -189,10 +189,6 @@ login_receive(struct connection *conn, bool initial)
 		fail(conn, errorstr);
 		log_errx(1, "target returned error: %s", errorstr);
 	}
-#if 0
-	if (response->pdu_data_len == 0)
-		log_errx(1, "received Login PDU with empty data segment");
-#endif
 	if (initial == false &&
 	    ntohl(bhslr->bhslr_statsn) != conn->conn_statsn + 1) {
 		/*
@@ -787,7 +783,6 @@ login(struct connection *conn)
 	request = login_new_request(conn);
 
 	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
-	bhslr->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {

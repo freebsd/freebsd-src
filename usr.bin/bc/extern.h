@@ -1,5 +1,5 @@
 /*	$FreeBSD$						*/
-/*      $OpenBSD: extern.h,v 1.6 2006/03/18 20:44:43 otto Exp $	*/
+/*      $OpenBSD: extern.h,v 1.10 2013/09/19 16:12:01 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -17,26 +17,31 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 
 struct lvalue {
-	ssize_t	 load;
-	ssize_t	 store;
+	ssize_t load;
+	ssize_t store;
 };
 
-int			 yylex(void);
-void			 yyerror(const char *);
-void			 fatal(const char *);
-void			 abort_line(int);
+int		yylex(void);
+void		yyerror(const char *);
+void		fatal(const char *);
+void		abort_line(int);
+struct termios;
+int		gettty(struct termios *);
+void		tstpcont(int);
+unsigned char	bc_eof(EditLine *, int);
 
-extern int		 lineno;
-extern int		 fileindex;
-extern int		 sargc;
+extern int	lineno;
+extern int	fileindex;
+extern int	sargc;
 extern const char	**sargv;
 extern const char	*filename;
-extern char		*cmdexpr;
 extern bool		 interactive;
 extern EditLine		*el;
 extern History		*hist;
 extern HistEvent	 he;
-
+extern char	*cmdexpr;
+extern struct termios ttysaved;

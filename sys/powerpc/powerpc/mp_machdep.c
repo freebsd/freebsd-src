@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/platform.h>
 #include <machine/md_var.h>
+#include <machine/setjmp.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -66,12 +67,11 @@ volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
+int longfault(faultbuf, int);
 
 void
 machdep_ap_bootstrap(void)
 {
-	/* Set up important bits on the CPU (HID registers, etc.) */
-	cpudep_ap_setup();
 
 	/* Set PIR */
 	PCPU_SET(pir, mfspr(SPR_PIR));

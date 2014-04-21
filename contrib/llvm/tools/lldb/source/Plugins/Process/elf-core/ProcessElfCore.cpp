@@ -131,7 +131,8 @@ ProcessElfCore::AddAddressRangeFromLoadSegment(const elf::ELFProgramHeader *head
     VMRangeToFileOffset::Entry *last_entry = m_core_aranges.Back();
     if (last_entry &&
         last_entry->GetRangeEnd() == range_entry.GetRangeBase() &&
-        last_entry->data.GetRangeEnd() == range_entry.data.GetRangeBase())
+        last_entry->data.GetRangeEnd() == range_entry.data.GetRangeBase() &&
+        last_entry->GetByteSize() == last_entry->data.GetByteSize())
     {
         last_entry->SetRangeEnd (range_entry.GetRangeEnd());
         last_entry->data.SetRangeEnd (range_entry.data.GetRangeEnd());
@@ -294,9 +295,13 @@ ProcessElfCore::DoReadMemory (lldb::addr_t addr, void *buf, size_t size, Error &
     size_t zero_fill_size = 0;   // Padding
     lldb::addr_t bytes_left = 0; // Number of bytes available in the core file from the given address
 
-    if (file_end > offset)
-        bytes_left = file_end - offset;
+    // Figure out how many on-disk bytes remain in this segment
+    // starting at the given offset
+    if (file_end > file_start + offset)
+        bytes_left = file_end - (file_start + offset);
 
+    // Figure out how many bytes we need to zero-fill if we are
+    // reading more bytes than available in the on-disk segment
     if (bytes_to_read > bytes_left)
     {
         zero_fill_size = bytes_to_read - bytes_left;
@@ -338,9 +343,9 @@ ProcessElfCore::GetImageInfoAddress()
 {
     Target *target = &GetTarget();
     ObjectFile *obj_file = target->GetExecutableModule()->GetObjectFile();
-    Address addr = obj_file->GetImageInfoAddress();
+    Address addr = obj_file->GetImageInfoAddress(target);
 
-    if (addr.IsValid()) 
+    if (addr.IsValid())
         return addr.GetLoadAddress(target);
     return LLDB_INVALID_ADDRESS;
 }
@@ -363,85 +368,14 @@ enum {
     NT_FREEBSD_PROCSTAT_AUXV = 16
 };
 
-/// Align the given value to next boundary specified by the alignment bytes
-static uint32_t
-AlignToNext(uint32_t value, int alignment_bytes)
-{
-    return (value + alignment_bytes - 1) & ~(alignment_bytes - 1);
-}
-
-/// Note Structure found in ELF core dumps.
-/// This is PT_NOTE type program/segments in the core file.
-struct ELFNote
-{
-    elf::elf_word n_namesz;
-    elf::elf_word n_descsz;
-    elf::elf_word n_type;
-
-    std::string n_name;
-
-    ELFNote() : n_namesz(0), n_descsz(0), n_type(0)
-    {
-    }
-
-    /// Parse an ELFNote entry from the given DataExtractor starting at position
-    /// \p offset.
-    ///
-    /// @param[in] data
-    ///    The DataExtractor to read from.
-    ///
-    /// @param[in,out] offset
-    ///    Pointer to an offset in the data.  On return the offset will be
-    ///    advanced by the number of bytes read.
-    ///
-    /// @return
-    ///    True if the ELFRel entry was successfully read and false otherwise.
-    bool
-    Parse(const DataExtractor &data, lldb::offset_t *offset)
-    {
-        // Read all fields.
-        if (data.GetU32(offset, &n_namesz, 3) == NULL)
-            return false;
-
-        // The name field is required to be nul-terminated, and n_namesz
-        // includes the terminating nul in observed implementations (contrary
-        // to the ELF-64 spec).  A special case is needed for cores generated
-        // by some older Linux versions, which write a note named "CORE"
-        // without a nul terminator and n_namesz = 4.
-        if (n_namesz == 4)
-        {
-            char buf[4];
-            if (data.ExtractBytes (*offset, 4, data.GetByteOrder(), buf) != 4)
-                return false;
-            if (strncmp (buf, "CORE", 4) == 0)
-            {
-                n_name = "CORE";
-                *offset += 4;
-                return true;
-            }
-        }
-
-        const char *cstr = data.GetCStr(offset, AlignToNext(n_namesz, 4));
-        if (cstr == NULL)
-        {
-            Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
-            if (log)
-                log->Printf("Failed to parse note name lacking nul terminator");
-
-            return false;
-        }
-        n_name = cstr;
-        return true;
-    }
-};
-
 // Parse a FreeBSD NT_PRSTATUS note - see FreeBSD sys/procfs.h for details.
 static void
-ParseFreeBSDPrStatus(ThreadData *thread_data, DataExtractor &data,
+ParseFreeBSDPrStatus(ThreadData &thread_data, DataExtractor &data,
                      ArchSpec &arch)
 {
     lldb::offset_t offset = 0;
-    bool have_padding = (arch.GetMachine() == llvm::Triple::x86_64);
+    bool lp64 = (arch.GetMachine() == llvm::Triple::mips64 ||
+                 arch.GetMachine() == llvm::Triple::x86_64);
     int pr_version = data.GetU32(&offset);
 
     Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
@@ -451,23 +385,26 @@ ParseFreeBSDPrStatus(ThreadData *thread_data, DataExtractor &data,
             log->Printf("FreeBSD PRSTATUS unexpected version %d", pr_version);
     }
 
-    if (have_padding)
-        offset += 4;
-    offset += 28;       // pr_statussz, pr_gregsetsz, pr_fpregsetsz, pr_osreldate
-    thread_data->signo = data.GetU32(&offset); // pr_cursig
+    // Skip padding, pr_statussz, pr_gregsetsz, pr_fpregsetsz, pr_osreldate
+    if (lp64)
+        offset += 32;
+    else
+        offset += 16;
+
+    thread_data.signo = data.GetU32(&offset); // pr_cursig
     offset += 4;        // pr_pid
-    if (have_padding)
+    if (lp64)
         offset += 4;
     
     size_t len = data.GetByteSize() - offset;
-    thread_data->gpregset = DataExtractor(data, offset, len);
+    thread_data.gpregset = DataExtractor(data, offset, len);
 }
 
 static void
-ParseFreeBSDThrMisc(ThreadData *thread_data, DataExtractor &data)
+ParseFreeBSDThrMisc(ThreadData &thread_data, DataExtractor &data)
 {
     lldb::offset_t offset = 0;
-    thread_data->name = data.GetCStr(&offset, 20);
+    thread_data.name = data.GetCStr(&offset, 20);
 }
 
 /// Parse Thread context from PT_NOTE segment and store it in the thread list
@@ -489,13 +426,13 @@ ParseFreeBSDThrMisc(ThreadData *thread_data, DataExtractor &data)
 ///    For case (b) there may be either one NT_PRPSINFO per thread, or a single
 ///    one that applies to all threads (depending on the platform type).
 void
-ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *segment_header, 
+ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *segment_header,
                                                    DataExtractor segment_data)
 {
     assert(segment_header && segment_header->p_type == llvm::ELF::PT_NOTE);
 
     lldb::offset_t offset = 0;
-    ThreadData *thread_data = new ThreadData();
+    std::unique_ptr<ThreadData> thread_data(new ThreadData);
     bool have_prstatus = false;
     bool have_prpsinfo = false;
 
@@ -518,14 +455,14 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
             assert(thread_data->gpregset.GetByteSize() > 0);
             // Add the new thread to thread list
             m_thread_data.push_back(*thread_data);
-            thread_data = new ThreadData();
+            *thread_data = ThreadData();
             have_prstatus = false;
             have_prpsinfo = false;
         }
 
         size_t note_start, note_size;
         note_start = offset;
-        note_size = AlignToNext(note.n_descsz, 4);
+        note_size = llvm::RoundUpToAlignment(note.n_descsz, 4);
 
         // Store the NOTE information in the current thread
         DataExtractor note_data (segment_data, note_start, note_size);
@@ -535,7 +472,7 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
             {
                 case NT_FREEBSD_PRSTATUS:
                     have_prstatus = true;
-                    ParseFreeBSDPrStatus(thread_data, note_data, arch);
+                    ParseFreeBSDPrStatus(*thread_data, note_data, arch);
                     break;
                 case NT_FREEBSD_FPREGSET:
                     thread_data->fpregset = note_data;
@@ -544,7 +481,7 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
                     have_prpsinfo = true;
                     break;
                 case NT_FREEBSD_THRMISC:
-                    ParseFreeBSDThrMisc(thread_data, note_data);
+                    ParseFreeBSDThrMisc(*thread_data, note_data);
                     break;
                 case NT_FREEBSD_PROCSTAT_AUXV:
                     // FIXME: FreeBSD sticks an int at the beginning of the note

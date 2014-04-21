@@ -82,9 +82,9 @@ int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
-static int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
+int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
 	struct inpcb *);
-static int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
+int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
 	struct inpcb *);
 
 #ifdef SYSCTL_NODE
@@ -116,7 +116,7 @@ SYSEND
  * dummynet, divert, netgraph or other modules.
  * The packet may be consumed.
  */
-static int
+int
 ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
@@ -292,7 +292,7 @@ again:
  * Inteface is NULL from ether_demux, and ifp from
  * ether_output_frame.
  */
-static int
+int
 ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
     struct inpcb *inp)
 {
@@ -334,7 +334,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dst;		/* destination, if any			*/
+	args.oif = dir == PFIL_OUT ? dst: NULL;	/* destination, if any	*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.next_hop6 = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
@@ -536,30 +536,22 @@ ipfw_attach_hooks(int arg)
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
-	int *enable;
 	int newval;
 	int error;
 	int af;
 
-	if (arg1 == &VNET_NAME(fw_enable)) {
-		enable = &V_fw_enable;
+	if (arg1 == &V_fw_enable)
 		af = AF_INET;
-	}
 #ifdef INET6
-	else if (arg1 == &VNET_NAME(fw6_enable)) {
-		enable = &V_fw6_enable;
+	else if (arg1 == &V_fw6_enable)
 		af = AF_INET6;
-	}
 #endif
-	else if (arg1 == &VNET_NAME(fwlink_enable)) {
-		enable = &V_fwlink_enable;
+	else if (arg1 == &V_fwlink_enable)
 		af = AF_LINK;
-	}
 	else 
 		return (EINVAL);
 
-	newval = *enable;
-
+	newval = *(int *)arg1;
 	/* Handle sysctl change */
 	error = sysctl_handle_int(oidp, &newval, 0, req);
 
@@ -569,13 +561,13 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 	/* Formalize new value */
 	newval = (newval) ? 1 : 0;
 
-	if (*enable == newval)
+	if (*(int *)arg1 == newval)
 		return (0);
 
 	error = ipfw_hook(newval, af);
 	if (error)
 		return (error);
-	*enable = newval;
+	*(int *)arg1 = newval;
 
 	return (0);
 }

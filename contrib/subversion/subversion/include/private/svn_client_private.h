@@ -306,6 +306,11 @@ svn_client__copy_foreign(const char *url,
  * The keys for the subtree mergeinfo are the repository root-relative
  * paths of TARGET_PATH_OR_URL and/or its subtrees, regardless of whether
  * TARGET_PATH_OR_URL is a URL or WC path.
+ *
+ * If RA_SESSION is not NULL, use it to obtain merge information instead of
+ * opening a new session. The session might be reparented after usage, so
+ * callers should reparent the session back to their original location if
+ * needed.
  */
 svn_error_t *
 svn_client__mergeinfo_log(svn_boolean_t finding_merged,
@@ -322,6 +327,7 @@ svn_client__mergeinfo_log(svn_boolean_t finding_merged,
                           svn_depth_t depth,
                           const apr_array_header_t *revprops,
                           svn_client_ctx_t *ctx,
+                          svn_ra_session_t *ra_session,
                           apr_pool_t *result_pool,
                           apr_pool_t *scratch_pool);
 

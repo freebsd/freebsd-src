@@ -2,18 +2,18 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/sys ${LIBC_SRCTOP}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.include "${.CURDIR}/../../sys/sys/syscall.mk"
+.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
+.sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
 NOASM+=  clock_gettime.o gettimeofday.o
@@ -21,7 +21,7 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
-.if !defined(WITHOUT_SYSCALL_COMPAT)
+.if ${MK_SYSCALL_COMPAT} != "no"
 SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
 	pwrite.c truncate.c
 SRCS+=	${SYSCALL_COMPAT_SRCS}
@@ -55,7 +55,7 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
-SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
@@ -85,6 +85,7 @@ MAN+=	abort2.2 \
 	adjtime.2 \
 	aio_cancel.2 \
 	aio_error.2 \
+	aio_fsync.2 \
 	aio_mlock.2 \
 	aio_read.2 \
 	aio_return.2 \
@@ -300,9 +301,9 @@ MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_delete_fd.2 \
 	extattr_get_file.2 extattr_delete_file.2 \
-	extattr_get_file.2 extattr_delete_list.2 \
+	extattr_get_file.2 extattr_delete_link.2 \
 	extattr_get_file.2 extattr_get_fd.2 \
-	extattr_get_file.2 extattr_get_list.2 \
+	extattr_get_file.2 extattr_get_link.2 \
 	extattr_get_file.2 extattr_list_fd.2 \
 	extattr_get_file.2 extattr_list_file.2 \
 	extattr_get_file.2 extattr_list_link.2 \

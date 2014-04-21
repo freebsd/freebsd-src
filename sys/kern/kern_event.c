@@ -30,10 +30,11 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
+#include "opt_kqueue.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -250,7 +251,10 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 #define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
 #endif /* INVARIANTS */
 
+#ifndef	KN_HASHSIZE
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
+#endif
+
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
 
 static int
@@ -286,10 +290,11 @@ static struct {
 	{ &proc_filtops },			/* EVFILT_PROC */
 	{ &sig_filtops },			/* EVFILT_SIGNAL */
 	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &null_filtops },			/* former EVFILT_NETDEV */
+	{ &file_filtops },			/* EVFILT_PROCDESC */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
+	{ &null_filtops },			/* EVFILT_SENDFILE */
 };
 
 /*
@@ -412,27 +417,22 @@ filt_procdetach(struct knote *kn)
 static int
 filt_proc(struct knote *kn, long hint)
 {
-	struct proc *p = kn->kn_ptr.p_proc;
+	struct proc *p;
 	u_int event;
 
-	/*
-	 * mask off extra data
-	 */
+	p = kn->kn_ptr.p_proc;
+	/* Mask off extra data. */
 	event = (u_int)hint & NOTE_PCTRLMASK;
 
-	/*
-	 * if the user is interested in this event, record it.
-	 */
+	/* If the user is interested in this event, record it. */
 	if (kn->kn_sfflags & event)
 		kn->kn_fflags |= event;
 
-	/*
-	 * process is gone, so flag the event as finished.
-	 */
+	/* Process is gone, so flag the event as finished. */
 	if (event == NOTE_EXIT) {
 		if (!(kn->kn_status & KN_DETACHED))
 			knlist_remove_inevent(&p->p_klist, kn);
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		kn->kn_flags |= EV_EOF | EV_ONESHOT;
 		kn->kn_ptr.p_proc = NULL;
 		if (kn->kn_fflags & NOTE_EXIT)
 			kn->kn_data = p->p_xstat;
@@ -469,7 +469,7 @@ knote_fork(struct knlist *list, int pid)
 			continue;
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
-		if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+		if ((kn->kn_status & (KN_INFLUX | KN_SCAN)) == KN_INFLUX) {
 			KQ_UNLOCK(kq);
 			continue;
 		}
@@ -523,10 +523,14 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static __inline sbintime_t 
+static __inline sbintime_t
 timer2sbintime(intptr_t data)
 {
 
+#ifdef __LP64__
+	if (data > SBT_MAX / SBT_1MS)
+		return (SBT_MAX);
+#endif
 	return (SBT_1MS * data);
 }
 
@@ -712,7 +716,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	    RLIMIT_KQUEUES))) {
 		PROC_UNLOCK(p);
 		crfree(cred);
-		return (EMFILE);
+		return (ENOMEM);
 	}
 	PROC_UNLOCK(p);
 
@@ -855,10 +859,17 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	cap_rights_t rights;
 	int i, n, nerrors, error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	cap_rights_init(&rights);
+	if (nchanges > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_CHANGE);
+	if (nevents > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_EVENT);
+	error = fget(td, fd, &rights, &fp);
 	if (error != 0)
 		return (error);
-	if ((error = kqueue_acquire(fp, &kq)) != 0)
+
+	error = kqueue_acquire(fp, &kq);
+	if (error != 0)
 		goto done_norel;
 
 	nerrors = 0;
@@ -1015,7 +1026,7 @@ findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
 		error = fget(td, kev->ident,
-		    cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
+		    cap_rights_init(&rights, CAP_EVENT), &fp);
 		if (error)
 			goto done;
 
@@ -1158,7 +1169,7 @@ findkn:
 	 * but doing so will not reset any filter which has already been
 	 * triggered.
 	 */
-	kn->kn_status |= KN_INFLUX;
+	kn->kn_status |= KN_INFLUX | KN_SCAN;
 	KQ_UNLOCK(kq);
 	KN_LIST_LOCK(kn);
 	kn->kn_kevent.udata = kev->udata;
@@ -1181,7 +1192,7 @@ done_ev_add:
 	KQ_LOCK(kq);
 	if (event)
 		KNOTE_ACTIVATE(kn, 1);
-	kn->kn_status &= ~KN_INFLUX;
+	kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 	KN_LIST_UNLOCK(kn);
 
 	if ((kev->flags & EV_DISABLE) &&
@@ -1388,7 +1399,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 				rsbt = tstosbt(*tsp);
 				if (TIMESEL(&asbt, rsbt))
 					asbt += tc_tick_sbt;
-				if (asbt <= INT64_MAX - rsbt)
+				if (asbt <= SBT_MAX - rsbt)
 					asbt += rsbt;
 				else
 					asbt = 0;
@@ -1490,7 +1501,7 @@ retry:
 			KQ_LOCK(kq);
 			kn = NULL;
 		} else {
-			kn->kn_status |= KN_INFLUX;
+			kn->kn_status |= KN_INFLUX | KN_SCAN;
 			KQ_UNLOCK(kq);
 			if ((kn->kn_status & KN_KQUEUE) == KN_KQUEUE)
 				KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
@@ -1499,7 +1510,8 @@ retry:
 				KQ_LOCK(kq);
 				KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 				kn->kn_status &=
-				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX);
+				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX |
+				    KN_SCAN);
 				kq->kq_count--;
 				KN_LIST_UNLOCK(kn);
 				influx = 1;
@@ -1529,7 +1541,7 @@ retry:
 			} else
 				TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe);
 			
-			kn->kn_status &= ~(KN_INFLUX);
+			kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 			KN_LIST_UNLOCK(kn);
 			influx = 1;
 		}
@@ -1849,28 +1861,33 @@ knote(struct knlist *list, long hint, int lockflags)
 	 */
 	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
 		kq = kn->kn_kq;
-		if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
+		KQ_LOCK(kq);
+		if ((kn->kn_status & (KN_INFLUX | KN_SCAN)) == KN_INFLUX) {
+			/*
+			 * Do not process the influx notes, except for
+			 * the influx coming from the kq unlock in the
+			 * kqueue_scan().  In the later case, we do
+			 * not interfere with the scan, since the code
+			 * fragment in kqueue_scan() locks the knlist,
+			 * and cannot proceed until we finished.
+			 */
+			KQ_UNLOCK(kq);
+		} else if ((lockflags & KNF_NOKQLOCK) != 0) {
+			kn->kn_status |= KN_INFLUX;
+			KQ_UNLOCK(kq);
+			error = kn->kn_fop->f_event(kn, hint);
 			KQ_LOCK(kq);
-			if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
-				KQ_UNLOCK(kq);
-			} else if ((lockflags & KNF_NOKQLOCK) != 0) {
-				kn->kn_status |= KN_INFLUX;
-				KQ_UNLOCK(kq);
-				error = kn->kn_fop->f_event(kn, hint);
-				KQ_LOCK(kq);
-				kn->kn_status &= ~KN_INFLUX;
-				if (error)
-					KNOTE_ACTIVATE(kn, 1);
-				KQ_UNLOCK_FLUX(kq);
-			} else {
-				kn->kn_status |= KN_HASKQLOCK;
-				if (kn->kn_fop->f_event(kn, hint))
-					KNOTE_ACTIVATE(kn, 1);
-				kn->kn_status &= ~KN_HASKQLOCK;
-				KQ_UNLOCK(kq);
-			}
+			kn->kn_status &= ~KN_INFLUX;
+			if (error)
+				KNOTE_ACTIVATE(kn, 1);
+			KQ_UNLOCK_FLUX(kq);
+		} else {
+			kn->kn_status |= KN_HASKQLOCK;
+			if (kn->kn_fop->f_event(kn, hint))
+				KNOTE_ACTIVATE(kn, 1);
+			kn->kn_status &= ~KN_HASKQLOCK;
+			KQ_UNLOCK(kq);
 		}
-		kq = NULL;
 	}
 	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_unlock(list->kl_lockarg); 
@@ -2301,7 +2318,7 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &fp);
 	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)

@@ -15,7 +15,7 @@ SRCS=	${GENHDRS} ${CSRCS} ${YSRCS} ${LSRCS}
 CLEANFILES+= ${GENHDRS} ${YSRCS:R:C/(.*)/\1.output/g}
 DPADD=	${LIBL}
 LDADD=	-ll
-WARNS?=	5
+WARNS?=	0
 
 # Correct path for kernel builds
 # Don't rely on the kernel's .depend file
@@ -24,11 +24,11 @@ WARNS?=	5
 DEPENDFILE=	.depend_aicasm
 .endif
 
-CFLAGS+= -I.
+CFLAGS+= -I${.CURDIR}
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif
-NO_MAN=
+MAN=
 YFLAGS= -b ${.TARGET:R} ${.TARGET:M*macro*:S/$(.TARGET)/-p mm/} -d
 LFLAGS+= ${.TARGET:M*macro*:S/$(.TARGET)/-Pmm/}
 
@@ -38,4 +38,9 @@ YFLAGS+= -t -v
 LFLAGS+= -d
 .endif
 
+BINDIR=/usr/bin
+
+build-tools: ${PROG}
+
 .include <bsd.prog.mk>
+CFLAGS+= -Wno-missing-prototypes

@@ -141,6 +141,9 @@ static int
 imxccm_match(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ccm") &&
 	    !ofw_bus_is_compatible(dev, "fsl,imx53-ccm"))
 		return (ENXIO);

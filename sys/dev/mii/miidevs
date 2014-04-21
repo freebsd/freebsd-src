@@ -136,6 +136,7 @@ model yyAMD 79c901home		0x0039 Am79C901 HomePNA 1.0 interface
 /* Atheros Communications/Attansic PHYs */
 model xxATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
 model xxATHEROS F2		0x0002 Atheros F2 10/100 PHY
+model xxATHEROS AR8021		0x0004 Atheros AR8021 10/100/1000 PHY
 model xxATHEROS F1_7		0x0007 Atheros F1 10/100/1000 PHY
 
 /* Asix semiconductor PHYs */

@@ -100,7 +100,7 @@ cn_drvinit(void *unused)
 		    sizeof(output)) == -1)
 			return;
 		if (strlen(output) > 0)
-			tty_makealias(tp, output);
+			tty_makealias(tp, "%s", output);
 	}
 }
 

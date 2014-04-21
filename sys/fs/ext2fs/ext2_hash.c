@@ -289,8 +289,8 @@ ext2_htree_hash(const char *name, int len,
 			len -= 32;
 			name += 32;
 		}
-		major = hash[0];
-		minor = hash[1];
+		major = hash[1];
+		minor = hash[2];
 		break;
 	default:
 		goto error;

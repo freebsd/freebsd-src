@@ -34,8 +34,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/reboot.h>
 
+#include <vm/vm.h>
+
+#include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <arm/freescale/imx/imx_machdep.h>
+
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	return (arm_devmap_lastaddr());
+}
+
+void
+initarm_early_init(void)
+{
+
+	/* XXX - Get rid of this stuff soon. */
+	boothowto |= RB_VERBOSE|RB_MULTIPLE;
+	bootverbose = 1;
+}
+
+void
+initarm_gpio_init(void)
+{
+
+}
+
+void
+initarm_late_init(void)
+{
+
+}
 
 /*
  * Set up static device mappings.  This is hand-optimized platform-specific
@@ -43,17 +75,16 @@ __FBSDID("$FreeBSD$");
  * section mappings.
  *
  * Notably missing are entries for GPU, IPU, in general anything video related.
- *
- * Note that for imx this is called from initarm_lastaddr() so that the lowest
- * kva address used for static device mapping can be known at that point.
  */
-void
-imx_devmap_init(void)
+int
+initarm_devmap_init(void)
 {
 
-	imx_devmap_addentry(0x50000000, 0x00100000);
-	imx_devmap_addentry(0x53f00000, 0x00100000);
-	imx_devmap_addentry(0x63f00000, 0x00100000);
+	arm_devmap_add_entry(0x50000000, 0x00100000);
+	arm_devmap_add_entry(0x53f00000, 0x00100000);
+	arm_devmap_add_entry(0x63f00000, 0x00100000);
+
+	return (0);
 }
 
 void

@@ -7,7 +7,7 @@
 CHROOTDIR="/scratch"
 
 ## Set the svn host.
-SVNROOT="svn://svn.FreeBSD.org"
+SVNROOT="svn://svn.FreeBSD.org/"
 
 ## Set the src/, ports/, and doc/ branches or tags.
 SRCBRANCH="base/head@rHEAD"
@@ -16,6 +16,13 @@ PORTBRANCH="ports/head@rHEAD"
 
 ## Run svn co --force for src checkout.
 #SRC_FORCE_CHECKOUT=yes
+
+## Sample configuration for using git instead of svn.
+#VCSCMD="/usr/local/bin/git clone --branch master"
+#SVNROOT=""
+#SRCBRANCH="https://github.com/freebsd/freebsd"
+#DOCBRANCH="https://github.com/freebsd/freebsd-doc"
+#PORTBRANCH="https://github.com/freebsd/freebsd-ports"
 
 ## Set to override the default target architecture.
 #TARGET="amd64"
@@ -33,9 +40,35 @@ PORTBRANCH="ports/head@rHEAD"
 
 ## Set to use world- and kernel-specific make(1) flags.
 #WORLD_FLAGS="-j $(sysctl -n hw.ncpu)"
-#KERNEL_FLAGS="-j $(expr $(sysctl -n hw.ncpu) / 2)"
+#KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
 
 ## Set miscellaneous 'make release' settings.
 #NODOC=
 #NOPORTS=
-#RELSTRING=
+#WITH_DVD=
+#WITH_COMPRESSED_IMAGES=
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to skip the chroot environment buildworld/installworld/distribution
+## step if it is expected the build environment will exist via alternate
+## means.
+#CHROOTBUILD_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/src in
+## the chroot.  This is intended for use when /usr/src already exists.
+#SRC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/doc in
+## the chroot.  This is intended for use when /usr/doc already exists.
+#DOC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/ports in
+## the chroot.  This is intended for use when /usr/ports already exists.
+#PORTS_UPDATE_SKIP=
+
+## Set to pass additional flags to make(1) for the build chroot setup, such
+## as TARGET/TARGET_ARCH.
+#CHROOT_MAKEENV=
+

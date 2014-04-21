@@ -41,8 +41,8 @@ BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="dot"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -163,7 +163,7 @@ while getopts cdhi flag; do
 done
 shift $(( $OPTIND - 1 ))
 
-cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIB"
+cd $BSDCFG_LIBE || f_die # Pedantic
 
 #
 # Get a list of menu programs

@@ -711,7 +711,7 @@ int get_packet_info(struct ieee80211_frame* wh,
 	else if (type == IEEE80211_FC0_TYPE_DATA &&
 	    stype == IEEE80211_FC0_SUBTYPE_DATA) {
 	
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			unsigned char* iv;
 			
 			node->wep = CRYPT_WEP;

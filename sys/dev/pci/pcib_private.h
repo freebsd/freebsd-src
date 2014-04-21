@@ -83,6 +83,18 @@ struct pcib_window {
 };
 #endif
 
+struct pcib_secbus {
+	u_int		sec;
+	u_int		sub;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	device_t	dev;
+	struct rman	rman;
+	struct resource	*res;
+	const char	*name;
+	int		sub_reg;
+#endif
+};
+
 /*
  * Bridge-specific data.
  */
@@ -93,11 +105,11 @@ struct pcib_softc
 #define	PCIB_SUBTRACTIVE	0x1
 #define	PCIB_DISABLE_MSI	0x2
 #define	PCIB_DISABLE_MSIX	0x4
+#define	PCIB_ENABLE_ARI		0x8
     uint16_t	command;	/* command register */
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
-    u_int	secbus;		/* secondary bus number */
-    u_int	subbus;		/* subordinate bus number */
+    struct pcib_secbus bus;	/* secondary bus numbers */
 #ifdef NEW_PCIB
     struct pcib_window io;	/* I/O port window */
     struct pcib_window mem;	/* memory window */
@@ -115,15 +127,30 @@ struct pcib_softc
     uint8_t	seclat;		/* secondary bus latency timer */
 };
 
+#define	PCIB_SUPPORTED_ARI_VER	1
+
 typedef uint32_t pci_read_config_fn(int b, int s, int f, int reg, int width);
 
+int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
+    int slot, int func, uint8_t *busnum);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
+		    u_long start, u_long end, u_long count, u_int flags);
+int		pci_domain_adjust_bus(int domain, device_t dev,
+		    struct resource *r, u_long start, u_long end);
+int		pci_domain_release_bus(int domain, device_t dev, int rid,
+		    struct resource *r);
+struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
+		    int *rid, u_long start, u_long end, u_long count,
+		    u_int flags);
+void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
+    int min_count);
+#endif
+int		pcib_attach(device_t dev);
+void		pcib_attach_common(device_t dev);
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
-int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
-    int slot, int func, uint8_t *busnum);
-int		pcib_attach(device_t dev);
-void		pcib_attach_common(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
@@ -135,13 +162,13 @@ int		pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 #endif
 int		pcib_maxslots(device_t dev);
-uint32_t	pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width);
-void		pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width);
+int		pcib_maxfuncs(device_t dev);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 int		pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
 int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
+uint16_t	pcib_get_rid(device_t pcib, device_t dev);
 
 #endif

@@ -900,12 +900,12 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 		    (uintmax_t)resmem->EndAddress);
 	}
 
-	ptr = (char *)resmem + sizeof(*resmem);
-	ptrend = (char *)resmem + resmem->Header.Length;
+	ptr = (const char *)resmem + sizeof(*resmem);
+	ptrend = (const char *)resmem + resmem->Header.Length;
 	for (;;) {
 		if (ptr >= ptrend)
 			break;
-		devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
+		devscope = (const ACPI_DMAR_DEVICE_SCOPE *)ptr;
 		ptr += devscope->Length;
 		/* XXXKIB bridge */
 		if (devscope->EntryType != ACPI_DMAR_SCOPE_TYPE_ENDPOINT)
@@ -914,11 +914,11 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			dmar_print_path(iria->dmar->dev, "RMRR scope",
 			    devscope->Bus, (devscope->Length -
 			    sizeof(ACPI_DMAR_DEVICE_SCOPE)) / 2,
-			    (ACPI_DMAR_PCI_PATH *)(devscope + 1));
+			    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 		}
 		dev = dmar_path_dev(resmem->Segment, (devscope->Length -
 		    sizeof(ACPI_DMAR_DEVICE_SCOPE)) / 2, devscope->Bus,
-		    (ACPI_DMAR_PCI_PATH *)(devscope + 1));
+		    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 		if (dev == NULL) {
 			if (dmar_match_verbose)
 				printf("null dev\n");
@@ -1005,7 +1005,9 @@ dmar_print_ctx(struct dmar_ctx *ctx, bool show_mappings)
 	db_printf(
 	    "  @%p pci%d:%d:%d dom %d mgaw %d agaw %d pglvl %d end %jx\n"
 	    "    refs %d flags %x pgobj %p map_ents %u loads %lu unloads %lu\n",
-	    ctx, ctx->bus, ctx->slot, ctx->func, ctx->domain, ctx->mgaw,
+	    ctx, pci_get_bus(ctx->ctx_tag.owner),
+	    pci_get_slot(ctx->ctx_tag.owner),
+	    pci_get_function(ctx->ctx_tag.owner), ctx->domain, ctx->mgaw,
 	    ctx->agaw, ctx->pglvl, (uintmax_t)ctx->end, ctx->refs,
 	    ctx->flags, ctx->pgtbl_obj, ctx->entries_cnt, ctx->loads,
 	    ctx->unloads);
@@ -1049,6 +1051,8 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 		}
 		show_mappings = strchr(db_tok_string, 'm') != NULL;
 		t = db_read_token();
+	} else {
+		show_mappings = false;
 	}
 	if (t == tNUMBER) {
 		domain = db_tok_number;
@@ -1076,8 +1080,10 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
 		LIST_FOREACH(ctx, &unit->contexts, link) {
-			if (domain == unit->segment && bus == ctx->bus &&
-			    device == ctx->slot && function == ctx->func) {
+			if (domain == unit->segment && 
+			    bus == pci_get_bus(ctx->ctx_tag.owner) &&
+			    device == pci_get_slot(ctx->ctx_tag.owner) && 
+			    function == pci_get_function(ctx->ctx_tag.owner)) {
 				dmar_print_ctx(ctx, show_mappings);
 				goto out;
 			}

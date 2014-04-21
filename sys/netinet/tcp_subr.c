@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -432,6 +431,7 @@ tcp_init(void)
 void
 tcp_destroy(void)
 {
+	int error;
 
 	tcp_reass_destroy();
 	tcp_hc_destroy();
@@ -440,6 +440,19 @@ tcp_destroy(void)
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN, error);
+	}
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_OUT]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
+	}
 }
 #endif
 
@@ -707,9 +720,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 	if (flags & TH_RST)
-		TCP_PROBE5(accept_refused, NULL, NULL, m->m_data, tp, nth);
+		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
+		    tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, m->m_data, tp, nth);
+	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
@@ -1797,10 +1811,10 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro.ro_rt->rt_mtu == 0)
 			maxmtu = ifp->if_mtu;
 		else
-			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -1834,10 +1848,10 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro6.ro_rt->rt_mtu == 0)
 			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
 		else
-			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
+			maxmtu = min(sro6.ro_rt->rt_mtu,
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
 
 		/* Report additional interface capabilities. */
@@ -2398,5 +2412,5 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 #endif
 
 	tp->t_state = newstate;
-	TCP_PROBE6(state_change, NULL, tp, NULL, tp, NULL, pstate);
+	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

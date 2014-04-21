@@ -1,4 +1,4 @@
-/*	$Id: tbl_html.c,v 1.9 2011/09/18 14:14:15 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.10 2012/05/27 17:54:54 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -119,20 +119,12 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 			print_stagq(h, tt);
 			print_otag(h, TAG_TD, 0, NULL);
 
-			switch (hp->pos) {
-			case (TBL_HEAD_VERT):
-				/* FALLTHROUGH */
-			case (TBL_HEAD_DVERT):
-				continue;
-			case (TBL_HEAD_DATA):
-				if (NULL == dp)
-					break;
-				if (TBL_CELL_DOWN != dp->layout->pos)
-					if (dp->string)
-						print_text(h, dp->string);
-				dp = dp->next;
+			if (NULL == dp)
 				break;
-			}
+			if (TBL_CELL_DOWN != dp->layout->pos)
+				if (dp->string)
+					print_text(h, dp->string);
+			dp = dp->next;
 		}
 		break;
 	}

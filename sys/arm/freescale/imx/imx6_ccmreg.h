@@ -29,13 +29,20 @@
 #ifndef	IMX6_CCMREG_H
 #define	IMX6_CCMREG_H
 
-#define	CCM_CCGR1		0x06C
-#define	CCM_CCGR2		0x070
-#define	CCM_CCGR3		0x074
-#define	CCM_CCGR4		0x078
-#define	CCM_CCGR5		0x07C
-#define	CCM_CCGR6		0x080
-#define	CCM_CMEOR		0x088
+#define	CCM_CLPCR			0x054
+#define	  CCM_CLPCR_LPM_MASK		  0x03
+#define	  CCM_CLPCR_LPM_RUN		  0x00
+#define	  CCM_CLPCR_LPM_WAIT		  0x01
+#define	  CCM_CLPCR_LPM_STOP		  0x02
+#define	CCM_CGPR			0x064
+#define	  CCM_CGPR_INT_MEM_CLK_LPM	  (1 << 17)
+#define	CCM_CCGR1			0x06C
+#define	CCM_CCGR2			0x070
+#define	CCM_CCGR3			0x074
+#define	CCM_CCGR4			0x078
+#define	CCM_CCGR5			0x07C
+#define	CCM_CCGR6			0x080
+#define	CCM_CMEOR			0x088
                   
 
 #endif

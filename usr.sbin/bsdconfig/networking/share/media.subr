@@ -115,13 +115,15 @@ f_dialog_input_options()
 	# the system may hang (if any NFS mounts are using that interface).
 	#
 	if f_nfs_mounted && ! f_jailed; then
-		local setting="$( printf "$msg_current_options" \
-		                         "$interface" "$options" )"
+		local setting
+		f_sprintf setting "$msg_current_options" \
+		                  "$interface" "$options"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
 			return $DIALOG_CANCEL
 	fi
 
-	local msg="$( printf "$msg_please_enter_mediaopts" "$interface" )"
+	local msg
+	f_sprintf msg "$msg_please_enter_mediaopts" "$interface"
 	local hline="$hline_alnum_punc_tab_enter"
 
 	local _options
@@ -162,8 +164,9 @@ f_dialog_menu_media_options()
 	# the system may hang (if any NFS mounts are using that interface).
 	#
 	if f_nfs_mounted && ! f_jailed; then
-		local setting="$( printf "$msg_current_options" \
-		                         "$interface" "$_options" )"
+		local setting
+		f_sprintf setting "$msg_current_options" \
+		                  "$interface" "$_options"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
 			return $DIALOG_CANCEL
 	fi
@@ -196,11 +199,11 @@ f_dialog_menu_media_options()
 
 	local msg
 	if [ "$USE_XDIALOG" ]; then
-		msg=$( printf "$xmsg_supported_media_options" \
-		       		"$interface" "$interface" )
+		f_sprintf msg "$xmsg_supported_media_options" \
+		              "$interface" "$interface"
 	else
-		msg=$( printf "$msg_supported_media_options" \
-		       		"$interface" "$interface" )
+		f_sprintf msg "$msg_supported_media_options" \
+		              "$interface" "$interface"
 	fi
 
 	local hline="$hline_arrows_tab_enter"

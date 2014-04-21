@@ -2599,7 +2599,7 @@ dump_bt848( bktr_ptr_t bktr )
 #define BKTR_TEST_RISC_STATUS_BIT0 (1 << 28)
 #define BKTR_TEST_RISC_STATUS_BIT1 (1 << 29)
 #define BKTR_TEST_RISC_STATUS_BIT2 (1 << 30)
-#define BKTR_TEST_RISC_STATUS_BIT3 (1 << 31)
+#define BKTR_TEST_RISC_STATUS_BIT3 (1U << 31)
 
 static bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     int i;

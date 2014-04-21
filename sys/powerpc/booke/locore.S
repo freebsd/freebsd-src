@@ -738,8 +738,7 @@ ENTRY(icache_enable)
 setfault:
 	mflr	%r0
 	mfsprg0	%r4
-	lwz	%r4, PC_CURTHREAD(%r4)
-	lwz	%r4, TD_PCB(%r4)
+	lwz	%r4, TD_PCB(%r2)
 	stw	%r3, PCB_ONFAULT(%r4)
 	mfcr	%r10
 	mfctr	%r11

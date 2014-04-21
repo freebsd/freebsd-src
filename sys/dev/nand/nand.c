@@ -115,7 +115,7 @@ nand_init(struct nand_softc *nand, device_t dev, int ecc_mode,
 }
 
 void
-nand_onfi_set_params(struct nand_chip *chip, struct onfi_params *params)
+nand_onfi_set_params(struct nand_chip *chip, struct onfi_chip_params *params)
 {
 	struct chip_geom *cg;
 
@@ -309,23 +309,22 @@ nand_get_chip_param(struct nand_chip *chip, struct chip_param_io *param)
 static uint16_t *
 default_software_ecc_positions(struct nand_chip *chip)
 {
-	struct nand_ecc_data *eccd;
+	/* If positions have been set already, use them. */
+	if (chip->nand->ecc.eccpositions)
+		return (chip->nand->ecc.eccpositions);
 
-	eccd = &chip->nand->ecc;
-
-	if (eccd->eccpositions)
-		return (eccd->eccpositions);
-
-	switch (chip->chip_geom.oob_size) {
-	case 16:
-		return ((uint16_t *)&default_software_ecc_positions_16);
-	case 64:
-		return ((uint16_t *)&default_software_ecc_positions_64);
-	case 128:
-		return ((uint16_t *)&default_software_ecc_positions_128);
-	default:
-		return (NULL); /* No ecc bytes positions defs available */
-	}
+	/*
+	 * XXX Note that the following logic isn't really sufficient, especially
+	 * in the ONFI case where the number of ECC bytes can be dictated by
+	 * values in the parameters page, and that could lead to needing more
+	 * byte positions than exist within the tables of software-ecc defaults.
+	 */
+	if (chip->chip_geom.oob_size >= 128)
+		return (default_software_ecc_positions_128);
+	if (chip->chip_geom.oob_size >= 64)
+		return (default_software_ecc_positions_64);
+	else if (chip->chip_geom.oob_size >= 16)
+		return (default_software_ecc_positions_16);
 
 	return (NULL);
 }

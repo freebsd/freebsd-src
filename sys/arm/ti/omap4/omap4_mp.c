@@ -38,9 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_smc.h>
 #include <arm/ti/omap4/omap4_smc.h>
 
-void mpentry(void);
-void mptramp(void);
-
 void
 platform_mp_init_secondary(void)
 {

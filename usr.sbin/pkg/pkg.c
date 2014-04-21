@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2012-2014 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <yaml.h>
+#include <ucl.h>
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -233,9 +233,6 @@ fetch_to_fd(const char *url, char *path)
 		}
 	}
 
-	if (remote == NULL)
-		goto fetchfail;
-
 	while (done < st.size) {
 		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
 			break;
@@ -271,38 +268,28 @@ cleanup:
 }
 
 static struct fingerprint *
-parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
+parse_fingerprint(ucl_object_t *obj)
 {
-	yaml_node_pair_t *pair;
-	yaml_char_t *function, *fp;
+	ucl_object_t *cur;
+	ucl_object_iter_t it = NULL;
+	const char *function, *fp, *key;
 	struct fingerprint *f;
 	hash_t fct = HASH_UNKNOWN;
 
 	function = fp = NULL;
 
-	pair = node->data.mapping.pairs.start;
-	while (pair < node->data.mapping.pairs.top) {
-		yaml_node_t *key = yaml_document_get_node(doc, pair->key);
-		yaml_node_t *val = yaml_document_get_node(doc, pair->value);
-
-		if (key->data.scalar.length <= 0) {
-			++pair;
+	while ((cur = ucl_iterate_object(obj, &it, true))) {
+		key = ucl_object_key(cur);
+		if (cur->type != UCL_STRING)
+			continue;
+		if (strcasecmp(key, "function") == 0) {
+			function = ucl_object_tostring(cur);
 			continue;
 		}
-
-		if (val->type != YAML_SCALAR_NODE) {
-			++pair;
+		if (strcasecmp(key, "fingerprint") == 0) {
+			fp = ucl_object_tostring(cur);
 			continue;
 		}
-
-		if (strcasecmp(key->data.scalar.value, "function") == 0)
-			function = val->data.scalar.value;
-		else if (strcasecmp(key->data.scalar.value, "fingerprint")
-		    == 0)
-			fp = val->data.scalar.value;
-
-		++pair;
-		continue;
 	}
 
 	if (fp == NULL || function == NULL)
@@ -312,7 +299,7 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 		fct = HASH_SHA256;
 
 	if (fct == HASH_UNKNOWN) {
-		fprintf(stderr, "Unsupported hashing function: %s\n", function);
+		warnx("Unsupported hashing function: %s", function);
 		return (NULL);
 	}
 
@@ -326,11 +313,10 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 static void
 free_fingerprint_list(struct fingerprint_list* list)
 {
-	struct fingerprint* fingerprint;
+	struct fingerprint *fingerprint, *tmp;
 
-	STAILQ_FOREACH(fingerprint, list, next) {
-		if (fingerprint->name)
-			free(fingerprint->name);
+	STAILQ_FOREACH_SAFE(fingerprint, list, next, tmp) {
+		free(fingerprint->name);
 		free(fingerprint);
 	}
 	free(list);
@@ -339,10 +325,8 @@ free_fingerprint_list(struct fingerprint_list* list)
 static struct fingerprint *
 load_fingerprint(const char *dir, const char *filename)
 {
-	yaml_parser_t parser;
-	yaml_document_t doc;
-	yaml_node_t *node;
-	FILE *fp;
+	ucl_object_t *obj = NULL;
+	struct ucl_parser *p = NULL;
 	struct fingerprint *f;
 	char path[MAXPATHLEN];
 
@@ -350,24 +334,23 @@ load_fingerprint(const char *dir, const char *filename)
 
 	snprintf(path, MAXPATHLEN, "%s/%s", dir, filename);
 
-	if ((fp = fopen(path, "r")) == NULL)
+	p = ucl_parser_new(0);
+	if (!ucl_parser_add_file(p, path)) {
+		warnx("%s: %s", path, ucl_parser_get_error(p));
+		ucl_parser_free(p);
 		return (NULL);
+	}
 
-	yaml_parser_initialize(&parser);
-	yaml_parser_set_input_file(&parser, fp);
-	yaml_parser_load(&parser, &doc);
+	obj = ucl_parser_get_object(p);
 
-	node = yaml_document_get_root_node(&doc);
-	if (node == NULL || node->type != YAML_MAPPING_NODE)
-		goto out;
+	if (obj->type == UCL_OBJECT)
+		f = parse_fingerprint(obj);
 
-	f = parse_fingerprint(&doc, node);
-	f->name = strdup(filename);
+	if (f != NULL)
+		f->name = strdup(filename);
 
-out:
-	yaml_document_delete(&doc);
-	yaml_parser_delete(&parser);
-	fclose(fp);
+	ucl_object_free(obj);
+	ucl_parser_free(p);
 
 	return (f);
 }
@@ -732,12 +715,9 @@ cleanup:
 	if (revoked)
 		free_fingerprint_list(revoked);
 	if (sc) {
-		if (sc->cert)
-			free(sc->cert);
-		if (sc->sig)
-			free(sc->sig);
-		if (sc->name)
-			free(sc->name);
+		free(sc->cert);
+		free(sc->sig);
+		free(sc->name);
 		free(sc);
 	}
 
@@ -747,12 +727,9 @@ cleanup:
 static int
 bootstrap_pkg(bool force)
 {
-	FILE *config;
 	int fd_pkg, fd_sig;
 	int ret;
-	char *site;
 	char url[MAXPATHLEN];
-	char conf[MAXPATHLEN];
 	char tmppkg[MAXPATHLEN];
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
@@ -761,7 +738,6 @@ bootstrap_pkg(bool force)
 
 	fd_sig = -1;
 	ret = -1;
-	config = NULL;
 
 	if (config_string(PACKAGESITE, &packagesite) != 0) {
 		warnx("No PACKAGESITE defined");
@@ -808,26 +784,6 @@ bootstrap_pkg(bool force)
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg, force);
 
-	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
-
-	if (access(conf, R_OK) == -1) {
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-
-		config = fopen(conf, "w+");
-		if (config == NULL)
-			goto cleanup;
-		fprintf(config, "packagesite: %s\n", url);
-		fclose(config);
-	}
-
 	goto cleanup;
 
 fetchfail:
@@ -851,6 +807,11 @@ cleanup:
 static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
 "Do you want to fetch and install it now? [y/N]: ";
+
+static const char non_interactive_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to bootstrap "
+"in non-interactive (stdin not being a tty)\n";
 
 static int
 pkg_query_yes_no(void)
@@ -914,7 +875,7 @@ cleanup:
 }
 
 int
-main(__unused int argc, char *argv[])
+main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 	const char *pkgarg;
@@ -970,10 +931,12 @@ main(__unused int argc, char *argv[])
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
-			printf("%s", confirmation_message);
-			if (!isatty(fileno(stdin)))
+			if (!isatty(fileno(stdin))) {
+				fprintf(stderr, non_interactive_message);
 				exit(EXIT_FAILURE);
+			}
 
+			printf("%s", confirmation_message);
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}

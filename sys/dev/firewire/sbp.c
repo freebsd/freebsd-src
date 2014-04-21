@@ -2472,7 +2472,7 @@ END_DEBUG
 		ocb->sdev = sdev;
 		ocb->ccb = ccb;
 		ccb->ccb_h.ccb_sdev_ptr = sdev;
-		ocb->orb[0] = htonl(1 << 31);
+		ocb->orb[0] = htonl(1U << 31);
 		ocb->orb[1] = 0;
 		ocb->orb[2] = htonl(((sbp->fd.fc->nodeid | FWLOCALBUS )<< 16) );
 		ocb->orb[3] = htonl(ocb->bus_addr + IND_PTR_OFFSET);

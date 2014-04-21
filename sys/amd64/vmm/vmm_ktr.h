@@ -32,32 +32,34 @@
 #include <sys/ktr.h>
 #include <sys/pcpu.h>
 
+#ifndef KTR_VMM
 #define	KTR_VMM	KTR_GEN
+#endif
 
 #define	VCPU_CTR0(vm, vcpuid, format)					\
-CTR3(KTR_VMM, "vm %s-%d(%d): " format, vm_name((vm)), (vcpuid), curcpu)
+CTR2(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid))
 
 #define	VCPU_CTR1(vm, vcpuid, format, p1)				\
-CTR4(KTR_VMM, "vm %s-%d(%d): " format, vm_name((vm)), (vcpuid), curcpu, \
-			(p1))
+CTR3(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1))
 
 #define	VCPU_CTR2(vm, vcpuid, format, p1, p2)				\
-CTR5(KTR_VMM, "vm %s-%d(%d): " format, vm_name((vm)), (vcpuid), curcpu, \
-			(p1), (p2))
+CTR4(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1), (p2))
 
 #define	VCPU_CTR3(vm, vcpuid, format, p1, p2, p3)			\
-CTR6(KTR_VMM, "vm %s-%d(%d): " format, vm_name((vm)), (vcpuid), curcpu, \
-			(p1), (p2), (p3))
+CTR5(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1), (p2), (p3))
 
 #define	VM_CTR0(vm, format)						\
-CTR2(KTR_VMM, "vm %s(%d): " format, vm_name((vm)), curcpu)
+CTR1(KTR_VMM, "vm %s: " format, vm_name((vm)))
 
 #define	VM_CTR1(vm, format, p1)						\
-CTR3(KTR_VMM, "vm %s(%d): " format, vm_name((vm)), curcpu, (p1))
+CTR2(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1))
 
 #define	VM_CTR2(vm, format, p1, p2)					\
-CTR4(KTR_VMM, "vm %s(%d): " format, vm_name((vm)), curcpu, (p1), (p2))
+CTR3(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2))
 
 #define	VM_CTR3(vm, format, p1, p2, p3)					\
-CTR5(KTR_VMM, "vm %s(%d): " format, vm_name((vm)), curcpu, (p1), (p2), (p3))
+CTR4(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3))
+
+#define	VM_CTR4(vm, format, p1, p2, p3, p4)				\
+CTR5(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3), (p4))
 #endif

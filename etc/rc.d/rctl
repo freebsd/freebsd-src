@@ -15,7 +15,7 @@ stop_cmd="rctl_stop"
 
 rctl_start()
 {
-	if [ -f /etc/rctl.conf ]; then
+	if [ -f ${rctl_rules} ]; then
 		while read var comments
 		do
 			case ${var} in
@@ -25,7 +25,7 @@ rctl_start()
 				rctl -a "${var}"
 				;;
 			esac
-		done < /etc/rctl.conf
+		done < ${rctl_rules}
 	fi
 }
 

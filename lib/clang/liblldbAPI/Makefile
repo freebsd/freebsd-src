@@ -25,14 +25,16 @@ SRCS=	SBAddress.cpp \
 	SBFrame.cpp \
 	SBFunction.cpp \
 	SBHostOS.cpp \
-	SBInputReader.cpp \
 	SBInstruction.cpp \
 	SBInstructionList.cpp \
 	SBLineEntry.cpp \
 	SBListener.cpp \
 	SBModule.cpp \
 	SBModuleSpec.cpp \
+	SBPlatform.cpp \
 	SBProcess.cpp \
+	SBQueue.cpp \
+	SBQueueItem.cpp \
 	SBSection.cpp \
 	SBSourceManager.cpp \
 	SBStream.cpp \

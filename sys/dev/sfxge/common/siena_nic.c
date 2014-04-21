@@ -589,6 +589,7 @@ siena_nic_probe(
 	unsigned int mask;
 	int rc;
 
+	mask = 0;	/* XXX: pacify gcc */
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
 	/* Read clear any assertion state */

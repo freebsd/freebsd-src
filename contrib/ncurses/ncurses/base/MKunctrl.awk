@@ -1,6 +1,6 @@
-# $Id: MKunctrl.awk,v 1.23 2008/10/04 21:40:24 tom Exp $
+# $Id: MKunctrl.awk,v 1.27 2012/06/09 20:29:33 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2012 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -36,19 +36,12 @@ BEGIN	{
 		print "#include <curses.priv.h>"
 		print "#include <ctype.h>"
 		print ""
-		print "#if USE_WIDEC_SUPPORT"
-		print "#if HAVE_WCTYPE_H"
-		print "#include <wctype.h>"
-		print "#endif"
-		print "#endif"
-		print ""
 		print "#undef unctrl"
 		print ""
 	}
 END	{
-		print "NCURSES_EXPORT(NCURSES_CONST char *) _nc_unctrl (SCREEN *sp, chtype ch)"
+		print "NCURSES_EXPORT(NCURSES_CONST char *) safe_unctrl(SCREEN *sp, chtype ch)"
 		print "{"
-
 		blob=""
 		offset=0
 		if (bigstrings) {
@@ -147,7 +140,7 @@ END	{
 		} else {
 			stringname = "unctrl"
 		}
-		print  "\tint check = ChCharOf(ch);"
+		print  "\tint check = (int) ChCharOf(ch);"
 		print  "\tconst char *result;"
 		print  ""
 		print  "\tif (check >= 0 && check < (int)SIZEOF(unctrl_table)) {"
@@ -158,16 +151,6 @@ END	{
 		print  "\t\t && (check < 160))"
 		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
 		print  "\t\telse"
-		print  "#if USE_WIDEC_SUPPORT"
-		print  "\t\tif ((check >= 160)"
-		print  "\t\t && (check < 256)"
-		print  "\t\t && ((sp != 0)"
-		print  "\t\t  && ((sp->_legacy_coding > 0)"
-		print  "\t\t   || (sp->_legacy_coding == 0"
-		print  "\t\t       && (isprint(check) || iswprint(check))))))"
-		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
-		print  "\t\telse"
-		print  "#else"
 		print  "\t\tif ((check >= 160)"
 		print  "\t\t && (check < 256)"
 		print  "\t\t && ((sp != 0)"
@@ -176,7 +159,6 @@ END	{
 		print  "\t\t       && isprint(check)))))"
 		printf "\t\t\tresult = %s_c1[check - 128];\n", stringname;
 		print  "\t\telse"
-		print  "#endif /* USE_WIDEC_SUPPORT */"
 		print  "#endif /* NCURSES_EXT_FUNCS */"
 		printf "\t\t\tresult = %s_table[check];\n", stringname;
 		print  "\t} else {"
@@ -187,6 +169,6 @@ END	{
 		print  ""
 		print  "NCURSES_EXPORT(NCURSES_CONST char *) unctrl (chtype ch)"
 		print  "{"
-		print  "\treturn _nc_unctrl(SP, ch);"
+		print  "\treturn safe_unctrl(CURRENT_SCREEN, ch);"
 		print  "}"
 	}

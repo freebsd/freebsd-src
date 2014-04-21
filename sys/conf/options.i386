@@ -26,6 +26,7 @@ IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
+IMAGACT_BINMISC		opt_binmisc.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
 NDISAPI			opt_dontuse.h

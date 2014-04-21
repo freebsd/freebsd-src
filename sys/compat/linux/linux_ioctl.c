@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
 #include <sys/conf.h>
@@ -2287,7 +2287,7 @@ linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
 
 	flags = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
 	/* these flags have no Linux equivalent */
-	flags &= ~(IFF_SMART|IFF_DRV_OACTIVE|IFF_SIMPLEX|
+	flags &= ~(IFF_DRV_OACTIVE|IFF_SIMPLEX|
 	    IFF_LINK0|IFF_LINK1|IFF_LINK2);
 	/* Linux' multicast flag is in a different bit */
 	if (flags & IFF_MULTICAST) {

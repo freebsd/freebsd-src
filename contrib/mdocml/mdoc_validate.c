@@ -1,7 +1,7 @@
-/*	$Id: mdoc_validate.c,v 1.182 2012/03/23 05:50:25 kristaps Exp $ */
+/*	$Id: mdoc_validate.c,v 1.198 2013/12/15 21:23:52 schwarze Exp $ */
 /*
- * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2010, 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +19,7 @@
 #include "config.h"
 #endif
 
-#ifndef	OSNAME
+#ifndef OSNAME
 #include <sys/utsname.h>
 #endif
 
@@ -97,17 +97,19 @@ static	int	 post_bl_block_width(POST_ARGS);
 static	int	 post_bl_block_tag(POST_ARGS);
 static	int	 post_bl_head(POST_ARGS);
 static	int	 post_bx(POST_ARGS);
+static	int	 post_defaults(POST_ARGS);
 static	int	 post_dd(POST_ARGS);
 static	int	 post_dt(POST_ARGS);
-static	int	 post_defaults(POST_ARGS);
-static	int	 post_literal(POST_ARGS);
 static	int	 post_eoln(POST_ARGS);
+static	int	 post_hyph(POST_ARGS);
+static	int	 post_ignpar(POST_ARGS);
 static	int	 post_it(POST_ARGS);
 static	int	 post_lb(POST_ARGS);
+static	int	 post_literal(POST_ARGS);
 static	int	 post_nm(POST_ARGS);
 static	int	 post_ns(POST_ARGS);
 static	int	 post_os(POST_ARGS);
-static	int	 post_ignpar(POST_ARGS);
+static	int	 post_par(POST_ARGS);
 static	int	 post_prol(POST_ARGS);
 static	int	 post_root(POST_ARGS);
 static	int	 post_rs(POST_ARGS);
@@ -141,27 +143,30 @@ static	v_post	 posts_bx[] = { post_bx, NULL };
 static	v_post	 posts_bool[] = { ebool, NULL };
 static	v_post	 posts_eoln[] = { post_eoln, NULL };
 static	v_post	 posts_defaults[] = { post_defaults, NULL };
+static	v_post	 posts_d1[] = { bwarn_ge1, post_hyph, NULL };
 static	v_post	 posts_dd[] = { post_dd, post_prol, NULL };
 static	v_post	 posts_dl[] = { post_literal, bwarn_ge1, NULL };
 static	v_post	 posts_dt[] = { post_dt, post_prol, NULL };
 static	v_post	 posts_fo[] = { hwarn_eq1, bwarn_ge1, NULL };
+static	v_post	 posts_hyph[] = { post_hyph, NULL };
+static	v_post	 posts_hyphtext[] = { ewarn_ge1, post_hyph, NULL };
 static	v_post	 posts_it[] = { post_it, NULL };
 static	v_post	 posts_lb[] = { post_lb, NULL };
-static	v_post	 posts_nd[] = { berr_ge1, NULL };
+static	v_post	 posts_nd[] = { berr_ge1, post_hyph, NULL };
 static	v_post	 posts_nm[] = { post_nm, NULL };
 static	v_post	 posts_notext[] = { ewarn_eq0, NULL };
 static	v_post	 posts_ns[] = { post_ns, NULL };
 static	v_post	 posts_os[] = { post_os, post_prol, NULL };
+static	v_post	 posts_pp[] = { post_par, ewarn_eq0, NULL };
 static	v_post	 posts_rs[] = { post_rs, NULL };
-static	v_post	 posts_sh[] = { post_ignpar, hwarn_ge1, post_sh, NULL };
-static	v_post	 posts_sp[] = { ewarn_le1, NULL };
-static	v_post	 posts_ss[] = { post_ignpar, hwarn_ge1, NULL };
+static	v_post	 posts_sh[] = { post_ignpar,hwarn_ge1,post_sh,post_hyph,NULL };
+static	v_post	 posts_sp[] = { post_par, ewarn_le1, NULL };
+static	v_post	 posts_ss[] = { post_ignpar, hwarn_ge1, post_hyph, NULL };
 static	v_post	 posts_st[] = { post_st, NULL };
 static	v_post	 posts_std[] = { post_std, NULL };
 static	v_post	 posts_text[] = { ewarn_ge1, NULL };
 static	v_post	 posts_text1[] = { ewarn_eq1, NULL };
 static	v_post	 posts_vt[] = { post_vt, NULL };
-static	v_post	 posts_wline[] = { bwarn_ge1, NULL };
 static	v_pre	 pres_an[] = { pre_an, NULL };
 static	v_pre	 pres_bd[] = { pre_display, pre_bd, pre_literal, pre_par, NULL };
 static	v_pre	 pres_bl[] = { pre_bl, pre_par, NULL };
@@ -169,8 +174,6 @@ static	v_pre	 pres_d1[] = { pre_display, NULL };
 static	v_pre	 pres_dl[] = { pre_literal, pre_display, NULL };
 static	v_pre	 pres_dd[] = { pre_dd, NULL };
 static	v_pre	 pres_dt[] = { pre_dt, NULL };
-static	v_pre	 pres_er[] = { NULL, NULL };
-static	v_pre	 pres_fd[] = { NULL, NULL };
 static	v_pre	 pres_it[] = { pre_it, pre_par, NULL };
 static	v_pre	 pres_os[] = { pre_os, NULL };
 static	v_pre	 pres_pp[] = { pre_par, NULL };
@@ -185,8 +188,8 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ pres_os, posts_os },			/* Os */
 	{ pres_sh, posts_sh },			/* Sh */ 
 	{ pres_ss, posts_ss },			/* Ss */ 
-	{ pres_pp, posts_notext },		/* Pp */ 
-	{ pres_d1, posts_wline },		/* D1 */
+	{ pres_pp, posts_pp },			/* Pp */ 
+	{ pres_d1, posts_d1 },			/* D1 */
 	{ pres_dl, posts_dl },			/* Dl */
 	{ pres_bd, posts_bd },			/* Bd */
 	{ NULL, NULL },				/* Ed */
@@ -199,11 +202,11 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, NULL },				/* Cd */ 
 	{ NULL, NULL },				/* Cm */
 	{ NULL, NULL },				/* Dv */ 
-	{ pres_er, NULL },			/* Er */ 
+	{ NULL, NULL },				/* Er */ 
 	{ NULL, NULL },				/* Ev */ 
 	{ pres_std, posts_std },		/* Ex */ 
 	{ NULL, NULL },				/* Fa */ 
-	{ pres_fd, posts_text },		/* Fd */
+	{ NULL, posts_text },			/* Fd */
 	{ NULL, NULL },				/* Fl */
 	{ NULL, NULL },				/* Fn */ 
 	{ NULL, NULL },				/* Ft */ 
@@ -221,15 +224,15 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, posts_vt },			/* Vt */ 
 	{ NULL, posts_text },			/* Xr */ 
 	{ NULL, posts_text },			/* %A */
-	{ NULL, posts_text },			/* %B */ /* FIXME: can be used outside Rs/Re. */
+	{ NULL, posts_hyphtext },		/* %B */ /* FIXME: can be used outside Rs/Re. */
 	{ NULL, posts_text },			/* %D */
 	{ NULL, posts_text },			/* %I */
 	{ NULL, posts_text },			/* %J */
-	{ NULL, posts_text },			/* %N */
-	{ NULL, posts_text },			/* %O */
+	{ NULL, posts_hyphtext },		/* %N */
+	{ NULL, posts_hyphtext },		/* %O */
 	{ NULL, posts_text },			/* %P */
-	{ NULL, posts_text },			/* %R */
-	{ NULL, posts_text },			/* %T */ /* FIXME: can be used outside Rs/Re. */
+	{ NULL, posts_hyphtext },		/* %R */
+	{ NULL, posts_hyphtext },		/* %T */ /* FIXME: can be used outside Rs/Re. */
 	{ NULL, posts_text },			/* %V */
 	{ NULL, NULL },				/* Ac */
 	{ NULL, NULL },				/* Ao */
@@ -269,7 +272,7 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, NULL },				/* So */
 	{ NULL, NULL },				/* Sq */
 	{ NULL, posts_bool },			/* Sm */ 
-	{ NULL, NULL },				/* Sx */
+	{ NULL, posts_hyph },			/* Sx */
 	{ NULL, NULL },				/* Sy */
 	{ NULL, NULL },				/* Tn */
 	{ NULL, NULL },				/* Ux */
@@ -286,7 +289,7 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, NULL },				/* Fr */
 	{ NULL, posts_eoln },			/* Ud */
 	{ NULL, posts_lb },			/* Lb */
-	{ NULL, posts_notext },			/* Lp */ 
+	{ pres_pp, posts_pp },			/* Lp */ 
 	{ NULL, NULL },				/* Lk */ 
 	{ NULL, posts_defaults },		/* Mt */ 
 	{ NULL, NULL },				/* Brq */ 
@@ -297,8 +300,8 @@ static	const struct valids mdoc_valids[MDOC_MAX] = {
 	{ NULL, NULL },				/* En */
 	{ NULL, NULL },				/* Dx */
 	{ NULL, posts_text },			/* %Q */
-	{ NULL, posts_notext },			/* br */
-	{ pres_pp, posts_sp },			/* sp */
+	{ NULL, posts_pp },			/* br */
+	{ NULL, posts_sp },			/* sp */
 	{ NULL, posts_text1 },			/* %U */
 	{ NULL, NULL },				/* Ta */
 };
@@ -314,12 +317,12 @@ static	const enum mdoct rsord[RSORD_MAX] = {
 	MDOC__R,
 	MDOC__N,
 	MDOC__V,
+	MDOC__U,
 	MDOC__P,
 	MDOC__Q,
-	MDOC__D,
-	MDOC__O,
 	MDOC__C,
-	MDOC__U
+	MDOC__D,
+	MDOC__O
 };
 
 static	const char * const secnames[SEC__MAX] = {
@@ -414,29 +417,29 @@ mdoc_valid_post(struct mdoc *mdoc)
 }
 
 static int
-check_count(struct mdoc *m, enum mdoc_type type, 
+check_count(struct mdoc *mdoc, enum mdoc_type type, 
 		enum check_lvl lvl, enum check_ineq ineq, int val)
 {
 	const char	*p;
 	enum mandocerr	 t;
 
-	if (m->last->type != type)
+	if (mdoc->last->type != type)
 		return(1);
 	
 	switch (ineq) {
 	case (CHECK_LT):
 		p = "less than ";
-		if (m->last->nchild < val)
+		if (mdoc->last->nchild < val)
 			return(1);
 		break;
 	case (CHECK_GT):
 		p = "more than ";
-		if (m->last->nchild > val)
+		if (mdoc->last->nchild > val)
 			return(1);
 		break;
 	case (CHECK_EQ):
 		p = "";
-		if (val == m->last->nchild)
+		if (val == mdoc->last->nchild)
 			return(1);
 		break;
 	default:
@@ -445,9 +448,9 @@ check_count(struct mdoc *m, enum mdoc_type type,
 	}
 
 	t = lvl == CHECK_WARN ? MANDOCERR_ARGCWARN : MANDOCERR_ARGCOUNT;
-	mandoc_vmsg(t, m->parse, m->last->line, m->last->pos,
+	mandoc_vmsg(t, mdoc->parse, mdoc->last->line, mdoc->last->pos,
 			"want %s%d children (have %d)",
-			p, val, m->last->nchild);
+			p, val, mdoc->last->nchild);
 	return(1);
 }
 
@@ -513,7 +516,7 @@ hwarn_le1(POST_ARGS)
 }
 
 static void
-check_args(struct mdoc *m, struct mdoc_node *n)
+check_args(struct mdoc *mdoc, struct mdoc_node *n)
 {
 	int		 i;
 
@@ -522,34 +525,34 @@ check_args(struct mdoc *m, struct mdoc_node *n)
 
 	assert(n->args->argc);
 	for (i = 0; i < (int)n->args->argc; i++)
-		check_argv(m, n, &n->args->argv[i]);
+		check_argv(mdoc, n, &n->args->argv[i]);
 }
 
 static void
-check_argv(struct mdoc *m, struct mdoc_node *n, struct mdoc_argv *v)
+check_argv(struct mdoc *mdoc, struct mdoc_node *n, struct mdoc_argv *v)
 {
 	int		 i;
 
 	for (i = 0; i < (int)v->sz; i++)
-		check_text(m, v->line, v->pos, v->value[i]);
+		check_text(mdoc, v->line, v->pos, v->value[i]);
 
 	/* FIXME: move to post_std(). */
 
 	if (MDOC_Std == v->arg)
-		if ( ! (v->sz || m->meta.name))
-			mdoc_nmsg(m, n, MANDOCERR_NONAME);
+		if ( ! (v->sz || mdoc->meta.name))
+			mdoc_nmsg(mdoc, n, MANDOCERR_NONAME);
 }
 
 static void
-check_text(struct mdoc *m, int ln, int pos, char *p)
+check_text(struct mdoc *mdoc, int ln, int pos, char *p)
 {
 	char		*cp;
 
-	if (MDOC_LITERAL & m->flags)
+	if (MDOC_LITERAL & mdoc->flags)
 		return;
 
 	for (cp = p; NULL != (p = strchr(p, '\t')); p++)
-		mdoc_pmsg(m, ln, pos + (int)(p - cp), MANDOCERR_BADTAB);
+		mdoc_pmsg(mdoc, ln, pos + (int)(p - cp), MANDOCERR_BADTAB);
 }
 
 static int
@@ -733,14 +736,14 @@ pre_bl(PRE_ARGS)
 	/* 
 	 * Validate the width field.  Some list types don't need width
 	 * types and should be warned about them.  Others should have it
-	 * and must also be warned.
+	 * and must also be warned.  Yet others have a default and need
+	 * no warning.
 	 */
 
 	switch (n->norm->Bl.type) {
 	case (LIST_tag):
-		if (n->norm->Bl.width)
-			break;
-		mdoc_nmsg(mdoc, n, MANDOCERR_NOWIDTHARG);
+		if (NULL == n->norm->Bl.width)
+			mdoc_nmsg(mdoc, n, MANDOCERR_NOWIDTHARG);
 		break;
 	case (LIST_column):
 		/* FALLTHROUGH */
@@ -753,6 +756,18 @@ pre_bl(PRE_ARGS)
 	case (LIST_item):
 		if (n->norm->Bl.width)
 			mdoc_nmsg(mdoc, n, MANDOCERR_IGNARGV);
+		break;
+	case (LIST_bullet):
+		/* FALLTHROUGH */
+	case (LIST_dash):
+		/* FALLTHROUGH */
+	case (LIST_hyphen):
+		if (NULL == n->norm->Bl.width)
+			n->norm->Bl.width = "2n";
+		break;
+	case (LIST_enum):
+		if (NULL == n->norm->Bl.width)
+			n->norm->Bl.width = "3n";
 		break;
 	default:
 		break;
@@ -874,8 +889,6 @@ pre_sh(PRE_ARGS)
 
 	if (MDOC_BLOCK != n->type)
 		return(1);
-
-	roff_regunset(mdoc->roff, REG_nS);
 	return(check_parent(mdoc, n, MDOC_MAX, MDOC_ROOT));
 }
 
@@ -1111,24 +1124,29 @@ post_nm(POST_ARGS)
 	char		 buf[BUFSIZ];
 	int		 c;
 
-	/* If no child specified, make sure we have the meta name. */
-
-	if (NULL == mdoc->last->child && NULL == mdoc->meta.name) {
-		mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_NONAME);
-		return(1);
-	} else if (mdoc->meta.name)
+	if (NULL != mdoc->meta.name)
 		return(1);
 
-	/* If no meta name, set it from the child. */
+	/* Try to use our children for setting the meta name. */
 
-	buf[0] = '\0';
-	if (-1 == (c = concat(buf, mdoc->last->child, BUFSIZ))) {
+	if (NULL != mdoc->last->child) {
+		buf[0] = '\0';
+		c = concat(buf, mdoc->last->child, BUFSIZ);
+	} else
+		c = 0;
+
+	switch (c) {
+	case (-1):
 		mdoc_nmsg(mdoc, mdoc->last->child, MANDOCERR_MEM);
 		return(0);
+	case (0):
+		mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_NONAME);
+		mdoc->meta.name = mandoc_strdup("UNKNOWN");
+		break;
+	default:
+		mdoc->meta.name = mandoc_strdup(buf);
+		break;
 	}
-
-	assert(c);
-	mdoc->meta.name = mandoc_strdup(buf);
 	return(1);
 }
 
@@ -1334,7 +1352,7 @@ post_it(POST_ARGS)
 static int
 post_bl_block(POST_ARGS) 
 {
-	struct mdoc_node *n;
+	struct mdoc_node *n, *ni, *nc;
 
 	/*
 	 * These are fairly complicated, so we've broken them into two
@@ -1350,13 +1368,42 @@ post_bl_block(POST_ARGS)
 			NULL == n->norm->Bl.width) {
 		if ( ! post_bl_block_tag(mdoc))
 			return(0);
+		assert(n->norm->Bl.width);
 	} else if (NULL != n->norm->Bl.width) {
 		if ( ! post_bl_block_width(mdoc))
 			return(0);
-	} else 
-		return(1);
+		assert(n->norm->Bl.width);
+	}
 
-	assert(n->norm->Bl.width);
+	for (ni = n->body->child; ni; ni = ni->next) {
+		if (NULL == ni->body)
+			continue;
+		nc = ni->body->last;
+		while (NULL != nc) {
+			switch (nc->tok) {
+			case (MDOC_Pp):
+				/* FALLTHROUGH */
+			case (MDOC_Lp):
+				/* FALLTHROUGH */
+			case (MDOC_br):
+				break;
+			default:
+				nc = NULL;
+				continue;
+			}
+			if (NULL == ni->next) {
+				mdoc_nmsg(mdoc, nc, MANDOCERR_MOVEPAR);
+				if ( ! mdoc_node_relink(mdoc, nc))
+					return(0);
+			} else if (0 == n->norm->Bl.comp &&
+			    LIST_column != n->norm->Bl.type) {
+				mdoc_nmsg(mdoc, nc, MANDOCERR_IGNPAR);
+				mdoc_node_delete(mdoc, nc);
+			} else
+				break;
+			nc = ni->body->last;
+		}
+	}
 	return(1);
 }
 
@@ -1544,32 +1591,71 @@ post_bl_head(POST_ARGS)
 static int
 post_bl(POST_ARGS)
 {
-	struct mdoc_node	*n;
+	struct mdoc_node	*nparent, *nprev; /* of the Bl block */
+	struct mdoc_node	*nblock, *nbody;  /* of the Bl */
+	struct mdoc_node	*nchild, *nnext;  /* of the Bl body */
 
-	if (MDOC_HEAD == mdoc->last->type) 
-		return(post_bl_head(mdoc));
-	if (MDOC_BLOCK == mdoc->last->type)
+	nbody = mdoc->last;
+	switch (nbody->type) {
+	case (MDOC_BLOCK):
 		return(post_bl_block(mdoc));
-	if (MDOC_BODY != mdoc->last->type)
+	case (MDOC_HEAD):
+		return(post_bl_head(mdoc));
+	case (MDOC_BODY):
+		break;
+	default:
 		return(1);
+	}
 
-	for (n = mdoc->last->child; n; n = n->next) {
-		switch (n->tok) {
-		case (MDOC_Lp):
-			/* FALLTHROUGH */
-		case (MDOC_Pp):
-			mdoc_nmsg(mdoc, n, MANDOCERR_CHILD);
-			/* FALLTHROUGH */
-		case (MDOC_It):
-			/* FALLTHROUGH */
-		case (MDOC_Sm):
+	nchild = nbody->child;
+	while (NULL != nchild) {
+		if (MDOC_It == nchild->tok || MDOC_Sm == nchild->tok) {
+			nchild = nchild->next;
 			continue;
-		default:
-			break;
 		}
 
-		mdoc_nmsg(mdoc, n, MANDOCERR_SYNTCHILD);
-		return(0);
+		mdoc_nmsg(mdoc, nchild, MANDOCERR_CHILD);
+
+		/*
+		 * Move the node out of the Bl block.
+		 * First, collect all required node pointers.
+		 */
+
+		nblock  = nbody->parent;
+		nprev   = nblock->prev;
+		nparent = nblock->parent;
+		nnext   = nchild->next;
+
+		/*
+		 * Unlink this child.
+		 */
+
+		assert(NULL == nchild->prev);
+		if (0 == --nbody->nchild) {
+			nbody->child = NULL;
+			nbody->last  = NULL;
+			assert(NULL == nnext);
+		} else {
+			nbody->child = nnext;
+			nnext->prev = NULL;
+		}
+
+		/*
+		 * Relink this child.
+		 */
+
+		nchild->parent = nparent;
+		nchild->prev   = nprev;
+		nchild->next   = nblock;
+
+		nblock->prev = nchild;
+		nparent->nchild++;
+		if (NULL == nprev)
+			nparent->child = nchild;
+		else
+			nprev->next = nchild;
+
+		nchild = nnext;
 	}
 
 	return(1);
@@ -1588,10 +1674,16 @@ ebool(struct mdoc *mdoc)
 
 	assert(MDOC_TEXT == mdoc->last->child->type);
 
-	if (0 == strcmp(mdoc->last->child->string, "on"))
+	if (0 == strcmp(mdoc->last->child->string, "on")) {
+		if (MDOC_Sm == mdoc->last->tok)
+			mdoc->flags &= ~MDOC_SMOFF;
 		return(1);
-	if (0 == strcmp(mdoc->last->child->string, "off"))
+	}
+	if (0 == strcmp(mdoc->last->child->string, "off")) {
+		if (MDOC_Sm == mdoc->last->tok)
+			mdoc->flags |= MDOC_SMOFF;
 		return(1);
+	}
 
 	mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_BADBOOL);
 	return(1);
@@ -1771,6 +1863,47 @@ post_rs(POST_ARGS)
 	return(1);
 }
 
+/*
+ * For some arguments of some macros,
+ * convert all breakable hyphens into ASCII_HYPH.
+ */
+static int
+post_hyph(POST_ARGS)
+{
+	struct mdoc_node	*n, *nch;
+	char			*cp;
+
+	n = mdoc->last;
+	switch (n->type) {
+	case (MDOC_HEAD):
+		if (MDOC_Sh == n->tok || MDOC_Ss == n->tok)
+			break;
+		return(1);
+	case (MDOC_BODY):
+		if (MDOC_D1 == n->tok || MDOC_Nd == n->tok)
+			break;
+		return(1);
+	case (MDOC_ELEM):
+		break;
+	default:
+		return(1);
+	}
+
+	for (nch = n->child; nch; nch = nch->next) {
+		if (MDOC_TEXT != nch->type)
+			continue;
+		cp = nch->string;
+		if (3 > strnlen(cp, 3))
+			continue;
+		while ('\0' != *(++cp))
+			if ('-' == *cp &&
+			    isalpha((unsigned char)cp[-1]) &&
+			    isalpha((unsigned char)cp[1]))
+				*cp = ASCII_HYPH;
+	}
+	return(1);
+}
+
 static int
 post_ns(POST_ARGS)
 {
@@ -1857,10 +1990,13 @@ post_sh_head(POST_ARGS)
 
 	/* The SYNOPSIS gets special attention in other areas. */
 
-	if (SEC_SYNOPSIS == sec)
+	if (SEC_SYNOPSIS == sec) {
+		roff_setreg(mdoc->roff, "nS", 1, '=');
 		mdoc->flags |= MDOC_SYNOPSIS;
-	else
+	} else {
+		roff_setreg(mdoc->roff, "nS", 0, '=');
 		mdoc->flags &= ~MDOC_SYNOPSIS;
+	}
 
 	/* Mark our last section. */
 
@@ -1916,7 +2052,8 @@ post_sh_head(POST_ARGS)
 			break;
 		if (*mdoc->meta.msec == '9')
 			break;
-		mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_SECMSEC);
+		mandoc_msg(MANDOCERR_SECMSEC, mdoc->parse,
+				mdoc->last->line, mdoc->last->pos, buf);
 		break;
 	default:
 		break;
@@ -1962,7 +2099,9 @@ pre_par(PRE_ARGS)
 	 * block:  `Lp', `Pp', or non-compact `Bd' or `Bl'.
 	 */
 
-	if (MDOC_Pp != mdoc->last->tok && MDOC_Lp != mdoc->last->tok)
+	if (MDOC_Pp != mdoc->last->tok &&
+	    MDOC_Lp != mdoc->last->tok &&
+	    MDOC_br != mdoc->last->tok)
 		return(1);
 	if (MDOC_Bl == n->tok && n->norm->Bl.comp)
 		return(1);
@@ -1970,6 +2109,32 @@ pre_par(PRE_ARGS)
 		return(1);
 	if (MDOC_It == n->tok && n->parent->norm->Bl.comp)
 		return(1);
+
+	mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_IGNPAR);
+	mdoc_node_delete(mdoc, mdoc->last);
+	return(1);
+}
+
+static int
+post_par(POST_ARGS)
+{
+
+	if (MDOC_ELEM != mdoc->last->type &&
+	    MDOC_BLOCK != mdoc->last->type)
+		return(1);
+
+	if (NULL == mdoc->last->prev) {
+		if (MDOC_Sh != mdoc->last->parent->tok &&
+		    MDOC_Ss != mdoc->last->parent->tok)
+			return(1);
+	} else {
+		if (MDOC_Pp != mdoc->last->prev->tok &&
+		    MDOC_Lp != mdoc->last->prev->tok &&
+		    (MDOC_br != mdoc->last->tok ||
+		     (MDOC_sp != mdoc->last->prev->tok &&
+		      MDOC_br != mdoc->last->prev->tok)))
+			return(1);
+	}
 
 	mdoc_nmsg(mdoc, mdoc->last, MANDOCERR_IGNPAR);
 	mdoc_node_delete(mdoc, mdoc->last);
@@ -2129,9 +2294,9 @@ post_dt(POST_ARGS)
 		free(mdoc->meta.vol);
 		mdoc->meta.vol = mandoc_strdup(cp);
 	} else {
-		/* FIXME: warn about bad arch. */
 		cp = mdoc_a2arch(nn->string);
 		if (NULL == cp) {
+			mdoc_nmsg(mdoc, nn, MANDOCERR_BADVOLARCH);
 			free(mdoc->meta.vol);
 			mdoc->meta.vol = mandoc_strdup(nn->string);
 		} else 
@@ -2192,14 +2357,15 @@ post_os(POST_ARGS)
 	n = mdoc->last;
 
 	/*
-	 * Set the operating system by way of the `Os' macro.  Note that
-	 * if an argument isn't provided and -DOSNAME="\"foo\"" is
-	 * provided during compilation, this value will be used instead
-	 * of filling in "sysname release" from uname().
+	 * Set the operating system by way of the `Os' macro.
+	 * The order of precedence is:
+	 * 1. the argument of the `Os' macro, unless empty
+	 * 2. the -Ios=foo command line argument, if provided
+	 * 3. -DOSNAME="\"foo\"", if provided during compilation
+	 * 4. "sysname release" from uname(3)
  	 */
 
-	if (mdoc->meta.os)
-		free(mdoc->meta.os);
+	free(mdoc->meta.os);
 
 	buf[0] = '\0';
 	if (-1 == (c = concat(buf, n->child, BUFSIZ))) {
@@ -2209,11 +2375,11 @@ post_os(POST_ARGS)
 
 	assert(c);
 
-	/* XXX: yes, these can all be dynamically-adjusted buffers, but
-	 * it's really not worth the extra hackery.
-	 */
-
 	if ('\0' == buf[0]) {
+		if (mdoc->defos) {
+			mdoc->meta.os = mandoc_strdup(mdoc->defos);
+			return(1);
+		}
 #ifdef OSNAME
 		if (strlcat(buf, OSNAME, BUFSIZ) >= BUFSIZ) {
 			mdoc_nmsg(mdoc, n, MANDOCERR_MEM);

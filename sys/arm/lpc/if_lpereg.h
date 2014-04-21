@@ -169,7 +169,7 @@ struct lpe_hwstatus {
 
 /* These are valid for both Rx and Tx descriptors */
 #define	LPE_HWDESC_SIZE_MASK	(1 << 10)
-#define	LPE_HWDESC_INTERRUPT	(1 << 31)
+#define	LPE_HWDESC_INTERRUPT	(1U << 31)
 
 /* These are valid for Tx descriptors */
 #define	LPE_HWDESC_LAST		(1 << 30)
@@ -186,7 +186,7 @@ struct lpe_hwstatus {
 #define	LPE_HWDESC_LATECOLL	(1 << 28)
 #define	LPE_HWDESC_UNDERRUN	(1 << 29)
 #define	LPE_HWDESC_TXNODESCR	(1 << 30)
-#define	LPE_HWDESC_ERROR	(1 << 31)
+#define	LPE_HWDESC_ERROR	(1U << 31)
 
 /* These are valid for Rx status descriptors */
 #define	LPE_HWDESC_CONTROL	(1 << 18)
@@ -202,7 +202,7 @@ struct lpe_hwstatus {
 #define	LPE_HWDESC_OVERRUN	(1 << 28)
 #define	LPE_HWDESC_RXNODESCR	(1 << 29)
 #define	LPE_HWDESC_LASTFLAG	(1 << 30)
-#define	LPE_HWDESC_ERROR	(1 << 31)
+#define	LPE_HWDESC_ERROR	(1U << 31)
 
 
 #endif	/* _ARM_LPC_IF_LPEREG_H */

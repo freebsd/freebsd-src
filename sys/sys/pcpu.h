@@ -210,6 +210,13 @@ zpcpu_get(void *base)
 	return ((char *)(base) + sizeof(struct pcpu) * curcpu);
 }
 
+static inline void *
+zpcpu_get_cpu(void *base, int cpu)
+{
+
+	return ((char *)(base) + sizeof(struct pcpu) * cpu);
+}
+
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and

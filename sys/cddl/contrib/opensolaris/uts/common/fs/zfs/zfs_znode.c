@@ -624,6 +624,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 
 	zp = kmem_cache_alloc(znode_cache, KM_SLEEP);
 
+	KASSERT(curthread->td_vp_reserv > 0,
+	    ("zfs_znode_alloc: getnewvnode without any vnodes reserved"));
 	error = getnewvnode("zfs", zfsvfs->z_parent->z_vfs, &zfs_vnodeops, &vp);
 	if (error != 0) {
 		kmem_cache_free(znode_cache, zp);
@@ -810,10 +812,9 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	 */
 	if (vap->va_type == VDIR) {
 		if (zfsvfs->z_replay) {
-			err = zap_create_claim_norm(zfsvfs->z_os, obj,
+			VERIFY0(zap_create_claim_norm(zfsvfs->z_os, obj,
 			    zfsvfs->z_norm, DMU_OT_DIRECTORY_CONTENTS,
-			    obj_type, bonuslen, tx);
-			ASSERT0(err);
+			    obj_type, bonuslen, tx));
 		} else {
 			obj = zap_create_norm(zfsvfs->z_os,
 			    zfsvfs->z_norm, DMU_OT_DIRECTORY_CONTENTS,
@@ -821,10 +822,9 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		}
 	} else {
 		if (zfsvfs->z_replay) {
-			err = dmu_object_claim(zfsvfs->z_os, obj,
+			VERIFY0(dmu_object_claim(zfsvfs->z_os, obj,
 			    DMU_OT_PLAIN_FILE_CONTENTS, 0,
-			    obj_type, bonuslen, tx);
-			ASSERT0(err);
+			    obj_type, bonuslen, tx));
 		} else {
 			obj = dmu_object_alloc(zfsvfs->z_os,
 			    DMU_OT_PLAIN_FILE_CONTENTS, 0,
@@ -832,7 +832,6 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		}
 	}
 
-	getnewvnode_reserve(1);
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj);
 	VERIFY(0 == sa_buf_hold(zfsvfs->z_os, obj, NULL, &db));
 
@@ -1006,8 +1005,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 
 	if (obj_type == DMU_OT_ZNODE ||
 	    acl_ids->z_aclp->z_version < ZFS_ACL_VERSION_FUID) {
-		err = zfs_aclset_common(*zpp, acl_ids->z_aclp, cr, tx);
-		ASSERT0(err);
+		VERIFY0(zfs_aclset_common(*zpp, acl_ids->z_aclp, cr, tx));
 	}
 	if (!(flag & IS_ROOT_NODE)) {
 		vnode_t *vp;
@@ -1019,7 +1017,6 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		KASSERT(err == 0, ("insmntque() failed: error %d", err));
 	}
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj);
-	getnewvnode_drop_reserve();
 }
 
 /*
@@ -1536,7 +1533,6 @@ zfs_extend(znode_t *zp, uint64_t end)
 		zfs_range_unlock(rl);
 		return (0);
 	}
-top:
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
@@ -1556,13 +1552,8 @@ top:
 		newblksz = 0;
 	}
 
-	error = dmu_tx_assign(tx, TXG_NOWAIT);
+	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
-		if (error == ERESTART) {
-			dmu_tx_wait(tx);
-			dmu_tx_abort(tx);
-			goto top;
-		}
 		dmu_tx_abort(tx);
 		zfs_range_unlock(rl);
 		return (error);
@@ -1670,17 +1661,11 @@ zfs_trunc(znode_t *zp, uint64_t end)
 		zfs_range_unlock(rl);
 		return (error);
 	}
-top:
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
-	error = dmu_tx_assign(tx, TXG_NOWAIT);
+	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
-		if (error == ERESTART) {
-			dmu_tx_wait(tx);
-			dmu_tx_abort(tx);
-			goto top;
-		}
 		dmu_tx_abort(tx);
 		zfs_range_unlock(rl);
 		return (error);
@@ -1771,13 +1756,8 @@ log:
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
-	error = dmu_tx_assign(tx, TXG_NOWAIT);
+	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
-		if (error == ERESTART) {
-			dmu_tx_wait(tx);
-			dmu_tx_abort(tx);
-			goto log;
-		}
 		dmu_tx_abort(tx);
 		return (error);
 	}

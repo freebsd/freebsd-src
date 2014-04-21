@@ -1,7 +1,7 @@
 
 			SENDMAIL RELEASE 8
 
-This directory has the latest sendmail(TM) software from Sendmail, Inc.
+This directory has the latest sendmail(TM) software from Proofpoint, Inc.
 
 Report any bugs to sendmail-bugs-YYYY@support.sendmail.org
 where YYYY is the current year, e.g., 2005.
@@ -37,7 +37,7 @@ the latest updates.
 
 4. Read cf/README.
 
-Sendmail is a trademark of Sendmail, Inc.
+Sendmail is a trademark of Proofpoint, Inc.
 US Patent Numbers 6865671, 6986037.
 
 +-----------------------+
@@ -465,4 +465,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.95 $, Last updated $Date: 2009/04/10 17:49:18 $
+$Revision: 8.96 $, Last updated $Date: 2013/11/22 20:51:01 $

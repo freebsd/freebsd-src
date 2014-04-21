@@ -1,4 +1,5 @@
-/* $OpenBSD: ssh-agent.c,v 1.177 2013/07/20 01:50:20 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.183 2014/02/02 03:44:31 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -51,7 +52,6 @@ __RCSID("$FreeBSD$");
 #include "openbsd-compat/sys-queue.h"
 
 #include <openssl/evp.h>
-#include <openssl/md5.h>
 #include "openbsd-compat/openssl-compat.h"
 
 #include <errno.h>
@@ -76,6 +76,7 @@ __RCSID("$FreeBSD$");
 #include "compat.h"
 #include "log.h"
 #include "misc.h"
+#include "digest.h"
 
 #ifdef ENABLE_PKCS11
 #include "ssh-pkcs11.h"
@@ -268,7 +269,7 @@ process_authentication_challenge1(SocketEntry *e)
 	Identity *id;
 	int i, len;
 	Buffer msg;
-	MD5_CTX md;
+	struct ssh_digest_ctx *md;
 	Key *key;
 
 	buffer_init(&msg);
@@ -304,10 +305,12 @@ process_authentication_challenge1(SocketEntry *e)
 		}
 		memset(buf, 0, 32);
 		BN_bn2bin(challenge, buf + 32 - len);
-		MD5_Init(&md);
-		MD5_Update(&md, buf, 32);
-		MD5_Update(&md, session_id, 16);
-		MD5_Final(mdbuf, &md);
+		if ((md = ssh_digest_start(SSH_DIGEST_MD5)) == NULL ||
+		    ssh_digest_update(md, buf, 32) < 0 ||
+		    ssh_digest_update(md, session_id, 16) < 0 ||
+		    ssh_digest_final(md, mdbuf, sizeof(mdbuf)) < 0)
+			fatal("%s: md5 failed", __func__);
+		ssh_digest_free(md);
 
 		/* Send the response. */
 		buffer_put_char(&msg, SSH_AGENT_RSA_RESPONSE);
@@ -484,16 +487,9 @@ process_add_identity(SocketEntry *e, int version)
 	Idtab *tab = idtab_lookup(version);
 	Identity *id;
 	int type, success = 0, confirm = 0;
-	char *type_name, *comment;
+	char *comment;
 	time_t death = 0;
 	Key *k = NULL;
-#ifdef OPENSSL_HAS_ECC
-	BIGNUM *exponent;
-	EC_POINT *q;
-	char *curve;
-#endif
-	u_char *cert;
-	u_int len;
 
 	switch (version) {
 	case 1:
@@ -510,122 +506,18 @@ process_add_identity(SocketEntry *e, int version)
 
 		/* Generate additional parameters */
 		rsa_generate_additional_parameters(k->rsa);
-		break;
-	case 2:
-		type_name = buffer_get_string(&e->request, NULL);
-		type = key_type_from_name(type_name);
-		switch (type) {
-		case KEY_DSA:
-			k = key_new_private(type);
-			buffer_get_bignum2(&e->request, k->dsa->p);
-			buffer_get_bignum2(&e->request, k->dsa->q);
-			buffer_get_bignum2(&e->request, k->dsa->g);
-			buffer_get_bignum2(&e->request, k->dsa->pub_key);
-			buffer_get_bignum2(&e->request, k->dsa->priv_key);
-			break;
-		case KEY_DSA_CERT_V00:
-		case KEY_DSA_CERT:
-			cert = buffer_get_string(&e->request, &len);
-			if ((k = key_from_blob(cert, len)) == NULL)
-				fatal("Certificate parse failed");
-			free(cert);
-			key_add_private(k);
-			buffer_get_bignum2(&e->request, k->dsa->priv_key);
-			break;
-#ifdef OPENSSL_HAS_ECC
-		case KEY_ECDSA:
-			k = key_new_private(type);
-			k->ecdsa_nid = key_ecdsa_nid_from_name(type_name);
-			curve = buffer_get_string(&e->request, NULL);
-			if (k->ecdsa_nid != key_curve_name_to_nid(curve))
-				fatal("%s: curve names mismatch", __func__);
-			free(curve);
-			k->ecdsa = EC_KEY_new_by_curve_name(k->ecdsa_nid);
-			if (k->ecdsa == NULL)
-				fatal("%s: EC_KEY_new_by_curve_name failed",
-				    __func__);
-			q = EC_POINT_new(EC_KEY_get0_group(k->ecdsa));
-			if (q == NULL)
-				fatal("%s: BN_new failed", __func__);
-			if ((exponent = BN_new()) == NULL)
-				fatal("%s: BN_new failed", __func__);
-			buffer_get_ecpoint(&e->request,
-				EC_KEY_get0_group(k->ecdsa), q);
-			buffer_get_bignum2(&e->request, exponent);
-			if (EC_KEY_set_public_key(k->ecdsa, q) != 1)
-				fatal("%s: EC_KEY_set_public_key failed",
-				    __func__);
-			if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1)
-				fatal("%s: EC_KEY_set_private_key failed",
-				    __func__);
-			if (key_ec_validate_public(EC_KEY_get0_group(k->ecdsa),
-			    EC_KEY_get0_public_key(k->ecdsa)) != 0)
-				fatal("%s: bad ECDSA public key", __func__);
-			if (key_ec_validate_private(k->ecdsa) != 0)
-				fatal("%s: bad ECDSA private key", __func__);
-			BN_clear_free(exponent);
-			EC_POINT_free(q);
-			break;
-		case KEY_ECDSA_CERT:
-			cert = buffer_get_string(&e->request, &len);
-			if ((k = key_from_blob(cert, len)) == NULL)
-				fatal("Certificate parse failed");
-			free(cert);
-			key_add_private(k);
-			if ((exponent = BN_new()) == NULL)
-				fatal("%s: BN_new failed", __func__);
-			buffer_get_bignum2(&e->request, exponent);
-			if (EC_KEY_set_private_key(k->ecdsa, exponent) != 1)
-				fatal("%s: EC_KEY_set_private_key failed",
-				    __func__);
-			if (key_ec_validate_public(EC_KEY_get0_group(k->ecdsa),
-			    EC_KEY_get0_public_key(k->ecdsa)) != 0 ||
-			    key_ec_validate_private(k->ecdsa) != 0)
-				fatal("%s: bad ECDSA key", __func__);
-			BN_clear_free(exponent);
-			break;
-#endif /* OPENSSL_HAS_ECC */
-		case KEY_RSA:
-			k = key_new_private(type);
-			buffer_get_bignum2(&e->request, k->rsa->n);
-			buffer_get_bignum2(&e->request, k->rsa->e);
-			buffer_get_bignum2(&e->request, k->rsa->d);
-			buffer_get_bignum2(&e->request, k->rsa->iqmp);
-			buffer_get_bignum2(&e->request, k->rsa->p);
-			buffer_get_bignum2(&e->request, k->rsa->q);
 
-			/* Generate additional parameters */
-			rsa_generate_additional_parameters(k->rsa);
-			break;
-		case KEY_RSA_CERT_V00:
-		case KEY_RSA_CERT:
-			cert = buffer_get_string(&e->request, &len);
-			if ((k = key_from_blob(cert, len)) == NULL)
-				fatal("Certificate parse failed");
-			free(cert);
-			key_add_private(k);
-			buffer_get_bignum2(&e->request, k->rsa->d);
-			buffer_get_bignum2(&e->request, k->rsa->iqmp);
-			buffer_get_bignum2(&e->request, k->rsa->p);
-			buffer_get_bignum2(&e->request, k->rsa->q);
-			break;
-		default:
-			free(type_name);
-			buffer_clear(&e->request);
-			goto send;
-		}
-		free(type_name);
-		break;
-	}
-	/* enable blinding */
-	switch (k->type) {
-	case KEY_RSA:
-	case KEY_RSA_CERT_V00:
-	case KEY_RSA_CERT:
-	case KEY_RSA1:
+		/* enable blinding */
 		if (RSA_blinding_on(k->rsa, NULL) != 1) {
 			error("process_add_identity: RSA_blinding_on failed");
 			key_free(k);
+			goto send;
+		}
+		break;
+	case 2:
+		k = key_private_deserialize(&e->request);
+		if (k == NULL) {
+			buffer_clear(&e->request);
 			goto send;
 		}
 		break;
@@ -683,7 +575,7 @@ process_lock_agent(SocketEntry *e, int lock)
 	passwd = buffer_get_string(&e->request, NULL);
 	if (locked && !lock && strcmp(passwd, lock_passwd) == 0) {
 		locked = 0;
-		memset(lock_passwd, 0, strlen(lock_passwd));
+		explicit_bzero(lock_passwd, strlen(lock_passwd));
 		free(lock_passwd);
 		lock_passwd = NULL;
 		success = 1;
@@ -692,7 +584,7 @@ process_lock_agent(SocketEntry *e, int lock)
 		lock_passwd = xstrdup(passwd);
 		success = 1;
 	}
-	memset(passwd, 0, strlen(passwd));
+	explicit_bzero(passwd, strlen(passwd));
 	free(passwd);
 
 	buffer_put_int(&e->output, 1);
@@ -791,6 +683,9 @@ process_remove_smartcard_key(SocketEntry *e)
 		tab = idtab_lookup(version);
 		for (id = TAILQ_FIRST(&tab->idlist); id; id = nxt) {
 			nxt = TAILQ_NEXT(id, next);
+			/* Skip file--based keys */
+			if (id->provider == NULL)
+				continue;
 			if (!strcmp(provider, id->provider)) {
 				TAILQ_REMOVE(&tab->idlist, id, next);
 				free_identity(id);

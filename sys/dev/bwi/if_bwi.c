@@ -1396,7 +1396,7 @@ bwi_start_locked(struct ifnet *ifp)
 
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		wh = mtod(m, struct ieee80211_frame *);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			k = ieee80211_crypto_encap(ni, m);
 			if (k == NULL) {
 				ieee80211_free_node(ni);
@@ -3001,7 +3001,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	 */
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_DS &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -3184,7 +3184,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
 		/* XXX IEEE80211_BPF_CRYPTO */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -3820,7 +3820,7 @@ bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 
 	wh = mtod(m, const struct ieee80211_frame_min *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
 	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian convertion */

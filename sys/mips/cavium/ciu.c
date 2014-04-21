@@ -433,7 +433,6 @@ ciu_intr(void *arg)
 	if (en0_sum == 0 && en1_sum == 0)
 		return (FILTER_STRAY);
 
-	irq_index = 0;
 	for (irq_index = 0; en0_sum != 0; irq_index++, en0_sum >>= 1) {
 		if ((en0_sum & 1) == 0)
 			continue;
@@ -445,7 +444,6 @@ ciu_intr(void *arg)
 			printf("%s: stray en0 irq%d\n", __func__, irq_index);
 	}
 
-	irq_index = 0;
 	for (irq_index = 0; en1_sum != 0; irq_index++, en1_sum >>= 1) {
 		if ((en1_sum & 1) == 0)
 			continue;

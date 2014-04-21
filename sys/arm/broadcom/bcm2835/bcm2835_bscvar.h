@@ -33,9 +33,10 @@
 struct {
 	uint32_t	sda;
 	uint32_t	scl;
+	unsigned long	start;
 } bcm_bsc_pins[] = {
-	{ 0, 1 },	/* BSC0 GPIO pins. */
-	{ 2, 3 }	/* BSC1 GPIO pins. */
+	{ 0, 1, 0x20205000 },	/* BSC0 GPIO pins and base address. */
+	{ 2, 3, 0x20804000 }	/* BSC1 GPIO pins and base address. */
 };
 
 struct bcm_bsc_softc {

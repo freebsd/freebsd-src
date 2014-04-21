@@ -2051,7 +2051,8 @@ expand_call (tree exp, rtx target, int ignore)
 
   /* Operand 0 is a pointer-to-function; get the type of the function.  */
   funtype = TREE_TYPE (addr);
-  gcc_assert (POINTER_TYPE_P (funtype));
+  /* APPLE LOCAL blocks */
+  gcc_assert (POINTER_TYPE_P (funtype) || TREE_CODE (funtype) == BLOCK_POINTER_TYPE);
   funtype = TREE_TYPE (funtype);
 
   /* Munge the tree to split complex arguments into their imaginary
@@ -4297,6 +4298,7 @@ store_one_arg (struct arg_data *arg, rtx argblock, int flags,
 
 	      /* expand_call should ensure this.  */
 	      gcc_assert (!arg->locate.offset.var
+			  && arg->locate.size.var == 0
 			  && GET_CODE (size_rtx) == CONST_INT);
 
 	      if (arg->locate.offset.constant > i)
@@ -4306,7 +4308,21 @@ store_one_arg (struct arg_data *arg, rtx argblock, int flags,
 		}
 	      else if (arg->locate.offset.constant < i)
 		{
-		  if (i < arg->locate.offset.constant + INTVAL (size_rtx))
+		  /* Use arg->locate.size.constant instead of size_rtx
+		     because we only care about the part of the argument
+		     on the stack.  */
+		  if (i < (arg->locate.offset.constant
+			   + arg->locate.size.constant))
+		    sibcall_failure = 1;
+		}
+	      else
+		{
+		  /* Even though they appear to be at the same location,
+		     if part of the outgoing argument is in registers,
+		     they aren't really at the same location.  Check for
+		     this by making sure that the incoming size is the
+		     same as the outgoing size.  */
+		  if (arg->locate.size.constant != INTVAL (size_rtx))
 		    sibcall_failure = 1;
 		}
 	    }

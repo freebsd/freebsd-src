@@ -11,11 +11,11 @@ SYNOPSIS
 DESCRIPTION
      ssh-add adds private key identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and ~/.ssh/identity.  After
-     loading a private key, ssh-add will try to load corresponding certificate
-     information from the filename obtained by appending -cert.pub to the name
-     of the private key file.  Alternative file names can be given on the
-     command line.
+     ~/.ssh/id_rsa, ~/.ssh/id_dsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ed25519 and
+     ~/.ssh/identity.  After loading a private key, ssh-add will try to load
+     corresponding certificate information from the filename obtained by
+     appending -cert.pub to the name of the private key file.  Alternative
+     file names can be given on the command line.
 
      If any file requires a passphrase, ssh-add asks for the passphrase from
      the user.  The passphrase is read from the user's tty.  ssh-add retries
@@ -95,6 +95,10 @@ FILES
              Contains the protocol version 2 ECDSA authentication identity of
              the user.
 
+     ~/.ssh/id_ed25519
+             Contains the protocol version 2 ED25519 authentication identity
+             of the user.
+
      ~/.ssh/id_rsa
              Contains the protocol version 2 RSA authentication identity of
              the user.
@@ -116,4 +120,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.4                    December 3, 2012                    OpenBSD 5.4
+OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5

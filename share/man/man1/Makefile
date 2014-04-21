@@ -5,7 +5,7 @@
 
 MAN=	builtin.1 intro.1
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 ATF=	${.CURDIR}/../../../contrib/atf
 .PATH:	${ATF}/doc
 MAN+=	atf-test-program.1

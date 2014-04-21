@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 static const char *inet_ntop4(const u_char *src, char *dst, socklen_t size);
 static const char *inet_ntop6(const u_char *src, char *dst, socklen_t size);
 
-/* char *
+/* const char *
  * inet_ntop(af, src, dst, size)
  *	convert a network format address to presentation format.
  * return:
@@ -169,8 +169,10 @@ inet_ntop6(const u_char *src, char *dst, socklen_t size)
 		if (i == 6 && best.base == 0 && (best.len == 6 ||
 		    (best.len == 7 && words[7] != 0x0001) ||
 		    (best.len == 5 && words[5] == 0xffff))) {
-			if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp)))
+			if (!inet_ntop4(src+12, tp, sizeof tmp - (tp - tmp))) {
+				errno = ENOSPC;
 				return (NULL);
+			}
 			tp += strlen(tp);
 			break;
 		}

@@ -12,10 +12,12 @@
 
 // C Includes
 // C++ Includes
+#include <vector>
+#include <set>
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Host/Mutex.h"
 #include "lldb/Target/Process.h"
-
 #include "GDBRemoteCommunication.h"
 
 class ProcessGDBRemote;
@@ -24,6 +26,8 @@ class StringExtractorGDBRemote;
 class GDBRemoteCommunicationServer : public GDBRemoteCommunication
 {
 public:
+    typedef std::map<uint16_t, lldb::pid_t> PortMap;
+
     enum
     {
         eBroadcastBitRunPacketSent = kLoUserBroadcastBit
@@ -32,6 +36,9 @@ public:
     // Constructors and Destructors
     //------------------------------------------------------------------
     GDBRemoteCommunicationServer(bool is_platform);
+
+    GDBRemoteCommunicationServer(bool is_platform,
+                                 const lldb::PlatformSP& platform_sp); 
 
     virtual
     ~GDBRemoteCommunicationServer();
@@ -56,88 +63,285 @@ public:
     // Set both ports to zero to let the platform automatically bind to 
     // a port chosen by the OS.
     void
-    SetPortRange (uint16_t lo_port_num, uint16_t hi_port_num)
+    SetPortMap (PortMap &&port_map)
     {
-        m_lo_port_num = lo_port_num;
-        m_hi_port_num = hi_port_num;
+        m_port_map = port_map;
     }
 
-protected:
-    //typedef std::map<uint16_t, lldb::pid_t> PortToPIDMap;
+    //----------------------------------------------------------------------
+    // If we are using a port map where we can only use certain ports,
+    // get the next available port.
+    //
+    // If we are using a port map and we are out of ports, return UINT16_MAX
+    //
+    // If we aren't using a port map, return 0 to indicate we should bind to
+    // port 0 and then figure out which port we used.
+    //----------------------------------------------------------------------
+    uint16_t
+    GetNextAvailablePort ()
+    {
+        if (m_port_map.empty())
+            return 0; // Bind to port zero and get a port, we didn't have any limitations
+        
+        for (auto &pair : m_port_map)
+        {
+            if (pair.second == LLDB_INVALID_PROCESS_ID)
+            {
+                pair.second = ~(lldb::pid_t)LLDB_INVALID_PROCESS_ID;
+                return pair.first;
+            }
+        }
+        return UINT16_MAX;
+    }
 
+    bool
+    AssociatePortWithProcess (uint16_t port, lldb::pid_t pid)
+    {
+        PortMap::iterator pos = m_port_map.find(port);
+        if (pos != m_port_map.end())
+        {
+            pos->second = pid;
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    FreePort (uint16_t port)
+    {
+        PortMap::iterator pos = m_port_map.find(port);
+        if (pos != m_port_map.end())
+        {
+            pos->second = LLDB_INVALID_PROCESS_ID;
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    FreePortForProcess (lldb::pid_t pid)
+    {
+        if (!m_port_map.empty())
+        {
+            for (auto &pair : m_port_map)
+            {
+                if (pair.second == pid)
+                {
+                    pair.second = LLDB_INVALID_PROCESS_ID;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    void
+    SetPortOffset (uint16_t port_offset)
+    {
+        m_port_offset = port_offset;
+    }
+
+    //------------------------------------------------------------------
+    /// Specify the program to launch and its arguments.
+    ///
+    /// The LaunchProcess () command can be executed to do the lauching.
+    ///
+    /// @param[in] args
+    ///     The command line to launch.
+    ///
+    /// @param[in] argc
+    ///     The number of elements in the args array of cstring pointers.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of making
+    ///     the setting.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    SetLaunchArguments (const char *const args[], int argc);
+
+    //------------------------------------------------------------------
+    /// Specify the launch flags for the process.
+    ///
+    /// The LaunchProcess () command can be executed to do the lauching.
+    ///
+    /// @param[in] launch_flags
+    ///     The launch flags to use when launching this process.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of making
+    ///     the setting.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    SetLaunchFlags (unsigned int launch_flags);
+
+    //------------------------------------------------------------------
+    /// Launch a process with the current launch settings.
+    ///
+    /// This method supports running an lldb-gdbserver or similar
+    /// server in a situation where the startup code has been provided
+    /// with all the information for a child process to be launched.
+    ///
+    /// @return
+    ///     An Error object indicating the success or failure of the
+    ///     launch.
+    //------------------------------------------------------------------
+    lldb_private::Error
+    LaunchProcess ();
+
+protected:
+    lldb::PlatformSP m_platform_sp;
     lldb::thread_t m_async_thread;
     lldb_private::ProcessLaunchInfo m_process_launch_info;
     lldb_private::Error m_process_launch_error;
+    std::set<lldb::pid_t> m_spawned_pids;
+    lldb_private::Mutex m_spawned_pids_mutex;
     lldb_private::ProcessInstanceInfoList m_proc_infos;
     uint32_t m_proc_infos_index;
-    uint16_t m_lo_port_num;
-    uint16_t m_hi_port_num;
-    //PortToPIDMap m_port_to_pid_map;
+    PortMap m_port_map;
+    uint16_t m_port_offset;
 
-    size_t
+
+    PacketResult
     SendUnimplementedResponse (const char *packet);
 
-    size_t
+    PacketResult
     SendErrorResponse (uint8_t error);
 
-    size_t
+    PacketResult
     SendOKResponse ();
 
-    bool
+    PacketResult
     Handle_A (StringExtractorGDBRemote &packet);
-
-    bool
+    
+    PacketResult
     Handle_qLaunchSuccess (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qHostInfo (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qLaunchGDBServer (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_qKillSpawnedProcess (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
+    Handle_k (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_qPlatform_mkdir (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_qPlatform_chmod (StringExtractorGDBRemote &packet);
+    
+    PacketResult
     Handle_qProcessInfoPID (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
     Handle_qfProcessInfo (StringExtractorGDBRemote &packet);
     
-    bool 
+    PacketResult
     Handle_qsProcessInfo (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qC (StringExtractorGDBRemote &packet);
 
-    bool 
+    PacketResult
     Handle_qUserName (StringExtractorGDBRemote &packet);
 
-    bool 
+    PacketResult
     Handle_qGroupName (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_qSpeedTest (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QEnvironment  (StringExtractorGDBRemote &packet);
     
-    bool
+    PacketResult
+    Handle_QLaunchArch (StringExtractorGDBRemote &packet);
+    
+    PacketResult
     Handle_QSetDisableASLR (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetWorkingDir (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_qGetWorkingDir (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QStartNoAckMode (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDIN (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDOUT (StringExtractorGDBRemote &packet);
 
-    bool
+    PacketResult
     Handle_QSetSTDERR (StringExtractorGDBRemote &packet);
     
+    PacketResult
+    Handle_vFile_Open (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_Close (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_pRead (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_pWrite (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_Size (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_vFile_Mode (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_Exists (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_vFile_symlink (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_vFile_unlink (StringExtractorGDBRemote &packet);
+
+    PacketResult
+    Handle_vFile_Stat (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_vFile_MD5 (StringExtractorGDBRemote &packet);
+    
+    PacketResult
+    Handle_qPlatform_shell (StringExtractorGDBRemote &packet);
+
 private:
+    bool
+    DebugserverProcessReaped (lldb::pid_t pid);
+    
+    static bool
+    ReapDebugserverProcess (void *callback_baton,
+                            lldb::pid_t pid,
+                            bool exited,
+                            int signal,
+                            int status);
+
+    bool
+    DebuggedProcessReaped (lldb::pid_t pid);
+
+    static bool
+    ReapDebuggedProcess (void *callback_baton,
+                         lldb::pid_t pid,
+                         bool exited,
+                         int signal,
+                         int status);
+
+    bool
+    KillSpawnedProcess (lldb::pid_t pid);
+
     //------------------------------------------------------------------
     // For GDBRemoteCommunicationServer only
     //------------------------------------------------------------------

@@ -29,8 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -49,19 +47,19 @@ __FBSDID("$FreeBSD$");
 
 SDT_PROVIDER_DEFINE(io);
 
-SDT_PROBE_DEFINE2(io, , , start, start, "struct bio *", "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , done, done, "struct bio *", "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait_start, wait-start, "struct bio *",
+SDT_PROBE_DEFINE2(io, , , start, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , done, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait__start, "struct bio *",
     "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait_done, wait-done, "struct bio *",
+SDT_PROBE_DEFINE2(io, , , wait__done, "struct bio *",
     "struct devstat *");
 
 #define	DTRACE_DEVSTAT_START()		SDT_PROBE2(io, , , start, NULL, ds)
 #define	DTRACE_DEVSTAT_BIO_START()	SDT_PROBE2(io, , , start, bp, ds)
 #define	DTRACE_DEVSTAT_DONE()		SDT_PROBE2(io, , , done, NULL, ds)
 #define	DTRACE_DEVSTAT_BIO_DONE()	SDT_PROBE2(io, , , done, bp, ds)
-#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait_start, NULL, ds)
-#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait_done, NULL, ds)
+#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait__start, NULL, ds)
+#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait__done, NULL, ds)
 
 static int devstat_num_devs;
 static long devstat_generation = 1;
@@ -462,7 +460,6 @@ static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
 };
@@ -484,13 +481,16 @@ devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	if (nprot != VM_PROT_READ)
 		return (-1);
+	mtx_lock(&devstat_mutex);
 	TAILQ_FOREACH(spp, &pagelist, list) {
 		if (offset == 0) {
 			*paddr = vtophys(spp->stat);
+			mtx_unlock(&devstat_mutex);
 			return (0);
 		}
 		offset -= PAGE_SIZE;
 	}
+	mtx_unlock(&devstat_mutex);
 	return (-1);
 }
 
@@ -505,7 +505,7 @@ devstat_alloc(void)
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
 		make_dev_credf(MAKEDEV_ETERNAL | MAKEDEV_CHECKNAME,
-		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0400,
+		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0444,
 		    DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}

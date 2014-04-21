@@ -621,7 +621,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		rt = ron->ro_rt;
 		ifp = rt->rt_ifp;
 		IF_AFDATA_RLOCK(ifp);
-		la = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6_next->sin6_addr);
+		la = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)sin6_next);
 		IF_AFDATA_RUNLOCK(ifp);
 		if (la != NULL) 
 			LLE_RUNLOCK(la);
@@ -995,7 +995,6 @@ in6_src_sysctl(SYSCTL_HANDLER_ARGS)
 int
 in6_src_ioctl(u_long cmd, caddr_t data)
 {
-	int i;
 	struct in6_addrpolicy ent0;
 
 	if (cmd != SIOCAADDRCTL_POLICY && cmd != SIOCDADDRCTL_POLICY)
@@ -1009,10 +1008,7 @@ in6_src_ioctl(u_long cmd, caddr_t data)
 	if (in6_mask2len(&ent0.addrmask.sin6_addr, NULL) < 0)
 		return (EINVAL);
 	/* clear trailing garbages (if any) of the prefix address. */
-	for (i = 0; i < 4; i++) {
-		ent0.addr.sin6_addr.s6_addr32[i] &=
-			ent0.addrmask.sin6_addr.s6_addr32[i];
-	}
+	IN6_MASK_ADDR(&ent0.addr.sin6_addr, &ent0.addrmask.sin6_addr);
 	ent0.use = 0;
 
 	switch (cmd) {

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=1
+MAN=
 
 .include <bsd.own.mk>
 
@@ -12,7 +12,7 @@ PROG=	athstats
 # to not compile, use gcc for now.
 #CC=	gcc
 
-SRCS=	main.c statfoo.c athstats.c opt_ah.h ah_osdep.h
+SRCS=	main.c athstats.c opt_ah.h ah_osdep.h
 
 CLEANFILES+=	opt_ah.h
 
@@ -21,9 +21,10 @@ CLEANFILES+=	opt_ah.h
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
 
-.if (${COMPILER_TYPE} == "clang")
-CFLAGS+=-fbracket-depth=512
-.endif
+CFLAGS.clang+= -fbracket-depth=512
+
+USEPRIVATELIB=
+LDADD=	-lbsdstat
 
 opt_ah.h:
 	echo "#define AH_DEBUG 1" > opt_ah.h

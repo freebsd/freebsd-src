@@ -1,6 +1,6 @@
-# $Id: modules,v 1.112 2007/09/08 22:03:34 tom Exp $
+# $Id: modules,v 1.120 2013/01/26 22:17:55 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -32,201 +32,213 @@
 
 @ base
 # Library objects
-hardscroll	lib		$(serial)
-hashmap		lib		$(serial)	../include/term.h
-lib_addch	lib		$(base)
-lib_addstr	lib		$(base)
-lib_beep	lib		$(base)		../include/term.h
-lib_bkgd	lib		$(base)
-lib_box 	lib		$(base)
-lib_chgat	lib		$(base)
-lib_clear	lib		$(base)
-lib_clearok	lib		$(base)
-lib_clrbot	lib		$(base)
-lib_clreol	lib		$(base)
-lib_color	lib		$(base)		../include/term.h
-lib_colorset	lib		$(base)
-lib_delch	lib		$(base)
-lib_delwin	lib		$(base)
-lib_echo	lib		$(base)
-lib_endwin	lib		$(base)		../include/term.h
-lib_erase	lib		$(base)
-lib_flash	lib		$(base)		../include/term.h
-lib_gen 	lib		.		../include/curses.h
-lib_getch	lib		$(base)
-lib_getstr	lib		$(base)		../include/term.h
-lib_hline	lib		$(base)
-lib_immedok	lib		$(base)
-lib_inchstr	lib		$(base)
-lib_initscr	lib		$(base)		$(INCDIR)/tic.h
-lib_insch	lib		$(base)
-lib_insdel	lib		$(base)
-lib_insnstr	lib		$(base)
-lib_instr	lib		$(base)
-lib_isendwin	lib		$(base)
-lib_leaveok	lib		$(base)
-lib_mouse	lib		$(base)		../include/term.h
-lib_move	lib		$(base)
-lib_mvcur	lib		$(serial)	../include/term.h $(INCDIR)/tic.h
-lib_mvwin	lib		$(base)
-lib_newterm	lib		$(base)		../include/term.h
-lib_newwin	lib		$(base)
-lib_nl		lib		$(base)
-lib_overlay	lib		$(base)
-lib_pad 	lib		$(base)
-lib_printw	lib		$(base)
-lib_redrawln	lib		$(base)
-lib_refresh	lib		$(base)
-lib_restart	lib		$(base)		../include/term.h
-lib_scanw	lib		$(base)
-lib_screen	lib		$(base)		../include/term.h
-lib_scroll	lib		$(base)
-lib_scrollok	lib		$(base)
-lib_scrreg	lib		$(base)
-lib_set_term	lib		$(base)		../include/term.h
-lib_slk 	lib		$(base)		../include/term.h
-lib_slkatr_set	lib		$(base)
-lib_slkatrof 	lib		$(base)
-lib_slkatron 	lib		$(base)
-lib_slkatrset 	lib		$(base)
-lib_slkattr 	lib		$(base)
-lib_slkclear 	lib		$(base)
-lib_slkcolor 	lib		$(base)
-lib_slkinit 	lib		$(base)
-lib_slklab	lib		$(base)
-lib_slkrefr	lib		$(base)		../include/term.h
-lib_slkset	lib		$(base)
-lib_slktouch	lib		$(base)
-lib_touch	lib		$(base)
-lib_tracedmp	lib		$(trace)
-lib_tracemse	lib		$(trace)
-lib_tstp	lib		$(serial)	$(srcdir)/SigAction.h
-lib_ungetch	lib		$(base)
-lib_vidattr	lib		$(serial)	../include/term.h
-lib_vline	lib		$(base)
-lib_wattroff	lib		$(base)
-lib_wattron	lib		$(base)
-lib_winch	lib		$(base)
-lib_window	lib		$(base)
-link_test 	lib		.		../include/curses.h
-nc_panel	lib		$(base)
-safe_sprintf	lib		$(base)
-tty_update	lib		$(serial)	../include/term.h
-varargs		lib		$(trace)
+hardscroll	lib		$(serial)	$(HEADER_DEPS)
+hashmap		lib		$(serial)	$(HEADER_DEPS)
+lib_addch	lib		$(base)		$(HEADER_DEPS)
+lib_addstr	lib		$(base)		$(HEADER_DEPS)
+lib_beep	lib		$(base)		$(HEADER_DEPS)
+lib_bkgd	lib		$(base)		$(HEADER_DEPS)
+lib_box 	lib		$(base)		$(HEADER_DEPS)
+lib_chgat	lib		$(base)		$(HEADER_DEPS)
+lib_clear	lib		$(base)		$(HEADER_DEPS)
+lib_clearok	lib		$(base)		$(HEADER_DEPS)
+lib_clrbot	lib		$(base)		$(HEADER_DEPS)
+lib_clreol	lib		$(base)		$(HEADER_DEPS)
+lib_color	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_colorset	lib		$(base)		$(HEADER_DEPS)
+lib_delch	lib		$(base)		$(HEADER_DEPS)
+lib_delwin	lib		$(base)		$(HEADER_DEPS)
+lib_echo	lib		$(base)		$(HEADER_DEPS)
+lib_endwin	lib		$(base)		$(HEADER_DEPS)
+lib_erase	lib		$(base)		$(HEADER_DEPS)
+lib_flash	lib		$(base)		$(HEADER_DEPS)
+lib_gen 	lib		.		$(HEADER_DEPS)
+lib_getch	lib		$(base)		$(HEADER_DEPS)	$(srcdir)/fifo_defs.h
+lib_getstr	lib		$(base)		$(HEADER_DEPS)
+lib_hline	lib		$(base)		$(HEADER_DEPS)
+lib_immedok	lib		$(base)		$(HEADER_DEPS)
+lib_inchstr	lib		$(base)		$(HEADER_DEPS)
+lib_initscr	lib		$(base)		$(HEADER_DEPS)
+lib_insch	lib		$(base)		$(HEADER_DEPS)
+lib_insdel	lib		$(base)		$(HEADER_DEPS)
+lib_insnstr	lib		$(base)		$(HEADER_DEPS)
+lib_instr	lib		$(base)		$(HEADER_DEPS)
+lib_isendwin	lib		$(base)		$(HEADER_DEPS)
+lib_leaveok	lib		$(base)		$(HEADER_DEPS)
+lib_mouse	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_move	lib		$(base)		$(HEADER_DEPS)
+lib_mvcur	lib		$(serial)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(srcdir)/../progs/dump_entry.h
+lib_mvwin	lib		$(base)		$(HEADER_DEPS)
+lib_newterm	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_newwin	lib		$(base)		$(HEADER_DEPS)
+lib_nl		lib		$(base)		$(HEADER_DEPS)
+lib_overlay	lib		$(base)		$(HEADER_DEPS)
+lib_pad 	lib		$(base)		$(HEADER_DEPS)
+lib_printw	lib		$(base)		$(HEADER_DEPS)
+lib_redrawln	lib		$(base)		$(HEADER_DEPS)
+lib_refresh	lib		$(base)		$(HEADER_DEPS)
+lib_restart	lib		$(base)		$(HEADER_DEPS)
+lib_scanw	lib		$(base)		$(HEADER_DEPS)
+lib_screen	lib		$(base)		$(HEADER_DEPS)
+lib_scroll	lib		$(base)		$(HEADER_DEPS)
+lib_scrollok	lib		$(base)		$(HEADER_DEPS)
+lib_scrreg	lib		$(base)		$(HEADER_DEPS)
+lib_set_term	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_slk 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatr_set	lib		$(base)		$(HEADER_DEPS)
+lib_slkatrof 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatron 	lib		$(base)		$(HEADER_DEPS)
+lib_slkatrset 	lib		$(base)		$(HEADER_DEPS)
+lib_slkattr 	lib		$(base)		$(HEADER_DEPS)
+lib_slkclear 	lib		$(base)		$(HEADER_DEPS)
+lib_slkcolor 	lib		$(base)		$(HEADER_DEPS)
+lib_slkinit 	lib		$(base)		$(HEADER_DEPS)
+lib_slklab	lib		$(base)		$(HEADER_DEPS)
+lib_slkrefr	lib		$(base)		$(HEADER_DEPS)
+lib_slkset	lib		$(base)		$(HEADER_DEPS)
+lib_slktouch	lib		$(base)		$(HEADER_DEPS)
+lib_touch	lib		$(base)		$(HEADER_DEPS)
+lib_tracedmp	lib		$(trace)	$(HEADER_DEPS)
+lib_tracemse	lib		$(trace)	$(HEADER_DEPS)
+lib_tstp	lib		$(serial)	$(HEADER_DEPS)	$(srcdir)/SigAction.h
+lib_ungetch	lib		$(base)		$(HEADER_DEPS)	$(srcdir)/fifo_defs.h
+lib_vidattr	lib		$(serial)	$(HEADER_DEPS)
+lib_vline	lib		$(base)		$(HEADER_DEPS)
+lib_wattroff	lib		$(base)		$(HEADER_DEPS)
+lib_wattron	lib		$(base)		$(HEADER_DEPS)
+lib_winch	lib		$(base)		$(HEADER_DEPS)
+lib_window	lib		$(base)		$(HEADER_DEPS)
+link_test 	lib		.		$(HEADER_DEPS)
+nc_panel	lib		$(base)		$(HEADER_DEPS)
+safe_sprintf	lib		$(base)		$(HEADER_DEPS)
+tty_update	lib		$(serial)	$(HEADER_DEPS)
+varargs		lib		$(trace)	$(HEADER_DEPS)
 
 # Modules for porting
-memmove		lib		$(base)
-vsscanf 	lib		$(base)
+vsscanf 	lib		$(base)		$(HEADER_DEPS)
 
 # actually an extension, but with its own configure option (--disable-leaks)
-lib_freeall	lib		$(base)
+lib_freeall	lib		$(base)		$(HEADER_DEPS)	$(INCDIR)/tic.h
 
 # XSI extensions to the base library (wide-character)
 @ widechar
-charable	lib		$(wide)
-lib_add_wch	lib		$(wide)
-lib_box_set	lib		$(wide)
-lib_cchar	lib		$(wide)
-lib_erasewchar	lib		$(wide)
-lib_get_wch	lib		$(wide)
-lib_get_wstr	lib		$(wide)
-lib_hline_set	lib		$(wide)
-lib_in_wch	lib		$(wide)
-lib_in_wchnstr	lib		$(wide)
-lib_ins_wch	lib		$(wide)
-lib_inwstr	lib		$(wide)
-lib_key_name	lib		$(wide)
-lib_pecho_wchar	lib		$(wide)
-lib_slk_wset	lib		$(wide)
-lib_unget_wch	lib		$(wide)
-lib_vid_attr	lib		$(wide)		../include/term.h
-lib_vline_set	lib		$(wide)
-lib_wacs	lib		$(wide)
-lib_wunctrl	lib		$(wide)
+charable	lib		$(wide)		$(HEADER_DEPS)
+lib_add_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_box_set	lib		$(wide)		$(HEADER_DEPS)
+lib_cchar	lib		$(wide)		$(HEADER_DEPS)
+lib_erasewchar	lib		$(wide)		$(HEADER_DEPS)
+lib_get_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_get_wstr	lib		$(wide)		$(HEADER_DEPS)
+lib_hline_set	lib		$(wide)		$(HEADER_DEPS)
+lib_in_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_in_wchnstr	lib		$(wide)		$(HEADER_DEPS)
+lib_ins_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_inwstr	lib		$(wide)		$(HEADER_DEPS)
+lib_key_name	lib		$(wide)		$(HEADER_DEPS)
+lib_pecho_wchar	lib		$(wide)		$(HEADER_DEPS)
+lib_slk_wset	lib		$(wide)		$(HEADER_DEPS)
+lib_unget_wch	lib		$(wide)		$(HEADER_DEPS)
+lib_vid_attr	lib		$(wide)		$(HEADER_DEPS)
+lib_vline_set	lib		$(wide)		$(HEADER_DEPS)
+lib_wacs	lib		$(wide)		$(HEADER_DEPS)
+lib_wunctrl	lib		$(wide)		$(HEADER_DEPS)
 
 # Extensions to the base library
 @ ext_funcs
-expanded	lib		.
-legacy_coding	lib		$(base)		../include/term.h
-lib_dft_fgbg	lib		$(base)		../include/term.h
-lib_print	lib		$(tinfo)	../include/term.h
-resizeterm	lib		$(base)		../include/term.h
-trace_xnames	lib		$(trace)	../include/term.h $(INCDIR)/term_entry.h
-use_screen	lib		$(tinfo)
-use_window	lib		$(base)
-wresize		lib		$(base)		../include/term.h
+expanded	lib		.		$(HEADER_DEPS)
+legacy_coding	lib		$(base)		$(HEADER_DEPS)
+lib_dft_fgbg	lib		$(base)		$(HEADER_DEPS)
+lib_print	lib		$(tinfo)	$(HEADER_DEPS)
+resizeterm	lib		$(base)		$(HEADER_DEPS)
+trace_xnames	lib		$(trace)	$(HEADER_DEPS)
+use_screen	lib		$(tinfo)	$(HEADER_DEPS)
+use_window	lib		$(base)		$(HEADER_DEPS)
+wresize		lib		$(base)		$(HEADER_DEPS)
 
 # Support for termcap (and tic, etc.), which can be a separate library
 @ termlib
-access		lib		$(tinfo)
-add_tries	lib		$(tinfo)
-alloc_ttype	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-codes		lib		.
-comp_error	lib		$(tinfo)	$(INCDIR)/tic.h
-db_iterator	lib		$(tinfo)	$(INCDIR)/tic.h
-doalloc		lib		$(tinfo)
-entries		lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
-fallback	lib		.		../include/term.h $(INCDIR)/tic.h
-free_ttype	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-getenv_num	lib		$(tinfo)
-home_terminfo	lib		$(tinfo)
-init_keytry	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h init_keytry.h
-lib_acs 	lib		$(tinfo)	../include/term.h
-lib_baudrate	lib		$(tinfo)	../include/term.h
-lib_cur_term	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h
-lib_data	lib		$(tinfo)
-lib_has_cap	lib		$(tinfo)	../include/term.h
-lib_kernel	lib		$(tinfo)	../include/term.h
-lib_keyname	lib		.		../include/term.h
-lib_longname	lib		$(tinfo)
-lib_napms	lib		$(tinfo)
-lib_options	lib		$(tinfo)	../include/term.h
-lib_raw 	lib		$(tinfo)	../include/term.h
-lib_setup	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h
-lib_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h $(INCDIR)/capdefaults.c
-lib_termname	lib		$(tinfo)	$(INCDIR)/tic.h
-lib_tgoto	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
-lib_ti		lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-lib_tparm	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
-lib_tputs	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
-lib_trace	lib		$(trace)	$(INCDIR)/tic.h
-lib_traceatr	lib		$(trace)	../include/term.h
-lib_tracebits	lib		$(trace)	../include/term.h
-lib_tracechr	lib		$(trace)
-lib_ttyflags	lib		$(tinfo)	../include/term.h
-lib_twait	lib		$(serial)
-name_match	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
-names		lib		.
-read_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-read_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-setbuf		lib		$(tinfo)
-strings		lib		$(tinfo)
-trace_buf	lib		$(trace)
-trace_tries	lib		$(trace)
-tries		lib		$(base)
-trim_sgr0	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-unctrl		lib		.
-visbuf		lib		$(trace)	$(INCDIR)/tic.h
+access		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+add_tries	lib		$(tinfo)	$(HEADER_DEPS)
+alloc_ttype	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+codes		lib		.		$(HEADER_DEPS)
+comp_captab	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
+comp_error	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_hash	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/hashsize.h
+db_iterator	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+doalloc		lib		$(tinfo)	$(HEADER_DEPS)
+entries		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+fallback	lib		.		$(HEADER_DEPS)
+free_ttype	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+getenv_num	lib		$(tinfo)	$(HEADER_DEPS)
+home_terminfo	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+init_keytry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h init_keytry.h
+lib_acs 	lib		$(tinfo)	$(HEADER_DEPS)
+lib_baudrate	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_cur_term	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_data	lib		$(tinfo)	$(HEADER_DEPS)
+lib_has_cap	lib		$(tinfo)	$(HEADER_DEPS)
+lib_kernel	lib		$(tinfo)	$(HEADER_DEPS)
+lib_keyname	lib		.		$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_longname	lib		$(tinfo)	$(HEADER_DEPS)
+lib_napms	lib		$(tinfo)	$(HEADER_DEPS)
+lib_options	lib		$(tinfo)	$(HEADER_DEPS)
+lib_raw 	lib		$(tinfo)	$(HEADER_DEPS)
+lib_setup	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_termcap	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/termcap.h $(INCDIR)/capdefaults.c
+lib_termname	lib		$(tinfo)	$(HEADER_DEPS)
+lib_tgoto	lib		$(tinfo)	$(HEADER_DEPS)	../include/termcap.h
+lib_ti		lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_tparm	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_tputs	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/termcap.h
+lib_trace	lib		$(trace)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+lib_traceatr	lib		$(trace)	$(HEADER_DEPS)
+lib_tracebits	lib		$(trace)	$(HEADER_DEPS)
+lib_tracechr	lib		$(trace)	$(HEADER_DEPS)
+lib_ttyflags	lib		$(tinfo)	$(HEADER_DEPS)
+lib_twait	lib		$(serial)	$(HEADER_DEPS)
+name_match	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+names		lib		.		$(HEADER_DEPS)
+obsolete	lib		$(tinfo)	$(HEADER_DEPS)
+read_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
+read_termcap	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+strings		lib		$(tinfo)	$(HEADER_DEPS)
+trace_buf	lib		$(trace)	$(HEADER_DEPS)
+trace_tries	lib		$(trace)	$(HEADER_DEPS)
+tries		lib		$(base)		$(HEADER_DEPS)
+trim_sgr0	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+unctrl		lib		.		$(HEADER_DEPS)
+visbuf		lib		$(trace)	$(HEADER_DEPS)	$(INCDIR)/tic.h
 
 # Modules used only for tic, other programs using internal interfaces
 @ ticlib
-alloc_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-captoinfo	lib		$(tinfo)	$(INCDIR)/tic.h
-comp_captab	lib		.		$(INCDIR)/tic.h ../include/term.h ../include/hashsize.h
-comp_expand	lib		$(tinfo)	$(INCDIR)/tic.h
-comp_hash	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h ../include/hashsize.h
-comp_parse	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-comp_scan	lib		$(tinfo)	$(INCDIR)/tic.h
-parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h ../include/parametrized.h $(INCDIR)/capdefaults.c
-write_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
+alloc_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+captoinfo	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_expand	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_parse	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+comp_scan	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
+parse_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h ../include/parametrized.h
+write_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
 
 # Extensions to the termlib library
 @ ext_tinfo
-define_key	lib		$(base)
-hashed_db	lib		$(tinfo)
-key_defined	lib		$(base)
-keybound	lib		$(base)
-keyok		lib		$(base)
-version		lib		$(base)
+define_key	lib		$(base)		$(HEADER_DEPS)
+hashed_db	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
+key_defined	lib		$(base)		$(HEADER_DEPS)
+keybound	lib		$(base)		$(HEADER_DEPS)
+keyok		lib		$(base)		$(HEADER_DEPS)
+version		lib		$(base)		$(HEADER_DEPS)
+
+# Porting
+@ port_drivers
+lib_driver      lib             $(base)		$(HEADER_DEPS)
+
+@ port_win32con
+gettimeofday	lib		$(win32con)	$(HEADER_DEPS)
+wcwidth		lib             $(win32con)	$(HEADER_DEPS)
+widechars	lib             $(wide)		$(HEADER_DEPS)
+win_driver	lib             $(win32con)	$(HEADER_DEPS)
+
+@ port_tinfo
+tinfo_driver	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
 
 # vile:makemode

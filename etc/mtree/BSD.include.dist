@@ -9,10 +9,6 @@
     ..
     arpa
     ..
-    atf-c
-    ..
-    atf-c++
-    ..
     bsm
     ..
     bsnmp
@@ -81,6 +77,8 @@
             ..
         ..
         v1
+            experimental
+            ..
             ext
             ..
             tr1
@@ -94,7 +92,7 @@
         ..
     ..
     clang
-        3.3
+        3.4
         ..
     ..
     crypto
@@ -259,8 +257,6 @@
     ..
     net80211
     ..
-    netatalk
-    ..
     netgraph
         atm
         ..
@@ -276,8 +272,6 @@
     netinet6
     ..
     netipsec
-    ..
-    netipx
     ..
     netnatm
         api
@@ -332,6 +326,8 @@
     ssp
     ..
     sys
+    ..
+    teken
     ..
     ufs
         ffs

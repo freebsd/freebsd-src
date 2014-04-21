@@ -81,11 +81,6 @@ static int      MY_USEIOSPACE = 1;
 
 #include <dev/my/if_myreg.h>
 
-#ifndef lint
-static          const char rcsid[] =
-"$Id: if_my.c,v 1.16 2003/04/15 06:37:25 mdodd Exp $";
-#endif
-
 /*
  * Various supported device vendors/types and their names.
  */

@@ -205,12 +205,6 @@ struct pfsync_tdb {
 
 #define	PFSYNC_HDRLEN		sizeof(struct pfsync_header)
 
-/*
- * Names for PFSYNC sysctl objects
- */
-#define	PFSYNCCTL_STATS		1	/* PFSYNC stats */
-#define	PFSYNCCTL_MAXID		2
-
 struct pfsyncstats {
 	u_int64_t	pfsyncs_ipackets;	/* total input packets, IPv4 */
 	u_int64_t	pfsyncs_ipackets6;	/* total input packets, IPv6 */

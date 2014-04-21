@@ -292,7 +292,6 @@ CNAME(restorebridge):
 	isync
 CNAME(restorebridgesize) = .-CNAME(restorebridge)
 
-#ifdef SMP
 /*
  * Processor reset exception handler. These are typically
  * the first instructions the processor executes after a
@@ -320,12 +319,21 @@ cpu_reset:
 	bla	CNAME(pmap_cpu_bootstrap)
 	bla	CNAME(cpudep_ap_bootstrap)
 	mr	%r1,%r3
+	bla	CNAME(cpudep_ap_setup)
+	GET_CPUINFO(%r5)
+	lwz	%r3,(PC_RESTORE)(%r5)
+	cmplwi	%cr0,%r3,0
+	beq	%cr0,2f
+	li	%r4, 1
+	b	CNAME(longjmp)
+2:
+#ifdef SMP
 	bla	CNAME(machdep_ap_bootstrap)
+#endif
 
 	/* Should not be reached */
 9:
 	b	9b
-#endif
 
 /*
  * This code gets copied to all the trap vectors
@@ -664,11 +672,12 @@ disitrap:
 	stw	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1)
 
 #ifdef KDB
-	/* Try and detect a kernel stack overflow */
+	/* Try to detect a kernel stack overflow */
 	mfsrr1	%r31
 	mtcr	%r31
 	bt	17,realtrap		/* branch is user mode */
 	mfsprg1	%r31			/* get old SP */
+	clrrwi	%r31,%r31,11		/* Round SP down to nearest page */
 	sub.	%r30,%r31,%r30		/* SP - DAR */
 	bge	1f
 	neg	%r30,%r30		/* modulo value */
@@ -882,8 +891,8 @@ CNAME(dblow):
 	mfcr	%r29			/* save CR in r29 */
 	mfsrr1	%r1
 	mtcr	%r1
-	bf	17,1f			/* branch if privileged */
-
+	bf	17,2f			/* branch if privileged */
+1:
 	/* Unprivileged case */
 	mtcr	%r29			/* put the condition register back */
         mfsprg2	%r29			/* ... and r29 */
@@ -892,7 +901,19 @@ CNAME(dblow):
 	li	%r1, 0	 		/* How to get the vector from LR */
 
         bla     generictrap		/* and we look like a generic trap */
-1:
+2:
+#ifdef KDTRACE_HOOKS
+	/* Privileged, so drop to KDB */
+	mfsrr0	%r1
+	mtsprg3	%r3
+	lwz	%r1,0(%r1)
+	/* Check if it's a DTrace trap. */
+	li	%r3,0x0808
+	addis	%r3,%r3,0x7c81
+	cmplw	%cr0,%r3,%r1
+	mfsprg3	%r3
+	beq	%cr0,1b
+#endif
 	/* Privileged, so drop to KDB */
 	GET_CPUINFO(%r1)
 	stw	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */

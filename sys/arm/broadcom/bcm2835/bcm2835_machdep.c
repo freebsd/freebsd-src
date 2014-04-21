@@ -52,20 +52,24 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 
-/* Start of address space used for bootstrap map */
-#define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
-
 vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START);
+	return (arm_devmap_lastaddr());
+}
+
+void
+initarm_early_init(void)
+{
+
 }
 
 void
@@ -92,28 +96,16 @@ initarm_late_init(void)
 	}
 }
 
-#define FDT_DEVMAP_MAX	(2)		// FIXME
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
-
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Set up static device mappings.
+ * All on-chip peripherals exist in a 16MB range starting at 0x20000000.
+ * Map the entire range using 1MB section mappings.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
-	int i = 0;
 
-	fdt_devmap[i].pd_va = 0xf2000000;
-	fdt_devmap[i].pd_pa = 0x20000000;
-	fdt_devmap[i].pd_size = 0x01000000;       /* 1 MB */
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
-	i++;
-
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	arm_devmap_add_entry(0x20000000, 0x01000000);
 	return (0);
 }
 

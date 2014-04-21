@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	CTRL_SET_REG			0x0034
 #define	CTRL_CLR_REG			0x0038
 #define	CTRL_TOGGLE_REG			0x003c
-#define	  CTRL_SFTRST			  (1 << 31)
+#define	  CTRL_SFTRST			  (1U << 31)
 #define	  CTRL_CLKGATE			  (1 << 30)
 #define	  CTRL_ENUTMILEVEL3		  (1 << 15)
 #define	  CTRL_ENUTMILEVEL2		  (1 << 14)
@@ -159,6 +159,9 @@ out:
 static int
 usbphy_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "fsl,imx6q-usbphy") == 0)
 		return (ENXIO);

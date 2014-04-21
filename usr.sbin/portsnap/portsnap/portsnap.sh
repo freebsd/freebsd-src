@@ -952,7 +952,7 @@ extract_run() {
 			cat ${WORKDIR}/INDEX
 		fi | while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
-		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
+		if ! [ -s "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
 			return 1
 		fi
@@ -996,7 +996,7 @@ update_run_extract() {
 	    comm -13 ${PORTSDIR}/.portsnap.INDEX - |
 	    while read FILE HASH; do
 		echo ${PORTSDIR}/${FILE}
-		if ! [ -r "${WORKDIR}/files/${HASH}.gz" ]; then
+		if ! [ -s "${WORKDIR}/files/${HASH}.gz" ]; then
 			echo "files/${HASH}.gz not found -- snapshot corrupt."
 			return 1
 		fi

@@ -636,12 +636,12 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		case SIOCGIFSTATUS:
 			ifs = (struct ifstat *)data;
-			dummy = strlen(ifs->ascii);
 			mtx_lock(&tp->tap_mtx);
-			if (tp->tap_pid != 0 && dummy < sizeof(ifs->ascii))
-				snprintf(ifs->ascii + dummy,
-					sizeof(ifs->ascii) - dummy,
+			if (tp->tap_pid != 0)
+				snprintf(ifs->ascii, sizeof(ifs->ascii),
 					"\tOpened by PID %d\n", tp->tap_pid);
+			else
+				ifs->ascii[0] = '\0';
 			mtx_unlock(&tp->tap_mtx);
 			break;
 
@@ -829,8 +829,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			mtx_unlock(&tp->tap_mtx);
 			break;
 
-		case OSIOCGIFADDR:	/* get MAC address of the remote side */
-		case SIOCGIFADDR:
+		case SIOCGIFADDR:	/* get MAC address of the remote side */
 			mtx_lock(&tp->tap_mtx);
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
 			mtx_unlock(&tp->tap_mtx);

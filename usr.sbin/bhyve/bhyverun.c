@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <machine/atomic.h>
 #include <machine/segments.h>
 
 #include <stdio.h>
@@ -54,14 +55,14 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
-#include "legacy_irq.h"
+#include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
 #include "pci_lpc.h"
+#include "smbiostbl.h"
 #include "xmsr.h"
-#include "ioapic.h"
 #include "spinup_ap.h"
 #include "rtc.h"
 
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	VMEXIT_RESTART		2	/* restart current instruction */
 #define	VMEXIT_ABORT		3	/* abort the vm run loop */
 #define	VMEXIT_RESET		4	/* guest machine has reset */
+#define	VMEXIT_POWEROFF		5	/* guest machine has powered off */
 
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
@@ -81,21 +83,22 @@ typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 char *vmname;
 
 int guest_ncpus;
+char *guest_uuid_str;
 
 static int pincpu = -1;
-static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
+static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 static int virtio_msix = 1;
-
-static int foundcpus;
+static int x2apic_mode = 0;	/* default is xAPIC */
 
 static int strictio;
+static int strictmsr = 1;
 
 static int acpi;
 
 static char *progname;
 static const int BSP = 0;
 
-static int cpumask;
+static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
@@ -124,9 +127,9 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
+                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>]\n"
 		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
-		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
+		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
@@ -137,9 +140,11 @@ usage(int code)
 		"       -e: exit on unhandled I/O access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
-		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -l: LPC device configuration\n"
-		"       -m: memory size in MB\n",
+		"       -m: memory size in MB\n"
+		"       -w: ignore unimplemented MSRs\n"
+		"       -x: local apic is in x2APIC mode\n"
+		"       -U: uuid\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -150,13 +155,6 @@ paddr_guest2host(struct vmctx *ctx, uintptr_t gaddr, size_t len)
 {
 
 	return (vm_map_gpa(ctx, gaddr, len));
-}
-
-int
-fbsdrun_disable_x2apic(void)
-{
-
-	return (disable_x2apic);
 }
 
 int
@@ -190,7 +188,7 @@ fbsdrun_start_thread(void *param)
 	mtp = param;
 	vcpu = mtp->mt_vcpu;
 
-	snprintf(tname, sizeof(tname), "%s vcpu %d", vmname, vcpu);
+	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
 	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
@@ -201,32 +199,41 @@ fbsdrun_start_thread(void *param)
 }
 
 void
-fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
+fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 {
 	int error;
 
-	if (cpumask & (1 << vcpu)) {
-		fprintf(stderr, "addcpu: attempting to add existing cpu %d\n",
-		    vcpu);
-		exit(1);
-	}
+	assert(fromcpu == BSP);
 
-	cpumask |= 1 << vcpu;
-	foundcpus++;
+	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
 	 * at the given RIP
 	 */
-	vmexit[vcpu].rip = rip;
-	vmexit[vcpu].inst_length = 0;
+	vmexit[newcpu].rip = rip;
+	vmexit[newcpu].inst_length = 0;
 
-	mt_vmm_info[vcpu].mt_ctx = ctx;
-	mt_vmm_info[vcpu].mt_vcpu = vcpu;
+	mt_vmm_info[newcpu].mt_ctx = ctx;
+	mt_vmm_info[newcpu].mt_vcpu = newcpu;
 
-	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	error = pthread_create(&mt_vmm_info[newcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[newcpu]);
 	assert(error == 0);
+}
+
+static int
+fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
+{
+
+	if (!CPU_ISSET(vcpu, &cpumask)) {
+		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
+		    vcpu);
+		exit(1);
+	}
+
+	CPU_CLR_ATOMIC(vcpu, &cpumask);
+	return (CPU_EMPTY(&cpumask));
 }
 
 static int
@@ -283,12 +290,17 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
                 return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
 
 	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax, strictio);
-	if (error == 0 && in)
+	if (error == INOUT_OK && in)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX, eax);
 
-	if (error == 0)
+	switch (error) {
+	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
-	else {
+	case INOUT_RESET:
+		return (VMEXIT_RESET);
+	case INOUT_POWEROFF:
+		return (VMEXIT_POWEROFF);
+	default:
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
 			in ? "in" : "out",
 			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
@@ -299,20 +311,49 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 static int
 vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
-	fprintf(stderr, "vm exit rdmsr 0x%x, cpu %d\n", vme->u.msr.code,
-	    *pvcpu);
-	return (VMEXIT_ABORT);
+	uint64_t val;
+	uint32_t eax, edx;
+	int error;
+
+	val = 0;
+	error = emulate_rdmsr(ctx, *pvcpu, vme->u.msr.code, &val);
+	if (error != 0) {
+		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
+		    vme->u.msr.code, *pvcpu);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
+	}
+
+	eax = val;
+	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RAX, eax);
+	assert(error == 0);
+
+	edx = val >> 32;
+	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RDX, edx);
+	assert(error == 0);
+
+	return (VMEXIT_CONTINUE);
 }
 
 static int
 vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
-	int newcpu;
-	int retval = VMEXIT_CONTINUE;
+	int error;
 
-	newcpu = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code,vme->u.msr.wval);
-
-        return (retval);
+	error = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code, vme->u.msr.wval);
+	if (error != 0) {
+		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
+		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
+	}
+	return (VMEXIT_CONTINUE);
 }
 
 static int
@@ -328,6 +369,17 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
+vmexit_spindown_cpu(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+{
+	int lastcpu;
+
+	lastcpu = fbsdrun_deletecpu(ctx, *pvcpu);
+	if (!lastcpu)
+		pthread_exit(NULL);
+	return (vmexit_catch_reset());
+}
+
+static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -335,10 +387,12 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	fprintf(stderr, "\treason\t\tVMX\n");
 	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
 	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
-	fprintf(stderr, "\terror\t\t%d\n", vmexit->u.vmx.error);
+	fprintf(stderr, "\tstatus\t\t%d\n", vmexit->u.vmx.status);
 	fprintf(stderr, "\texit_reason\t%u\n", vmexit->u.vmx.exit_reason);
 	fprintf(stderr, "\tqualification\t0x%016lx\n",
 	    vmexit->u.vmx.exit_qualification);
+	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
+	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
 
 	return (VMEXIT_ABORT);
 }
@@ -409,6 +463,33 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
+static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
+static int resetcpu = -1;
+
+static int
+vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+	
+	assert(resetcpu != -1);
+
+	fbsdrun_deletecpu(ctx, *pvcpu);
+
+	if (*pvcpu != resetcpu) {
+		pthread_mutex_lock(&resetcpu_mtx);
+		pthread_cond_signal(&resetcpu_cond);
+		pthread_mutex_unlock(&resetcpu_mtx);
+		pthread_exit(NULL);
+	}
+
+	pthread_mutex_lock(&resetcpu_mtx);
+	while (!CPU_EMPTY(&cpumask)) {
+		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
+	}
+	pthread_mutex_unlock(&resetcpu_mtx);
+	exit(0);
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
@@ -418,6 +499,8 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
+	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
 };
 
 static void
@@ -437,19 +520,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 
 	while (1) {
 		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
-		if (error != 0) {
-			/*
-			 * It is possible that 'vmmctl' or some other process
-			 * has transitioned the vcpu to CANNOT_RUN state right
-			 * before we tried to transition it to RUNNING.
-			 *
-			 * This is expected to be temporary so just retry.
-			 */
-			if (errno == EBUSY)
-				continue;
-			else
-				break;
-		}
+		if (error != 0)
+			break;
 
 		prevcpu = vcpu;
 
@@ -470,7 +542,12 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                         rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_RESET:
-			exit(0);
+			if (vm_suspend(ctx) == 0) {
+				assert(resetcpu == -1);
+				resetcpu = vcpu;
+			}
+                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
+			break;
 		default:
 			exit(1);
 		}
@@ -526,10 +603,10 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
         }
 
-	if (fbsdrun_disable_x2apic())
-		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
-	else
+	if (x2apic_mode)
 		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+	else
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
 
 	if (err) {
 		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
@@ -554,10 +631,10 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxAHIPWp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
-			disable_x2apic = 1;
+			x2apic_mode = 0;
 			break;
 		case 'A':
 			acpi = 1;
@@ -581,12 +658,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 's':
-			if (pci_parse_slot(optarg, 0) != 0)
-				exit(1);
-			else
-				break;
-		case 'S':
-			if (pci_parse_slot(optarg, 1) != 0)
+			if (pci_parse_slot(optarg) != 0)
 				exit(1);
 			else
 				break;
@@ -613,8 +685,17 @@ main(int argc, char *argv[])
 		case 'e':
 			strictio = 1;
 			break;
+		case 'U':
+			guest_uuid_str = optarg;
+			break;
+		case 'w':
+			strictmsr = 0;
+			break;
 		case 'W':
 			virtio_msix = 0;
+			break;
+		case 'x':
+			x2apic_mode = 1;
 			break;
 		case 'h':
 			usage(0);			
@@ -653,7 +734,7 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
-	legacy_irq_init();
+	ioapic_init(ctx);
 
 	rtc_init(ctx);
 
@@ -662,8 +743,6 @@ main(int argc, char *argv[])
 	 */
 	if (init_pci(ctx) != 0)
 		exit(1);
-
-	ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
@@ -679,15 +758,23 @@ main(int argc, char *argv[])
 	 */
 	mptable_build(ctx, guest_ncpus);
 
+	error = smbios_build(ctx);
+	assert(error == 0);
+
 	if (acpi) {
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
 
 	/*
+	 * Change the proc title to include the VM name.
+	 */
+	setproctitle("%s", vmname); 
+	
+	/*
 	 * Add CPU 0
 	 */
-	fbsdrun_addcpu(ctx, BSP, rip);
+	fbsdrun_addcpu(ctx, BSP, BSP, rip);
 
 	/*
 	 * Head off to the main event dispatch loop

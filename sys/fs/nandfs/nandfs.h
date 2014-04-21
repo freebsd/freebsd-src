@@ -159,8 +159,6 @@ struct nandfs_device {
 	int			nd_syncer_exit;
 	int			nd_cleaner_exit;
 
-	int			nd_is_nand;
-
 	struct nandfs_fsarea	nd_fsarea[NANDFS_NFSAREAS];
 	int			nd_last_fsarea;
 
@@ -199,6 +197,8 @@ struct nandfs_device {
 	uint32_t		nd_erasesize;
 
 	uint32_t		nd_devblocksize;
+
+	uint32_t		nd_segs_reserved;
 
 	/* Segment usage */
 	uint64_t		nd_clean_segs;

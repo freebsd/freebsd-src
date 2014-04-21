@@ -173,12 +173,6 @@ svn_config_walk_auth_data(const char *config_dir,
       NULL
     };
 
-  if (! config_dir)
-    {
-      /* Can't locate the cache to clear */
-      return SVN_NO_ERROR;
-    }
-
   iterpool = svn_pool_create(scratch_pool);
   for (i = 0; cred_kinds[i]; i++)
     {

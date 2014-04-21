@@ -33,6 +33,12 @@
 
 struct vmctx;
 
+/* Handler return values. */
+#define	INOUT_ERROR	-1
+#define	INOUT_OK	0
+#define	INOUT_RESET	1
+#define	INOUT_POWEROFF	2
+
 typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
 			    int bytes, uint32_t *eax, void *arg);
 

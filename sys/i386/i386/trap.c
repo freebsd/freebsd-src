@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
-#include "opt_kdtrace.h"
 #include "opt_npx.h"
 #include "opt_trap.h"
 
@@ -207,6 +206,9 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
 void
 trap(struct trapframe *frame)
 {
+#ifdef KDTRACE_HOOKS
+	struct reg regs;
+#endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	int i = 0, ucode = 0, code;
@@ -263,28 +265,10 @@ trap(struct trapframe *frame)
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
-	 *
-	 * If the DTrace kernel module has registered a trap handler,
-	 * call it and if it returns non-zero, assume that it has
-	 * handled the trap and modified the trap frame so that this
-	 * function can return normally.
 	 */
-	if (type == T_DTRACE_RET || type == T_BPTFLT) {
-		struct reg regs;
-
-		fill_frame_regs(frame, &regs);
-		if (type == T_BPTFLT &&
-		    dtrace_pid_probe_ptr != NULL &&
-		    dtrace_pid_probe_ptr(&regs) == 0)
-			goto out;
-		if (type == T_DTRACE_RET &&
-		    dtrace_return_probe_ptr != NULL &&
-		    dtrace_return_probe_ptr(&regs) == 0)
-			goto out;
-	}
 	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
 	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
 		goto out;
@@ -358,6 +342,14 @@ trap(struct trapframe *frame)
 		case T_BPTFLT:		/* bpt instruction fault */
 		case T_TRCTRAP:		/* trace trap */
 			enable_intr();
+#ifdef KDTRACE_HOOKS
+			if (type == T_BPTFLT) {
+				fill_frame_regs(frame, &regs);
+				if (dtrace_pid_probe_ptr != NULL &&
+				    dtrace_pid_probe_ptr(&regs) == 0)
+					goto out;
+			}
+#endif
 			frame->tf_eflags &= ~PSL_T;
 			i = SIGTRAP;
 			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
@@ -537,6 +529,15 @@ trap(struct trapframe *frame)
 #endif
 			i = SIGFPE;
 			break;
+#ifdef KDTRACE_HOOKS
+		case T_DTRACE_RET:
+			enable_intr();
+			fill_frame_regs(frame, &regs);
+			if (dtrace_return_probe_ptr != NULL &&
+			    dtrace_return_probe_ptr(&regs) == 0)
+				goto out;
+			break;
+#endif
 		}
 	} else {
 		/* kernel trap */

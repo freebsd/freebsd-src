@@ -109,10 +109,6 @@ typedef enum {
 	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
 
-typedef enum {
-	CAM_EXTLUN_VALID	= 0x00000001,/* 64bit lun field is valid      */
-} ccb_xflags;
-
 /* XPT Opcodes for xpt_action */
 typedef enum {
 /* Function code flags are bits greater than 0xff */
@@ -326,7 +322,6 @@ struct ccb_hdr {
 	path_id_t	path_id;	/* Path ID for the request */
 	target_id_t	target_id;	/* Target device ID */
 	lun_id_t	target_lun;	/* Target LUN number */
-	lun64_id_t	ext_lun;	/* 64bit extended/multi-level LUNs */
 	u_int32_t	flags;		/* ccb_flags */
 	u_int32_t	xflags;		/* Extended flags */
 	ccb_ppriv_area	periph_priv;
@@ -555,7 +550,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x18	/* Hex value for current version */
+#define CAM_VERSION	0x19	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */

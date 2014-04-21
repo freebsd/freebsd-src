@@ -8,9 +8,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/mman.h>
+#include <errno.h>
 
 int
 posix_madvise(void *address, size_t size, int how)
 {
-	return madvise(address, size, how);
+	int ret, saved_errno;
+
+	saved_errno = errno;
+	if (madvise(address, size, how) == -1) {
+		ret = errno;
+		errno = saved_errno;
+	} else {
+		ret = 0;
+	}
+	return (ret);
 }

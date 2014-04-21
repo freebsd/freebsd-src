@@ -1,3 +1,9 @@
+byacc (20140101) unstable; urgency=low
+
+  * yytname[] changes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 01 Jan 2014 10:02:12 -0500
+
 byacc (20130925) unstable; urgency=low
 
   * increase default stack-size

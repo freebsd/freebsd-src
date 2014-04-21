@@ -696,7 +696,6 @@ acpi_set_power_children(device_t dev, int state)
 {
 	device_t child, parent;
 	device_t *devlist;
-	struct pci_devinfo *dinfo;
 	int dstate, i, numdevs;
 
 	if (device_get_children(dev, &devlist, &numdevs) != 0)
@@ -709,7 +708,6 @@ acpi_set_power_children(device_t dev, int state)
 	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
 		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
@@ -1190,11 +1188,27 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
+    ACPI_DEVICE_INFO *devinfo;
     u_long end;
     
     /* Ignore IRQ resources for PCI link devices. */
     if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
 	return (0);
+
+    /*
+     * Ignore memory resources for PCI root bridges.  Some BIOSes
+     * incorrectly enumerate the memory ranges they decode as plain
+     * memory resources instead of as a ResourceProducer range.
+     */
+    if (type == SYS_RES_MEMORY) {
+	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
+	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
+		AcpiOsFree(devinfo);
+		return (0);
+	    }
+	    AcpiOsFree(devinfo);
+	}
+    }
 
     /* If the resource is already allocated, fail. */
     if (resource_list_busy(rl, type, rid))

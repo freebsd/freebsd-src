@@ -100,8 +100,6 @@ __FBSDID("$FreeBSD$");
 
 #define TODO			panic("%s: not implemented", __func__);
 
-extern struct mtx sched_lock;
-
 extern int dumpsys_minidump;
 
 extern unsigned char _etext[];
@@ -651,7 +649,7 @@ ptbl_free(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 		pa = pte_vatopa(mmu, kernel_pmap, va);
 		m = PHYS_TO_VM_PAGE(pa);
 		vm_page_free_zero(m);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		mmu_booke_kremove(mmu, va);
 	}
 
@@ -1387,7 +1385,7 @@ mmu_booke_init(mmu_t mmu)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
@@ -1906,7 +1904,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	KASSERT((pmap != kernel_pmap), ("mmu_booke_activate: kernel_pmap!"));
 
-	mtx_lock_spin(&sched_lock);
+	sched_pin();
 
 	cpuid = PCPU_GET(cpuid);
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
@@ -1919,7 +1917,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
-	mtx_unlock_spin(&sched_lock);
+	sched_unpin();
 
 	CTR3(KTR_PMAP, "%s: e (tid = %d for '%s')", __func__,
 	    pmap->pm_tid[PCPU_GET(cpuid)], td->td_proc->p_comm);
@@ -2053,7 +2051,7 @@ mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 	pmap_t pmap;
 	vm_page_t m;
 	vm_offset_t addr;
-	vm_paddr_t pa;
+	vm_paddr_t pa = 0;
 	int active, valid;
  
 	va = trunc_page(va);
@@ -2759,7 +2757,7 @@ mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
     vm_paddr_t *locked_pa)
 {
 
-	TODO;
+	/* XXX: this should be implemented at some point */
 	return (0);
 }
 
@@ -3177,6 +3175,7 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 
 	pa_base = trunc_page(pa);
 	size = roundup(size + (pa - pa_base), PAGE_SIZE);
+	tlb1_map_base = roundup2(tlb1_map_base, 1 << (ilog2(size) & ~1));
 	va = tlb1_map_base + (pa - pa_base);
 
 	do {

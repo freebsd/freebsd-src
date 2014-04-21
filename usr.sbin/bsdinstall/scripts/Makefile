@@ -5,6 +5,6 @@ SCRIPTS= auto adduser checksum config docsinstall entropy hostname jail \
 	 rootpass script services time umount wlanconfig zfsboot
 BINDIR= /usr/libexec/bsdinstall
 
-NO_MAN=	true
+MAN=
 
 .include <bsd.prog.mk>

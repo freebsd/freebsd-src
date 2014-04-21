@@ -14,7 +14,9 @@
 #include "DWARFDebugAranges.h"
 #include "DWARFDebugFrame.h"
 #include "DWARFDebugLine.h"
+#include "DWARFDebugLoc.h"
 #include "DWARFDebugRangeList.h"
+#include "DWARFTypeUnit.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/DIContext.h"
@@ -26,13 +28,15 @@ namespace llvm {
 /// information parsing. The actual data is supplied through pure virtual
 /// methods that a concrete implementation provides.
 class DWARFContext : public DIContext {
-  SmallVector<DWARFCompileUnit, 1> CUs;
+  SmallVector<DWARFCompileUnit *, 1> CUs;
+  SmallVector<DWARFTypeUnit *, 1> TUs;
   OwningPtr<DWARFDebugAbbrev> Abbrev;
+  OwningPtr<DWARFDebugLoc> Loc;
   OwningPtr<DWARFDebugAranges> Aranges;
   OwningPtr<DWARFDebugLine> Line;
   OwningPtr<DWARFDebugFrame> DebugFrame;
 
-  SmallVector<DWARFCompileUnit, 1> DWOCUs;
+  SmallVector<DWARFCompileUnit *, 1> DWOCUs;
   OwningPtr<DWARFDebugAbbrev> AbbrevDWO;
 
   DWARFContext(DWARFContext &) LLVM_DELETED_FUNCTION;
@@ -41,12 +45,26 @@ class DWARFContext : public DIContext {
   /// Read compile units from the debug_info section and store them in CUs.
   void parseCompileUnits();
 
+  /// Read type units from the debug_types sections and store them in CUs.
+  void parseTypeUnits();
+
   /// Read compile units from the debug_info.dwo section and store them in
   /// DWOCUs.
   void parseDWOCompileUnits();
 
 public:
-  DWARFContext() {}
+  struct Section {
+    StringRef Data;
+    RelocAddrMap Relocs;
+  };
+
+  DWARFContext() : DIContext(CK_DWARF) {}
+  virtual ~DWARFContext();
+
+  static bool classof(const DIContext *DICtx) {
+    return DICtx->getKind() == CK_DWARF;
+  }
+
   virtual void dump(raw_ostream &OS, DIDumpType DumpType = DIDT_All);
 
   /// Get the number of compile units in this context.
@@ -54,6 +72,13 @@ public:
     if (CUs.empty())
       parseCompileUnits();
     return CUs.size();
+  }
+
+  /// Get the number of compile units in this context.
+  unsigned getNumTypeUnits() {
+    if (TUs.empty())
+      parseTypeUnits();
+    return TUs.size();
   }
 
   /// Get the number of compile units in the DWO context.
@@ -67,18 +92,28 @@ public:
   DWARFCompileUnit *getCompileUnitAtIndex(unsigned index) {
     if (CUs.empty())
       parseCompileUnits();
-    return &CUs[index];
+    return CUs[index];
+  }
+
+  /// Get the type unit at the specified index for this compile unit.
+  DWARFTypeUnit *getTypeUnitAtIndex(unsigned index) {
+    if (TUs.empty())
+      parseTypeUnits();
+    return TUs[index];
   }
 
   /// Get the compile unit at the specified index for the DWO compile units.
   DWARFCompileUnit *getDWOCompileUnitAtIndex(unsigned index) {
     if (DWOCUs.empty())
       parseDWOCompileUnits();
-    return &DWOCUs[index];
+    return DWOCUs[index];
   }
 
   /// Get a pointer to the parsed DebugAbbrev object.
   const DWARFDebugAbbrev *getDebugAbbrev();
+
+  /// Get a pointer to the parsed DebugLoc object.
+  const DWARFDebugLoc *getDebugLoc();
 
   /// Get a pointer to the parsed dwo abbreviations object.
   const DWARFDebugAbbrev *getDebugAbbrevDWO();
@@ -102,28 +137,30 @@ public:
 
   virtual bool isLittleEndian() const = 0;
   virtual uint8_t getAddressSize() const = 0;
-  virtual const RelocAddrMap &infoRelocMap() const = 0;
-  virtual const RelocAddrMap &lineRelocMap() const = 0;
-  virtual StringRef getInfoSection() = 0;
+  virtual const Section &getInfoSection() = 0;
+  virtual const std::map<object::SectionRef, Section> &getTypesSections() = 0;
   virtual StringRef getAbbrevSection() = 0;
+  virtual const Section &getLocSection() = 0;
   virtual StringRef getARangeSection() = 0;
   virtual StringRef getDebugFrameSection() = 0;
-  virtual StringRef getLineSection() = 0;
+  virtual const Section &getLineSection() = 0;
   virtual StringRef getStringSection() = 0;
   virtual StringRef getRangeSection() = 0;
   virtual StringRef getPubNamesSection() = 0;
+  virtual StringRef getPubTypesSection() = 0;
+  virtual StringRef getGnuPubNamesSection() = 0;
+  virtual StringRef getGnuPubTypesSection() = 0;
 
   // Sections for DWARF5 split dwarf proposal.
-  virtual StringRef getInfoDWOSection() = 0;
+  virtual const Section &getInfoDWOSection() = 0;
   virtual StringRef getAbbrevDWOSection() = 0;
   virtual StringRef getStringDWOSection() = 0;
   virtual StringRef getStringOffsetDWOSection() = 0;
   virtual StringRef getRangeDWOSection() = 0;
   virtual StringRef getAddrSection() = 0;
-  virtual const RelocAddrMap &infoDWORelocMap() const = 0;
 
   static bool isSupportedVersion(unsigned version) {
-    return version == 2 || version == 3;
+    return version == 2 || version == 3 || version == 4;
   }
 private:
   /// Return the compile unit that includes an offset (relative to .debug_info).
@@ -141,20 +178,22 @@ class DWARFContextInMemory : public DWARFContext {
   virtual void anchor();
   bool IsLittleEndian;
   uint8_t AddressSize;
-  RelocAddrMap InfoRelocMap;
-  RelocAddrMap LineRelocMap;
-  StringRef InfoSection;
+  Section InfoSection;
+  std::map<object::SectionRef, Section> TypesSections;
   StringRef AbbrevSection;
+  Section LocSection;
   StringRef ARangeSection;
   StringRef DebugFrameSection;
-  StringRef LineSection;
+  Section LineSection;
   StringRef StringSection;
   StringRef RangeSection;
   StringRef PubNamesSection;
+  StringRef PubTypesSection;
+  StringRef GnuPubNamesSection;
+  StringRef GnuPubTypesSection;
 
   // Sections for DWARF5 split dwarf proposal.
-  RelocAddrMap InfoDWORelocMap;
-  StringRef InfoDWOSection;
+  Section InfoDWOSection;
   StringRef AbbrevDWOSection;
   StringRef StringDWOSection;
   StringRef StringOffsetDWOSection;
@@ -168,19 +207,24 @@ public:
   ~DWARFContextInMemory();
   virtual bool isLittleEndian() const { return IsLittleEndian; }
   virtual uint8_t getAddressSize() const { return AddressSize; }
-  virtual const RelocAddrMap &infoRelocMap() const { return InfoRelocMap; }
-  virtual const RelocAddrMap &lineRelocMap() const { return LineRelocMap; }
-  virtual StringRef getInfoSection() { return InfoSection; }
+  virtual const Section &getInfoSection() { return InfoSection; }
+  virtual const std::map<object::SectionRef, Section> &getTypesSections() {
+    return TypesSections;
+  }
   virtual StringRef getAbbrevSection() { return AbbrevSection; }
+  virtual const Section &getLocSection() { return LocSection; }
   virtual StringRef getARangeSection() { return ARangeSection; }
   virtual StringRef getDebugFrameSection() { return DebugFrameSection; }
-  virtual StringRef getLineSection() { return LineSection; }
+  virtual const Section &getLineSection() { return LineSection; }
   virtual StringRef getStringSection() { return StringSection; }
   virtual StringRef getRangeSection() { return RangeSection; }
   virtual StringRef getPubNamesSection() { return PubNamesSection; }
+  virtual StringRef getPubTypesSection() { return PubTypesSection; }
+  virtual StringRef getGnuPubNamesSection() { return GnuPubNamesSection; }
+  virtual StringRef getGnuPubTypesSection() { return GnuPubTypesSection; }
 
   // Sections for DWARF5 split dwarf proposal.
-  virtual StringRef getInfoDWOSection() { return InfoDWOSection; }
+  virtual const Section &getInfoDWOSection() { return InfoDWOSection; }
   virtual StringRef getAbbrevDWOSection() { return AbbrevDWOSection; }
   virtual StringRef getStringDWOSection() { return StringDWOSection; }
   virtual StringRef getStringOffsetDWOSection() {
@@ -189,9 +233,6 @@ public:
   virtual StringRef getRangeDWOSection() { return RangeDWOSection; }
   virtual StringRef getAddrSection() {
     return AddrSection;
-  }
-  virtual const RelocAddrMap &infoDWORelocMap() const {
-    return InfoDWORelocMap;
   }
 };
 

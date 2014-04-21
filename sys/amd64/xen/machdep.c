@@ -91,6 +91,7 @@
 #include <machine/smp.h>
 #include <machine/tss.h>
 #include <machine/vmparam.h>
+#include <x86/init.h>
 
 #include <xen/xen-os.h>
 #include <machine/xen/xenpmap.h>
@@ -110,6 +111,7 @@ long realmem = 0;
 unsigned long physfree;
 
 start_info_t *xen_start_info;
+start_info_t *HYPERVISOR_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
@@ -150,6 +152,12 @@ extern void panicifcpuunsupported(void); /* XXX header file */
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
+
+/* Default init_ops implementation. */
+struct init_ops init_ops = {
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+};
 
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
@@ -778,7 +786,7 @@ cpu_startup(void *dummy)
 	 * Display physical memory if SMBIOS reports reasonable amount.
 	 */
 	memsize = 0;
-	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+	if (memsize < ptoa((uintmax_t)vm_cnt.v_free_count))
 		memsize = ptoa((uintmax_t)Maxmem);
 	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
 
@@ -804,8 +812,8 @@ cpu_startup(void *dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)cnt.v_free_count),
-	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_cnt.v_free_count),
+	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -1494,8 +1502,6 @@ xen_set_proc(struct pcb *newpcb)
 		xen_load_tls(newpcb);
 	}
 }
-
-char *console_page;
 
 /* 
  * We don't use the tss on xen pv - this is a dummy to not break

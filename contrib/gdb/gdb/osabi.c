@@ -365,11 +365,11 @@ check_note (bfd *abfd, asection *sect, const char *note,
 	    const char *name, unsigned long descsz, unsigned long type)
 {
   unsigned long notesz;
+  unsigned long rdescsz;
 
   /* Calculate the size of this note.  */
-  notesz = strlen (name) + 1;
-  notesz = ((notesz + 3) & ~3);
-  notesz += descsz;
+  notesz = 4 * 3;	/* namelen, optlen, type */
+  notesz += strlen (name) + 1;
   notesz = ((notesz + 3) & ~3);
 
   /* If this assertion triggers, increase MAX_NOTESZ.  */
@@ -385,7 +385,15 @@ check_note (bfd *abfd, asection *sect, const char *note,
     return 0;
 
   /* Check the descriptor size.  */
-  if (bfd_h_get_32 (abfd, note + 4) != descsz)
+  rdescsz = bfd_h_get_32 (abfd, note + 4);
+  if (descsz != (unsigned long)-1 && rdescsz != descsz)
+    return 0;
+
+  notesz += rdescsz;
+  notesz = ((notesz + 3) & ~3);
+
+  /* Check whether SECT is big enough to comtain the complete note.  */
+  if (notesz > bfd_section_size (abfd, sect))
     return 0;
 
   /* Check the note type.  */
@@ -475,6 +483,12 @@ generic_elf_osabi_sniff_abi_tag_sections: unknown OS number %d",
 	  return;
 	}
       if (check_note (abfd, sect, note, "FreeBSD", 4, NT_FREEBSD_NOINIT_TAG))
+	{
+	  /* There is no need to check the version yet.  */
+	  *osabi = GDB_OSABI_FREEBSD_ELF;
+	  return;
+	}
+      if (check_note (abfd, sect, note, "FreeBSD", -1, NT_FREEBSD_ARCH_TAG))
 	{
 	  /* There is no need to check the version yet.  */
 	  *osabi = GDB_OSABI_FREEBSD_ELF;

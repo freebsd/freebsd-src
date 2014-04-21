@@ -57,7 +57,7 @@ f_media_set_floppy()
 
 	local devs ndevs
 	f_device_find "" $DEVICE_TYPE_FLOPPY devs
-	ndevs=$( set -- $devs; echo $# )
+	f_count ndevs $devs
 
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_interactive && f_show_msg "$msg_no_floppy_devices_found"
@@ -98,6 +98,7 @@ f_media_set_floppy()
 #
 f_media_init_floppy()
 {
+	local funcname=f_media_init_floppy
 	local dev="$1" devname err
 
 	device_$dev get devname devname || return $FAILURE
@@ -129,8 +130,11 @@ f_media_init_floppy()
 	fi
 
 	if ! {
-	    f_quietly mount_msdosfs -o ro -m 0777 -u 0 -g 0 "$devname" "$mp" ||
-	    err=$( mount -o ro "$devname" "$mp" 2>&1 )
+	    f_eval_catch -dk err $funcname mount_msdosfs \
+		'mount_msdosfs -o ro -m 0777 -u 0 -g 0 "%s" "%s"' \
+		"$devname" "$mp" ||
+	    f_eval_catch -dk err $funcname mount \
+		'mount -o ro "%s" "%s"' "$devname" "$mp"
 	}; then
 		err="${err#mount: }"; err="${err#*: }"
 		local name
@@ -153,6 +157,7 @@ f_media_init_floppy()
 #
 f_media_get_floppy()
 {
+	local funcname=f_media_get_floppy
 	local dev="$1" file="$2" probe_type="$3"
 
 	f_dprintf "f_media_get_floppy: dev=[%s] file=[%s] probe_type=%s" \
@@ -188,7 +193,7 @@ f_media_get_floppy()
 	#
 	if [ "$probe_type" = "$PROBE_SIZE" ]; then
 		local size
-		size=$( stat -f %z "$fp" 2>&1 ) || f_dprintf "stat: %s" "$size"
+		f_eval_catch -dk size $funcname stat 'stat -f %%z "%s"' "$fp"
 		f_isinteger "$size" || size=-1
 		echo "$size"
 	fi
@@ -203,15 +208,15 @@ f_media_get_floppy()
 #
 f_media_shutdown_floppy()
 {
+	local funcname=f_media_shutdown_floppy
 	local dev="$1" err mp
 
 	[ "$FLOPPY_MOUNTED" ] || return $FAILURE
 
 	device_$dev get private mp
-	if ! err=$( umount -f "${mp:=$MOUNTPOINT}" 2>&1 ); then
-		err="${err#umount: }"; err="${err#*:}"
-		f_dprintf "Umount of floppy on %s failed: %s" "$mp" "$err"
-	else
+	if f_eval_catch -d $funcname umount \
+		'umount -f "%s"' "${mp:=$MOUNTPOINT}"
+	then
 		FLOPPY_MOUNTED=
 		if f_interactive && [ "$_systemState" != "fixit" ]; then
 			local desc

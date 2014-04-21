@@ -118,6 +118,7 @@ static int flushbufqueues(int, int);
 static void buf_daemon(void);
 static void bremfreel(struct buf *bp);
 static __inline void bd_wakeup(void);
+static int sysctl_runningspace(SYSCTL_HANDLER_ARGS);
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 static int sysctl_bufspace(SYSCTL_HANDLER_ARGS);
@@ -167,10 +168,12 @@ static int bufdefragcnt;
 SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW, &bufdefragcnt, 0,
     "Number of times we have had to repeat buffer allocation to defragment");
 static long lorunningspace;
-SYSCTL_LONG(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
+SYSCTL_PROC(_vfs, OID_AUTO, lorunningspace, CTLTYPE_LONG | CTLFLAG_MPSAFE |
+    CTLFLAG_RW, &lorunningspace, 0, sysctl_runningspace, "L",
     "Minimum preferred space used for in-progress I/O");
 static long hirunningspace;
-SYSCTL_LONG(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
+SYSCTL_PROC(_vfs, OID_AUTO, hirunningspace, CTLTYPE_LONG | CTLFLAG_MPSAFE |
+    CTLFLAG_RW, &hirunningspace, 0, sysctl_runningspace, "L",
     "Maximum amount of space to use for in-progress I/O");
 int dirtybufferflushes;
 SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
@@ -331,6 +334,34 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_ANY	0x01	/* any freeable buffer */
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
+
+static int
+sysctl_runningspace(SYSCTL_HANDLER_ARGS)
+{
+	long value;
+	int error;
+
+	value = *(long *)arg1;
+	error = sysctl_handle_long(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	mtx_lock(&rbreqlock);
+	if (arg1 == &hirunningspace) {
+		if (value < lorunningspace)
+			error = EINVAL;
+		else
+			hirunningspace = value;
+	} else {
+		KASSERT(arg1 == &lorunningspace,
+		    ("%s: unknown arg1", __func__));
+		if (value > hirunningspace)
+			error = EINVAL;
+		else
+			lorunningspace = value;
+	}
+	mtx_unlock(&rbreqlock);
+	return (error);
+}
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -684,7 +715,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	}
 
 	/*
-	 * Ideal allocation size for the transient bio submap if 10%
+	 * Ideal allocation size for the transient bio submap is 10%
 	 * of the maximal space buffer map.  This roughly corresponds
 	 * to the amount of the buffer mapped for typical UFS load.
 	 *
@@ -3647,8 +3678,7 @@ bufdonebio(struct bio *bip)
 	struct buf *bp;
 
 	bp = bip->bio_caller2;
-	bp->b_resid = bp->b_bcount - bip->bio_completed;
-	bp->b_resid = bip->bio_resid;	/* XXX: remove */
+	bp->b_resid = bip->bio_resid;
 	bp->b_ioflags = bip->bio_flags;
 	bp->b_error = bip->bio_error;
 	if (bp->b_error)
@@ -4260,7 +4290,7 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 			    (intmax_t)bp->b_blkno, (intmax_t)bp->b_lblkno);
 		p->wire_count--;
 		vm_page_free(p);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	}
 	bp->b_npages = newnpages;
 }

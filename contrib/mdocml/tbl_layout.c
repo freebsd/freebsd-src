@@ -1,6 +1,7 @@
-/*	$Id: tbl_layout.c,v 1.22 2011/09/18 14:14:15 schwarze Exp $ */
+/*	$Id: tbl_layout.c,v 1.23 2012/05/27 17:54:54 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2012 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -51,8 +52,7 @@ static	const struct tbl_phrase keys[KEYS_MAX] = {
 	{ '^',		 TBL_CELL_DOWN },
 	{ '-',		 TBL_CELL_HORIZ },
 	{ '_',		 TBL_CELL_HORIZ },
-	{ '=',		 TBL_CELL_DHORIZ },
-	{ '|',		 TBL_CELL_VERT }
+	{ '=',		 TBL_CELL_DHORIZ }
 };
 
 static	int		 mods(struct tbl_node *, struct tbl_cell *, 
@@ -60,10 +60,8 @@ static	int		 mods(struct tbl_node *, struct tbl_cell *,
 static	int		 cell(struct tbl_node *, struct tbl_row *, 
 				int, const char *, int *);
 static	void		 row(struct tbl_node *, int, const char *, int *);
-static	struct tbl_cell *cell_alloc(struct tbl_node *, 
-				struct tbl_row *, enum tbl_cellt);
-static	void		 head_adjust(const struct tbl_cell *, 
-				struct tbl_head *);
+static	struct tbl_cell *cell_alloc(struct tbl_node *, struct tbl_row *,
+				enum tbl_cellt, int vert);
 
 static int
 mods(struct tbl_node *tbl, struct tbl_cell *cp, 
@@ -80,10 +78,6 @@ mods(struct tbl_node *tbl, struct tbl_cell *cp,
 	case (TBL_CELL_HORIZ):
 		/* FALLTHROUGH */
 	case (TBL_CELL_DHORIZ):
-		/* FALLTHROUGH */
-	case (TBL_CELL_VERT):
-		/* FALLTHROUGH */
-	case (TBL_CELL_DVERT):
 		return(1);
 	default:
 		break;
@@ -214,10 +208,17 @@ static int
 cell(struct tbl_node *tbl, struct tbl_row *rp, 
 		int ln, const char *p, int *pos)
 {
-	int		 i;
+	int		 vert, i;
 	enum tbl_cellt	 c;
 
-	/* Parse the column position (`r', `R', `|', ...). */
+	/* Handle vertical lines. */
+
+	for (vert = 0; '|' == p[*pos]; ++*pos)
+		vert++;
+	while (' ' == p[*pos])
+		(*pos)++;
+
+	/* Parse the column position (`c', `l', `r', ...). */
 
 	for (i = 0; i < KEYS_MAX; i++)
 		if (tolower((unsigned char)p[*pos]) == keys[i].name)
@@ -246,8 +247,6 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 			return(0);
 		} else if (rp->last)
 			switch (rp->last->pos) {
-			case (TBL_CELL_VERT):
-			case (TBL_CELL_DVERT):
 			case (TBL_CELL_HORIZ):
 			case (TBL_CELL_DHORIZ):
 				mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
@@ -270,25 +269,16 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 
 	(*pos)++;
 
-	/* Extra check for the double-vertical. */
-
-	if (TBL_CELL_VERT == c && '|' == p[*pos]) {
-		(*pos)++;
-		c = TBL_CELL_DVERT;
-	} 
-	
 	/* Disallow adjacent spacers. */
 
-	if (rp->last && (TBL_CELL_VERT == c || TBL_CELL_DVERT == c) &&
-			(TBL_CELL_VERT == rp->last->pos || 
-			 TBL_CELL_DVERT == rp->last->pos)) {
+	if (vert > 2) {
 		mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse, ln, *pos - 1, NULL);
 		return(0);
 	}
 
 	/* Allocate cell then parse its modifiers. */
 
-	return(mods(tbl, cell_alloc(tbl, rp, c), ln, p, pos));
+	return(mods(tbl, cell_alloc(tbl, rp, c, vert), ln, p, pos));
 }
 
 
@@ -308,11 +298,11 @@ row:	/*
 	 */
 
 	rp = mandoc_calloc(1, sizeof(struct tbl_row));
-	if (tbl->last_row) {
+	if (tbl->last_row)
 		tbl->last_row->next = rp;
-		tbl->last_row = rp;
-	} else
-		tbl->last_row = tbl->first_row = rp;
+	else
+		tbl->first_row = rp;
+	tbl->last_row = rp;
 
 cell:
 	while (isspace((unsigned char)p[*pos]))
@@ -357,7 +347,8 @@ tbl_layout(struct tbl_node *tbl, int ln, const char *p)
 }
 
 static struct tbl_cell *
-cell_alloc(struct tbl_node *tbl, struct tbl_row *rp, enum tbl_cellt pos)
+cell_alloc(struct tbl_node *tbl, struct tbl_row *rp, enum tbl_cellt pos,
+		int vert)
 {
 	struct tbl_cell	*p, *pp;
 	struct tbl_head	*h, *hp;
@@ -365,108 +356,35 @@ cell_alloc(struct tbl_node *tbl, struct tbl_row *rp, enum tbl_cellt pos)
 	p = mandoc_calloc(1, sizeof(struct tbl_cell));
 
 	if (NULL != (pp = rp->last)) {
-		rp->last->next = p;
-		rp->last = p;
-	} else
-		rp->last = rp->first = p;
+		pp->next = p;
+		h = pp->head->next;
+	} else {
+		rp->first = p;
+		h = tbl->first_head;
+	}
+	rp->last = p;
 
 	p->pos = pos;
+	p->vert = vert;
 
-	/*
-	 * This is a little bit complicated.  Here we determine the
-	 * header the corresponds to a cell.  We add headers dynamically
-	 * when need be or re-use them, otherwise.  As an example, given
-	 * the following:
-	 *
-	 * 	1  c || l 
-	 * 	2  | c | l
-	 * 	3  l l
-	 * 	3  || c | l |.
-	 *
-	 * We first add the new headers (as there are none) in (1); then
-	 * in (2) we insert the first spanner (as it doesn't match up
-	 * with the header); then we re-use the prior data headers,
-	 * skipping over the spanners; then we re-use everything and add
-	 * a last spanner.  Note that VERT headers are made into DVERT
-	 * ones.
-	 */
-
-	h = pp ? pp->head->next : tbl->first_head;
+	/* Re-use header. */
 
 	if (h) {
-		/* Re-use data header. */
-		if (TBL_HEAD_DATA == h->pos && 
-				(TBL_CELL_VERT != p->pos &&
-				 TBL_CELL_DVERT != p->pos)) {
-			p->head = h;
-			return(p);
-		}
-
-		/* Re-use spanner header. */
-		if (TBL_HEAD_DATA != h->pos && 
-				(TBL_CELL_VERT == p->pos ||
-				 TBL_CELL_DVERT == p->pos)) {
-			head_adjust(p, h);
-			p->head = h;
-			return(p);
-		}
-
-		/* Right-shift headers with a new spanner. */
-		if (TBL_HEAD_DATA == h->pos && 
-				(TBL_CELL_VERT == p->pos ||
-				 TBL_CELL_DVERT == p->pos)) {
-			hp = mandoc_calloc(1, sizeof(struct tbl_head));
-			hp->ident = tbl->opts.cols++;
-			hp->prev = h->prev;
-			if (h->prev)
-				h->prev->next = hp;
-			if (h == tbl->first_head)
-				tbl->first_head = hp;
-			h->prev = hp;
-			hp->next = h;
-			head_adjust(p, hp);
-			p->head = hp;
-			return(p);
-		}
-
-		if (NULL != (h = h->next)) {
-			head_adjust(p, h);
-			p->head = h;
-			return(p);
-		}
-
-		/* Fall through to default case... */
+		p->head = h;
+		return(p);
 	}
 
 	hp = mandoc_calloc(1, sizeof(struct tbl_head));
 	hp->ident = tbl->opts.cols++;
+	hp->vert = vert;
 
 	if (tbl->last_head) {
 		hp->prev = tbl->last_head;
 		tbl->last_head->next = hp;
-		tbl->last_head = hp;
 	} else
-		tbl->last_head = tbl->first_head = hp;
+		tbl->first_head = hp;
+	tbl->last_head = hp;
 
-	head_adjust(p, hp);
 	p->head = hp;
 	return(p);
 }
-
-static void
-head_adjust(const struct tbl_cell *cellp, struct tbl_head *head)
-{
-	if (TBL_CELL_VERT != cellp->pos &&
-			TBL_CELL_DVERT != cellp->pos) {
-		head->pos = TBL_HEAD_DATA;
-		return;
-	}
-
-	if (TBL_CELL_VERT == cellp->pos)
-		if (TBL_HEAD_DVERT != head->pos)
-			head->pos = TBL_HEAD_VERT;
-
-	if (TBL_CELL_DVERT == cellp->pos)
-		head->pos = TBL_HEAD_DVERT;
-}
-

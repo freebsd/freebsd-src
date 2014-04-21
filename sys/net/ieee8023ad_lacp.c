@@ -522,11 +522,7 @@ lacp_port_create(struct lagg_port *lgp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_index = ifp->if_index;
-	sdl.sdl_type = IFT_ETHER;
+	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	bcopy(&ethermulticastaddr_slowprotocols,
@@ -877,7 +873,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	}
 
 	if (sc->use_flowid && (m->m_flags & M_FLOWID))
-		hash = m->m_pkthdr.flowid;
+		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);
 	hash %= pm->pm_count;

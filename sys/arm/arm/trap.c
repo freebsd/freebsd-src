@@ -85,6 +85,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
@@ -107,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
+#include <machine/armreg.h>
 #include <machine/cpuconf.h>
 #include <machine/vmparam.h>
 #include <machine/frame.h>
@@ -124,7 +126,6 @@ __FBSDID("$FreeBSD$");
 
 
 void swi_handler(struct trapframe *);
-void undefinedinstruction(struct trapframe *);
 
 #include <machine/disassem.h>
 #include <machine/machdep.h>
@@ -133,11 +134,6 @@ extern char fusubailout[];
 
 #ifdef DEBUG
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
-#endif
-
-#if defined(CPU_ARM7TDMI)
-/* These CPUs may need data/prefetch abort fixups */
-#define	CPU_ABORT_FIXUP_REQUIRED
 #endif
 
 struct ksig {
@@ -197,37 +193,6 @@ call_trapsignal(struct thread *td, int sig, u_long code)
 	ksi.ksi_signo = sig;
 	ksi.ksi_code = (int)code;
 	trapsignal(td, &ksi);
-}
-
-static __inline int
-data_abort_fixup(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
-    struct ksig *ksig)
-{
-#ifdef CPU_ABORT_FIXUP_REQUIRED
-	int error;
-
-	/* Call the cpu specific data abort fixup routine */
-	error = cpu_dataabt_fixup(tf);
-	if (__predict_true(error != ABORT_FIXUP_FAILED))
-		return (error);
-
-	/*
-	 * Oops, couldn't fix up the instruction
-	 */
-	printf("data_abort_fixup: fixup for %s mode data abort failed.\n",
-	    TRAP_USERMODE(tf) ? "user" : "kernel");
-	printf("pc = 0x%08x, opcode 0x%08x, insn = ", tf->tf_pc,
-	    *((u_int *)tf->tf_pc));
-	disassemble(tf->tf_pc);
-
-	/* Die now if this happened in kernel mode */
-	if (!TRAP_USERMODE(tf))
-		dab_fatal(tf, fsr, far, td, NULL, ksig);
-
-	return (error);
-#else
-	return (ABORT_FIXUP_OK);
-#endif /* CPU_ABORT_FIXUP_REQUIRED */
 }
 
 void
@@ -339,19 +304,6 @@ data_abort_handler(struct trapframe *tf)
 		dab_fatal(tf, fsr, far, td, &ksig);
 	}
 
-	/* See if the cpu state needs to be fixed up */
-	switch (data_abort_fixup(tf, fsr, far, td, &ksig)) {
-	case ABORT_FIXUP_RETURN:
-		return;
-	case ABORT_FIXUP_FAILED:
-		/* Deliver a SIGILL to the process */
-		ksig.signb = SIGILL;
-		ksig.code = 0;
-		goto do_trapsignal;
-	default:
-		break;
-	}
-
 	va = trunc_page((vm_offset_t)far);
 
 	/*
@@ -385,17 +337,16 @@ data_abort_handler(struct trapframe *tf)
 	}
 
 	/*
-	 * We need to know whether the page should be mapped
-	 * as R or R/W. The MMU does not give us the info as
-	 * to whether the fault was caused by a read or a write.
-	 *
-	 * However, we know that a permission fault can only be
-	 * the result of a write to a read-only location, so
-	 * we can deal with those quickly.
-	 *
-	 * Otherwise we need to disassemble the instruction
-	 * responsible to determine if it was a write.
+	 * We need to know whether the page should be mapped as R or R/W.  On
+	 * armv6 and later the fault status register indicates whether the
+	 * access was a read or write.  Prior to armv6, we know that a
+	 * permission fault can only be the result of a write to a read-only
+	 * location, so we can deal with those quickly.  Otherwise we need to
+	 * disassemble the faulting instruction to determine if it was a write.
 	 */
+#if ARM_ARCH_6 || ARM_ARCH_7A
+	ftype = (fsr & FAULT_WNR) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
+#else
 	if (IS_PERMISSION_FAULT(fsr))
 		ftype = VM_PROT_WRITE;
 	else {
@@ -412,6 +363,7 @@ data_abort_handler(struct trapframe *tf)
 				ftype = VM_PROT_READ;
 		}
 	}
+#endif
 
 	/*
 	 * See if the fault is as a result of ref/mod emulation,
@@ -420,6 +372,10 @@ data_abort_handler(struct trapframe *tf)
 #ifdef DEBUG
 	last_fault_code = fsr;
 #endif
+	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK,
+	    NULL, "Kernel page fault") != 0)
+		goto fatal_pagefault;
+
 	if (pmap_fault_fixup(vmspace_pmap(td->td_proc->p_vmspace), va, ftype,
 	    user)) {
 		goto out;
@@ -442,6 +398,7 @@ data_abort_handler(struct trapframe *tf)
 	}
 	if (__predict_true(error == 0))
 		goto out;
+fatal_pagefault:
 	if (user == 0) {
 		if (pcb->pcb_onfault) {
 			tf->tf_r0 = error;
@@ -528,7 +485,8 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)
-		kdb_trap(fsr, 0, tf);
+		if (kdb_trap(fsr, 0, tf))
+			return (0);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
@@ -558,9 +516,6 @@ dab_align(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 	}
 
 	/* pcb_onfault *must* be NULL at this point */
-
-	/* See if the cpu state needs to be fixed up */
-	(void) data_abort_fixup(tf, fsr, far, td, ksig);
 
 	/* Deliver a bus error signal to the process */
 	ksig->code = 0;
@@ -650,9 +605,6 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 		return (0);
 	}
 
-	/* See if the cpu state needs to be fixed up */
-	(void) data_abort_fixup(tf, fsr, far, td, ksig);
-
 	/*
 	 * At this point, if the fault happened in kernel mode, we're toast
 	 */
@@ -665,37 +617,6 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 	td->td_frame = tf;
 
 	return (1);
-}
-
-static __inline int
-prefetch_abort_fixup(struct trapframe *tf, struct ksig *ksig)
-{
-#ifdef CPU_ABORT_FIXUP_REQUIRED
-	int error;
-
-	/* Call the cpu specific prefetch abort fixup routine */
-	error = cpu_prefetchabt_fixup(tf);
-	if (__predict_true(error != ABORT_FIXUP_FAILED))
-		return (error);
-
-	/*
-	 * Oops, couldn't fix up the instruction
-	 */
-	printf(
-	    "prefetch_abort_fixup: fixup for %s mode prefetch abort failed.\n",
-	    TRAP_USERMODE(tf) ? "user" : "kernel");
-	printf("pc = 0x%08x, opcode 0x%08x, insn = ", tf->tf_pc,
-	    *((u_int *)tf->tf_pc));
-	disassemble(tf->tf_pc);
-
-	/* Die now if this happened in kernel mode */
-	if (!TRAP_USERMODE(tf))
-		dab_fatal(tf, 0, tf->tf_pc, NULL, ksig);
-
-	return (error);
-#else
-	return (ABORT_FIXUP_OK);
-#endif /* CPU_ABORT_FIXUP_REQUIRED */
 }
 
 /*
@@ -744,20 +665,6 @@ prefetch_abort_handler(struct trapframe *tf)
 			enable_interrupts(I32_bit);
 		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
-	}
-
-	/* See if the cpu state needs to be fixed up */
-	switch (prefetch_abort_fixup(tf, &ksig)) {
-	case ABORT_FIXUP_RETURN:
-		return;
-	case ABORT_FIXUP_FAILED:
-		/* Deliver a SIGILL to the process */
-		ksig.signb = SIGILL;
-		ksig.code = 0;
-		td->td_frame = tf;
-		goto do_trapsignal;
-	default:
-		break;
 	}
 
 	/* Prefetch aborts cannot happen in kernel mode */

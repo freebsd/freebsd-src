@@ -215,7 +215,6 @@ struct ifnet {
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
-#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -227,6 +226,7 @@ struct ifnet {
 #define	if_imcasts	if_data.ifi_imcasts
 #define	if_omcasts	if_data.ifi_omcasts
 #define	if_iqdrops	if_data.ifi_iqdrops
+#define	if_oqdrops	if_data.ifi_oqdrops
 #define	if_noproto	if_data.ifi_noproto
 #define	if_lastchange	if_data.ifi_lastchange
 
@@ -325,18 +325,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
 #define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
-
-static __inline void
-if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
-{
-
-	ifp->if_baudrate_pf = 0;
-	while (baud > (u_long)(~0UL)) {
-		baud /= 10;
-		ifp->if_baudrate_pf++;
-	}
-	ifp->if_baudrate = baud;
-}
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
@@ -465,13 +453,11 @@ VNET_DECLARE(struct ifnethead, ifnet);
 VNET_DECLARE(struct ifgrouphead, ifg_head);
 VNET_DECLARE(int, if_index);
 VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
-VNET_DECLARE(int, useloopback);
 
 #define	V_ifnet		VNET(ifnet)
 #define	V_ifg_head	VNET(ifg_head)
 #define	V_if_index	VNET(if_index)
 #define	V_loif		VNET(loif)
-#define	V_useloopback	VNET(useloopback)
 
 int	if_addgroup(struct ifnet *, const char *);
 int	if_delgroup(struct ifnet *, const char *);
@@ -504,6 +490,7 @@ struct	ifnet *ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
+int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 int		ifa_ifwithaddr_check(struct sockaddr *);

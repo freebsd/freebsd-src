@@ -426,7 +426,7 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = ~(lun_id_t)(0);
+		cpi->max_lun = 0;
 		cpi->initiator_id = ~0;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "IBM", HBA_IDLEN);

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 #include <machine/pci_cfgreg.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
@@ -96,6 +97,11 @@ static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 			    device_t child, int type, struct resource *r,
 			    u_long start, u_long end);
+#ifdef PCI_RES_BUS
+static int		acpi_pcib_acpi_release_resource(device_t dev,
+			    device_t child, int type, int rid,
+			    struct resource *r);
+#endif
 #endif
 
 static device_method_t acpi_pcib_acpi_methods[] = {
@@ -115,7 +121,11 @@ static device_method_t acpi_pcib_acpi_methods[] = {
 #else
     DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 #endif
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+    DEVMETHOD(bus_release_resource,	acpi_pcib_acpi_release_resource),
+#else
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+#endif
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
@@ -271,6 +281,20 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 }
 #endif
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static int
+first_decoded_bus(struct acpi_hpcib_softc *sc, u_long *startp)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(&sc->ap_host_res.hr_rl, PCI_RES_BUS, 0);
+	if (rle == NULL)
+		return (ENXIO);
+	*startp = rle->start;
+	return (0);
+}
+#endif
+
 static int
 acpi_pcib_acpi_attach(device_t dev)
 {
@@ -278,6 +302,11 @@ acpi_pcib_acpi_attach(device_t dev)
     ACPI_STATUS			status;
     static int bus0_seen = 0;
     u_int slot, func, busok;
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+    struct resource *bus_res;
+    u_long start;
+    int rid;
+#endif
     uint8_t busno;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -389,6 +418,39 @@ acpi_pcib_acpi_attach(device_t dev)
 	}
     }
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+    /*
+     * If nothing else worked, hope that ACPI at least lays out the
+     * Host-PCI bridges in order and that as a result the next free
+     * bus number is our bus number.
+     */
+    if (busok == 0) {
+	    /*
+	     * If we have a region of bus numbers, use the first
+	     * number for our bus.
+	     */
+	    if (first_decoded_bus(sc, &start) == 0)
+		    sc->ap_bus = start;
+	    else {
+		    rid = 0;
+		    bus_res = pci_domain_alloc_bus(sc->ap_segment, dev, &rid, 0,
+			PCI_BUSMAX, 1, 0);
+		    if (bus_res == NULL) {
+			    device_printf(dev,
+				"could not allocate bus number\n");
+			    pcib_host_res_free(dev, &sc->ap_host_res);
+			    return (ENXIO);
+		    }
+		    sc->ap_bus = rman_get_start(bus_res);
+		    pci_domain_release_bus(sc->ap_segment, dev, rid, bus_res);
+	    }
+    } else {
+#ifdef INVARIANTS
+	    if (first_decoded_bus(sc, &start) == 0)
+		    KASSERT(start == sc->ap_bus, ("bus number mismatch"));
+#endif
+    }
+#else
     /*
      * If nothing else worked, hope that ACPI at least lays out the
      * host-PCI bridges in order and that as a result our unit number
@@ -399,6 +461,7 @@ acpi_pcib_acpi_attach(device_t dev)
 	sc->ap_bus = device_get_unit(dev);
 	device_printf(dev, "trying bus number %d\n", sc->ap_bus);
     }
+#endif
 
     /* If this is bus 0 on segment 0, note that it has been seen already. */
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
@@ -534,6 +597,11 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #ifdef NEW_PCIB
     sc = device_get_softc(dev);
+#ifdef PCI_RES_BUS
+    if (type == PCI_RES_BUS)
+	return (pci_domain_alloc_bus(sc->ap_segment, child, rid, start, end,
+	    count, flags));
+#endif
     res = pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
 	count, flags);
 
@@ -562,7 +630,26 @@ acpi_pcib_acpi_adjust_resource(device_t dev, device_t child, int type,
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
+#ifdef PCI_RES_BUS
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(sc->ap_segment, child, r, start,
+		    end));
+#endif
 	return (pcib_host_res_adjust(&sc->ap_host_res, child, type, r, start,
 	    end));
 }
+
+#ifdef PCI_RES_BUS
+int
+acpi_pcib_acpi_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(sc->ap_segment, child, rid, r));
+	return (bus_generic_release_resource(dev, child, type, rid, r));
+}
+#endif
 #endif

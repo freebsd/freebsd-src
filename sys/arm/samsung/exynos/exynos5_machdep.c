@@ -30,60 +30,52 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
+#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
 #include <vm/vm.h>
-#include <vm/pmap.h>
 
+#include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
-
-#define	DEVMAP_BOOTSTRAP_MAP_START 0xF0000000
 
 vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START);
+	return (arm_devmap_lastaddr());
+}
+
+void
+initarm_early_init(void)
+{
+
 }
 
 void
 initarm_gpio_init(void)
 {
+
 }
 
 void
 initarm_late_init(void)
 {
+
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)	/* FIXME */
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
-/*
- * Construct pmap_devmap[] with DT-derived config data.
- */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
-	int i;
 
-	i = 0;
-	fdt_devmap[i].pd_va = 0xf2C00000;
-	fdt_devmap[i].pd_pa = 0x12C00000;
-	fdt_devmap[i].pd_size = 0x100000;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
-	i++;
+	/* UART */
+	arm_devmap_add_entry(0x12C00000, 0x100000);
 
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 	return (0);
 }
 

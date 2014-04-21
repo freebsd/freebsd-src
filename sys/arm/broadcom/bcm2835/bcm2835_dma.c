@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define		CS_WAITWRT		(1 << 28)
 #define		CS_DISDBG		(1 << 29)
 #define		CS_ABORT		(1 << 30)
-#define		CS_RESET		(1 << 31)
+#define		CS_RESET		(1U << 31)
 #define	BCM_DMA_CBADDR(n)	(0x100*(n) + 0x04)
 #define	BCM_DMA_INFO(n)		(0x100*(n) + 0x08)
 #define		INFO_INT_EN		(1 << 0)
@@ -636,6 +636,9 @@ bcm_dma_intr(void *arg)
 static int
 bcm_dma_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-dma"))
 		return (ENXIO);

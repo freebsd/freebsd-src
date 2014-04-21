@@ -401,10 +401,16 @@ vdev_geom_attach_taster(struct g_consumer *cp, struct g_provider *pp)
 
 	if (pp->flags & G_PF_WITHER)
 		return (EINVAL);
-	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
-		return (EINVAL);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
+	if (error == 0) {
+		if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
+			error = EINVAL;
+		else if (pp->mediasize < SPA_MINDEVSIZE)
+			error = EINVAL;
+		if (error != 0)
+			g_access(cp, -1, 0, 0);
+	}
 	if (error != 0)
 		g_detach(cp);
 	return (error);
@@ -764,20 +770,12 @@ vdev_geom_io_intr(struct bio *bp)
 		 */
 		vd->vdev_notrim = B_TRUE;
 	}
-	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
+	if (zio->io_error == ENXIO && !vd->vdev_remove_wanted) {
 		/*
 		 * If provider's error is set we assume it is being
 		 * removed.
 		 */
 		if (bp->bio_to->error != 0) {
-			/*
-			 * We post the resource as soon as possible, instead of
-			 * when the async removal actually happens, because the
-			 * DE is using this information to discard previous I/O
-			 * errors.
-			 */
-			/* XXX: zfs_post_remove() can sleep. */
-			zfs_post_remove(zio->io_spa, vd);
 			vd->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
 		} else if (!vd->vdev_delayed_close) {

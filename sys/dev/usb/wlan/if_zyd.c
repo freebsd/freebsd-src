@@ -489,9 +489,14 @@ zyd_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (zvp == NULL)
 		return (NULL);
 	vap = &zvp->vap;
+
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(zvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	zvp->newstate = vap->iv_newstate;
@@ -2502,7 +2507,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		}
 	}
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);

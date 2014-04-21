@@ -26,9 +26,13 @@
         ..
         bluetooth
         ..
+        casper
+        ..
         defaults
         ..
         devd
+        ..
+        dma
         ..
         gnats
         ..
@@ -74,6 +78,8 @@
         ..
     ..
     libexec
+        casper
+        ..
         resolvconf
         ..
     ..

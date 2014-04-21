@@ -79,11 +79,7 @@ static const struct {
 	}
 };
 
-#ifdef HAS_DES
-#define CRYPT_DEFAULT	"des"
-#else
-#define CRYPT_DEFAULT	"md5"
-#endif
+#define CRYPT_DEFAULT	"sha512"
 
 static int crypt_type = -1;
 

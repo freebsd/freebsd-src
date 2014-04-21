@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
@@ -1072,7 +1072,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			if (asbt <= INT64_MAX - rsbt)
+			if (asbt <= SBT_MAX - rsbt)
 				asbt += rsbt;
 			else
 				asbt = -1;
@@ -1195,8 +1195,9 @@ getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
 	cap_rights_t rights;
 
-	return (fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_POLL_EVENT),
-	    0, fpp, NULL));
+	cap_rights_init(&rights, CAP_EVENT);
+
+	return (fget_unlocked(fdp, fd, &rights, 0, fpp, NULL));
 }
 
 /*
@@ -1392,7 +1393,7 @@ pollrescan(struct thread *td)
 #ifdef CAPABILITIES
 		if (fp == NULL ||
 		    cap_check(cap_rights(fdp, fd->fd),
-		    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+		    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 		if (fp == NULL)
 #endif
@@ -1467,7 +1468,7 @@ pollscan(td, fds, nfd)
 #ifdef CAPABILITIES
 			if (fp == NULL ||
 			    cap_check(cap_rights(fdp, fds->fd),
-			    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+			    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 			if (fp == NULL)
 #endif
@@ -1546,7 +1547,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			if (asbt <= INT64_MAX - rsbt)
+			if (asbt <= SBT_MAX - rsbt)
 				asbt += rsbt;
 			else
 				asbt = -1;

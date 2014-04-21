@@ -107,11 +107,11 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     _Bin_record& __bin = _M_bin[__which];
 
     char* __c = __p - _M_get_align();
-    _Block_record* __block = reinterpret_cast<_Block_record*>(__c);
+    _Block_record* __block_record = reinterpret_cast<_Block_record*>(__c);
       
     // Single threaded application - return to global pool.
-    __block->_M_next = __bin._M_first[0];
-    __bin._M_first[0] = __block;
+    __block_record->_M_next = __bin._M_first[0];
+    __bin._M_first[0] = __block_record;
   }
 
   char* 
@@ -134,22 +134,22 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     __bin._M_address = __address;
 
     char* __c = static_cast<char*>(__v) + sizeof(_Block_address);
-    _Block_record* __block = reinterpret_cast<_Block_record*>(__c);
-    __bin._M_first[__thread_id] = __block;
+    _Block_record* __block_record = reinterpret_cast<_Block_record*>(__c);
+    __bin._M_first[__thread_id] = __block_record;
     while (--__block_count > 0)
       {
 	__c += __bin_size;
-	__block->_M_next = reinterpret_cast<_Block_record*>(__c);
-	__block = __block->_M_next;
+	__block_record->_M_next = reinterpret_cast<_Block_record*>(__c);
+	__block_record = __block_record->_M_next;
       }
-    __block->_M_next = NULL;
+    __block_record->_M_next = NULL;
 
-    __block = __bin._M_first[__thread_id];
-    __bin._M_first[__thread_id] = __block->_M_next;
+    __block_record = __bin._M_first[__thread_id];
+    __bin._M_first[__thread_id] = __block_record->_M_next;
 
     // NB: For alignment reasons, we can't use the first _M_align
     // bytes, even when sizeof(_Block_record) < _M_align.
-    return reinterpret_cast<char*>(__block) + __options._M_align;
+    return reinterpret_cast<char*>(__block_record) + __options._M_align;
   }
 
   void
@@ -256,7 +256,7 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 
     // Know __p not null, assume valid block.
     char* __c = __p - _M_get_align();
-    _Block_record* __block = reinterpret_cast<_Block_record*>(__c);
+    _Block_record* __block_record = reinterpret_cast<_Block_record*>(__c);
     if (__gthread_active_p())
       {
 	// Calculate the number of records to remove from our freelist:
@@ -313,13 +313,13 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 
 	// Return this block to our list and update counters and
 	// owner id as needed.
-	if (__block->_M_thread_id == __thread_id)
+	if (__block_record->_M_thread_id == __thread_id)
 	  --__bin._M_used[__thread_id];
 	else
-	  __atomic_add(&__reclaimed_base[__block->_M_thread_id], 1);
+	  __atomic_add(&__reclaimed_base[__block_record->_M_thread_id], 1);
 
-	__block->_M_next = __bin._M_first[__thread_id];
-	__bin._M_first[__thread_id] = __block;
+	__block_record->_M_next = __bin._M_first[__thread_id];
+	__bin._M_first[__thread_id] = __block_record;
 	
 	++__bin._M_free[__thread_id];
       }
@@ -327,8 +327,8 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
       {
 	// Not using threads, so single threaded application - return
 	// to global pool.
-	__block->_M_next = __bin._M_first[0];
-	__bin._M_first[0] = __block;
+	__block_record->_M_next = __bin._M_first[0];
+	__bin._M_first[0] = __block_record;
       }
   }
 
@@ -354,7 +354,7 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     //   blocks on global list (and if not add new ones) and
     //   get the first one.
     _Bin_record& __bin = _M_bin[__which];
-    _Block_record* __block = NULL;
+    _Block_record* __block_record = NULL;
     if (__gthread_active_p())
       {
 	// Resync the _M_used counters.
@@ -378,16 +378,16 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	    // No need to hold the lock when we are adding a whole
 	    // chunk to our own list.
 	    char* __c = static_cast<char*>(__v) + sizeof(_Block_address);
-	    __block = reinterpret_cast<_Block_record*>(__c);
+	    __block_record = reinterpret_cast<_Block_record*>(__c);
 	    __bin._M_free[__thread_id] = __block_count;
-	    __bin._M_first[__thread_id] = __block;
+	    __bin._M_first[__thread_id] = __block_record;
 	    while (--__block_count > 0)
 	      {
 		__c += __bin_size;
-		__block->_M_next = reinterpret_cast<_Block_record*>(__c);
-		__block = __block->_M_next;
+		__block_record->_M_next = reinterpret_cast<_Block_record*>(__c);
+		__block_record = __block_record->_M_next;
 	      }
-	    __block->_M_next = NULL;
+	    __block_record->_M_next = NULL;
 	  }
 	else
 	  {
@@ -405,11 +405,11 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	      {
 		__bin._M_free[__thread_id] = __block_count;
 		__bin._M_free[0] -= __block_count;
-		__block = __bin._M_first[0];
+		__block_record = __bin._M_first[0];
 		while (--__block_count > 0)
-		  __block = __block->_M_next;
-		__bin._M_first[0] = __block->_M_next;
-		__block->_M_next = NULL;
+		  __block_record = __block_record->_M_next;
+		__bin._M_first[0] = __block_record->_M_next;
+		__block_record->_M_next = NULL;
 	      }
 	    __gthread_mutex_unlock(__bin._M_mutex);
 	  }
@@ -423,30 +423,30 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	__bin._M_address = __address;
 
 	char* __c = static_cast<char*>(__v) + sizeof(_Block_address);
-	__block = reinterpret_cast<_Block_record*>(__c);
- 	__bin._M_first[0] = __block;
+	__block_record = reinterpret_cast<_Block_record*>(__c);
+ 	__bin._M_first[0] = __block_record;
 	while (--__block_count > 0)
 	  {
 	    __c += __bin_size;
-	    __block->_M_next = reinterpret_cast<_Block_record*>(__c);
-	    __block = __block->_M_next;
+	    __block_record->_M_next = reinterpret_cast<_Block_record*>(__c);
+	    __block_record = __block_record->_M_next;
 	  }
-	__block->_M_next = NULL;
+	__block_record->_M_next = NULL;
       }
       
-    __block = __bin._M_first[__thread_id];
-    __bin._M_first[__thread_id] = __block->_M_next;
+    __block_record = __bin._M_first[__thread_id];
+    __bin._M_first[__thread_id] = __block_record->_M_next;
 
     if (__gthread_active_p())
       {
-	__block->_M_thread_id = __thread_id;
+	__block_record->_M_thread_id = __thread_id;
 	--__bin._M_free[__thread_id];
 	++__bin._M_used[__thread_id];
       }
 
     // NB: For alignment reasons, we can't use the first _M_align
     // bytes, even when sizeof(_Block_record) < _M_align.
-    return reinterpret_cast<char*>(__block) + __options._M_align;
+    return reinterpret_cast<char*>(__block_record) + __options._M_align;
   }
 
   void

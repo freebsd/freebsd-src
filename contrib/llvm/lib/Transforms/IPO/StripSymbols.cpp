@@ -9,7 +9,7 @@
 //
 // The StripSymbols transformation implements code stripping. Specifically, it
 // can delete:
-// 
+//
 //   * names for virtual registers
 //   * symbols for internal globals and functions
 //   * debug information
@@ -39,7 +39,7 @@ namespace {
     bool OnlyDebugInfo;
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit StripSymbols(bool ODI = false) 
+    explicit StripSymbols(bool ODI = false)
       : ModulePass(ID), OnlyDebugInfo(ODI) {
         initializeStripSymbolsPass(*PassRegistry::getPassRegistry());
       }
@@ -144,7 +144,7 @@ static void RemoveDeadConstant(Constant *C) {
   assert(C->use_empty() && "Constant is not dead!");
   SmallPtrSet<Constant*, 4> Operands;
   for (unsigned i = 0, e = C->getNumOperands(); i != e; ++i)
-    if (OnlyUsedBy(C->getOperand(i), C)) 
+    if (OnlyUsedBy(C->getOperand(i), C))
       Operands.insert(cast<Constant>(C->getOperand(i)));
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
     if (!GV->hasLocalLinkage()) return;   // Don't delete non static globals.
@@ -182,7 +182,7 @@ static void StripTypeNames(Module &M, bool PreserveDbgInfo) {
   for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
     StructType *STy = StructTypes[i];
     if (STy->isLiteral() || STy->getName().empty()) continue;
-    
+
     if (PreserveDbgInfo && STy->getName().startswith("llvm.dbg"))
       continue;
 
@@ -199,7 +199,7 @@ static void findUsedValues(GlobalVariable *LLVMUsed,
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
 
   for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
-    if (GlobalValue *GV = 
+    if (GlobalValue *GV =
           dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
       UsedValues.insert(GV);
 }
@@ -217,69 +217,18 @@ static bool StripSymbolNames(Module &M, bool PreserveDbgInfo) {
       if (!PreserveDbgInfo || !I->getName().startswith("llvm.dbg"))
         I->setName("");     // Internal symbols can't participate in linkage
   }
-  
+
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     if (I->hasLocalLinkage() && llvmUsedValues.count(I) == 0)
       if (!PreserveDbgInfo || !I->getName().startswith("llvm.dbg"))
         I->setName("");     // Internal symbols can't participate in linkage
     StripSymtab(I->getValueSymbolTable(), PreserveDbgInfo);
   }
-  
+
   // Remove all names from types.
   StripTypeNames(M, PreserveDbgInfo);
 
   return true;
-}
-
-// StripDebugInfo - Strip debug info in the module if it exists.  
-// To do this, we remove llvm.dbg.func.start, llvm.dbg.stoppoint, and 
-// llvm.dbg.region.end calls, and any globals they point to if now dead.
-static bool StripDebugInfo(Module &M) {
-
-  bool Changed = false;
-
-  // Remove all of the calls to the debugger intrinsics, and remove them from
-  // the module.
-  if (Function *Declare = M.getFunction("llvm.dbg.declare")) {
-    while (!Declare->use_empty()) {
-      CallInst *CI = cast<CallInst>(Declare->use_back());
-      CI->eraseFromParent();
-    }
-    Declare->eraseFromParent();
-    Changed = true;
-  }
-
-  if (Function *DbgVal = M.getFunction("llvm.dbg.value")) {
-    while (!DbgVal->use_empty()) {
-      CallInst *CI = cast<CallInst>(DbgVal->use_back());
-      CI->eraseFromParent();
-    }
-    DbgVal->eraseFromParent();
-    Changed = true;
-  }
-
-  for (Module::named_metadata_iterator NMI = M.named_metadata_begin(),
-         NME = M.named_metadata_end(); NMI != NME;) {
-    NamedMDNode *NMD = NMI;
-    ++NMI;
-    if (NMD->getName().startswith("llvm.dbg.")) {
-      NMD->eraseFromParent();
-      Changed = true;
-    }
-  }
-
-  for (Module::iterator MI = M.begin(), ME = M.end(); MI != ME; ++MI)
-    for (Function::iterator FI = MI->begin(), FE = MI->end(); FI != FE;
-         ++FI)
-      for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE;
-           ++BI) {
-        if (!BI->getDebugLoc().isUnknown()) {
-          Changed = true;
-          BI->setDebugLoc(DebugLoc());
-        }
-      }
-
-  return Changed;
 }
 
 bool StripSymbols::runOnModule(Module &M) {
@@ -307,13 +256,13 @@ bool StripDebugDeclare::runOnModule(Module &M) {
       assert(CI->use_empty() && "llvm.dbg intrinsic should have void result");
       CI->eraseFromParent();
       if (Arg1->use_empty()) {
-        if (Constant *C = dyn_cast<Constant>(Arg1)) 
+        if (Constant *C = dyn_cast<Constant>(Arg1))
           DeadConstants.push_back(C);
-        else 
+        else
           RecursivelyDeleteTriviallyDeadInstructions(Arg1);
       }
       if (Arg2->use_empty())
-        if (Constant *C = dyn_cast<Constant>(Arg2)) 
+        if (Constant *C = dyn_cast<Constant>(Arg2))
           DeadConstants.push_back(C);
     }
     Declare->eraseFromParent();
@@ -332,81 +281,107 @@ bool StripDebugDeclare::runOnModule(Module &M) {
   return true;
 }
 
-/// getRealLinkageName - If special LLVM prefix that is used to inform the asm 
-/// printer to not emit usual symbol prefix before the symbol name is used then
-/// return linkage name after skipping this special LLVM prefix.
-static StringRef getRealLinkageName(StringRef LinkageName) {
-  char One = '\1';
-  if (LinkageName.startswith(StringRef(&One, 1)))
-    return LinkageName.substr(1);
-  return LinkageName;
-}
-
+/// Remove any debug info for global variables/functions in the given module for
+/// which said global variable/function no longer exists (i.e. is null).
+///
+/// Debugging information is encoded in llvm IR using metadata. This is designed
+/// such a way that debug info for symbols preserved even if symbols are
+/// optimized away by the optimizer. This special pass removes debug info for
+/// such symbols.
 bool StripDeadDebugInfo::runOnModule(Module &M) {
   bool Changed = false;
 
-  // Debugging infomration is encoded in llvm IR using metadata. This is designed
-  // such a way that debug info for symbols preserved even if symbols are
-  // optimized away by the optimizer. This special pass removes debug info for 
-  // such symbols.
+  LLVMContext &C = M.getContext();
 
-  // llvm.dbg.gv keeps track of debug info for global variables.
-  if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv")) {
-    SmallVector<MDNode *, 8> MDs;
-    for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
-      if (DIGlobalVariable(NMD->getOperand(i)).Verify())
-        MDs.push_back(NMD->getOperand(i));
-      else
-        Changed = true;
-    NMD->eraseFromParent();
-    NMD = NULL;
+  // Find all debug info in F. This is actually overkill in terms of what we
+  // want to do, but we want to try and be as resilient as possible in the face
+  // of potential debug info changes by using the formal interfaces given to us
+  // as much as possible.
+  DebugInfoFinder F;
+  F.processModule(M);
 
-    for (SmallVector<MDNode *, 8>::iterator I = MDs.begin(),
-           E = MDs.end(); I != E; ++I) {
-      GlobalVariable *GV = DIGlobalVariable(*I).getGlobal();
-      if (GV && M.getGlobalVariable(GV->getName(), true)) {
-        if (!NMD)
-          NMD = M.getOrInsertNamedMetadata("llvm.dbg.gv");
-        NMD->addOperand(*I);
-      }
+  // For each compile unit, find the live set of global variables/functions and
+  // replace the current list of potentially dead global variables/functions
+  // with the live list.
+  SmallVector<Value *, 64> LiveGlobalVariables;
+  SmallVector<Value *, 64> LiveSubprograms;
+  DenseSet<const MDNode *> VisitedSet;
+
+  for (DebugInfoFinder::iterator CI = F.compile_unit_begin(),
+         CE = F.compile_unit_end(); CI != CE; ++CI) {
+    // Create our compile unit.
+    DICompileUnit DIC(*CI);
+    assert(DIC.Verify() && "DIC must verify as a DICompileUnit.");
+
+    // Create our live subprogram list.
+    DIArray SPs = DIC.getSubprograms();
+    bool SubprogramChange = false;
+    for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+      DISubprogram DISP(SPs.getElement(i));
+      assert(DISP.Verify() && "DISP must verify as a DISubprogram.");
+
+      // Make sure we visit each subprogram only once.
+      if (!VisitedSet.insert(DISP).second)
+        continue;
+
+      // If the function referenced by DISP is not null, the function is live.
+      if (DISP.getFunction())
+        LiveSubprograms.push_back(DISP);
       else
-        Changed = true;
+        SubprogramChange = true;
     }
-  }
 
-  // llvm.dbg.sp keeps track of debug info for subprograms.
-  if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp")) {
-    SmallVector<MDNode *, 8> MDs;
-    for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
-      if (DISubprogram(NMD->getOperand(i)).Verify())
-        MDs.push_back(NMD->getOperand(i));
+    // Create our live global variable list.
+    DIArray GVs = DIC.getGlobalVariables();
+    bool GlobalVariableChange = false;
+    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
+      DIGlobalVariable DIG(GVs.getElement(i));
+      assert(DIG.Verify() && "DIG must verify as DIGlobalVariable.");
+
+      // Make sure we only visit each global variable only once.
+      if (!VisitedSet.insert(DIG).second)
+        continue;
+
+      // If the global variable referenced by DIG is not null, the global
+      // variable is live.
+      if (DIG.getGlobal())
+        LiveGlobalVariables.push_back(DIG);
       else
-        Changed = true;
-    NMD->eraseFromParent();
-    NMD = NULL;
-
-    for (SmallVector<MDNode *, 8>::iterator I = MDs.begin(),
-           E = MDs.end(); I != E; ++I) {
-      bool FnIsLive = false;
-      if (Function *F = DISubprogram(*I).getFunction())
-        if (M.getFunction(F->getName()))
-          FnIsLive = true;
-      if (FnIsLive) {
-          if (!NMD)
-            NMD = M.getOrInsertNamedMetadata("llvm.dbg.sp");
-          NMD->addOperand(*I);
-      } else {
-        // Remove llvm.dbg.lv.fnname named mdnode which may have been used
-        // to hold debug info for dead function's local variables.
-        StringRef FName = DISubprogram(*I).getLinkageName();
-        if (FName.empty())
-          FName = DISubprogram(*I).getName();
-        if (NamedMDNode *LVNMD = 
-            M.getNamedMetadata(Twine("llvm.dbg.lv.", 
-                                     getRealLinkageName(FName)))) 
-          LVNMD->eraseFromParent();
-      }
+        GlobalVariableChange = true;
     }
+
+    // If we found dead subprograms or global variables, replace the current
+    // subprogram list/global variable list with our new live subprogram/global
+    // variable list.
+    if (SubprogramChange) {
+      // Make sure that 9 is still the index of the subprograms. This is to make
+      // sure that an assert is hit if the location of the subprogram array
+      // changes. This is just to make sure that this is updated if such an
+      // event occurs.
+      assert(DIC->getNumOperands() >= 10 &&
+             SPs == DIC->getOperand(9) &&
+             "DICompileUnits is expected to store Subprograms in operand "
+             "9.");
+      DIC->replaceOperandWith(9, MDNode::get(C, LiveSubprograms));
+      Changed = true;
+    }
+
+    if (GlobalVariableChange) {
+      // Make sure that 10 is still the index of global variables. This is to
+      // make sure that an assert is hit if the location of the subprogram array
+      // changes. This is just to make sure that this index is updated if such
+      // an event occurs.
+      assert(DIC->getNumOperands() >= 11 &&
+             GVs == DIC->getOperand(10) &&
+             "DICompileUnits is expected to store Global Variables in operand "
+             "10.");
+      DIC->replaceOperandWith(10, MDNode::get(C, LiveGlobalVariables));
+      Changed = true;
+    }
+
+    // Reset lists for the next iteration.
+    LiveSubprograms.clear();
+    LiveGlobalVariables.clear();
   }
 
   return Changed;

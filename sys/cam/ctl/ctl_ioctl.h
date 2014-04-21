@@ -617,12 +617,15 @@ typedef enum {
 	CTL_ISCSI_LIST,
 	CTL_ISCSI_LOGOUT,
 	CTL_ISCSI_TERMINATE,
-#ifdef ICL_KERNEL_PROXY
+#if defined(ICL_KERNEL_PROXY) || 1
+	/*
+	 * We actually need those in all cases, but leave the ICL_KERNEL_PROXY,
+	 * to remember to remove them along with rest of proxy code, eventually.
+	 */
 	CTL_ISCSI_LISTEN,
 	CTL_ISCSI_ACCEPT,
 	CTL_ISCSI_SEND,
 	CTL_ISCSI_RECEIVE,
-	CTL_ISCSI_CLOSE,
 #endif
 } ctl_iscsi_type;
 
@@ -640,15 +643,7 @@ struct ctl_iscsi_handoff_params {
 	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
 	char			target_name[CTL_ISCSI_NAME_LEN];
-#ifdef ICL_KERNEL_PROXY
-	int			connection_id;
-	/*
-	 * XXX
-	 */
 	int			socket;
-#else
-	int			socket;
-#endif
 	int			portal_group_tag;
 	
 	/*
@@ -662,7 +657,12 @@ struct ctl_iscsi_handoff_params {
 	uint32_t		max_burst_length;
 	uint32_t		first_burst_length;
 	uint32_t		immediate_data;
+#ifdef ICL_KERNEL_PROXY
+	int			connection_id;
+	int			spare[3];
+#else
 	int			spare[4];
+#endif
 };
 
 struct ctl_iscsi_list_params {
@@ -700,11 +700,15 @@ struct ctl_iscsi_listen_params {
 	int				protocol;
 	struct sockaddr			*addr;
 	socklen_t			addrlen;
+	int				portal_id;
 	int				spare[4];
 };
 
 struct ctl_iscsi_accept_params {
 	int				connection_id;
+	int				portal_id;
+	struct sockaddr			*initiator_addr;
+	socklen_t			initiator_addrlen;
 	int				spare[4];
 };
 
@@ -715,7 +719,7 @@ struct ctl_iscsi_send_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
 struct ctl_iscsi_receive_params {
@@ -725,13 +729,9 @@ struct ctl_iscsi_receive_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
-struct ctl_iscsi_close_params {
-	int				connection_id;
-	int				spare[4];
-};
 #endif /* ICL_KERNEL_PROXY */
 
 union ctl_iscsi_data {
@@ -744,7 +744,6 @@ union ctl_iscsi_data {
 	struct ctl_iscsi_accept_params		accept;
 	struct ctl_iscsi_send_params		send;
 	struct ctl_iscsi_receive_params		receive;
-	struct ctl_iscsi_close_params		close;
 #endif
 };
 

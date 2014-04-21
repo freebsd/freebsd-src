@@ -11,18 +11,28 @@
 #define CLANG_DRIVER_JOB_H_
 
 #include "clang/Basic/LLVM.h"
-#include "clang/Driver/Util.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Option/Option.h"
+
+namespace llvm {
+  class raw_ostream;
+}
 
 namespace clang {
 namespace driver {
+class Action;
 class Command;
 class Tool;
+
+// Re-export this as clang::driver::ArgStringList.
+using llvm::opt::ArgStringList;
 
 class Job {
 public:
   enum JobClass {
     CommandClass,
+    FallbackCommandClass,
     JobListClass
   };
 
@@ -36,16 +46,19 @@ public:
 
   JobClass getKind() const { return Kind; }
 
-  /// addCommand - Append a command to the current job, which must be
-  /// either a piped job or a job list.
-  void addCommand(Command *C);
+  /// Print - Print this Job in -### format.
+  ///
+  /// \param OS - The stream to print on.
+  /// \param Terminator - A string to print at the end of the line.
+  /// \param Quote - Should separate arguments be quoted.
+  /// \param CrashReport - Whether to print for inclusion in a crash report.
+  virtual void Print(llvm::raw_ostream &OS, const char *Terminator,
+                     bool Quote, bool CrashReport = false) const = 0;
 };
 
-  /// Command - An executable path/name and argument vector to
-  /// execute.
+/// Command - An executable path/name and argument vector to
+/// execute.
 class Command : public Job {
-  virtual void anchor();
-
   /// Source - The action which caused the creation of this job.
   const Action &Source;
 
@@ -57,11 +70,17 @@ class Command : public Job {
 
   /// The list of program arguments (not including the implicit first
   /// argument, which will be the executable).
-  ArgStringList Arguments;
+  llvm::opt::ArgStringList Arguments;
 
 public:
   Command(const Action &_Source, const Tool &_Creator, const char *_Executable,
-          const ArgStringList &_Arguments);
+          const llvm::opt::ArgStringList &_Arguments);
+
+  virtual void Print(llvm::raw_ostream &OS, const char *Terminator,
+                     bool Quote, bool CrashReport = false) const;
+
+  virtual int Execute(const StringRef **Redirects, std::string *ErrMsg,
+                      bool *ExecutionFailed) const;
 
   /// getSource - Return the Action which caused the creation of this job.
   const Action &getSource() const { return Source; }
@@ -69,16 +88,37 @@ public:
   /// getCreator - Return the Tool which caused the creation of this job.
   const Tool &getCreator() const { return Creator; }
 
-  const char *getExecutable() const { return Executable; }
-
-  const ArgStringList &getArguments() const { return Arguments; }
+  const llvm::opt::ArgStringList &getArguments() const { return Arguments; }
 
   static bool classof(const Job *J) {
-    return J->getKind() == CommandClass;
+    return J->getKind() == CommandClass ||
+           J->getKind() == FallbackCommandClass;
   }
 };
 
-  /// JobList - A sequence of jobs to perform.
+/// Like Command, but with a fallback which is executed in case
+/// the primary command crashes.
+class FallbackCommand : public Command {
+public:
+  FallbackCommand(const Action &Source_, const Tool &Creator_,
+                  const char *Executable_, const ArgStringList &Arguments_,
+                  Command *Fallback_);
+
+  virtual void Print(llvm::raw_ostream &OS, const char *Terminator,
+                     bool Quote, bool CrashReport = false) const;
+
+  virtual int Execute(const StringRef **Redirects, std::string *ErrMsg,
+                      bool *ExecutionFailed) const;
+
+  static bool classof(const Job *J) {
+    return J->getKind() == FallbackCommandClass;
+  }
+
+private:
+  OwningPtr<Command> Fallback;
+};
+
+/// JobList - A sequence of jobs to perform.
 class JobList : public Job {
 public:
   typedef SmallVector<Job*, 4> list_type;
@@ -92,6 +132,9 @@ private:
 public:
   JobList();
   virtual ~JobList();
+
+  virtual void Print(llvm::raw_ostream &OS, const char *Terminator,
+                     bool Quote, bool CrashReport = false) const;
 
   /// Add a job to the list (taking ownership).
   void addJob(Job *J) { Jobs.push_back(J); }

@@ -134,10 +134,11 @@ enum {
 
 	RX_FL_ESIZE = EQ_ESIZE,	/* 8 64bit addresses */
 #if MJUMPAGESIZE != MCLBYTES
-	FL_BUF_SIZES_MAX = 5,	/* cluster, jumbop, jumbo9k, jumbo16k, extra */
+	SW_ZONE_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
 #else
-	FL_BUF_SIZES_MAX = 4,	/* cluster, jumbo9k, jumbo16k, extra */
+	SW_ZONE_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
+	CL_METADATA_SIZE = CACHE_LINE_SIZE,
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -200,6 +201,7 @@ struct port_info {
 	unsigned long flags;
 	int if_flags;
 
+	uint16_t *rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -209,10 +211,12 @@ struct port_info {
 	uint8_t  mod_type;
 	uint8_t  port_id;
 	uint8_t  tx_chan;
+	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
 
 	/* These need to be int as they are used in sysctl */
 	int ntxq;	/* # of tx queues */
 	int first_txq;	/* index of first tx queue */
+	int rsrv_noflowq; /* Reserve queue 0 for non-flowid packets */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
 #ifdef TCP_OFFLOAD
@@ -238,13 +242,26 @@ struct port_info {
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
 
-struct fl_sdesc {
-	bus_dmamap_t map;
-	caddr_t cl;
-	uint8_t tag_idx;	/* the fl->tag entry this map comes from */
+/* Where the cluster came from, how it has been carved up. */
+struct cluster_layout {
+	int8_t zidx;
+	int8_t hwidx;
+	uint16_t region1;	/* mbufs laid out within this region */
+				/* region2 is the DMA region */
+	uint16_t region3;	/* cluster_metadata within this region */
+};
+
+struct cluster_metadata {
+	u_int refcount;
 #ifdef INVARIANTS
-	__be64 ba_hwtag;
+	struct fl_sdesc *sd;	/* For debug only.  Could easily be stale */
 #endif
+};
+
+struct fl_sdesc {
+	caddr_t cl;
+	uint8_t nmbuf;
+	struct cluster_layout cll;
 };
 
 struct tx_desc {
@@ -365,17 +382,19 @@ struct sge_eq {
 	uint32_t unstalled;	/* recovered from stall */
 };
 
-struct fl_buf_info {
-	u_int size;
-	int type;
-	int hwtag:4;	/* tag in low 4 bits of the pa. */
-	uma_zone_t zone;
+struct sw_zone_info {
+	uma_zone_t zone;	/* zone that this cluster comes from */
+	int size;		/* size of cluster: 2K, 4K, 9K, 16K, etc. */
+	int type;		/* EXT_xxx type of the cluster */
+	int8_t head_hwidx;
+	int8_t tail_hwidx;
 };
-#define FL_BUF_SIZES(sc)	(sc->sge.fl_buf_sizes)
-#define FL_BUF_SIZE(sc, x)	(sc->sge.fl_buf_info[x].size)
-#define FL_BUF_TYPE(sc, x)	(sc->sge.fl_buf_info[x].type)
-#define FL_BUF_HWTAG(sc, x)	(sc->sge.fl_buf_info[x].hwtag)
-#define FL_BUF_ZONE(sc, x)	(sc->sge.fl_buf_info[x].zone)
+
+struct hw_buf_info {
+	int8_t zidx;		/* backpointer to zone; -ve means unused */
+	int8_t next;		/* next hwidx for this zone; -1 means no more */
+	int size;
+};
 
 enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
@@ -389,9 +408,8 @@ enum {
 struct sge_fl {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
-	bus_dma_tag_t tag[FL_BUF_SIZES_MAX]; /* only first FL_BUF_SIZES(sc) are
-						valid */
-	uint8_t tag_idx;
+	struct cluster_layout cll_def;	/* default refill zone, layout */
+	struct cluster_layout cll_alt;	/* alternate refill zone, layout */
 	struct mtx fl_lock;
 	char lockname[16];
 	int flags;
@@ -408,9 +426,17 @@ struct sge_fl {
 	uint32_t needed;	/* # of buffers needed to fill up fl. */
 	uint32_t lowat;		/* # of buffers <= this means fl needs help */
 	uint32_t pending;	/* # of bufs allocated since last doorbell */
-	u_int dmamap_failed;
-	struct mbuf *mstash[8];
 	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
+
+	struct mbuf *m0;
+	struct mbuf **pnext;
+	u_int remaining;
+
+	uint64_t mbuf_allocated;/* # of mbuf allocated from zone_mbuf */
+	uint64_t mbuf_inlined;	/* # of mbuf created within clusters */
+	uint64_t cl_allocated;	/* # of clusters allocated */
+	uint64_t cl_recycled;	/* # of clusters recycled */
+	uint64_t cl_fast_recycled; /* # of clusters recycled (fast) */
 };
 
 /* txq: SGE egress queue + what's needed for Ethernet NIC */
@@ -516,6 +542,7 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
+	int fl_starve_threshold2;
 	int eq_s_qpp;
 	int iq_s_qpp;
 
@@ -543,8 +570,11 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
-	u_int fl_buf_sizes __aligned(CACHE_LINE_SIZE);
-	struct fl_buf_info fl_buf_info[FL_BUF_SIZES_MAX];
+	int pack_boundary;
+	int8_t safe_hwidx1;	/* may not have room for metadata */
+	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
+	struct sw_zone_info sw_zone_info[SW_ZONE_SIZES];
+	struct hw_buf_info hw_buf_info[SGE_FLBUF_SIZES];
 };
 
 struct rss_header;
@@ -645,6 +675,8 @@ struct adapter {
 	const char *last_op;
 	const void *last_op_thr;
 #endif
+
+	int sc_do_rxcopy;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)

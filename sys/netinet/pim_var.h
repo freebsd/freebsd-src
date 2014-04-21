@@ -66,10 +66,9 @@ struct pimstat {
 #endif
 
 /*
- * Names for PIM sysctl objects
+ * Identifiers for PIM sysctl nodes
  */
 #define PIMCTL_STATS		1	/* statistics (read-only) */
-#define PIMCTL_MAXID		2
 
 #ifdef _KERNEL
 

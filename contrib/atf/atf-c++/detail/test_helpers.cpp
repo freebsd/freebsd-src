@@ -27,10 +27,6 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-extern "C" {
-#include <regex.h>
-}
-
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -44,121 +40,64 @@ extern "C" {
 #include "process.hpp"
 #include "test_helpers.hpp"
 
-void
-build_check_cxx_o_aux(const atf::fs::path& sfile, const char* failmsg,
-                      const bool expect_pass)
+// Path to the directory containing the libatf-c tests, used to locate the
+// process_helpers program.  If NULL (the default), the code will use a
+// relative path.  Otherwise, the provided path will be used; this is so
+// that we can locate the helpers binary if the installation uses a
+// different layout than the one we provide (as is the case in FreeBSD).
+#if defined(ATF_C_TESTS_BASE)
+static const char* atf_c_tests_base = ATF_C_TESTS_BASE;
+#else
+static const char* atf_c_tests_base = NULL;
+#endif
+#undef ATF_C_TESTS_BASE
+
+bool
+build_check_cxx_o(const char* sfile)
 {
     std::vector< std::string > optargs;
     optargs.push_back("-I" + atf::config::get("atf_includedir"));
     optargs.push_back("-Wall");
     optargs.push_back("-Werror");
 
-    const bool result = atf::check::build_cxx_o(
-        sfile.str(), "test.o", atf::process::argv_array(optargs));
-    if ((expect_pass && !result) || (!expect_pass && result))
-        ATF_FAIL(failmsg);
+    return atf::check::build_cxx_o(sfile, "test.o",
+                                   atf::process::argv_array(optargs));
 }
 
-void
-build_check_cxx_o(const atf::tests::tc& tc, const char* sfile,
-                  const char* failmsg, const bool expect_pass)
+bool
+build_check_cxx_o_srcdir(const atf::tests::tc& tc, const char* sfile)
 {
     const atf::fs::path sfilepath =
         atf::fs::path(tc.get_config_var("srcdir")) / sfile;
-    build_check_cxx_o_aux(sfilepath, failmsg, expect_pass);
+    return build_check_cxx_o(sfilepath.c_str());
 }
 
 void
 header_check(const char *hdrname)
 {
-    std::ofstream srcfile("test.c");
+    std::ofstream srcfile("test.cpp");
     ATF_REQUIRE(srcfile);
     srcfile << "#include <" << hdrname << ">\n";
     srcfile.close();
 
     const std::string failmsg = std::string("Header check failed; ") +
         hdrname + " is not self-contained";
-    build_check_cxx_o_aux(atf::fs::path("test.c"), failmsg.c_str(), true);
+    if (!build_check_cxx_o("test.cpp"))
+        ATF_FAIL(failmsg);
 }
 
 atf::fs::path
 get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
 {
-    if (is_detail)
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / ".." / "atf-c" / "detail" / "process_helpers";
-    else
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / "atf-c" / "detail" / "process_helpers";
-}
-
-bool
-grep_file(const char* name, const char* regex)
-{
-    std::ifstream is(name);
-    ATF_REQUIRE(is);
-
-    bool found = false;
-
-    std::string line;
-    std::getline(is, line);
-    while (!found && is.good()) {
-        if (grep_string(line, regex))
-            found = true;
+    const char* helper = "detail/process_helpers";
+    if (atf_c_tests_base == NULL) {
+        if (is_detail)
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / ".." / "atf-c" / helper;
         else
-            std::getline(is, line);
-    }
-
-    return found;
-}
-
-bool
-grep_string(const std::string& str, const char* regex)
-{
-    int res;
-    regex_t preg;
-
-    std::cout << "Looking for '" << regex << "' in '" << str << "'\n";
-    ATF_REQUIRE(::regcomp(&preg, regex, REG_EXTENDED) == 0);
-
-    res = ::regexec(&preg, str.c_str(), 0, NULL, 0);
-    ATF_REQUIRE(res == 0 || res == REG_NOMATCH);
-
-    ::regfree(&preg);
-
-    return res == 0;
-}
-
-void
-test_helpers_detail::check_equal(const char* expected[],
-                                 const string_vector& actual)
-{
-    const char** expected_iter = expected;
-    string_vector::const_iterator actual_iter = actual.begin();
-
-    bool equals = true;
-    while (equals && *expected_iter != NULL && actual_iter != actual.end()) {
-        if (*expected_iter != *actual_iter) {
-            equals = false;
-        } else {
-            expected_iter++;
-            actual_iter++;
-        }
-    }
-    if (equals && ((*expected_iter == NULL && actual_iter != actual.end()) ||
-                   (*expected_iter != NULL && actual_iter == actual.end())))
-        equals = false;
-
-    if (!equals) {
-        std::cerr << "EXPECTED:\n";
-        for (expected_iter = expected; *expected_iter != NULL; expected_iter++)
-            std::cerr << *expected_iter << "\n";
-
-        std::cerr << "ACTUAL:\n";
-        for (actual_iter = actual.begin(); actual_iter != actual.end();
-             actual_iter++)
-            std::cerr << *actual_iter << "\n";
-
-        ATF_FAIL("Expected results differ to actual values");
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / "atf-c" / helper;
+    } else {
+        return atf::fs::path(atf_c_tests_base) / helper;
     }
 }

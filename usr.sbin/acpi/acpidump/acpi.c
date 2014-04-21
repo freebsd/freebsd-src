@@ -501,6 +501,7 @@ acpi_handle_hpet(ACPI_TABLE_HEADER *sdp)
 		printf("FALSE}\n");
 	printf("\tPCI Vendor ID=0x%04x\n", hpet->Id >> 16);
 	printf("\tMinimal Tick=%d\n", hpet->MinimumTick);
+	printf("\tFlags=0x%02x\n", hpet->Flags);
 	printf(END_COMMENT);
 }
 

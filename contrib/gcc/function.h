@@ -264,6 +264,12 @@ struct function GTY(())
      needed by inner routines.  */
   rtx x_arg_pointer_save_area;
 
+  /* APPLE LOCAL begin radar 6411649 */
+  /* Holds a unique number for this function. It is used to
+     generate block number for block names. */
+  int unqiue_block_number;
+  /* APPLE LOCAL end radar 6411649 */
+
   /* Offset to end of allocated area of stack frame.
      If stack grows down, this is the address of the last stack slot allocated.
      If stack grows up, this is the address for the next slot.  */
@@ -579,4 +585,6 @@ extern bool reference_callee_copied (CUMULATIVE_ARGS *, enum machine_mode,
 
 extern void used_types_insert (tree);
 
+/* APPLE LOCAL radar 5732232 - blocks */
+extern struct block_sema_info *cur_block;
 #endif  /* GCC_FUNCTION_H */

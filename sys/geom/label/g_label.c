@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_geom.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -80,6 +82,9 @@ struct g_class g_label_class = {
  * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
+	&g_label_gpt,
+	&g_label_gpt_uuid,
+#ifdef GEOM_LABEL
 	&g_label_ufs_id,
 	&g_label_ufs_volume,
 	&g_label_iso9660,
@@ -87,9 +92,8 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ext2fs,
 	&g_label_reiserfs,
 	&g_label_ntfs,
-	&g_label_gpt,
-	&g_label_gpt_uuid,
 	&g_label_disk_ident,
+#endif
 	NULL
 };
 

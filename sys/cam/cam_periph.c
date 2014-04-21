@@ -376,6 +376,17 @@ cam_periph_acquire(struct cam_periph *periph)
 }
 
 void
+cam_periph_doacquire(struct cam_periph *periph)
+{
+
+	xpt_lock_buses();
+	KASSERT(periph->refcount >= 1,
+	    ("cam_periph_doacquire() with refcount == %d", periph->refcount));
+	periph->refcount++;
+	xpt_unlock_buses();
+}
+
+void
 cam_periph_release_locked_buses(struct cam_periph *periph)
 {
 
@@ -1644,6 +1655,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_REQ_TOO_BIG:
 	case CAM_LUN_INVALID:
 	case CAM_TID_INVALID:
+	case CAM_FUNC_NOTAVAIL:
 		error = EINVAL;
 		break;
 	case CAM_SCSI_BUS_RESET:

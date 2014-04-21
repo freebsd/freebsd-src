@@ -60,6 +60,7 @@ struct dbdma_channel {
 
 	bus_dma_tag_t		sc_dmatag;
 	bus_dmamap_t		sc_dmamap;
+	uint32_t		sc_saved_regs[5];
 };
 	
 

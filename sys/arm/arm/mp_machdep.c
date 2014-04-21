@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/pcb.h>
 #include <machine/pte.h>
+#include <machine/physmem.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
 #ifdef VFP
@@ -120,17 +121,17 @@ cpu_mp_start(void)
 		    M_WAITOK | M_ZERO);
 	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
 	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
-	addr = KERNPHYSADDR;
-	addr_end = (vm_offset_t)&_end - KERNVIRTADDR + KERNPHYSADDR;
+	addr = arm_physmem_kernaddr;
+	addr_end = (vm_offset_t)&_end - KERNVIRTADDR + arm_physmem_kernaddr;
 	addr_end &= ~L1_S_OFFSET;
 	addr_end += L1_S_SIZE;
 	bzero((void *)temp_pagetable_va,  L1_TABLE_SIZE);
-	for (addr = KERNPHYSADDR; addr <= addr_end; addr += L1_S_SIZE) { 
+	for (addr = arm_physmem_kernaddr; addr <= addr_end; addr += L1_S_SIZE) { 
 		((int *)(temp_pagetable_va))[addr >> L1_S_SHIFT] =
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
 		((int *)(temp_pagetable_va))[(addr -
-			KERNPHYSADDR + KERNVIRTADDR) >> L1_S_SHIFT] = 
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+			arm_physmem_kernaddr + KERNVIRTADDR) >> L1_S_SHIFT] = 
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
 	}
 
 #if defined(CPU_MV_PJ4B)
@@ -172,12 +173,13 @@ init_secondary(int cpu)
 	uint32_t loop_counter;
 	int start = 0, end = 0;
 
+	cpu_idcache_inv_all();
+
 	cpu_setup(NULL);
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
 
 	pc = &__pcpu[cpu];
-	set_pcpu(pc);
 
 	/*
 	 * pcpu_init() updates queue, so it should not be executed in parallel
@@ -203,6 +205,7 @@ init_secondary(int cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
+	set_curthread(pc->pc_idlethread);
 #ifdef VFP
 	pc->pc_cpu = cpu;
 
@@ -369,7 +372,7 @@ struct cpu_group *
 cpu_topo(void)
 {
 
-	return (smp_topo_1level(CG_SHARE_L2, 1, 0));
+	return (smp_topo_1level(CG_SHARE_L2, mp_ncpus, 0));
 }
 
 void

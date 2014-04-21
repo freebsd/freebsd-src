@@ -57,6 +57,7 @@ extern int g_debugflags;
 /* geom_dump.c */
 void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...);
 void g_confdot(void *, int flag);
 void g_conftxt(void *, int flag);
 

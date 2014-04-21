@@ -250,6 +250,10 @@ musbotg_wrapper_interrupt(void *arg)
 static int
 musbotg_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,musb-am33xx"))
 		return (ENXIO);
 

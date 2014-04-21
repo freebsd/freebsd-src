@@ -57,6 +57,7 @@ struct pci_map {
 struct vpd_readonly {
     char	keyword[2];
     char	*value;
+    int		len;
 };
 
 struct vpd_write {
@@ -481,6 +482,12 @@ pci_msix_count(device_t dev)
     return (PCI_MSIX_COUNT(device_get_parent(dev), dev));
 }
 
+static __inline uint16_t
+pci_get_rid(device_t dev)
+{
+	return (PCI_GET_RID(device_get_parent(dev), dev));
+}
+
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
@@ -525,6 +532,7 @@ extern uint32_t	pci_generation;
 
 struct pci_map *pci_find_bar(device_t dev, int reg);
 int	pci_bar_enabled(device_t dev, struct pci_map *pm);
+struct pcicfg_vpd *pci_fetch_vpd_list(device_t dev);
 
 #define	VGA_PCI_BIOS_SHADOW_ADDR	0xC0000
 #define	VGA_PCI_BIOS_SHADOW_SIZE	131072

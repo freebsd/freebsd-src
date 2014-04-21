@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -215,9 +212,11 @@ ktr_entries_initializer(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
 	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
-	if (ktr_idx != 0)
+	if (ktr_idx != 0) {
 		memcpy(ktr_buf + KTR_BOOT_ENTRIES - ktr_idx, ktr_buf_init,
 		    ktr_idx * sizeof(*ktr_buf));
+		ktr_idx = KTR_BOOT_ENTRIES;
+	}
 	ktr_entries = KTR_ENTRIES;
 	ktr_mask = mask;
 }
