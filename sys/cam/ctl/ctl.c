@@ -6883,6 +6883,8 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 	scsi_u64to8b(lun->be_lun->maxlba, data->addr);
 	/* XXX KDM this may not be 512 bytes... */
 	scsi_ulto4b(lun->be_lun->blocksize, data->length);
+	data->prot_lbppbe = lun->be_lun->pblockexp & SRC16_LBPPBE;
+	scsi_ulto2b(lun->be_lun->pblockoff & SRC16_LALBA_A, data->lalba_lbp);
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
