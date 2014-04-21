@@ -4108,6 +4108,19 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: hwq_depth < 0: %d\n",
 		    __func__, atid->hwq_depth);
 
+	/* If the TID is being cleaned up, track things */
+	/* XXX refactor! */
+	if (atid->cleanup_inprogress) {
+		atid->incomp--;
+		if (atid->incomp == 0) {
+			DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+			    "%s: TID %d: cleaned up! resume!\n",
+			    __func__, tid);
+			atid->cleanup_inprogress = 0;
+			ath_tx_tid_resume(sc, atid);
+		}
+	}
+
 	/*
 	 * If the queue is filtered, potentially mark it as complete
 	 * and reschedule it as needed.
@@ -4155,6 +4168,16 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_TX_LOCK(sc);
 	atid->incomp--;
+
+	/* XXX refactor! */
+	if (bf->bf_state.bfs_dobaw) {
+		ath_tx_update_baw(sc, an, atid, bf);
+		if (!bf->bf_state.bfs_addedbaw)
+			DPRINTF(sc, ATH_DEBUG_SW_TX,
+			    "%s: wasn't added: seqno %d\n",
+			    __func__, SEQNO(bf->bf_state.bfs_seqno));
+	}
+
 	if (atid->incomp == 0) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: TID %d: cleaned up! resume!\n",
@@ -4167,14 +4190,72 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	ath_tx_default_comp(sc, bf, 0);
 }
 
+
+/*
+ * This as it currently stands is a bit dumb.  Ideally we'd just
+ * fail the frame the normal way and have it permanently fail
+ * via the normal aggregate completion path.
+ */
+static void
+ath_tx_tid_cleanup_frame(struct ath_softc *sc, struct ath_node *an,
+    int tid, struct ath_buf *bf_head, ath_bufhead *bf_cq)
+{
+	struct ath_tid *atid = &an->an_tid[tid];
+	struct ath_buf *bf, *bf_next;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	/*
+	 * Remove this frame from the queue.
+	 */
+	ATH_TID_REMOVE(atid, bf_head, bf_list);
+
+	/*
+	 * Loop over all the frames in the aggregate.
+	 */
+	bf = bf_head;
+	while (bf != NULL) {
+		bf_next = bf->bf_next;	/* next aggregate frame, or NULL */
+
+		/*
+		 * If it's been added to the BAW we need to kick
+		 * it out of the BAW before we continue.
+		 *
+		 * XXX if it's an aggregate, assert that it's in the
+		 * BAW - we shouldn't have it be in an aggregate
+		 * otherwise!
+		 */
+		if (bf->bf_state.bfs_addedbaw) {
+			ath_tx_update_baw(sc, an, atid, bf);
+			bf->bf_state.bfs_dobaw = 0;
+		}
+
+		/*
+		 * Give it the default completion handler.
+		 */
+		bf->bf_comp = ath_tx_normal_comp;
+		bf->bf_next = NULL;
+
+		/*
+		 * Add it to the list to free.
+		 */
+		TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
+
+		/*
+		 * Now advance to the next frame in the aggregate.
+		 */
+		bf = bf_next;
+	}
+}
+
 /*
  * Performs transmit side cleanup when TID changes from aggregated to
- * unaggregated.
+ * unaggregated and during reassociation.
  *
- * - Discard all retry frames from the s/w queue.
- * - Fix the tx completion function for all buffers in s/w queue.
- * - Count the number of unacked frames, and let transmit completion
- *   handle it later.
+ * For now, this just tosses everything from the TID software queue
+ * whether or not it has been retried and marks the TID as
+ * pending completion if there's anything for this TID queued to
+ * the hardware.
  *
  * The caller is responsible for pausing the TID and unpausing the
  * TID if no cleanup was required. Otherwise the cleanup path will
@@ -4185,18 +4266,19 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
     ath_bufhead *bf_cq)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
-	struct ieee80211_tx_ampdu *tap;
 	struct ath_buf *bf, *bf_next;
 
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-	    "%s: TID %d: called\n", __func__, tid);
+	    "%s: TID %d: called; inprogress=%d\n", __func__, tid,
+	    atid->cleanup_inprogress);
 
 	/*
 	 * Move the filtered frames to the TX queue, before
 	 * we run off and discard/process things.
 	 */
+
 	/* XXX this is really quite inefficient */
 	while ((bf = ATH_TID_FILT_LAST(atid, ath_bufhead_s)) != NULL) {
 		ATH_TID_FILT_REMOVE(atid, bf, bf_list);
@@ -4211,47 +4293,35 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
 	 */
 	bf = ATH_TID_FIRST(atid);
 	while (bf) {
-		if (bf->bf_state.bfs_isretried) {
-			bf_next = TAILQ_NEXT(bf, bf_list);
-			ATH_TID_REMOVE(atid, bf, bf_list);
-			if (bf->bf_state.bfs_dobaw) {
-				ath_tx_update_baw(sc, an, atid, bf);
-				if (!bf->bf_state.bfs_addedbaw)
-					DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
-					    "%s: wasn't added: seqno %d\n",
-					    __func__,
-					    SEQNO(bf->bf_state.bfs_seqno));
-			}
-			bf->bf_state.bfs_dobaw = 0;
-			/*
-			 * Call the default completion handler with "fail" just
-			 * so upper levels are suitably notified about this.
-			 */
-			TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
-			bf = bf_next;
-			continue;
-		}
-		/* Give these the default completion handler */
-		bf->bf_comp = ath_tx_normal_comp;
-		bf = TAILQ_NEXT(bf, bf_list);
+		/*
+		 * Grab the next frame in the list, we may
+		 * be fiddling with the list.
+		 */
+		bf_next = TAILQ_NEXT(bf, bf_list);
+
+		/*
+		 * Free the frame and all subframes.
+		 */
+		ath_tx_tid_cleanup_frame(sc, an, tid, bf, bf_cq);
+
+		/*
+		 * Next frame!
+		 */
+		bf = bf_next;
 	}
 
 	/*
-	 * Calculate what hardware-queued frames exist based
-	 * on the current BAW size. Ie, what frames have been
-	 * added to the TX hardware queue for this TID but
-	 * not yet ACKed.
+	 * If there's anything in the hardware queue we wait
+	 * for the TID HWQ to empty.
 	 */
-	tap = ath_tx_get_tx_tid(an, tid);
-	/* Need the lock - fiddling with BAW */
-	while (atid->baw_head != atid->baw_tail) {
-		if (atid->tx_buf[atid->baw_head]) {
-			atid->incomp++;
-			atid->cleanup_inprogress = 1;
-			atid->tx_buf[atid->baw_head] = NULL;
-		}
-		INCR(atid->baw_head, ATH_TID_MAX_BUFS);
-		INCR(tap->txa_start, IEEE80211_SEQ_RANGE);
+	if (atid->hwq_depth > 0) {
+		/*
+		 * XXX how about we kill atid->incomp, and instead
+		 * replace it with a macro that checks that atid->hwq_depth
+		 * is 0?
+		 */
+		atid->incomp = atid->hwq_depth;
+		atid->cleanup_inprogress = 1;
 	}
 
 	if (atid->cleanup_inprogress)
@@ -4584,9 +4654,19 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	ATH_TX_LOCK(sc);
 
 	/* update incomp */
+	atid->incomp--;
+
+	/* Update the BAW */
 	bf = bf_first;
 	while (bf) {
-		atid->incomp--;
+		/* XXX refactor! */
+		if (bf->bf_state.bfs_dobaw) {
+			ath_tx_update_baw(sc, an, atid, bf);
+			if (!bf->bf_state.bfs_addedbaw)
+				DPRINTF(sc, ATH_DEBUG_SW_TX,
+				    "%s: wasn't added: seqno %d\n",
+				    __func__, SEQNO(bf->bf_state.bfs_seqno));
+		}
 		bf = bf->bf_next;
 	}
 
