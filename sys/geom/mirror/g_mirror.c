@@ -2775,7 +2775,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot destroy %s.", sc->sc_name);
+		G_MIRROR_DEBUG(0, "Cannot destroy %s (error=%d).",
+		    sc->sc_name, error);
 		sx_xunlock(&sc->sc_lock);
 	}
 	g_topology_lock();
