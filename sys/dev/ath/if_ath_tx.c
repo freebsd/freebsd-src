@@ -5789,12 +5789,26 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	 */
 	TAILQ_INIT(&bf_cq);
 	ATH_TX_LOCK(sc);
-	ath_tx_tid_cleanup(sc, an, tid, &bf_cq);
+
 	/*
-	 * Unpause the TID if no cleanup is required.
+	 * In case there's a followup call to this, only call it
+	 * if we don't have a cleanup in progress.
+	 *
+	 * Since we've paused the queue above, we need to make
+	 * sure we unpause if there's already a cleanup in
+	 * progress - it means something else is also doing
+	 * this stuff, so we don't need to also keep it paused.
 	 */
-	if (! atid->cleanup_inprogress)
+	if (atid->cleanup_inprogress) {
 		ath_tx_tid_resume(sc, atid);
+	} else {
+		ath_tx_tid_cleanup(sc, an, tid, &bf_cq);
+		/*
+		 * Unpause the TID if no cleanup is required.
+		 */
+		if (! atid->cleanup_inprogress)
+			ath_tx_tid_resume(sc, atid);
+	}
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle completing frames and fail them */
@@ -5828,19 +5842,25 @@ ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an)
 		tid = &an->an_tid[i];
 		if (tid->hwq_depth == 0)
 			continue;
-		ath_tx_tid_pause(sc, tid);
 		DPRINTF(sc, ATH_DEBUG_NODE,
 		    "%s: %6D: TID %d: cleaning up TID\n",
 		    __func__,
 		    an->an_node.ni_macaddr,
 		    ":",
 		    i);
-		ath_tx_tid_cleanup(sc, an, i, &bf_cq);
 		/*
-		 * Unpause the TID if no cleanup is required.
+	 * In case there's a followup call to this, only call it
+		 * if we don't have a cleanup in progress.
 		 */
-		if (! tid->cleanup_inprogress)
-			ath_tx_tid_resume(sc, tid);
+		if (! tid->cleanup_inprogress) {
+			ath_tx_tid_pause(sc, tid);
+			ath_tx_tid_cleanup(sc, an, i, &bf_cq);
+			/*
+			 * Unpause the TID if no cleanup is required.
+			 */
+			if (! tid->cleanup_inprogress)
+				ath_tx_tid_resume(sc, tid);
+		}
 	}
 	ATH_TX_UNLOCK(sc);
 
