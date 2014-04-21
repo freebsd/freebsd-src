@@ -11,6 +11,6 @@ SRCS+=	divsi3.S
 .endif
 
 .if ${MACHINE_ARCH} == "armv6hf"
-SRCS+=	fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c fpsetround.c \
-	fpsetsticky.c
+SRCS+=	fpgetmask_vfp.c fpgetround_vfp.c fpgetsticky_vfp.c fpsetmask_vfp.c \
+	fpsetround_vfp.c fpsetsticky_vfp.c
 .endif
