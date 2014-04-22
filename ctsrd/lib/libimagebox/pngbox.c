@@ -36,6 +36,7 @@
 #include <sys/wait.h>
 
 #include <machine/cheri.h>
+#include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
 #include <cheri/sandbox.h>
@@ -222,11 +223,6 @@ started:
 	return (is);
 }
 
-/*
- * XXX: rwatson reports that capabilities end up misaligned on the stack.
- */
-static struct chericap c3, c4, c5;
-
 static struct iboxstate*
 cheri_png_read_start(char *pngbuffer, size_t pnglen,
     uint32_t width, uint32_t height, enum sbtype sb)
@@ -256,23 +252,15 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 		    4*1024*1024, &sandbox) < 0)
 			goto error;
 
-        CHERI_CINCBASE(10, 0, is->buffer);
-        CHERI_CSETLEN(10, 10, is->width * is->height * sizeof(uint32_t));
-        CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
-        CHERI_CSC(10, 0, &c3, 0);
-
-        CHERI_CINCBASE(10, 0, pngbuffer);
-        CHERI_CSETLEN(10, 10, pnglen);
-        CHERI_CANDPERM(10, 10, CHERI_PERM_LOAD);
-        CHERI_CSC(10, 0, &c4, 0);
-
-        CHERI_CINCBASE(10, 0, is->times + 1);
-        CHERI_CSETLEN(10, 10, sizeof(uint32_t) * 2);
-        CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
-        CHERI_CSC(10, 0, &c5, 0);
-
-        v = sandbox_invoke(sandbox, width, height, pnglen, 0,
-            &c3, &c4, &c5, NULL, NULL, NULL, NULL, NULL);
+        v = sandbox_cinvoke(sandbox, width, height, pnglen, 0, 0, 0, 0, 0,
+            cheri_ptrperm((void *)is->buffer,
+	     is->width * is->height * sizeof(uint32_t),
+	     CHERI_PERM_STORE),
+	    cheri_ptrperm(pngbuffer, pnglen, CHERI_PERM_LOAD),
+	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,
+	     CHERI_PERM_STORE),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
 	if (ibox_verbose)
 		printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	is->valid_rows = height;
