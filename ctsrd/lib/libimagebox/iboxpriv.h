@@ -42,4 +42,10 @@ struct ibox_decode_state
 void decode_png(struct ibox_decode_state *ids,
     png_rw_ptr user_read_fn, png_read_status_ptr read_row_fn);
 
+static inline unsigned mips_cycle_counter_read(void)
+{
+       unsigned cc;
+       asm volatile("mfc0 %0, $9" : "=r" (cc));
+       return (cc);
+}
 #endif

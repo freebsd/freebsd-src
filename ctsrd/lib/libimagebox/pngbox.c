@@ -37,7 +37,6 @@
 
 #include <machine/cheri.h>
 #include <machine/cpuregs.h>
-#include <machine/sysarch.h>
 
 #include <cheri/sandbox.h>
 
@@ -72,7 +71,7 @@ pthr_decode_png(void *arg)
 
 	decode_png(ids, NULL, NULL);
 
-	ids->is->times[3] = sysarch(MIPS_GET_COUNT, NULL);
+	ids->is->times[3] = mips_cycle_counter_read();
 
 	free(ids);
 
@@ -93,7 +92,7 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 	is->width = width;
 	is->height = height;
 	is->passes_remaining = UINT32_MAX;
-	is->times[0] = sysarch(MIPS_GET_COUNT, NULL);
+	is->times[0] = mips_cycle_counter_read();
 
 	if ((pdp = malloc(sizeof(*pdp))) == NULL)
 		goto error;
@@ -150,7 +149,7 @@ capsicum_png_read_start(int pfd, uint32_t width, uint32_t height,
 	is->width = width;
 	is->height = height;
 	is->passes_remaining = UINT32_MAX;
-	is->times[0] = sysarch(MIPS_GET_COUNT, NULL);
+	is->times[0] = mips_cycle_counter_read();
 		
 	if ((bfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR))
 	     == -1)
@@ -243,7 +242,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	is->width = width;
 	is->height = height;
 	is->passes_remaining = UINT32_MAX;
-	is->times[0] = sysarch(MIPS_GET_COUNT, NULL);
+	is->times[0] = mips_cycle_counter_read();
 
         if ((is->buffer = malloc(is->width * is->height *
             sizeof(*is->buffer))) == NULL)
@@ -278,7 +277,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 		printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	is->valid_rows = height;
 	is->passes_remaining = 0;
-	is->times[3] = sysarch(MIPS_GET_COUNT, NULL);
+	is->times[3] = mips_cycle_counter_read();
 	return (is);
 error:
 	munmap(pngbuffer, pnglen);

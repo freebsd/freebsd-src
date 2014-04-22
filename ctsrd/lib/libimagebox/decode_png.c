@@ -30,8 +30,6 @@
 
 #include <sys/types.h>
 
-#include <machine/sysarch.h>
-
 #include <assert.h>
 #include <png.h>
 #include <stdlib.h>
@@ -60,7 +58,7 @@ decode_png(struct ibox_decode_state *ids,
 
 	png_exec_triggered = 0;
 
-	ids->is->times[1] = sysarch(MIPS_GET_COUNT, 0);
+	ids->is->times[1] = mips_cycle_counter_read();
 
 	if ((png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
 	    NULL, NULL, NULL)) == NULL) {
@@ -141,7 +139,7 @@ error:
 #ifndef IMAGEBOX_PNG_NO_FD
 	close(ids->fd);
 #endif
-	ids->is->times[2] = sysarch(MIPS_GET_COUNT, 0);
+	ids->is->times[2] = mips_cycle_counter_read();
 	free(rows);
 }
 
