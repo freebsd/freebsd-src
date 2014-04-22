@@ -24,11 +24,6 @@ NO_SHARED=	yes
 
 WARNS=4
 
-#
-# For libc files!
-#
-NO_WERROR=	yes
-
 FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
