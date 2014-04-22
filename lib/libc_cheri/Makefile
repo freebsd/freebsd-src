@@ -142,6 +142,9 @@ SRCS+=		bcopy.S			\
 # libc/sys
 SRCS+=		__error.c
 
+# libc/mips/sys
+SRCS+=		cerror.S
+
 # contrib/gdtoa
 CFLAGS.strtod.c=	-Wno-unused-parameter -Wno-uninitialized \
 			-Wno-incompatible-pointer-types-discards-qualifiers
@@ -245,6 +248,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 
 .PATH: ${LIBC_DIR}/gen
 .PATH: ${LIBC_DIR}/${MACHINE}/string
+.PATH: ${LIBC_DIR}/${MACHINE}/sys
 .PATH: ${LIBC_DIR}/stdio
 .PATH: ${LIBC_DIR}/string
 .PATH: ${LIBC_DIR}/sys
