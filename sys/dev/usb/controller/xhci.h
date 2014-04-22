@@ -441,6 +441,7 @@ struct xhci_softc {
 
 	struct usb_device	*sc_devices[XHCI_MAX_DEVICES];
 	struct resource		*sc_io_res;
+	int			sc_irq_rid;
 	struct resource		*sc_irq_res;
 
 	void			*sc_intr_hdl;

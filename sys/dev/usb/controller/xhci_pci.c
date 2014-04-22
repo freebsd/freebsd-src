@@ -99,6 +99,9 @@ xhci_pci_match(device_t self)
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
+	case 0x10421b21:
+		return ("ASMedia ASM1042 USB 3.0 controller");
+
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
@@ -130,6 +133,9 @@ xhci_pci_probe(device_t self)
 	}
 }
 
+static int xhci_use_msi = 1;
+TUNABLE_INT("hw.usb.xhci.msi", &xhci_use_msi);
+
 static int
 xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
 {
@@ -153,8 +159,7 @@ static int
 xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	int err;
-	int rid;
+	int count, err, rid;
 
 	/* XXX check for 64-bit capability */
 
@@ -176,9 +181,20 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_irq_rid = 0;
+	if (xhci_use_msi) {
+		count = pci_msi_count(self);
+		if (count >= 1) {
+			count = 1;
+			if (pci_alloc_msi(self, &count) == 0) {
+				if (bootverbose)
+					device_printf(self, "MSI enabled\n");
+				sc->sc_irq_rid = 1;
+			}
+		}
+	}
+	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,
+	    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate IRQ\n");
 		goto error;
@@ -260,7 +276,10 @@ xhci_pci_detach(device_t self)
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
+		if (sc->sc_irq_rid == 1)
+			pci_release_msi(self);
+		bus_release_resource(self, SYS_RES_IRQ, sc->sc_irq_rid,
+		    sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
