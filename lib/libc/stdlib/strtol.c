@@ -145,7 +145,13 @@ noconv:
 	} else if (neg)
 		acc = -acc;
 	if (endptr != NULL)
-		*endptr = (__CAPABILITY char *)(any ? s - 1 : nptr);
+		/*
+		 * XXX-BD: static analysis opportunity.  The origional code:
+		 *	*endptr = (__CAPABILITY char *)(any ? s - 1 : nptr);
+		 * is fairly easy to prove safe.
+		 */
+		*endptr = (__CAPABILITY char *)(any ? nptr + ((s - nptr) - 1) :
+		    nptr);
 	return (acc);
 }
 long
