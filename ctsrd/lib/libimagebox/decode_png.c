@@ -138,7 +138,9 @@ decode_png(struct ibox_decode_state *ids,
 
 error:
 	png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
+#ifndef IMAGEBOX_PNG_NO_FD
 	close(ids->fd);
+#endif
 	ids->is->times[2] = sysarch(MIPS_GET_COUNT, 0);
 	free(rows);
 }
