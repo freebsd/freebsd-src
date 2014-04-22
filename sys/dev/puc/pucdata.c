@@ -50,12 +50,15 @@ __FBSDID("$FreeBSD$");
 static puc_config_f puc_config_amc;
 static puc_config_f puc_config_diva;
 static puc_config_f puc_config_exar;
+static puc_config_f puc_config_exar_pcie;
 static puc_config_f puc_config_icbook;
 static puc_config_f puc_config_moxa;
+static puc_config_f puc_config_oxford_pci954;
 static puc_config_f puc_config_oxford_pcie;
 static puc_config_f puc_config_quatech;
 static puc_config_f puc_config_syba;
 static puc_config_f puc_config_siig;
+static puc_config_f puc_config_sunix;
 static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
 
@@ -511,14 +514,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, Smartio CP-102E/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S, 0x14, 0, -1,
-	        .config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1025, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-102EL/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S, 0x14, 0, -1,
-	        .config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1040, 0xffff, 0,
@@ -549,7 +552,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, Smartio CP-104EL-A/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S, 0x14, 0, -1,
-		.config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1120, 0xffff, 0,
@@ -568,14 +571,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, Smartio CP-114EL/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S, 0x14, 0, -1,
-		.config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1182, 0xffff, 0,
 	    "Moxa Technologies, Smartio CP-118EL-A/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x14, 0, -1,
-		.config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x1393, 0x1680, 0xffff, 0,
@@ -600,7 +603,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, Smartio CP-168EL-A/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x14, 0, -1,
-		.config_function = puc_config_moxa
+	    .config_function = puc_config_moxa
 	},
 
 	{   0x13a8, 0x0152, 0xffff, 0,
@@ -628,6 +631,15 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Exar XR17V258IV",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	/* The XR17V358 uses the 125MHz PCIe clock as its reference clock. */
+	{   0x13a8, 0x0358, 0xffff, 0,
+	    "Exar XR17V358",
+	    125000000,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar_pcie
 	},
 
 	{   0x13fe, 0x1600, 0x1602, 0x0002,
@@ -701,10 +713,10 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * I/O Flex PCI I/O Card Model-223 with 4 serial and 1 parallel ports.
 	 */
 	{
-		0x1415, 0x9501, 0x10fc ,0xc070,
-		"I-O DATA RSA-PCI2/R",
-		DEFAULT_RCLK * 8,
-		PUC_PORT_2S, 0x10, 0, 8,
+	    0x1415, 0x9501, 0x10fc, 0xc070,
+	    "I-O DATA RSA-PCI2/R",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
 	},
 
 	{   0x1415, 0x9501, 0x131f, 0x2050,
@@ -733,8 +745,9 @@ const struct puc_cfg puc_pci_devices[] = {
 
 	{   0x1415, 0x9501, 0xffff, 0,
 	    "Oxford Semiconductor OX16PCI954 UARTs",
-	    DEFAULT_RCLK,
+	    0,
 	    PUC_PORT_4S, 0x10, 0, 8,
+	    .config_function = puc_config_oxford_pci954
 	},
 
 	{   0x1415, 0x950a, 0x131f, 0x2030,
@@ -820,7 +833,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	 *
 	 * Lindy 51189 (4 port)
 	 * <URL:http://www.lindy.com> <URL:http://tinyurl.com/lindy-51189>
-	 * 
+	 *
 	 * StarTech.com PEX4S952 (4 port) and PEX8S952 (8 port)
 	 * <URL:http://www.startech.com>
 	 */
@@ -974,16 +987,50 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
-	{   0x1fd4, 0x1999, 0xffff, 0,
-	    "Sunix SER5437A",
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0002,
+	    "Sunix SER5xxxx 2-port serial",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S, 0x10, 0, 8,
 	},
 
-	{    0x5372, 0x6873, 0xffff, 0,
-	     "Sun 1040 PCI Quad Serial",
-	     DEFAULT_RCLK,
-	     PUC_PORT_4S, 0x10, 4, 0,
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0004,
+	    "Sunix SER5xxxx 4-port serial",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0008,
+	    "Sunix SER5xxxx 8-port serial",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0101,
+	    "Sunix MIO5xxxx 1-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_1S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0102,
+	    "Sunix MIO5xxxx 2-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0104,
+	    "Sunix MIO5xxxx 4-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x5372, 0x6873, 0xffff, 0,
+	    "Sun 1040 PCI Quad Serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x10, 4, 0,
 	},
 
 	{   0x6666, 0x0001, 0xffff, 0,
@@ -1005,14 +1052,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	},
 
 	{   0x9710, 0x9815, 0xffff, 0,
-	    "NetMos NM9815 Dual 1284 Printer port", 
+	    "NetMos NM9815 Dual 1284 Printer port",
 	    0,
 	    PUC_PORT_2P, 0x10, 8, 0,
-	}, 
+	},
 
 	/*
-	 * This is more specific than the generic NM9835 entry that follows, and
-	 * is placed here to _prevent_ puc from claiming this single port card.
+	 * This is more specific than the generic NM9835 entry, and is placed
+	 * here to _prevent_ puc(4) from claiming this single port card.
 	 *
 	 * uart(4) will claim this device.
 	 */
@@ -1180,6 +1227,17 @@ puc_config_exar(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 {
 	if (cmd == PUC_CFG_GET_OFS) {
 		*res = port * 0x200;
+		return (0);
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_exar_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res)
+{
+	if (cmd == PUC_CFG_GET_OFS) {
+		*res = port * 0x400;
 		return (0);
 	}
 	return (ENXIO);
@@ -1423,19 +1481,19 @@ puc_config_timedia(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 {
 	static const uint16_t dual[] = {
 	    0x0002, 0x4036, 0x4037, 0x4038, 0x4078, 0x4079, 0x4085,
-	    0x4088, 0x4089, 0x5037, 0x5078, 0x5079, 0x5085, 0x6079, 
-	    0x7079, 0x8079, 0x8137, 0x8138, 0x8237, 0x8238, 0x9079, 
+	    0x4088, 0x4089, 0x5037, 0x5078, 0x5079, 0x5085, 0x6079,
+	    0x7079, 0x8079, 0x8137, 0x8138, 0x8237, 0x8238, 0x9079,
 	    0x9137, 0x9138, 0x9237, 0x9238, 0xA079, 0xB079, 0xC079,
 	    0xD079, 0
 	};
 	static const uint16_t quad[] = {
-	    0x4055, 0x4056, 0x4095, 0x4096, 0x5056, 0x8156, 0x8157, 
-	    0x8256, 0x8257, 0x9056, 0x9156, 0x9157, 0x9158, 0x9159, 
+	    0x4055, 0x4056, 0x4095, 0x4096, 0x5056, 0x8156, 0x8157,
+	    0x8256, 0x8257, 0x9056, 0x9156, 0x9157, 0x9158, 0x9159,
 	    0x9256, 0x9257, 0xA056, 0xA157, 0xA158, 0xA159, 0xB056,
 	    0xB157, 0
 	};
 	static const uint16_t octa[] = {
-	    0x4065, 0x4066, 0x5065, 0x5066, 0x8166, 0x9066, 0x9166, 
+	    0x4065, 0x4066, 0x5065, 0x5066, 0x8166, 0x9066, 0x9166,
 	    0x9167, 0x9168, 0xA066, 0xA167, 0xA168, 0
 	};
 	static const struct {
@@ -1487,6 +1545,28 @@ puc_config_timedia(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		return (0);
 	case PUC_CFG_GET_TYPE:
 		*res = PUC_TYPE_SERIAL;
+		return (0);
+	default:
+		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_oxford_pci954(struct puc_softc *sc, enum puc_cfg_cmd cmd,
+    int port __unused, intptr_t *res)
+{
+
+	switch (cmd) {
+	case PUC_CFG_GET_CLOCK:
+		/*
+		 * OXu16PCI954 use a 14.7456 MHz clock by default while
+		 * OX16PCI954 and OXm16PCI954 employ a 1.8432 MHz one.
+		 */
+		if (pci_get_revid(sc->sc_dev) == 1)
+			*res = DEFAULT_RCLK * 8;
+		else
+			*res = DEFAULT_RCLK;
 		return (0);
 	default:
 		break;
@@ -1560,6 +1640,31 @@ puc_config_oxford_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		return (0);
 	case PUC_CFG_GET_TYPE:
 		*res = PUC_TYPE_SERIAL;
+		return (0);
+	default:
+		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_sunix(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res)
+{
+	int error;
+
+	switch (cmd) {
+	case PUC_CFG_GET_OFS:
+		error = puc_config(sc, PUC_CFG_GET_TYPE, port, res);
+		if (error != 0)
+			return (error);
+		*res = (*res == PUC_TYPE_SERIAL) ? (port & 3) * 8 : 0;
+		return (0);
+	case PUC_CFG_GET_RID:
+		error = puc_config(sc, PUC_CFG_GET_TYPE, port, res);
+		if (error != 0)
+			return (error);
+		*res = (*res == PUC_TYPE_SERIAL && port <= 3) ? 0x10 : 0x14;
 		return (0);
 	default:
 		break;
