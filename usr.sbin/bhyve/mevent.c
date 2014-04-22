@@ -268,12 +268,11 @@ mevent_add(int tfd, enum ev_type type,
 	/*
 	 * Allocate an entry, populate it, and add it to the change list.
 	 */
-	mevp = malloc(sizeof(struct mevent));
+	mevp = calloc(1, sizeof(struct mevent));
 	if (mevp == NULL) {
 		goto exit;
 	}
 
-	memset(mevp, 0, sizeof(struct mevent));
 	if (type == EVF_TIMER) {
 		mevp->me_msecs = tfd;
 		mevp->me_timid = mevent_timid++;
