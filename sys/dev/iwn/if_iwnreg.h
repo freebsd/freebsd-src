@@ -2019,7 +2019,7 @@ static const char * const iwn_fw_errmsg[] = {
 	"NMI_INTERRUPT_DATA_ACTION_PT",
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
-	"NMI_INTERRUPT_BREAKPOINT"
+	"NMI_INTERRUPT_BREAKPOINT",
 	"DEBUG_0",
 	"DEBUG_1",
 	"DEBUG_2",
