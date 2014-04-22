@@ -49,13 +49,13 @@ swap left and right channels
 .It UQ_AU_INP_ASYNC
 input is async despite claim of adaptive
 .It UQ_AU_NO_FRAC
-don't adjust for fractional samples
+do not adjust for fractional samples
 .It UQ_AU_NO_XU
 audio device has broken extension unit
 .It UQ_BAD_ADC
 bad audio spec version number
 .It UQ_BAD_AUDIO
-device claims audio class, but isn't
+device claims audio class, but is not
 .It UQ_BROKEN_BIDIR
 printer has broken bidir mode
 .It UQ_BUS_POWERED
@@ -67,7 +67,7 @@ device should be ignored by kbd class
 .It UQ_KBD_BOOTPROTO
 device should set the boot protocol
 .It UQ_MS_BAD_CLASS
-doesn't identify properly
+does not identify properly
 .It UQ_MS_LEADING_BYTE
 mouse sends an unknown leading byte
 .It UQ_MS_REVZ
@@ -150,27 +150,28 @@ ejects after Huawei USB command
 ejects after Sierra USB command
 .It UQ_MSC_EJECT_SCSIEJECT
 ejects after SCSI eject command
-0x1b0000000200
+.Dv 0x1b0000000200
 .It UQ_MSC_EJECT_REZERO
 ejects after SCSI rezero command
-0x010000000000
+.Dv 0x010000000000
 .It UQ_MSC_EJECT_ZTESTOR
 ejects after ZTE SCSI command
-0x850101011801010101010000
+.Dv 0x850101011801010101010000
 .It UQ_MSC_EJECT_CMOTECH
 ejects after C-motech SCSI command
-0xff52444556434847
+.Dv 0xff52444556434847
 .It UQ_MSC_EJECT_WAIT
 wait for the device to eject
 .It UQ_MSC_EJECT_SAEL_M460
 ejects after Sael USB commands
 .It UQ_MSC_EJECT_HUAWEISCSI
 ejects after Huawei SCSI command
-0x11060000000000000000000000000000
+.Dv 0x11060000000000000000000000000000
 .It UQ_MSC_EJECT_TCT
 ejects after TCT SCSI command
-0x06f504025270
+.Dv 0x06f504025270
 .El
+.Pp
 See
 .Pa /sys/dev/usb/quirk/usb_quirk.h
 for the complete list of supported quirks.
