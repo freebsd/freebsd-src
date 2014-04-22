@@ -2585,7 +2585,7 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		}
 		if (!error)
 			error = nfscl_mtofh(nd, nfhpp, nnap, attrflagp);
-		if (!error) {
+		if (error == 0 && (nd->nd_flag & ND_NFSV4) != 0) {
 			/* Get rid of the PutFH and Getattr status values. */
 			NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 			/* Load the directory attributes. */
