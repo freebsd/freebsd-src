@@ -270,13 +270,12 @@ blockif_open(const char *optstr, const char *ident)
 		assert(sectsz != 0);
 	}
 
-	bc = malloc(sizeof(struct blockif_ctxt));
+	bc = calloc(1, sizeof(struct blockif_ctxt));
 	if (bc == NULL) {
 		close(fd);
 		return (NULL);
 	}
 
-	memset(bc, 0, sizeof(*bc));
 	bc->bc_magic = BLOCKIF_SIG;
 	bc->bc_fd = fd;
 	bc->bc_size = size;
