@@ -58,6 +58,8 @@ void	cheri_system_setup(struct cheri_object system_object);
 int	cheri_system_helloworld(void);
 int	cheri_system_puts(__capability const char *str);
 int	cheri_system_putchar(int c);
+int	cheri_system_clock_gettime(clockid_t clock_id,
+	    __capability struct timespec *tp);
 
 /*
  * Method numbers, which can be modified to override the bottom layer of the

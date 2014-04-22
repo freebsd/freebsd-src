@@ -57,7 +57,8 @@ gettimeofday(struct timeval *tp, struct timezone *tzp __unused)
 	if (tp == NULL)
 		return (0);
 
-	if (cheri_system_clock_gettime(CLOCK_REALTIME, &t) != 0)
+	if (cheri_system_clock_gettime(CLOCK_REALTIME,
+	    cheri_ptr(&t, sizeof(t))) != 0)
 		return (-1);
 
 	tp->tv_sec = t.tv_sec;
