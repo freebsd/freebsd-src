@@ -25,7 +25,6 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 NO_MAN=
 #STRIP=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
-#CFLAGS+=	-I${.CURDIR}/../../libvuln_png
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 LDADD+=		-lvuln_png -lz
