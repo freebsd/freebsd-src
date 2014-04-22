@@ -2,19 +2,9 @@
 
 PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
-	malloc.c				\
-	stub.c					\
-	subr_prf.c				\
 	chsbrt.S				\
-	strlen.S				\
-	memcpy.S				\
-	memcmp.c				\
-	memset.c				\
-	setjmp.S				\
-	strcpy.c				\
 	execve.S				\
-	sysarch.S				\
-	cerror.S
+	setjmp.S
 
 .PATH: ${.CURDIR}/../../lib/libimagebox
 SRCS+=	decode_png.c
@@ -27,8 +17,8 @@ NO_MAN=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
-LDADD+=		-lvuln_png -lz
 CFLAGS+=	-DIMAGEBOX_PNG_NO_FD
+LDADD+=		-lvuln_png -lz -lc_cheri
 
 NO_SHARED=	yes
 
