@@ -407,7 +407,6 @@ f_acl(PLAN *plan __unused, FTSENT *entry)
 	acl_free(facl);
 	if (ret) {
 		warn("%s", entry->fts_accpath);
-		acl_free(facl);
 		return (0);
 	}
 	if (trivial)
