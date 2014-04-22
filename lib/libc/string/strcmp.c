@@ -45,9 +45,12 @@ __FBSDID("$FreeBSD$");
 int
 __CAPSUFFIX(strcmp)(__CAPABILITY const char *s1, __CAPABILITY const char *s2)
 {
-	while (*s1 == *s2++)
+
+	while (*s1 == *s2) {
+		s2++;
 		if (*s1++ == '\0')
 			return (0);
+	}
 	return (*(__CAPABILITY const unsigned char *)s1 -
-	    *(__CAPABILITY const unsigned char *)(s2 - 1));
+	    *(__CAPABILITY const unsigned char *)s2);
 }
