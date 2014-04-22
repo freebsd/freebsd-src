@@ -78,6 +78,7 @@ static int  nfe_suspend(device_t);
 static int  nfe_resume(device_t);
 static int nfe_shutdown(device_t);
 static int  nfe_can_use_msix(struct nfe_softc *);
+static int  nfe_detect_msik9(struct nfe_softc *);
 static void nfe_power(struct nfe_softc *);
 static int  nfe_miibus_readreg(device_t, int, int);
 static int  nfe_miibus_writereg(device_t, int, int, int);
@@ -333,13 +334,38 @@ nfe_alloc_msix(struct nfe_softc *sc, int count)
 	}
 }
 
+
+static int
+nfe_detect_msik9(struct nfe_softc *sc)
+{
+	static const char *maker = "MSI";
+	static const char *product = "K9N6PGM2-V2 (MS-7309)";
+	char *m, *p;
+	int found;
+
+	found = 0;
+	m = getenv("smbios.planar.maker");
+	p = getenv("smbios.planar.product");
+	if (m != NULL && p != NULL) {
+		if (strcmp(m, maker) == 0 && strcmp(p, product) == 0)
+			found = 1;
+	}
+	if (m != NULL)
+		freeenv(m);
+	if (p != NULL)
+		freeenv(p);
+
+	return (found);
+}
+
+
 static int
 nfe_attach(device_t dev)
 {
 	struct nfe_softc *sc;
 	struct ifnet *ifp;
 	bus_addr_t dma_addr_max;
-	int error = 0, i, msic, reg, rid;
+	int error = 0, i, msic, phyloc, reg, rid;
 
 	sc = device_get_softc(dev);
 	sc->nfe_dev = dev;
@@ -608,8 +634,16 @@ nfe_attach(device_t dev)
 #endif
 
 	/* Do MII setup */
+	phyloc = MII_PHY_ANY;
+	if (sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN1 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN2 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN3 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN4) {
+		if (nfe_detect_msik9(sc) != 0)
+			phyloc = 0;
+	}
 	error = mii_attach(dev, &sc->nfe_miibus, ifp, nfe_ifmedia_upd,
-	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, phyloc, MII_OFFSET_ANY,
 	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
