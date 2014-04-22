@@ -44,9 +44,10 @@ __CAPSUFFIX(strncmp)(__CAPABILITY const char *s1, __CAPABILITY const char *s2,
 	if (n == 0)
 		return (0);
 	do {
-		if (*s1 != *s2++)
+		if (*s1 != *s2)
 			return (*(__CAPABILITY const unsigned char *)s1 -
-				*(__CAPABILITY const unsigned char *)(s2 - 1));
+				*(__CAPABILITY const unsigned char *)s2);
+		s2++;
 		if (*s1++ == '\0')
 			break;
 	} while (--n != 0);
