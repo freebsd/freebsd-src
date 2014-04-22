@@ -29,6 +29,7 @@ CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 LDADD+=		-lvuln_png -lz
+CFLAGS+=	-DIMAGEBOX_PNG_NO_FD
 
 NO_SHARED=	yes
 

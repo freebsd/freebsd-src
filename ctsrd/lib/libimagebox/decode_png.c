@@ -32,6 +32,7 @@
 
 #include <machine/sysarch.h>
 
+#include <assert.h>
 #include <png.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,7 +43,9 @@
 extern int png_exec_triggered;
 
 static void read_row_callback(png_structp, png_uint_32, int);
+#ifndef IMAGEBOX_PNG_NO_FD
 static void read_png_from_fd(png_structp, png_bytep, png_size_t);
+#endif
 
 void
 decode_png(struct ibox_decode_state *ids,
@@ -94,7 +97,12 @@ decode_png(struct ibox_decode_state *ids,
 	if (user_read_fn != NULL)
 		png_set_read_fn(png_ptr, ids, user_read_fn);
 	else
+#ifndef IMAGEBOX_PNG_NO_FD
 		png_set_read_fn(png_ptr, ids, read_png_from_fd);
+#else
+		assert(0);
+#endif
+
 
 	png_read_info(png_ptr, info_ptr);
 
@@ -147,6 +155,7 @@ read_row_callback(png_structp png_ptr, png_uint_32 row, int pass __unused)
 		ids->is->passes_remaining--;
 }
 
+#ifndef IMAGEBOX_PNG_NO_FD
 static void
 read_png_from_fd(png_structp png_ptr, png_bytep data, png_size_t length)
 {
@@ -158,3 +167,4 @@ read_png_from_fd(png_structp png_ptr, png_bytep data, png_size_t length)
 	if (rlen < 0 || (png_size_t)rlen != length)
 		png_error(png_ptr, "read error");
 }
+#endif
