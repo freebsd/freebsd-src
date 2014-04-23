@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -776,6 +776,20 @@ recv_begin_check_existing_impl(dmu_recv_begin_arg_t *drba, dsl_dataset_t *ds,
 	if (error != ENOENT)
 		return (error == 0 ? EEXIST : error);
 
+	/*
+	 * Check snapshot limit before receiving. We'll recheck again at the
+	 * end, but might as well abort before receiving if we're already over
+	 * the limit.
+	 *
+	 * Note that we do not check the file system limit with
+	 * dsl_dir_fscount_check because the temporary %clones don't count
+	 * against that limit.
+	 */
+	error = dsl_fs_ss_limit_check(ds->ds_dir, 1, ZFS_PROP_SNAPSHOT_LIMIT,
+	    NULL, drba->drba_cred);
+	if (error != 0)
+		return (error);
+
 	if (fromguid != 0) {
 		dsl_dataset_t *snap;
 		uint64_t obj = ds->ds_phys->ds_prev_snap_obj;
@@ -881,6 +895,25 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		error = dsl_dataset_hold(dp, buf, FTAG, &ds);
 		if (error != 0)
 			return (error);
+
+		/*
+		 * Check filesystem and snapshot limits before receiving. We'll
+		 * recheck snapshot limits again at the end (we create the
+		 * filesystems and increment those counts during begin_sync).
+		 */
+		error = dsl_fs_ss_limit_check(ds->ds_dir, 1,
+		    ZFS_PROP_FILESYSTEM_LIMIT, NULL, drba->drba_cred);
+		if (error != 0) {
+			dsl_dataset_rele(ds, FTAG);
+			return (error);
+		}
+
+		error = dsl_fs_ss_limit_check(ds->ds_dir, 1,
+		    ZFS_PROP_SNAPSHOT_LIMIT, NULL, drba->drba_cred);
+		if (error != 0) {
+			dsl_dataset_rele(ds, FTAG);
+			return (error);
+		}
 
 		if (drba->drba_origin != NULL) {
 			dsl_dataset_t *origin;
@@ -991,6 +1024,7 @@ dmu_recv_begin(char *tofs, char *tosnap, struct drr_begin *drrb,
 	drc->drc_tosnap = tosnap;
 	drc->drc_tofs = tofs;
 	drc->drc_force = force;
+	drc->drc_cred = CRED();
 
 	if (drrb->drr_magic == BSWAP_64(DMU_BACKUP_MAGIC))
 		drc->drc_byteswap = B_TRUE;
@@ -1684,7 +1718,7 @@ dmu_recv_end_check(void *arg, dmu_tx_t *tx)
 			return (error);
 		}
 		error = dsl_dataset_snapshot_check_impl(origin_head,
-		    drc->drc_tosnap, tx, B_TRUE);
+		    drc->drc_tosnap, tx, B_TRUE, 1, drc->drc_cred);
 		dsl_dataset_rele(origin_head, FTAG);
 		if (error != 0)
 			return (error);
@@ -1692,7 +1726,7 @@ dmu_recv_end_check(void *arg, dmu_tx_t *tx)
 		error = dsl_destroy_head_check_impl(drc->drc_ds, 1);
 	} else {
 		error = dsl_dataset_snapshot_check_impl(drc->drc_ds,
-		    drc->drc_tosnap, tx, B_TRUE);
+		    drc->drc_tosnap, tx, B_TRUE, 1, drc->drc_cred);
 	}
 	return (error);
 }
