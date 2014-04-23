@@ -215,16 +215,17 @@ f_media_set_http()
 	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
 	then
 		f_struct device_network &&
-			f_device_shutdown network
+			f_device_shutdown device_network
 		if ! f_device_select_tcp; then
 			unset $VAR_HTTP_PATH
 			return $FAILURE
 		fi
-		local dev
-		f_getvar $VAR_NETWORK_DEVICE dev
-		f_struct_copy "device_$dev" device_network
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
 	fi
-	if ! f_device_init network; then
+	if ! f_device_init device_network; then
 		f_dprintf "f_media_set_http: %s" "$msg_net_device_init_failed"
 		unset $VAR_HTTP_PATH
 		return $FAILURE
@@ -307,7 +308,7 @@ f_media_set_http()
 		if ! f_quietly f_host_lookup "$hostname"; then
 			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
 			f_struct device_network &&
-				f_device_shutdown network
+				f_device_shutdown device_network
 			f_struct_free device_network
 			unset $VAR_HTTP_PATH
 			return $FAILURE
@@ -323,7 +324,7 @@ f_media_set_http()
 	device_http set init     f_media_init_http
 	device_http set get      f_media_get_http
 	device_http set shutdown f_media_shutdown_http
-	device_http set private  network
+	device_http set private  device_network
 	f_struct_copy device_http device_media
 	f_struct_free device_http
 
@@ -565,9 +566,11 @@ f_media_init_http()
 f_media_get_http()
 {
 	local dev="$1" file="$2" probe_type="$3" hosts=
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_http: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
 	local http_host http_port
 	f_getvar $VAR_HTTP_HOST http_host
