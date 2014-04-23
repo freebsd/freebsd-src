@@ -1155,11 +1155,17 @@ uftdi_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		 * Otherwise, loop to format packets into the buffer while there
 		 * is data available, and room for a packet header and at least
 		 * one byte of payload.
+		 *
+		 * NOTE: The FTDI chip doesn't accept zero length
+		 * packets. This cannot happen because the "pktlen"
+		 * will always be non-zero when "ucom_get_data()"
+		 * returns non-zero which we check below.
 		 */
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (sc->sc_hdrlen == 0) {
-			ucom_get_data(&sc->sc_ucom, pc, 0, UFTDI_OBUFSIZE, 
-			    &buflen);
+			if (ucom_get_data(&sc->sc_ucom, pc, 0, UFTDI_OBUFSIZE, 
+			    &buflen) == 0)
+				break;
 		} else {
 			buflen = 0;
 			while (buflen < UFTDI_OBUFSIZE - sc->sc_hdrlen - 1 &&
@@ -1417,7 +1423,7 @@ uftdi_encode_baudrate(struct uftdi_softc *sc, speed_t speed,
 	 * 8ths by adding 1 and dividing by 2.
 	 */
 	divisor = (clk << 4) / speed;
-	if ((divisor & 0xfffffff0) == 1)
+	if ((divisor & 0xf) == 1)
 		divisor &= 0xfffffff8;
 	else if (sc->sc_devtype == DEVT_232A)
 		divisor += roundoff_232a[divisor & 0x0f];
@@ -1759,10 +1765,11 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 		err = uftdi_get_latency(ucom, (int *)data);
 		break;
 	case UFTDIIOC_SET_ERROR_CHAR:
-		err = uftdi_set_event_char(ucom, *(int *)data);
+		err = uftdi_set_error_char(ucom, *(int *)data);
 		break;
 	case UFTDIIOC_SET_EVENT_CHAR:
-		err = uftdi_set_error_char(ucom, *(int *)data);
+		err = uftdi_set_event_char(ucom, *(int *)data);
+		break;
 	case UFTDIIOC_GET_HWREV:
 		*(int *)data = sc->sc_bcdDevice;
 		err = 0;
