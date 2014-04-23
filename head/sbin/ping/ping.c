@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>		/* NB: we rely on this for <sys/types.h> */
+#include <sys/capsicum.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -74,6 +75,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <arpa/inet.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <libcapsicum.h>
+#include <libcapsicum_dns.h>
+#include <libcapsicum_service.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -157,7 +163,8 @@ char rcvd_tbl[MAX_DUP_CHK / 8];
 struct sockaddr_in whereto;	/* who to ping */
 int datalen = DEFDATALEN;
 int maxpayload;
-int s;				/* socket file descriptor */
+int ssend;			/* send socket file descriptor */
+int srecv;			/* receive socket file descriptor */
 u_char outpackhdr[IP_MAXPACKET], *outpack;
 char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
 char BSPACE = '\b';		/* characters written for flood */
@@ -197,8 +204,15 @@ double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 volatile sig_atomic_t finish_up;  /* nonzero if we've been told to finish up */
 volatile sig_atomic_t siginfo_p;
 
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *capdns;
+#endif
+
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *capdns_setup(void);
+#endif
 static void check_status(void);
 static void finish(void) __dead2;
 static void pinger(void);
@@ -233,8 +247,8 @@ main(int argc, char *const *argv)
 	struct sockaddr_in *to;
 	double t;
 	u_long alarmtimeout, ultmp;
-	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload, sockerrno,
-	    tos, ttl;
+	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload;
+	int ssend_errno, srecv_errno, tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
@@ -246,14 +260,26 @@ main(int argc, char *const *argv)
 #ifdef IPSEC_POLICY_IPSEC
 	policy_in = policy_out = NULL;
 #endif
+	cap_rights_t rights;
+	bool cansandbox;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
 	 * then drop our setuid bit.  Save error reporting for
 	 * after arg parsing.
+	 *
+	 * Historicaly ping was using one socket 's' for sending and for
+	 * receiving. After capsicum(4) related changes we use two
+	 * sockets. It was done for special ping use case - when user
+	 * issue ping on multicast or broadcast address replies come
+	 * from different addresses, not from the address we
+	 * connect(2)'ed to, and send socket do not receive those
+	 * packets.
 	 */
-	s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-	sockerrno = errno;
+	ssend = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	ssend_errno = errno;
+	srecv = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	srecv_errno = errno;
 
 	if (setuid(getuid()) != 0)
 		err(EX_NOPERM, "setuid() failed");
@@ -527,13 +553,22 @@ main(int argc, char *const *argv)
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
+#ifdef HAVE_LIBCAPSICUM
+	capdns = capdns_setup();
+#endif
 	if (source) {
 		bzero((char *)&sock_in, sizeof(sock_in));
 		sock_in.sin_family = AF_INET;
 		if (inet_aton(source, &sock_in.sin_addr) != 0) {
 			shostname = source;
 		} else {
-			hp = gethostbyname2(source, AF_INET);
+#ifdef HAVE_LIBCAPSICUM
+			if (capdns != NULL)
+				hp = cap_gethostbyname2(capdns, source,
+				    AF_INET);
+			else
+#endif
+				hp = gethostbyname2(source, AF_INET);
 			if (!hp)
 				errx(EX_NOHOST, "cannot resolve %s: %s",
 				    source, hstrerror(h_errno));
@@ -549,7 +584,8 @@ main(int argc, char *const *argv)
 			snamebuf[sizeof(snamebuf) - 1] = '\0';
 			shostname = snamebuf;
 		}
-		if (bind(s, (struct sockaddr *)&sock_in, sizeof sock_in) == -1)
+		if (bind(ssend, (struct sockaddr *)&sock_in, sizeof sock_in) ==
+		    -1)
 			err(1, "bind");
 	}
 
@@ -560,7 +596,12 @@ main(int argc, char *const *argv)
 	if (inet_aton(target, &to->sin_addr) != 0) {
 		hostname = target;
 	} else {
-		hp = gethostbyname2(target, AF_INET);
+#ifdef HAVE_LIBCAPSICUM
+		if (capdns != NULL)
+			hp = cap_gethostbyname2(capdns, target, AF_INET);
+		else
+#endif
+			hp = gethostbyname2(target, AF_INET);
 		if (!hp)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
 			    target, hstrerror(h_errno));
@@ -572,6 +613,30 @@ main(int argc, char *const *argv)
 		hnamebuf[sizeof(hnamebuf) - 1] = '\0';
 		hostname = hnamebuf;
 	}
+
+#ifdef HAVE_LIBCAPSICUM
+	/* From now on we will use only reverse DNS lookups. */
+	if (capdns != NULL) {
+		const char *types[1];
+
+		types[0] = "ADDR";
+		if (cap_dns_type_limit(capdns, types, 1) < 0)
+			err(1, "unable to limit access to system.dns service");
+	}
+#endif
+
+	if (ssend < 0) {
+		errno = ssend_errno;
+		err(EX_OSERR, "ssend socket");
+	}
+
+	if (srecv < 0) {
+		errno = srecv_errno;
+		err(EX_OSERR, "srecv socket");
+	}
+
+	if (connect(ssend, (struct sockaddr *)&whereto, sizeof(whereto)) != 0)
+		err(1, "connect");
 
 	if (options & F_FLOOD && options & F_INTERVAL)
 		errx(EX_USAGE, "-f and -i: incompatible options");
@@ -593,16 +658,15 @@ main(int argc, char *const *argv)
 
 	ident = getpid() & 0xFFFF;
 
-	if (s < 0) {
-		errno = sockerrno;
-		err(EX_OSERR, "socket");
-	}
 	hold = 1;
-	if (options & F_SO_DEBUG)
-		(void)setsockopt(s, SOL_SOCKET, SO_DEBUG, (char *)&hold,
+	if (options & F_SO_DEBUG) {
+		(void)setsockopt(ssend, SOL_SOCKET, SO_DEBUG, (char *)&hold,
 		    sizeof(hold));
+		(void)setsockopt(srecv, SOL_SOCKET, SO_DEBUG, (char *)&hold,
+		    sizeof(hold));
+	}
 	if (options & F_SO_DONTROUTE)
-		(void)setsockopt(s, SOL_SOCKET, SO_DONTROUTE, (char *)&hold,
+		(void)setsockopt(ssend, SOL_SOCKET, SO_DONTROUTE, (char *)&hold,
 		    sizeof(hold));
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
@@ -612,7 +676,7 @@ main(int argc, char *const *argv)
 			buf = ipsec_set_policy(policy_in, strlen(policy_in));
 			if (buf == NULL)
 				errx(EX_CONFIG, "%s", ipsec_strerror());
-			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
+			if (setsockopt(srecv, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
 				err(EX_CONFIG,
 				    "ipsec policy cannot be configured");
@@ -623,7 +687,7 @@ main(int argc, char *const *argv)
 			buf = ipsec_set_policy(policy_out, strlen(policy_out));
 			if (buf == NULL)
 				errx(EX_CONFIG, "%s", ipsec_strerror());
-			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
+			if (setsockopt(ssend, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
 				err(EX_CONFIG,
 				    "ipsec policy cannot be configured");
@@ -644,7 +708,7 @@ main(int argc, char *const *argv)
 			if (sysctl(mib, 4, &ttl, &sz, NULL, 0) == -1)
 				err(1, "sysctl(net.inet.ip.ttl)");
 		}
-		setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hold, sizeof(hold));
+		setsockopt(ssend, IPPROTO_IP, IP_HDRINCL, &hold, sizeof(hold));
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(struct ip) >> 2;
 		ip->ip_tos = tos;
@@ -655,6 +719,35 @@ main(int argc, char *const *argv)
 		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
 		ip->ip_dst = to->sin_addr;
         }
+
+	if (options & F_NUMERIC)
+		cansandbox = true;
+#ifdef HAVE_LIBCAPSICUM
+	else if (capdns != NULL)
+		cansandbox = true;
+#endif
+	else
+		cansandbox = false;
+
+	/*
+	 * Here we enter capability mode. Further down access to global
+	 * namespaces (e.g filesystem) is restricted (see capsicum(4)).
+	 * We must connect(2) our socket before this point.
+	 */
+	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
+		err(1, "cap_enter");
+
+	if (cap_sandboxed())
+		fprintf(stderr, "capability mode sandbox enabled\n");
+
+	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
+	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
+		err(1, "cap_rights_limit srecv");
+
+	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
+	if (cap_rights_limit(ssend, &rights) < 0 && errno != ENOSYS)
+		err(1, "cap_rights_limit ssend");
+
 	/* record route option */
 	if (options & F_RROUTE) {
 #ifdef IP_OPTIONS
@@ -663,7 +756,7 @@ main(int argc, char *const *argv)
 		rspace[IPOPT_OLEN] = sizeof(rspace) - 1;
 		rspace[IPOPT_OFFSET] = IPOPT_MINOFF;
 		rspace[sizeof(rspace) - 1] = IPOPT_EOL;
-		if (setsockopt(s, IPPROTO_IP, IP_OPTIONS, rspace,
+		if (setsockopt(ssend, IPPROTO_IP, IP_OPTIONS, rspace,
 		    sizeof(rspace)) < 0)
 			err(EX_OSERR, "setsockopt IP_OPTIONS");
 #else
@@ -673,32 +766,32 @@ main(int argc, char *const *argv)
 	}
 
 	if (options & F_TTL) {
-		if (setsockopt(s, IPPROTO_IP, IP_TTL, &ttl,
+		if (setsockopt(ssend, IPPROTO_IP, IP_TTL, &ttl,
 		    sizeof(ttl)) < 0) {
 			err(EX_OSERR, "setsockopt IP_TTL");
 		}
 	}
 	if (options & F_NOLOOP) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
+		if (setsockopt(ssend, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
 		    sizeof(loop)) < 0) {
 			err(EX_OSERR, "setsockopt IP_MULTICAST_LOOP");
 		}
 	}
 	if (options & F_MTTL) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &mttl,
+		if (setsockopt(ssend, IPPROTO_IP, IP_MULTICAST_TTL, &mttl,
 		    sizeof(mttl)) < 0) {
 			err(EX_OSERR, "setsockopt IP_MULTICAST_TTL");
 		}
 	}
 	if (options & F_MIF) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &ifaddr,
+		if (setsockopt(ssend, IPPROTO_IP, IP_MULTICAST_IF, &ifaddr,
 		    sizeof(ifaddr)) < 0) {
 			err(EX_OSERR, "setsockopt IP_MULTICAST_IF");
 		}
 	}
 #ifdef SO_TIMESTAMP
 	{ int on = 1;
-	if (setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &on, sizeof(on)) < 0)
+	if (setsockopt(srecv, SOL_SOCKET, SO_TIMESTAMP, &on, sizeof(on)) < 0)
 		err(EX_OSERR, "setsockopt SO_TIMESTAMP");
 	}
 #endif
@@ -733,11 +826,19 @@ main(int argc, char *const *argv)
 	 * as well.
 	 */
 	hold = IP_MAXPACKET + 128;
-	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
+	(void)setsockopt(srecv, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
+	/* CAP_SETSOCKOPT removed */
+	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
+	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
+		err(1, "cap_rights_limit srecv setsockopt");
 	if (uid == 0)
-		(void)setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&hold,
+		(void)setsockopt(ssend, SOL_SOCKET, SO_SNDBUF, (char *)&hold,
 		    sizeof(hold));
+	/* CAP_SETSOCKOPT removed */
+	cap_rights_init(&rights, CAP_SEND);
+	if (cap_rights_limit(ssend, &rights) < 0 && errno != ENOSYS)
+		err(1, "cap_rights_limit ssend setsockopt");
 
 	if (to->sin_family == AF_INET) {
 		(void)printf("PING %s (%s)", hostname,
@@ -817,10 +918,10 @@ main(int argc, char *const *argv)
 		int cc, n;
 
 		check_status();
-		if ((unsigned)s >= FD_SETSIZE)
+		if ((unsigned)srecv >= FD_SETSIZE)
 			errx(EX_OSERR, "descriptor too large");
 		FD_ZERO(&rfds);
-		FD_SET(s, &rfds);
+		FD_SET(srecv, &rfds);
 		(void)gettimeofday(&now, NULL);
 		timeout.tv_sec = last.tv_sec + intvl.tv_sec - now.tv_sec;
 		timeout.tv_usec = last.tv_usec + intvl.tv_usec - now.tv_usec;
@@ -834,7 +935,7 @@ main(int argc, char *const *argv)
 		}
 		if (timeout.tv_sec < 0)
 			timerclear(&timeout);
-		n = select(s + 1, &rfds, NULL, NULL, &timeout);
+		n = select(srecv + 1, &rfds, NULL, NULL, &timeout);
 		if (n < 0)
 			continue;	/* Must be EINTR. */
 		if (n == 1) {
@@ -845,7 +946,7 @@ main(int argc, char *const *argv)
 			msg.msg_controllen = sizeof(ctrl);
 #endif
 			msg.msg_namelen = sizeof(from);
-			if ((cc = recvmsg(s, &msg, 0)) < 0) {
+			if ((cc = recvmsg(srecv, &msg, 0)) < 0) {
 				if (errno == EINTR)
 					continue;
 				warn("recvmsg");
@@ -981,9 +1082,7 @@ pinger(void)
 		ip->ip_sum = in_cksum((u_short *)outpackhdr, cc);
 		packet = outpackhdr;
 	}
-	i = sendto(s, (char *)packet, cc, 0, (struct sockaddr *)&whereto,
-	    sizeof(whereto));
-
+	i = send(ssend, (char *)packet, cc, 0);
 	if (i < 0 || i != cc)  {
 		if (i < 0) {
 			if (options & F_FLOOD && errno == ENOBUFS) {
@@ -1604,12 +1703,21 @@ pr_addr(struct in_addr ina)
 	struct hostent *hp;
 	static char buf[16 + 3 + MAXHOSTNAMELEN];
 
-	if ((options & F_NUMERIC) ||
-	    !(hp = gethostbyaddr((char *)&ina, 4, AF_INET)))
+	if (options & F_NUMERIC)
 		return inet_ntoa(ina);
+
+#ifdef HAVE_LIBCAPSICUM
+	if (capdns != NULL)
+		hp = cap_gethostbyaddr(capdns, (char *)&ina, 4, AF_INET);
 	else
-		(void)snprintf(buf, sizeof(buf), "%s (%s)", hp->h_name,
-		    inet_ntoa(ina));
+#endif
+		hp = gethostbyaddr((char *)&ina, 4, AF_INET);
+
+	if (hp == NULL)
+		return inet_ntoa(ina);
+
+	(void)snprintf(buf, sizeof(buf), "%s (%s)", hp->h_name,
+	    inet_ntoa(ina));
 	return(buf);
 }
 
@@ -1681,6 +1789,36 @@ fill(char *bp, char *patp)
 		(void)printf("\n");
 	}
 }
+
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *
+capdns_setup(void)
+{
+	cap_channel_t *capcas, *capdnsloc;
+	const char *types[2];
+	int families[1];
+
+	capcas = cap_init();
+	if (capcas == NULL) {
+		warn("unable to contact casperd");
+		return (NULL);
+	}
+	capdnsloc = cap_service_open(capcas, "system.dns");
+	/* Casper capability no longer needed. */
+	cap_close(capcas);
+	if (capdnsloc == NULL)
+		err(1, "unable to open system.dns service");
+	types[0] = "NAME";
+	types[1] = "ADDR";
+	if (cap_dns_type_limit(capdnsloc, types, 2) < 0)
+		err(1, "unable to limit access to system.dns service");
+	families[0] = AF_INET;
+	if (cap_dns_family_limit(capdnsloc, families, 1) < 0)
+		err(1, "unable to limit access to system.dns service");
+
+	return (capdnsloc);
+}
+#endif /* HAVE_LIBCAPSICUM */
 
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 #define	SECOPT		" [-P policy]"

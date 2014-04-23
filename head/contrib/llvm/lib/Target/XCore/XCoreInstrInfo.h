@@ -24,6 +24,7 @@ namespace llvm {
 
 class XCoreInstrInfo : public XCoreGenInstrInfo {
   const XCoreRegisterInfo RI;
+  virtual void anchor();
 public:
   XCoreInstrInfo();
 
@@ -77,12 +78,6 @@ public:
                                     unsigned DestReg, int FrameIndex,
                                     const TargetRegisterClass *RC,
                                     const TargetRegisterInfo *TRI) const;
-
-  virtual MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
-                                                 int FrameIx,
-                                                 uint64_t Offset,
-                                                 const MDNode *MDPtr,
-                                                 DebugLoc DL) const;
 
   virtual bool ReverseBranchCondition(
                             SmallVectorImpl<MachineOperand> &Cond) const;

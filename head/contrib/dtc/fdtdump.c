@@ -2,14 +2,16 @@
  * fdtdump.c - Contributed by Pantelis Antoniou <pantelis.antoniou AT gmail.com>
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-#include <fdt.h>
+#include <libfdt.h>
 #include <libfdt_env.h>
+#include <fdt.h>
 
 #include "util.h"
 
@@ -17,33 +19,29 @@
 #define PALIGN(p, a)	((void *)(ALIGN((unsigned long)(p), (a))))
 #define GET_CELL(p)	(p += 4, *((const uint32_t *)(p-4)))
 
-static void print_data(const char *data, int len)
+static const char *tagname(uint32_t tag)
 {
-	int i;
-	const char *p = data;
-
-	/* no data, don't print */
-	if (len == 0)
-		return;
-
-	if (util_is_printable_string(data, len)) {
-		printf(" = \"%s\"", (const char *)data);
-	} else if ((len % 4) == 0) {
-		printf(" = <");
-		for (i = 0; i < len; i += 4)
-			printf("0x%08x%s", fdt32_to_cpu(GET_CELL(p)),
-			       i < (len - 4) ? " " : "");
-		printf(">");
-	} else {
-		printf(" = [");
-		for (i = 0; i < len; i++)
-			printf("%02x%s", *p++, i < len - 1 ? " " : "");
-		printf("]");
-	}
+	static const char * const names[] = {
+#define TN(t) [t] #t
+		TN(FDT_BEGIN_NODE),
+		TN(FDT_END_NODE),
+		TN(FDT_PROP),
+		TN(FDT_NOP),
+		TN(FDT_END),
+#undef TN
+	};
+	if (tag < ARRAY_SIZE(names))
+		if (names[tag])
+			return names[tag];
+	return "FDT_???";
 }
 
-static void dump_blob(void *blob)
+#define dumpf(fmt, args...) \
+	do { if (debug) printf("// " fmt, ## args); } while (0)
+
+static void dump_blob(void *blob, bool debug)
 {
+	uintptr_t blob_off = (uintptr_t)blob;
 	struct fdt_header *bph = blob;
 	uint32_t off_mem_rsvmap = fdt32_to_cpu(bph->off_mem_rsvmap);
 	uint32_t off_dt = fdt32_to_cpu(bph->off_dt_struct);
@@ -97,7 +95,8 @@ static void dump_blob(void *blob)
 	p = p_struct;
 	while ((tag = fdt32_to_cpu(GET_CELL(p))) != FDT_END) {
 
-		/* printf("tag: 0x%08x (%d)\n", tag, p - p_struct); */
+		dumpf("%04zx: tag: 0x%08x (%s)\n",
+		        (uintptr_t)p - blob_off - 4, tag, tagname(tag));
 
 		if (tag == FDT_BEGIN_NODE) {
 			s = p;
@@ -136,27 +135,93 @@ static void dump_blob(void *blob)
 
 		p = PALIGN(p + sz, 4);
 
+		dumpf("%04zx: string: %s\n", (uintptr_t)s - blob_off, s);
+		dumpf("%04zx: value\n", (uintptr_t)t - blob_off);
 		printf("%*s%s", depth * shift, "", s);
-		print_data(t, sz);
+		utilfdt_print_data(t, sz);
 		printf(";\n");
 	}
 }
 
+/* Usage related data. */
+static const char usage_synopsis[] = "fdtdump [options] <file>";
+static const char usage_short_opts[] = "ds" USAGE_COMMON_SHORT_OPTS;
+static struct option const usage_long_opts[] = {
+	{"debug",            no_argument, NULL, 'd'},
+	{"scan",             no_argument, NULL, 's'},
+	USAGE_COMMON_LONG_OPTS
+};
+static const char * const usage_opts_help[] = {
+	"Dump debug information while decoding the file",
+	"Scan for an embedded fdt in file",
+	USAGE_COMMON_OPTS_HELP
+};
 
 int main(int argc, char *argv[])
 {
+	int opt;
+	const char *file;
 	char *buf;
+	bool debug = false;
+	bool scan = false;
+	off_t len;
 
-	if (argc < 2) {
-		fprintf(stderr, "supply input filename\n");
-		return 5;
+	while ((opt = util_getopt_long()) != EOF) {
+		switch (opt) {
+		case_USAGE_COMMON_FLAGS
+
+		case 'd':
+			debug = true;
+			break;
+		case 's':
+			scan = true;
+			break;
+		}
+	}
+	if (optind != argc - 1)
+		usage("missing input filename");
+	file = argv[optind];
+
+	buf = utilfdt_read_len(file, &len);
+	if (!buf)
+		die("could not read: %s\n", file);
+
+	/* try and locate an embedded fdt in a bigger blob */
+	if (scan) {
+		unsigned char smagic[4];
+		char *p = buf;
+		char *endp = buf + len;
+
+		fdt_set_magic(smagic, FDT_MAGIC);
+
+		/* poor man's memmem */
+		while (true) {
+			p = memchr(p, smagic[0], endp - p - 4);
+			if (!p)
+				break;
+			if (fdt_magic(p) == FDT_MAGIC) {
+				/* try and validate the main struct */
+				off_t this_len = endp - p;
+				fdt32_t max_version = 17;
+				if (fdt_version(p) <= max_version &&
+				    fdt_last_comp_version(p) < max_version &&
+				    fdt_totalsize(p) < this_len &&
+				    fdt_off_dt_struct(p) < this_len &&
+					fdt_off_dt_strings(p) < this_len)
+					break;
+				if (debug)
+					printf("%s: skipping fdt magic at offset %#zx\n",
+						file, p - buf);
+			}
+			++p;
+		}
+		if (!p)
+			die("%s: could not locate fdt magic\n", file);
+		printf("%s: found fdt at offset %#zx\n", file, p - buf);
+		buf = p;
 	}
 
-	buf = utilfdt_read(argv[1]);
-	if (buf)
-		dump_blob(buf);
-	else
-		return 10;
+	dump_blob(buf, debug);
 
 	return 0;
 }

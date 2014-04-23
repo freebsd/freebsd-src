@@ -83,6 +83,7 @@ static const struct ipspec intparams[] = {
 #endif
     [IP_MOUNT] =		{"mount",		PF_INTERNAL | PF_REV},
     [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
+    [IP_MOUNT_FDESCFS] =	{"mount.fdescfs",	PF_INTERNAL | PF_BOOL},
     [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
     [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},

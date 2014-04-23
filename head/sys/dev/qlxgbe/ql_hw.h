@@ -568,9 +568,13 @@ typedef struct _q80_config_fw_lro {
 #define Q8_MBX_FW_LRO_IPV6                     0x2
 #define Q8_MBX_FW_LRO_IPV4_WO_DST_IP_CHK       0x4
 #define Q8_MBX_FW_LRO_IPV6_WO_DST_IP_CHK       0x8
+#define Q8_MBX_FW_LRO_LOW_THRESHOLD            0x10
 
 	uint8_t		rsrvd;
 	uint16_t	cntxt_id;
+
+	uint16_t	low_threshold;
+	uint16_t	rsrvd0;
 } __packed q80_config_fw_lro_t;
 
 typedef struct _q80_config_fw_lro_rsp {
@@ -1521,6 +1525,7 @@ typedef struct _qla_hw {
 	uint32_t	health_count;
 
 	uint32_t	max_tx_segs;
+	uint32_t	min_lro_pkt_size;
 	
 	/* Flash Descriptor Table */
 	qla_flash_desc_table_t fdt;

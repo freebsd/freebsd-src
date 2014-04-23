@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001	Mark R V Murray.  All rights reserved.
+.\" Copyright (c) 2001-2013	Mark R V Murray.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2013
+.Dd October 12, 2013
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -43,35 +43,48 @@ The device will probe for
 certain hardware entropy sources,
 and use these in preference to the fallback,
 which is a generator implemented in software.
-If the kernel environment MIB's
-.Va hw.nehemiah_rng_enable
-or
-.Va hw.ivy_rng_enable
-are set to
-.Dq Li 0 ,
-the associated hardware entropy source will be ignored.
 .Pp
-If the device is using
-the software generator,
-writing data to
+The software generator will start in an
+.Em unseeded
+state, and will block reads until
+it is (re)seeded.
+This may cause trouble at system boot
+when keys and the like
+are generated from
+/dev/random
+so steps should be taken to ensure a
+reseed as soon as possible.
+The
+.Xr sysctl 8
+controlling the
+.Em seeded
+status (see below) may be used
+if security is not an issue
+or for convenience
+during setup or development.
+.Pp
+This initial seeding
+of random number generators
+is a bootstrapping problem
+that needs very careful attention.
+In some cases,
+it may be difficult
+to find enough randomness
+to seed a random number generator
+until a system is fully operational,
+but the system requires random numbers
+to become fully operational.
+It is (or more accurately should be)
+critically important that the
 .Nm
-would perturb the internal state.
-This perturbation of the internal state
-is the only userland method of introducing
-extra entropy into the device.
-If the writer has superuser privilege,
-then closing the device after writing
-will make the software generator reseed itself.
-This can be used for extra security,
-as it immediately introduces any/all new entropy
-into the PRNG.
-The hardware generators will generate
-sufficient quantities of entropy,
-and will therefore ignore user-supplied input.
-The software
-.Nm
-device may be controlled with
-.Xr sysctl 8 .
+device is seeded
+before the first time it is used.
+In the case where a dummy or "blocking-only"
+device is used,
+it is the responsibility
+of the system architect
+to ensure that no blocking reads
+hold up critical processes.
 .Pp
 To see the current settings of the software
 .Nm
@@ -81,21 +94,19 @@ device, use the command line:
 .Pp
 which results in something like:
 .Bd -literal -offset indent
-kern.random.adaptors: yarrow
+kern.random.adaptors: yarrow,dummy
+kern.random.active_adaptor: yarrow
+kern.random.yarrow.gengateinterval: 10
+kern.random.yarrow.bins: 10
+kern.random.yarrow.fastthresh: 96
+kern.random.yarrow.slowthresh: 128
+kern.random.yarrow.slowoverthresh: 2
 kern.random.sys.seeded: 1
 kern.random.sys.harvest.ethernet: 1
 kern.random.sys.harvest.point_to_point: 1
 kern.random.sys.harvest.interrupt: 1
-kern.random.sys.harvest.swi: 0
-kern.random.yarrow.gengateinterval: 10
-kern.random.yarrow.bins: 10
-kern.random.yarrow.fastthresh: 192
-kern.random.yarrow.slowthresh: 256
-kern.random.yarrow.slowoverthresh: 2
+kern.random.sys.harvest.swi: 1
 .Ed
-.Pp
-(These would not be seen if a
-hardware generator is present.)
 .Pp
 Other than
 .Dl kern.random.adaptors
@@ -107,9 +118,10 @@ variable indicates whether or not the
 .Nm
 device is in an acceptably secure state
 as a result of reseeding.
-If set to 0, the device will block (on read) until the next reseed
-(which can be from an explicit write,
-or as a result of entropy harvesting).
+If set to 0,
+the device will block (on read)
+until the next reseed
+as a result of entropy harvesting.
 A reseed will set the value to 1 (non-blocking).
 .Pp
 The
@@ -276,19 +288,6 @@ the generator produce independent sequences.
 However, the guessability or reproducibility of the sequence is unimportant,
 unlike the previous cases.
 .Pp
-One final consideration for the seeding of random number generators
-is a bootstrapping problem.
-In some cases, it may be difficult to find enough randomness to
-seed a random number generator until a system is fully operational,
-but the system requires random numbers to become fully operational.
-There is no substitute for careful thought here,
-but the
-.Fx
-.Nm
-device,
-which is based on the Yarrow system,
-should be of some help in this area.
-.Pp
 .Fx
 does also provide the traditional
 .Xr rand 3
@@ -325,17 +324,7 @@ and is an implementation of the
 .Em Yarrow
 algorithm by Bruce Schneier,
 .Em et al .
-The only hardware implementations
-currently are for the
-.Tn VIA C3 Nehemiah
-(stepping 3 or greater)
-CPU
-and the
-.Tn Intel
-.Dq Bull Mountain
-.Em RdRand
-instruction and underlying random number generator (RNG).
-More will be added in the future.
+Significant infrastructure work was done by Arthur Mesh.
 .Pp
 The author gratefully acknowledges
 significant assistance from VIA Technologies, Inc.

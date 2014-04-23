@@ -13,7 +13,7 @@ ident           DB120
 hints           "DB120.hints"
 
 # Force the board memory - the base DB120 has 128MB RAM
-options         AR71XX_REALMEM=(32*1024*1024)
+options         AR71XX_REALMEM=(128*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic
@@ -29,11 +29,11 @@ device		etherswitch
 device		arswitch
 
 # read MSDOS formatted disks - USB
-#options		MSDOSFS
+#options 	MSDOSFS
 
 # Enable the uboot environment stuff rather then the
 # redboot stuff.
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
 # uzip - to boot natively from flash
 device		geom_uncompress
@@ -42,5 +42,11 @@ options 	GEOM_UNCOMPRESS
 # Used for the static uboot partition map
 device          geom_map
 
+# yes, this board has a PCI connected atheros device
+device		ath_pci
+options 	AR71XX_ATH_EEPROM
+device		firmware		# Used by the above
+options 	ATH_EEPROM_FIRMWARE
+
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"

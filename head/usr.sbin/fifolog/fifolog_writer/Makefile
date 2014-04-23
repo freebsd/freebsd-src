@@ -4,7 +4,7 @@ PROG=	fifolog_writer
 
 CFLAGS+= -I${.CURDIR}/../lib
 
-NO_MAN=	# see ../fifolog_create/fifolog.1
+MAN=
 
 DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
 LDADD=	${LIBFIFOLOG} -lutil -lz

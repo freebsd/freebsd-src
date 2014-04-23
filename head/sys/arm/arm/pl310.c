@@ -281,6 +281,9 @@ static int
 pl310_probe(device_t dev)
 {
 	
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,pl310"))
 		return (ENXIO);
 	device_set_desc(dev, "PL310 L2 cache controller");
@@ -341,8 +344,13 @@ pl310_attach(device_t dev)
 	ctrl_value = pl310_read4(sc, PL310_CTRL);
 
 	if (sc->sc_enabled && !(ctrl_value & CTRL_ENABLED)) {
+		/* invalidate current content */
+		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
+		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
+
 		/* Enable the L2 cache if disabled */
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
+		device_printf(dev, "L2 Cache enabled\n");
 	} 
 
 	if (!sc->sc_enabled && (ctrl_value & CTRL_ENABLED)) {
@@ -375,6 +383,7 @@ pl310_attach(device_t dev)
 		    EVENT_COUNTER_CTRL_C0_RESET | 
 		    EVENT_COUNTER_CTRL_C1_RESET);
 
+		device_printf(dev, "L2 Cache disabled\n");
 	}
 
 	if (sc->sc_enabled)

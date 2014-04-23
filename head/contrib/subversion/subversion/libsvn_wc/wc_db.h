@@ -2831,6 +2831,16 @@ svn_wc__db_scan_deletion(const char **base_del_abspath,
    @{
 */
 
+/* Installs or updates Sqlite schema statistics for the current (aka latest)
+   working copy schema.
+
+   This function should be called once on initializing the database and after
+   an schema update completes */
+svn_error_t *
+svn_wc__db_install_schema_statistics(svn_sqlite__db_t *sdb,
+                                     apr_pool_t *scratch_pool);
+
+
 /* Create a new wc.db file for LOCAL_DIR_ABSPATH, which is going to be a
    working copy for the repository REPOS_ROOT_URL with uuid REPOS_UUID.
    Return the raw sqlite handle, repository id and working copy id
@@ -3382,7 +3392,14 @@ svn_wc__db_resolve_delete_raise_moved_away(svn_wc__db_t *db,
                                            apr_pool_t *scratch_pool);
 
 /* Like svn_wc__db_resolve_delete_raise_moved_away this should be
-   combined. */
+   combined.
+   
+   ### LOCAL_ABSPATH specifies the move origin, but the move origin
+   ### is not necessary unique enough. This function needs an op_root_abspath
+   ### argument to differentiate between different origins.
+
+   ### See move_tests.py: move_many_update_delete for an example case.
+   */
 svn_error_t *
 svn_wc__db_resolve_break_moved_away(svn_wc__db_t *db,
                                     const char *local_abspath,

@@ -120,8 +120,6 @@
     sbin
     ..
     share
-        atf
-        ..
         bsdconfig
             media
             ..
@@ -165,15 +163,7 @@
         doc
             IPv6
             ..
-            atf
-            ..
             atm
-            ..
-            bind9
-                arm
-                ..
-                misc
-                ..
             ..
             legal
                 intel_ipw
@@ -299,8 +289,6 @@
             ..
             IPv6
             ..
-            atf
-            ..
             bhyve
             ..
             bootforth
@@ -312,6 +300,8 @@
             cvsup
             ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -332,8 +322,6 @@
             ipfilter
             ..
             ipfw
-            ..
-            iscsi
             ..
             jails
             ..
@@ -368,8 +356,6 @@
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
             pc-sysinstall
             ..
@@ -489,6 +475,14 @@
             ..
         ..
         info
+        ..
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
+            ..
         ..
         locale
             UTF-8
@@ -1410,14 +1404,6 @@
             catalog
             ..
         ..
-        xml
-            atf
-            ..
-        ..
-        xsl
-            atf
-            ..
-        ..
         zoneinfo
             Africa
             ..
@@ -1454,7 +1440,5 @@
         ..
     ..
     src             nochange
-    ..
-    tests
     ..
 ..

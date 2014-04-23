@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -661,7 +663,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%u ", thr_self());
+			(void) printf("%ul ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());
@@ -800,20 +802,17 @@ delay(clock_t ticks)
 /*
  * Find highest one bit set.
  *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
- * High order bit is 31 (or 63 in _LP64 kernel).
  */
 int
-highbit(ulong_t i)
+highbit64(uint64_t i)
 {
-	register int h = 1;
+	int h = 1;
 
 	if (i == 0)
 		return (0);
-#ifdef _LP64
-	if (i & 0xffffffff00000000ul) {
+	if (i & 0xffffffff00000000ULL) {
 		h += 32; i >>= 32;
 	}
-#endif
 	if (i & 0xffff0000) {
 		h += 16; i >>= 16;
 	}
@@ -1123,5 +1122,52 @@ int
 zvol_create_minors(const char *name)
 {
 	return (0);
+}
+#endif
+
+#ifdef illumos
+void
+bioinit(buf_t *bp)
+{
+	bzero(bp, sizeof (buf_t));
+}
+
+void
+biodone(buf_t *bp)
+{
+	if (bp->b_iodone != NULL) {
+		(*(bp->b_iodone))(bp);
+		return;
+	}
+	ASSERT((bp->b_flags & B_DONE) == 0);
+	bp->b_flags |= B_DONE;
+}
+
+void
+bioerror(buf_t *bp, int error)
+{
+	ASSERT(bp != NULL);
+	ASSERT(error >= 0);
+
+	if (error != 0) {
+		bp->b_flags |= B_ERROR;
+	} else {
+		bp->b_flags &= ~B_ERROR;
+	}
+	bp->b_error = error;
+}
+
+
+int
+geterror(struct buf *bp)
+{
+	int error = 0;
+
+	if (bp->b_flags & B_ERROR) {
+		error = bp->b_error;
+		if (!error)
+			error = EIO;
+	}
+	return (error);
 }
 #endif

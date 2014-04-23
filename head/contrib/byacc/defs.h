@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.37 2012/05/26 15:23:00 tom Exp $ */
+/* $Id: defs.h,v 1.38 2014/01/01 14:23:27 Christos.Zoulas Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -104,6 +104,7 @@
 #define PARSE_PARAM 13
 #define LEX_PARAM 14
 #define POSIX_YACC 15
+#define TOKEN_TABLE 16
 
 /*  symbol classes  */
 
@@ -248,6 +249,7 @@ extern int lineno;
 extern int outline;
 extern int exit_code;
 extern int pure_parser;
+extern int token_table;
 
 extern const char *const banner[];
 extern const char *const xdecls[];

@@ -43,7 +43,7 @@ MLINKS= grep.1 egrep.1 \
 LDADD=	-lz
 DPADD=	${LIBZ}
 
-.if !defined(WITHOUT_LZMA_SUPPORT)
+.if ${MK_LZMA_SUPPORT} != "no"
 LDADD+=	-llzma
 DPADD+=	${LIBLZMA}
 
@@ -57,7 +57,7 @@ LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 CFLAGS+= -DWITHOUT_LZMA
 .endif
 
-.if !defined(WITHOUT_BZIP2_SUPPORT)
+.if ${MK_BZIP2_SUPPORT} != "no"
 LDADD+=	-lbz2
 DPADD+=	${LIBBZ2}
 
@@ -73,13 +73,13 @@ MLINKS+= grep.1 bzgrep.1 \
 CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
-.if !defined(WITHOUT_GNU_COMPAT)
+.if ${MK_GNU_GREP_COMPAT} != "no"
 CFLAGS+= -I${DESTDIR}/usr/include/gnu
 LDADD+=	-lgnuregex
 DPADD+=	${LIBGNUREGEX}
 .endif
 
-.if !defined(WITHOUT_NLS)
+.if ${MK_NLS} != "no"
 .include "${.CURDIR}/nls/Makefile.inc"
 .else
 CFLAGS+= -DWITHOUT_NLS

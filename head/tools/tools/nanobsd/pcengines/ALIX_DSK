@@ -23,6 +23,9 @@ options 	PSEUDOFS
 options 	GEOM_PART_GPT		
 options 	GEOM_LABEL		
 options 	COMPAT_43TTY		
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
+options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		
 options 	SCSI_DELAY=5000		
 options 	SYSVSHM			
@@ -32,12 +35,11 @@ options 	P1003_1B_SEMAPHORES
 options 	_KPOSIX_PRIORITY_SCHEDULING 
 options 	PRINTF_BUFR_SIZE=128	
 device		apic			
+device		cpufreq
+device		acpi
 device		pci
 device		fdc
 device		ata
-device		atadisk		
-device		atapicd		
-device		atapist		
 options 	ATA_STATIC_ID	
 device		scbus		
 device		da		

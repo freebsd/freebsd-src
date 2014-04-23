@@ -1385,6 +1385,7 @@ opt_add(const char *str)
 			free(lstr);
 			return(-1);
 		}
+		lstr = NULL;	/* parts of string going onto the OPLIST */
 		*pt++ = '\0';
 		opt->name = frpt;
 		opt->value = pt;
@@ -1400,6 +1401,7 @@ opt_add(const char *str)
 		optail->fow = opt;
 		optail = opt;
 	}
+	free(lstr);
 	return(0);
 }
 

@@ -13,6 +13,8 @@
 
 #include "SparcMCTargetDesc.h"
 #include "SparcMCAsmInfo.h"
+#include "SparcTargetStreamer.h"
+#include "InstPrinter/SparcInstPrinter.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -31,6 +33,25 @@
 
 using namespace llvm;
 
+
+static MCAsmInfo *createSparcMCAsmInfo(const MCRegisterInfo &MRI,
+                                       StringRef TT) {
+  MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
+  unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, Reg, 0);
+  MAI->addInitialFrameState(Inst);
+  return MAI;
+}
+
+static MCAsmInfo *createSparcV9MCAsmInfo(const MCRegisterInfo &MRI,
+                                       StringRef TT) {
+  MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
+  unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, Reg, 2047);
+  MAI->addInitialFrameState(Inst);
+  return MAI;
+}
+
 static MCInstrInfo *createSparcMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
   InitSparcMCInstrInfo(X);
@@ -39,7 +60,7 @@ static MCInstrInfo *createSparcMCInstrInfo() {
 
 static MCRegisterInfo *createSparcMCRegisterInfo(StringRef TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitSparcMCRegisterInfo(X, SP::I7);
+  InitSparcMCRegisterInfo(X, SP::O7);
   return X;
 }
 
@@ -66,9 +87,13 @@ static MCCodeGenInfo *createSparcMCCodeGenInfo(StringRef TT, Reloc::Model RM,
                                                CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
 
-  // The default 32-bit code model is abs32/pic32.
-  if (CM == CodeModel::Default)
-    CM = RM == Reloc::PIC_ ? CodeModel::Medium : CodeModel::Small;
+  // The default 32-bit code model is abs32/pic32 and the default 32-bit
+  // code model for JIT is abs32.
+  switch (CM) {
+  default: break;
+  case CodeModel::Default:
+  case CodeModel::JITDefault: CM = CodeModel::Small; break;
+  }
 
   X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
@@ -79,17 +104,55 @@ static MCCodeGenInfo *createSparcV9MCCodeGenInfo(StringRef TT, Reloc::Model RM,
                                                  CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
 
-  // The default 64-bit code model is abs44/pic32.
-  if (CM == CodeModel::Default)
-    CM = CodeModel::Medium;
+  // The default 64-bit code model is abs44/pic32 and the default 64-bit
+  // code model for JIT is abs64.
+  switch (CM) {
+  default:  break;
+  case CodeModel::Default:
+    CM = RM == Reloc::PIC_ ? CodeModel::Small : CodeModel::Medium;
+    break;
+  case CodeModel::JITDefault:
+    CM = CodeModel::Large;
+    break;
+  }
 
   X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
+
+static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
+                                    MCContext &Context, MCAsmBackend &MAB,
+                                    raw_ostream &OS, MCCodeEmitter *Emitter,
+                                    bool RelaxAll, bool NoExecStack) {
+  SparcTargetELFStreamer *S = new SparcTargetELFStreamer();
+  return createELFStreamer(Context, S, MAB, OS, Emitter, RelaxAll, NoExecStack);
+}
+
+static MCStreamer *
+createMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
+                    bool isVerboseAsm, bool useLoc, bool useCFI,
+                    bool useDwarfDirectory, MCInstPrinter *InstPrint,
+                    MCCodeEmitter *CE, MCAsmBackend *TAB, bool ShowInst) {
+  SparcTargetAsmStreamer *S = new SparcTargetAsmStreamer(OS);
+
+  return llvm::createAsmStreamer(Ctx, S, OS, isVerboseAsm, useLoc, useCFI,
+                                 useDwarfDirectory, InstPrint, CE, TAB,
+                                 ShowInst);
+}
+
+static MCInstPrinter *createSparcMCInstPrinter(const Target &T,
+                                              unsigned SyntaxVariant,
+                                              const MCAsmInfo &MAI,
+                                              const MCInstrInfo &MII,
+                                              const MCRegisterInfo &MRI,
+                                              const MCSubtargetInfo &STI) {
+  return new SparcInstPrinter(MAI, MII, MRI);
+}
+
 extern "C" void LLVMInitializeSparcTargetMC() {
   // Register the MC asm info.
-  RegisterMCAsmInfo<SparcELFMCAsmInfo> X(TheSparcTarget);
-  RegisterMCAsmInfo<SparcELFMCAsmInfo> Y(TheSparcV9Target);
+  RegisterMCAsmInfoFn X(TheSparcTarget, createSparcMCAsmInfo);
+  RegisterMCAsmInfoFn Y(TheSparcV9Target, createSparcV9MCAsmInfo);
 
   // Register the MC codegen info.
   TargetRegistry::RegisterMCCodeGenInfo(TheSparcTarget,
@@ -99,11 +162,46 @@ extern "C" void LLVMInitializeSparcTargetMC() {
 
   // Register the MC instruction info.
   TargetRegistry::RegisterMCInstrInfo(TheSparcTarget, createSparcMCInstrInfo);
+  TargetRegistry::RegisterMCInstrInfo(TheSparcV9Target, createSparcMCInstrInfo);
 
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheSparcTarget, createSparcMCRegisterInfo);
+  TargetRegistry::RegisterMCRegInfo(TheSparcV9Target,
+                                    createSparcMCRegisterInfo);
 
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheSparcTarget,
                                           createSparcMCSubtargetInfo);
+  TargetRegistry::RegisterMCSubtargetInfo(TheSparcV9Target,
+                                          createSparcMCSubtargetInfo);
+
+  // Register the MC Code Emitter.
+  TargetRegistry::RegisterMCCodeEmitter(TheSparcTarget,
+                                        createSparcMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(TheSparcV9Target,
+                                        createSparcMCCodeEmitter);
+
+  //Register the asm backend.
+  TargetRegistry::RegisterMCAsmBackend(TheSparcTarget,
+                                       createSparcAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(TheSparcV9Target,
+                                       createSparcAsmBackend);
+
+  // Register the object streamer.
+  TargetRegistry::RegisterMCObjectStreamer(TheSparcTarget,
+                                           createMCStreamer);
+  TargetRegistry::RegisterMCObjectStreamer(TheSparcV9Target,
+                                           createMCStreamer);
+
+  // Register the asm streamer.
+  TargetRegistry::RegisterAsmStreamer(TheSparcTarget,
+                                      createMCAsmStreamer);
+  TargetRegistry::RegisterAsmStreamer(TheSparcV9Target,
+                                      createMCAsmStreamer);
+
+  // Register the MCInstPrinter
+  TargetRegistry::RegisterMCInstPrinter(TheSparcTarget,
+                                        createSparcMCInstPrinter);
+  TargetRegistry::RegisterMCInstPrinter(TheSparcV9Target,
+                                        createSparcMCInstPrinter);
 }

@@ -38,7 +38,6 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/frame.h>
 #include <machine/fp.h>
 
 
@@ -62,7 +61,6 @@ struct pcb_arm32 {
 	u_int	pcb32_sp;			/* used */
 	u_int	pcb32_lr;
 	u_int	pcb32_pc;
-	u_int	pcb32_und_sp;
 };
 #define	pcb_pagedir	un_32.pcb32_pagedir
 #define	pcb_pl1vec	un_32.pcb32_pl1vec
@@ -82,7 +80,11 @@ struct pcb {
 	struct	pcb_arm32 un_32;
 	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
 	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
-};
+} __aligned(8); /* 
+		 * We need the PCB to be aligned on 8 bytes, as we may
+		 * access it using ldrd/strd, and some CPUs require it
+		 * to by aligned on 8 bytes.
+		 */
 
 /*
  * No additional data for core dumps.

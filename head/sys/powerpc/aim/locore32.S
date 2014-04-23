@@ -66,8 +66,6 @@
 #include <machine/asm.h>
 #include "opt_platform.h"
 
-#include "opt_kdtrace.h"
-
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
         mfsprg0  r

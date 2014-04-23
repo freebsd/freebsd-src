@@ -56,7 +56,7 @@ struct rtentry;
 #include "gencode.h"
 #ifdef HAVE_NET_PFVAR_H
 #include <net/if.h>
-#include <net/pfvar.h>
+#include <netpfil/pf/pf.h>
 #include <net/if_pflog.h>
 #endif
 #include "ieee80211.h"

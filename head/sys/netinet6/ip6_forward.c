@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
@@ -563,10 +564,8 @@ skip_routing:
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
-	if (error != 0)
-		goto senderr;
-	if (m == NULL)
-		goto freecopy;
+	if (error != 0 || m == NULL)
+		goto freecopy;		/* consumed by filter */
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* See if destination IP address was changed by packet filter. */
@@ -635,7 +634,6 @@ pass:
 		}
 	}
 
-senderr:
 	if (mcopy == NULL)
 		goto out;
 	switch (error) {

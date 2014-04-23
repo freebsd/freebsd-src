@@ -38,10 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-	.weak	_pipe
-	.set	_pipe,__sys_pipe
-	.weak	pipe
-	.set	pipe,__sys_pipe
+	WEAK_REFERENCE(__sys_pipe, _pipe)
+	WEAK_REFERENCE(__sys_pipe, pipe)
 ENTRY(__sys_pipe)
 	mov	$SYS_pipe,%rax
 	KERNCALL

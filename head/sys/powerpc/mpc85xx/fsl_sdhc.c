@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include "fsl_sdhc.h"
 
-#define DEBUG
-#undef DEBUG
 #ifdef DEBUG
 #define	DPRINTF(fmt, arg...)	printf("DEBUG %s(): " fmt, __FUNCTION__, ##arg)
 #else

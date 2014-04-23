@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/pci/pcivar.h>
@@ -144,6 +143,9 @@ static struct resource_spec versatile_pci_mem_spec[] = {
 static int
 versatile_pci_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "versatile,pci")) {
 		device_set_desc(dev, "Versatile PCI controller");
@@ -359,6 +361,9 @@ versatile_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	case SYS_RES_IRQ:
 		res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
 		    child, type, rid, r));
+		break;
+	default:
+		res = ENXIO;
 		break;
 	}
 

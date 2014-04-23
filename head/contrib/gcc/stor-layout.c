@@ -1684,6 +1684,8 @@ layout_type (tree type)
 
     case POINTER_TYPE:
     case REFERENCE_TYPE:
+	/* APPLE LOCAL blocks */
+    case BLOCK_POINTER_TYPE:
       {
 
 	enum machine_mode mode = ((TREE_CODE (type) == REFERENCE_TYPE

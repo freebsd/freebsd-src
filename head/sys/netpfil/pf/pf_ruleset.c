@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 
 #ifdef INET6

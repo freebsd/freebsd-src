@@ -64,8 +64,6 @@ print_perftest(struct nvme_io_test *io_test, bool perthread)
 		for (i = 0; i < io_test->num_threads; i++)
 			printf("\t%3d: %8ju IO/s\n", i,
 			    (uintmax_t)io_test->io_completed[i]/io_test->time);
-
-	exit(1);
 }
 
 static void

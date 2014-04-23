@@ -91,10 +91,12 @@
 	__PMC_CPU(INTEL_SANDYBRIDGE_XEON, 0x8F,   "Intel Sandy Bridge Xeon")	\
 	__PMC_CPU(INTEL_IVYBRIDGE_XEON, 0x90,   "Intel Ivy Bridge Xeon")	\
 	__PMC_CPU(INTEL_HASWELL, 0x91,   "Intel Haswell")	\
+	__PMC_CPU(INTEL_ATOM_SILVERMONT, 0x92,	"Intel Atom Silvermont")    \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
+	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")
 
 enum pmc_cputype {
@@ -125,6 +127,7 @@ enum pmc_cputype {
 	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
 	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
 	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
+	__PMC_CLASS(PPC970)	/* IBM PowerPC 970 class */		\
 	__PMC_CLASS(SOFT)	/* Software events */
 
 enum pmc_class {

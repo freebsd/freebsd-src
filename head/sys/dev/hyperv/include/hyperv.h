@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -669,6 +671,7 @@ typedef struct hv_vmbus_channel {
 	 * Allocated memory for ring buffer
 	 */
 	void*				ring_buffer_pages;
+	unsigned long			ring_buffer_size;
 	uint32_t			ring_buffer_page_count;
 	/*
 	 * send to parent

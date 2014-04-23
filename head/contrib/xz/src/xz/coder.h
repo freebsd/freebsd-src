@@ -46,7 +46,7 @@ extern bool opt_auto_adjust;
 extern void coder_set_check(lzma_check check);
 
 /// Set preset number
-extern void coder_set_preset(size_t new_preset);
+extern void coder_set_preset(uint32_t new_preset);
 
 /// Enable extreme mode
 extern void coder_set_extreme(void);

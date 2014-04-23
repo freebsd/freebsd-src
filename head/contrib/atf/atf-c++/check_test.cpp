@@ -193,15 +193,15 @@ ATF_TEST_CASE_BODY(build_c_o)
 {
     ATF_TEST_CASE_USE(h_build_c_o_ok);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_c_o_ok) >();
-    ATF_REQUIRE(grep_file("stdout", "-o test.o"));
-    ATF_REQUIRE(grep_file("stdout", "-c test.c"));
+    ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("-c test.c", "stdout"));
 
     ATF_TEST_CASE_USE(h_build_c_o_fail);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_c_o_fail) >();
-    ATF_REQUIRE(grep_file("stdout", "-o test.o"));
-    ATF_REQUIRE(grep_file("stdout", "-c test.c"));
-    ATF_REQUIRE(grep_file("stderr", "test.c"));
-    ATF_REQUIRE(grep_file("stderr", "UNDEFINED_SYMBOL"));
+    ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("-c test.c", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("test.c", "stderr"));
+    ATF_REQUIRE(atf::utils::grep_file("UNDEFINED_SYMBOL", "stderr"));
 }
 
 ATF_TEST_CASE(build_cpp);
@@ -213,16 +213,16 @@ ATF_TEST_CASE_BODY(build_cpp)
 {
     ATF_TEST_CASE_USE(h_build_cpp_ok);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_cpp_ok) >();
-    ATF_REQUIRE(grep_file("stdout", "-o.*test.p"));
-    ATF_REQUIRE(grep_file("stdout", "test.c"));
-    ATF_REQUIRE(grep_file("test.p", "foo bar"));
+    ATF_REQUIRE(atf::utils::grep_file("-o.*test.p", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("test.c", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("foo bar", "test.p"));
 
     ATF_TEST_CASE_USE(h_build_cpp_fail);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_cpp_fail) >();
-    ATF_REQUIRE(grep_file("stdout", "-o test.p"));
-    ATF_REQUIRE(grep_file("stdout", "test.c"));
-    ATF_REQUIRE(grep_file("stderr", "test.c"));
-    ATF_REQUIRE(grep_file("stderr", "non-existent.h"));
+    ATF_REQUIRE(atf::utils::grep_file("-o test.p", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("test.c", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("test.c", "stderr"));
+    ATF_REQUIRE(atf::utils::grep_file("non-existent.h", "stderr"));
 }
 
 ATF_TEST_CASE(build_cxx_o);
@@ -234,15 +234,15 @@ ATF_TEST_CASE_BODY(build_cxx_o)
 {
     ATF_TEST_CASE_USE(h_build_cxx_o_ok);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_cxx_o_ok) >();
-    ATF_REQUIRE(grep_file("stdout", "-o test.o"));
-    ATF_REQUIRE(grep_file("stdout", "-c test.cpp"));
+    ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("-c test.cpp", "stdout"));
 
     ATF_TEST_CASE_USE(h_build_cxx_o_fail);
     run_h_tc< ATF_TEST_CASE_NAME(h_build_cxx_o_fail) >();
-    ATF_REQUIRE(grep_file("stdout", "-o test.o"));
-    ATF_REQUIRE(grep_file("stdout", "-c test.cpp"));
-    ATF_REQUIRE(grep_file("stderr", "test.cpp"));
-    ATF_REQUIRE(grep_file("stderr", "UNDEFINED_SYMBOL"));
+    ATF_REQUIRE(atf::utils::grep_file("-o test.o", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("-c test.cpp", "stdout"));
+    ATF_REQUIRE(atf::utils::grep_file("test.cpp", "stderr"));
+    ATF_REQUIRE(atf::utils::grep_file("UNDEFINED_SYMBOL", "stderr"));
 }
 
 ATF_TEST_CASE(exec_cleanup);

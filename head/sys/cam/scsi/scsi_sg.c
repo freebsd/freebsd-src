@@ -76,8 +76,7 @@ typedef enum {
 } sg_rdwr_state;
 
 typedef enum {
-	SG_CCB_RDWR_IO,
-	SG_CCB_WAITING
+	SG_CCB_RDWR_IO
 } sg_ccb_types;
 
 #define ccb_type	ppriv_field0
@@ -119,7 +118,6 @@ static periph_init_t	sginit;
 static periph_ctor_t	sgregister;
 static periph_oninv_t	sgoninvalidate;
 static periph_dtor_t	sgcleanup;
-static periph_start_t	sgstart;
 static void		sgasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static void		sgdone(struct cam_periph *periph, union ccb *done_ccb);
@@ -172,19 +170,18 @@ sginit(void)
 static void
 sgdevgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc *softc;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
-	softc = (struct sg_softc *)periph->softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
+	softc = (struct sg_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -202,13 +199,13 @@ sgdevgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 
@@ -238,9 +235,6 @@ sgoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 
-	if (bootverbose) {
-		xpt_print(periph->path, "lost device\n");
-	}
 }
 
 static void
@@ -249,8 +243,6 @@ sgcleanup(struct cam_periph *periph)
 	struct sg_softc *softc;
 
 	softc = (struct sg_softc *)periph->softc;
-	if (bootverbose)
-		xpt_print(periph->path, "removing device entry\n");
 
 	devstat_remove_entry(softc->device_stats);
 
@@ -282,8 +274,8 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * start the probe process.
 		 */
 		status = cam_periph_alloc(sgregister, sgoninvalidate,
-					  sgcleanup, sgstart, "sg",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  sgcleanup, NULL, "sg",
+					  CAM_PERIPH_BIO, path,
 					  sgasync, AC_FOUND_DEVICE, cgd);
 		if ((status != CAM_REQ_CMP) && (status != CAM_REQ_INPROG)) {
 			const struct cam_status_entry *entry;
@@ -388,24 +380,6 @@ sgregister(struct cam_periph *periph, void *arg)
 }
 
 static void
-sgstart(struct cam_periph *periph, union ccb *start_ccb)
-{
-	struct sg_softc *softc;
-
-	softc = (struct sg_softc *)periph->softc;
-
-	switch (softc->state) {
-	case SG_STATE_NORMAL:
-		start_ccb->ccb_h.ccb_type = SG_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-		break;
-	}
-}
-
-static void
 sgdone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct sg_softc *softc;
@@ -414,10 +388,6 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct sg_softc *)periph->softc;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_type) {
-	case SG_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	case SG_CCB_RDWR_IO:
 	{
 		struct sg_rdwr *rdwr;
@@ -485,25 +455,23 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc   *softc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	softc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	softc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -514,7 +482,7 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
 }
@@ -884,7 +852,7 @@ search:
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		if (msleep(rdwr, periph->sim->mtx, PCATCH, "sgread", 0) == ERESTART)
+		if (cam_periph_sleep(periph, rdwr, PCATCH, "sgread", 0) == ERESTART)
 			return (EAGAIN);
 		goto search;
 	}

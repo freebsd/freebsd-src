@@ -72,10 +72,14 @@ SUBDIR=adjkerntz \
 	swapon \
 	sysctl \
 	tunefs \
-	umount \
+	umount
 
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
+.endif
+
+.if ${MK_CASPER} != "no"
+SUBDIR+=	casperd
 .endif
 
 .if ${MK_CXX} != "no"
@@ -114,8 +118,14 @@ SUBDIR+=	quotacheck
 SUBDIR+=	routed
 .endif
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

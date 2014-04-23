@@ -81,6 +81,15 @@ RegisterContext::GetRegisterInfoByName (const char *reg_name, uint32_t start_idx
     return NULL;
 }
 
+const RegisterInfo *
+RegisterContext::GetRegisterInfo (uint32_t kind, uint32_t num)
+{
+    const uint32_t reg_num = ConvertRegisterKindToRegisterNumber(kind, num);
+    if (reg_num == LLDB_INVALID_REGNUM)
+        return NULL;
+    return GetRegisterInfoAtIndex (reg_num);
+}
+
 const char *
 RegisterContext::GetRegisterName (uint32_t reg)
 {
@@ -111,6 +120,19 @@ RegisterContext::SetPC(uint64_t pc)
             m_thread.ClearStackFrames ();
     }
     return success;
+}
+
+bool
+RegisterContext::SetPC(Address addr)
+{
+    TargetSP target_sp = m_thread.CalculateTarget();
+    Target *target = target_sp.get();
+
+    lldb::addr_t callAddr = addr.GetCallableLoadAddress (target);
+    if (callAddr == LLDB_INVALID_ADDRESS)
+        return false;
+
+    return SetPC (callAddr);
 }
 
 uint64_t
@@ -416,6 +438,18 @@ RegisterContext::WriteRegisterValueToMemory (const RegisterInfo *reg_info,
 
     return error;
 
+}
+
+bool
+RegisterContext::ReadAllRegisterValues (lldb_private::RegisterCheckpoint &reg_checkpoint)
+{
+    return ReadAllRegisterValues(reg_checkpoint.GetData());
+}
+
+bool
+RegisterContext::WriteAllRegisterValues (const lldb_private::RegisterCheckpoint &reg_checkpoint)
+{
+    return WriteAllRegisterValues(reg_checkpoint.GetData());
 }
 
 TargetSP

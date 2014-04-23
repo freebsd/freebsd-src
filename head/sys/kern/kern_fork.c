@@ -37,10 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,7 +87,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , create, create, "struct proc *",
+SDT_PROBE_DEFINE3(proc, kernel, , create, "struct proc *",
     "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_
@@ -119,7 +117,6 @@ sys_pdfork(td, uap)
 	struct thread *td;
 	struct pdfork_args *uap;
 {
-#ifdef PROCDESC
 	int error, fd;
 	struct proc *p2;
 
@@ -136,9 +133,6 @@ sys_pdfork(td, uap)
 		error = copyout(&fd, uap->fdp, sizeof(fd));
 	}
 	return (error);
-#else
-	return (ENOSYS);
-#endif
 }
 
 /* ARGSUSED */
@@ -656,7 +650,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		    p2->p_vmspace->vm_ssize);
 	}
 
-#ifdef PROCDESC
 	/*
 	 * Associate the process descriptor with the process before anything
 	 * can happen that might cause that process to need the descriptor.
@@ -664,7 +657,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 */
 	if (flags & RFPROCDESC)
 		procdesc_new(p2, pdflags);
-#endif
 
 	/*
 	 * Both processes are set up, now check if any loadable modules want
@@ -684,12 +676,12 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 #ifdef KDTRACE_HOOKS
 	/*
-	 * Tell the DTrace fasttrap provider about the new process
-	 * if it has registered an interest. We have to do this only after
-	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
-	 * later on.
+	 * Tell the DTrace fasttrap provider about the new process so that any
+	 * tracepoints inherited from the parent can be removed. We have to do
+	 * this only after p_state is PRS_NORMAL since the fasttrap module will
+	 * use pfind() later on.
 	 */
-	if (dtrace_fasttrap_fork)
+	if ((flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
@@ -759,9 +751,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	int error;
 	static int curfail;
 	static struct timeval lastfail;
-#ifdef PROCDESC
 	struct file *fp_procdesc = NULL;
-#endif
 
 	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
@@ -779,7 +769,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
 		return (EINVAL);
 
-#ifdef PROCDESC
 	if ((flags & RFPROCDESC) != 0) {
 		/* Can't not create a process yet get a process descriptor. */
 		if ((flags & RFPROC) == 0)
@@ -789,7 +778,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		if (procdescp == NULL)
 			return (EINVAL);
 	}
-#endif
 
 	p1 = td->td_proc;
 
@@ -802,7 +790,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		return (fork_norfproc(td, flags));
 	}
 
-#ifdef PROCDESC
 	/*
 	 * If required, create a process descriptor in the parent first; we
 	 * will abandon it if something goes wrong. We don't finit() until
@@ -813,7 +800,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		if (error != 0)
 			return (error);
 	}
-#endif
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -920,12 +906,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		 * Return child proc pointer to parent.
 		 */
 		*procp = newproc;
-#ifdef PROCDESC
 		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
 			fdrop(fp_procdesc, td);
 		}
-#endif
 		racct_proc_fork_done(newproc);
 		return (0);
 	}
@@ -945,12 +929,10 @@ fail1:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
-#ifdef PROCDESC
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
 	}
-#endif
 	pause("fork", hz / 2);
 	return (error);
 }

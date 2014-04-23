@@ -8,17 +8,24 @@ arm/arm/cpufunc_asm_armv5.S			standard
 arm/arm/cpufunc_asm_arm10.S			standard
 arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
-arm/arm/irq_dispatch.S				standard
 
+arm/arm/bus_space-v6.c				standard
 arm/arm/gic.c					standard
 arm/arm/generic_timer.c				standard
 
-arm/samsung/exynos/arch_timer.c			standard
+arm/samsung/exynos/exynos5_mct.c		standard
 arm/samsung/exynos/exynos5_mp.c			optional	smp
-arm/samsung/exynos/bus_space.c			standard
-arm/samsung/exynos/common.c			standard
+arm/samsung/exynos/exynos5_common.c		standard
 arm/samsung/exynos/exynos5_machdep.c		standard
+arm/samsung/exynos/exynos5_combiner.c		standard
+arm/samsung/exynos/exynos5_pad.c		optional	gpio
 arm/samsung/exynos/uart.c			optional	uart
-arm/samsung/exynos/ehci_exynos5.c		optional	ehci
+arm/samsung/exynos/exynos5_ehci.c		optional	ehci
+arm/samsung/exynos/exynos5_fimd.c		optional	vt
+arm/samsung/exynos/exynos5_i2c.c		optional	iicbus
+
+# chromebook drivers
+arm/samsung/exynos/chrome_ec.c			optional	chrome_ec
+arm/samsung/exynos/chrome_kb.c			optional	chrome_kb
 
 #dev/sdhci/sdhci_fdt.c				optional	sdhci

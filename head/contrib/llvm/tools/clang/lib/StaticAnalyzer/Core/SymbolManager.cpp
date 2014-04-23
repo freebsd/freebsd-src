@@ -112,8 +112,7 @@ SymbolRef SymExpr::symbol_iterator::operator*() {
 }
 
 void SymExpr::symbol_iterator::expand() {
-  const SymExpr *SE = itr.back();
-  itr.pop_back();
+  const SymExpr *SE = itr.pop_back_val();
 
   switch (SE->getKind()) {
     case SymExpr::RegionValueKind:
@@ -434,6 +433,9 @@ bool SymbolReaper::isLiveRegion(const MemRegion *MR) {
     return true;
 
   if (isa<MemSpaceRegion>(MR))
+    return true;
+
+  if (isa<CodeTextRegion>(MR))
     return true;
 
   return false;

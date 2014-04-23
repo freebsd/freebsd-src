@@ -56,6 +56,12 @@ int drm_notyet_flag = 0;
 unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
 
+/*
+ * Default to use monotonic timestamps for wait-for-vblank and page-flip
+ * complete events.
+ */
+unsigned int drm_timestamp_monotonic = 1;
+
 static int drm_load(struct drm_device *dev);
 static void drm_unload(struct drm_device *dev);
 static drm_pci_id_list_t *drm_find_description(int vendor, int device,

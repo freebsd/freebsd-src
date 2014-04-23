@@ -49,6 +49,7 @@ $FreeBSD$
 #if DEBUG
 #include <syslog.h>
 #endif /* DEBUG */
+#include <stdio.h>
 #include "opie.h"
 
 static char *algids[] = { NULL, NULL, NULL, "sha1", "md4", "md5" };

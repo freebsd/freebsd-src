@@ -81,7 +81,7 @@ userland_version() {
 # Print a usage string and exit.
 #
 usage() {
-	echo "usage: $progname [-ku]\n" >&2
+	echo "usage: $progname [-ku]" >&2
 	exit 1
 }
 

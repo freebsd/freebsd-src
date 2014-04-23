@@ -29,6 +29,25 @@
 #ifndef _ACPI_H_
 #define _ACPI_H_
 
-int	acpi_build(struct vmctx *ctx, int ncpu, int ioapic);
+#define	SCI_INT			9
+
+#define	SMI_CMD			0xb2
+#define	BHYVE_ACPI_ENABLE	0xa0
+#define	BHYVE_ACPI_DISABLE	0xa1
+
+#define	PM1A_EVT_ADDR		0x400
+#define	PM1A_CNT_ADDR		0x404
+
+#define	IO_PMTMR		0x408	/* 4-byte i/o port for the timer */
+
+struct vmctx;
+
+int	acpi_build(struct vmctx *ctx, int ncpu);
+void	dsdt_line(const char *fmt, ...);
+void	dsdt_fixed_ioport(uint16_t iobase, uint16_t length);
+void	dsdt_fixed_irq(uint8_t irq);
+void	dsdt_fixed_mem32(uint32_t base, uint32_t length);
+void	dsdt_indent(int levels);
+void	dsdt_unindent(int levels);
 
 #endif /* _ACPI_H_ */

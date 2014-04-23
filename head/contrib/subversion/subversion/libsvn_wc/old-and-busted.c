@@ -811,11 +811,15 @@ atts_to_entry(svn_wc_entry_t **new_entry,
 
      ### not used by loggy; no need to set MODIFY_FLAGS  */
   entry->url = extract_string(atts, ENTRIES_ATTR_URL, pool);
+  if (entry->url)
+    entry->url = svn_uri_canonicalize(entry->url, pool);
 
   /* Set up repository root.  Make sure it is a prefix of url.
 
      ### not used by loggy; no need to set MODIFY_FLAGS  */
   entry->repos = extract_string(atts, ENTRIES_ATTR_REPOS, pool);
+  if (entry->repos)
+    entry->repos = svn_uri_canonicalize(entry->repos, pool);
 
   if (entry->url && entry->repos
       && !svn_uri__is_ancestor(entry->repos, entry->url))

@@ -60,7 +60,7 @@ SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 
-.if !defined(WITHOUT_SYSCALL_COMPAT)
+.if ${MK_SYSCALL_COMPAT} != "no"
 CFLAGS+=-DSYSCALL_COMPAT
 .endif
 

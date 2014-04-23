@@ -1051,9 +1051,12 @@ cleanup_dead_labels (void)
 
   for_each_eh_region (update_eh_label);
 
-  /* Finally, purge dead labels.  All user-defined labels and labels that
-     can be the target of non-local gotos and labels which have their
-     address taken are preserved.  */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  /* Finally, purge dead labels.  All user-defined labels, labels that
+     can be the target of non-local gotos, labels which have their
+     address taken and labels which have attributes or alignment are
+     preserved.  */
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   FOR_EACH_BB (bb)
     {
       block_stmt_iterator i;
@@ -1073,6 +1076,10 @@ cleanup_dead_labels (void)
 
 	  if (label == label_for_this_bb
 	      || ! DECL_ARTIFICIAL (label)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	      || DECL_ATTRIBUTES (label)
+	      || DECL_USER_ALIGN (label)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	      || DECL_NONLOCAL (label)
 	      || FORCED_LABEL (label))
 	    bsi_next (&i);

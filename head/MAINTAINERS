@@ -77,12 +77,11 @@ ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
-contrib/pf	mlaier	Pre-commit review requested.
+contrib/pf	glebius	Pre-commit review recommended.
 binutils	obrien	Insists on BU blocked from unapproved commits
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
-lukemftpd	obrien	Pre-commit review required.
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
@@ -99,7 +98,6 @@ nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
-pkg_install	portmgr	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
@@ -131,3 +129,7 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
+release/release.sh	gjb	Pre-commit review and regression tests
+				requested.
+nanobsd		imp	Pre-commit review requested for coordination.
+vmm(4)		neel,grehan	Pre-commit review requested.

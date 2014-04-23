@@ -20,8 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
  */
 
 /*
@@ -995,10 +995,10 @@ nozpool_all_slices(avl_tree_t *r, const char *sname)
 #endif	/* sun */
 }
 
+#ifdef sun
 static void
 check_slices(avl_tree_t *r, int fd, const char *sname)
 {
-#ifdef sun
 	struct extvtoc vtoc;
 	struct dk_gpt *gpt;
 	char diskname[MAXNAMELEN];
@@ -1028,8 +1028,8 @@ check_slices(avl_tree_t *r, int fd, const char *sname)
 			check_one_slice(r, diskname, i, 0, 1);
 		efi_free(gpt);
 	}
-#endif	/* sun */
 }
+#endif	/* sun */
 
 static void
 zpool_open_func(void *arg)
@@ -1059,6 +1059,7 @@ zpool_open_func(void *arg)
 		return;
 	}
 	/* this file is too small to hold a zpool */
+#ifdef sun
 	if (S_ISREG(statbuf.st_mode) &&
 	    statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
@@ -1070,6 +1071,12 @@ zpool_open_func(void *arg)
 		 */
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
+#else	/* !sun */
+	if (statbuf.st_size < SPA_MINDEVSIZE) {
+		(void) close(fd);
+		return;
+	}
+#endif	/* sun */
 
 	if ((zpool_read_label(fd, &config)) != 0) {
 		(void) close(fd);
@@ -1606,9 +1613,16 @@ zpool_in_use(libzfs_handle_t *hdl, int fd, pool_state_t *state, char **namestr,
 		 * its state to active.
 		 */
 		if (pool_active(hdl, name, guid, &isactive) == 0 && isactive &&
-		    (zhp = zpool_open_canfail(hdl, name)) != NULL &&
-		    zpool_get_prop_int(zhp, ZPOOL_PROP_READONLY, NULL))
-			stateval = POOL_STATE_ACTIVE;
+		    (zhp = zpool_open_canfail(hdl, name)) != NULL) {
+			if (zpool_get_prop_int(zhp, ZPOOL_PROP_READONLY, NULL))
+				stateval = POOL_STATE_ACTIVE;
+
+			/*
+			 * All we needed the zpool handle for is the
+			 * readonly prop check.
+			 */
+			zpool_close(zhp);
+		}
 
 		ret = B_TRUE;
 		break;

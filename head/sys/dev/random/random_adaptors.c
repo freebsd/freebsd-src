@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
- * Copyright (c) 2004 Mark R V Murray
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,17 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
-#include <sys/random.h>
-#include <sys/selinfo.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-#include <sys/libkern.h>
+#include <sys/random.h>
+#include <sys/selinfo.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/unistd.h>
 
 #include <dev/random/randomdev.h>
@@ -55,7 +55,7 @@ static struct sysctl_ctx_list random_clist;
 
 struct random_adaptor *random_adaptor;
 
-MALLOC_DEFINE(M_RANDOM_ADAPTORS, "random_adaptors", "Random adaptors buffers");
+MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
 
 int
 random_adaptor_register(const char *name, struct random_adaptor *rsp)
@@ -64,8 +64,7 @@ random_adaptor_register(const char *name, struct random_adaptor *rsp)
 
 	KASSERT(name != NULL && rsp != NULL, ("invalid input to %s", __func__));
 
-	rpp = malloc(sizeof(struct random_adaptors), M_RANDOM_ADAPTORS,
-	    M_WAITOK);
+	rpp = malloc(sizeof(struct random_adaptors), M_ENTROPY, M_WAITOK);
 	rpp->name = name;
 	rpp->rsp = rsp;
 
@@ -96,30 +95,6 @@ random_adaptor_get(const char *name)
 }
 
 /*
- * In the past, the logic of the random_adaptor selection was inverted, such
- * that hardware RNGs would be chosen unless disabled. This routine is here to
- * preserve that functionality to avoid folks losing their hardware RNGs by
- * upgrading to newer kernel.
- */
-static void
-random_adaptor_choose_legacy(struct random_adaptor **adaptor)
-{
-	struct random_adaptor *tmp;
-	int enable;
-
-	/* Then go looking for hardware */
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("nehemiah")))
-		*adaptor = tmp;
-
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("rdrand")))
-		*adaptor = tmp;
-}
-
-/*
  * Walk a list of registered random(4) adaptors and pick the last non-selected
  * one.
  *
@@ -129,52 +104,42 @@ void
 random_adaptor_choose(struct random_adaptor **adaptor)
 {
 	char			 rngs[128], *token, *cp;
-	struct random_adaptors  *rpp;
+	struct random_adaptors	*rppi, *ramax;
+	unsigned		 primax;
 
 	KASSERT(adaptor != NULL, ("pre-conditions failed"));
 
 	*adaptor = NULL;
-
-	random_adaptor_choose_legacy(adaptor);
-
-	if (*adaptor != NULL)
-		return;
-
-	if (TUNABLE_STR_FETCH("rngs_want", rngs, sizeof(rngs))) {
+	if (TUNABLE_STR_FETCH("kern.random.active_adaptor", rngs, sizeof(rngs))) {
 		cp = rngs;
 
-		while ((token = strsep(&cp, ",")) != NULL) {
+		while ((token = strsep(&cp, ",")) != NULL)
 			if ((*adaptor = random_adaptor_get(token)) != NULL)
 				break;
 			else if (bootverbose)
-				printf(
-			    "%s random adaptor is not available, skipping\n",
-				    token);
-		}
+				printf("%s random adaptor is not available,"
+				    " skipping\n", token);
 	}
 
+	primax = 0U;
 	if (*adaptor == NULL) {
 		/*
-		 * Either no RNGs are prefered via rngs_want tunable, or
-		 * no prefered RNGs are registered.
-		 * Fallback to Yarrow.
+		 * Fall back to the highest priority item on the available
+		 * RNG list.
 		 */
-		*adaptor = random_adaptor_get("yarrow");
+		sx_slock(&adaptors_lock);
 
-		if (*adaptor == NULL) {
-			/*
-			 * Yarrow doesn't seem to be available.
-			 * Fallback to the first thing that's on the list of
-			 * available RNGs.
-			 */
-			sx_slock(&adaptors_lock);
-
-			rpp = LIST_FIRST(&adaptors);
-			if (rpp != NULL)
-				*adaptor = rpp->rsp;
-
-			sx_sunlock(&adaptors_lock);
+		ramax = NULL;
+		LIST_FOREACH(rppi, &adaptors, entries) {
+			if (rppi->rsp->priority >= primax) {
+				ramax = rppi;
+				primax = rppi->rsp->priority;
+			}
 		}
+		if (ramax != NULL)
+			*adaptor = ramax->rsp;
+
+		sx_sunlock(&adaptors_lock);
 
 		if (bootverbose && *adaptor)
 			printf("Falling back to <%s> random adaptor\n",
@@ -200,19 +165,16 @@ random_sysctl_adaptors_handler(SYSCTL_HANDLER_ARGS)
 
 	sx_slock(&adaptors_lock);
 
-	if (LIST_EMPTY(&adaptors)) {
+	if (LIST_EMPTY(&adaptors))
 		error = SYSCTL_OUT(req, "", 0);
-	} else {
-
+	else {
 		LIST_FOREACH(rpp, &adaptors, entries) {
 
 			error = SYSCTL_OUT(req, ",", count++ ? 1 : 0);
-
 			if (error)
 				break;
 
 			error = SYSCTL_OUT(req, rpp->name, strlen(rpp->name));
-
 			if (error)
 				break;
 		}
@@ -237,19 +199,17 @@ random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 	if (rsp != NULL) {
 		sx_slock(&adaptors_lock);
 
-		LIST_FOREACH(rpp, &adaptors, entries) {
+		LIST_FOREACH(rpp, &adaptors, entries)
 			if (rpp->rsp == rsp)
 				name = rpp->name;
-		}
 
 		sx_sunlock(&adaptors_lock);
 	}
 
-	if (rsp == NULL || name == NULL) {
+	if (rsp == NULL || name == NULL)
 		error = SYSCTL_OUT(req, "", 0);
-	} else {
+	else
 		error = SYSCTL_OUT(req, name, strlen(name));
-	}
 
 	return (error);
 }
@@ -277,3 +237,15 @@ SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST, random_adaptors_init,
     NULL);
 SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
     random_adaptors_deinit, NULL);
+
+static void
+random_adaptors_reseed(void *unused)
+{
+
+	(void)unused;
+	if (random_adaptor != NULL)
+		(*random_adaptor->reseed)();
+	arc4rand(NULL, 0, 1);
+}
+SYSINIT(random_reseed, SI_SUB_INTRINSIC_POST, SI_ORDER_SECOND,
+    random_adaptors_reseed, NULL);

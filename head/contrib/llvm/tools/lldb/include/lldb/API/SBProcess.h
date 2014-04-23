@@ -13,6 +13,7 @@
 #include "lldb/API/SBDefines.h"
 #include "lldb/API/SBError.h"
 #include "lldb/API/SBTarget.h"
+#include "lldb/API/SBQueue.h"
 #include <stdio.h>
 
 namespace lldb {
@@ -142,6 +143,15 @@ public:
     SetSelectedThreadByIndexID (uint32_t index_id);
 
     //------------------------------------------------------------------
+    // Queue related functions
+    //------------------------------------------------------------------
+    uint32_t
+    GetNumQueues ();
+
+    lldb::SBQueue
+    GetQueueAtIndex (size_t index);
+
+    //------------------------------------------------------------------
     // Stepping related functions
     //------------------------------------------------------------------
 
@@ -269,6 +279,38 @@ public:
     lldb::SBError
     UnloadImage (uint32_t image_token);
     
+    //------------------------------------------------------------------
+    /// Return the number of different thread-origin extended backtraces
+    /// this process can support.
+    ///
+    /// When the process is stopped and you have an SBThread, lldb may be
+    /// able to show a backtrace of when that thread was originally created,
+    /// or the work item was enqueued to it (in the case of a libdispatch 
+    /// queue).
+    ///
+    /// @return
+    ///   The number of thread-origin extended backtrace types that may be
+    ///   available.
+    //------------------------------------------------------------------
+    uint32_t
+    GetNumExtendedBacktraceTypes ();
+
+    //------------------------------------------------------------------
+    /// Return the name of one of the thread-origin extended backtrace 
+    /// methods.
+    ///
+    /// @param [in] idx
+    ///   The index of the name to return.  They will be returned in
+    ///   the order that the user will most likely want to see them.
+    ///   e.g. if the type at index 0 is not available for a thread, 
+    ///   see if the type at index 1 provides an extended backtrace.
+    ///
+    /// @return
+    ///   The name at that index.
+    //------------------------------------------------------------------
+    const char *
+    GetExtendedBacktraceTypeAtIndex (uint32_t idx);
+
 protected:
     friend class SBAddress;
     friend class SBBreakpoint;
@@ -280,6 +322,7 @@ protected:
     friend class SBTarget;
     friend class SBThread;
     friend class SBValue;
+    friend class lldb_private::QueueImpl;
 
     lldb::ProcessSP
     GetSP() const;

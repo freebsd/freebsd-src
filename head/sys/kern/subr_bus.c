@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#include "opt_random.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
+#include <sys/random.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
@@ -55,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <machine/cpu.h>
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>
@@ -352,33 +355,28 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
-/* Deprecated way to adjust queue length */
-static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
-
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
 TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_queue, "I", "devctl queue length");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
 static d_read_t		devread;
 static d_ioctl_t	devioctl;
 static d_poll_t		devpoll;
+static d_kqfilter_t	devkqfilter;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
 	.d_ioctl =	devioctl,
 	.d_poll =	devpoll,
+	.d_kqfilter =	devkqfilter,
 	.d_name =	"devctl",
 };
 
@@ -395,12 +393,22 @@ static struct dev_softc
 	int	inuse;
 	int	nonblock;
 	int	queued;
+	int	async;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
 	struct devq devq;
-	struct proc *async_proc;
+	struct sigio *sigio;
 } devsoftc;
+
+static void	filt_devctl_detach(struct knote *kn);
+static int	filt_devctl_read(struct knote *kn, long hint);
+
+struct filterops devctl_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_devctl_detach,
+	.f_event = filt_devctl_read,
+};
 
 static struct cdev *devctl_dev;
 
@@ -412,28 +420,35 @@ devinit(void)
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
 	TAILQ_INIT(&devsoftc.devq);
+	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 }
 
 static int
 devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	if (devsoftc.inuse)
+
+	mtx_lock(&devsoftc.mtx);
+	if (devsoftc.inuse) {
+		mtx_unlock(&devsoftc.mtx);
 		return (EBUSY);
+	}
 	/* move to init */
 	devsoftc.inuse = 1;
 	devsoftc.nonblock = 0;
-	devsoftc.async_proc = NULL;
+	devsoftc.async = 0;
+	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
 static int
 devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	devsoftc.inuse = 0;
+
 	mtx_lock(&devsoftc.mtx);
+	devsoftc.inuse = 0;
 	cv_broadcast(&devsoftc.cv);
+	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
-	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -489,17 +504,20 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		return (0);
 	case FIOASYNC:
 		if (*(int*)data)
-			devsoftc.async_proc = td->td_proc;
+			devsoftc.async = 1;
 		else
-			devsoftc.async_proc = NULL;
+			devsoftc.async = 0;
+		return (0);
+	case FIOSETOWN:
+		return fsetown(*(int *)data, &devsoftc.sigio);
+	case FIOGETOWN:
+		*(int *)data = fgetown(&devsoftc.sigio);
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
 	case FIOCLEX:
 	case FIONCLEX:
 	case FIONREAD:
-	case FIOSETOWN:
-	case FIOGETOWN:
 	default:
 		break;
 	}
@@ -523,6 +541,34 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
+static int
+devkqfilter(struct cdev *dev, struct knote *kn)
+{
+	int error;
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = &devctl_rfiltops;
+		knlist_add(&devsoftc.sel.si_note, kn, 0);
+		error = 0;
+	} else
+		error = EINVAL;
+	return (error);
+}
+
+static void
+filt_devctl_detach(struct knote *kn)
+{
+
+	knlist_remove(&devsoftc.sel.si_note, kn, 0);
+}
+
+static int
+filt_devctl_read(struct knote *kn, long hint)
+{
+	kn->kn_data = devsoftc.queued;
+	return (kn->kn_data != 0);
+}
+
 /**
  * @brief Return whether the userland process is running
  */
@@ -543,7 +589,6 @@ void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
-	struct proc *p;
 
 	if (strlen(data) == 0)
 		goto out;
@@ -571,14 +616,11 @@ devctl_queue_data_f(char *data, int flags)
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
+	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	p = devsoftc.async_proc;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGIO);
-		PROC_UNLOCK(p);
-	}
+	if (devsoftc.async && devsoftc.sigio != NULL)
+		pgsigio(&devsoftc.sigio, SIGIO, 0);
 	return;
 out:
 	/*
@@ -643,9 +685,9 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * Common routine that tries to make sending messages as easy as possible.
  * We allocate memory for the data, copy strings into that, but do not
  * free it unless there's an error.  The dequeue part of the driver should
- * free the data.  We don't send data when the device is disabled.  We do
- * send data, even when we have no listeners, because we wish to avoid
- * races relating to startup and restart of listening applications.
+ * free the data.  We don't send data when queue length is 0.  We do send
+ * data, even when we have no listeners, because we wish to avoid races
+ * relating to startup and restart of listening applications.
  *
  * devaddq is designed to string together the type of event, with the
  * object of that event, plus the plug and play info and location info
@@ -734,33 +776,6 @@ static void
 devnomatch(device_t dev)
 {
 	devaddq("?", "", dev);
-}
-
-static int
-sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
-{
-	struct dev_event_info *n1;
-	int dis, error;
-
-	dis = devctl_queue_length == 0;
-	error = sysctl_handle_int(oidp, &dis, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	mtx_lock(&devsoftc.mtx);
-	if (dis) {
-		while (!TAILQ_EMPTY(&devsoftc.devq)) {
-			n1 = TAILQ_FIRST(&devsoftc.devq);
-			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
-			free(n1->dei_data, M_BUS);
-			free(n1, M_BUS);
-		}
-		devsoftc.queued = 0;
-		devctl_queue_length = 0;
-	} else {
-		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-	}
-	mtx_unlock(&devsoftc.mtx);
-	return (0);
 }
 
 static int
@@ -2766,6 +2781,7 @@ device_probe_and_attach(device_t dev)
 int
 device_attach(device_t dev)
 {
+	uint64_t attachtime;
 	int error;
 
 	if (resource_disabled(dev->driver->name, dev->unit)) {
@@ -2778,6 +2794,7 @@ device_attach(device_t dev)
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
+	attachtime = get_cyclecount();
 	dev->state = DS_ATTACHING;
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
@@ -2790,6 +2807,17 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	attachtime = get_cyclecount() - attachtime;
+	/*
+	 * 4 bits per device is a reasonable value for desktop and server
+	 * hardware with good get_cyclecount() implementations, but may
+	 * need to be adjusted on other platforms.
+	 */
+#ifdef RANDOM_DEBUG
+	printf("%s(): feeding %d bit(s) of entropy from %s%d\n",
+	    __func__, 4, dev->driver->name, dev->unit);
+#endif
+	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);
 	device_sysctl_update(dev);
 	if (dev->busy)
 		dev->state = DS_BUSY;

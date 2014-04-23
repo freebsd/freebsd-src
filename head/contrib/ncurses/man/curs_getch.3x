@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.30 2006/12/02 17:02:53 tom Exp $
+.\" $Id: curs_getch.3x,v 1.37 2012/07/07 20:04:56 tom Exp $
 .TH curs_getch 3X ""
 .na
 .hy 0
+.de bP
+.IP \(bu 4
+..
 .SH NAME
 \fBgetch\fR,
 \fBwgetch\fR,
@@ -71,7 +74,7 @@ specified timeout has been reached.
 Unless \fBnoecho\fR has been set,
 then the character will also be echoed into the
 designated window according to the following rules:
-If the character is the current erase character, left arrow, or backspace,
+if the character is the current erase character, left arrow, or backspace,
 the cursor is moved one space to the left and that screen position is erased
 as if \fBdelch\fR had been called.
 If the character value is any other \fBKEY_\fR define, the user is alerted
@@ -234,17 +237,21 @@ See \fBresizeterm\fR(3X) for more details about \fBKEY_RESIZE\fP, and
 All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR (\fBOK\fR in the case of ungetch()) upon successful
 completion.
-.RS
+.RS 3
 .TP 5
 \fBungetch\fP
-returns an error
+returns ERR
 if there is no more room in the FIFO.
-.TP 5
+.TP
 \fBwgetch\fP
-returns an error
+returns ERR
 if the window pointer is null, or
 if its timeout expires without having any data.
 .RE
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Use of the escape key by a programmer for a single character function is
 discouraged, as it will cause a delay of up to one second while the
@@ -259,6 +266,20 @@ use the terminfo definitions.
 If it says that \fBKEY_ENTER\fP is control/M,
 \fBgetch\fR will return \fBKEY_ENTER\fP
 when you press control/M.
+.PP
+Generally, \fBKEY_ENTER\fP denotes the character(s) sent by the \fIEnter\fP
+key on the numeric keypad:
+.bP
+the terminal description lists the most useful keys,
+.bP
+the \fIEnter\fP key on the regular keyboard is already handled by
+the standard ASCII characters for carriage-return and line-feed,
+.bP
+depending on whether \fBnl\fP or \fBnonl\fP was called,
+pressing "Enter" on the regular keyboard may return either a carriage-return
+or line-feed, and finally
+.bP
+"Enter or send" is the standard description for this key.
 .PP
 When using \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR, or
 \fBmvwgetch\fR, nocbreak mode (\fBnocbreak\fR) and echo mode
@@ -312,6 +333,7 @@ any code using it be conditionalized on the \fBNCURSES_VERSION\fR feature macro.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_inopts\fR(3X),
+\fBcurs_outopts\fR(3X),
 \fBcurs_mouse\fR(3X),
 \fBcurs_move\fR(3X),
 \fBcurs_refresh\fR(3X),
@@ -320,9 +342,3 @@ any code using it be conditionalized on the \fBNCURSES_VERSION\fR feature macro.
 Comparable functions in the wide-character (ncursesw) library are
 described in
 \fBcurs_get_wch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

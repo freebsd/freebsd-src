@@ -169,6 +169,7 @@ _citrus_EUC_init_state(_EUCEncodingInfo *ei __unused, _EUCState *s)
 	memset(s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_EUC_pack_state(_EUCEncodingInfo *ei __unused, void *pspriv,
@@ -186,6 +187,7 @@ _citrus_EUC_unpack_state(_EUCEncodingInfo *ei __unused, _EUCState *s,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static int
 _citrus_EUC_mbrtowc_priv(_EUCEncodingInfo *ei, wchar_t *pwc, const char **s,

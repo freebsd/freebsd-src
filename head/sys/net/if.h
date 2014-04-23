@@ -35,10 +35,6 @@
 
 #include <sys/cdefs.h>
 
-#ifdef _KERNEL
-#include <sys/queue.h>
-#endif
-
 #if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -49,8 +45,6 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
-
-struct ifnet;
 #endif
 
 /*
@@ -80,32 +74,45 @@ struct if_clonereq {
  */
 struct if_data {
 	/* generic interface information */
-	u_char	ifi_type;		/* ethernet, tokenring, etc */
-	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
-	u_char	ifi_addrlen;		/* media address length */
-	u_char	ifi_hdrlen;		/* media header length */
-	u_char	ifi_link_state;		/* current link state */
-	u_char	ifi_vhid;		/* carp vhid */
-	u_char	ifi_baudrate_pf;	/* baudrate power factor */
-	u_char	ifi_datalen;		/* length of this data struct */
-	u_long	ifi_mtu;		/* maximum transmission unit */
-	u_long	ifi_metric;		/* routing metric (external only) */
-	u_long	ifi_baudrate;		/* linespeed */
+	uint8_t	ifi_type;		/* ethernet, tokenring, etc */
+	uint8_t	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
+	uint8_t	ifi_addrlen;		/* media address length */
+	uint8_t	ifi_hdrlen;		/* media header length */
+	uint8_t	ifi_link_state;		/* current link state */
+	uint8_t	ifi_vhid;		/* carp vhid */
+	uint16_t	ifi_datalen;	/* length of this data struct */
+	uint32_t	ifi_mtu;	/* maximum transmission unit */
+	uint32_t	ifi_metric;	/* routing metric (external only) */
+	uint64_t	ifi_baudrate;	/* linespeed */
 	/* volatile statistics */
-	u_long	ifi_ipackets;		/* packets received on interface */
-	u_long	ifi_ierrors;		/* input errors on interface */
-	u_long	ifi_opackets;		/* packets sent on interface */
-	u_long	ifi_oerrors;		/* output errors on interface */
-	u_long	ifi_collisions;		/* collisions on csma interfaces */
-	u_long	ifi_ibytes;		/* total number of octets received */
-	u_long	ifi_obytes;		/* total number of octets sent */
-	u_long	ifi_imcasts;		/* packets received via multicast */
-	u_long	ifi_omcasts;		/* packets sent via multicast */
-	u_long	ifi_iqdrops;		/* dropped on input, this interface */
-	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	uint64_t ifi_hwassist;		/* HW offload capabilities, see IFCAP */
-	time_t	ifi_epoch;		/* uptime at attach or stat reset */
-	struct	timeval ifi_lastchange;	/* time of last administrative change */
+	uint64_t	ifi_ipackets;	/* packets received on interface */
+	uint64_t	ifi_ierrors;	/* input errors on interface */
+	uint64_t	ifi_opackets;	/* packets sent on interface */
+	uint64_t	ifi_oerrors;	/* output errors on interface */
+	uint64_t	ifi_collisions;	/* collisions on csma interfaces */
+	uint64_t	ifi_ibytes;	/* total number of octets received */
+	uint64_t	ifi_obytes;	/* total number of octets sent */
+	uint64_t	ifi_imcasts;	/* packets received via multicast */
+	uint64_t	ifi_omcasts;	/* packets sent via multicast */
+	uint64_t	ifi_iqdrops;	/* dropped on input */
+	uint64_t	ifi_oqdrops;	/* dropped on output */
+	uint64_t	ifi_noproto;	/* destined for unsupported protocol */
+	uint64_t	ifi_hwassist;	/* HW offload capabilities, see IFCAP */
+
+	/* Unions are here to make sizes MI. */
+	union {				/* uptime at attach or stat reset */
+		time_t		tt;
+		uint64_t	ph;
+	} __ifi_epoch;
+#define	ifi_epoch	__ifi_epoch.tt
+	union {				/* time of last administrative change */
+		struct timeval	tv;
+		struct {
+			uint64_t ph1;
+			uint64_t ph2;
+		} ph;
+	} __ifi_lastchange;
+#define	ifi_lastchange	__ifi_lastchange.tv
 };
 
 /*-
@@ -135,7 +142,7 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* (n) turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
-#define	IFF_SMART	0x20		/* (i) interface manages own routes */
+/*			0x20		   was IFF_SMART */
 #define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
@@ -165,7 +172,7 @@ struct if_data {
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
 	    IFF_DYING|IFF_CANTCONFIG)
 
 /*
@@ -418,7 +425,7 @@ struct ifaliasreq {
 	int	ifra_vhid;
 };
 
-/* Compat with pre-10.x */
+/* 9.x compat */
 struct oifaliasreq {
 	char	ifra_name[IFNAMSIZ];
 	struct	sockaddr ifra_addr;
@@ -503,18 +510,6 @@ struct ifgroupreq {
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
 
-/*
- * Structure for SIOC[AGD]LIFADDR
- */
-struct if_laddrreq {
-	char	iflr_name[IFNAMSIZ];
-	u_int	flags;
-#define	IFLR_PREFIX	0x8000  /* in: prefix given  out: kernel fills id */
-	u_int	prefixlen;         /* in/out */
-	struct	sockaddr_storage addr;   /* in/out */
-	struct	sockaddr_storage dstaddr; /* out */
-};
-
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
@@ -537,10 +532,4 @@ struct if_nameindex	*if_nameindex(void);
 unsigned int		 if_nametoindex(const char *);
 __END_DECLS
 #endif
-
-#ifdef _KERNEL
-/* XXX - this should go away soon. */
-#include <net/if_var.h>
-#endif
-
 #endif /* !_NET_IF_H_ */

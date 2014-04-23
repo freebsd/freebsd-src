@@ -210,7 +210,7 @@ NVLIST_PRTFUNC(int32, int32_t, int32_t, "%d")
 NVLIST_PRTFUNC(uint32, uint32_t, uint32_t, "0x%x")
 NVLIST_PRTFUNC(int64, int64_t, longlong_t, "%lld")
 NVLIST_PRTFUNC(uint64, uint64_t, u_longlong_t, "0x%llx")
-NVLIST_PRTFUNC(double, double, double, "0x%llf")
+NVLIST_PRTFUNC(double, double, double, "0x%f")
 NVLIST_PRTFUNC(string, char *, char *, "%s")
 NVLIST_PRTFUNC(hrtime, hrtime_t, hrtime_t, "0x%llx")
 

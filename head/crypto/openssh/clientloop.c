@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.253 2013/06/07 15:37:52 dtucker Exp $ */
+/* $OpenBSD: clientloop.c,v 1.258 2014/02/02 03:44:31 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -61,6 +61,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -290,7 +291,7 @@ client_x11_display_valid(const char *display)
 
 	dlen = strlen(display);
 	for (i = 0; i < dlen; i++) {
-		if (!isalnum(display[i]) &&
+		if (!isalnum((u_char)display[i]) &&
 		    strchr(SSH_X11_VALID_DISPLAY_CHARS, display[i]) == NULL) {
 			debug("Invalid character '%c' in DISPLAY", display[i]);
 			return 0;
@@ -550,7 +551,7 @@ client_global_request_reply(int type, u_int32_t seq, void *ctxt)
 		gc->cb(type, seq, gc->ctx);
 	if (--gc->ref_count <= 0) {
 		TAILQ_REMOVE(&global_confirms, gc, entry);
-		bzero(gc, sizeof(*gc));
+		explicit_bzero(gc, sizeof(*gc));
 		free(gc);
 	}
 
@@ -838,7 +839,7 @@ void
 client_expect_confirm(int id, const char *request,
     enum confirm_action action)
 {
-	struct channel_reply_ctx *cr = xmalloc(sizeof(*cr));
+	struct channel_reply_ctx *cr = xcalloc(1, sizeof(*cr));
 
 	cr->request_type = request;
 	cr->action = action;
@@ -861,7 +862,7 @@ client_register_global_confirm(global_confirm_cb *cb, void *ctx)
 		return;
 	}
 
-	gc = xmalloc(sizeof(*gc));
+	gc = xcalloc(1, sizeof(*gc));
 	gc->cb = cb;
 	gc->ctx = ctx;
 	gc->ref_count = 1;
@@ -877,7 +878,7 @@ process_cmdline(void)
 	int cancel_port, ok;
 	Forward fwd;
 
-	bzero(&fwd, sizeof(fwd));
+	memset(&fwd, 0, sizeof(fwd));
 	fwd.listen_host = fwd.connect_host = NULL;
 
 	leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
@@ -885,7 +886,7 @@ process_cmdline(void)
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
 		goto out;
-	while (isspace(*s))
+	while (isspace((u_char)*s))
 		s++;
 	if (*s == '-')
 		s++;	/* Skip cmdline '-', if any */
@@ -939,7 +940,7 @@ process_cmdline(void)
 		goto out;
 	}
 
-	while (isspace(*++s))
+	while (isspace((u_char)*++s))
 		;
 
 	/* XXX update list of forwards in options */
@@ -1154,7 +1155,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 					    "%cB\r\n", escape_char);
 					buffer_append(berr, string,
 					    strlen(string));
-					channel_request_start(session_ident,
+					channel_request_start(c->self,
 					    "break", 0);
 					packet_put_int(1000);
 					packet_send();
@@ -1439,7 +1440,7 @@ client_new_escape_filter_ctx(int escape_char)
 {
 	struct escape_filter_ctx *ret;
 
-	ret = xmalloc(sizeof(*ret));
+	ret = xcalloc(1, sizeof(*ret));
 	ret->escape_pending = 0;
 	ret->escape_char = escape_char;
 	return (void *)ret;
@@ -1762,7 +1763,7 @@ client_input_stdout_data(int type, u_int32_t seq, void *ctxt)
 	char *data = packet_get_string(&data_len);
 	packet_check_eom();
 	buffer_append(&stdout_buffer, data, data_len);
-	memset(data, 0, data_len);
+	explicit_bzero(data, data_len);
 	free(data);
 }
 static void
@@ -1772,7 +1773,7 @@ client_input_stderr_data(int type, u_int32_t seq, void *ctxt)
 	char *data = packet_get_string(&data_len);
 	packet_check_eom();
 	buffer_append(&stderr_buffer, data, data_len);
-	memset(data, 0, data_len);
+	explicit_bzero(data, data_len);
 	free(data);
 }
 static void

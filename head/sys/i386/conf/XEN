@@ -6,8 +6,8 @@
 cpu		I686_CPU
 ident		XEN
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm drm2 hptnr hptmv ida malo mps mwl nve rdma sound sym trm xfs"
+makeoptions	DEBUG=-g
+makeoptions	WITHOUT_MODULES="aha ahb amd ctl cxgb dpt drm drm2 hptnr hptmv ida malo mps mwl rdma sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -83,8 +83,8 @@ device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)
 
 # Wireless cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!

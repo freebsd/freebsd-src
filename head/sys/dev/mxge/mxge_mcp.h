@@ -226,7 +226,7 @@ enum myri10ge_mcp_cmd_type {
      a power of 2 number of entries.  */
 
   MXGEFW_CMD_SET_INTRQ_SIZE = 13, 	/* in bytes */
-#define MXGEFW_CMD_SET_INTRQ_SIZE_FLAG_NO_STRICT_SIZE_CHECK  (1 << 31)
+#define MXGEFW_CMD_SET_INTRQ_SIZE_FLAG_NO_STRICT_SIZE_CHECK  (1U << 31)
 
   /* command to bring ethernet interface up.  Above parameters
      (plus mtu & mac address) must have been exchanged prior

@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.36 2012/05/26 16:05:41 tom Exp $ */
+/* $Id: reader.c,v 1.38 2014/01/01 14:23:27 Christos.Zoulas Exp $ */
 
 #include "defs.h"
 
@@ -317,6 +317,8 @@ keyword(void)
 	    return (PARSE_PARAM);
 	if (matchec("lex-param"))
 	    return (LEX_PARAM);
+	if (matchec("token-table"))
+	    return (TOKEN_TABLE);
 	if (matchec("yacc"))
 	    return (POSIX_YACC);
     }
@@ -701,7 +703,7 @@ copy_param(int k)
 	goto out;
 
     buf[i--] = '\0';
-    while (i >= 0 && isspace(UCH(buf[i])))
+    while (i > 0 && isspace(UCH(buf[i])))
 	buf[i--] = '\0';
 
     if (buf[i] == ']')
@@ -724,8 +726,8 @@ copy_param(int k)
 	type2 = i + 1;
     }
 
-    while (i >= 0 && (isalnum(UCH(buf[i])) ||
-		      UCH(buf[i]) == '_'))
+    while (i > 0 && (isalnum(UCH(buf[i])) ||
+		     UCH(buf[i]) == '_'))
 	i--;
 
     if (!isspace(UCH(buf[i])) && buf[i] != '*')
@@ -1300,6 +1302,10 @@ read_declarations(void)
 	case PARSE_PARAM:
 	case LEX_PARAM:
 	    copy_param(k);
+	    break;
+
+	case TOKEN_TABLE:
+	    token_table = 1;
 	    break;
 
 	case POSIX_YACC:

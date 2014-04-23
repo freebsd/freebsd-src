@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <sys/lock.h>
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#include <machine/vfp.h>
 
 /*
  * struct switchframe and trapframe must both be a multiple of 8
@@ -80,8 +82,6 @@ __FBSDID("$FreeBSD$");
  */
 CTASSERT(sizeof(struct switchframe) == 24);
 CTASSERT(sizeof(struct trapframe) == 80);
-
-#ifndef ARM_USE_SMALL_ALLOC
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
@@ -118,7 +118,6 @@ static u_int    sf_buf_alloc_want;
  * A lock used to synchronize access to the hash table and free list
  */
 static struct mtx sf_buf_lock;
-#endif /* !ARM_USE_SMALL_ALLOC */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -146,9 +145,10 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_und_sp = td2->td_kstack + USPACE_UNDEF_STACK_TOP;
 	pcb2->un_32.pcb32_sp = td2->td_kstack +
 	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
+	pcb2->pcb_vfpcpu = -1;
+	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	pmap_activate(td2);
 	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
 	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
@@ -190,7 +190,7 @@ cpu_thread_swapout(struct thread *td)
 void
 sf_buf_free(struct sf_buf *sf)
 {
-#ifndef ARM_USE_SMALL_ALLOC
+
 	 mtx_lock(&sf_buf_lock);
 	 sf->ref_count--;
 	 if (sf->ref_count == 0) {
@@ -203,10 +203,8 @@ sf_buf_free(struct sf_buf *sf)
 			 wakeup(&sf_buf_freelist);
 	 }
 	 mtx_unlock(&sf_buf_lock);
-#endif
 }
 
-#ifndef ARM_USE_SMALL_ALLOC
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */
@@ -232,7 +230,6 @@ sf_buf_init(void *arg)
 	sf_buf_alloc_want = 0;
 	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
 }
-#endif
 
 /*
  * Get an sf_buf from the freelist. Will block if none are available.
@@ -240,9 +237,6 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	return ((struct sf_buf *)m);
-#else
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
 	int error;
@@ -288,24 +282,33 @@ sf_buf_alloc(struct vm_page *m, int flags)
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
-#endif
 }
 
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
-	uint32_t insn;
+	u_int call;
 #endif
 
 	frame = td->td_frame;
 	fixup = 0;
 
 #ifdef __ARMEB__
-	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
-	if ((insn & 0x000fffff) == SYS___syscall) {
+	/*
+	 * __syscall returns an off_t while most other syscalls return an
+	 * int. As an off_t is 64-bits and an int is 32-bits we need to
+	 * place the returned data into r1. As the lseek and frerebsd6_lseek
+	 * syscalls also return an off_t they do not need this fixup.
+	 */
+#ifdef __ARM_EABI__
+	call = frame->tf_r7;
+#else
+	call = *(u_int32_t *)(frame->tf_pc - INSN_SIZE) & 0x000fffff;
+#endif
+	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
@@ -365,7 +368,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_spsr &= ~PSR_C_bit;
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
 	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
 	    ("cpu_set_upcall: Incorrect stack alignment"));
 
@@ -481,268 +483,3 @@ cpu_exit(struct thread *td)
 {
 }
 
-#define BITS_PER_INT	(8 * sizeof(int))
-vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE *
-    BITS_PER_INT)];
-
-/*
- * Functions to map and unmap memory non-cached into KVA the kernel won't try
- * to allocate. The goal is to provide uncached memory to busdma, to honor
- * BUS_DMA_COHERENT.
- * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes.
- * The allocator is rather dummy, each page is represented by a bit in
- * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
- * As soon as it finds enough contiguous pages to satisfy the request,
- * it returns the address.
- */
-void *
-arm_remap_nocache(void *addr, vm_size_t size)
-{
-	int i, j;
-
-	size = round_page(size);
-	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
-		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i %
-		    BITS_PER_INT)))) {
-			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
-				if (arm_nocache_allocated[j / BITS_PER_INT] &
-				    (1 << (j % BITS_PER_INT)))
-					break;
-			if (j == i + (size / (PAGE_SIZE)))
-				break;
-		}
-	}
-	if (i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE) {
-		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
-		void *ret = (void *)tomap;
-		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
-		vm_offset_t vaddr = (vm_offset_t) addr;
-		
-		vaddr = vaddr & ~PAGE_MASK;
-		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
-			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
-#else
-			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
-#endif
-			pmap_kenter_nocache(tomap, physaddr);
-			cpu_tlb_flushID_SE(vaddr);
-			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %
-			    BITS_PER_INT);
-		}
-		return (ret);
-	}
-
-	return (NULL);
-}
-
-void
-arm_unmap_nocache(void *addr, vm_size_t size)
-{
-	vm_offset_t raddr = (vm_offset_t)addr;
-	int i;
-
-	size = round_page(size);
-	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
-	for (; size > 0; size -= PAGE_SIZE, i++) {
-		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i %
-		    BITS_PER_INT));
-		pmap_kremove(raddr);
-		raddr += PAGE_SIZE;
-	}
-}
-
-#ifdef ARM_USE_SMALL_ALLOC
-
-static TAILQ_HEAD(,arm_small_page) pages_normal =
-	TAILQ_HEAD_INITIALIZER(pages_normal);
-static TAILQ_HEAD(,arm_small_page) pages_wt =
-	TAILQ_HEAD_INITIALIZER(pages_wt);
-static TAILQ_HEAD(,arm_small_page) free_pgdesc =
-	TAILQ_HEAD_INITIALIZER(free_pgdesc);
-
-extern uma_zone_t l2zone;
-
-struct mtx smallalloc_mtx;
-
-vm_offset_t alloc_firstaddr;
-
-#ifdef ARM_HAVE_SUPERSECTIONS
-#define S_FRAME	L1_SUP_FRAME
-#define S_SIZE	L1_SUP_SIZE
-#else
-#define S_FRAME	L1_S_FRAME
-#define S_SIZE	L1_S_SIZE
-#endif
-
-vm_offset_t
-arm_ptovirt(vm_paddr_t pa)
-{
-	int i;
-	vm_offset_t addr = alloc_firstaddr;
-
-	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called too early ?"));
-	for (i = 0; dump_avail[i + 1]; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			break;
-		addr += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
-		    (dump_avail[i] & S_FRAME);
-	}
-	KASSERT(dump_avail[i + 1] != 0, ("Trying to access invalid physical address"));
-	return (addr + (pa - (dump_avail[i] & S_FRAME)));
-}
-
-void
-arm_init_smallalloc(void)
-{
-	vm_offset_t to_map = 0, mapaddr;
-	int i;
-	
-	/*
-	 * We need to use dump_avail and not phys_avail, since we want to
-	 * map the whole memory and not just the memory available to the VM
-	 * to be able to do a pa => va association for any address.
-	 */
-
-	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		to_map += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
-		    (dump_avail[i] & S_FRAME);
-	}
-	alloc_firstaddr = mapaddr = KERNBASE - to_map;
-	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		vm_offset_t size = (dump_avail[i + 1] & S_FRAME) +
-		    S_SIZE - (dump_avail[i] & S_FRAME);
-		vm_offset_t did = 0;
-		while (size > 0) {
-#ifdef ARM_HAVE_SUPERSECTIONS
-			pmap_kenter_supersection(mapaddr,
-			    (dump_avail[i] & L1_SUP_FRAME) + did,
-			    SECTION_CACHE);
-#else
-			pmap_kenter_section(mapaddr,
-			    (dump_avail[i] & L1_S_FRAME) + did, SECTION_CACHE);
-#endif
-			mapaddr += S_SIZE;
-			did += S_SIZE;
-			size -= S_SIZE;
-		}
-	}
-}
-
-void
-arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
-{
-	struct arm_small_page *pg;
-	
-	bytes &= ~PAGE_MASK;
-	while (bytes > 0) {
-		pg = (struct arm_small_page *)list;
-		pg->addr = mem;
-		if (pagetable)
-			TAILQ_INSERT_HEAD(&pages_wt, pg, pg_list);
-		else
-			TAILQ_INSERT_HEAD(&pages_normal, pg, pg_list);
-		list = (char *)list + sizeof(*pg);
-		mem = (char *)mem + PAGE_SIZE;
-		bytes -= PAGE_SIZE;
-	}
-}
-
-void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	void *ret;
-	struct arm_small_page *sp;
-	TAILQ_HEAD(,arm_small_page) *head;
-	vm_page_t m;
-
-	*flags = UMA_SLAB_PRIV;
-	/*
-	 * For CPUs where we setup page tables as write back, there's no
-	 * need to maintain two separate pools.
-	 */
-	if (zone == l2zone && pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt)
-		head = (void *)&pages_wt;
-	else
-		head = (void *)&pages_normal;
-
-	mtx_lock(&smallalloc_mtx);
-	sp = TAILQ_FIRST(head);
-
-	if (!sp) {
-		int pflags;
-
-		mtx_unlock(&smallalloc_mtx);
-		if (zone == l2zone &&
-		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
-			*flags = UMA_SLAB_KMEM;
-			ret = ((void *)kmem_malloc(kmem_arena, bytes,
-			    M_NOWAIT));
-			return (ret);
-		}
-		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
-		for (;;) {
-			m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-			if (m == NULL) {
-				if (wait & M_NOWAIT)
-					return (NULL);
-				VM_WAIT;
-			} else
-				break;
-		}
-		ret = (void *)arm_ptovirt(VM_PAGE_TO_PHYS(m));
-		if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-			bzero(ret, PAGE_SIZE);
-		return (ret);
-	}
-	TAILQ_REMOVE(head, sp, pg_list);
-	TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
-	ret = sp->addr;
-	mtx_unlock(&smallalloc_mtx);
-	if ((wait & M_ZERO))
-		bzero(ret, bytes);
-	return (ret);
-}
-
-void
-uma_small_free(void *mem, int size, u_int8_t flags)
-{
-	pd_entry_t *pd;
-	pt_entry_t *pt;
-
-	if (flags & UMA_SLAB_KMEM)
-		kmem_free(kmem_arena, (vm_offset_t)mem, size);
-	else {
-		struct arm_small_page *sp;
-
-		if ((vm_offset_t)mem >= KERNBASE) {
-			mtx_lock(&smallalloc_mtx);
-			sp = TAILQ_FIRST(&free_pgdesc);
-			KASSERT(sp != NULL, ("No more free page descriptor ?"));
-			TAILQ_REMOVE(&free_pgdesc, sp, pg_list);
-			sp->addr = mem;
-			pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd,
-			    &pt);
-			if ((*pd & pte_l1_s_cache_mask) ==
-			    pte_l1_s_cache_mode_pt &&
-			    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
-				TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);
-			else
-				TAILQ_INSERT_HEAD(&pages_normal, sp, pg_list);
-			mtx_unlock(&smallalloc_mtx);
-		} else {
-			vm_page_t m;
-			vm_paddr_t pa = vtophys((vm_offset_t)mem);
-
-			m = PHYS_TO_VM_PAGE(pa);
-			m->wire_count--;
-			vm_page_free(m);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
-	}
-}
-
-#endif

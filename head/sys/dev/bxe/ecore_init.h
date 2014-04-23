@@ -717,23 +717,35 @@ static const struct {
  * [30] MCP Latched ump_tx_parity
  * [31] MCP Latched scpad_parity
  */
-#define MISC_AEU_ENABLE_MCP_PRTY_BITS	\
+#define MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS	\
 	(AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY | \
 	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
-	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY | \
+	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY)
+
+#define MISC_AEU_ENABLE_MCP_PRTY_BITS	\
+	(MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS | \
 	 AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
 
 /* Below registers control the MCP parity attention output. When
  * MISC_AEU_ENABLE_MCP_PRTY_BITS are set - attentions are
  * enabled, when cleared - disabled.
  */
-static const uint32_t mcp_attn_ctl_regs[] = {
-	MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0,
-	MISC_REG_AEU_ENABLE4_NIG_0,
-	MISC_REG_AEU_ENABLE4_PXP_0,
-	MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0,
-	MISC_REG_AEU_ENABLE4_NIG_1,
-	MISC_REG_AEU_ENABLE4_PXP_1
+static const struct {
+	uint32_t addr;
+	uint32_t bits;
+} mcp_attn_ctl_regs[] = {
+	{ MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0,
+		MISC_AEU_ENABLE_MCP_PRTY_BITS },
+	{ MISC_REG_AEU_ENABLE4_NIG_0,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_PXP_0,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0,
+		MISC_AEU_ENABLE_MCP_PRTY_BITS },
+	{ MISC_REG_AEU_ENABLE4_NIG_1,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS },
+	{ MISC_REG_AEU_ENABLE4_PXP_1,
+		MISC_AEU_ENABLE_MCP_PRTY_SUB_BITS }
 };
 
 static inline void ecore_set_mcp_parity(struct bxe_softc *sc, uint8_t enable)
@@ -742,14 +754,14 @@ static inline void ecore_set_mcp_parity(struct bxe_softc *sc, uint8_t enable)
 	uint32_t reg_val;
 
 	for (i = 0; i < ARRSIZE(mcp_attn_ctl_regs); i++) {
-		reg_val = REG_RD(sc, mcp_attn_ctl_regs[i]);
+		reg_val = REG_RD(sc, mcp_attn_ctl_regs[i].addr);
 
 		if (enable)
-			reg_val |= MISC_AEU_ENABLE_MCP_PRTY_BITS;
+			reg_val |= MISC_AEU_ENABLE_MCP_PRTY_BITS; /* Linux is using mcp_attn_ctl_regs[i].bits */
 		else
-			reg_val &= ~MISC_AEU_ENABLE_MCP_PRTY_BITS;
+			reg_val &= ~MISC_AEU_ENABLE_MCP_PRTY_BITS; /* Linux is using mcp_attn_ctl_regs[i].bits */
 
-		REG_WR(sc, mcp_attn_ctl_regs[i], reg_val);
+		REG_WR(sc, mcp_attn_ctl_regs[i].addr, reg_val);
 	}
 }
 

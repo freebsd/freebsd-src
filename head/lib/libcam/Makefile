@@ -42,6 +42,6 @@ MLINKS+=	cam.3 cam_open_device.3 \
 SDIR=		${.CURDIR}/../../sys
 CFLAGS+=	-I${.CURDIR} -I${SDIR}
 
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	7
 
 .include <bsd.lib.mk>

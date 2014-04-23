@@ -141,8 +141,6 @@ an_pccard_attach(device_t dev)
 
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
-	sc->an_dev = dev;
-
 	error = an_attach(sc, flags);
 	if (error)
 		goto fail;

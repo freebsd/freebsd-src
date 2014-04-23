@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field.3x,v 1.8 2006/11/04 18:01:38 tom Exp $
+.\" $Id: form_field.3x,v 1.11 2012/11/03 23:03:59 tom Exp $
 .TH form_field 3X ""
 .SH NAME
-\fBform_field\fR - make and break connections between fields and forms
+\fBform_field\fR \- make and break connections between fields and forms
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -52,7 +52,7 @@ The function \fBfield_count\fR returns the count of fields in \fIform\fR.
 .PP
 The function \fBmove_field\fR moves the given field (which must be disconnected)
 to a specified location on the screen.
-.SH RETURN VALUES
+.SH RETURN VALUE
 The function \fBform_fields\fR returns a pointer (which may be \fBNULL\fR).
 It does not set errno.
 .PP
@@ -86,13 +86,7 @@ These routines emulate the System V forms library.  They were not supported on
 Version 7 or BSD versions.
 .PP
 The SVr4 forms library documentation specifies the \fBfield_count\fR error value
-as -1 (which is the value of \fBERR\fR).
+as \-1 (which is the value of \fBERR\fR).
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

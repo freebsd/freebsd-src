@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #define ccb_acb_ptr spriv_ptr0
 #define ccb_adw_ptr spriv_ptr1
 
-static __inline cam_status	adwccbstatus(union ccb*);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
 					   struct acb *acb);
@@ -99,12 +98,6 @@ static void		adw_handle_device_reset(struct adw_softc *adw,
 						u_int target);
 static void		adw_handle_bus_reset(struct adw_softc *adw,
 					     int initiated);
-
-static __inline cam_status
-adwccbstatus(union ccb* ccb)
-{
-	return (ccb->ccb_h.status & CAM_STATUS_MASK);
-}
 
 static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
@@ -351,12 +344,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 	{
 		struct	ccb_scsiio *csio;
-		struct	ccb_hdr *ccbh;
 		struct	acb *acb;
 		int error;
 
 		csio = &ccb->csio;
-		ccbh = &ccb->ccb_h;
 
 		/* Max supported CDB length is 12 bytes */
 		if (csio->cdb_len > 12) { 

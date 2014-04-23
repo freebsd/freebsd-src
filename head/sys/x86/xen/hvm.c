@@ -71,27 +71,17 @@ static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
-#endif
 static void xen_ipi_vectored(u_int vector, int dest);
 static void xen_hvm_cpu_resume(void);
+#endif
 static void xen_hvm_cpu_init(void);
 
 /*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the MMU related IPIs */
-extern volatile int smp_tlb_wait;
-extern vm_offset_t smp_tlb_addr2;
-#ifdef __i386__
-extern vm_offset_t smp_tlb_addr1;
-#else
-extern struct invpcid_descr smp_tlb_invpcid;
-extern uint64_t pcid_cr3;
-extern int invpcid_works;
-extern int pmap_pcid_enabled;
-extern pmap_t smp_tlb_pmap;
-#endif
-
 #ifdef __i386__
 extern void pmap_lazyfix_action(void);
+#endif
+#ifdef __amd64__
+extern int pmap_pcid_enabled;
 #endif
 
 /* Variables used by mp_machdep to perform the bitmap IPI */
@@ -116,11 +106,13 @@ struct xen_ipi_handler
 /*-------------------------------- Global Data -------------------------------*/
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
+#ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
 	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
 	.cpu_resume	= xen_hvm_cpu_resume
 };
+#endif
 
 static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
 
@@ -157,8 +149,9 @@ DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 /** Hypercall table accessed via HYPERVISOR_*_op() methods. */
-char *hypercall_stubs;
+extern char *hypercall_page;
 shared_info_t *HYPERVISOR_shared_info;
+start_info_t *HYPERVISOR_start_info;
 
 #ifdef SMP
 /*---------------------------- XEN PV IPI Handlers ---------------------------*/
@@ -179,10 +172,7 @@ static int
 xen_smp_rendezvous_action(void *arg)
 {
 #ifdef COUNT_IPIS
-	int cpu;
-
-	cpu = PCPU_GET(cpuid);
-	(*ipi_rendezvous_counts[cpu])++;
+	(*ipi_rendezvous_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
 	smp_rendezvous_action();
@@ -192,20 +182,8 @@ xen_smp_rendezvous_action(void *arg)
 static int
 xen_invltlb(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_gbl[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invltlb_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	invltlb();
-	atomic_add_int(&smp_tlb_wait, 1);
+	invltlb_handler();
 	return (FILTER_HANDLED);
 }
 
@@ -213,40 +191,8 @@ xen_invltlb(void *arg)
 static int
 xen_invltlb_pcid(void *arg)
 {
-	uint64_t cr3;
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_gbl[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invltlb_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	cr3 = rcr3();
-	if (smp_tlb_invpcid.pcid != (uint64_t)-1 &&
-	    smp_tlb_invpcid.pcid != 0) {
-
-		if (invpcid_works) {
-			invpcid(&smp_tlb_invpcid, INVPCID_CTX);
-		} else {
-			/* Otherwise reload %cr3 twice. */
-			if (cr3 != pcid_cr3) {
-				load_cr3(pcid_cr3);
-				cr3 |= CR3_PCID_SAVE;
-			}
-			load_cr3(cr3);
-		}
-	} else {
-		invltlb_globpcid();
-	}
-	if (smp_tlb_pmap != NULL)
-		CPU_CLR_ATOMIC(PCPU_GET(cpuid), &smp_tlb_pmap->pm_save);
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invltlb_pcid_handler();
 	return (FILTER_HANDLED);
 }
 #endif
@@ -254,24 +200,8 @@ xen_invltlb_pcid(void *arg)
 static int
 xen_invlpg(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_pg[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlpg_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-#ifdef __i386__
-	invlpg(smp_tlb_addr1);
-#else
-	invlpg(smp_tlb_invpcid.addr);
-#endif
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlpg_handler();
 	return (FILTER_HANDLED);
 }
 
@@ -279,125 +209,25 @@ xen_invlpg(void *arg)
 static int
 xen_invlpg_pcid(void *arg)
 {
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_pg[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlpg_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-	if (invpcid_works) {
-		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
-	} else if (smp_tlb_invpcid.pcid == 0) {
-		invlpg(smp_tlb_invpcid.addr);
-	} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
-		invltlb_globpcid();
-	} else {
-		uint64_t cr3;
-
-		/*
-		 * PCID supported, but INVPCID is not.
-		 * Temporarily switch to the target address
-		 * space and do INVLPG.
-		 */
-		cr3 = rcr3();
-		if (cr3 != pcid_cr3)
-			load_cr3(pcid_cr3 | CR3_PCID_SAVE);
-		invlpg(smp_tlb_invpcid.addr);
-		load_cr3(cr3 | CR3_PCID_SAVE);
-	}
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlpg_pcid_handler();
 	return (FILTER_HANDLED);
 }
 #endif
 
-static inline void
-invlpg_range(vm_offset_t start, vm_offset_t end)
-{
-	do {
-		invlpg(start);
-		start += PAGE_SIZE;
-	} while (start < end);
-}
-
 static int
 xen_invlrng(void *arg)
 {
-	vm_offset_t addr;
-#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
-	int cpu;
 
-	cpu = PCPU_GET(cpuid);
-#ifdef COUNT_XINVLTLB_HITS
-	xhits_rng[cpu]++;
-#endif /* COUNT_XINVLTLB_HITS */
-#ifdef COUNT_IPIS
-	(*ipi_invlrng_counts[cpu])++;
-#endif /* COUNT_IPIS */
-#endif /* COUNT_XINVLTLB_HITS || COUNT_IPIS */
-
-#ifdef __i386__
-	addr = smp_tlb_addr1;
-	invlpg_range(addr, smp_tlb_addr2);
-#else
-	addr = smp_tlb_invpcid.addr;
-	if (pmap_pcid_enabled) {
-		if (invpcid_works) {
-			struct invpcid_descr d;
-
-			d = smp_tlb_invpcid;
-			do {
-				invpcid(&d, INVPCID_ADDR);
-				d.addr += PAGE_SIZE;
-			} while (d.addr < smp_tlb_addr2);
-		} else if (smp_tlb_invpcid.pcid == 0) {
-			/*
-			 * kernel pmap - use invlpg to invalidate
-			 * global mapping.
-			 */
-			invlpg_range(addr, smp_tlb_addr2);
-		} else if (smp_tlb_invpcid.pcid != (uint64_t)-1) {
-			invltlb_globpcid();
-			if (smp_tlb_pmap != NULL) {
-				CPU_CLR_ATOMIC(PCPU_GET(cpuid),
-				    &smp_tlb_pmap->pm_save);
-			}
-		} else {
-			uint64_t cr3;
-
-			cr3 = rcr3();
-			if (cr3 != pcid_cr3)
-				load_cr3(pcid_cr3 | CR3_PCID_SAVE);
-			invlpg_range(addr, smp_tlb_addr2);
-			load_cr3(cr3 | CR3_PCID_SAVE);
-		}
-	} else {
-		invlpg_range(addr, smp_tlb_addr2);
-	}
-#endif
-
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlrng_handler();
 	return (FILTER_HANDLED);
 }
 
 static int
 xen_invlcache(void *arg)
 {
-#ifdef COUNT_IPIS
-	int cpu = PCPU_GET(cpuid);
 
-	cpu = PCPU_GET(cpuid);
-	(*ipi_invlcache_counts[cpu])++;
-#endif /* COUNT_IPIS */
-
-	wbinvd();
-	atomic_add_int(&smp_tlb_wait, 1);
+	invlcache_handler();
 	return (FILTER_HANDLED);
 }
 
@@ -522,7 +352,7 @@ xen_setup_cpus(void)
 {
 	int i;
 
-	if (!xen_hvm_domain() || !xen_vector_callback_enabled)
+	if (!xen_vector_callback_enabled)
 		return;
 
 #ifdef __amd64__
@@ -558,16 +388,21 @@ xen_hvm_cpuid_base(void)
  * Allocate and fill in the hypcall page.
  */
 static int
-xen_hvm_init_hypercall_stubs(void)
+xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 {
 	uint32_t base, regs[4];
 	int i;
+
+	if (xen_pv_domain()) {
+		/* hypercall page is already set in the PV case */
+		return (0);
+	}
 
 	base = xen_hvm_cpuid_base();
 	if (base == 0)
 		return (ENXIO);
 
-	if (hypercall_stubs == NULL) {
+	if (init_type == XEN_HVM_INIT_COLD) {
 		do_cpuid(base + 1, regs);
 		printf("XEN: Hypervisor version %d.%d detected.\n",
 		    regs[0] >> 16, regs[0] & 0xffff);
@@ -577,18 +412,9 @@ xen_hvm_init_hypercall_stubs(void)
 	 * Find the hypercall pages.
 	 */
 	do_cpuid(base + 2, regs);
-	
-	if (hypercall_stubs == NULL) {
-		size_t call_region_size;
-
-		call_region_size = regs[0] * PAGE_SIZE;
-		hypercall_stubs = malloc(call_region_size, M_XENHVM, M_NOWAIT);
-		if (hypercall_stubs == NULL)
-			panic("Unable to allocate Xen hypercall region");
-	}
 
 	for (i = 0; i < regs[0]; i++)
-		wrmsr(regs[1], vtophys(hypercall_stubs + i * PAGE_SIZE) + i);
+		wrmsr(regs[1], vtophys(&hypercall_page + i * PAGE_SIZE) + i);
 
 	return (0);
 }
@@ -597,6 +423,14 @@ static void
 xen_hvm_init_shared_info_page(void)
 {
 	struct xen_add_to_physmap xatp;
+
+	if (xen_pv_domain()) {
+		/*
+		 * Already setup in the PV case, shared_info is passed inside
+		 * of the start_info struct at start of day.
+		 */
+		return;
+	}
 
 	if (HYPERVISOR_shared_info == NULL) {
 		HYPERVISOR_shared_info = malloc(PAGE_SIZE, M_XENHVM, M_NOWAIT);
@@ -674,6 +508,15 @@ enum {
 static void
 xen_hvm_disable_emulated_devices(void)
 {
+
+	if (xen_pv_domain()) {
+		/*
+		 * No emulated devices in the PV case, so no need to unplug
+		 * anything.
+		 */
+		return;
+	}
+
 	if (inw(XEN_MAGIC_IOPORT) != XMI_MAGIC)
 		return;
 
@@ -691,16 +534,28 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	if (init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
 		return;
 
-	error = xen_hvm_init_hypercall_stubs();
+	error = xen_hvm_init_hypercall_stubs(init_type);
 
 	switch (init_type) {
 	case XEN_HVM_INIT_COLD:
 		if (error != 0)
 			return;
 
+		/*
+		 * If xen_domain_type is not set at this point
+		 * it means we are inside a (PV)HVM guest, because
+		 * for PVH the guest type is set much earlier
+		 * (see hammer_time_xen).
+		 */
+		if (!xen_domain()) {
+			xen_domain_type = XEN_HVM_DOMAIN;
+			vm_guest = VM_GUEST_XEN;
+		}
+
 		setup_xen_features();
+#ifdef SMP
 		cpu_ops = xen_hvm_cpu_ops;
- 		vm_guest = VM_GUEST_XEN;
+#endif
 		break;
 	case XEN_HVM_INIT_RESUME:
 		if (error != 0)
@@ -715,9 +570,15 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	}
 
 	xen_vector_callback_enabled = 0;
-	xen_domain_type = XEN_HVM_DOMAIN;
-	xen_hvm_init_shared_info_page();
 	xen_hvm_set_callback(NULL);
+
+	/*
+	 * On (PV)HVM domains we need to request the hypervisor to
+	 * fill the shared info page, for PVH guest the shared_info page
+	 * is passed inside the start_info struct and is already set, so this
+	 * functions are no-ops.
+	 */
+	xen_hvm_init_shared_info_page();
 	xen_hvm_disable_emulated_devices();
 } 
 
@@ -748,6 +609,9 @@ xen_set_vcpu_id(void)
 {
 	struct pcpu *pc;
 	int i;
+
+	if (!xen_hvm_domain())
+		return;
 
 	/* Set vcpu_id to acpi_id */
 	CPU_FOREACH(i) {
@@ -792,7 +656,8 @@ xen_hvm_cpu_init(void)
 
 SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 #ifdef SMP
-SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_FIRST, xen_setup_cpus, NULL);
+/* We need to setup IPIs before APs are started */
+SYSINIT(xen_setup_cpus, SI_SUB_SMP-1, SI_ORDER_FIRST, xen_setup_cpus, NULL);
 #endif
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
 SYSINIT(xen_set_vcpu_id, SI_SUB_CPU, SI_ORDER_ANY, xen_set_vcpu_id, NULL);

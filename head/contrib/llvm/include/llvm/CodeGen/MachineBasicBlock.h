@@ -410,8 +410,8 @@ public:
   /// branch to do so (e.g., a table jump).  True is a conservative answer.
   bool canFallThrough();
 
-  /// Returns a pointer to the first instructon in this block that is not a
-  /// PHINode instruction. When adding instruction to the beginning of the
+  /// Returns a pointer to the first instruction in this block that is not a
+  /// PHINode instruction. When adding instructions to the beginning of the
   /// basic block, they should be added before the returned value, not before
   /// the first instruction, which might be PHI.
   /// Returns end() is there's no non-PHI instruction.
@@ -731,6 +731,31 @@ template <> struct GraphTraits<Inverse<const MachineBasicBlock*> > {
   static inline ChildIteratorType child_end(NodeType *N) {
     return N->pred_end();
   }
+};
+
+
+
+/// MachineInstrSpan provides an interface to get an iteration range
+/// containing the instruction it was initialized with, along with all
+/// those instructions inserted prior to or following that instruction
+/// at some point after the MachineInstrSpan is constructed.
+class MachineInstrSpan {
+  MachineBasicBlock &MBB;
+  MachineBasicBlock::iterator I, B, E;
+public:
+  MachineInstrSpan(MachineBasicBlock::iterator I)
+    : MBB(*I->getParent()),
+      I(I),
+      B(I == MBB.begin() ? MBB.end() : llvm::prior(I)),
+      E(llvm::next(I)) {}
+
+  MachineBasicBlock::iterator begin() {
+    return B == MBB.end() ? MBB.begin() : llvm::next(B);
+  }
+  MachineBasicBlock::iterator end() { return E; }
+  bool empty() { return begin() == end(); }
+
+  MachineBasicBlock::iterator getInitial() { return I; }
 };
 
 } // End llvm namespace

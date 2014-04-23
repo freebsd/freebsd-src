@@ -297,6 +297,18 @@ ata_print_ident(struct ata_params *ident_data)
 }
 
 void
+ata_print_ident_short(struct ata_params *ident_data)
+{
+	char product[48], revision[16];
+
+	cam_strvis(product, ident_data->model, sizeof(ident_data->model),
+		   sizeof(product));
+	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
+		   sizeof(revision));
+	printf("<%s %s>", product, revision);
+}
+
+void
 semb_print_ident(struct sep_identify_data *ident_data)
 {
 	char vendor[9], product[17], revision[5], fw[5], in[7], ins[5];
@@ -311,13 +323,25 @@ semb_print_ident(struct sep_identify_data *ident_data)
 	    vendor, product, revision, fw, in, ins);
 }
 
+void
+semb_print_ident_short(struct sep_identify_data *ident_data)
+{
+	char vendor[9], product[17], revision[5], fw[5];
+
+	cam_strvis(vendor, ident_data->vendor_id, 8, sizeof(vendor));
+	cam_strvis(product, ident_data->product_id, 16, sizeof(product));
+	cam_strvis(revision, ident_data->product_rev, 4, sizeof(revision));
+	cam_strvis(fw, ident_data->firmware_rev, 4, sizeof(fw));
+	printf("<%s %s %s %s>", vendor, product, revision, fw);
+}
+
 uint32_t
 ata_logical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE &&
 	    (ident_data->pss & ATA_PSS_LSSABOVE512)) {
-		return ((u_int32_t)ident_data->lss_1 |
-		    ((u_int32_t)ident_data->lss_2 << 16));
+		return (((u_int32_t)ident_data->lss_1 |
+		    ((u_int32_t)ident_data->lss_2 << 16)) * 2);
 	}
 	return (512);
 }
@@ -325,10 +349,13 @@ ata_logical_sector_size(struct ata_params *ident_data)
 uint64_t
 ata_physical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
-	    (ident_data->pss & ATA_PSS_MULTLS)) {
-		return ((uint64_t)ata_logical_sector_size(ident_data) *
-		    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE) {
+		if (ident_data->pss & ATA_PSS_MULTLS) {
+			return ((uint64_t)ata_logical_sector_size(ident_data) *
+			    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+		} else {
+			return (uint64_t)ata_logical_sector_size(ident_data);
+		}
 	}
 	return (512);
 }

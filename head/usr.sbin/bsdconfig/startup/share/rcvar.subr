@@ -85,6 +85,7 @@ STARTUP_RCVAR_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcvar_map.cache"
 #
 f_startup_rcvar_map()
 {
+	local __funcname=f_startup_rcvar_map
 	local __var_to_set="$1"
 
 	# If the in-memory cached value is available, return it immediately
@@ -125,8 +126,8 @@ f_startup_rcvar_map()
 	# value for immediate return.
 	#
 	local __rc_script_list_digest
-	__rc_script_list_digest=$( cd "$ETC_RC_D" &&
-		cksum "$RC_DEFAULTS" $__rc_script_list | md5 )
+	__rc_script_list_digest=$( cd "$ETC_RC_D" 2> /dev/null &&
+		cksum "$RC_DEFAULTS" $__rc_script_list 2> /dev/null | md5 )
 
 	#
 	# Check to see if the global persistant cache file exists
@@ -179,7 +180,7 @@ f_startup_rcvar_map()
 
 	STARTUP_RCVAR_MAP=$(
 		for script in $__rc_script_list; do
-			rcvar_list=$( $script rcvar | awk -F= \
+			rcvar_list=$( $script rcvar 2> /dev/null | awk -F= \
 				-v script="$script" '
 		              	/^'"$STARTUP_RCVAR_REGEX"'/ {
 		              		if ( $2 ~ /^"[Yy][Ee][Ss]"$/ )
@@ -211,8 +212,9 @@ f_startup_rcvar_map()
 	#
 
 	# Create a new temporary file to write to
-	local __tmpfile="$( mktemp -t "$pgm" )"
-	[ "$__tmpfile" ] || return $FAILURE
+	local __tmpfile
+	f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$__tmpfile" || return $FAILURE
 
 	# Write the temporary file contents
 	echo "$__rc_script_list_digest" > "$__tmpfile"
@@ -220,9 +222,11 @@ f_startup_rcvar_map()
 
 	# Finally, move the temporary file into place
 	case "$STARTUP_RCVAR_MAP_CACHEFILE" in
-	*/*) f_quietly mkdir -p "${STARTUP_RCVAR_MAP_CACHEFILE%/*}"
+	*/*) f_eval_catch -d $__funcname mkdir \
+		'mkdir -p "%s"' "${STARTUP_RCVAR_MAP_CACHEFILE%/*}"
 	esac
-	mv "$__tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
+	f_eval_catch -d $__funcname mv \
+		'mv "%s" "%s"' "$__tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
 }
 
 ############################################################ MAIN

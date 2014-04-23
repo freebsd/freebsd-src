@@ -135,7 +135,7 @@ struct pkthdr {
 	uint8_t		 l4hlen;	/* layer 4 header length */
 	uint8_t		 l5hlen;	/* layer 5 header length */
 	union {
-		uint8_t  eigth[8];
+		uint8_t  eight[8];
 		uint16_t sixteen[4];
 		uint32_t thirtytwo[2];
 		uint64_t sixtyfour[1];
@@ -145,7 +145,7 @@ struct pkthdr {
 
 	/* Layer specific non-persistent local storage for reassembly, etc. */
 	union {
-		uint8_t  eigth[8];
+		uint8_t  eight[8];
 		uint16_t sixteen[4];
 		uint32_t thirtytwo[2];
 		uint64_t sixtyfour[1];
@@ -466,14 +466,6 @@ struct mbuf {
 				   a non-initialized mbuf */
 
 /*
- * Compatibility with historic mbuf allocator.
- */
-#define	MBTOM(how)	(how)
-#define	M_DONTWAIT	M_NOWAIT
-#define	M_TRYWAIT	M_WAITOK
-#define	M_WAIT		M_WAITOK
-
-/*
  * String names of mbuf-related UMA(9) and malloc(9) types.  Exposed to
  * !_KERNEL so that monitoring tools can look up the zones with
  * libmemstat(3).
@@ -539,7 +531,7 @@ m_gettype(int size)
 		type = EXT_JUMBO16;
 		break;
 	default:
-		panic("%s: invalid cluster size", __func__);
+		panic("%s: invalid cluster size %d", __func__, size);
 	}
 
 	return (type);
@@ -588,7 +580,7 @@ m_getzone(int size)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: invalid cluster size", __func__);
+		panic("%s: invalid cluster size %d", __func__, size);
 	}
 
 	return (zone);
@@ -733,7 +725,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: unknown cluster type", __func__);
+		panic("%s: unknown cluster type %d", __func__, type);
 		break;
 	}
 

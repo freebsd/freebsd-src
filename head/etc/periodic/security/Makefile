@@ -29,8 +29,4 @@ FILES+=	500.ipfwdenied \
 FILES+=	520.pfdenied
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	460.chkportsum
-.endif
-
 .include <bsd.prog.mk>

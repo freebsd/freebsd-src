@@ -1,4 +1,4 @@
-.\" Copyright (c) 2009-2012 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2009-2013 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2012
+.Dd October 22, 2013
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -57,9 +57,9 @@ controls Message Signaled Interrupts (MSI) usage by the specified controller.
 .It 0
 MSI disabled;
 .It 1
-single MSI vector used, if supported (default);
+single MSI vector used, if supported;
 .It 2
-multiple MSI vectors used, if supported;
+multiple MSI vectors used, if supported (default);
 .El
 .It Va hint.ahci. Ns Ar X Ns Va .ccc
 controls Command Completion Coalescing (CCC) usage by the specified controller.
@@ -68,6 +68,11 @@ for interrupt, if there are some more requests present on controller queue.
 CCC reduces number of context switches on systems with many parallel requests,
 but it can decrease disk performance on some workloads due to additional
 command latency.
+.It Va hint.ahci. Ns Ar X Ns Va .direct
+controls whether the driver should use direct command completion from
+interrupt thread(s), or queue them to CAM completion threads.
+Default value depends on number of MSI interrupts supported and number of
+implemented SATA ports.
 .It Va hint.ahcich. Ns Ar X Ns Va .pm_level
 controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command

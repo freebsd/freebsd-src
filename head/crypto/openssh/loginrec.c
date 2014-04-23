@@ -310,16 +310,19 @@ login_get_lastlog(struct logininfo *li, const uid_t uid)
 		fatal("%s: Cannot find account for uid %ld", __func__,
 		    (long)uid);
 
-	/* No MIN_SIZEOF here - we absolutely *must not* truncate the
-	 * username (XXX - so check for trunc!) */
-	strlcpy(li->username, pw->pw_name, sizeof(li->username));
+	if (strlcpy(li->username, pw->pw_name, sizeof(li->username)) >=
+	    sizeof(li->username)) {
+		error("%s: username too long (%lu > max %lu)", __func__,
+		    (unsigned long)strlen(pw->pw_name),
+		    (unsigned long)sizeof(li->username) - 1);
+		return NULL;
+	}
 
 	if (getlast_entry(li))
 		return (li);
 	else
 		return (NULL);
 }
-
 
 /*
  * login_alloc_entry(int, char*, char*, char*)    - Allocate and initialise

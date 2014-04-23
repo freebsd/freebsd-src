@@ -65,4 +65,4 @@ board_init(void)
 	return (at91_ramsize());
 }
 
-ARM_BOARD(KB9200, "Kwikbyte KB920x")
+ARM_BOARD(ATEB9200, "Embest ATEB9200")

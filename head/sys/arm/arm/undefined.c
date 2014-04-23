@@ -166,7 +166,7 @@ undefined_init()
 
 
 void
-undefinedinstruction(trapframe_t *frame)
+undefinedinstruction(struct trapframe *frame)
 {
 	struct thread *td;
 	u_int fault_pc;
@@ -183,7 +183,6 @@ undefinedinstruction(trapframe_t *frame)
 	if (!(frame->tf_spsr & I32_bit))
 		enable_interrupts(I32_bit|F32_bit);
 
-	frame->tf_pc -= INSN_SIZE;
 	PCPU_INC(cnt.v_trap);
 
 	fault_pc = frame->tf_pc;

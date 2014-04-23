@@ -125,7 +125,7 @@ gx_probe(device_t dev)
 
 	device_set_desc(dev, "GXemul test Ethernet");
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

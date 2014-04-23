@@ -84,6 +84,7 @@ typedef struct kdtrace_thread {
 #endif
 	u_int64_t	td_hrtime;	/* Last time on cpu. */
 	int		td_errno;	/* Syscall return value. */
+	void		*td_dtrace_sscr; /* Saved scratch space location. */
 } kdtrace_thread_t;
 
 /*
@@ -108,10 +109,12 @@ typedef struct kdtrace_thread {
 #define	t_dtrace_scrpc	td_dtrace->td_dtrace_scrpc
 #define	t_dtrace_astpc	td_dtrace->td_dtrace_astpc
 #define	t_dtrace_regv	td_dtrace->td_dtrace_regv
+#define	t_dtrace_sscr	td_dtrace->td_dtrace_sscr
 #define	p_dtrace_helpers	p_dtrace->p_dtrace_helpers
 #define	p_dtrace_count	p_dtrace->p_dtrace_count
 #define	p_dtrace_probes	p_dtrace->p_dtrace_probes
 #define	p_model		p_dtrace->p_dtrace_model
+
 #define	DATAMODEL_NATIVE	0
 #ifdef __amd64__
 #define	DATAMODEL_LP64		0

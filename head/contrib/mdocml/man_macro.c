@@ -1,6 +1,8 @@
-/*	$Id: man_macro.c,v 1.71 2012/01/03 15:16:24 kristaps Exp $ */
+/*	$Id: man_macro.c,v 1.79 2013/12/25 00:50:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013 Franco Fichtner <franco@lastsummer.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -77,7 +79,7 @@ const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, MAN_BSCOPE }, /* nf */
 	{ in_line_eoln, MAN_BSCOPE }, /* fi */
 	{ blk_close, 0 }, /* RE */
-	{ blk_exp, MAN_EXPLICIT }, /* RS */
+	{ blk_exp, MAN_BSCOPE | MAN_EXPLICIT }, /* RS */
 	{ in_line_eoln, 0 }, /* DT */
 	{ in_line_eoln, 0 }, /* UC */
 	{ in_line_eoln, 0 }, /* PD */
@@ -85,6 +87,10 @@ const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, 0 }, /* in */
 	{ in_line_eoln, 0 }, /* ft */
 	{ in_line_eoln, 0 }, /* OP */
+	{ in_line_eoln, MAN_BSCOPE }, /* EX */
+	{ in_line_eoln, MAN_BSCOPE }, /* EE */
+	{ blk_exp, MAN_BSCOPE | MAN_EXPLICIT }, /* UR */
+	{ blk_close, 0 }, /* UE */
 };
 
 const	struct man_macro * const man_macros = __man_macros;
@@ -94,7 +100,7 @@ const	struct man_macro * const man_macros = __man_macros;
  * Warn when "n" is an explicit non-roff macro.
  */
 static void
-rew_warn(struct man *m, struct man_node *n, enum mandocerr er)
+rew_warn(struct man *man, struct man_node *n, enum mandocerr er)
 {
 
 	if (er == MANDOCERR_MAX || MAN_BLOCK != n->type)
@@ -105,7 +111,7 @@ rew_warn(struct man *m, struct man_node *n, enum mandocerr er)
 		return;
 
 	assert(er < MANDOCERR_FATAL);
-	man_nmsg(m, n, er);
+	man_nmsg(man, n, er);
 }
 
 
@@ -114,33 +120,33 @@ rew_warn(struct man *m, struct man_node *n, enum mandocerr er)
  * will be used if an explicit block scope is being closed out.
  */
 int
-man_unscope(struct man *m, const struct man_node *to, 
+man_unscope(struct man *man, const struct man_node *to, 
 		enum mandocerr er)
 {
 	struct man_node	*n;
 
 	assert(to);
 
-	m->next = MAN_NEXT_SIBLING;
+	man->next = MAN_NEXT_SIBLING;
 
 	/* LINTED */
-	while (m->last != to) {
+	while (man->last != to) {
 		/*
 		 * Save the parent here, because we may delete the
-		 * m->last node in the post-validation phase and reset
-		 * it to m->last->parent, causing a step in the closing
+		 * man->last node in the post-validation phase and reset
+		 * it to man->last->parent, causing a step in the closing
 		 * out to be lost.
 		 */
-		n = m->last->parent;
-		rew_warn(m, m->last, er);
-		if ( ! man_valid_post(m))
+		n = man->last->parent;
+		rew_warn(man, man->last, er);
+		if ( ! man_valid_post(man))
 			return(0);
-		m->last = n;
-		assert(m->last);
+		man->last = n;
+		assert(man->last);
 	}
 
-	rew_warn(m, m->last, er);
-	if ( ! man_valid_post(m))
+	rew_warn(man, man->last, er);
+	if ( ! man_valid_post(man))
 		return(0);
 
 	return(1);
@@ -183,8 +189,12 @@ rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
 		return(REW_NOHALT);
 
 	/* First: rewind to ourselves. */
-	if (type == n->type && tok == n->tok)
-		return(REW_REWIND);
+	if (type == n->type && tok == n->tok) {
+		if (MAN_EXPLICIT & man_macros[n->tok].flags)
+			return(REW_HALT);
+		else
+			return(REW_REWIND);
+	}
 
 	/* 
 	 * Next follow the implicit scope-smashings as defined by man.7:
@@ -200,6 +210,10 @@ rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
 			return(c);
 		break;
 	case (MAN_RS):
+		/* Preserve empty paragraphs before RS. */
+		if (0 == n->nchild && (MAN_P == n->tok ||
+		    MAN_PP == n->tok || MAN_LP == n->tok))
+			return(REW_HALT);
 		/* Rewind to a subsection, if a block. */
 		if (REW_NOHALT != (c = rew_block(MAN_SS, type, n)))
 			return(c);
@@ -230,13 +244,13 @@ rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
  * scopes.  When a scope is closed, it must be validated and actioned.
  */
 static int
-rew_scope(enum man_type type, struct man *m, enum mant tok)
+rew_scope(enum man_type type, struct man *man, enum mant tok)
 {
 	struct man_node	*n;
 	enum rew	 c;
 
 	/* LINTED */
-	for (n = m->last; n; n = n->parent) {
+	for (n = man->last; n; n = n->parent) {
 		/* 
 		 * Whether we should stop immediately (REW_HALT), stop
 		 * and rewind until this point (REW_REWIND), or keep
@@ -255,7 +269,7 @@ rew_scope(enum man_type type, struct man *m, enum mant tok)
 	 */
 	assert(n);
 
-	return(man_unscope(m, n, MANDOCERR_MAX));
+	return(man_unscope(man, n, MANDOCERR_MAX));
 }
 
 
@@ -273,22 +287,24 @@ blk_close(MACRO_PROT_ARGS)
 	case (MAN_RE):
 		ntok = MAN_RS;
 		break;
+	case (MAN_UE):
+		ntok = MAN_UR;
+		break;
 	default:
 		abort();
 		/* NOTREACHED */
 	}
 
-	for (nn = m->last->parent; nn; nn = nn->parent)
-		if (ntok == nn->tok)
+	for (nn = man->last->parent; nn; nn = nn->parent)
+		if (ntok == nn->tok && MAN_BLOCK == nn->type)
 			break;
 
-	if (NULL == nn)
-		man_pmsg(m, line, ppos, MANDOCERR_NOSCOPE);
-
-	if ( ! rew_scope(MAN_BODY, m, ntok))
-		return(0);
-	if ( ! rew_scope(MAN_BLOCK, m, ntok))
-		return(0);
+	if (NULL == nn) {
+		man_pmsg(man, line, ppos, MANDOCERR_NOSCOPE);
+		if ( ! rew_scope(MAN_BLOCK, man, MAN_PP))
+			return(0);
+	} else 
+		man_unscope(man, nn, MANDOCERR_MAX);
 
 	return(1);
 }
@@ -298,34 +314,40 @@ blk_close(MACRO_PROT_ARGS)
 int
 blk_exp(MACRO_PROT_ARGS)
 {
+	struct man_node	*n;
 	int		 la;
 	char		*p;
 
-	/* 
-	 * Close out prior scopes.  "Regular" explicit macros cannot be
-	 * nested, but we allow roff macros to be placed just about
-	 * anywhere.
-	 */
+	/* Close out prior implicit scopes. */
 
-	if ( ! man_block_alloc(m, line, ppos, tok))
+	if ( ! rew_scope(MAN_BLOCK, man, tok))
 		return(0);
-	if ( ! man_head_alloc(m, line, ppos, tok))
+
+	if ( ! man_block_alloc(man, line, ppos, tok))
+		return(0);
+	if ( ! man_head_alloc(man, line, ppos, tok))
 		return(0);
 
 	for (;;) {
 		la = *pos;
-		if ( ! man_args(m, line, pos, buf, &p))
+		if ( ! man_args(man, line, pos, buf, &p))
 			break;
-		if ( ! man_word_alloc(m, line, la, p))
+		if ( ! man_word_alloc(man, line, la, p))
 			return(0);
 	}
 
-	assert(m);
+	assert(man);
 	assert(tok != MAN_MAX);
 
-	if ( ! rew_scope(MAN_HEAD, m, tok))
-		return(0);
-	return(man_body_alloc(m, line, ppos, tok));
+	for (n = man->last; n; n = n->parent) {
+		if (n->tok != tok)
+			continue;
+		assert(MAN_HEAD == n->type);
+		man_unscope(man, n, MANDOCERR_MAX);
+		break;
+	}
+
+	return(man_body_alloc(man, line, ppos, tok));
 }
 
 
@@ -346,27 +368,27 @@ blk_imp(MACRO_PROT_ARGS)
 
 	/* Close out prior scopes. */
 
-	if ( ! rew_scope(MAN_BODY, m, tok))
+	if ( ! rew_scope(MAN_BODY, man, tok))
 		return(0);
-	if ( ! rew_scope(MAN_BLOCK, m, tok))
+	if ( ! rew_scope(MAN_BLOCK, man, tok))
 		return(0);
 
 	/* Allocate new block & head scope. */
 
-	if ( ! man_block_alloc(m, line, ppos, tok))
+	if ( ! man_block_alloc(man, line, ppos, tok))
 		return(0);
-	if ( ! man_head_alloc(m, line, ppos, tok))
+	if ( ! man_head_alloc(man, line, ppos, tok))
 		return(0);
 
-	n = m->last;
+	n = man->last;
 
 	/* Add line arguments. */
 
 	for (;;) {
 		la = *pos;
-		if ( ! man_args(m, line, pos, buf, &p))
+		if ( ! man_args(man, line, pos, buf, &p))
 			break;
-		if ( ! man_word_alloc(m, line, la, p))
+		if ( ! man_word_alloc(man, line, la, p))
 			return(0);
 	}
 
@@ -375,17 +397,17 @@ blk_imp(MACRO_PROT_ARGS)
 	if (MAN_SCOPED & man_macros[tok].flags) {
 		/* If we're forcing scope (`TP'), keep it open. */
 		if (MAN_FSCOPED & man_macros[tok].flags) {
-			m->flags |= MAN_BLINE;
+			man->flags |= MAN_BLINE;
 			return(1);
-		} else if (n == m->last) {
-			m->flags |= MAN_BLINE;
+		} else if (n == man->last) {
+			man->flags |= MAN_BLINE;
 			return(1);
 		}
 	}
 
-	if ( ! rew_scope(MAN_HEAD, m, tok))
+	if ( ! rew_scope(MAN_HEAD, man, tok))
 		return(0);
-	return(man_body_alloc(m, line, ppos, tok));
+	return(man_body_alloc(man, line, ppos, tok));
 }
 
 
@@ -397,18 +419,27 @@ in_line_eoln(MACRO_PROT_ARGS)
 	char		*p;
 	struct man_node	*n;
 
-	if ( ! man_elem_alloc(m, line, ppos, tok))
+	if ( ! man_elem_alloc(man, line, ppos, tok))
 		return(0);
 
-	n = m->last;
+	n = man->last;
 
 	for (;;) {
 		la = *pos;
-		if ( ! man_args(m, line, pos, buf, &p))
+		if ( ! man_args(man, line, pos, buf, &p))
 			break;
-		if ( ! man_word_alloc(m, line, la, p))
+		if ( ! man_word_alloc(man, line, la, p))
 			return(0);
 	}
+
+	/*
+	 * Append MAN_EOS in case the last snipped argument
+	 * ends with a dot, e.g. `.IR syslog (3).'
+	 */
+
+	if (n != man->last &&
+	    mandoc_eos(man->last->string, strlen(man->last->string), 0))
+		man->last->flags |= MAN_EOS;
 
 	/*
 	 * If no arguments are specified and this is MAN_SCOPED (i.e.,
@@ -416,9 +447,9 @@ in_line_eoln(MACRO_PROT_ARGS)
 	 * waiting for terms to load into our context.
 	 */
 
-	if (n == m->last && MAN_SCOPED & man_macros[tok].flags) {
+	if (n == man->last && MAN_SCOPED & man_macros[tok].flags) {
 		assert( ! (MAN_NSCOPED & man_macros[tok].flags));
-		m->flags |= MAN_ELINE;
+		man->flags |= MAN_ELINE;
 		return(1);
 	} 
 
@@ -426,11 +457,11 @@ in_line_eoln(MACRO_PROT_ARGS)
 
 	if (MAN_NSCOPED & man_macros[tok].flags) {
 		assert( ! (MAN_SCOPED & man_macros[tok].flags));
-		m->flags |= MAN_ILINE;
+		man->flags |= MAN_ILINE;
 	}
 
-	assert(MAN_ROOT != m->last->type);
-	m->next = MAN_NEXT_SIBLING;
+	assert(MAN_ROOT != man->last->type);
+	man->next = MAN_NEXT_SIBLING;
 	
 	/*
 	 * Rewind our element scope.  Note that when TH is pruned, we'll
@@ -438,22 +469,22 @@ in_line_eoln(MACRO_PROT_ARGS)
 	 * its sibling.
 	 */
 
-	for ( ; m->last; m->last = m->last->parent) {
-		if (m->last == n)
+	for ( ; man->last; man->last = man->last->parent) {
+		if (man->last == n)
 			break;
-		if (m->last->type == MAN_ROOT)
+		if (man->last->type == MAN_ROOT)
 			break;
-		if ( ! man_valid_post(m))
+		if ( ! man_valid_post(man))
 			return(0);
 	}
 
-	assert(m->last);
+	assert(man->last);
 
 	/*
 	 * Same here regarding whether we're back at the root. 
 	 */
 
-	if (m->last->type != MAN_ROOT && ! man_valid_post(m))
+	if (man->last->type != MAN_ROOT && ! man_valid_post(man))
 		return(0);
 
 	return(1);
@@ -461,14 +492,14 @@ in_line_eoln(MACRO_PROT_ARGS)
 
 
 int
-man_macroend(struct man *m)
+man_macroend(struct man *man)
 {
 
-	return(man_unscope(m, m->first, MANDOCERR_SCOPEEXIT));
+	return(man_unscope(man, man->first, MANDOCERR_SCOPEEXIT));
 }
 
 static int
-man_args(struct man *m, int line, int *pos, char *buf, char **v)
+man_args(struct man *man, int line, int *pos, char *buf, char **v)
 {
 	char	 *start;
 
@@ -479,6 +510,6 @@ man_args(struct man *m, int line, int *pos, char *buf, char **v)
 	if ('\0' == *start)
 		return(0);
 
-	*v = mandoc_getarg(m->parse, v, line, pos);
+	*v = mandoc_getarg(man->parse, v, line, pos);
 	return(1);
 }

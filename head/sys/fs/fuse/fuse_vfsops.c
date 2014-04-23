@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/filedesc.h>
 #include <sys/uio.h>

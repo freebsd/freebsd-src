@@ -368,14 +368,14 @@ ipf_send_reset(fin)
 	hlen = sizeof(ip_t);
 #endif
 #ifdef MGETHDR
-	MGETHDR(m, M_DONTWAIT, MT_HEADER);
+	MGETHDR(m, M_NOWAIT, MT_HEADER);
 #else
-	MGET(m, M_DONTWAIT, MT_HEADER);
+	MGET(m, M_NOWAIT, MT_HEADER);
 #endif
 	if (m == NULL)
 		return -1;
 	if (sizeof(*tcp2) + hlen > MLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			FREE_MB_T(m);
 			return -1;
@@ -543,9 +543,9 @@ ipf_send_icmp_err(type, fin, dst)
 	if (ipf_checkl4sum(fin) == -1)
 		return -1;
 #ifdef MGETHDR
-	MGETHDR(m, M_DONTWAIT, MT_HEADER);
+	MGETHDR(m, M_NOWAIT, MT_HEADER);
 #else
-	MGET(m, M_DONTWAIT, MT_HEADER);
+	MGET(m, M_NOWAIT, MT_HEADER);
 #endif
 	if (m == NULL)
 		return -1;
@@ -599,7 +599,7 @@ ipf_send_icmp_err(type, fin, dst)
 			code = icmptoicmp6unreach[code];
 
 		if (iclen + max_linkhdr + fin->fin_plen > avail) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				FREE_MB_T(m);
 				return -1;
@@ -730,7 +730,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	* problem.
 	*/
 	if (M_WRITABLE(m) == 0) {
-		m0 = m_dup(m, M_DONTWAIT);
+		m0 = m_dup(m, M_NOWAIT);
 		if (m0 != 0) {
 			FREE_MB_T(m);
 			m = m0;
@@ -802,7 +802,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	if (ro->ro_rt->rt_flags & RTF_GATEWAY)
 		dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
 	if (ro->ro_rt)
-		ro->ro_rt->rt_use++;
+		counter_u64_add(ro->ro_rt->rt_pksent, 1);
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -878,9 +878,9 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	mhlen = sizeof (struct ip);
 	for (off = hlen + len; off < ntohs(ip->ip_len); off += len) {
 #ifdef MGETHDR
-		MGETHDR(m, M_DONTWAIT, MT_HEADER);
+		MGETHDR(m, M_NOWAIT, MT_HEADER);
 #else
-		MGET(m, M_DONTWAIT, MT_HEADER);
+		MGET(m, M_NOWAIT, MT_HEADER);
 #endif
 		if (m == 0) {
 			m = m0;

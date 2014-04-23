@@ -90,8 +90,6 @@ typedef struct prop_info_t {
 typedef struct replay_context_t {
   apr_pool_t *src_rev_pool;
   apr_pool_t *dst_rev_pool;
-  /*file_pool is cleared after completion of each file. */
-  apr_pool_t *file_pool;
 
   /* Are we done fetching this file? */
   svn_boolean_t done;
@@ -147,10 +145,11 @@ push_state(svn_ra_serf__xml_parser_t *parser,
       state == OPEN_FILE || state == ADD_FILE)
     {
       replay_info_t *info;
+      apr_pool_t *pool = svn_pool_create(replay_ctx->dst_rev_pool);
 
-      info = apr_palloc(replay_ctx->dst_rev_pool, sizeof(*info));
+      info = apr_palloc(pool, sizeof(*info));
 
-      info->pool = replay_ctx->dst_rev_pool;
+      info->pool = pool;
       info->parent = parser->state->private;
       info->baton = NULL;
       info->stream = NULL;
@@ -160,12 +159,13 @@ push_state(svn_ra_serf__xml_parser_t *parser,
   else if (state == CHANGE_PROP)
     {
       prop_info_t *info;
+      apr_pool_t *pool = svn_pool_create(replay_ctx->dst_rev_pool);
 
-      info = apr_pcalloc(replay_ctx->dst_rev_pool, sizeof(*info));
+      info = apr_pcalloc(pool, sizeof(*info));
 
-      info->pool = replay_ctx->dst_rev_pool;
+      info->pool = pool;
       info->parent = parser->state->private;
-      info->prop_value = svn_stringbuf_create_empty(info->pool);
+      info->prop_value = svn_stringbuf_create_empty(pool);
 
       parser->state->private = info;
     }
@@ -194,7 +194,6 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
 
       /* Create a pool for the commit editor. */
       ctx->dst_rev_pool = svn_pool_create(ctx->src_rev_pool);
-      ctx->file_pool = svn_pool_create(ctx->dst_rev_pool);
 
       SVN_ERR(svn_ra_serf__select_revprops(&ctx->props,
                                            ctx->revprop_target,
@@ -334,6 +333,8 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
       SVN_ERR(ctx->editor->close_directory(info->baton, scratch_pool));
 
       svn_ra_serf__xml_pop_state(parser);
+
+      svn_pool_destroy(info->pool);
     }
   else if ((state == OPEN_DIR || state == ADD_DIR) &&
            strcmp(name.name, "open-file") == 0)
@@ -341,7 +342,6 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
       const char *file_name, *rev;
       replay_info_t *info;
 
-      svn_pool_clear(ctx->file_pool);
       file_name = svn_xml_get_attr_value("name", attrs);
       if (!file_name)
         {
@@ -359,7 +359,7 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
 
       SVN_ERR(ctx->editor->open_file(file_name, info->parent->baton,
                                      SVN_STR_TO_REV(rev),
-                                     ctx->file_pool, &info->baton));
+                                     info->pool, &info->baton));
     }
   else if ((state == OPEN_DIR || state == ADD_DIR) &&
            strcmp(name.name, "add-file") == 0)
@@ -368,7 +368,6 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
       svn_revnum_t rev;
       replay_info_t *info;
 
-      svn_pool_clear(ctx->file_pool);
       file_name = svn_xml_get_attr_value("name", attrs);
       if (!file_name)
         {
@@ -387,7 +386,7 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
 
       SVN_ERR(ctx->editor->add_file(file_name, info->parent->baton,
                                     copyfrom, rev,
-                                    ctx->file_pool, &info->baton));
+                                    info->pool, &info->baton));
     }
   else if ((state == OPEN_FILE || state == ADD_FILE) &&
            strcmp(name.name, "apply-textdelta") == 0)
@@ -407,7 +406,7 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
         }
 
       SVN_ERR(ctx->editor->apply_textdelta(info->baton, checksum,
-                                           ctx->file_pool,
+                                           info->pool,
                                            &textdelta,
                                            &textdelta_baton));
 
@@ -426,6 +425,8 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
       SVN_ERR(ctx->editor->close_file(info->baton, checksum, scratch_pool));
 
       svn_ra_serf__xml_pop_state(parser);
+
+      svn_pool_destroy(info->pool);
     }
   else if (((state == OPEN_FILE || state == ADD_FILE) &&
             strcmp(name.name, "change-file-prop") == 0) ||
@@ -451,14 +452,13 @@ start_replay(svn_ra_serf__xml_parser_t *parser,
       else
         info->del_prop = FALSE;
 
+      info->name = apr_pstrdup(info->pool, prop_name);
       if (state == OPEN_FILE || state == ADD_FILE)
         {
-          info->name = apr_pstrdup(ctx->file_pool, prop_name);
           info->change = ctx->editor->change_file_prop;
         }
       else
         {
-          info->name = apr_pstrdup(ctx->dst_rev_pool, prop_name);
           info->change = ctx->editor->change_dir_prop;
         }
 
@@ -538,15 +538,14 @@ end_replay(svn_ra_serf__xml_parser_t *parser,
           info->prop_value = NULL;  /* morph killed the stringbuf.  */
 #endif
 
-          if (strcmp(name.name, "change-file-prop") == 0)
-            prop_val = svn_base64_decode_string(morph, ctx->file_pool);
-          else
-            prop_val = svn_base64_decode_string(morph, ctx->dst_rev_pool);
+          prop_val = svn_base64_decode_string(morph, info->pool);
         }
 
       SVN_ERR(info->change(info->parent->baton, info->name, prop_val,
                            info->parent->pool));
       svn_ra_serf__xml_pop_state(parser);
+
+      svn_pool_destroy(info->pool);
     }
 
   return SVN_NO_ERROR;

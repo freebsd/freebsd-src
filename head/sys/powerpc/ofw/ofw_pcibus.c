@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include "ofw_pcibus.h"
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -85,12 +86,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
-};
-
-struct ofw_pcibus_devinfo {
-	struct pci_devinfo	opd_dinfo;
-	struct ofw_bus_devinfo	opd_obdinfo;
+	DEVMETHOD_END
 };
 
 static devclass_t pci_devclass;
@@ -195,6 +191,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 			continue;
 		}
+		dinfo->opd_dma_tag = NULL;
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
@@ -218,14 +215,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 					OF_getprop(OF_xref_phandle(iparent),
 					    "#interrupt-cells", &icells,
 					    sizeof(icells));
-					intr[0] = MAP_IRQ(iparent, intr[0]);
-				}
-
-				if (iparent != 0 && icells > 1) {
-					powerpc_config_intr(intr[0],
-					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
-					    INTR_TRIGGER_EDGE,
-					    INTR_POLARITY_LOW);
+					intr[0] = ofw_bus_map_intr(dev, iparent,
+					    icells, intr);
 				}
 
 				resource_list_add(&dinfo->opd_dinfo.resources,
@@ -274,6 +265,7 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 			if (dinfo == NULL)
 				continue;
 
+			dinfo->opd_dma_tag = NULL;
 			dinfo->opd_obdinfo.obd_node = -1;
 
 			dinfo->opd_obdinfo.obd_name = NULL;
@@ -313,29 +305,18 @@ ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
-	ofw_pci_intr_t intr;
+	ofw_pci_intr_t intr[2];
 	phandle_t node, iparent;
-	int isz;
+	int isz, icells;
 
 	node = ofw_bus_get_node(child);
 
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
 	
-		/*
-		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes having a reg
-		 * property. There exist ways around this, so the ePAPR
-		 * spec will need to be studied.
-		 */
-
-		return (PCI_INVALID_IRQ);
-
-#ifdef NOTYET
-		intr = pci_get_intpin(child);
+		intr[0] = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
-		    intr));
-#endif
+		    intr[0]));
 	}
 	
 	/*
@@ -346,23 +327,28 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	iparent = -1;
 	if (OF_getprop(node, "interrupt-parent", &iparent, sizeof(iparent)) < 0)
 		iparent = -1;
+	icells = 1;
+	if (iparent != -1)
+		OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells",
+		    &icells, sizeof(icells));
 	
 	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
 	 */
 
-	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr))
-		return ((iparent == -1) ? intr : MAP_IRQ(iparent, intr));
+	isz = OF_getprop(node, "AAPL,interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells)
+		return ((iparent == -1) ? intr[0] : ofw_bus_map_intr(dev,
+		    iparent, icells, intr));
 
-	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr)) {
+	isz = OF_getprop(node, "interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells) {
 		if (iparent != -1)
-			intr = MAP_IRQ(iparent, intr);
+			intr[0] = ofw_bus_map_intr(dev, iparent, icells, intr);
 	} else {
 		/* No property: our best guess is the intpin. */
-		intr = pci_get_intpin(child);
+		intr[0] = pci_get_intpin(child);
 	}
 	
 	/*
@@ -375,7 +361,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	 * will always use the route_interrupt method, and treat exceptions
 	 * on the level they become apparent.
 	 */
-	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr));
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr[0]));
 }
 
 static const struct ofw_bus_devinfo *

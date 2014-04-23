@@ -30,7 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
-options		PSERIES			#PAPR-compliant systems
+options 	PSERIES			#PAPR-compliant systems
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -70,7 +70,6 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
-options 	PROCDESC		# Support for process descriptors
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
@@ -134,6 +133,11 @@ device		scc
 device		uart
 device		uart_z8530
 
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
@@ -181,13 +185,14 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		adt746x		# PowerBook5,8 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit

@@ -21,7 +21,6 @@ extra_commands="reload"
 
 sockfile="/var/run/syslogd.sockets"
 evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
-altlog_proglist="named"
 
 syslogd_precmd()
 {

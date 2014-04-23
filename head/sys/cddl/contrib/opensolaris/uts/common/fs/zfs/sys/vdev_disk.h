@@ -22,6 +22,7 @@
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  * Copyright (c) 2013 Joyent, Inc. All rights reserved.
+ * Copyright 2012 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef _SYS_VDEV_DISK_H
@@ -44,6 +45,8 @@ typedef struct vdev_disk {
 	ddi_devid_t	vd_devid;
 	char		*vd_minor;
 	ldi_handle_t	vd_lh;
+	list_t		vd_ldi_cbs;
+	boolean_t	vd_ldi_offline;
 } vdev_disk_t;
 #endif
 

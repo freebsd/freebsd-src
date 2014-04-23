@@ -37,11 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/smp.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
@@ -200,7 +202,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	if (savectx(susppcbs[0])) {
 #ifdef __amd64__
-		ctx_fpusave(susppcbs[0]->pcb_fpususpend);
+		fpususpend(susppcbs[0]->pcb_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -266,6 +268,10 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			restart_cpus(suspcpus);
 #endif
 		mca_resume();
+#ifdef __amd64__
+		if (vmm_resume_p != NULL)
+			vmm_resume_p();
+#endif
 		intr_resume(/*suspend_cancelled*/false);
 
 		AcpiSetFirmwareWakingVector(0);

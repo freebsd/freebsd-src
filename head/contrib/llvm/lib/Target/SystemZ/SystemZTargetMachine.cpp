@@ -10,6 +10,7 @@
 #include "SystemZTargetMachine.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
 
@@ -33,6 +34,7 @@ SystemZTargetMachine::SystemZTargetMachine(const Target &T, StringRef TT,
        "-f32:32-f64:64-f128:64-a0:8:16-n32:64"),
     InstrInfo(*this), TLInfo(*this), TSInfo(*this),
     FrameLowering(*this, Subtarget) {
+  initAsmInfo();
 }
 
 namespace {
@@ -46,13 +48,59 @@ public:
     return getTM<SystemZTargetMachine>();
   }
 
-  virtual bool addInstSelector();
+  virtual void addIRPasses() LLVM_OVERRIDE;
+  virtual bool addInstSelector() LLVM_OVERRIDE;
+  virtual bool addPreSched2() LLVM_OVERRIDE;
+  virtual bool addPreEmitPass() LLVM_OVERRIDE;
 };
 } // end anonymous namespace
+
+void SystemZPassConfig::addIRPasses() {
+  TargetPassConfig::addIRPasses();
+  addPass(createPartiallyInlineLibCallsPass());
+}
 
 bool SystemZPassConfig::addInstSelector() {
   addPass(createSystemZISelDag(getSystemZTargetMachine(), getOptLevel()));
   return false;
+}
+
+bool SystemZPassConfig::addPreSched2() {
+  if (getSystemZTargetMachine().getSubtargetImpl()->hasLoadStoreOnCond())
+    addPass(&IfConverterID);
+  return true;
+}
+
+bool SystemZPassConfig::addPreEmitPass() {
+  // We eliminate comparisons here rather than earlier because some
+  // transformations can change the set of available CC values and we
+  // generally want those transformations to have priority.  This is
+  // especially true in the commonest case where the result of the comparison
+  // is used by a single in-range branch instruction, since we will then
+  // be able to fuse the compare and the branch instead.
+  //
+  // For example, two-address NILF can sometimes be converted into
+  // three-address RISBLG.  NILF produces a CC value that indicates whether
+  // the low word is zero, but RISBLG does not modify CC at all.  On the
+  // other hand, 64-bit ANDs like NILL can sometimes be converted to RISBG.
+  // The CC value produced by NILL isn't useful for our purposes, but the
+  // value produced by RISBG can be used for any comparison with zero
+  // (not just equality).  So there are some transformations that lose
+  // CC values (while still being worthwhile) and others that happen to make
+  // the CC result more useful than it was originally.
+  //
+  // Another reason is that we only want to use BRANCH ON COUNT in cases
+  // where we know that the count register is not going to be spilled.
+  //
+  // Doing it so late makes it more likely that a register will be reused
+  // between the comparison and the branch, but it isn't clear whether
+  // preventing that would be a win or not.
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createSystemZElimComparePass(getSystemZTargetMachine()));
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createSystemZShortenInstPass(getSystemZTargetMachine()));
+  addPass(createSystemZLongBranchPass(getSystemZTargetMachine()));
+  return true;
 }
 
 TargetPassConfig *SystemZTargetMachine::createPassConfig(PassManagerBase &PM) {

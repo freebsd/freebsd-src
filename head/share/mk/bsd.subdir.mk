@@ -71,7 +71,26 @@ ${SUBDIR}: .PHONY .MAKE
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
     cleanilinks depend distribute lint maninstall manlint obj objlink \
     realinstall regress tags ${SUBDIR_TARGETS}
+.ifdef SUBDIR_PARALLEL
+.for __dir in ${SUBDIR}
+${__target}: ${__target}_subdir_${__dir}
+${__target}_subdir_${__dir}: .MAKE
+	@${_+_}set -e; \
+		if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
+			${ECHODIR} "===> ${DIRPRFX}${__dir}.${MACHINE_ARCH} (${__target:realinstall=install})"; \
+			edir=${__dir}.${MACHINE_ARCH}; \
+			cd ${.CURDIR}/$${edir}; \
+		else \
+			${ECHODIR} "===> ${DIRPRFX}${__dir} (${__target:realinstall=install})"; \
+			edir=${__dir}; \
+			cd ${.CURDIR}/$${edir}; \
+		fi; \
+		${MAKE} ${__target:realinstall=install} \
+		    DIRPRFX=${DIRPRFX}$$edir/
+.endfor
+.else
 ${__target}: _SUBDIR
+.endif
 .endfor
 
 .for __target in files includes

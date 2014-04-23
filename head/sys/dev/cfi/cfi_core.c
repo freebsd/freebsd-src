@@ -281,7 +281,11 @@ cfi_attach(device_t dev)
 
 	sc->sc_rid = 0;
 	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+#ifndef ATSE_CFI_HACK
 	    RF_ACTIVE);
+#else
+	    RF_ACTIVE | RF_SHAREABLE);
+#endif
 	if (sc->sc_res == NULL)
 		return (ENXIO);
 

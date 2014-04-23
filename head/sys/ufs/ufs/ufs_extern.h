@@ -98,7 +98,6 @@ void	softdep_setup_remove(struct buf *,struct inode *, struct inode *, int);
 void	softdep_setup_directory_change(struct buf *, struct inode *,
 	    struct inode *, ino_t, int);
 void	softdep_change_linkcnt(struct inode *);
-void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);
 void	softdep_setup_create(struct inode *, struct inode *);
 void	softdep_setup_dotdot_link(struct inode *, struct inode *);
@@ -107,7 +106,6 @@ void	softdep_setup_mkdir(struct inode *, struct inode *);
 void	softdep_setup_rmdir(struct inode *, struct inode *);
 void	softdep_setup_unlink(struct inode *, struct inode *);
 void	softdep_revert_create(struct inode *, struct inode *);
-void	softdep_revert_dotdot_link(struct inode *, struct inode *);
 void	softdep_revert_link(struct inode *, struct inode *);
 void	softdep_revert_mkdir(struct inode *, struct inode *);
 void	softdep_revert_rmdir(struct inode *, struct inode *);
@@ -119,11 +117,11 @@ void	softdep_revert_rmdir(struct inode *, struct inode *);
  * Note: The general vfs code typically limits the sequential heuristic
  * count to 127.  See sequential_heuristic() in kern/vfs_vnops.c
  */
-#define BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
-#define BA_METAONLY	0x00020000	/* Return indirect block buffer. */
+#define	BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
+#define	BA_METAONLY	0x00020000	/* Return indirect block buffer. */
 #define	BA_UNMAPPED	0x00040000	/* Do not mmap resulted buffer. */
-#define BA_SEQMASK	0x7F000000	/* Bits holding seq heuristic. */
-#define BA_SEQSHIFT	24
-#define BA_SEQMAX	0x7F
+#define	BA_SEQMASK	0x7F000000	/* Bits holding seq heuristic. */
+#define	BA_SEQSHIFT	24
+#define	BA_SEQMAX	0x7F
 
 #endif /* !_UFS_UFS_EXTERN_H_ */

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	testaccess
-NO_MAN=
+MAN=
 
 SRCS=	testaccess.c
 CFLAGS	+= -Wall

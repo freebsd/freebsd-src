@@ -36,22 +36,19 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	SYSCALL(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(x);					\
-			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
- 			jb HIDENAME(cerror)
+#define	SYSCALL(name)	ENTRY(__sys_##name);				\
+			WEAK_REFERENCE(__sys_##name, name);		\
+			WEAK_REFERENCE(__sys_##name, _##name);		\
+			mov $SYS_##name,%eax; KERNCALL;			\
+			jb HIDENAME(cerror)
 
-#define	RSYSCALL(x)	SYSCALL(x); ret; END(__CONCAT(__sys_,x))
+#define	RSYSCALL(name)	SYSCALL(name); ret; END(__sys_##name)
 
-#define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
- 			jb HIDENAME(cerror); ret; \
-			END(__CONCAT(__sys_,x))
+#define	PSEUDO(name)	ENTRY(__sys_##name);				\
+			WEAK_REFERENCE(__sys_##name, _##name);		\
+			mov $SYS_##name,%eax; KERNCALL;			\
+			jb HIDENAME(cerror); ret;			\
+			END(__sys_##name)
 
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x

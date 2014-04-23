@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -62,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
-#include <net/flowtable.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
@@ -198,16 +196,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 
-#ifdef FLOWTABLE
-static VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
-VNET_DEFINE(struct flowtable *, ip_ft);
-#define	V_ip_output_flowtable_size	VNET(ip_output_flowtable_size)
-
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
-    &VNET_NAME(ip_output_flowtable_size), 2048,
-    "number of entries in the per-cpu output flow caches");
-#endif
-
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
@@ -308,24 +296,6 @@ ip_init(void)
 	if ((i = pfil_head_register(&V_inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
-
-#ifdef FLOWTABLE
-	if (TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
-		&V_ip_output_flowtable_size)) {
-		if (V_ip_output_flowtable_size < 256)
-			V_ip_output_flowtable_size = 256;
-		if (!powerof2(V_ip_output_flowtable_size)) {
-			printf("flowtable must be power of 2 size\n");
-			V_ip_output_flowtable_size = 2048;
-		}
-	} else {
-		/*
-		 * round up to the next power of 2
-		 */
-		V_ip_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
-	}
-	V_ip_ft = flowtable_alloc("ipv4", V_ip_output_flowtable_size, FL_PCPU);
-#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -603,7 +573,9 @@ passin:
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == ifp)) {
-			ifa_ref(&ia->ia_ifa);
+			counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+			counter_u64_add(ia->ia_ifa.ifa_ibytes,
+			    m->m_pkthdr.len);
 			/* IN_IFADDR_RUNLOCK(); */
 			goto ours;
 		}
@@ -626,13 +598,17 @@ passin:
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
@@ -717,25 +693,16 @@ ours:
 	 * IPSTEALTH: Process non-routing options only
 	 * if the packet is destined for us.
 	 */
-	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
+	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1))
 		return;
-	}
 #endif /* IPSTEALTH */
-
-	/* Count the packet in the ip address stats */
-	if (ia != NULL) {
-		ia->ia_ifa.if_ipackets++;
-		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
-		ifa_free(&ia->ia_ifa);
-	}
 
 	/*
 	 * Attempt reassembly; if it succeeds, proceed.
 	 * ip_reass() will return a different mbuf.
 	 */
 	if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
+		/* XXXGL: shouldn't we save & set m_flags? */
 		m = ip_reass(m);
 		if (m == NULL)
 			return;
@@ -827,6 +794,8 @@ sysctl_maxnipq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
     NULL, 0, sysctl_maxnipq, "I",
     "Maximum number of IPv4 fragment reassembly queue entries");
+
+#define	M_IP_FRAG	M_PROTO9
 
 /*
  * Take incoming datagram fragment and try to reassemble it into
@@ -1497,7 +1466,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 
 	if (error == EMSGSIZE && ro.ro_rt)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		mtu = ro.ro_rt->rt_mtu;
 	RO_RTFREE(&ro);
 
 	if (error)

@@ -98,7 +98,7 @@ static MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 #define L2TP_ENABLE_DSEQ	1			/* enable data seq # */
 
 /* Compare sequence numbers using circular math */
-#define L2TP_SEQ_DIFF(x, y)	((int)((int16_t)(x) - (int16_t)(y)))
+#define L2TP_SEQ_DIFF(x, y)	((int16_t)((x) - (y)))
 
 #define SESSHASHSIZE		0x0020
 #define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))

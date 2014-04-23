@@ -185,6 +185,9 @@ sata_probe(device_t dev)
 	struct sata_softc *sc;
 	uint32_t d, r;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "mrvl,sata"))
 		return (ENXIO);
 
@@ -200,6 +203,7 @@ sata_probe(device_t dev)
 	case MV_DEV_88F6282:
 	case MV_DEV_MV78100:
 	case MV_DEV_MV78100_Z0:
+	case MV_DEV_MV78460:
 		sc->sc_version = 2;
 		sc->sc_edma_qlen = 32;
 		break;

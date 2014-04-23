@@ -71,19 +71,9 @@ gethrtime(void) {
 
 extern int nsec_per_tick;	/* nanoseconds per clock tick */
 
-static __inline int64_t
-ddi_get_lbolt64(void)
-{
-
-	return (gethrtime() / nsec_per_tick);
-}
-
-static __inline clock_t
-ddi_get_lbolt(void)
-{
-
-	return (ddi_get_lbolt64());
-}
+#define ddi_get_lbolt64()				\
+    (int64_t)(((getsbinuptime() >> 16) * hz) >> 16)
+#define ddi_get_lbolt()		(clock_t)ddi_get_lbolt64()
 
 #else
 

@@ -1,4 +1,59 @@
-Serf 1.3.0 [2013-07-23, from /tags/1.3.0]
+Serf 1.3.4 [2014-02-08, from /tags/1.3.4, rxxxx]
+  Fix issue #119: Endless loop during ssl tunnel setup with Negotiate authn
+  Fix issue #123: Can't setup ssl tunnel which sends Connection close header
+  Fix a race condition when initializing OpenSSL from multiple threads (r2263)
+  Fix issue #138: Incorrect pkg-config file when GSSAPI isn't configured
+
+
+Serf 1.3.3 [2013-12-09, from /tags/1.3.3, r2242]
+  Fix issue 129: Try more addresses of multihomed servers
+  Handle X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE correctly (r2225)
+  Return APR_TIMEUP from poll() to enable detecting connection timeouts (r2183)
+
+
+Serf 1.3.2 [2013-10-04, from /tags/1.3.2, r2195]
+  Fix issue 130: HTTP headers should be treated case-insensitively
+  Fix issue 126: Compilation breaks with Codewarrior compiler
+  Fix crash during cleanup of SSL buckets in apr_terminate() (r2145)
+  Fix Windows build: Also export functions with capital letters in .def file
+  Fix host header when url contains a username or password (r2170)
+  Ensure less TCP package fragmentation on Windows (r2145)
+  Handle authentication for responses to HEAD requests (r2178,-9)
+  Improve serf_get: add option to add request headers, allow url with query,
+     allow HEAD requests (r2143,r2175,-6)
+  Improve RFC conformance: don't expect body for certain responses (r2011,-2)
+  Do not invoke progress callback when no data was received (r2144)
+  And more test suite fixes and build warning cleanups
+  SCons-related fixes:
+   Fix build when GSSAPI not in default include path (2155)
+   Fix OpenBSD build: always map all LIBPATH entries into RPATH (r2156)
+   Checksum generation in Windows shared libraries for release builds (2162)
+   Mac OS X: Use MAJOR version only in dylib install name (r2161)
+   Use both MAJOR and MINOR version for the shared library name (2163)
+   Fix the .pc file when installing serf in a non-default LIBDIR (r2191)
+
+
+Serf 1.3.1 [2013-08-15, from /tags/1.3.1, r2138]
+  Fix issue 77: Endless loop if server doesn't accept Negotiate authentication.
+  Fix issue 114: ssl/tls renegotiation fails
+  Fix issue 120: error with ssl tunnel over proxy with KeepAlive off and
+                 Basic authentication.
+  Fixed bugs with authentication (r2057,2115,2118)
+  SCons-related fixes:
+   Fix issue 111: add flag to set custom library path
+   Fix issue 112: add soname
+   Fix issue 113: add gssapi libs in the serf pc file
+   Fix issue 115: Setting RPATH on Solaris broken in SConstruct
+   Fix issue 116: scons check should return non-zero exit staths
+   Fix issue 121: make CFLAGS, LIBS, LINKFLAGS and CPPFLAGS take a space-
+                   separated list of flags.
+   Fix issue 122: make scons PREFIX create the folder if it doesn't exist
+   Mac OS X: Fix scons --install-sandbox
+   Solaris: Fix build with cc, don't use unsupported compiler flags
+  Require SCons version 2.3.0 or higher now (for the soname support).
+
+
+Serf 1.3.0 [2013-07-23, from /tags/1.3.0, r2074]
   Fix issue 83: use PATH rather than URI within an ssltunnel (r1952)
   Fix issue 108: improved error reporting from the underlying socket (r1951)
   NEW: Switch to the SCons build system; retire serfmake, serf.mak, autotools

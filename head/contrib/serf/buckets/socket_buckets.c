@@ -50,7 +50,7 @@ static apr_status_t socket_reader(void *baton, apr_size_t bufsize,
                       "--- socket_recv:\n%.*s\n-(%d)-\n",
                       *len, buf, *len);
 
-    if (ctx->progress_func)
+    if (ctx->progress_func && *len)
         ctx->progress_func(ctx->progress_baton, *len, 0);
 
     return status;

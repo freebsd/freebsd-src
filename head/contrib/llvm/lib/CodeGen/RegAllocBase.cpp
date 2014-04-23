@@ -43,12 +43,15 @@ static cl::opt<bool, true>
 VerifyRegAlloc("verify-regalloc", cl::location(RegAllocBase::VerifyEnabled),
                cl::desc("Verify during register allocation"));
 
-const char *RegAllocBase::TimerGroupName = "Register Allocation";
+const char RegAllocBase::TimerGroupName[] = "Register Allocation";
 bool RegAllocBase::VerifyEnabled = false;
 
 //===----------------------------------------------------------------------===//
 //                         RegAllocBase Implementation
 //===----------------------------------------------------------------------===//
+
+// Pin the vtable to this file.
+void RegAllocBase::anchor() {}
 
 void RegAllocBase::init(VirtRegMap &vrm,
                         LiveIntervals &lis,
@@ -99,14 +102,13 @@ void RegAllocBase::allocatePhysRegs() {
     // result from splitting.
     DEBUG(dbgs() << "\nselectOrSplit "
                  << MRI->getRegClass(VirtReg->reg)->getName()
-                 << ':' << PrintReg(VirtReg->reg) << ' ' << *VirtReg << '\n');
-    typedef SmallVector<LiveInterval*, 4> VirtRegVec;
+                 << ':' << *VirtReg << '\n');
+    typedef SmallVector<unsigned, 4> VirtRegVec;
     VirtRegVec SplitVRegs;
     unsigned AvailablePhysReg = selectOrSplit(*VirtReg, SplitVRegs);
 
     if (AvailablePhysReg == ~0u) {
       // selectOrSplit failed to find a register!
-      const char *Msg = "ran out of registers during register allocation";
       // Probably caused by an inline asm.
       MachineInstr *MI;
       for (MachineRegisterInfo::reg_iterator I = MRI->reg_begin(VirtReg->reg);
@@ -114,9 +116,9 @@ void RegAllocBase::allocatePhysRegs() {
         if (MI->isInlineAsm())
           break;
       if (MI)
-        MI->emitError(Msg);
+        MI->emitError("inline assembly requires more registers than available");
       else
-        report_fatal_error(Msg);
+        report_fatal_error("ran out of registers during register allocation");
       // Keep going after reporting the error.
       VRM->assignVirt2Phys(VirtReg->reg,
                  RegClassInfo.getOrder(MRI->getRegClass(VirtReg->reg)).front());
@@ -128,7 +130,7 @@ void RegAllocBase::allocatePhysRegs() {
 
     for (VirtRegVec::iterator I = SplitVRegs.begin(), E = SplitVRegs.end();
          I != E; ++I) {
-      LiveInterval *SplitVirtReg = *I;
+      LiveInterval *SplitVirtReg = &LIS->getInterval(*I);
       assert(!VRM->hasPhys(SplitVirtReg->reg) && "Register already assigned");
       if (MRI->reg_nodbg_empty(SplitVirtReg->reg)) {
         DEBUG(dbgs() << "not queueing unused  " << *SplitVirtReg << '\n');

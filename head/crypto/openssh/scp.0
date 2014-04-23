@@ -67,6 +67,11 @@ DESCRIPTION
                    AddressFamily
                    BatchMode
                    BindAddress
+                   CanonicalDomains
+                   CanonicalizeFallbackLocal
+                   CanonicalizeHostname
+                   CanonicalizeMaxDots
+                   CanonicalizePermittedCNAMEs
                    ChallengeResponseAuthentication
                    CheckHostIP
                    Cipher
@@ -155,4 +160,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 5.4                      July 16, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    October 20, 2013                    OpenBSD 5.5

@@ -19,6 +19,7 @@
 
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -145,7 +146,8 @@ public:
                   DynamicCheckerFunctions &checker_functions) :
         m_module(module),
         m_checker_functions(checker_functions),
-        m_i8ptr_ty(NULL)
+        m_i8ptr_ty(NULL),
+        m_intptr_ty(NULL)
     {
     }
     
@@ -279,9 +281,6 @@ protected:
     //------------------------------------------------------------------
     llvm::Value *BuildPointerValidatorFunc(lldb::addr_t start_address)
     {
-        IntegerType *intptr_ty = llvm::Type::getIntNTy(m_module.getContext(),
-                                                             (m_module.getPointerSize() == llvm::Module::Pointer64) ? 64 : 32);
-        
         llvm::Type *param_array[1];
         
         param_array[0] = const_cast<llvm::PointerType*>(GetI8PtrTy());
@@ -290,7 +289,7 @@ protected:
         
         FunctionType *fun_ty = FunctionType::get(llvm::Type::getVoidTy(m_module.getContext()), params, true);
         PointerType *fun_ptr_ty = PointerType::getUnqual(fun_ty);
-        Constant *fun_addr_int = ConstantInt::get(intptr_ty, start_address, false);
+        Constant *fun_addr_int = ConstantInt::get(GetIntptrTy(), start_address, false);
         return ConstantExpr::getIntToPtr(fun_addr_int, fun_ptr_ty);
     }
     
@@ -306,9 +305,6 @@ protected:
     //------------------------------------------------------------------
     llvm::Value *BuildObjectCheckerFunc(lldb::addr_t start_address)
     {
-        IntegerType *intptr_ty = llvm::Type::getIntNTy(m_module.getContext(),
-                                                       (m_module.getPointerSize() == llvm::Module::Pointer64) ? 64 : 32);
-        
         llvm::Type *param_array[2];
         
         param_array[0] = const_cast<llvm::PointerType*>(GetI8PtrTy());
@@ -318,7 +314,7 @@ protected:
         
         FunctionType *fun_ty = FunctionType::get(llvm::Type::getVoidTy(m_module.getContext()), params, true);
         PointerType *fun_ptr_ty = PointerType::getUnqual(fun_ty);
-        Constant *fun_addr_int = ConstantInt::get(intptr_ty, start_address, false);
+        Constant *fun_addr_int = ConstantInt::get(GetIntptrTy(), start_address, false);
         return ConstantExpr::getIntToPtr(fun_addr_int, fun_ptr_ty);
     }
     
@@ -330,6 +326,18 @@ protected:
         return m_i8ptr_ty;
     }
     
+    IntegerType *GetIntptrTy()
+    {
+        if (!m_intptr_ty)
+        {
+            llvm::DataLayout data_layout(&m_module);
+            
+            m_intptr_ty = llvm::Type::getIntNTy(m_module.getContext(), data_layout.getPointerSizeInBits());
+        }
+        
+        return m_intptr_ty;
+    }
+    
     typedef std::vector <llvm::Instruction *>   InstVector;
     typedef InstVector::iterator                InstIterator;
     
@@ -338,6 +346,7 @@ protected:
     DynamicCheckerFunctions    &m_checker_functions;    ///< The dynamic checker functions for the process
 private:
     PointerType                *m_i8ptr_ty;
+    IntegerType                *m_intptr_ty;
 };
 
 class ValidPointerChecker : public Instrumenter
