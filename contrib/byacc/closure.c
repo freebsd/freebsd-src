@@ -1,4 +1,4 @@
-/* $Id: closure.c,v 1.9 2010/06/09 08:21:47 tom Exp $ */
+/* $Id: closure.c,v 1.10 2014/02/19 00:45:42 Tom.Shields Exp $ */
 
 #include "defs.h"
 
@@ -9,12 +9,18 @@ unsigned *ruleset;
 static unsigned *first_derives;
 static unsigned *EFF;
 
+#ifdef	DEBUG
+static void print_closure(int);
+static void print_EFF(void);
+static void print_first_derives(void);
+#endif
+
 static void
 set_EFF(void)
 {
     unsigned *row;
     int symbol;
-    short *sp;
+    Value_t *sp;
     int rowsize;
     int i;
     int rule;
@@ -53,7 +59,7 @@ set_first_derives(void)
     int j;
     unsigned k;
     unsigned cword = 0;
-    short *rp;
+    Value_t *rp;
 
     int rule;
     int i;
@@ -100,7 +106,7 @@ set_first_derives(void)
 }
 
 void
-closure(short *nucleus, int n)
+closure(Value_t *nucleus, int n)
 {
     unsigned ruleno;
     unsigned word;
@@ -175,17 +181,17 @@ finalize_closure(void)
 
 #ifdef	DEBUG
 
-void
+static void
 print_closure(int n)
 {
-    short *isp;
+    Value_t *isp;
 
     printf("\n\nn = %d\n\n", n);
     for (isp = itemset; isp < itemsetend; isp++)
 	printf("   %d\n", *isp);
 }
 
-void
+static void
 print_EFF(void)
 {
     int i, j;
@@ -216,7 +222,7 @@ print_EFF(void)
     }
 }
 
-void
+static void
 print_first_derives(void)
 {
     int i;
