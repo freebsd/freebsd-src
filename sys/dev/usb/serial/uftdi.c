@@ -1770,7 +1770,6 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 	case UFTDIIOC_SET_EVENT_CHAR:
 		err = uftdi_set_event_char(ucom, *(int *)data);
 		break;
-		break;
 	case UFTDIIOC_GET_HWREV:
 		*(int *)data = sc->sc_bcdDevice;
 		err = 0;
