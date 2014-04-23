@@ -206,4 +206,13 @@ zpool_feature_init(void)
 	    "com.delphix:bookmarks", "bookmarks",
 	    "\"zfs bookmark\" command",
 	    B_TRUE, B_FALSE, B_FALSE, bookmarks_deps);
+
+	static const spa_feature_t filesystem_limits_deps[] = {
+	    SPA_FEATURE_EXTENSIBLE_DATASET,
+	    SPA_FEATURE_NONE
+	};
+	zfeature_register(SPA_FEATURE_FS_SS_LIMIT,
+	    "com.joyent:filesystem_limits", "filesystem_limits",
+	    "Filesystem and snapshot limits.", B_TRUE, B_FALSE, B_FALSE,
+	    filesystem_limits_deps);
 }
