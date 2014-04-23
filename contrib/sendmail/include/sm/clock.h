@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2004 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: clock.h,v 1.13 2011/11/03 03:13:24 ca Exp $
+ *	$Id: clock.h,v 1.14 2013/11/22 20:51:31 ca Exp $
  */
 
 /*

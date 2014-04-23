@@ -70,6 +70,12 @@ variable menureboot
 variable menurebootadded
 variable menuacpi
 variable menuoptions
+variable menukernel
+
+\ Parsing of kernels into menu-items
+variable kernidx
+variable kernlen
+variable kernmenuidx
 
 \ Menu timer [count-down] variables
 variable menu_timeout_enabled \ timeout state (internal use only)
@@ -109,19 +115,33 @@ variable cycle_state7
 variable cycle_state8
 
 \ Containers for storing the initial caption text
-create init_text1 255 allot
-create init_text2 255 allot
-create init_text3 255 allot
-create init_text4 255 allot
-create init_text5 255 allot
-create init_text6 255 allot
-create init_text7 255 allot
-create init_text8 255 allot
+create init_text1 64 allot
+create init_text2 64 allot
+create init_text3 64 allot
+create init_text4 64 allot
+create init_text5 64 allot
+create init_text6 64 allot
+create init_text7 64 allot
+create init_text8 64 allot
+
+\ Containers for parsing kernels into menu-items
+create kerncapbuf 64 allot
+create kerndefault 64 allot
+create kernelsbuf 256 allot
 
 : +c! ( N C-ADDR/U K -- C-ADDR/U )
 	3 pick 3 pick	( n c-addr/u k -- n c-addr/u k n c-addr )
 	rot + c!	( n c-addr/u k n c-addr -- n c-addr/u )
 	rot drop	( n c-addr/u -- c-addr/u )
+;
+
+: delim? ( C -- BOOL )
+	dup  32 =		( c -- c bool )		\ [sp] space
+	over  9 = or		( c bool -- c bool )	\ [ht] horizontal tab
+	over 10 = or		( c bool -- c bool )	\ [nl] newline
+	over 13 = or		( c bool -- c bool )	\ [cr] carriage return
+	over [char] , =	or	( c bool -- c bool )	\ comma
+	swap drop		( c bool -- bool )	\ return boolean
 ;
 
 : menukeyN      ( N -- ADDR )   s" menukeyN"       7 +c! evaluate ;
@@ -130,39 +150,16 @@ create init_text8 255 allot
 : cycle_stateN  ( N -- ADDR )   s" cycle_stateN"  11 +c! evaluate ;
 : init_textN    ( N -- C-ADDR ) s" init_textN"     9 +c! evaluate ;
 
-: str_loader_menu_frame       ( -- C-ADDR/U ) s" loader_menu_frame" ;
-: str_loader_menu_title       ( -- C-ADDR/U ) s" loader_menu_title" ;
-: str_loader_menu_title_align ( -- C-ADDR/U ) s" loader_menu_title_align" ;
-: str_loader_menu_x           ( -- C-ADDR/U ) s" loader_menu_x" ;
-: str_loader_menu_y           ( -- C-ADDR/U ) s" loader_menu_y" ;
-: str_loader_menu_timeout_x   ( -- C-ADDR/U ) s" loader_menu_timeout_x" ;
-: str_loader_menu_timeout_y   ( -- C-ADDR/U ) s" loader_menu_timeout_y" ;
-: str_menu_init               ( -- C-ADDR/U ) s" menu_init" ;
-: str_menu_timeout_command    ( -- C-ADDR/U ) s" menu_timeout_command" ;
-: str_menu_reboot             ( -- C-ADDR/U ) s" menu_reboot" ;
-: str_menu_acpi               ( -- C-ADDR/U ) s" menu_acpi" ;
-: str_menu_options            ( -- C-ADDR/U ) s" menu_options" ;
-: str_menu_optionstext        ( -- C-ADDR/U ) s" menu_optionstext" ;
-
-: str_menu_init[x]          ( -- C-ADDR/U ) s" menu_init[x]" ;
-: str_menu_command[x]       ( -- C-ADDR/U ) s" menu_command[x]" ;
-: str_menu_caption[x]       ( -- C-ADDR/U ) s" menu_caption[x]" ;
-: str_ansi_caption[x]       ( -- C-ADDR/U ) s" ansi_caption[x]" ;
-: str_menu_keycode[x]       ( -- C-ADDR/U ) s" menu_keycode[x]" ;
-: str_toggled_text[x]       ( -- C-ADDR/U ) s" toggled_text[x]" ;
-: str_toggled_ansi[x]       ( -- C-ADDR/U ) s" toggled_ansi[x]" ;
-: str_menu_caption[x][y]    ( -- C-ADDR/U ) s" menu_caption[x][y]" ;
-: str_ansi_caption[x][y]    ( -- C-ADDR/U ) s" ansi_caption[x][y]" ;
-
-: menu_init[x]       ( N -- C-ADDR/U )   str_menu_init[x]       10 +c! ;
-: menu_command[x]    ( N -- C-ADDR/U )   str_menu_command[x]    13 +c! ;
-: menu_caption[x]    ( N -- C-ADDR/U )   str_menu_caption[x]    13 +c! ;
-: ansi_caption[x]    ( N -- C-ADDR/U )   str_ansi_caption[x]    13 +c! ;
-: menu_keycode[x]    ( N -- C-ADDR/U )   str_menu_keycode[x]    13 +c! ;
-: toggled_text[x]    ( N -- C-ADDR/U )   str_toggled_text[x]    13 +c! ;
-: toggled_ansi[x]    ( N -- C-ADDR/U )   str_toggled_ansi[x]    13 +c! ;
-: menu_caption[x][y] ( N M -- C-ADDR/U ) str_menu_caption[x][y] 16 +c! 13 +c! ;
-: ansi_caption[x][y] ( N M -- C-ADDR/U ) str_ansi_caption[x][y] 16 +c! 13 +c! ;
+: kernel[x]          ( N -- C-ADDR/U )   s" kernel[x]"           7 +c! ;
+: menu_init[x]       ( N -- C-ADDR/U )   s" menu_init[x]"       10 +c! ;
+: menu_command[x]    ( N -- C-ADDR/U )   s" menu_command[x]"    13 +c! ;
+: menu_caption[x]    ( N -- C-ADDR/U )   s" menu_caption[x]"    13 +c! ;
+: ansi_caption[x]    ( N -- C-ADDR/U )   s" ansi_caption[x]"    13 +c! ;
+: menu_keycode[x]    ( N -- C-ADDR/U )   s" menu_keycode[x]"    13 +c! ;
+: toggled_text[x]    ( N -- C-ADDR/U )   s" toggled_text[x]"    13 +c! ;
+: toggled_ansi[x]    ( N -- C-ADDR/U )   s" toggled_ansi[x]"    13 +c! ;
+: menu_caption[x][y] ( N M -- C-ADDR/U ) s" menu_caption[x][y]" 16 +c! 13 +c! ;
+: ansi_caption[x][y] ( N M -- C-ADDR/U ) s" ansi_caption[x][y]" 16 +c! 13 +c! ;
 
 : arch-i386? ( -- BOOL ) \ Returns TRUE (-1) on i386, FALSE (0) otherwise.
 	s" arch-i386" environment? dup if
@@ -355,12 +352,9 @@ create init_text8 255 allot
 		then
 		( n addr 0 n 48 -- n addr 0 c-addr/u )
 		getenv dup -1 = if
-			\ This is highly unlikely to occur, but to make
-			\ sure that things move along smoothly, allocate
-			\ a temporary NULL string
-
-			drop ( n addr 0 -1 -- n addr 0 ) \ getenv cruft
-			s" " ( n addr 0 -- n addr 0 c-addr/u )
+			\ Highly unlikely to occur, but to ensure things move
+			\ along smoothly, allocate a temporary NULL string
+			drop ( cruft ) s" "
 		then
 	then
 
@@ -418,15 +412,15 @@ create init_text8 255 allot
 		acpipresent? if
 			acpienabled? if
 				loader_color? if
-					str_toggled_ansi[x]
+					s" toggled_ansi[x]"
 				else
-					str_toggled_text[x]
+					s" toggled_text[x]"
 				then
 			else
 				loader_color? if
-					str_ansi_caption[x]
+					s" ansi_caption[x]"
 				else
-					str_menu_caption[x]
+					s" menu_caption[x]"
 				then
 			then
 		else
@@ -438,17 +432,198 @@ create init_text8 255 allot
 	then
 ;
 
+\ This function parses $kernels into variables that are used by the menu to
+\ display wich kernel to boot when the [overloaded] `boot' word is interpreted.
+\ Used internally by menu-create, you need not (nor should you) call this
+\ directly.
+\ 
+: parse-kernels ( N -- ) \ kernidx
+	kernidx ! ( n -- )	\ store provided `x' value
+	[char] 0 kernmenuidx !	\ initialize `y' value for menu_caption[x][y]
+
+	\ Attempt to get a list of kernels, fall back to sensible default
+	s" kernels" getenv dup -1 = if
+		drop ( cruft )
+		s" kernel kernel.old"
+	then ( -- c-addr/u )
+
+	\ Check to see if the user has altered $kernel by comparing it against
+	\ $kernel[N] where N is kernel_state (the actively displayed kernel).
+	s" kernel_state" evaluate @ 48 + s" kernel[N]" 7 +c! getenv
+	dup -1 <> if
+		s" kernel" getenv dup -1 = if
+			drop ( cruft ) s" "
+		then
+		2swap 2over compare 0= if
+			2drop FALSE ( skip below conditional )
+		else \ User has changed $kernel
+			TRUE ( slurp in new value )
+		then
+	else \ We haven't yet parsed $kernels into $kernel[N]
+		drop ( getenv cruft )
+		s" kernel" getenv dup -1 = if
+			drop ( cruft ) s" "
+		then
+		TRUE ( slurp in initial value )
+	then ( c-addr/u -- c-addr/u c-addr/u,-1 | 0 )
+	if \ slurp new value into kerndefault
+		kerndefault 1+ 0 2swap strcat swap 1- c!
+	then
+
+	\ Clear out existing parsed-kernels
+	kernidx @ [char] 0
+	begin
+		dup kernel[x] unsetenv
+		2dup menu_caption[x][y] unsetenv
+		2dup ansi_caption[x][y] unsetenv
+		1+ dup [char] 8 >
+	until
+	2drop
+
+	\ Step through the string until we find the end
+	begin
+		0 kernlen ! \ initialize length of value
+
+		\ Skip leading whitespace and/or comma delimiters
+		begin
+			dup 0<> if
+				over c@ delim? ( c-addr/u -- c-addr/u bool )
+			else
+				false ( c-addr/u -- c-addr/u bool )
+			then
+		while
+			1- swap 1+ swap ( c-addr/u -- c-addr'/u' )
+		repeat
+		( c-addr/u -- c-addr'/u' )
+
+		dup 0= if \ end of string while eating whitespace
+			2drop ( c-addr/u -- )
+			kernmenuidx @ [char] 0 <> if \ found at least one
+				exit \ all done
+			then
+
+			\ No entries in $kernels; use $kernel instead
+			s" kernel" getenv dup -1 = if
+				drop ( cruft ) s" "
+			then ( -- c-addr/u )
+			dup kernlen ! \ store entire value length as kernlen
+		else
+			\ We're still within $kernels parsing toward the end;
+			\ find delimiter/end to determine kernlen
+			2dup ( c-addr/u -- c-addr/u c-addr/u )
+			begin dup 0<> while
+				over c@ delim? if
+					drop 0 ( break ) \ found delimiter
+				else
+					kernlen @ 1+ kernlen ! \ incrememnt
+					1- swap 1+ swap \ c-addr++ u--
+				then
+			repeat
+			2drop ( c-addr/u c-addr'/u' -- c-addr/u )
+
+			\ If this is the first entry, compare it to $kernel
+			\ If different, then insert $kernel beforehand
+			kernmenuidx @ [char] 0 = if
+				over kernlen @ kerndefault count compare if
+					kernelsbuf 0 kerndefault count strcat
+					s" ," strcat 2swap strcat
+					kerndefault count swap drop kernlen !
+				then
+			then
+		then
+		( c-addr/u -- c-addr'/u' )
+
+		\ At this point, we should have something on the stack to store
+		\ as the next kernel menu option; start assembling variables
+
+		over kernlen @ ( c-addr/u -- c-addr/u c-addr/u2 )
+
+		\ Assign first to kernel[x]
+		2dup kernmenuidx @ kernel[x] setenv
+
+		\ Assign second to menu_caption[x][y]
+		kerncapbuf 0 s" [K]ernel: " strcat
+		2over strcat
+		kernidx @ kernmenuidx @ menu_caption[x][y]
+		setenv
+
+		\ Assign third to ansi_caption[x][y]
+		kerncapbuf 0 s" [1mK[37mernel: " strcat
+		kernmenuidx @ [char] 0 = if
+			s" default/[32m"
+		else
+			s" [34;1m"
+		then strcat
+		2over strcat
+		s" [37m" strcat
+		kernidx @ kernmenuidx @ ansi_caption[x][y]
+		setenv
+
+		2drop ( c-addr/u c-addr/u2 -- c-addr/u )
+
+		kernmenuidx @ 1+ dup kernmenuidx ! [char] 8 > if
+			2drop ( c-addr/u -- ) exit
+		then
+
+		kernlen @ - swap kernlen @ + swap ( c-addr/u -- c-addr'/u' )
+	again
+;
+
+\ This function goes through the kernels that were discovered by the
+\ parse-kernels function [above], adding " (# of #)" text to the end of each
+\ caption.
+\ 
+: tag-kernels ( -- )
+	kernidx @ ( -- x ) dup 0= if exit then
+	[char] 0 s"  (Y of Z)" ( x -- x y c-addr/u )
+	kernmenuidx @ -rot 7 +c! \ Replace 'Z' with number of kernels parsed
+	begin
+		2 pick 1+ -rot 2 +c! \ Replace 'Y' with current ASCII num
+
+		2over menu_caption[x][y] getenv dup -1 <> if
+			2dup + 1- c@ [char] ) = if
+				2drop \ Already tagged
+			else
+				kerncapbuf 0 2swap strcat
+				2over strcat
+				5 pick 5 pick menu_caption[x][y] setenv
+			then
+		else
+			drop ( getenv cruft )
+		then
+
+		2over ansi_caption[x][y] getenv dup -1 <> if
+			2dup + 1- c@ [char] ) = if
+				2drop \ Already tagged
+			else
+				kerncapbuf 0 2swap strcat
+				2over strcat
+				5 pick 5 pick ansi_caption[x][y] setenv
+			then
+		else
+			drop ( getenv cruft )
+		then
+
+		rot 1+ dup [char] 8 > if
+			-rot 2drop TRUE ( break )
+		else
+			-rot FALSE
+		then
+	until
+	2drop ( x y -- )
+;
+
 \ This function creates the list of menu items. This function is called by the
 \ menu-display function. You need not be call it directly.
 \ 
 : menu-create ( -- )
 
 	\ Print the frame caption at (x,y)
-	str_loader_menu_title getenv dup -1 = if
+	s" loader_menu_title" getenv dup -1 = if
 		drop s" Welcome to FreeBSD"
 	then
 	TRUE ( use default alignment )
-	str_loader_menu_title_align getenv dup -1 <> if
+	s" loader_menu_title_align" getenv dup -1 <> if
 		2dup s" left" compare-insensitive 0= if ( 1 )
 			2drop ( c-addr/u ) drop ( bool )
 			menuX @ menuY @ 1-
@@ -470,7 +645,7 @@ create init_text8 255 allot
 	\ constructed dynamically -- as this function could conceivably set
 	\ the remaining environment variables to construct the menu entirely).
 	\ 
-	str_menu_init getenv dup -1 <> if
+	s" menu_init" getenv dup -1 <> if
 		evaluate
 	else
 		drop
@@ -495,7 +670,7 @@ create init_text8 255 allot
 	\ Initialize the ACPI option status.
 	\ 
 	0 menuacpi !
-	str_menu_acpi getenv -1 <> if
+	s" menu_acpi" getenv -1 <> if
 		c@ dup 48 > over 57 < and if ( '1' <= c1 <= '8' )
 			menuacpi !
 			arch-i386? if acpipresent? if
@@ -511,10 +686,51 @@ create init_text8 255 allot
 	then
 
 	\ 
+	\ Initialize kernel captions after parsing $kernels
+	\ 
+	0 menukernel !
+	s" menu_kernel" getenv -1 <> if
+		c@ dup 48 > over 57 < and if ( '1' <= c1 <= '8' )
+			dup menukernel !
+			dup parse-kernels tag-kernels
+
+			\ Get the current cycle state (entry to use)
+			s" kernel_state" evaluate @ 48 + ( n -- n y )
+
+			\ If state is invalid, reset
+			dup kernmenuidx @ 1- > if
+				drop [char] 0 ( n y -- n 48 )
+				0 s" kernel_state" evaluate !
+				over s" init_kernel" evaluate drop
+			then
+
+			\ Set the current non-ANSI caption
+			2dup swap dup ( n y -- n y y n n )
+			s" set menu_caption[x]=$menu_caption[x][y]"
+			17 +c! 34 +c! 37 +c! evaluate
+			( n y y n n c-addr/u -- n y  )
+
+			\ Set the current ANSI caption
+			2dup swap dup ( n y -- n y y n n )
+			s" set ansi_caption[x]=$ansi_caption[x][y]"
+			17 +c! 34 +c! 37 +c! evaluate
+			( n y y n n c-addr/u -- n y )
+
+			\ Initialize cycle state from stored value
+			48 - ( n y -- n k )
+			s" init_cyclestate" evaluate ( n k -- n )
+
+			\ Set $kernel to $kernel[y]
+			s" activate_kernel" evaluate ( n -- n )
+		then
+		drop
+	then
+
+	\ 
 	\ Initialize the menu_options visual separator.
 	\ 
 	0 menuoptions !
-	str_menu_options getenv -1 <> if
+	s" menu_options" getenv -1 <> if
 		c@ dup 48 > over 57 < and if ( '1' <= c1 <= '8' )
 			menuoptions !
 		else
@@ -534,7 +750,7 @@ create init_text8 255 allot
 		\ If the "Options:" separator, print it.
 		dup menuoptions @ = if
 			\ Optionally add a reboot option to the menu
-			str_menu_reboot getenv -1 <> if
+			s" menu_reboot" getenv -1 <> if
 				drop
 				s" Reboot" printmenuitem menureboot !
 				true menurebootadded !
@@ -544,7 +760,7 @@ create init_text8 255 allot
 			menurow @ 2 + menurow !
 			menurow @ menuY @ +
 			at-xy
-			str_menu_optionstext getenv dup -1 <> if
+			s" menu_optionstext" getenv dup -1 <> if
 				type
 			else
 				drop ." Options:"
@@ -603,7 +819,7 @@ create init_text8 255 allot
 
 	\ Optionally add a reboot option to the menu
 	menurebootadded @ true <> if
-		str_menu_reboot getenv -1 <> if
+		s" menu_reboot" getenv -1 <> if
 			drop       \ no need for the value
 			s" Reboot" \ menu caption (required by printmenuitem)
 
@@ -684,7 +900,7 @@ create init_text8 255 allot
 					\ (user did not cancel by pressing ANY
 					\ key)
 
-					str_menu_timeout_command getenv dup
+					s" menu_timeout_command"  getenv dup
 					-1 = if
 						drop \ clean-up
 					else
@@ -758,7 +974,7 @@ create init_text8 255 allot
 	0 menurow !     \ Initialize the starting position for the menu
 
 	\ Assign configuration values
-	str_loader_menu_y getenv dup -1 = if
+	s" loader_menu_y" getenv dup -1 = if
 		drop \ no custom row position
 		menu_default_y
 	else
@@ -768,7 +984,7 @@ create init_text8 255 allot
 		then
 	then
 	menuY !
-	str_loader_menu_x getenv dup -1 = if
+	s" loader_menu_x" getenv dup -1 = if
 		drop \ no custom column position
 		menu_default_x
 	else
@@ -781,7 +997,7 @@ create init_text8 255 allot
 
 	\ Interpret a custom frame type for the menu
 	TRUE ( draw a box? default yes, but might be altered below )
-	str_loader_menu_frame getenv dup -1 = if ( 1 )
+	s" loader_menu_frame" getenv dup -1 = if ( 1 )
 		drop \ no custom frame type
 	else ( 1 )  2dup s" single" compare-insensitive 0= if ( 2 )
 		f_single ( see frames.4th )
@@ -804,7 +1020,7 @@ create init_text8 255 allot
 	0 menu_timeout_enabled ! \ start with automatic timeout disabled
 
 	\ check indication that automatic execution after delay is requested
-	str_menu_timeout_command getenv -1 <> if ( Addr C -1 -- | Addr )
+	s" menu_timeout_command" getenv -1 <> if ( Addr C -1 -- | Addr )
 		drop ( just testing existence right now: Addr -- )
 
 		\ initialize state variables
@@ -840,7 +1056,7 @@ create init_text8 255 allot
 
 		menu_timeout_enabled @ 1 = if
 			\ read custom column position (if set)
-			str_loader_menu_timeout_x getenv dup -1 = if
+			s" loader_menu_timeout_x" getenv dup -1 = if
 				drop \ no custom column position
 				menu_timeout_default_x \ use default setting
 			else
@@ -852,7 +1068,7 @@ create init_text8 255 allot
 			menu_timeout_x ! ( store value on stack from above )
         
 			\ read custom row position (if set)
-			str_loader_menu_timeout_y getenv dup -1 = if
+			s" loader_menu_timeout_y" getenv dup -1 = if
 				drop \ no custom row position
 				menu_timeout_default_y \ use default setting
 			else
@@ -1005,12 +1221,13 @@ create init_text8 255 allot
 	until
 	drop \ iterator
 
-	str_menu_timeout_command unsetenv	\ menu timeout command
-	str_menu_reboot          unsetenv	\ Reboot menu option flag
-	str_menu_acpi            unsetenv	\ ACPI menu option flag
-	str_menu_options         unsetenv	\ Options separator flag
-	str_menu_optionstext     unsetenv	\ separator display text
-	str_menu_init            unsetenv	\ menu initializer
+	s" menu_timeout_command" unsetenv	\ menu timeout command
+	s" menu_reboot"          unsetenv	\ Reboot menu option flag
+	s" menu_acpi"            unsetenv	\ ACPI menu option flag
+	s" menu_kernel"          unsetenv	\ Kernel menu option flag
+	s" menu_options"         unsetenv	\ Options separator flag
+	s" menu_optionstext"     unsetenv	\ separator display text
+	s" menu_init"            unsetenv	\ menu initializer
 
 	0 menureboot !
 	0 menuacpi !

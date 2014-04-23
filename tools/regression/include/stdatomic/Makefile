@@ -2,6 +2,6 @@
 
 PROG=	logic
 WARNS=6
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

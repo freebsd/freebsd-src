@@ -9,7 +9,7 @@ SUBDIR=	${_IPv6} \
 	${_llvm} \
 	${_roffdocs}
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 _atf= atf
 .endif
 

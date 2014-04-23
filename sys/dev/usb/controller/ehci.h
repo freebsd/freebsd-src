@@ -90,7 +90,7 @@ struct ehci_itd {
 #define	EHCI_ITD_GET_PG(x)	(((x) >> 12) & 0x7)
 #define	EHCI_ITD_SET_OFFS(x)	(x)
 #define	EHCI_ITD_GET_OFFS(x)	(((x) >> 0) & 0xFFF)
-#define	EHCI_ITD_ACTIVE		(1 << 31)
+#define	EHCI_ITD_ACTIVE		(1U << 31)
 #define	EHCI_ITD_DATABUFERR	(1 << 30)
 #define	EHCI_ITD_BABBLE		(1 << 29)
 #define	EHCI_ITD_XACTERR	(1 << 28)
@@ -126,7 +126,7 @@ struct ehci_sitd {
 	volatile uint32_t sitd_next;
 	volatile uint32_t sitd_portaddr;
 #define	EHCI_SITD_SET_DIR_OUT	(0 << 31)
-#define	EHCI_SITD_SET_DIR_IN	(1 << 31)
+#define	EHCI_SITD_SET_DIR_IN	(1U << 31)
 #define	EHCI_SITD_SET_ADDR(x)	(x)
 #define	EHCI_SITD_GET_ADDR(x)	((x) & 0x7F)
 #define	EHCI_SITD_SET_ENDPT(x)	((x) << 8)

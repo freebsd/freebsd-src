@@ -52,10 +52,15 @@ ValueObjectDynamicValue::~ValueObjectDynamicValue()
 ClangASTType
 ValueObjectDynamicValue::GetClangTypeImpl ()
 {
-    if (m_dynamic_type_info.HasTypeSP())
-        return m_value.GetClangType();
-    else
-        return m_parent->GetClangType();
+    const bool success = UpdateValueIfNeeded(false);
+    if (success)
+    {
+        if (m_dynamic_type_info.HasType())
+            return m_value.GetClangType();
+        else
+            return m_parent->GetClangType();
+    }
+    return m_parent->GetClangType();
 }
 
 ConstString
@@ -64,12 +69,23 @@ ValueObjectDynamicValue::GetTypeName()
     const bool success = UpdateValueIfNeeded(false);
     if (success)
     {
-        if (m_dynamic_type_info.HasTypeSP())
-            return GetClangType().GetConstTypeName();
         if (m_dynamic_type_info.HasName())
             return m_dynamic_type_info.GetName();
+        if (m_dynamic_type_info.HasType())
+            return GetClangType().GetConstTypeName();
     }
     return m_parent->GetTypeName();
+}
+
+TypeImpl
+ValueObjectDynamicValue::GetTypeImpl ()
+{
+    const bool success = UpdateValueIfNeeded(false);
+    if (success && m_type_impl.IsValid())
+    {
+        return m_type_impl;
+    }
+    return m_parent->GetTypeImpl();
 }
 
 ConstString
@@ -78,10 +94,10 @@ ValueObjectDynamicValue::GetQualifiedTypeName()
     const bool success = UpdateValueIfNeeded(false);
     if (success)
     {
-        if (m_dynamic_type_info.HasTypeSP())
-            return GetClangType().GetConstQualifiedTypeName ();
         if (m_dynamic_type_info.HasName())
             return m_dynamic_type_info.GetName();
+        if (m_dynamic_type_info.HasType())
+            return GetClangType().GetConstQualifiedTypeName ();
     }
     return m_parent->GetTypeName();
 }
@@ -90,7 +106,7 @@ size_t
 ValueObjectDynamicValue::CalculateNumChildren()
 {
     const bool success = UpdateValueIfNeeded(false);
-    if (success && m_dynamic_type_info.HasTypeSP())
+    if (success && m_dynamic_type_info.HasType())
         return GetClangType().GetNumChildren (true);
     else
         return m_parent->GetNumChildren();
@@ -100,7 +116,7 @@ uint64_t
 ValueObjectDynamicValue::GetByteSize()
 {
     const bool success = UpdateValueIfNeeded(false);
-    if (success && m_dynamic_type_info.HasTypeSP())
+    if (success && m_dynamic_type_info.HasType())
         return m_value.GetValueByteSize(NULL);
     else
         return m_parent->GetByteSize();
@@ -110,6 +126,40 @@ lldb::ValueType
 ValueObjectDynamicValue::GetValueType() const
 {
     return m_parent->GetValueType();
+}
+
+
+static TypeAndOrName
+FixupTypeAndOrName (const TypeAndOrName& type_andor_name,
+                    ValueObject& parent)
+{
+    TypeAndOrName ret(type_andor_name);
+    if (type_andor_name.HasType())
+    {
+        // The type will always be the type of the dynamic object.  If our parent's type was a pointer,
+        // then our type should be a pointer to the type of the dynamic object.  If a reference, then the original type
+        // should be okay...
+        ClangASTType orig_type = type_andor_name.GetClangASTType();
+        ClangASTType corrected_type = orig_type;
+        if (parent.IsPointerType())
+            corrected_type = orig_type.GetPointerType ();
+        else if (parent.IsPointerOrReferenceType())
+            corrected_type = orig_type.GetLValueReferenceType ();
+        ret.SetClangASTType(corrected_type);
+    }
+    else /*if (m_dynamic_type_info.HasName())*/
+    {
+        // If we are here we need to adjust our dynamic type name to include the correct & or * symbol
+        std::string corrected_name (type_andor_name.GetName().GetCString());
+        if (parent.IsPointerType())
+            corrected_name.append(" *");
+        else if (parent.IsPointerOrReferenceType())
+            corrected_name.append(" &");
+        // the parent type should be a correctly pointer'ed or referenc'ed type
+        ret.SetClangASTType(parent.GetClangType());
+        ret.SetName(corrected_name.c_str());
+    }
+    return ret;
 }
 
 bool
@@ -176,6 +226,31 @@ ValueObjectDynamicValue::UpdateValue ()
     // don't...
     
     m_update_point.SetUpdated();
+
+    if (found_dynamic_type)
+    {
+        if (class_type_or_name.HasType())
+        {
+            // TypeSP are always generated from debug info
+            if (!class_type_or_name.HasTypeSP() && class_type_or_name.GetClangASTType().IsRuntimeGeneratedType())
+            {
+                m_type_impl = TypeImpl(m_parent->GetClangType(),FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
+                class_type_or_name.SetClangASTType(ClangASTType());
+            }
+            else
+            {
+                m_type_impl = TypeImpl(FixupTypeAndOrName(class_type_or_name, *m_parent).GetClangASTType());
+            }
+        }
+        else
+        {
+            m_type_impl.Clear();
+        }
+    }
+    else
+    {
+        m_type_impl.Clear();
+    }
     
     // If we don't have a dynamic type, then make ourselves just a echo of our parent.
     // Or we could return false, and make ourselves an echo of our parent?
@@ -224,33 +299,10 @@ ValueObjectDynamicValue::UpdateValue ()
         m_value.GetScalar() = load_address;
     }
     
-    ClangASTType corrected_type;
-    if (m_dynamic_type_info.HasTypeSP())
-    {
-        // The type will always be the type of the dynamic object.  If our parent's type was a pointer,
-        // then our type should be a pointer to the type of the dynamic object.  If a reference, then the original type
-        // should be okay...
-        ClangASTType orig_type = m_dynamic_type_info.GetTypeSP()->GetClangForwardType();
-        corrected_type = orig_type;
-        if (m_parent->IsPointerType())
-            corrected_type = orig_type.GetPointerType ();
-        else if (m_parent->IsPointerOrReferenceType())
-            corrected_type = orig_type.GetLValueReferenceType ();
-    }
-    else /*if (m_dynamic_type_info.HasName())*/
-    {
-        // If we are here we need to adjust our dynamic type name to include the correct & or * symbol
-        std::string type_name_buf (m_dynamic_type_info.GetName().GetCString());
-        if (m_parent->IsPointerType())
-            type_name_buf.append(" *");
-        else if (m_parent->IsPointerOrReferenceType())
-            type_name_buf.append(" &");
-        corrected_type = m_parent->GetClangType();
-        m_dynamic_type_info.SetName(type_name_buf.c_str());
-    }
+    m_dynamic_type_info = FixupTypeAndOrName(m_dynamic_type_info, *m_parent);
     
     //m_value.SetContext (Value::eContextTypeClangType, corrected_type);
-    m_value.SetClangType (corrected_type);
+    m_value.SetClangType (m_dynamic_type_info.GetClangASTType());
     
     // Our address is the location of the dynamic type stored in memory.  It isn't a load address,
     // because we aren't pointing to the LOCATION that stores the pointer to us, we're pointing to us...

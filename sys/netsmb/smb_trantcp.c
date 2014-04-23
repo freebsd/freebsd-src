@@ -155,8 +155,8 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	SOCKBUF_LOCK(&so->so_rcv);
 	soupcall_set(so, SO_RCV, nb_upcall, nbp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
-	so->so_rcv.sb_timeo = (5 * hz);
-	so->so_snd.sb_timeo = (5 * hz);
+	so->so_rcv.sb_timeo = (5 * SBT_1S);
+	so->so_snd.sb_timeo = (5 * SBT_1S);
 	error = soreserve(so, nbp->nbp_sndbuf, nbp->nbp_rcvbuf);
 	if (error)
 		goto bad;

@@ -39,7 +39,9 @@ options 	FFS			#Berkeley Fast Filesystem
 
 options 	INET
 options 	INET6
+options 	KGSSAPI
 options 	NFSCL
+options 	NFSLOCKD
 options 	NFS_ROOT
 
 # Debugging for use in -current
@@ -49,10 +51,11 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
-device		geom_map
-
-device		md
+device		crypto
+device		cryptodev
 device		ether
+device		geom_map
 device		loop
+device		md
 device		random
 device		snp

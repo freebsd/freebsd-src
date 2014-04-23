@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	uath.conf usb.conf
+FILES=	uath.conf usb.conf zfs.conf
 
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf

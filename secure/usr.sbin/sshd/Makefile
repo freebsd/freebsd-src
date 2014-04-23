@@ -9,14 +9,15 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth.c auth1.c auth2.c auth-options.c session.c \
 	auth-chall.c auth2-chall.c groupaccess.c \
 	auth-skey.c auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
-	auth2-none.c auth2-passwd.c auth2-pubkey.c auth2-jpake.c \
+	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	monitor_mm.c monitor.c monitor_wrap.c kexdhs.c kexgexs.c kexecdhs.c \
-	auth-krb5.c \
+	kexc25519s.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
 	sftp-server.c sftp-common.c \
 	roaming_common.c roaming_serv.c \
-	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c
+	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c \
+	sandbox-seccomp-filter.c sandbox-capsicum.c
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 SRCS+=	gss-genr.c

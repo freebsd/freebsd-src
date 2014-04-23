@@ -296,6 +296,10 @@ extern char *xstrndup (const char *, size_t) ATTRIBUTE_MALLOC;
 
 extern void *xmemdup (const void *, size_t, size_t) ATTRIBUTE_MALLOC;
 
+/* APPLE LOCAL begin retune gc params 6124839 */
+extern unsigned int ncpu_available (void);
+/* APPLE LOCAL end retune gc params 6124839 */
+
 /* Physical memory routines.  Return values are in BYTES.  */
 extern double physmem_total (void);
 extern double physmem_available (void);

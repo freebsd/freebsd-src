@@ -2236,6 +2236,12 @@ const template i386_optab[] =
     ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
     { FloatReg,
       FloatAcc } },
+  { "fcomip", 0, 0xdff1, None, Cpu686,
+    ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
+    { 0 } },
+  { "fcomip", 1, 0xdff0, None, Cpu686,
+    ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
+    { FloatReg } },
   { "fcompi", 2, 0xdff0, None, Cpu686,
     ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
     { FloatReg,
@@ -2250,6 +2256,12 @@ const template i386_optab[] =
     ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
     { FloatReg,
       FloatAcc } },
+  { "fucomip", 0, 0xdfe9, None, Cpu686,
+    ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
+    { 0 } },
+  { "fucomip", 1, 0xdfe8, None, Cpu686,
+    ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
+    { FloatReg } },
   { "fucompi", 2, 0xdfe8, None, Cpu686,
     ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf,
     { FloatReg,
@@ -4379,6 +4391,12 @@ const template i386_optab[] =
   {"rdrand", 1, 0x0fc7, 0x6, CpuRdRnd,
     Modrm|NoSuf,
     { Reg16|Reg32|Reg64 } },
+
+  /* Intel Supervisor Mode Access Prevention extensions */
+  {"clac", 0, 0x0f01, 0xca, CpuSMAP,
+    NoSuf|ImmExt, { 0, 0, 0 } },
+  {"stac", 0, 0x0f01, 0xcb, CpuSMAP,
+    NoSuf|ImmExt, { 0, 0, 0 } },
   
   { NULL, 0, 0, 0, 0, 0, { 0 } }
 };

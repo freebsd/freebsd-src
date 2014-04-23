@@ -111,6 +111,19 @@ CXXABI_1.3 {
         "typeinfo for void";
         "typeinfo for wchar_t const*";
         "typeinfo for wchar_t";
+        # C++11 typeinfo not understood by our linker
+        # std::nullptr_t
+        _ZTIDn;_ZTIPDn;_ZTIPKDn;
+        # char16_t
+        _ZTIDi;_ZTIPDi;_ZTIPKDi;
+        # char32_t
+        _ZTIDs;_ZTIPDs;_ZTIPKDs;
+        # IEEE 754r decimal floating point
+        _ZTIDd;_ZTIPDd;_ZTIPKDd;
+        _ZTIDe;_ZTIPDe;_ZTIPKDe;
+        _ZTIDf;_ZTIPDf;_ZTIPKDf;
+        # IEEE 754r half-precision floating point
+        _ZTIDh;_ZTIPDh;_ZTIPKDh;
 
         "typeinfo for bool*";
         "typeinfo for wchar_t*";
@@ -195,6 +208,19 @@ CXXABI_1.3 {
         "typeinfo name for void*";
         "typeinfo name for unsigned int*";
         "typeinfo name for float*";
+        # C++11 typeinfo not understood by our linker
+        # std::nullptr_t
+        _ZTSDn;_ZTIPDn;_ZTIPKDn;
+        # char16_t
+        _ZTSDi;_ZTIPDi;_ZTIPKDi;
+        # char32_t
+        _ZTSDs;_ZTIPDs;_ZTIPKDs;
+        # IEEE 754r decimal floating point
+        _ZTSDd;_ZTIPDd;_ZTIPKDd;
+        _ZTSDe;_ZTIPDe;_ZTIPKDe;
+        _ZTSDf;_ZTIPDf;_ZTIPKDf;
+        # IEEE 754r half-precision floating point
+        _ZTSDh;_ZTIPDh;_ZTIPKDh;
 
         "typeinfo name for __cxxabiv1::__array_type_info";
         "typeinfo name for __cxxabiv1::__class_type_info";

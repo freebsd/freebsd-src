@@ -9,7 +9,8 @@ CFLAGS+=-I${.CURDIR}/../../../contrib/llvm/tools/lldb/source/Plugins/Process/Fre
 CFLAGS+=-I${.CURDIR}/../../../contrib/llvm/tools/lldb/source/Plugins/Process/POSIX
 
 SRCDIR=	tools/lldb/source/Plugins/Process/FreeBSD
-SRCS=	ProcessFreeBSD.cpp \
+SRCS=	FreeBSDThread.cpp \
+	ProcessFreeBSD.cpp \
 	ProcessMonitor.cpp
 
 TGHDRS=	DiagnosticCommonKinds \

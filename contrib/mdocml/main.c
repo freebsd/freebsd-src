@@ -1,7 +1,7 @@
-/*	$Id: main.c,v 1.165 2011/10/06 22:29:12 kristaps Exp $ */
+/*	$Id: main.c,v 1.167 2012/11/19 17:22:26 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2011, 2012 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -85,6 +85,7 @@ main(int argc, char *argv[])
 	struct curparse	 curp;
 	enum mparset	 type;
 	enum mandoclevel rc;
+	char		*defos;
 
 	progname = strrchr(argv[0], '/');
 	if (progname == NULL)
@@ -97,10 +98,24 @@ main(int argc, char *argv[])
 	type = MPARSE_AUTO;
 	curp.outtype = OUTT_ASCII;
 	curp.wlevel  = MANDOCLEVEL_FATAL;
+	defos = NULL;
 
 	/* LINTED */
-	while (-1 != (c = getopt(argc, argv, "m:O:T:VW:")))
+	while (-1 != (c = getopt(argc, argv, "I:m:O:T:VW:")))
 		switch (c) {
+		case ('I'):
+			if (strncmp(optarg, "os=", 3)) {
+				fprintf(stderr, "-I%s: Bad argument\n",
+						optarg);
+				return((int)MANDOCLEVEL_BADARG);
+			}
+			if (defos) {
+				fprintf(stderr, "-I%s: Duplicate argument\n",
+						optarg);
+				return((int)MANDOCLEVEL_BADARG);
+			}
+			defos = mandoc_strdup(optarg + 3);
+			break;
 		case ('m'):
 			if ( ! moptions(&type, optarg))
 				return((int)MANDOCLEVEL_BADARG);
@@ -125,7 +140,7 @@ main(int argc, char *argv[])
 			/* NOTREACHED */
 		}
 
-	curp.mp = mparse_alloc(type, curp.wlevel, mmsg, &curp);
+	curp.mp = mparse_alloc(type, curp.wlevel, mmsg, &curp, defos);
 
 	/*
 	 * Conditionally start up the lookaside buffer before parsing.
@@ -152,6 +167,7 @@ main(int argc, char *argv[])
 		(*curp.outfree)(curp.outdata);
 	if (curp.mp)
 		mparse_free(curp.mp);
+	free(defos);
 
 	return((int)rc);
 }
@@ -170,12 +186,12 @@ usage(void)
 
 	fprintf(stderr, "usage: %s "
 			"[-V] "
-			"[-foption] "
+			"[-Ios=name] "
 			"[-mformat] "
 			"[-Ooption] "
 			"[-Toutput] "
-			"[-Wlevel] "
-			"[file...]\n", 
+			"[-Wlevel]\n"
+			"\t      [file ...]\n", 
 			progname);
 
 	exit((int)MANDOCLEVEL_BADARG);

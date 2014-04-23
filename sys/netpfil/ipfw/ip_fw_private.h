@@ -213,25 +213,27 @@ VNET_DECLARE(unsigned int, fw_tables_max);
 #define V_fw_tables_max		VNET(fw_tables_max)
 
 struct ip_fw_chain {
-	struct ip_fw	*rules;		/* list of rules */
-	struct ip_fw	*reap;		/* list of rules to reap */
-	struct ip_fw	*default_rule;
-	int		n_rules;	/* number of static rules */
-	int		static_len;	/* total len of static rules */
 	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
+	uint32_t	id;		/* ruleset id */
+	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head **tables;	/* IPv4 tables */
 	struct radix_node_head **xtables;	/* extended tables */
 	uint8_t		*tabletype;	/* Array of table types */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
-	spinlock_t uh_lock;
 #else
 	struct rwlock	rwmtx;
+#endif
+	int		static_len;	/* total len of static rules */
+	uint32_t	gencnt;		/* NAT generation count */
+	struct ip_fw	*reap;		/* list of rules to reap */
+	struct ip_fw	*default_rule;
+#if defined( __linux__ ) || defined( _WIN32 )
+	spinlock_t uh_lock;
+#else
 	struct rwlock	uh_lock;	/* lock for upper half */
 #endif
-	uint32_t	id;		/* ruleset id */
-	uint32_t	gencnt;		/* generation count */
 };
 
 struct sockopt;	/* used by tcp_var.h */

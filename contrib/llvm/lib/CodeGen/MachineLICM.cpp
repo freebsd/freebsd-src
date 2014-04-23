@@ -172,7 +172,7 @@ namespace {
                    BitVector &PhysRegDefs,
                    BitVector &PhysRegClobbers,
                    SmallSet<int, 32> &StoredFIs,
-                   SmallVector<CandidateInfo, 32> &Candidates);
+                   SmallVectorImpl<CandidateInfo> &Candidates);
 
     /// AddToLiveIns - Add register 'Reg' to the livein sets of BBs in the
     /// current loop.
@@ -404,7 +404,7 @@ void MachineLICM::ProcessMI(MachineInstr *MI,
                             BitVector &PhysRegDefs,
                             BitVector &PhysRegClobbers,
                             SmallSet<int, 32> &StoredFIs,
-                            SmallVector<CandidateInfo, 32> &Candidates) {
+                            SmallVectorImpl<CandidateInfo> &Candidates) {
   bool RuledOut = false;
   bool HasNonInvariantUse = false;
   unsigned Def = 0;
@@ -468,12 +468,12 @@ void MachineLICM::ProcessMI(MachineInstr *MI,
     for (MCRegAliasIterator AS(Reg, TRI, true); AS.isValid(); ++AS) {
       if (PhysRegDefs.test(*AS))
         PhysRegClobbers.set(*AS);
-      if (PhysRegClobbers.test(*AS))
-        // MI defined register is seen defined by another instruction in
-        // the loop, it cannot be a LICM candidate.
-        RuledOut = true;
       PhysRegDefs.set(*AS);
     }
+    if (PhysRegClobbers.test(Reg))
+      // MI defined register is seen defined by another instruction in
+      // the loop, it cannot be a LICM candidate.
+      RuledOut = true;
   }
 
   // Only consider reloads for now and remats which do not have register
@@ -502,7 +502,7 @@ void MachineLICM::HoistRegionPostRA() {
 
   // Walk the entire region, count number of defs for each register, and
   // collect potential LICM candidates.
-  const std::vector<MachineBasicBlock*> Blocks = CurLoop->getBlocks();
+  const std::vector<MachineBasicBlock *> &Blocks = CurLoop->getBlocks();
   for (unsigned i = 0, e = Blocks.size(); i != e; ++i) {
     MachineBasicBlock *BB = Blocks[i];
 
@@ -584,7 +584,7 @@ void MachineLICM::HoistRegionPostRA() {
 /// AddToLiveIns - Add register 'Reg' to the livein sets of BBs in the current
 /// loop, and make sure it is not killed by any instructions in the loop.
 void MachineLICM::AddToLiveIns(unsigned Reg) {
-  const std::vector<MachineBasicBlock*> Blocks = CurLoop->getBlocks();
+  const std::vector<MachineBasicBlock *> &Blocks = CurLoop->getBlocks();
   for (unsigned i = 0, e = Blocks.size(); i != e; ++i) {
     MachineBasicBlock *BB = Blocks[i];
     if (!BB->isLiveIn(Reg))
@@ -1084,7 +1084,7 @@ bool MachineLICM::CanCauseHighRegPressure(DenseMap<unsigned, int> &Cost,
       return true;
 
     for (unsigned i = BackTrace.size(); i != 0; --i) {
-      SmallVector<unsigned, 8> &RP = BackTrace[i-1];
+      SmallVectorImpl<unsigned> &RP = BackTrace[i-1];
       if (RP[RCId] + Cost >= Limit)
         return true;
     }
@@ -1130,7 +1130,7 @@ void MachineLICM::UpdateBackTraceRegPressure(const MachineInstr *MI) {
 
   // Update register pressure of blocks from loop header to current block.
   for (unsigned i = 0, e = BackTrace.size(); i != e; ++i) {
-    SmallVector<unsigned, 8> &RP = BackTrace[i];
+    SmallVectorImpl<unsigned> &RP = BackTrace[i];
     for (DenseMap<unsigned, int>::iterator CI = Cost.begin(), CE = Cost.end();
          CI != CE; ++CI) {
       unsigned RCId = CI->first;

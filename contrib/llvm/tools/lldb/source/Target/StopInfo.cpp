@@ -419,8 +419,15 @@ protected:
                         // The breakpoint site may have many locations associated with it, not all of them valid for
                         // this thread.  Skip the ones that aren't:
                         if (!bp_loc_sp->ValidForThisThread(thread_sp.get()))
+                        {
+                            if (log)
+                            {
+                                StreamString s;
+                                bp_loc_sp->GetDescription(&s, eDescriptionLevelBrief);
+                                log->Printf ("Breakpoint %s hit on thread 0x%llx but it was not for this thread, continuing.", s.GetData(), thread_sp->GetID());
+                            }
                             continue;
-                                                          
+                        }
                         // First run the condition for the breakpoint.  If that says we should stop, then we'll run
                         // the callback for the breakpoint.  If the callback says we shouldn't stop that will win.                    
                         
@@ -450,6 +457,12 @@ protected:
                             }
                             else
                             {
+                                if (log)
+                                {
+                                    StreamString s;
+                                    bp_loc_sp->GetDescription(&s, eDescriptionLevelBrief);
+                                    log->Printf ("Condition evaluated for breakpoint %s on thread 0x%llx conditon_says_stop: %i.", s.GetData(), thread_sp->GetID(), condition_says_stop);
+                                }
                                 if (!condition_says_stop)
                                     continue;
                             }
@@ -694,22 +707,17 @@ protected:
                     // We need to make sure the user sees any parse errors in their condition, so we'll hook the
                     // constructor errors up to the debugger's Async I/O.
                     ExecutionResults result_code;
+                    EvaluateExpressionOptions expr_options;
+                    expr_options.SetUnwindOnError(true);
+                    expr_options.SetIgnoreBreakpoints(true);
                     ValueObjectSP result_value_sp;
-                    const bool unwind_on_error = true;
-                    const bool ignore_breakpoints = true;
                     Error error;
-                    result_code = ClangUserExpression::EvaluateWithError (exe_ctx,
-                                                                          eExecutionPolicyOnlyWhenNeeded,
-                                                                          lldb::eLanguageTypeUnknown,
-                                                                          ClangUserExpression::eResultTypeAny,
-                                                                          unwind_on_error,
-                                                                          ignore_breakpoints,
-                                                                          wp_sp->GetConditionText(),
-                                                                          NULL,
-                                                                          result_value_sp,
-                                                                          error,
-                                                                          true,
-                                                                          ClangUserExpression::kDefaultTimeout);
+                    result_code = ClangUserExpression::Evaluate (exe_ctx,
+                                                                 expr_options,
+                                                                 wp_sp->GetConditionText(),
+                                                                 NULL,
+                                                                 result_value_sp,
+                                                                 error);
                     if (result_code == eExecutionCompleted)
                     {
                         if (result_value_sp)

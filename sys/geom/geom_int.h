@@ -39,6 +39,9 @@ LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
 
 extern int g_collectstats;
+#define G_STATS_PROVIDERS	1	/* Collect I/O stats for providers */
+#define G_STATS_CONSUMERS	2	/* Collect I/O stats for consumers */
+
 extern int g_debugflags;
 /*
  * 1	G_T_TOPOLOGY
@@ -54,6 +57,7 @@ extern int g_debugflags;
 /* geom_dump.c */
 void g_confxml(void *, int flag);
 void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...);
 void g_confdot(void *, int flag);
 void g_conftxt(void *, int flag);
 

@@ -432,10 +432,8 @@ cngets(char *cp, size_t size, int visible)
 		case '\b':
 		case '\177':
 			if (lp > cp) {
-				if (visible) {
-					cnputc(c);
-					cnputs(" \b");
-				}
+				if (visible)
+					cnputs("\b \b");
 				lp--;
 			}
 			continue;
@@ -465,6 +463,15 @@ cnputc(int c)
 	struct cn_device *cnd;
 	struct consdev *cn;
 	char *cp;
+
+#ifdef EARLY_PRINTF
+	if (early_putc != NULL) {
+		if (c == '\n')
+			early_putc('\r');
+		early_putc(c);
+		return;
+	}
+#endif
 
 	if (cn_mute || c == '\0')
 		return;

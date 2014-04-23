@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.18 2012/09/29 13:10:15 Adrian.Bunk Exp $
+# $Id: makefile.in,v 1.19 2014/01/01 14:09:43 tom Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -100,7 +100,7 @@ uninstall:
 	- rm -f $(mandir)/$(actual_man)
 
 ################################################################################
-.SUFFIXES : $o .i .html .$(manext) .cat .ps .pdf .txt
+.SUFFIXES : $o .i
 
 .c$o:
 	@RULE_CC@
@@ -110,21 +110,6 @@ uninstall:
 	@RULE_CC@
 	@ECHO_CC@$(CPP) -C $(CPPFLAGS) $*.c >$@
 
-.$(manext).cat :
-	- nroff -man $(srcdir)/$(THIS).$(manext) >$@
-
-.$(manext).html :
-	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $*.$(manext) | groff -Thtml -man" >$@
-
-.$(manext).ps :
-	$(SHELL) -c "tbl $*.$(manext) | groff -man" >$@
-
-.$(manext).txt :
-	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $*.$(manext) | nroff -Tascii -man | col -bx" >$@
-
-.ps.pdf :
-	ps2pdf $*.ps
-
 ################################################################################
 
 $(THIS)$x : $(OBJS)
@@ -133,26 +118,16 @@ $(THIS)$x : $(OBJS)
 mostlyclean :
 	- rm -f core .nfs* *$o *.bak *.BAK *.out
 
-clean : mostlyclean
+clean :: mostlyclean
 	- rm -f $(THIS)$x
 
-distclean : clean
+distclean :: clean
 	- rm -f config.log config.cache config.status config.h makefile
-	- rm -f *.html *.cat *.pdf *.ps *.txt
 	- cd test && rm -f test-*
 
-realclean: distclean
+realclean :: distclean
 	- rm -f tags TAGS
 
-################################################################################
-docs :: $(THIS).html \
-	$(THIS).pdf \
-	$(THIS).ps \
-	$(THIS).txt
-$(THIS).html : $(THIS).$(manext)
-$(THIS).pdf : $(THIS).ps
-$(THIS).ps : $(THIS).$(manext)
-$(THIS).txt : $(THIS).$(manext)
 ################################################################################
 check:	$(THIS)$x
 	$(SHELL) $(testdir)/run_test.sh $(testdir)

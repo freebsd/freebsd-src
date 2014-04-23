@@ -1,17 +1,18 @@
 # $FreeBSD$
 arm/arm/cpufunc_asm_arm9.S	standard
-arm/arm/irq_dispatch.S		standard
 arm/at91/at91_machdep.c		standard
+arm/at91/at91_aic.c		standard
 arm/at91/at91.c			standard
 arm/at91/at91_cfata.c		optional	at91_cfata
 arm/at91/at91_mci.c		optional	at91_mci
-arm/at91/at91_nand.c		optional	nand
+dev/nand/nfc_at91.c		optional	nand
 arm/at91/at91_pio.c		standard
 arm/at91/at91_pmc.c		standard
 arm/at91/at91_pit.c		optional	at91sam9
 arm/at91/at91_reset.S		optional	at91sam9
 arm/at91/at91_rst.c		optional	at91sam9
 arm/at91/at91_rtc.c		optional	at91_rtc
+arm/at91/at91_smc.c		standard
 arm/at91/at91_spi.c		optional	at91_spi		\
 	dependency	"spibus_if.h"
 arm/at91/at91_ssc.c		optional	at91_ssc

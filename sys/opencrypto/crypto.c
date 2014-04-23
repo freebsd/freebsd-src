@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #define	CRYPTO_TIMING				/* enable timing support */
 
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -162,10 +161,10 @@ int	crypto_userasymcrypto = 1;	/* userland may do asym crypto reqs */
 SYSCTL_INT(_kern, OID_AUTO, userasymcrypto, CTLFLAG_RW,
 	   &crypto_userasymcrypto, 0,
 	   "Enable/disable user-mode access to asymmetric crypto support");
-int	crypto_devallowsoft = 0;	/* only use hardware crypto for asym */
+int	crypto_devallowsoft = 0;	/* only use hardware crypto */
 SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RW,
 	   &crypto_devallowsoft, 0,
-	   "Enable/disable use of software asym crypto support");
+	   "Enable/disable use of software crypto by /dev/crypto");
 
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 

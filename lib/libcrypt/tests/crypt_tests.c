@@ -43,7 +43,7 @@ ATF_TC_BODY(invalid, tc)
 
 /*
  * This function must not do anything except enumerate
- * the test cases, else atf-run is likely to be upset.
+ * the test cases, per atf-c-api(3).
  */
 ATF_TP_ADD_TCS(tp)
 {

@@ -214,6 +214,8 @@ struct ata_params {
 #define ATA_PSS_LSPPS			0x000F
 #define ATA_PSS_LSSABOVE512		0x1000
 #define ATA_PSS_MULTLS			0x2000
+#define ATA_PSS_VALID_MASK		0xC000
+#define ATA_PSS_VALID_VALUE		0x4000
 /*107*/ u_int16_t       isd;
 /*108*/ u_int16_t       wwn[4];
 	u_int16_t       reserved112[5];
@@ -259,6 +261,8 @@ struct ata_params {
 /*215*/ u_int16_t       nv_cache_size_1;
 	u_int16_t       nv_cache_size_2;
 /*217*/ u_int16_t       media_rotation_rate;
+#define ATA_RATE_NOT_REPORTED		0x0000
+#define ATA_RATE_NON_ROTATING		0x0001
 	u_int16_t       reserved218;
 /*219*/ u_int16_t       nv_cache_opt;
 /*220*/ u_int16_t       wrv_mode;

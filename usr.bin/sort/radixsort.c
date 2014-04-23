@@ -171,6 +171,8 @@ pop_ls_st(void)
 	return (sl);
 }
 
+#if defined(SORT_THREADS)
+
 /*
  * Pop sort level from the stack (multi-threaded style)
  */
@@ -180,9 +182,7 @@ pop_ls_mt(void)
 	struct level_stack *saved_ls;
 	struct sort_level *sl;
 
-#if defined(SORT_THREADS)
 	pthread_mutex_lock(&g_ls_mutex);
-#endif
 
 	if (g_ls) {
 		sl = g_ls->sl;
@@ -193,14 +193,14 @@ pop_ls_mt(void)
 		saved_ls = NULL;
 	}
 
-#if defined(SORT_THREADS)
 	pthread_mutex_unlock(&g_ls_mutex);
-#endif
 
 	sort_free(saved_ls);
 
 	return (sl);
 }
+
+#endif /* defined(SORT_THREADS) */
 
 static void
 add_to_sublevel(struct sort_level *sl, struct sort_list_item *item, size_t indx)

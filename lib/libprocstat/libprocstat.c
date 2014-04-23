@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ksem.h>
 #include <sys/mman.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>
@@ -2052,7 +2052,7 @@ procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
 	mib[3] = pid;
 	len = sizeof(*maskp);
 	error = sysctl(mib, 4, maskp, &len, NULL, 0);
-	if (error != 0 && errno != ESRCH)
+	if (error != 0 && errno != ESRCH && errno != EPERM)
 		warn("sysctl: kern.proc.umask: %d", pid);
 	return (error);
 }

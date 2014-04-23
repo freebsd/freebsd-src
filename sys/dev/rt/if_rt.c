@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "if_rtreg.h"
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -148,7 +149,7 @@ static int
 rt_probe(device_t dev)
 {
 	device_set_desc(dev, "Ralink RT305XF onChip Ethernet MAC");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*

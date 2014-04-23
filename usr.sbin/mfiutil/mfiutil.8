@@ -168,6 +168,12 @@
 .Nm
 .Op Fl u Ar unit
 .Cm bbu Ar setting Ar value
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar rebuild Op Ar rate
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar alarm Op Ar 0/1
 .Sh DESCRIPTION
 The
 .Nm
@@ -659,6 +665,12 @@ inclusive.
 Modes 1, 2 and 3 enable a transparent learn cycle, whereas modes 4 and 5 do not.
 The BBU's data retention time is greater when transparent learning is not used.
 .El
+.It Cm ctrlprop Ar rebuild Op Ar rate
+With no arguments display the rate of rebuild (percentage)a for volumes.
+With an integer argument (0-100), set that value as the new rebuild rate for volumes.
+.It Cm ctrlprop Ar alarm Op Ar 0/1
+With no arguments display the current alarm enable/disable status.
+With a 0, disable alarms.  With a 1, enable alarms.
 .El
 .Sh EXAMPLES
 Configure the cache for volume mfid0 to cache only writes:
@@ -699,6 +711,9 @@ patrol read starting in 5 minutes:
 Display the second detected foreign configuration:
 .Pp
 .Dl Nm Cm show foreign 1
+.Pp
+Set the current rebuild rate for volumes to 40%:
+.Dl Nm Cm ctrlprop rebuild 40
 .Sh SEE ALSO
 .Xr mfi 4
 .Sh HISTORY

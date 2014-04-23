@@ -219,7 +219,7 @@ __FBSDID("$FreeBSD$");
 #define		CP_COHERENCY_BUSY      				(1 << 28)
 #define		CP_BUSY 					(1 << 29)
 #define		CB_BUSY 					(1 << 30)
-#define		GUI_ACTIVE					(1 << 31)
+#define		GUI_ACTIVE					(1U << 31)
 #define	GRBM_STATUS_SE0					0x8014
 #define	GRBM_STATUS_SE1					0x8018
 #define		SE_SX_CLEAN					(1 << 0)
@@ -233,7 +233,7 @@ __FBSDID("$FreeBSD$");
 #define		SE_SH_BUSY					(1 << 28)
 #define		SE_SC_BUSY					(1 << 29)
 #define		SE_DB_BUSY					(1 << 30)
-#define		SE_CB_BUSY					(1 << 31)
+#define		SE_CB_BUSY					(1U << 31)
 #define	GRBM_SOFT_RESET					0x8020
 #define		SOFT_RESET_CP					(1 << 0)
 #define		SOFT_RESET_CB					(1 << 1)
@@ -253,7 +253,7 @@ __FBSDID("$FreeBSD$");
 #define		INSTANCE_INDEX(x)			((x) << 0)
 #define		SE_INDEX(x)     			((x) << 16)
 #define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
-#define		SE_BROADCAST_WRITES      		(1 << 31)
+#define		SE_BROADCAST_WRITES      		(1U << 31)
 
 #define	SCRATCH_REG0					0x8500
 #define	SCRATCH_REG1					0x8504
@@ -442,7 +442,7 @@ __FBSDID("$FreeBSD$");
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
 #define		RB_NO_UPDATE					(1 << 27)
-#define		RB_RPTR_WR_ENA					(1 << 31)
+#define		RB_RPTR_WR_ENA					(1U << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB0_RPTR_ADDR				0xC10C
 #define	CP_RB0_RPTR_ADDR_HI				0xC110
@@ -641,7 +641,7 @@ __FBSDID("$FreeBSD$");
 #define DMA_IB_CNTL                                       0xd024
 #       define DMA_IB_ENABLE                              (1 << 0)
 #       define DMA_IB_SWAP_ENABLE                         (1 << 4)
-#       define CMD_VMID_FORCE                             (1 << 31)
+#       define CMD_VMID_FORCE                             (1U << 31)
 #define DMA_IB_RPTR                                       0xd028
 #define DMA_CNTL                                          0xd02c
 #       define TRAP_ENABLE                                (1 << 0)

@@ -60,10 +60,7 @@ enum {
   FUNCTION_INST_CAST_ABBREV,
   FUNCTION_INST_RET_VOID_ABBREV,
   FUNCTION_INST_RET_VAL_ABBREV,
-  FUNCTION_INST_UNREACHABLE_ABBREV,
-
-  // SwitchInst Magic
-  SWITCH_INST_MAGIC = 0x4B5 // May 2012 => 1205 => Hex
+  FUNCTION_INST_UNREACHABLE_ABBREV
 };
 
 static unsigned GetEncodedCastOpcode(unsigned Opcode) {
@@ -81,6 +78,7 @@ static unsigned GetEncodedCastOpcode(unsigned Opcode) {
   case Instruction::PtrToInt: return bitc::CAST_PTRTOINT;
   case Instruction::IntToPtr: return bitc::CAST_INTTOPTR;
   case Instruction::BitCast : return bitc::CAST_BITCAST;
+  case Instruction::AddrSpaceCast: return bitc::CAST_ADDRSPACECAST;
   }
 }
 
@@ -161,6 +159,91 @@ static void WriteStringRecord(unsigned Code, StringRef Str,
   Stream.EmitRecord(Code, Vals, AbbrevToUse);
 }
 
+static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
+  switch (Kind) {
+  case Attribute::Alignment:
+    return bitc::ATTR_KIND_ALIGNMENT;
+  case Attribute::AlwaysInline:
+    return bitc::ATTR_KIND_ALWAYS_INLINE;
+  case Attribute::Builtin:
+    return bitc::ATTR_KIND_BUILTIN;
+  case Attribute::ByVal:
+    return bitc::ATTR_KIND_BY_VAL;
+  case Attribute::Cold:
+    return bitc::ATTR_KIND_COLD;
+  case Attribute::InlineHint:
+    return bitc::ATTR_KIND_INLINE_HINT;
+  case Attribute::InReg:
+    return bitc::ATTR_KIND_IN_REG;
+  case Attribute::MinSize:
+    return bitc::ATTR_KIND_MIN_SIZE;
+  case Attribute::Naked:
+    return bitc::ATTR_KIND_NAKED;
+  case Attribute::Nest:
+    return bitc::ATTR_KIND_NEST;
+  case Attribute::NoAlias:
+    return bitc::ATTR_KIND_NO_ALIAS;
+  case Attribute::NoBuiltin:
+    return bitc::ATTR_KIND_NO_BUILTIN;
+  case Attribute::NoCapture:
+    return bitc::ATTR_KIND_NO_CAPTURE;
+  case Attribute::NoDuplicate:
+    return bitc::ATTR_KIND_NO_DUPLICATE;
+  case Attribute::NoImplicitFloat:
+    return bitc::ATTR_KIND_NO_IMPLICIT_FLOAT;
+  case Attribute::NoInline:
+    return bitc::ATTR_KIND_NO_INLINE;
+  case Attribute::NonLazyBind:
+    return bitc::ATTR_KIND_NON_LAZY_BIND;
+  case Attribute::NoRedZone:
+    return bitc::ATTR_KIND_NO_RED_ZONE;
+  case Attribute::NoReturn:
+    return bitc::ATTR_KIND_NO_RETURN;
+  case Attribute::NoUnwind:
+    return bitc::ATTR_KIND_NO_UNWIND;
+  case Attribute::OptimizeForSize:
+    return bitc::ATTR_KIND_OPTIMIZE_FOR_SIZE;
+  case Attribute::OptimizeNone:
+    return bitc::ATTR_KIND_OPTIMIZE_NONE;
+  case Attribute::ReadNone:
+    return bitc::ATTR_KIND_READ_NONE;
+  case Attribute::ReadOnly:
+    return bitc::ATTR_KIND_READ_ONLY;
+  case Attribute::Returned:
+    return bitc::ATTR_KIND_RETURNED;
+  case Attribute::ReturnsTwice:
+    return bitc::ATTR_KIND_RETURNS_TWICE;
+  case Attribute::SExt:
+    return bitc::ATTR_KIND_S_EXT;
+  case Attribute::StackAlignment:
+    return bitc::ATTR_KIND_STACK_ALIGNMENT;
+  case Attribute::StackProtect:
+    return bitc::ATTR_KIND_STACK_PROTECT;
+  case Attribute::StackProtectReq:
+    return bitc::ATTR_KIND_STACK_PROTECT_REQ;
+  case Attribute::StackProtectStrong:
+    return bitc::ATTR_KIND_STACK_PROTECT_STRONG;
+  case Attribute::StructRet:
+    return bitc::ATTR_KIND_STRUCT_RET;
+  case Attribute::SanitizeAddress:
+    return bitc::ATTR_KIND_SANITIZE_ADDRESS;
+  case Attribute::SanitizeThread:
+    return bitc::ATTR_KIND_SANITIZE_THREAD;
+  case Attribute::SanitizeMemory:
+    return bitc::ATTR_KIND_SANITIZE_MEMORY;
+  case Attribute::UWTable:
+    return bitc::ATTR_KIND_UW_TABLE;
+  case Attribute::ZExt:
+    return bitc::ATTR_KIND_Z_EXT;
+  case Attribute::EndAttrKinds:
+    llvm_unreachable("Can not encode end-attribute kinds marker.");
+  case Attribute::None:
+    llvm_unreachable("Can not encode none-attribute.");
+  }
+
+  llvm_unreachable("Trying to encode unknown attribute");
+}
+
 static void WriteAttributeGroupTable(const ValueEnumerator &VE,
                                      BitstreamWriter &Stream) {
   const std::vector<AttributeSet> &AttrGrps = VE.getAttributeGroups();
@@ -182,10 +265,10 @@ static void WriteAttributeGroupTable(const ValueEnumerator &VE,
         Attribute Attr = *I;
         if (Attr.isEnumAttribute()) {
           Record.push_back(0);
-          Record.push_back(Attr.getKindAsEnum());
+          Record.push_back(getAttrKindEncoding(Attr.getKindAsEnum()));
         } else if (Attr.isAlignAttribute()) {
           Record.push_back(1);
-          Record.push_back(Attr.getKindAsEnum());
+          Record.push_back(getAttrKindEncoding(Attr.getKindAsEnum()));
           Record.push_back(Attr.getValueAsInt());
         } else {
           StringRef Kind = Attr.getKindAsString();
@@ -407,7 +490,6 @@ static unsigned getEncodedLinkage(const GlobalValue *GV) {
   case GlobalValue::AvailableExternallyLinkage:      return 12;
   case GlobalValue::LinkerPrivateLinkage:            return 13;
   case GlobalValue::LinkerPrivateWeakLinkage:        return 14;
-  case GlobalValue::LinkOnceODRAutoHideLinkage:      return 15;
   }
   llvm_unreachable("Invalid linkage");
 }
@@ -524,7 +606,7 @@ static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
 
     // GLOBALVAR: [type, isconst, initid,
     //             linkage, alignment, section, visibility, threadlocal,
-    //             unnamed_addr]
+    //             unnamed_addr, externally_initialized]
     Vals.push_back(VE.getTypeID(GV->getType()));
     Vals.push_back(GV->isConstant());
     Vals.push_back(GV->isDeclaration() ? 0 :
@@ -550,7 +632,7 @@ static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
   // Emit the function proto information.
   for (Module::const_iterator F = M->begin(), E = M->end(); F != E; ++F) {
     // FUNCTION:  [type, callingconv, isproto, linkage, paramattrs, alignment,
-    //             section, visibility, gc, unnamed_addr]
+    //             section, visibility, gc, unnamed_addr, prefix]
     Vals.push_back(VE.getTypeID(F->getType()));
     Vals.push_back(F->getCallingConv());
     Vals.push_back(F->isDeclaration());
@@ -561,6 +643,8 @@ static void WriteModuleInfo(const Module *M, const ValueEnumerator &VE,
     Vals.push_back(getEncodedVisibility(F));
     Vals.push_back(F->hasGC() ? GCMap[F->getGC()] : 0);
     Vals.push_back(F->hasUnnamedAddr());
+    Vals.push_back(F->hasPrefixData() ? (VE.getValueID(F->getPrefixData()) + 1)
+                                      : 0);
 
     unsigned AbbrevToUse = 0;
     Stream.EmitRecord(bitc::MODULE_CODE_FUNCTION, Vals, AbbrevToUse);
@@ -614,7 +698,7 @@ static uint64_t GetOptimizationFlags(const Value *V) {
 static void WriteMDNode(const MDNode *N,
                         const ValueEnumerator &VE,
                         BitstreamWriter &Stream,
-                        SmallVector<uint64_t, 64> &Record) {
+                        SmallVectorImpl<uint64_t> &Record) {
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
     if (N->getOperand(i)) {
       Record.push_back(VE.getTypeID(N->getOperand(i)->getType()));
@@ -701,7 +785,7 @@ static void WriteFunctionLocalMetadata(const Function &F,
                                        BitstreamWriter &Stream) {
   bool StartedMetadataBlock = false;
   SmallVector<uint64_t, 64> Record;
-  const SmallVector<const MDNode *, 8> &Vals = VE.getFunctionLocalMDValues();
+  const SmallVectorImpl<const MDNode *> &Vals = VE.getFunctionLocalMDValues();
   for (unsigned i = 0, e = Vals.size(); i != e; ++i)
     if (const MDNode *N = Vals[i])
       if (N->isFunctionLocal() && N->getFunction() == &F) {
@@ -778,34 +862,6 @@ static void emitSignedInt64(SmallVectorImpl<uint64_t> &Vals, uint64_t V) {
     Vals.push_back(V << 1);
   else
     Vals.push_back((-V << 1) | 1);
-}
-
-static void EmitAPInt(SmallVectorImpl<uint64_t> &Vals,
-                      unsigned &Code, unsigned &AbbrevToUse, const APInt &Val,
-                      bool EmitSizeForWideNumbers = false
-                      ) {
-  if (Val.getBitWidth() <= 64) {
-    uint64_t V = Val.getSExtValue();
-    emitSignedInt64(Vals, V);
-    Code = bitc::CST_CODE_INTEGER;
-    AbbrevToUse = CONSTANTS_INTEGER_ABBREV;
-  } else {
-    // Wide integers, > 64 bits in size.
-    // We have an arbitrary precision integer value to write whose
-    // bit width is > 64. However, in canonical unsigned integer
-    // format it is likely that the high bits are going to be zero.
-    // So, we only write the number of active words.
-    unsigned NWords = Val.getActiveWords();
-
-    if (EmitSizeForWideNumbers)
-      Vals.push_back(NWords);
-
-    const uint64_t *RawWords = Val.getRawData();
-    for (unsigned i = 0; i != NWords; ++i) {
-      emitSignedInt64(Vals, RawWords[i]);
-    }
-    Code = bitc::CST_CODE_WIDE_INTEGER;
-  }
 }
 
 static void WriteConstants(unsigned FirstVal, unsigned LastVal,
@@ -891,7 +947,23 @@ static void WriteConstants(unsigned FirstVal, unsigned LastVal,
     } else if (isa<UndefValue>(C)) {
       Code = bitc::CST_CODE_UNDEF;
     } else if (const ConstantInt *IV = dyn_cast<ConstantInt>(C)) {
-      EmitAPInt(Record, Code, AbbrevToUse, IV->getValue());
+      if (IV->getBitWidth() <= 64) {
+        uint64_t V = IV->getSExtValue();
+        emitSignedInt64(Record, V);
+        Code = bitc::CST_CODE_INTEGER;
+        AbbrevToUse = CONSTANTS_INTEGER_ABBREV;
+      } else {                             // Wide integers, > 64 bits in size.
+        // We have an arbitrary precision integer value to write whose
+        // bit width is > 64. However, in canonical unsigned integer
+        // format it is likely that the high bits are going to be zero.
+        // So, we only write the number of active words.
+        unsigned NWords = IV->getValue().getActiveWords();
+        const uint64_t *RawWords = IV->getValue().getRawData();
+        for (unsigned i = 0; i != NWords; ++i) {
+          emitSignedInt64(Record, RawWords[i]);
+        }
+        Code = bitc::CST_CODE_WIDE_INTEGER;
+      }
     } else if (const ConstantFP *CFP = dyn_cast<ConstantFP>(C)) {
       Code = bitc::CST_CODE_FLOAT;
       Type *Ty = CFP->getType();
@@ -1078,7 +1150,7 @@ static void WriteModuleConstants(const ValueEnumerator &VE,
 /// instruction ID, then it is a forward reference, and it also includes the
 /// type ID.  The value ID that is written is encoded relative to the InstID.
 static bool PushValueAndType(const Value *V, unsigned InstID,
-                             SmallVector<unsigned, 64> &Vals,
+                             SmallVectorImpl<unsigned> &Vals,
                              ValueEnumerator &VE) {
   unsigned ValID = VE.getValueID(V);
   // Make encoding relative to the InstID.
@@ -1093,21 +1165,14 @@ static bool PushValueAndType(const Value *V, unsigned InstID,
 /// pushValue - Like PushValueAndType, but where the type of the value is
 /// omitted (perhaps it was already encoded in an earlier operand).
 static void pushValue(const Value *V, unsigned InstID,
-                      SmallVector<unsigned, 64> &Vals,
+                      SmallVectorImpl<unsigned> &Vals,
                       ValueEnumerator &VE) {
   unsigned ValID = VE.getValueID(V);
   Vals.push_back(InstID - ValID);
 }
 
-static void pushValue64(const Value *V, unsigned InstID,
-                        SmallVector<uint64_t, 128> &Vals,
-                        ValueEnumerator &VE) {
-  uint64_t ValID = VE.getValueID(V);
-  Vals.push_back(InstID - ValID);
-}
-
 static void pushValueSigned(const Value *V, unsigned InstID,
-                            SmallVector<uint64_t, 128> &Vals,
+                            SmallVectorImpl<uint64_t> &Vals,
                             ValueEnumerator &VE) {
   unsigned ValID = VE.getValueID(V);
   int64_t diff = ((int32_t)InstID - (int32_t)ValID);
@@ -1117,7 +1182,7 @@ static void pushValueSigned(const Value *V, unsigned InstID,
 /// WriteInstruction - Emit an instruction to the specified stream.
 static void WriteInstruction(const Instruction &I, unsigned InstID,
                              ValueEnumerator &VE, BitstreamWriter &Stream,
-                             SmallVector<unsigned, 64> &Vals) {
+                             SmallVectorImpl<unsigned> &Vals) {
   unsigned Code = 0;
   unsigned AbbrevToUse = 0;
   VE.setInstructionID(&I);
@@ -1229,63 +1294,16 @@ static void WriteInstruction(const Instruction &I, unsigned InstID,
     break;
   case Instruction::Switch:
     {
-      // Redefine Vals, since here we need to use 64 bit values
-      // explicitly to store large APInt numbers.
-      SmallVector<uint64_t, 128> Vals64;
-
       Code = bitc::FUNC_CODE_INST_SWITCH;
       const SwitchInst &SI = cast<SwitchInst>(I);
-
-      uint32_t SwitchRecordHeader = SI.hash() | (SWITCH_INST_MAGIC << 16);
-      Vals64.push_back(SwitchRecordHeader);
-
-      Vals64.push_back(VE.getTypeID(SI.getCondition()->getType()));
-      pushValue64(SI.getCondition(), InstID, Vals64, VE);
-      Vals64.push_back(VE.getValueID(SI.getDefaultDest()));
-      Vals64.push_back(SI.getNumCases());
+      Vals.push_back(VE.getTypeID(SI.getCondition()->getType()));
+      pushValue(SI.getCondition(), InstID, Vals, VE);
+      Vals.push_back(VE.getValueID(SI.getDefaultDest()));
       for (SwitchInst::ConstCaseIt i = SI.case_begin(), e = SI.case_end();
            i != e; ++i) {
-        const IntegersSubset& CaseRanges = i.getCaseValueEx();
-        unsigned Code, Abbrev; // will unused.
-
-        if (CaseRanges.isSingleNumber()) {
-          Vals64.push_back(1/*NumItems = 1*/);
-          Vals64.push_back(true/*IsSingleNumber = true*/);
-          EmitAPInt(Vals64, Code, Abbrev, CaseRanges.getSingleNumber(0), true);
-        } else {
-
-          Vals64.push_back(CaseRanges.getNumItems());
-
-          if (CaseRanges.isSingleNumbersOnly()) {
-            for (unsigned ri = 0, rn = CaseRanges.getNumItems();
-                 ri != rn; ++ri) {
-
-              Vals64.push_back(true/*IsSingleNumber = true*/);
-
-              EmitAPInt(Vals64, Code, Abbrev,
-                        CaseRanges.getSingleNumber(ri), true);
-            }
-          } else
-            for (unsigned ri = 0, rn = CaseRanges.getNumItems();
-                 ri != rn; ++ri) {
-              IntegersSubset::Range r = CaseRanges.getItem(ri);
-              bool IsSingleNumber = CaseRanges.isSingleNumber(ri);
-
-              Vals64.push_back(IsSingleNumber);
-
-              EmitAPInt(Vals64, Code, Abbrev, r.getLow(), true);
-              if (!IsSingleNumber)
-                EmitAPInt(Vals64, Code, Abbrev, r.getHigh(), true);
-            }
-        }
-        Vals64.push_back(VE.getValueID(i.getCaseSuccessor()));
+        Vals.push_back(VE.getValueID(i.getCaseValue()));
+        Vals.push_back(VE.getValueID(i.getCaseSuccessor()));
       }
-
-      Stream.EmitRecord(Code, Vals64, AbbrevToUse);
-
-      // Also do expected action - clear external Vals collection:
-      Vals.clear();
-      return;
     }
     break;
   case Instruction::IndirectBr:
@@ -1847,6 +1865,8 @@ static void WriteModuleUseLists(const Module *M, ValueEnumerator &VE,
     WriteUseList(FI, VE, Stream);
     if (!FI->isDeclaration())
       WriteFunctionUseList(FI, VE, Stream);
+    if (FI->hasPrefixData())
+      WriteUseList(FI->getPrefixData(), VE, Stream);
   }
 
   // Write the aliases.

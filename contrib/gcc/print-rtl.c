@@ -606,6 +606,11 @@ print_rtx (rtx in_rtx)
 	  case LABEL_WEAK_ENTRY: fputs (" [weak entry]", outfile); break;
 	  default: gcc_unreachable ();
 	}
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      if (LABEL_ALIGN_LOG (in_rtx) > 0)
+	fprintf (outfile, " [log_align %u skip %u]", LABEL_ALIGN_LOG (in_rtx),
+		 LABEL_MAX_SKIP (in_rtx));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       break;
 
     default:

@@ -146,6 +146,7 @@ struct  ether_addr {
 # endif /* _KERNEL */
 
 #  include <sys/selinfo.h>
+#  include <sys/lock.h>
 #  include <sys/mutex.h>
 #    define	KRWLOCK_FILL_SZ		56
 #    define	KMUTEX_FILL_SZ		56
@@ -542,7 +543,7 @@ MALLOC_DECLARE(M_IPFILTER);
 # ifndef ALLOC_MB_T
 #  ifdef MGETHDR
 #   define	ALLOC_MB_T(m,l)	do { \
-					MGETHDR((m), M_DONTWAIT, MT_HEADER); \
+					MGETHDR((m), M_NOWAIT, MT_HEADER); \
 					if ((m) != NULL) { \
 						(m)->m_len = (l); \
 						(m)->m_pkthdr.len = (l); \
@@ -550,7 +551,7 @@ MALLOC_DECLARE(M_IPFILTER);
 				} while (0)
 #  else
 #   define	ALLOC_MB_T(m,l)	do { \
-					MGET((m), M_DONTWAIT, MT_HEADER); \
+					MGET((m), M_NOWAIT, MT_HEADER); \
 					if ((m) != NULL) { \
 						(m)->m_len = (l); \
 						(m)->m_pkthdr.len = (l); \

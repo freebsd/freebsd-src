@@ -361,7 +361,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_CG_NO1_DEBUG_MASK     (0x1f << 24)
 #       define RADEON_DYN_STOP_MODE_MASK    (7 << 21)
 #       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
-#       define RADEON_TVCLK_TURNOFF         (1 << 31)
+#       define RADEON_TVCLK_TURNOFF         (1U << 31)
 #define RADEON_PLL_PWRMGT_CNTL              0x0015 /* PLL */
 #	define RADEON_PM_MODE_SEL           (1 << 13)
 #       define RADEON_TCL_BYPASS_DISABLE    (1 << 20)
@@ -585,13 +585,13 @@ __FBSDID("$FreeBSD$");
 #define RADEON_CUR_HORZ_VERT_OFF            0x0268
 #define RADEON_CUR_HORZ_VERT_POSN           0x0264
 #define RADEON_CUR_OFFSET                   0x0260
-#       define RADEON_CUR_LOCK              (1 << 31)
+#       define RADEON_CUR_LOCK              (1U << 31)
 #define RADEON_CUR2_CLR0                    0x036c
 #define RADEON_CUR2_CLR1                    0x0370
 #define RADEON_CUR2_HORZ_VERT_OFF           0x0368
 #define RADEON_CUR2_HORZ_VERT_POSN          0x0364
 #define RADEON_CUR2_OFFSET                  0x0360
-#       define RADEON_CUR2_LOCK             (1 << 31)
+#       define RADEON_CUR2_LOCK             (1U << 31)
 
 #define RADEON_DAC_CNTL                     0x0058
 #       define RADEON_DAC_RANGE_CNTL        (3 <<  0)
@@ -670,7 +670,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_TV_DAC_BDACPD         (1 <<  26)
 #       define RADEON_TV_DAC_RDACDET        (1 << 29)
 #       define RADEON_TV_DAC_GDACDET        (1 << 30)
-#       define RADEON_TV_DAC_BDACDET        (1 << 31)
+#       define RADEON_TV_DAC_BDACDET        (1U << 31)
 #       define R420_TV_DAC_DACADJ_MASK      (0x1f <<  20)
 #       define R420_TV_DAC_RDACPD           (1 <<  25)
 #       define R420_TV_DAC_GDACPD           (1 <<  26)
@@ -745,7 +745,7 @@ __FBSDID("$FreeBSD$");
 #define RADEON_DP_CNTL_XDIR_YDIR_YMAJOR     0x16d0
 #       define RADEON_DST_Y_MAJOR             (1 <<  2)
 #       define RADEON_DST_Y_DIR_TOP_TO_BOTTOM (1 << 15)
-#       define RADEON_DST_X_DIR_LEFT_TO_RIGHT (1 << 31)
+#       define RADEON_DST_X_DIR_LEFT_TO_RIGHT (1U << 31)
 #define RADEON_DP_DATATYPE                  0x16c4
 #       define RADEON_HOST_BIG_ENDIAN_EN    (1 << 29)
 #define RADEON_DP_GUI_MASTER_CNTL           0x146c
@@ -854,8 +854,8 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_PITCH_SHIFT           21
 #       define RADEON_DST_TILE_LINEAR       (0 << 30)
 #       define RADEON_DST_TILE_MACRO        (1 << 30)
-#       define RADEON_DST_TILE_MICRO        (2 << 30)
-#       define RADEON_DST_TILE_BOTH         (3 << 30)
+#       define RADEON_DST_TILE_MICRO        (2U << 30)
+#       define RADEON_DST_TILE_BOTH         (3U << 30)
 #define RADEON_DST_WIDTH                    0x140c
 #define RADEON_DST_WIDTH_HEIGHT             0x1598
 #define RADEON_DST_WIDTH_X                  0x1588
@@ -1230,7 +1230,7 @@ __FBSDID("$FreeBSD$");
 #define RADEON_MIN_GRANT                    0x0f3e /* PCI */
 #define RADEON_MM_DATA                      0x0004
 #define RADEON_MM_INDEX                     0x0000
-#	define RADEON_MM_APER		(1 << 31)
+#	define RADEON_MM_APER		(1U << 31)
 #define RADEON_MPLL_CNTL                    0x000e /* PLL */
 #define RADEON_MPP_TB_CONFIG                0x01c0 /* ? */
 #define RADEON_MPP_GP_CONFIG                0x01c8 /* ? */
@@ -1600,12 +1600,12 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_SOFT_RESET_HDP        (1 <<  7)
 #define RADEON_RBBM_STATUS                  0x0e40
 #       define RADEON_RBBM_FIFOCNT_MASK     0x007f
-#       define RADEON_RBBM_ACTIVE           (1 << 31)
+#       define RADEON_RBBM_ACTIVE           (1U << 31)
 #define RADEON_RB2D_DSTCACHE_CTLSTAT        0x342c
 #       define RADEON_RB2D_DC_FLUSH         (3 << 0)
 #       define RADEON_RB2D_DC_FREE          (3 << 2)
 #       define RADEON_RB2D_DC_FLUSH_ALL     0xf
-#       define RADEON_RB2D_DC_BUSY          (1 << 31)
+#       define RADEON_RB2D_DC_BUSY          (1U << 31)
 #define RADEON_RB2D_DSTCACHE_MODE           0x3428
 #define RADEON_DSTCACHE_CTLSTAT             0x1714
 
@@ -1631,7 +1631,7 @@ __FBSDID("$FreeBSD$");
 # define RADEON_RB3D_DC_FLUSH                   (3 << 0)
 # define RADEON_RB3D_DC_FREE                    (3 << 2)
 # define RADEON_RB3D_DC_FLUSH_ALL               0xf
-# define RADEON_RB3D_DC_BUSY                    (1 << 31)
+# define RADEON_RB3D_DC_BUSY                    (1U << 31)
 
 #define RADEON_REG_BASE                     0x0f18 /* PCI */
 #define RADEON_REGPROG_INF                  0x0f09 /* PCI */
@@ -1854,7 +1854,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_WAIT_VAP_IDLE         (1 << 28)
 #       define RADEON_WAIT_BOTH_CRTC_PFLIP  (1 << 30)
 #       define RADEON_ENG_DISPLAY_SELECT_CRTC0    (0 << 31)
-#       define RADEON_ENG_DISPLAY_SELECT_CRTC1    (1 << 31)
+#       define RADEON_ENG_DISPLAY_SELECT_CRTC1    (1U << 31)
 
 #define RADEON_X_MPLL_REF_FB_DIV            0x000a /* PLL */
 #define RADEON_XCLK_CNTL                    0x000d /* PLL */
@@ -1896,7 +1896,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_BUMPED_MAP_T2         (2 << 27)
 #       define RADEON_TEX_3D_ENABLE_0       (1 << 29)
 #       define RADEON_TEX_3D_ENABLE_1       (1 << 30)
-#       define RADEON_MC_ENABLE             (1 << 31)
+#       define RADEON_MC_ENABLE             (1U << 31)
 #define RADEON_PP_FOG_COLOR                 0x1c18
 #       define RADEON_FOG_COLOR_MASK        0x00ffffff
 #       define RADEON_FOG_VERTEX            (0 << 24)
@@ -2091,7 +2091,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_TEX_VSIZE_SHIFT       16
 #       define RADEON_SIGNED_RGB_MASK       (1 << 30)
 #       define RADEON_SIGNED_RGB_SHIFT      30
-#       define RADEON_SIGNED_ALPHA_MASK     (1 << 31)
+#       define RADEON_SIGNED_ALPHA_MASK     (1U << 31)
 #       define RADEON_SIGNED_ALPHA_SHIFT    31
 #define RADEON_PP_TEX_PITCH_0               0x1d08  /* NPOT */
 #define RADEON_PP_TEX_PITCH_1               0x1d10  /* NPOT */
@@ -2558,7 +2558,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_TCL_VTX_Z1                 (1 << 28)
 #       define RADEON_TCL_VTX_W1                 (1 << 29)
 #       define RADEON_TCL_VTX_NORM1              (1 << 30)
-#       define RADEON_TCL_VTX_Z0                 (1 << 31)
+#       define RADEON_TCL_VTX_Z0                 (1U << 31)
 
 #define RADEON_SE_TCL_OUTPUT_VTX_SEL        0x2258
 #       define RADEON_TCL_COMPUTE_XYZW           (1 << 0)
@@ -2667,7 +2667,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_CULL_FRONT_IS_CCW            (1 << 28)
 #       define RADEON_CULL_FRONT                   (1 << 29)
 #       define RADEON_CULL_BACK                    (1 << 30)
-#       define RADEON_FORCE_W_TO_ONE               (1 << 31)
+#       define RADEON_FORCE_W_TO_ONE               (1U << 31)
 
 #define RADEON_SE_VPORT_XSCALE              0x1d98
 #define RADEON_SE_VPORT_XOFFSET             0x1d9c
@@ -3306,7 +3306,7 @@ __FBSDID("$FreeBSD$");
 #	define RADEON_MAX_FETCH_SHIFT		18
 #	define RADEON_MAX_FETCH_MASK		(0x3 << 18)
 #	define RADEON_RB_NO_UPDATE		(1 << 27)
-#	define RADEON_RB_RPTR_WR_ENA		(1 << 31)
+#	define RADEON_RB_RPTR_WR_ENA		(1U << 31)
 #define RADEON_CP_RB_RPTR_ADDR              0x070c
 #define RADEON_CP_RB_RPTR                   0x0710
 #define RADEON_CP_RB_WPTR                   0x0714
@@ -3320,7 +3320,7 @@ __FBSDID("$FreeBSD$");
 #       define R600_RB_BUFSZ(x)             ((x) << 0)
 #       define R600_RB_BLKSZ(x)             ((x) << 8)
 #       define R600_RB_NO_UPDATE            (1 << 27)
-#       define R600_RB_RPTR_WR_ENA          (1 << 31)
+#       define R600_RB_RPTR_WR_ENA          (1U << 31)
 #define R600_CP_RB_RPTR_WR                  0xc108
 #define R600_CP_RB_RPTR_ADDR                0xc10c
 #define R600_CP_RB_RPTR_ADDR_HI             0xc110
@@ -3519,7 +3519,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_TV_FIFO_CE_EN              (1 << 10)
 #       define RADEON_RE_SYNC_NOW_SEL_MASK       (3 << 14)
 #       define RADEON_TVCLK_ALWAYS_ONb           (1 << 30)
-#	define RADEON_TV_ON			 (1 << 31)
+#	define RADEON_TV_ON			 (1U << 31)
 #define RADEON_TV_PRE_DAC_MUX_CNTL               0x0888
 #       define RADEON_Y_RED_EN                   (1 << 0)
 #       define RADEON_C_GRN_EN                   (1 << 1)
@@ -3651,7 +3651,7 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_TVPVG_MASK                 (7 << 11)
 #       define RADEON_TVPDC_SHIFT                14
 #       define RADEON_TVPDC_MASK                 (3 << 14)
-#       define RADEON_TVPLL_TEST_DIS             (1 << 31)
+#       define RADEON_TVPLL_TEST_DIS             (1U << 31)
 #       define RADEON_TVCLK_SRC_SEL_TVPLL        (1 << 30)
 
 #define RS400_DISP2_REQ_CNTL1			0xe30

@@ -108,7 +108,7 @@ const short error_check[] = {                    256,
 #if YYDEBUG
 const char *yyname[] = {
 
-"end-of-file",
+"end-of-file","illegal-symbol",
 };
 const char *yyrule[] = {
 "$accept : S",

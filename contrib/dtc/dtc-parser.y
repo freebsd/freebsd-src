@@ -31,15 +31,11 @@ extern void print_error(char const *fmt, ...);
 extern void yyerror(char const *s);
 
 extern struct boot_info *the_boot_info;
-extern int treesource_error;
-
-static unsigned long long eval_literal(const char *s, int base, int bits);
-static unsigned char eval_char_literal(const char *s);
+extern bool treesource_error;
 %}
 
 %union {
 	char *propnodename;
-	char *literal;
 	char *labelref;
 	unsigned int cbase;
 	uint8_t byte;
@@ -62,9 +58,11 @@ static unsigned char eval_char_literal(const char *s);
 %token DT_MEMRESERVE
 %token DT_LSHIFT DT_RSHIFT DT_LE DT_GE DT_EQ DT_NE DT_AND DT_OR
 %token DT_BITS
+%token DT_DEL_PROP
+%token DT_DEL_NODE
 %token <propnodename> DT_PROPNODENAME
-%token <literal> DT_LITERAL
-%token <literal> DT_CHAR_LITERAL
+%token <integer> DT_LITERAL
+%token <integer> DT_CHAR_LITERAL
 %token <cbase> DT_BASE
 %token <byte> DT_BYTE
 %token <data> DT_STRING
@@ -153,6 +151,17 @@ devicetree:
 				print_error("label or path, '%s', not found", $2);
 			$$ = $1;
 		}
+	| devicetree DT_DEL_NODE DT_REF ';'
+		{
+			struct node *target = get_node_by_ref($1, $3);
+
+			if (!target)
+				print_error("label or path, '%s', not found", $3);
+			else
+				delete_node(target);
+
+			$$ = $1;
+		}
 	;
 
 nodedef:
@@ -181,6 +190,10 @@ propdef:
 	| DT_PROPNODENAME ';'
 		{
 			$$ = build_property($1, empty_data);
+		}
+	| DT_DEL_PROP DT_PROPNODENAME ';'
+		{
+			$$ = build_property_delete($2);
 		}
 	| DT_LABEL propdef
 		{
@@ -213,10 +226,9 @@ propdata:
 
 			if ($6 != 0)
 				if (fseek(f, $6, SEEK_SET) != 0)
-					print_error("Couldn't seek to offset %llu in \"%s\": %s",
-						     (unsigned long long)$6,
-						     $4.val,
-						     strerror(errno));
+					die("Couldn't seek to offset %llu in \"%s\": %s",
+					    (unsigned long long)$6, $4.val,
+					    strerror(errno));
 
 			d = data_copy_file(f, $8);
 
@@ -257,18 +269,20 @@ propdataprefix:
 arrayprefix:
 	DT_BITS DT_LITERAL '<'
 		{
-			$$.data = empty_data;
-			$$.bits = eval_literal($2, 0, 7);
+			unsigned long long bits;
 
-			if (($$.bits !=  8) &&
-			    ($$.bits != 16) &&
-			    ($$.bits != 32) &&
-			    ($$.bits != 64))
+			bits = $2;
+
+			if ((bits !=  8) && (bits != 16) &&
+			    (bits != 32) && (bits != 64))
 			{
 				print_error("Only 8, 16, 32 and 64-bit elements"
 					    " are currently supported");
-				$$.bits = 32;
+				bits = 32;
 			}
+
+			$$.data = empty_data;
+			$$.bits = bits;
 		}
 	| '<'
 		{
@@ -317,13 +331,7 @@ arrayprefix:
 
 integer_prim:
 	  DT_LITERAL
-		{
-			$$ = eval_literal($1, 0, 64);
-		}
 	| DT_CHAR_LITERAL
-		{
-			$$ = eval_char_literal($1);
-		}
 	| '(' integer_expr ')'
 		{
 			$$ = $2;
@@ -440,6 +448,10 @@ subnode:
 		{
 			$$ = name_node($2, $1);
 		}
+	| DT_DEL_NODE DT_PROPNODENAME ';'
+		{
+			$$ = name_node(build_node_delete(), $2);
+		}
 	| DT_LABEL subnode
 		{
 			add_label(&$2->labels, $1);
@@ -454,58 +466,12 @@ void print_error(char const *fmt, ...)
 	va_list va;
 
 	va_start(va, fmt);
-	srcpos_verror(&yylloc, fmt, va);
+	srcpos_verror(&yylloc, "Error", fmt, va);
 	va_end(va);
 
-	treesource_error = 1;
+	treesource_error = true;
 }
 
 void yyerror(char const *s) {
 	print_error("%s", s);
-}
-
-static unsigned long long eval_literal(const char *s, int base, int bits)
-{
-	unsigned long long val;
-	char *e;
-
-	errno = 0;
-	val = strtoull(s, &e, base);
-	if (*e) {
-		size_t uls = strspn(e, "UL");
-		if (e[uls])
-			print_error("bad characters in literal");
-	}
-	if ((errno == ERANGE)
-		 || ((bits < 64) && (val >= (1ULL << bits))))
-		print_error("literal out of range");
-	else if (errno != 0)
-		print_error("bad literal");
-	return val;
-}
-
-static unsigned char eval_char_literal(const char *s)
-{
-	int i = 1;
-	char c = s[0];
-
-	if (c == '\0')
-	{
-		print_error("empty character literal");
-		return 0;
-	}
-
-	/*
-	 * If the first character in the character literal is a \ then process
-	 * the remaining characters as an escape encoding. If the first
-	 * character is neither an escape or a terminator it should be the only
-	 * character in the literal and will be returned.
-	 */
-	if (c == '\\')
-		c = get_escape_char(s, &i);
-
-	if (s[i] != '\0')
-		print_error("malformed character literal");
-
-	return c;
 }

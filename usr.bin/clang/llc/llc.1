@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "LLC" "1" "2013-06-10" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "LLC" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 llc \- LLVM static compiler
 .
@@ -29,8 +31,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBllc\fP [\fIoptions\fP] [\fIfilename\fP]
@@ -41,13 +41,13 @@ for a specified architecture.  The assembly language output can then be passed
 through a native assembler and linker to generate a native executable.
 .sp
 The choice of architecture for the output assembly code is automatically
-determined from the input file, unless the \fI\%-march\fP option is used to
+determined from the input file, unless the \fI\%\-march\fP option is used to
 override the default.
 .SH OPTIONS
 .sp
 If \fBfilename\fP is "\fB\-\fP" or omitted, \fBllc\fP reads from standard input.
-Otherwise, it will from \fBfilename\fP.  Inputs can be in either the LLVM assembly
-language format (\fB.ll\fP) or the LLVM bitcode format (\fB.bc\fP).
+Otherwise, it will from \fBfilename\fP\&.  Inputs can be in either the LLVM assembly
+language format (\fB\&.ll\fP) or the LLVM bitcode format (\fB\&.bc\fP).
 .sp
 If the \fI\-o\fP option is omitted, then \fBllc\fP will send its output
 to standard output if the input is from standard input.  If the \fI\-o\fP
@@ -55,7 +55,7 @@ option specifies "\fB\-\fP", then the output will also be sent to standard outpu
 .sp
 If no \fI\-o\fP option is specified and an input file other than "\fB\-\fP" is
 specified, then \fBllc\fP creates the output filename by taking the input
-filename, removing any existing \fB.bc\fP extension, and adding a \fB.s\fP suffix.
+filename, removing any existing \fB\&.bc\fP extension, and adding a \fB\&.s\fP suffix.
 .sp
 Other \fBllc\fP options are described below.
 .SS End\-user Options
@@ -69,7 +69,7 @@ Print a summary of command line options.
 .B \-O=uint
 Generate code at different optimization levels.  These correspond to the
 \fB\-O0\fP, \fB\-O1\fP, \fB\-O2\fP, and \fB\-O3\fP optimization levels used by
-\fBllvm\-gcc\fP and \fBclang\fP.
+\fBllvm\-gcc\fP and \fBclang\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -180,7 +180,7 @@ error.
 .B \-\-load=<dso_path>
 Dynamically load \fBdso_path\fP (a path to a dynamically shared object) that
 implements an LLVM target.  This will permit the target name to be used with
-the \fI\%-march\fP option so that code can be generated for that target.
+the \fI\%\-march\fP option so that code can be generated for that target.
 .UNINDENT
 .SS Tuning/Configuration Options
 .INDENT 0.0
@@ -191,34 +191,34 @@ Print generated machine code between compilation phases (useful for debugging).
 .INDENT 0.0
 .TP
 .B \-\-regalloc=<allocator>
-Specify the register allocator to use.  The default \fBallocator\fP is \fIlocal\fP.
+Specify the register allocator to use.
 Valid register allocators are:
 .sp
-\fIsimple\fP
+\fIbasic\fP
 .INDENT 7.0
 .INDENT 3.5
-Very simple "always spill" register allocator
+Basic register allocator.
 .UNINDENT
 .UNINDENT
 .sp
-\fIlocal\fP
+\fIfast\fP
 .INDENT 7.0
 .INDENT 3.5
-Local register allocator
+Fast register allocator. It is the default for unoptimized code.
 .UNINDENT
 .UNINDENT
 .sp
-\fIlinearscan\fP
+\fIgreedy\fP
 .INDENT 7.0
 .INDENT 3.5
-Linear scan global register allocator
+Greedy register allocator. It is the default for optimized code.
 .UNINDENT
 .UNINDENT
 .sp
-\fIiterativescan\fP
+\fIpbqp\fP
 .INDENT 7.0
 .INDENT 3.5
-Iterative scan global register allocator
+Register allocator based on \(aqPartitioned Boolean Quadratic Programming\(aq.
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -227,7 +227,7 @@ Iterative scan global register allocator
 .B \-\-spiller=<spiller>
 Specify the spiller to use for register allocators that support it.  Currently
 this option is used only by the linear scan register allocator.  The default
-\fBspiller\fP is \fIlocal\fP.  Valid spillers are:
+\fBspiller\fP is \fIlocal\fP\&.  Valid spillers are:
 .sp
 \fIsimple\fP
 .INDENT 7.0

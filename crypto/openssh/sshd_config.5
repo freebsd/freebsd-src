@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.162 2013/07/19 07:37:48 markus Exp $
+.\" $OpenBSD: sshd_config.5,v 1.172 2014/02/27 22:47:07 djm Exp $
 .\" $FreeBSD$
-.Dd July 19, 2013
+.Dd February 27, 2014
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -336,7 +336,8 @@ The default is not to
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
-The supported ciphers are
+The supported ciphers are:
+.Pp
 .Dq 3des-cbc ,
 .Dq aes128-cbc ,
 .Dq aes192-cbc ,
@@ -350,15 +351,23 @@ The supported ciphers are
 .Dq arcfour256 ,
 .Dq arcfour ,
 .Dq blowfish-cbc ,
+.Dq cast128-cbc ,
 and
-.Dq cast128-cbc .
+.Dq chacha20-poly1305@openssh.com .
+.Pp
 The default is:
 .Bd -literal -offset 3n
 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+chacha20-poly1305@openssh.com,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
 aes256-cbc,arcfour
 .Ed
+.Pp
+The list of available ciphers may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1 .
 .It Cm ClientAliveCountMax
 Sets the number of client alive messages (see below) which may be
 sent without
@@ -532,7 +541,8 @@ The default is
 .Pa /etc/ssh/ssh_host_key
 for protocol version 1, and
 .Pa /etc/ssh/ssh_host_dsa_key ,
-.Pa /etc/ssh/ssh_host_ecdsa_key
+.Pa /etc/ssh/ssh_host_ecdsa_key ,
+.Pa /etc/ssh/ssh_host_ed25519_key
 and
 .Pa /etc/ssh/ssh_host_rsa_key
 for protocol version 2.
@@ -543,7 +553,8 @@ It is possible to have multiple host key files.
 .Dq rsa1
 keys are used for version 1 and
 .Dq dsa ,
-.Dq ecdsa
+.Dq ecdsa ,
+.Dq ed25519
 or
 .Dq rsa
 are used for version 2 of the SSH protocol.
@@ -623,6 +634,17 @@ The default is
 for interactive sessions and
 .Dq throughput
 for non-interactive sessions.
+.It Cm KbdInteractiveAuthentication
+Specifies whether to allow keyboard-interactive authentication.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+The default is to use whatever value
+.Cm ChallengeResponseAuthentication
+is set to
+(by default
+.Dq yes ) .
 .It Cm KerberosAuthentication
 Specifies whether the password provided by the user for
 .Cm PasswordAuthentication
@@ -652,13 +674,14 @@ The default is
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
 The default is
-.Dq ecdh-sha2-nistp256 ,
-.Dq ecdh-sha2-nistp384 ,
-.Dq ecdh-sha2-nistp521 ,
-.Dq diffie-hellman-group-exchange-sha256 ,
-.Dq diffie-hellman-group-exchange-sha1 ,
-.Dq diffie-hellman-group14-sha1 ,
-.Dq diffie-hellman-group1-sha1 .
+.Bd -literal -offset indent
+curve25519-sha256@libssh.org,
+ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+diffie-hellman-group-exchange-sha256,
+diffie-hellman-group-exchange-sha1,
+diffie-hellman-group14-sha1,
+diffie-hellman-group1-sha1
+.Ed
 .It Cm KeyRegenerationInterval
 In protocol version 1, the ephemeral server key is automatically regenerated
 after this many seconds (if it has been used).
@@ -748,10 +771,16 @@ line are satisfied, the keywords on the following lines override those
 set in the global section of the config file, until either another
 .Cm Match
 line or the end of the file.
+If a keyword appears in multiple
+.Cm Match
+blocks that are satisified, only the first instance of the keyword is
+applied.
 .Pp
 The arguments to
 .Cm Match
-are one or more criteria-pattern pairs.
+are one or more criteria-pattern pairs or the single token
+.Cm All
+which matches all criteria.
 The available criteria are
 .Cm User ,
 .Cm Group ,
@@ -812,6 +841,7 @@ Available keywords are
 .Cm PermitEmptyPasswords ,
 .Cm PermitOpen ,
 .Cm PermitRootLogin ,
+.Cm PermitTTY ,
 .Cm PermitTunnel ,
 .Cm PubkeyAuthentication ,
 .Cm RekeyLimit ,
@@ -950,6 +980,12 @@ and
 .Dq ethernet .
 The default is
 .Dq no .
+.It Cm PermitTTY
+Specifies whether
+.Xr pty 4
+allocation is permitted.
+The default is
+.Dq yes .
 .It Cm PermitUserEnvironment
 Specifies whether
 .Pa ~/.ssh/environment
@@ -1206,7 +1242,7 @@ the privilege of the authenticated user.
 The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
 The default is
-.Dq yes .
+.Dq sandbox .
 If
 .Cm UsePrivilegeSeparation
 is set to
@@ -1217,7 +1253,7 @@ restrictions.
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20130918 .
+.Dq FreeBSD-20140420 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

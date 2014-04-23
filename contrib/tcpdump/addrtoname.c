@@ -32,6 +32,12 @@ static const char rcsid[] _U_ =
 #include "config.h"
 #endif
 
+#ifdef __FreeBSD__
+#ifdef HAVE_LIBCAPSICUM
+#include <libcapsicum.h>
+#include <libcapsicum_dns.h>
+#endif /* HAVE_LIBCAPSICUM */
+#endif
 #include <tcpdump-stdinc.h>
 
 #ifdef USE_ETHER_NTOHOST
@@ -203,6 +209,9 @@ intoa(u_int32_t addr)
 
 static u_int32_t f_netmask;
 static u_int32_t f_localnet;
+#ifdef HAVE_LIBCAPSICUM
+extern cap_channel_t *capdns;
+#endif
 
 /*
  * Return a name for the IP address pointed to by ap.  This address
@@ -248,7 +257,13 @@ getname(const u_char *ap)
 	 */
 	if (!nflag &&
 	    (addr & f_netmask) == f_localnet) {
-		hp = gethostbyaddr((char *)&addr, 4, AF_INET);
+#ifdef HAVE_LIBCAPSICUM
+		if (capdns != NULL) {
+			hp = cap_gethostbyaddr(capdns, (char *)&addr, 4,
+			    AF_INET);
+		} else
+#endif
+			hp = gethostbyaddr((char *)&addr, 4, AF_INET);
 		if (hp) {
 			char *dotp;
 
@@ -293,7 +308,13 @@ getname6(const u_char *ap)
 	 * Do not print names if -n was given.
 	 */
 	if (!nflag) {
-		hp = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET6);
+#ifdef HAVE_LIBCAPSICUM
+		if (capdns != NULL) {
+			hp = cap_gethostbyaddr(capdns, (char *)&addr,
+			    sizeof(addr), AF_INET6);
+		} else
+#endif
+			hp = gethostbyaddr((char *)&addr, sizeof(addr), AF_INET6);
 		if (hp) {
 			char *dotp;
 

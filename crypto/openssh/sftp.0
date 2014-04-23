@@ -4,7 +4,7 @@ NAME
      sftp - secure file transfer program
 
 SYNOPSIS
-     sftp [-1246Cpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
+     sftp [-1246aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
           [-D sftp_server_path] [-F ssh_config] [-i identity_file] [-l limit]
           [-o ssh_option] [-P port] [-R num_requests] [-S program]
           [-s subsystem | sftp_server] host
@@ -44,6 +44,11 @@ DESCRIPTION
 
      -6      Forces sftp to use IPv6 addresses only.
 
+     -a      Attempt to continue interrupted downloads rather than overwriting
+             existing partial or complete copies of files.  If the remote file
+             contents differ from the partial local copy then the resultant
+             file is likely to be corrupt.
+
      -B buffer_size
              Specify the size of the buffer that sftp uses when transferring
              files.  Larger buffers require fewer round trips at the cost of
@@ -74,6 +79,10 @@ DESCRIPTION
              Specifies an alternative per-user configuration file for ssh(1).
              This option is directly passed to ssh(1).
 
+     -f      Requests that files be flushed to disk immediately after
+             transfer.  When uploading files, this feature is only enabled if
+             the server implements the "fsync@openssh.com" extension.
+
      -i identity_file
              Selects the file from which the identity (private key) for public
              key authentication is read.  This option is directly passed to
@@ -93,6 +102,11 @@ DESCRIPTION
                    AddressFamily
                    BatchMode
                    BindAddress
+                   CanonicalDomains
+                   CanonicalizeFallbackLocal
+                   CanonicalizeHostname
+                   CanonicalizeMaxDots
+                   CanonicalizePermittedCNAMEs
                    ChallengeResponseAuthentication
                    CheckHostIP
                    Cipher
@@ -209,7 +223,7 @@ INTERACTIVE COMMANDS
 
      exit    Quit sftp.
 
-     get [-aPpr] remote-path [local-path]
+     get [-afPpr] remote-path [local-path]
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
              it has on the remote machine.  remote-path may contain glob(3)
@@ -220,8 +234,11 @@ INTERACTIVE COMMANDS
              If the -a flag is specified, then attempt to resume partial
              transfers of existing files.  Note that resumption assumes that
              any partial copy of the local file matches the remote copy.  If
-             the remote file differs from the partial local copy then the
-             resultant file is likely to be corrupt.
+             the remote file contents differ from the partial local copy then
+             the resultant file is likely to be corrupt.
+
+             If the -f flag is specified, then fsync(2) will be called after
+             the file transfer has completed to flush the file to disk.
 
              If either the -P or -p flag is specified, then full file
              permissions and access times are copied too.
@@ -293,13 +310,18 @@ INTERACTIVE COMMANDS
      progress
              Toggle display of progress meter.
 
-     put [-Ppr] local-path [remote-path]
+     put [-fPpr] local-path [remote-path]
              Upload local-path and store it on the remote machine.  If the
              remote path name is not specified, it is given the same name it
              has on the local machine.  local-path may contain glob(3)
              characters and may match multiple files.  If it does and
              remote-path is specified, then remote-path must specify a
              directory.
+
+             If the -f flag is specified, then a request will be sent to the
+             server to call fsync(2) after the file has been transferred.
+             Note that this is only supported by servers that implement the
+             "fsync@openssh.com" extension.
 
              If either the -P or -p flag is specified, then full file
              permissions and access times are copied too.
@@ -342,8 +364,7 @@ SEE ALSO
      ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), glob(3),
      ssh_config(5), sftp-server(8), sshd(8)
 
-     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol,
-     draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
-     material.
+     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
+     filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 5.4                      July 25, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    October 20, 2013                    OpenBSD 5.5

@@ -28,7 +28,6 @@
 #if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 #endif
 
 #ifdef NetBSD1_3
@@ -58,6 +57,7 @@
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -82,11 +82,6 @@
 #  include <netinet/if_ether.h>
 #else
 #  include <net/ethertypes.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #include <net/if_sppp.h>
@@ -265,16 +260,6 @@ drop:		++ifp->if_ierrors;
 		isr = NETISR_IP;
 		break;
 #endif
-#ifdef IPX
-	case ETHERTYPE_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-        case ETHERTYPE_AT:
-		isr = NETISR_ATALK;
-                break;
-#endif
 	}
 
 	if (! (ifp->if_flags & IFF_UP))
@@ -344,19 +329,9 @@ struct mbuf *sppp_fr_header (struct sppp *sp, struct mbuf *m,
 		h[3] = FR_IP;
 		return m;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		type = ETHERTYPE_IPX;
-		break;
-#endif
 #ifdef NS
 	case AF_NS:
 		type = 0x8137;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		type = ETHERTYPE_AT;
 		break;
 #endif
 	}

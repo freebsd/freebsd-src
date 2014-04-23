@@ -1,4 +1,4 @@
-.\" $Id: yacc.1,v 1.18 2012/01/15 18:12:28 tom Exp $
+.\" $Id: yacc.1,v 1.20 2014/01/01 17:40:13 tom Exp $
 .\"
 .\" .TH YACC 1 "July\ 15,\ 1990"
 .\" .UC 6
@@ -8,15 +8,22 @@
 .sp
 .in +4
 ..
-.de EE
+.de XE
 .in -4
 .fi
 ..
+.\" Escape single quotes in literal strings from groff's Unicode transform.
+.ie \n(.g .ds AQ \(aq
+.el       .ds AQ '
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .\" Bulleted paragraph
 .de bP
 .IP \(bu 4
 ..
-.TH YACC 1 "September 7, 2011" "Berkeley Yacc" "User Commands"
+.TH YACC 1 "January 1, 2014" "Berkeley Yacc" "User Commands"
 .SH NAME
 Yacc \- an LALR(1) parser generator
 .SH SYNOPSIS
@@ -105,30 +112,31 @@ The default prefix is the string
 .BR yy.
 .TP
 .B \-P
-create a reentrant parser, e.g., "%pure-parser".
+create a reentrant parser, e.g., \*(``%pure-parser\*(''.
 .TP
 .B \-r
 The
 .B \-r
 option causes
 .B yacc
-to produce separate files for code and tables.  The code file
-is named
+to produce separate files for code and tables.
+The code file is named
 .IR y.code.c,
 and the tables file is named
 .IR y.tab.c.
-The prefix "\fIy.\fP" can be overridden using the \fB\-b\fP option.
+The prefix \*(``\fIy.\fP\*('' can be overridden using the \fB\-b\fP option.
 .TP
 .B \-s
-suppress "\fB#define\fP" statements generated for string literals in
-a "\fB%token\fP" statement, to more closely match original \fByacc\fP behavior.
+suppress \*(``\fB#define\fP\*('' statements generated for string literals in
+a \*(``\fB%token\fP\*('' statement,
+to more closely match original \fByacc\fP behavior.
 .IP
 Normally when \fByacc\fP sees a line such as
 .ES
 %token OP_ADD "ADD"
-.EE
+.XE
 .IP
-it notices that the quoted "ADD" is a valid C identifier,
+it notices that the quoted \*(``ADD\*('' is a valid C identifier,
 and generates a #define not only for OP_ADD,
 but for ADD as well,
 e.g.,
@@ -136,12 +144,13 @@ e.g.,
 #define OP_ADD 257
 .br
 #define ADD 258
-.EE
+.XE
 .IP
-The original \fByacc\fP does not generate the second "\fB#define\fP".
-The \fB\-s\fP option suppresses this "\fB#define\fP".
+The original \fByacc\fP does not generate the second \*(``\fB#define\fP\*(''.
+The \fB\-s\fP option suppresses this \*(``\fB#define\fP\*(''.
 .IP
-POSIX (IEEE 1003.1 2004) documents only names and numbers for "\fB%token\fP",
+POSIX (IEEE 1003.1 2004) documents only names and numbers
+for \*(``\fB%token\fP\*('',
 though original \fByacc\fP and bison also accept string literals.
 .TP
 .B \-t
@@ -166,8 +175,8 @@ print the version number to the standard output.
 which bison supports for ostensible POSIX compatibility.
 .SH EXTENSIONS
 .B yacc
-provides some extensions for compatibility with bison and other implementations
-of yacc:
+provides some extensions for
+compatibility with bison and other implementations of yacc:
 .TP
 \fB %expect\fP \fInumber\fP
 tell \fByacc\fP the expected number of shift/reduce conflicts.
@@ -190,6 +199,13 @@ Use this directive to add parameter declarations for your customized parser.
 Most variables (other than \fByydebug\fP and \fByynerrs\fP) are
 allocated on the stack within \fByyparse\fP, making the parser reasonably
 reentrant.
+.TP
+\fB %token-table\fP
+Make the parser's names for tokens available in the \fByytname\fP array.
+However,
+.B yacc
+does not predefine \*(``$end\*('', \*(``$error\*(''
+or \*(``$undefined\*('' in this array.
 .SH PORTABILITY
 According to Robert Corbett,
 .ES
@@ -198,12 +214,12 @@ as compatible as possible with AT&T Yacc.  Berkeley Yacc can accept any input
 specification that conforms to the AT&T Yacc documentation.  Specifications
 that take advantage of undocumented features of AT&T Yacc will probably be
 rejected.
-.EE
+.XE
 .PP
 The rationale in
 .ES
 http://pubs.opengroup.org/onlinepubs/9699919799/utilities/yacc.html
-.EE
+.XE
 .PP
 documents some features of AT&T yacc which are no longer required for POSIX
 compliance.
@@ -220,19 +236,19 @@ of an action (as in the original grammar file \fBftp.y\fP):
 		= {
 			statcmd();
 		}
-.EE
+.XE
 .bP
 \fBYacc\fP and bison emit code in different order, and in particular bison
 makes forward reference to common functions such as yylex, yyparse and
 yyerror without providing prototypes.
 .bP
-Bison's support for "%expect" is broken in more than one release.
+Bison's support for \*(``%expect\*('' is broken in more than one release.
 For best results using bison, delete that directive.
 .bP
 Bison has no equivalent for some of \fByacc\fP's commmand-line options,
 relying on directives embedded in the grammar file.
 .bP
-Bison's "\fB\-y\fP" option does not affect bison's lack of support for
+Bison's \*(``\fB\-y\fP\*('' option does not affect bison's lack of support for
 features of AT&T yacc which were deemed obsolescent.
 .
 .SH DIAGNOSTICS

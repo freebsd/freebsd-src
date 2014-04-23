@@ -298,3 +298,4 @@ DECLARE_MODULE(iw_cxgb, iwch_mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(t3_tom, cxgbc, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, toecore, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, t3_tom, 1, 1, 1);
+MODULE_DEPEND(iw_cxgb, ibcore, 1, 1, 1);

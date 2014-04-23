@@ -54,11 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #endif
 #ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip.h>
 #endif
 
 #ifdef INET6
@@ -184,6 +184,11 @@ TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
     &def_use_flowid, 0,
     "Default setting for using flow id for load sharing");
+static int def_flowid_shift = 16; /* Default value for using M_FLOWID */
+TUNABLE_INT("net.link.lagg.default_flowid_shift", &def_flowid_shift);
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RW,
+    &def_flowid_shift, 0,
+    "Default setting for flowid shift for load sharing");
 
 static int
 lagg_modevent(module_t mod, int type, void *data)
@@ -293,12 +298,17 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
 	sc->use_flowid = def_use_flowid;
+	sc->flowid_shift = def_flowid_shift;
 	sc->sc_oid = oid = SYSCTL_ADD_NODE(&sc->ctx,
 		&SYSCTL_NODE_CHILDREN(_net_link, lagg),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid, sc->use_flowid,
-		"Use flow id for load sharing");
+		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid,
+		sc->use_flowid, "Use flow id for load sharing");
+	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"flowid_shift", CTLTYPE_INT|CTLFLAG_RW, &sc->flowid_shift,
+		sc->flowid_shift,
+		"Shift flowid bits to prevent multiqueue collisions");
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"count", CTLTYPE_INT|CTLFLAG_RD, &sc->sc_count, sc->sc_count,
 		"Total number of ports");
@@ -438,6 +448,11 @@ lagg_capabilities(struct lagg_softc *sc)
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
 	u_long hwa = ~0UL;
+#if defined(INET) || defined(INET6)
+	u_int hw_tsomax = IP_MAXPACKET;	/* Initialize to the maximum value. */
+#else
+	u_int hw_tsomax = ~0;	/* if_hw_tsomax is only for INET/INET6, but.. */
+#endif
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -446,6 +461,10 @@ lagg_capabilities(struct lagg_softc *sc)
 		cap &= lp->lp_ifp->if_capabilities;
 		ena &= lp->lp_ifp->if_capenable;
 		hwa &= lp->lp_ifp->if_hwassist;
+		/* Set to the minimum value of the lagg ports. */
+		if (lp->lp_ifp->if_hw_tsomax < hw_tsomax &&
+		    lp->lp_ifp->if_hw_tsomax > 0)
+			hw_tsomax = lp->lp_ifp->if_hw_tsomax;
 	}
 	cap = (cap == ~0 ? 0 : cap);
 	ena = (ena == ~0 ? 0 : ena);
@@ -453,10 +472,12 @@ lagg_capabilities(struct lagg_softc *sc)
 
 	if (sc->sc_ifp->if_capabilities != cap ||
 	    sc->sc_ifp->if_capenable != ena ||
-	    sc->sc_ifp->if_hwassist != hwa) {
+	    sc->sc_ifp->if_hwassist != hwa ||
+	    sc->sc_ifp->if_hw_tsomax != hw_tsomax) {
 		sc->sc_ifp->if_capabilities = cap;
 		sc->sc_ifp->if_capenable = ena;
 		sc->sc_ifp->if_hwassist = hwa;
+		sc->sc_ifp->if_hw_tsomax = hw_tsomax;
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)
@@ -1204,12 +1225,8 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 
 	LAGG_WLOCK_ASSERT(sc);
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_type = IFT_ETHER;
+	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
-	sdl.sdl_index = ifp->if_index;
 
 	if (set) {
 		TAILQ_FOREACH(ifma, &scifp->if_multiaddrs, ifma_link) {
@@ -1850,7 +1867,7 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	uint32_t p = 0;
 
 	if (sc->use_flowid && (m->m_flags & M_FLOWID))
-		p = m->m_pkthdr.flowid;
+		p = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		p = lagg_hashmbuf(sc, m, lb->lb_key);
 	p %= sc->sc_count;

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_global.h"
 #include "opt_ktrace.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -112,9 +111,8 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 
 /*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
+ * These hooks are necessary for the pid and usdt providers.
  */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
@@ -639,7 +637,7 @@ trap(struct trapframe *trapframe)
 	 * function can return normally.
 	 */
 	/*
-	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 * XXXDTRACE: add pid probe handler here (if ever)
 	 */
 	if (!usermode) {
 		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(trapframe, type))
@@ -1520,6 +1518,7 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 	switch (trap_type) {
+	case T_TLB_MOD:
 	case T_TLB_ST_MISS:
 	case T_ADDR_ERR_ST:
 		read_or_write = "write";

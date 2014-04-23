@@ -1390,6 +1390,15 @@ does_node_exist(svn_boolean_t *exists,
   return svn_error_trace(svn_sqlite__reset(stmt));
 }
 
+svn_error_t *
+svn_wc__db_install_schema_statistics(svn_sqlite__db_t *sdb,
+                                     apr_pool_t *scratch_pool)
+{
+  SVN_ERR(svn_sqlite__exec_statements(sdb, STMT_INSTALL_SCHEMA_STATISTICS));
+
+  return SVN_NO_ERROR;
+}
+
 /* Helper for create_db(). Initializes our wc.db schema.
  */
 static svn_error_t *
@@ -1416,6 +1425,8 @@ init_db(/* output values */
   /* Insert the repository. */
   SVN_ERR(create_repos_id(repos_id, repos_root_url, repos_uuid,
                           db, scratch_pool));
+
+  SVN_ERR(svn_wc__db_install_schema_statistics(db, scratch_pool));
 
   /* Insert the wcroot. */
   /* ### Right now, this just assumes wc metadata is being stored locally. */
@@ -2248,6 +2259,12 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
        * might introduce actual-only nodes without direct parents,
        * and we're not yet sure if other existing code is prepared
        * to handle such nodes. To be revisited post-1.8.
+       *
+       * ### In case of a conflict we are most likely creating WORKING nodes
+       *     describing a copy of what was in BASE. The move information
+       *     should be updated to describe a move from the WORKING layer.
+       *     When stored that way the resolver of the tree conflict still has
+       *     the knowledge of what was moved.
        */
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_MOVED_OUTSIDE));
@@ -4545,6 +4562,21 @@ db_op_copy(svn_wc__db_wcroot_t *src_wcroot,
     }
   else
     {
+      if (copyfrom_relpath)
+        {
+          const char *repos_root_url;
+          const char *repos_uuid;
+
+          /* Pass the right repos-id for the destination db! */
+
+          SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, &repos_uuid,
+                                              src_wcroot->sdb, copyfrom_id,
+                                              scratch_pool));
+
+          SVN_ERR(create_repos_id(&copyfrom_id, repos_root_url, repos_uuid,
+                                  dst_wcroot->sdb, scratch_pool));
+        }
+
       SVN_ERR(cross_db_copy(src_wcroot, src_relpath, dst_wcroot,
                             dst_relpath, dst_presence, dst_op_depth,
                             dst_np_op_depth, kind,
@@ -6388,6 +6420,7 @@ op_revert_txn(void *baton,
     {
       SVN_ERR(svn_wc__db_resolve_break_moved_away_internal(wcroot,
                                                            local_relpath,
+                                                           op_depth,
                                                            scratch_pool));
     }
   else
@@ -6554,10 +6587,12 @@ op_revert_recursive_txn(void *baton,
   while (have_row)
     {
       const char *move_src_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      int move_op_depth = svn_sqlite__column_int(stmt, 2);
       svn_error_t *err;
 
       err = svn_wc__db_resolve_break_moved_away_internal(wcroot,
                                                          move_src_relpath,
+                                                         move_op_depth,
                                                          scratch_pool);
       if (err)
         return svn_error_compose_create(err, svn_sqlite__reset(stmt));

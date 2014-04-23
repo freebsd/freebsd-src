@@ -320,7 +320,7 @@ print_pd(struct mfi_pd_info *info, int state_len)
 	const char *s;
 	char buf[256];
 
-	humanize_number(buf, sizeof(buf), info->raw_size * 512, "",
+	humanize_number(buf, 6, info->raw_size * 512, "",
 	    HN_AUTOSCALE, HN_B | HN_NOSPACE |HN_DECIMAL);
 	printf("(%6s) ", buf);
 	if (info->state.ddf.v.pd_type.is_foreign) {
@@ -766,7 +766,7 @@ show_progress(int ac, char **av __unused)
 			printf("drive %s ", mfi_drive_name(NULL, device_id,
 			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 			mfi_display_progress("Clear", &pinfo.prog_info.clear);
-			
+			busy = 1;
 		}
 	}
 

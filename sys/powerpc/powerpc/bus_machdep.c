@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -58,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	MAX_EARLYBOOT_MAPPINGS	6
 
 static struct {
+	vm_offset_t virt;
 	bus_addr_t addr;
 	bus_size_t size;
 	int flags;
@@ -86,10 +80,12 @@ bs_gen_map(bus_addr_t addr, bus_size_t size, int flags,
 		KASSERT(earlyboot_map_idx < MAX_EARLYBOOT_MAPPINGS,
 		    ("%s: too many early boot mapping requests", __func__));
 		earlyboot_mappings[earlyboot_map_idx].addr = addr;
+		earlyboot_mappings[earlyboot_map_idx].virt =
+		    pmap_early_io_map(addr, size);
 		earlyboot_mappings[earlyboot_map_idx].size = size;
 		earlyboot_mappings[earlyboot_map_idx].flags = flags;
+		*bshp = earlyboot_mappings[earlyboot_map_idx].virt;
 		earlyboot_map_idx++;
-		*bshp = addr;
 	} else {
 		ma = VM_MEMATTR_DEFAULT;
 		switch (flags) {
@@ -110,13 +106,13 @@ void
 bs_remap_earlyboot(void)
 {
 	int i;
-	vm_offset_t pa, spa;
+	vm_offset_t pa, spa, va;
 	vm_memattr_t ma;
 
 	for (i = 0; i < earlyboot_map_idx; i++) {
 		spa = earlyboot_mappings[i].addr;
-		if (pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size)
-		    == 0)
+		if (spa == earlyboot_mappings[i].virt &&
+		   pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size) == 0)
 			continue;
 
 		ma = VM_MEMATTR_DEFAULT;
@@ -130,8 +126,10 @@ bs_remap_earlyboot(void)
 		}
 
 		pa = trunc_page(spa);
+		va = trunc_page(earlyboot_mappings[i].virt);
 		while (pa < spa + earlyboot_mappings[i].size) {
-			pmap_kenter_attr(pa, pa, ma);
+			pmap_kenter_attr(va, pa, ma);
+			va += PAGE_SIZE;
 			pa += PAGE_SIZE;
 		}
 	}

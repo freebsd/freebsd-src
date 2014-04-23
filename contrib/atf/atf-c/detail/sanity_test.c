@@ -53,21 +53,6 @@
 
 enum type { inv, pre, post, unreachable };
 
-static
-bool
-grep(const atf_dynstr_t *line, const char *text)
-{
-    const char *l = atf_dynstr_cstring(line);
-    bool found;
-
-    found = false;
-
-    if (strstr(l, text) != NULL)
-        found = true;
-
-    return found;
-}
-
 struct test_data {
     enum type m_type;
     bool m_cond;
@@ -109,9 +94,8 @@ do_test(enum type t, bool cond)
 {
     atf_process_child_t child;
     atf_process_status_t status;
-    bool eof;
     int nlines;
-    atf_dynstr_t lines[3];
+    char *lines[3];
 
     {
         atf_process_stream_t outsb, errsb;
@@ -125,13 +109,9 @@ do_test(enum type t, bool cond)
     }
 
     nlines = 0;
-    eof = false;
-    do {
-        RE(atf_dynstr_init(&lines[nlines]));
-        if (!eof)
-            eof = read_line(atf_process_child_stderr(&child), &lines[nlines]);
+    while (nlines < 3 && (lines[nlines] =
+           atf_utils_readline(atf_process_child_stderr(&child))) != NULL)
         nlines++;
-    } while (nlines < 3);
     ATF_REQUIRE(nlines == 0 || nlines == 3);
 
     RE(atf_process_child_wait(&child, &status));
@@ -147,29 +127,29 @@ do_test(enum type t, bool cond)
     if (!cond) {
         switch (t) {
         case inv:
-            ATF_REQUIRE(grep(&lines[0], "Invariant"));
+            ATF_REQUIRE(atf_utils_grep_string("Invariant", lines[0]));
             break;
 
         case pre:
-            ATF_REQUIRE(grep(&lines[0], "Precondition"));
+            ATF_REQUIRE(atf_utils_grep_string("Precondition", lines[0]));
             break;
 
         case post:
-            ATF_REQUIRE(grep(&lines[0], "Postcondition"));
+            ATF_REQUIRE(atf_utils_grep_string("Postcondition", lines[0]));
             break;
 
         case unreachable:
-            ATF_REQUIRE(grep(&lines[0], "Invariant"));
+            ATF_REQUIRE(atf_utils_grep_string("Invariant", lines[0]));
             break;
         }
 
-        ATF_REQUIRE(grep(&lines[0], __FILE__));
-        ATF_REQUIRE(grep(&lines[2], PACKAGE_BUGREPORT));
+        ATF_REQUIRE(atf_utils_grep_string(__FILE__, lines[0]));
+        ATF_REQUIRE(atf_utils_grep_string(PACKAGE_BUGREPORT, lines[2]));
     }
 
     while (nlines > 0) {
         nlines--;
-        atf_dynstr_fini(&lines[nlines]);
+        free(lines[nlines]);
     }
 }
 

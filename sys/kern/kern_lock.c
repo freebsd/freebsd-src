@@ -29,7 +29,6 @@
 #include "opt_adaptive_lockmgrs.h"
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");

@@ -152,6 +152,8 @@ class X86InstrInfo : public X86GenInstrInfo {
                             MemOp2RegOpTableType &M2RTable,
                             unsigned RegOp, unsigned MemOp, unsigned Flags);
 
+  virtual void anchor();
+
 public:
   explicit X86InstrInfo(X86TargetMachine &tm);
 
@@ -191,6 +193,19 @@ public:
                      unsigned DestReg, unsigned SubIdx,
                      const MachineInstr *Orig,
                      const TargetRegisterInfo &TRI) const;
+
+  /// Given an operand within a MachineInstr, insert preceding code to put it
+  /// into the right format for a particular kind of LEA instruction. This may
+  /// involve using an appropriate super-register instead (with an implicit use
+  /// of the original) or creating a new virtual register and inserting COPY
+  /// instructions to get the data into the right class.
+  ///
+  /// Reference parameters are set to indicate how caller should add this
+  /// operand to the LEA instruction.
+  bool classifyLEAReg(MachineInstr *MI, const MachineOperand &Src,
+                      unsigned LEAOpcode, bool AllowSP,
+                      unsigned &NewSrc, bool &isKill,
+                      bool &isUndef, MachineOperand &ImplicitOp) const;
 
   /// convertToThreeAddress - This method must be implemented by targets that
   /// set the M_CONVERTIBLE_TO_3_ADDR flag.  When this flag is set, the target
@@ -262,12 +277,6 @@ public:
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
-  virtual
-  MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
-                                         int FrameIx, uint64_t Offset,
-                                         const MDNode *MDPtr,
-                                         DebugLoc DL) const;
-
   /// foldMemoryOperand - If this target supports it, fold a load or store of
   /// the specified stack slot into the specified machine instruction for the
   /// specified operand(s).  If this is possible, the target should perform the
@@ -332,6 +341,9 @@ public:
                                        int64_t Offset1, int64_t Offset2,
                                        unsigned NumLoads) const;
 
+  virtual bool shouldScheduleAdjacent(MachineInstr* First,
+                                      MachineInstr *Second) const LLVM_OVERRIDE;
+
   virtual void getNoopForMachoTarget(MCInst &NopInst) const;
 
   virtual
@@ -359,6 +371,8 @@ public:
 
   unsigned getPartialRegUpdateClearance(const MachineInstr *MI, unsigned OpNum,
                                         const TargetRegisterInfo *TRI) const;
+  unsigned getUndefRegClearance(const MachineInstr *MI, unsigned &OpNum,
+                                const TargetRegisterInfo *TRI) const;
   void breakPartialRegDependency(MachineBasicBlock::iterator MI, unsigned OpNum,
                                  const TargetRegisterInfo *TRI) const;
 

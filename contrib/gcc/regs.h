@@ -239,5 +239,41 @@ extern void allocate_reg_info (size_t, int, int);
 
 /* Specify number of hard registers given machine mode occupy.  */
 extern unsigned char hard_regno_nregs[FIRST_PSEUDO_REGISTER][MAX_MACHINE_MODE];
+/* Return an exclusive upper bound on the registers occupied by hard
+   register (reg:MODE REGNO).  */
+
+static inline unsigned int
+end_hard_regno (enum machine_mode mode, unsigned int regno)
+{
+  return regno + hard_regno_nregs[regno][(int) mode];
+}
+
+/* Likewise for hard register X.  */
+
+#define END_HARD_REGNO(X) end_hard_regno (GET_MODE (X), REGNO (X))
+
+/* Likewise for hard or pseudo register X.  */
+
+#define END_REGNO(X) (HARD_REGISTER_P (X) ? END_HARD_REGNO (X) : REGNO (X) + 1)
+
+
+/* Return true if (reg:MODE REGNO) includes an element of REGS.  */
+
+static inline bool
+overlaps_hard_reg_set_p (const HARD_REG_SET regs, enum machine_mode mode,
+			 unsigned int regno)
+{
+  unsigned int end_regno;
+
+  if (TEST_HARD_REG_BIT (regs, regno))
+    return true;
+
+  end_regno = end_hard_regno (mode, regno);
+  while (++regno < end_regno)
+    if (TEST_HARD_REG_BIT (regs, regno))
+      return true;
+
+  return false;
+}
 
 #endif /* GCC_REGS_H */

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -23,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: clientproto.mc,v 8.16 2000/03/21 21:05:26 ca Exp $')
+VERSIONID(`$Id: clientproto.mc,v 8.17 2013/11/22 20:51:08 ca Exp $')
 
 OSTYPE(unknown)
 FEATURE(nullclient, mailhost.$m)

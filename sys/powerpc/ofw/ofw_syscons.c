@@ -57,9 +57,12 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/ofw/ofw_syscons.h>
 
 static int ofwfb_ignore_mmap_checks = 1;
+static int ofwfb_reset_on_switch = 1;
 static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
     &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
+SYSCTL_INT(_hw_ofwfb, OID_AUTO, reset_on_mode_switch, CTLFLAG_RW,
+    &ofwfb_reset_on_switch, 0, "reset the framebuffer driver on mode switch");
 
 extern u_char dflt_font_16[];
 extern u_char dflt_font_14[];
@@ -447,26 +450,28 @@ ofwfb_set_mode(video_adapter_t *adp, int mode)
 
 	sc = (struct ofwfb_softc *)adp;
 
-	/*
-	 * Open the display device, which will initialize it.
-	 */
-
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
-
-	if (sc->sc_depth == 8) {
+	if (ofwfb_reset_on_switch) {
 		/*
-		 * Install the ISO6429 colormap - older OFW systems
-		 * don't do this by default
+		 * Open the display device, which will initialize it.
 		 */
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-				       ofwfb_cmap[i].red,
-				       ofwfb_cmap[i].green,
-				       ofwfb_cmap[i].blue,
-				       i,
-				       &retval);
+
+		memset(name, 0, sizeof(name));
+		OF_package_to_path(sc->sc_node, name, sizeof(name));
+		ih = OF_open(name);
+
+		if (sc->sc_depth == 8) {
+			/*
+			 * Install the ISO6429 colormap - older OFW systems
+			 * don't do this by default
+			 */
+			for (i = 0; i < 16; i++) {
+				OF_call_method("color!", ih, 4, 1,
+						   ofwfb_cmap[i].red,
+						   ofwfb_cmap[i].green,
+						   ofwfb_cmap[i].blue,
+						   i,
+						   &retval);
+			}
 		}
 	}
 

@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2013
+.Dd November 5, 2013
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -165,10 +165,6 @@ Default is 5 tries.
 .It Va proxyall
 Enables ARP proxying for all hosts on net.
 Turned off by default.
-.It Va useloopback
-If an ARP entry is added for local address, force the traffic to go through
-the loopback interface.
-Turned on by default.
 .It Va wait
 Lifetime of an incomplete ARP entry.
 Default is 20 seconds.

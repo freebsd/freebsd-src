@@ -307,7 +307,6 @@ int
 chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 {
 	struct dquot *dq;
-	ino_t ncurinodes;
 	int i, error, warn, do_check;
 
 #ifdef DIAGNOSTIC
@@ -322,10 +321,8 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 				continue;
 			DQI_LOCK(dq);
 			DQI_WAIT(dq, PINOD+1, "chkiq1");
-			ncurinodes = dq->dq_curinodes + change;
-			/* XXX: ncurinodes is unsigned */
-			if (dq->dq_curinodes != 0 && ncurinodes >= 0)
-				dq->dq_curinodes = ncurinodes;
+			if (dq->dq_curinodes >= -change)
+				dq->dq_curinodes += change;
 			else
 				dq->dq_curinodes = 0;
 			dq->dq_flags &= ~DQ_INODS;
@@ -359,11 +356,8 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 						continue;
 					DQI_LOCK(dq);
 					DQI_WAIT(dq, PINOD+1, "chkiq3");
-					ncurinodes = dq->dq_curinodes - change;
-					/* XXX: ncurinodes is unsigned */
-					if (dq->dq_curinodes != 0 &&
-					    ncurinodes >= 0)
-						dq->dq_curinodes = ncurinodes;
+					if (dq->dq_curinodes >= change)
+						dq->dq_curinodes -= change;
 					else
 						dq->dq_curinodes = 0;
 					dq->dq_flags &= ~DQ_INODS;

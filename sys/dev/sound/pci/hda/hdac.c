@@ -78,11 +78,20 @@ static const struct {
 	char		quirks_on;
 	char		quirks_off;
 } hdac_devices[] = {
+	{ HDA_INTEL_OAK,     "Intel Oaktrail",	0, 0 },
+	{ HDA_INTEL_BAY,     "Intel BayTrail",	0, 0 },
+	{ HDA_INTEL_HSW1,    "Intel Haswell",	0, 0 },
+	{ HDA_INTEL_HSW2,    "Intel Haswell",	0, 0 },
+	{ HDA_INTEL_HSW3,    "Intel Haswell",	0, 0 },
 	{ HDA_INTEL_CPT,     "Intel Cougar Point",	0, 0 },
 	{ HDA_INTEL_PATSBURG,"Intel Patsburg",  0, 0 },
 	{ HDA_INTEL_PPT1,    "Intel Panther Point",	0, 0 },
 	{ HDA_INTEL_LPT1,    "Intel Lynx Point",	0, 0 },
 	{ HDA_INTEL_LPT2,    "Intel Lynx Point",	0, 0 },
+	{ HDA_INTEL_WELLS1,  "Intel Wellsburg",	0, 0 },
+	{ HDA_INTEL_WELLS2,  "Intel Wellsburg",	0, 0 },
+	{ HDA_INTEL_LPTLP1,  "Intel Lynx Point-LP",	0, 0 },
+	{ HDA_INTEL_LPTLP2,  "Intel Lynx Point-LP",	0, 0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0, 0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0, 0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0, 0 },

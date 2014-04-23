@@ -8,11 +8,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/TimeValue.h"
+#include "lldb/Host/Config.h"
 
 // C Includes
 #include <stddef.h>
 #include <time.h>
 #include <cstring>
+
+#ifdef _MSC_VER
+#include "lldb/Host/windows/windows.h"
+#endif
+
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
@@ -42,8 +48,8 @@ TimeValue::TimeValue(const struct timespec& ts) :
 {
 }
 
-TimeValue::TimeValue(const struct timeval& tv) :
-    m_nano_seconds ((uint64_t) tv.tv_sec * NanoSecPerSec + (uint64_t) tv.tv_usec * NanoSecPerMicroSec)
+TimeValue::TimeValue(uint32_t seconds, uint32_t nanos) :
+    m_nano_seconds((uint64_t) seconds * NanoSecPerSec + nanos)
 {
 }
 
@@ -84,15 +90,6 @@ TimeValue::GetAsTimeSpec () const
     return ts;
 }
 
-struct timeval
-TimeValue::GetAsTimeVal () const
-{
-    struct timeval tv;
-    tv.tv_sec = m_nano_seconds / NanoSecPerSec;
-    tv.tv_usec = (m_nano_seconds % NanoSecPerSec) / NanoSecPerMicroSec;
-    return tv;
-}
-
 void
 TimeValue::Clear ()
 {
@@ -126,9 +123,22 @@ TimeValue::OffsetWithNanoSeconds (uint64_t nsec)
 TimeValue
 TimeValue::Now()
 {
+    uint32_t seconds, nanoseconds;
+#if _MSC_VER
+    SYSTEMTIME st;
+    GetSystemTime(&st);
+    nanoseconds = st.wMilliseconds * 1000000;
+    FILETIME ft;
+    SystemTimeToFileTime(&st, &ft);
+
+    seconds = ((((uint64_t)ft.dwHighDateTime) << 32 | ft.dwLowDateTime) / 10000000) - 11644473600ULL;
+#else
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    TimeValue now(tv);
+    seconds = tv.tv_sec;
+    nanoseconds = tv.tv_usec * NanoSecPerMicroSec;
+#endif
+    TimeValue now(seconds, nanoseconds);
     return now;
 }
 
@@ -148,6 +158,7 @@ TimeValue::Dump (Stream *s, uint32_t width) const
     if (s == NULL)
         return;
 
+#ifndef LLDB_DISABLE_POSIX
     char time_buf[32];
     time_t time = GetAsSecondsSinceJan1_1970();
     char *time_cstr = ::ctime_r(&time, time_buf);
@@ -163,6 +174,7 @@ TimeValue::Dump (Stream *s, uint32_t width) const
     }
     else if (width > 0)
         s->Printf("%-*s", width, "");
+#endif
 }
 
 bool

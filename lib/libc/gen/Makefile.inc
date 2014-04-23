@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/gen ${.CURDIR}/gen
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/gen ${LIBC_SRCTOP}/gen
 
 SRCS+=	__getosreldate.c \
 	__xuname.c \
@@ -145,11 +145,11 @@ SRCS+=	__getosreldate.c \
 	waitid.c \
 	wordexp.c
 
-.PATH: ${.CURDIR}/../../contrib/libc-pwcache
+.PATH: ${LIBC_SRCTOP}/../../contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
 
-.PATH: ${.CURDIR}/../../contrib/libc-vis
-CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis
+.PATH: ${LIBC_SRCTOP}/../../contrib/libc-vis
+CFLAGS+=	-I${LIBC_SRCTOP}/../../contrib/libc-vis
 SRCS+=	unvis.c vis.c
 
 MISRCS+=modf.c
@@ -159,17 +159,18 @@ CANCELPOINTS_SRCS=sem.c sem_new.c
 SRCS+=cancelpoints_${src}
 CLEANFILES+=cancelpoints_${src}
 cancelpoints_${src}:
-	ln -sf ${.CURDIR}/gen/${src} ${.TARGET}
+	ln -sf ${LIBC_SRCTOP}/gen/${src} ${.TARGET}
 .endfor
 
-SYM_MAPS+=${.CURDIR}/gen/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/gen/Symbol.map
 
 # machine-dependent gen sources
-.sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
+.sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 \
 	arc4random.3 \
 	basename.3 \
+	cap_rights_get.3 \
 	cap_sandboxed.3 \
 	check_utility_compat.3 \
 	clock.3 \
@@ -303,8 +304,9 @@ MLINKS+=devname.3 fdevname.3
 MLINKS+=devname.3 fdevname_r.3
 MLINKS+=directory.3 closedir.3 \
 	directory.3 dirfd.3 \
-	directory.3 opendir.3 \
+	directory.3 fdclosedir.3 \
 	directory.3 fdopendir.3 \
+	directory.3 opendir.3 \
 	directory.3 readdir.3 \
 	directory.3 readdir_r.3 \
 	directory.3 rewinddir.3 \

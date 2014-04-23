@@ -6,9 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-//  This file defines the TypeLoc interface and subclasses.
-//
+///
+/// \file
+/// \brief Defines the clang::TypeLoc interface and its subclasses.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_AST_TYPELOC_H
@@ -34,8 +35,8 @@ namespace clang {
 
 /// \brief Base wrapper for a particular "section" of type source info.
 ///
-/// A client should use the TypeLoc subclasses through cast/dyn_cast in order to
-/// get at the actual information.
+/// A client should use the TypeLoc subclasses through castAs()/getAs()
+/// in order to get at the actual information.
 class TypeLoc {
 protected:
   // The correctness of this relies on the property that, for Type *Ty,
@@ -46,6 +47,8 @@ protected:
 public:
   /// \brief Convert to the specified TypeLoc type, asserting that this TypeLoc
   /// is of the desired type.
+  ///
+  /// \pre T::isKind(*this)
   template<typename T>
   T castAs() const {
     assert(T::isKind(*this));
@@ -90,10 +93,14 @@ public:
   }
 
   bool isNull() const { return !Ty; }
-  operator bool() const { return Ty; }
+  LLVM_EXPLICIT operator bool() const { return Ty; }
 
   /// \brief Returns the size of type source info data block for the given type.
   static unsigned getFullDataSizeForType(QualType Ty);
+
+  /// \brief Returns the alignment of type source info data block for
+  /// the given type.
+  static unsigned getLocalAlignmentForType(QualType Ty);
 
   /// \brief Get the type for which this source info wrapper provides
   /// information.
@@ -229,7 +236,11 @@ public:
   }
 
   UnqualTypeLoc getUnqualifiedLoc() const {
-    return UnqualTypeLoc(getTypePtr(), Data);
+    unsigned align =
+        TypeLoc::getLocalAlignmentForType(QualType(getTypePtr(), 0));
+    uintptr_t dataInt = reinterpret_cast<uintptr_t>(Data);
+    dataInt = llvm::RoundUpToAlignment(dataInt, align);
+    return UnqualTypeLoc(getTypePtr(), reinterpret_cast<void*>(dataInt));
   }
 
   /// Initializes the local data of this type source info block to
@@ -250,10 +261,11 @@ public:
     return 0;
   }
 
-  /// \brief Returns the size of the type source info data block.
-  unsigned getFullDataSize() const {
-    return getLocalDataSize() +
-      getFullDataSizeForType(getType().getLocalUnqualifiedType());
+  /// \brief Returns the alignment of the type source info data block that is
+  /// specific to this type.
+  unsigned getLocalDataAlignment() const {
+    // We don't preserve any location information.
+    return 1;
   }
 
 private:
@@ -279,9 +291,6 @@ inline UnqualTypeLoc TypeLoc::getUnqualifiedLoc() const {
 ///   location type
 /// \tparam LocalData the structure type of local location data for
 ///   this type
-///
-/// sizeof(LocalData) needs to be a multiple of sizeof(void*) or
-/// else the world will end.
 ///
 /// TypeLocs with non-constant amounts of local data should override
 /// getExtraLocalDataSize(); getExtraLocalData() will then point to
@@ -309,7 +318,8 @@ class ConcreteTypeLoc : public Base {
 
   friend class TypeLoc;
   static bool isKind(const TypeLoc &TL) {
-    return Derived::classofType(TL.getTypePtr());
+    return !TL.getType().hasLocalQualifiers() &&
+           Derived::classofType(TL.getTypePtr());
   }
 
   static bool classofType(const Type *Ty) {
@@ -317,12 +327,16 @@ class ConcreteTypeLoc : public Base {
   }
 
 public:
-  unsigned getLocalDataSize() const {
-    return sizeof(LocalData) + asDerived()->getExtraLocalDataSize();
+  unsigned getLocalDataAlignment() const {
+    return std::max(llvm::alignOf<LocalData>(),
+                    asDerived()->getExtraLocalDataAlignment());
   }
-  // Give a default implementation that's useful for leaf types.
-  unsigned getFullDataSize() const {
-    return asDerived()->getLocalDataSize() + getInnerTypeSize();
+  unsigned getLocalDataSize() const {
+    unsigned size = sizeof(LocalData);
+    unsigned extraAlign = asDerived()->getExtraLocalDataAlignment();
+    size = llvm::RoundUpToAlignment(size, extraAlign);
+    size += asDerived()->getExtraLocalDataSize();
+    return size;
   }
 
   TypeLoc getNextTypeLoc() const {
@@ -338,6 +352,10 @@ protected:
     return 0;
   }
 
+  unsigned getExtraLocalDataAlignment() const {
+    return 1;
+  }
+
   LocalData *getLocalData() const {
     return static_cast<LocalData*>(Base::Data);
   }
@@ -346,11 +364,17 @@ protected:
   /// local data that can't be captured in the Info (e.g. because it's
   /// of variable size).
   void *getExtraLocalData() const {
-    return getLocalData() + 1;
+    unsigned size = sizeof(LocalData);
+    unsigned extraAlign = asDerived()->getExtraLocalDataAlignment();
+    size = llvm::RoundUpToAlignment(size, extraAlign);
+    return reinterpret_cast<char*>(Base::Data) + size;
   }
 
   void *getNonLocalData() const {
-    return static_cast<char*>(Base::Data) + asDerived()->getLocalDataSize();
+    uintptr_t data = reinterpret_cast<uintptr_t>(Base::Data);
+    data += asDerived()->getLocalDataSize();
+    data = llvm::RoundUpToAlignment(data, getNextTypeAlign());
+    return reinterpret_cast<void*>(data);
   }
 
   struct HasNoInnerType {};
@@ -373,6 +397,18 @@ private:
     return getInnerTypeLoc().getFullDataSize();
   }
 
+  unsigned getNextTypeAlign() const {
+    return getNextTypeAlign(asDerived()->getInnerType());
+  }
+
+  unsigned getNextTypeAlign(HasNoInnerType _) const {
+    return 1;
+  }
+
+  unsigned getNextTypeAlign(QualType T) const {
+    return TypeLoc::getLocalAlignmentForType(T);
+  }
+
   TypeLoc getNextTypeLoc(HasNoInnerType _) const {
     return TypeLoc();
   }
@@ -393,7 +429,8 @@ class InheritingConcreteTypeLoc : public Base {
   }
 
   static bool isKind(const TypeLoc &TL) {
-    return Derived::classofType(TL.getTypePtr());
+    return !TL.getType().hasLocalQualifiers() &&
+           Derived::classofType(TL.getTypePtr());
   }
   static bool isKind(const UnqualTypeLoc &TL) {
     return Derived::classofType(TL.getTypePtr());
@@ -417,7 +454,8 @@ class TypeSpecTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
                                                Type,
                                                TypeSpecLocInfo> {
 public:
-  enum { LocalDataSize = sizeof(TypeSpecLocInfo) };
+  enum { LocalDataSize = sizeof(TypeSpecLocInfo),
+         LocalDataAlignment = llvm::AlignOf<TypeSpecLocInfo>::Alignment };
 
   SourceLocation getNameLoc() const {
     return this->getLocalData()->NameLoc;
@@ -448,8 +486,6 @@ class BuiltinTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc,
                                               BuiltinType,
                                               BuiltinLocInfo> {
 public:
-  enum { LocalDataSize = sizeof(BuiltinLocInfo) };
-
   SourceLocation getBuiltinLoc() const {
     return getLocalData()->BuiltinLoc;
   }
@@ -476,6 +512,10 @@ public:
 
   unsigned getExtraLocalDataSize() const {
     return needsExtraLocalData() ? sizeof(WrittenBuiltinSpecs) : 0;
+  }
+
+  unsigned getExtraLocalDataAlignment() const {
+    return needsExtraLocalData() ? llvm::alignOf<WrittenBuiltinSpecs>() : 1;
   }
 
   SourceRange getLocalSourceRange() const {
@@ -840,6 +880,10 @@ public:
     return this->getNumProtocols() * sizeof(SourceLocation);
   }
 
+  unsigned getExtraLocalDataAlignment() const {
+    return llvm::alignOf<SourceLocation>();
+  }
+
   QualType getInnerType() const {
     return getTypePtr()->getBaseType();
   }
@@ -932,6 +976,40 @@ inline TypeLoc TypeLoc::IgnoreParens() const {
     return IgnoreParensImpl(*this);
   return *this;
 }
+
+
+struct DecayedLocInfo { }; // Nothing.
+
+/// \brief Wrapper for source info for pointers decayed from arrays and
+/// functions.
+class DecayedTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, DecayedTypeLoc,
+                                              DecayedType, DecayedLocInfo> {
+public:
+  TypeLoc getOriginalLoc() const {
+    return getInnerTypeLoc();
+  }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    // do nothing
+  }
+
+  QualType getInnerType() const {
+    // The inner type is the undecayed type, since that's what we have source
+    // location information for.
+    return getTypePtr()->getOriginalType();
+  }
+
+  SourceRange getLocalSourceRange() const {
+    return SourceRange();
+  }
+
+  unsigned getLocalDataSize() const {
+    // sizeof(DecayedLocInfo) is 1, but we don't need its address to be unique
+    // anyway.  TypeLocBuilder can't handle data sizes of 1.
+    return 0;  // No data.
+  }
+};
+
 
 struct PointerLikeLocInfo {
   SourceLocation StarLoc;
@@ -1166,6 +1244,10 @@ public:
     return getNumArgs() * sizeof(ParmVarDecl*);
   }
 
+  unsigned getExtraLocalDataAlignment() const {
+    return llvm::alignOf<ParmVarDecl*>();
+  }
+
   QualType getInnerType() const { return getTypePtr()->getResultType(); }
 };
 
@@ -1355,6 +1437,10 @@ public:
 
   unsigned getExtraLocalDataSize() const {
     return getNumArgs() * sizeof(TemplateArgumentLocInfo);
+  }
+
+  unsigned getExtraLocalDataAlignment() const {
+    return llvm::alignOf<TemplateArgumentLocInfo>();
   }
 
 private:
@@ -1759,6 +1845,10 @@ public:
 
   unsigned getExtraLocalDataSize() const {
     return getNumArgs() * sizeof(TemplateArgumentLocInfo);
+  }
+
+  unsigned getExtraLocalDataAlignment() const {
+    return llvm::alignOf<TemplateArgumentLocInfo>();
   }
 
 private:

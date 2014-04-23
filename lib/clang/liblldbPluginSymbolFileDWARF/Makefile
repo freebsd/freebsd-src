@@ -7,6 +7,7 @@ LIB=	lldbPluginSymbolFileDWARF
 SRCDIR=	tools/lldb/source/Plugins/SymbolFile/DWARF
 SRCS=	DWARFAbbreviationDeclaration.cpp \
 	DWARFCompileUnit.cpp \
+	DWARFDataExtractor.cpp \
 	DWARFDebugAbbrev.cpp \
 	DWARFDebugAranges.cpp \
 	DWARFDebugArangeSet.cpp \

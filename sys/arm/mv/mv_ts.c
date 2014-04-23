@@ -59,6 +59,9 @@ ts_probe(device_t dev)
 {
 	uint32_t d, r;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "mrvl,ts"))
 		return (ENXIO);
 	soc_id(&d, &r);

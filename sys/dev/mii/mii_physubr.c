@@ -209,12 +209,7 @@ int
 mii_phy_tick(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	struct ifnet *ifp = sc->mii_pdata->mii_ifp;
 	int reg;
-
-	/* Just bail now if the interface is down. */
-	if ((ifp->if_flags & IFF_UP) == 0)
-		return (EJUSTRETURN);
 
 	/*
 	 * If we're not doing autonegotiation, we don't need to do

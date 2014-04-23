@@ -11,9 +11,9 @@
 
 #ifndef lint
 static const char copyright[] =
-"%Z% Copyright (c) 1992, 1993, 1994\n\
+"@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n\
-%Z% Copyright (c) 1992, 1993, 1994, 1995, 1996\n\
+@(#) Copyright (c) 1992, 1993, 1994, 1995, 1996\n\
 	Keith Bostic.  All rights reserved.\n";
 #endif /* not lint */
 

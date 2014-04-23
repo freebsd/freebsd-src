@@ -132,7 +132,7 @@
 #define	INPROGRESS	0x001000 /* dirrem, freeblks, freefrag, freefile only */
 #define	UFS1FMT		0x002000 /* indirdep only */
 #define	EXTDATA		0x004000 /* allocdirect only */
-#define ONWORKLIST	0x008000
+#define	ONWORKLIST	0x008000
 #define	IOWAITING	0x010000 /* Thread is waiting for IO to complete. */
 #define	ONDEPLIST	0x020000 /* Structure is on a dependency list. */
 #define	UNLINKED	0x040000 /* inodedep has been unlinked. */
@@ -142,6 +142,39 @@
 #define	UNLINKLINKS	(UNLINKNEXT | UNLINKPREV)
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
+
+/*
+ * Values for each of the soft dependency types.
+ */
+#define	D_PAGEDEP	0
+#define	D_INODEDEP	1
+#define	D_BMSAFEMAP	2
+#define	D_NEWBLK	3
+#define	D_ALLOCDIRECT	4
+#define	D_INDIRDEP	5
+#define	D_ALLOCINDIR	6
+#define	D_FREEFRAG	7
+#define	D_FREEBLKS	8
+#define	D_FREEFILE	9
+#define	D_DIRADD	10
+#define	D_MKDIR		11
+#define	D_DIRREM	12
+#define	D_NEWDIRBLK	13
+#define	D_FREEWORK	14
+#define	D_FREEDEP	15
+#define	D_JADDREF	16
+#define	D_JREMREF	17
+#define	D_JMVREF	18
+#define	D_JNEWBLK	19
+#define	D_JFREEBLK	20
+#define	D_JFREEFRAG	21
+#define	D_JSEG		22
+#define	D_JSEGDEP	23
+#define	D_SBDEP		24
+#define	D_JTRUNC	25
+#define	D_JFSYNC	26
+#define	D_SENTINEL	27
+#define	D_LAST		D_SENTINEL
 
 /*
  * The workitem queue.
@@ -170,22 +203,22 @@ struct worklist {
 	unsigned int		wk_type:8,	/* type of request */
 				wk_state:24;	/* state flags */
 };
-#define WK_DATA(wk) ((void *)(wk))
-#define WK_PAGEDEP(wk) ((struct pagedep *)(wk))
-#define WK_INODEDEP(wk) ((struct inodedep *)(wk))
-#define WK_BMSAFEMAP(wk) ((struct bmsafemap *)(wk))
+#define	WK_DATA(wk) ((void *)(wk))
+#define	WK_PAGEDEP(wk) ((struct pagedep *)(wk))
+#define	WK_INODEDEP(wk) ((struct inodedep *)(wk))
+#define	WK_BMSAFEMAP(wk) ((struct bmsafemap *)(wk))
 #define	WK_NEWBLK(wk)  ((struct newblk *)(wk))
-#define WK_ALLOCDIRECT(wk) ((struct allocdirect *)(wk))
-#define WK_INDIRDEP(wk) ((struct indirdep *)(wk))
-#define WK_ALLOCINDIR(wk) ((struct allocindir *)(wk))
-#define WK_FREEFRAG(wk) ((struct freefrag *)(wk))
-#define WK_FREEBLKS(wk) ((struct freeblks *)(wk))
-#define WK_FREEWORK(wk) ((struct freework *)(wk))
-#define WK_FREEFILE(wk) ((struct freefile *)(wk))
-#define WK_DIRADD(wk) ((struct diradd *)(wk))
-#define WK_MKDIR(wk) ((struct mkdir *)(wk))
-#define WK_DIRREM(wk) ((struct dirrem *)(wk))
-#define WK_NEWDIRBLK(wk) ((struct newdirblk *)(wk))
+#define	WK_ALLOCDIRECT(wk) ((struct allocdirect *)(wk))
+#define	WK_INDIRDEP(wk) ((struct indirdep *)(wk))
+#define	WK_ALLOCINDIR(wk) ((struct allocindir *)(wk))
+#define	WK_FREEFRAG(wk) ((struct freefrag *)(wk))
+#define	WK_FREEBLKS(wk) ((struct freeblks *)(wk))
+#define	WK_FREEWORK(wk) ((struct freework *)(wk))
+#define	WK_FREEFILE(wk) ((struct freefile *)(wk))
+#define	WK_DIRADD(wk) ((struct diradd *)(wk))
+#define	WK_MKDIR(wk) ((struct mkdir *)(wk))
+#define	WK_DIRREM(wk) ((struct dirrem *)(wk))
+#define	WK_NEWDIRBLK(wk) ((struct newdirblk *)(wk))
 #define	WK_JADDREF(wk) ((struct jaddref *)(wk))
 #define	WK_JREMREF(wk) ((struct jremref *)(wk))
 #define	WK_JMVREF(wk) ((struct jmvref *)(wk))
@@ -239,8 +272,8 @@ TAILQ_HEAD(freeblklst, freeblks);
  * list, any removed operations are done, and the dependency structure
  * is freed.
  */
-#define DAHASHSZ 5
-#define DIRADDHASH(offset) (((offset) >> 2) % DAHASHSZ)
+#define	DAHASHSZ 5
+#define	DIRADDHASH(offset) (((offset) >> 2) % DAHASHSZ)
 struct pagedep {
 	struct	worklist pd_list;	/* page buffer */
 #	define	pd_state pd_list.wk_state /* check for multiple I/O starts */
@@ -330,8 +363,8 @@ struct inodedep {
 	struct	ufs2_dinode *idu_savedino2; /* saved ufs2_dinode contents */
 	} id_un;
 };
-#define id_savedino1 id_un.idu_savedino1
-#define id_savedino2 id_un.idu_savedino2
+#define	id_savedino1 id_un.idu_savedino1
+#define	id_savedino2 id_un.idu_savedino2
 
 /*
  * A "bmsafemap" structure maintains a list of dependency structures
@@ -416,7 +449,8 @@ struct newblk {
  */
 struct allocdirect {
 	struct	newblk ad_block;	/* Common block logic */
-#	define	ad_state ad_block.nb_list.wk_state /* block pointer state */
+#	define	ad_list ad_block.nb_list /* block pointer worklist */
+#	define	ad_state ad_list.wk_state /* block pointer state */
 	TAILQ_ENTRY(allocdirect) ad_next; /* inodedep's list of allocdirect's */
 	struct	inodedep *ad_inodedep;	/* associated inodedep */
 	ufs2_daddr_t	ad_oldblkno;	/* old value of block pointer */
@@ -644,8 +678,8 @@ struct diradd {
 	} da_un;
 	struct workhead da_jwork;	/* Journal work awaiting completion. */
 };
-#define da_previous da_un.dau_previous
-#define da_pagedep da_un.dau_pagedep
+#define	da_previous da_un.dau_previous
+#define	da_pagedep da_un.dau_pagedep
 
 /*
  * Two "mkdir" structures are needed to track the additional dependencies
@@ -701,8 +735,8 @@ struct dirrem {
 	} dm_un;
 	struct workhead dm_jwork;	/* Journal work awaiting completion. */
 };
-#define dm_pagedep dm_un.dmu_pagedep
-#define dm_dirinum dm_un.dmu_dirinum
+#define	dm_pagedep dm_un.dmu_pagedep
+#define	dm_dirinum dm_un.dmu_dirinum
 
 /*
  * A "newdirblk" structure tracks the progress of a newly allocated
@@ -947,3 +981,106 @@ struct sbdep {
 	struct	fs	*sb_fs;		/* Filesystem pointer within buf. */
 	struct	ufsmount *sb_ump;	/* Our mount structure */
 };
+
+/*
+ * Private journaling structures.
+ */
+struct jblocks {
+	struct jseglst	jb_segs;	/* TAILQ of current segments. */
+	struct jseg	*jb_writeseg;	/* Next write to complete. */
+	struct jseg	*jb_oldestseg;	/* Oldest segment with valid entries. */
+	struct jextent	*jb_extent;	/* Extent array. */
+	uint64_t	jb_nextseq;	/* Next sequence number. */
+	uint64_t	jb_oldestwrseq;	/* Oldest written sequence number. */
+	uint8_t		jb_needseg;	/* Need a forced segment. */
+	uint8_t		jb_suspended;	/* Did journal suspend writes? */
+	int		jb_avail;	/* Available extents. */
+	int		jb_used;	/* Last used extent. */
+	int		jb_head;	/* Allocator head. */
+	int		jb_off;		/* Allocator extent offset. */
+	int		jb_blocks;	/* Total disk blocks covered. */
+	int		jb_free;	/* Total disk blocks free. */
+	int		jb_min;		/* Minimum free space. */
+	int		jb_low;		/* Low on space. */
+	int		jb_age;		/* Insertion time of oldest rec. */
+};
+
+struct jextent {
+	ufs2_daddr_t	je_daddr;	/* Disk block address. */
+	int		je_blocks;	/* Disk block count. */
+};
+
+/*
+ * Hash table declarations.
+ */
+LIST_HEAD(mkdirlist, mkdir);
+LIST_HEAD(pagedep_hashhead, pagedep);
+LIST_HEAD(inodedep_hashhead, inodedep);
+LIST_HEAD(newblk_hashhead, newblk);
+LIST_HEAD(bmsafemap_hashhead, bmsafemap);
+TAILQ_HEAD(indir_hashhead, freework);
+
+/*
+ * Per-filesystem soft dependency data.
+ * Allocated at mount and freed at unmount.
+ */
+struct mount_softdeps {
+	struct	rwlock *sd_fslock;		/* softdep lock */
+	struct	workhead sd_workitem_pending;	/* softdep work queue */
+	struct	worklist *sd_worklist_tail;	/* Tail pointer for above */
+	struct	workhead sd_journal_pending;	/* journal work queue */
+	struct	worklist *sd_journal_tail;	/* Tail pointer for above */
+	struct	jblocks *sd_jblocks;		/* Journal block information */
+	struct	inodedeplst sd_unlinked;	/* Unlinked inodes */
+	struct	bmsafemaphd sd_dirtycg;		/* Dirty CGs */
+	struct	mkdirlist sd_mkdirlisthd;	/* Track mkdirs */
+	struct	pagedep_hashhead *sd_pdhash;	/* pagedep hash table */
+	u_long	sd_pdhashsize;			/* pagedep hash table size-1 */
+	long	sd_pdnextclean;			/* next hash bucket to clean */
+	struct	inodedep_hashhead *sd_idhash;	/* inodedep hash table */
+	u_long	sd_idhashsize;			/* inodedep hash table size-1 */
+	long	sd_idnextclean;			/* next hash bucket to clean */
+	struct	newblk_hashhead *sd_newblkhash;	/* newblk hash table */
+	u_long	sd_newblkhashsize;		/* newblk hash table size-1 */
+	struct	bmsafemap_hashhead *sd_bmhash;	/* bmsafemap hash table */
+	u_long	sd_bmhashsize;			/* bmsafemap hash table size-1*/
+	struct	indir_hashhead *sd_indirhash;	/* indir hash table */
+	u_long	sd_indirhashsize;		/* indir hash table size-1 */
+	long	sd_numindirdeps;		/* outstanding indirdeps */
+	int	sd_on_journal;			/* Items on the journal list */
+	int	sd_on_worklist;			/* Items on the worklist */
+	int	sd_deps;			/* Total dependency count */
+	int	sd_accdeps;			/* accumulated dep count */
+	int	sd_req;				/* Wakeup when deps hits 0. */
+	u_long	sd_curdeps[D_LAST + 1];		/* count of current deps */
+};
+/*
+ * Keep the old names from when these were in the ufsmount structure.
+ */
+#define	softdep_workitem_pending	um_softdep->sd_workitem_pending
+#define	softdep_worklist_tail		um_softdep->sd_worklist_tail
+#define	softdep_journal_pending		um_softdep->sd_journal_pending
+#define	softdep_journal_tail		um_softdep->sd_journal_tail
+#define	softdep_jblocks			um_softdep->sd_jblocks
+#define	softdep_unlinked		um_softdep->sd_unlinked
+#define	softdep_dirtycg			um_softdep->sd_dirtycg
+#define	softdep_mkdirlisthd		um_softdep->sd_mkdirlisthd
+#define	pagedep_hashtbl			um_softdep->sd_pdhash
+#define	pagedep_hash_size		um_softdep->sd_pdhashsize
+#define	pagedep_nextclean		um_softdep->sd_pdnextclean
+#define	inodedep_hashtbl		um_softdep->sd_idhash
+#define	inodedep_hash_size		um_softdep->sd_idhashsize
+#define	inodedep_nextclean		um_softdep->sd_idnextclean
+#define	newblk_hashtbl			um_softdep->sd_newblkhash
+#define	newblk_hash_size		um_softdep->sd_newblkhashsize
+#define	bmsafemap_hashtbl		um_softdep->sd_bmhash
+#define	bmsafemap_hash_size		um_softdep->sd_bmhashsize
+#define	indir_hashtbl			um_softdep->sd_indirhash
+#define	indir_hash_size			um_softdep->sd_indirhashsize
+#define	softdep_numindirdeps		um_softdep->sd_numindirdeps
+#define	softdep_on_journal		um_softdep->sd_on_journal
+#define	softdep_on_worklist		um_softdep->sd_on_worklist
+#define	softdep_deps			um_softdep->sd_deps
+#define	softdep_accdeps			um_softdep->sd_accdeps
+#define	softdep_req			um_softdep->sd_req
+#define	softdep_curdeps			um_softdep->sd_curdeps

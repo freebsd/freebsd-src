@@ -4,4 +4,4 @@
 CFLAGS+=-DSOFTFLOAT
 
 MDSRCS+= machdep_ldisd.c
-SYM_MAPS+= ${.CURDIR}/mips/Symbol.map
+SYM_MAPS+= ${LIBC_SRCTOP}/mips/Symbol.map

@@ -44,6 +44,8 @@ struct vtnet_statistics {
 	uint64_t	tx_csum_bad_ethtype;
 	uint64_t	tx_tso_bad_ethtype;
 	uint64_t	tx_tso_not_tcp;
+	uint64_t	tx_defragged;
+	uint64_t	tx_defrag_failed;
 
 	/*
 	 * These are accumulated from each Rx/Tx queue.
@@ -70,6 +72,7 @@ struct vtnet_rxq {
 	struct mtx		 vtnrx_mtx;
 	struct vtnet_softc	*vtnrx_sc;
 	struct virtqueue	*vtnrx_vq;
+	struct sglist		*vtnrx_sg;
 	int			 vtnrx_id;
 	int			 vtnrx_process_limit;
 	struct vtnet_rxq_stats	 vtnrx_stats;
@@ -91,7 +94,6 @@ struct vtnet_txq_stats {
 	uint64_t vtxs_omcasts;	/* if_omcasts */
 	uint64_t vtxs_csum;
 	uint64_t vtxs_tso;
-	uint64_t vtxs_collapsed;
 	uint64_t vtxs_rescheduled;
 };
 
@@ -99,6 +101,7 @@ struct vtnet_txq {
 	struct mtx		 vtntx_mtx;
 	struct vtnet_softc	*vtntx_sc;
 	struct virtqueue	*vtntx_vq;
+	struct sglist		*vtntx_sg;
 #ifndef VTNET_LEGACY_TX
 	struct buf_ring		*vtntx_br;
 #endif
@@ -143,9 +146,11 @@ struct vtnet_softc {
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
 	int			 vtnet_rx_process_limit;
+	int			 vtnet_rx_nsegs;
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clsize;
 	int			 vtnet_rx_new_clsize;
+	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
 	int			 vtnet_act_vq_pairs;
 	int			 vtnet_max_vq_pairs;
@@ -293,11 +298,14 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 
 /*
  * Used to preallocate the Vq indirect descriptors. The first segment
- * is reserved for the header.
+ * is reserved for the header, except for mergeable buffers since the
+ * header is placed inline with the data.
  */
+#define VTNET_MRG_RX_SEGS	1
 #define VTNET_MIN_RX_SEGS	2
 #define VTNET_MAX_RX_SEGS	34
-#define VTNET_MAX_TX_SEGS	34
+#define VTNET_MIN_TX_SEGS	4
+#define VTNET_MAX_TX_SEGS	64
 
 /*
  * Assert we can receive and transmit the maximum with regular
@@ -314,7 +322,7 @@ CTASSERT(((VTNET_MAX_TX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_MTU);
 
 /*
  * Determine how many mbufs are in each receive buffer. For LRO without
- * mergeable descriptors, we must allocate an mbuf chain large enough to
+ * mergeable buffers, we must allocate an mbuf chain large enough to
  * hold both the vtnet_rx_header and the maximum receivable data.
  */
 #define VTNET_NEEDED_RX_MBUFS(_sc, _clsize)				\

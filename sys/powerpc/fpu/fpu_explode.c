@@ -235,6 +235,7 @@ fpu_explode(struct fpemu *fe, struct fpn *fp, int type, int reg)
 		s = fpu_dtof(fp, s, space[1]);
 		break;
 
+	default:
 		panic("fpu_explode");
 		panic("fpu_explode: invalid type %d", type);
 	}

@@ -300,7 +300,8 @@ struct uma_zone {
 	volatile u_long	uz_fails;	/* Total number of alloc failures */
 	volatile u_long	uz_frees;	/* Total number of frees */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
-	uint16_t	uz_count;	/* Highest amount of items in bucket */
+	uint16_t	uz_count;	/* Amount of items in full bucket */
+	uint16_t	uz_count_min;	/* Minimal amount of items there */
 
 	/* The next three fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */

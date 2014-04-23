@@ -518,4 +518,8 @@ int str2Lst_Append(Lst, char *, const char *);
 #define MAX(a, b) ((a > b) ? a : b)
 #endif
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN BMAKE_PATH_MAX
+#endif
+
 #endif /* _MAKE_H_ */

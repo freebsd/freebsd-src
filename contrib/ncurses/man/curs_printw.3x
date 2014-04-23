@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_printw.3x,v 1.17 2006/12/24 16:05:17 tom Exp $
+.\" $Id: curs_printw.3x,v 1.20 2010/12/04 18:40:45 tom Exp $
 .TH curs_printw 3X ""
 .na
 .hy 0
@@ -35,7 +35,7 @@
 \fBwprintw\fR,
 \fBmvprintw\fR,
 \fBmvwprintw\fR,
-\fBvwprintw\fR, \fBvw_printw\fR - print formatted output in \fBcurses\fR windows
+\fBvwprintw\fR, \fBvw_printw\fR \- print formatted output in \fBcurses\fR windows
 .ad
 .hy
 .SH SYNOPSIS
@@ -74,6 +74,10 @@ In this implementation,
 an error may be returned if it cannot allocate enough memory for the
 buffer used to format the results.
 It will return an error if the window pointer is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.  The function
 \fBvwprintw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
@@ -86,9 +90,3 @@ This implementation uses \fB<stdarg.h>\fR for both, because that header
 is included in \fB<curses.h\fR>.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBprintf\fR(3), \fBvprintf(3)\fR
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

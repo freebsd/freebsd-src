@@ -2,10 +2,20 @@
 
 BINDIR= /usr/libexec/bsdinstall
 PROG=	distfetch
-DPADD=	${LIBFETCH} ${LIBNCURSESW} ${LIBDIALOG} ${LIBM}
-LDADD=	-lfetch -lncursesw -ldialog -lm
+DPADD=	${LIBFETCH} ${LIBDIALOG} ${LIBM}
+LDADD=	-lfetch -ldialog -lm
 
 WARNS?=	6
-NO_MAN=	true
+MAN=
+
+.include <bsd.own.mk>
+
+.if ${MK_NCURSESW} == "no"
+DPADD+=	${LIBNCURSES}
+LDADD+=	-lncurses
+.else
+DPADD+=	${LIBNCURSESW}
+LDADD+=	-lncursesw
+.endif
 
 .include <bsd.prog.mk>

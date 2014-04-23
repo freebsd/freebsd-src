@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -41,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/apicreg.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -301,6 +298,9 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_POLARITY_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS");
+		/* FALLTHROUGH*/
 	case ACPI_MADT_POLARITY_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_POLARITY_LOW);
@@ -310,8 +310,6 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_POLARITY_HIGH);
 	case ACPI_MADT_POLARITY_ACTIVE_LOW:
 		return (INTR_POLARITY_LOW);
-	default:
-		panic("Bogus Interrupt Polarity");
 	}
 }
 
@@ -320,6 +318,9 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.");
+		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_TRIGGER_LEVEL);
@@ -329,8 +330,6 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_TRIGGER_EDGE);
 	case ACPI_MADT_TRIGGER_LEVEL:
 		return (INTR_TRIGGER_LEVEL);
-	default:
-		panic("Bogus Interrupt Trigger Mode");
 	}
 }
 
@@ -495,7 +494,7 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		ioapic_set_triggermode(ioapic, pin,
 		    interrupt_trigger(nmi->IntiFlags, 0));
-	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
+	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
 		ioapic_set_polarity(ioapic, pin,
 		    interrupt_polarity(nmi->IntiFlags, 0));
 }
@@ -517,9 +516,9 @@ madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
 		return;
 	}
 	if (nmi->Lint == 0)
-		pin = LVT_LINT0;
+		pin = APIC_LVT_LINT0;
 	else
-		pin = LVT_LINT1;
+		pin = APIC_LVT_LINT1;
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		lapic_set_lvt_triggermode(apic_id, pin,

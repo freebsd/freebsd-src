@@ -42,6 +42,12 @@
  * conventions at compile time.
  */
 
+/* Make sure we have our platform identifier macro defined we ask for later.
+ */
+#if defined(_WIN32) && !defined(WIN32)
+#define WIN32 1
+#endif
+
 #if defined(DOXYGEN) || !defined(WIN32)
 /**
  * The public APR-UTIL functions are declared with APU_DECLARE(), so they may

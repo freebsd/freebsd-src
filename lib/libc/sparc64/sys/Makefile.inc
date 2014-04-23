@@ -10,7 +10,7 @@ SRCS+=	__sparc_sigtramp_setup.c \
 	__sparc_utrap_setup.c \
 	sigcode.S
 
-CFLAGS+= -I${.CURDIR}/sparc64/fpu
+CFLAGS+= -I${LIBC_SRCTOP}/sparc64/fpu
 
 MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S sigaction.S
 
@@ -18,6 +18,6 @@ MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S sigaction.S
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o yield.o
 
 PSEUDO=	_getlogin.o _exit.o
-.if !defined(WITHOUT_SYSCALL_COMPAT)
+.if ${MK_SYSCALL_COMPAT} != "no"
 PSEUDO+= _pread.o _pwrite.o _lseek.o _mmap.o _ftruncate.o _truncate.o
 .endif

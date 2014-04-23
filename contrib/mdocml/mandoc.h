@@ -1,6 +1,7 @@
-/*	$Id: mandoc.h,v 1.99 2012/02/16 20:51:31 joerg Exp $ */
+/*	$Id: mandoc.h,v 1.112 2013/12/30 18:30:32 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -50,6 +51,7 @@ enum	mandocerr {
 	MANDOCERR_NOTITLE, /* no title in document */
 	MANDOCERR_UPPERCASE, /* document title should be all caps */
 	MANDOCERR_BADMSEC, /* unknown manual section */
+	MANDOCERR_BADVOLARCH, /* unknown manual volume or arch */
 	MANDOCERR_NODATE, /* date missing, using today's date */
 	MANDOCERR_BADDATE, /* cannot parse date, using it verbatim */
 	MANDOCERR_PROLOGOOO, /* prologue macros out of order */
@@ -61,14 +63,14 @@ enum	mandocerr {
 	MANDOCERR_SO, /* .so is fragile, better use ln(1) */
 	MANDOCERR_NAMESECFIRST, /* NAME section must come first */
 	MANDOCERR_BADNAMESEC, /* bad NAME section contents */
-	MANDOCERR_NONAME, /* manual name not yet set */
 	MANDOCERR_SECOOO, /* sections out of conventional order */
 	MANDOCERR_SECREP, /* duplicate section name */
-	MANDOCERR_SECMSEC, /* section not in conventional manual section */
+	MANDOCERR_SECMSEC, /* section header suited to sections ... */
 
 	/* related to macros and nesting */
 	MANDOCERR_MACROOBS, /* skipping obsolete macro */
 	MANDOCERR_IGNPAR, /* skipping paragraph macro */
+	MANDOCERR_MOVEPAR, /* moving paragraph macro out of list */
 	MANDOCERR_IGNNS, /* skipping no-space macro */
 	MANDOCERR_SCOPENEST, /* blocks badly nested */
 	MANDOCERR_CHILD, /* child violates parent syntax */
@@ -129,10 +131,12 @@ enum	mandocerr {
 	MANDOCERR_ROFFLOOP, /* input stack limit exceeded, infinite loop? */
 	MANDOCERR_BADCHAR, /* skipping bad character */
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name */
+	MANDOCERR_NONAME, /* manual name not yet set */
 	MANDOCERR_NOTEXT, /* skipping text before the first section header */
 	MANDOCERR_MACRO, /* skipping unknown macro */
 	MANDOCERR_REQUEST, /* NOT IMPLEMENTED: skipping request */
 	MANDOCERR_ARGCOUNT, /* argument count wrong */
+	MANDOCERR_STRAYTA, /* skipping column outside column list */
 	MANDOCERR_NOSCOPE, /* skipping end of block that is not open */
 	MANDOCERR_SCOPEBROKEN, /* missing end of block */
 	MANDOCERR_SCOPEEXIT, /* scope open on exit */
@@ -141,6 +145,7 @@ enum	mandocerr {
 	MANDOCERR_NOARGS, /* macro requires line argument(s) */
 	MANDOCERR_NOBODY, /* macro requires body argument(s) */
 	MANDOCERR_NOARGV, /* macro requires argument(s) */
+	MANDOCERR_NUMERIC, /* request requires a numeric argument */
 	MANDOCERR_LISTTYPE, /* missing list type */
 	MANDOCERR_ARGSLOST, /* line argument(s) will be lost */
 	MANDOCERR_BODYLOST, /* body argument(s) will be lost */
@@ -160,7 +165,7 @@ enum	mandocerr {
 	MANDOCERR_MAX
 };
 
-struct	tbl {
+struct	tbl_opts {
 	char		  tab; /* cell-separator */
 	char		  decimal; /* decimal point */
 	int		  linesize;
@@ -175,20 +180,14 @@ struct	tbl {
 	int		  cols; /* number of columns */
 };
 
-enum	tbl_headt {
-	TBL_HEAD_DATA, /* plug in data from tbl_dat */
-	TBL_HEAD_VERT, /* vertical spacer */
-	TBL_HEAD_DVERT  /* double-vertical spacer */
-};
-
 /*
  * The head of a table specifies all of its columns.  When formatting a
  * tbl_span, iterate over these and plug in data from the tbl_span when
  * appropriate, using tbl_cell as a guide to placement.
  */
 struct	tbl_head {
-	enum tbl_headt	  pos;
 	int		  ident; /* 0 <= unique id < cols */
+	int		  vert; /* width of preceding vertical line */
 	struct tbl_head	 *next;
 	struct tbl_head	 *prev;
 };
@@ -203,8 +202,6 @@ enum	tbl_cellt {
 	TBL_CELL_DOWN, /* ^ */
 	TBL_CELL_HORIZ, /* _, - */
 	TBL_CELL_DHORIZ, /* = */
-	TBL_CELL_VERT, /* | */
-	TBL_CELL_DVERT, /* || */
 	TBL_CELL_MAX
 };
 
@@ -213,6 +210,7 @@ enum	tbl_cellt {
  */
 struct	tbl_cell {
 	struct tbl_cell	 *next;
+	int		  vert; /* width of preceding vertical line */
 	enum tbl_cellt	  pos;
 	size_t		  spacing;
 	int		  flags;
@@ -266,7 +264,7 @@ enum	tbl_spant {
  * A row of data in a table.
  */
 struct	tbl_span {
-	struct tbl	 *tbl;
+	struct tbl_opts	 *opts;
 	struct tbl_head	 *head;
 	struct tbl_row	 *layout; /* layout row */
 	struct tbl_dat	 *first;
@@ -382,11 +380,13 @@ enum	mandoc_esc {
 	ESCAPE_FONT, /* a generic font mode */
 	ESCAPE_FONTBOLD, /* bold font mode */
 	ESCAPE_FONTITALIC, /* italic font mode */
+	ESCAPE_FONTBI, /* bold italic font mode */
 	ESCAPE_FONTROMAN, /* roman font mode */
 	ESCAPE_FONTPREV, /* previous font mode */
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
-	ESCAPE_NOSPACE /* suppress space if the last on a line */
+	ESCAPE_NOSPACE, /* suppress space if the last on a line */
+	ESCAPE_SKIPCHAR /* skip the next character */
 };
 
 typedef	void	(*mandocmsg)(enum mandocerr, enum mandoclevel,
@@ -413,8 +413,8 @@ int		  mchars_spec2cp(const struct mchars *,
 			const char *, size_t);
 const char	 *mchars_spec2str(const struct mchars *, 
 			const char *, size_t, size_t *);
-struct mparse	 *mparse_alloc(enum mparset, 
-			enum mandoclevel, mandocmsg, void *);
+struct mparse	 *mparse_alloc(enum mparset, enum mandoclevel,
+			mandocmsg, void *, char *);
 void		  mparse_free(struct mparse *);
 void		  mparse_keep(struct mparse *);
 enum mandoclevel  mparse_readfd(struct mparse *, int, const char *);

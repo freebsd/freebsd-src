@@ -1,0 +1,29 @@
+dma (0.0.2010.06.17-3) unstable; urgency=low
+
+   The default delivery mode has been changed to immediate, as it is in
+   the upstream version of dma; the DEFER keyword is now disabled by default
+   in dma.conf.
+
+ -- Peter Pentchev <roam@ringlet.net>  Tue, 27 Jul 2010 13:26:48 +0300
+
+dma (0.0.2010.06.17-1) unstable; urgency=low
+
+   The dma spool directory format has changed.  The Debian package of dma now
+   recommends a separate package containing the dma-migrate utility; if it is
+   present, it will be invoked at each periodic dma queue flush and attempt to
+   convert the existing old-style queued messages to the new format.  In most
+   cases, this should not incur any performance penalties in normal operation,
+   since dma-migrate will scan the spool directory and ignore any new messages
+   (they should already be in the new format); however, if it appears that
+   the periodic queue flush runs take longer than usual to start up, you may
+   remove the dma-migrate package once you have ascertained that your queue
+   directory (/var/spool/dma) only contains files with names beginning with
+   the letters M or Q.
+
+   This version of dma knows how to perform MX lookups, so remote delivery is
+   now possible directly, not through a smarthost.  However, a smarthost setup
+   might still be preferred on many systems for various reasons - e.g. dynamic
+   address assignment, a central outgoing mailserver, a roaming laptop, etc.
+
+ -- Peter Pentchev <roam@ringlet.net>  Mon, 21 Jun 2010 11:03:57 +0300
+

@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-ptrace.sh,v 1.1 2002/12/09 15:38:30 markus Exp $
+#	$OpenBSD: agent-ptrace.sh,v 1.2 2014/02/27 21:21:25 djm Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent ptrace attach"
@@ -16,6 +16,13 @@ if have_prog gdb ; then
 	: ok
 else
 	echo "skipped (gdb not found)"
+	exit 0
+fi
+
+if $OBJ/setuid-allowed ${SSHAGENT} ; then
+	: ok
+else
+	echo "skipped (${SSHAGENT} is mounted on a no-setuid filesystem)"
 	exit 0
 fi
 
@@ -38,8 +45,9 @@ else
 	gdb ${SSHAGENT} ${SSH_AGENT_PID} > ${OBJ}/gdb.out 2>&1 << EOF
 		quit
 EOF
-	if [ $? -ne 0 ]; then
-		fail "gdb failed: exit code $?"
+	r=$?
+	if [ $r -ne 0 ]; then
+		fail "gdb failed: exit code $r"
 	fi
 	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace.*Permission denied.|procfs:.*: Invalid argument.|Unable to access task ' >/dev/null ${OBJ}/gdb.out
 	r=$?

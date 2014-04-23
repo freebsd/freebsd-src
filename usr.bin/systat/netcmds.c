@@ -152,7 +152,7 @@ changeitems(const char *args, int onoff)
 		hp = gethostbyname(tmpstr1);
 		if (hp == 0) {
 			in.s_addr = inet_addr(tmpstr1);
-			if ((int)in.s_addr == -1) {
+			if (in.s_addr == INADDR_NONE) {
 				error("%s: unknown host or port", tmpstr1);
 				continue;
 			}

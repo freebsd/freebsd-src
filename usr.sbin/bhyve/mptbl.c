@@ -36,8 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "acpi.h"
 #include "bhyverun.h"
 #include "mptbl.h"
+#include "pci_emul.h"
 
 #define MPTABLE_BASE		0xF0000
 
@@ -71,18 +73,8 @@ __FBSDID("$FreeBSD$");
 
 #define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
 
-/* Define processor entry struct since <x86/mptable.h> gets it wrong */
-typedef struct BPROCENTRY {
-	u_char		type;
-	u_char		apic_id;
-	u_char		apic_version;
-	u_char		cpu_flags;
-	uint32_t	cpu_signature;
-	uint32_t	feature_flags;
-	uint32_t	reserved1;
-	uint32_t	reserved2;
-}      *bproc_entry_ptr;
-CTASSERT(sizeof(struct BPROCENTRY) == 20);
+/* Number of local intr entries */
+#define	MPEII_NUM_LOCAL_IRQ	2
 
 /* Bus entry defines */
 #define MPE_NUM_BUSES		2
@@ -131,7 +123,7 @@ mpt_build_mpch(mpcth_t mpch)
 }
 
 static void
-mpt_build_proc_entries(bproc_entry_ptr mpep, int ncpu)
+mpt_build_proc_entries(proc_entry_ptr mpep, int ncpu)
 {
 	int i;
 
@@ -150,19 +142,43 @@ mpt_build_proc_entries(bproc_entry_ptr mpep, int ncpu)
 }
 
 static void
+mpt_build_localint_entries(int_entry_ptr mpie)
+{
+
+	/* Hardcode LINT0 as ExtINT on all CPUs. */
+	memset(mpie, 0, sizeof(*mpie));
+	mpie->type = MPCT_ENTRY_LOCAL_INT;
+	mpie->int_type = INTENTRY_TYPE_EXTINT;
+	mpie->int_flags = INTENTRY_FLAGS_POLARITY_CONFORM |
+	    INTENTRY_FLAGS_TRIGGER_CONFORM;
+	mpie->dst_apic_id = 0xff;
+	mpie->dst_apic_int = 0;
+	mpie++;
+
+	/* Hardcode LINT1 as NMI on all CPUs. */
+	memset(mpie, 0, sizeof(*mpie));
+	mpie->type = MPCT_ENTRY_LOCAL_INT;
+	mpie->int_type = INTENTRY_TYPE_NMI;
+	mpie->int_flags = INTENTRY_FLAGS_POLARITY_CONFORM |
+	    INTENTRY_FLAGS_TRIGGER_CONFORM;
+	mpie->dst_apic_id = 0xff;
+	mpie->dst_apic_int = 1;
+}
+
+static void
 mpt_build_bus_entries(bus_entry_ptr mpeb)
 {
 
 	memset(mpeb, 0, sizeof(*mpeb));
 	mpeb->type = MPCT_ENTRY_BUS;
-	mpeb->bus_id = ISA;
-	memcpy(mpeb->bus_type, MPE_BUSNAME_ISA, MPE_BUSNAME_LEN);
+	mpeb->bus_id = 0;
+	memcpy(mpeb->bus_type, MPE_BUSNAME_PCI, MPE_BUSNAME_LEN);
 	mpeb++;
 
 	memset(mpeb, 0, sizeof(*mpeb));
 	mpeb->type = MPCT_ENTRY_BUS;
-	mpeb->bus_id = PCI;
-	memcpy(mpeb->bus_type, MPE_BUSNAME_PCI, MPE_BUSNAME_LEN);
+	mpeb->bus_id = 1;	
+	memcpy(mpeb->bus_type, MPE_BUSNAME_ISA, MPE_BUSNAME_LEN);
 }
 
 static void
@@ -177,11 +193,49 @@ mpt_build_ioapic_entries(io_apic_entry_ptr mpei, int id)
 	mpei->apic_address = IOAPIC_PADDR;
 }
 
-#ifdef notyet
-static void
-mpt_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
+static int
+mpt_count_ioint_entries(void)
 {
-	int pin;
+	int bus, count;
+
+	count = 0;
+	for (bus = 0; bus <= PCI_BUSMAX; bus++)
+		count += pci_count_lintr(bus);
+
+	/*
+	 * Always include entries for the first 16 pins along with a entry
+	 * for each active PCI INTx pin.
+	 */
+	return (16 + count);
+}
+
+static void
+mpt_generate_pci_int(int bus, int slot, int pin, int ioapic_irq, void *arg)
+{
+	int_entry_ptr *mpiep, mpie;
+
+	mpiep = arg;
+	mpie = *mpiep;
+	memset(mpie, 0, sizeof(*mpie));
+
+	/*
+	 * This is always after another I/O interrupt entry, so cheat
+	 * and fetch the I/O APIC ID from the prior entry.
+	 */
+	mpie->type = MPCT_ENTRY_INT;
+	mpie->int_type = INTENTRY_TYPE_INT;
+	mpie->src_bus_id = bus;
+	mpie->src_bus_irq = slot << 2 | (pin - 1);
+	mpie->dst_apic_id = mpie[-1].dst_apic_id;
+	mpie->dst_apic_int = ioapic_irq;
+
+	*mpiep = mpie + 1;
+}
+
+static void
+mpt_build_ioint_entries(int_entry_ptr mpie, int id)
+{
+	int pin, bus;
 
 	/*
 	 * The following config is taken from kernel mptable.c
@@ -189,146 +243,48 @@ mpt_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
 	 * just use the default config, tweek later if needed.
 	 */
 
-
-	/* Run through all 16 pins. */
-	for (pin = 0; pin < num_pins; pin++) {
-		memset(mpeii, 0, sizeof(*mpeii));
-		mpeii->entry_type = MP_ENTRY_IOINT;
-		mpeii->src_bus_id = MPE_BUSID_ISA;
-		mpeii->dst_apic_id = id;
+	/* First, generate the first 16 pins. */
+	for (pin = 0; pin < 16; pin++) {
+		memset(mpie, 0, sizeof(*mpie));
+		mpie->type = MPCT_ENTRY_INT;
+		mpie->src_bus_id = 1;
+		mpie->dst_apic_id = id;
 
 		/*
 		 * All default configs route IRQs from bus 0 to the first 16
 		 * pins of the first I/O APIC with an APIC ID of 2.
 		 */
-		mpeii->dst_apic_intin = pin;
+		mpie->dst_apic_int = pin;
 		switch (pin) {
 		case 0:
 			/* Pin 0 is an ExtINT pin. */
-			mpeii->intr_type = MPEII_INTR_EXTINT;
+			mpie->int_type = INTENTRY_TYPE_EXTINT;
 			break;
 		case 2:
 			/* IRQ 0 is routed to pin 2. */
-			mpeii->intr_type = MPEII_INTR_INT;
-			mpeii->src_bus_irq = 0;
+			mpie->int_type = INTENTRY_TYPE_INT;
+			mpie->src_bus_irq = 0;
 			break;
-		case 5:
-		case 10:
-		case 11:
-			/*
-			 * PCI Irqs set to level triggered.
-			 */
-			mpeii->intr_flags = MPEII_FLAGS_TRIGMODE_LEVEL;
-			mpeii->src_bus_id = MPE_BUSID_PCI;
+		case SCI_INT:
+			/* ACPI SCI is level triggered and active-lo. */
+			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
+			    INTENTRY_FLAGS_TRIGGER_LEVEL;
+			mpie->int_type = INTENTRY_TYPE_INT;
+			mpie->src_bus_irq = SCI_INT;
+			break;
 		default:
 			/* All other pins are identity mapped. */
-			mpeii->intr_type = MPEII_INTR_INT;
-			mpeii->src_bus_irq = pin;
+			mpie->int_type = INTENTRY_TYPE_INT;
+			mpie->src_bus_irq = pin;
 			break;
 		}
-		mpeii++;
+		mpie++;
 	}
 
+	/* Next, generate entries for any PCI INTx interrupts. */
+	for (bus = 0; bus <= PCI_BUSMAX; bus++)
+		pci_walk_lintr(bus, mpt_generate_pci_int, &mpie); 
 }
-
-#define COPYSTR(dest, src, bytes)		\
-	memcpy(dest, src, bytes); 		\
-	str[bytes] = 0;
-
-static void
-mptable_dump(struct mp_floating_pointer *mpfp, struct mp_config_hdr *mpch)
-{
-	static char 	 str[16];
-	int 		 i;
-	char 		*cur;
-
-	union mpe {
-		struct mpe_proc 	*proc;
-		struct mpe_bus  	*bus;
-		struct mpe_ioapic 	*ioapic;
-		struct mpe_ioint 	*ioint;
-		struct mpe_lint 	*lnit;
-		char   			*p;
-	};
-
-	union mpe mpe;
-
-	printf(" MP Floating Pointer :\n");
-	COPYSTR(str, mpfp->signature, 4);
-	printf("\tsignature:\t%s\n", str);
-	printf("\tmpch paddr:\t%x\n", mpfp->mptable_paddr);
-	printf("\tlength:\t%x\n", mpfp->length);
-	printf("\tspecrec:\t%x\n", mpfp->specrev);
-	printf("\tchecksum:\t%x\n", mpfp->checksum);
-	printf("\tfeature1:\t%x\n", mpfp->feature1);
-	printf("\tfeature2:\t%x\n", mpfp->feature2);
-	printf("\tfeature3:\t%x\n", mpfp->feature3);
-	printf("\tfeature4:\t%x\n", mpfp->feature4);
-
-	printf(" MP Configuration Header :\n");
-	COPYSTR(str, mpch->signature, 4);
-	printf("    signature: 		%s\n", str);
-	printf("    length: 		%x\n", mpch->length);
-	printf("    specrec: 		%x\n", mpch->specrev);
-	printf("    checksum: 		%x\n", mpch->checksum);
-	COPYSTR(str, mpch->oemid, MPCH_OEMID_LEN);
-	printf("    oemid: 		%s\n", str);
-	COPYSTR(str, mpch->prodid, MPCH_PRODID_LEN);
-	printf("    prodid: 		%s\n", str);
-	printf("    oem_ptr: 		%x\n", mpch->oem_ptr);
-	printf("    oem_sz: 		%x\n", mpch->oem_sz);
-	printf("    nr_entries: 	%x\n", mpch->nr_entries);
-	printf("    apic paddr: 	%x\n", mpch->lapic_paddr);
-	printf("    ext_length: 	%x\n", mpch->ext_length);
-	printf("    ext_checksum: 	%x\n", mpch->ext_checksum);
-
-	cur = (char *)mpch + sizeof(*mpch);
-	for (i = 0; i < mpch->nr_entries; i++) {
-		mpe.p = cur;
-		switch(*mpe.p) {		
-			case MP_ENTRY_PROC:
-				printf(" MP Processor Entry :\n");
-				printf("	lapic_id: 	%x\n", mpe.proc->lapic_id);
-				printf("	lapic_version:	%x\n", mpe.proc->lapic_version);
-				printf("	proc_flags: 	%x\n", mpe.proc->proc_flags);
-				printf("	proc_signature: %x\n", mpe.proc->proc_signature);
-				printf("	feature_flags: 	%x\n", mpe.proc->feature_flags);
-				cur += sizeof(struct mpe_proc);
-				break;
-			case MP_ENTRY_BUS:
-				printf(" MP Bus Entry :\n");
-				printf("	busid: 		%x\n", mpe.bus->busid);
-				COPYSTR(str, mpe.bus->busname, MPE_BUSNAME_LEN);
-				printf("	busname: 	%s\n", str);
-				cur += sizeof(struct mpe_bus);
-				break;
-			case MP_ENTRY_IOAPIC:
-				printf(" MP IOAPIC Entry :\n");
-				printf("	ioapi_id: 		%x\n", mpe.ioapic->ioapic_id);
-				printf("	ioapi_version: 		%x\n", mpe.ioapic->ioapic_version);
-				printf("	ioapi_flags: 		%x\n", mpe.ioapic->ioapic_flags);
-				printf("	ioapi_paddr: 		%x\n", mpe.ioapic->ioapic_paddr);
-				cur += sizeof(struct mpe_ioapic);
-				break;
-			case MP_ENTRY_IOINT:
-				printf(" MP IO Interrupt Entry :\n");
-				printf("	intr_type: 		%x\n", mpe.ioint->intr_type);
-				printf("	intr_flags: 		%x\n", mpe.ioint->intr_flags);
-				printf("	src_bus_id: 		%x\n", mpe.ioint->src_bus_id);
-				printf("	src_bus_irq: 		%x\n", mpe.ioint->src_bus_irq);
-				printf("	dst_apic_id: 		%x\n", mpe.ioint->dst_apic_id);
-				printf("	dst_apic_intin:		%x\n", mpe.ioint->dst_apic_intin);
-				cur += sizeof(struct mpe_ioint);
-				break;
-			case MP_ENTRY_LINT:
-				printf(" MP Local Interrupt Entry :\n");
-				cur += sizeof(struct mpe_lint);
-				break;
-		}
-
-	}
-}
-#endif
 
 void
 mptable_add_oemtbl(void *tbl, int tblsz)
@@ -339,13 +295,15 @@ mptable_add_oemtbl(void *tbl, int tblsz)
 }
 
 int
-mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
+mptable_build(struct vmctx *ctx, int ncpu)
 {
 	mpcth_t			mpch;
 	bus_entry_ptr		mpeb;
 	io_apic_entry_ptr	mpei;
-	bproc_entry_ptr		mpep;
+	proc_entry_ptr		mpep;
 	mpfps_t			mpfp;
+	int_entry_ptr		mpie;
+	int			ioints;
 	char 			*curraddr;
 	char 			*startaddr;
 
@@ -364,7 +322,7 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	mpt_build_mpch(mpch);
 	curraddr += sizeof(*mpch);
 
-	mpep = (bproc_entry_ptr)curraddr;
+	mpep = (proc_entry_ptr)curraddr;
 	mpt_build_proc_entries(mpep, ncpu);
 	curraddr += sizeof(*mpep) * ncpu;
 	mpch->entry_count += ncpu;
@@ -374,19 +332,21 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	curraddr += sizeof(*mpeb) * MPE_NUM_BUSES;
 	mpch->entry_count += MPE_NUM_BUSES;
 
-	if (ioapic) {
-		mpei = (io_apic_entry_ptr)curraddr;
-		mpt_build_ioapic_entries(mpei, ncpu + 1);
-		curraddr += sizeof(*mpei);
-		mpch->entry_count++;
-	}
+	mpei = (io_apic_entry_ptr)curraddr;
+	mpt_build_ioapic_entries(mpei, 0);
+	curraddr += sizeof(*mpei);
+	mpch->entry_count++;
 
-#ifdef notyet
-	mpt_build_ioint_entries((struct mpe_ioint*)curraddr, MPEII_MAX_IRQ,
-				ncpu + 1);
-	curraddr += sizeof(struct mpe_ioint) * MPEII_MAX_IRQ;
-	mpch->entry_count += MPEII_MAX_IRQ;
-#endif
+	mpie = (int_entry_ptr) curraddr;
+	ioints = mpt_count_ioint_entries();
+	mpt_build_ioint_entries(mpie, 0);
+	curraddr += sizeof(*mpie) * ioints;
+	mpch->entry_count += ioints;
+
+	mpie = (int_entry_ptr)curraddr;
+	mpt_build_localint_entries(mpie);
+	curraddr += sizeof(*mpie) * MPEII_NUM_LOCAL_IRQ;
+	mpch->entry_count += MPEII_NUM_LOCAL_IRQ;
 
 	if (oem_tbl_start) {
 		mpch->oem_table_pointer = curraddr - startaddr + MPTABLE_BASE;

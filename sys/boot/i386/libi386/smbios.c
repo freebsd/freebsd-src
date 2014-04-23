@@ -122,7 +122,7 @@ static void
 smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 {
 	char		uuid[37];
-	int		i, ones, zeros;
+	int		byteorder, i, ones, zeros;
 	UUID_TYPE	n;
 	uint32_t	f1;
 	uint16_t	f2, f3;
@@ -152,14 +152,18 @@ smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 		 * Note: We use network byte order for backward compatibility
 		 * unless SMBIOS version is 2.6+ or little-endian is forced.
 		 */
-#ifndef SMBIOS_LITTLE_ENDIAN_UUID
-		if (ver < 0x0206) {
+#if defined(SMBIOS_LITTLE_ENDIAN_UUID)
+		byteorder = LITTLE_ENDIAN;
+#elif defined(SMBIOS_NETWORK_ENDIAN_UUID)
+		byteorder = BIG_ENDIAN;
+#else
+		byteorder = ver < 0x0206 ? BIG_ENDIAN : LITTLE_ENDIAN;
+#endif
+		if (byteorder != LITTLE_ENDIAN) {
 			f1 = ntohl(SMBIOS_GET32(addr, 0));
 			f2 = ntohs(SMBIOS_GET16(addr, 4));
 			f3 = ntohs(SMBIOS_GET16(addr, 6));
-		} else
-#endif
-		{
+		} else {
 			f1 = le32toh(SMBIOS_GET32(addr, 0));
 			f2 = le16toh(SMBIOS_GET16(addr, 4));
 			f3 = le16toh(SMBIOS_GET16(addr, 6));

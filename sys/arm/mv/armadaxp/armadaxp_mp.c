@@ -96,7 +96,6 @@ platform_mp_init_secondary(void)
 {
 }
 
-void mpentry(void);
 void mptramp(void);
 
 
