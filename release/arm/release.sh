@@ -92,14 +92,10 @@ install_uboot() {
 }
 
 main() {
-	# Build gcc for use in the chroot for arm builds.
-	# This is not '-j'-safe, so force '-j1' to allow using
-	# additional, non-'-j' options specified in WORLD_FLAGS.
-	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
-		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
-		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} WITH_GCC=1 \
+		WITH_GCC=1 WITH_GNUCXX=1 WITHOUT_CLANG_IS_CC=1 \
+		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
