@@ -64,9 +64,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -155,18 +152,11 @@ ip4_input(struct mbuf *m, int off)
 static void
 _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 {
-#ifdef INET
-	register struct sockaddr_in *sin;
-#endif
-	register struct ifnet *ifp;
-	register struct ifaddr *ifa;
 	struct ip *ipo;
 #ifdef INET6
-	register struct sockaddr_in6 *sin6;
 	struct ip6_hdr *ip6 = NULL;
 	u_int8_t itos;
 #endif
-	u_int8_t nxt;
 	int isr;
 	u_int8_t otos;
 	u_int8_t v;
@@ -201,17 +191,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 			return;
 		}
 	}
-
 	ipo = mtod(m, struct ip *);
-
-#ifdef MROUTING
-	if (ipo->ip_v == IPVERSION && ipo->ip_p == IPPROTO_IPV4) {
-		if (IN_MULTICAST(((struct ip *)((char *) ipo + iphlen))->ip_dst.s_addr)) {
-			ipip_mroute_input (m, iphlen);
-			return;
-		}
-	}
-#endif /* MROUTING */
 
 	/* Keep outer ecn field. */
 	switch (v >> 4) {
@@ -281,14 +261,12 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 #ifdef INET
     	case 4:
                 ipo = mtod(m, struct ip *);
-                nxt = ipo->ip_p;
 		ip_ecn_egress(V_ip4_ipsec_ecn, &otos, &ipo->ip_tos);
                 break;
 #endif /* INET */
 #ifdef INET6
     	case 6:
                 ip6 = (struct ip6_hdr *) ipo;
-                nxt = ip6->ip6_nxt;
 		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 		ip_ecn_egress(V_ip6_ipsec_ecn, &otos, &itos);
 		ip6->ip6_flow &= ~htonl(0xff << 20);
@@ -303,47 +281,22 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	if ((m->m_pkthdr.rcvif == NULL ||
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    V_ipip_allow != 2) {
-	    	IFNET_RLOCK_NOSLEEP();
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 #ifdef INET
-				if (ipo) {
-					if (ifa->ifa_addr->sa_family !=
-					    AF_INET)
-						continue;
-
-					sin = (struct sockaddr_in *) ifa->ifa_addr;
-
-					if (sin->sin_addr.s_addr ==
-					    ipo->ip_src.s_addr)	{
-						IPIPSTAT_INC(ipips_spoof);
-						m_freem(m);
-						IFNET_RUNLOCK_NOSLEEP();
-						return;
-					}
-				}
-#endif /* INET */
-
-#ifdef INET6
-				if (ip6) {
-					if (ifa->ifa_addr->sa_family !=
-					    AF_INET6)
-						continue;
-
-					sin6 = (struct sockaddr_in6 *) ifa->ifa_addr;
-
-					if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_src)) {
-						IPIPSTAT_INC(ipips_spoof);
-						m_freem(m);
-						IFNET_RUNLOCK_NOSLEEP();
-						return;
-					}
-
-				}
-#endif /* INET6 */
-			}
+		if ((v >> 4) == IPVERSION &&
+		    in_localip(ipo->ip_src) != 0) {
+			IPIPSTAT_INC(ipips_spoof);
+			m_freem(m);
+			return;
 		}
-		IFNET_RUNLOCK_NOSLEEP();
+#endif
+#ifdef INET6
+		if ((v & IPV6_VERSION_MASK) == IPV6_VERSION &&
+		    in6_localip(&ip6->ip6_src) != 0) {
+			IPIPSTAT_INC(ipips_spoof);
+			m_freem(m);
+			return;
+		}
+#endif
 	}
 
 	/* Statistics */
