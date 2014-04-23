@@ -31,6 +31,10 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# xdev                - xdev-build + xdev-install for the architecture
+#                       specified with XDEV and XDEV_ARCH.
+# xdev-build          - Build cross-development tools.
+# xdev-install        - Install cross-development tools.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
