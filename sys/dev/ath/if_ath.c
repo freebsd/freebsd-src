@@ -5567,7 +5567,9 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	an->an_mcastrix = ath_tx_findrix(sc, tp->mcastrate);
 	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
+	ATH_NODE_LOCK(an);
 	ath_rate_newassoc(sc, an, isnew);
+	ATH_NODE_UNLOCK(an);
 
 	if (isnew &&
 	    (vap->iv_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey &&
