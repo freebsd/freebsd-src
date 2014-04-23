@@ -132,7 +132,7 @@ f_struct()
 	local __name="$1" __action="$2" __property="$3"
 	case $# in
 	0) return $FAILURE ;;
-	1) f_have $__name ;;
+	1) f_have "$__name" ;;
 	*) case "$__action" in
 	   get) local __var_to_set="$4"
 	        f_getvar "_struct_value_${__name}_$__property" "$__var_to_set"
