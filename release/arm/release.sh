@@ -94,7 +94,7 @@ install_uboot() {
 main() {
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
-		WITH_GCC=1 WITH_GNUCXX=1 WITHOUT_CLANG_IS_CC=1 \
+		WITH_GCC=1 WITH_GCC_BOOTSTRAP=1 WITHOUT_CLANG_IS_CC=1 \
 		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
 
