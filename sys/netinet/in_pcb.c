@@ -697,7 +697,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
  * Do proper source address selection on an unbound socket in case
  * of connect. Take jails into account as well.
  */
-static int
+int
 in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
     struct ucred *cred)
 {
