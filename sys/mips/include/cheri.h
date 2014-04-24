@@ -101,13 +101,6 @@ struct cheri_frame {
 	struct chericap cf_c23, cf_rcc, cf_c25, cf_idc;
 
 	/*
-	 * Special-purpose capability registers that must be preserved on a
-	 * user context switch.  Note that KRC0, KRC1, KCC, and KDC are
-	 * omitted.
-	 */
-	/* XXXRW: Gone in v1.7: struct chericap	cf_tsc; */
-
-	/*
 	 * Program counter capability -- extracted from exception frame EPCC.
 	 */
 	struct chericap	cf_pcc;
