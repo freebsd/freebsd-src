@@ -991,7 +991,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
-	u_int8_t *opt;
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
@@ -1018,8 +1017,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 #endif
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
-	opt = (u_int8_t *)hbh + sizeof(struct ip6_hbh);
-
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
 				hbhlen, rtalertp, plenp) < 0)
 		return (-1);
