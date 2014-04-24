@@ -136,9 +136,10 @@ static driver_t simplebus_driver = {
 
 devclass_t simplebus_devclass;
 
-DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass, 0, 0);
-DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0,
+DRIVER_MODULE(beri_simplebus, ofwbus, simplebus_driver, simplebus_devclass, 0,
     0);
+DRIVER_MODULE(beri_simplebus, simplebus, simplebus_driver, simplebus_devclass,
+    0, 0);
 
 static int
 simplebus_probe(device_t dev)
@@ -150,7 +151,7 @@ simplebus_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "simple-bus"))
 		return (ENXIO);
 
-	device_set_desc(dev, "Flattened device tree simple bus");
+	device_set_desc(dev, "Flattened device tree simple bus (BERI version)");
 
 	return (BUS_PROBE_SPECIFIC);
 }
