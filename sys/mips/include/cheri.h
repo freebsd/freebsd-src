@@ -107,7 +107,15 @@ struct cheri_frame {
 
 #ifdef _KERNEL
 CTASSERT(sizeof(struct cheri_frame) == (28 * CHERICAP_SIZE));
+#endif
 
+struct cheri_sigframe {
+	register_t		cs_capcause;
+	register_t		_cs_pad[3];
+	struct cheri_frame	cs_frame;
+};
+
+#ifdef _KERNEL
 /*
  * Per-thread CHERI CCall/CReturn stack, which preserves the calling PC/PCC/
  * IDC across CCall so that CReturn can restore them.
