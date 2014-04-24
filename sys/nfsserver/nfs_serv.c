@@ -911,6 +911,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		uiop->uio_resid = len;
 		uiop->uio_rw = UIO_READ;
 		uiop->uio_segflg = UIO_SYSSPACE;
+		uiop->uio_td = NULL;
 		nh = nfsrv_sequential_heuristic(uiop, vp);
 		ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 		error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
