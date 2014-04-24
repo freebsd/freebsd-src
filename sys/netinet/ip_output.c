@@ -230,7 +230,8 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -241,8 +242,10 @@ again:
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+		    				    RT_DEFAULT_FIB))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
+		    				RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
