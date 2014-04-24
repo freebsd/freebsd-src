@@ -166,6 +166,7 @@ __DEFAULT_YES_OPTIONS = \
     UNBOUND \
     USB \
     UTMPX \
+    VI \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
