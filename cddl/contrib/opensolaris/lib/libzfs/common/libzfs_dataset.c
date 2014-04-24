@@ -2573,6 +2573,7 @@ out:
 	return (err);
 #else	/* !sun */
 	assert(!"invalid code path");
+	return (EINVAL); // silence compiler warning
 #endif	/* !sun */
 }
 
