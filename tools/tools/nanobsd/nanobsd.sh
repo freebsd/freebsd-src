@@ -49,6 +49,9 @@ NANO_TOOLS=tools/tools/nanobsd
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 NANO_PACKAGE_LIST="*"
 
+# where package metadata gets placed
+NANO_PKG_META_BASE=/var/db
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -719,7 +722,7 @@ cust_pkg () (
 	fi
 
 	# Copy packages into chroot
-	mkdir -p ${NANO_WORLDDIR}/Pkg
+	mkdir -p ${NANO_WORLDDIR}/Pkg ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
 	(
 		cd ${NANO_PACKAGE_DIR}
 		find ${NANO_PACKAGE_LIST} -print |
@@ -734,18 +737,18 @@ cust_pkg () (
 	while true
 	do
 		# Record how many we have now
-		have=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+		have=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
 
 		# Attempt to install more packages
 		# ...but no more than 200 at a time due to pkg_add's internal
 		# limitations.
 		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*tbz | xargs -n 200 pkg_add -F' || true
+			'ls Pkg/*tbz | xargs -n 200 env PKG_DBDIR='${NANO_PKG_META_BASE}'/pkg pkg_add -v -F' || true
 
 		# See what that got us
-		now=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+		now=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
 		echo "=== NOW $now"
-		ls ${NANO_WORLDDIR}/var/db/pkg
+		ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
 		echo "==="
 
 
