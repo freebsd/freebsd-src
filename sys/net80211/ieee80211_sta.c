@@ -234,6 +234,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_SLEEP:
 			/* XXX wakeup */
+			/* XXX driver hook to wakeup the hardware? */
 		case IEEE80211_S_RUN:
 			IEEE80211_SEND_MGMT(ni,
 			    IEEE80211_FC0_SUBTYPE_DISASSOC,
@@ -403,6 +404,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    arg == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 			break;
 		case IEEE80211_S_SLEEP:
+			/* Wake up from sleep */
 			vap->iv_sta_ps(vap, 0);
 			break;
 		default:
@@ -430,9 +432,11 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_node_authorize(ni);
 		/*
 		 * Fake association when joining an existing bss.
+		 *
+		 * Don't do this if we're doing SLEEP->RUN.
 		 */
-		if (ic->ic_newassoc != NULL)
-			ic->ic_newassoc(vap->iv_bss, ostate != IEEE80211_S_RUN);
+		if (ic->ic_newassoc != NULL && ostate != IEEE80211_S_SLEEP)
+			ic->ic_newassoc(vap->iv_bss, (ostate != IEEE80211_S_RUN));
 		break;
 	case IEEE80211_S_CSA:
 		if (ostate != IEEE80211_S_RUN)
@@ -1312,6 +1316,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				vap->iv_stats.is_beacon_bad++;
 			return;
 		}
+
 		/*
 		 * Count frame now that we know it's to be processed.
 		 */
@@ -1381,23 +1386,48 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			}
 			if (scan.quiet)
 				ic->ic_set_quiet(ni, scan.quiet);
+
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
-#if 0
+				/*
+				 * XXX Check/debug this code; see if it's about
+				 * the right time to force the VAP awake if we
+				 * receive a frame destined for us?
+				 */
 				int aid = IEEE80211_AID(ni->ni_associd);
 				int ix = aid / NBBY;
 				int min = tim->tim_bitctl &~ 1;
 				int max = tim->tim_len + min - 4;
-				if ((tim->tim_bitctl&1) ||
+
+				/*
+				 * Only do this for unicast traffic in the TIM
+				 * The multicast traffic notification for
+				 * the scan notification stuff should occur
+				 * differently.
+				 */
+				if (min <= ix && ix <= max &&
+				     isset(tim->tim_bitmap - min, aid)) {
+					ieee80211_sta_tim_notify(vap, 1);
+					ic->ic_lastdata = ticks;
+				}
+
+				/*
+				 * XXX TODO: do a separate notification
+				 * for the multicast bit being set.
+				 */
+#if 0
+				if ((tim->tim_bitctl & 1) ||
 				    (min <= ix && ix <= max &&
 				     isset(tim->tim_bitmap - min, aid))) {
 					/* 
 					 * XXX Do not let bg scan kick off
 					 * we are expecting data.
 					 */
+					ieee80211_sta_tim_notify(vap, 1);
 					ic->ic_lastdata = ticks;
-					vap->iv_sta_ps(vap, 0);
+					// XXX not yet?
+//					vap->iv_sta_ps(vap, 0);
 				}
 #endif
 				ni->ni_dtim_count = tim->tim_count;
@@ -1444,6 +1474,14 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 				ieee80211_bg_scan(vap, 0);
 			}
+
+			/*
+			 * Put the station to sleep if we haven't seen
+			 * traffic in a while.
+			 */
+			IEEE80211_LOCK(ic);
+			ieee80211_sta_ps_timer_check(vap);
+			IEEE80211_UNLOCK(ic);
 
 			/*
 			 * If we've had a channel width change (eg HT20<->HT40)
