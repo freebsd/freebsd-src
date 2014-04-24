@@ -52,11 +52,15 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SCHEDULE")
 
+SYSCTL_DECL(_debug_acpi);
+
 /*
  * Allow the user to tune the maximum number of tasks we may enqueue.
  */
 static int acpi_max_tasks = ACPI_MAX_TASKS;
 TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_tasks, CTLFLAG_RDTUN, &acpi_max_tasks,
+    0, "Maximum acpi tasks");
 
 /*
  * Allow the user to tune the number of task threads we start.  It seems
@@ -64,6 +68,8 @@ TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
  */
 static int acpi_max_threads = ACPI_MAX_THREADS;
 TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_threads, CTLFLAG_RDTUN, &acpi_max_threads,
+    0, "Maximum acpi threads");
 
 static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
