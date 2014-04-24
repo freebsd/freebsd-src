@@ -2054,6 +2054,7 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	uint32_t reg;
 	int mlen, ntries, page, error;
 
+	URTWN_UNLOCK(sc);
 	/* Read firmware image from the filesystem. */
 	if ((sc->chip & (URTWN_CHIP_UMC_A_CUT | URTWN_CHIP_92C)) ==
 	    URTWN_CHIP_UMC_A_CUT)
@@ -2062,6 +2063,7 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 		imagename = "urtwn-rtl8192cfwT";
 
 	fw = firmware_get(imagename);
+	URTWN_LOCK(sc);
 	if (fw == NULL) {
 		device_printf(sc->sc_dev,
 		    "failed loadfirmware of file %s\n", imagename);
@@ -2816,6 +2818,8 @@ urtwn_init_locked(void *arg)
 	uint32_t reg;
 	int error;
 
+	URTWN_ASSERT_LOCKED(sc);
+
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		urtwn_stop_locked(ifp);
 
@@ -2978,6 +2982,8 @@ static void
 urtwn_stop_locked(struct ifnet *ifp)
 {
 	struct urtwn_softc *sc = ifp->if_softc;
+
+	URTWN_ASSERT_LOCKED(sc);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
