@@ -77,9 +77,7 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
-.if ${MK_LDNS} != "no"
 LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
-.endif
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
