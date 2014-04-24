@@ -84,7 +84,6 @@ struct cheri_object {
  *
  * Must match the register offset definitions (CHERI_*_OFF) in cherireg.h.
  */
-#ifdef _KERNEL
 struct cheri_frame {
 	/* c0 has special properties for MIPS load/store instructions. */
 	struct chericap	cf_c0;
@@ -105,6 +104,8 @@ struct cheri_frame {
 	 */
 	struct chericap	cf_pcc;
 };
+
+#ifdef _KERNEL
 CTASSERT(sizeof(struct cheri_frame) == (28 * CHERICAP_SIZE));
 
 /*
