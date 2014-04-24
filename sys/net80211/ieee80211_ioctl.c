@@ -602,7 +602,7 @@ ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	 * in use.  When in RUN state report the vap-specific channel.
 	 * Otherwise return curchan.
 	 */
-	if (vap->iv_state == IEEE80211_S_RUN)
+	if (vap->iv_state == IEEE80211_S_RUN | vap->iv_state == IEEE80211_S_SLEEP)
 		c = vap->iv_bss->ni_chan;
 	else
 		c = ic->ic_curchan;
@@ -920,7 +920,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_BSSID:
 		if (ireq->i_len != IEEE80211_ADDR_LEN)
 			return EINVAL;
-		if (vap->iv_state == IEEE80211_S_RUN) {
+		if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP) {
 			error = copyout(vap->iv_opmode == IEEE80211_M_WDS ?
 			    vap->iv_bss->ni_macaddr : vap->iv_bss->ni_bssid,
 			    ireq->i_data, ireq->i_len);
@@ -1026,7 +1026,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_AMPDU_LIMIT:
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ireq->i_val = vap->iv_ampdu_rxmax;
-		else if (vap->iv_state == IEEE80211_S_RUN)
+		else if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MAXRXAMPDU);
 		else
@@ -1034,7 +1034,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_AMPDU_DENSITY:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN)
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MPDUDENSITY);
 		else
@@ -1108,7 +1108,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_SMPS:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN) {
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
 			if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_RTS)
 				ireq->i_val = IEEE80211_HTCAP_SMPS_DYNAMIC;
 			else if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_PS)
@@ -1120,7 +1120,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_RIFS:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN)
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
 			ireq->i_val =
 			    (vap->iv_bss->ni_flags & IEEE80211_NODE_RIFS) != 0;
 		else
@@ -1949,7 +1949,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			if (IEEE80211_IS_CHAN_NOADHOC(c))
 				return EINVAL;
 		}
-		if (vap->iv_state == IEEE80211_S_RUN &&
+		if ((vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP) &&
 		    vap->iv_bss->ni_chan == c)
 			return 0;	/* NB: nothing to do */
 	}
