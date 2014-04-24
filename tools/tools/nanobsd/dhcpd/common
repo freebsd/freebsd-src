@@ -156,11 +156,6 @@ WITHOUT_RCS=true
 
 NANO_PACKAGE_ONLY=1
 
-CR()
-{
-	chroot ${NANO_WORLDDIR} /bin/sh -exc "$*"
-}
-
 # install a package from a pre-built binary
 do_add_pkg ()
 {
