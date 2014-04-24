@@ -108,28 +108,6 @@ save_build ( )
 }
 customize_cmd save_build
 
-# Move the $world/data to the /data partion
-move_data()
-{
-	db=${NANO_WORLDDIR}/data
-	rm -rf ${NANO_DATADIR}
-	mkdir -p ${NANO_DATADIR}
-	( cd ${db} ; find . | cpio -R root:wheel -dumpv ${NANO_DATADIR} )
-	rm -rf ${db}
-}
-customize_cmd move_data
-
-add_data_to_fstab ( )
-{
-	(
-	cd ${NANO_WORLDDIR}
-	echo "/dev/${NANO_DRIVE}s4 /data ufs rw,noatime 2 2" >> etc/fstab
-	mkdir -p data
-	)
-	
-}
-customize_cmd add_data_to_fstab
-
 remove_patch_divots ( )
 {
 	find ${NANO_WORLDDIR} -name \*.orig -or -name \*.rej -delete
@@ -168,7 +146,7 @@ customize_cmd unmute_console_logging
 
 fi
 
-freenas_custom()
+product_custom()
 {
 	gzip -v9 ${NANO_WORLDDIR}/boot/kernel/kernel
 
@@ -199,29 +177,10 @@ freenas_custom()
 	# magic.mgc is just a speed optimization.  Kill it for 1.7MB
 	rm -f ${NANO_WORLDDIR}/usr/share/misc/magic.mgc
 
-	# strip binaries (saves spaces on non-debug images).
-	if [ "${DEBUG}" != 1 ]; then
-		pprint 4 "Stripping binaries and libraries"
-		for dir in $(find ${NANO_WORLDDIR}/usr/local -name '*bin' -or -name 'libexec' -maxdepth 3); do
-			for f in $(find $dir -type f); do
-				if ! dontstrip "$f"
-				then
-					strip 2>/dev/null $f || :
-				fi
-			done
-		done
-		# .so's are the only thing that need to be stripped. The rest
-		# should remain untouched.
-		for f in $(find ${NANO_WORLDDIR}/usr/local/lib -name '*.so' -or -name '*.so.*' -maxdepth 3); do
-				strip 2>/dev/null $f || :
-		done
-	fi
-
 	# Last second tweaks
 	chown -R root:wheel ${NANO_WORLDDIR}/root
 	chmod 0755 ${NANO_WORLDDIR}/root/*
 	chmod 0755 ${NANO_WORLDDIR}/*
-	chmod 0440 ${NANO_WORLDDIR}/usr/local/etc/sudoers
 	chown -R root:wheel ${NANO_WORLDDIR}/etc
 	chown -R root:wheel ${NANO_WORLDDIR}/boot
 	chown root:wheel ${NANO_WORLDDIR}/
@@ -229,16 +188,7 @@ freenas_custom()
 	find ${NANO_WORLDDIR} -type f -name "*~" -delete
 	find ${NANO_WORLDDIR}/usr/local -type f -name "*.po" -delete
 	find ${NANO_WORLDDIR} -type f -name "*.service" -delete
-	mkdir ${NANO_WORLDDIR}/data/zfs
-	ln -s -f /usr/local/bin/bash ${NANO_WORLDDIR}/bin/bash
-	ln -s -f /data/zfs/zpool.cache ${NANO_WORLDDIR}/boot/zfs/zpool.cache
-
-	# This is wrong.  Needs a way to tell kernel how to find the mount utility
-	# instead.
-	mv ${NANO_WORLDDIR}/sbin/mount_ntfs ${NANO_WORLDDIR}/sbin/mount_ntfs-kern
-	ln -s -f /usr/local/bin/ntfs-3g ${NANO_WORLDDIR}/sbin/mount_ntfs
-
 }
-late_customize_cmd freenas_custom
+late_customize_cmd product_custom
 
 fi # [ $PACKAGE_PREP_BUILD = 1 ]
