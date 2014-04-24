@@ -177,6 +177,18 @@ SRCCONF=${SRCCONF:=/dev/null}
 #
 #######################################################################
 
+# run in the world chroot, errors fatal
+CR()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -exc "$*"
+}
+
+# run in the world chroot, errors not fatal
+CR0()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -c "$*" || true
+}
+
 nano_cleanup ( ) (
 	if [ $? -ne 0 ]; then
 		echo "Error encountered.  Check for errors in last log file." 1>&2
@@ -748,8 +760,7 @@ cust_pkg () (
 		# Attempt to install more packages
 		# ...but no more than 200 at a time due to pkg_add's internal
 		# limitations.
-		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*tbz | xargs -n 200 env PKG_DBDIR='${NANO_PKG_META_BASE}'/pkg pkg_add -v -F' || true
+		CR0 'ls Pkg/*tbz | xargs -n 200 env PKG_DBDIR='${NANO_PKG_META_BASE}'/pkg pkg_add -v -F'
 
 		# See what that got us
 		now=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
@@ -795,9 +806,8 @@ cust_pkgng () (
 	)
 
 	#Bootstrap pkg
-	chroot ${NANO_WORLDDIR} sh -c \
-		"env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}"
-	chroot ${NANO_WORLDDIR} sh -c "pkg -N >/dev/null 2>&1;"
+	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}
+	CR pkg -N >/dev/null 2>&1
 	if [ "$?" -ne "0" ]; then
 		echo "FAILED: pkg bootstrapping faied"
 		exit 2
@@ -813,19 +823,15 @@ cust_pkgng () (
 	while true
 	do
 		# Record how many we have now
-		have=`chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+ 		have=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
 
 		# Attempt to install more packages
-		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*txz | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
+		CR0 'ls 'Pkg/*txz' | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add'
 
 		# See what that got us
-		now=`chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+ 		now=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
 		echo "=== NOW $now"
-		chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info'
+		CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info
 		echo "==="
 		if [ $now -eq $todo ] ; then
 			echo "DONE $now packages"
