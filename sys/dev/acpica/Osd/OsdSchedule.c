@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SCHEDULE")
 
-SYSCTL_DECL(_debug_acpi);
-
 /*
  * Allow the user to tune the maximum number of tasks we may enqueue.
  */
