@@ -85,9 +85,7 @@ LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
-.if ${MK_SENDMAIL} != "no"
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
-.endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
