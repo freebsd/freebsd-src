@@ -708,7 +708,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 		if (eia != NULL) {
 			error = ifa_switch_loopback_route((struct ifaddr *)eia,
-			    (struct sockaddr *)&target->ia_addr);
+			    (struct sockaddr *)&target->ia_addr, fibnum);
 			ifa_free(&eia->ia_ifa);
 		} else {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
