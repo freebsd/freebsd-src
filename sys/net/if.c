@@ -1485,7 +1485,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
 
 	if (error == 0 && rt != NULL) {
 		RT_LOCK(rt);
@@ -1517,7 +1517,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
 
 	if (error != 0)
 		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
@@ -1526,11 +1526,11 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 }
 
 int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
 {
 	struct rtentry *rt;
 
-	rt = rtalloc1_fib(sa, 0, 0, 0);
+	rt = rtalloc1_fib(sa, 0, 0, fib);
 	if (rt == NULL) {
 		log(LOG_DEBUG, "%s: fail", __func__);
 		return (EHOSTUNREACH);
