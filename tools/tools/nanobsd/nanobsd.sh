@@ -442,9 +442,9 @@ newfs_part ( ) (
 
 # Convenient spot to work around any umount issues that your build environment
 # hits by overriding this method.
-nano_umount () {
+nano_umount () (
 	umount ${1}
-}
+)
 
 populate_slice ( ) (
 	local dev dir mnt lbl
@@ -649,14 +649,14 @@ last_orders () (
 # Common Flash device geometries
 #
 
-FlashDevice () {
+FlashDevice () (
 	if [ -d ${NANO_TOOLS} ] ; then
 		. ${NANO_TOOLS}/FlashDevice.sub
 	else
 		. ${NANO_SRC}/${NANO_TOOLS}/FlashDevice.sub
 	fi
 	sub_FlashDevice $1 $2
-}
+)
 
 #######################################################################
 # USB device geometries
@@ -678,7 +678,7 @@ FlashDevice () {
 # The generic-hdd device is preferred for flash devices larger than 1GB.
 #
 
-UsbDevice () {
+UsbDevice () (
 	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
 	case $a1 in
 	generic-fdd)
@@ -696,7 +696,7 @@ UsbDevice () {
 		exit 2
 		;;
 	esac
-}
+)
 
 #######################################################################
 # Setup serial console
@@ -848,18 +848,18 @@ cust_pkgng () (
 # Convenience function:
 # 	Register all args as customize function.
 
-customize_cmd () {
+customize_cmd () (
 	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
-}
+)
 
 #######################################################################
 # Convenience function:
 # 	Register all args as late customize function to run just before
 #	image creation.
 
-late_customize_cmd () {
+late_customize_cmd () (
 	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
-}
+)
 
 #######################################################################
 #
@@ -869,14 +869,14 @@ late_customize_cmd () {
 
 # Progress Print
 #	Print $2 at level $1.
-pprint() {
+pprint() (
     if [ "$1" -le $PPLEVEL ]; then
 	runtime=$(( `date +%s` - $NANO_STARTTIME ))
 	printf "%s %.${1}s %s\n" "`date -u -r $runtime +%H:%M:%S`" "#####" "$2" 1>&3
     fi
-}
+)
 
-usage () {
+usage () (
 	(
 	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
@@ -890,7 +890,7 @@ usage () {
 	echo "	-c	specify config file"
 	) 1>&2
 	exit 2
-}
+)
 
 #######################################################################
 # Parse arguments
