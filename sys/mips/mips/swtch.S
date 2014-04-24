@@ -178,6 +178,10 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)
 	SAVE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 
+#ifdef CPU_CHERI
+	/* XXXRW: CHERI kernel voluntary context save here. */
+#endif
+
 	move	v0, ra			/* save 'ra' before we trash it */
 	jal	1f
 	nop
@@ -241,7 +245,7 @@ getpc:
 	SAVE_U_PCB_CONTEXT(ra, PCB_REG_PC, a0)		# save return address
 
 #ifdef CPU_CHERI
-	/* XXXRW: CHERI state management here. */
+	/* XXXRW: CHERI kernel voluntary context save here. */
 #endif
 
 #ifdef CPU_CNMIPS
@@ -436,6 +440,10 @@ sw3:
 	RESTORE_U_PCB_CONTEXT(s6, PCB_REG_S6, a0)
 	RESTORE_U_PCB_CONTEXT(s7, PCB_REG_S7, a0)
 	RESTORE_U_PCB_CONTEXT(s8, PCB_REG_S8, a0)
+
+#ifdef CPU_CHERI
+	/* XXXRW: CHERI kernel voluntary context restore here. */
+#endif
 
 	mfc0	t0, MIPS_COP_0_STATUS
 	and	t0, t0, MIPS_SR_INT_MASK
