@@ -33,7 +33,9 @@
 # simplified to meet the needs of the example.
 #
 
-NANO_PMAKE="make"					# NB: disable -j 3
+# NB: You want the other file
+
+NANO_PMAKE="make -j $(sysctl -n hw.ncpu)"
 
 NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=${NANO_CFG_BASE%/dhcpd}
