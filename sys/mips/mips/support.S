@@ -1070,6 +1070,9 @@ LEAF(setjmp)
 	REG_S	sp, (SZREG * PCB_REG_SP)(a0)
 	REG_S	ra, (SZREG * PCB_REG_RA)(a0)
 	REG_S	v0, (SZREG * PCB_REG_SR)(a0)
+#ifdef CPU_CHERI
+	/* XXXRW: CHERI kernel setjmp here? */
+#endif
 	jr	ra
 	li	v0, 0			# setjmp return
 END(setjmp)
@@ -1087,6 +1090,9 @@ LEAF(longjmp)
 	REG_L	s7, (SZREG * PCB_REG_S7)(a0)
 	REG_L	s8, (SZREG * PCB_REG_S8)(a0)
 	REG_L	sp, (SZREG * PCB_REG_SP)(a0)
+#ifdef CPU_CHERI
+	/* XXXRW: CHERI kernel longjmp here? */
+#endif
 	mtc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
 	ITLBNOPFIX
 	jr	ra
