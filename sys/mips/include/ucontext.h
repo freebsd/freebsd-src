@@ -58,7 +58,26 @@ typedef struct	__mcontext {
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	register_t	mc_fpc_eir;	/* fp exception instruction reg */
 	void		*mc_tls;	/* pointer to TLS area */
-	int		__spare__[8];	/* XXX reserved */ 
+
+        /*
+         * Optional externally referenced storage for coprocessors.  Modeled
+         * on the approach taken for extended FPU state on x86, which leaves
+         * some ABI concerns but appears to work in practice.
+         */
+        __register_t    mc_cp2state;    /* Pointer to external state. */
+        __register_t    mc_cp2state_len;/* Length of external state. */
+
+        /*
+         * XXXRW: Unfortunately, reserved space in the MIPS sigcontext was
+         * made an 'int' rather than '__register_t', so embedding new pointers
+         * changes the 32-bit vs. 64-bit versions of this structure
+         * differently.
+         */
+#if (defined(__mips_n32) || defined(__mips_n64))
+        int             xxx[4];         /* XXX reserved */
+#else
+        int             xxx[6];         /* XXX reserved */
+#endif
 } mcontext_t;
 
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
