@@ -79,6 +79,7 @@ typedef enum {
 struct ctlfe_softc {
 	struct ctl_frontend fe;
 	path_id_t path_id;
+	u_int	maxio;
 	struct cam_sim *sim;
 	char port_name[DEV_IDLEN];
 	struct mtx lun_softc_mtx;
@@ -129,13 +130,15 @@ typedef enum {
  */
 struct ctlfe_lun_cmd_info {
 	int cur_transfer_index;
+	size_t cur_transfer_off;
 	ctlfe_cmd_flags flags;
 	/*
 	 * XXX KDM struct bus_dma_segment is 8 bytes on i386, and 16
 	 * bytes on amd64.  So with 32 elements, this is 256 bytes on
 	 * i386 and 512 bytes on amd64.
 	 */
-	bus_dma_segment_t cam_sglist[32];
+#define CTLFE_MAX_SEGS	32
+	bus_dma_segment_t cam_sglist[CTLFE_MAX_SEGS];
 };
 
 /*
@@ -375,6 +378,10 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 		bus_softc->path_id = cpi->ccb_h.path_id;
 		bus_softc->sim = xpt_path_sim(path);
+		if (cpi->maxio != 0)
+			bus_softc->maxio = cpi->maxio;
+		else
+			bus_softc->maxio = DFLTPHYS;
 		mtx_init(&bus_softc->lun_softc_mtx, "LUN softc mtx", NULL,
 		    MTX_DEF);
 		STAILQ_INIT(&bus_softc->lun_softc_list);
@@ -693,6 +700,90 @@ ctlfecleanup(struct cam_periph *periph)
 }
 
 static void
+ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
+    ccb_flags *flags, uint8_t **data_ptr, uint32_t *dxfer_len,
+    u_int16_t *sglist_cnt)
+{
+	struct ctlfe_softc *bus_softc;
+	struct ctlfe_lun_cmd_info *cmd_info;
+	struct ctl_sg_entry *ctl_sglist;
+	bus_dma_segment_t *cam_sglist;
+	size_t off;
+	int i, idx;
+
+	cmd_info = (struct ctlfe_lun_cmd_info *)io->io_hdr.port_priv;
+	bus_softc = softc->parent_softc;
+
+	/*
+	 * Set the direction, relative to the initiator.
+	 */
+	*flags &= ~CAM_DIR_MASK;
+	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN)
+		*flags |= CAM_DIR_IN;
+	else
+		*flags |= CAM_DIR_OUT;
+
+	*flags &= ~CAM_DATA_MASK;
+	idx = cmd_info->cur_transfer_index;
+	off = cmd_info->cur_transfer_off;
+	cmd_info->flags &= ~CTLFE_CMD_PIECEWISE;
+	if (io->scsiio.kern_sg_entries == 0) {
+		/* No S/G list. */
+		*data_ptr = io->scsiio.kern_data_ptr + off;
+		if (io->scsiio.kern_data_len - off <= bus_softc->maxio) {
+			*dxfer_len = io->scsiio.kern_data_len - off;
+		} else {
+			*dxfer_len = bus_softc->maxio;
+			cmd_info->cur_transfer_index = -1;
+			cmd_info->cur_transfer_off = bus_softc->maxio;
+			cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+		}
+		*sglist_cnt = 0;
+
+		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+			*flags |= CAM_DATA_PADDR;
+		else
+			*flags |= CAM_DATA_VADDR;
+	} else {
+		/* S/G list with physical or virtual pointers. */
+		ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+		cam_sglist = cmd_info->cam_sglist;
+		*dxfer_len = 0;
+		for (i = 0; i < io->scsiio.kern_sg_entries - idx; i++) {
+			cam_sglist[i].ds_addr = (bus_addr_t)ctl_sglist[i + idx].addr + off;
+			if (ctl_sglist[i + idx].len - off <= bus_softc->maxio - *dxfer_len) {
+				cam_sglist[i].ds_len = ctl_sglist[idx + i].len - off;
+				*dxfer_len += cam_sglist[i].ds_len;
+			} else {
+				cam_sglist[i].ds_len = bus_softc->maxio - *dxfer_len;
+				cmd_info->cur_transfer_index = idx + i;
+				cmd_info->cur_transfer_off = cam_sglist[i].ds_len + off;
+				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+				*dxfer_len += cam_sglist[i].ds_len;
+				if (ctl_sglist[i].len != 0)
+					i++;
+				break;
+			}
+			if (i == (CTLFE_MAX_SEGS - 1) &&
+			    idx + i < (io->scsiio.kern_sg_entries - 1)) {
+				cmd_info->cur_transfer_index = idx + i + 1;
+				cmd_info->cur_transfer_off = 0;
+				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+				i++;
+				break;
+			}
+			off = 0;
+		}
+		*sglist_cnt = i;
+		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+			*flags |= CAM_DATA_SG_PADDR;
+		else
+			*flags |= CAM_DATA_SG;
+		*data_ptr = (uint8_t *)cam_sglist;
+	}
+}
+
+static void
 ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ctlfe_lun_softc *softc;
@@ -854,84 +945,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			bzero(cmd_info, sizeof(*cmd_info));
 			scsi_status = 0;
 
-			/*
-			 * Set the direction, relative to the initiator.
-			 */
-			flags &= ~CAM_DIR_MASK;
-			if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-			     CTL_FLAG_DATA_IN)
-				flags |= CAM_DIR_IN;
-			else
-				flags |= CAM_DIR_OUT;
-			
 			csio->cdb_len = atio->cdb_len;
 
-			flags &= ~CAM_DATA_MASK;
-			if (io->scsiio.kern_sg_entries == 0) {
-				/* No S/G list */
-				data_ptr = io->scsiio.kern_data_ptr;
-				dxfer_len = io->scsiio.kern_data_len;
-				csio->sglist_cnt = 0;
-
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PADDR;
-				else
-					flags |= CAM_DATA_VADDR;
-			} else if (io->scsiio.kern_sg_entries <=
-				   (sizeof(cmd_info->cam_sglist)/
-				   sizeof(cmd_info->cam_sglist[0]))) {
-				/*
-				 * S/G list with physical or virtual pointers.
-				 * Just populate the CAM S/G list with the
-				 * pointers.
-				 */
-				int i;
-				struct ctl_sg_entry *ctl_sglist;
-				bus_dma_segment_t *cam_sglist;
-
-				ctl_sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				cam_sglist = cmd_info->cam_sglist;
-
-				for (i = 0; i < io->scsiio.kern_sg_entries;i++){
-					cam_sglist[i].ds_addr =
-						(bus_addr_t)ctl_sglist[i].addr;
-					cam_sglist[i].ds_len =
-						ctl_sglist[i].len;
-				}
-				csio->sglist_cnt = io->scsiio.kern_sg_entries;
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_SG_PADDR;
-				else
-					flags |= CAM_DATA_SG;
-				data_ptr = (uint8_t *)cam_sglist;
-				dxfer_len = io->scsiio.kern_data_len;
-			} else {
-				/* S/G list with virtual pointers */
-				struct ctl_sg_entry *sglist;
-				int *ti;
-
-				/*
-				 * If we have more S/G list pointers than
-				 * will fit in the available storage in the
-				 * cmd_info structure inside the ctl_io header,
-				 * then we need to send down the pointers
-				 * one element at a time.
-				 */
-
-				sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				ti = &cmd_info->cur_transfer_index;
-				data_ptr = sglist[*ti].addr;
-				dxfer_len = sglist[*ti].len;
-				csio->sglist_cnt = 0;
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PADDR;
-				else
-					flags |= CAM_DATA_VADDR;
-				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
-				(*ti)++;
-			}
+			ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
+			    &csio->sglist_cnt);
 
 			io->scsiio.ext_data_filled += dxfer_len;
 
@@ -1416,37 +1433,18 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * continue sending pieces if necessary.
 			 */
 			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE)
-			 && (io->io_hdr.port_status == 0)
-			 && (cmd_info->cur_transfer_index <
-			     io->scsiio.kern_sg_entries)) {
-				struct ctl_sg_entry *sglist;
+			 && (io->io_hdr.port_status == 0)) {
 				ccb_flags flags;
 				uint8_t scsi_status;
 				uint8_t *data_ptr;
 				uint32_t dxfer_len;
-				int *ti;
 
-				sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				ti = &cmd_info->cur_transfer_index;
 				flags = atio->ccb_h.flags &
 					(CAM_DIS_DISCONNECT|
-					 CAM_TAG_ACTION_VALID|
-					 CAM_DIR_MASK);
-				
-				/*
-				 * Set the direction, relative to the initiator.
-				 */
-				flags &= ~CAM_DIR_MASK;
-				if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-				     CTL_FLAG_DATA_IN)
-					flags |= CAM_DIR_IN;
-				else
-					flags |= CAM_DIR_OUT;
+					 CAM_TAG_ACTION_VALID);
 
-				data_ptr = sglist[*ti].addr;
-				dxfer_len = sglist[*ti].len;
-				(*ti)++;
+				ctlfedata(softc, io, &flags, &data_ptr,
+				    &dxfer_len, &csio->sglist_cnt);
 
 				scsi_status = 0;
 
