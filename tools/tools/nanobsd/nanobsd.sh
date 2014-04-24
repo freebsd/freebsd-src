@@ -428,6 +428,12 @@ newfs_part ( ) (
 	mount -o async ${dev} ${mnt}
 )
 
+# Convenient spot to work around any umount issues that your build environment
+# hits by overriding this method.
+nano_umount () {
+	umount ${1}
+}
+
 populate_slice ( ) (
 	local dev dir mnt lbl
 	dev=$1
@@ -442,7 +448,7 @@ populate_slice ( ) (
 		find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${mnt}
 	fi
 	df -i ${mnt}
-	umount ${mnt}
+	nano_umount ${mnt}
 )
 
 populate_cfg_slice ( ) (
@@ -541,7 +547,7 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
-	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
 	fdisk ${MD}
@@ -557,7 +563,7 @@ create_i386_diskimage ( ) (
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
-	umount ${MNT}
+	nano_umount ${MNT}
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
@@ -568,7 +574,7 @@ create_i386_diskimage ( ) (
 		do
 			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
-		umount ${MNT}
+		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
 		if [ ! -z ${NANO_LABEL} ]; then
