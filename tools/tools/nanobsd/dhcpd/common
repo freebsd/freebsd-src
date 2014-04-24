@@ -44,7 +44,8 @@ NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/dhcpd}
 NANO_OBJ=${NANO_SRC}/../dhcpd/obj
 # Where cust_pkg() finds packages to install
 #XXX: Is this the right place?
-NANO_PORTS=${NANO_SRC}/../ports
+#NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
+NANO_PORTS=/usr/ports
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 NANO_DATADIR=${NANO_OBJ}/_.data
 NANO_DATASIZE=40960
@@ -173,7 +174,7 @@ do_add_pkg ()
 	    ${NANO_WORLDDIR}/usr/ports/packages
 	mount -t nullfs -o noatime ${NANO_OBJ}/ports/distfiles \
 	    ${NANO_WORLDDIR}/usr/ports/distfiles
-	CR "cd /usr/ports/packages/All;pkg_add -F $1.tbz"
+	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /usr/ports/packages/All/$1.txz
 	umount ${NANO_WORLDDIR}/usr/ports/distfiles
 	umount ${NANO_WORLDDIR}/usr/ports/packages
 	rmdir ${NANO_WORLDDIR}/usr/ports/packages
@@ -206,12 +207,16 @@ do_add_port ()
 	mount -t devfs devfs ${NANO_WORLDDIR}/dev
 	mkdir -p ${NANO_WORLDDIR}/usr/workdir
 	cp /etc/resolv.conf ${NANO_WORLDDIR}/etc/resolv.conf
+	# OK, a little inefficient, but likely not enough to worry about.
+	CR ldconfig /lib /usr/lib /usr/local/lib
+	CR ldconfig -R
+	CR ldconfig -r
 # Improvement: Don't know why package-recursive don't works here
 	CR "env UNAME_p=${NANO_ARCH} TARGET=${NANO_ARCH} \
-	    TARGET_ARCH=${NANO_ARCH} make \
+	    TARGET_ARCH=${NANO_ARCH} PORTSDIR=${NANO_PORTS} make \
 	    __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
 	    WRKDIRPREFIX=/usr/workdir -C /usr/ports/$port_path \
-	    package BATCH=yes $* clean FORCE_PKG_REGISTER=t"
+	    package-recursive BATCH=yes $* clean FORCE_PKG_REGISTER=t"
 	rm ${NANO_WORLDDIR}/etc/resolv.conf
 	rm -rf ${NANO_WORLDDIR}/usr/obj
 	rm -rf ${NANO_WORLDDIR}/usr/workdir
@@ -228,15 +233,14 @@ do_add_port ()
 add_port () {
     local port_path=$1
     local port=`echo $1 | sed -e 's/\//_/'`
-    export PORTSDIR=${NANO_PORTS}
     shift
     # Check if package allready exist
     # Need to:
     # 1. check ARCH of this package!
     # 2. Add a trap
     cd ${NANO_PORTS}/${port_path}
-    PKG_NAME=`make ${PKGNAME_HACK} PORTSDIR=${NANO_PORTS} __MAKE_CONF=${NANO_MAKE_CONF_BUILD} package-name` 
-    if [ -f ${NANO_OBJ}/ports/packages/All/${PKG_NAME}.tbz ]; then
+    PKG_NAME=`env PORTSDIR=${NANO_PORTS} make __MAKE_CONF=${NANO_MAKE_CONF_BUILD} package-name` 
+    if [ -f ${NANO_OBJ}/ports/packages/All/${PKG_NAME}.txz ]; then
 	# Pkg file found: Generate add_pkg_NAME function
 	eval "
 	    add_pkg_${port} () {
@@ -266,6 +270,10 @@ create_amd64_diskimage()
 {
 	create_i386_diskimage "$*"
 }
+
+# Automatically include the packaging port here so it is always first so it
+# builds the port and adds the package so we can add other packages.
+add_port ports-mgmt/pkg
 
 rp=$(realpath ${NANO_OBJ}/)
 __a=`mount | grep ${rp} | awk '{print length($3), $3;}' | sort -rn | awk '{$1=""; print;}'`
