@@ -863,6 +863,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
+	 *
+	 * The TSC MSR is exposed read-only. Writes are disallowed as that
+	 * will impact the host TSC.
+	 * XXX Writes would be implemented with a wrmsr trap, and
+	 * then modifying the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -870,7 +875,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
-	    guest_msr_rw(vmx, MSR_EFER))
+	    guest_msr_rw(vmx, MSR_EFER) ||
+	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
 	/*
