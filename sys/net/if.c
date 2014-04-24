@@ -1653,7 +1653,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1661,6 +1661,8 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
+			continue;
+		if ((ifp->if_fib != fibnum))
 			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1686,7 +1688,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1706,12 +1708,14 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 
 	/*
 	 * Scan though each interface, looking for ones that have addresses
-	 * in this address family.  Maintain a reference on ifa_maybe once
-	 * we find one, as we release the IF_ADDR_RLOCK() that kept it stable
-	 * when we move onto the next interface.
+	 * in this address family and the requested fib.  Maintain a reference
+	 * on ifa_maybe once we find one, as we release the IF_ADDR_RLOCK() that
+	 * kept it stable when we move onto the next interface.
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifp->if_fib != fibnum)
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			char *cp, *cp2, *cp3;
