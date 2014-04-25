@@ -646,6 +646,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"AH_AML_OPCODE",                       SRC_TYPE_STRUCT},
     {"AH_ASL_OPERATOR",                     SRC_TYPE_STRUCT},
     {"AH_ASL_KEYWORD",                      SRC_TYPE_STRUCT},
+    {"AH_DEVICE_ID",                        SRC_TYPE_STRUCT},
     {"AH_PREDEFINED_NAME",                  SRC_TYPE_STRUCT},
 
     /* AcpiXtract utility */
@@ -728,11 +729,19 @@ ACPI_STRING_TABLE           LinuxSpecialStrings[] = {
 
 ACPI_IDENTIFIER_TABLE       LinuxSpecialMacros[] = {
 
+    {"ACPI_DBG_DEPENDENT_RETURN_VOID"},
     {"ACPI_EXPORT_SYMBOL"},
     {"ACPI_EXPORT_SYMBOL_INIT"},
+    {"ACPI_EXTERNAL_RETURN_OK"},
+    {"ACPI_EXTERNAL_RETURN_PTR"},
+    {"ACPI_EXTERNAL_RETURN_STATUS"},
+    {"ACPI_EXTERNAL_RETURN_UINT32"},
+    {"ACPI_EXTERNAL_RETURN_VOID"},
     {"ACPI_HW_DEPENDENT_RETURN_OK"},
     {"ACPI_HW_DEPENDENT_RETURN_STATUS"},
     {"ACPI_HW_DEPENDENT_RETURN_VOID"},
+    {"ACPI_MSG_DEPENDENT_RETURN_VOID"},
+
     {NULL}
 };
 

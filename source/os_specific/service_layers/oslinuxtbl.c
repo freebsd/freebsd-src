@@ -593,6 +593,34 @@ OslLoadRsdp (
 
 /******************************************************************************
  *
+ * FUNCTION:    OslCanUseXsdt
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      TRUE if XSDT is allowed to be used.
+ *
+ * DESCRIPTION: This function collects logic that can be used to determine if
+ *              XSDT should be used instead of RSDT.
+ *
+ *****************************************************************************/
+
+static BOOLEAN
+OslCanUseXsdt (
+    void)
+{
+    if (Gbl_Revision && !AcpiGbl_DoNotUseXsdt)
+    {
+        return (TRUE);
+    }
+    else
+    {
+        return (FALSE);
+    }
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    OslTableInitialize
  *
  * PARAMETERS:  None
@@ -628,7 +656,7 @@ OslTableInitialize (
 
     /* Get XSDT from memory */
 
-    if (Gbl_Rsdp.Revision)
+    if (Gbl_Rsdp.Revision && !Gbl_DoNotDumpXsdt)
     {
         if (Gbl_Xsdt)
         {
@@ -778,7 +806,7 @@ OslListBiosTables (
     UINT32                  i;
 
 
-    if (Gbl_Revision)
+    if (OslCanUseXsdt ())
     {
         ItemSize = sizeof (UINT64);
         TableData = ACPI_CAST8 (Gbl_Xsdt) + sizeof (ACPI_TABLE_HEADER);
@@ -799,7 +827,7 @@ OslListBiosTables (
 
     for (i = 0; i < NumberOfTables; ++i, TableData += ItemSize)
     {
-        if (Gbl_Revision)
+        if (OslCanUseXsdt ())
         {
             TableAddress =
                 (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST64 (TableData));
@@ -808,6 +836,13 @@ OslListBiosTables (
         {
             TableAddress =
                 (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST32 (TableData));
+        }
+
+        /* Skip NULL entries in RSDT/XSDT */
+
+        if (!TableAddress)
+        {
+            continue;
         }
 
         Status = OslMapTable (TableAddress, NULL, &MappedTable);
@@ -933,7 +968,7 @@ OslGetBiosTable (
     }
     else /* Case for a normal ACPI table */
     {
-        if (Gbl_Revision)
+        if (OslCanUseXsdt ())
         {
             ItemSize = sizeof (UINT64);
             TableData = ACPI_CAST8 (Gbl_Xsdt) + sizeof (ACPI_TABLE_HEADER);
@@ -954,7 +989,7 @@ OslGetBiosTable (
 
         for (i = 0; i < NumberOfTables; ++i, TableData += ItemSize)
         {
-            if (Gbl_Revision)
+            if (OslCanUseXsdt ())
             {
                 TableAddress =
                     (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST64 (TableData));
@@ -963,6 +998,13 @@ OslGetBiosTable (
             {
                 TableAddress =
                     (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST32 (TableData));
+            }
+
+            /* Skip NULL entries in RSDT/XSDT */
+
+            if (!TableAddress)
+            {
+                continue;
             }
 
             Status = OslMapTable (TableAddress, NULL, &MappedTable);
@@ -1133,11 +1175,21 @@ OslMapTable (
 
     /* If specified, signature must match */
 
-    if (Signature &&
-        !ACPI_COMPARE_NAME (Signature, MappedTable->Signature))
+    if (Signature)
     {
-        AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
-        return (AE_BAD_SIGNATURE);
+        if (ACPI_VALIDATE_RSDP_SIG (Signature))
+        {
+            if (!ACPI_VALIDATE_RSDP_SIG (MappedTable->Signature))
+            {
+                AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
+                return (AE_BAD_SIGNATURE);
+            }
+        }
+        else if (!ACPI_COMPARE_NAME (Signature, MappedTable->Signature))
+        {
+            AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
+            return (AE_BAD_SIGNATURE);
+        }
     }
 
     /* Map the entire table */
@@ -1268,7 +1320,6 @@ OslReadTableFromFile (
     ACPI_TABLE_HEADER       *LocalTable = NULL;
     UINT32                  TableLength;
     INT32                   Count;
-    UINT32                  Total = 0;
     ACPI_STATUS             Status = AE_OK;
 
 
@@ -1295,13 +1346,24 @@ OslReadTableFromFile (
 
     /* If signature is specified, it must match the table */
 
-    if (Signature &&
-        !ACPI_COMPARE_NAME (Signature, Header.Signature))
+    if (Signature)
     {
-        fprintf (stderr, "Incorrect signature: Expecting %4.4s, found %4.4s\n",
-            Signature, Header.Signature);
-        Status = AE_BAD_SIGNATURE;
-        goto Exit;
+        if (ACPI_VALIDATE_RSDP_SIG (Signature))
+        {
+            if (!ACPI_VALIDATE_RSDP_SIG (Header.Signature)) {
+                fprintf (stderr, "Incorrect RSDP signature: found %8.8s\n",
+                    Header.Signature);
+                Status = AE_BAD_SIGNATURE;
+                goto Exit;
+            }
+        }
+        else if (!ACPI_COMPARE_NAME (Signature, Header.Signature))
+        {
+            fprintf (stderr, "Incorrect signature: Expecting %4.4s, found %4.4s\n",
+                Signature, Header.Signature);
+            Status = AE_BAD_SIGNATURE;
+            goto Exit;
+        }
     }
 
     TableLength = ApGetTableLength (&Header);
@@ -1325,18 +1387,13 @@ OslReadTableFromFile (
 
     fseek (TableFile, FileOffset, SEEK_SET);
 
-    while (!feof (TableFile) && Total < TableLength)
+    Count = fread (LocalTable, 1, TableLength, TableFile);
+    if (Count != TableLength)
     {
-        Count = fread (LocalTable, 1, TableLength-Total, TableFile);
-        if (Count < 0)
-        {
-            fprintf (stderr, "%4.4s: Could not read table content\n",
-                Header.Signature);
-            Status = AE_INVALID_TABLE_LENGTH;
-            goto Exit;
-        }
-
-        Total += Count;
+        fprintf (stderr, "%4.4s: Could not read table content\n",
+            Header.Signature);
+        Status = AE_INVALID_TABLE_LENGTH;
+        goto Exit;
     }
 
     /* Validate checksum */

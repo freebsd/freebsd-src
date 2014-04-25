@@ -241,6 +241,12 @@ static const char           *AcpiDmIvrsSubnames[] =
     "Unknown SubTable Type"         /* Reserved */
 };
 
+static const char           *AcpiDmLpitSubnames[] =
+{
+    "Native C-state Idle Structure",
+    "Simple I/O Idle Structure",
+    "Unknown SubTable Type"         /* Reserved */
+};
 
 #define ACPI_FADT_PM_RESERVED       9
 
@@ -304,6 +310,7 @@ ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest,   "Hardware Error Source Table"},
     {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet,   "High Precision Event Timer table"},
     {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs,   "I/O Virtualization Reporting Structure"},
+    {ACPI_SIG_LPIT, NULL,                   AcpiDmDumpLpit, DtCompileLpit,  TemplateLpit,   "Low Power Idle Table"},
     {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  TemplateMadt,   "Multiple APIC Description Table (MADT)"},
     {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, DtCompileMcfg,  TemplateMcfg,   "Memory Mapped Configuration table"},
     {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           NULL,           TemplateMchi,   "Management Controller Host Interface table"},
@@ -729,6 +736,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_NAME4:
         case ACPI_DMT_SIG:
         case ACPI_DMT_SLIC:
+        case ACPI_DMT_LPIT:
 
             ByteLength = 4;
             break;
@@ -1230,6 +1238,32 @@ AcpiDmDumpTable (
             }
 
             AcpiOsPrintf (UINT8_FORMAT, *Target, Name);
+            break;
+
+        case ACPI_DMT_LPIT:
+
+            /* LPIT subtable types */
+
+            Temp8 = *Target;
+            switch (Temp8)
+            {
+            case ACPI_LPIT_TYPE_NATIVE_CSTATE:
+
+                Name = AcpiDmLpitSubnames[0];
+                break;
+
+            case ACPI_LPIT_TYPE_SIMPLE_IO:
+
+                Name = AcpiDmLpitSubnames[1];
+                break;
+
+            default:
+
+                Name = AcpiDmLpitSubnames[2];
+                break;
+            }
+
+            AcpiOsPrintf (UINT32_FORMAT, *Target, Name);
             break;
 
         case ACPI_DMT_EXIT:

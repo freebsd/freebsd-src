@@ -108,7 +108,18 @@ MtMethodAnalysisWalkBegin (
 
         WalkInfo->MethodStack = MethodInfo;
 
-        /* Get the name node, ignored here */
+        /* Special handling for _PRP, must have a _HID also */
+
+        if (!ACPI_STRCMP (METHOD_NAME__PRP, Op->Asl.NameSeg))
+        {
+            if (!ApFindNameInScope (METHOD_NAME__HID, Op))
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_PRP requires _HID in same scope");
+            }
+        }
+
+        /* Get the name node */
 
         Next = Op->Asl.Child;
 
@@ -412,6 +423,16 @@ MtMethodAnalysisWalkBegin (
                 AnCheckId (Next, ASL_TYPE_CID);
             }
         }
+
+        else if (!ACPI_STRCMP (METHOD_NAME__PRP, Op->Asl.NameSeg))
+        {
+            if (!ApFindNameInScope (METHOD_NAME__HID, Op))
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_PRP requires _HID in same scope");
+            }
+        }
+
         break;
 
     default:

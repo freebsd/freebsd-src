@@ -1,4 +1,71 @@
 ----------------------------------------
+24 April 2014. Summary of changes for version 20140424:
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented support to skip/ignore NULL address entries in the RSDT/XSDT. 
+Some of these tables are known to contain a trailing NULL entry. Lv 
+Zheng.
+
+Removed an extraneous error message for the case where there are a large 
+number of system GPEs (> 124). This was the "32-bit FADT register is too 
+long to convert to GAS struct" message, which is irrelevant for GPEs 
+since the GPEx_BLK_LEN fields of the FADT are always used instead of the 
+(limited capacity) GAS bit length. Also, several changes to ensure proper 
+support for GPE numbers > 255, where some "GPE number" fields were 8-bits 
+internally.
+
+Implemented and deployed additional configuration support for the public 
+ACPICA external interfaces. Entire classes of interfaces can now be 
+easily modified or configured out, replaced by stubbed inline functions 
+by default. Lv Zheng.
+
+Moved all public ACPICA runtime configuration globals to the public 
+ACPICA external interface file for convenience. Also, removed some 
+obsolete/unused globals. See the file acpixf.h. Lv Zheng.
+
+Documentation: Added a new section to the ACPICA reference describing the 
+maximum number of GPEs that can be supported by the FADT-defined GPEs in 
+block zero and one. About 1200 total. See section 4.4.1 of the ACPICA 
+reference.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  96.8K Code, 27.2K Data, 124.0K Total
+    Debug Version:     189.5K Code, 79.7K Data, 269.2K Total
+  Previous Release:
+    Non-Debug Version:  97.0K Code, 27.2K Data, 124.2K Total
+    Debug Version:     189.7K Code, 79.5K Data, 269.2K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL and disassembler: Add full support for the LPIT table (Low Power 
+Idle Table). Includes support in the disassembler, data table compiler, 
+and template generator.
+
+AcpiDump utility:
+1) Add option to force the use of the RSDT (over the XSDT).
+2) Improve validation of the RSDP signature (use 8 chars instead of 4).
+
+iASL: Add check for predefined packages that are too large.  For 
+predefined names that contain subpackages, check if each subpackage is 
+too large. (Check for too small already exists.)
+
+Debugger: Updated the GPE command (which simulates a GPE by executing the 
+GPE code paths in ACPICA). The GPE device is now optional, and defaults 
+to the GPE 0/1 FADT-defined blocks.
+
+Unix application OSL: Update line-editing support. Add additional error 
+checking and take care not to reset terminal attributes on exit if they 
+were never set. This should help guarantee that the terminal is always 
+left in the previous state on program exit.
+
+----------------------------------------
 25 March 2014. Summary of changes for version 20140325:
 
 1) ACPICA kernel-resident subsystem:

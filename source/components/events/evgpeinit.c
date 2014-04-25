@@ -139,7 +139,9 @@ AcpiEvGpeInitialize (
         /* Install GPE Block 0 */
 
         Status = AcpiEvCreateGpeBlock (AcpiGbl_FadtGpeDevice,
-                    &AcpiGbl_FADT.XGpe0Block, RegisterCount0, 0,
+                    AcpiGbl_FADT.XGpe0Block.Address,
+                    AcpiGbl_FADT.XGpe0Block.SpaceId,
+                    RegisterCount0, 0,
                     AcpiGbl_FADT.SciInterrupt, &AcpiGbl_GpeFadtBlocks[0]);
 
         if (ACPI_FAILURE (Status))
@@ -177,7 +179,9 @@ AcpiEvGpeInitialize (
             /* Install GPE Block 1 */
 
             Status = AcpiEvCreateGpeBlock (AcpiGbl_FadtGpeDevice,
-                        &AcpiGbl_FADT.XGpe1Block, RegisterCount1,
+                        AcpiGbl_FADT.XGpe1Block.Address,
+                        AcpiGbl_FADT.XGpe1Block.SpaceId,
+                        RegisterCount1,
                         AcpiGbl_FADT.Gpe1Base,
                         AcpiGbl_FADT.SciInterrupt, &AcpiGbl_GpeFadtBlocks[1]);
 

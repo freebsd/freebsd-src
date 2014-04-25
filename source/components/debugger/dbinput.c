@@ -181,7 +181,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"EXIT",         0},
     {"FIND",         1},
     {"GO",           0},
-    {"GPE",          2},
+    {"GPE",          1},
     {"GPES",         0},
     {"HANDLERS",     0},
     {"HELP",         0},
@@ -305,7 +305,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
 
     {0, "\nHardware Related Commands:",         "\n"},
     {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
-    {1, "  Gpe <GpeNum> <GpeBlock>",           "Simulate a GPE\n"},
+    {1, "  Gpe <GpeNum> [GpeBlockDevice]",     "Simulate a GPE\n"},
     {1, "  Gpes",                              "Display info on all GPEs\n"},
     {1, "  Sci",                               "Generate an SCI\n"},
     {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},

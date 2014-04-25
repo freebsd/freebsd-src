@@ -467,6 +467,12 @@ ApCheckPackageList (
                     Count, ExpectedCount);
                 break;
             }
+            if (Count > ExpectedCount)
+            {
+                ApPackageTooLarge (PredefinedName, SubPackageOp,
+                    Count, ExpectedCount);
+                break;
+            }
 
             ApCheckPackageElements (PredefinedName, Op,
                 Package->RetInfo.ObjectType1, Package->RetInfo.Count1,
@@ -500,6 +506,12 @@ ApCheckPackageList (
             if (Count < ExpectedCount)
             {
                 ApPackageTooSmall (PredefinedName, SubPackageOp,
+                    Count, ExpectedCount);
+                break;
+            }
+            if (Count > ExpectedCount)
+            {
+                ApPackageTooLarge (PredefinedName, SubPackageOp,
                     Count, ExpectedCount);
                 break;
             }

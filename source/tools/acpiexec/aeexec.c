@@ -765,13 +765,15 @@ AeMiscellaneousTests (
     AE_CHECK_OK (AcpiEnableGpe, Status);
 
 
-    Status = AcpiInstallGpeHandler (NULL, 0x62, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    /* GPE block 1 */
+
+    Status = AcpiInstallGpeHandler (NULL, 101, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
     AE_CHECK_OK (AcpiInstallGpeHandler, Status);
 
-    Status = AcpiEnableGpe (NULL, 0x62);
+    Status = AcpiEnableGpe (NULL, 101);
     AE_CHECK_OK (AcpiEnableGpe, Status);
 
-    Status = AcpiDisableGpe (NULL, 0x62);
+    Status = AcpiDisableGpe (NULL, 101);
     AE_CHECK_OK (AcpiDisableGpe, Status);
 
     AfInstallGpeBlock ();

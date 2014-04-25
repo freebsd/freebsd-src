@@ -58,31 +58,6 @@
  *
  ******************************************************************************/
 
-/* Debug output control masks */
-
-#ifdef ACPI_DEBUG_OUTPUT
-UINT32                      AcpiDbgLevel = ACPI_DEBUG_DEFAULT;
-#else
-UINT32                      AcpiDbgLevel = ACPI_NORMAL_DEFAULT;
-#endif
-
-UINT32                      AcpiDbgLayer = ACPI_COMPONENT_DEFAULT;
-
-/* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
-
-ACPI_TABLE_FADT             AcpiGbl_FADT;
-UINT32                      AcpiGbl_TraceFlags;
-ACPI_NAME                   AcpiGbl_TraceMethodName;
-BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
-UINT32                      AcpiCurrentGpeCount;
-
-/*
- * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
- * that the ACPI hardware is no longer required. A flag in the FADT indicates
- * a reduced HW machine, and that flag is duplicated here for convenience.
- */
-BOOLEAN                     AcpiGbl_ReducedHardware;
-
 /* Various state name strings */
 
 const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] =
@@ -310,7 +285,6 @@ AcpiUtInitGlobals (
     AcpiGbl_AcpiHardwarePresent         = TRUE;
     AcpiGbl_LastOwnerIdIndex            = 0;
     AcpiGbl_NextOwnerIdOffset           = 0;
-    AcpiGbl_TraceMethodName             = 0;
     AcpiGbl_TraceDbgLevel               = 0;
     AcpiGbl_TraceDbgLayer               = 0;
     AcpiGbl_DebuggerConfiguration       = DEBUGGER_THREADING;
@@ -351,9 +325,7 @@ AcpiUtInitGlobals (
     AcpiGbl_DisableMemTracking          = FALSE;
 #endif
 
-#ifdef ACPI_DEBUGGER
-    AcpiGbl_DbTerminateThreads          = FALSE;
-#endif
+    ACPI_DEBUGGER_EXEC (AcpiGbl_DbTerminateThreads = FALSE);
 
     return_ACPI_STATUS (AE_OK);
 }
