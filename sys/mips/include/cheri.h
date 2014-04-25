@@ -117,6 +117,20 @@ struct cheri_sigframe {
 
 #ifdef _KERNEL
 /*
+ * Data structure defining kernel per-thread caller-save state used in
+ * voluntary context switches.  This is morally equivalent to pcb_context[].
+ *
+ * XXXRW: For now, we define a 'micro-ABI' for the kernel, preserving and
+ * restoring only a few capability registers used by overt inline assembly.
+ * Once we use a CHERI-aware compiler for the kernel, this will need to be
+ * expanded to include a full set of caller-save registers.
+ */
+struct cheri_kframe {
+	struct chericap	ckf_c11;
+	struct chericap	ckf_c12;
+};
+
+/*
  * Per-thread CHERI CCall/CReturn stack, which preserves the calling PC/PCC/
  * IDC across CCall so that CReturn can restore them.
  *

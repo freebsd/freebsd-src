@@ -132,6 +132,9 @@ struct pcb
 	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
 #endif
 	__register_t pcb_context[14];	/* kernel context for resume */
+#ifdef CPU_CHERI
+	struct cheri_kframe pcb_cherikframe;	/* kernel caller-save state. */
+#endif
 	void *pcb_onfault;		/* for copyin/copyout faults */
 	register_t pcb_tpc;
 };

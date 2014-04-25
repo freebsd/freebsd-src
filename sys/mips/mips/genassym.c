@@ -117,6 +117,7 @@ ASSYM(MIPS_XKSEG_START, MIPS_XKSEG_START);
 ASSYM(CHERI_FRAME_SIZE, sizeof(struct cheri_stack_frame));
 ASSYM(CHERI_STACK_SIZE, sizeof(struct cheri_stack_frame) * CHERI_STACK_DEPTH);
 ASSYM(U_PCB_CHERIFRAME, offsetof(struct pcb, pcb_cheriframe));
+ASSYM(U_PCB_CHERIKFRAME, offsetof(struct pcb, pcb_cherikframe));
 ASSYM(U_PCB_CHERISTACK_TSP, offsetof(struct pcb, pcb_cheristack.cs_tsp));
 ASSYM(U_PCB_CHERISTACK_FRAMES, offsetof(struct pcb, pcb_cheristack.cs_frames));
 ASSYM(CHERI_STACKFRAME_PC, offsetof(struct cheri_stack_frame, csf_pc));
