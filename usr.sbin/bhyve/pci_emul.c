@@ -1508,7 +1508,7 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
-static int cfgbus, cfgslot, cfgfunc, cfgoff;
+static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
 
 static int
 pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
@@ -1527,9 +1527,12 @@ pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		    (cfgslot << 11) |
 		    (cfgfunc << 8) |
 		    cfgoff;
-		*eax = x | CONF1_ENABLE;
+                if (cfgenable)
+			x |= CONF1_ENABLE;	       
+		*eax = x;
 	} else {
 		x = *eax;
+		cfgenable = (x & CONF1_ENABLE) == CONF1_ENABLE;
 		cfgoff = x & PCI_REGMAX;
 		cfgfunc = (x >> 8) & PCI_FUNCMAX;
 		cfgslot = (x >> 11) & PCI_SLOTMAX;
@@ -1629,10 +1632,11 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 #endif
 
 	/*
-	 * Just return if there is no device at this cfgslot:cfgfunc or
-	 * if the guest is doing an un-aligned access
+	 * Just return if there is no device at this cfgslot:cfgfunc,
+	 * if the guest is doing an un-aligned access, or if the config
+	 * address word isn't enabled.
 	 */
-	if (pi == NULL || (coff & (bytes - 1)) != 0) {
+	if (!cfgenable || pi == NULL || (coff & (bytes - 1)) != 0) {
 		if (in)
 			*eax = 0xffffffff;
 		return (0);
