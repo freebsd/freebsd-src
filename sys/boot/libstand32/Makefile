@@ -16,7 +16,7 @@ S=		${.CURDIR}/../../../lib/libstand
 .PATH:		${S}
 LIB=		stand
 INTERNALLIB=
-NO_PROFILE=
+MK_PROFILE=	no
 NO_PIC=
 
 WARNS?=		0

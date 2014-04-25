@@ -3,7 +3,7 @@
 PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 
 MK_INSTALLLIB=	no
-NO_PROFILE=
+MK_PROFILE=	no
 
 CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
 
