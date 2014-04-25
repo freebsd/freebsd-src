@@ -9,12 +9,10 @@ KYUAFILE=	yes
 
 SCRIPTSDIR=	${TESTSDIR}
 SCRIPTS+=	conf
-SCRIPTS+=	misc.sh
-SCRIPTSNAME_misc.sh=	misc.sh
-
-${.OBJDIR}/misc.sh: ${TOP}/tools/regression/pjdfstest/tests/misc.sh
-	sed -e '/maindir=/s/\.\.\///' -e '/^\..*tests\/conf/s/tests\/conf/conf/' < $> > $@~
-	mv $@~ $@
+.for script in kyua.sh misc.sh
+SCRIPTS+=	${script}
+SCRIPTSNAME_${script}=	${script}
+.endfor
 
 TESTS_SUBDIRS+=	chflags
 TESTS_SUBDIRS+=	chmod
