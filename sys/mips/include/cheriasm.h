@@ -165,7 +165,7 @@
  *
  * XXXRW: Note hard-coding of UDC here.
  */
-#define	SAVE_CHERI_CONTEXT(base, treg)					\
+#define	SAVE_U_PCB_CHERIFRAME(base, treg)				\
 	SAVE_U_PCB_CHERIREG(CHERI_REG_SEC0, CHERI_CR_C0_OFF, base, treg); \
 	SAVE_U_PCB_CHERIREG(CHERI_REG_C1, CHERI_CR_C1_OFF, base, treg);	\
 	SAVE_U_PCB_CHERIREG(CHERI_REG_C2, CHERI_CR_C2_OFF, base, treg);	\
@@ -195,7 +195,7 @@
 	SAVE_U_PCB_CHERIREG(CHERI_REG_IDC, CHERI_CR_IDC_OFF, base, treg); \
 	SAVE_U_PCB_CHERIREG(CHERI_REG_EPCC, CHERI_CR_PCC_OFF, base, treg)
 
-#define	RESTORE_CHERI_CONTEXT(base, treg)				\
+#define	RESTORE_U_PCB_CHERIFRAME(base, treg)				\
 	RESTORE_U_PCB_CHERIREG(CHERI_REG_SEC0, CHERI_CR_C0_OFF, base, treg); \
 	RESTORE_U_PCB_CHERIREG(CHERI_REG_C1, CHERI_CR_C1_OFF, base, treg); \
 	RESTORE_U_PCB_CHERIREG(CHERI_REG_C2, CHERI_CR_C2_OFF, base, treg); \
