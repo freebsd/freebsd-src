@@ -2,16 +2,26 @@
 
 ntest=1
 
-case "${dir}" in
-/*)
-	maindir="${dir}/../.."
-	;;
-*)
-	maindir="`pwd`/${dir}/../.."
-	;;
-esac
+confdir=${dir:-$(dirname "$0")}
+maindir=${dir:-$(dirname "$0")}
+while [ ! -r "$confdir/conf" -a "$confdir" != / ]; do
+	confdir=$(cd $confdir/..; pwd)
+done
+while [ "$maindir" != / ]; do
+	if [ -f "$maindir/pjdfstest" -a -x "$maindir/pjdfstest" ]; then
+		break
+	fi
+	maindir=$(cd $maindir/../; pwd)
+done
 fstest="${maindir}/pjdfstest"
-. ${maindir}/tests/conf
+if ! . ${confdir}/conf; then
+	echo "not ok - could not source configuration file"
+	exit 1
+fi
+if [ ! -x $fstest ]; then
+	echo "not ok - could not find pjdfstest app"
+	exit 1
+fi
 
 expect()
 {
