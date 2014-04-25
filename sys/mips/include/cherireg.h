@@ -175,34 +175,34 @@
  * Offsets of registers in struct cheri_frame -- must match the definition in
  * cheri.h.
  */
-#define	CHERI_CR_C0_OFF		0
-#define	CHERI_CR_C1_OFF		1
-#define	CHERI_CR_C2_OFF		2
-#define	CHERI_CR_C3_OFF		3
-#define	CHERI_CR_C4_OFF		4
-#define	CHERI_CR_C5_OFF		5
-#define	CHERI_CR_C6_OFF		6
-#define	CHERI_CR_C7_OFF		7
-#define	CHERI_CR_C8_OFF		8
-#define	CHERI_CR_C9_OFF		9
-#define	CHERI_CR_C10_OFF	10
-#define	CHERI_CR_C11_OFF	11
-#define	CHERI_CR_C12_OFF	12
-#define	CHERI_CR_C13_OFF	13
-#define	CHERI_CR_C14_OFF	14
-#define	CHERI_CR_C15_OFF	15
-#define	CHERI_CR_C16_OFF	16
-#define	CHERI_CR_C17_OFF	17
-#define	CHERI_CR_C18_OFF	18
-#define	CHERI_CR_C19_OFF	19
-#define	CHERI_CR_C20_OFF	20
-#define	CHERI_CR_C21_OFF	21
-#define	CHERI_CR_C22_OFF	22
-#define	CHERI_CR_C23_OFF	23
-#define	CHERI_CR_RCC_OFF	24
-#define	CHERI_CR_C25_OFF	25
-#define	CHERI_CR_IDC_OFF	26
-#define	CHERI_CR_PCC_OFF	27	/* NB: Not register $c27! */
+#define	CHERIFRAME_OFF_C0	0
+#define	CHERIFRAME_OFF_C1	1
+#define	CHERIFRAME_OFF_C2	2
+#define	CHERIFRAME_OFF_C3	3
+#define	CHERIFRAME_OFF_C4	4
+#define	CHERIFRAME_OFF_C5	5
+#define	CHERIFRAME_OFF_C6	6
+#define	CHERIFRAME_OFF_C7	7
+#define	CHERIFRAME_OFF_C8	8
+#define	CHERIFRAME_OFF_C9	9
+#define	CHERIFRAME_OFF_C10	10
+#define	CHERIFRAME_OFF_C11	11
+#define	CHERIFRAME_OFF_C12	12
+#define	CHERIFRAME_OFF_C13	13
+#define	CHERIFRAME_OFF_C14	14
+#define	CHERIFRAME_OFF_C15	15
+#define	CHERIFRAME_OFF_C16	16
+#define	CHERIFRAME_OFF_C17	17
+#define	CHERIFRAME_OFF_C18	18
+#define	CHERIFRAME_OFF_C19	19
+#define	CHERIFRAME_OFF_C20	20
+#define	CHERIFRAME_OFF_C21	21
+#define	CHERIFRAME_OFF_C22	22
+#define	CHERIFRAME_OFF_C23	23
+#define	CHERIFRAME_OFF_RCC	24
+#define	CHERIFRAME_OFF_C25	25
+#define	CHERIFRAME_OFF_IDC	26
+#define	CHERIFRAME_OFF_PCC	27	/* NB: Not register $c27! */
 
 /*
  * List of CHERI capability cause code constants, which are used to

@@ -535,7 +535,7 @@ DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
 	db_printf("\nPCC:\n");
 	s = intr_disable();
 	cheri_capability_load(CHERI_CR_CTEMP, (struct chericap *)&cfp->cf_c0 +
-	    CHERI_CR_PCC_OFF);
+	    CHERIFRAME_OFF_PCC);
 	DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP, CHERI_CR_EPCC);
 	intr_restore(s);
 }

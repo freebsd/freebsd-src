@@ -82,7 +82,8 @@ struct cheri_object {
  * struct mips_frame.  As with mips_frame, the order of save/restore is very
  * important for both reasons of correctness and security.
  *
- * Must match the register offset definitions (CHERI_*_OFF) in cherireg.h.
+ * Must match the register offset definitions (CHERIFRAME_OFF_*) in
+ * cherireg.h.
  */
 struct cheri_frame {
 	/* c0 has special properties for MIPS load/store instructions. */
