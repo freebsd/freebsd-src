@@ -1,0 +1,11 @@
+# VT -- kernel config using the vt(9) system console instead of legacy syscons
+#                                                                              
+# For more information see https://wiki.freebsd.org/Newcons
+#
+# $FreeBSD$
+
+include		VT
+ident 		UEFI
+
+nodevice 	vt_vga
+device		vt_efifb
