@@ -205,6 +205,13 @@
 #define	CHERIFRAME_OFF_PCC	27	/* NB: Not register $c27! */
 
 /*
+ * Offsets of registers in struct cheri_kframe -- must match the definition in
+ * cheri.h.
+ */
+#define	CHERIKFRAME_OFF_C11	0
+#define	CHERIKFRAME_OFF_C12	1
+
+/*
  * List of CHERI capability cause code constants, which are used to
  * disambiguate various CP2 exceptions.
  *

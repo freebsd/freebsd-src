@@ -225,4 +225,31 @@
 	RESTORE_U_PCB_CHERIFRAME_REG(CHERI_REG_IDC, CHERIFRAME_OFF_IDC, base, treg);\
 	RESTORE_U_PCB_CHERIFRAME_REG(CHERI_REG_EPCC, CHERIFRAME_OFF_PCC, base, treg)
 
+/*
+ * Macros saving capability state to, and restoring it from, voluntary kernel
+ * context-switch storage in pcb.pcb_cherikframe.
+ */
+#define	SAVE_U_PCB_CHERIKFRAME_REG(creg, offs, base, treg)		\
+	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
+	csc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+
+#define	RESTORE_U_PCB_CHERIKFRAME_REG(creg, offs, base, treg)		\
+	PTR_ADDIU	treg, base, U_PCB_CHERIKFRAME;			\
+	clc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
+
+/*
+ * Macros saving a full voluntary kernel CHERI register frame.
+ */
+#define	SAVE_U_PCB_CHERIKFRAME(base, treg)				\
+	SAVE_U_PCB_CHERIKFRAME_REG(CHERI_REG_C11, CHERIKFRAME_OFF_C11,	\
+	    base, treg);						\
+	SAVE_U_PCB_CHERIKFRAME_REG(CHERI_REG_C12, CHERIKFRAME_OFF_C12,	\
+	    base, treg);
+
+#define	RESTORE_U_PCB_CHERIKFRAME(base, treg)				\
+	RESTORE_U_PCB_CHERIKFRAME_REG(CHERI_REG_C11,			\
+	    CHERIKFRAME_OFF_C11, base, treg);				\
+	RESTORE_U_PCB_CHERIKFRAME_REG(CHERI_REG_C12,			\
+	    CHERIKFRAME_OFF_C12, base, treg);
+
 #endif /* _MIPS_INCLUDE_CHERIASM_H_ */
