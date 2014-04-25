@@ -153,8 +153,6 @@ struct iwi_softc {
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
 	void 			*sc_ih;
-	int			mem_rid;
-	int			irq_rid;
 
 	/*
 	 * The card needs external firmware images to work, which is made of a
