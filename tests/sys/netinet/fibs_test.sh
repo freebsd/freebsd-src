@@ -1,7 +1,7 @@
 #
 #  Copyright (c) 2014 Spectra Logic Corporation
 #  All rights reserved.
-# 
+#
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions
 #  are met:
@@ -13,7 +13,7 @@
 #     ("Disclaimer") and any redistribution must be conditioned upon
 #     including a substantially similar Disclaimer requirement for further
 #     binary redistribution.
-# 
+#
 #  NO WARRANTY
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 #  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
 #  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGES.
-# 
+#
 #  Authors: Alan Somers         (Spectra Logic Corporation)
 #
 # $FreeBSD$
@@ -43,7 +43,7 @@
 # Simulate a crossover cable between them by using net/socat
 # Use nping (from security/nmap) to send an ICMP echo request from one
 # interface to the other, spoofing the source IP.  The source IP must be
-# spoofed, or else it will already have an entry in the arp table. 
+# spoofed, or else it will already have an entry in the arp table.
 # Check whether an arp entry exists for the spoofed IP
 atf_test_case arpresolve_checks_interface_fib cleanup
 arpresolve_checks_interface_fib_head()
@@ -84,7 +84,7 @@ arpresolve_checks_interface_fib_body()
 	socat /dev/${TAP0} /dev/${TAP1} &
 	SOCAT_PID=$!
 	echo ${SOCAT_PID} >> "processes_to_kill"
-	
+
 	# Send an ICMP echo request with a spoofed source IP
 	setfib 2 nping -c 1 -e ${TAP0} -S ${SPOOF_ADDR} \
 		--source-mac ${SPOOF_MAC} --icmp --icmp-type "echo-request" \
@@ -307,9 +307,9 @@ udp_dontroute_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case arpresolve_checks_interface_fib
-	atf_add_test_case loopback_and_network_routes_on_nondefault_fib 
-	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet 
-	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet 
+	atf_add_test_case loopback_and_network_routes_on_nondefault_fib
+	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
 	atf_add_test_case udp_dontroute
 }
 
