@@ -650,14 +650,14 @@ last_orders () (
 # Common Flash device geometries
 #
 
-FlashDevice () (
+FlashDevice () {
 	if [ -d ${NANO_TOOLS} ] ; then
 		. ${NANO_TOOLS}/FlashDevice.sub
 	else
 		. ${NANO_SRC}/${NANO_TOOLS}/FlashDevice.sub
 	fi
 	sub_FlashDevice $1 $2
-)
+}
 
 #######################################################################
 # USB device geometries
@@ -679,7 +679,7 @@ FlashDevice () (
 # The generic-hdd device is preferred for flash devices larger than 1GB.
 #
 
-UsbDevice () (
+UsbDevice () {
 	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
 	case $a1 in
 	generic-fdd)
@@ -697,7 +697,7 @@ UsbDevice () (
 		exit 2
 		;;
 	esac
-)
+}
 
 #######################################################################
 # Setup serial console
@@ -849,18 +849,18 @@ cust_pkgng () (
 # Convenience function:
 # 	Register all args as customize function.
 
-customize_cmd () (
+customize_cmd () {
 	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
-)
+}
 
 #######################################################################
 # Convenience function:
 # 	Register all args as late customize function to run just before
 #	image creation.
 
-late_customize_cmd () (
+late_customize_cmd () {
 	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
-)
+}
 
 #######################################################################
 #
@@ -877,7 +877,7 @@ pprint() (
     fi
 )
 
-usage () (
+usage () {
 	(
 	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
@@ -891,7 +891,7 @@ usage () (
 	echo "	-c	specify config file"
 	) 1>&2
 	exit 2
-)
+}
 
 #######################################################################
 # Parse arguments
