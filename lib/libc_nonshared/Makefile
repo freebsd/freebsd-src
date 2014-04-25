@@ -4,7 +4,7 @@
 # It is used exclusively with libc.so.* - there is no need for any other
 # compile modes.
 # bsd.lib.mk doesn't have an easy way to express that.
-NO_PROFILE?=
+MK_PROFILE?=no
 .include <bsd.own.mk>
 NO_PIC=	
 # -fpic on some platforms, -fPIC on others.
