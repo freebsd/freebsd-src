@@ -92,6 +92,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *regs;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
+	vm_offset_t sp;
+#ifdef CPU_CHERI
+	struct cheri_sigframe csf;    /* XXXRW: May be too big for the stack? */
+	size_t cp2_len;
+#endif
 	int sig;
 	int oonstack;
 
@@ -127,15 +132,32 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
 	}
 
+#ifdef CPU_CHERI
+	bzero(&csf, sizeof(csf));
+
+	/* XXXRW: Preserve register tags. */
+	csf.cs_frame = td->td_pcb->pcb_cheriframe;
+
+	/* XXXRW: capability-cause register. */
+#endif
+
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((vm_offset_t)(td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(struct sigframe))
-		    & ~(sizeof(__int64_t) - 1));
+		sp = (vm_offset_t)(td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size);
 	} else
-		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
-		    sizeof(struct sigframe)) & ~(sizeof(__int64_t) - 1));
+		sp = (vm_offset_t)regs->sp;
+#ifdef CPU_CHERI
+	cp2_len = sizeof(csf);
+	sp -= cp2_len;
+	sp &= ~(CHERICAP_SIZE - 1);
+	sf.sf_uc.uc_mcontext.mc_cp2state = sp;
+	sf.sf_uc.uc_mcontext.mc_cp2state_len = cp2_len;
+#endif
+	sp -= sizeof(struct sigframe);
+	sp &= ~(sizeof(__int64_t) - 1);
+	sfp = (void *)sp;
 
 	/* Translate the signal if appropriate */
 	if (p->p_sysent->sv_sigtbl) {
@@ -168,6 +190,14 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Copy the sigframe out to the user's stack.
 	 */
+#ifdef CPU_CHERI
+	/* XXXRW: Preserve register tags. */
+	if (copyout(&csf, (void *)sf.sf_uc.uc_mcontext.mc_cp2state,
+	    sf.sf_uc.uc_mcontext.mc_cp2state_len) != 0) {
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
+#endif
 	if (copyout(&sf, sfp, sizeof(struct sigframe)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
@@ -396,13 +426,38 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mullo = td->td_frame->mullo;
 	mcp->mulhi = td->td_frame->mulhi;
 	mcp->mc_tls = td->td_md.md_tls;
+
+#if 0
+#ifdef CPU_CHERI
+	/* XXXRW: TODO */
+#endif
+#endif
+
 	return (0);
 }
 
 int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
+#ifdef CPU_CHERI
+	struct cheri_sigframe csf;    /* XXXRW: May be too big for the stack? */
+	int error;
+#endif
 	struct trapframe *tp;
+
+#ifdef CPU_CHERI
+	if ((void *)mcp->mc_cp2state != NULL) {
+		if (mcp->mc_cp2state_len != sizeof(csf)) {
+			printf("%s: invalid length\n", __func__);
+			return (EINVAL);
+		}
+		error = copyin((void *)mcp->mc_cp2state, &csf, sizeof(csf));
+		if (error) {
+			printf("%s: invalid pointer\n", __func__);
+			return (EINVAL);
+		}
+	}
+#endif
 
 	tp = td->td_frame;
 	bcopy((void *)&mcp->mc_regs, (void *)&td->td_frame->zero,
@@ -419,6 +474,15 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_md.md_tls = mcp->mc_tls;
 	/* Dont let user to set any bits in Status and casue registers */
 
+#if 0
+#ifdef CPU_CHERI
+	if ((void *)mcp->mc_cp2state != NULL) {
+		/* Note: we intentionally don't restore 'capcause'. */
+		/* XXXRW: Preserve register tags. */
+		td->td_pcb->pcb_cheriframe = csf.cs_frame;
+	}
+#endif
+#endif
 	return (0);
 }
 
