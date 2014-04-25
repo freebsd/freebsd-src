@@ -1,0 +1,18 @@
+TOP=		${.CURDIR:H:H:H:H}
+
+.PATH: ${TOP}/tools/regression/pjdfstest
+
+FILES=		LICENSE \
+		README \
+
+BINDIR=		${TESTSBASE}/sys/pjdfstest
+PROG=		pjdfstest
+NO_MAN=
+
+CFLAGS=		-D__OS_FreeBSD__ -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_FCHFLAGS
+CFLAGS+=	-DHAS_CHFLAGSAT -DHAS_LCHFLAGS -DHAS_FREEBSD_ACL -DHAS_BINDAT
+CFLAGS+=	-DHAS_CONNECTAT
+
+WARNS?=		6
+
+.include <bsd.prog.mk>
