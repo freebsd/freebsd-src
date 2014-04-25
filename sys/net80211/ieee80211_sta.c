@@ -300,12 +300,18 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			if (vap->iv_roaming == IEEE80211_ROAMING_AUTO)
 				ieee80211_check_scan_current(vap);
 			break;
+		case IEEE80211_S_SLEEP:		/* beacon miss */
+			/*
+			 * XXX if in sleep we need to wakeup the hardware.
+			 */
+			/* FALLTHROUGH */
 		case IEEE80211_S_RUN:		/* beacon miss */
 			/*
 			 * Beacon miss.  Notify user space and if not
 			 * under control of a user application (roaming
 			 * manual) kick off a scan to re-connect.
 			 */
+
 			ieee80211_sta_leave(ni);
 			if (vap->iv_roaming == IEEE80211_ROAMING_AUTO)
 				ieee80211_check_scan_current(vap);
@@ -1417,19 +1423,12 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				 * for the multicast bit being set.
 				 */
 #if 0
-				if ((tim->tim_bitctl & 1) ||
-				    (min <= ix && ix <= max &&
-				     isset(tim->tim_bitmap - min, aid))) {
-					/* 
-					 * XXX Do not let bg scan kick off
-					 * we are expecting data.
-					 */
+				if (tim->tim_bitctl & 1) {
 					ieee80211_sta_tim_notify(vap, 1);
 					ic->ic_lastdata = ticks;
-					// XXX not yet?
-//					vap->iv_sta_ps(vap, 0);
 				}
 #endif
+
 				ni->ni_dtim_count = tim->tim_count;
 				ni->ni_dtim_period = tim->tim_period;
 			}
