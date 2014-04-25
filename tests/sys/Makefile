@@ -4,9 +4,12 @@
 
 .PATH: ${.CURDIR}/..
 
+TESTSDIR= ${TESTSBASE}/sys
+
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		netinet
-TESTSDIR= ${TESTSBASE}/sys
+
+SUBDIR+=		pjdfstest
 
 KYUAFILE= yes
 
