@@ -3,7 +3,6 @@
 .PATH:	${.CURDIR}/../../../../sys/dev/ath/ath_hal
 
 PROG=	ath_ee_9300_print
-NOMAN=	yes
 MAN=
 SRCS=	main.c
 SRCS+=	opt_ah.h
