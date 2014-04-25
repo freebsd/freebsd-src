@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	athalq
-NOMAN=	yes
+MAN=
 
 CFLAGS+=	-I../../../../sys/contrib
 
