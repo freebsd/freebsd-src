@@ -4,7 +4,6 @@
 
 PROG=	ath_ee_v4k_print
 SRCS=	main.c eeprom.c v4k.c
-NOMAN=	yes
 MAN=
 
 .include <../Makefile.inc>
