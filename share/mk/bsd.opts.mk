@@ -45,13 +45,40 @@ SRCCONF?=	/etc/src.conf
 # that haven't been converted over.
 #
 
+# Only these options are used by bsd.*.mk. Most seem legit, except maybe
+# OPENSSH.
+
+__DEFAULT_YES_OPTIONS = \
+    ASSERT_DEBUG \
+    INFO \
+    INSTALLLIB \
+    KERBEROS \
+    MAN \
+    MANCOMPRESS \
+    NIS \
+    OPENSSH \
+    PROFILE \
+    SSP \
+    SYMVER \
+    TOOLCHAIN
+
+__DEFAULT_NO_OPTIONS = \
+    CTF \
+    DEBUG_FILES \
+    INSTALL_AS_USER \
+
+.include <bsd.mkopt.mk>
+
+# Note: __DEFAULT_{YES,NO}_OPTIONS unset by bsd.mkopt.mk
+
+# These options are used by src the builds
+
 __DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
     AMD \
     APM \
     ARM_EABI \
-    ASSERT_DEBUG \
     AT \
     ATM \
     AUDIT \
@@ -98,13 +125,10 @@ __DEFAULT_YES_OPTIONS = \
     ICONV \
     INET \
     INET6 \
-    INFO \
-    INSTALLLIB \
     IPFILTER \
     IPFW \
     JAIL \
     KDUMP \
-    KERBEROS \
     KERNEL_SYMBOLS \
     KVM \
     LDNS \
@@ -121,18 +145,14 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
-    MAN \
-    MANCOMPRESS \
     NCURSESW \
     NDIS \
     NETCAT \
     NETGRAPH \
-    NIS \
     NLS \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
-    OPENSSH \
     OPENSSL \
     PAM \
     PC_SYSINSTALL \
@@ -141,7 +161,6 @@ __DEFAULT_YES_OPTIONS = \
     PMC \
     PORTSNAP \
     PPP \
-    PROFILE \
     QUOTAS \
     RCMDS \
     RCS \
@@ -153,16 +172,13 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
-    SSP \
     SVNLITE \
-    SYMVER \
     SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
     TCSH \
     TELNET \
     TEXTPROC \
-    TOOLCHAIN \
     UNBOUND \
     USB \
     UTMPX \
@@ -175,11 +191,8 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
-    CTF \
-    DEBUG_FILES \
     EISA \
     HESIOD \
-    INSTALL_AS_USER \
     LLDB \
     NAND \
     OFED \
@@ -255,6 +268,29 @@ __DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
 .if defined(NO_${var})
 .warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."
 MK_${var}:=no
+.endif
+.endfor
+
+#
+# MK_* options that default to "yes" if the compiler is a C++11 compiler.
+#
+.include <bsd.compiler.mk>
+.for var in \
+    LIBCPLUSPLUS
+.if !defined(MK_${var})
+.if ${COMPILER_FEATURES:Mc++11}
+.if defined(WITHOUT_${var})
+MK_${var}:=	no
+.else
+MK_${var}:=	yes
+.endif
+.else
+.if defined(WITH_${var})
+MK_${var}:=	yes
+.else
+MK_${var}:=	no
+.endif
+.endif
 .endif
 .endfor
 
@@ -371,29 +407,6 @@ MK_${vv:H}:=	yes
 MK_${vv:H}:=	no
 .else
 MK_${vv:H}:=	${MK_${vv:T}}
-.endif
-.endfor
-
-#
-# MK_* options that default to "yes" if the compiler is a C++11 compiler.
-#
-.include <bsd.compiler.mk>
-.for var in \
-    LIBCPLUSPLUS
-.if !defined(MK_${var})
-.if ${COMPILER_FEATURES:Mc++11}
-.if defined(WITHOUT_${var})
-MK_${var}:=	no
-.else
-MK_${var}:=	yes
-.endif
-.else
-.if defined(WITH_${var})
-MK_${var}:=	yes
-.else
-MK_${var}:=	no
-.endif
-.endif
 .endif
 .endfor
 
