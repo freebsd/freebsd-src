@@ -250,7 +250,7 @@ __DEFAULT_NO_OPTIONS+=CHERI
 # Supported NO_* options (if defined, MK_* will be forced to "no",
 # regardless of user's setting).
 #
-# These are transitional and will disappaer in the fullness of time.
+# These are transitional and will disappaer in the FreeBSD 12.
 #
 .for var in \
     CTF \
@@ -259,6 +259,7 @@ __DEFAULT_NO_OPTIONS+=CHERI
     MAN \
     PROFILE
 .if defined(NO_${var})
+.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."
 MK_${var}:=no
 .endif
 .endfor
