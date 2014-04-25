@@ -247,7 +247,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
-		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 # build-tools stage
@@ -276,7 +276,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD
 
 # world stage
@@ -557,7 +557,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-	    -DNO_PROFILE MK_TESTS=no libraries
+	    MK_PROFILE=no  MK_TESTS=no libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1602,9 +1602,9 @@ ${_lib}__PL: .PHONY .MAKE
 		cd ${.CURDIR}/${_lib} && \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
-		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all && \
-		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1858,7 +1858,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
-	MK_MAN=no MK_NLS=no -DNO_PROFILE \
+	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
