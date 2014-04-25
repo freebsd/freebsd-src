@@ -288,6 +288,8 @@ SlowFault:
  * matching the form "sw ra, (off)sp" to figure out the address of the
  * calling function. So we must make sure that we save the exception
  * PC by staging it through 'ra' as opposed to any other register.
+ *
+ * XXXRW: CHERI kernel involuntary context save here.
  */
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
@@ -343,6 +345,9 @@ SlowFault:
 #define	RESTORE_REG(reg, offs, base) \
 	REG_L	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
+/*
+ * XXXRW: CHERI kernel involuntary context restore here.
+ */
 #define	RESTORE_CPU \
 	CLEAR_STATUS			;\
 	RESTORE_REG(k0, SR, sp)		;\
