@@ -15,7 +15,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
-#	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
+#	-DWITHOUT_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
@@ -248,7 +248,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -258,7 +258,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -277,7 +277,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -294,7 +294,7 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
 .if ${MK_CDDL} == "no"
-WMAKEENV+=	NO_CTF=1
+WMAKEENV+=	MK_CTF=no
 .endif
 
 .if defined(CROSS_TOOLCHAIN_PREFIX)
@@ -400,7 +400,7 @@ LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		-DCOMPAT_32BIT \
 		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
-		-DNO_CTF \
+		MK_CTF=no \
 		-DNO_LINT \
 		MK_TESTS=no
 
@@ -609,7 +609,7 @@ build32:
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF \
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no \
 	    -DEARLY_BUILD build-tools
 .endfor
 	cd ${.CURDIR}; \
