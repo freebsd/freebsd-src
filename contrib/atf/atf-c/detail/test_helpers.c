@@ -43,10 +43,8 @@
 #include "process.h"
 #include "test_helpers.h"
 
-static
-void
-build_check_c_o_aux(const char *path, const char *failmsg,
-                    const bool expect_pass)
+bool
+build_check_c_o(const char *path)
 {
     bool success;
     atf_dynstr_t iflag;
@@ -63,20 +61,19 @@ build_check_c_o_aux(const char *path, const char *failmsg,
 
     atf_dynstr_fini(&iflag);
 
-    if ((expect_pass && !success) || (!expect_pass && success))
-        atf_tc_fail("%s", failmsg);
+    return success;
 }
 
-void
-build_check_c_o(const atf_tc_t *tc, const char *sfile, const char *failmsg,
-                const bool expect_pass)
+bool
+build_check_c_o_srcdir(const atf_tc_t *tc, const char *sfile)
 {
     atf_fs_path_t path;
 
     RE(atf_fs_path_init_fmt(&path, "%s/%s",
                             atf_tc_get_config_var(tc, "srcdir"), sfile));
-    build_check_c_o_aux(atf_fs_path_cstring(&path), failmsg, expect_pass);
+    const bool result = build_check_c_o(atf_fs_path_cstring(&path));
     atf_fs_path_fini(&path);
+    return result;
 }
 
 void
@@ -93,7 +90,8 @@ header_check(const char *hdrname)
     snprintf(failmsg, sizeof(failmsg),
              "Header check failed; %s is not self-contained", hdrname);
 
-    build_check_c_o_aux("test.c", failmsg, true);
+    if (!build_check_c_o("test.c"))
+        atf_tc_fail("%s", failmsg);
 }
 
 void

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,27 +56,44 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/vybrid/vf_iomuxc.h>
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	IBE		(1 << 0) /* Input Buffer Enable Field */
-#define	OBE		(1 << 1) /* Output Buffer Enable Field. */
-#define	PUE		(1 << 2) /* Pull / Keep Select Field. */
-#define	PKE		(1 << 3) /* Pull / Keep Enable Field. */
-#define	PUS_MASK	(3 << 4) /* Pull Up / Down Config Field. */
-#define	DSE_MASK	(7 << 6) /* Drive Strength Field. */
-#define	HYS		(1 << 9) /* Hysteresis Enable Field */
-
 #define	MUX_MODE_MASK		7
 #define	MUX_MODE_SHIFT		20
 #define	MUX_MODE_GPIO		0
-#define	MUX_MODE_RMII		1
-#define	MUX_MODE_RMII_CLKIN	2
 #define	MUX_MODE_VBUS_EN_OTG	2
 
-#define	PUS_22_KOHM_PULL_UP	(3 << 4)
-#define	DSE_25_OHM		(6 << 6)
+#define	IBE		(1 << 0)	/* Input Buffer Enable Field */
+#define	OBE		(1 << 1)	/* Output Buffer Enable Field. */
+#define	PUE		(1 << 2)	/* Pull / Keep Select Field. */
+#define	PKE		(1 << 3)	/* Pull / Keep Enable Field. */
+#define	HYS		(1 << 9)	/* Hysteresis Enable Field */
+#define	ODE		(1 << 10)	/* Open Drain Enable Field. */
+#define	SRE		(1 << 11)	/* Slew Rate Field. */
 
-#define	NET0_PAD_START	45
-#define	NET1_PAD_START	54
-#define	NET_PAD_N	9
+#define	SPEED_SHIFT		12
+#define	SPEED_MASK		0x3
+#define	SPEED_LOW		0	/* 50 MHz */
+#define	SPEED_MEDIUM		0x1	/* 100 MHz */
+#define	SPEED_HIGH		0x3	/* 200 MHz */
+
+#define	PUS_SHIFT		4	/* Pull Up / Down Config Field Shift */
+#define	PUS_MASK		0x3
+#define	PUS_100_KOHM_PULL_DOWN	0
+#define	PUS_47_KOHM_PULL_UP	0x1
+#define	PUS_100_KOHM_PULL_UP	0x2
+#define	PUS_22_KOHM_PULL_UP	0x3
+
+#define	DSE_SHIFT		6	/* Drive Strength Field Shift */
+#define	DSE_MASK		0x7
+#define	DSE_DISABLED		0	/* Output driver disabled */
+#define	DSE_150_OHM		0x1
+#define	DSE_75_OHM		0x2
+#define	DSE_50_OHM		0x3
+#define	DSE_37_OHM		0x4
+#define	DSE_30_OHM		0x5
+#define	DSE_25_OHM		0x6
+#define	DSE_20_OHM		0x7
+
+#define	MAX_MUX_LEN		1024
 
 struct iomuxc_softc {
 	struct resource		*tmr_res[1];
@@ -94,6 +111,9 @@ static int
 iomuxc_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,mvf600-iomuxc"))
 		return (ENXIO);
 
@@ -102,14 +122,53 @@ iomuxc_probe(device_t dev)
 }
 
 static int
-configure_pad(struct iomuxc_softc *sc, int pad, int mux_mode)
+pinmux_set(struct iomuxc_softc *sc)
 {
-	int reg;
+	phandle_t child, parent, root;
+	pcell_t iomux_config[MAX_MUX_LEN];
+	int len;
+	int values;
+	int pin;
+	int pin_cfg;
+	int i;
 
-	reg = READ4(sc, pad);
-	reg &= ~(MUX_MODE_MASK << MUX_MODE_SHIFT);
-	reg |= (mux_mode << MUX_MODE_SHIFT);
-	WRITE4(sc, pad, reg);
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Find 'iomux_config' prop in the nodes */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+
+		if (!fdt_is_enabled(child))
+			continue;
+
+		if ((len = OF_getproplen(child, "iomux_config")) > 0) {
+			OF_getprop(child, "iomux_config", &iomux_config, len);
+
+			values = len / (sizeof(uint32_t));
+			for (i = 0; i < values; i += 2) {
+				pin = fdt32_to_cpu(iomux_config[i]);
+				pin_cfg = fdt32_to_cpu(iomux_config[i+1]);
+#if 0
+				device_printf(sc->dev, "Set pin %d to 0x%08x\n",
+				    pin, pin_cfg);
+#endif
+				WRITE4(sc, IOMUXC(pin), pin_cfg);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
 
 	return (0);
 }
@@ -118,8 +177,6 @@ static int
 iomuxc_attach(device_t dev)
 {
 	struct iomuxc_softc *sc;
-	int reg;
-	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -133,23 +190,7 @@ iomuxc_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->tmr_res[0]);
 	sc->bsh = rman_get_bushandle(sc->tmr_res[0]);
 
-	/* USB */
-	configure_pad(sc, IOMUXC_PTA17, MUX_MODE_VBUS_EN_OTG);
-	reg = (PKE | PUE | PUS_22_KOHM_PULL_UP | DSE_25_OHM | OBE);
-	WRITE4(sc, IOMUXC_PTA7, reg);
-
-	/* NET */
-	configure_pad(sc, IOMUXC_PTA6, MUX_MODE_RMII_CLKIN);
-
-	/* NET0 */
-	for (i = NET0_PAD_START; i <= (NET0_PAD_START + NET_PAD_N); i++) {
-		configure_pad(sc, IOMUXC(i), MUX_MODE_RMII);
-	}
-
-	/* NET1 */
-	for (i = NET1_PAD_START; i <= (NET1_PAD_START + NET_PAD_N); i++) {
-		configure_pad(sc, IOMUXC(i), MUX_MODE_RMII);
-	}
+	pinmux_set(sc);
 
 	return (0);
 }

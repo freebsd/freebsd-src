@@ -1,0 +1,196 @@
+.\"-
+.\" Copyright (c) 2013 Stacey D. Son
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Support for miscellaneous binary image activators
+.\"
+.Dd April 10, 2014
+.Dt BINMISCCTL 8 
+.Os
+.Sh NAME
+.Nm binmiscctl
+.Nd manage binary image activators
+.Sh SYNOPSIS
+.Nm
+.Cm add
+.Ar name
+.Cm --interpreter
+.Ar path
+.Cm --magic
+.Ar magic
+.Cm --size
+.Ar size
+.Op Cm --mask Ar mask
+.Op Cm --offset Ar offset
+.Op Cm --set-enabled
+.Nm
+.Cm remove
+.Ar name
+.Nm
+.Cm disable
+.Ar name
+.Nm
+.Cm enable
+.Ar name
+.Nm
+.Cm lookup
+.Ar name
+.Nm
+.Cm list
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the management utility for configuring miscellaneous binaries image
+activators in the kernel.
+It allows adding, deleting, disabling,
+enabling, and looking up interpreters.
+Also, all the interpreters can
+be listed.
+.Pp
+The first argument on the command line indicates the operation to be
+performed.
+Operation must be one of the following:
+.Bl -tag -width indent
+.It Xo
+.Cm add
+.Ar name
+.Cm --interpreter
+.Ar path
+.Cm --magic
+.Ar magic
+.Cm --size
+.Ar size
+.Op Cm --mask Ar mask
+.Op Cm --offset Ar offset
+.Op Cm --set-enabled
+.Xc
+Add a new activator entry in the kernel.
+You must specify a
+unique
+.Ar name,
+interpreter path and its arguments
+.Ar path,
+header
+.Ar magic
+bytes that uniquely identify a suitable binary for the activator,
+and the
+.Ar size
+of the
+.Ar magic
+in bytes.
+.Pp
+Optionally you may specify a
+.Ar mask
+to do a bitwise AND with the header bytes.
+This effectively allows you to ignore fields in the binary header that
+do not uniquely indentify the binary file's type.
+.Pp
+An
+.Ar offset
+may be specified for the magic bytes using the
+.Cm --offset
+option.
+By default the
+.Ar offset
+is zero.
+.Pp
+To enable the activator entry the
+.Cm --set-enabled
+option is used.
+The activator default state is disabled.
+.Pp
+The interpreter
+.Ar path
+may also contain arguments for the interpreter including
+.Ar #a
+which gets replaced by the old
+.Dv argv0
+value in the interpreter string.
+.It Cm remove Ar name
+Remove the activator entry identified with
+.Ar name .
+.It Cm disable Ar name
+Disable the activator entry identified with
+.Ar name .
+.It Cm enable Ar name
+Enable the activator entry identified with
+.Ar name .
+.It Cm lookup Ar name
+Look up and print out the activator entry identified with
+.Ar name .
+.It Cm list 
+Take a snapshot and print all the activator entries currently configured.
+.El
+.Sh EXAMPLES
+.Bl
+# binmiscctl add llvmbc --interpreter ''/usr/bin/lli --fake-argv0=#a'' \\
+  --magic ''BC\\xc0\\xde'' --size 4 --set-enabled
+.El
+.Pp
+Add an image activator to run the LLVM interpreter (lli) on bitcode
+compiled files.
+.Ar #a
+gets replaced with the old
+.Dv argv0
+value so that 'lli' can fake its
+.Dv argv0 .
+Set its state to enabled.
+.Pp
+.Dl # binmiscctl disable llvmbc
+.Pp
+Set the state of the 
+.Ar llvmbc
+image activator to disabled.
+.Pp
+.Dl # binmiscctl enable llvmbc
+.Pp
+Set the state of the 
+.Ar llvmbc
+image activator to enabled.
+.Pp
+.Dl # binmiscctl remove llvmbc
+.Pp
+Delete the
+.Ar llvmbc
+image activator.
+.Pp
+.Dl # binmiscctl lookup llvmbc
+.Pp
+Look up and list the record for the
+.Ar llvmbc
+image activator.
+.Sh SEE ALSO
+.Xr lli 1 ,
+.Xr execve 2
+.Sh HISTORY
+The
+.Cm binmiscctl
+command was added in
+.Fx 10.1 .
+It was developed to support the imgact_binmisc kernel module.
+.Sh AUTHORS
+Stacey D Son

@@ -911,8 +911,8 @@ typedef struct svn_diff_hunk_t svn_diff_hunk_t;
 
 /**
  * Allocate @a *stringbuf in @a result_pool, and read into it one line
- * of the diff text of @a hunk. The first line returned is the hunk header.
- * Any subsequent lines are unidiff data (starting with '+', '-', or ' ').
+ * of the diff text of @a hunk. The hunk header is not returned only the
+ * unidiff data lines (starting with '+', '-', or ' ') are returned.  
  * If the @a hunk is being interpreted in reverse (i.e. the reverse
  * parameter of svn_diff_parse_next_patch() was @c TRUE), the diff
  * text will be returned in reversed form.
@@ -921,6 +921,13 @@ typedef struct svn_diff_hunk_t svn_diff_hunk_t;
  * If EOF is reached, set @a *eof to TRUE, and set @a *eol to NULL if the
  * hunk does not end with a newline character and @a eol is not NULL.
  * Temporary allocations will be performed in @a scratch_pool.
+ *
+ * @note The hunk header information can be retrievied with the following
+ * functions: 
+ * @see svn_diff_hunk_get_original_start()
+ * @see svn_diff_hunk_get_original_length()
+ * @see svn_diff_hunk_get_modified_start()
+ * @see svn_diff_hunk_get_modified_length()
  *
  * @since New in 1.7.
  */

@@ -959,9 +959,10 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			/* 6 bits from MSB in LE CRC32 are used for hash. */
+			crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			ghash |= 1 << (crc & 0x3f);
+			ghash |= 1LLU << (((uint8_t *)&crc)[3] >> 2);
 		}
 		if_maddr_runlock(ifp);
 	}
@@ -1712,6 +1713,9 @@ static int
 ffec_probe(device_t dev)
 {
 	uintptr_t fectype;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (fectype == FECTYPE_NONE)

@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.2 2013/05/17 00:37:40 dtucker Exp $
+#	$OpenBSD: keytype.sh,v 1.3 2013/12/06 13:52:46 markus Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -11,10 +11,16 @@ fi
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 cp $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
 
-ktypes="dsa-1024 rsa-2048 rsa-3072"
-if test "$TEST_SSH_ECC" = "yes"; then
-	ktypes="$ktypes ecdsa-256 ecdsa-384 ecdsa-521"
-fi
+# Traditional and builtin key types.
+ktypes="dsa-1024 rsa-2048 rsa-3072 ed25519-512"
+# Types not present in all OpenSSL versions.
+for i in `$SSH -Q key`; do
+	case "$i" in
+		ecdsa-sha2-nistp256)	ktypes="$ktypes ecdsa-256" ;;
+		ecdsa-sha2-nistp384)	ktypes="$ktypes ecdsa-384" ;;
+		ecdsa-sha2-nistp521)	ktypes="$ktypes ecdsa-521" ;;
+	esac
+done
 
 for kt in $ktypes; do 
 	rm -f $OBJ/key.$kt

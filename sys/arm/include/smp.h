@@ -15,6 +15,7 @@
 #define IPI_TLB		7
 
 void	init_secondary(int cpu);
+void	mpentry(void);
 
 void	ipi_all_but_self(u_int ipi);
 void	ipi_cpu(int cpu, u_int ipi);

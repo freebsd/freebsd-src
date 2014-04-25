@@ -136,7 +136,6 @@ SUBDIR=	\
 	if_bridge \
 	if_disc \
 	if_edsc \
-	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
@@ -149,6 +148,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
+	${_imgact_binmisc} \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
@@ -234,6 +234,7 @@ SUBDIR=	\
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
+	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfs_common \
@@ -251,7 +252,6 @@ SUBDIR=	\
 	nullfs \
 	${_ntb} \
 	${_nvd} \
-	${_nve} \
 	${_nvme} \
 	${_nvram} \
 	${_nxge} \
@@ -373,6 +373,7 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_imgact_binmisc=	imgact_binmisc
 _vmware=	vmware
 .endif
 
@@ -560,7 +561,9 @@ _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
+.if ${MK_EISA} != "no"
 _ahb=		ahb
+.endif
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
@@ -609,9 +612,6 @@ _ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nvd=		nvd
-.if ${MK_SOURCELESS_HOST} != "no"
-_nve=		nve
-.endif
 _nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
@@ -730,9 +730,6 @@ _ndis=		ndis
 _nfe=		nfe
 _ntb=		ntb
 _nvd=		nvd
-.if ${MK_SOURCELESS_HOST} != "no"
-_nve=		nve
-.endif
 _nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge

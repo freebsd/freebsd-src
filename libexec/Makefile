@@ -9,6 +9,8 @@ SUBDIR=	${_atf} \
 	${_casper} \
 	${_cheritest_helper} \
 	${_comsat} \
+	${_dma} \
+	${_dma-mbox-create} \
 	fingerd \
 	ftpd \
 	getty \
@@ -52,6 +54,11 @@ _tcpdump_helper=	tcpdump-helper
 
 .if ${MK_MAIL} != "no"
 _comsat=	comsat
+.endif
+
+.if ${MK_DMAGENT} != "no"
+_dma=		dma
+_dma-mbox-create=	dma-mbox-create
 .endif
 
 .if ${MK_NIS} != "no"

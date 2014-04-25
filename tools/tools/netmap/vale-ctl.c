@@ -33,6 +33,7 @@
 #include <unistd.h>	/* close */
 #include <sys/ioctl.h>	/* ioctl */
 #include <sys/param.h>
+#include <sys/socket.h>	/* apple needs sockaddr */
 #include <net/if.h>	/* ifreq */
 #include <net/netmap.h>
 #include <net/netmap_user.h>

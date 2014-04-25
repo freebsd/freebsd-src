@@ -21,7 +21,6 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cstdio>
 
 using namespace llvm;
 
@@ -179,7 +178,7 @@ void HexagonInstPrinter::printBranchOperand(const MCInst *MI, unsigned OpNo,
                                             raw_ostream &O) const {
   // Branches can take an immediate operand.  This is used by the branch
   // selection pass to print $+8, an eight byte displacement from the PC.
-  assert("Unknown branch operand.");
+  llvm_unreachable("Unknown branch operand.");
 }
 
 void HexagonInstPrinter::printCallOperand(const MCInst *MI, unsigned OpNo,
@@ -196,15 +195,9 @@ void HexagonInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
 
 void HexagonInstPrinter::printSymbol(const MCInst *MI, unsigned OpNo,
                                      raw_ostream &O, bool hi) const {
-  const MCOperand& MO = MI->getOperand(OpNo);
+  assert(MI->getOperand(OpNo).isImm() && "Unknown symbol operand");
 
-  O << '#' << (hi? "HI": "LO") << '(';
-  if (MO.isImm()) {
-    O << '#';
-    printOperand(MI, OpNo, O);
-  } else {
-    assert("Unknown symbol operand");
-    printOperand(MI, OpNo, O);
-  }
+  O << '#' << (hi ? "HI" : "LO") << "(#";
+  printOperand(MI, OpNo, O);
   O << ')';
 }

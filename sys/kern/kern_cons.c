@@ -464,6 +464,15 @@ cnputc(int c)
 	struct consdev *cn;
 	char *cp;
 
+#ifdef EARLY_PRINTF
+	if (early_putc != NULL) {
+		if (c == '\n')
+			early_putc('\r');
+		early_putc(c);
+		return;
+	}
+#endif
+
 	if (cn_mute || c == '\0')
 		return;
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {

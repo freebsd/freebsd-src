@@ -1,12 +1,12 @@
 #	$FreeBSD$
-#	$OpenBSD: Makefile,v 1.4 2006/06/30 19:02:28 otto Exp $
+#	$OpenBSD: Makefile,v 1.7 2013/09/19 16:12:00 otto Exp $
 
-PROG=	bc
-SRCS=	bc.y scan.l
-CFLAGS+= -I. -I${.CURDIR}
+PROG=		bc
+SRCS=		bc.y scan.l tty.c
+CFLAGS+=	-I. -I${.CURDIR}
 
-DPADD=	${LIBEDIT} ${LIBTERMCAP}
-LDADD=	-ledit -ltermcap
+LDADD+=		-ledit -lcurses
+DPADD+=		${LIBEDIT} ${LIBCURSES}
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

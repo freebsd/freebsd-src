@@ -29,6 +29,18 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
+enum vie_cpu_mode {
+	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+};
+
+enum vie_paging_mode {
+	PAGING_MODE_FLAT,
+	PAGING_MODE_32,
+	PAGING_MODE_PAE,
+	PAGING_MODE_64,
+};
+
 /*
  * The data structures 'vie' and 'vie_op' are meant to be opaque to the
  * consumers of instruction decoding. The only reason why their contents
@@ -107,7 +119,7 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
  */
 int vmm_fetch_instruction(struct vm *vm, int cpuid,
 			  uint64_t rip, int inst_length, uint64_t cr3,
-			  struct vie *vie);
+			  enum vie_paging_mode paging_mode, struct vie *vie);
 
 void vie_init(struct vie *vie);
 
@@ -123,8 +135,8 @@ void vie_init(struct vie *vie);
  * in VIE_INVALID_GLA instead.
  */
 #define	VIE_INVALID_GLA		(1UL << 63)	/* a non-canonical address */
-int vmm_decode_instruction(struct vm *vm, int cpuid,
-			   uint64_t gla, struct vie *vie);
+int vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
+			   enum vie_cpu_mode cpu_mode, struct vie *vie);
 #endif	/* _KERNEL */
 
 #endif	/* _VMM_INSTRUCTION_EMUL_H_ */

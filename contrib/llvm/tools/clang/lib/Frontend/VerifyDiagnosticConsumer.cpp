@@ -371,7 +371,7 @@ static bool ParseDirective(StringRef S, ExpectedData *ED, SourceManager &SM,
 
         // Lookup file via Preprocessor, like a #include.
         const DirectoryLookup *CurDir;
-        const FileEntry *FE = PP->LookupFile(Filename, false, NULL, CurDir,
+        const FileEntry *FE = PP->LookupFile(Pos, Filename, false, NULL, CurDir,
                                              NULL, NULL, 0);
         if (!FE) {
           Diags.Report(Pos.getLocWithOffset(PH.C-PH.Begin),
@@ -555,7 +555,7 @@ static bool findDirectives(SourceManager &SM, FileID FID,
   VerifyDiagnosticConsumer::DirectiveStatus Status =
     VerifyDiagnosticConsumer::HasNoDirectives;
   while (Tok.isNot(tok::eof)) {
-    RawLex.Lex(Tok);
+    RawLex.LexFromRawLexer(Tok);
     if (!Tok.is(tok::comment)) continue;
 
     std::string Comment = RawLex.getSpelling(Tok, SM, LangOpts);
@@ -628,11 +628,11 @@ static bool IsFromSameFile(SourceManager &SM, SourceLocation DirectiveLoc,
   while (DiagnosticLoc.isMacroID())
     DiagnosticLoc = SM.getImmediateMacroCallerLoc(DiagnosticLoc);
 
-  if (SM.isFromSameFile(DirectiveLoc, DiagnosticLoc))
+  if (SM.isWrittenInSameFile(DirectiveLoc, DiagnosticLoc))
     return true;
 
   const FileEntry *DiagFile = SM.getFileEntryForID(SM.getFileID(DiagnosticLoc));
-  if (!DiagFile && SM.isFromMainFile(DirectiveLoc))
+  if (!DiagFile && SM.isWrittenInMainFile(DirectiveLoc))
     return true;
 
   return (DiagFile == SM.getFileEntryForID(SM.getFileID(DirectiveLoc)));

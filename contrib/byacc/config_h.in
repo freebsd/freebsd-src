@@ -30,6 +30,9 @@
 /* Define to 1 if mkstemp() is available and working. */
 #undef HAVE_MKSTEMP
 
+/* Define to maximum table size (default: 32500) */
+#undef MAXTABLE
+
 /* Define to 1 if filesystem supports mixed-case filenames. */
 #undef MIXEDCASE_FILENAMES
 
@@ -47,6 +50,9 @@
 
 /* "Define to 1 if you want to use valgrind for testing." */
 #undef USE_VALGRIND
+
+/* Define to 1 to enable backtracking extension */
+#undef YYBTYACC
 
 /* Define to 1 if you want to perform memory-leak testing. */
 #undef YY_NO_LEAKS

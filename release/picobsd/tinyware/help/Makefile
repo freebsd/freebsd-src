@@ -2,7 +2,7 @@
 #
 PROG=help
 SRCS+=help.c
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
 

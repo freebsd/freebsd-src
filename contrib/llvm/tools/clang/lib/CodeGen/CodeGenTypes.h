@@ -16,6 +16,7 @@
 
 #include "CGCall.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/Module.h"
 #include <vector>
@@ -58,21 +59,18 @@ namespace CodeGen {
 /// CodeGenTypes - This class organizes the cross-module state that is used
 /// while lowering AST types to LLVM types.
 class CodeGenTypes {
-public:
-  // Some of this stuff should probably be left on the CGM.
   CodeGenModule &CGM;
+  // Some of this stuff should probably be left on the CGM.
   ASTContext &Context;
   llvm::Module &TheModule;
   const llvm::DataLayout &TheDataLayout;
   const TargetInfo &Target;
   CGCXXABI &TheCXXABI;
-  const CodeGenOptions &CodeGenOpts;
 
   // This should not be moved earlier, since its initialization depends on some
   // of the previous reference members being already initialized
   const ABIInfo &TheABIInfo;
 
-private:
   /// The opaque type map for Objective-C interfaces. All direct
   /// manipulation is done by the runtime interfaces, which are
   /// responsible for coercing to the appropriate type; these opaque
@@ -116,7 +114,6 @@ public:
   const llvm::DataLayout &getDataLayout() const { return TheDataLayout; }
   ASTContext &getContext() const { return Context; }
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
-  const CodeGenOptions &getCodeGenOpts() const { return CodeGenOpts; }
   const TargetInfo &getTarget() const { return Target; }
   CGCXXABI &getCXXABI() const { return TheCXXABI; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }

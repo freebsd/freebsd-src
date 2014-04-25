@@ -544,7 +544,7 @@ restart:
 	 * Now build the cylinders group blocks and
 	 * then print out indices of cylinder groups.
 	 */
-	printf("super-block backups (for fsck -b #) at:\n");
+	printf("super-block backups (for fsck_ffs -b #) at:\n");
 	i = 0;
 	width = charsperline();
 	/*

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,16 +38,24 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatrset.c,v 1.7 2005/01/08 21:46:47 tom Exp $")
+MODULE_ID("$Id: lib_slkatrset.c,v 1.10 2009/10/24 22:12:21 tom Exp $")
 
 NCURSES_EXPORT(int)
-slk_attrset(const chtype attr)
+NCURSES_SP_NAME(slk_attrset) (NCURSES_SP_DCLx const chtype attr)
 {
-    T((T_CALLED("slk_attrset(%s)"), _traceattr(attr)));
+    T((T_CALLED("slk_attrset(%p,%s)"), (void *) SP_PARM, _traceattr(attr)));
 
-    if (SP != 0 && SP->_slk != 0) {
-	SetAttr(SP->_slk->attr, attr);
+    if (SP_PARM != 0 && SP_PARM->_slk != 0) {
+	SetAttr(SP_PARM->_slk->attr, attr);
 	returnCode(OK);
     } else
 	returnCode(ERR);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+slk_attrset(const chtype attr)
+{
+    return NCURSES_SP_NAME(slk_attrset) (CURRENT_SCREEN, attr);
+}
+#endif

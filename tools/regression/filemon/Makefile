@@ -17,7 +17,7 @@ BINS+=	${_BINS:C/$/32/g}
 bins: ${BINS}
 all: bins
 
-NO_MAN=
+MAN=
 
 WARNS?=	6
 CFLAGS+= -I${.CURDIR}/../../../sys

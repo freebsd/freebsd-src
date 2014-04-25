@@ -72,6 +72,8 @@ struct ti_sdhci_softc {
 	uint32_t		wp_gpio_pin;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
+	boolean_t		disable_highspeed;
+	boolean_t		force_card_present;
 };
 
 /*
@@ -105,9 +107,13 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_SYSCONFIG			0x010
 #define	  MMCHS_SYSCONFIG_RESET		  (1 << 1)
 #define	MMCHS_SYSSTATUS			0x014
+#define	  MMCHS_SYSSTATUS_RESETDONE	  (1 << 0)
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define MMCHS_SYSCTL			0x12C
+#define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
+#define   MMCHS_SYSCTL_CLKD_SHIFT	   6
 #define	MMCHS_SD_CAPA			0x140
 #define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
 #define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
@@ -161,19 +167,22 @@ ti_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 * but doesn't split them into low:high fields.  Instead they're a
 	 * single number in the range 0..1023 and the number is exactly the
 	 * clock divisor (with 0 and 1 both meaning divide by 1).  The SDHCI
-	 * driver code expects a v2.0 divisor (value N is power of two in the
-	 * range 0..128 and clock is divided by 2N).  The shifting and masking
+	 * driver code expects a v2.0 or v3.0 divisor.  The shifting and masking
 	 * here extracts the MMCHS representation from the hardware word, cleans
-	 * those bits out, applies the 2N adjustment, and plugs that into the
-	 * bit positions for the 2.0 divisor in the returned register value. The
-	 * ti_sdhci_write_2() routine performs the opposite transformation when
-	 * the SDHCI driver writes to the register.
+	 * those bits out, applies the 2N adjustment, and plugs the result into
+	 * the bit positions for the 2.0 or 3.0 divisor in the returned register
+	 * value. The ti_sdhci_write_2() routine performs the opposite
+	 * transformation when the SDHCI driver writes to the register.
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
-		clkdiv = (val32 >> SDHCI_DIVIDER_HI_SHIFT) & 0xff;
-		val32 &= ~(0xff << SDHCI_DIVIDER_HI_SHIFT);
-		val32 |= (clkdiv / 2) << SDHCI_DIVIDER_SHIFT;
+		clkdiv = ((val32 >> MMCHS_SYSCTL_CLKD_SHIFT) &
+		    MMCHS_SYSCTL_CLKD_MASK) / 2;
+		val32 &= ~(MMCHS_SYSCTL_CLKD_MASK << MMCHS_SYSCTL_CLKD_SHIFT);
+		val32 |= (clkdiv & SDHCI_DIVIDER_MASK) << SDHCI_DIVIDER_SHIFT;
+		if (slot->version >= SDHCI_SPEC_300)
+			val32 |= ((clkdiv >> SDHCI_DIVIDER_MASK_LEN) &
+			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_HI_SHIFT;
 		return (val32 & 0xffff);
 	}
 
@@ -193,8 +202,24 @@ static uint32_t
 ti_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
+	uint32_t val32;
 
-	return (RD4(sc, off));
+	val32 = RD4(sc, off);
+
+	/*
+	 * If we need to disallow highspeed mode due to the OMAP4 erratum, strip
+	 * that flag from the returned capabilities.
+	 */
+	if (off == SDHCI_CAPABILITIES && sc->disable_highspeed)
+		val32 &= ~SDHCI_CAN_DO_HISPD;
+
+	/*
+	 * Force the card-present state if necessary.
+	 */
+	if (off == SDHCI_PRESENT_STATE && sc->force_card_present)
+		val32 |= SDHCI_CARD_PRESENT;
+
+	return (val32);
 }
 
 static void
@@ -228,15 +253,23 @@ ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	uint32_t clkdiv, val32;
 
 	/*
-	 * Translate between the hardware and SDHCI 2.0 representations of the
-	 * clock divisor.  See the comments in ti_sdhci_read_2() for details.
+	 * Translate between the hardware and SDHCI 2.0 or 3.0 representations
+	 * of the clock divisor.  See the comments in ti_sdhci_read_2() for
+	 * details.
 	 */
 	if (off == SDHCI_CLOCK_CONTROL) {
 		clkdiv = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
+		if (slot->version >= SDHCI_SPEC_300)
+			clkdiv |= ((val >> SDHCI_DIVIDER_HI_SHIFT) &
+			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_MASK_LEN;
+		clkdiv *= 2;
+		if (clkdiv > MMCHS_SYSCTL_CLKD_MASK)
+			clkdiv = MMCHS_SYSCTL_CLKD_MASK;
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
 		val32 &= 0xffff0000;
-		val32 |= val & ~(SDHCI_DIVIDER_MASK << SDHCI_DIVIDER_SHIFT);
-		val32 |= (clkdiv * 2) << SDHCI_DIVIDER_HI_SHIFT;
+		val32 |= val & ~(MMCHS_SYSCTL_CLKD_MASK <<
+		    MMCHS_SYSCTL_CLKD_SHIFT);
+		val32 |= clkdiv << MMCHS_SYSCTL_CLKD_SHIFT;
 		WR4(sc, SDHCI_CLOCK_CONTROL, val32);
 		return;
 	}
@@ -358,7 +391,7 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while ((ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSCONFIG_RESET)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
 			device_printf(dev, "Error: Controller reset operation timed out\n");
 			break;
@@ -458,12 +491,14 @@ ti_sdhci_attach(device_t dev)
 
 	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
+	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
 	if (ti_chip() == CHIP_OMAP_3)
 		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4)
+	else if (ti_chip() == CHIP_OMAP_4) {
 		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_AM335X)
+		sc->disable_highspeed = true;
+        } else if (ti_chip() == CHIP_AM335X)
 		sc->mmchs_reg_off = AM335X_MMCHS_REG_OFFSET;
 	else
 		panic("Unknown OMAP device\n");
@@ -560,6 +595,14 @@ ti_sdhci_attach(device_t dev)
 		}
 	}
 
+	/*
+	 * If the slot is flagged with the non-removable property, set our flag
+	 * to always force the SDHCI_CARD_PRESENT bit on.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "non-removable"))
+		sc->force_card_present = true;
+
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
@@ -581,6 +624,9 @@ fail:
 static int
 ti_sdhci_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
 		device_set_desc(dev, "TI MMCHS (SDHCI 2.0)");

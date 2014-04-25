@@ -1644,6 +1644,13 @@ struct BitfieldInfo
     {
     }
     
+    void
+    Clear()
+    {
+        bit_size = LLDB_INVALID_ADDRESS;
+        bit_offset = LLDB_INVALID_ADDRESS;
+    }
+
     bool IsValid ()
     {
         return (bit_size != LLDB_INVALID_ADDRESS) &&
@@ -1915,12 +1922,14 @@ SymbolFileDWARF::ParseChildMembers
                                     accessibility = default_accessibility;
                                 member_accessibilities.push_back(accessibility);
                                 
-                                BitfieldInfo this_field_info;
-                        
-                                this_field_info.bit_size = bit_size;
-                                
-                                if (member_byte_offset != UINT32_MAX || bit_size != 0)
+                                uint64_t field_bit_offset = (member_byte_offset == UINT32_MAX ? 0 : (member_byte_offset * 8));
+                                if (bit_size > 0)
                                 {
+                                    
+                                    BitfieldInfo this_field_info;
+                                    this_field_info.bit_offset = field_bit_offset;
+                                    this_field_info.bit_size = bit_size;
+                                    
                                     /////////////////////////////////////////////////////////////
                                     // How to locate a field given the DWARF debug information
                                     //
@@ -1937,10 +1946,9 @@ SymbolFileDWARF::ParseChildMembers
                                     // AT_bit_size indicates the size of the field in bits.
                                     /////////////////////////////////////////////////////////////
                                     
-                                    this_field_info.bit_offset = 0;
-                                    
-                                    this_field_info.bit_offset += (member_byte_offset == UINT32_MAX ? 0 : (member_byte_offset * 8));
-                                    
+                                    if (byte_size == 0)
+                                        byte_size = member_type->GetByteSize();
+                                        
                                     if (GetObjectFile()->GetByteOrder() == eByteOrderLittle)
                                     {
                                         this_field_info.bit_offset += byte_size * 8;
@@ -1950,30 +1958,30 @@ SymbolFileDWARF::ParseChildMembers
                                     {
                                         this_field_info.bit_offset += bit_offset;
                                     }
-                                }
+                                    
+                                    // Update the field bit offset we will report for layout
+                                    field_bit_offset = this_field_info.bit_offset;
 
-                                // If the member to be emitted did not start on a character boundary and there is
-                                // empty space between the last field and this one, then we need to emit an
-                                // anonymous member filling up the space up to its start.  There are three cases
-                                // here:
-                                //
-                                // 1 If the previous member ended on a character boundary, then we can emit an
-                                //   anonymous member starting at the most recent character boundary.
-                                //
-                                // 2 If the previous member did not end on a character boundary and the distance
-                                //   from the end of the previous member to the current member is less than a
-                                //   word width, then we can emit an anonymous member starting right after the
-                                //   previous member and right before this member.
-                                //
-                                // 3 If the previous member did not end on a character boundary and the distance
-                                //   from the end of the previous member to the current member is greater than
-                                //   or equal a word width, then we act as in Case 1.
-                                
-                                const uint64_t character_width = 8;
-                                const uint64_t word_width = 32;
-                                
-                                if (this_field_info.IsValid())
-                                {
+                                    // If the member to be emitted did not start on a character boundary and there is
+                                    // empty space between the last field and this one, then we need to emit an
+                                    // anonymous member filling up the space up to its start.  There are three cases
+                                    // here:
+                                    //
+                                    // 1 If the previous member ended on a character boundary, then we can emit an
+                                    //   anonymous member starting at the most recent character boundary.
+                                    //
+                                    // 2 If the previous member did not end on a character boundary and the distance
+                                    //   from the end of the previous member to the current member is less than a
+                                    //   word width, then we can emit an anonymous member starting right after the
+                                    //   previous member and right before this member.
+                                    //
+                                    // 3 If the previous member did not end on a character boundary and the distance
+                                    //   from the end of the previous member to the current member is greater than
+                                    //   or equal a word width, then we act as in Case 1.
+                                    
+                                    const uint64_t character_width = 8;
+                                    const uint64_t word_width = 32;
+                                    
                                     // Objective-C has invalid DW_AT_bit_offset values in older versions
                                     // of clang, so we have to be careful and only insert unnammed bitfields
                                     // if we have a new enough clang.
@@ -2019,6 +2027,11 @@ SymbolFileDWARF::ParseChildMembers
                                             layout_info.field_offsets.insert(std::make_pair(unnamed_bitfield_decl, anon_field_info.bit_offset));
                                         }
                                     }
+                                    last_field_info = this_field_info;
+                                }
+                                else
+                                {
+                                    last_field_info.Clear();
                                 }
                                 
                                 ClangASTType member_clang_type = member_type->GetClangLayoutType();
@@ -2062,11 +2075,8 @@ SymbolFileDWARF::ParseChildMembers
                                 
                                 GetClangASTContext().SetMetadataAsUserID (field_decl, MakeUserID(die->GetOffset()));
                                 
-                                if (this_field_info.IsValid())
-                                {
-                                    layout_info.field_offsets.insert(std::make_pair(field_decl, this_field_info.bit_offset));
-                                    last_field_info = this_field_info;
-                                }
+                                layout_info.field_offsets.insert(std::make_pair(field_decl, field_bit_offset));
+
                             }
                             else
                             {
@@ -2546,6 +2556,37 @@ SymbolFileDWARF::ResolveClangOpaqueTypeDefinition (ClangASTType &clang_type)
                     
                     if (!base_classes.empty())
                     {
+                        // Make sure all base classes refer to complete types and not
+                        // forward declarations. If we don't do this, clang will crash
+                        // with an assertion in the call to clang_type.SetBaseClassesForClassType()
+                        bool base_class_error = false;
+                        for (auto &base_class : base_classes)
+                        {
+                            clang::TypeSourceInfo *type_source_info = base_class->getTypeSourceInfo();
+                            if (type_source_info)
+                            {
+                                ClangASTType base_class_type (GetClangASTContext().getASTContext(), type_source_info->getType());
+                                if (base_class_type.GetCompleteType() == false)
+                                {
+                                    if (!base_class_error)
+                                    {
+                                        GetObjectFile()->GetModule()->ReportError ("DWARF DIE at 0x%8.8x for class '%s' has a base class '%s' that is a forward declaration, not a complete definition.\nPlease file a bug against the compiler and include the preprocessed output for %s",
+                                                                                   die->GetOffset(),
+                                                                                   die->GetName(this, dwarf_cu),
+                                                                                   base_class_type.GetTypeName().GetCString(),
+                                                                                   sc.comp_unit ? sc.comp_unit->GetPath().c_str() : "the source file");
+                                    }
+                                    // We have no choice other than to pretend that the base class
+                                    // is complete. If we don't do this, clang will crash when we
+                                    // call setBases() inside of "clang_type.SetBaseClassesForClassType()"
+                                    // below. Since we provide layout assistance, all ivars in this
+                                    // class and other classe will be fine, this is the best we can do
+                                    // short of crashing.
+                                    base_class_type.StartTagDeclarationDefinition ();
+                                    base_class_type.CompleteTagDeclarationDefinition ();
+                                }
+                            }
+                        }
                         clang_type.SetBaseClassesForClassType (&base_classes.front(),
                                                                base_classes.size());
                         
@@ -4158,6 +4199,7 @@ SymbolFileDWARF::ParseChildParameters (const SymbolContext& sc,
                                        const DWARFDebugInfoEntry *parent_die,
                                        bool skip_artificial,
                                        bool &is_static,
+                                       bool &is_variadic,
                                        TypeList* type_list,
                                        std::vector<ClangASTType>& function_param_types,
                                        std::vector<clang::ParmVarDecl*>& function_param_decls,
@@ -4307,6 +4349,10 @@ SymbolFileDWARF::ParseChildParameters (const SymbolContext& sc,
                 }
                 arg_idx++;
             }
+            break;
+
+        case DW_TAG_unspecified_parameters:
+            is_variadic = true;
             break;
 
         case DW_TAG_template_type_parameter:
@@ -6222,6 +6268,11 @@ SymbolFileDWARF::ParseType (const SymbolContext& sc, DWARFCompileUnit* dwarf_cu,
                                 case DW_TAG_subprogram:
                                 case DW_TAG_member:
                                 case DW_TAG_APPLE_property:
+                                case DW_TAG_class_type:
+                                case DW_TAG_structure_type:
+                                case DW_TAG_enumeration_type:
+                                case DW_TAG_typedef:
+                                case DW_TAG_union_type:
                                     child_die = NULL;
                                     is_forward_declaration = false;
                                     break;
@@ -6543,6 +6594,7 @@ SymbolFileDWARF::ParseType (const SymbolContext& sc, DWARFCompileUnit* dwarf_cu,
                                               die,
                                               skip_artificial,
                                               is_static,
+                                              is_variadic,
                                               type_list,
                                               function_param_types,
                                               function_param_decls,

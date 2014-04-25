@@ -503,13 +503,14 @@ do { \
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
- *	- there is no delayed ack timer in progress and
- *	- our last ack wasn't a 0-sized window.  We never want to delay
- *	  the ack that opens up a 0-sized window and
- *		- delayed acks are enabled or
- *		- this is a half-synchronized T/TCP connection.
- *	- the segment size is not larger than the MSS and LRO wasn't used
- *	  for this segment.
+ * following conditions are met:
+ *	- There is no delayed ack timer in progress.
+ *	- Our last ack wasn't a 0-sized window. We never want to delay
+ *	  the ack that opens up a 0-sized window.
+ *	- LRO wasn't used for this segment. We make sure by checking that the
+ *	  segment size is not larger than the MSS.
+ *	- Delayed acks are enabled or this is a half-synchronized T/TCP
+ *	  connection.
  */
 #define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
@@ -1990,13 +1991,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		} else {
 			/*
 			 * Received initial SYN in SYN-SENT[*] state =>
-			 * simultaneous open.  If segment contains CC option
-			 * and there is a cached CC, apply TAO test.
+			 * simultaneous open.
 			 * If it succeeds, connection is * half-synchronized.
 			 * Otherwise, do 3-way handshake:
 			 *        SYN-SENT -> SYN-RECEIVED
 			 *        SYN-SENT* -> SYN-RECEIVED*
-			 * If there was no CC option, clear cached CC value.
 			 */
 			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			tcp_timer_activate(tp, TT_REXMT, 0);

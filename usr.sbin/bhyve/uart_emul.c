@@ -563,8 +563,7 @@ uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 {
 	struct uart_softc *sc;
 
-	sc = malloc(sizeof(struct uart_softc));
-	bzero(sc, sizeof(struct uart_softc));
+	sc = calloc(1, sizeof(struct uart_softc));
 
 	sc->arg = arg;
 	sc->intr_assert = intr_assert;
@@ -585,7 +584,7 @@ uart_tty_backend(struct uart_softc *sc, const char *opts)
 
 	retval = -1;
 
-	fd = open(opts, O_RDWR);
+	fd = open(opts, O_RDWR | O_NONBLOCK);
 	if (fd > 0 && isatty(fd)) {
 		sc->tty.fd = fd;
 		sc->tty.opened = true;

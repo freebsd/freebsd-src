@@ -227,9 +227,7 @@ enum {
 
 #define PAGE_ALIGN(addr) round_page(addr)
 /* DRM_SUSER returns true if the user is superuser */
-#if __FreeBSD_version >= 1000000
-#define DRM_SUSER(p)		(priv_check(p, PRIV_KMEM_WRITE) == 0)
-#elif __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000
 #define DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
 #else
 #define DRM_SUSER(p)		(suser(p) == 0)

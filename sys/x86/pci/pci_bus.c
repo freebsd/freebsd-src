@@ -597,10 +597,37 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 
-    start = hostb_alloc_start(type, start, end, count);
-    return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	count, flags));
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS)
+		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
+		    flags));
+#endif
+	start = hostb_alloc_start(type, start, end, count);
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
 }
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+int
+legacy_pcib_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_adjust_bus(0, child, r, start, end));
+	return (bus_generic_adjust_resource(dev, child, type, r, start, end));
+}
+
+int
+legacy_pcib_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(0, child, rid, r));
+	return (bus_generic_release_resource(dev, child, type, rid, r));
+}
+#endif
 
 static device_method_t legacy_pcib_methods[] = {
 	/* Device interface */
@@ -615,8 +642,13 @@ static device_method_t legacy_pcib_methods[] = {
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
+	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+#else
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+#endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),

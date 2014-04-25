@@ -45,7 +45,6 @@ static inline void rep_nop(void)
 #define cpu_relax() rep_nop()
 
 #ifndef XENHVM
-void xc_printf(const char *fmt, ...);
 
 #ifdef SMP
 extern int gdtset;

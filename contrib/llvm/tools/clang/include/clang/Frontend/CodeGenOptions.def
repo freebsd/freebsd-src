@@ -39,11 +39,12 @@ CODEGENOPT(CXXCtorDtorAliases, 1, 0) ///< Emit complete ctors/dtors as linker
                                      ///< aliases to base ctors when possible.
 CODEGENOPT(DataSections      , 1, 0) ///< Set when -fdata-sections is enabled.
 CODEGENOPT(DisableFPElim     , 1, 0) ///< Set when -fomit-frame-pointer is enabled.
+CODEGENOPT(DisableFree       , 1, 0) ///< Don't free memory.
+CODEGENOPT(DisableGCov       , 1, 0) ///< Don't run the GCov pass, for testing.
 CODEGENOPT(DisableLLVMOpts   , 1, 0) ///< Don't run any optimizations, for use in
                                      ///< getting .bc files that correspond to the
                                      ///< internal state before optimizations are
                                      ///< done.
-CODEGENOPT(DisableGCov       , 1, 0) ///< Don't run the GCov pass, for testing.
 CODEGENOPT(DisableRedZone    , 1, 0) ///< Set when -mno-red-zone is enabled.
 CODEGENOPT(DisableTailCalls  , 1, 0) ///< Do not emit tail calls.
 CODEGENOPT(EmitDeclMetadata  , 1, 0) ///< Emit special metadata indicating what
@@ -85,6 +86,10 @@ CODEGENOPT(OmitLeafFramePointer , 1, 0) ///< Set when -momit-leaf-frame-pointer 
                                         ///< enabled.
 VALUE_CODEGENOPT(OptimizationLevel, 3, 0) ///< The -O[0-4] option specified.
 VALUE_CODEGENOPT(OptimizeSize, 2, 0) ///< If -Os (==1) or -Oz (==2) is specified.
+
+  /// If -fpcc-struct-return or -freg-struct-return is specified.
+ENUM_CODEGENOPT(StructReturnConvention, StructReturnConventionKind, 2, SRCK_Default)
+
 CODEGENOPT(RelaxAll          , 1, 0) ///< Relax all machine code instructions.
 CODEGENOPT(RelaxedAliasing   , 1, 0) ///< Set when -fno-strict-aliasing is enabled.
 CODEGENOPT(StructPathTBAA    , 1, 0) ///< Whether or not to use struct-path TBAA.
@@ -102,8 +107,12 @@ CODEGENOPT(TimePasses        , 1, 0) ///< Set when -ftime-report is enabled.
 CODEGENOPT(UnitAtATime       , 1, 1) ///< Unused. For mirroring GCC optimization
                                      ///< selection.
 CODEGENOPT(UnrollLoops       , 1, 0) ///< Control whether loops are unrolled.
+CODEGENOPT(RerollLoops       , 1, 0) ///< Control whether loops are rerolled.
 CODEGENOPT(UnsafeFPMath      , 1, 0) ///< Allow unsafe floating point optzns.
 CODEGENOPT(UnwindTables      , 1, 0) ///< Emit unwind tables.
+CODEGENOPT(VectorizeBB       , 1, 0) ///< Run basic block vectorizer.
+CODEGENOPT(VectorizeLoop     , 1, 0) ///< Run loop vectorizer.
+CODEGENOPT(VectorizeSLP      , 1, 0) ///< Run SLP vectorizer.
 
   /// Attempt to use register sized accesses to bit-fields in structures, when
   /// possible.
@@ -130,6 +139,9 @@ VALUE_CODEGENOPT(SSPBufferSize, 32, 0)
 
 /// The kind of generated debug info.
 ENUM_CODEGENOPT(DebugInfo, DebugInfoKind, 2, NoDebugInfo)
+
+/// Dwarf version.
+VALUE_CODEGENOPT(DwarfVersion, 3, 0)
 
 /// The kind of inlining to perform.
 ENUM_CODEGENOPT(Inlining, InliningMethod, 2, NoInlining)

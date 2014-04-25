@@ -59,6 +59,9 @@ summary(void)
 	struct timeval tv;
 	double secs;
 
+	if (ddflags & C_NOINFO)
+		return;
+
 	(void)gettimeofday(&tv, NULL);
 	secs = tv.tv_sec + tv.tv_usec * 1e-6 - st.start;
 	if (secs < 1e-6)
@@ -72,9 +75,11 @@ summary(void)
 	if (st.trunc)
 		(void)fprintf(stderr, "%ju truncated %s\n",
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
-	(void)fprintf(stderr,
-	    "%ju bytes transferred in %.6f secs (%.0f bytes/sec)\n",
-	    st.bytes, secs, st.bytes / secs);
+	if (!(ddflags & C_NOXFER)) {
+		(void)fprintf(stderr,
+		    "%ju bytes transferred in %.6f secs (%.0f bytes/sec)\n",
+		    st.bytes, secs, st.bytes / secs);
+	}
 	need_summary = 0;
 }
 

@@ -100,7 +100,8 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
 static const STRUCT_USB_HOST_ID run_devs[] = {
 #define	RUN_DEV(v,p)	{ USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 #define	RUN_DEV_EJECT(v,p)	\
-	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, 0) }
+	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, RUN_EJECT) }
+#define	RUN_EJECT	1
     RUN_DEV(ABOCOM,		RT2770),
     RUN_DEV(ABOCOM,		RT2870),
     RUN_DEV(ABOCOM,		RT3070),
@@ -315,7 +316,8 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(ZINWELL,		RT3072_2),
     RUN_DEV(ZYXEL,		RT2870_1),
     RUN_DEV(ZYXEL,		RT2870_2),
-    RUN_DEV(ZYXEL,		NWD2705),
+    RUN_DEV(ZYXEL,		RT3070),
+    RUN_DEV_EJECT(ZYXEL,	NWD2705),
     RUN_DEV_EJECT(RALINK,	RT_STOR),
 #undef RUN_DEV_EJECT
 #undef RUN_DEV
@@ -707,6 +709,8 @@ run_attach(device_t self)
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
+	if (USB_GET_DRIVER_INFO(uaa) != RUN_EJECT)
+		sc->sc_flags |= RUN_FLAG_FWLOAD_NEEDED;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev),
 	    MTX_NETWORK_LOCK, MTX_DEF);
@@ -1151,7 +1155,7 @@ run_load_microcode(struct run_softc *sc)
 	}
 
 	/* write microcode image */
-	if (sc->mac_ver != 0x3593) {
+	if (sc->sc_flags & RUN_FLAG_FWLOAD_NEEDED) {
 		run_write_region_1(sc, RT2870_FW_BASE, base, 4096);
 		run_write(sc, RT2860_H2M_MAILBOX_CID, 0xffffffff);
 		run_write(sc, RT2860_H2M_MAILBOX_STATUS, 0xffffffff);
@@ -2505,9 +2509,7 @@ run_ratectl_cb(void *arg, int pending)
 	if (vap == NULL)
 		return;
 
-	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA)
-		run_iter_func(sc, vap->iv_bss);
-	else {
+	if (sc->rvp_cnt > 1 || vap->iv_opmode != IEEE80211_M_STA) {
 		/*
 		 * run_reset_livelock() doesn't do anything with AMRR,
 		 * but Ralink wants us to call it every 1 sec. So, we
@@ -2520,8 +2522,9 @@ run_ratectl_cb(void *arg, int pending)
 		/* just in case, there are some stats to drain */
 		run_drain_fifo(sc);
 		RUN_UNLOCK(sc);
-		ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 	}
+
+	ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 
 	RUN_LOCK(sc);
 	if(sc->ratectl_run != RUN_RATECTL_OFF)
@@ -2601,6 +2604,11 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	int txcnt, success, retrycnt, error;
 
 	RUN_LOCK(sc);
+
+	/* Check for special case */
+	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA &&
+	    ni != vap->iv_bss)
+		goto fail;
 
 	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_STA)) {
@@ -2730,7 +2738,10 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	rn->mgt_ridx = ridx;
 	DPRINTF("rate=%d, mgmt_ridx=%d\n", rate, rn->mgt_ridx);
 
-	usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_LOCK(sc);
+	if(sc->ratectl_run != RUN_RATECTL_OFF)
+		usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_UNLOCK(sc);
 }
 
 /*
@@ -3070,10 +3081,10 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		size = (sc->mac_ver == 0x5592) ? 
-		    RUN_MAX_TXSZ + sizeof(uint32_t) : RUN_MAX_TXSZ;
+		size = (sc->mac_ver == 0x5592) ?
+		    sizeof(data->desc) + sizeof(uint32_t) : sizeof(data->desc);
 		if ((m->m_pkthdr.len +
-		    sizeof(data->desc) + 3 + 8) > size) {
+		    size + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -3085,8 +3096,6 @@ tr_setup:
 		}
 
 		pc = usbd_xfer_get_frame(xfer, 0);
-		size = (sc->mac_ver == 0x5592) ?
-		    sizeof(data->desc) + sizeof(uint32_t) : sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
 		size += m->m_pkthdr.len;

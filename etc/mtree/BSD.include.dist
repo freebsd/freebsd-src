@@ -94,7 +94,7 @@
     cheri
     ..
     clang
-        3.3
+        3.4
         ..
     ..
     crypto
@@ -259,8 +259,6 @@
     ..
     net80211
     ..
-    netatalk
-    ..
     netgraph
         atm
         ..
@@ -276,8 +274,6 @@
     netinet6
     ..
     netipsec
-    ..
-    netipx
     ..
     netnatm
         api

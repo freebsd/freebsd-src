@@ -528,6 +528,9 @@ static int
 am335x_dmtimer_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "ti,am335x-dmtimer")) {
 		device_set_desc(dev, "AM335x DMTimer");
 		return(BUS_PROBE_DEFAULT);
@@ -657,12 +660,6 @@ static devclass_t am335x_dmtimer_devclass;
 
 DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_devclass, 0, 0);
 MODULE_DEPEND(am335x_dmtimer, am335x_prcm, 1, 1, 1);
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
 
 void
 DELAY(int usec)

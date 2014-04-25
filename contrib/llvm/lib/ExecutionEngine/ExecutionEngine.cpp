@@ -14,6 +14,8 @@
 
 #define DEBUG_TYPE "jit"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/JITMemoryManager.h"
+#include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
@@ -38,6 +40,11 @@ using namespace llvm;
 STATISTIC(NumInitBytes, "Number of bytes of global vars initialized");
 STATISTIC(NumGlobals  , "Number of global vars initialized");
 
+// Pin the vtable to this file.
+void ObjectCache::anchor() {}
+void ObjectBuffer::anchor() {}
+void ObjectBufferStream::anchor() {}
+
 ExecutionEngine *(*ExecutionEngine::JITCtor)(
   Module *M,
   std::string *ErrorStr,
@@ -47,7 +54,7 @@ ExecutionEngine *(*ExecutionEngine::JITCtor)(
 ExecutionEngine *(*ExecutionEngine::MCJITCtor)(
   Module *M,
   std::string *ErrorStr,
-  JITMemoryManager *JMM,
+  RTDyldMemoryManager *MCJMM,
   bool GVsWithCode,
   TargetMachine *TM) = 0;
 ExecutionEngine *(*ExecutionEngine::InterpCtor)(Module *M,
@@ -55,9 +62,7 @@ ExecutionEngine *(*ExecutionEngine::InterpCtor)(Module *M,
 
 ExecutionEngine::ExecutionEngine(Module *M)
   : EEState(*this),
-    LazyFunctionCreator(0),
-    ExceptionTableRegister(0),
-    ExceptionTableDeregister(0) {
+    LazyFunctionCreator(0) {
   CompilingLazily         = false;
   GVCompilationDisabled   = false;
   SymbolSearchingDisabled = false;
@@ -69,16 +74,6 @@ ExecutionEngine::~ExecutionEngine() {
   clearAllGlobalMappings();
   for (unsigned i = 0, e = Modules.size(); i != e; ++i)
     delete Modules[i];
-}
-
-void ExecutionEngine::DeregisterAllTables() {
-  if (ExceptionTableDeregister) {
-    DenseMap<const Function*, void*>::iterator it = AllExceptionTables.begin();
-    DenseMap<const Function*, void*>::iterator ite = AllExceptionTables.end();
-    for (; it != ite; ++it)
-      ExceptionTableDeregister(it->second);
-    AllExceptionTables.clear();
-  }
 }
 
 namespace {
@@ -117,7 +112,7 @@ char *ExecutionEngine::getMemoryForGV(const GlobalVariable *GV) {
 }
 
 bool ExecutionEngine::removeModule(Module *M) {
-  for(SmallVector<Module *, 1>::iterator I = Modules.begin(),
+  for(SmallVectorImpl<Module *>::iterator I = Modules.begin(),
         E = Modules.end(); I != E; ++I) {
     Module *Found = *I;
     if (Found == M) {
@@ -455,10 +450,12 @@ ExecutionEngine *EngineBuilder::create(TargetMachine *TM) {
   if (sys::DynamicLibrary::LoadLibraryPermanently(0, ErrorStr))
     return 0;
 
+  assert(!(JMM && MCJMM));
+  
   // If the user specified a memory manager but didn't specify which engine to
   // create, we assume they only want the JIT, and we fail if they only want
   // the interpreter.
-  if (JMM) {
+  if (JMM || MCJMM) {
     if (WhichEngine & EngineKind::JIT)
       WhichEngine = EngineKind::JIT;
     else {
@@ -466,6 +463,14 @@ ExecutionEngine *EngineBuilder::create(TargetMachine *TM) {
         *ErrorStr = "Cannot create an interpreter with a memory manager.";
       return 0;
     }
+  }
+  
+  if (MCJMM && ! UseMCJIT) {
+    if (ErrorStr)
+      *ErrorStr =
+        "Cannot create a legacy JIT with a runtime dyld memory "
+        "manager.";
+    return 0;
   }
 
   // Unless the interpreter was explicitly selected or the JIT is not linked,
@@ -480,7 +485,7 @@ ExecutionEngine *EngineBuilder::create(TargetMachine *TM) {
 
     if (UseMCJIT && ExecutionEngine::MCJITCtor) {
       ExecutionEngine *EE =
-        ExecutionEngine::MCJITCtor(M, ErrorStr, JMM,
+        ExecutionEngine::MCJITCtor(M, ErrorStr, MCJMM ? MCJMM : JMM,
                                    AllocateGVsWithCode, TheTM.take());
       if (EE) return EE;
     } else if (ExecutionEngine::JITCtor) {
@@ -545,6 +550,24 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       // with the correct bit width.
       Result.IntVal = APInt(C->getType()->getPrimitiveSizeInBits(), 0);
       break;
+    case Type::StructTyID: {
+      // if the whole struct is 'undef' just reserve memory for the value.
+      if(StructType *STy = dyn_cast<StructType>(C->getType())) {
+        unsigned int elemNum = STy->getNumElements();
+        Result.AggregateVal.resize(elemNum);
+        for (unsigned int i = 0; i < elemNum; ++i) {
+          Type *ElemTy = STy->getElementType(i);
+          if (ElemTy->isIntegerTy())
+            Result.AggregateVal[i].IntVal = 
+              APInt(ElemTy->getPrimitiveSizeInBits(), 0);
+          else if (ElemTy->isAggregateType()) {
+              const Constant *ElemUndef = UndefValue::get(ElemTy);
+              Result.AggregateVal[i] = getConstantValue(ElemUndef);
+            }
+          }
+        }
+      }
+      break;
     case Type::VectorTyID:
       // if the whole vector is 'undef' just reserve memory for the value.
       const VectorType* VTy = dyn_cast<VectorType>(C->getType());
@@ -553,7 +576,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       Result.AggregateVal.resize(elemNum);
       if (ElemTy->isIntegerTy())
         for (unsigned int i = 0; i < elemNum; ++i)
-          Result.AggregateVal[i].IntVal = 
+          Result.AggregateVal[i].IntVal =
             APInt(ElemTy->getPrimitiveSizeInBits(), 0);
       break;
     }
@@ -1272,6 +1295,10 @@ void ExecutionEngine::EmitGlobalVariable(const GlobalVariable *GV) {
   if (GA == 0) {
     // If it's not already specified, allocate memory for the global.
     GA = getMemoryForGV(GV);
+
+    // If we failed to allocate memory for this global, return.
+    if (GA == 0) return;
+
     addGlobalMapping(GV, GA);
   }
 

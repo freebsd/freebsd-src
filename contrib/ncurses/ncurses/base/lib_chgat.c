@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,19 +42,27 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_chgat.c,v 1.7 2006/07/15 22:07:11 tom Exp $")
+MODULE_ID("$Id: lib_chgat.c,v 1.10 2014/02/01 22:13:31 tom Exp $")
 
 NCURSES_EXPORT(int)
-wchgat(WINDOW *win, int n, attr_t attr, short color, const void *opts GCC_UNUSED)
+wchgat(WINDOW *win,
+       int n,
+       attr_t attr,
+       NCURSES_PAIRS_T color,
+       const void *opts GCC_UNUSED)
 {
     int i;
 
-    T((T_CALLED("wchgat(%p,%d,%s,%d)"), win, n, _traceattr(attr), color));
+    T((T_CALLED("wchgat(%p,%d,%s,%d)"),
+       (void *) win,
+       n,
+       _traceattr(attr),
+       (int) color));
 
     if (win) {
 	struct ldat *line = &(win->_line[win->_cury]);
 
-	toggle_attr_on(attr, COLOR_PAIR(color));
+	toggle_attr_on(attr, ColorPair(color));
 
 	for (i = win->_curx; i <= win->_maxx && (n == -1 || (n-- > 0)); i++) {
 	    SetAttr(line->text[i], attr);

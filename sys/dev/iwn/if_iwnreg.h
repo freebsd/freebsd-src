@@ -1509,13 +1509,27 @@ struct iwn_rx_ht_phy_stats {
 	uint32_t	good_ampdu_crc32;
 	uint32_t	ampdu;
 	uint32_t	fragment;
-	uint32_t	reserved;
+	uint32_t	unsupport_mcs;
 } __packed;
 
 struct iwn_rx_stats {
 	struct iwn_rx_phy_stats		ofdm;
 	struct iwn_rx_phy_stats		cck;
 	struct iwn_rx_general_stats	general;
+	struct iwn_rx_ht_phy_stats	ht;
+} __packed;
+
+struct iwn_rx_general_stats_bt {
+	struct iwn_rx_general_stats common;
+	/* additional stats for bt */
+	uint32_t num_bt_kills;
+	uint32_t reserved[2];
+} __packed;
+
+struct iwn_rx_stats_bt {
+	struct iwn_rx_phy_stats		ofdm;
+	struct iwn_rx_phy_stats		cck;
+	struct iwn_rx_general_stats_bt	general_bt;
 	struct iwn_rx_ht_phy_stats	ht;
 } __packed;
 
@@ -1530,7 +1544,7 @@ struct iwn_tx_stats {
 	uint32_t	exp_ack;
 	uint32_t	ack;
 	uint32_t	msdu;
-	uint32_t	busrt_err1;
+	uint32_t	burst_err1;
 	uint32_t	burst_err2;
 	uint32_t	cts_collision;
 	uint32_t	ack_collision;
@@ -1544,15 +1558,21 @@ struct iwn_tx_stats {
 	uint32_t	underrun;
 	uint32_t	bt_ht_kill;
 	uint32_t	rx_ba_resp;
-	uint32_t	reserved[2];
+	/*
+	 * 6000 series only - LSB=ant A, ant B, ant C, MSB=reserved
+	 * TX power on chain in 1/2 dBm.
+	 */
+	uint32_t	tx_power;
+	uint32_t	reserved[1];
 } __packed;
 
 struct iwn_general_stats {
-	uint32_t	temp;
-	uint32_t	temp_m;
+	uint32_t	temp;		/* radio temperature */
+	uint32_t	temp_m;		/* radio voltage */
 	uint32_t	burst_check;
 	uint32_t	burst;
-	uint32_t	reserved1[4];
+	uint32_t	wait_for_silence_timeout_cnt;
+	uint32_t	reserved1[3];
 	uint32_t	sleep;
 	uint32_t	slot_out;
 	uint32_t	slot_idle;
@@ -1563,7 +1583,11 @@ struct iwn_general_stats {
 	uint32_t	probe;
 	uint32_t	reserved2[2];
 	uint32_t	rx_enabled;
-	uint32_t	reserved3[3];
+	/*
+	 * This is the number of times we have to re-tune
+	 * in order to get out of bad PHY status.
+	 */
+	uint32_t	num_of_sos_states;
 } __packed;
 
 struct iwn_stats {
@@ -1571,8 +1595,30 @@ struct iwn_stats {
 	struct iwn_rx_stats		rx;
 	struct iwn_tx_stats		tx;
 	struct iwn_general_stats	general;
+	uint32_t			reserved1[2];
 } __packed;
 
+struct iwn_bt_activity_stats {
+	/* Tx statistics */
+	uint32_t hi_priority_tx_req_cnt;
+	uint32_t hi_priority_tx_denied_cnt;
+	uint32_t lo_priority_tx_req_cnt;
+	uint32_t lo_priority_tx_denied_cnt;
+	/* Rx statistics */
+	uint32_t hi_priority_rx_req_cnt;
+	uint32_t hi_priority_rx_denied_cnt;
+	uint32_t lo_priority_rx_req_cnt;
+	uint32_t lo_priority_rx_denied_cnt;
+} __packed;
+
+struct iwn_stats_bt {
+	uint32_t			flags;
+	struct iwn_rx_stats_bt		rx_bt;
+	struct iwn_tx_stats		tx;
+	struct iwn_general_stats	general;
+	struct iwn_bt_activity_stats	activity;
+	uint32_t			reserved1[2];
+};
 
 /* Firmware error dump. */
 struct iwn_fw_dump {
@@ -1610,7 +1656,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_INIT_DATA		4
 #define IWN_FW_TLV_BOOT_TEXT		5
 #define IWN_FW_TLV_PBREQ_MAXLEN		6
-#define	IWN_FW_TLV_PAN				7
+#define	IWN_FW_TLV_PAN			7
 #define	IWN_FW_TLV_RUNT_EVTLOG_PTR	8
 #define	IWN_FW_TLV_RUNT_EVTLOG_SIZE	9
 #define	IWN_FW_TLV_RUNT_ERRLOG_PTR	10
@@ -1621,7 +1667,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_PHY_CALIB		15
 #define	IWN_FW_TLV_WOWLAN_INST		16
 #define	IWN_FW_TLV_WOWLAN_DATA		17
-#define	IWN_FW_TLV_FLAGS			18
+#define	IWN_FW_TLV_FLAGS		18
 
 	uint16_t	alt;
 	uint32_t	len;
@@ -2149,7 +2195,7 @@ static const char * const iwn_fw_errmsg[] = {
 	"NMI_INTERRUPT_DATA_ACTION_PT",
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
-	"NMI_INTERRUPT_BREAKPOINT"
+	"NMI_INTERRUPT_BREAKPOINT",
 	"DEBUG_0",
 	"DEBUG_1",
 	"DEBUG_2",

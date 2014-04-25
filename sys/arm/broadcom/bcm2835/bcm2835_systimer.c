@@ -186,6 +186,9 @@ static int
 bcm_systimer_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-system-timer")) {
 		device_set_desc(dev, "BCM2835 System Timer");
 		return (BUS_PROBE_DEFAULT);
@@ -273,12 +276,6 @@ static driver_t bcm_systimer_driver = {
 static devclass_t bcm_systimer_devclass;
 
 DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
 
 void
 DELAY(int usec)

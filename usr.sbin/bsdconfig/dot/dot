@@ -29,7 +29,7 @@
 ############################################################ INCLUDES
 
 # Prevent common.subr from auto initializing debugging (this is not an inter-
-# active utility that requires debugging; also `-d' has been repurposed).
+# active utility so does not require debugging; also `-d' has been repurposed).
 #
 DEBUG_SELF_INITIALIZE=NO
 

@@ -166,6 +166,10 @@ static struct lpc_dmac_channel_config lpc_mmc_dma_txconf = {
 static int
 lpc_mmc_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,mmc"))
 		return (ENXIO);
 

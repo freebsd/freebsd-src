@@ -97,9 +97,12 @@ uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 {
 	pcell_t clock;
 
+	/*
+	 * clock-frequency is a FreeBSD-specific hack. Make its presence optional.
+	 */
 	if ((OF_getprop(node, "clock-frequency", &clock,
 	    sizeof(clock))) <= 0)
-		return (ENXIO);
+		clock = 0;
 
 	if (clock == 0)
 		/* Try to retrieve parent 'bus-frequency' */
@@ -133,6 +136,9 @@ uart_fdt_probe(device_t dev)
 	const struct ofw_compat_data * cd;
 
 	sc = device_get_softc(dev);
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	cd = ofw_bus_search_compatible(dev, compat_data);
 	if (cd->ocd_data == (uintptr_t)NULL)

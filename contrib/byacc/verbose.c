@@ -1,4 +1,4 @@
-/* $Id: verbose.c,v 1.10 2012/05/26 00:45:17 tom Exp $ */
+/* $Id: verbose.c,v 1.11 2014/04/01 23:15:59 Tom.Shields Exp $ */
 
 #include "defs.h"
 
@@ -13,7 +13,7 @@ static void print_shifts(action *p);
 static void print_state(int state);
 static void print_reductions(action *p, int defred2);
 
-static short *null_rules;
+static Value_t *null_rules;
 
 void
 verbose(void)
@@ -23,7 +23,7 @@ verbose(void)
     if (!vflag)
 	return;
 
-    null_rules = TMALLOC(short, nrules);
+    null_rules = TMALLOC(Value_t, nrules);
     NO_SPACE(null_rules);
 
     fprintf(verbose_file, "\f\n");
@@ -39,13 +39,33 @@ verbose(void)
     fprintf(verbose_file, "\n\n%d terminals, %d nonterminals\n", ntokens,
 	    nvars);
     fprintf(verbose_file, "%d grammar rules, %d states\n", nrules - 2, nstates);
+#if defined(YYBTYACC)
+    {				/* print out the grammar symbol # and parser internal symbol # for each
+				   symbol as an aide to writing the implementation for YYDESTRUCT_CALL()
+				   and YYSTYPE_TOSTRING() */
+	int maxtok = 0;
+
+	fputs("\ngrammar parser grammar\n", verbose_file);
+	fputs("symbol# value# symbol\n", verbose_file);
+	for (i = 0; i < ntokens; ++i)
+	{
+	    fprintf(verbose_file, " %5d  %5d  %s\n",
+		    i, symbol_value[i], symbol_name[i]);
+	    if (symbol_value[i] > maxtok)
+		maxtok = symbol_value[i];
+	}
+	for (i = ntokens; i < nsyms; ++i)
+	    fprintf(verbose_file, " %5d  %5d  %s\n",
+		    i, (maxtok + 1) + symbol_value[i] + 1, symbol_name[i]);
+    }
+#endif
 }
 
 static void
 log_unused(void)
 {
     int i;
-    short *p;
+    Value_t *p;
 
     fprintf(verbose_file, "\n\nRules never reduced:\n");
     for (i = 3; i < nrules; ++i)
@@ -155,8 +175,8 @@ print_core(int state)
     int k;
     int rule;
     core *statep;
-    short *sp;
-    short *sp1;
+    Value_t *sp;
+    Value_t *sp1;
 
     statep = state_table[state];
     k = statep->nitems;
@@ -273,6 +293,11 @@ print_shifts(action *p)
 	    if (p->action_code == SHIFT && p->suppressed == 0)
 		fprintf(verbose_file, "\t%s  shift %d\n",
 			symbol_name[p->symbol], p->number);
+#if defined(YYBTYACC)
+	    if (backtrack && p->action_code == SHIFT && p->suppressed == 1)
+		fprintf(verbose_file, "\t%s  [trial] shift %d\n",
+			symbol_name[p->symbol], p->number);
+#endif
 	}
     }
 }
@@ -305,6 +330,11 @@ print_reductions(action *p, int defred2)
 		if (p->suppressed == 0)
 		    fprintf(verbose_file, "\t%s  reduce %d\n",
 			    symbol_name[p->symbol], k);
+#if defined(YYBTYACC)
+		if (backtrack && p->suppressed == 1)
+		    fprintf(verbose_file, "\t%s  [trial] reduce %d\n",
+			    symbol_name[p->symbol], k);
+#endif
 	    }
 	}
 
@@ -318,7 +348,7 @@ print_gotos(int stateno)
 {
     int i, k;
     int as;
-    short *to_state2;
+    Value_t *to_state2;
     shifts *sp;
 
     putc('\n', verbose_file);

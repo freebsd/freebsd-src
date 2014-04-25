@@ -64,6 +64,9 @@ static int
 altera_sdcard_fdt_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "altera,sdcard_11_2011")) {
 		device_set_desc(dev, "Altera Secure Data Card IP Core");
 		return (BUS_PROBE_DEFAULT);

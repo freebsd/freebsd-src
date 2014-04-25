@@ -1688,7 +1688,7 @@ static int
 fire_alloc_msix(device_t dev, device_t child, int *irq)
 {
 	struct fire_softc *sc;
-	u_int i, msiq;
+	int i, msiq;
 
 	sc = device_get_softc(dev);
 	if ((sc->sc_flags & FIRE_MSIX) == 0)

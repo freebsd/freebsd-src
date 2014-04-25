@@ -14,6 +14,7 @@
 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
@@ -170,7 +171,7 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, Pass *P) {
       if (DomTreeNode *DTN = DT->getNode(BB)) {
         DomTreeNode *PredDTN = DT->getNode(PredBB);
         SmallVector<DomTreeNode*, 8> Children(DTN->begin(), DTN->end());
-        for (SmallVector<DomTreeNode*, 8>::iterator DI = Children.begin(),
+        for (SmallVectorImpl<DomTreeNode *>::iterator DI = Children.begin(),
              DE = Children.end(); DI != DE; ++DI)
           DT->changeImmediateDominator(*DI, PredDTN);
 
@@ -235,22 +236,6 @@ void llvm::ReplaceInstWithInst(Instruction *From, Instruction *To) {
   ReplaceInstWithInst(From->getParent()->getInstList(), BI, To);
 }
 
-/// GetSuccessorNumber - Search for the specified successor of basic block BB
-/// and return its position in the terminator instruction's list of
-/// successors.  It is an error to call this with a block that is not a
-/// successor.
-unsigned llvm::GetSuccessorNumber(BasicBlock *BB, BasicBlock *Succ) {
-  TerminatorInst *Term = BB->getTerminator();
-#ifndef NDEBUG
-  unsigned e = Term->getNumSuccessors();
-#endif
-  for (unsigned i = 0; ; ++i) {
-    assert(i != e && "Didn't find edge?");
-    if (Term->getSuccessor(i) == Succ)
-      return i;
-  }
-}
-
 /// SplitEdge -  Split the edge connecting specified block. Pass P must
 /// not be NULL.
 BasicBlock *llvm::SplitEdge(BasicBlock *BB, BasicBlock *Succ, Pass *P) {
@@ -263,7 +248,6 @@ BasicBlock *llvm::SplitEdge(BasicBlock *BB, BasicBlock *Succ, Pass *P) {
 
   // If the edge isn't critical, then BB has a single successor or Succ has a
   // single pred.  Split the block.
-  BasicBlock::iterator SplitPoint;
   if (BasicBlock *SP = Succ->getSinglePredecessor()) {
     // If the successor only has a single pred, split the top of the successor
     // block.
@@ -416,8 +400,12 @@ static void UpdatePHINodes(BasicBlock *OrigBB, BasicBlock *NewBB,
       // If all incoming values for the new PHI would be the same, just don't
       // make a new PHI.  Instead, just remove the incoming values from the old
       // PHI.
-      for (unsigned i = 0, e = Preds.size(); i != e; ++i)
-        PN->removeIncomingValue(Preds[i], false);
+      for (unsigned i = 0, e = Preds.size(); i != e; ++i) {
+        // Explicitly check the BB index here to handle duplicates in Preds.
+        int Idx = PN->getBasicBlockIndex(Preds[i]);
+        if (Idx >= 0)
+          PN->removeIncomingValue(Idx, false);
+      }
     } else {
       // If the values coming into the block are not the same, we need a PHI.
       // Create the new PHI node, insert it into NewBB at the end of the block
@@ -598,52 +586,6 @@ void llvm::SplitLandingPadPredecessors(BasicBlock *OrigBB,
   }
 }
 
-/// FindFunctionBackedges - Analyze the specified function to find all of the
-/// loop backedges in the function and return them.  This is a relatively cheap
-/// (compared to computing dominators and loop info) analysis.
-///
-/// The output is added to Result, as pairs of <from,to> edge info.
-void llvm::FindFunctionBackedges(const Function &F,
-     SmallVectorImpl<std::pair<const BasicBlock*,const BasicBlock*> > &Result) {
-  const BasicBlock *BB = &F.getEntryBlock();
-  if (succ_begin(BB) == succ_end(BB))
-    return;
-
-  SmallPtrSet<const BasicBlock*, 8> Visited;
-  SmallVector<std::pair<const BasicBlock*, succ_const_iterator>, 8> VisitStack;
-  SmallPtrSet<const BasicBlock*, 8> InStack;
-
-  Visited.insert(BB);
-  VisitStack.push_back(std::make_pair(BB, succ_begin(BB)));
-  InStack.insert(BB);
-  do {
-    std::pair<const BasicBlock*, succ_const_iterator> &Top = VisitStack.back();
-    const BasicBlock *ParentBB = Top.first;
-    succ_const_iterator &I = Top.second;
-
-    bool FoundNew = false;
-    while (I != succ_end(ParentBB)) {
-      BB = *I++;
-      if (Visited.insert(BB)) {
-        FoundNew = true;
-        break;
-      }
-      // Successor is in VisitStack, it's a back edge.
-      if (InStack.count(BB))
-        Result.push_back(std::make_pair(ParentBB, BB));
-    }
-
-    if (FoundNew) {
-      // Go down one level if there is a unvisited successor.
-      InStack.insert(BB);
-      VisitStack.push_back(std::make_pair(BB, succ_begin(BB)));
-    } else {
-      // Go up one level.
-      InStack.erase(VisitStack.pop_back_val().first);
-    }
-  } while (!VisitStack.empty());
-}
-
 /// FoldReturnIntoUncondBranch - This method duplicates the specified return
 /// instruction into a predecessor which ends in an unconditional branch. If
 /// the return instruction returns a value defined by a PHI, propagate the
@@ -725,4 +667,105 @@ TerminatorInst *llvm::SplitBlockAndInsertIfThen(Instruction *Cmp,
   HeadNewTerm->setMetadata(LLVMContext::MD_prof, BranchWeights);
   ReplaceInstWithInst(HeadOldTerm, HeadNewTerm);
   return CheckTerm;
+}
+
+/// GetIfCondition - Given a basic block (BB) with two predecessors,
+/// check to see if the merge at this block is due
+/// to an "if condition".  If so, return the boolean condition that determines
+/// which entry into BB will be taken.  Also, return by references the block
+/// that will be entered from if the condition is true, and the block that will
+/// be entered if the condition is false.
+///
+/// This does no checking to see if the true/false blocks have large or unsavory
+/// instructions in them.
+Value *llvm::GetIfCondition(BasicBlock *BB, BasicBlock *&IfTrue,
+                             BasicBlock *&IfFalse) {
+  PHINode *SomePHI = dyn_cast<PHINode>(BB->begin());
+  BasicBlock *Pred1 = NULL;
+  BasicBlock *Pred2 = NULL;
+
+  if (SomePHI) {
+    if (SomePHI->getNumIncomingValues() != 2)
+      return NULL;
+    Pred1 = SomePHI->getIncomingBlock(0);
+    Pred2 = SomePHI->getIncomingBlock(1);
+  } else {
+    pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
+    if (PI == PE) // No predecessor
+      return NULL;
+    Pred1 = *PI++;
+    if (PI == PE) // Only one predecessor
+      return NULL;
+    Pred2 = *PI++;
+    if (PI != PE) // More than two predecessors
+      return NULL;
+  }
+
+  // We can only handle branches.  Other control flow will be lowered to
+  // branches if possible anyway.
+  BranchInst *Pred1Br = dyn_cast<BranchInst>(Pred1->getTerminator());
+  BranchInst *Pred2Br = dyn_cast<BranchInst>(Pred2->getTerminator());
+  if (Pred1Br == 0 || Pred2Br == 0)
+    return 0;
+
+  // Eliminate code duplication by ensuring that Pred1Br is conditional if
+  // either are.
+  if (Pred2Br->isConditional()) {
+    // If both branches are conditional, we don't have an "if statement".  In
+    // reality, we could transform this case, but since the condition will be
+    // required anyway, we stand no chance of eliminating it, so the xform is
+    // probably not profitable.
+    if (Pred1Br->isConditional())
+      return 0;
+
+    std::swap(Pred1, Pred2);
+    std::swap(Pred1Br, Pred2Br);
+  }
+
+  if (Pred1Br->isConditional()) {
+    // The only thing we have to watch out for here is to make sure that Pred2
+    // doesn't have incoming edges from other blocks.  If it does, the condition
+    // doesn't dominate BB.
+    if (Pred2->getSinglePredecessor() == 0)
+      return 0;
+
+    // If we found a conditional branch predecessor, make sure that it branches
+    // to BB and Pred2Br.  If it doesn't, this isn't an "if statement".
+    if (Pred1Br->getSuccessor(0) == BB &&
+        Pred1Br->getSuccessor(1) == Pred2) {
+      IfTrue = Pred1;
+      IfFalse = Pred2;
+    } else if (Pred1Br->getSuccessor(0) == Pred2 &&
+               Pred1Br->getSuccessor(1) == BB) {
+      IfTrue = Pred2;
+      IfFalse = Pred1;
+    } else {
+      // We know that one arm of the conditional goes to BB, so the other must
+      // go somewhere unrelated, and this must not be an "if statement".
+      return 0;
+    }
+
+    return Pred1Br->getCondition();
+  }
+
+  // Ok, if we got here, both predecessors end with an unconditional branch to
+  // BB.  Don't panic!  If both blocks only have a single (identical)
+  // predecessor, and THAT is a conditional branch, then we're all ok!
+  BasicBlock *CommonPred = Pred1->getSinglePredecessor();
+  if (CommonPred == 0 || CommonPred != Pred2->getSinglePredecessor())
+    return 0;
+
+  // Otherwise, if this is a conditional branch, then we can use it!
+  BranchInst *BI = dyn_cast<BranchInst>(CommonPred->getTerminator());
+  if (BI == 0) return 0;
+
+  assert(BI->isConditional() && "Two successors but not conditional?");
+  if (BI->getSuccessor(0) == Pred1) {
+    IfTrue = Pred1;
+    IfFalse = Pred2;
+  } else {
+    IfTrue = Pred2;
+    IfFalse = Pred1;
+  }
+  return BI->getCondition();
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,9 @@ static struct a20_cpu_cfg_softc *a20_cpu_cfg_sc = NULL;
 static int
 a20_cpu_cfg_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "allwinner,sun7i-cpu-cfg")) {
 		device_set_desc(dev, "A20 CPU Configuration Module");

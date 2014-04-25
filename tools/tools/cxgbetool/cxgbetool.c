@@ -1368,7 +1368,7 @@ show_sge_context(const struct t4_sge_context *p)
 		FIELD1("CngDBPHdr:", 6),
 		FIELD1("CngDBPData:", 5),
 		FIELD1("CngIMSG:", 4),
-		FIELD("CngChMap:", 0, 3),
+		{ "CngChMap:", 0, 3, 0, 1, 0},
 		{ NULL }
 	};
 	static struct field_desc t5_conm[] = {
@@ -1377,7 +1377,7 @@ show_sge_context(const struct t4_sge_context *p)
 		FIELD1("CngDBPHdr:", 18),
 		FIELD1("CngDBPData:", 17),
 		FIELD1("CngIMSG:", 16),
-		FIELD("CngChMap:", 0, 15),
+		{ "CngChMap:", 0, 15, 0, 1, 0},
 		{ NULL }
 	};
 

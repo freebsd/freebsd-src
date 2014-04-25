@@ -618,7 +618,7 @@ DoFile(const char *savedir, const char *device)
 	 */
 	fdinfo = open(infoname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
-		syslog(LOG_ERR, "%s: %m", buf);
+		syslog(LOG_ERR, "%s: %m", infoname);
 		nerr++;
 		goto closefd;
 	}
@@ -672,7 +672,7 @@ DoFile(const char *savedir, const char *device)
 	if (fclose(fp) < 0) {
 		syslog(LOG_ERR, "error on %s: %m", corename);
 		nerr++;
-		goto closeall;
+		goto closefd;
 	}
 
 	symlinks_remove();

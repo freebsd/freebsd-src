@@ -30,12 +30,25 @@
 #ifndef	__GPIOBUS_H__
 #define	__GPIOBUS_H__
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#define GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
-#define GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
+#ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
+#define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
+#define	GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
+#define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define	GPIOBUS_LOCK_INIT(_sc) mtx_init(&_sc->sc_mtx,			\
+	    device_get_nameunit(_sc->sc_dev), "gpiobus", MTX_DEF)
+#define	GPIOBUS_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx)
+#define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED)
+#define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
 struct gpiobus_softc
 {
@@ -53,5 +66,12 @@ struct gpiobus_ivar
 	uint32_t	npins;	/* pins total */
 	uint32_t	*pins;	/* pins map */
 };
+
+void gpiobus_print_pins(struct gpiobus_ivar *);
+#ifdef FDT
+device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
+#endif
+
+extern driver_t gpiobus_driver;
 
 #endif	/* __GPIOBUS_H__ */

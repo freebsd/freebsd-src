@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2013
+.Dd April 2, 2014
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -557,6 +557,16 @@ Interface (EFI).
 In such cases, the GPT partitioning scheme is used and the
 actual partition type for the system partition can also be specified as
 .Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
+.It Cm fat16
+A partition that contains a FAT16 filesystem.
+The scheme-specific type is
+.Qq Li "!6"
+for MBR.
+.It Cm fat32
+A partition that contains a FAT32 filesystem.
+The scheme-specific type is
+.Qq Li "!11"
+for MBR.
 .It Cm freebsd
 A
 .Fx
@@ -620,6 +630,16 @@ A partition that is sub-partitioned by a Master Boot Record (MBR).
 This type is known as
 .Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
 by GPT.
+.It Cm ms-basic-data
+A basic data partition (BDP) for Microsoft operating systems.
+In the GPT this type is the equivalent to partition types
+.Cm fat16 , fat32
+and
+.Cm ntfs
+in MBR.
+The scheme-specific type is
+.Qq Li "!ebd0a0a2-b9e5-4433-87c0-68b6b72699c7"
+for GPT.
 .It Cm ms-ldm-data
 A partition that contains Logical Disk Manager (LDM) volumes.
 The scheme-specific types are
@@ -632,6 +652,11 @@ A partition that contains Logical Disk Manager (LDM) database.
 The scheme-specific type is
 .Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
 for GPT.
+.It Cm ntfs
+A partition that contains a NTFS or exFAT filesystem.
+The scheme-specific type is
+.Qq Li "!7"
+for MBR.
 .El
 .Sh ATTRIBUTES
 The scheme-specific attributes for EBR:

@@ -37,7 +37,10 @@
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/Utils/GlobalStatus.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -59,7 +62,6 @@ STATISTIC(NumAliasesRemoved, "Number of global aliases eliminated");
 STATISTIC(NumCXXDtorsRemoved, "Number of global C++ destructors removed");
 
 namespace {
-  struct GlobalStatus;
   struct GlobalOpt : public ModulePass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<TargetLibraryInfo>();
@@ -79,7 +81,6 @@ namespace {
     bool OptimizeGlobalCtorsList(GlobalVariable *&GCL);
     bool ProcessGlobal(GlobalVariable *GV,Module::global_iterator &GVI);
     bool ProcessInternalGlobal(GlobalVariable *GV,Module::global_iterator &GVI,
-                               const SmallPtrSet<const PHINode*, 16> &PHIUsers,
                                const GlobalStatus &GS);
     bool OptimizeEmptyGlobalCXXDtors(Function *CXAAtExitFn);
 
@@ -96,209 +97,6 @@ INITIALIZE_PASS_END(GlobalOpt, "globalopt",
                 "Global Variable Optimizer", false, false)
 
 ModulePass *llvm::createGlobalOptimizerPass() { return new GlobalOpt(); }
-
-namespace {
-
-/// GlobalStatus - As we analyze each global, keep track of some information
-/// about it.  If we find out that the address of the global is taken, none of
-/// this info will be accurate.
-struct GlobalStatus {
-  /// isCompared - True if the global's address is used in a comparison.
-  bool isCompared;
-
-  /// isLoaded - True if the global is ever loaded.  If the global isn't ever
-  /// loaded it can be deleted.
-  bool isLoaded;
-
-  /// StoredType - Keep track of what stores to the global look like.
-  ///
-  enum StoredType {
-    /// NotStored - There is no store to this global.  It can thus be marked
-    /// constant.
-    NotStored,
-
-    /// isInitializerStored - This global is stored to, but the only thing
-    /// stored is the constant it was initialized with.  This is only tracked
-    /// for scalar globals.
-    isInitializerStored,
-
-    /// isStoredOnce - This global is stored to, but only its initializer and
-    /// one other value is ever stored to it.  If this global isStoredOnce, we
-    /// track the value stored to it in StoredOnceValue below.  This is only
-    /// tracked for scalar globals.
-    isStoredOnce,
-
-    /// isStored - This global is stored to by multiple values or something else
-    /// that we cannot track.
-    isStored
-  } StoredType;
-
-  /// StoredOnceValue - If only one value (besides the initializer constant) is
-  /// ever stored to this global, keep track of what value it is.
-  Value *StoredOnceValue;
-
-  /// AccessingFunction/HasMultipleAccessingFunctions - These start out
-  /// null/false.  When the first accessing function is noticed, it is recorded.
-  /// When a second different accessing function is noticed,
-  /// HasMultipleAccessingFunctions is set to true.
-  const Function *AccessingFunction;
-  bool HasMultipleAccessingFunctions;
-
-  /// HasNonInstructionUser - Set to true if this global has a user that is not
-  /// an instruction (e.g. a constant expr or GV initializer).
-  bool HasNonInstructionUser;
-
-  /// AtomicOrdering - Set to the strongest atomic ordering requirement.
-  AtomicOrdering Ordering;
-
-  GlobalStatus() : isCompared(false), isLoaded(false), StoredType(NotStored),
-                   StoredOnceValue(0), AccessingFunction(0),
-                   HasMultipleAccessingFunctions(false),
-                   HasNonInstructionUser(false), Ordering(NotAtomic) {}
-};
-
-}
-
-/// StrongerOrdering - Return the stronger of the two ordering. If the two
-/// orderings are acquire and release, then return AcquireRelease.
-///
-static AtomicOrdering StrongerOrdering(AtomicOrdering X, AtomicOrdering Y) {
-  if (X == Acquire && Y == Release) return AcquireRelease;
-  if (Y == Acquire && X == Release) return AcquireRelease;
-  return (AtomicOrdering)std::max(X, Y);
-}
-
-/// SafeToDestroyConstant - It is safe to destroy a constant iff it is only used
-/// by constants itself.  Note that constants cannot be cyclic, so this test is
-/// pretty easy to implement recursively.
-///
-static bool SafeToDestroyConstant(const Constant *C) {
-  if (isa<GlobalValue>(C)) return false;
-
-  for (Value::const_use_iterator UI = C->use_begin(), E = C->use_end(); UI != E;
-       ++UI)
-    if (const Constant *CU = dyn_cast<Constant>(*UI)) {
-      if (!SafeToDestroyConstant(CU)) return false;
-    } else
-      return false;
-  return true;
-}
-
-
-/// AnalyzeGlobal - Look at all uses of the global and fill in the GlobalStatus
-/// structure.  If the global has its address taken, return true to indicate we
-/// can't do anything with it.
-///
-static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
-                          SmallPtrSet<const PHINode*, 16> &PHIUsers) {
-  for (Value::const_use_iterator UI = V->use_begin(), E = V->use_end(); UI != E;
-       ++UI) {
-    const User *U = *UI;
-    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
-      GS.HasNonInstructionUser = true;
-
-      // If the result of the constantexpr isn't pointer type, then we won't
-      // know to expect it in various places.  Just reject early.
-      if (!isa<PointerType>(CE->getType())) return true;
-
-      if (AnalyzeGlobal(CE, GS, PHIUsers)) return true;
-    } else if (const Instruction *I = dyn_cast<Instruction>(U)) {
-      if (!GS.HasMultipleAccessingFunctions) {
-        const Function *F = I->getParent()->getParent();
-        if (GS.AccessingFunction == 0)
-          GS.AccessingFunction = F;
-        else if (GS.AccessingFunction != F)
-          GS.HasMultipleAccessingFunctions = true;
-      }
-      if (const LoadInst *LI = dyn_cast<LoadInst>(I)) {
-        GS.isLoaded = true;
-        // Don't hack on volatile loads.
-        if (LI->isVolatile()) return true;
-        GS.Ordering = StrongerOrdering(GS.Ordering, LI->getOrdering());
-      } else if (const StoreInst *SI = dyn_cast<StoreInst>(I)) {
-        // Don't allow a store OF the address, only stores TO the address.
-        if (SI->getOperand(0) == V) return true;
-
-        // Don't hack on volatile stores.
-        if (SI->isVolatile()) return true;
-
-        GS.Ordering = StrongerOrdering(GS.Ordering, SI->getOrdering());
-
-        // If this is a direct store to the global (i.e., the global is a scalar
-        // value, not an aggregate), keep more specific information about
-        // stores.
-        if (GS.StoredType != GlobalStatus::isStored) {
-          if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(
-                                                           SI->getOperand(1))) {
-            Value *StoredVal = SI->getOperand(0);
-
-            if (Constant *C = dyn_cast<Constant>(StoredVal)) {
-              if (C->isThreadDependent()) {
-                // The stored value changes between threads; don't track it.
-                return true;
-              }
-            }
-
-            if (StoredVal == GV->getInitializer()) {
-              if (GS.StoredType < GlobalStatus::isInitializerStored)
-                GS.StoredType = GlobalStatus::isInitializerStored;
-            } else if (isa<LoadInst>(StoredVal) &&
-                       cast<LoadInst>(StoredVal)->getOperand(0) == GV) {
-              if (GS.StoredType < GlobalStatus::isInitializerStored)
-                GS.StoredType = GlobalStatus::isInitializerStored;
-            } else if (GS.StoredType < GlobalStatus::isStoredOnce) {
-              GS.StoredType = GlobalStatus::isStoredOnce;
-              GS.StoredOnceValue = StoredVal;
-            } else if (GS.StoredType == GlobalStatus::isStoredOnce &&
-                       GS.StoredOnceValue == StoredVal) {
-              // noop.
-            } else {
-              GS.StoredType = GlobalStatus::isStored;
-            }
-          } else {
-            GS.StoredType = GlobalStatus::isStored;
-          }
-        }
-      } else if (isa<BitCastInst>(I)) {
-        if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
-      } else if (isa<GetElementPtrInst>(I)) {
-        if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
-      } else if (isa<SelectInst>(I)) {
-        if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
-      } else if (const PHINode *PN = dyn_cast<PHINode>(I)) {
-        // PHI nodes we can check just like select or GEP instructions, but we
-        // have to be careful about infinite recursion.
-        if (PHIUsers.insert(PN))  // Not already visited.
-          if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
-      } else if (isa<CmpInst>(I)) {
-        GS.isCompared = true;
-      } else if (const MemTransferInst *MTI = dyn_cast<MemTransferInst>(I)) {
-        if (MTI->isVolatile()) return true;
-        if (MTI->getArgOperand(0) == V)
-          GS.StoredType = GlobalStatus::isStored;
-        if (MTI->getArgOperand(1) == V)
-          GS.isLoaded = true;
-      } else if (const MemSetInst *MSI = dyn_cast<MemSetInst>(I)) {
-        assert(MSI->getArgOperand(0) == V && "Memset only takes one pointer!");
-        if (MSI->isVolatile()) return true;
-        GS.StoredType = GlobalStatus::isStored;
-      } else {
-        return true;  // Any other non-load instruction might take address!
-      }
-    } else if (const Constant *C = dyn_cast<Constant>(U)) {
-      GS.HasNonInstructionUser = true;
-      // We might have a dead and dangling constant hanging off of here.
-      if (!SafeToDestroyConstant(C))
-        return true;
-    } else {
-      GS.HasNonInstructionUser = true;
-      // Otherwise must be some other user.
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /// isLeakCheckerRoot - Is this global variable possibly used by a leak checker
 /// as a root?  If so, we might not really want to eliminate the stores to it.
@@ -433,7 +231,7 @@ static bool CleanupPointerRootUsers(GlobalVariable *GV,
         Changed = true;
       }
     } else if (Constant *C = dyn_cast<Constant>(U)) {
-      if (SafeToDestroyConstant(C)) {
+      if (isSafeToDestroyConstant(C)) {
         C->destroyConstant();
         // This could have invalidated UI, start over from scratch.
         Dead.clear();
@@ -470,9 +268,17 @@ static bool CleanupPointerRootUsers(GlobalVariable *GV,
 static bool CleanupConstantGlobalUsers(Value *V, Constant *Init,
                                        DataLayout *TD, TargetLibraryInfo *TLI) {
   bool Changed = false;
-  SmallVector<User*, 8> WorkList(V->use_begin(), V->use_end());
+  // Note that we need to use a weak value handle for the worklist items. When
+  // we delete a constant array, we may also be holding pointer to one of its
+  // elements (or an element of one of its elements if we're dealing with an
+  // array of arrays) in the worklist.
+  SmallVector<WeakVH, 8> WorkList(V->use_begin(), V->use_end());
   while (!WorkList.empty()) {
-    User *U = WorkList.pop_back_val();
+    Value *UV = WorkList.pop_back_val();
+    if (!UV)
+      continue;
+
+    User *U = cast<User>(UV);
 
     if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
       if (Init) {
@@ -533,7 +339,7 @@ static bool CleanupConstantGlobalUsers(Value *V, Constant *Init,
     } else if (Constant *C = dyn_cast<Constant>(U)) {
       // If we have a chain of dead constantexprs or other things dangling from
       // us, and if they are all dead, nuke them without remorse.
-      if (SafeToDestroyConstant(C)) {
+      if (isSafeToDestroyConstant(C)) {
         C->destroyConstant();
         CleanupConstantGlobalUsers(V, Init, TD, TLI);
         return true;
@@ -548,7 +354,7 @@ static bool CleanupConstantGlobalUsers(Value *V, Constant *Init,
 static bool isSafeSROAElementUse(Value *V) {
   // We might have a dead and dangling constant hanging off of here.
   if (Constant *C = dyn_cast<Constant>(V))
-    return SafeToDestroyConstant(C);
+    return isSafeToDestroyConstant(C);
 
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I) return false;
@@ -1372,8 +1178,7 @@ static Value *GetHeapSROAValue(Value *V, unsigned FieldNo,
   } else if (PHINode *PN = dyn_cast<PHINode>(V)) {
     // PN's type is pointer to struct.  Make a new PHI of pointer to struct
     // field.
-    StructType *ST =
-      cast<StructType>(cast<PointerType>(PN->getType())->getElementType());
+    StructType *ST = cast<StructType>(PN->getType()->getPointerElementType());
 
     PHINode *NewPN =
      PHINode::Create(PointerType::getUnqual(ST->getElementType(FieldNo)),
@@ -1504,7 +1309,7 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV, CallInst *CI,
     unsigned TypeSize = TD->getTypeAllocSize(FieldTy);
     if (StructType *ST = dyn_cast<StructType>(FieldTy))
       TypeSize = TD->getStructLayout(ST)->getSizeInBytes();
-    Type *IntPtrTy = TD->getIntPtrType(CI->getContext());
+    Type *IntPtrTy = TD->getIntPtrType(CI->getType());
     Value *NMI = CallInst::CreateMalloc(CI, IntPtrTy, FieldTy,
                                         ConstantInt::get(IntPtrTy, TypeSize),
                                         NElems, 0,
@@ -1734,7 +1539,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
     // If this is a fixed size array, transform the Malloc to be an alloc of
     // structs.  malloc [100 x struct],1 -> malloc struct, 100
     if (ArrayType *AT = dyn_cast<ArrayType>(getMallocAllocatedType(CI, TLI))) {
-      Type *IntPtrTy = TD->getIntPtrType(CI->getContext());
+      Type *IntPtrTy = TD->getIntPtrType(CI->getType());
       unsigned TypeSize = TD->getStructLayout(AllocSTy)->getSizeInBytes();
       Value *AllocSize = ConstantInt::get(IntPtrTy, TypeSize);
       Value *NumElements = ConstantInt::get(IntPtrTy, AT->getNumElements());
@@ -1916,13 +1721,12 @@ bool GlobalOpt::ProcessGlobal(GlobalVariable *GV,
   if (!GV->hasLocalLinkage())
     return false;
 
-  SmallPtrSet<const PHINode*, 16> PHIUsers;
   GlobalStatus GS;
 
-  if (AnalyzeGlobal(GV, GS, PHIUsers))
+  if (GlobalStatus::analyzeGlobal(GV, GS))
     return false;
 
-  if (!GS.isCompared && !GV->hasUnnamedAddr()) {
+  if (!GS.IsCompared && !GV->hasUnnamedAddr()) {
     GV->setUnnamedAddr(true);
     NumUnnamed++;
   }
@@ -1930,19 +1734,17 @@ bool GlobalOpt::ProcessGlobal(GlobalVariable *GV,
   if (GV->isConstant() || !GV->hasInitializer())
     return false;
 
-  return ProcessInternalGlobal(GV, GVI, PHIUsers, GS);
+  return ProcessInternalGlobal(GV, GVI, GS);
 }
 
 /// ProcessInternalGlobal - Analyze the specified global variable and optimize
 /// it if possible.  If we make a change, return true.
 bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
                                       Module::global_iterator &GVI,
-                                const SmallPtrSet<const PHINode*, 16> &PHIUsers,
                                       const GlobalStatus &GS) {
   // If this is a first class global and has only one accessing function
-  // and this function is main (which we know is not recursive we can make
-  // this global a local variable) we replace the global with a local alloca
-  // in this function.
+  // and this function is main (which we know is not recursive), we replace
+  // the global with a local alloca in this function.
   //
   // NOTE: It doesn't make sense to promote non single-value types since we
   // are just replacing static memory to stack memory.
@@ -1971,7 +1773,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
 
   // If the global is never loaded (but may be stored to), it is dead.
   // Delete it now.
-  if (!GS.isLoaded) {
+  if (!GS.IsLoaded) {
     DEBUG(dbgs() << "GLOBAL NEVER LOADED: " << *GV);
 
     bool Changed;
@@ -1992,7 +1794,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
     }
     return Changed;
 
-  } else if (GS.StoredType <= GlobalStatus::isInitializerStored) {
+  } else if (GS.StoredType <= GlobalStatus::InitializerStored) {
     DEBUG(dbgs() << "MARKING CONSTANT: " << *GV << "\n");
     GV->setConstant(true);
 
@@ -2015,7 +1817,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
         GVI = FirstNewGV;  // Don't skip the newly produced globals!
         return true;
       }
-  } else if (GS.StoredType == GlobalStatus::isStoredOnce) {
+  } else if (GS.StoredType == GlobalStatus::StoredOnce) {
     // If the initial value for the global was an undef value, and if only
     // one other value was stored into it, we can just change the
     // initializer to be the stored value, then delete all stores to the
@@ -2048,11 +1850,14 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
 
     // Otherwise, if the global was not a boolean, we can shrink it to be a
     // boolean.
-    if (Constant *SOVConstant = dyn_cast<Constant>(GS.StoredOnceValue))
-      if (TryToShrinkGlobalToBoolean(GV, SOVConstant)) {
-        ++NumShrunkToBool;
-        return true;
+    if (Constant *SOVConstant = dyn_cast<Constant>(GS.StoredOnceValue)) {
+      if (GS.Ordering == NotAtomic) {
+        if (TryToShrinkGlobalToBoolean(GV, SOVConstant)) {
+          ++NumShrunkToBool;
+          return true;
+        }
       }
+    }
   }
 
   return false;
@@ -2210,8 +2015,7 @@ static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
   CSVals[1] = 0;
 
   StructType *StructTy =
-    cast <StructType>(
-    cast<ArrayType>(GCL->getType()->getElementType())->getElementType());
+    cast<StructType>(GCL->getType()->getElementType()->getArrayElementType());
 
   // Create the new init list.
   std::vector<Constant*> CAList;
@@ -2784,7 +2588,7 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
           Value *Ptr = PtrArg->stripPointerCasts();
           if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr)) {
             Type *ElemTy = cast<PointerType>(GV->getType())->getElementType();
-            if (!Size->isAllOnesValue() &&
+            if (TD && !Size->isAllOnesValue() &&
                 Size->getValue().getLimitedValue() >=
                 TD->getTypeStoreSize(ElemTy)) {
               Invariants.insert(GV);
@@ -3041,107 +2845,148 @@ bool GlobalOpt::OptimizeGlobalCtorsList(GlobalVariable *&GCL) {
   return true;
 }
 
-static Value::use_iterator getFirst(Value *V, SmallPtrSet<Use*, 8> &Tried) {
-  for (Value::use_iterator I = V->use_begin(), E = V->use_end(); I != E; ++I) {
-    Use *U = &I.getUse();
-    if (Tried.count(U))
-      continue;
-
-    User *Usr = *I;
-    GlobalVariable *GV = dyn_cast<GlobalVariable>(Usr);
-    if (!GV || !GV->hasName()) {
-      Tried.insert(U);
-      return I;
-    }
-
-    StringRef Name = GV->getName();
-    if (Name != "llvm.used" && Name != "llvm.compiler_used") {
-      Tried.insert(U);
-      return I;
-    }
-  }
-  return V->use_end();
+static int compareNames(Constant *const *A, Constant *const *B) {
+  return (*A)->getName().compare((*B)->getName());
 }
 
-static bool replaceAllNonLLVMUsedUsesWith(Constant *Old, Constant *New);
-
-static bool replaceUsesOfWithOnConstant(ConstantArray *CA, Value *From,
-                                        Value *ToV, Use *U) {
-  Constant *To = cast<Constant>(ToV);
-
-  SmallVector<Constant*, 8> NewOps;
-  for (unsigned i = 0, e = CA->getNumOperands(); i != e; ++i) {
-    Constant *Op = CA->getOperand(i);
-    NewOps.push_back(Op == From ? To : Op);
+static void setUsedInitializer(GlobalVariable &V,
+                               SmallPtrSet<GlobalValue *, 8> Init) {
+  if (Init.empty()) {
+    V.eraseFromParent();
+    return;
   }
 
-  Constant *Replacement = ConstantArray::get(CA->getType(), NewOps);
-  assert(Replacement != CA && "CA didn't contain From!");
+  SmallVector<llvm::Constant *, 8> UsedArray;
+  PointerType *Int8PtrTy = Type::getInt8PtrTy(V.getContext());
 
-  bool Ret = replaceAllNonLLVMUsedUsesWith(CA, Replacement);
-  if (Replacement->use_empty())
-    Replacement->destroyConstant();
-  if (CA->use_empty())
-    CA->destroyConstant();
-  return Ret;
-}
-
-static bool replaceUsesOfWithOnConstant(ConstantExpr *CE, Value *From,
-                                        Value *ToV, Use *U) {
-  Constant *To = cast<Constant>(ToV);
-  SmallVector<Constant*, 8> NewOps;
-  for (unsigned i = 0, e = CE->getNumOperands(); i != e; ++i) {
-    Constant *Op = CE->getOperand(i);
-    NewOps.push_back(Op == From ? To : Op);
+  for (SmallPtrSet<GlobalValue *, 8>::iterator I = Init.begin(), E = Init.end();
+       I != E; ++I) {
+    Constant *Cast = llvm::ConstantExpr::getBitCast(*I, Int8PtrTy);
+    UsedArray.push_back(Cast);
   }
+  // Sort to get deterministic order.
+  array_pod_sort(UsedArray.begin(), UsedArray.end(), compareNames);
+  ArrayType *ATy = ArrayType::get(Int8PtrTy, UsedArray.size());
 
-  Constant *Replacement = CE->getWithOperands(NewOps);
-  assert(Replacement != CE && "CE didn't contain From!");
-
-  bool Ret = replaceAllNonLLVMUsedUsesWith(CE, Replacement);
-  if (Replacement->use_empty())
-    Replacement->destroyConstant();
-  if (CE->use_empty())
-    CE->destroyConstant();
-  return Ret;
+  Module *M = V.getParent();
+  V.removeFromParent();
+  GlobalVariable *NV =
+      new GlobalVariable(*M, ATy, false, llvm::GlobalValue::AppendingLinkage,
+                         llvm::ConstantArray::get(ATy, UsedArray), "");
+  NV->takeName(&V);
+  NV->setSection("llvm.metadata");
+  delete &V;
 }
 
-static bool replaceUsesOfWithOnConstant(Constant *C, Value *From, Value *To,
-                                        Use *U) {
-  if (ConstantArray *CA = dyn_cast<ConstantArray>(C))
-    return replaceUsesOfWithOnConstant(CA, From, To, U);
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C))
-    return replaceUsesOfWithOnConstant(CE, From, To, U);
-  C->replaceUsesOfWithOnConstant(From, To, U);
-  return true;
+namespace {
+/// \brief An easy to access representation of llvm.used and llvm.compiler.used.
+class LLVMUsed {
+  SmallPtrSet<GlobalValue *, 8> Used;
+  SmallPtrSet<GlobalValue *, 8> CompilerUsed;
+  GlobalVariable *UsedV;
+  GlobalVariable *CompilerUsedV;
+
+public:
+  LLVMUsed(Module &M) {
+    UsedV = collectUsedGlobalVariables(M, Used, false);
+    CompilerUsedV = collectUsedGlobalVariables(M, CompilerUsed, true);
+  }
+  typedef SmallPtrSet<GlobalValue *, 8>::iterator iterator;
+  iterator usedBegin() { return Used.begin(); }
+  iterator usedEnd() { return Used.end(); }
+  iterator compilerUsedBegin() { return CompilerUsed.begin(); }
+  iterator compilerUsedEnd() { return CompilerUsed.end(); }
+  bool usedCount(GlobalValue *GV) const { return Used.count(GV); }
+  bool compilerUsedCount(GlobalValue *GV) const {
+    return CompilerUsed.count(GV);
+  }
+  bool usedErase(GlobalValue *GV) { return Used.erase(GV); }
+  bool compilerUsedErase(GlobalValue *GV) { return CompilerUsed.erase(GV); }
+  bool usedInsert(GlobalValue *GV) { return Used.insert(GV); }
+  bool compilerUsedInsert(GlobalValue *GV) { return CompilerUsed.insert(GV); }
+
+  void syncVariablesAndSets() {
+    if (UsedV)
+      setUsedInitializer(*UsedV, Used);
+    if (CompilerUsedV)
+      setUsedInitializer(*CompilerUsedV, CompilerUsed);
+  }
+};
 }
 
-static bool replaceAllNonLLVMUsedUsesWith(Constant *Old, Constant *New) {
-  SmallPtrSet<Use*, 8> Tried;
+static bool hasUseOtherThanLLVMUsed(GlobalAlias &GA, const LLVMUsed &U) {
+  if (GA.use_empty()) // No use at all.
+    return false;
+
+  assert((!U.usedCount(&GA) || !U.compilerUsedCount(&GA)) &&
+         "We should have removed the duplicated "
+         "element from llvm.compiler.used");
+  if (!GA.hasOneUse())
+    // Strictly more than one use. So at least one is not in llvm.used and
+    // llvm.compiler.used.
+    return true;
+
+  // Exactly one use. Check if it is in llvm.used or llvm.compiler.used.
+  return !U.usedCount(&GA) && !U.compilerUsedCount(&GA);
+}
+
+static bool hasMoreThanOneUseOtherThanLLVMUsed(GlobalValue &V,
+                                               const LLVMUsed &U) {
+  unsigned N = 2;
+  assert((!U.usedCount(&V) || !U.compilerUsedCount(&V)) &&
+         "We should have removed the duplicated "
+         "element from llvm.compiler.used");
+  if (U.usedCount(&V) || U.compilerUsedCount(&V))
+    ++N;
+  return V.hasNUsesOrMore(N);
+}
+
+static bool mayHaveOtherReferences(GlobalAlias &GA, const LLVMUsed &U) {
+  if (!GA.hasLocalLinkage())
+    return true;
+
+  return U.usedCount(&GA) || U.compilerUsedCount(&GA);
+}
+
+static bool hasUsesToReplace(GlobalAlias &GA, LLVMUsed &U, bool &RenameTarget) {
+  RenameTarget = false;
   bool Ret = false;
-  for (;;) {
-    Value::use_iterator I = getFirst(Old, Tried);
-    if (I == Old->use_end())
-      break;
-    Use &U = I.getUse();
-
-    // Must handle Constants specially, we cannot call replaceUsesOfWith on a
-    // constant because they are uniqued.
-    if (Constant *C = dyn_cast<Constant>(U.getUser())) {
-      if (!isa<GlobalValue>(C)) {
-        Ret |= replaceUsesOfWithOnConstant(C, Old, New, &U);
-        continue;
-      }
-    }
-
-    U.set(New);
+  if (hasUseOtherThanLLVMUsed(GA, U))
     Ret = true;
-  }
-  return Ret;
+
+  // If the alias is externally visible, we may still be able to simplify it.
+  if (!mayHaveOtherReferences(GA, U))
+    return Ret;
+
+  // If the aliasee has internal linkage, give it the name and linkage
+  // of the alias, and delete the alias.  This turns:
+  //   define internal ... @f(...)
+  //   @a = alias ... @f
+  // into:
+  //   define ... @a(...)
+  Constant *Aliasee = GA.getAliasee();
+  GlobalValue *Target = cast<GlobalValue>(Aliasee->stripPointerCasts());
+  if (!Target->hasLocalLinkage())
+    return Ret;
+
+  // Do not perform the transform if multiple aliases potentially target the
+  // aliasee. This check also ensures that it is safe to replace the section
+  // and other attributes of the aliasee with those of the alias.
+  if (hasMoreThanOneUseOtherThanLLVMUsed(*Target, U))
+    return Ret;
+
+  RenameTarget = true;
+  return true;
 }
 
 bool GlobalOpt::OptimizeGlobalAliases(Module &M) {
   bool Changed = false;
+  LLVMUsed Used(M);
+
+  for (SmallPtrSet<GlobalValue *, 8>::iterator I = Used.usedBegin(),
+                                               E = Used.usedEnd();
+       I != E; ++I)
+    Used.compilerUsedErase(*I);
 
   for (Module::alias_iterator I = M.alias_begin(), E = M.alias_end();
        I != E;) {
@@ -3156,44 +3001,37 @@ bool GlobalOpt::OptimizeGlobalAliases(Module &M) {
     Constant *Aliasee = J->getAliasee();
     GlobalValue *Target = cast<GlobalValue>(Aliasee->stripPointerCasts());
     Target->removeDeadConstantUsers();
-    bool hasOneUse = Target->hasOneUse() && Aliasee->hasOneUse();
 
     // Make all users of the alias use the aliasee instead.
-    if (replaceAllNonLLVMUsedUsesWith(J, Aliasee)) {
-      ++NumAliasesResolved;
-      Changed = true;
-    }
-    if (!J->use_empty())
+    bool RenameTarget;
+    if (!hasUsesToReplace(*J, Used, RenameTarget))
       continue;
 
-    // If the alias is externally visible, we may still be able to simplify it.
-    if (!J->hasLocalLinkage()) {
-      // If the aliasee has internal linkage, give it the name and linkage
-      // of the alias, and delete the alias.  This turns:
-      //   define internal ... @f(...)
-      //   @a = alias ... @f
-      // into:
-      //   define ... @a(...)
-      if (!Target->hasLocalLinkage())
-        continue;
+    J->replaceAllUsesWith(Aliasee);
+    ++NumAliasesResolved;
+    Changed = true;
 
-      // Do not perform the transform if multiple aliases potentially target the
-      // aliasee. This check also ensures that it is safe to replace the section
-      // and other attributes of the aliasee with those of the alias.
-      if (!hasOneUse)
-        continue;
-
+    if (RenameTarget) {
       // Give the aliasee the name, linkage and other attributes of the alias.
       Target->takeName(J);
       Target->setLinkage(J->getLinkage());
       Target->GlobalValue::copyAttributesFrom(J);
-    }
+
+      if (Used.usedErase(J))
+        Used.usedInsert(Target);
+
+      if (Used.compilerUsedErase(J))
+        Used.compilerUsedInsert(Target);
+    } else if (mayHaveOtherReferences(*J, Used))
+      continue;
 
     // Delete the alias.
     M.getAliasList().erase(J);
     ++NumAliasesRemoved;
     Changed = true;
   }
+
+  Used.syncVariablesAndSets();
 
   return Changed;
 }
@@ -3323,8 +3161,6 @@ bool GlobalOpt::runOnModule(Module &M) {
   // Try to find the llvm.globalctors list.
   GlobalVariable *GlobalCtors = FindGlobalCtors(M);
 
-  Function *CXAAtExitFn = FindCXAAtExit(M, TLI);
-
   bool LocalChange = true;
   while (LocalChange) {
     LocalChange = false;
@@ -3342,7 +3178,9 @@ bool GlobalOpt::runOnModule(Module &M) {
     // Resolve aliases, when possible.
     LocalChange |= OptimizeGlobalAliases(M);
 
-    // Try to remove trivial global destructors.
+    // Try to remove trivial global destructors if they are not removed
+    // already.
+    Function *CXAAtExitFn = FindCXAAtExit(M, TLI);
     if (CXAAtExitFn)
       LocalChange |= OptimizeEmptyGlobalCXXDtors(CXAAtExitFn);
 

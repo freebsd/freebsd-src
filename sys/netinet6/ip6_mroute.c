@@ -283,7 +283,6 @@ static VNET_DEFINE(int, pim6);
 #define MF6CFIND(o, g, rt) do { \
 	struct mf6c *_rt = mf6ctable[MF6CHASH(o,g)]; \
 	rt = NULL; \
-	MRT6STAT_INC(mrt6s_mfc_lookups); \
 	while (_rt) { \
 		if (IN6_ARE_ADDR_EQUAL(&_rt->mf6c_origin.sin6_addr, &(o)) && \
 		    IN6_ARE_ADDR_EQUAL(&_rt->mf6c_mcastgrp.sin6_addr, &(g)) && \
@@ -361,7 +360,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 	mifi_t mifi;
 
 	if (so != V_ip6_mrouter && sopt->sopt_name != MRT6_INIT)
-		return (EACCES);
+		return (EPERM);
 
 	switch (sopt->sopt_name) {
 	case MRT6_INIT:
@@ -1099,6 +1098,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * Determine forwarding mifs from the forwarding cache table
 	 */
 	MF6CFIND(ip6->ip6_src, ip6->ip6_dst, rt);
+	MRT6STAT_INC(mrt6s_mfc_lookups);
 
 	/* Entry exists, so forward if necessary */
 	if (rt) {

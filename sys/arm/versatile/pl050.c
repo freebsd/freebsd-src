@@ -609,6 +609,9 @@ static int
 pl050_kmi_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "arm,pl050")) {
 		device_set_desc(dev, "PL050 Keyboard/Mouse Interface");
 		return (BUS_PROBE_DEFAULT);

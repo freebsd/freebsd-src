@@ -70,7 +70,8 @@ fdopen(int fd, const char *mode)
 	/* Make sure the mode the user wants is a subset of the actual mode. */
 	if ((fdflags = _fcntl(fd, F_GETFL, 0)) < 0)
 		return (NULL);
-	tmp = fdflags & O_ACCMODE;
+	/* Work around incorrect O_ACCMODE. */
+	tmp = fdflags & (O_ACCMODE | O_EXEC);
 	if (tmp != O_RDWR && (tmp != (oflags & O_ACCMODE))) {
 		errno = EINVAL;
 		return (NULL);

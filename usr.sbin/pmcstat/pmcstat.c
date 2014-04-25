@@ -503,6 +503,7 @@ pmcstat_show_usage(void)
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
+	    "\t -a <file>\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
@@ -617,8 +618,14 @@ main(int argc, char **argv)
 		CPU_SET(hcpu, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:M:NO:P:R:S:TWc:df:gk:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:M:NO:P:R:S:TWa:c:df:gk:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
+		case 'a':	/* Annotate + callgraph */
+			args.pa_flags |= FLAG_DO_ANNOTATE;
+			args.pa_plugin = PMCSTAT_PL_ANNOTATE_CG;
+			graphfilename  = optarg;
+			break;
+
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
 			args.pa_required |= FLAG_HAS_COUNTING_PMCS;
@@ -917,7 +924,8 @@ main(int argc, char **argv)
 
 	/* -m option is allowed with -R only. */
 	if (args.pa_flags & FLAG_DO_ANNOTATE && args.pa_inputpath == NULL)
-		errx(EX_USAGE, "ERROR: option -m requires an input file");
+		errx(EX_USAGE, "ERROR: option %s requires an input file",
+		    args.pa_plugin == PMCSTAT_PL_ANNOTATE ? "-m" : "-a");
 
 	/* -m option is not allowed combined with -g or -G. */
 	if (args.pa_flags & FLAG_DO_ANNOTATE &&

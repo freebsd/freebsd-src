@@ -164,21 +164,6 @@ static int netmap_bwrap_register(struct netmap_adapter *, int onoff);
 int kern_netmap_regif(struct nmreq *nmr);
 
 /*
- * Each transmit queue accumulates a batch of packets into
- * a structure before forwarding. Packets to the same
- * destination are put in a list using ft_next as a link field.
- * ft_frags and ft_next are valid only on the first fragment.
- */
-struct nm_bdg_fwd {	/* forwarding entry for a bridge */
-	void *ft_buf;		/* netmap or indirect buffer */
-	uint8_t ft_frags;	/* how many fragments (only on 1st frag) */
-	uint8_t _ft_port;	/* dst port (unused) */
-	uint16_t ft_flags;	/* flags, e.g. indirect */
-	uint16_t ft_len;	/* src fragment len */
-	uint16_t ft_next;	/* next packet to same destination */
-};
-
-/*
  * For each output interface, nm_bdg_q is used to construct a list.
  * bq_len is the number of output buffers (we can have coalescing
  * during the copy).
@@ -381,7 +366,7 @@ nm_alloc_bdgfwd(struct netmap_adapter *na)
 	l += sizeof(struct nm_bdg_q) * num_dstq;
 	l += sizeof(uint16_t) * NM_BDG_BATCH_MAX;
 
-	nrings = na->num_tx_rings + 1;
+	nrings = netmap_real_tx_rings(na);
 	kring = na->tx_rings;
 	for (i = 0; i < nrings; i++) {
 		struct nm_bdg_fwd *ft;
@@ -421,7 +406,8 @@ netmap_bdg_detach_common(struct nm_bridge *b, int hw, int sw)
 	acquire BDG_WLOCK() and copy back the array.
 	 */
 
-	D("detach %d and %d (lim %d)", hw, sw, lim);
+	if (netmap_verbose)
+		D("detach %d and %d (lim %d)", hw, sw, lim);
 	/* make a copy of the list of active ports, update it,
 	 * and then copy back within BDG_WLOCK().
 	 */
@@ -675,7 +661,7 @@ nm_bdg_attach(struct nmreq *nmr)
 		goto unref_exit;
 	}
 
-	nifp = netmap_do_regif(npriv, na, nmr->nr_ringid, &error);
+	nifp = netmap_do_regif(npriv, na, nmr->nr_ringid, nmr->nr_flags, &error);
 	if (!nifp) {
 		goto unref_exit;
 	}
@@ -855,15 +841,23 @@ netmap_bdg_ctl(struct nmreq *nmr, bdg_lookup_fn_t func)
 		NMG_UNLOCK();
 		break;
 
-	case NETMAP_BDG_OFFSET:
+	case NETMAP_BDG_VNET_HDR:
+		/* Valid lengths for the virtio-net header are 0 (no header),
+		   10 and 12. */
+		if (nmr->nr_arg1 != 0 &&
+			nmr->nr_arg1 != sizeof(struct nm_vnet_hdr) &&
+				nmr->nr_arg1 != 12) {
+			error = EINVAL;
+			break;
+		}
 		NMG_LOCK();
 		error = netmap_get_bdg_na(nmr, &na, 0);
 		if (na && !error) {
 			vpna = (struct netmap_vp_adapter *)na;
-			if (nmr->nr_arg1 > NETMAP_BDG_MAX_OFFSET)
-				nmr->nr_arg1 = NETMAP_BDG_MAX_OFFSET;
-			vpna->offset = nmr->nr_arg1;
-			D("Using offset %d for %p", vpna->offset, vpna);
+			vpna->virt_hdr_len = nmr->nr_arg1;
+			if (vpna->virt_hdr_len)
+				vpna->mfs = NETMAP_BDG_BUF_SIZE(na->nm_mem);
+			D("Using vnet_hdr_len %d for %p", vpna->virt_hdr_len, vpna);
 			netmap_adapter_put(na);
 		}
 		NMG_UNLOCK();
@@ -877,26 +871,20 @@ netmap_bdg_ctl(struct nmreq *nmr, bdg_lookup_fn_t func)
 	return error;
 }
 
-
 static int
 netmap_vp_krings_create(struct netmap_adapter *na)
 {
-	u_int ntx, nrx, tailroom;
+	u_int tailroom;
 	int error, i;
 	uint32_t *leases;
-
-	/* XXX vps do not need host rings,
-	 * but we crash if we don't have one
-	 */
-	ntx = na->num_tx_rings + 1;
-	nrx = na->num_rx_rings + 1;
+	u_int nrx = netmap_real_rx_rings(na);
 
 	/*
 	 * Leases are attached to RX rings on vale ports
 	 */
 	tailroom = sizeof(uint32_t) * na->num_rx_desc * nrx;
 
-	error = netmap_krings_create(na, ntx, nrx, tailroom);
+	error = netmap_krings_create(na, tailroom);
 	if (error)
 		return error;
 
@@ -1212,16 +1200,16 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		u_int len = ft[i].ft_len;
 
 		ND("slot %d frags %d", i, ft[i].ft_frags);
-		/* Drop the packet if the offset is not into the first
+		/* Drop the packet if the virtio-net header is not into the first
 		   fragment nor at the very beginning of the second. */
-		if (unlikely(na->offset > len))
+		if (unlikely(na->virt_hdr_len > len))
 			continue;
-		if (len == na->offset) {
+		if (len == na->virt_hdr_len) {
 			buf = ft[i+1].ft_buf;
 			len = ft[i+1].ft_len;
 		} else {
-			buf += na->offset;
-			len -= na->offset;
+			buf += na->virt_hdr_len;
+			len -= na->virt_hdr_len;
 		}
 		dst_port = b->nm_bdg_lookup(buf, len, &dst_ring, na);
 		if (netmap_verbose > 255)
@@ -1280,13 +1268,13 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		struct netmap_vp_adapter *dst_na;
 		struct netmap_kring *kring;
 		struct netmap_ring *ring;
-		u_int dst_nr, lim, j, sent = 0, d_i, next, brd_next;
+		u_int dst_nr, lim, j, d_i, next, brd_next;
 		u_int needed, howmany;
 		int retry = netmap_txsync_retry;
 		struct nm_bdg_q *d;
 		uint32_t my_start = 0, lease_idx = 0;
 		int nrings;
-		int offset_mismatch;
+		int virt_hdr_mismatch = 0;
 
 		d_i = dsts[i];
 		ND("second pass %d port %d", i, d_i);
@@ -1311,8 +1299,6 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 			goto cleanup;
 		}
 
-		offset_mismatch = (dst_na->offset != na->offset);
-
 		/* there is at least one either unicast or broadcast packet */
 		brd_next = brddst->bq_head;
 		next = d->bq_head;
@@ -1324,6 +1310,29 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		 * ones when we regain the lock.
 		 */
 		needed = d->bq_len + brddst->bq_len;
+
+		if (unlikely(dst_na->virt_hdr_len != na->virt_hdr_len)) {
+			/* There is a virtio-net header/offloadings mismatch between
+			 * source and destination. The slower mismatch datapath will
+			 * be used to cope with all the mismatches.
+			 */
+			virt_hdr_mismatch = 1;
+			if (dst_na->mfs < na->mfs) {
+				/* We may need to do segmentation offloadings, and so
+				 * we may need a number of destination slots greater
+				 * than the number of input slots ('needed').
+				 * We look for the smallest integer 'x' which satisfies:
+				 *	needed * na->mfs + x * H <= x * na->mfs
+				 * where 'H' is the length of the longest header that may
+				 * be replicated in the segmentation process (e.g. for
+				 * TCPv4 we must account for ethernet header, IP header
+				 * and TCPv4 header).
+				 */
+				needed = (needed * na->mfs) /
+						(dst_na->mfs - WORST_CASE_GSO_HEADER) + 1;
+				ND(3, "srcmtu=%u, dstmtu=%u, x=%u", na->mfs, dst_na->mfs, needed);
+			}
+		}
 
 		ND(5, "pass 2 dst %d is %x %s",
 			i, d_i, is_vp ? "virtual" : "nic/host");
@@ -1337,6 +1346,10 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 
 retry:
 
+		if (dst_na->retry && retry) {
+			/* try to get some free slot from the previous run */
+			dst_na->up.nm_notify(&dst_na->up, dst_nr, NR_RX, 0);
+		}
 		/* reserve the buffers in the queue and an entry
 		 * to report completion, and drop lock.
 		 * XXX this might become a helper function.
@@ -1345,9 +1358,6 @@ retry:
 		if (kring->nkr_stopped) {
 			mtx_unlock(&kring->q_lock);
 			goto cleanup;
-		}
-		if (dst_na->retry) {
-			dst_na->up.nm_notify(&dst_na->up, dst_nr, NR_RX, 0);
 		}
 		my_start = j = kring->nkr_hwlease;
 		howmany = nm_kr_space(kring, 1);
@@ -1365,7 +1375,6 @@ retry:
 			struct netmap_slot *slot;
 			struct nm_bdg_fwd *ft_p, *ft_end;
 			u_int cnt;
-			int fix_mismatch = offset_mismatch;
 
 			/* find the queue from which we pick next packet.
 			 * NM_FT_NULL is always higher than valid indexes
@@ -1383,58 +1392,43 @@ retry:
 			cnt = ft_p->ft_frags; // cnt > 0
 			if (unlikely(cnt > howmany))
 			    break; /* no more space */
-			howmany -= cnt;
 			if (netmap_verbose && cnt > 1)
 				RD(5, "rx %d frags to %d", cnt, j);
 			ft_end = ft_p + cnt;
-			do {
-			    char *dst, *src = ft_p->ft_buf;
-			    size_t copy_len = ft_p->ft_len, dst_len = copy_len;
+			if (unlikely(virt_hdr_mismatch)) {
+				bdg_mismatch_datapath(na, dst_na, ft_p, ring, &j, lim, &howmany);
+			} else {
+				howmany -= cnt;
+				do {
+					char *dst, *src = ft_p->ft_buf;
+					size_t copy_len = ft_p->ft_len, dst_len = copy_len;
 
-			    slot = &ring->slot[j];
-			    dst = BDG_NMB(&dst_na->up, slot);
+					slot = &ring->slot[j];
+					dst = BDG_NMB(&dst_na->up, slot);
 
-			    if (unlikely(fix_mismatch)) {
-				    /* We are processing the first fragment
-				     * and there is a mismatch between source
-				     * and destination offsets. Create a zeroed
-				     * header for the destination, independently
-				     * of the source header length and content.
-				     */
-				    src += na->offset;
-				    copy_len -= na->offset;
-				    bzero(dst, dst_na->offset);
-				    dst += dst_na->offset;
-				    dst_len = dst_na->offset + copy_len;
-				    /* fix the first fragment only */
-				    fix_mismatch = 0;
-				    /* Here it could be copy_len == dst_len == 0,
-				     * and so a zero length fragment is passed.
-				     */
-			    }
+					ND("send [%d] %d(%d) bytes at %s:%d",
+							i, (int)copy_len, (int)dst_len,
+							NM_IFPNAME(dst_ifp), j);
+					/* round to a multiple of 64 */
+					copy_len = (copy_len + 63) & ~63;
 
-			    ND("send [%d] %d(%d) bytes at %s:%d",
-				i, (int)copy_len, (int)dst_len,
-				NM_IFPNAME(dst_ifp), j);
-			    /* round to a multiple of 64 */
-			    copy_len = (copy_len + 63) & ~63;
-
-			    if (ft_p->ft_flags & NS_INDIRECT) {
-				if (copyin(src, dst, copy_len)) {
-					// invalid user pointer, pretend len is 0
-					dst_len = 0;
-				}
-			    } else {
-				//memcpy(dst, src, copy_len);
-				pkt_copy(src, dst, (int)copy_len);
-			    }
-			    slot->len = dst_len;
-			    slot->flags = (cnt << 8)| NS_MOREFRAG;
-			    j = nm_next(j, lim);
-			    ft_p++;
-			    sent++;
-			} while (ft_p != ft_end);
-			slot->flags = (cnt << 8); /* clear flag on last entry */
+					if (ft_p->ft_flags & NS_INDIRECT) {
+						if (copyin(src, dst, copy_len)) {
+							// invalid user pointer, pretend len is 0
+							dst_len = 0;
+						}
+					} else {
+						//memcpy(dst, src, copy_len);
+						pkt_copy(src, dst, (int)copy_len);
+					}
+					slot->len = dst_len;
+					slot->flags = (cnt << 8)| NS_MOREFRAG;
+					j = nm_next(j, lim);
+					needed--;
+					ft_p++;
+				} while (ft_p != ft_end);
+				slot->flags = (cnt << 8); /* clear flag on last entry */
+			}
 			/* are we done ? */
 			if (next == NM_FT_NULL && brd_next == NM_FT_NULL)
 				break;
@@ -1484,9 +1478,9 @@ retry:
 			 */
 			if (likely(j != my_start)) {
 				kring->nr_hwtail = j;
-				dst_na->up.nm_notify(&dst_na->up, dst_nr, NR_RX, 0);
 				still_locked = 0;
 				mtx_unlock(&kring->q_lock);
+				dst_na->up.nm_notify(&dst_na->up, dst_nr, NR_RX, 0);
 				if (dst_na->retry && retry--)
 					goto retry;
 			}
@@ -1615,6 +1609,7 @@ bdg_netmap_attach(struct nmreq *nmr, struct ifnet *ifp)
 	struct netmap_vp_adapter *vpna;
 	struct netmap_adapter *na;
 	int error;
+	u_int npipes = 0;
 
 	vpna = malloc(sizeof(*vpna), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (vpna == NULL)
@@ -1636,8 +1631,23 @@ bdg_netmap_attach(struct nmreq *nmr, struct ifnet *ifp)
 	na->num_tx_desc = nmr->nr_tx_slots;
 	nm_bound_var(&nmr->nr_rx_slots, NM_BRIDGE_RINGSIZE,
 			1, NM_BDG_MAXSLOTS, NULL);
+	/* validate number of pipes. We want at least 1,
+	 * but probably can do with some more.
+	 * So let's use 2 as default (when 0 is supplied)
+	 */
+	npipes = nmr->nr_arg1;
+	nm_bound_var(&npipes, 2, 1, NM_MAXPIPES, NULL);
+	nmr->nr_arg1 = npipes;	/* write back */
+	/* validate extra bufs */
+	nm_bound_var(&nmr->nr_arg3, 0, 0,
+			128*NM_BDG_MAXSLOTS, NULL);
 	na->num_rx_desc = nmr->nr_rx_slots;
-	vpna->offset = 0;
+	vpna->virt_hdr_len = 0;
+	vpna->mfs = 1514;
+	/*if (vpna->mfs > netmap_buf_size)  TODO netmap_buf_size is zero??
+		vpna->mfs = netmap_buf_size; */
+        if (netmap_verbose)
+		D("max frame size %u", vpna->mfs);
 
 	na->na_flags |= NAF_BDG_MAYSLEEP | NAF_MEM_OWNER;
 	na->nm_txsync = bdg_netmap_txsync;
@@ -1648,14 +1658,21 @@ bdg_netmap_attach(struct nmreq *nmr, struct ifnet *ifp)
 	na->nm_krings_delete = netmap_vp_krings_delete;
 	na->nm_mem = netmap_mem_private_new(NM_IFPNAME(na->ifp),
 			na->num_tx_rings, na->num_tx_desc,
-			na->num_rx_rings, na->num_rx_desc);
+			na->num_rx_rings, na->num_rx_desc,
+			nmr->nr_arg3, npipes, &error);
+	if (na->nm_mem == NULL)
+		goto err;
 	/* other nmd fields are set in the common routine */
 	error = netmap_attach_common(na);
-	if (error) {
-		free(vpna, M_DEVBUF);
-		return error;
-	}
+	if (error)
+		goto err;
 	return 0;
+
+err:
+	if (na->nm_mem != NULL)
+		netmap_mem_private_delete(na->nm_mem);
+	free(vpna, M_DEVBUF);
+	return error;
 }
 
 
@@ -1763,19 +1780,17 @@ netmap_bwrap_intr_notify(struct netmap_adapter *na, u_int ring_nr, enum txrx tx,
 	ring->cur = kring->rcur;
 	ring->tail = kring->rtail;
 
-	/* simulate a user wakeup on the rx ring */
 	if (is_host_ring) {
-		netmap_rxsync_from_host(na, NULL, NULL);
 		vpna = hostna;
 		ring_nr = 0;
-	} else {
-		/* fetch packets that have arrived.
-		 * XXX maybe do this in a loop ?
-		 */
-		error = na->nm_rxsync(na, ring_nr, 0);
-		if (error)
-			goto put_out;
-	}
+	} 
+	/* simulate a user wakeup on the rx ring */
+	/* fetch packets that have arrived.
+	 * XXX maybe do this in a loop ?
+	 */
+	error = kring->nm_sync(kring, 0);
+	if (error)
+		goto put_out;
 	if (kring->nr_hwcur == kring->nr_hwtail && netmap_verbose) {
 		D("how strange, interrupt with no packets on %s",
 			NM_IFPNAME(ifp));
@@ -1801,7 +1816,7 @@ netmap_bwrap_intr_notify(struct netmap_adapter *na, u_int ring_nr, enum txrx tx,
 	ring->tail = kring->rtail;
 	/* another call to actually release the buffers */
 	if (!is_host_ring) {
-		error = na->nm_rxsync(na, ring_nr, 0);
+		error = kring->nm_sync(kring, 0);
 	} else {
 		/* mark all packets as released, as in the
 		 * second part of netmap_rxsync_from_host()
@@ -1842,11 +1857,11 @@ netmap_bwrap_register(struct netmap_adapter *na, int onoff)
 		 * The original number of rings comes from hwna,
 		 * rx rings on one side equals tx rings on the other.
 		 */
-		for (i = 0; i <= na->num_rx_rings; i++) {
+		for (i = 0; i < na->num_rx_rings + 1; i++) {
 			hwna->tx_rings[i].nkr_num_slots = na->rx_rings[i].nkr_num_slots;
 			hwna->tx_rings[i].ring = na->rx_rings[i].ring;
 		}
-		for (i = 0; i <= na->num_tx_rings; i++) {
+		for (i = 0; i < na->num_tx_rings + 1; i++) {
 			hwna->rx_rings[i].nkr_num_slots = na->tx_rings[i].nkr_num_slots;
 			hwna->rx_rings[i].ring = na->tx_rings[i].ring;
 		}
@@ -1914,8 +1929,10 @@ netmap_bwrap_krings_create(struct netmap_adapter *na)
 		return error;
 	}
 
-	hostna->tx_rings = na->tx_rings + na->num_tx_rings;
-	hostna->rx_rings = na->rx_rings + na->num_rx_rings;
+	if (na->na_flags & NAF_HOST_RINGS) {
+		hostna->tx_rings = na->tx_rings + na->num_tx_rings;
+		hostna->rx_rings = na->rx_rings + na->num_rx_rings;
+	}
 
 	return 0;
 }
@@ -1957,6 +1974,7 @@ netmap_bwrap_notify(struct netmap_adapter *na, u_int ring_n, enum txrx tx, int f
 
 	if (hwna->ifp == NULL || !(hwna->ifp->if_capenable & IFCAP_NETMAP))
 		return 0;
+	mtx_lock(&kring->q_lock);
 	/* first step: simulate a user wakeup on the rx ring */
 	netmap_vp_rxsync(na, ring_n, flags);
 	ND("%s[%d] PRE rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
@@ -1972,12 +1990,8 @@ netmap_bwrap_notify(struct netmap_adapter *na, u_int ring_n, enum txrx tx, int f
 	 */
 	/* set tail to what the hw expects */
 	ring->tail = hw_kring->rtail;
-	if (ring_n == na->num_rx_rings) {
-		netmap_txsync_to_host(hwna);
-	} else {
-		nm_txsync_prologue(&hwna->tx_rings[ring_n]); // XXX error checking ?
-		error = hwna->nm_txsync(hwna, ring_n, flags);
-	}
+	nm_txsync_prologue(&hwna->tx_rings[ring_n]); // XXX error checking ?
+	error = hw_kring->nm_sync(hw_kring, flags);
 
 	/* fourth step: now we are back the rx ring */
 	/* claim ownership on all hw owned bufs */
@@ -1991,7 +2005,7 @@ netmap_bwrap_notify(struct netmap_adapter *na, u_int ring_n, enum txrx tx, int f
 		kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
 		ring->head, ring->cur, ring->tail,
 		hw_kring->nr_hwcur, hw_kring->nr_hwtail, hw_kring->rtail);
-
+	mtx_unlock(&kring->q_lock);
 	return error;
 }
 
@@ -2047,18 +2061,21 @@ netmap_bwrap_attach(struct ifnet *fake, struct ifnet *real)
 	bna->hwna = hwna;
 	netmap_adapter_get(hwna);
 	hwna->na_private = bna; /* weak reference */
-
-	hostna = &bna->host.up;
-	hostna->ifp = hwna->ifp;
-	hostna->num_tx_rings = 1;
-	hostna->num_tx_desc = hwna->num_rx_desc;
-	hostna->num_rx_rings = 1;
-	hostna->num_rx_desc = hwna->num_tx_desc;
-	// hostna->nm_txsync = netmap_bwrap_host_txsync;
-	// hostna->nm_rxsync = netmap_bwrap_host_rxsync;
-	hostna->nm_notify = netmap_bwrap_host_notify;
-	hostna->nm_mem = na->nm_mem;
-	hostna->na_private = bna;
+	
+	if (hwna->na_flags & NAF_HOST_RINGS) {
+		na->na_flags |= NAF_HOST_RINGS;
+		hostna = &bna->host.up;
+		hostna->ifp = hwna->ifp;
+		hostna->num_tx_rings = 1;
+		hostna->num_tx_desc = hwna->num_rx_desc;
+		hostna->num_rx_rings = 1;
+		hostna->num_rx_desc = hwna->num_tx_desc;
+		// hostna->nm_txsync = netmap_bwrap_host_txsync;
+		// hostna->nm_rxsync = netmap_bwrap_host_rxsync;
+		hostna->nm_notify = netmap_bwrap_host_notify;
+		hostna->nm_mem = na->nm_mem;
+		hostna->na_private = bna;
+	}
 
 	ND("%s<->%s txr %d txd %d rxr %d rxd %d",
 		fake->if_xname, real->if_xname,

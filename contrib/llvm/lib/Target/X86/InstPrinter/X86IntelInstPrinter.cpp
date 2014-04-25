@@ -136,16 +136,11 @@ void X86IntelInstPrinter::printPCRelImm(const MCInst *MI, unsigned OpNo,
   }
 }
 
-static void PrintRegName(raw_ostream &O, StringRef RegName) {
-  for (unsigned i = 0, e = RegName.size(); i != e; ++i)
-    O << (char)toupper(RegName[i]);
-}
-
 void X86IntelInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isReg()) {
-    PrintRegName(O, getRegisterName(Op.getReg()));
+    printRegName(O, Op.getReg());
   } else if (Op.isImm()) {
     O << formatImm((int64_t)Op.getImm());
   } else {
@@ -203,5 +198,21 @@ void X86IntelInstPrinter::printMemReference(const MCInst *MI, unsigned Op,
     }
   }
   
+  O << ']';
+}
+
+void X86IntelInstPrinter::printMemOffset(const MCInst *MI, unsigned Op,
+                                         raw_ostream &O) {
+  const MCOperand &DispSpec = MI->getOperand(Op);
+
+  O << '[';
+
+  if (DispSpec.isImm()) {
+    O << formatImm(DispSpec.getImm());
+  } else {
+    assert(DispSpec.isExpr() && "non-immediate displacement?");
+    O << *DispSpec.getExpr();
+  }
+
   O << ']';
 }

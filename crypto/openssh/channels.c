@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.327 2013/11/08 00:39:15 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.331 2014/02/26 20:29:29 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -41,6 +41,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -430,7 +431,7 @@ channel_free(Channel *c)
 		if (cc->abandon_cb != NULL)
 			cc->abandon_cb(c, cc->ctx);
 		TAILQ_REMOVE(&c->status_confirms, cc, entry);
-		bzero(cc, sizeof(*cc));
+		explicit_bzero(cc, sizeof(*cc));
 		free(cc);
 	}
 	if (c->filter_cleanup != NULL && c->filter_ctx != NULL)
@@ -1114,6 +1115,9 @@ channel_decode_socks4(Channel *c, fd_set *readset, fd_set *writeset)
 	buffer_get(&c->input, (char *)&s4_req.dest_addr, 4);
 	have = buffer_len(&c->input);
 	p = buffer_ptr(&c->input);
+	if (memchr(p, '\0', have) == NULL)
+		fatal("channel %d: decode socks4: user not nul terminated",
+		    c->self);
 	len = strlen(p);
 	debug2("channel %d: decode socks4: user %s/%d", c->self, p, len);
 	len++;					/* trailing '\0' */
@@ -1427,6 +1431,8 @@ port_open_helper(Channel *c, char *rtype)
 {
 	int direct;
 	char buf[1024];
+	char *local_ipaddr = get_local_ipaddr(c->sock);
+	int local_port = c->sock == -1 ? 65536 : get_sock_port(c->sock, 1);
 	char *remote_ipaddr = get_peer_ipaddr(c->sock);
 	int remote_port = get_peer_port(c->sock);
 
@@ -1441,9 +1447,9 @@ port_open_helper(Channel *c, char *rtype)
 
 	snprintf(buf, sizeof buf,
 	    "%s: listening port %d for %.100s port %d, "
-	    "connect from %.200s port %d",
+	    "connect from %.200s port %d to %.100s port %d",
 	    rtype, c->listening_port, c->path, c->host_port,
-	    remote_ipaddr, remote_port);
+	    remote_ipaddr, remote_port, local_ipaddr, local_port);
 
 	free(c->remote_name);
 	c->remote_name = xstrdup(buf);
@@ -1461,7 +1467,7 @@ port_open_helper(Channel *c, char *rtype)
 		} else {
 			/* listen address, port */
 			packet_put_cstring(c->path);
-			packet_put_int(c->listening_port);
+			packet_put_int(local_port);
 		}
 		/* originator host and port */
 		packet_put_cstring(remote_ipaddr);
@@ -1478,6 +1484,7 @@ port_open_helper(Channel *c, char *rtype)
 		packet_send();
 	}
 	free(remote_ipaddr);
+	free(local_ipaddr);
 }
 
 static void
@@ -2721,7 +2728,7 @@ channel_input_status_confirm(int type, u_int32_t seq, void *ctxt)
 		return;
 	cc->cb(type, c, cc->ctx);
 	TAILQ_REMOVE(&c->status_confirms, cc, entry);
-	bzero(cc, sizeof(*cc));
+	explicit_bzero(cc, sizeof(*cc));
 	free(cc);
 }
 
@@ -2771,8 +2778,20 @@ channel_fwd_bind_addr(const char *listen_addr, int *wildcardp,
 		if (((datafellows & SSH_OLD_FORWARD_ADDR) &&
 		    strcmp(listen_addr, "0.0.0.0") == 0 && is_client == 0) ||
 		    *listen_addr == '\0' || strcmp(listen_addr, "*") == 0 ||
-		    (!is_client && gateway_ports == 1))
+		    (!is_client && gateway_ports == 1)) {
 			wildcard = 1;
+			/*
+			 * Notify client if they requested a specific listen
+			 * address and it was overridden.
+			 */
+			if (*listen_addr != '\0' &&
+			    strcmp(listen_addr, "0.0.0.0") != 0 &&
+			    strcmp(listen_addr, "*") != 0) {
+				packet_send_debug("Forwarding listen address "
+				    "\"%s\" overridden by server "
+				    "GatewayPorts", listen_addr);
+			}
+		}
 		else if (strcmp(listen_addr, "localhost") != 0)
 			addr = listen_addr;
 	}
@@ -3358,9 +3377,7 @@ channel_connect_ctx_free(struct channel_connect *cctx)
 	free(cctx->host);
 	if (cctx->aitop)
 		freeaddrinfo(cctx->aitop);
-	bzero(cctx, sizeof(*cctx));
-	cctx->host = NULL;
-	cctx->ai = cctx->aitop = NULL;
+	memset(cctx, 0, sizeof(*cctx));
 }
 
 /* Return CONNECTING channel to remote host, port */

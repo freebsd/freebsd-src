@@ -48,13 +48,13 @@
 .In pwd.h
 .In libutil.h
 .Ft int
-.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "const struct passwd *oldpw"
+.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "struct passwd *oldpw"
 .Ft "struct passwd *"
 .Fn pw_dup "const struct passwd *pw"
 .Ft int
 .Fn pw_edit "int nosetuid"
 .Ft int
-.Fn pw_equal "const struct passwd *pw1" "const struct passwd pw2"
+.Fn pw_equal "const struct passwd *pw1" "const struct passwd *pw2"
 .Ft void
 .Fn pw_fini "void"
 .Ft int

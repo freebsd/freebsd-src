@@ -7,7 +7,6 @@ INSTALL
 Makefile*
 aclocal.m4
 admin/
-atf-*/atf-*.m4
 atf-config/
 atf-report/
 atf-run/
@@ -18,3 +17,4 @@ configure*
 doc/atf-formats.5
 doc/atf.7.in
 m4/
+tools/

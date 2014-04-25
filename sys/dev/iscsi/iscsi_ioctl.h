@@ -129,9 +129,9 @@ struct iscsi_daemon_fail {
 
 /*
  * When ICL_KERNEL_PROXY is not defined, the iscsid(8) is responsible
- * for creating the socket, connecting, performing Login Phase using
- * socked in the usual userspace way, and then passing the socket file
- * descriptor to the kernel part using ISCSIDHANDOFF.
+ * for creating the socket, connecting, and performing Login Phase using
+ * the socket in the usual userspace way, and then passing the socket
+ * file descriptor to the kernel part using ISCSIDHANDOFF.
  *
  * When ICL_KERNEL_PROXY is defined, the iscsid(8) creates the session
  * using ISCSICONNECT, performs Login Phase using ISCSISEND/ISCSIRECEIVE
@@ -162,7 +162,7 @@ struct iscsi_daemon_send {
 	void				*ids_spare2;
 	size_t				ids_data_segment_len;
 	void				*ids_data_segment;
-	int				ids_spare[4];
+	int				ids_spare3[4];
 };
 
 struct iscsi_daemon_receive {
@@ -172,18 +172,12 @@ struct iscsi_daemon_receive {
 	void				*idr_spare2;
 	size_t				idr_data_segment_len;
 	void				*idr_data_segment;
-	int				idr_spare[4];
-};
-
-struct iscsi_daemon_close {
-	int				idc_session_id;
-	int				idc_spare[4];
+	int				idr_spare3[4];
 };
 
 #define	ISCSIDCONNECT	_IOWR('I', 0x04, struct iscsi_daemon_connect)
 #define	ISCSIDSEND	_IOWR('I', 0x05, struct iscsi_daemon_send)
 #define	ISCSIDRECEIVE	_IOWR('I', 0x06, struct iscsi_daemon_receive)
-#define	ISCSIDCLOSE	_IOWR('I', 0x07, struct iscsi_daemon_close)
 
 #endif /* ICL_KERNEL_PROXY */
 

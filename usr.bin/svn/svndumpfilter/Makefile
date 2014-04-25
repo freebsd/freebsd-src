@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svndumpfilter.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 

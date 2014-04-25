@@ -72,8 +72,7 @@
  *
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  */
-#define	VMX_HOST_SAVE(tmpreg)						\
-	movq	(%rsp), tmpreg;			/* return address */	\
+#define	VMX_HOST_SAVE							\
 	movq    %r15, VMXCTX_HOST_R15(%rdi);				\
 	movq    %r14, VMXCTX_HOST_R14(%rdi);				\
 	movq    %r13, VMXCTX_HOST_R13(%rdi);				\
@@ -81,9 +80,8 @@
 	movq    %rbp, VMXCTX_HOST_RBP(%rdi);				\
 	movq    %rsp, VMXCTX_HOST_RSP(%rdi);				\
 	movq    %rbx, VMXCTX_HOST_RBX(%rdi);				\
-	movq    tmpreg, VMXCTX_HOST_RIP(%rdi)
 
-#define	VMX_HOST_RESTORE(tmpreg)					\
+#define	VMX_HOST_RESTORE						\
 	movq	VMXCTX_HOST_R15(%rdi), %r15;				\
 	movq	VMXCTX_HOST_R14(%rdi), %r14;				\
 	movq	VMXCTX_HOST_R13(%rdi), %r13;				\
@@ -91,20 +89,19 @@
 	movq	VMXCTX_HOST_RBP(%rdi), %rbp;				\
 	movq	VMXCTX_HOST_RSP(%rdi), %rsp;				\
 	movq	VMXCTX_HOST_RBX(%rdi), %rbx;				\
-	movq	VMXCTX_HOST_RIP(%rdi), tmpreg;				\
-	movq	tmpreg, (%rsp)			/* return address */
 
 /*
  * vmx_enter_guest(struct vmxctx *vmxctx, int launched)
  * %rdi: pointer to the 'vmxctx'
- * %esi: launch state of the VMCS
+ * %rsi: pointer to the 'vmx'
+ * %edx: launch state of the VMCS
  * Interrupts must be disabled on entry.
  */
 ENTRY(vmx_enter_guest)
 	/*
 	 * Save host state before doing anything else.
 	 */
-	VMX_HOST_SAVE(%r10)
+	VMX_HOST_SAVE
 
 	/*
 	 * Activate guest pmap on this cpu.
@@ -114,19 +111,19 @@ ENTRY(vmx_enter_guest)
 	LK btsl	%eax, PM_ACTIVE(%r11)
 
 	/*
-	 * If 'vmxctx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
+	 * If 'vmx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
 	 * then we must invalidate all mappings associated with this EPTP.
 	 */
 	movq	PM_EPTGEN(%r11), %r10
-	cmpq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	cmpq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 	je	guest_restore
 
-	/* Refresh 'vmxctx->eptgen[curcpu]' */
-	movq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	/* Refresh 'vmx->eptgen[curcpu]' */
+	movq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 
 	/* Setup the invept descriptor on the host stack */
 	mov	%rsp, %r11
-	movq	VMXCTX_EPTP(%rdi), %rax
+	movq	VMX_EPTP(%rsi), %rax
 	movq	%rax, -16(%r11)
 	movq	$0x0, -8(%r11)
 	mov	$0x1, %eax		/* Single context invalidate */
@@ -134,7 +131,7 @@ ENTRY(vmx_enter_guest)
 	jbe	invept_error		/* Check invept instruction error */
 
 guest_restore:
-	cmpl	$0, %esi
+	cmpl	$0, %edx
 	je	do_launch
 
 	VMX_GUEST_RESTORE
@@ -185,7 +182,7 @@ inst_error:
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
 	ret
 END(vmx_enter_guest)
 
@@ -225,7 +222,7 @@ ENTRY(vmx_exit_guest)
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
 
 	/*
 	 * This will return to the caller of 'vmx_enter_guest()' with a return

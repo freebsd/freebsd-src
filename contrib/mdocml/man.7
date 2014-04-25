@@ -1,7 +1,7 @@
-.\"	$Id: man.7,v 1.113 2012/01/03 15:16:24 kristaps Exp $
+.\"	$Id: man.7,v 1.120 2013/09/16 22:58:57 schwarze Exp $
 .\"
-.\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2011, 2012 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 3 2012 $
+.Dd $Mdocdate: September 16 2013 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -253,6 +253,7 @@ in the alphabetical reference below.
 .It Sx IP Ta indented paragraph: Op Ar head Op Ar width
 .It Sx TP Ta tagged paragraph: Op Ar width
 .It Sx HP Ta hanged paragraph: Op Ar width
+.It Sx PD Ta set vertical paragraph distance: Op Ar height
 .It Sx \&br Ta force output line break in text mode (no arguments)
 .It Sx \&sp Ta force vertical space: Op Ar height
 .It Sx fi , nf Ta fill mode and no-fill mode (no arguments)
@@ -271,10 +272,6 @@ in the alphabetical reference below.
 .It Sx IR Ta alternate between italic and roman fonts
 .It Sx RB Ta alternate between roman and boldface fonts
 .It Sx RI Ta alternate between roman and italic fonts
-.El
-.Ss Semantic markup
-.Bl -column "PP, LP, P" description
-.It Sx OP Ta optional arguments
 .El
 .Sh MACRO REFERENCE
 This section is a canonical reference to all macros, arranged
@@ -343,6 +340,18 @@ and
 .Ss \&DT
 Has no effect.
 Included for compatibility.
+.Ss \&EE
+This is a non-standard GNU extension, included only for compatibility.
+In
+.Xr mandoc 1 ,
+it does the same as
+.Sx \&fi .
+.Ss \&EX
+This is a non-standard GNU extension, included only for compatibility.
+In
+.Xr mandoc 1 ,
+it does the same as
+.Sx \&nf .
 .Ss \&HP
 Begin a paragraph whose initial output line is left-justified, but
 subsequent output lines are indented, with the following syntax:
@@ -353,8 +362,9 @@ subsequent output lines are indented, with the following syntax:
 .Pp
 The
 .Cm width
-argument must conform to
-.Sx Scaling Widths .
+argument is a
+.Xr roff 7
+scaling width.
 If specified, it's saved for later paragraph left-margins; if unspecified, the
 saved or default width is used.
 .Pp
@@ -396,8 +406,9 @@ Begin an indented paragraph with the following syntax:
 .Pp
 The
 .Cm width
-argument defines the width of the left margin and is defined by
-.Sx Scaling Widths .
+argument is a
+.Xr roff 7
+scaling width defining the left margin.
 It's saved for later paragraph left-margins; if unspecified, the saved or
 default width is used.
 .Pp
@@ -443,7 +454,8 @@ and
 .Sx \&TP .
 .Ss \&OP
 Optional command-line argument.
-This has the following syntax:
+This is a non-standard GNU extension, included only for compatibility.
+It has the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&OP
 .Cm key Op Cm value
@@ -463,6 +475,36 @@ See also
 .Sx \&IP ,
 .Sx \&LP ,
 .Sx \&PP ,
+and
+.Sx \&TP .
+.Ss \&PD
+Specify the vertical space to be inserted before each new paragraph.
+.br
+The syntax is as follows:
+.Bd -filled -offset indent
+.Pf \. Sx \&PD
+.Op Cm height
+.Ed
+.Pp
+The
+.Cm height
+argument is a
+.Xr roff 7
+scaling width.
+It defaults to
+.Cm 1v .
+If the unit is omitted,
+.Cm v
+is assumed.
+.Pp
+This macro affects the spacing before any subsequent instances of
+.Sx \&HP ,
+.Sx \&IP ,
+.Sx \&LP ,
+.Sx \&P ,
+.Sx \&PP ,
+.Sx \&SH ,
+.Sx \&SS ,
 and
 .Sx \&TP .
 .Ss \&PP
@@ -529,8 +571,9 @@ This has the following syntax:
 .Pp
 The
 .Cm width
-argument must conform to
-.Sx Scaling Widths .
+argument is a
+.Xr roff 7
+scaling width.
 If not specified, the saved or default width is used.
 .Pp
 See also
@@ -595,8 +638,9 @@ The syntax is as follows:
 .Pp
 The
 .Cm width
-argument must conform to
-.Sx Scaling Widths .
+argument is a
+.Xr roff 7
+scaling width.
 If specified, it's saved for later paragraph left-margins; if
 unspecified, the saved or default width is used.
 .Pp
@@ -609,7 +653,8 @@ and
 .Sx \&PP .
 .Ss \&UC
 Sets the volume for the footer for compatibility with man pages from
-BSD releases.
+.Bx
+releases.
 The optional first argument specifies which release it is from.
 .Ss \&br
 Breaks the current line.
@@ -653,10 +698,10 @@ Insert vertical spaces into output with the following syntax:
 .Op Cm height
 .Ed
 .Pp
-Insert
+The
 .Cm height
-spaces, which must conform to
-.Sx Scaling Widths .
+argument is a scaling width as described in
+.Xr roff 7 .
 If 0, this is equivalent to the
 .Sx \&br
 macro.
@@ -904,8 +949,7 @@ utility written by Kristaps Dzonsons appeared in
 This
 .Nm
 reference was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
 .Sh CAVEATS
 Do not use this language.
 Use

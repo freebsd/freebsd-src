@@ -28,89 +28,153 @@ namespace format {
 ///
 /// This includes special handling for certain constructs, e.g. the alignment of
 /// trailing line comments.
+///
+/// To guarantee correctness of alignment operations, the \c WhitespaceManager
+/// must be informed about every token in the source file; for each token, there
+/// must be exactly one call to either \c replaceWhitespace or
+/// \c addUntouchableToken.
+///
+/// There may be multiple calls to \c breakToken for a given token.
 class WhitespaceManager {
 public:
-  WhitespaceManager(SourceManager &SourceMgr, const FormatStyle &Style)
-      : SourceMgr(SourceMgr), Style(Style) {}
+  WhitespaceManager(SourceManager &SourceMgr, const FormatStyle &Style,
+                    bool UseCRLF)
+      : SourceMgr(SourceMgr), Style(Style), UseCRLF(UseCRLF) {}
+
+  /// \brief Prepares the \c WhitespaceManager for another run.
+  void reset();
 
   /// \brief Replaces the whitespace in front of \p Tok. Only call once for
   /// each \c AnnotatedToken.
-  void replaceWhitespace(const AnnotatedToken &Tok, unsigned NewLines,
-                         unsigned Spaces, unsigned WhitespaceStartColumn);
+  void replaceWhitespace(FormatToken &Tok, unsigned Newlines,
+                         unsigned IndentLevel, unsigned Spaces,
+                         unsigned StartOfTokenColumn,
+                         bool InPPDirective = false);
 
-  /// \brief Like \c replaceWhitespace, but additionally adds right-aligned
-  /// backslashes to escape newlines inside a preprocessor directive.
+  /// \brief Adds information about an unchangable token's whitespace.
   ///
-  /// This function and \c replaceWhitespace have the same behavior if
-  /// \c Newlines == 0.
-  void replacePPWhitespace(const AnnotatedToken &Tok, unsigned NewLines,
-                           unsigned Spaces, unsigned WhitespaceStartColumn);
+  /// Needs to be called for every token for which \c replaceWhitespace
+  /// was not called.
+  void addUntouchableToken(const FormatToken &Tok, bool InPPDirective);
 
-  /// \brief Inserts a line break into the middle of a token.
+  /// \brief Inserts or replaces whitespace in the middle of a token.
   ///
-  /// Will break at \p Offset inside \p Tok, putting \p Prefix before the line
-  /// break and \p Postfix before the rest of the token starts in the next line.
+  /// Inserts \p PreviousPostfix, \p Newlines, \p Spaces and \p CurrentPrefix
+  /// (in this order) at \p Offset inside \p Tok, replacing \p ReplaceChars
+  /// characters.
   ///
-  /// \p InPPDirective, \p Spaces, \p WhitespaceStartColumn and \p Style are
-  /// used to generate the correct line break.
-  void breakToken(const FormatToken &Tok, unsigned Offset,
-                  unsigned ReplaceChars, StringRef Prefix, StringRef Postfix,
-                  bool InPPDirective, unsigned Spaces,
-                  unsigned WhitespaceStartColumn);
+  /// When \p InPPDirective is true, escaped newlines are inserted. \p Spaces is
+  /// used to align backslashes correctly.
+  void replaceWhitespaceInToken(const FormatToken &Tok, unsigned Offset,
+                                unsigned ReplaceChars,
+                                StringRef PreviousPostfix,
+                                StringRef CurrentPrefix, bool InPPDirective,
+                                unsigned Newlines, unsigned IndentLevel,
+                                unsigned Spaces);
 
   /// \brief Returns all the \c Replacements created during formatting.
   const tooling::Replacements &generateReplacements();
 
-  void addReplacement(const SourceLocation &SourceLoc, unsigned ReplaceChars,
-                      StringRef Text);
+private:
+  /// \brief Represents a change before a token, a break inside a token,
+  /// or the layout of an unchanged token (or whitespace within).
+  struct Change {
+    /// \brief Functor to sort changes in original source order.
+    class IsBeforeInFile {
+    public:
+      IsBeforeInFile(const SourceManager &SourceMgr) : SourceMgr(SourceMgr) {}
+      bool operator()(const Change &C1, const Change &C2) const;
 
-  void addUntouchableComment(unsigned Column);
+    private:
+      const SourceManager &SourceMgr;
+    };
 
-  /// \brief Try to align all stashed comments.
-  void alignComments();
-  /// \brief Try to align all stashed escaped newlines.
+    Change() {}
+
+    /// \brief Creates a \c Change.
+    ///
+    /// The generated \c Change will replace the characters at
+    /// \p OriginalWhitespaceRange with a concatenation of
+    /// \p PreviousLinePostfix, \p NewlinesBefore line breaks, \p Spaces spaces
+    /// and \p CurrentLinePrefix.
+    ///
+    /// \p StartOfTokenColumn and \p InPPDirective will be used to lay out
+    /// trailing comments and escaped newlines.
+    Change(bool CreateReplacement, const SourceRange &OriginalWhitespaceRange,
+           unsigned IndentLevel, unsigned Spaces, unsigned StartOfTokenColumn,
+           unsigned NewlinesBefore, StringRef PreviousLinePostfix,
+           StringRef CurrentLinePrefix, tok::TokenKind Kind,
+           bool ContinuesPPDirective);
+
+    bool CreateReplacement;
+    // Changes might be in the middle of a token, so we cannot just keep the
+    // FormatToken around to query its information.
+    SourceRange OriginalWhitespaceRange;
+    unsigned StartOfTokenColumn;
+    unsigned NewlinesBefore;
+    std::string PreviousLinePostfix;
+    std::string CurrentLinePrefix;
+    // The kind of the token whose whitespace this change replaces, or in which
+    // this change inserts whitespace.
+    // FIXME: Currently this is not set correctly for breaks inside comments, as
+    // the \c BreakableToken is still doing its own alignment.
+    tok::TokenKind Kind;
+    bool ContinuesPPDirective;
+
+    // The number of nested blocks the token is in. This is used to add tabs
+    // only for the indentation, and not for alignment, when
+    // UseTab = US_ForIndentation.
+    unsigned IndentLevel;
+
+    // The number of spaces in front of the token or broken part of the token.
+    // This will be adapted when aligning tokens.
+    unsigned Spaces;
+
+    // \c IsTrailingComment, \c TokenLength, \c PreviousEndOfTokenColumn and
+    // \c EscapedNewlineColumn will be calculated in
+    // \c calculateLineBreakInformation.
+    bool IsTrailingComment;
+    unsigned TokenLength;
+    unsigned PreviousEndOfTokenColumn;
+    unsigned EscapedNewlineColumn;
+  };
+
+  /// \brief Calculate \c IsTrailingComment, \c TokenLength for the last tokens
+  /// or token parts in a line and \c PreviousEndOfTokenColumn and
+  /// \c EscapedNewlineColumn for the first tokens or token parts in a line.
+  void calculateLineBreakInformation();
+
+  /// \brief Align trailing comments over all \c Changes.
+  void alignTrailingComments();
+
+  /// \brief Align trailing comments from change \p Start to change \p End at
+  /// the specified \p Column.
+  void alignTrailingComments(unsigned Start, unsigned End, unsigned Column);
+
+  /// \brief Align escaped newlines over all \c Changes.
   void alignEscapedNewlines();
 
-private:
-  std::string getNewLineText(unsigned NewLines, unsigned Spaces);
+  /// \brief Align escaped newlines from change \p Start to change \p End at
+  /// the specified \p Column.
+  void alignEscapedNewlines(unsigned Start, unsigned End, unsigned Column);
 
-  std::string getNewLineText(unsigned NewLines, unsigned Spaces,
-                             unsigned WhitespaceStartColumn,
-                             unsigned EscapedNewlineColumn);
+  /// \brief Fill \c Replaces with the replacements for all effective changes.
+  void generateChanges();
 
-  /// \brief Structure to store tokens for later layout and alignment.
-  struct StoredToken {
-    StoredToken(SourceLocation ReplacementLoc, unsigned ReplacementLength,
-                unsigned MinColumn, unsigned MaxColumn, unsigned NewLines,
-                unsigned Spaces)
-        : ReplacementLoc(ReplacementLoc), ReplacementLength(ReplacementLength),
-          MinColumn(MinColumn), MaxColumn(MaxColumn), NewLines(NewLines),
-          Spaces(Spaces), Untouchable(false) {}
-    SourceLocation ReplacementLoc;
-    unsigned ReplacementLength;
-    unsigned MinColumn;
-    unsigned MaxColumn;
-    unsigned NewLines;
-    unsigned Spaces;
-    bool Untouchable;
-    std::string Prefix;
-    std::string Postfix;
-  };
-  SmallVector<StoredToken, 16> Comments;
-  SmallVector<StoredToken, 16> EscapedNewlines;
-  typedef SmallVector<StoredToken, 16>::iterator token_iterator;
+  /// \brief Stores \p Text as the replacement for the whitespace in \p Range.
+  void storeReplacement(const SourceRange &Range, StringRef Text);
+  void appendNewlineText(std::string &Text, unsigned Newlines);
+  void appendNewlineText(std::string &Text, unsigned Newlines,
+                         unsigned PreviousEndOfTokenColumn,
+                         unsigned EscapedNewlineColumn);
+  void appendIndentText(std::string &Text, unsigned IndentLevel,
+                        unsigned Spaces, unsigned WhitespaceStartColumn);
 
-  /// \brief Put all the comments between \p I and \p E into \p Column.
-  void alignComments(token_iterator I, token_iterator E, unsigned Column);
-
-  /// \brief Stores \p Text as the replacement for the whitespace in front of
-  /// \p Tok.
-  void storeReplacement(SourceLocation Loc, unsigned Length,
-                        const std::string Text);
-
+  SmallVector<Change, 16> Changes;
   SourceManager &SourceMgr;
   tooling::Replacements Replaces;
   const FormatStyle &Style;
+  bool UseCRLF;
 };
 
 } // namespace format

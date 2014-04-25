@@ -30,15 +30,18 @@ struct MCProcResourceDesc {
   unsigned NumUnits; // Number of resource of this kind
   unsigned SuperIdx; // Index of the resources kind that contains this kind.
 
-  // Buffered resources may be consumed at some indeterminate cycle after
-  // dispatch (e.g. for instructions that may issue out-of-order). Unbuffered
-  // resources always consume their resource some fixed number of cycles after
-  // dispatch (e.g. for instruction interlocking that may stall the pipeline).
-  bool IsBuffered;
+  // Number of resources that may be buffered.
+  //
+  // Buffered resources (BufferSize > 0 || BufferSize == -1) may be consumed at
+  // some indeterminate cycle after dispatch (e.g. for instructions that may
+  // issue out-of-order). Unbuffered resources (BufferSize == 0) always consume
+  // their resource some fixed number of cycles after dispatch (e.g. for
+  // instruction interlocking that may stall the pipeline).
+  int BufferSize;
 
   bool operator==(const MCProcResourceDesc &Other) const {
     return NumUnits == Other.NumUnits && SuperIdx == Other.SuperIdx
-      && IsBuffered == Other.IsBuffered;
+      && BufferSize == Other.BufferSize;
   }
 };
 
@@ -121,7 +124,7 @@ struct MCSchedClassDesc {
 /// microarchitecture to the scheduler in the form of properties. It also
 /// optionally refers to scheduler resource tables and itinerary
 /// tables. Scheduler resource tables model the latency and cost for each
-/// instruction type. Itinerary tables are an independant mechanism that
+/// instruction type. Itinerary tables are an independent mechanism that
 /// provides a detailed reservation table describing each cycle of instruction
 /// execution. Subtargets may define any or all of the above categories of data
 /// depending on the type of CPU and selected scheduler.
@@ -134,28 +137,22 @@ public:
   unsigned IssueWidth;
   static const unsigned DefaultIssueWidth = 1;
 
-  // MinLatency is the minimum latency between a register write
-  // followed by a data dependent read. This determines which
-  // instructions may be scheduled in the same per-cycle group. This
-  // is distinct from *expected* latency, which determines the likely
-  // critical path but does not guarantee a pipeline
-  // hazard. MinLatency can always be overridden by the number of
-  // InstrStage cycles.
+  // MicroOpBufferSize is the number of micro-ops that the processor may buffer
+  // for out-of-order execution.
   //
-  // (-1) Standard in-order processor.
-  //      Use InstrItinerary OperandCycles as MinLatency.
-  //      If no OperandCycles exist, then use the cycle of the last InstrStage.
+  // "0" means operations that are not ready in this cycle are not considered
+  // for scheduling (they go in the pending queue). Latency is paramount. This
+  // may be more efficient if many instructions are pending in a schedule.
   //
-  //  (0) Out-of-order processor, or in-order with bundled dependencies.
-  //      RAW dependencies may be dispatched in the same cycle.
-  //      Optional InstrItinerary OperandCycles provides expected latency.
+  // "1" means all instructions are considered for scheduling regardless of
+  // whether they are ready in this cycle. Latency still causes issue stalls,
+  // but we balance those stalls against other heuristics.
   //
-  // (>0) In-order processor with variable latencies.
-  //      Use the greater of this value or the cycle of the last InstrStage.
-  //      Optional InstrItinerary OperandCycles provides expected latency.
-  //      TODO: can't yet specify both min and expected latency per operand.
-  int MinLatency;
-  static const int DefaultMinLatency = -1;
+  // "> 1" means the processor is out-of-order. This is a machine independent
+  // estimate of highly machine specific characteristics such are the register
+  // renaming pool and reorder buffer.
+  unsigned MicroOpBufferSize;
+  static const unsigned DefaultMicroOpBufferSize = 0;
 
   // LoadLatency is the expected latency of load instructions.
   //
@@ -172,20 +169,12 @@ public:
   unsigned HighLatency;
   static const unsigned DefaultHighLatency = 10;
 
-  // ILPWindow is the number of cycles that the scheduler effectively ignores
-  // before attempting to hide latency. This should be zero for in-order cpus to
-  // always hide expected latency. For out-of-order cpus, it may be tweaked as
-  // desired to roughly approximate instruction buffers. The actual threshold is
-  // not very important for an OOO processor, as long as it isn't too high. A
-  // nonzero value helps avoid rescheduling to hide latency when its is fairly
-  // obviously useless and makes register pressure heuristics more effective.
-  unsigned ILPWindow;
-  static const unsigned DefaultILPWindow = 0;
-
   // MispredictPenalty is the typical number of extra cycles the processor
   // takes to recover from a branch misprediction.
   unsigned MispredictPenalty;
   static const unsigned DefaultMispredictPenalty = 10;
+
+  bool CompleteModel;
 
 private:
   unsigned ProcID;
@@ -203,11 +192,11 @@ public:
   // initialized in this default ctor because some clients directly instantiate
   // MCSchedModel instead of using a generated itinerary.
   MCSchedModel(): IssueWidth(DefaultIssueWidth),
-                  MinLatency(DefaultMinLatency),
+                  MicroOpBufferSize(DefaultMicroOpBufferSize),
                   LoadLatency(DefaultLoadLatency),
                   HighLatency(DefaultHighLatency),
-                  ILPWindow(DefaultILPWindow),
                   MispredictPenalty(DefaultMispredictPenalty),
+                  CompleteModel(true),
                   ProcID(0), ProcResourceTable(0), SchedClassTable(0),
                   NumProcResourceKinds(0), NumSchedClasses(0),
                   InstrItineraries(0) {
@@ -216,19 +205,23 @@ public:
   }
 
   // Table-gen driven ctor.
-  MCSchedModel(unsigned iw, int ml, unsigned ll, unsigned hl, unsigned ilp,
-               unsigned mp, unsigned pi, const MCProcResourceDesc *pr,
+  MCSchedModel(unsigned iw, int mbs, unsigned ll, unsigned hl,
+               unsigned mp, bool cm, unsigned pi, const MCProcResourceDesc *pr,
                const MCSchedClassDesc *sc, unsigned npr, unsigned nsc,
                const InstrItinerary *ii):
-    IssueWidth(iw), MinLatency(ml), LoadLatency(ll), HighLatency(hl),
-    ILPWindow(ilp), MispredictPenalty(mp), ProcID(pi), ProcResourceTable(pr),
-    SchedClassTable(sc), NumProcResourceKinds(npr), NumSchedClasses(nsc),
-    InstrItineraries(ii) {}
+    IssueWidth(iw), MicroOpBufferSize(mbs), LoadLatency(ll), HighLatency(hl),
+    MispredictPenalty(mp), CompleteModel(cm), ProcID(pi),
+    ProcResourceTable(pr), SchedClassTable(sc), NumProcResourceKinds(npr),
+    NumSchedClasses(nsc), InstrItineraries(ii) {}
 
   unsigned getProcessorID() const { return ProcID; }
 
   /// Does this machine model include instruction-level scheduling.
   bool hasInstrSchedModel() const { return SchedClassTable; }
+
+  /// Return true if this machine model data for all instructions with a
+  /// scheduling class (itinerary class or SchedRW list).
+  bool isComplete() const { return CompleteModel; }
 
   unsigned getNumProcResourceKinds() const {
     return NumProcResourceKinds;

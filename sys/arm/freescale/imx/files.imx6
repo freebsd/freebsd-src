@@ -8,7 +8,6 @@ arm/arm/bus_space_generic.c		standard
 arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv5.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
-arm/arm/irq_dispatch.S			standard
 kern/kern_clocksource.c			standard
 
 #
@@ -17,10 +16,13 @@ kern/kern_clocksource.c			standard
 arm/arm/gic.c				standard
 arm/arm/pl310.c				standard
 arm/arm/bus_space-v6.c			standard
-arm/freescale/imx/common.c		standard
+arm/arm/mpcore_timer.c			standard
+arm/freescale/fsl_ocotp.c		standard
 arm/freescale/imx/imx6_anatop.c		standard
+arm/freescale/imx/imx_common.c		standard
 arm/freescale/imx/imx6_ccm.c		standard
 arm/freescale/imx/imx6_machdep.c	standard
+arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		standard

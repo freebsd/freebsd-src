@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -344,7 +344,7 @@ service_message(struct service *service, struct service_connection *sconn)
 		if (sock == -1) {
 			error = errno;
 		} else {
-			nvlist_add_descriptor(nvlout, "sock", sock);
+			nvlist_move_descriptor(nvlout, "sock", sock);
 			error = 0;
 		}
 	} else {

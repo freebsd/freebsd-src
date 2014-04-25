@@ -33,7 +33,6 @@
 
 /* Common functions, implemented in imx_machdep.c. */
 
-void imx_devmap_addentry(vm_paddr_t _pa, vm_size_t _sz);
 void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 /* From here down, routines are implemented in imxNN_machdep.c. */
@@ -56,8 +55,6 @@ void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 u_int imx_soc_type(void);
 u_int imx_soc_family(void);
-
-void imx_devmap_init(void);
 
 /*
  * We need a clock management system that works across unrelated SoCs and
