@@ -53,6 +53,8 @@
 
 #ifdef __KERNEL__
 
+#define ACPI_USE_SYSTEM_INTTYPES
+
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -65,6 +67,37 @@
 #include <linux/export.h>
 #endif
 #include <asm/acpi.h>
+
+#ifndef CONFIG_ACPI
+
+/* External globals for __KERNEL__, stubs is needed */
+
+#define ACPI_GLOBAL(t,a)
+#define ACPI_INIT_GLOBAL(t,a,b)
+
+/* Generating stubs for configurable ACPICA macros */
+
+#define ACPI_NO_MEM_ALLOCATIONS
+
+/* Generating stubs for configurable ACPICA functions */
+
+#define ACPI_NO_ERROR_MESSAGES
+#undef ACPI_DEBUG_OUTPUT
+
+/* External interface for __KERNEL__, stub is needed */
+
+#define ACPI_EXTERNAL_RETURN_STATUS(Prototype) \
+    static ACPI_INLINE Prototype {return(AE_NOT_CONFIGURED);}
+#define ACPI_EXTERNAL_RETURN_OK(Prototype) \
+    static ACPI_INLINE Prototype {return(AE_OK);}
+#define ACPI_EXTERNAL_RETURN_VOID(Prototype) \
+    static ACPI_INLINE Prototype {return;}
+#define ACPI_EXTERNAL_RETURN_UINT32(Prototype) \
+    static ACPI_INLINE Prototype {return(0);}
+#define ACPI_EXTERNAL_RETURN_PTR(Prototype) \
+    static ACPI_INLINE Prototype {return(NULL);}
+
+#endif /* CONFIG_ACPI */
 
 /* Host-dependent types and defines for in-kernel ACPICA */
 

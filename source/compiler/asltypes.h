@@ -196,7 +196,7 @@ typedef struct asl_error_msg
     char                        *Filename;
     char                        *SourceLine;
     UINT32                      FilenameLength;
-    UINT8                       MessageId;
+    UINT16                      MessageId;
     UINT8                       Level;
 
 } ASL_ERROR_MSG;

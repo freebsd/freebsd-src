@@ -321,20 +321,20 @@ DtWalkTableTree (
 void
 DtError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtNameError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtFatal (
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
@@ -425,6 +425,10 @@ DtCompileHest (
 
 ACPI_STATUS
 DtCompileIvrs (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileLpit (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -519,6 +523,7 @@ extern const unsigned char  TemplateGtdt[];
 extern const unsigned char  TemplateHest[];
 extern const unsigned char  TemplateHpet[];
 extern const unsigned char  TemplateIvrs[];
+extern const unsigned char  TemplateLpit[];
 extern const unsigned char  TemplateMadt[];
 extern const unsigned char  TemplateMcfg[];
 extern const unsigned char  TemplateMchi[];

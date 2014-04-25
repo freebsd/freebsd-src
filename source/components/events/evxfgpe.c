@@ -809,7 +809,8 @@ AcpiInstallGpeBlock (
      * For user-installed GPE Block Devices, the GpeBlockBaseNumber
      * is always zero
      */
-    Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress, RegisterCount,
+    Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress->Address,
+                GpeBlockAddress->SpaceId, RegisterCount,
                 0, InterruptNumber, &GpeBlock);
     if (ACPI_FAILURE (Status))
     {

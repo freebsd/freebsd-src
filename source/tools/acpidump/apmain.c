@@ -92,7 +92,7 @@ UINT32                      CurrentAction = 0;
 
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svz"
+#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svxz"
 
 
 /******************************************************************************
@@ -124,6 +124,8 @@ ApDisplayUsage (
     ACPI_OPTION ("-a <Address>",            "Get table via a physical address");
     ACPI_OPTION ("-f <BinaryFile>",         "Get table via a binary file");
     ACPI_OPTION ("-n <Signature>",          "Get table via a name/signature");
+    ACPI_OPTION ("-x",                      "Do not use but dump XSDT");
+    ACPI_OPTION ("-x -x",                   "Do not use or dump XSDT");
 
     printf (
         "\n"
@@ -232,6 +234,18 @@ ApDoOptions (
     case 's':   /* Print table summaries only */
 
         Gbl_SummaryMode = TRUE;
+        continue;
+
+    case 'x':   /* Do not use XSDT */
+
+        if (!AcpiGbl_DoNotUseXsdt)
+        {
+            AcpiGbl_DoNotUseXsdt = TRUE;
+        }
+        else
+        {
+            Gbl_DoNotDumpXsdt = TRUE;
+        }
         continue;
 
     case 'v':   /* Revision/version */

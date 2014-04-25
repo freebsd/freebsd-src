@@ -780,7 +780,7 @@ enum AcpiMadtType
 
 
 /*
- * MADT Sub-tables, correspond to Type in ACPI_SUBTABLE_HEADER
+ * MADT Subtables, correspond to Type in ACPI_SUBTABLE_HEADER
  */
 
 /* 0: Processor Local APIC */
@@ -1078,7 +1078,7 @@ enum AcpiSratType
 };
 
 /*
- * SRAT Sub-tables, correspond to Type in ACPI_SUBTABLE_HEADER
+ * SRAT Subtables, correspond to Type in ACPI_SUBTABLE_HEADER
  */
 
 /* 0: Processor Local APIC/SAPIC Affinity */

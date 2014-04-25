@@ -55,8 +55,6 @@
 #error ACPI_MACHINE_WIDTH not defined
 #endif
 
-/*! [Begin] no source code translation */
-
 /*
  * Data type ranges
  * Note: These macros are designed to be compiler independent as well as
@@ -124,13 +122,15 @@
  *
  ******************************************************************************/
 
+#ifndef ACPI_USE_SYSTEM_INTTYPES
+
 typedef unsigned char                   BOOLEAN;
 typedef unsigned char                   UINT8;
 typedef unsigned short                  UINT16;
 typedef COMPILER_DEPENDENT_UINT64       UINT64;
 typedef COMPILER_DEPENDENT_INT64        INT64;
 
-/*! [End] no source code translation !*/
+#endif /* ACPI_USE_SYSTEM_INTTYPES */
 
 /*
  * Value returned by AcpiOsGetThreadId. There is no standard "thread_id"
@@ -151,12 +151,12 @@ typedef COMPILER_DEPENDENT_INT64        INT64;
 
 #if ACPI_MACHINE_WIDTH == 64
 
-/*! [Begin] no source code translation (keep the typedefs as-is) */
+#ifndef ACPI_USE_SYSTEM_INTTYPES
 
 typedef unsigned int                    UINT32;
 typedef int                             INT32;
 
-/*! [End] no source code translation !*/
+#endif /* ACPI_USE_SYSTEM_INTTYPES */
 
 
 typedef INT64                           ACPI_NATIVE_INT;
@@ -190,12 +190,12 @@ typedef UINT64                          ACPI_PHYSICAL_ADDRESS;
 
 #elif ACPI_MACHINE_WIDTH == 32
 
-/*! [Begin] no source code translation (keep the typedefs as-is) */
+#ifndef ACPI_USE_SYSTEM_INTTYPES
 
 typedef unsigned int                    UINT32;
 typedef int                             INT32;
 
-/*! [End] no source code translation !*/
+#endif /* ACPI_USE_SYSTEM_INTTYPES */
 
 
 typedef INT32                           ACPI_NATIVE_INT;
@@ -334,6 +334,15 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
  *
  ******************************************************************************/
 
+#ifdef ACPI_NO_MEM_ALLOCATIONS
+
+#define ACPI_ALLOCATE(a)                NULL
+#define ACPI_ALLOCATE_ZEROED(a)         NULL
+#define ACPI_FREE(a)
+#define ACPI_MEM_TRACKING(a)
+
+#else /* ACPI_NO_MEM_ALLOCATIONS */
+
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 /*
  * Memory allocation tracking (used by AcpiExec to detect memory leaks)
@@ -354,6 +363,8 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 #define ACPI_MEM_TRACKING(a)
 
 #endif /* ACPI_DBG_TRACK_ALLOCATIONS */
+
+#endif /* ACPI_NO_MEM_ALLOCATIONS */
 
 
 /******************************************************************************
@@ -954,8 +965,18 @@ typedef struct acpi_object_list
  * Miscellaneous common Data Structures used by the interfaces
  */
 #define ACPI_NO_BUFFER              0
+
+#ifdef ACPI_NO_MEM_ALLOCATIONS
+
+#define ACPI_ALLOCATE_BUFFER        (ACPI_SIZE) (0)
+#define ACPI_ALLOCATE_LOCAL_BUFFER  (ACPI_SIZE) (0)
+
+#else /* ACPI_NO_MEM_ALLOCATIONS */
+
 #define ACPI_ALLOCATE_BUFFER        (ACPI_SIZE) (-1)    /* Let ACPICA allocate buffer */
 #define ACPI_ALLOCATE_LOCAL_BUFFER  (ACPI_SIZE) (-2)    /* For internal use only (enables tracking) */
+
+#endif /* ACPI_NO_MEM_ALLOCATIONS */
 
 typedef struct acpi_buffer
 {

@@ -93,6 +93,7 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
 #include <termios.h>
 
 struct termios              OriginalTermAttributes;
+int                         TermAttributesWereSet = 0;
 
 ACPI_STATUS
 AcpiUtReadLine (
@@ -146,7 +147,7 @@ OsEnterLineEditMode (
 
     if (tcgetattr (STDIN_FILENO, &OriginalTermAttributes))
     {
-        fprintf (stderr, "Could not get/set terminal attributes!\n");
+        fprintf (stderr, "Could not get terminal attributes!\n");
         return;
     }
 
@@ -159,16 +160,32 @@ OsEnterLineEditMode (
     LocalTermAttributes.c_cc[VMIN] = 1;
     LocalTermAttributes.c_cc[VTIME] = 0;
 
-    tcsetattr (STDIN_FILENO, TCSANOW, &LocalTermAttributes);
+    if (tcsetattr (STDIN_FILENO, TCSANOW, &LocalTermAttributes))
+    {
+        fprintf (stderr, "Could not set terminal attributes!\n");
+        return;
+    }
+
+    TermAttributesWereSet = 1;
 }
+
 
 static void
 OsExitLineEditMode (
     void)
 {
+
+    if (!TermAttributesWereSet)
+    {
+        return;
+    }
+
     /* Set terminal attributes back to the original values */
 
-    tcsetattr (STDIN_FILENO, TCSANOW, &OriginalTermAttributes);
+    if (tcsetattr (STDIN_FILENO, TCSANOW, &OriginalTermAttributes))
+    {
+        fprintf (stderr, "Could not restore terminal attributes!\n");
+    }
 }
 
 

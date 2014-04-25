@@ -158,6 +158,9 @@
 #define ACPI_IVRS8A_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_IVRS_DEVICE8A,f)
 #define ACPI_IVRS8B_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_IVRS_DEVICE8B,f)
 #define ACPI_IVRS8C_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_IVRS_DEVICE8C,f)
+#define ACPI_LPITH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_LPIT_HEADER,f)
+#define ACPI_LPIT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_LPIT_NATIVE,f)
+#define ACPI_LPIT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_LPIT_IO,f)
 #define ACPI_MADT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_MADT_LOCAL_APIC,f)
 #define ACPI_MADT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_MADT_IO_APIC,f)
 #define ACPI_MADT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_MADT_INTERRUPT_OVERRIDE,f)
@@ -213,6 +216,7 @@
 #define ACPI_SRAT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_MEM_AFFINITY,f,o)
 #define ACPI_SRAT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f,o)
 #define ACPI_GTDT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_GTDT,f,o)
+#define ACPI_LPITH_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_LPIT_HEADER,f,o)
 #define ACPI_MADT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_MADT,f,o)
 #define ACPI_MADT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_LOCAL_APIC,f,o)
 #define ACPI_MADT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_MADT_INTERRUPT_OVERRIDE,f,o)
@@ -1301,6 +1305,59 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIvrs8c[] =
     {ACPI_DMT_UINT8,    ACPI_IVRS8C_OFFSET (Handle),                "Handle", 0},
     {ACPI_DMT_UINT16,   ACPI_IVRS8C_OFFSET (UsedId),                "Source Used Device ID", 0},
     {ACPI_DMT_UINT8,    ACPI_IVRS8C_OFFSET (Variety),               "Variety", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * LPIT - Low Power Idle Table
+ *
+ ******************************************************************************/
+
+/* Main table consists only of the standard ACPI table header */
+
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoLpitHdr[] =
+{
+    {ACPI_DMT_LPIT,     ACPI_LPITH_OFFSET (Type),                   "Subtable Type", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPITH_OFFSET (Length),                 "Length", DT_LENGTH},
+    {ACPI_DMT_UINT16,   ACPI_LPITH_OFFSET (UniqueId),               "Unique ID", 0},
+    {ACPI_DMT_UINT16,   ACPI_LPITH_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPITH_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_LPITH_FLAG_OFFSET (Flags, 0),          "State Disabled", 0},
+    {ACPI_DMT_FLAG1,    ACPI_LPITH_FLAG_OFFSET (Flags, 0),          "No Counter", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* LPIT Subtables */
+
+/* 0: Native C-state */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoLpit0[] =
+{
+    {ACPI_DMT_GAS,      ACPI_LPIT0_OFFSET (EntryTrigger),           "Entry Trigger", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPIT0_OFFSET (Residency),              "Residency", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPIT0_OFFSET (Latency),                "Latency", 0},
+    {ACPI_DMT_GAS,      ACPI_LPIT0_OFFSET (ResidencyCounter),       "Residency Counter", 0},
+    {ACPI_DMT_UINT64,   ACPI_LPIT0_OFFSET (CounterFrequency),       "Counter Frequency", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1: Simple I/O */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoLpit1[] =
+{
+    {ACPI_DMT_GAS,      ACPI_LPIT1_OFFSET (EntryTrigger),           "Entry Trigger", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPIT1_OFFSET (TriggerAction),          "Trigger Action", 0},
+    {ACPI_DMT_UINT64,   ACPI_LPIT1_OFFSET (TriggerValue),           "Trigger Value", 0},
+    {ACPI_DMT_UINT64,   ACPI_LPIT1_OFFSET (TriggerMask),            "Trigger Mask", 0},
+    {ACPI_DMT_GAS,      ACPI_LPIT1_OFFSET (MinimumIdleState),       "Minimum Idle State", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPIT1_OFFSET (Residency),              "Residency", 0},
+    {ACPI_DMT_UINT32,   ACPI_LPIT1_OFFSET (Latency),                "Latency", 0},
+    {ACPI_DMT_GAS,      ACPI_LPIT1_OFFSET (ResidencyCounter),       "Residency Counter", 0},
+    {ACPI_DMT_UINT64,   ACPI_LPIT1_OFFSET (CounterFrequency),       "Counter Frequency", 0},
     ACPI_DMT_TERMINATOR
 };
 
