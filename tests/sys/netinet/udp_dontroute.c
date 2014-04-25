@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2014 Spectra Logic Corporation
  *  All rights reserved.
- * 
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
@@ -13,7 +13,7 @@
  *     ("Disclaimer") and any redistribution must be conditioned upon
  *     including a substantially similar Disclaimer requirement for further
  *     binary redistribution.
- * 
+ *
  *  NO WARRANTY
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
  *  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  *  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  *  Authors: Alan Somers         (Spectra Logic Corporation)
  *
  * $FreeBSD$
@@ -43,11 +43,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* 
+/*
  * Sends a single UDP packet to the provided address, with SO_DONTROUTE set
  * I couldn't find a way to do this with builtin utilities like nc(1)
  */
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	struct sockaddr_in dst;
 	int s;
@@ -80,6 +81,6 @@ int main(int argc, char **argv)
 	    dst.sin_len);
 	if (ret == -1)
 		err(errno, "sendto");
-	
+
 	return (0);
 }
