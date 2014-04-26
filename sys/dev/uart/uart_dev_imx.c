@@ -131,13 +131,14 @@ imx_uart_init(struct uart_bas *bas, int baudrate, int databits,
 	/*
 	 * The hardware has an extremely flexible baud clock: it allows setting
 	 * both the numerator and denominator of the divider, as well as a
-	 * separate pre-divider.  We simplify that problem by assuming a
-	 * pre-divider and numerator of one because our base clock is so fast we
-	 * can reach virtually any reasonable speed with a simple divisor.  The
-	 * numerator value actually includes the 16x over-sampling; the register
-	 * value is the numerator-1, so we have a hard-coded 15.  Note that a
-	 * quirk of the hardware requires that both UBIR and UBMR be set back to
-	 * back in order for the change to take effect.
+	 * separate pre-divider.  We simplify the problem of coming up with a
+	 * workable pair of numbers by assuming a pre-divider and numerator of
+	 * one because our base clock is so fast we can reach virtually any
+	 * reasonable speed with a simple divisor.  The numerator value actually
+	 * includes the 16x over-sampling (so a value of 16 means divide by 1);
+	 * the register value is the numerator-1, so we have a hard-coded 15.
+	 * Note that a quirk of the hardware requires that both UBIR and UBMR be
+	 * set back to back in order for the change to take effect.
 	 */
 	if (baudrate > 0) {
 		baseclk = imx_ccm_uart_hz();
