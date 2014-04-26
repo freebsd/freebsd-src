@@ -526,7 +526,7 @@ route_output(struct mbuf *m, struct socket *so)
 	struct sockaddr_in6 *sin6;
 	int i, rti_need_deembed = 0;
 #endif
-	int len, error = 0;
+	int len, error = 0, fibnum;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
 	sa_family_t saf = AF_UNSPEC;
@@ -582,6 +582,8 @@ route_output(struct mbuf *m, struct socket *so)
 			senderr(error);
 	}
 
+	fibnum = so->so_fibnum;
+
 	/*
 	 * The given gateway address may be an interface address.
 	 * For example, issuing a "route change" command on a route
@@ -596,7 +598,7 @@ route_output(struct mbuf *m, struct socket *so)
 
 		bzero(&gw_ro, sizeof(gw_ro));
 		gw_ro.ro_dst = *info.rti_info[RTAX_GATEWAY];
-		rtalloc_ign_fib(&gw_ro, 0, so->so_fibnum);
+		rtalloc_ign_fib(&gw_ro, 0, fibnum);
 		/* 
 		 * A host route through the loopback interface is 
 		 * installed for each interface adddress. In pre 8.0
@@ -637,7 +639,7 @@ route_output(struct mbuf *m, struct socket *so)
 			break;
 		}
 		error = rtrequest1_fib(rtm->rtm_type, &info, &saved_nrt,
-		    so->so_fibnum);
+		    fibnum);
 		if (error == 0 && saved_nrt != NULL) {
 #ifdef INET6
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
@@ -663,8 +665,7 @@ route_output(struct mbuf *m, struct socket *so)
 #endif
 			break;
 		}
-		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt,
-		    so->so_fibnum);
+		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt, fibnum);
 		if (error == 0) {
 			RT_LOCK(saved_nrt);
 			rt = saved_nrt;
@@ -677,8 +678,7 @@ route_output(struct mbuf *m, struct socket *so)
 		break;
 
 	case RTM_GET:
-		rnh = rt_tables_get_rnh(so->so_fibnum,
-		    info.rti_info[RTAX_DST]->sa_family);
+		rnh = rt_tables_get_rnh(fibnum, saf);
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 
@@ -867,7 +867,7 @@ flush:
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 	}
 	if (m) {
-		M_SETFIB(m, so->so_fibnum);
+		M_SETFIB(m, fibnum);
 		m->m_flags |= RTS_FILTER_FIB;
 		if (rp) {
 			/*
