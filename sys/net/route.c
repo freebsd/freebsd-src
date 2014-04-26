@@ -140,6 +140,9 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
+static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
+    struct rtentry **, u_int);
+
 /*
  * handler for net.my_fibnum
  */
@@ -1408,6 +1411,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		}
 		RT_UNLOCK(rt);
 		break;
+	case RTM_CHANGE:
+		error = rtrequest1_fib_change(rnh, info, ret_nrt, fibnum);
+		break;
 	default:
 		error = EOPNOTSUPP;
 	}
@@ -1424,6 +1430,95 @@ bad:
 #undef ifaaddr
 #undef ifpaddr
 #undef flags
+
+#define	senderr(e) { error = e; goto bad; }
+static int
+rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
+    struct rtentry **ret_nrt, u_int fibnum)
+{
+	struct rtentry *rt = NULL;
+	int error = 0;
+	int free_ifa = 0;
+
+	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
+	    info->rti_info[RTAX_NETMASK], rnh);
+
+	if (rt == NULL)
+		return (ESRCH);
+
+#ifdef RADIX_MPATH
+	/*
+	 * If we got multipath routes,
+	 * we require users to specify a matching RTAX_GATEWAY.
+	 */
+	if (rn_mpath_capable(rnh)) {
+		rt = rt_mpath_matchgate(rt, info->rti_info[RTAX_GATEWAY]);
+		if (rt == NULL)
+			return (ESRCH);
+	}
+#endif
+
+	RT_LOCK(rt);
+
+	/*
+	 * New gateway could require new ifaddr, ifp;
+	 * flags may also be different; ifp may be specified
+	 * by ll sockaddr when protocol address is ambiguous
+	 */
+	if (((rt->rt_flags & RTF_GATEWAY) &&
+	    info->rti_info[RTAX_GATEWAY] != NULL) ||
+	    info->rti_info[RTAX_IFP] != NULL ||
+	    (info->rti_info[RTAX_IFA] != NULL &&
+	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_ifa->ifa_addr))) {
+
+		error = rt_getifa_fib(info, fibnum);
+		if (info->rti_ifa != NULL)
+			free_ifa = 1;
+
+		if (error != 0)
+			senderr(error);
+	}
+
+	/* Check if outgoing interface has changed */
+	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa &&
+	    rt->rt_ifa != NULL && rt->rt_ifa->ifa_rtrequest != NULL) {
+		rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, info);
+		ifa_free(rt->rt_ifa);
+	}
+	/* Update gateway address */
+	if (info->rti_info[RTAX_GATEWAY] != NULL) {
+		error = rt_setgate(rt, rt_key(rt), info->rti_info[RTAX_GATEWAY]);
+		if (error != 0)
+			senderr(error);
+
+		rt->rt_flags &= ~RTF_GATEWAY;
+		rt->rt_flags |= (RTF_GATEWAY & info->rti_flags);
+	}
+
+	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa) {
+		ifa_ref(info->rti_ifa);
+		rt->rt_ifa = info->rti_ifa;
+		rt->rt_ifp = info->rti_ifp;
+	}
+	/* Allow some flags to be toggled on change. */
+	rt->rt_flags &= ~RTF_FMASK;
+	rt->rt_flags |= info->rti_flags & RTF_FMASK;
+
+	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
+	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
+
+	if (ret_nrt) {
+		*ret_nrt = rt;
+		RT_ADDREF(rt);
+	}
+bad:
+	RT_UNLOCK(rt);
+	if (free_ifa != 0)
+		ifa_free(info->rti_ifa);
+	return (error);
+}
+#undef senderr
+
 
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
