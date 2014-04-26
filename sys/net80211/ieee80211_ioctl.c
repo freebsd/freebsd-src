@@ -602,7 +602,7 @@ ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	 * in use.  When in RUN state report the vap-specific channel.
 	 * Otherwise return curchan.
 	 */
-	if (vap->iv_state == IEEE80211_S_RUN | vap->iv_state == IEEE80211_S_SLEEP)
+	if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
 		c = vap->iv_bss->ni_chan;
 	else
 		c = ic->ic_curchan;
