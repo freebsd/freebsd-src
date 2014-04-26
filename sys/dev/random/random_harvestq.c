@@ -117,7 +117,7 @@ static struct proc *random_kthread_proc;
 static void
 random_kthread(void *arg __unused)
 {
-        u_int maxloop;
+        u_int maxloop, ring_out;
 
 	/*
 	 * Process until told to stop.
@@ -131,12 +131,16 @@ random_kthread(void *arg __unused)
 		/* Deal with events, if any. Restrict the number we do in one go. */
 		maxloop = RANDOM_FIFO_MAX;
 		while (entropyfifo.ring_out != entropyfifo.ring_in) {
-			/* Modifying ring_out here ONLY. */
-			entropyfifo.ring_out = (entropyfifo.ring_out + 1)%RANDOM_FIFO_MAX;
-			harvest_process_event(entropyfifo.ring + entropyfifo.ring_out);
+
+			ring_out = (entropyfifo.ring_out + 1)%RANDOM_FIFO_MAX;
+			harvest_process_event(entropyfifo.ring + ring_out);
+			/* Modifying ring_out here ONLY. Sufficient for atomicity? */
+			entropyfifo.ring_out = ring_out;
+
 			/* The ring may be filled quickly so don't loop forever.  */
 			if (--maxloop)
 				break;
+
 		}
 
 		/*
@@ -153,7 +157,7 @@ random_kthread(void *arg __unused)
 		if (random_kthread_control == 1)
 			random_kthread_control = 0;
 
-		/* Work done, so don't belabour the issue */
+		/* Some work is done, so give the rest of the OS a chance. */
 		tsleep_sbt(&random_kthread_control, 0, "-", SBT_1S/10, 0, C_PREL(1));
 
 	}
@@ -356,25 +360,23 @@ random_harvestq_internal(const void *entropy, u_int count, u_int bits,
 		return;
 
 	/* Lock ring_in against multi-thread contention */
-	/* XXX: Fix? Go critical instead of locking? */
 	mtx_lock_spin(&harvest_mtx);
 	ring_in = (entropyfifo.ring_in + 1)%RANDOM_FIFO_MAX;
-	if (ring_in == entropyfifo.ring_out) {
-		/* The ring is full; unlock and leave. */
-		mtx_unlock_spin(&harvest_mtx);
-		return;
-	}
-	entropyfifo.ring_in = ring_in;
-	event = entropyfifo.ring + ring_in;
-	mtx_unlock_spin(&harvest_mtx);
+	if (ring_in != entropyfifo.ring_out) {
+		/* The ring is not full */
+		event = entropyfifo.ring + ring_in;
 
-	/* Stash the harvested stuff in the *event buffer */
-	count = MIN(count, HARVESTSIZE);
-	event->he_somecounter = get_cyclecount();
-	event->he_size = count;
-	event->he_bits = bits;
-	event->he_source = origin;
-	event->he_destination = harvest_destination[origin]++;
-	memcpy(event->he_entropy, entropy, count);
-	memset(event->he_entropy + count, 0, HARVESTSIZE - count);
+		/* Stash the harvested stuff in the *event buffer */
+		count = MIN(count, HARVESTSIZE);
+		event->he_somecounter = get_cyclecount();
+		event->he_size = count;
+		event->he_bits = bits;
+		event->he_source = origin;
+		event->he_destination = harvest_destination[origin]++;
+		memcpy(event->he_entropy, entropy, count);
+		memset(event->he_entropy + count, 0, HARVESTSIZE - count);
+
+		entropyfifo.ring_in = ring_in;
+	}
+	mtx_unlock_spin(&harvest_mtx);
 }
