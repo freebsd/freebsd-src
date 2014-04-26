@@ -582,7 +582,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway, 0)) == NULL) {
+	if ((ifa = ifa_ifwithnet(gateway, 0, fibnum)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -739,7 +739,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 */
 		ifa = NULL;
 		if (flags & RTF_HOST)
-			ifa = ifa_ifwithdstaddr(dst);
+			ifa = ifa_ifwithdstaddr(dst, fibnum);
 		if (ifa == NULL)
 			ifa = ifa_ifwithaddr(gateway);
 	} else {
@@ -748,10 +748,10 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 * or host, the gateway may still be on the
 		 * other end of a pt to pt link.
 		 */
-		ifa = ifa_ifwithdstaddr(gateway);
+		ifa = ifa_ifwithdstaddr(gateway, fibnum);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway, 0);
+		ifa = ifa_ifwithnet(gateway, 0, fibnum);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -865,7 +865,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr, 0)) != NULL) {
+	    (ifa = ifa_ifwithnet(ifpaddr, 0, fibnum)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}
@@ -1536,7 +1536,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	}
 	if (fibnum == RT_ALL_FIBS) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
-			startfib = endfib = curthread->td_proc->p_fibnum;
+			startfib = endfib = ifa->ifa_ifp->if_fib;
 		} else {
 			startfib = 0;
 			endfib = rt_numfibs - 1;
@@ -1773,6 +1773,16 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+	/*
+	 * notify the SCTP stack
+	 * this will only get called when an address is added/deleted
+	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
+	 */
+	sctp_addr_change(ifa, cmd);
+#endif /* SCTP */
+#endif
 	return (rtsock_addrmsg(cmd, ifa, fibnum));
 }
 
@@ -1823,16 +1833,6 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-	/*
-	 * notify the SCTP stack
-	 * this will only get called when an address is added/deleted
-	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
-	 */
-	sctp_addr_change(ifa, cmd);
-#endif /* SCTP */
-#endif
 	if (cmd == RTM_ADD) {
 		rt_addrmsg(cmd, ifa, fibnum);
 		if (rt != NULL)

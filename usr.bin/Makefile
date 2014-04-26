@@ -106,6 +106,7 @@ SUBDIR=	alias \
 	mkdep \
 	${_mkesdb} \
 	mkfifo \
+	mkimg \
 	mklocale \
 	mktemp \
 	mkulzma \
@@ -181,7 +182,6 @@ SUBDIR=	alias \
 	unvis \
 	uudecode \
 	uuencode \
-	vi \
 	vis \
 	vmstat \
 	w \
@@ -358,6 +358,10 @@ SUBDIR+=	unifdef
 SUBDIR+=	xlint
 SUBDIR+=	xstr
 SUBDIR+=	yacc
+.endif
+
+.if ${MK_VI} != "no"
+SUBDIR+=	vi
 .endif
 
 .if ${MK_USB} != "no"

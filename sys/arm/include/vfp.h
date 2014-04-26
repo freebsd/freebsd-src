@@ -92,6 +92,11 @@
 /* VFPEXC */
 #define	VFPEXC_EX 		(0x80000000)	/* exception v1 v2 */
 #define	VFPEXC_EN		(0x40000000)	/* vfp enable */
+#define	VFPEXC_FP2V		(0x10000000)	/* FPINST2 valid */
+#define	VFPEXC_INV		(0x00000080)	/* Input exception */
+#define	VFPEXC_UFC		(0x00000008)	/* Underflow exception */
+#define	VFPEXC_OFC		(0x00000004)	/* Overflow exception */
+#define	VFPEXC_IOC		(0x00000001)	/* Invlaid operation */
 
 /* version 3 registers */
 /* VMVFR0 */

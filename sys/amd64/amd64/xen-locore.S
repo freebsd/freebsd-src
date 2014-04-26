@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2011-2012 Spectra Logic Corporation
  * Copyright (c) 2013 Roger Pau Monne <royger@FreeBSD.org>
  * All rights reserved.
+ *
+ * This software was developed by Cherry G. Mathew <cherry@zyx.in>
+ * under sponsorship from Spectra Logic Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

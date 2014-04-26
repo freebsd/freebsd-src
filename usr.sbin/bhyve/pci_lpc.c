@@ -55,6 +55,11 @@ SET_DECLARE(lpc_sysres_set, struct lpc_sysres);
 #define	ELCR_PORT	0x4d0
 SYSRES_IO(ELCR_PORT, 2);
 
+#define	IO_TIMER1_PORT	0x40
+
+#define	NMISC_PORT	0x61
+SYSRES_IO(NMISC_PORT, 1);
+
 static struct pci_devinst *lpc_bridge;
 
 #define	LPC_UART_NUM	2
@@ -221,6 +226,19 @@ pci_lpc_write_dsdt(struct pci_devinst *pi)
 	dsdt_fixed_ioport(IO_ICU1, 2);
 	dsdt_fixed_ioport(IO_ICU2, 2);
 	dsdt_fixed_irq(2);
+	dsdt_unindent(2);
+	dsdt_line("  })");
+	dsdt_line("}");
+
+	dsdt_line("");
+	dsdt_line("Device (TIMR)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0100\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+	dsdt_indent(2);
+	dsdt_fixed_ioport(IO_TIMER1_PORT, 4);
+	dsdt_fixed_irq(0);
 	dsdt_unindent(2);
 	dsdt_line("  })");
 	dsdt_line("}");

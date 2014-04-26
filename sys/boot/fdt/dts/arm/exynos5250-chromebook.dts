@@ -40,6 +40,10 @@
 
 	SOC: Exynos5@0 {
 
+		pad0: pad@11400000 {
+			status = "okay";
+		};
+
 		fimd0: fimd@14400000 {
 			status = "okay";
 
@@ -50,6 +54,15 @@
 			panel-backlight-pin = < 25 >;
 		};
 
+		i2c4: i2c@12CA0000 {
+			status = "okay";
+		};
+
+		keyboard-controller {
+			compatible = "google,cros-ec-keyb";
+			keypad,num-rows = <8>;
+			keypad,num-columns = <13>;
+		};
 	};
 
 	chosen {

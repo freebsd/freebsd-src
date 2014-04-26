@@ -3,7 +3,7 @@
 PROG=	npestats
 SRCS=	main.c npestats.c
 BINDIR=	/usr/local/bin
-NO_MAN=	true
+MAN=
 USEPRIVATELIB=
 LDADD=	-lbsdstat
 

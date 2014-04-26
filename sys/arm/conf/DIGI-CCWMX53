@@ -169,6 +169,12 @@ device		wlan_ccmp		# 802.11 CCMP support
 device		wlan_tkip		# 802.11 TKIP support
 device		wlan_amrr		# AMRR transmit rate control algorithm
 
+# MMC
+#device  	sdhci			# SD controller
+#device  	mmc			# SD/MMC protocol
+#device  	mmcsd			# SDCard disk device
+
+
 # Flattened Device Tree
 options         FDT
 options         FDT_DTB_STATIC
@@ -177,6 +183,7 @@ makeoptions     FDT_DTS_FILE=digi-ccwmx53.dts
 # NOTE: serial console will be disabled if syscons enabled
 # Uncomment following lines for framebuffer/syscons support
 #device		sc
+#device		vt
 #device		kbdmux
 #options         SC_DFLT_FONT		# compile font in
 #makeoptions     SC_DFLT_FONT=cp437

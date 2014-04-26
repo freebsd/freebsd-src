@@ -1072,7 +1072,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			if (asbt <= INT64_MAX - rsbt)
+			if (asbt <= SBT_MAX - rsbt)
 				asbt += rsbt;
 			else
 				asbt = -1;
@@ -1547,7 +1547,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			if (asbt <= INT64_MAX - rsbt)
+			if (asbt <= SBT_MAX - rsbt)
 				asbt += rsbt;
 			else
 				asbt = -1;

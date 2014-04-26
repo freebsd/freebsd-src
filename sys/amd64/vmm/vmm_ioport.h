@@ -30,7 +30,7 @@
 #define	_VMM_IOPORT_H_
 
 typedef int (*ioport_handler_func_t)(void *vm, int vcpuid,
-    struct vm_exit *vmexit);
+    bool in, int port, int bytes, uint32_t *val);
 
 int emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit);
 

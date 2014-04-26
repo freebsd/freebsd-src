@@ -47,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/gpio.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -274,9 +278,11 @@ fimd_init(struct fimd_softc *sc)
 	reg |= ((panel->height - 1) << LINEVAL_OFFSET);
 	DWRITE4(sc,VIDTCON2,reg);
 
-	WRITE4(sc,VIDW00ADD0B0, sc->sc_info.fb_pbase);
-	WRITE4(sc,VIDW00ADD1B0, sc->sc_info.fb_pbase + sc->sc_info.fb_size);
-	WRITE4(sc,VIDW00ADD2, panel->width * 2);
+	reg = sc->sc_info.fb_pbase;
+	WRITE4(sc, VIDW00ADD0B0, reg);
+	reg += (sc->sc_info.fb_stride * (sc->sc_info.fb_height + 1));
+	WRITE4(sc, VIDW00ADD1B0, reg);
+	WRITE4(sc, VIDW00ADD2, sc->sc_info.fb_stride);
 
 	reg = ((panel->width - 1) << OSD_RIGHTBOTX_F_OFFSET);
 	reg |= ((panel->height - 1) << OSD_RIGHTBOTY_F_OFFSET);
@@ -351,8 +357,8 @@ fimd_attach(device_t dev)
 	sc->sc_info.fb_stride = sc->sc_info.fb_width * 2;
 	sc->sc_info.fb_bpp = sc->sc_info.fb_depth = 16;
 	sc->sc_info.fb_size = sc->sc_info.fb_height * sc->sc_info.fb_stride;
-	sc->sc_info.fb_vbase = (intptr_t)contigmalloc(sc->sc_info.fb_size,
-	    M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
+	sc->sc_info.fb_vbase = (intptr_t)kmem_alloc_contig(kernel_arena,
+	    sc->sc_info.fb_size, M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	sc->sc_info.fb_pbase = (intptr_t)vtophys(sc->sc_info.fb_vbase);
 
 #if 0

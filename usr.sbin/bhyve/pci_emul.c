@@ -688,8 +688,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	struct pci_devinst *pdi;
 	int err;
 
-	pdi = malloc(sizeof(struct pci_devinst));
-	bzero(pdi, sizeof(*pdi));
+	pdi = calloc(1, sizeof(struct pci_devinst));
 
 	pdi->pi_vmctx = ctx;
 	pdi->pi_bus = bus;
@@ -781,8 +780,7 @@ pci_msix_table_init(struct pci_devinst *pi, int table_entries)
 	assert(table_entries <= MAX_MSIX_TABLE_ENTRIES);
 
 	table_size = table_entries * MSIX_TABLE_ENTRY_SIZE;
-	pi->pi_msix.table = malloc(table_size);
-	bzero(pi->pi_msix.table, table_size);
+	pi->pi_msix.table = calloc(1, table_size);
 
 	/* set mask bit of vector control register */
 	for (i = 0; i < table_entries; i++)
@@ -1510,7 +1508,7 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
-static int cfgbus, cfgslot, cfgfunc, cfgoff;
+static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
 
 static int
 pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
@@ -1529,9 +1527,12 @@ pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		    (cfgslot << 11) |
 		    (cfgfunc << 8) |
 		    cfgoff;
-		*eax = x | CONF1_ENABLE;
+                if (cfgenable)
+			x |= CONF1_ENABLE;	       
+		*eax = x;
 	} else {
 		x = *eax;
+		cfgenable = (x & CONF1_ENABLE) == CONF1_ENABLE;
 		cfgoff = x & PCI_REGMAX;
 		cfgfunc = (x >> 8) & PCI_FUNCMAX;
 		cfgslot = (x >> 11) & PCI_SLOTMAX;
@@ -1631,10 +1632,11 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 #endif
 
 	/*
-	 * Just return if there is no device at this cfgslot:cfgfunc or
-	 * if the guest is doing an un-aligned access
+	 * Just return if there is no device at this cfgslot:cfgfunc,
+	 * if the guest is doing an un-aligned access, or if the config
+	 * address word isn't enabled.
 	 */
-	if (pi == NULL || (coff & (bytes - 1)) != 0) {
+	if (!cfgenable || pi == NULL || (coff & (bytes - 1)) != 0) {
 		if (in)
 			*eax = 0xffffffff;
 		return (0);
@@ -1781,8 +1783,7 @@ pci_emul_dinit(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int error;
 	struct pci_emul_dsoftc *sc;
 
-	sc = malloc(sizeof(struct pci_emul_dsoftc));
-	memset(sc, 0, sizeof(struct pci_emul_dsoftc));
+	sc = calloc(1, sizeof(struct pci_emul_dsoftc));
 
 	pi->pi_arg = sc;
 

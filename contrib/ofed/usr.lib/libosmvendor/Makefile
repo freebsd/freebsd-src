@@ -9,7 +9,7 @@ SHLIBDIR?=	/usr/lib
 
 LIB=		osmvendor
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	osm_vendor_ibumad.c osm_vendor_ibumad_sa.c
 

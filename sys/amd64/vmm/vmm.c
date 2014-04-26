@@ -1036,10 +1036,12 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			msleep_spin(vcpu, &vcpu->mtx, "vmidle", timo);
 		} else {
 			/*
-			 * Spindown the vcpu if the apic is disabled and it
-			 * had entered the halted state.
+			 * Spindown the vcpu if the APIC is disabled and it
+			 * had entered the halted state, but never spin
+			 * down the BSP.
 			 */
-			spindown = 1;
+			if (vcpuid != 0)
+				spindown = 1;
 		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);

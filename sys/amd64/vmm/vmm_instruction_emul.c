@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 enum {
 	VIE_OP_TYPE_NONE = 0,
 	VIE_OP_TYPE_MOV,
+	VIE_OP_TYPE_MOVSX,
 	VIE_OP_TYPE_MOVZX,
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
@@ -68,6 +69,10 @@ static const struct vie_op two_byte_opcodes[256] = {
 	[0xB6] = {
 		.op_byte = 0xB6,
 		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+	[0xBE] = {
+		.op_byte = 0xBE,
+		.op_type = VIE_OP_TYPE_MOVSX,
 	},
 };
 
@@ -333,9 +338,9 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
  * - address size override is not supported
  */
 static int
-emulate_movzx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-	      mem_region_read_t memread, mem_region_write_t memwrite,
-	      void *arg)
+emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	     mem_region_read_t memread, mem_region_write_t memwrite,
+	     void *arg)
 {
 	int error, size;
 	enum vm_reg_name reg;
@@ -364,6 +369,32 @@ emulate_movzx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 		if (vie->rex_w)
 			size = 8;
+
+		/* write the result */
+		error = vie_update_register(vm, vcpuid, reg, val, size);
+		break;
+	case 0xBE:
+		/*
+		 * MOV and sign extend byte from mem (ModRM:r/m) to
+		 * reg (ModRM:reg).
+		 *
+		 * 0F BE/r		movsx r/m8, r32
+		 * REX.W + 0F BE/r	movsx r/m8, r64
+		 */
+
+		/* get the first operand */
+		error = memread(vm, vcpuid, gpa, &val, 1, arg);
+		if (error)
+			break;
+
+		/* get the second operand */
+		reg = gpr_map[vie->reg];
+
+		if (vie->rex_w)
+			size = 8;
+
+		/* sign extend byte */
+		val = (int8_t)val;
 
 		/* write the result */
 		error = vie_update_register(vm, vcpuid, reg, val, size);
@@ -508,9 +539,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = emulate_mov(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
+	case VIE_OP_TYPE_MOVSX:
 	case VIE_OP_TYPE_MOVZX:
-		error = emulate_movzx(vm, vcpuid, gpa, vie,
-				      memread, memwrite, memarg);
+		error = emulate_movx(vm, vcpuid, gpa, vie,
+				     memread, memwrite, memarg);
 		break;
 	case VIE_OP_TYPE_AND:
 		error = emulate_and(vm, vcpuid, gpa, vie,

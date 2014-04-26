@@ -65,11 +65,13 @@
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
+#include "ctld.h"
+
 #ifdef ICL_KERNEL_PROXY
 #include <netdb.h>
 #endif
 
-#include "ctld.h"
+extern bool proxy_mode;
 
 static int	ctl_fd = 0;
 
@@ -599,7 +601,14 @@ kernel_handoff(struct connection *conn)
 	}
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		req.data.handoff.connection_id = conn->conn_socket;
+	else
+		req.data.handoff.socket = conn->conn_socket;
+#else
 	req.data.handoff.socket = conn->conn_socket;
+#endif
 	req.data.handoff.portal_group_tag =
 	    conn->conn_portal->p_portal_group->pg_tag;
 	if (conn->conn_header_digest == CONN_DIGEST_CRC32C)
@@ -613,13 +622,15 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI handoff request: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 int
@@ -664,7 +675,7 @@ kernel_port_off(void)
 
 #ifdef ICL_KERNEL_PROXY
 void
-kernel_listen(struct addrinfo *ai, bool iser)
+kernel_listen(struct addrinfo *ai, bool iser, int portal_id)
 {
 	struct ctl_iscsi req;
 
@@ -677,11 +688,10 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	req.data.listen.protocol = ai->ai_protocol;
 	req.data.listen.addr = ai->ai_addr;
 	req.data.listen.addrlen = ai->ai_addrlen;
+	req.data.listen.portal_id = portal_id;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
 		log_err(1, "error issuing CTL_ISCSI ioctl");
-		return;
-	}
 
 	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI listen: %s",
@@ -689,27 +699,30 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	}
 }
 
-int
-kernel_accept(void)
+void
+kernel_accept(int *connection_id, int *portal_id,
+    struct sockaddr *client_sa, socklen_t *client_salen)
 {
 	struct ctl_iscsi req;
+	struct sockaddr_storage ss;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_ACCEPT;
+	req.data.accept.initiator_addr = (struct sockaddr *)&ss;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_warn("error issuing CTL_ISCSI ioctl");
-		return (0);
-	}
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+		log_err(1, "error issuing CTL_ISCSI ioctl");
 
 	if (req.status != CTL_ISCSI_OK) {
-		log_warnx("error returned from CTL iSCSI accept: %s",
+		log_errx(1, "error returned from CTL iSCSI accept: %s",
 		    req.error_str);
-		return (0);
 	}
 
-	return (req.data.accept.connection_id);
+	*connection_id = req.data.accept.connection_id;
+	*portal_id = req.data.accept.portal_id;
+	*client_salen = req.data.accept.initiator_addrlen;
+	memcpy(client_sa, &ss, *client_salen);
 }
 
 void

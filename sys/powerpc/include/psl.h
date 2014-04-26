@@ -96,7 +96,7 @@
 #else
 #define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
 #endif
-#define PSL_SRR1_MASK	0x78300000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
+#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
 #endif
 
 #define	PSL_USERSET	(PSL_KERNSET | PSL_PR)

@@ -76,6 +76,7 @@ options 	PREEMPTION
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
 
 # I2C support
 device		iicbus
@@ -145,3 +146,4 @@ options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=pandaboard.dts
 
 options 	VFP			# vfp/neon
+options  	SMP			# Enable multiple cores

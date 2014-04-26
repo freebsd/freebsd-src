@@ -90,7 +90,7 @@ static struct keytab {
 static struct sockaddr_storage so[RTAX_MAX];
 static int	pid, rtm_addrs;
 static int	s;
-static int	forcehost, forcenet, nflag, af, qflag, tflag;
+static int	nflag, af, qflag, tflag;
 static int	verbose, aflen;
 static int	locking, lockrest, debugonly;
 static struct rt_metrics rt_metrics;
@@ -1245,7 +1245,7 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 		 */
 		switch (idx) {
 		case RTAX_DST:
-			forcenet++;
+			nrflags |= F_FORCENET;
 			getaddr(RTAX_NETMASK, str, 0, nrflags);
 			break;
 		}
@@ -1308,10 +1308,10 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 		}
 		*q = '/';
 	}
-	if ((idx != RTAX_DST || forcenet == 0) &&
+	if ((idx != RTAX_DST || (nrflags & F_FORCENET) == 0) &&
 	    inet_aton(str, &sin->sin_addr)) {
 		val = sin->sin_addr.s_addr;
-		if (idx != RTAX_DST || forcehost ||
+		if (idx != RTAX_DST || nrflags & F_FORCEHOST ||
 		    inet_lnaof(sin->sin_addr) != INADDR_ANY)
 			return (1);
 		else {
@@ -1319,7 +1319,7 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 			goto netdone;
 		}
 	}
-	if (idx == RTAX_DST && forcehost == 0 &&
+	if (idx == RTAX_DST && (nrflags & F_FORCEHOST) == 0 &&
 	    ((val = inet_network(str)) != INADDR_NONE ||
 	    ((np = getnetbyname(str)) != NULL && (val = np->n_net) != 0))) {
 netdone:

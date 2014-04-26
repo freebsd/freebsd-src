@@ -543,12 +543,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	for (i = 0; i < hdr->prdtl && len; i++) {
 		uint8_t *ptr;
 		uint32_t dbcsz;
+		int sublen;
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		memcpy(ptr, from, dbcsz);
-		len -= dbcsz;
-		from += dbcsz;
+		sublen = len < dbcsz ? len : dbcsz;
+		memcpy(ptr, from, sublen);
+		len -= sublen;
+		from += sublen;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -1754,8 +1756,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	dbg = fopen("/tmp/log", "w+");
 #endif
 
-       	sc = malloc(sizeof(struct pci_ahci_softc));
-	memset(sc, 0, sizeof(struct pci_ahci_softc));
+	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
 	sc->ports = MAX_PORTS;

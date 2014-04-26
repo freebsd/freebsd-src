@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	gsstest
-NO_MAN=
+MAN=
 WARNS?=	2
 DPADD=	${LIBGSSAPI} ${LIBGSSAPI_KRB5}
 LDADD=	-lgssapi -lgssapi_krb5

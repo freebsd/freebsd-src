@@ -46,6 +46,7 @@ ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[TIMER_CNTR0] = vatpit_handler,
 	[TIMER_CNTR1] = vatpit_handler,
 	[TIMER_CNTR2] = vatpit_handler,
+	[NMISC_PORT] = vatpit_nmisc_handler,
 	[IO_ICU1] = vatpic_master_handler,
 	[IO_ICU1 + ICU_IMR_OFFSET] = vatpic_master_handler,
 	[IO_ICU2] = vatpic_slave_handler,
@@ -58,6 +59,8 @@ int
 emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit)
 {
 	ioport_handler_func_t handler;
+	uint32_t mask, val;
+	int error;
 
 	if (vmexit->u.inout.port >= MAX_IOPORTS)
 		return (-1);
@@ -66,5 +69,29 @@ emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit)
 	if (handler == NULL)
 		return (-1);
 
-	return ((*handler)(vm, vcpuid, vmexit));
+	switch (vmexit->u.inout.bytes) {
+	case 1:
+		mask = 0xff;
+		break;
+	case 2:
+		mask = 0xffff;
+		break;
+	default:
+		mask = 0xffffffff;
+		break;
+	}
+
+	if (!vmexit->u.inout.in) {
+		val = vmexit->u.inout.eax & mask;
+	}
+
+	error = (*handler)(vm, vcpuid, vmexit->u.inout.in,
+	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
+
+	if (!error && vmexit->u.inout.in) {
+		vmexit->u.inout.eax &= ~mask;
+		vmexit->u.inout.eax |= val & mask;
+	}
+
+	return (error);
 }

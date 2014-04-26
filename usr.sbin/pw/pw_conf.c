@@ -226,35 +226,21 @@ newstr(char const * p)
 struct userconf *
 read_userconfig(char const * file)
 {
-	FILE           *fp;
+	FILE	*fp;
+	char	*buf, *p;
+	size_t	linecap;
+	ssize_t	linelen;
+
+	buf = NULL;
+	linecap = 0;
 
 	extendarray(&config.groups, &config.numgroups, 200);
 	memset(config.groups, 0, config.numgroups * sizeof(char *));
 	if (file == NULL)
 		file = _PATH_PW_CONF;
+
 	if ((fp = fopen(file, "r")) != NULL) {
-		int	    buflen = LNBUFSZ;
-		char       *buf = malloc(buflen);
-
-	nextline:
-		while (fgets(buf, buflen, fp) != NULL) {
-			char           *p;
-
-			while ((p = strchr(buf, '\n')) == NULL) {
-				int	  l;
-				if (extendline(&buf, &buflen, buflen + LNBUFSZ) == -1) {
-					int	ch;
-					while ((ch = fgetc(fp)) != '\n' && ch != EOF);
-					goto nextline;	/* Ignore it */
-				}
-				l = strlen(buf);
-				if (fgets(buf + l, buflen - l, fp) == NULL)
-					break;	/* Unterminated last line */
-			}
-
-			if (p != NULL)
-				*p = '\0';
-
+		while ((linelen = getline(&buf, &linecap, fp)) > 0) {
 			if (*buf && (p = strtok(buf, " \t\r\n=")) != NULL && *p != '#') {
 				static char const toks[] = " \t\r\n,=";
 				char           *q = strtok(NULL, toks);
@@ -368,7 +354,8 @@ read_userconfig(char const * file)
 				}
 			}
 		}
-		free(buf);
+		if (linecap > 0)
+			free(buf);
 		fclose(fp);
 	}
 	return &config;

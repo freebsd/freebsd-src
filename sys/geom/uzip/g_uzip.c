@@ -125,7 +125,7 @@ g_uzip_done(struct bio *bp)
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_uzip_softc *sc;
-	off_t pos, upos;
+	off_t iolen, pos, upos;
 	uint32_t start_blk, i;
 	size_t bsize;
 
@@ -153,11 +153,13 @@ g_uzip_done(struct bio *bp)
 	}
 	start_blk = bp2->bio_offset / sc->blksz;
 	bsize = pp2->sectorsize;
+	iolen = bp->bio_completed;
 	pos = sc->offsets[start_blk] % bsize;
 	upos = 0;
-	DPRINTF(("%s: done: start_blk %d, pos %jd, upos %jd (%jd, %d, %zd)\n",
+	DPRINTF(("%s: done: start_blk %d, pos %jd, upos %jd, iolen %jd "
+	    "(%jd, %d, %zd)\n",
 	    gp->name, start_blk, (intmax_t)pos, (intmax_t)upos,
-	    (intmax_t)bp2->bio_offset, sc->blksz, bsize));
+	    (intmax_t)iolen, (intmax_t)bp2->bio_offset, sc->blksz, bsize));
 	for (i = start_blk; upos < bp2->bio_length; i++) {
 		off_t len, ulen, uoff;
 
@@ -171,6 +173,12 @@ g_uzip_done(struct bio *bp)
 			upos += ulen;
 			bp2->bio_completed += ulen;
 			continue;
+		}
+		if (len > iolen) {
+			DPRINTF(("%s: done: early termination: len (%jd) > "
+			    "iolen (%jd)\n",
+			    gp->name, (intmax_t)len, (intmax_t)iolen));
+			break;
 		}
 		zs.next_in = bp->bio_data + pos;
 		zs.avail_in = len;
@@ -196,6 +204,7 @@ g_uzip_done(struct bio *bp)
 		mtx_unlock(&sc->last_mtx);
 
 		pos += len;
+		iolen -= len;
 		upos += ulen;
 		bp2->bio_completed += ulen;
 		err = inflateReset(&zs);
@@ -290,8 +299,16 @@ g_uzip_start(struct bio *bp)
 	    pp2->name, pp2->sectorsize, (intmax_t)pp2->mediasize));
 	bsize = pp2->sectorsize;
 	bp2->bio_offset = sc->offsets[start_blk] - sc->offsets[start_blk] % bsize;
-	bp2->bio_length = sc->offsets[end_blk] - bp2->bio_offset;
-	bp2->bio_length = (bp2->bio_length + bsize - 1) / bsize * bsize;
+	while (1) {
+		bp2->bio_length = sc->offsets[end_blk] - bp2->bio_offset;
+		bp2->bio_length = (bp2->bio_length + bsize - 1) / bsize * bsize;
+		if (bp2->bio_length < MAXPHYS)
+			break;
+
+		end_blk--;
+		DPRINTF(("%s: bio_length (%jd) > MAXPHYS: lowering end_blk "
+		    "to %u\n", gp->name, (intmax_t)bp2->bio_length, end_blk));
+	}
 	DPRINTF(("%s: start %jd + %jd -> %ju + %ju -> %jd + %jd\n",
 	    gp->name,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length,

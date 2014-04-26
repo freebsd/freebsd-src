@@ -171,6 +171,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 

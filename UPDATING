@@ -31,12 +31,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20140325:
-	It is no longer necessary to include the dwarf version in your DEBUG
-	options in your kernel config file. The bug that required it to be
-	placed in the config file has bene fixed. DEBUG should now just
-	contain -g. The build system will automatically update things
-	to do the right thing. Ignore the entry from 20140216.
+20140418:
+	The YES_HESIOD knob has been removed. It has been obsolete for
+	a decade. Please move to using WITH_HESIOD instead or your builds
+	will silently lack HESIOD.
+
+20140405:
+	The uart(4) driver has been changed with respect to its handling
+	of the low-level console. Previously the uart(4) driver prevented
+	any process from changing the baudrate or the CLOCAL and HUPCL
+	control flags. By removing the restrictions, operators can make
+	changes to the serial console port without having to reboot.
+	However, when getty(8) is started on the serial device that is
+	associated with the low-level console, a misconfigured terminal
+	line in /etc/ttys will now have a real impact.
+	Before upgrading the kernel, make sure that /etc/ttys has the
+	serial console device configured as 3wire without baudrate to
+	preserve the previous behaviour. E.g:
+	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
 
 20140306:
 	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
@@ -52,17 +64,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20140216:
 	Clang and llvm have been upgraded to 3.4 release.
-
-	Please note that clang 3.4 now defaults to DWARF4 debug information
-	format when you specify -g.  Since kgdb(1) only supports DWARF2, you
-	should update any customized kernel configurations which include debug
-	information to explicitly use -gdwarf-2, e.g:
-
-	  makeoptions	DEBUG=-gdwarf-2
-
-	This has already been applied to the appropriate GENERIC configuration
-	files, so if you inherit from those, no changes are required.
-	Please note: this bug has been fixed, please see 20140325.
 
 20140216:
 	The nve(4) driver has been removed.  Please use the nfe(4) driver

@@ -244,12 +244,6 @@ uart_tty_param(struct tty *tp, struct termios *t)
 		return (ENODEV);
 	if (t->c_ispeed != t->c_ospeed && t->c_ospeed != 0)
 		return (EINVAL);
-	/* Fixate certain parameters for system devices. */
-	if (sc->sc_sysdev != NULL) {
-		t->c_ispeed = t->c_ospeed = sc->sc_sysdev->baudrate;
-		t->c_cflag |= CLOCAL;
-		t->c_cflag &= ~HUPCL;
-	}
 	if (t->c_ospeed == 0) {
 		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
 		return (0);

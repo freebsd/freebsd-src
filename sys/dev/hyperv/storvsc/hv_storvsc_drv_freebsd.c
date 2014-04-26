@@ -296,7 +296,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -330,7 +330,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -361,7 +361,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 				dev->channel,
 				vstor_packet,
 				sizeof(struct vstor_packet),
-				(uint64_t)request,
+				(uint64_t)(uintptr_t)request,
 				HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 				HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -389,7 +389,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -482,7 +482,7 @@ hv_storvsc_host_reset(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)&sc->hs_reset_req,
+			(uint64_t)(uintptr_t)&sc->hs_reset_req,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -547,14 +547,14 @@ hv_storvsc_io_request(struct hv_device *device,
 				&request->data_buf,
 				vstor_packet, 
 				sizeof(struct vstor_packet), 
-				(uint64_t)request);
+				(uint64_t)(uintptr_t)request);
 
 	} else {
 		ret = hv_vmbus_channel_send_packet(
 			device->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
@@ -634,7 +634,7 @@ hv_storvsc_on_channel_callback(void *context)
 			&request_id);
 
 	while ((ret == 0) && (bytes_recvd > 0)) {
-		request = (struct hv_storvsc_request *)request_id;
+		request = (struct hv_storvsc_request *)(uintptr_t)request_id;
 		KASSERT(request, ("request"));
 
 		if ((request == &sc->hs_init_req) ||
