@@ -621,6 +621,7 @@ route_output(struct mbuf *m, struct socket *so)
 		struct rtentry *saved_nrt;
 
 	case RTM_ADD:
+	case RTM_CHANGE:
 		if (info.rti_info[RTAX_GATEWAY] == NULL)
 			senderr(EINVAL);
 		saved_nrt = NULL;
@@ -635,9 +636,9 @@ route_output(struct mbuf *m, struct socket *so)
 #endif
 			break;
 		}
-		error = rtrequest1_fib(RTM_ADD, &info, &saved_nrt,
+		error = rtrequest1_fib(rtm->rtm_type, &info, &saved_nrt,
 		    so->so_fibnum);
-		if (error == 0 && saved_nrt) {
+		if (error == 0 && saved_nrt != NULL) {
 #ifdef INET6
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
 #endif
@@ -676,8 +677,6 @@ route_output(struct mbuf *m, struct socket *so)
 		break;
 
 	case RTM_GET:
-	case RTM_CHANGE:
-	case RTM_LOCK:
 		rnh = rt_tables_get_rnh(so->so_fibnum,
 		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
@@ -757,133 +756,61 @@ route_output(struct mbuf *m, struct socket *so)
 		RT_ADDREF(rt);
 		RADIX_NODE_HEAD_RUNLOCK(rnh);
 
-		switch(rtm->rtm_type) {
-
-		case RTM_GET:
-		report:
-			RT_LOCK_ASSERT(rt);
-			if ((rt->rt_flags & RTF_HOST) == 0
-			    ? jailed_without_vnet(curthread->td_ucred)
-			    : prison_if(curthread->td_ucred,
-			    rt_key(rt)) != 0) {
-				RT_UNLOCK(rt);
-				senderr(ESRCH);
-			}
-			info.rti_info[RTAX_DST] = rt_key(rt);
-			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-			info.rti_info[RTAX_GENMASK] = 0;
-			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
-				ifp = rt->rt_ifp;
-				if (ifp) {
-					info.rti_info[RTAX_IFP] =
-					    ifp->if_addr->ifa_addr;
-					error = rtm_get_jailed(&info, ifp, rt,
-					    &saun, curthread->td_ucred);
-					if (error != 0) {
-						RT_UNLOCK(rt);
-						senderr(error);
-					}
-					if (ifp->if_flags & IFF_POINTOPOINT)
-						info.rti_info[RTAX_BRD] =
-						    rt->rt_ifa->ifa_dstaddr;
-					rtm->rtm_index = ifp->if_index;
-				} else {
-					info.rti_info[RTAX_IFP] = NULL;
-					info.rti_info[RTAX_IFA] = NULL;
-				}
-			} else if ((ifp = rt->rt_ifp) != NULL) {
-				rtm->rtm_index = ifp->if_index;
-			}
-			len = rt_msg2(rtm->rtm_type, &info, NULL, NULL);
-			if (len > rtm->rtm_msglen) {
-				struct rt_msghdr *new_rtm;
-				R_Malloc(new_rtm, struct rt_msghdr *, len);
-				if (new_rtm == NULL) {
-					RT_UNLOCK(rt);
-					senderr(ENOBUFS);
-				}
-				bcopy(rtm, new_rtm, rtm->rtm_msglen);
-				Free(rtm); rtm = new_rtm;
-			}
-			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
-			if (rt->rt_flags & RTF_GWFLAG_COMPAT)
-				rtm->rtm_flags = RTF_GATEWAY | 
-					(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
-			else
-				rtm->rtm_flags = rt->rt_flags;
-			rt_getmetrics(rt, &rtm->rtm_rmx);
-			rtm->rtm_addrs = info.rti_addrs;
-			break;
-
-		case RTM_CHANGE:
-			/*
-			 * New gateway could require new ifaddr, ifp;
-			 * flags may also be different; ifp may be specified
-			 * by ll sockaddr when protocol address is ambiguous
-			 */
-			if (((rt->rt_flags & RTF_GATEWAY) &&
-			     info.rti_info[RTAX_GATEWAY] != NULL) ||
-			    info.rti_info[RTAX_IFP] != NULL ||
-			    (info.rti_info[RTAX_IFA] != NULL &&
-			     !sa_equal(info.rti_info[RTAX_IFA],
-				       rt->rt_ifa->ifa_addr))) {
-				RT_UNLOCK(rt);
-				RADIX_NODE_HEAD_LOCK(rnh);
-				error = rt_getifa_fib(&info, rt->rt_fibnum);
-				/*
-				 * XXXRW: Really we should release this
-				 * reference later, but this maintains
-				 * historical behavior.
-				 */
-				if (info.rti_ifa != NULL)
-					ifa_free(info.rti_ifa);
-				RADIX_NODE_HEAD_UNLOCK(rnh);
-				if (error != 0)
-					senderr(error);
-				RT_LOCK(rt);
-			}
-			if (info.rti_ifa != NULL &&
-			    info.rti_ifa != rt->rt_ifa &&
-			    rt->rt_ifa != NULL &&
-			    rt->rt_ifa->ifa_rtrequest != NULL) {
-				rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt,
-				    &info);
-				ifa_free(rt->rt_ifa);
-			}
-			if (info.rti_info[RTAX_GATEWAY] != NULL) {
-				RT_UNLOCK(rt);
-				RADIX_NODE_HEAD_LOCK(rnh);
-				RT_LOCK(rt);
-				
-				error = rt_setgate(rt, rt_key(rt),
-				    info.rti_info[RTAX_GATEWAY]);
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+report:
+		RT_LOCK_ASSERT(rt);
+		if ((rt->rt_flags & RTF_HOST) == 0
+		    ? jailed_without_vnet(curthread->td_ucred)
+		    : prison_if(curthread->td_ucred,
+		    rt_key(rt)) != 0) {
+			RT_UNLOCK(rt);
+			senderr(ESRCH);
+		}
+		info.rti_info[RTAX_DST] = rt_key(rt);
+		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+		info.rti_info[RTAX_GENMASK] = 0;
+		if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
+			ifp = rt->rt_ifp;
+			if (ifp) {
+				info.rti_info[RTAX_IFP] =
+				    ifp->if_addr->ifa_addr;
+				error = rtm_get_jailed(&info, ifp, rt,
+				    &saun, curthread->td_ucred);
 				if (error != 0) {
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
-				rt->rt_flags &= ~RTF_GATEWAY;
-				rt->rt_flags |= (RTF_GATEWAY & info.rti_flags);
+				if (ifp->if_flags & IFF_POINTOPOINT)
+					info.rti_info[RTAX_BRD] =
+					    rt->rt_ifa->ifa_dstaddr;
+				rtm->rtm_index = ifp->if_index;
+			} else {
+				info.rti_info[RTAX_IFP] = NULL;
+				info.rti_info[RTAX_IFA] = NULL;
 			}
-			if (info.rti_ifa != NULL &&
-			    info.rti_ifa != rt->rt_ifa) {
-				ifa_ref(info.rti_ifa);
-				rt->rt_ifa = info.rti_ifa;
-				rt->rt_ifp = info.rti_ifp;
-			}
-			/* Allow some flags to be toggled on change. */
-			rt->rt_flags = (rt->rt_flags & ~RTF_FMASK) |
-				    (rtm->rtm_flags & RTF_FMASK);
-			rt_setmetrics(rtm, rt);
-			rtm->rtm_index = rt->rt_ifp->if_index;
-			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
-			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
-			/* FALLTHROUGH */
-		case RTM_LOCK:
-			/* We don't support locks anymore */
-			break;
+		} else if ((ifp = rt->rt_ifp) != NULL) {
+			rtm->rtm_index = ifp->if_index;
 		}
+		len = rt_msg2(rtm->rtm_type, &info, NULL, NULL);
+		if (len > rtm->rtm_msglen) {
+			struct rt_msghdr *new_rtm;
+			R_Malloc(new_rtm, struct rt_msghdr *, len);
+			if (new_rtm == NULL) {
+				RT_UNLOCK(rt);
+				senderr(ENOBUFS);
+			}
+			bcopy(rtm, new_rtm, rtm->rtm_msglen);
+			Free(rtm); rtm = new_rtm;
+		}
+		(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
+		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+			rtm->rtm_flags = RTF_GATEWAY | 
+				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+		else
+			rtm->rtm_flags = rt->rt_flags;
+		rt_getmetrics(rt, &rtm->rtm_rmx);
+		rtm->rtm_addrs = info.rti_addrs;
+
 		RT_UNLOCK(rt);
 		break;
 
