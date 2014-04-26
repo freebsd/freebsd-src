@@ -725,7 +725,7 @@ struct ifaddr *
 ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
-	register struct ifaddr *ifa;
+	struct ifaddr *ifa;
 	int not_found = 0;
 
 	if ((flags & RTF_GATEWAY) == 0) {
@@ -1041,7 +1041,7 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	 * a matching RTAX_GATEWAY.
 	 */
 	struct rtentry *rt, *rto = NULL;
-	register struct radix_node *rn;
+	struct radix_node *rn;
 	int error = 0;
 
 	rn = rnh->rnh_lookup(dst, netmask, rnh);
@@ -1143,12 +1143,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
 	int error = 0, needlock = 0;
-	register struct rtentry *rt;
+	struct rtentry *rt;
 #ifdef FLOWTABLE
-	register struct rtentry *rt0;
+	struct rtentry *rt0;
 #endif
-	register struct radix_node *rn;
-	register struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
 	struct sockaddr_storage mdst;
@@ -1571,9 +1571,9 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
-	register u_char *cp1 = (u_char *)src;
-	register u_char *cp2 = (u_char *)dst;
-	register u_char *cp3 = (u_char *)netmask;
+	u_char *cp1 = (u_char *)src;
+	u_char *cp2 = (u_char *)dst;
+	u_char *cp3 = (u_char *)netmask;
 	u_char *cplim = cp2 + *cp3;
 	u_char *cplim2 = cp2 + *cp1;
 
