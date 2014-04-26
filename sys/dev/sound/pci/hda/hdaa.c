@@ -53,7 +53,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdaa_lockowned(devinfo)	mtx_owned((devinfo)->lock)
 
 static const struct {
-	char *key;
+	const char *key;
 	uint32_t value;
 } hdaa_quirks_tab[] = {
 	{ "softpcmvol", HDAA_QUIRK_SOFTPCMVOL },
@@ -71,28 +71,26 @@ static const struct {
 	{ "ovref", HDAA_QUIRK_OVREF },
 	{ "vref", HDAA_QUIRK_VREF },
 };
-#define HDAA_QUIRKS_TAB_LEN	\
-		(sizeof(hdaa_quirks_tab) / sizeof(hdaa_quirks_tab[0]))
 
 #define HDA_PARSE_MAXDEPTH	10
 
 MALLOC_DEFINE(M_HDAA, "hdaa", "HDA Audio");
 
-const char *HDA_COLORS[16] = {"Unknown", "Black", "Grey", "Blue", "Green", "Red",
-    "Orange", "Yellow", "Purple", "Pink", "Res.A", "Res.B", "Res.C", "Res.D",
-    "White", "Other"};
+static const char *HDA_COLORS[16] = {"Unknown", "Black", "Grey", "Blue",
+    "Green", "Red", "Orange", "Yellow", "Purple", "Pink", "Res.A", "Res.B",
+    "Res.C", "Res.D", "White", "Other"};
 
-const char *HDA_DEVS[16] = {"Line-out", "Speaker", "Headphones", "CD",
+static const char *HDA_DEVS[16] = {"Line-out", "Speaker", "Headphones", "CD",
     "SPDIF-out", "Digital-out", "Modem-line", "Modem-handset", "Line-in",
     "AUX", "Mic", "Telephony", "SPDIF-in", "Digital-in", "Res.E", "Other"};
 
-const char *HDA_CONNS[4] = {"Jack", "None", "Fixed", "Both"};
+static const char *HDA_CONNS[4] = {"Jack", "None", "Fixed", "Both"};
 
-const char *HDA_CONNECTORS[16] = {
+static const char *HDA_CONNECTORS[16] = {
     "Unknown", "1/8", "1/4", "ATAPI", "RCA", "Optical", "Digital", "Analog",
     "DIN", "XLR", "RJ-11", "Combo", "0xc", "0xd", "0xe", "Other" };
 
-const char *HDA_LOCS[64] = {
+static const char *HDA_LOCS[64] = {
     "0x00", "Rear", "Front", "Left", "Right", "Top", "Bottom", "Rear-panel",
 	"Drive-bay", "0x09", "0x0a", "0x0b", "0x0c", "0x0d", "0x0e", "0x0f",
     "Internal", "0x11", "0x12", "0x13", "0x14", "0x15", "0x16", "Riser",
@@ -102,10 +100,10 @@ const char *HDA_LOCS[64] = {
     "Other", "0x31", "0x32", "0x33", "0x34", "0x35", "Other-Bott", "Lid-In",
 	"Lid-Out", "0x39", "0x3a", "0x3b", "0x3c", "0x3d", "0x3e", "0x3f" };
 
-const char *HDA_GPIO_ACTIONS[8] = {
+static const char *HDA_GPIO_ACTIONS[8] = {
     "keep", "set", "clear", "disable", "input", "0x05", "0x06", "0x07"};
 
-const char *HDA_HDMI_CODING_TYPES[18] = {
+static const char *HDA_HDMI_CODING_TYPES[18] = {
     "undefined", "LPCM", "AC-3", "MPEG1", "MP3", "MPEG2", "AAC-LC", "DTS",
     "ATRAC", "DSD", "E-AC-3", "DTS-HD", "MLP", "DST", "WMAPro", "HE-AAC",
     "HE-AACv2", "MPEG-Surround"
@@ -889,7 +887,7 @@ hdaa_config_fetch(const char *str, uint32_t *on, uint32_t *off)
 			inv = 2;
 		else
 			inv = 0;
-		for (k = 0; len > inv && k < HDAA_QUIRKS_TAB_LEN; k++) {
+		for (k = 0; len > inv && k < nitems(hdaa_quirks_tab); k++) {
 			if (strncmp(str + i + inv,
 			    hdaa_quirks_tab[k].key, len - inv) != 0)
 				continue;
@@ -917,7 +915,7 @@ hdaa_sysctl_quirks(SYSCTL_HANDLER_ARGS)
 
 	quirks = *(uint32_t *)oidp->oid_arg1;
 	buf[0] = 0;
-	for (i = 0; i < HDAA_QUIRKS_TAB_LEN; i++) {
+	for (i = 0; i < nitems(hdaa_quirks_tab); i++) {
 		if ((quirks & hdaa_quirks_tab[i].value) != 0)
 			n += snprintf(buf + n, sizeof(buf) - n, "%s%s",
 			    n != 0 ? "," : "", hdaa_quirks_tab[i].key);
@@ -1184,7 +1182,7 @@ hdaa_widget_parse(struct hdaa_widget *w)
 static void
 hdaa_widget_postprocess(struct hdaa_widget *w)
 {
-	char *typestr;
+	const char *typestr;
 
 	w->type = HDA_PARAM_AUDIO_WIDGET_CAP_TYPE(w->param.widget_cap);
 	switch (w->type) {
@@ -5387,7 +5385,7 @@ hdaa_dump_pin_configs(struct hdaa_devinfo *devinfo)
 }
 
 static void
-hdaa_dump_amp(device_t dev, uint32_t cap, char *banner)
+hdaa_dump_amp(device_t dev, uint32_t cap, const char *banner)
 {
 	device_printf(dev, "     %s amp: 0x%08x\n", banner, cap);
 	device_printf(dev, "                 "
@@ -5842,7 +5840,7 @@ hdaa_configure(device_t dev)
 	HDA_BOOTVERBOSE(
 		if (devinfo->quirks != 0) {
 			device_printf(dev, "FG config/quirks:");
-			for (i = 0; i < HDAA_QUIRKS_TAB_LEN; i++) {
+			for (i = 0; i < nitems(hdaa_quirks_tab); i++) {
 				if ((devinfo->quirks &
 				    hdaa_quirks_tab[i].value) ==
 				    hdaa_quirks_tab[i].value)
@@ -6470,7 +6468,7 @@ static device_method_t hdaa_methods[] = {
 	DEVMETHOD(hdac_stream_intr,	hdaa_stream_intr),
 	DEVMETHOD(hdac_unsol_intr,	hdaa_unsol_intr),
 	DEVMETHOD(hdac_pindump,		hdaa_pindump),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hdaa_driver = {
@@ -6481,7 +6479,7 @@ static driver_t hdaa_driver = {
 
 static devclass_t hdaa_devclass;
 
-DRIVER_MODULE(snd_hda, hdacc, hdaa_driver, hdaa_devclass, 0, 0);
+DRIVER_MODULE(snd_hda, hdacc, hdaa_driver, hdaa_devclass, NULL, NULL);
 
 static void
 hdaa_chan_formula(struct hdaa_devinfo *devinfo, int asid,
@@ -6787,7 +6785,7 @@ static device_method_t hdaa_pcm_methods[] = {
 	DEVMETHOD(device_probe,		hdaa_pcm_probe),
 	DEVMETHOD(device_attach,	hdaa_pcm_attach),
 	DEVMETHOD(device_detach,	hdaa_pcm_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hdaa_pcm_driver = {
@@ -6796,6 +6794,6 @@ static driver_t hdaa_pcm_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_hda_pcm, hdaa, hdaa_pcm_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_hda_pcm, hdaa, hdaa_pcm_driver, pcm_devclass, NULL, NULL);
 MODULE_DEPEND(snd_hda, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_hda, 1);
