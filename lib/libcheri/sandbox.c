@@ -59,12 +59,6 @@
 #include "sandbox_internal.h"
 #include "sandboxasm.h"
 
-#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
-
-#define	GUARD_PAGE_SIZE	0x1000
-#define	METADATA_SIZE	0x1000
-#define	STACK_SIZE	(32*PAGE_SIZE)
-
 /*
  * Control verbose debugging output around sandbox invocation; disabled by
  * default but may be enabled using an environmental variable.
