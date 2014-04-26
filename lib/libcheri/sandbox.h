@@ -90,6 +90,7 @@ void	sandbox_class_destroy(struct sandbox_class *sbcp);
 struct sandbox_object;
 int	sandbox_object_new(struct sandbox_class *sbcp,
 	    struct sandbox_object **sbopp);
+void	*sandbox_object_getbase(struct sandbox_object *sbop);
 #if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 		    u_int methodnum, register_t a1, register_t a2,

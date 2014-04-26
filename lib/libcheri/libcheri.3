@@ -36,6 +36,7 @@
 .Nm sandbox_class_method_declare ,
 .Nm sandbox_class_destroy ,
 .Nm sandbox_object_new ,
+.Nm sandbox_object_getbase
 .Nm sandbox_object_getsystemobject ,
 .Nm sandbox_object_cinvoke ,
 .Nm sandbox_object_invoke ,
@@ -67,6 +68,10 @@
 .Fo sandbox_object_new
 .Fa "struct sandbox_class *sbcp"
 .Fa "struct sandbox_object **sbopp"
+.Fc
+.Ft "void *"
+.Fo sandbox_object_getbase
+.Fa "struct sandbox_object *sbop"
 .Fc
 .Ft struct cheri_object
 .Fo sandbox_object_getsystemobject
@@ -170,6 +175,10 @@ and on success returns a sandbox object via
 When a sandbox object is no longer required, it can be destroyed by passing it
 to
 .Fn sandbox_object_destroy .
+.Fn sandbox_object_getbase
+will return the base address for a sandbox's micro-address space in virtual
+memory; use of this function is discouraged as the underlying implementation
+of sandbox objects may change over time.
 .Pp
 .Fn sandbox_object_getsystemobject
 may be used to query a reference to a CHERI system class reference suitable

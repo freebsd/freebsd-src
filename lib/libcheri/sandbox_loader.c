@@ -265,3 +265,10 @@ sandbox_object_unload(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 
 	munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
 }
+
+void *
+sandbox_object_getbase(struct sandbox_object *sbop)
+{
+
+	return (sbop->sbo_mem);
+}
