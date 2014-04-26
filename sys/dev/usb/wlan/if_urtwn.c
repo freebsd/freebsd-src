@@ -1302,6 +1302,7 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	uint8_t off, msk, tmp;
 	int i;
 
+	off = 0;
 	urtwn_efuse_switch_power(sc);
 
 	/* Read full ROM image. */
