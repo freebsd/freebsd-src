@@ -40,7 +40,7 @@
 .Nd display or set date and time
 .Sh SYNOPSIS
 .Nm
-.Op Fl ju
+.Op Fl jRu
 .Op Fl r Ar seconds
 .Oo
 .Fl v
@@ -58,7 +58,7 @@
 .Ar MM Op Ar .ss
 .Sm on
 .Nm
-.Op Fl jnu
+.Op Fl jnRu
 .Fl f Ar input_fmt new_date
 .Op Cm + Ns Ar output_fmt
 .Nm
@@ -130,6 +130,16 @@ The
 .Fl n
 option suppresses this behavior and causes the time to be set only on the
 current machine.
+.It Fl R
+Use RFC 2822 date and time output format. This is equivalent to use
+.Dq Li %a, %d %b %Y \&%T %z
+as
+.Ar output_fmt
+while
+.Ev LC_TIME
+is set to the
+.Dq C
+locale .
 .It Fl r Ar seconds
 Print the date and time represented by
 .Ar seconds ,
