@@ -1550,9 +1550,6 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
  * to perform a different comparison.
  */
 
-#define	sa_equal(a1, a2)	\
-	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
-
 #define	sa_dl_equal(a1, a2)	\
 	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
 	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
