@@ -125,10 +125,6 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 #define	V_rttrash	VNET(rttrash)
 
 
-/* compare two sockaddr structures */
-#define	sa_equal(a1, a2) (((a1)->sa_len == (a2)->sa_len) && \
-    (bcmp((a1), (a2), (a1)->sa_len) == 0))
-
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
  * The operation can be done safely (in this code) because a

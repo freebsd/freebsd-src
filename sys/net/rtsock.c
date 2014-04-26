@@ -517,7 +517,6 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 static int
 route_output(struct mbuf *m, struct socket *so)
 {
-#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
@@ -960,7 +959,6 @@ flush:
 		Free(rtm);
     }
 	return (error);
-#undef	sa_equal
 }
 
 static void
