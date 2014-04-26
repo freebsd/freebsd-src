@@ -2234,7 +2234,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 static void
 vmx_vmcleanup(void *arg)
 {
-	int i, error;
+	int i;
 	struct vmx *vmx = arg;
 
 	if (apic_access_virtualization(vmx, 0))
@@ -2242,13 +2242,6 @@ vmx_vmcleanup(void *arg)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vpid_free(vmx->state[i].vpid);
-
-	/*
-	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
-	 */
-	error = vmclear(&vmx->vmcs[0]);
-	if (error != 0)
-		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
 	free(vmx, M_VMX);
 
