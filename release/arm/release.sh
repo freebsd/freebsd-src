@@ -99,7 +99,7 @@ main() {
 		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
-		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} WITH_GCC=1 \
+		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
