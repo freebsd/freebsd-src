@@ -116,9 +116,6 @@ int		Kflag = 0;
 #endif
 int		vflag = 0;
 
-#define	sa_equal(a1, a2)	\
-	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
-
 #define	sa_dl_equal(a1, a2)	\
 	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
 	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
