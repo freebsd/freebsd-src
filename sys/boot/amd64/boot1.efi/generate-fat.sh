@@ -20,7 +20,7 @@ OUTPUT_FILE=fat.tmpl
 
 dd if=/dev/zero of=$OUTPUT_FILE bs=512 count=$FAT_SIZE
 DEVICE=`mdconfig -a -f $OUTPUT_FILE`
-newfs_msdos -F 12 $DEVICE
+newfs_msdos -F 32 $DEVICE
 mkdir stub
 mount -t msdosfs /dev/$DEVICE stub
 
