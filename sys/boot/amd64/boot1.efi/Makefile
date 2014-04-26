@@ -26,7 +26,7 @@ CFLAGS+=	-I${.CURDIR}/../../..
 .PATH:		${.CURDIR}/../efi ${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../common
 
-FILES=	boot1.efi
+FILES=	boot1.efi boot1.efifat
 FILESMODE_boot1.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/../efi/ldscript.${MACHINE_CPUARCH}
@@ -56,6 +56,20 @@ boot1.efi: loader.sym
 CFLAGS+=	-I${.CURDIR}/../../common
 
 boot1.o: ${.CURDIR}/../../common/ufsread.c
+
+# The following inserts out objects into a template FAT file system
+# created by generate-fat.sh
+
+.include "${.CURDIR}/Makefile.fat"
+
+boot1.efifat: boot1.efi
+	echo ${.OBJDIR}
+	uudecode ${.CURDIR}/fat.tmpl.bz2.uu
+	mv fat.tmpl.bz2 ${.TARGET}.bz2
+	bzip2 -f -d ${.TARGET}.bz2
+	dd if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
+
+CLEANFILES= boot1.efifat
 
 .endif # ${COMPILER_TYPE} != "gcc"
 
