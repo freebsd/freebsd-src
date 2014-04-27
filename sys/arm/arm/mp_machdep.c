@@ -278,7 +278,6 @@ ipi_handler(void *arg)
 			break;
 
 		case IPI_STOP:
-		case IPI_STOP_HARD:
 			/*
 			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
 			 * necessary to add it in the switch.
