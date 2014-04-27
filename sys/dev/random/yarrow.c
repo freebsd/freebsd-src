@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
 #include <dev/random/random_harvestq.h>
+#include <dev/random/uint128.h>
 #include <dev/random/yarrow.h>
 #else /* !_KERNEL */
 #include <sys/param.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
+#include <dev/random/uint128.h>
 #include <dev/random/yarrow.h>
 #endif /* _KERNEL */
 
@@ -74,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #elif defined(RANDOM_YARROW) && defined(RANDOM_FORTUNA)
 #error "Must define either RANDOM_YARROW or RANDOM_FORTUNA"
 #endif
+
 #if defined(RANDOM_YARROW)
 
 #define TIMEBIN		16	/* max value for Pt/t */
@@ -82,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #define SLOW		1
 
 /* This algorithm (and code) presumes that KEYSIZE is twice as large as BLOCKSIZE */
-CTASSERT(BLOCKSIZE == sizeof(__uint128_t));
+CTASSERT(BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(KEYSIZE == 2*BLOCKSIZE);
 
 /* This is the beastie that needs protecting. It contains all of the
@@ -92,7 +95,7 @@ CTASSERT(KEYSIZE == 2*BLOCKSIZE);
 static struct yarrow_state {
 	union {
 		uint8_t byte[BLOCKSIZE];
-		__uint128_t whole;
+		uint128_t whole;
 	} counter;			/* C */
 	struct randomdev_key key;	/* K */
 	u_int gengateinterval;		/* Pg */
@@ -138,10 +141,6 @@ random_yarrow_init_alg(void)
 #ifdef _KERNEL
 	struct sysctl_oid *random_yarrow_o;
 #endif /* _KERNEL */
-
-#ifdef RANDOM_DEBUG
-	printf("random: %s\n", __func__);
-#endif
 
 	memset((void *)(yarrow_state.start_cache.junk), 0, KEYSIZE);
 	randomdev_hash_init(&yarrow_state.start_cache.hash);
@@ -214,16 +213,13 @@ random_yarrow_init_alg(void)
 	}
 
 	/* Clear the counter */
-	yarrow_state.counter.whole = 0ULL;
+	uint128_clear(&yarrow_state.counter.whole);
 }
 
 void
 random_yarrow_deinit_alg(void)
 {
 
-#ifdef RANDOM_DEBUG
-	printf("random: %s\n", __func__);
-#endif
 	mtx_destroy(&random_reseed_mtx);
 	memset((void *)(&yarrow_state), 0, sizeof(struct yarrow_state));
 
@@ -307,22 +303,7 @@ random_yarrow_process_buffer(uint8_t *buf, u_int length)
 		/* Don't do this here - do it in bulk at the end */
 		yarrow_state.pool[pl].source[RANDOM_CACHED].bits += bits;
 #endif
-#ifdef RANDOM_DEBUG_VERBOSE
-		printf("random: %s - ", __func__);
-		printf(" %jX", event.he_somecounter);
-		printf(" %u", event.he_bits);
-		printf(" %u", event.he_source);
-		printf(" %u", event.he_destination);
-		printf(" %u", event.he_size);
-		printf(" %X", *((uint32_t *)(&event.he_entropy)));
-		printf("\n");
-#endif
-
 	}
-#ifdef RANDOM_DEBUG_VERBOSE
-	printf("random: %s - ", __func__);
-	printf(" bit contribution magical guess is %u\n", length >> 4);
-#endif
 	for (pl = FAST; pl <= SLOW; pl++)
 		yarrow_state.pool[pl].source[RANDOM_CACHED].bits += (length >> 4);
 
@@ -407,7 +388,7 @@ reseed(u_int fastslow)
 
 	/* 4. Recompute the counter */
 
-	yarrow_state.counter.whole = 0ULL;
+	uint128_clear(&yarrow_state.counter.whole);
 	randomdev_encrypt(&yarrow_state.key, yarrow_state.counter.byte, temp, BLOCKSIZE);
 	memcpy(yarrow_state.counter.byte, temp, BLOCKSIZE);
 
@@ -460,7 +441,7 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 			generator_gate();
 			yarrow_state.outputblocks = 0;
 		}
-		yarrow_state.counter.whole++;
+		uint128_increment(&yarrow_state.counter.whole);
 		randomdev_encrypt(&yarrow_state.key, yarrow_state.counter.byte, buf, BLOCKSIZE);
 		buf += BLOCKSIZE;
 	}
@@ -508,12 +489,8 @@ generator_gate(void)
 	u_int i;
 	uint8_t temp[KEYSIZE];
 
-#ifdef RANDOM_DEBUG_VERBOSE
-	printf("random: %s\n", __func__);
-#endif
-
 	for (i = 0; i < KEYSIZE; i += BLOCKSIZE) {
-		yarrow_state.counter.whole++;
+		uint128_increment(&yarrow_state.counter.whole);
 		randomdev_encrypt(&yarrow_state.key, yarrow_state.counter.byte, temp + i, BLOCKSIZE);
 	}
 

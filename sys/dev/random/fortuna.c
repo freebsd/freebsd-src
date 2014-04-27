@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Mark R V Murray
+ * Copyright (c) 2013-2014 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
 #include <dev/random/random_harvestq.h>
-// #include <dev/random/randomdev_soft.h>
+#include <dev/random/uint128.h>
 #include <dev/random/fortuna.h>
 #else /* !_KERNEL */
 #include <sys/param.h>
@@ -66,7 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
-#include <dev/random/yarrow.h>
+#include <dev/random/uint128.h>
+#include <dev/random/fortuna.h>
 #endif /* _KERNEL */
 
 #if !defined(RANDOM_YARROW) && !defined(RANDOM_FORTUNA)
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #elif defined(RANDOM_YARROW) && defined(RANDOM_FORTUNA)
 #error "Must define either RANDOM_YARROW or RANDOM_FORTUNA"
 #endif
+
 #if defined(RANDOM_FORTUNA)
 
 #define NPOOLS 32
@@ -82,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define MAXPOOLSIZE 65536
 
 /* This algorithm (and code) presumes that KEYSIZE is twice as large as BLOCKSIZE */
-CTASSERT(BLOCKSIZE == sizeof(__uint128_t));
+CTASSERT(BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(KEYSIZE == 2*BLOCKSIZE);
 
 /* This is the beastie that needs protecting. It contains all of the
@@ -102,7 +104,7 @@ static struct fortuna_state {
 	/* C - 128 bits */
 	union {
 		uint8_t byte[BLOCKSIZE];
-		__uint128_t whole;
+		uint128_t whole;
 	} counter;
 
 	/* K */
@@ -139,10 +141,6 @@ random_fortuna_init_alg(void)
 	int i;
 #ifdef _KERNEL
 	struct sysctl_oid *random_fortuna_o;
-#endif
-
-#ifdef RANDOM_DEBUG
-	printf("random: %s\n", __func__);
 #endif
 
 	memset((void *)(fortuna_start_cache.junk), 0, sizeof(fortuna_start_cache.junk));
@@ -187,7 +185,7 @@ random_fortuna_init_alg(void)
 	/* F&S - InitializeGenerator() */
 
 	/* F&S - C = 0 */
-	fortuna_state.counter.whole = 0ULL;
+	uint128_clear(&fortuna_state.counter.whole);
 
 	/* F&S - K = 0 */
 	memset((void *)(&fortuna_state.key), 0, sizeof(struct randomdev_key));
@@ -197,9 +195,6 @@ void
 random_fortuna_deinit_alg(void)
 {
 
-#ifdef RANDOM_DEBUG
-	printf("random: %s\n", __func__);
-#endif
 	mtx_destroy(&random_reseed_mtx);
 	memset((void *)(&fortuna_state), 0, sizeof(struct fortuna_state));
 }
@@ -238,9 +233,6 @@ reseed(uint8_t *junk, u_int length)
 	uint8_t hash[KEYSIZE], temp[KEYSIZE];
 
 	KASSERT(fortuna_state.minpoolsize > 0, ("random: Fortuna threshold = 0"));
-#ifdef RANDOM_DEBUG
-	printf("random: %s %d %u\n", __func__, (fortuna_state.counter.whole != 0ULL), length);
-#endif
 #ifdef _KERNEL
 	mtx_assert(&random_reseed_mtx, MA_OWNED);
 #endif
@@ -262,11 +254,10 @@ reseed(uint8_t *junk, u_int length)
 	memset((void *)hash, 0, sizeof(hash));
 
 	/* Unblock the device if it was blocked due to being unseeded */
-	if (fortuna_state.counter.whole == 0ULL)
+	if (uint128_is_zero(fortuna_state.counter.whole))
 		random_adaptor_unblock();
-
 	/* F&S - C = C + 1 */
-	fortuna_state.counter.whole++;
+	uint128_increment(&fortuna_state.counter.whole);
 }
 
 /* F&S - GenerateBlocks() */
@@ -282,7 +273,7 @@ random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 		buf += BLOCKSIZE;
 
 		/* F&S - C = C + 1 */
-		fortuna_state.counter.whole++;
+		uint128_increment(&fortuna_state.counter.whole);
 	}
 }
 
@@ -342,15 +333,9 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 				/* F&S - ReseedCNT = ReseedCNT + 1 */
 				fortuna_state.reseedcount++;
 				/* s = \epsilon by default */
-#ifdef RANDOM_DEBUG
-				printf("random: active reseed: reseedcount [%d] [", fortuna_state.reseedcount);
-#endif
 				for (i = 0; i < NPOOLS; i++) {
 					/* F&S - if Divides(ReseedCnt, 2^i) ... */
 					if ((fortuna_state.reseedcount % (1 << i)) == 0U) {
-#ifdef RANDOM_DEBUG
-						printf(" %d", i);
-#endif
 						seedlength += KEYSIZE;
 						/* F&S - temp = (P_i) */
 						randomdev_hash_finish(&fortuna_state.pool[i].hash, temp);
@@ -366,8 +351,7 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 						break;
 				}
 #ifdef RANDOM_DEBUG
-				printf(" ]\n");
-				printf("random: active reseed: ");
+				printf("random: active reseed: reseedcount [%d] ", fortuna_state.reseedcount);
 				for (i = 0; i < NPOOLS; i++)
 					printf(" %d", fortuna_state.pool[i].length);
 				printf("\n");
@@ -438,7 +422,7 @@ int
 random_fortuna_seeded(void)
 {
 
-	return (fortuna_state.counter.whole != 0ULL);
+	return (uint128_is_zero(fortuna_state.counter.whole));
 }
 
 #endif /* RANDOM_FORTUNA */
