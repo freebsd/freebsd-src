@@ -531,6 +531,8 @@ route_output(struct mbuf *m, struct socket *so)
 	union sockaddr_union saun;
 	sa_family_t saf = AF_UNSPEC;
 
+	fibnum = so->so_fibnum;
+
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
 		       (m = m_pullup(m, sizeof(long))) == NULL))
@@ -581,8 +583,6 @@ route_output(struct mbuf *m, struct socket *so)
 		if (error)
 			senderr(error);
 	}
-
-	fibnum = so->so_fibnum;
 
 	/*
 	 * The given gateway address may be an interface address.
