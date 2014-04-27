@@ -12,3 +12,4 @@ nodevice	vga
 
 device		vt
 device		vt_vga
+device		vt_efifb
