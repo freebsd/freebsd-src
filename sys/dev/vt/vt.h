@@ -337,10 +337,10 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
 #ifndef VT_FB_DEFAULT_WIDTH
-#define	VT_FB_DEFAULT_WIDTH	640
+#define	VT_FB_DEFAULT_WIDTH	2048
 #endif
 #ifndef VT_FB_DEFAULT_HEIGHT
-#define	VT_FB_DEFAULT_HEIGHT	480
+#define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
 
 #define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\

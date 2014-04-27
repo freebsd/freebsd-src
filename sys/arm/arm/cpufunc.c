@@ -769,7 +769,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	
 	/* Cache operations */
 	
-	armv7_idcache_wbinv_all,         /* icache_sync_all      */
+	armv7_icache_sync_all, 	        /* icache_sync_all      */
 	armv7_icache_sync_range,        /* icache_sync_range    */
 	
 	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */

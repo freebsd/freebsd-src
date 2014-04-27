@@ -1302,6 +1302,7 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	uint8_t off, msk, tmp;
 	int i;
 
+	off = 0;
 	urtwn_efuse_switch_power(sc);
 
 	/* Read full ROM image. */
@@ -1738,6 +1739,7 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 	uint8_t cck_agc_rpt, lna_idx, vga_idx;
 	int8_t rssi;
 
+	rssi = 0;
 	if (rate <= 3) {
 		cck = (struct r88e_rx_cck *)physt;
 		cck_agc_rpt = cck->agc_rpt;
