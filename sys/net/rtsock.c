@@ -542,32 +542,38 @@ route_output(struct mbuf *m, struct socket *so)
 		panic("route_output");
 	len = m->m_pkthdr.len;
 	if (len < sizeof(*rtm) ||
-	    len != mtod(m, struct rt_msghdr *)->rtm_msglen) {
-		info.rti_info[RTAX_DST] = NULL;
+	    len != mtod(m, struct rt_msghdr *)->rtm_msglen)
 		senderr(EINVAL);
-	}
+
 	R_Malloc(rtm, struct rt_msghdr *, len);
-	if (rtm == NULL) {
-		info.rti_info[RTAX_DST] = NULL;
+	if (rtm == NULL)
 		senderr(ENOBUFS);
-	}
 	m_copydata(m, 0, len, (caddr_t)rtm);
+	bzero(&info, sizeof(info));
+
 	if (rtm->rtm_version != RTM_VERSION) {
-		info.rti_info[RTAX_DST] = NULL;
+		/* Do not touch message since format is unknown */
+		Free(rtm);
+		rtm = NULL;
 		senderr(EPROTONOSUPPORT);
 	}
+
+	/*
+	 * Starting from here, it is possible
+	 * to alter original message and insert
+	 * caller PID and error value.
+	 */
+
 	rtm->rtm_pid = curproc->p_pid;
-	bzero(&info, sizeof(info));
 	info.rti_addrs = rtm->rtm_addrs;
 	/*
 	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
 	 * link-local address because rtrequest requires addresses with
 	 * embedded scope id.
 	 */
-	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info)) {
-		info.rti_info[RTAX_DST] = NULL;
+	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info))
 		senderr(EINVAL);
-	}
+
 	info.rti_flags = rtm->rtm_flags;
 	if (info.rti_info[RTAX_DST] == NULL ||
 	    info.rti_info[RTAX_DST]->sa_family >= AF_MAX ||
