@@ -1082,7 +1082,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 {
 	int i;
 	int len, buflen = 0, dlen;
-	caddr_t cp;
+	caddr_t cp = NULL;
 	struct rt_msghdr *rtm = NULL;
 #ifdef INET6
 	struct sockaddr_storage ss;
