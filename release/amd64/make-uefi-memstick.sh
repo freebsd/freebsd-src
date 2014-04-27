@@ -1,12 +1,9 @@
 #!/bin/sh
 #
-# This script generates a "memstick image" for UEFI-capable systems.
-#
-# Prerequisites:
-#  - 'make release'
-#  - KERNCONF *must* be VT (or vt_efifb(4) compiled into the kernel)
-#
-# Note:  This only works for amd64, because i386 lacks the EFI boot bits.
+# This script generates a "memstick image" (image that can be copied to a
+# USB memory stick) from a directory tree.  Note that the script does not
+# clean up after itself very well for error conditions on purpose so the
+# problem can be diagnosed (full filesystem most likely but ...).
 #
 # Usage: make-memstick.sh <directory tree> <image filename>
 #
@@ -31,43 +28,14 @@ if [ -e ${2} ]; then
 	exit 1
 fi
 
-dirsize=$(du -shLm ${1} | awk '{print $1}')
-dirsize=$(( $(( $(( ${dirsize} + 256 )) * 1024 * 1024 )) ))
-truncate -s ${dirsize} ${2}
+echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' > ${1}/etc/fstab
+makefs -B little -o label=FreeBSD_Install ${2}.part ${1}
+if [ $? -ne 0 ]; then
+	echo "makefs failed"
+	exit 1
+fi
+rm ${1}/etc/fstab
 
-unit=$(mdconfig -a -t vnode -f ${2})
-gpart create -s mbr /dev/${unit}
-gpart add -t '!0xEF' -s 32M /dev/${unit}
-gpart add -t freebsd /dev/${unit}
-gpart set -a active -i 2 /dev/${unit}
-gpart bootcode -b ${1}/boot/boot0 /dev/${unit}
-gpart create -s bsd -n 20 /dev/${unit}s2
-gpart add -t freebsd-ufs /dev/${unit}s2
-gpart bootcode -b ${1}/boot/boot /dev/${unit}s2
-newfs_msdos /dev/${unit}s1
-newfs -L rootfs /dev/${unit}s2a
-mkdir -p ${1}/mnt
-mount -t msdosfs /dev/${unit}s1 ${1}/mnt
-mkdir -p ${1}/mnt/efi/boot
-cp -p ${1}/boot/boot1.efi ${1}/mnt/efi/boot/BOOTx64.efi
-
-while ! umount ${1}/mnt; do
-	sleep 1
-done
-
-mkdir -p mnt
-mount /dev/${unit}s2a mnt
-tar -cf - -C ${1} . | tar -xf - -C mnt
-echo "/dev/ufs/rootfs / ufs ro,noatime 1 1" > mnt/etc/fstab
-
-while ! umount mnt; do
-	sleep 1
-done
-
-# Default boot selection to MBR so systems that do not support UEFI
-# do not fail to boot without human interaction.
-boot0cfg -s 2 /dev/${unit}
-
-mdconfig -d -u ${unit}
-rmdir mnt
+mkimg -s gpt -b ${1}/boot/pmbr -p freebsd-boot:=${1}/boot/gptboot -p efi:=${1}/boot/boot1.efifat -p freebsd-ufs:=${2}.part -o ${2}
+rm ${2}.part
 
