@@ -170,12 +170,14 @@ static const struct explore explore[] = {
 	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, 0x07 },
 	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
 	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
 	{ PF_INET6, SOCK_RAW, ANY, 0x05 },
 #endif
 	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
 	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, 0x07 },
 	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
 	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
 	{ PF_INET, SOCK_RAW, ANY, 0x05 },
 	{ -1, 0, 0, 0 },
 };
@@ -1476,6 +1478,9 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 			break;
 		case IPPROTO_SCTP:
 			proto = "sctp";
+			break;
+		case IPPROTO_UDPLITE:
+			proto = "udplite";
 			break;
 		default:
 			proto = NULL;

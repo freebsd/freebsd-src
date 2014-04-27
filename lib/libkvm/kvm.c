@@ -73,8 +73,43 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 
 #include "kvm_private.h"
 
+#ifndef CROSS_LIBKVM
+
 /* from src/lib/libc/gen/nlist.c */
 int __fdnlist(int, struct nlist *);
+
+#define	kvm_fdnlist	__fdnlist
+
+#else
+
+#include <proc_service.h>
+
+static int
+kvm_fdnlist(int fd, struct nlist *list)
+{
+	psaddr_t addr;
+	ps_err_e pserr;
+	int nfail;
+
+	nfail = 0; 
+	while (list->n_name != NULL && list->n_name[0] != '\0') {
+		list->n_other = 0;
+		list->n_desc = 0;
+		pserr = ps_pglobal_lookup(NULL, NULL, list->n_name, &addr);
+		if (pserr != PS_OK) {
+			nfail++;
+			list->n_value = 0;
+			list->n_type = 0;
+		} else {
+			list->n_value = addr;
+			list->n_type = N_DATA | N_EXT;
+		}
+		list++;
+	}
+	return (nfail);
+}
+
+#endif /* CROSS_LIBKVM */
 
 char *
 kvm_geterr(kvm_t *kd)
@@ -341,7 +376,7 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 
 	/* Do lookup on the reduced list. */
 	np = n;
-	unresolved = __fdnlist(kd->nlfd, np);
+	unresolved = kvm_fdnlist(kd->nlfd, np);
 
 	/* Check if we could resolve further symbols and update the list. */
 	if (unresolved >= 0 && unresolved < missing) {
@@ -398,7 +433,7 @@ _kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 	 * slow library call.
 	 */
 	if (!ISALIVE(kd)) {
-		error = __fdnlist(kd->nlfd, nl);
+		error = kvm_fdnlist(kd->nlfd, nl);
 		if (error <= 0)			/* Hard error or success. */
 			return (error);
 

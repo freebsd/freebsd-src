@@ -260,6 +260,7 @@ FBSD_1.3 {
 	ccosf;
 	ccosh;
 	ccoshf;
+	coshl;
 	ctan;
 	ctanf;
 	ctanh;
@@ -270,13 +271,12 @@ FBSD_1.3 {
 	log1pl;
 	log2l;
 	logl;
+	sinhl;
+	tanhl;
 	/* Implemented as weak aliases for imprecise versions */
-	coshl;
 	erfcl;
 	erfl;
 	lgammal;
 	powl;
-	sinhl;
-	tanhl;
 	tgammal;
 };

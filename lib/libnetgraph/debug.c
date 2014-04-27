@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_eiface.h>
 #include <netgraph/ng_etf.h>
 #include <netgraph/ng_ether.h>
-#include <netgraph/ng_fec.h>
 #include <netgraph/ng_frame_relay.h>
 #include <netgraph/ng_gif.h>
 #include <netgraph/ng_gif_demux.h>
@@ -136,7 +135,6 @@ static const struct ng_cookie cookies[] = {
 	COOKIE(EIFACE),
 	COOKIE(ETF),
 	COOKIE(ETHER),
-	COOKIE(FEC),
 	COOKIE(FRAMERELAY),
 	COOKIE(GIF),
 	COOKIE(GIF_DEMUX),

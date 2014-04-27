@@ -71,6 +71,15 @@ __FBSDID("$FreeBSD$");
 #include "zalloc_defs.h"
 
 /*
+ * Objects in the pool must be aligned to at least the size of struct MemNode.
+ * They must also be aligned to MALLOCALIGN, which should normally be larger
+ * than the struct, so assert that to be so at compile time.
+ */
+typedef char assert_align[(sizeof(struct MemNode) <= MALLOCALIGN) ? 1 : -1];
+
+#define	MEMNODE_SIZE_MASK	MALLOCALIGN_MASK
+
+/*
  * znalloc() -	allocate memory (without zeroing) from pool.  Call reclaim
  *		and retry if appropriate, return NULL if unable to allocate
  *		memory.

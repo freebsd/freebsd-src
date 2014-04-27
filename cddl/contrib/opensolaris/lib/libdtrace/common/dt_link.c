@@ -242,8 +242,14 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__powerpc__)
-/* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+			/*
+			 * Add 4 bytes to hit the low half of this 64-bit
+			 * big-endian address.
+			 */
+			rel->r_offset = s->dofs_offset +
+			    dofr[j].dofr_offset + 4;
+			rel->r_info = ELF32_R_INFO(count + dep->de_global,
+			    R_PPC_REL32);
 #elif defined(__sparc)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -423,7 +429,10 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 #elif defined(__mips__)
 /* XXX */
 #elif defined(__powerpc__)
-/* XXX */
+			rel->r_offset = s->dofs_offset +
+			    dofr[j].dofr_offset;
+			rel->r_info = ELF64_R_INFO(count + dep->de_global,
+			    R_PPC64_REL64);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -824,12 +833,84 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 	return (0);
 }
 #elif defined(__powerpc__)
+/* The sentinel is 'xor r3,r3,r3'. */
+#define DT_OP_XOR_R3	0x7c631a78
+
+#define DT_OP_NOP		0x60000000
+#define DT_OP_BLR		0x4e800020
+
+/* This captures all forms of branching to address. */
+#define DT_IS_BRANCH(inst)	((inst & 0xfc000000) == 0x48000000)
+#define DT_IS_BL(inst)	(DT_IS_BRANCH(inst) && (inst & 0x01))
+
 /* XXX */
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	uint32_t *ip;
+
+	if ((rela->r_offset & (sizeof (uint32_t) - 1)) != 0)
+		return (-1);
+
+	/*LINTED*/
+	ip = (uint32_t *)(p + rela->r_offset);
+
+	/*
+	 * We only know about some specific relocation types.
+	 */
+	if (GELF_R_TYPE(rela->r_info) != R_PPC_REL24 &&
+	    GELF_R_TYPE(rela->r_info) != R_PPC_PLTREL24)
+		return (-1);
+
+	/*
+	 * We may have already processed this object file in an earlier linker
+	 * invocation. Check to see if the present instruction sequence matches
+	 * the one we would install below.
+	 */
+	if (isenabled) {
+		if (ip[0] == DT_OP_XOR_R3) {
+			(*off) += sizeof (ip[0]);
+			return (0);
+		}
+	} else {
+		if (ip[0] == DT_OP_NOP) {
+			(*off) += sizeof (ip[0]);
+			return (0);
+		}
+	}
+
+	/*
+	 * We only expect branch to address instructions.
+	 */
+	if (!DT_IS_BRANCH(ip[0])) {
+		dt_dprintf("found %x instead of a branch instruction at %llx\n",
+		    ip[0], (u_longlong_t)rela->r_offset);
+		return (-1);
+	}
+
+	if (isenabled) {
+		/*
+		 * It would necessarily indicate incorrect usage if an is-
+		 * enabled probe were tail-called so flag that as an error.
+		 * It's also potentially (very) tricky to handle gracefully,
+		 * but could be done if this were a desired use scenario.
+		 */
+		if (!DT_IS_BL(ip[0])) {
+			dt_dprintf("tail call to is-enabled probe at %llx\n",
+			    (u_longlong_t)rela->r_offset);
+			return (-1);
+		}
+
+		ip[0] = DT_OP_XOR_R3;
+		(*off) += sizeof (ip[0]);
+	} else {
+		if (DT_IS_BL(ip[0]))
+			ip[0] = DT_OP_NOP;
+		else
+			ip[0] = DT_OP_BLR;
+	}
+
 	return (0);
 }
 
@@ -1539,10 +1620,17 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * the executable file as the symbol is going to be
 			 * change from UND to ABS.
 			 */
-			rela.r_offset = 0;
-			rela.r_info  = 0;
-			rela.r_addend = 0;
-			(void) gelf_update_rela(data_rel, i, &rela);
+			if (shdr_rel.sh_type == SHT_RELA) {
+				rela.r_offset = 0;
+				rela.r_info  = 0;
+				rela.r_addend = 0;
+				(void) gelf_update_rela(data_rel, i, &rela);
+			} else {
+				GElf_Rel rel;
+				rel.r_offset = 0;
+				rel.r_info = 0;
+				(void) gelf_update_rel(data_rel, i, &rel);
+			}
 #endif
 
 			mod = 1;
@@ -1628,8 +1716,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		 */
 		return (0);
 	}
-	/* XXX Should get a temp file name here. */
-	snprintf(tfile, sizeof(tfile), "%s.tmp", file);
 #endif
 
 	/*
@@ -1704,9 +1790,11 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    "failed to open %s: %s", file, strerror(errno)));
 	}
 #else
-	if ((fd = open(tfile, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1)
+	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
+	if ((fd = mkstemp(tfile)) == -1)
 		return (dt_link_error(dtp, NULL, -1, NULL,
-		    "failed to open %s: %s", tfile, strerror(errno)));
+		    "failed to create temporary file %s: %s",
+		    tfile, strerror(errno)));
 #endif
 
 	/*
@@ -1749,13 +1837,15 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		status = dump_elf32(dtp, dof, fd);
 
 	if (status != 0 || lseek(fd, 0, SEEK_SET) != 0) {
-#else
-	/* We don't write the ELF header, just the DOF section */
-	if (dt_write(dtp, fd, dof, dof->dofh_filesz) < dof->dofh_filesz) {
-#endif
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", file, strerror(errno)));
 	}
+#else
+	/* We don't write the ELF header, just the DOF section */
+	if (dt_write(dtp, fd, dof, dof->dofh_filesz) < dof->dofh_filesz)
+		return (dt_link_error(dtp, NULL, -1, NULL,
+		    "failed to write %s: %s", tfile, strerror(errno)));
+#endif
 
 	if (!dtp->dt_lazyload) {
 #if defined(sun)
@@ -1783,7 +1873,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		 * Arches which default to 64-bit need to explicitly use
 		 * the 32-bit library path.
 		 */
-		int use_32 = !(dtp->dt_oflags & DTRACE_O_LP64);
+		int use_32 = (dtp->dt_oflags & DTRACE_O_ILP32);
 #else
 		/*
 		 * Arches which are 32-bit only just use the normal
@@ -1798,9 +1888,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
 
-#if !defined(sun)
 		len *= 2;
-#endif
 		cmd = alloca(len);
 
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file,

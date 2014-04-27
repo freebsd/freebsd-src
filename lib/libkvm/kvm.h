@@ -77,6 +77,7 @@ char	 *kvm_geterr(kvm_t *);
 char	 *kvm_getfiles(kvm_t *, int, int, int *);
 int	  kvm_getloadavg(kvm_t *, double [], int);
 int	  kvm_getmaxcpu(kvm_t *);
+int	  kvm_getncpus(kvm_t *);
 void	 *kvm_getpcpu(kvm_t *, int);
 uint64_t  kvm_counter_u64_fetch(kvm_t *, u_long);
 struct kinfo_proc *
@@ -88,7 +89,7 @@ kvm_t	 *kvm_open
 kvm_t	 *kvm_openfiles
 	    (const char *, const char *, const char *, int, char *);
 ssize_t	  kvm_read(kvm_t *, unsigned long, void *, size_t);
-ssize_t	  kvm_read_zpcpu(kvm_t *, void *, u_long, size_t, int);
+ssize_t	  kvm_read_zpcpu(kvm_t *, unsigned long, void *, size_t, int);
 ssize_t	  kvm_write(kvm_t *, unsigned long, const void *, size_t);
 __END_DECLS
 

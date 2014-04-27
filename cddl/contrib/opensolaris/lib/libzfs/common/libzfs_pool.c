@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
@@ -240,7 +240,7 @@ zpool_pool_state_to_name(pool_state_t state)
  */
 int
 zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
-    zprop_source_t *srctype)
+    zprop_source_t *srctype, boolean_t literal)
 {
 	uint64_t intval;
 	const char *strval;
@@ -272,9 +272,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				(void) strlcpy(buf,
 				    zpool_get_prop_string(zhp, prop, &src),
 				    len);
-				if (srctype != NULL)
-					*srctype = src;
-				return (0);
+				break;
 			}
 			/* FALLTHROUGH */
 		default:
@@ -306,12 +304,22 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		case ZPOOL_PROP_FREE:
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_EXPANDSZ:
-			(void) zfs_nicenum(intval, buf, len);
+			if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) zfs_nicenum(intval, buf, len);
+			}
 			break;
 
 		case ZPOOL_PROP_CAPACITY:
-			(void) snprintf(buf, len, "%llu%%",
-			    (u_longlong_t)intval);
+			if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) snprintf(buf, len, "%llu%%",
+				    (u_longlong_t)intval);
+			}
 			break;
 
 		case ZPOOL_PROP_DEDUPRATIO:
@@ -407,7 +415,7 @@ zpool_is_bootable(zpool_handle_t *zhp)
 	char bootfs[ZPOOL_MAXNAMELEN];
 
 	return (zpool_get_prop(zhp, ZPOOL_PROP_BOOTFS, bootfs,
-	    sizeof (bootfs), NULL) == 0 && strncmp(bootfs, "-",
+	    sizeof (bootfs), NULL, B_FALSE) == 0 && strncmp(bootfs, "-",
 	    sizeof (bootfs)) != 0);
 }
 
@@ -443,10 +451,9 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 		prop = zpool_name_to_prop(propname);
 		if (prop == ZPROP_INVAL && zpool_prop_feature(propname)) {
 			int err;
-			zfeature_info_t *feature;
 			char *fname = strchr(propname, '@') + 1;
 
-			err = zfeature_lookup_name(fname, &feature);
+			err = zfeature_lookup_name(fname, NULL);
 			if (err != 0) {
 				ASSERT3U(err, ==, ENOENT);
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -807,7 +814,7 @@ zpool_expand_proplist(zpool_handle_t *zhp, zprop_list_t **plp)
 
 		if (entry->pl_prop != ZPROP_INVAL &&
 		    zpool_get_prop(zhp, entry->pl_prop, buf, sizeof (buf),
-		    NULL) == 0) {
+		    NULL, B_FALSE) == 0) {
 			if (strlen(buf) > entry->pl_width)
 				entry->pl_width = strlen(buf);
 		}
@@ -839,14 +846,14 @@ zpool_prop_get_feature(zpool_handle_t *zhp, const char *propname, char *buf,
 	 */
 	if (supported) {
 		int ret;
-		zfeature_info_t *fi;
+		spa_feature_t fid;
 
-		ret = zfeature_lookup_name(feature, &fi);
+		ret = zfeature_lookup_name(feature, &fid);
 		if (ret != 0) {
 			(void) strlcpy(buf, "-", len);
 			return (ENOTSUP);
 		}
-		feature = fi->fi_guid;
+		feature = spa_feature_table[fid].fi_guid;
 	}
 
 	if (nvlist_lookup_uint64(features, feature, &refcount) == 0)
@@ -3737,7 +3744,9 @@ zpool_history_unpack(char *buf, uint64_t bytes_read, uint64_t *leftover,
 	return (0);
 }
 
-#define	HIS_BUF_LEN	(128*1024)
+/* from spa_history.c: spa_history_create_obj() */
+#define	HIS_BUF_LEN_DEF	(128 << 10)
+#define	HIS_BUF_LEN_MAX	(1 << 30)
 
 /*
  * Retrieve the command history of a pool.
@@ -3745,21 +3754,24 @@ zpool_history_unpack(char *buf, uint64_t bytes_read, uint64_t *leftover,
 int
 zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp)
 {
-	char buf[HIS_BUF_LEN];
+	char *buf = NULL;
+	uint64_t bufsize = HIS_BUF_LEN_DEF;
 	uint64_t off = 0;
 	nvlist_t **records = NULL;
 	uint_t numrecords = 0;
 	int err, i;
 
+	if ((buf = malloc(bufsize)) == NULL)
+		return (ENOMEM);
 	do {
-		uint64_t bytes_read = sizeof (buf);
+		uint64_t bytes_read = bufsize;
 		uint64_t leftover;
 
 		if ((err = get_history(zhp, buf, &off, &bytes_read)) != 0)
 			break;
 
 		/* if nothing else was read in, we're at EOF, just return */
-		if (!bytes_read)
+		if (bytes_read == 0)
 			break;
 
 		if ((err = zpool_history_unpack(buf, bytes_read,
@@ -3767,8 +3779,25 @@ zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp)
 			break;
 		off -= leftover;
 
+		/*
+		 * If the history block is too big, double the buffer
+		 * size and try again.
+		 */
+		if (leftover == bytes_read) {
+			free(buf);
+			buf = NULL;
+
+			bufsize <<= 1;
+			if ((bufsize >= HIS_BUF_LEN_MAX) ||
+			    ((buf = malloc(bufsize)) == NULL)) {
+				err = ENOMEM;
+				break;
+			}
+		}
+
 		/* CONSTCOND */
 	} while (1);
+	free(buf);
 
 	if (!err) {
 		verify(nvlist_alloc(nvhisp, NV_UNIQUE_NAME, 0) == 0);
