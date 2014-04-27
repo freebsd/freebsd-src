@@ -530,6 +530,7 @@ route_output(struct mbuf *m, struct socket *so)
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
 	sa_family_t saf = AF_UNSPEC;
+	struct rawcb *rp = NULL;
 
 	fibnum = so->so_fibnum;
 
@@ -819,22 +820,14 @@ report:
 	}
 
 flush:
-	if (rtm) {
-		if (error)
-			rtm->rtm_errno = error;
-		else
-			rtm->rtm_flags |= RTF_DONE;
-	}
-	if (rt)		/* XXX can this be true? */
+	if (rt != NULL)
 		RTFREE(rt);
-    {
-	struct rawcb *rp = NULL;
 	/*
 	 * Check to see if we don't want our own messages.
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
 		if (V_route_cb.any_count <= 1) {
-			if (rtm)
+			if (rtm != NULL)
 				Free(rtm);
 			m_freem(m);
 			return (error);
@@ -842,6 +835,7 @@ flush:
 		/* There is another listener, so construct message */
 		rp = sotorawcb(so);
 	}
+
 	if (rtm != NULL) {
 #ifdef INET6
 		if (rti_need_deembed) {
@@ -859,6 +853,11 @@ flush:
 			}
 		}
 #endif
+		if (error != 0)
+			rtm->rtm_errno = error;
+		else
+			rtm->rtm_flags |= RTF_DONE;
+
 		m_copyback(m, 0, rtm->rtm_msglen, (caddr_t)rtm);
 		if (m->m_pkthdr.len < rtm->rtm_msglen) {
 			m_freem(m);
@@ -867,7 +866,7 @@ flush:
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 		Free(rtm);
 	}
-	if (m) {
+	if (m != NULL) {
 		M_SETFIB(m, fibnum);
 		m->m_flags |= RTS_FILTER_FIB;
 		if (rp) {
@@ -882,7 +881,7 @@ flush:
 		} else
 			rt_dispatch(m, saf);
 	}
-    }
+
 	return (error);
 }
 
