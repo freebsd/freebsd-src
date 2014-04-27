@@ -1526,6 +1526,10 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	}
 }
 
+static char bootmethod[16] = "";
+SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
+    "System firmware boot method");
+
 static void
 native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 {
@@ -1550,9 +1554,11 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 
 	if (efihdr != NULL) {
 		add_efi_map_entries(efihdr, physmap, physmap_idx);
+		strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 	} else {
 		size = *((u_int32_t *)smap - 1);
 		bios_add_smap_entries(smap, size, physmap, physmap_idx);
+		strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 	}
 }
 
