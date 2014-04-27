@@ -55,8 +55,6 @@ kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 static __inline void
 kdb_cpu_trap(int type, int code)
 {
-
-	cpu_idcache_wbinv_all();
 }
 
 #endif /* _MACHINE_KDB_H_ */
