@@ -638,7 +638,7 @@ vga_init(struct vt_device *vd)
 	struct vga_softc *sc = vd->vd_softc;
 	int textmode = 0;
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__)
 	/* Disable if EFI framebuffer present. Should be handled by priority
 	 * logic in vt(9), but this will do for now. XXX */
 
