@@ -36,20 +36,17 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	RSYSCALL(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(x);					\
-			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+#define	RSYSCALL(name)	ENTRY(__sys_##name);				\
+			WEAK_REFERENCE(__sys_##name, name);		\
+			WEAK_REFERENCE(__sys_##name, _##name);		\
+			mov $SYS_##name,%eax; KERNCALL;			\
 			jb HIDENAME(cerror); ret;			\
-			END(__CONCAT(__sys_,x))
+			END(__sys_##name)
 
-#define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+#define	PSEUDO(name)	ENTRY(__sys_##name);				\
+			WEAK_REFERENCE(__sys_##name, _##name);		\
+			mov $SYS_##name,%eax; KERNCALL;			\
 			jb HIDENAME(cerror); ret;			\
-			END(__CONCAT(__sys_,x))
+			END(__sys_##name)
 
-#define KERNCALL	movq %rcx, %r10; syscall
+#define	KERNCALL	movq %rcx, %r10; syscall

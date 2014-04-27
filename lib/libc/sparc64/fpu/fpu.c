@@ -202,7 +202,7 @@ static const int opmask[] = {0, 0, 1, 3, 1};
  * Implement a move operation for all supported operand types. The additional
  * nand and xor parameters will be applied to the upper 32 bit word of the
  * source operand. This allows to implement fabs and fneg (for fp operands
- * only!) using this functions, too, by passing (1 << 31) for one of the
+ * only!) using this functions, too, by passing (1U << 31) for one of the
  * parameters, and 0 for the other.
  */
 static void
@@ -358,10 +358,10 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn,
 		__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FNEG):
-		__fpu_mov(fe, type, rd, rs2, 0, (1 << 31));
+		__fpu_mov(fe, type, rd, rs2, 0, (1U << 31));
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FABS):
-		__fpu_mov(fe, type, rd, rs2, (1 << 31), 0);
+		__fpu_mov(fe, type, rd, rs2, (1U << 31), 0);
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FSQRT):
 		__fpu_explode(fe, &fe->fe_f1, type, rs2);

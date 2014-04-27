@@ -46,6 +46,17 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "un-namespace.h"
 
+#ifdef	I_AM_SCANDIR_B
+#include "block_abi.h"
+#define	SELECT(x)	CALL_BLOCK(select, x)
+#ifndef __BLOCKS__
+void
+qsort_b(void *, size_t, size_t, void*);
+#endif
+#else
+#define	SELECT(x)	select(x)
+#endif
+
 static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
 
 /*
@@ -60,9 +71,15 @@ static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
 	    (((dp)->d_namlen + 1 + 3) &~ 3))
 
 int
+#ifdef I_AM_SCANDIR_B
+scandir_b(const char *dirname, struct dirent ***namelist,
+    DECLARE_BLOCK(int, select, const struct dirent *),
+    DECLARE_BLOCK(int, dcomp, const struct dirent **, const struct dirent **))
+#else
 scandir(const char *dirname, struct dirent ***namelist,
     int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
 	const struct dirent **))
+#endif
 {
 	struct dirent *d, *p, **names = NULL;
 	size_t nitems = 0;
@@ -78,7 +95,7 @@ scandir(const char *dirname, struct dirent ***namelist,
 		goto fail;
 
 	while ((d = readdir(dirp)) != NULL) {
-		if (select != NULL && !(*select)(d))
+		if (select != NULL && !SELECT(d))
 			continue;	/* just selected names */
 		/*
 		 * Make a minimum size copy of the data
@@ -111,8 +128,12 @@ scandir(const char *dirname, struct dirent ***namelist,
 	}
 	closedir(dirp);
 	if (nitems && dcomp != NULL)
+#ifdef I_AM_SCANDIR_B
+		qsort_b(names, nitems, sizeof(struct dirent *), (void*)dcomp);
+#else
 		qsort_r(names, nitems, sizeof(struct dirent *),
 		    &dcomp, alphasort_thunk);
+#endif
 	*namelist = names;
 	return (nitems);
 

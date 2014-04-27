@@ -1,11 +1,11 @@
 #
-# $FreeBSD: head/lib/libz/Makefile 232263 2012-02-28 18:30:18Z dim $
+# $FreeBSD$
 #
 
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
-MAN=		zlib.3
+MAN=		zlib.3 zopen.3
 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG

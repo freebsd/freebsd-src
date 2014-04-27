@@ -52,18 +52,26 @@
 #define BLKEXTENDMASK	(BLKEXTEND - 1)
 
 /*
- * required malloc alignment.  Just hardwire to 16.
+ * Required malloc alignment.
  *
- * Note: if we implement a more sophisticated realloc, we should ensure that
- * MALLOCALIGN is at least as large as MemNode.
+ * Embedded platforms using the u-boot API drivers require that all I/O buffers
+ * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
+ * For other platforms, 16 bytes works fine.  The alignment also must be at
+ * least sizeof(struct MemNode); this is asserted in zalloc.c.
  */
+
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#define	MALLOCALIGN		64
+#else
+#define	MALLOCALIGN		16
+#endif
+#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
 
 typedef struct Guard {
     size_t	ga_Bytes;
     size_t	ga_Magic;	/* must be at least 32 bits */
 } Guard;
 
-#define MALLOCALIGN	16
 #define GAMAGIC		0x55FF44FD
 #define GAFREE		0x5F54F4DF
 
