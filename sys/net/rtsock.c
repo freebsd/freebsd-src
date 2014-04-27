@@ -152,8 +152,8 @@ struct walkarg {
 
 static void	rts_input(struct mbuf *m);
 static struct mbuf *rt_msg1(int type, struct rt_addrinfo *rtinfo);
-static int	rt_msg2(int type, struct rt_addrinfo *rtinfo,
-			caddr_t cp, struct walkarg *w);
+static int	rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo,
+			struct walkarg *w, int *plen);
 static int	rt_xaddrs(caddr_t cp, caddr_t cplim,
 			struct rt_addrinfo *rtinfo);
 static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
@@ -526,11 +526,13 @@ route_output(struct mbuf *m, struct socket *so)
 	struct sockaddr_in6 *sin6;
 	int i, rti_need_deembed = 0;
 #endif
-	int len, error = 0, fibnum;
+	int alloc_len = 0, len, error = 0, fibnum;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
 	sa_family_t saf = AF_UNSPEC;
 	struct rawcb *rp = NULL;
+	struct walkarg w;
+	char msgbuf[512];
 
 	fibnum = so->so_fibnum;
 
@@ -545,15 +547,31 @@ route_output(struct mbuf *m, struct socket *so)
 	    len != mtod(m, struct rt_msghdr *)->rtm_msglen)
 		senderr(EINVAL);
 
-	R_Malloc(rtm, struct rt_msghdr *, len);
-	if (rtm == NULL)
-		senderr(ENOBUFS);
+	/*
+	 * Most of current messages are in range 200-240 bytes,
+	 * minimize possible failures by using on-stack buffer
+	 * which should fit for most messages.
+	 * However, use stable memory if we need to handle
+	 * something large.
+	 */
+	if (len < sizeof(msgbuf)) {
+		alloc_len = sizeof(msgbuf);
+		rtm = (struct rt_msghdr *)msgbuf;
+	} else {
+		alloc_len = roundup2(len, 1024);
+		rtm = malloc(alloc_len, M_TEMP, M_NOWAIT);
+		if (rtm == NULL)
+			senderr(ENOBUFS);
+	}
+
 	m_copydata(m, 0, len, (caddr_t)rtm);
 	bzero(&info, sizeof(info));
+	bzero(&w, sizeof(w));
 
 	if (rtm->rtm_version != RTM_VERSION) {
 		/* Do not touch message since format is unknown */
-		Free(rtm);
+		if ((char *)rtm != msgbuf)
+			free(rtm, M_TEMP);
 		rtm = NULL;
 		senderr(EPROTONOSUPPORT);
 	}
@@ -798,18 +816,26 @@ report:
 		} else if ((ifp = rt->rt_ifp) != NULL) {
 			rtm->rtm_index = ifp->if_index;
 		}
-		len = rt_msg2(rtm->rtm_type, &info, NULL, NULL);
-		if (len > rtm->rtm_msglen) {
+
+		/* Check if we need to realloc storage */
+		rtsock_msg_buffer(rtm->rtm_type, &info, NULL, &len);
+		if (len > alloc_len) {
 			struct rt_msghdr *new_rtm;
-			R_Malloc(new_rtm, struct rt_msghdr *, len);
+			new_rtm = malloc(len, M_TEMP, M_NOWAIT);
 			if (new_rtm == NULL) {
 				RT_UNLOCK(rt);
 				senderr(ENOBUFS);
 			}
 			bcopy(rtm, new_rtm, rtm->rtm_msglen);
-			Free(rtm); rtm = new_rtm;
+			free(rtm, M_TEMP);
+			rtm = new_rtm;
+			alloc_len = len;
 		}
-		(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
+
+		w.w_tmem = (caddr_t)rtm;
+		w.w_tmemsize = alloc_len;
+		rtsock_msg_buffer(rtm->rtm_type, &info, &w, &len);
+
 		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
 			rtm->rtm_flags = RTF_GATEWAY | 
 				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
@@ -833,8 +859,8 @@ flush:
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
 		if (V_route_cb.any_count <= 1) {
-			if (rtm != NULL)
-				Free(rtm);
+			if (rtm != NULL && (char *)rtm != msgbuf)
+				free(rtm, M_TEMP);
 			m_freem(m);
 			return (error);
 		}
@@ -870,7 +896,9 @@ flush:
 			m = NULL;
 		} else if (m->m_pkthdr.len > rtm->rtm_msglen)
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
-		Free(rtm);
+
+		if ((char *)rtm != msgbuf)
+			free(rtm, M_TEMP);
 	}
 	if (m != NULL) {
 		M_SETFIB(m, fibnum);
@@ -1041,21 +1069,26 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 }
 
 /*
- * Used by the sysctl code and routing socket.
+ * Writes information related to @rtinfo object to preallocated buffer.
+ * Stores needed size in @plen. If @w is NULL, calculates size without
+ * writing.
+ * Used for sysctl dumps and rtsock answers (RTM_DEL/RTM_GET) generation.
+ *
+ * Returns 0 on success.
+ *
  */
 static int
-rt_msg2(int type, struct rt_addrinfo *rtinfo, caddr_t cp, struct walkarg *w)
+rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *plen)
 {
 	int i;
-	int len, dlen, second_time = 0;
-	caddr_t cp0;
+	int len, buflen = 0, dlen;
+	caddr_t cp;
+	struct rt_msghdr *rtm = NULL;
 #ifdef INET6
 	struct sockaddr_storage ss;
 	struct sockaddr_in6 *sin6;
 #endif
 
-	rtinfo->rti_addrs = 0;
-again:
 	switch (type) {
 
 	case RTM_DELADDR:
@@ -1094,9 +1127,14 @@ again:
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
-	cp0 = cp;
-	if (cp0)
-		cp += len;
+
+	if (w != NULL) {
+		rtm = (struct rt_msghdr *)w->w_tmem;
+		buflen = w->w_tmemsize - len;
+		cp = (caddr_t)w->w_tmem + len;
+	}
+
+	rtinfo->rti_addrs = 0;
 	for (i = 0; i < RTAX_MAX; i++) {
 		struct sockaddr *sa;
 
@@ -1104,7 +1142,7 @@ again:
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
-		if (cp) {
+		if (cp != NULL && buflen >= dlen) {
 #ifdef INET6
 			if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
 				sin6 = (struct sockaddr_in6 *)&ss;
@@ -1115,37 +1153,40 @@ again:
 #endif
 			bcopy((caddr_t)sa, cp, (unsigned)dlen);
 			cp += dlen;
+			buflen -= dlen;
+		} else if (cp != NULL) {
+			/*
+			 * Buffer too small. Count needed size
+			 * and return with error.
+			 */
+			cp = NULL;
 		}
+
 		len += dlen;
 	}
-	len = ALIGN(len);
-	if (cp == NULL && w != NULL && !second_time) {
-		struct walkarg *rw = w;
 
-		if (rw->w_req) {
-			if (rw->w_tmemsize < len) {
-				if (rw->w_tmem)
-					free(rw->w_tmem, M_RTABLE);
-				rw->w_tmem = (caddr_t)
-					malloc(len, M_RTABLE, M_NOWAIT);
-				if (rw->w_tmem)
-					rw->w_tmemsize = len;
-			}
-			if (rw->w_tmem) {
-				cp = rw->w_tmem;
-				second_time = 1;
-				goto again;
-			}
-		}
+	if (cp != NULL) {
+		dlen = ALIGN(len) - len;
+		if (buflen < dlen)
+			cp = NULL;
+		else
+			buflen -= dlen;
 	}
-	if (cp) {
-		struct rt_msghdr *rtm = (struct rt_msghdr *)cp0;
+	len = ALIGN(len);
 
+	if (cp != NULL) {
+		/* fill header iff buffer is large enough */
 		rtm->rtm_version = RTM_VERSION;
 		rtm->rtm_type = type;
 		rtm->rtm_msglen = len;
 	}
-	return (len);
+
+	*plen = len;
+
+	if (w != NULL && cp == NULL)
+		return (ENOBUFS);
+
+	return (0);
 }
 
 /*
@@ -1473,7 +1514,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
 			info.rti_info[RTAX_BRD] = rt->rt_ifa->ifa_dstaddr;
 	}
-	size = rt_msg2(RTM_GET, &info, NULL, w);
+	if ((error = rtsock_msg_buffer(RTM_GET, &info, w, &size)) != 0)
+		return (error);
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
@@ -1649,7 +1691,9 @@ sysctl_iflist(int af, struct walkarg *w)
 		IF_ADDR_RLOCK(ifp);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
-		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
+		error = rtsock_msg_buffer(RTM_IFINFO, &info, w, &len);
+		if (error != 0)
+			goto done;
 		info.rti_info[RTAX_IFP] = NULL;
 		if (w->w_req && w->w_tmem) {
 			if (w->w_op == NET_RT_IFLISTL)
@@ -1668,7 +1712,9 @@ sysctl_iflist(int af, struct walkarg *w)
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
-			len = rt_msg2(RTM_NEWADDR, &info, NULL, w);
+			error = rtsock_msg_buffer(RTM_NEWADDR, &info, w, &len);
+			if (error != 0)
+				goto done;
 			if (w->w_req && w->w_tmem) {
 				if (w->w_op == NET_RT_IFLISTL)
 					error = sysctl_iflist_ifaml(ifa, &info,
@@ -1718,7 +1764,9 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			info.rti_info[RTAX_GATEWAY] =
 			    (ifma->ifma_addr->sa_family != AF_LINK) ?
 			    ifma->ifma_lladdr : NULL;
-			len = rt_msg2(RTM_NEWMADDR, &info, NULL, w);
+			error = rtsock_msg_buffer(RTM_NEWADDR, &info, w, &len);
+			if (error != 0)
+				goto done;
 			if (w->w_req && w->w_tmem) {
 				struct ifma_msghdr *ifmam;
 
@@ -1778,6 +1826,14 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error)
 		return (error);
+	
+	/*
+	 * Allocate reply buffer in advance.
+	 * All rtsock messages has maximum length of u_short.
+	 */
+	w.w_tmemsize = 65536;
+	w.w_tmem = malloc(w.w_tmemsize, M_TEMP, M_WAITOK);
+
 	switch (w.w_op) {
 
 	case NET_RT_DUMP:
@@ -1824,8 +1880,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		error = sysctl_ifmalist(af, &w);
 		break;
 	}
-	if (w.w_tmem)
-		free(w.w_tmem, M_RTABLE);
+
+	free(w.w_tmem, M_TEMP);
 	return (error);
 }
 
