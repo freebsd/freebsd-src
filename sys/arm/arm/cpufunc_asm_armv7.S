@@ -250,6 +250,13 @@ ENTRY(armv7_idcache_wbinv_range)
 	RET
 END(armv7_idcache_wbinv_range)
 
+ENTRY_NP(armv7_icache_sync_all)
+	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I cache to PoU Inner Shareable */
+	isb				/* instruction synchronization barrier */
+	dsb				/* data synchronization barrier */
+	RET
+END(armv7_icache_sync_all)
+
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
 .Larmv7_sync_next:
