@@ -150,16 +150,16 @@ live_entropy_sources_feed(void)
 	LIST_FOREACH(lles, &les_sources, lles_entries) {
 
 		for (i = 0; i < harvest_pool_count*read_rate; i++) {
+			/* This *must* be quick, since it's a live entropy source. */
+			n = lles->lles_rsource->les_read(event.he_entropy, HARVESTSIZE);
+			KASSERT((n > 0 && n <= HARVESTSIZE), ("very bad return from les_read (= %d) in %s", n, __func__));
+			memset(event.he_entropy + n, 0, HARVESTSIZE - n);
+
 			event.he_somecounter = get_cyclecount();
 			event.he_size = n;
 			event.he_bits = (n*8)/2;
 			event.he_source = lles->lles_rsource->les_source;
 			event.he_destination = harvest_destination[event.he_source]++;
-
-			/* This *must* be quick, since it's a live entropy source. */
-			n = lles->lles_rsource->les_read(event.he_entropy, HARVESTSIZE);
-			KASSERT((n > 0 && n <= HARVESTSIZE), ("very bad return from les_read (= %d) in %s", n, __func__));
-			memset(event.he_entropy + n, 0, HARVESTSIZE - n);
 
 			/* Do the actual entropy insertion */
 			harvest_process_event(&event);
