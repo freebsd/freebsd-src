@@ -842,7 +842,7 @@ flush:
 		/* There is another listener, so construct message */
 		rp = sotorawcb(so);
 	}
-	if (rtm) {
+	if (rtm != NULL) {
 #ifdef INET6
 		if (rti_need_deembed) {
 			/* sin6_scope_id is recovered before sending rtm. */
@@ -865,6 +865,7 @@ flush:
 			m = NULL;
 		} else if (m->m_pkthdr.len > rtm->rtm_msglen)
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
+		Free(rtm);
 	}
 	if (m) {
 		M_SETFIB(m, fibnum);
@@ -881,9 +882,6 @@ flush:
 		} else
 			rt_dispatch(m, saf);
 	}
-	/* info.rti_info[RTAX_DST] (used above) can point inside of rtm */
-	if (rtm)
-		Free(rtm);
     }
 	return (error);
 }
