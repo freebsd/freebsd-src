@@ -32,8 +32,8 @@
 
 #include "partedit.h"
 
-static char platform[255] = "BIOS"; /* XXX once sysctl exists, make this an empty string */
-static const char *platform_sysctl = "hw.platform";
+static char platform[255] = "";
+static const char *platform_sysctl = "machdep.bootmethod";
 
 const char *
 default_scheme(void) {
@@ -82,7 +82,7 @@ bootpart_type(const char *scheme) {
 	if (strlen(platform) == 0)
 		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
 
-	if (strcmp(platform, "EFI") == 0)
+	if (strcmp(platform, "UEFI") == 0)
 		return ("efi");
 
 	return ("freebsd-boot");
@@ -93,7 +93,7 @@ bootcode_path(const char *part_type) {
 	size_t platlen = sizeof(platform);
 	if (strlen(platform) == 0)
 		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
-	if (strcmp(platform, "EFI") == 0)
+	if (strcmp(platform, "UEFI") == 0)
 		return (NULL);
 
 	if (strcmp(part_type, "GPT") == 0)
@@ -113,7 +113,7 @@ partcode_path(const char *part_type) {
 		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
 
 	if (strcmp(part_type, "GPT") == 0) {
-		if (strcmp(platform, "EFI") == 0)
+		if (strcmp(platform, "UEFI") == 0)
 			return ("/boot/boot1.efifat");
 		else
 			return ("/boot/gptboot");

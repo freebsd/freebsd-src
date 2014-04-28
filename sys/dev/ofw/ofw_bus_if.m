@@ -58,6 +58,7 @@ CODE {
 	static ofw_bus_get_node_t ofw_bus_default_get_node;
 	static ofw_bus_get_type_t ofw_bus_default_get_type;
 	static ofw_bus_map_intr_t ofw_bus_default_map_intr;
+	static ofw_bus_map_gpios_t ofw_bus_default_map_gpios;
 
 	static const struct ofw_bus_devinfo *
 	ofw_bus_default_get_devinfo(device_t bus, device_t dev)
@@ -112,6 +113,24 @@ CODE {
 
 		/* If that fails, then assume a one-domain system */
 		return (interrupt[0]);
+	}
+
+	int
+	ofw_bus_default_map_gpios(device_t bus, phandle_t dev,
+	    phandle_t gparent, int gcells, pcell_t *gpios, uint32_t *pin,
+	    uint32_t *flags)
+	{
+		/* Propagate up the bus hierarchy until someone handles it. */	
+		if (device_get_parent(bus) != NULL)
+			return OFW_BUS_MAP_GPIOS(device_get_parent(bus), dev,
+			    gparent, gcells, gpios, pin, flags);
+
+		/* If that fails, then assume the FreeBSD defaults. */
+		*pin = gpios[0];
+		if (gcells == 2 || gcells == 3)
+			*flags = gpios[gcells - 1];
+
+		return (0);
 	}
 };
 
@@ -170,4 +189,13 @@ METHOD int map_intr {
 	pcell_t *interrupt;
 } DEFAULT ofw_bus_default_map_intr;
 
-
+# Map the GPIO controller specific gpio-specifier to GPIO pin and flags.
+METHOD int map_gpios {
+	device_t bus;
+	phandle_t dev;
+	phandle_t gparent;
+	int gcells;
+	pcell_t *gpios;
+	uint32_t *pin;
+	uint32_t *flags;
+} DEFAULT ofw_bus_default_map_gpios;

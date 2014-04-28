@@ -60,17 +60,22 @@ struct gpiobus_softc
 	int		*sc_pins_mapped; /* mark mapped pins */
 };
 
-
 struct gpiobus_ivar
 {
 	uint32_t	npins;	/* pins total */
+	uint32_t	*flags;	/* pins flags */
 	uint32_t	*pins;	/* pins map */
 };
 
-void gpiobus_print_pins(struct gpiobus_ivar *);
 #ifdef FDT
+struct ofw_gpiobus_devinfo {
+	struct gpiobus_ivar	opd_dinfo;
+	struct ofw_bus_devinfo	opd_obdinfo;
+};
+
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
 #endif
+void gpiobus_print_pins(struct gpiobus_ivar *);
 
 extern driver_t gpiobus_driver;
 
