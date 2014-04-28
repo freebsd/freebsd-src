@@ -7,6 +7,10 @@
 SUBDIR=	sendmail
 .endif
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=tests
+.endif
+
 BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
