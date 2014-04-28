@@ -251,7 +251,11 @@ ENTRY(armv7_idcache_wbinv_range)
 END(armv7_idcache_wbinv_range)
 
 ENTRY_NP(armv7_icache_sync_all)
+#ifdef SMP
 	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I cache to PoU Inner Shareable */
+#else
+	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I cache to PoU (ICIALLU) */
+#endif
 	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
