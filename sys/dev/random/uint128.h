@@ -34,7 +34,7 @@
  * Everyone knows you always need the __uint128_t types!
  */
 
-#if !defined(__arm__) && !defined(__mips__) && !defined(__i386__) && !defined(__pc98__)
+#if !defined(__arm__) && !defined(__mips__) && !defined(__i386__) && !defined(__pc98__) && !defined(__powerpc__)
 /* We do have an inbuilt __uint128_t type */
 
 typedef __uint128_t uint128_t;
