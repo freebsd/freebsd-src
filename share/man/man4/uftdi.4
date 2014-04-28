@@ -29,12 +29,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2011
+.Dd March 31, 2014
 .Dt UFTDI 4
 .Os
 .Sh NAME
 .Nm uftdi
-.Nd USB support for serial adapters based on the FT8U100AX and FT8U232AM chips
+.Nd USB support for serial adapters based on the FTDI family of USB
+serial adapter chips.
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -54,8 +55,29 @@ uftdi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various serial adapters based on the FTDI
-FT2232C, FT8U100AX and FT8U232AM chips.
+driver provides support for various serial adapters based on the
+following FTDI chips:
+.Pp
+.Bl -bullet -compact
+.It
+FT8U100AX
+.It
+FT8U232AM
+.It
+FT8U232BM
+.It
+FT232R
+.It
+FT2232C
+.It
+FT2232D
+.It
+FT2232H
+.It
+FT4232H
+.It
+FT230X
+.El
 .Pp
 The device is accessed through the
 .Xr ucom 4
