@@ -124,6 +124,11 @@ int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
     &trap_debug, 0, "Debug information on all traps");
 #endif
+#ifdef CPU_CHERI
+int log_cheri_exceptions = 1;
+SYSCTL_INT(_machdep, OID_AUTO, log_cheri_exceptions, CTLFLAG_RW,
+    &log_cheri_exceptions, 1, "Print trap frame on CHERI exceptions");
+#endif
 
 #define	lbu_macro(data, addr)						\
 	__asm __volatile ("lbu %0, 0x0(%1)"				\
@@ -1703,6 +1708,9 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 static void
 log_c2e_exception(const char *msg, struct trapframe *frame, int trap_type)
 {
+
+	if (!log_cheri_exceptions)
+		return;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
