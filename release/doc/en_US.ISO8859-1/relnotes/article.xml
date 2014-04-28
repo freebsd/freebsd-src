@@ -104,10 +104,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="263754">The &man.sysctl.8;
-      <literal>hw.bus.devctl_disable</literal> has been
-      removed.</para>
-
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
