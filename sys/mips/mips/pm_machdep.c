@@ -156,7 +156,12 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_cp2state_len = cp2_len;
 #endif
 	sp -= sizeof(struct sigframe);
+#ifdef CPU_CHERI
+	/* For CHERI, keep the stack pointer 32-byte aligned. */
+	sp &= ~(CHERICAP_SIZE - 1);
+#else
 	sp &= ~(sizeof(__int64_t) - 1);
+#endif
 	sfp = (void *)sp;
 
 	/* Translate the signal if appropriate */
