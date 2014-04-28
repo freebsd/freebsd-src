@@ -349,7 +349,7 @@ typedef struct zio_transform {
 	struct zio_transform	*zt_next;
 } zio_transform_t;
 
-typedef int zio_pipe_stage_t(zio_t *zio);
+typedef int zio_pipe_stage_t(zio_t **ziop);
 
 /*
  * The io_reexecute flags are distinct from io_flags because the child must
