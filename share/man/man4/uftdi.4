@@ -34,7 +34,8 @@
 .Os
 .Sh NAME
 .Nm uftdi
-.Nd USB support for serial adapters based on the FT8U100AX and FT8U232AM chips
+.Nd USB support for serial adapters based on the FTDI family of USB
+serial adapter chips.
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,13 +53,115 @@ uftdi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various serial adapters based on the FTDI
-FT2232C, FT8U100AX and FT8U232AM chips.
+driver provides support for various serial adapters based on the
+following FTDI chips:
+.Pp
+.Bl -bullet -compact
+.It
+FT8U100AX
+.It
+FT8U232AM
+.It
+FT8U232BM
+.It
+FT232R
+.It
+FT2232C
+.It
+FT2232D
+.It
+FT2232H
+.It
+FT4232H
+.It
+FT230X
+.El
 .Pp
 The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Pp
+Many of the supported chips provide additional functionality
+such as bitbang mode and the MPSSE engine for serial bus emulation.
+The
+.Nm
+driver provides access to that functionality with the following
+.Xr ioctl 2
+calls, defined in
+.In dev/usb/uftdiio.h :
+.Bl -tag -width indent
+.It Dv UFTDIIOC_RESET_IO Pq Vt int
+Reset the channel to its default configuration, flush RX and TX FIFOs.
+.It Dv UFTDIIOC_RESET_RX Pq Vt int
+Flush the RX FIFO.
+.It Dv UFTDIIOC_RESET_TX Pq Vt int
+Flush the TX FIFO.
+.It Dv UFTDIIOC_SET_BITMODE Pq Vt "struct uftdi_bitmode"
+Put the channel into the operating mode specified in
+.Va mode ,
+and set the pins indicated by ones in
+.Va iomask
+to output mode.
+The
+.Va mode
+must be one of the
+.Va uftdi_bitmodes
+values.
+.Bd -literal
+enum uftdi_bitmodes
+{
+	UFTDI_BITMODE_ASYNC = 0,
+	UFTDI_BITMODE_MPSSE = 1,
+	UFTDI_BITMODE_SYNC = 2,
+	UFTDI_BITMODE_CPU_EMUL = 3,
+	UFTDI_BITMODE_FAST_SERIAL = 4,
+	UFTDI_BITMODE_CBUS = 5,
+	UFTDI_BITMODE_NONE = 0xff,
+};
+
+struct uftdi_bitmode
+{
+	uint8_t mode;
+	uint8_t iomask;
+};
+.Ed
+.Pp
+Manuals and application notes published by FTDI describe these
+modes in detail.
+To use most of these modes, you first put the channel into
+the desired mode, then you
+.Xr read 2
+and
+.Xr write 2
+data which either reflects pin state or is interpreted 
+as MPSSE commands and parameters, depending on the mode.
+.It Dv UFTDIIOC_GET_BITMODE Pq Vt "struct uftdi_bitmode"
+Return the state of the bitbang pins at the time of the call in the
+.Va iomask
+member.
+The
+.Va mode
+member is unused.
+.It Dv UFTDIIOC_SET_ERROR_CHAR Pq Vt int
+Set the character which is inserted into the buffer to mark
+the point of an error such as FIFO overflow.
+.It Dv UFTDIIOC_SET_EVENT_CHAR Pq Vt int
+Set the character which causes a partial FIFO full of data 
+to be returned immediately even if the FIFO is not full.
+.It Dv UFTDIIOC_SET_LATENCY Pq Vt int
+Set the amount of time to wait for a full FIFO,
+in milliseconds.
+If more than this much time elapses without receiving a new
+character, any characters in the FIFO are returned.
+.It Dv UFTDIIOC_GET_LATENCY Pq Vt int
+Get the current value of the latency timer.
+.It Dv UFTDIIOC_GET_HWREV Pq Vt int
+Get the hardware revision number.
+This is the
+.Va bcdDevice
+value from the
+.Va usb_device_descriptor .
 .Sh HARDWARE
 The
 .Nm
