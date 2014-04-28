@@ -50,6 +50,26 @@
             test
             ..
         ..
+        cddl
+            lib
+            ..
+            sbin
+            ..
+            usr.bin
+            ..
+            usr.sbin
+            ..
+        ..
+        etc
+        ..
+        games
+        ..
+        gnu
+            lib
+            ..
+            usr.bin
+            ..
+        ..
         lib
             atf
                 libatf-c
@@ -78,6 +98,16 @@
             growfs
             ..
             mdconfig
+            ..
+        ..
+        secure
+            lib
+            ..
+            libexec
+            ..
+            usr.bin
+            ..
+            usr.sbin
             ..
         ..
         share

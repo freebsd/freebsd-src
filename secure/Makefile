@@ -2,7 +2,11 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= lib libexec usr.bin usr.sbin
+SUBDIR= lib libexec ${_tests} usr.bin usr.sbin
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 # These are the programs which depend on crypto, but not Kerberos.
 SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
