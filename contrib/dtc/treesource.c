@@ -26,12 +26,12 @@ extern int yyparse(void);
 extern YYLTYPE yylloc;
 
 struct boot_info *the_boot_info;
-int treesource_error;
+bool treesource_error;
 
 struct boot_info *dt_from_source(const char *fname)
 {
 	the_boot_info = NULL;
-	treesource_error = 0;
+	treesource_error = false;
 
 	srcfile_push(fname);
 	yyin = current_srcfile->f;
@@ -54,9 +54,9 @@ static void write_prefix(FILE *f, int level)
 		fputc('\t', f);
 }
 
-static int isstring(char c)
+static bool isstring(char c)
 {
-	return (isprint(c)
+	return (isprint((unsigned char)c)
 		|| (c == '\0')
 		|| strchr("\a\b\t\n\v\f\r", c));
 }
@@ -119,7 +119,7 @@ static void write_propval_string(FILE *f, struct data val)
 			fprintf(f, "\"");
 			break;
 		default:
-			if (isprint(c))
+			if (isprint((unsigned char)c))
 				fprintf(f, "%c", c);
 			else
 				fprintf(f, "\\x%02hhx", c);

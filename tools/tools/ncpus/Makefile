@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ncpus
-NO_MAN=
+MAN=
 SRCS=	ncpus.c acpi.c
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 SRCS+=	biosmptable.c

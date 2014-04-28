@@ -259,9 +259,17 @@ loop:
 			continue;
 		if (bp->b_lblkno > lbn)
 			panic("ffs_syncvnode: syncing truncated data.");
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
+			BO_UNLOCK(bo);
+		} else if (wait != 0) {
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) != 0) {
+				bp->b_vflags &= ~BV_SCANNED;
+				goto next;
+			}
+		} else
 			continue;
-		BO_UNLOCK(bo);
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		/*
@@ -531,7 +539,7 @@ ffs_read(ap)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			int nextsize = blksize(fs, ip, nextlbn);
+			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
 			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
 		} else {
@@ -720,10 +728,10 @@ ffs_write(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-                /*
+		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -956,7 +964,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
+			u_int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
 
 			nextlbn = -1 - nextlbn;
 			error = breadn(vp, -1 - lbn,
@@ -1082,7 +1090,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -1218,7 +1226,8 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	struct fs *fs;
 	struct uio luio;
 	struct iovec liovec;
-	int easize, error;
+	u_int easize;
+	int error;
 	u_char *eae;
 
 	ip = VTOI(vp);

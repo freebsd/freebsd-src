@@ -54,6 +54,8 @@
 
 #include <sys/queue.h>
 
+struct ifnet;
+
 /*
  * Driver callbacks for media status and change requests.
  */
@@ -153,7 +155,10 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_40G_CR4	27		/* 40GBase-CR4 */
 #define	IFM_40G_SR4	28		/* 40GBase-SR4 */
 #define	IFM_40G_LR4	29		/* 40GBase-LR4 */
-
+/*
+ * Please update ieee8023ad_lacp.c:lacp_compose_key()
+ * after adding new Ethernet media types.
+ */
 /* note 31 is the max! */
 
 #define	IFM_ETH_MASTER	0x00000100	/* master mode (1000baseT) */

@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2013 Devin Teske
+# Copyright (c) 2006-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -296,12 +296,25 @@ f_dialog_backtitle_restore()
 #
 f_dialog_max_size()
 {
+	local funcname=f_dialog_max_size
 	local __var_height="$1" __var_width="$2" __max_size
 	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 	if [ "$USE_XDIALOG" ]; then
 		__max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
-		__max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		if __max_size=$( $DIALOG --print-maxsize \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
+		then
+			f_dprintf "$funcname: %s --print-maxsize = [%s]" \
+			          "$DIALOG" "$__max_size"
+			# usually "MaxSize: 24, 80"
+			__max_size="${__max_size#*: }"
+			f_replaceall "$__max_size" "," "" __max_size
+		else
+			f_eval_catch -dk __max_size $funcname stty \
+				'stty size' || __max_size=
+			# usually "24 80"
+		fi
 		: ${__max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	if [ "$__var_height" ]; then
@@ -415,8 +428,8 @@ f_dialog_size_constrain()
 
 	if [ "$debug" ]; then
 		# Print final constrained values to debugging
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -456,16 +469,17 @@ f_dialog_menu_constrain()
 	# Print debug warnings if any given (non-NULL) argument are invalid
 	# NOTE: Don't change the name of $__{var,min,}{height,width,rows}
 	#
-	local __height __width __rows
+	local __height_menu_constrain __width_menu_constrain
+	local __rows_menu_constrain
 	local __arg __cp __fname=f_dialog_menu_constrain 
 	for __arg in height width rows; do
 		debug= f_getvar __var_$__arg __cp
 		[ "$__cp" ] || continue
-		if ! debug= f_getvar "$__cp" __$__arg; then
+		if ! debug= f_getvar "$__cp" __${__arg}_menu_constrain; then
 			f_dprintf "%s: var_%s variable \`%s' not set" \
 			          $__fname $__arg "$__cp"
 			__retval=$FAILURE
-		elif ! eval f_isinteger \$__$__arg; then
+		elif ! eval f_isinteger \$__${__arg}_menu_constrain; then
 			f_dprintf "%s: var_%s variable value not a number" \
 			          $__fname $__arg
 			__retval=$FAILURE
@@ -489,9 +503,11 @@ f_dialog_menu_constrain()
 
 	# Adjust height if desired
 	if [ "$__var_height" ]; then
-		if [ $__height -lt ${__min_height:-0} ]; then
+		if [ $__height_menu_constrain -lt ${__min_height:-0} ]; then
 			setvar "$__var_height" $__min_height
-		elif [ $__height -gt $__max_height_menu_constrain ]; then
+		elif [ $__height_menu_constrain -gt \
+		       $__max_height_menu_constrain ]
+		then
 			setvar "$__var_height" $__max_height_menu_constrain
 		fi
 	fi
@@ -503,9 +519,11 @@ f_dialog_menu_constrain()
 		else
 			: ${__min_width:=${DIALOG_MIN_WIDTH:-24}}
 		fi
-		if [ $__width -lt $__min_width ]; then
+		if [ $__width_menu_constrain -lt $__min_width ]; then
 			setvar "$__var_width" $__min_width
-		elif [ $__width -gt $__max_width_menu_constrain ]; then
+		elif [ $__width_menu_constrain -gt \
+		       $__max_width_menu_constrain ]
+		then
 			setvar "$__var_width" $__max_width_menu_constrain
 		fi
 	fi
@@ -518,24 +536,28 @@ f_dialog_menu_constrain()
 			: ${__min_rows:=0}
 		fi
 
-		local __max_rows=$(( $__max_height_menu_constrain - 8 ))
+		local __max_rows_menu_constrain=$((
+			$__max_height_menu_constrain - 7
+		))
 		# If prompt_len is zero (no prompt), bump the max-rows by 1
 		# Default assumption is (if no argument) that there's no prompt
-		[ ${__prompt_len:-0} -gt 0 ] ||
-			__max_rows=$(( $__max_rows + 1 ))
+		[ ${__prompt_len:-0} -gt 0 ] || __max_rows_menu_constrain=$((
+			$__max_rows_menu_constrain + 1
+		))
 
-		if [ $__rows -lt $__min_rows ]; then
+		if [ $__rows_menu_constrain -lt $__min_rows ]; then
 			setvar "$__var_rows" $__min_rows
-		elif [ $__rows -gt $__max_rows ]; then
-			setvar "$__var_rows" $__max_rows
+		elif [ $__rows_menu_constrain -gt $__max_rows_menu_constrain ]
+		then
+			setvar "$__var_rows" $__max_rows_menu_constrain
 		fi
 	fi
 
 	if [ "$debug" ]; then
-		# Print final constrained values to debuggin
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
-		f_quietly f_getvar "$__var_rows"
+		# Print final constrained values to debugging
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
+		[ "$__var_rows"   ] && f_quietly f_getvar "$__var_rows"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -1087,19 +1109,20 @@ f_dialog_radiolist_size()
 	# longest item-length (both used to bump the width), and the number of
 	# rows (used to bump the height).
 	#
-	local __longest_tag=0 __longest_item=0 __rows=0
+	local __longest_tag=0 __longest_item=0 __rows_rlist_size=0
 	while [ $# -ge 3 ]; do
 		local __tag="$1" __item="$2"
 		shift 3 # tag/item/status
 		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
 		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
-		__rows=$(( $__rows + 1 ))
+		__rows_rlist_size=$(( $__rows_rlist_size + 1 ))
 	done
 
 	# Adjust rows early (for up-coming height calculation)
 	if [ "$__var_height" -o "$__var_rows" ]; then
 		# Add a row for visual aid if using Xdialog(1)
-		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+		[ "$USE_XDIALOG" ] &&
+			__rows_rlist_size=$(( $__rows_rlist_size + 1 ))
 	fi
 
 	# Adjust height if desired
@@ -1107,10 +1130,12 @@ f_dialog_radiolist_size()
 		# Add rows to height
 		if [ "$USE_XDIALOG" ]; then
 			__height_rlist_size=$((
-				$__height_rlist_size + $__rows + 7 ))
+				$__height_rlist_size + $__rows_rlist_size + 7
+			))
 		else
 			__height_rlist_size=$((
-				$__height_rlist_size + $__rows + 4 ))
+				$__height_rlist_size + $__rows_rlist_size + 4
+			))
 		fi
 		setvar "$__var_height" $__height_rlist_size
 	fi
@@ -1127,7 +1152,7 @@ f_dialog_radiolist_size()
 	fi
 
 	# Store adjusted rows if desired
-	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows_rlist_size
 
 	# Constrain height, width, and rows to sensible minimum/maximum values
 	# Return success if no-constrain, else return status from constrain
@@ -1207,20 +1232,26 @@ f_dialog_radiolist_with_help_size()
 	# all used to bump the width -- and the number of rows (used to bump
 	# the height).
 	#
-	local __longest_tag=0 __longest_item=0 __longest_help=0 __rows=0
+	local __longest_tag=0 __longest_item=0 __longest_help=0
+	local __rows_rlist_with_help_size=0
 	while [ $# -ge 4 ]; do
 		local __tag="$1" __item="$2" __status="$3" __help="$4"
 		shift 4 # tag/item/status/help
 		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
 		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
 		[ ${#__help} -gt $__longest_help ] && __longest_help=${#__help}
-		__rows=$(( $__rows + 1 ))
+		__rows_rlist_with_help_size=$((
+			$__rows_rlist_with_help_size + 1
+		))
 	done
 
 	# Adjust rows early (for up-coming height calculation)
 	if [ "$__var_height" -o "$__var_rows" ]; then
 		# Add a row for visual aid if using Xdialog(1)
-		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+		[ "$USE_XDIALOG" ] &&
+			__rows_rlist_with_help_size=$((
+				$__rows_rlist_with_help_size + 1
+			))
 	fi
 
 	# Adjust height if desired
@@ -1228,10 +1259,14 @@ f_dialog_radiolist_with_help_size()
 		# Add rows to height
 		if [ "$USE_XDIALOG" ]; then
 			__height_rlist_with_help_size=$((
-				$__height_rlist_with_help_size + $__rows + 7 ))
+				$__height_rlist_with_help_size +
+				$__rows_rlist_with_help_size + 7
+			))
 		else
 			__height_rlist_with_help_size=$((
-				$__height_rlist_with_help_size + $__rows + 4 ))
+				$__height_rlist_with_help_size +
+				$__rows_rlist_with_help_size + 4
+			))
 		fi
 		setvar "$__var_height" $__height
 	fi
@@ -1257,7 +1292,7 @@ f_dialog_radiolist_with_help_size()
 	fi
 
 	# Store adjusted rows if desired
-	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows_rlist_with_help_size
 
 	# Constrain height, width, and rows to sensible minimum/maximum values
 	# Return success if no-constrain, else return status from constrain
@@ -2043,7 +2078,10 @@ f_dialog_menutag2index_with_help()
 #
 f_dialog_init()
 {
+	local funcname=f_dialog_init
+
 	DIALOG_SELF_INITIALIZE=
+	USE_DIALOG=1
 
 	#
 	# Clone terminal stdout so we can redirect to it from within sub-shells
@@ -2087,7 +2125,7 @@ f_dialog_init()
 	#
 	# Process `-X' command-line option
 	#
-	[ "$USE_XDIALOG" ] && DIALOG=Xdialog
+	[ "$USE_XDIALOG" ] && DIALOG=Xdialog USE_DIALOG=
 
 	#
 	# Sanity check, or die gracefully
@@ -2130,7 +2168,7 @@ f_dialog_init()
 			DIALOG=dialog
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
-		HOSTNAME=$(hostname)
+		HOSTNAME=$( hostname )
 		local displaynum="${DISPLAY#*:}"
 		eval xauth -if \~$SUDO_USER/.Xauthority extract - \
 			\"\$HOSTNAME/unix:\$displaynum\" \
@@ -2144,7 +2182,8 @@ f_dialog_init()
 	#
 	if [ "$USE_XDIALOG" ]; then
 		local maxsize
-		if ! maxsize=$( LANG= LC_ALL= $DIALOG --print-maxsize 2>&1 )
+		if ! f_eval_catch -dk maxsize $funcname "$DIALOG" \
+			'LANG= LC_ALL= %s --print-maxsize' "$DIALOG"
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG

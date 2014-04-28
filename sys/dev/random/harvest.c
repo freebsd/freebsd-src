@@ -48,20 +48,20 @@ __FBSDID("$FreeBSD$");
 static int read_random_phony(void *, int);
 
 /* Structure holding the desired entropy sources */
-struct harvest_select harvest = { 1, 1, 1, 0 };
+struct harvest_select harvest = { 1, 1, 1, 1 };
 static int warned = 0;
 
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
  */
-static void (*reap_func)(u_int64_t, const void *, u_int, u_int, u_int,
+static void (*reap_func)(u_int64_t, const void *, u_int, u_int,
     enum esource) = NULL;
 static int (*read_func)(void *, int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
 randomdev_init_harvester(void (*reaper)(u_int64_t, const void *, u_int,
-    u_int, u_int, enum esource), int (*reader)(void *, int))
+    u_int, enum esource), int (*reader)(void *, int))
 {
 	reap_func = reaper;
 	read_func = reader;
@@ -86,12 +86,10 @@ randomdev_deinit_harvester(void)
  * read which can be quite expensive.
  */
 void
-random_harvest(void *entropy, u_int count, u_int bits, u_int frac,
-    enum esource origin)
+random_harvest(const void *entropy, u_int count, u_int bits, enum esource origin)
 {
 	if (reap_func)
-		(*reap_func)(get_cyclecount(), entropy, count, bits, frac,
-		    origin);
+		(*reap_func)(get_cyclecount(), entropy, count, bits, origin);
 }
 
 /* Userland-visible version of read_random */

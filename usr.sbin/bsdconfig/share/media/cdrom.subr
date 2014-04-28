@@ -58,31 +58,25 @@ f_media_set_cdrom()
 
 	local devs ndevs
 	f_device_find "" $DEVICE_TYPE_CDROM devs
-	ndevs=$( set -- $devs; echo $# )
+	f_count ndevs $devs
 
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_interactive && f_show_msg "$msg_no_cd_dvd_devices_found"
 		return $FAILURE
-	elif [ $ndevs -gt 1 ]; then
+	elif [ $ndevs -eq 1 ]; then
+		f_struct_copy $devs device_media
+	else
+		local dev
 		local title="$msg_choose_a_cd_dvd_type"
 		local prompt="$msg_please_select_a_cd_dvd_drive"
-		local hline=""
+		local hline=
 
-		local dev retval
 		dev=$( f_device_menu \
 			"$title" "$prompt" "$hline" $DEVICE_TYPE_CDROM \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
-		retval=$?
-		[ "$dev" ] || return $FAILURE
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $FAILURE
 
-		f_device_find "$dev" $DEVICE_TYPE_CDROM devs
-		[ "$devs" ] || return $FAILURE
-		dev="${devs%%[$IFS]*}"
-
-		f_struct_copy device_$dev device_media
-		[ $retval -eq $SUCCESS ] || return $FAILURE
-	else
-		f_struct_copy device_$devs device_media
+		f_struct_copy "$dev" device_media
 	fi
 
 	f_struct device_media || return $FAILURE
@@ -95,9 +89,10 @@ f_media_set_cdrom()
 #
 f_media_init_cdrom()
 {
+	local funcname=f_media_init_cdrom
 	local dev="$1" devname err
 
-	device_$dev get devname devname || return $FAILURE
+	f_struct "$dev" get devname devname || return $FAILURE
 	f_dprintf "Init routine called for CDROM device. devname=[%s]" \
 	          "$devname"
 
@@ -106,14 +101,13 @@ f_media_init_cdrom()
 		return $SUCCESS
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
-	if ! err=$( mount_cd9660 "$devname" "$MOUNTPOINT" 2>&1 )
+	if ! f_eval_catch -dk err $funcname mount_cd9660 \
+		'mount_cd9660 "%s" "%s"' "$devname" "$MOUNTPOINT"
 	then
 		err="${err#mount_cd9660: }"; err="${err#$devname: }"
 		case "$err" in
@@ -154,20 +148,22 @@ f_media_init_cdrom()
 f_media_get_cdrom()
 {
 	local dev="$1" file="$2" probe_type="$3"
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_cdrom: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
 	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }
 
 # f_media_shutdown_cdrom $device
 #
-# Shuts down the CDROM device and ejects the media using f_media_eject_cdrom(),
-# below. Return status should be ignored.
+# Shuts down the CDROM device. Return status should be ignored.
 #
 f_media_shutdown_cdrom()
 {
+	local funcname=f_media_shutdown_cdrom
 	local dev="$1" err
 
 	[ "$CDROM_MOUNTED" ] || return $FAILURE
@@ -177,15 +173,15 @@ f_media_shutdown_cdrom()
 		return $SUCCESS
 	fi
 
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_cdrom_dvd" \
 		           "$MOUNTPOINT" "$err"
 	else
 		CDROM_MOUNTED=
 	fi
-
-	f_media_eject_cdrom "$dev"
 }
 
 # f_media_eject_cdrom $device
@@ -194,11 +190,20 @@ f_media_shutdown_cdrom()
 #
 f_media_eject_cdrom()
 {
-	local dev="$1" devname err
-	device_$dev get name devname || return $SUCCESS
-	case "$devname" in /dev/iso9660/*) return $SUCCESS; esac
+	local funcname=f_media_eject_cdrom
+	local dev="$1" name devname err
+
+	f_struct "$dev" || return $SUCCESS
+	$dev get name name || return $SUCCESS
+	$dev get devname devname || return $SUCCESS
+
+	# Don't eject labels
+	case "$name" in */*) return $SUCCESS; esac
+
 	f_dprintf "Ejecting CDROM/DVD at %s" "$devname"
-	if ! err=$( cdcontrol -f "$devname" eject 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname cdcontrol \
+		'cdcontrol -f "%s" eject' "$devname"
+	then
 		f_dprintf "Could not eject the CDROM/DVD from %s: %s" \
 		          "$devname" "${err#cdcontrol: }"
 	fi

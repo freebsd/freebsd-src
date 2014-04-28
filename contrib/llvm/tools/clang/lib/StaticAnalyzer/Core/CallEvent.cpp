@@ -140,8 +140,8 @@ ProgramStateRef CallEvent::invalidateRegions(unsigned BlockCount,
                                              ProgramStateRef Orig) const {
   ProgramStateRef Result = (Orig ? Orig : getState());
 
-  SmallVector<SVal, 8> ConstValues;
   SmallVector<SVal, 8> ValuesToInvalidate;
+  RegionAndSymbolInvalidationTraits ETraits;
 
   getExtraInvalidatedValues(ValuesToInvalidate);
 
@@ -154,9 +154,12 @@ ProgramStateRef CallEvent::invalidateRegions(unsigned BlockCount,
     // Mark this region for invalidation.  We batch invalidate regions
     // below for efficiency.
     if (PreserveArgs.count(Idx))
-      ConstValues.push_back(getArgSVal(Idx));
-    else
-      ValuesToInvalidate.push_back(getArgSVal(Idx));
+      if (const MemRegion *MR = getArgSVal(Idx).getAsRegion())
+        ETraits.setTrait(MR->StripCasts(), 
+                        RegionAndSymbolInvalidationTraits::TK_PreserveContents);
+        // TODO: Factor this out + handle the lower level const pointers.
+
+    ValuesToInvalidate.push_back(getArgSVal(Idx));
   }
 
   // Invalidate designated regions using the batch invalidation API.
@@ -165,7 +168,7 @@ ProgramStateRef CallEvent::invalidateRegions(unsigned BlockCount,
   return Result->invalidateRegions(ValuesToInvalidate, getOriginExpr(),
                                    BlockCount, getLocationContext(),
                                    /*CausedByPointerEscape*/ true,
-                                   /*Symbols=*/0, this, ConstValues);
+                                   /*Symbols=*/0, this, &ETraits);
 }
 
 ProgramPoint CallEvent::getProgramPoint(bool IsPreVisit,
@@ -245,15 +248,36 @@ QualType CallEvent::getDeclaredResultType(const Decl *D) {
     // Blocks are difficult because the return type may not be stored in the
     // BlockDecl itself. The AST should probably be enhanced, but for now we
     // just do what we can.
-    QualType Ty = BD->getSignatureAsWritten()->getType();
-    if (const FunctionType *FT = Ty->getAs<FunctionType>())
-      if (!FT->getResultType()->isDependentType())
-        return FT->getResultType();
+    // If the block is declared without an explicit argument list, the
+    // signature-as-written just includes the return type, not the entire
+    // function type.
+    // FIXME: All blocks should have signatures-as-written, even if the return
+    // type is inferred. (That's signified with a dependent result type.)
+    if (const TypeSourceInfo *TSI = BD->getSignatureAsWritten()) {
+      QualType Ty = TSI->getType();
+      if (const FunctionType *FT = Ty->getAs<FunctionType>())
+        Ty = FT->getResultType();
+      if (!Ty->isDependentType())
+        return Ty;
+    }
 
     return QualType();
   }
   
-  return QualType();
+  llvm_unreachable("unknown callable kind");
+}
+
+bool CallEvent::isVariadic(const Decl *D) {
+  assert(D);
+
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+    return FD->isVariadic();
+  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
+    return MD->isVariadic();
+  if (const BlockDecl *BD = dyn_cast<BlockDecl>(D))
+    return BD->isVariadic();
+
+  llvm_unreachable("unknown callable kind");
 }
 
 static void addParameterValuesToBindings(const StackFrameContext *CalleeCtx,
@@ -264,8 +288,11 @@ static void addParameterValuesToBindings(const StackFrameContext *CalleeCtx,
                                          CallEvent::param_iterator E) {
   MemRegionManager &MRMgr = SVB.getRegionManager();
 
+  // If the function has fewer parameters than the call has arguments, we simply
+  // do not bind any values to them.
+  unsigned NumArgs = Call.getNumArgs();
   unsigned Idx = 0;
-  for (; I != E; ++I, ++Idx) {
+  for (; I != E && Idx < NumArgs; ++I, ++Idx) {
     const ParmVarDecl *ParamDecl = *I;
     assert(ParamDecl && "Formal parameter has no decl?");
 
@@ -674,8 +701,12 @@ const PseudoObjectExpr *ObjCMethodCall::getContainingPseudoObjectExpr() const {
 
 ObjCMessageKind ObjCMethodCall::getMessageKind() const {
   if (Data == 0) {
+
+    // Find the parent, ignoring implicit casts.
     ParentMap &PM = getLocationContext()->getParentMap();
-    const Stmt *S = PM.getParent(getOriginExpr());
+    const Stmt *S = PM.getParentIgnoreParenCasts(getOriginExpr());
+
+    // Check if parent is a PseudoObjectExpr.
     if (const PseudoObjectExpr *POE = dyn_cast_or_null<PseudoObjectExpr>(S)) {
       const Expr *Syntactic = POE->getSyntacticForm();
 
@@ -730,7 +761,7 @@ bool ObjCMethodCall::canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
   // TODO: It could actually be subclassed if the subclass is private as well.
   // This is probably very rare.
   SourceLocation InterfLoc = IDecl->getEndOfDefinitionLoc();
-  if (InterfLoc.isValid() && SM.isFromMainFile(InterfLoc))
+  if (InterfLoc.isValid() && SM.isInMainFile(InterfLoc))
     return false;
 
   // Assume that property accessors are not overridden.
@@ -752,7 +783,7 @@ bool ObjCMethodCall::canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
       return false;
 
     // If outside the main file,
-    if (D->getLocation().isValid() && !SM.isFromMainFile(D->getLocation()))
+    if (D->getLocation().isValid() && !SM.isInMainFile(D->getLocation()))
       return true;
 
     if (D->isOverriding()) {
@@ -946,6 +977,8 @@ CallEventManager::getCaller(const StackFrameContext *CalleeCtx,
   const Stmt *Trigger;
   if (Optional<CFGAutomaticObjDtor> AutoDtor = E.getAs<CFGAutomaticObjDtor>())
     Trigger = AutoDtor->getTriggerStmt();
+  else if (Optional<CFGDeleteDtor> DeleteDtor = E.getAs<CFGDeleteDtor>())
+    Trigger = cast<Stmt>(DeleteDtor->getDeleteExpr());
   else
     Trigger = Dtor->getBody();
 

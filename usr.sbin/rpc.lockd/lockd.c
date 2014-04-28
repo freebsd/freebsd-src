@@ -101,10 +101,6 @@ static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
 void 	lookup_addresses(struct netconfig *nconf);
 void	init_nsm(void);
-void	nlm_prog_0(struct svc_req *, SVCXPRT *);
-void	nlm_prog_1(struct svc_req *, SVCXPRT *);
-void	nlm_prog_3(struct svc_req *, SVCXPRT *);
-void	nlm_prog_4(struct svc_req *, SVCXPRT *);
 void	out_of_mem(void);
 void	usage(void);
 
@@ -228,7 +224,7 @@ main(int argc, char **argv)
 		if (hosts == NULL)
 			out_of_mem();
 
-		hosts[0] = "*";
+		hosts[0] = strdup("*");
 		nhosts = 1;
 	} else {
 		hosts_bak = hosts;
@@ -244,7 +240,7 @@ main(int argc, char **argv)
 				hosts = hosts_bak;
 
 			nhosts += 2;
-			hosts[nhosts - 2] = "::1";
+			hosts[nhosts - 2] = strdup("::1");
 		} else {
 			hosts_bak = realloc(hosts, (nhosts + 1) * sizeof(char *));
 			if (hosts_bak == NULL) {
@@ -258,7 +254,7 @@ main(int argc, char **argv)
 				hosts = hosts_bak;
 			}
 		}
-		hosts[nhosts - 1] = "127.0.0.1";
+		hosts[nhosts - 1] = strdup("127.0.0.1");
 	}
 
 	if (kernel_lockd) {

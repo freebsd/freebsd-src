@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998-2000, 2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000, 2004 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -32,7 +32,7 @@ POPDIVERT
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`$Id: local.m4,v 8.59 2004/11/23 00:37:25 ca Exp $')
+VERSIONID(`$Id: local.m4,v 8.60 2013/11/22 20:51:14 ca Exp $')
 
 #
 #  Envelope sender rewriting

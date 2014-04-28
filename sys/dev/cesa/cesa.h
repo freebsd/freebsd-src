@@ -297,8 +297,8 @@ struct cesa_chain_info {
 #define CESA_CSH_AES_KLEN_MASK		(3 << 24)
 
 #define CESA_CSHD_FRAG_FIRST		(1 << 30)
-#define CESA_CSHD_FRAG_LAST		(2 << 30)
-#define CESA_CSHD_FRAG_MIDDLE		(3 << 30)
+#define CESA_CSHD_FRAG_LAST		(2U << 30)
+#define CESA_CSHD_FRAG_MIDDLE		(3U << 30)
 
 /* CESA registers definitions */
 #define CESA_ICR			0xDE20

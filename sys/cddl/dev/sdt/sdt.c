@@ -24,7 +24,20 @@
  *
  */
 
-#include "opt_kdtrace.h"
+/*
+ * This file contains a reimplementation of the statically-defined tracing (SDT)
+ * framework for DTrace. Probes and SDT providers are defined using the macros
+ * in sys/sdt.h, which append all the needed structures to linker sets. When
+ * this module is loaded, it iterates over all of the loaded modules and
+ * registers probes and providers with the DTrace framework based on the
+ * contents of these linker sets.
+ *
+ * A list of SDT providers is maintained here since a provider may span multiple
+ * modules. When a kernel module is unloaded, a provider defined in that module
+ * is unregistered only if no other modules refer to it. The DTrace framework is
+ * responsible for destroying individual probes when a kernel module is
+ * unloaded; in particular, probes may not span multiple kernel modules.
+ */
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
@@ -53,21 +66,14 @@ static void	sdt_destroy(void *, dtrace_id_t, void *);
 static void	sdt_enable(void *, dtrace_id_t, void *);
 static void	sdt_disable(void *, dtrace_id_t, void *);
 
-static d_open_t	sdt_open;
-static void	sdt_load(void *);
-static int	sdt_unload(void *);
+static void	sdt_load(void);
+static int	sdt_unload(void);
 static void	sdt_create_provider(struct sdt_provider *);
 static void	sdt_create_probe(struct sdt_probe *);
 static void	sdt_kld_load(void *, struct linker_file *);
 static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
-
-static struct cdevsw sdt_cdevsw = {
-	.d_version	= D_VERSION,
-	.d_open		= sdt_open,
-	.d_name		= "sdt",
-};
 
 static dtrace_pattr_t sdt_attr = {
 { DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
@@ -89,8 +95,6 @@ static dtrace_pops_t sdt_pops = {
 	NULL,
 	sdt_destroy,
 };
-
-static struct cdev	*sdt_cdev;
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
@@ -117,7 +121,6 @@ sdt_create_provider(struct sdt_provider *prov)
 	newprov = malloc(sizeof(*newprov), M_SDT, M_WAITOK | M_ZERO);
 	newprov->name = strdup(prov->name, M_SDT);
 	prov->sdt_refs = newprov->sdt_refs = 1;
-	TAILQ_INIT(&newprov->probe_list);
 
 	TAILQ_INSERT_TAIL(&sdt_prov_list, newprov, prov_entry);
 
@@ -133,6 +136,8 @@ sdt_create_probe(struct sdt_probe *probe)
 	char mod[DTRACE_MODNAMELEN];
 	char func[DTRACE_FUNCNAMELEN];
 	char name[DTRACE_NAMELEN];
+	const char *from;
+	char *to;
 	size_t len;
 
 	TAILQ_FOREACH(prov, &sdt_prov_list, prov_entry)
@@ -156,17 +161,30 @@ sdt_create_probe(struct sdt_probe *probe)
 	 * in the C compiler, so we have to respect const vs non-const.
 	 */
 	strlcpy(func, probe->func, sizeof(func));
-	strlcpy(name, probe->name, sizeof(name));
+
+	from = probe->name;
+	to = name;
+	for (len = 0; len < (sizeof(name) - 1) && *from != '\0';
+	    len++, from++, to++) {
+		if (from[0] == '_' && from[1] == '_') {
+			*to = '-';
+			from++;
+		} else
+			*to = *from;
+	}
+	*to = '\0';
 
 	if (dtrace_probe_lookup(prov->id, mod, func, name) != DTRACE_IDNONE)
 		return;
 
-	TAILQ_INSERT_TAIL(&prov->probe_list, probe, probe_entry);
-
 	(void)dtrace_probe_create(prov->id, mod, func, name, 1, probe);
 }
 
-/* Probes are created through the SDT module load/unload hook. */
+/*
+ * Probes are created through the SDT module load/unload hook, so this function
+ * has nothing to do. It only exists because the DTrace provider framework
+ * requires one of provide_probes and provide_module to be defined.
+ */
 static void
 sdt_provide_probes(void *arg, dtrace_probedesc_t *desc)
 {
@@ -198,39 +216,39 @@ sdt_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 	struct sdt_argtype *argtype;
 	struct sdt_probe *probe = parg;
 
-	if (desc->dtargd_ndx < probe->n_args) {
-		TAILQ_FOREACH(argtype, &probe->argtype_list, argtype_entry) {
-			if (desc->dtargd_ndx == argtype->ndx) {
-				desc->dtargd_mapping = desc->dtargd_ndx;
-				strlcpy(desc->dtargd_native, argtype->type,
-				    sizeof(desc->dtargd_native));
-				if (argtype->xtype != NULL)
-					strlcpy(desc->dtargd_xlate,
-					    argtype->xtype,
-					    sizeof(desc->dtargd_xlate));
-				else
-					desc->dtargd_xlate[0] = '\0';
-			}
-		}
-	} else
+	if (desc->dtargd_ndx >= probe->n_args) {
 		desc->dtargd_ndx = DTRACE_ARGNONE;
+		return;
+	}
+
+	TAILQ_FOREACH(argtype, &probe->argtype_list, argtype_entry) {
+		if (desc->dtargd_ndx == argtype->ndx) {
+			desc->dtargd_mapping = desc->dtargd_ndx;
+			if (argtype->type == NULL) {
+				desc->dtargd_native[0] = '\0';
+				desc->dtargd_xlate[0] = '\0';
+				continue;
+			}
+			strlcpy(desc->dtargd_native, argtype->type,
+			    sizeof(desc->dtargd_native));
+			if (argtype->xtype != NULL)
+				strlcpy(desc->dtargd_xlate, argtype->xtype,
+				    sizeof(desc->dtargd_xlate));
+		}
+	}
 }
 
 static void
 sdt_destroy(void *arg, dtrace_id_t id, void *parg)
 {
-	struct sdt_probe *probe;
-
-	probe = parg;
-	TAILQ_REMOVE(&probe->prov->probe_list, probe, probe_entry);
 }
 
 /*
  * Called from the kernel linker when a module is loaded, before
  * dtrace_module_loaded() is called. This is done so that it's possible to
- * register new providers when modules are loaded. We cannot do this in the
- * provide_module method since it's called with the provider lock held
- * and dtrace_register() will try to acquire it again.
+ * register new providers when modules are loaded. The DTrace framework
+ * explicitly disallows calling into the framework from the provide_module
+ * provider method, so we cannot do this there.
  */
 static void
 sdt_kld_load(void *arg __unused, struct linker_file *lf)
@@ -264,14 +282,15 @@ sdt_kld_load(void *arg __unused, struct linker_file *lf)
 }
 
 static void
-sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error __unused)
+sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error)
 {
 	struct sdt_provider *prov, **curr, **begin, **end, *tmp;
 
 	if (*error != 0)
 		/* We already have an error, so don't do anything. */
 		return;
-	else if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end, NULL))
+	else if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end,
+	    NULL))
 		/* No DTrace providers are declared in this file. */
 		return;
 
@@ -281,17 +300,20 @@ sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error __unus
 	 */
 	for (curr = begin; curr < end; curr++) {
 		TAILQ_FOREACH_SAFE(prov, &sdt_prov_list, prov_entry, tmp) {
-			if (strcmp(prov->name, (*curr)->name) == 0) {
-				if (prov->sdt_refs == 1) {
-					TAILQ_REMOVE(&sdt_prov_list, prov,
-					    prov_entry);
-					dtrace_unregister(prov->id);
-					free(prov->name, M_SDT);
-					free(prov, M_SDT);
-				} else
-					prov->sdt_refs--;
-				break;
-			}
+			if (strcmp(prov->name, (*curr)->name) != 0)
+				continue;
+
+			if (prov->sdt_refs == 1) {
+				if (dtrace_unregister(prov->id) != 0) {
+					*error = 1;
+					return;
+				}
+				TAILQ_REMOVE(&sdt_prov_list, prov, prov_entry);
+				free(prov->name, M_SDT);
+				free(prov, M_SDT);
+			} else
+				prov->sdt_refs--;
+			break;
 		}
 	}
 }
@@ -306,14 +328,10 @@ sdt_linker_file_cb(linker_file_t lf, void *arg __unused)
 }
 
 static void
-sdt_load(void *arg __unused)
+sdt_load()
 {
 
 	TAILQ_INIT(&sdt_prov_list);
-
-	/* Create the /dev/dtrace/sdt entry. */
-	sdt_cdev = make_dev(&sdt_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "dtrace/sdt");
 
 	sdt_probe_func = dtrace_probe;
 
@@ -327,9 +345,10 @@ sdt_load(void *arg __unused)
 }
 
 static int
-sdt_unload(void *arg __unused)
+sdt_unload()
 {
 	struct sdt_provider *prov, *tmp;
+	int ret;
 
 	EVENTHANDLER_DEREGISTER(kld_load, sdt_kld_load_tag);
 	EVENTHANDLER_DEREGISTER(kld_unload_try, sdt_kld_unload_try_tag);
@@ -337,18 +356,17 @@ sdt_unload(void *arg __unused)
 	sdt_probe_func = sdt_probe_stub;
 
 	TAILQ_FOREACH_SAFE(prov, &sdt_prov_list, prov_entry, tmp) {
+		ret = dtrace_unregister(prov->id);
+		if (ret != 0)
+			return (ret);
 		TAILQ_REMOVE(&sdt_prov_list, prov, prov_entry);
-		dtrace_unregister(prov->id);
 		free(prov->name, M_SDT);
 		free(prov, M_SDT);
 	}
 
-	destroy_dev(sdt_cdev);
-
 	return (0);
 }
 
-/* ARGSUSED */
 static int
 sdt_modevent(module_t mod __unused, int type, void *data __unused)
 {
@@ -356,9 +374,11 @@ sdt_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		sdt_load();
 		break;
 
 	case MOD_UNLOAD:
+		error = sdt_unload();
 		break;
 
 	case MOD_SHUTDOWN:
@@ -371,18 +391,6 @@ sdt_modevent(module_t mod __unused, int type, void *data __unused)
 
 	return (error);
 }
-
-/* ARGSUSED */
-static int
-sdt_open(struct cdev *dev __unused, int oflags __unused, int devtype __unused,
-    struct thread *td __unused)
-{
-
-	return (0);
-}
-
-SYSINIT(sdt_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_load, NULL);
-SYSUNINIT(sdt_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_unload, NULL);
 
 DEV_MODULE(sdt, sdt_modevent, NULL);
 MODULE_VERSION(sdt, 1);

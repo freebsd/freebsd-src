@@ -56,9 +56,8 @@ int pim6_input(struct mbuf **, int*, int);
 #endif /* KERNEL */
 
 /*
- * Names for PIM sysctl objects
+ * Identifiers for PIM sysctl nodes
  */
 #define PIM6CTL_STATS		1	/* statistics (read-only) */
-#define PIM6CTL_MAXID		2
 
 #endif /* _NETINET6_PIM6_VAR_H_ */

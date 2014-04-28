@@ -150,8 +150,15 @@ struct inode {
 #define	IN_HASHED	0x0020		/* Inode is on hash list */
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
-#define IN_LAZYACCESS   0x0100		/* Process IN_ACCESS after the
+#define	IN_LAZYACCESS   0x0100		/* Process IN_ACCESS after the
 					    suspension finished */
+
+/*
+ * These are translation flags for some attributes that Ext4
+ * passes as inode flags but that we cannot pass directly.
+ */
+#define	IN_E4INDEX	0x010000
+#define	IN_E4EXTENTS	0x020000
 
 #define i_devvp i_ump->um_devvp
 

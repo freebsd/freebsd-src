@@ -316,6 +316,7 @@ udom_open(const char *path, int flags)
 		sou.sun_family = AF_UNIX;
 		if ((len = strlcpy(sou.sun_path, path,
 		    sizeof(sou.sun_path))) >= sizeof(sou.sun_path)) {
+			close(fd);
 			errno = ENAMETOOLONG;
 			return (-1);
 		}

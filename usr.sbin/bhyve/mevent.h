@@ -32,7 +32,8 @@
 enum ev_type {
 	EVF_READ,
 	EVF_WRITE,
-	EVF_TIMER
+	EVF_TIMER,
+	EVF_SIGNAL
 };
 
 struct mevent;

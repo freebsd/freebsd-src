@@ -20,7 +20,7 @@ OBJ_GDB= ${OBJ_ROOT}/gdb
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
 
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .else
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
@@ -52,7 +52,7 @@ GENSRCS+= nm.h tm.h
 .if defined(GDB_CROSS_DEBUGGER)
 CFLAGS+= -DCROSS_DEBUGGER -I${BMAKE_ROOT}/../..
 GDB_SUFFIX= -${TARGET_ARCH}
-NO_MAN=
+MAN=
 .endif
 
 .include "${TARGET_SUBDIR}/Makefile"

@@ -5249,6 +5249,21 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	       dtype, rstr, qtype);
 }
 
+void
+scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data)
+{
+	char vendor[16], product[48], revision[16];
+
+	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+		   sizeof(vendor));
+	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
+		   sizeof(product));
+	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
+		   sizeof(revision));
+
+	printf("<%s %s %s>", vendor, product, revision);
+}
+
 /*
  * Table of syncrates that don't follow the "divisible by 4"
  * rule. This table will be expanded in future SCSI specs.
@@ -6494,7 +6509,11 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 		while (rhs_id <= rhs_last
 		    && (rhs_id->identifier + rhs_id->length) <= rhs_end) {
 
-			if (rhs_id->length == lhs_id->length
+			if ((rhs_id->id_type &
+			     (SVPD_ID_ASSOC_MASK | SVPD_ID_TYPE_MASK)) ==
+			    (lhs_id->id_type &
+			     (SVPD_ID_ASSOC_MASK | SVPD_ID_TYPE_MASK))
+			 && rhs_id->length == lhs_id->length
 			 && memcmp(rhs_id->identifier, lhs_id->identifier,
 				   rhs_id->length) == 0)
 				return (0);

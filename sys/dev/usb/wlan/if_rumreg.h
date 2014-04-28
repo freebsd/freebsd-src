@@ -139,7 +139,7 @@
 #define RT2573_BBP_BUSY	(1 << 16)
 /* possible flags for register PHY_CSR4 */
 #define RT2573_RF_20BIT	(20 << 24)
-#define RT2573_RF_BUSY	(1 << 31)
+#define RT2573_RF_BUSY	(1U << 31)
 
 /* LED values */
 #define RT2573_LED_RADIO	(1 << 8)

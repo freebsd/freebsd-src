@@ -23,12 +23,14 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
     ${MK_ARM_EABI} != "no"
 TARGET_ABI=	gnueabi
+.elif ${TARGET_ARCH} == "armv6hf"
+TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	unknown
 .endif
 
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
-BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd11.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-${TARGET_ABI}-freebsd11.0
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-unknown-freebsd11.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
@@ -56,7 +58,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td \
 	    -gen-intrinsic -o ${.TARGET} \
 	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 .for arch in \
-	ARM/ARM Mips/Mips PowerPC/PPC X86/X86
+	ARM/ARM Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
@@ -86,13 +88,14 @@ AttrDump.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-dump -o ${.TARGET} ${.ALLSRC}
 
-AttrExprArgs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+AttrIdentifierArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
-	    -gen-clang-attr-expr-args-list -o ${.TARGET} ${.ALLSRC}
+	    -gen-clang-attr-identifier-arg-list -o ${.TARGET} ${.ALLSRC}
 
 AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-impl -o ${.TARGET} ${.ALLSRC}
+
 AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-late-parsed-list -o ${.TARGET} ${.ALLSRC}
@@ -100,6 +103,10 @@ AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-list -o ${.TARGET} ${.ALLSRC}
+
+AttrParsedAttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
+	    -gen-clang-attr-parsed-attr-impl -o ${.TARGET} ${.ALLSRC}
 
 AttrParsedAttrKinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
@@ -128,6 +135,10 @@ AttrSpellingListIndex.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrTemplateInstantiate.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-template-instantiate -o ${.TARGET} ${.ALLSRC}
+
+AttrTypeArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
+	    -gen-clang-attr-type-arg-list -o ${.TARGET} ${.ALLSRC}
 
 CommentCommandInfo.inc.h: ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
 	${CLANG_TBLGEN} \
@@ -164,6 +175,10 @@ StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
 	${CLANG_TBLGEN} \
 	    -gen-clang-stmt-nodes -o ${.TARGET} ${.ALLSRC}
 
+arm_neon.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	${CLANG_TBLGEN} \
+	    -gen-arm-neon -o ${.TARGET} ${.ALLSRC}
+
 arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 	${CLANG_TBLGEN} \
 	    -gen-arm-neon-sema -o ${.TARGET} ${.ALLSRC}
@@ -184,11 +199,11 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 .endfor
 
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver \
+	${TBLGEN} -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
-	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver \
+	${TBLGEN} -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td \

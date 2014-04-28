@@ -99,11 +99,11 @@ devlist(int argc, char *argv[])
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
 			    NVME_NS_PREFIX, i+1);
 			read_namespace_data(fd, i+1, &nsdata);
-			printf("  %10s (%lldGB)\n",
+			printf("  %10s (%lldMB)\n",
 				name,
 				nsdata.nsze *
 				(long long)ns_get_sector_size(&nsdata) /
-				1024 / 1024 / 1024);
+				1024 / 1024);
 		}
 
 		close(fd);

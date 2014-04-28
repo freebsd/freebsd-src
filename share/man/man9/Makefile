@@ -118,6 +118,7 @@ MAN=	accept_filter.9 \
 	g_consumer.9 \
 	g_data.9 \
 	get_cyclecount.9 \
+	getenv.9 \
 	getnewvnode.9 \
 	g_event.9 \
 	g_geom.9 \
@@ -677,6 +678,14 @@ MLINKS+=g_consumer.9 g_destroy_consumer.9 \
 	g_consumer.9 g_new_consumer.9
 MLINKS+=g_data.9 g_read_data.9 \
 	g_data.9 g_write_data.9
+MLINKS+=getenv.9 freeenv.9 \
+	getenv.9 getenv_int.9 \
+	getenv.9 getenv_long.9 \
+	getenv.9 getenv_string.9 \
+	getenv.9 getenv_quad.9 \
+	getenv.9 getenv_uint.9 \
+	getenv.9 getenv_ulong.9 \
+	getenv.9 testenv.9
 MLINKS+=g_event.9 g_cancel_event.9 \
 	g_event.9 g_post_event.9 \
 	g_event.9 g_waitfor_event.9
@@ -869,6 +878,7 @@ MLINKS+=mbpool.9 mbp_alloc.9 \
 MLINKS+=\
 	mbuf.9 m_adj.9 \
 	mbuf.9 M_ALIGN.9 \
+	mbuf.9 m_append.9 \
 	mbuf.9 m_apply.9 \
 	mbuf.9 m_cat.9 \
 	mbuf.9 MCHTYPE.9 \
@@ -892,6 +902,7 @@ MLINKS+=\
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \
 	mbuf.9 m_get.9 \
+	mbuf.9 m_getjcl.9 \
 	mbuf.9 m_getcl.9 \
 	mbuf.9 m_getclr.9 \
 	mbuf.9 MGETHDR.9 \
@@ -1134,11 +1145,14 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
+	sbuf.9 sbuf_new_auto.9 \
 	sbuf.9 sbuf_new_for_sysctl.9 \
 	sbuf.9 sbuf_printf.9 \
 	sbuf.9 sbuf_putc.9 \
 	sbuf.9 sbuf_set_drain.9 \
 	sbuf.9 sbuf_setpos.9 \
+	sbuf.9 sbuf_start_section.9 \
+	sbuf.9 sbuf_end_section.9  \
 	sbuf.9 sbuf_trim.9 \
 	sbuf.9 sbuf_vprintf.9
 MLINKS+=scheduler.9 curpriority_cmp.9 \
@@ -1172,6 +1186,7 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_page.9
 MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append.9 \
+	sglist.9 sglist_append_bio.9 \
 	sglist.9 sglist_append_mbuf.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_uio.9 \
@@ -1335,6 +1350,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASK_INITIALIZER.9 \
+	taskqueue.9 taskqueue_block.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \
@@ -1342,13 +1358,15 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASKQUEUE_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_drain.9 \
+	taskqueue.9 taskqueue_drain_all.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
 	taskqueue.9 taskqueue_enqueue_fast.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_member.9 \
-	taskqueue.9 taskqueue_run.9
+	taskqueue.9 taskqueue_run.9 \
+	taskqueue.9 taskqueue_unblock.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
 	time.9 time_uptime.9
@@ -1523,9 +1541,13 @@ MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
+	zone.9 uma_zalloc_arg.9 \
 	zone.9 uma_zcreate.9 \
 	zone.9 uma_zdestroy.9 \
 	zone.9 uma_zfree.9 \
+	zone.9 uma_zfree_arg.9 \
+	zone.9 uma_zone_get_cur.9 \
+	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9
 
 .include <bsd.prog.mk>

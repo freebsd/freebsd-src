@@ -187,7 +187,7 @@ options 	VESA_DEBUG
 device		dpms		# DPMS suspend & resume via VESA BIOS
 
 # x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
-options		X86BIOS
+options 	X86BIOS
 
 #
 # Optional devices:
@@ -309,7 +309,6 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # mlxen: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
-# nve:	nVidia nForce MCP on-board Ethernet Networking
 # sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wpi:	Intel 3945ABG Wireless LAN controller
@@ -327,7 +326,6 @@ device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlxen		# Mellanox ConnectX HCA Ethernet
 device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
-device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
 device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
@@ -442,7 +440,7 @@ device		ips
 #
 # Intel C600 (Patsburg) integrated SAS controller
 device		isci
-options		ISCI_LOGGING	# enable debugging in isci HAL
+options 	ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # NVM Express (NVMe) support
@@ -462,7 +460,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # The virtio entry provides a generic bus for use by the device drivers.
 # It must be combined with an interface that communicates with the host.
-# Multiple such interfaces defined by the VirtIO specification. FreeBSD
+# Multiple such interfaces are defined by the VirtIO specification. FreeBSD
 # only has support for PCI. Therefore, virtio_pci must be statically
 # compiled in or loaded as a module for the device drivers to function.
 #
@@ -472,6 +470,13 @@ device		vtnet		# VirtIO Ethernet device
 device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_random	# VirtIO Entropy device
+
+device 		hyperv		# HyperV drivers
+
+# Xen HVM Guest Optimizations
+options 	XENHVM		# Xen HVM kernel infrastructure
+device 		xenpci		# Xen HVM Hypervisor services driver
 
 #####################################################################
 
@@ -644,3 +649,6 @@ device		ndis
 
 # Linux-specific pseudo devices support
 device		lindev
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC

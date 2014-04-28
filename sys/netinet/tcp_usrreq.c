@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -609,13 +610,6 @@ out:
 /*
  * Accept a connection.  Essentially all the work is done at higher levels;
  * just return the address of the peer, storing through addr.
- *
- * The rationale for acquiring the tcbinfo lock here is somewhat complicated,
- * and is described in detail in the commit log entry for r175612.  Acquiring
- * it delays an accept(2) racing with sonewconn(), which inserts the socket
- * before the inpcb address/port fields are initialized.  A better fix would
- * prevent the socket from being placed in the listen queue until all fields
- * are fully initialized.
  */
 static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
@@ -632,7 +626,6 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
-	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
@@ -652,7 +645,6 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 out:
 	TCPDEBUG2(PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
 	if (error == 0)
 		*nam = in_sockaddr(port, &addr);
 	return error;
@@ -1583,6 +1575,27 @@ unlock_and_done:
 			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
+			break;
+		case TCP_KEEPIDLE:
+		case TCP_KEEPINTVL:
+		case TCP_KEEPINIT:
+		case TCP_KEEPCNT:
+			switch (sopt->sopt_name) {
+			case TCP_KEEPIDLE:
+				ui = tp->t_keepidle / hz;
+				break;
+			case TCP_KEEPINTVL:
+				ui = tp->t_keepintvl / hz;
+				break;
+			case TCP_KEEPINIT:
+				ui = tp->t_keepinit / hz;
+				break;
+			case TCP_KEEPCNT:
+				ui = tp->t_keepcnt;
+				break;
+			}
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &ui, sizeof(ui));
 			break;
 		default:
 			INP_WUNLOCK(inp);

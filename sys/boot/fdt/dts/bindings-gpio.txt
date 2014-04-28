@@ -82,7 +82,7 @@ dir:
 
 flags:
 	0x0000----	IN_NONE
-	0x0001----	IN_POL_LOW	Polarity low (inverted input value.
+	0x0001----	IN_POL_LOW	Polarity low (active-low).
 	0x0002----	IN_IRQ_EDGE	Interrupt, edge triggered.
 	0x0004----	IN_IRQ_LEVEL	Interrupt, level triggered.
 	

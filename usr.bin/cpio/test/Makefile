@@ -64,7 +64,7 @@ SRCS+=	test_utils.c
 
 CLEANFILES+= list.h bsdcpio_test
 
-NO_MAN=yes
+MAN=
 
 PROG=bsdcpio_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}

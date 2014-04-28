@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.62 2013/03/20 09:27:56 sthen Exp $
+.\"     $OpenBSD: nc.1,v 1.67 2014/02/26 20:56:11 claudio Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2012
+.Dd April 11, 2014
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdEhklNnrStUuvz
+.Op Fl 46DdEFhklNnrStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl I Ar length
 .Op Fl i Ar interval
@@ -120,6 +120,21 @@ to be used using the syntax described in
 .Xr ipsec_set_policy 3 .
 This flag can be specified up to two times, as typically one policy for
 each direction is needed.
+.It Fl F
+Pass the first connected socket using
+.Xr sendmsg 2
+to stdout and exit.
+This is useful in conjunction with
+.Fl X
+to have
+.Nm
+perform connection setup with a proxy but then leave the rest of the
+connection to another program (e.g.\&
+.Xr ssh 1
+using the
+.Xr ssh_config 5
+.Cm ProxyUseFdPass
+option).
 .It Fl h
 Prints out
 .Nm
@@ -236,7 +251,6 @@ flag is given.
 Set the routing table
 .Pq Dq FIB
 to be used.
-The default is 0.
 .It Fl v
 Have
 .Nm
@@ -365,7 +379,7 @@ Using a second machine, connect to the listening
 .Nm
 process, feeding it the file which is to be transferred:
 .Pp
-.Dl $ nc host.example.com 1234 \*(Lt filename.in
+.Dl $ nc -N host.example.com 1234 \*(Lt filename.in
 .Pp
 After the file has been transferred, the connection will close automatically.
 .Sh TALKING TO SERVERS
@@ -490,10 +504,10 @@ if the proxy requires it:
 .Xr tcp 4
 .Sh AUTHORS
 Original implementation by *Hobbit*
-.Aq hobbit@avian.org .
+.Aq Mt hobbit@avian.org .
 .br
 Rewritten with IPv6 support by
-.An Eric Jackson Aq ericj@monkey.org .
+.An Eric Jackson Aq Mt ericj@monkey.org .
 .Sh CAVEATS
 UDP port scans using the
 .Fl uz

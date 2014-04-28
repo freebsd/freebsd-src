@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd January 6 2009
+.Dd January 29 2014
 .Dt AUTHPF 8
 .Os
 .Sh NAME
@@ -43,7 +43,11 @@ It is meant to be used with users who can connect via
 .Xr ssh 1
 only, and requires the
 .Xr pf 4
-subsystem to be enabled.
+subsystem and an
+.Xr fdescfs 5
+file system mounted at
+.Pa /dev/fd
+to be enabled.
 .Pp
 .Nm authpf-noip
 is a user shell
@@ -558,6 +562,7 @@ pass out on $internal_if from (self) to $workstation_ip port 3389 \e
 .El
 .Sh SEE ALSO
 .Xr pf 4 ,
+.Xr fdescfs 5 ,
 .Xr pf.conf 5 ,
 .Xr securelevel 7 ,
 .Xr ftp-proxy 8

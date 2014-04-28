@@ -78,7 +78,7 @@ usage(void)
 	fprintf(stderr, "    name <volume> <name>\n");
 	fprintf(stderr, "    volume progress <volume>  - display status of active operations\n");
 	fprintf(stderr, "    clear                     - clear volume configuration\n");
-	fprintf(stderr, "    create <type> [-v] <drive>[,<drive>[,...]] [<drive>[,<drive>[,...]]\n");
+	fprintf(stderr, "    create <type> [-v] [-s stripe_size] <drive>[,<drive>[,...]] [<drive>[,<drive>[,...]]\n");
 	fprintf(stderr, "    delete <volume>\n");
 	fprintf(stderr, "    add <drive> [volume]      - add a hot spare\n");
 	fprintf(stderr, "    remove <drive>            - remove a hot spare\n");
@@ -93,6 +93,8 @@ usage(void)
 	fprintf(stderr, "    flash <firmware>\n");
 	fprintf(stderr, "    start learn               - start a BBU relearn\n");
 	fprintf(stderr, "    bbu <setting> <value>     - set BBU properties\n");
+	fprintf(stderr, "    ctrlprop rebuild [rate]   - get/set the volume rebuild rate\n");
+	fprintf(stderr, "    ctrlprop alarm [0/1]      - enable/disable controller alarms\n");
 #ifdef DEBUG
 	fprintf(stderr, "    debug                     - debug 'show config'\n");
 	fprintf(stderr, "    dump                      - display 'saved' config\n");

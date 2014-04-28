@@ -41,6 +41,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
 #include <algorithm>
+#include <cctype>
 #include <map>
 using namespace llvm;
 
@@ -481,7 +482,7 @@ static int AnalyzeBitcode() {
   OwningPtr<MemoryBuffer> MemBuf;
 
   if (error_code ec =
-        MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), MemBuf))
+        MemoryBuffer::getFileOrSTDIN(InputFilename, MemBuf))
     return Error("Error reading '" + InputFilename + "': " + ec.message());
 
   if (MemBuf->getBufferSize() & 3)

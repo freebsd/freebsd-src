@@ -240,6 +240,10 @@ inline succ_const_iterator succ_end(const BasicBlock *BB) {
   return succ_const_iterator(BB->getTerminator(), true);
 }
 
+template <typename T, typename U> struct isPodLike<SuccIterator<T, U> > {
+  static const bool value = isPodLike<T>::value;
+};
+
 
 
 //===--------------------------------------------------------------------===//
@@ -324,7 +328,7 @@ template <> struct GraphTraits<Function*> : public GraphTraits<BasicBlock*> {
   typedef Function::iterator nodes_iterator;
   static nodes_iterator nodes_begin(Function *F) { return F->begin(); }
   static nodes_iterator nodes_end  (Function *F) { return F->end(); }
-  static unsigned       size       (Function *F) { return F->size(); }
+  static size_t         size       (Function *F) { return F->size(); }
 };
 template <> struct GraphTraits<const Function*> :
   public GraphTraits<const BasicBlock*> {
@@ -334,7 +338,7 @@ template <> struct GraphTraits<const Function*> :
   typedef Function::const_iterator nodes_iterator;
   static nodes_iterator nodes_begin(const Function *F) { return F->begin(); }
   static nodes_iterator nodes_end  (const Function *F) { return F->end(); }
-  static unsigned       size       (const Function *F) { return F->size(); }
+  static size_t         size       (const Function *F) { return F->size(); }
 };
 
 

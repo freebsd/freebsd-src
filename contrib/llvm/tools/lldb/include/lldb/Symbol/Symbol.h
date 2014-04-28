@@ -122,6 +122,21 @@ public:
         return m_mangled;
     }
 
+    ConstString
+    GetReExportedSymbolName() const;
+
+    FileSpec
+    GetReExportedSymbolSharedLibrary () const;
+    
+    bool
+    SetReExportedSymbolName(const ConstString &name);
+
+    bool
+    SetReExportedSymbolSharedLibrary (const FileSpec &fspec);
+    
+    Symbol *
+    ResolveReExportedSymbol (Target &target);
+
     uint32_t
     GetSiblingIndex () const;
 
@@ -238,24 +253,6 @@ public:
         m_size_is_sibling = b;
     }
 
-//    void
-//    SetValue (Address &value)
-//    {
-//        m_addr_range.GetBaseAddress() = value;
-//    }
-//
-//    void
-//    SetValue (const AddressRange &range)
-//    {
-//        m_addr_range = range;
-//    }
-//
-//    void
-//    SetValue (lldb::addr_t value);
-//    {
-//        m_addr_range.GetBaseAddress().SetRawAddress(value);
-//    }
-
     // If m_type is "Code" or "Function" then this will return the prologue size
     // in bytes, else it will return zero.
     uint32_t
@@ -293,6 +290,17 @@ public:
     //------------------------------------------------------------------
     virtual void
     DumpSymbolContext (Stream *s);
+
+    lldb::DisassemblerSP
+    GetInstructions (const ExecutionContext &exe_ctx,
+                     const char *flavor,
+                     bool prefer_file_cache);
+    
+    bool
+    GetDisassembly (const ExecutionContext &exe_ctx,
+                    const char *flavor,
+                    bool prefer_file_cache,
+                    Stream &strm);
 
 protected:
 

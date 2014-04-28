@@ -78,7 +78,7 @@ pmc_intel_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
-	int error, model, nclasses, ncpus;
+	int error, model, nclasses, ncpus, stepping, verov;
 
 	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
@@ -88,7 +88,9 @@ pmc_intel_initialize(void)
 	cputype = -1;
 	nclasses = 2;
 	error = 0;
+	verov = 0;
 	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+	stepping = cpu_id & 0xF;
 
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
@@ -119,8 +121,14 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_CORE;
 			break;
 		case 0xF:
-			cputype = PMC_CPU_INTEL_CORE2;
-			nclasses = 3;
+			/* Per Intel document 315338-020. */
+			if (stepping == 0x7) {
+				cputype = PMC_CPU_INTEL_CORE;
+				verov = 1;
+			} else {
+				cputype = PMC_CPU_INTEL_CORE2;
+				nclasses = 3;
+			}
 			break;
 		case 0x17:
 			cputype = PMC_CPU_INTEL_CORE2EXTREME;
@@ -165,8 +173,13 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x3C:	/* Per Intel document 325462-045US 01/2013. */
+		case 0x45:
 			cputype = PMC_CPU_INTEL_HASWELL;
 			nclasses = 5;
+			break;
+		case 0x4D:      /* Per Intel document 330061-001 01/2014. */
+			cputype = PMC_CPU_INTEL_ATOM_SILVERMONT;
+			nclasses = 3;
 			break;
 		}
 		break;
@@ -200,6 +213,7 @@ pmc_intel_initialize(void)
 		 * Intel Core, Core 2 and Atom processors.
 		 */
 	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
@@ -210,7 +224,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 	case PMC_CPU_INTEL_HASWELL:
-		error = pmc_core_initialize(pmc_mdep, ncpus);
+		error = pmc_core_initialize(pmc_mdep, ncpus, verov);
 		break;
 
 		/*
@@ -288,6 +302,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	switch (md->pmd_cputype) {
 #if	defined(__i386__) || defined(__amd64__)
 	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:

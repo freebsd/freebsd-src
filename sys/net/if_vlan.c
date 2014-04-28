@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vlan.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -1509,6 +1511,8 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * propagate the hardware-assisted flag. TSO on VLANs
 	 * does not necessarily require hardware VLAN tagging.
 	 */
+	if (p->if_hw_tsomax > 0)
+		ifp->if_hw_tsomax = p->if_hw_tsomax;
 	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
 		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
 	if (p->if_capenable & IFCAP_VLAN_HWTSO) {

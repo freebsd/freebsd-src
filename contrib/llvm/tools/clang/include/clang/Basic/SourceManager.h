@@ -1005,7 +1005,7 @@ public:
       return SourceLocation();
     
     unsigned FileOffset = Entry.getOffset();
-    return SourceLocation::getFileLoc(FileOffset + getFileIDSize(FID) - 1);
+    return SourceLocation::getFileLoc(FileOffset + getFileIDSize(FID));
   }
 
   /// \brief Returns the include location if \p FID is a \#include'd file
@@ -1161,6 +1161,22 @@ public:
   /// expansion but not the expansion of an argument to a function-like macro.
   bool isMacroBodyExpansion(SourceLocation Loc) const;
 
+  /// \brief Returns true if the given MacroID location points at the beginning
+  /// of the immediate macro expansion.
+  ///
+  /// \param MacroBegin If non-null and function returns true, it is set to the
+  /// begin location of the immediate macro expansion.
+  bool isAtStartOfImmediateMacroExpansion(SourceLocation Loc,
+                                          SourceLocation *MacroBegin = 0) const;
+
+  /// \brief Returns true if the given MacroID location points at the character
+  /// end of the immediate macro expansion.
+  ///
+  /// \param MacroEnd If non-null and function returns true, it is set to the
+  /// character end location of the immediate macro expansion.
+  bool isAtEndOfImmediateMacroExpansion(SourceLocation Loc,
+                                        SourceLocation *MacroEnd = 0) const;
+
   /// \brief Returns true if \p Loc is inside the [\p Start, +\p Length)
   /// chunk of the source location address space.
   ///
@@ -1276,14 +1292,28 @@ public:
   PresumedLoc getPresumedLoc(SourceLocation Loc,
                              bool UseLineDirectives = true) const;
 
-  /// \brief Returns true if both SourceLocations correspond to the same file.
-  bool isFromSameFile(SourceLocation Loc1, SourceLocation Loc2) const {
+  /// \brief Returns whether the PresumedLoc for a given SourceLocation is 
+  /// in the main file.
+  ///
+  /// This computes the "presumed" location for a SourceLocation, then checks
+  /// whether it came from a file other than the main file. This is different
+  /// from isWrittenInMainFile() because it takes line marker directives into
+  /// account.
+  bool isInMainFile(SourceLocation Loc) const;
+
+  /// \brief Returns true if the spelling locations for both SourceLocations
+  /// are part of the same file buffer.
+  ///
+  /// This check ignores line marker directives.
+  bool isWrittenInSameFile(SourceLocation Loc1, SourceLocation Loc2) const {
     return getFileID(Loc1) == getFileID(Loc2);
   }
 
-  /// \brief Returns true if the file of provided SourceLocation is the main
-  /// file.
-  bool isFromMainFile(SourceLocation Loc) const {
+  /// \brief Returns true if the spelling location for the given location
+  /// is in the main file buffer.
+  ///
+  /// This check ignores line marker directives.
+  bool isWrittenInMainFile(SourceLocation Loc) const {
     return getFileID(Loc) == getMainFileID();
   }
 
@@ -1467,7 +1497,7 @@ public:
       if (Invalid) *Invalid = true;
       return LocalSLocEntryTable[0];
     }
-    return getSLocEntryByID(FID.ID);
+    return getSLocEntryByID(FID.ID, Invalid);
   }
 
   unsigned getNextLocalOffset() const { return NextLocalOffset; }
@@ -1531,11 +1561,11 @@ private:
   const SrcMgr::SLocEntry &loadSLocEntry(unsigned Index, bool *Invalid) const;
 
   /// \brief Get the entry with the given unwrapped FileID.
-  const SrcMgr::SLocEntry &getSLocEntryByID(int ID) const {
+  const SrcMgr::SLocEntry &getSLocEntryByID(int ID, bool *Invalid = 0) const {
     assert(ID != -1 && "Using FileID sentinel value");
     if (ID < 0)
-      return getLoadedSLocEntryByID(ID);
-    return getLocalSLocEntry(static_cast<unsigned>(ID));
+      return getLoadedSLocEntryByID(ID, Invalid);
+    return getLocalSLocEntry(static_cast<unsigned>(ID), Invalid);
   }
 
   const SrcMgr::SLocEntry &getLoadedSLocEntryByID(int ID,
@@ -1569,6 +1599,14 @@ private:
     // local and loaded entries.
     return SLocOffset < getSLocEntryByID(FID.ID+1).getOffset();
   }
+
+  /// \brief Returns the previous in-order FileID or an invalid FileID if there
+  /// is no previous one.
+  FileID getPreviousFileID(FileID FID) const;
+
+  /// \brief Returns the next in-order FileID or an invalid FileID if there is
+  /// no next one.
+  FileID getNextFileID(FileID FID) const;
 
   /// \brief Create a new fileID for the specified ContentCache and
   /// include position.

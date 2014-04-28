@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -74,15 +73,22 @@ __FBSDID("$FreeBSD$");
 #define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
 #define	GT_CNTKCTL_PL0PCTEN	(1 << 0) /* PL0 CNTPCT and CNTFRQ access */
 
-#define	GT_CNTPSIRQ	29
-
 struct arm_tmr_softc {
-	struct resource		*irq_res;
+	struct resource		*res[4];
+	void			*ihl[4];
 	uint32_t		clkfreq;
 	struct eventtimer	et;
 };
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
+
+static struct resource_spec timer_spec[] = {
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* Virt */
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE },	/* Hyp */
+	{ -1, 0 }
+};
 
 static timecounter_get_t arm_tmr_get_timecount;
 
@@ -245,6 +251,9 @@ static int
 arm_tmr_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
 		return (ENXIO);
 
@@ -259,9 +268,8 @@ arm_tmr_attach(device_t dev)
 	struct arm_tmr_softc *sc;
 	phandle_t node;
 	pcell_t clock;
-	void *ihl;
-	int rid;
 	int error;
+	int i;
 
 	sc = device_get_softc(dev);
 	if (arm_tmr_sc)
@@ -270,29 +278,37 @@ arm_tmr_attach(device_t dev)
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
 	error = OF_getprop(node, "clock-frequency", &clock, sizeof(clock));
-	if (error <= 0) {
-		device_printf(dev, "missing clock-frequency "
-		    "attribute in FDT\n");
+	if (error > 0) {
+		sc->clkfreq = fdt32_to_cpu(clock);
+	}
+
+	if (sc->clkfreq == 0) {
+		/* Try to get clock frequency from timer */
+		sc->clkfreq = get_freq();
+	}
+
+	if (sc->clkfreq == 0) {
+		device_printf(dev, "No clock frequency specified\n");
 		return (ENXIO);
 	}
-	sc->clkfreq = fdt32_to_cpu(clock);
 
-	rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    GT_CNTPSIRQ, GT_CNTPSIRQ,
-	    1, RF_SHAREABLE | RF_ACTIVE);
+	if (bus_alloc_resources(dev, timer_spec, sc->res)) {
+		device_printf(dev, "could not allocate resources\n");
+		return (ENXIO);
+	};
 
 	arm_tmr_sc = sc;
 
-	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CLK, arm_tmr_intr,
-		NULL, sc, &ihl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
-		device_printf(dev, "Unable to setup the CLK irq handler.\n");
-		return (ENXIO);
+	/* Setup secure and non-secure IRQs handler */
+	for (i = 0; i < 2; i++) {
+		error = bus_setup_intr(dev, sc->res[i], INTR_TYPE_CLK,
+		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
+		if (error) {
+			device_printf(dev, "Unable to alloc int resource.\n");
+			return (ENXIO);
+		}
 	}
 
-	set_freq(sc->clkfreq);
 	disable_user_access();
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
@@ -328,16 +344,6 @@ static driver_t arm_tmr_driver = {
 static devclass_t arm_tmr_devclass;
 
 DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
-
-void
-cpu_initclocks(void)
-{
-
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
 
 void
 DELAY(int usec)

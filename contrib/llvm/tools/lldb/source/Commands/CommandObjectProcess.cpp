@@ -49,7 +49,7 @@ public:
     virtual ~CommandObjectProcessLaunchOrAttach () {}
 protected:
     bool
-    StopProcessIfNecessary (Process *&process, StateType &state, CommandReturnObject &result)
+    StopProcessIfNecessary (Process *process, StateType &state, CommandReturnObject &result)
     {
         state = eStateInvalid;
         if (process)
@@ -187,12 +187,10 @@ protected:
     {
         Debugger &debugger = m_interpreter.GetDebugger();
         Target *target = debugger.GetSelectedTarget().get();
-        Error error;
         // If our listener is NULL, users aren't allows to launch
-        char filename[PATH_MAX];
-        const Module *exe_module = target->GetExecutableModulePointer();
+        ModuleSP exe_module_sp = target->GetExecutableModule();
 
-        if (exe_module == NULL)
+        if (exe_module_sp == NULL)
         {
             result.AppendError ("no file in target, create a debug target using the 'target create' command");
             result.SetStatus (eReturnStatusFailed);
@@ -200,23 +198,31 @@ protected:
         }
         
         StateType state = eStateInvalid;
-        Process *process = m_exe_ctx.GetProcessPtr();
         
-        if (!StopProcessIfNecessary(process, state, result))
+        if (!StopProcessIfNecessary(m_exe_ctx.GetProcessPtr(), state, result))
             return false;
         
         const char *target_settings_argv0 = target->GetArg0();
         
-        exe_module->GetFileSpec().GetPath (filename, sizeof(filename));
+        if (target->GetDisableASLR())
+            m_options.launch_info.GetFlags().Set (eLaunchFlagDisableASLR);
         
+        if (target->GetDisableSTDIO())
+            m_options.launch_info.GetFlags().Set (eLaunchFlagDisableSTDIO);
+        
+        Args environment;
+        target->GetEnvironmentAsArgs (environment);
+        if (environment.GetArgumentCount() > 0)
+            m_options.launch_info.GetEnvironmentEntries ().AppendArguments (environment);
+
         if (target_settings_argv0)
         {
             m_options.launch_info.GetArguments().AppendArgument (target_settings_argv0);
-            m_options.launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), false);
+            m_options.launch_info.SetExecutableFile(exe_module_sp->GetPlatformFileSpec(), false);
         }
         else
         {
-            m_options.launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
+            m_options.launch_info.SetExecutableFile(exe_module_sp->GetPlatformFileSpec(), true);
         }
 
         if (launch_args.GetArgumentCount() == 0)
@@ -228,122 +234,33 @@ protected:
         else
         {
             m_options.launch_info.GetArguments().AppendArguments (launch_args);
-
             // Save the arguments for subsequent runs in the current target.
             target->SetRunArguments (launch_args);
         }
         
-        if (target->GetDisableASLR())
-            m_options.launch_info.GetFlags().Set (eLaunchFlagDisableASLR);
-    
-        if (target->GetDisableSTDIO())
-            m_options.launch_info.GetFlags().Set (eLaunchFlagDisableSTDIO);
-
-        m_options.launch_info.GetFlags().Set (eLaunchFlagDebug);
-
-        Args environment;
-        target->GetEnvironmentAsArgs (environment);
-        if (environment.GetArgumentCount() > 0)
-            m_options.launch_info.GetEnvironmentEntries ().AppendArguments (environment);
-
-        // Get the value of synchronous execution here.  If you wait till after you have started to
-        // run, then you could have hit a breakpoint, whose command might switch the value, and
-        // then you'll pick up that incorrect value.
-        bool synchronous_execution = m_interpreter.GetSynchronous ();
-
-        // Finalize the file actions, and if none were given, default to opening
-        // up a pseudo terminal
-        const bool default_to_use_pty = true;
-        m_options.launch_info.FinalizeFileActions (target, default_to_use_pty);
-
-        if (state == eStateConnected)
-        {
-            if (m_options.launch_info.GetFlags().Test (eLaunchFlagLaunchInTTY))
-            {
-                result.AppendWarning("can't launch in tty when launching through a remote connection");
-                m_options.launch_info.GetFlags().Clear (eLaunchFlagLaunchInTTY);
-            }
-        }
+        Error error = target->Launch(debugger.GetListener(), m_options.launch_info);
         
-        if (!m_options.launch_info.GetArchitecture().IsValid())
-            m_options.launch_info.GetArchitecture() = target->GetArchitecture();
-
-        PlatformSP platform_sp (target->GetPlatform());
-        
-        if (platform_sp && platform_sp->CanDebugProcess ())
-        {
-            process = target->GetPlatform()->DebugProcess (m_options.launch_info, 
-                                                           debugger,
-                                                           target,
-                                                           debugger.GetListener(),
-                                                           error).get();
-        }
-        else
-        {
-            const char *plugin_name = m_options.launch_info.GetProcessPluginName();
-            process = target->CreateProcess (debugger.GetListener(), plugin_name, NULL).get();
-            if (process)
-                error = process->Launch (m_options.launch_info);
-        }
-
-        if (process == NULL)
-        {
-            result.SetError (error, "failed to launch or debug process");
-            return false;
-        }
-
-             
         if (error.Success())
         {
-            const char *archname = exe_module->GetArchitecture().GetArchitectureName();
-
-            result.AppendMessageWithFormat ("Process %" PRIu64 " launched: '%s' (%s)\n", process->GetID(), filename, archname);
-            result.SetDidChangeProcessState (true);
-            if (m_options.launch_info.GetFlags().Test(eLaunchFlagStopAtEntry) == false)
+            const char *archname = exe_module_sp->GetArchitecture().GetArchitectureName();
+            ProcessSP process_sp (target->GetProcessSP());
+            if (process_sp)
             {
-                result.SetStatus (eReturnStatusSuccessContinuingNoResult);
-                StateType state = process->WaitForProcessToStop (NULL);
-
-                if (state == eStateStopped)
-                {
-                    error = process->Resume();
-                    if (error.Success())
-                    {
-                        if (synchronous_execution)
-                        {
-                            state = process->WaitForProcessToStop (NULL);
-                            const bool must_be_alive = true;
-                            if (!StateIsStoppedState(state, must_be_alive))
-                            {
-                                result.AppendErrorWithFormat ("process isn't stopped: %s", StateAsCString(state));
-                            }                    
-                            result.SetDidChangeProcessState (true);
-                            result.SetStatus (eReturnStatusSuccessFinishResult);
-                        }
-                        else
-                        {
-                            result.SetStatus (eReturnStatusSuccessContinuingNoResult);
-                        }
-                    }
-                    else
-                    {
-                        result.AppendErrorWithFormat ("process resume at entry point failed: %s", error.AsCString());
-                        result.SetStatus (eReturnStatusFailed);
-                    }                    
-                }
-                else
-                {
-                    result.AppendErrorWithFormat ("initial process state wasn't stopped: %s", StateAsCString(state));
-                    result.SetStatus (eReturnStatusFailed);
-                }                    
+                result.AppendMessageWithFormat ("Process %" PRIu64 " launched: '%s' (%s)\n", process_sp->GetID(), exe_module_sp->GetFileSpec().GetPath().c_str(), archname);
+                result.SetStatus (eReturnStatusSuccessFinishResult);
+                result.SetDidChangeProcessState (true);
+            }
+            else
+            {
+                result.AppendError("no error returned from Target::Launch, and target has no process");
+                result.SetStatus (eReturnStatusFailed);
             }
         }
         else
         {
-            result.AppendErrorWithFormat ("process launch failed: %s", error.AsCString());
+            result.AppendError(error.AsCString());
             result.SetStatus (eReturnStatusFailed);
         }
-
         return result.Succeeded();
     }
 
@@ -359,14 +276,14 @@ protected:
 //OptionDefinition
 //CommandObjectProcessLaunch::CommandOptions::g_option_table[] =
 //{
-//{ SET1 | SET2 | SET3, false, "stop-at-entry", 's', no_argument,       NULL, 0, eArgTypeNone,    "Stop at the entry point of the program when launching a process."},
-//{ SET1              , false, "stdin",         'i', required_argument, NULL, 0, eArgTypeDirectoryName,    "Redirect stdin for the process to <path>."},
-//{ SET1              , false, "stdout",        'o', required_argument, NULL, 0, eArgTypeDirectoryName,    "Redirect stdout for the process to <path>."},
-//{ SET1              , false, "stderr",        'e', required_argument, NULL, 0, eArgTypeDirectoryName,    "Redirect stderr for the process to <path>."},
-//{ SET1 | SET2 | SET3, false, "plugin",        'p', required_argument, NULL, 0, eArgTypePlugin,  "Name of the process plugin you want to use."},
-//{        SET2       , false, "tty",           't', optional_argument, NULL, 0, eArgTypeDirectoryName,    "Start the process in a terminal. If <path> is specified, look for a terminal whose name contains <path>, else start the process in a new terminal."},
-//{               SET3, false, "no-stdio",      'n', no_argument,       NULL, 0, eArgTypeNone,    "Do not set up for terminal I/O to go to running process."},
-//{ SET1 | SET2 | SET3, false, "working-dir",   'w', required_argument, NULL, 0, eArgTypeDirectoryName,    "Set the current working directory to <path> when running the inferior."},
+//{ SET1 | SET2 | SET3, false, "stop-at-entry", 's', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Stop at the entry point of the program when launching a process."},
+//{ SET1              , false, "stdin",         'i', OptionParser::eRequiredArgument, NULL, 0, eArgTypeDirectoryName,    "Redirect stdin for the process to <path>."},
+//{ SET1              , false, "stdout",        'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeDirectoryName,    "Redirect stdout for the process to <path>."},
+//{ SET1              , false, "stderr",        'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeDirectoryName,    "Redirect stderr for the process to <path>."},
+//{ SET1 | SET2 | SET3, false, "plugin",        'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypePlugin,  "Name of the process plugin you want to use."},
+//{        SET2       , false, "tty",           't', OptionParser::eOptionalArgument, NULL, 0, eArgTypeDirectoryName,    "Start the process in a terminal. If <path> is specified, look for a terminal whose name contains <path>, else start the process in a new terminal."},
+//{               SET3, false, "no-stdio",      'n', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Do not set up for terminal I/O to go to running process."},
+//{ SET1 | SET2 | SET3, false, "working-dir",   'w', OptionParser::eRequiredArgument, NULL, 0, eArgTypeDirectoryName,    "Set the current working directory to <path> when running the inferior."},
 //{ 0,                  false, NULL,             0,  0,                 NULL, 0, eArgTypeNone,    NULL }
 //};
 //
@@ -615,37 +532,36 @@ protected:
 
                 if (error.Success())
                 {
+                    ListenerSP listener_sp (new Listener("lldb.CommandObjectProcessAttach.DoExecute.attach.hijack"));
+                    m_options.attach_info.SetHijackListener(listener_sp);
+                    process->HijackProcessEvents(listener_sp.get());
                     error = process->Attach (m_options.attach_info);
                     
                     if (error.Success())
                     {
                         result.SetStatus (eReturnStatusSuccessContinuingNoResult);
+                        StateType state = process->WaitForProcessToStop (NULL, NULL, false, listener_sp.get());
+
+                        process->RestoreProcessEvents();
+
+                        result.SetDidChangeProcessState (true);
+                        
+                        if (state == eStateStopped)
+                        {
+                            result.AppendMessageWithFormat ("Process %" PRIu64 " %s\n", process->GetID(), StateAsCString (state));
+                            result.SetStatus (eReturnStatusSuccessFinishNoResult);
+                        }
+                        else
+                        {
+                            result.AppendError ("attach failed: process did not stop (no such process or permission problem?)");
+                            process->Destroy();
+                            result.SetStatus (eReturnStatusFailed);
+                        }
                     }
                     else
                     {
                         result.AppendErrorWithFormat ("attach failed: %s\n", error.AsCString());
                         result.SetStatus (eReturnStatusFailed);
-                        return false;                
-                    }
-                    // If we're synchronous, wait for the stopped event and report that.
-                    // Otherwise just return.  
-                    // FIXME: in the async case it will now be possible to get to the command
-                    // interpreter with a state eStateAttaching.  Make sure we handle that correctly.
-                    StateType state = process->WaitForProcessToStop (NULL);
-                    
-                    result.SetDidChangeProcessState (true);
-
-                    if (state == eStateStopped)
-                    {
-                        result.AppendMessageWithFormat ("Process %" PRIu64 " %s\n", process->GetID(), StateAsCString (state));
-                        result.SetStatus (eReturnStatusSuccessFinishNoResult);
-                    }
-                    else
-                    {
-                        result.AppendError ("attach failed: process did not stop (no such process or permission problem?)");
-                        process->Destroy();
-                        result.SetStatus (eReturnStatusFailed);
-                        return false;                
                     }
                 }
             }
@@ -701,12 +617,12 @@ protected:
 OptionDefinition
 CommandObjectProcessAttach::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "continue",'c', no_argument,         NULL, 0, eArgTypeNone,         "Immediately continue the process once attached."},
-{ LLDB_OPT_SET_ALL, false, "plugin",  'P', required_argument,   NULL, 0, eArgTypePlugin,       "Name of the process plugin you want to use."},
-{ LLDB_OPT_SET_1,   false, "pid",     'p', required_argument,   NULL, 0, eArgTypePid,          "The process ID of an existing process to attach to."},
-{ LLDB_OPT_SET_2,   false, "name",    'n', required_argument,   NULL, 0, eArgTypeProcessName,  "The name of the process to attach to."},
-{ LLDB_OPT_SET_2,   false, "include-existing", 'i', no_argument, NULL, 0, eArgTypeNone,         "Include existing processes when doing attach -w."},
-{ LLDB_OPT_SET_2,   false, "waitfor", 'w', no_argument,         NULL, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch."},
+{ LLDB_OPT_SET_ALL, false, "continue",'c', OptionParser::eNoArgument,         NULL, 0, eArgTypeNone,         "Immediately continue the process once attached."},
+{ LLDB_OPT_SET_ALL, false, "plugin",  'P', OptionParser::eRequiredArgument,   NULL, 0, eArgTypePlugin,       "Name of the process plugin you want to use."},
+{ LLDB_OPT_SET_1,   false, "pid",     'p', OptionParser::eRequiredArgument,   NULL, 0, eArgTypePid,          "The process ID of an existing process to attach to."},
+{ LLDB_OPT_SET_2,   false, "name",    'n', OptionParser::eRequiredArgument,   NULL, 0, eArgTypeProcessName,  "The name of the process to attach to."},
+{ LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Include existing processes when doing attach -w."},
+{ LLDB_OPT_SET_2,   false, "waitfor", 'w', OptionParser::eNoArgument,         NULL, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch."},
 { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -891,7 +807,7 @@ protected:
 OptionDefinition
 CommandObjectProcessContinue::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "ignore-count",'i', required_argument,         NULL, 0, eArgTypeUnsignedInteger,
+{ LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument,         NULL, 0, eArgTypeUnsignedInteger,
                            "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread."},
 { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
@@ -1031,7 +947,7 @@ protected:
 OptionDefinition
 CommandObjectProcessDetach::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "keep-stopped",   's', required_argument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
+{ LLDB_OPT_SET_1, false, "keep-stopped",   's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
 { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -1170,7 +1086,7 @@ protected:
             
             if (process)
             {
-                error = process->ConnectRemote (&process->GetTarget().GetDebugger().GetOutputStream(), remote_url);
+                error = process->ConnectRemote (process->GetTarget().GetDebugger().GetOutputFile().get(), remote_url);
 
                 if (error.Fail())
                 {
@@ -1203,7 +1119,7 @@ protected:
 OptionDefinition
 CommandObjectProcessConnect::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "plugin", 'p', required_argument, NULL, 0, eArgTypePlugin, "Name of the process plugin you want to use."},
+    { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypePlugin, "Name of the process plugin you want to use."},
     { 0,                false, NULL,      0 , 0,                 NULL, 0, eArgTypeNone,   NULL }
 };
 
@@ -1908,9 +1824,9 @@ protected:
 OptionDefinition
 CommandObjectProcessHandle::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "stop",   's', required_argument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
-{ LLDB_OPT_SET_1, false, "notify", 'n', required_argument, NULL, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
-{ LLDB_OPT_SET_1, false, "pass",  'p', required_argument, NULL, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." },
+{ LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
+{ LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
+{ LLDB_OPT_SET_1, false, "pass",  'p', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." },
 { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 

@@ -2,7 +2,11 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= lib libexec usr.bin usr.sbin
+SUBDIR= lib libexec ${_tests} usr.bin usr.sbin
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 # These are the programs which depend on crypto, but not Kerberos.
 SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
@@ -27,11 +31,11 @@ secure:
 insecure:
 .for entry in ${SPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} -DWITHOUT_CRYPT cleandir; \
-	${MAKE} -DWITHOUT_CRYPT obj; \
-	${MAKE} -DWITHOUT_CRYPT depend; \
-	${MAKE} -DWITHOUT_CRYPT all; \
-	${MAKE} -DWITHOUT_CRYPT install
+	${MAKE} MK_CRYPT=no cleandir; \
+	${MAKE} MK_CRYPT=no obj; \
+	${MAKE} MK_CRYPT=no depend; \
+	${MAKE} MK_CRYPT=no all; \
+	${MAKE} MK_CRYPT=no install
 .endfor
 
 .include <bsd.subdir.mk>

@@ -26,14 +26,17 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 26, 2010
+.Dd November 15, 2013
 .Dt ATF-C-API 3
 .Os
 .Sh NAME
+.Nm atf-c-api ,
 .Nm ATF_CHECK ,
 .Nm ATF_CHECK_MSG ,
 .Nm ATF_CHECK_EQ ,
 .Nm ATF_CHECK_EQ_MSG ,
+.Nm ATF_CHECK_MATCH ,
+.Nm ATF_CHECK_MATCH_MSG ,
 .Nm ATF_CHECK_STREQ ,
 .Nm ATF_CHECK_STREQ_MSG ,
 .Nm ATF_CHECK_ERRNO ,
@@ -41,6 +44,8 @@
 .Nm ATF_REQUIRE_MSG ,
 .Nm ATF_REQUIRE_EQ ,
 .Nm ATF_REQUIRE_EQ_MSG ,
+.Nm ATF_REQUIRE_MATCH ,
+.Nm ATF_REQUIRE_MATCH_MSG ,
 .Nm ATF_REQUIRE_STREQ ,
 .Nm ATF_REQUIRE_STREQ_MSG ,
 .Nm ATF_REQUIRE_ERRNO ,
@@ -72,7 +77,19 @@
 .Nm atf_tc_fail ,
 .Nm atf_tc_fail_nonfatal ,
 .Nm atf_tc_pass ,
-.Nm atf_tc_skip
+.Nm atf_tc_skip ,
+.Nm atf_utils_cat_file ,
+.Nm atf_utils_compare_file ,
+.Nm atf_utils_copy_file ,
+.Nm atf_utils_create_file ,
+.Nm atf_utils_file_exists ,
+.Nm atf_utils_fork ,
+.Nm atf_utils_free_charpp ,
+.Nm atf_utils_grep_file ,
+.Nm atf_utils_grep_string ,
+.Nm atf_utils_readline ,
+.Nm atf_utils_redirect ,
+.Nm atf_utils_wait
 .Nd C API to write ATF-based test programs
 .Sh SYNOPSIS
 .In atf-c.h
@@ -80,6 +97,8 @@
 .Fn ATF_CHECK_MSG "expression" "fail_msg_fmt" ...
 .Fn ATF_CHECK_EQ "expression_1" "expression_2"
 .Fn ATF_CHECK_EQ_MSG "expression_1" "expression_2" "fail_msg_fmt" ...
+.Fn ATF_CHECK_MATCH "regexp" "string"
+.Fn ATF_CHECK_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
 .Fn ATF_CHECK_STREQ "string_1" "string_2"
 .Fn ATF_CHECK_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
 .Fn ATF_CHECK_ERRNO "exp_errno" "bool_expression"
@@ -87,6 +106,8 @@
 .Fn ATF_REQUIRE_MSG "expression" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_EQ "expression_1" "expression_2"
 .Fn ATF_REQUIRE_EQ_MSG "expression_1" "expression_2" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_MATCH "regexp" "string"
+.Fn ATF_REQUIRE_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_STREQ "string_1" "string_2"
 .Fn ATF_REQUIRE_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_ERRNO "exp_errno" "bool_expression"
@@ -119,10 +140,70 @@
 .Fn atf_tc_fail_nonfatal "reason"
 .Fn atf_tc_pass
 .Fn atf_tc_skip "reason"
+.Ft void
+.Fo atf_utils_cat_file
+.Fa "const char *file"
+.Fa "const char *prefix"
+.Fc
+.Ft bool
+.Fo atf_utils_compare_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fc
+.Ft void
+.Fo atf_utils_copy_file
+.Fa "const char *source"
+.Fa "const char *destination"
+.Fc
+.Ft void
+.Fo atf_utils_create_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_utils_file_exists
+.Fa "const char *file"
+.Fc
+.Ft pid_t
+.Fo atf_utils_fork
+.Fa "void"
+.Fc
+.Ft void
+.Fo atf_utils_free_charpp
+.Fa "char **argv"
+.Fc
+.Ft bool
+.Fo atf_utils_grep_file
+.Fa "const char *regexp"
+.Fa "const char *file"
+.Fa "..."
+.Fc
+.Ft bool
+.Fo atf_utils_grep_string
+.Fa "const char *regexp"
+.Fa "const char *str"
+.Fa "..."
+.Fc
+.Ft char *
+.Fo atf_utils_readline
+.Fa "int fd"
+.Fc
+.Ft void
+.Fo atf_utils_redirect
+.Fa "const int fd"
+.Fa "const char *file"
+.Fc
+.Ft void
+.Fo atf_utils_wait
+.Fa "const pid_t pid"
+.Fa "const int expected_exit_status"
+.Fa "const char *expected_stdout"
+.Fa "const char *expected_stderr"
+.Fc
 .Sh DESCRIPTION
-The ATF
-.Pp
-C-based test programs always follow this template:
+ATF provides a C programming interface to implement test programs.
+C-based test programs follow this template:
 .Bd -literal -offset indent
 .Ns ... C-specific includes go here ...
 
@@ -382,7 +463,7 @@ variant of the macros immediately abort the test case as soon as an error
 condition is detected by calling the
 .Fn atf_tc_fail
 function.
-Use this variant whenever it makes now sense to continue the execution of a
+Use this variant whenever it makes no sense to continue the execution of a
 test case when the checked condition is not met.
 The
 .Sq CHECK
@@ -417,6 +498,16 @@ and
 .Fn ATF_REQUIRE_EQ_MSG
 take two expressions and fail if the two evaluated values are not equal.
 .Pp
+.Fn ATF_CHECK_MATCH ,
+.Fn ATF_CHECK_MATCH_MSG ,
+.Fn ATF_REQUIRE_MATCH
+and
+.Fn ATF_REQUIRE_MATCH_MSG
+take a regular expression and a string and fail if the regular expression does
+not match the given string.
+Note that the regular expression is not anchored, so it will match anywhere in
+the string.
+.Pp
 .Fn ATF_CHECK_STREQ ,
 .Fn ATF_CHECK_STREQ_MSG ,
 .Fn ATF_REQUIRE_STREQ
@@ -433,6 +524,180 @@ variable and, second, a boolean expression that, if evaluates to true,
 means that a call failed and
 .Va errno
 has to be checked against the first value.
+.Ss Utility functions
+The following functions are provided as part of the
+.Nm
+API to simplify the creation of a variety of tests.
+In particular, these are useful to write tests for command-line interfaces.
+.Pp
+.Ft void
+.Fo atf_utils_cat_file
+.Fa "const char *file"
+.Fa "const char *prefix"
+.Fc
+.Bd -ragged -offset indent
+Prints the contents of
+.Fa file
+to the standard output, prefixing every line with the string in
+.Fa prefix .
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_compare_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fc
+.Bd -ragged -offset indent
+Returns true if the given
+.Fa file
+matches exactly the expected inlined
+.Fa contents .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_copy_file
+.Fa "const char *source"
+.Fa "const char *destination"
+.Fc
+.Bd -ragged -offset indent
+Copies the file
+.Fa source
+to
+.Fa destination .
+The permissions of the file are preserved during the code.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_create_file
+.Fa "const char *file"
+.Fa "const char *contents"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Creates
+.Fa file
+with the text given in
+.Fa contents ,
+which is a formatting string that uses the rest of the variable arguments.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_file_exists
+.Fa "const char *file"
+.Fc
+.Bd -ragged -offset indent
+Checks if
+.Fa file
+exists.
+.Ed
+.Pp
+.Ft pid_t
+.Fo atf_utils_fork
+.Fa "void"
+.Fc
+.Bd -ragged -offset indent
+Forks a process and redirects the standard output and standard error of the
+child to files for later validation with
+.Fn atf_utils_wait .
+Fails the test case if the fork fails, so this does not return an error.
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_free_charpp
+.Fa "char **argv"
+.Fc
+.Bd -ragged -offset indent
+Frees a dynamically-allocated array of dynamically-allocated strings.
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_grep_file
+.Fa "const char *regexp"
+.Fa "const char *file"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Searches for the
+.Fa regexp ,
+which is a formatting string representing the regular expression,
+in the
+.Fa file .
+The variable arguments are used to construct the regular expression.
+.Ed
+.Pp
+.Ft bool
+.Fo atf_utils_grep_string
+.Fa "const char *regexp"
+.Fa "const char *str"
+.Fa "..."
+.Fc
+.Bd -ragged -offset indent
+Searches for the
+.Fa regexp ,
+which is a formatting string representing the regular expression,
+in the literal string
+.Fa str .
+The variable arguments are used to construct the regular expression.
+.Ed
+.Pp
+.Ft char *
+.Fo atf_utils_readline
+.Fa "int fd"
+.Fc
+.Bd -ragged -offset indent
+Reads a line from the file descriptor
+.Fa fd .
+The line, if any, is returned as a dynamically-allocated buffer that must be
+released with
+.Xr free 3 .
+If there was nothing to read, returns
+.Sq NULL .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_redirect
+.Fa "const int fd"
+.Fa "const char *file"
+.Fc
+.Bd -ragged -offset indent
+Redirects the given file descriptor
+.Fa fd
+to
+.Fa file .
+This function exits the process in case of an error and does not properly mark
+the test case as failed.
+As a result, it should only be used in subprocesses of the test case; specially
+those spawned by
+.Fn atf_utils_fork .
+.Ed
+.Pp
+.Ft void
+.Fo atf_utils_wait
+.Fa "const pid_t pid"
+.Fa "const int expected_exit_status"
+.Fa "const char *expected_stdout"
+.Fa "const char *expected_stderr"
+.Fc
+.Bd -ragged -offset indent
+Waits and validates the result of a subprocess spawned with
+.Fn atf_utils_wait .
+The validation involves checking that the subprocess exited cleanly and returned
+the code specified in
+.Fa expected_exit_status
+and that its standard output and standard error match the strings given in
+.Fa expected_stdout
+and
+.Fa expected_stderr .
+.Pp
+If any of the
+.Fa expected_stdout
+or
+.Fa expected_stderr
+strings are prefixed with
+.Sq save: ,
+then they specify the name of the file into which to store the stdout or stderr
+of the subprocess, and no comparison is performed.
+.Ed
 .Sh EXAMPLES
 The following shows a complete test program with a single test case that
 validates the addition operator:

@@ -1937,9 +1937,12 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 static struct mbuf *
 sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 {
+#if defined(INET) || defined(INET6)
 	struct sctp_paramhdr *parmh;
 	struct mbuf *mret;
 	uint16_t plen;
+
+#endif
 
 	switch (ifa->address.sa.sa_family) {
 #ifdef INET
@@ -1955,6 +1958,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 	default:
 		return (m);
 	}
+#if defined(INET) || defined(INET6)
 	if (M_TRAILINGSPACE(m) >= plen) {
 		/* easy side we just drop it on the end */
 		parmh = (struct sctp_paramhdr *)(SCTP_BUF_AT(m, SCTP_BUF_LEN(m)));
@@ -2015,6 +2019,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 		*len += plen;
 	}
 	return (mret);
+#endif
 }
 
 
@@ -3384,7 +3389,11 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 						return (found);
 					}
 					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
-					sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
+					if (prinfo.pr_policy != SCTP_PR_SCTP_NONE) {
+						sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
+					} else {
+						sndrcvinfo->sinfo_timetolive = 0;
+					}
 					sndrcvinfo->sinfo_flags |= prinfo.pr_policy;
 					break;
 				case SCTP_AUTHINFO:
@@ -3662,7 +3671,6 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	int sig_offset;
 	uint16_t cookie_sz;
 
-	mret = NULL;
 	mret = sctp_get_mbuf_for_msg((sizeof(struct sctp_state_cookie) +
 	    sizeof(struct sctp_paramhdr)), 0,
 	    M_NOWAIT, 1, MT_DATA);
@@ -3855,8 +3863,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 	struct sctphdr *sctphdr;
 	int packet_length;
 	int ret;
+
+#if defined(INET) || defined(INET6)
 	uint32_t vrf_id;
 
+#endif
 #if defined(INET) || defined(INET6)
 	struct mbuf *o_pak;
 	sctp_route_t *ro = NULL;
@@ -3875,12 +3886,13 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		sctp_m_freem(m);
 		return (EFAULT);
 	}
+#if defined(INET) || defined(INET6)
 	if (stcb) {
 		vrf_id = stcb->asoc.vrf_id;
 	} else {
 		vrf_id = inp->def_vrf_id;
 	}
-
+#endif
 	/* fill in the HMAC digest for any AUTH chunk in the packet */
 	if ((auth != NULL) && (stcb != NULL)) {
 		sctp_fill_hmac_digest_m(m, auth_offset, auth, stcb, auth_keyid);
@@ -4096,7 +4108,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
 				m->m_pkthdr.csum_flags = CSUM_SCTP;
-				m->m_pkthdr.csum_data = 0;
+				m->m_pkthdr.csum_data = offsetof(struct sctphdr, checksum);
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 			}
@@ -4445,7 +4457,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
 				m->m_pkthdr.csum_flags = CSUM_SCTP_IPV6;
-				m->m_pkthdr.csum_data = 0;
+				m->m_pkthdr.csum_data = offsetof(struct sctphdr, checksum);
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 			}
@@ -5380,7 +5392,9 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * though we even set the T bit and copy in the 0 tag.. this
 		 * looks no different than if no listener was present.
 		 */
-		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, NULL,
+		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+		    "Address added");
+		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
 		    use_mflowid, mflowid,
 		    vrf_id, port);
 		return;
@@ -5391,6 +5405,13 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    &abort_flag, (struct sctp_chunkhdr *)init_chk, &nat_friendly);
 	if (abort_flag) {
 do_a_abort:
+		if (op_err == NULL) {
+			char msg[SCTP_DIAG_INFO_LEN];
+
+			snprintf(msg, sizeof(msg), "%s:%d at %s\n", __FILE__, __LINE__, __FUNCTION__);
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+			    msg);
+		}
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh,
 		    init_chk->init.initiate_tag, op_err,
 		    use_mflowid, mflowid,
@@ -6069,12 +6090,12 @@ sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 {
 	/*
 	 * We assume that the user wants PR_SCTP_TTL if the user provides a
-	 * positive lifetime but does not specify any PR_SCTP policy. This
-	 * is a BAD assumption and causes problems at least with the
-	 * U-Vancovers MPI folks. I will change this to be no policy means
-	 * NO PR-SCTP.
+	 * positive lifetime but does not specify any PR_SCTP policy.
 	 */
 	if (PR_SCTP_ENABLED(sp->sinfo_flags)) {
+		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
+	} else if (sp->timetolive > 0) {
+		sp->sinfo_flags |= SCTP_PR_SCTP_TTL;
 		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
 	} else {
 		return;
@@ -7346,7 +7367,8 @@ dont_do_it:
 	chk->pad_inplace = 0;
 	chk->no_fr_allowed = 0;
 	chk->rec.data.stream_seq = strq->next_sequence_send;
-	if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+	if ((rcv_flags & SCTP_DATA_LAST_FRAG) &&
+	    !(rcv_flags & SCTP_DATA_UNORDERED)) {
 		strq->next_sequence_send++;
 	}
 	chk->rec.data.stream_number = sp->stream;
@@ -8947,7 +8969,6 @@ sctp_send_cookie_ack(struct sctp_tcb *stcb)
 	struct sctp_chunkhdr *hdr;
 	struct sctp_tmit_chunk *chk;
 
-	cookie_ack = NULL;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 
 	cookie_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_NOWAIT, 1, MT_HEADER);
@@ -10798,8 +10819,12 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	struct sctphdr *shout;
 	struct sctp_chunkhdr *ch;
 	struct udphdr *udp;
-	int len, cause_len, padding_len, ret;
+	int len, cause_len, padding_len;
 
+#if defined(INET) || defined(INET6)
+	int ret;
+
+#endif
 #ifdef INET
 	struct sockaddr_in *src_sin, *dst_sin;
 	struct ip *ip;
@@ -10992,7 +11017,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 			SCTP_STAT_INCR(sctps_sendnocrc);
 #else
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
-			mout->m_pkthdr.csum_data = 0;
+			mout->m_pkthdr.csum_data = offsetof(struct sctphdr, checksum);
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
@@ -11022,7 +11047,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 			SCTP_STAT_INCR(sctps_sendnocrc);
 #else
 			mout->m_pkthdr.csum_flags = CSUM_SCTP_IPV6;
-			mout->m_pkthdr.csum_data = 0;
+			mout->m_pkthdr.csum_data = offsetof(struct sctphdr, checksum);
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}

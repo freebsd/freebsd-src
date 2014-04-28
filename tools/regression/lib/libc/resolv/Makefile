@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=		resolv
-NO_MAN=
+MAN=
 
 # Note: this test relies on being dynamically linked.  You will get a
 # spurious PASS for a statically linked test.

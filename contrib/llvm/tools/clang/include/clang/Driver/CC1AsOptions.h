@@ -10,24 +10,27 @@
 #ifndef CLANG_DRIVER_CC1ASOPTIONS_H
 #define CLANG_DRIVER_CC1ASOPTIONS_H
 
+namespace llvm {
+namespace opt {
+  class OptTable;
+}
+}
+
 namespace clang {
 namespace driver {
-  class OptTable;
 
 namespace cc1asoptions {
   enum ID {
     OPT_INVALID = 0, // This is not an option ID.
-#define PREFIX(NAME, VALUE)
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, \
                HELPTEXT, METAVAR) OPT_##ID,
 #include "clang/Driver/CC1AsOptions.inc"
     LastOption
 #undef OPTION
-#undef PREFIX
   };
 }
 
-  OptTable *createCC1AsOptTable();
+llvm::opt::OptTable *createCC1AsOptTable();
 }
 }
 

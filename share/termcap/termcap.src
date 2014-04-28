@@ -2729,7 +2729,7 @@ vt520|DEC VT520 :\
 	:kb=\b:kd=\E[B:ke=\E>:kl=\E[D:\
 	:kr=\E[C:ks=\E=:ku=\E[A:nd=\E[C:\
 	:rc=\E8:rf=/usr/lib/tabset/vt100:\
-	:se=\E[m:so=\E[7m:\
+	:sc=\E7:se=\E[m:so=\E[7m:\
 	:sr=\EM:ue=\E[m:up=\E[A:us=\E[4m:nl=\E[B:ko=do,nd,up:
 #
 vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\

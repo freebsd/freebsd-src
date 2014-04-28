@@ -345,7 +345,7 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 {
 	struct acpi_smbat_softc *sc;
 	int error;
-	uint32_t cap_units, factor;
+	uint32_t factor;
 	int16_t val;
 	uint8_t	addr;
 
@@ -362,13 +362,10 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_MODE, &val))
 		goto out;
-	if (val & SMBATT_BM_CAPACITY_MODE) {
+	if (val & SMBATT_BM_CAPACITY_MODE)
 		factor = 10;
-		cap_units = ACPI_BIF_UNITS_MW;
-	} else {
+	else
 		factor = 1;
-		cap_units = ACPI_BIF_UNITS_MA;
-	}
 
 	/* get battery status */
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_STATUS, &val))

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -517,12 +517,12 @@ ffs_reallocblks_ufs1(ap)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	/*
-	 * If we are not tracking block clusters or if we have less than 2%
+	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
 	 * less than 5% free block reserve is not recommended and those that
 	 * choose to do so do not expect to have good file layout.
 	 */
-	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -744,12 +744,12 @@ ffs_reallocblks_ufs2(ap)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	/*
-	 * If we are not tracking block clusters or if we have less than 2%
+	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
 	 * less than 5% free block reserve is not recommended and those that
 	 * choose to do so do not expect to have good file layout.
 	 */
-	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -1167,29 +1167,30 @@ ffs_dirpref(pip)
 	 * We scan from our preferred cylinder group forward looking
 	 * for a cylinder group that meets our criterion. If we get
 	 * to the final cylinder group and do not find anything,
-	 * we start scanning backwards from our preferred cylinder
-	 * group. The ideal would be to alternate looking forward
-	 * and backward, but that is just too complex to code for
-	 * the gain it would get. The most likely place where the
-	 * backward scan would take effect is when we start near
-	 * the end of the filesystem and do not find anything from
-	 * where we are to the end. In that case, scanning backward
-	 * will likely find us a suitable cylinder group much closer
-	 * to our desired location than if we were to start scanning
-	 * forward from the beginning of the filesystem.
+	 * we start scanning forwards from the beginning of the
+	 * filesystem. While it might seem sensible to start scanning
+	 * backwards or even to alternate looking forward and backward,
+	 * this approach fails badly when the filesystem is nearly full.
+	 * Specifically, we first search all the areas that have no space
+	 * and finally try the one preceeding that. We repeat this on
+	 * every request and in the case of the final block end up
+	 * searching the entire filesystem. By jumping to the front
+	 * of the filesystem, our future forward searches always look
+	 * in new cylinder groups so finds every possible block after
+	 * one pass over the filesystem.
 	 */
 	prefcg = ino_to_cg(fs, pip->i_number);
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
-	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
+		    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}
 	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
-	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
+		    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}

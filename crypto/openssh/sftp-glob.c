@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-glob.c,v 1.24 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: sftp-glob.c,v 1.26 2013/11/08 11:15:19 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -23,6 +23,7 @@
 #endif
 
 #include <dirent.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "xmalloc.h"
@@ -48,7 +49,7 @@ fudge_opendir(const char *path)
 {
 	struct SFTP_OPENDIR *r;
 
-	r = xmalloc(sizeof(*r));
+	r = xcalloc(1, sizeof(*r));
 
 	if (do_readdir(cur.conn, (char *)path, &r->dir)) {
 		free(r);

@@ -342,12 +342,12 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
       { return _M_bin[__which]; }
       
       void
-      _M_adjust_freelist(const _Bin_record& __bin, _Block_record* __block, 
+      _M_adjust_freelist(const _Bin_record& __bin, _Block_record* __block_record, 
 			 size_t __thread_id)
       {
 	if (__gthread_active_p())
 	  {
-	    __block->_M_thread_id = __thread_id;
+	    __block_record->_M_thread_id = __thread_id;
 	    --__bin._M_free[__thread_id];
 	    ++__bin._M_used[__thread_id];
 	  }
@@ -697,11 +697,11 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	{
 	  // Already reserved.
 	  typedef typename __pool_type::_Block_record _Block_record;
-	  _Block_record* __block = __bin._M_first[__thread_id];
-	  __bin._M_first[__thread_id] = __block->_M_next;
+	  _Block_record* __block_record = __bin._M_first[__thread_id];
+	  __bin._M_first[__thread_id] = __block_record->_M_next;
 	  
-	  __pool._M_adjust_freelist(__bin, __block, __thread_id);
-	  __c = reinterpret_cast<char*>(__block) + __pool._M_get_align();
+	  __pool._M_adjust_freelist(__bin, __block_record, __thread_id);
+	  __c = reinterpret_cast<char*>(__block_record) + __pool._M_get_align();
 	}
       else
 	{

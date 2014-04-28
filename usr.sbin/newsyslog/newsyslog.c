@@ -1491,6 +1491,7 @@ validate_old_timelog(int fd, const struct dirent *dp, const char *logfname,
 			    &dp->d_name[logfname_len]);
 		return (0);
 	}
+	memset(tm, 0, sizeof(*tm));
 	if ((s = strptime(&dp->d_name[logfname_len + 1],
 	    timefnamefmt, tm)) == NULL) {
 		/*
@@ -2283,7 +2284,7 @@ sizefile(const char *file)
 
 	if (stat(file, &sb) < 0)
 		return (-1);
-	return (kbytes(dbtob(sb.st_blocks)));
+	return (kbytes(sb.st_size));
 }
 
 /*

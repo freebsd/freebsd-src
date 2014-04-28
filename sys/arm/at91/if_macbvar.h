@@ -18,7 +18,7 @@
 struct eth_tx_desc {
 	uint32_t		addr;
 	uint32_t		flags;
-#define TD_OWN		(1 << 31)
+#define TD_OWN		(1U << 31)
 #define TD_LAST		(1 << 15)
 #define	TD_WRAP_MASK		(1 << 30)
 };
@@ -30,7 +30,7 @@ struct eth_rx_desc {
 #define	RD_OWN			0x00000001
 
 	uint32_t		flags;
-#define RD_BROADCAST		(1 << 31)
+#define RD_BROADCAST		(1U << 31)
 #define RD_MULTICAST		(1 << 30)
 #define RD_UNICAST		(1 << 29)
 #define RD_EXTERNAL		(1 << 28)

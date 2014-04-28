@@ -97,10 +97,20 @@ static bool IsNullTerminatedString(const Constant *C) {
   return false;
 }
 
+/// Return the MCSymbol for the specified global value.  This
+/// symbol is the main label that is the address of the global.
+MCSymbol *TargetLoweringObjectFile::getSymbol(Mangler &M, 
+                                              const GlobalValue *GV) const {
+  SmallString<60> NameStr;
+  M.getNameWithPrefix(NameStr, GV, false);
+  return Ctx->GetOrCreateSymbol(NameStr.str());
+}
+
+
 MCSymbol *TargetLoweringObjectFile::
 getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
                         MachineModuleInfo *MMI) const {
-  return Mang->getSymbol(GV);
+  return getSymbol(*Mang, GV);
 }
 
 void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
@@ -293,7 +303,7 @@ getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
                         MachineModuleInfo *MMI, unsigned Encoding,
                         MCStreamer &Streamer) const {
   const MCSymbolRefExpr *Ref =
-    MCSymbolRefExpr::Create(Mang->getSymbol(GV), getContext());
+    MCSymbolRefExpr::Create(getSymbol(*Mang, GV), getContext());
 
   return getTTypeReference(Ref, Encoding, Streamer);
 }
@@ -316,4 +326,10 @@ getTTypeReference(const MCSymbolRefExpr *Sym, unsigned Encoding,
     return MCBinaryExpr::CreateSub(Sym, PC, getContext());
   }
   }
+}
+
+const MCExpr *TargetLoweringObjectFile::getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
+  // FIXME: It's not clear what, if any, default this should have - perhaps a
+  // null return could mean 'no location' & we should just do that here.
+  return MCSymbolRefExpr::Create(Sym, *Ctx);
 }

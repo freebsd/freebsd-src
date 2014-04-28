@@ -27,6 +27,7 @@ MAN=	adding_user.7 \
 	sprog.7 \
 	stdint.7 \
 	sticky.7 \
+	tests.7 \
 	tuning.7
 
 MLINKS=	intro.7 miscellaneous.7
@@ -35,18 +36,5 @@ MLINKS+= c99.7 c.7
 MLINKS+= c99.7 c78.7
 MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
-
-.if ${MK_ATF} != "no"
-ATF=            ${.CURDIR}/../../../contrib/atf
-.PATH:          ${ATF}/doc
-MAN+=		atf.7
-
-CLEANFILES+=	atf.7 atf.7.tmp
-atf.7: atf.7.in
-	sed -e 's,__DOCDIR__,${DOCDIR}/atf,g' \
-	    -e 's,__TESTSDIR__,${TESTSBASE},g' \
-	    < ${.ALLSRC} > ${.TARGET}.tmp
-	mv ${.TARGET}.tmp ${.TARGET}
-.endif
 
 .include <bsd.prog.mk>

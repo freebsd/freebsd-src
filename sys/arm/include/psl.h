@@ -46,7 +46,6 @@
 
 #ifndef _MACHINE_PSL_H_
 #define _MACHINE_PSL_H_
-#include <machine/intr.h>
 
 /*
  * These are the different SPL states

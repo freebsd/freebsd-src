@@ -37,7 +37,6 @@
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 
 #include <machine/asmacros.h>
 #include <machine/psl.h>

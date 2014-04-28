@@ -1,4 +1,4 @@
-/*	$NetBSD: getid.c,v 1.7 2008/04/28 20:24:17 martin Exp $	*/
+/*	$NetBSD: getid.c,v 1.8 2013/10/16 17:27:42 christos Exp $	*/
 /*	from: NetBSD: getpwent.c,v 1.48 2000/10/03 03:22:26 enami Exp */
 /*	from: NetBSD: getgrent.c,v 1.41 2002/01/12 23:51:30 lukem Exp */
 
@@ -65,7 +65,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: getid.c,v 1.7 2008/04/28 20:24:17 martin Exp $");
+__RCSID("$NetBSD: getid.c,v 1.8 2013/10/16 17:27:42 christos Exp $");
 
 #include <sys/param.h>
 
@@ -230,6 +230,9 @@ grscan(int search, gid_t gid, const char *name)
 				;
 			continue;
 		}
+		/* skip comments */
+		if (pwline[0] == '#')
+			continue;
 		if (grmatchline(search, gid, name))
 			return 1;
 	}
@@ -371,6 +374,9 @@ pwscan(int search, uid_t uid, const char *name)
 				;
 			continue;
 		}
+		/* skip comments */
+		if (pwline[0] == '#')
+			continue;
 		if (pwmatchline(search, uid, name))
 			return 1;
 	}

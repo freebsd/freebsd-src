@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.31 2013/07/16 00:07:52 schwarze Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.34 2014/01/28 14:13:39 jmc Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
@@ -7,7 +7,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd July 16, 2013
+.Dd January 28, 2014
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -57,14 +57,16 @@ Forces
 to use IPv6 addresses only.
 .It Fl f Ar file
 Read hosts or
-.Pa addrlist namelist
-pairs from this file, one per line.
+.Dq addrlist namelist
+pairs from
+.Ar file ,
+one per line.
 If
 .Pa -
 is supplied instead of a filename,
 .Nm
 will read hosts or
-.Pa addrlist namelist
+.Dq addrlist namelist
 pairs from the standard input.
 .It Fl H
 Hash all hostnames and addresses in the output.
@@ -79,7 +81,7 @@ Port to connect to on the remote host.
 .It Fl T Ar timeout
 Set the timeout for connection attempts.
 If
-.Pa timeout
+.Ar timeout
 seconds have elapsed since a connection was initiated to a host or since the
 last time anything was read from that host, then the connection is
 closed and the host in question considered unavailable.
@@ -90,7 +92,8 @@ The possible values are
 .Dq rsa1
 for protocol version 1 and
 .Dq dsa ,
-.Dq ecdsa
+.Dq ecdsa ,
+.Dq ed25519 ,
 or
 .Dq rsa
 for protocol version 2.
@@ -117,37 +120,36 @@ On the other hand, if the security model allows such a risk,
 can help in the detection of tampered keyfiles or man in the middle
 attacks which have begun after the ssh_known_hosts file was created.
 .Sh FILES
-.Pa Input format:
+Input format:
 .Bd -literal
 1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
 .Ed
 .Pp
-.Pa Output format for rsa1 keys:
+Output format for rsa1 keys:
 .Bd -literal
 host-or-namelist bits exponent modulus
 .Ed
 .Pp
-.Pa Output format for rsa, dsa and ecdsa keys:
+Output format for rsa, dsa and ecdsa keys:
 .Bd -literal
 host-or-namelist keytype base64-encoded-key
 .Ed
 .Pp
 Where
-.Pa keytype
+.Ar keytype
 is either
 .Dq ecdsa-sha2-nistp256 ,
 .Dq ecdsa-sha2-nistp384 ,
 .Dq ecdsa-sha2-nistp521 ,
+.Dq ssh-ed25519 ,
 .Dq ssh-dss
 or
 .Dq ssh-rsa .
 .Pp
 .Pa /etc/ssh/ssh_known_hosts
 .Sh EXAMPLES
-Print the
-.Pa rsa
-host key for machine
-.Pa hostname :
+Print the rsa host key for machine
+.Ar hostname :
 .Bd -literal
 $ ssh-keyscan hostname
 .Ed

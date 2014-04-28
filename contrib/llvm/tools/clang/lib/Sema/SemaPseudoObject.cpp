@@ -101,6 +101,25 @@ namespace {
                                                     resultIndex);
       }
 
+      if (ChooseExpr *ce = dyn_cast<ChooseExpr>(e)) {
+        assert(!ce->isConditionDependent());
+
+        Expr *LHS = ce->getLHS(), *RHS = ce->getRHS();
+        Expr *&rebuiltExpr = ce->isConditionTrue() ? LHS : RHS;
+        rebuiltExpr = rebuild(rebuiltExpr);
+
+        return new (S.Context) ChooseExpr(ce->getBuiltinLoc(),
+                                          ce->getCond(),
+                                          LHS, RHS,
+                                          rebuiltExpr->getType(),
+                                          rebuiltExpr->getValueKind(),
+                                          rebuiltExpr->getObjectKind(),
+                                          ce->getRParenLoc(),
+                                          ce->isConditionTrue(),
+                                          rebuiltExpr->isTypeDependent(),
+                                          rebuiltExpr->isValueDependent());
+      }
+
       llvm_unreachable("bad expression to rebuild!");
     }
   };
@@ -575,9 +594,9 @@ bool ObjCPropertyOpBuilder::findSetter(bool warn) {
         RefExpr->getImplicitPropertyGetter()->getSelector()
           .getIdentifierInfoForSlot(0);
       SetterSelector =
-        SelectorTable::constructSetterName(S.PP.getIdentifierTable(),
-                                           S.PP.getSelectorTable(),
-                                           getterName);
+        SelectorTable::constructSetterSelector(S.PP.getIdentifierTable(),
+                                               S.PP.getSelectorTable(),
+                                               getterName);
       return false;
     }
   }
@@ -710,6 +729,16 @@ ExprResult ObjCPropertyOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
 
       op = opResult.take();
       assert(op && "successful assignment left argument invalid?");
+    }
+    else if (OpaqueValueExpr *OVE = dyn_cast<OpaqueValueExpr>(op)) {
+      Expr *Initializer = OVE->getSourceExpr();
+      // passing C++11 style initialized temporaries to objc++ properties
+      // requires special treatment by removing OpaqueValueExpr so type
+      // conversion takes place and adding the OpaqueValueExpr later on.
+      if (isa<InitListExpr>(Initializer) &&
+          Initializer->getType()->isVoidType()) {
+        op = Initializer;
+      }
     }
   }
 
@@ -882,8 +911,8 @@ ExprResult ObjCPropertyOpBuilder::complete(Expr *SyntacticForm) {
       S.Diags.getDiagnosticLevel(diag::warn_arc_repeated_use_of_weak,
                                  SyntacticForm->getLocStart());
     if (Level != DiagnosticsEngine::Ignored)
-      S.getCurFunction()->recordUseOfWeak(SyntacticRefExpr,
-                                         SyntacticRefExpr->isMessagingGetter());
+      S.recordUseOfEvaluatedWeak(SyntacticRefExpr,
+                                 SyntacticRefExpr->isMessagingGetter());
   }
 
   return PseudoOpBuilder::complete(SyntacticForm);

@@ -75,12 +75,7 @@ IRExecutionUnit::WriteNow (const uint8_t *bytes,
         if (err.Success())
         {
             DataExtractor my_extractor(my_buffer.GetBytes(), my_buffer.GetByteSize(), lldb::eByteOrderBig, 8);
-
-            StreamString ss;
-            
-            my_extractor.Dump(&ss, 0, lldb::eFormatBytesWithASCII, 1, my_buffer.GetByteSize(), 32, allocation_process_addr, 0, 0);
-            
-            log->PutCString(ss.GetData());
+            my_extractor.PutToLog(log, 0, my_buffer.GetByteSize(), allocation_process_addr, 16, DataExtractor::TypeUInt8);
         }
     }
     
@@ -243,6 +238,8 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 {
     lldb::ProcessSP process_sp(GetProcessWP().lock());
     
+    static Mutex s_runnable_info_mutex(Mutex::Type::eMutexTypeRecursive);
+    
     func_addr = LLDB_INVALID_ADDRESS;
     func_end = LLDB_INVALID_ADDRESS;
     
@@ -260,6 +257,8 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         
         return;
     };
+    
+    Mutex::Locker runnable_info_mutex_locker(s_runnable_info_mutex);
     
     m_did_jit = true;
     
@@ -394,6 +393,25 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         {
             log->Printf("Function disassembly:\n%s", disassembly_stream.GetData());
         }
+        
+        log->Printf("Sections: ");
+        for (AllocationRecord &record : m_records)
+        {
+            if (record.m_process_address != LLDB_INVALID_ADDRESS)
+            {
+                record.dump(log);
+                
+                DataBufferHeap my_buffer(record.m_size, 0);
+                Error err;
+                ReadMemory(my_buffer.GetBytes(), record.m_process_address, record.m_size, err);
+                
+                if (err.Success())
+                {
+                    DataExtractor my_extractor(my_buffer.GetBytes(), my_buffer.GetByteSize(), lldb::eByteOrderBig, 8);
+                    my_extractor.PutToLog(log, 0, my_buffer.GetByteSize(), record.m_process_address, 16, DataExtractor::TypeUInt8);
+                }
+            }
+        }
     }
     
     func_addr = m_function_load_addr;
@@ -490,11 +508,12 @@ IRExecutionUnit::MemoryManager::allocateSpace(intptr_t Size, unsigned Alignment)
 uint8_t *
 IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
                                                     unsigned Alignment,
-                                                    unsigned SectionID)
+                                                    unsigned SectionID,
+                                                    llvm::StringRef SectionName)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
     
-    uint8_t *return_value = m_default_mm_ap->allocateCodeSection(Size, Alignment, SectionID);
+    uint8_t *return_value = m_default_mm_ap->allocateCodeSection(Size, Alignment, SectionID, SectionName);
     
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
                                                   lldb::ePermissionsReadable | lldb::ePermissionsExecutable,
@@ -515,11 +534,12 @@ uint8_t *
 IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
                                                     unsigned Alignment,
                                                     unsigned SectionID,
+                                                    llvm::StringRef SectionName,
                                                     bool IsReadOnly)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
 
-    uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, IsReadOnly);
+    uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, SectionName, IsReadOnly);
     
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
                                                   lldb::ePermissionsReadable | lldb::ePermissionsWritable,
@@ -561,28 +581,6 @@ void
 IRExecutionUnit::MemoryManager::deallocateFunctionBody(void *Body)
 {
     m_default_mm_ap->deallocateFunctionBody(Body);
-}
-
-uint8_t*
-IRExecutionUnit::MemoryManager::startExceptionTable(const llvm::Function* F,
-                                                    uintptr_t &ActualSize)
-{
-    return m_default_mm_ap->startExceptionTable(F, ActualSize);
-}
-
-void
-IRExecutionUnit::MemoryManager::endExceptionTable(const llvm::Function *F,
-                                                  uint8_t *TableStart,
-                                                  uint8_t *TableEnd,
-                                                  uint8_t* FrameRegister)
-{
-    m_default_mm_ap->endExceptionTable(F, TableStart, TableEnd, FrameRegister);
-}
-
-void
-IRExecutionUnit::MemoryManager::deallocateExceptionTable(void *ET)
-{
-    m_default_mm_ap->deallocateExceptionTable (ET);
 }
 
 lldb::addr_t

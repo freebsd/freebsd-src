@@ -1182,6 +1182,28 @@ hdrerror:
 	g_free(buf);
 	if (GET32(meta, pdr->Signature) != DDF_PDR_SIGNATURE)
 		goto hdrerror;
+	/*
+	 * Workaround for reading metadata corrupted due to graid bug.
+	 * XXX: Remove this before we have disks above 128PB. :)
+	 */
+	if (meta->bigendian) {
+		for (i = 0; i < GET16(meta, pdr->Populated_PDEs); i++) {
+			if (isff(meta->pdr->entry[i].PD_GUID, 24))
+				continue;
+			if (GET32(meta, pdr->entry[i].PD_Reference) ==
+			    0xffffffff)
+				continue;
+			if (GET64(meta, pdr->entry[i].Configured_Size) >=
+			     (1ULL << 48)) {
+				SET16(meta, pdr->entry[i].PD_State,
+				    GET16(meta, pdr->entry[i].PD_State) &
+				    ~DDF_PDE_FAILED);
+				SET64(meta, pdr->entry[i].Configured_Size,
+				    GET64(meta, pdr->entry[i].Configured_Size) &
+				    ((1ULL << 48) - 1));
+			}
+		}
+	}
 
 	/* Read virtual disk records. */
 	buf = g_read_data(cp, (lba + GET32(meta, hdr->vdr_section)) * ss,
@@ -1711,7 +1733,7 @@ nofit:
 	/* Welcome the new disk. */
 	if (resurrection)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-	else if (GET8(gmeta, pdr->entry[md_pde_pos].PD_State) & DDF_PDE_PFA)
+	else if (GET16(gmeta, pdr->entry[md_pde_pos].PD_State) & DDF_PDE_PFA)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
 	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
@@ -1730,11 +1752,11 @@ nofit:
 		/* Stale disk, almost same as new. */
 		g_raid_change_subdisk_state(sd,
 		    G_RAID_SUBDISK_S_NEW);
-	} else if (GET8(gmeta, pdr->entry[md_pde_pos].PD_State) & DDF_PDE_PFA) {
+	} else if (GET16(gmeta, pdr->entry[md_pde_pos].PD_State) & DDF_PDE_PFA) {
 		/* Failed disk. */
 		g_raid_change_subdisk_state(sd,
 		    G_RAID_SUBDISK_S_FAILED);
-	} else if ((GET8(gmeta, pdr->entry[md_pde_pos].PD_State) &
+	} else if ((GET16(gmeta, pdr->entry[md_pde_pos].PD_State) &
 	     (DDF_PDE_FAILED | DDF_PDE_REBUILD)) != 0) {
 		/* Rebuilding disk. */
 		g_raid_change_subdisk_state(sd,
@@ -2143,6 +2165,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	}
 
 	rcp = g_new_consumer(geom);
+	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
 		; //goto fail1;
@@ -2832,24 +2855,24 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			    GET32(vmeta, bvdc[bvd]->Physical_Disk_Sequence[pos]));
 			if (j < 0)
 				continue;
-			SET32(gmeta, pdr->entry[j].PD_Type,
-			    GET32(gmeta, pdr->entry[j].PD_Type) |
+			SET16(gmeta, pdr->entry[j].PD_Type,
+			    GET16(gmeta, pdr->entry[j].PD_Type) |
 			    DDF_PDE_PARTICIPATING);
 			if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
-				SET32(gmeta, pdr->entry[j].PD_State,
-				    GET32(gmeta, pdr->entry[j].PD_State) |
+				SET16(gmeta, pdr->entry[j].PD_State,
+				    GET16(gmeta, pdr->entry[j].PD_State) |
 				    (DDF_PDE_FAILED | DDF_PDE_MISSING));
 			else if (sd->sd_state == G_RAID_SUBDISK_S_FAILED)
-				SET32(gmeta, pdr->entry[j].PD_State,
-				    GET32(gmeta, pdr->entry[j].PD_State) |
+				SET16(gmeta, pdr->entry[j].PD_State,
+				    GET16(gmeta, pdr->entry[j].PD_State) |
 				    (DDF_PDE_FAILED | DDF_PDE_PFA));
 			else if (sd->sd_state <= G_RAID_SUBDISK_S_REBUILD)
-				SET32(gmeta, pdr->entry[j].PD_State,
-				    GET32(gmeta, pdr->entry[j].PD_State) |
+				SET16(gmeta, pdr->entry[j].PD_State,
+				    GET16(gmeta, pdr->entry[j].PD_State) |
 				    DDF_PDE_REBUILD);
 			else
-				SET32(gmeta, pdr->entry[j].PD_State,
-				    GET32(gmeta, pdr->entry[j].PD_State) |
+				SET16(gmeta, pdr->entry[j].PD_State,
+				    GET16(gmeta, pdr->entry[j].PD_State) |
 				    DDF_PDE_ONLINE);
 		}
 	}
@@ -2862,8 +2885,8 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		if (i < 0)
 			continue;
 		if (disk->d_state == G_RAID_DISK_S_FAILED) {
-			SET32(gmeta, pdr->entry[i].PD_State,
-			    GET32(gmeta, pdr->entry[i].PD_State) |
+			SET16(gmeta, pdr->entry[i].PD_State,
+			    GET16(gmeta, pdr->entry[i].PD_State) |
 			    (DDF_PDE_FAILED | DDF_PDE_PFA));
 		}
 		if (disk->d_state != G_RAID_DISK_S_SPARE)
@@ -2880,8 +2903,8 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			    GET16(gmeta, pdr->entry[i].PD_Type) |
 			    DDF_PDE_CONFIG_SPARE);
 		}
-		SET32(gmeta, pdr->entry[i].PD_State,
-		    GET32(gmeta, pdr->entry[i].PD_State) |
+		SET16(gmeta, pdr->entry[i].PD_State,
+		    GET16(gmeta, pdr->entry[i].PD_State) |
 		    DDF_PDE_ONLINE);
 	}
 

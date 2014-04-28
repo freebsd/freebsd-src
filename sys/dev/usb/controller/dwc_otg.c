@@ -122,9 +122,9 @@ SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods dwc_otg_bus_methods;
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
-struct usb_pipe_methods dwc_otg_device_isoc_methods;
+static const struct usb_bus_methods dwc_otg_bus_methods;
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods;
 
 static dwc_otg_cmd_t dwc_otg_setup_rx;
 static dwc_otg_cmd_t dwc_otg_data_rx;
@@ -2149,7 +2149,12 @@ dwc_otg_vbus_interrupt(struct dwc_otg_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	if (is_on) {
+	/*
+	 * If the USB host mode is forced, then assume VBUS is always
+	 * present else rely on the input to this function:
+	 */
+	if ((is_on != 0) || (sc->sc_mode == DWC_MODE_HOST)) {
+
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
 
@@ -3182,7 +3187,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 	    sc->sc_host_ch_max);
 
 	/* setup FIFO */
-	if (dwc_otg_init_fifo(sc, DWC_MODE_OTG))
+	if (dwc_otg_init_fifo(sc, sc->sc_mode))
 		return (EINVAL);
 
 	/* enable interrupts */
@@ -3327,7 +3332,7 @@ dwc_otg_device_non_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
 {
 	.open = dwc_otg_device_non_isoc_open,
 	.close = dwc_otg_device_non_isoc_close,
@@ -3422,7 +3427,7 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods =
 {
 	.open = dwc_otg_device_isoc_open,
 	.close = dwc_otg_device_isoc_close,
@@ -4201,7 +4206,7 @@ dwc_otg_device_suspend(struct usb_device *udev)
 	USB_BUS_UNLOCK(udev->bus);
 }
 
-struct usb_bus_methods dwc_otg_bus_methods =
+static const struct usb_bus_methods dwc_otg_bus_methods =
 {
 	.endpoint_init = &dwc_otg_ep_init,
 	.xfer_setup = &dwc_otg_xfer_setup,

@@ -2,6 +2,6 @@
 
 PROG=	ethermulti
 SRCS+=	ethermulti.c
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

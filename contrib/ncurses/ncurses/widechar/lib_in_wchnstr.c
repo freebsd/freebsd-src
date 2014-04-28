@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2004-2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2007,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,14 +39,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_in_wchnstr.c,v 1.7 2007/02/11 01:00:00 tom Exp $")
+MODULE_ID("$Id: lib_in_wchnstr.c,v 1.8 2009/10/24 22:37:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 win_wchnstr(WINDOW *win, cchar_t *wchstr, int n)
 {
     int code = OK;
 
-    T((T_CALLED("win_wchnstr(%p,%p,%d)"), win, wchstr, n));
+    T((T_CALLED("win_wchnstr(%p,%p,%d)"), (void *) win, (void *) wchstr, n));
     if (win != 0
 	&& wchstr != 0) {
 	NCURSES_CH_T *src;

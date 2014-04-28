@@ -1205,7 +1205,7 @@ __FBSDID("$FreeBSD$");
 #       define R300_FPI0_OUTC_FRC                (9 << 23)
 #       define R300_FPI0_OUTC_REPL_ALPHA         (10 << 23)
 #       define R300_FPI0_OUTC_SAT                (1 << 30)
-#       define R300_FPI0_INSERT_NOP              (1 << 31)
+#       define R300_FPI0_INSERT_NOP              (1U << 31)
 
 #define R300_PFS_INSTR2_0                   0x49C0
 #       define R300_FPI2_ARGA_SRC0C_X            0
@@ -1252,7 +1252,7 @@ __FBSDID("$FreeBSD$");
 #       define R300_FPI2_OUTA_RCP                (10 << 23)
 #       define R300_FPI2_OUTA_RSQ                (11 << 23)
 #       define R300_FPI2_OUTA_SAT                (1 << 30)
-#       define R300_FPI2_UNKNOWN_31              (1 << 31)
+#       define R300_FPI2_UNKNOWN_31              (1U << 31)
 /* END: Fragment program instruction set */
 
 /* Fog state and color */
@@ -1452,7 +1452,7 @@ __FBSDID("$FreeBSD$");
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_NO_EFFECT       (0 << 1)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_FREE            (1 << 1)
 #       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_IDLE            (0 << 31)
-#       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_BUSY            (1 << 31)
+#       define R300_ZB_ZCACHE_CTLSTAT_ZC_BUSY_BUSY            (1U << 31)
 
 #define R300_ZB_BW_CNTL                     0x4f1c
 #	define R300_HIZ_DISABLE                              (0 << 0)

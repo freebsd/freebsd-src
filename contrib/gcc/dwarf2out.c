@@ -156,6 +156,7 @@ static GTY(()) section *debug_macinfo_section;
 static GTY(()) section *debug_line_section;
 static GTY(()) section *debug_loc_section;
 static GTY(()) section *debug_pubnames_section;
+static GTY(()) section *debug_pubtypes_section;
 static GTY(()) section *debug_str_section;
 static GTY(()) section *debug_ranges_section;
 static GTY(()) section *debug_frame_section;
@@ -2030,7 +2031,7 @@ switch_to_eh_frame_section (void)
       /* We have no special eh_frame section.  Put the information in
 	 the data section and emit special labels to guide collect2.  */
       switch_to_section (data_section);
-      label = get_file_function_name ('F');
+      label = get_file_function_name ("F");
       ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (PTR_SIZE));
       targetm.asm_out.globalize_label (asm_out_file,
 				       IDENTIFIER_POINTER (label));
@@ -2192,6 +2193,9 @@ output_call_frame_info (int for_eh)
      specialization doesn't.  */
   if (TARGET_USES_WEAK_UNWIND_INFO
       && ! flag_asynchronous_unwind_tables
+/* APPLE LOCAL begin for-fsf-4_4 5480287 */ \
+      && flag_exceptions
+/* APPLE LOCAL end for-fsf-4_4 5480287 */ \
       && for_eh)
     for (i = 0; i < fde_table_in_use; i++)
       if ((fde_table[i].nothrow || fde_table[i].all_throwers_are_sibcalls)
@@ -3759,6 +3763,9 @@ typedef struct pubname_struct GTY(())
 }
 pubname_entry;
 
+DEF_VEC_O(pubname_entry);
+DEF_VEC_ALLOC_O(pubname_entry, gc);
+
 struct dw_ranges_struct GTY(())
 {
   int block_num;
@@ -3940,17 +3947,11 @@ static GTY(()) unsigned separate_line_info_table_in_use;
 
 /* A pointer to the base of a table that contains a list of publicly
    accessible names.  */
-static GTY ((length ("pubname_table_allocated"))) pubname_ref pubname_table;
+static GTY (()) VEC (pubname_entry, gc) *  pubname_table;
 
-/* Number of elements currently allocated for pubname_table.  */
-static GTY(()) unsigned pubname_table_allocated;
-
-/* Number of elements in pubname_table currently in use.  */
-static GTY(()) unsigned pubname_table_in_use;
-
-/* Size (in elements) of increments by which we may expand the
-   pubname_table.  */
-#define PUBNAME_TABLE_INCREMENT 64
+/* A pointer to the base of a table that contains a list of publicly
+   accessible types.  */
+static GTY (()) VEC (pubname_entry, gc) * pubtype_table;
 
 /* Array of dies for which we should generate .debug_arange info.  */
 static GTY((length ("arange_table_allocated"))) dw_die_ref *arange_table;
@@ -4115,7 +4116,7 @@ static void calc_die_sizes (dw_die_ref);
 static void mark_dies (dw_die_ref);
 static void unmark_dies (dw_die_ref);
 static void unmark_all_dies (dw_die_ref);
-static unsigned long size_of_pubnames (void);
+static unsigned long size_of_pubnames (VEC (pubname_entry,gc) *);
 static unsigned long size_of_aranges (void);
 static enum dwarf_form value_format (dw_attr_ref);
 static void output_value_format (dw_attr_ref);
@@ -4126,7 +4127,8 @@ static void output_compilation_unit_header (void);
 static void output_comp_unit (dw_die_ref, int);
 static const char *dwarf2_name (tree, int);
 static void add_pubname (tree, dw_die_ref);
-static void output_pubnames (void);
+static void add_pubtype (tree, dw_die_ref);
+static void output_pubnames (VEC (pubname_entry,gc) *);
 static void add_arange (tree, dw_die_ref);
 static void output_aranges (void);
 static unsigned int add_ranges (tree);
@@ -4215,7 +4217,8 @@ static void gen_ptr_to_mbr_type_die (tree, dw_die_ref);
 static dw_die_ref gen_compile_unit_die (const char *);
 static void gen_inheritance_die (tree, tree, dw_die_ref);
 static void gen_member_die (tree, dw_die_ref);
-static void gen_struct_or_union_type_die (tree, dw_die_ref);
+static void gen_struct_or_union_type_die (tree, dw_die_ref,
+						enum debug_info_usage);
 static void gen_subroutine_type_die (tree, dw_die_ref);
 static void gen_typedef_die (tree, dw_die_ref);
 static void gen_type_die (tree, dw_die_ref);
@@ -4727,6 +4730,11 @@ dwarf_attr_name (unsigned int attr)
 
     case DW_AT_VMS_rtnbeg_pd_address:
       return "DW_AT_VMS_rtnbeg_pd_address";
+
+    /* APPLE LOCAL begin radar 5811943 - Fix type of pointers to Blocks  */
+    case DW_AT_APPLE_block:
+      return "DW_AT_APPLE_block";
+    /* APPLE LOCAL end radar 5811943 - Fix type of pointers to Blocks  */
 
     default:
       return "DW_AT_<unknown>";
@@ -5740,11 +5748,11 @@ print_die (dw_die_ref die, FILE *outfile)
   unsigned ix;
 
   print_spaces (outfile);
-  fprintf (outfile, "DIE %4lu: %s\n",
+  fprintf (outfile, "DIE %4ld: %s\n",
 	   die->die_offset, dwarf_tag_name (die->die_tag));
   print_spaces (outfile);
   fprintf (outfile, "  abbrev id: %lu", die->die_abbrev);
-  fprintf (outfile, " offset: %lu\n", die->die_offset);
+  fprintf (outfile, " offset: %ld\n", die->die_offset);
 
   for (ix = 0; VEC_iterate (dw_attr_node, die->die_attr, ix, a); ix++)
     {
@@ -5792,7 +5800,7 @@ print_die (dw_die_ref die, FILE *outfile)
 	      if (AT_ref (a)->die_symbol)
 		fprintf (outfile, "die -> label: %s", AT_ref (a)->die_symbol);
 	      else
-		fprintf (outfile, "die -> %lu", AT_ref (a)->die_offset);
+		fprintf (outfile, "die -> %ld", AT_ref (a)->die_offset);
 	    }
 	  else
 	    fprintf (outfile, "die -> <null>");
@@ -6749,21 +6757,22 @@ unmark_all_dies (dw_die_ref die)
       unmark_all_dies (AT_ref (a));
 }
 
-/* Return the size of the .debug_pubnames table  generated for the
-   compilation unit.  */
+/* Return the size of the .debug_pubnames or .debug_pubtypes table  
+   generated for the compilation unit.  */
 
 static unsigned long
-size_of_pubnames (void)
+size_of_pubnames (VEC (pubname_entry, gc) * names)
 {
   unsigned long size;
   unsigned i;
+  pubname_ref p;
 
   size = DWARF_PUBNAMES_HEADER_SIZE;
-  for (i = 0; i < pubname_table_in_use; i++)
-    {
-      pubname_ref p = &pubname_table[i];
-      size += DWARF_OFFSET_SIZE + strlen (p->name) + 1;
-    }
+  for (i = 0; VEC_iterate (pubname_entry, names, i, p); i++)
+    if (names != pubtype_table
+	|| p->die->die_offset != 0
+	|| !flag_eliminate_unused_debug_types)
+      size += strlen (p->name) + DWARF_OFFSET_SIZE + 1;
 
   size += DWARF_OFFSET_SIZE;
   return size;
@@ -7062,7 +7071,8 @@ output_die (dw_die_ref die)
     output_die_symbol (die);
 
   dw2_asm_output_data_uleb128 (die->die_abbrev, "(DIE (0x%lx) %s)",
-			       die->die_offset, dwarf_tag_name (die->die_tag));
+			       (unsigned long)die->die_offset,
+			       dwarf_tag_name (die->die_tag));
 
   for (ix = 0; VEC_iterate (dw_attr_node, die->die_attr, ix, a); ix++)
     {
@@ -7244,7 +7254,7 @@ output_die (dw_die_ref die)
   /* Add null byte to terminate sibling list.  */
   if (die->die_child != NULL)
     dw2_asm_output_data (1, 0, "end of children of DIE 0x%lx",
-			 die->die_offset);
+			 (unsigned long) die->die_offset);
 }
 
 /* Output the compilation unit that appears at the beginning of the
@@ -7330,41 +7340,73 @@ dwarf2_name (tree decl, int scope)
 static void
 add_pubname (tree decl, dw_die_ref die)
 {
-  pubname_ref p;
+  pubname_entry e;
 
   if (! TREE_PUBLIC (decl))
     return;
 
-  if (pubname_table_in_use == pubname_table_allocated)
-    {
-      pubname_table_allocated += PUBNAME_TABLE_INCREMENT;
-      pubname_table
-	= ggc_realloc (pubname_table,
-		       (pubname_table_allocated * sizeof (pubname_entry)));
-      memset (pubname_table + pubname_table_in_use, 0,
-	      PUBNAME_TABLE_INCREMENT * sizeof (pubname_entry));
-    }
+  e.die = die;
+  e.name = xstrdup (dwarf2_name (decl, 1));
+  VEC_safe_push (pubname_entry, gc, pubname_table, &e);
+}
 
-  p = &pubname_table[pubname_table_in_use++];
-  p->die = die;
-  p->name = xstrdup (dwarf2_name (decl, 1));
+/* Add a new entry to .debug_pubtypes if appropriate.  */
+
+static void
+add_pubtype (tree decl, dw_die_ref die)
+{
+  pubname_entry e;
+
+  e.name = NULL;
+  if ((TREE_PUBLIC (decl)
+       || die->die_parent == comp_unit_die)
+      && (die->die_tag == DW_TAG_typedef || COMPLETE_TYPE_P (decl)))
+    {
+      e.die = die;
+      if (TYPE_P (decl))
+	{
+	  if (TYPE_NAME (decl))
+	    {
+	      if (TREE_CODE (TYPE_NAME (decl)) == IDENTIFIER_NODE)
+		e.name = xstrdup ((const char *) IDENTIFIER_POINTER 
+				                              (TYPE_NAME (decl)));
+	      else if (TREE_CODE (TYPE_NAME (decl)) == TYPE_DECL
+		       && DECL_NAME (TYPE_NAME (decl)))
+		e.name = xstrdup ((const char *) IDENTIFIER_POINTER 
+				                  (DECL_NAME (TYPE_NAME (decl))));
+             else
+	       e.name = xstrdup ((const char *) get_AT_string (die, DW_AT_name));
+	    }
+	}
+      else 
+	e.name = xstrdup (dwarf2_name (decl, 1));
+
+      /* If we don't have a name for the type, there's no point in adding
+	 it to the table.  */
+      if (e.name && e.name[0] != '\0')
+	VEC_safe_push (pubname_entry, gc, pubtype_table, &e);
+    }
 }
 
 /* Output the public names table used to speed up access to externally
-   visible names.  For now, only generate entries for externally
-   visible procedures.  */
+   visible names; or the public types table used to find type definitions.  */
 
 static void
-output_pubnames (void)
+output_pubnames (VEC (pubname_entry, gc) * names)
 {
   unsigned i;
-  unsigned long pubnames_length = size_of_pubnames ();
+  unsigned long pubnames_length = size_of_pubnames (names);
+  pubname_ref pub;
 
   if (DWARF_INITIAL_LENGTH_SIZE - DWARF_OFFSET_SIZE == 4)
     dw2_asm_output_data (4, 0xffffffff,
       "Initial length escape value indicating 64-bit DWARF extension");
-  dw2_asm_output_data (DWARF_OFFSET_SIZE, pubnames_length,
-		       "Length of Public Names Info");
+  if (names == pubname_table)
+    dw2_asm_output_data (DWARF_OFFSET_SIZE, pubnames_length,
+			 "Length of Public Names Info");
+  else
+    dw2_asm_output_data (DWARF_OFFSET_SIZE, pubnames_length,
+			 "Length of Public Type Names Info");
   dw2_asm_output_data (2, DWARF_VERSION, "DWARF Version");
   dw2_asm_output_offset (DWARF_OFFSET_SIZE, debug_info_section_label,
 			 debug_info_section,
@@ -7372,17 +7414,21 @@ output_pubnames (void)
   dw2_asm_output_data (DWARF_OFFSET_SIZE, next_die_offset,
 		       "Compilation Unit Length");
 
-  for (i = 0; i < pubname_table_in_use; i++)
+  for (i = 0; VEC_iterate (pubname_entry, names, i, pub); i++)
     {
-      pubname_ref pub = &pubname_table[i];
+      /* We shouldn't see pubnames for DIEs outside of the main CU.  */      
+      if (names == pubname_table)
+	gcc_assert (pub->die->die_mark);
 
-      /* We shouldn't see pubnames for DIEs outside of the main CU.  */
-      gcc_assert (pub->die->die_mark);
+      if (names != pubtype_table
+	  || pub->die->die_offset != 0
+	  || !flag_eliminate_unused_debug_types)
+	{
+	  dw2_asm_output_data (DWARF_OFFSET_SIZE, pub->die->die_offset,
+			       "DIE offset");
 
-      dw2_asm_output_data (DWARF_OFFSET_SIZE, pub->die->die_offset,
-			   "DIE offset");
-
-      dw2_asm_output_nstring (pub->name, -1, "external name");
+	  dw2_asm_output_nstring (pub->name, -1, "external name");
+	}
     }
 
   dw2_asm_output_data (DWARF_OFFSET_SIZE, 0, NULL);
@@ -8257,6 +8303,8 @@ root_type (tree type)
     case ERROR_MARK:
       return error_mark_node;
 
+    /* APPLE LOCAL radar 5732232 - blocks */
+    case BLOCK_POINTER_TYPE:
     case POINTER_TYPE:
     case REFERENCE_TYPE:
       return type_main_variant (root_type (TREE_TYPE (type)));
@@ -8289,6 +8337,8 @@ is_base_type (tree type)
     case ENUMERAL_TYPE:
     case FUNCTION_TYPE:
     case METHOD_TYPE:
+	/* APPLE LOCAL radar 5732232 - blocks */
+    case BLOCK_POINTER_TYPE:
     case POINTER_TYPE:
     case REFERENCE_TYPE:
     case OFFSET_TYPE:
@@ -8476,7 +8526,8 @@ modified_type_die (tree type, int is_const_type, int is_volatile_type,
       mod_type_die = new_die (DW_TAG_volatile_type, comp_unit_die, type);
       sub_die = modified_type_die (type, 0, 0, context_die);
     }
-  else if (code == POINTER_TYPE)
+  /* APPLE LOCAL radar 5732232 - blocks */
+  else if (code == POINTER_TYPE || code == BLOCK_POINTER_TYPE)
     {
       mod_type_die = new_die (DW_TAG_pointer_type, comp_unit_die, type);
       add_AT_unsigned (mod_type_die, DW_AT_byte_size,
@@ -11129,6 +11180,19 @@ add_type_attribute (dw_die_ref object_die, tree type, int decl_const,
   enum tree_code code  = TREE_CODE (type);
   dw_die_ref type_die  = NULL;
 
+/* APPLE LOCAL begin radar 5847213 */
+  /* APPLE LOCAL begin radar 5811943 - Fix type of pointers to blocks  */
+  /* APPLE LOCAL - radar 6113240 */
+  /* APPLE LOCAL begin radar 6300081  */
+  if (code == BLOCK_POINTER_TYPE && generic_block_literal_struct_type)
+    {
+      type = build_pointer_type (generic_block_literal_struct_type);
+      code = TREE_CODE (type);
+    }
+  /* APPLE LOCAL end radar 6300081  */
+  /* APPLE LOCAL end radar 5811943 - Fix type of pointers to Blocks  */
+/* APPLE LOCAL end radar 5847213 */
+
   /* ??? If this type is an unnamed subrange type of an integral or
      floating-point type, use the inner type.  This is because we have no
      support for unnamed types in base_type_die.  This can happen if this is
@@ -11296,6 +11360,9 @@ gen_array_type_die (tree type, dw_die_ref context_die)
 #endif
 
   add_type_attribute (array_die, element_type, 0, 0, context_die);
+
+  if (get_AT (array_die, DW_AT_name))
+    add_pubtype (type, array_die);
 }
 
 #if 0
@@ -11430,6 +11497,9 @@ gen_enumeration_type_die (tree type, dw_die_ref context_die)
     }
   else
     add_AT_flag (type_die, DW_AT_declaration, 1);
+
+  if (get_AT (type_die, DW_AT_name))
+    add_pubtype (type, type_die);
 
   return type_die;
 }
@@ -12473,7 +12543,8 @@ gen_member_die (tree type, dw_die_ref context_die)
    member DIEs needed by later specification DIEs.  */
 
 static void
-gen_struct_or_union_type_die (tree type, dw_die_ref context_die)
+gen_struct_or_union_type_die (tree type, dw_die_ref context_die,
+				enum debug_info_usage usage)
 {
   dw_die_ref type_die = lookup_type_die (type);
   dw_die_ref scope_die = 0;
@@ -12482,6 +12553,7 @@ gen_struct_or_union_type_die (tree type, dw_die_ref context_die)
 		  && (! TYPE_STUB_DECL (type)
 		      || ! TYPE_DECL_SUPPRESS_DEBUG (TYPE_STUB_DECL (type))));
   int ns_decl = (context_die && context_die->die_tag == DW_TAG_namespace);
+  complete = complete && should_emit_struct_debug (type, usage);
 
   if (type_die && ! complete)
     return;
@@ -12506,7 +12578,11 @@ gen_struct_or_union_type_die (tree type, dw_die_ref context_die)
 	add_AT_specification (type_die, old_die);
       else
 	add_name_attribute (type_die, type_tag (type));
-    }
+      /* APPLE LOCAL begin radar 5811943 - Fix type of pointers to Blocks  */
+      if (TYPE_BLOCK_IMPL_STRUCT (type))
+	add_AT_flag (type_die, DW_AT_APPLE_block, 1);
+      /* APPLE LOCAL end radar 5811943 - Fix type of pointers to Blocks  */
+     }
   else
     remove_AT (type_die, DW_AT_declaration);
 
@@ -12549,6 +12625,9 @@ gen_struct_or_union_type_die (tree type, dw_die_ref context_die)
 	  && ! decl_function_context (TYPE_STUB_DECL (type)))
 	VEC_safe_push (tree, gc, incomplete_types, type);
     }
+
+  if (get_AT (type_die, DW_AT_name))
+    add_pubtype (type, type_die);
 }
 
 /* Generate a DIE for a subroutine _type_.  */
@@ -12565,6 +12644,9 @@ gen_subroutine_type_die (tree type, dw_die_ref context_die)
   add_prototyped_attribute (subr_die, type);
   add_type_attribute (subr_die, return_type, 0, 0, context_die);
   gen_formal_types_die (type, subr_die);
+
+  if (get_AT (subr_die, DW_AT_name))
+    add_pubtype (type, subr_die);
 }
 
 /* Generate a DIE for a type definition.  */
@@ -12604,12 +12686,16 @@ gen_typedef_die (tree decl, dw_die_ref context_die)
 
   if (DECL_ABSTRACT (decl))
     equate_decl_number_to_die (decl, type_die);
+
+  if (get_AT (type_die, DW_AT_name))
+    add_pubtype (decl, type_die);
 }
 
 /* Generate a type description DIE.  */
 
 static void
-gen_type_die (tree type, dw_die_ref context_die)
+gen_type_die_with_usage (tree type, dw_die_ref context_die,
+				enum debug_info_usage usage)
 {
   int need_pop;
 
@@ -12645,7 +12731,8 @@ gen_type_die (tree type, dw_die_ref context_die)
     {
     case ERROR_MARK:
       break;
-
+	/* APPLE LOCAL radar 5732232 - blocks */
+    case BLOCK_POINTER_TYPE:
     case POINTER_TYPE:
     case REFERENCE_TYPE:
       /* We must set TREE_ASM_WRITTEN in case this is a recursive type.  This
@@ -12657,16 +12744,19 @@ gen_type_die (tree type, dw_die_ref context_die)
 
       /* For these types, all that is required is that we output a DIE (or a
 	 set of DIEs) to represent the "basis" type.  */
-      gen_type_die (TREE_TYPE (type), context_die);
+      gen_type_die_with_usage (TREE_TYPE (type), context_die,
+				DINFO_USAGE_IND_USE);
       break;
 
     case OFFSET_TYPE:
       /* This code is used for C++ pointer-to-data-member types.
 	 Output a description of the relevant class type.  */
-      gen_type_die (TYPE_OFFSET_BASETYPE (type), context_die);
+      gen_type_die_with_usage (TYPE_OFFSET_BASETYPE (type), context_die,
+					DINFO_USAGE_IND_USE);
 
       /* Output a description of the type of the object pointed to.  */
-      gen_type_die (TREE_TYPE (type), context_die);
+      gen_type_die_with_usage (TREE_TYPE (type), context_die,
+					DINFO_USAGE_IND_USE);
 
       /* Now output a DIE to represent this pointer-to-data-member type
 	 itself.  */
@@ -12675,13 +12765,15 @@ gen_type_die (tree type, dw_die_ref context_die)
 
     case FUNCTION_TYPE:
       /* Force out return type (in case it wasn't forced out already).  */
-      gen_type_die (TREE_TYPE (type), context_die);
+      gen_type_die_with_usage (TREE_TYPE (type), context_die,
+					DINFO_USAGE_DIR_USE);
       gen_subroutine_type_die (type, context_die);
       break;
 
     case METHOD_TYPE:
       /* Force out return type (in case it wasn't forced out already).  */
-      gen_type_die (TREE_TYPE (type), context_die);
+      gen_type_die_with_usage (TREE_TYPE (type), context_die,
+					DINFO_USAGE_DIR_USE);
       gen_subroutine_type_die (type, context_die);
       break;
 
@@ -12707,7 +12799,7 @@ gen_type_die (tree type, dw_die_ref context_die)
 	  && AGGREGATE_TYPE_P (TYPE_CONTEXT (type))
 	  && ! TREE_ASM_WRITTEN (TYPE_CONTEXT (type)))
 	{
-	  gen_type_die (TYPE_CONTEXT (type), context_die);
+	  gen_type_die_with_usage (TYPE_CONTEXT (type), context_die, usage);
 
 	  if (TREE_ASM_WRITTEN (type))
 	    return;
@@ -12731,7 +12823,7 @@ gen_type_die (tree type, dw_die_ref context_die)
 	    gen_enumeration_type_die (type, context_die);
 	}
       else
-	gen_struct_or_union_type_die (type, context_die);
+	gen_struct_or_union_type_die (type, context_die, usage);
 
       if (need_pop)
 	pop_decl_scope ();
@@ -12758,6 +12850,12 @@ gen_type_die (tree type, dw_die_ref context_die)
     }
 
   TREE_ASM_WRITTEN (type) = 1;
+}
+
+static void
+gen_type_die (tree type, dw_die_ref context_die)
+{
+  gen_type_die_with_usage (type, context_die, DINFO_USAGE_DIR_USE);
 }
 
 /* Generate a DIE for a tagged type instantiation.  */
@@ -13357,7 +13455,11 @@ dwarf2out_imported_module_or_decl (tree decl, tree context)
   if (!context)
     scope_die = comp_unit_die;
   else if (TYPE_P (context))
+    {
+      if (!should_emit_struct_debug (context, DINFO_USAGE_DIR_USE))
+	return;
     scope_die = force_type_die (context);
+    }
   else
     scope_die = force_decl_die (context);
 
@@ -13383,7 +13485,12 @@ dwarf2out_imported_module_or_decl (tree decl, tree context)
 
 	      if (TYPE_CONTEXT (type))
 		if (TYPE_P (TYPE_CONTEXT (type)))
+		  {
+		    if (!should_emit_struct_debug (TYPE_CONTEXT (type),
+						   DINFO_USAGE_DIR_USE))
+		      return;
 		  type_context_die = force_type_die (TYPE_CONTEXT (type));
+		  }
 	      else
 		type_context_die = force_decl_die (TYPE_CONTEXT (type));
 	      else
@@ -13907,6 +14014,10 @@ dwarf2out_init (const char *filename ATTRIBUTE_UNUSED)
   /* Zero-th entry is allocated, but unused.  */
   line_info_table_in_use = 1;
 
+  /* Allocate the pubtypes and pubnames vectors.  */
+  pubname_table = VEC_alloc (pubname_entry, gc, 32);
+  pubtype_table = VEC_alloc (pubname_entry, gc, 32);
+
   /* Generate the initial DIE for the .debug section.  Note that the (string)
      value given in the DW_AT_name attribute of the DW_TAG_compile_unit DIE
      will (typically) be a relative pathname and that this pathname should be
@@ -13933,6 +14044,10 @@ dwarf2out_init (const char *filename ATTRIBUTE_UNUSED)
 				   SECTION_DEBUG, NULL);
   debug_pubnames_section = get_section (DEBUG_PUBNAMES_SECTION,
 					SECTION_DEBUG, NULL);
+#ifdef DEBUG_PUBTYPES_SECTION
+  debug_pubtypes_section = get_section (DEBUG_PUBTYPES_SECTION,
+					SECTION_DEBUG, NULL);
+#endif
   debug_str_section = get_section (DEBUG_STR_SECTION,
 				   DEBUG_STR_SECTION_FLAGS, NULL);
   debug_ranges_section = get_section (DEBUG_RANGES_SECTION,
@@ -14215,6 +14330,7 @@ prune_unused_types (void)
 {
   unsigned int i;
   limbo_die_node *node;
+  pubname_ref pub;
 
 #if ENABLE_ASSERT_CHECKING
   /* All the marks should already be clear.  */
@@ -14230,8 +14346,8 @@ prune_unused_types (void)
 
   /* Also set the mark on nodes referenced from the
      pubname_table or arange_table.  */
-  for (i = 0; i < pubname_table_in_use; i++)
-    prune_unused_types_mark (pubname_table[i].die, 1);
+  for (i = 0; VEC_iterate (pubname_entry, pubname_table, i, pub); i++)
+    prune_unused_types_mark (pub->die, 1);
   for (i = 0; i < arange_table_in_use; i++)
     prune_unused_types_mark (arange_table[i], 1);
 
@@ -14412,12 +14528,21 @@ dwarf2out_finish (const char *filename)
   output_abbrev_section ();
 
   /* Output public names table if necessary.  */
-  if (pubname_table_in_use)
+  if (!VEC_empty (pubname_entry, pubname_table))
     {
       switch_to_section (debug_pubnames_section);
-      output_pubnames ();
+      output_pubnames (pubname_table);
     }
 
+#ifdef DEBUG_PUBTYPES_SECTION
+  /* Output public types table if necessary.  */
+  if (!VEC_empty (pubname_entry, pubtype_table))
+    {
+      switch_to_section (debug_pubtypes_section);
+      output_pubnames (pubtype_table);
+    }
+#endif
+  
   /* Output the address range information.  We only put functions in the arange
      table, so don't write it out if we don't have any.  */
   if (fde_table_in_use)

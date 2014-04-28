@@ -1168,9 +1168,9 @@ devfs_print(struct vop_print_args *ap)
 	return (0);
 }
 
-/* ARGSUSED */
 static int
-devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred,
+    int flags, struct thread *td)
 {
 	struct cdev *dev;
 	int ioflag, error, ref;
@@ -1178,6 +1178,8 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	struct cdevsw *dsw;
 	struct file *fpop;
 
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
@@ -1643,9 +1645,9 @@ devfs_truncate_f(struct file *fp, off_t length, struct ucred *cred, struct threa
 	return (vnops.fo_truncate(fp, length, cred, td));
 }
 
-/* ARGSUSED */
 static int
-devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
+    int flags, struct thread *td)
 {
 	struct cdev *dev;
 	int error, ioflag, ref;
@@ -1653,6 +1655,8 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	struct cdevsw *dsw;
 	struct file *fpop;
 
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)

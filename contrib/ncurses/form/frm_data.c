@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_data.c,v 1.14 2005/11/26 15:34:01 tom Exp $")
+MODULE_ID("$Id: frm_data.c,v 1.16 2013/08/24 22:44:05 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -49,7 +49,7 @@ data_behind(const FORM *form)
 {
   bool result = FALSE;
 
-  T((T_CALLED("data_behind(%p)"), form));
+  T((T_CALLED("data_behind(%p)"), (const void *)form));
 
   if (form && (form->status & _POSTED) && form->current)
     {
@@ -103,7 +103,7 @@ Only_Padding(WINDOW *w, int len, int pad)
 		}
 	    }
 #else
-	  cell = winch(w);
+	  cell = (FIELD_CELL) winch(w);
 	  if (ChCharOf(cell) != ChCharOf(pad))
 	    {
 	      result = FALSE;
@@ -136,7 +136,7 @@ data_ahead(const FORM *form)
 {
   bool result = FALSE;
 
-  T((T_CALLED("data_ahead(%p)"), form));
+  T((T_CALLED("data_ahead(%p)"), (const void *)form));
 
   if (form && (form->status & _POSTED) && form->current)
     {

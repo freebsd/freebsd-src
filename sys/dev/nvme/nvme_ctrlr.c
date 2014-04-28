@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,8 +181,8 @@ nvme_chatham_populate_cdata(struct nvme_controller *ctrlr)
 	cdata->lpa.ns_smart = 1;
 	cdata->sqes.min = 6;
 	cdata->sqes.max = 6;
-	cdata->sqes.min = 4;
-	cdata->sqes.max = 4;
+	cdata->cqes.min = 4;
+	cdata->cqes.max = 4;
 	cdata->nn = 1;
 
 	/* Chatham2 doesn't support DSM command */
@@ -842,16 +842,6 @@ nvme_ctrlr_start(void *ctrlr_arg)
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_io_qpair_enable(&ctrlr->ioq[i]);
-
-	/*
-	 * Clear software progress marker to 0, to indicate to pre-boot
-	 *  software that OS driver load was successful.
-	 *
-	 * Chatham does not support this feature.
-	 */
-	if (pci_get_devid(ctrlr->dev) != CHATHAM_PCI_ID)
-		nvme_ctrlr_cmd_set_feature(ctrlr,
-		    NVME_FEAT_SOFTWARE_PROGRESS_MARKER, 0, NULL, 0, NULL, NULL);
 }
 
 void
@@ -861,6 +851,9 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	nvme_ctrlr_start(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
+
+	ctrlr->is_initialized = 1;
+	nvme_notify_new_controller(ctrlr);
 }
 
 static void
@@ -1041,6 +1034,27 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case NVME_PASSTHROUGH_CMD:
 		pt = (struct nvme_pt_command *)arg;
+#ifdef CHATHAM2
+		/*
+		 * Chatham IDENTIFY data is spoofed, so copy the spoofed data
+		 *  rather than issuing the command to the Chatham controller.
+		 */
+		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID &&
+                    pt->cmd.opc == NVME_OPC_IDENTIFY) {
+			if (pt->cmd.cdw10 == 1) {
+                        	if (pt->len != sizeof(ctrlr->cdata))
+                                	return (EINVAL);
+                        	return (copyout(&ctrlr->cdata, pt->buf,
+				    pt->len));
+			} else {
+				if (pt->len != sizeof(ctrlr->ns[0].data) ||
+				    pt->cmd.nsid != 1)
+					return (EINVAL);
+				return (copyout(&ctrlr->ns[0].data, pt->buf,
+				    pt->len));
+			}
+		}
+#endif
 		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, pt->cmd.nsid,
 		    1 /* is_user_buffer */, 1 /* is_admin_cmd */));
 	default:
@@ -1061,8 +1075,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			num_vectors, per_cpu_io_queues, status = 0;
-	int			timeout_period;
+	int			i, num_vectors, per_cpu_io_queues, rid;
+	int			status, timeout_period;
 
 	ctrlr->dev = dev;
 
@@ -1135,8 +1149,45 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 		goto intx;
 	}
 
-	if (pci_alloc_msix(dev, &num_vectors) != 0)
+	if (pci_alloc_msix(dev, &num_vectors) != 0) {
 		ctrlr->msix_enabled = 0;
+		goto intx;
+	}
+
+	/*
+	 * On earlier FreeBSD releases, there are reports that
+	 *  pci_alloc_msix() can return successfully with all vectors
+	 *  requested, but a subsequent bus_alloc_resource_any()
+	 *  for one of those vectors fails.  This issue occurs more
+	 *  readily with multiple devices using per-CPU vectors.
+	 * To workaround this issue, try to allocate the resources now,
+	 *  and fall back to INTx if we cannot allocate all of them.
+	 *  This issue cannot be reproduced on more recent versions of
+	 *  FreeBSD which have increased the maximum number of MSI-X
+	 *  vectors, but adding the workaround makes it easier for
+	 *  vendors wishing to import this driver into kernels based on
+	 *  older versions of FreeBSD.
+	 */
+	for (i = 0; i < num_vectors; i++) {
+		rid = i + 1;
+		ctrlr->msi_res[i] = bus_alloc_resource_any(ctrlr->dev,
+		    SYS_RES_IRQ, &rid, RF_ACTIVE);
+
+		if (ctrlr->msi_res[i] == NULL) {
+			ctrlr->msix_enabled = 0;
+			while (i > 0) {
+				i--;
+				bus_release_resource(ctrlr->dev,
+				    SYS_RES_IRQ,
+				    rman_get_rid(ctrlr->msi_res[i]),
+				    ctrlr->msi_res[i]);
+			}
+			pci_release_msi(dev);
+			nvme_printf(ctrlr, "could not obtain all MSI-X "
+			    "resources, reverting to intx\n");
+			break;
+		}
+	}
 
 intx:
 
@@ -1150,8 +1201,8 @@ intx:
 	if (status != 0)
 		return (status);
 
-	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "nvme%d", device_get_unit(dev));
+	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
+	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
 
 	if (ctrlr->cdev == NULL)
 		return (ENXIO);
@@ -1163,6 +1214,8 @@ intx:
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
+	ctrlr->is_initialized = 0;
+	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 
 	TASK_INIT(&ctrlr->fail_req_task, 0, nvme_ctrlr_fail_req_task, ctrlr);

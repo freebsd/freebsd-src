@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/bpf.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
@@ -696,7 +697,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 			printf("ERROR: Tx fb error (%d) on port %d\n", tx_error,
 			    port);
 		}
-		atomic_incr_long((tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
+		tx_error ? ifp->if_oerrors++ : ifp->if_opackets++;
 	} else if (ctrl == CTRL_SNGL || ctrl == CTRL_START) {
 		/* Rx Packet */
 
@@ -775,7 +776,7 @@ fail:
 			NLGE_UNLOCK(sc);
 		}
 		m_freem(m);
-		atomic_incr_long(&ifp->if_iqdrops);
+		ifp->if_iqdrops++;
 	}
 	return (error);
 }
@@ -824,7 +825,7 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = ifp;
 
-	atomic_incr_long(&ifp->if_ipackets);
+	ifp->if_ipackets++;
 	(*ifp->if_input)(ifp, m);
 }
 

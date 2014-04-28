@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -38,6 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ofw/ofw_bus.h>
+#endif
 
 #include <dev/led/led.h>
 #include <sys/gpio.h>
@@ -75,6 +83,8 @@ gpioled_control(void *priv, int onoff)
 	GPIOLED_LOCK(sc);
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
 	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT);
 	GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN, 
 	    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
 	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
@@ -82,10 +92,65 @@ gpioled_control(void *priv, int onoff)
 	GPIOLED_UNLOCK(sc);
 }
 
+#ifdef FDT
+static void
+gpioled_identify(driver_t *driver, device_t bus)
+{
+	phandle_t child, leds, root;
+
+	root = OF_finddevice("/");
+	if (root == 0)
+		return;
+	leds = fdt_find_compatible(root, "gpio-leds", 1);
+	if (leds == 0)
+		return;
+
+	/* Traverse the 'gpio-leds' node and add its children. */
+	for (child = OF_child(leds); child != 0; child = OF_peer(child))
+		if (ofw_gpiobus_add_fdt_child(bus, child) == NULL)
+			continue;
+}
+#endif
+
 static int
 gpioled_probe(device_t dev)
 {
+#ifdef FDT
+	int match;
+	phandle_t node;
+	char *compat;
+
+	/*
+	 * We can match against our own node compatible string and also against
+	 * our parent node compatible string.  The first is normally used to
+	 * describe leds on a gpiobus and the later when there is a common node
+	 * compatible with 'gpio-leds' which is used to concentrate all the
+	 * leds nodes on the dts.
+	 */
+	match = 0;
+	if (ofw_bus_is_compatible(dev, "gpioled"))
+		match = 1;
+
+	if (match == 0) {
+		if ((node = ofw_bus_get_node(dev)) == -1)
+			return (ENXIO);
+		if ((node = OF_parent(node)) == -1)
+			return (ENXIO);
+		if (OF_getprop_alloc(node, "compatible", 1,
+		    (void **)&compat) == -1)
+			return (ENXIO);
+
+		if (strcasecmp(compat, "gpio-leds") == 0)
+			match = 1;
+
+		free(compat, M_OFWPROP);
+	}
+
+	if (match == 0)
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "GPIO led");
+
 	return (0);
 }
 
@@ -93,21 +158,35 @@ static int
 gpioled_attach(device_t dev)
 {
 	struct gpioled_softc *sc;
+#ifdef FDT
+	phandle_t node;
+	char *name;
+#else
 	const char *name;
+#endif
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	GPIOLED_LOCK_INIT(sc);
+#ifdef FDT
+	name = NULL;
+	if ((node = ofw_bus_get_node(dev)) == -1)
+		return (ENXIO);
+	if (OF_getprop_alloc(node, "label", 1, (void **)&name) == -1)
+		OF_getprop_alloc(node, "name", 1, (void **)&name);
+#else
 	if (resource_string_value(device_get_name(dev), 
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
-
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
-	    GPIO_PIN_OUTPUT);
+#endif
 
 	sc->sc_leddev = led_create(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev));
+#ifdef FDT
+	if (name != NULL)
+		free(name, M_OFWPROP);
+#endif
 
 	return (0);
 }
@@ -130,6 +209,9 @@ static devclass_t gpioled_devclass;
 
 static device_method_t gpioled_methods[] = {
 	/* Device interface */
+#ifdef FDT
+	DEVMETHOD(device_identify,	gpioled_identify),
+#endif
 	DEVMETHOD(device_probe,		gpioled_probe),
 	DEVMETHOD(device_attach,	gpioled_attach),
 	DEVMETHOD(device_detach,	gpioled_detach),

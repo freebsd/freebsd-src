@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <err.h>
 #include <errno.h>
 #include <paths.h>
 #include <stdio.h>
@@ -53,6 +54,7 @@ static void mirror_activate(struct gctl_req *req);
 static void mirror_clear(struct gctl_req *req);
 static void mirror_dump(struct gctl_req *req);
 static void mirror_label(struct gctl_req *req);
+static void mirror_resize(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
 	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
@@ -79,6 +81,13 @@ struct g_command class_commands[] = {
 	},
 	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
+	},
+	{ "destroy", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] name ..."
 	},
 	{ "dump", 0, mirror_main, G_NULL_OPTS,
 	    "prov ..."
@@ -111,6 +120,13 @@ struct g_command class_commands[] = {
 	},
 	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
+	},
+	{ "resize", G_FLAG_VERBOSE, mirror_resize,
+	    {
+		{ 's', "size", "*", G_TYPE_STRING },
+		G_OPT_SENTINEL
+	    },
+	    "[-s size] [-v] name"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
@@ -375,4 +391,97 @@ mirror_activate(struct gctl_req *req)
 		if (verbose)
 			printf("Provider %s activated.\n", path);
 	}
+}
+
+static struct gclass *
+find_class(struct gmesh *mesh, const char *name)
+{
+	struct gclass *classp;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
+		if (strcmp(classp->lg_name, name) == 0)
+			return (classp);
+	}
+	return (NULL);
+}
+
+static struct ggeom *
+find_geom(struct gclass *classp, const char *name)
+{
+	struct ggeom *gp;
+
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+		if (strcmp(gp->lg_name, name) == 0)
+			return (gp);
+	}
+	return (NULL);
+}
+
+static void
+mirror_resize(struct gctl_req *req, unsigned flags __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	off_t size;
+	int error, nargs;
+	const char *name;
+	char ssize[30];
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+	error = geom_gettree(&mesh);
+	if (error)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	name = gctl_get_ascii(req, "class");
+	if (name == NULL)
+		abort();
+	classp = find_class(&mesh, name);
+	if (classp == NULL)
+		errx(EXIT_FAILURE, "Class %s not found.", name);
+	name = gctl_get_ascii(req, "arg0");
+	if (name == NULL)
+		abort();
+	gp = find_geom(classp, name);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", name);
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp == NULL)
+		errx(EXIT_FAILURE, "Provider of geom %s not found.", name);
+	size = pp->lg_mediasize;
+	name = gctl_get_ascii(req, "size");
+	if (name == NULL)
+		errx(EXIT_FAILURE, "The size is not specified.");
+	if (*name == '*') {
+#define	CSZ(c)	((c)->lg_provider->lg_mediasize - \
+    (c)->lg_provider->lg_sectorsize)
+		/* Find the maximum possible size */
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			if (CSZ(cp) > size)
+				size = CSZ(cp);
+		}
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			if (CSZ(cp) < size)
+				size = CSZ(cp);
+		}
+#undef CSZ
+		if (size == pp->lg_mediasize)
+			errx(EXIT_FAILURE,
+			    "Cannot expand provider %s\n",
+			    pp->lg_name);
+	} else {
+		error = g_parse_lba(name, pp->lg_sectorsize, &size);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid size param");
+		size *= pp->lg_sectorsize;
+	}
+	snprintf(ssize, sizeof(ssize), "%ju", (uintmax_t)size);
+	gctl_change_param(req, "size", -1, ssize);
+	geom_deletetree(&mesh);
+	gctl_issue(req);
 }

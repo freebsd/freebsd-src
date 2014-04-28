@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.87 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.92 2014/01/31 16:39:19 tedu Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,8 +42,8 @@
 #include <sys/socket.h>
 
 #include <openssl/evp.h>
-
 #include <openssl/crypto.h>
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -102,7 +102,7 @@ ssh_get_authentication_socket(void)
 	if (!authsocket)
 		return -1;
 
-	bzero(&sunaddr, sizeof(sunaddr));
+	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
 
@@ -206,7 +206,7 @@ ssh_get_authentication_connection(void)
 	if (sock < 0)
 		return NULL;
 
-	auth = xmalloc(sizeof(*auth));
+	auth = xcalloc(1, sizeof(*auth));
 	auth->fd = sock;
 	buffer_init(&auth->identities);
 	auth->howmany = 0;
@@ -474,58 +474,7 @@ ssh_encode_identity_rsa1(Buffer *b, RSA *key, const char *comment)
 static void
 ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 {
-	buffer_put_cstring(b, key_ssh_name(key));
-	switch (key->type) {
-	case KEY_RSA:
-		buffer_put_bignum2(b, key->rsa->n);
-		buffer_put_bignum2(b, key->rsa->e);
-		buffer_put_bignum2(b, key->rsa->d);
-		buffer_put_bignum2(b, key->rsa->iqmp);
-		buffer_put_bignum2(b, key->rsa->p);
-		buffer_put_bignum2(b, key->rsa->q);
-		break;
-	case KEY_RSA_CERT_V00:
-	case KEY_RSA_CERT:
-		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
-			fatal("%s: no cert/certblob", __func__);
-		buffer_put_string(b, buffer_ptr(&key->cert->certblob),
-		    buffer_len(&key->cert->certblob));
-		buffer_put_bignum2(b, key->rsa->d);
-		buffer_put_bignum2(b, key->rsa->iqmp);
-		buffer_put_bignum2(b, key->rsa->p);
-		buffer_put_bignum2(b, key->rsa->q);
-		break;
-	case KEY_DSA:
-		buffer_put_bignum2(b, key->dsa->p);
-		buffer_put_bignum2(b, key->dsa->q);
-		buffer_put_bignum2(b, key->dsa->g);
-		buffer_put_bignum2(b, key->dsa->pub_key);
-		buffer_put_bignum2(b, key->dsa->priv_key);
-		break;
-	case KEY_DSA_CERT_V00:
-	case KEY_DSA_CERT:
-		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
-			fatal("%s: no cert/certblob", __func__);
-		buffer_put_string(b, buffer_ptr(&key->cert->certblob),
-		    buffer_len(&key->cert->certblob));
-		buffer_put_bignum2(b, key->dsa->priv_key);
-		break;
-#ifdef OPENSSL_HAS_ECC
-	case KEY_ECDSA:
-		buffer_put_cstring(b, key_curve_nid_to_name(key->ecdsa_nid));
-		buffer_put_ecpoint(b, EC_KEY_get0_group(key->ecdsa),
-		    EC_KEY_get0_public_key(key->ecdsa));
-		buffer_put_bignum2(b, EC_KEY_get0_private_key(key->ecdsa));
-		break;
-	case KEY_ECDSA_CERT:
-		if (key->cert == NULL || buffer_len(&key->cert->certblob) == 0)
-			fatal("%s: no cert/certblob", __func__);
-		buffer_put_string(b, buffer_ptr(&key->cert->certblob),
-		    buffer_len(&key->cert->certblob));
-		buffer_put_bignum2(b, EC_KEY_get0_private_key(key->ecdsa));
-		break;
-#endif
-	}
+	key_private_serialize(key, b);
 	buffer_put_cstring(b, comment);
 }
 
@@ -559,6 +508,8 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 	case KEY_DSA_CERT_V00:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
+	case KEY_ED25519:
+	case KEY_ED25519_CERT:
 		type = constrained ?
 		    SSH2_AGENTC_ADD_ID_CONSTRAINED :
 		    SSH2_AGENTC_ADD_IDENTITY;
@@ -606,9 +557,7 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 		buffer_put_int(&msg, BN_num_bits(key->rsa->n));
 		buffer_put_bignum(&msg, key->rsa->e);
 		buffer_put_bignum(&msg, key->rsa->n);
-	} else if (key_type_plain(key->type) == KEY_DSA ||
-	    key_type_plain(key->type) == KEY_RSA ||
-	    key_type_plain(key->type) == KEY_ECDSA) {
+	} else if (key->type != KEY_UNSPEC) {
 		key_to_blob(key, &blob, &blen);
 		buffer_put_char(&msg, SSH2_AGENTC_REMOVE_IDENTITY);
 		buffer_put_string(&msg, blob, blen);

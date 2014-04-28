@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.168 2013/07/12 00:19:59 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.170 2014/02/02 03:44:31 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -37,6 +37,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -305,7 +306,8 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	if (compat20 &&
 	    max_time_milliseconds == 0 && options.client_alive_interval) {
 		client_alive_scheduled = 1;
-		max_time_milliseconds = options.client_alive_interval * 1000;
+		max_time_milliseconds =
+		    (u_int64_t)options.client_alive_interval * 1000;
 	}
 
 	if (compat20) {
@@ -920,7 +922,7 @@ server_input_stdin_data(int type, u_int32_t seq, void *ctxt)
 	data = packet_get_string(&data_len);
 	packet_check_eom();
 	buffer_append(&stdin_buffer, data, data_len);
-	memset(data, 0, data_len);
+	explicit_bzero(data, data_len);
 	free(data);
 }
 

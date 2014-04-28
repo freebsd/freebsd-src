@@ -28,6 +28,9 @@
 #
 ############################################################ INCLUDES
 
+# Prevent `-d' from being interpreted as a debug flag by common.subr
+DEBUG_SELF_INITIALIZE=
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 [ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 [ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
@@ -35,8 +38,14 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ GLOBALS
 
 #
+# Version information
+#
+SYSRC_VERSION="6.0 Nov-07,2013"
+
+#
 # Options
 #
+CHECK_ONLY=
 DELETE=
 DESCRIBE=
 IGNORE_UNKNOWNS=
@@ -92,6 +101,8 @@ help()
 	      "Dump a list of all non-default configuration variables."
 	f_err "$optfmt" "-A" \
 	      "Dump a list of all configuration variables (incl. defaults)."
+	f_err "$optfmt" "-c" \
+	      "Check. Return success if no changes needed, else error."
 	f_err "$optfmt" "-d" \
 	      "Print a description of the given variable."
 	f_err "$optfmt" "-D" \
@@ -130,6 +141,8 @@ help()
 	      "Verbose. Print the pathname of the specific rc.conf(5)"
 	f_err "$optfmt" "" \
 	      "file where the directive was found."
+	f_err "$optfmt" "--version" \
+	      "Print version information to stdout and exit."
 	f_err "$optfmt" "-x" \
 	      "Remove variable(s) from specified file(s)."
 	f_err "\n"
@@ -179,6 +192,7 @@ jail_depend()
 	#
 	# Print include dependencies
 	#
+	echo DEBUG_SELF_INITIALIZE=
 	cat $BSDCFG_SHARE/common.subr
 	cat $BSDCFG_SHARE/sysrc.subr
 }
@@ -191,27 +205,31 @@ jail_depend()
 [ $# -gt 0 ] || usage
 
 #
-# Check for `--help' command-line option
+# Check for `--help' and `--version' command-line option
 #
 ( # Operate in sub-shell to protect $@ in parent
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		--help) exit 1;;
+		--help) help ;;
+		--version) # see GLOBALS
+			echo "$SYSRC_VERSION"
+			exit 1 ;;
 		-[fRj]) # These flags take an argument
-			shift 1;;
+			shift 1 ;;
 		esac
 		shift 1
 	done
 	exit 0
-) || help
+) || die
 
 #
 # Process command-line flags
 #
-while getopts aAdDef:Fhij:nNqR:vxX flag; do
+while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	case "$flag" in
 	a) SHOW_ALL=${SHOW_ALL:-1};;
 	A) SHOW_ALL=2;;
+	c) CHECK_ONLY=1;;
 	d) DESCRIBE=1;;
 	D) RC_CONFS=;;
 	e) SHOW_EQUALS=1;;
@@ -273,16 +291,23 @@ if [ "$DELETE" -a "$SHOW_ALL" ]; then
 fi
 
 #
+# Pre-flight for `-c' command-line option
+#
+[ "$CHECK_ONLY" -a "$SHOW_ALL" ] &&
+	die "$pgm: \`-c' option incompatible with \`-a'/\`-A' options"
+
+#
 # Process `-e', `-n', and `-N' command-line options
 #
 SEP=': '
-[ "$SHOW_EQUALS" ] && SEP='="'
+[ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
 [ "$SYSRC_VERBOSE" = "0" ] && SYSRC_VERBOSE=
 if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
 fi
+[ "$SHOW_EQUALS" ] && SEP='="'
 
 #
 # Process `-j jail' and `-R dir' command-line options
@@ -298,6 +323,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$DELETE" = "2" ] && echo \ -X )
 		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
 		$( [ "$SHOW_ALL" = "2" ] && echo \ -A )
+		${CHECK_ONLY:+-c}
 		${DESCRIBE:+-d}
 		${SHOW_EQUALS:+-e}
 		${IGNORE_UNKNOWNS:+-i}
@@ -408,7 +434,7 @@ if [ "$SHOW_ALL" ]; then
 		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME"
 		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|SYSRC_VERBOSE|RC_CONFS"
-		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE"
+		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
 
 		#
@@ -501,6 +527,7 @@ fi
 #
 # Process command-line arguments
 #
+costatus=$SUCCESS
 while [ $# -gt 0 ]; do
 	NAME="${1%%=*}"
 
@@ -511,14 +538,19 @@ while [ $# -gt 0 ]; do
 	*=*)
 		#
 		# Like sysctl(8), if both `-d' AND "name=value" is passed,
-		# first describe, then attempt to set
+		# first describe (done above), then attempt to set
 		#
 
-		if [ "$SYSRC_VERBOSE" ]; then
+		# If verbose, prefix line with where the directive lives
+		if [ "$SYSRC_VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
-			echo -n "$file: "
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $file; "
+			else
+				echo -n "$file: "
+			fi
 		fi
 
 		#
@@ -527,6 +559,20 @@ while [ $# -gt 0 ]; do
 		#
 		if [ "$DELETE" ]; then
 			f_sysrc_delete "$NAME"
+			shift 1
+			continue
+		fi
+
+		#
+		# If `-c' is passed, simply compare and move on
+		#
+		if [ "$CHECK_ONLY" ]; then
+			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+				costatus=$FAILURE
+			else
+				value=$( f_sysrc_get "$NAME" )
+				[ "$value" = "${1#*=}" ] || costatus=$FAILURE
+			fi
 			shift 1
 			continue
 		fi
@@ -546,28 +592,34 @@ while [ $# -gt 0 ]; do
 			if f_sysrc_set "$NAME" "${1#*=}"; then
 				if [ "$SHOW_FILE" ]; then
 					after=$( f_sysrc_find "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo -n "$before${SHOW_EQUALS:+\"}"
-					echo " -> $after"
 				else
 					after=$( f_sysrc_get "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo "$before -> $after"
 				fi
+				echo -n "${SHOW_NAME:+$NAME$SEP}"
+				echo -n "$before${SHOW_EQUALS:+\" #}"
+				echo -n " -> ${SHOW_EQUALS:+\"}$after"
+				echo "${SHOW_EQUALS:+\"}"
 			fi
 		fi
 		;;
 	*)
-		if ! IGNORED="$( f_sysrc_get "$NAME?" )"; then
-			[ "$IGNORE_UNKNOWNS" ] \
-				|| echo "$pgm: unknown variable '$NAME'"
+		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+			[ "$IGNORE_UNKNOWNS" ] ||
+				echo "$pgm: unknown variable '$NAME'"
+			shift 1
+			costatus=$FAILURE
+			continue
+		fi
+
+		# The above check told us what we needed for `-c'
+		if [ "$CHECK_ONLY" ]; then
 			shift 1
 			continue
 		fi
 
 		#
-		# Like sysctl(8), when `-d' is passed,
-		# desribe it rather than expanding it
+		# Like sysctl(8), when `-d' is passed, desribe it
+		# (already done above) rather than expanding it
 		#
 
 		if [ "$DESCRIBE" ]; then
@@ -594,8 +646,13 @@ while [ $# -gt 0 ]; do
 			continue
 		fi
 
-		[ "$SYSRC_VERBOSE" ] && \
-			echo -n "$( f_sysrc_find "$NAME" ): "
+		if [ "$SYSRC_VERBOSE" ]; then
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $( f_sysrc_find "$NAME" ); "
+			else
+				echo -n "$( f_sysrc_find "$NAME" ): "
+			fi
+		fi
 
 		#
 		# If `-N' is passed, simplify the output
@@ -609,3 +666,9 @@ while [ $# -gt 0 ]; do
 	esac
 	shift 1
 done
+
+[ ! "$CHECK_ONLY" ] || exit $costatus
+
+################################################################################
+# END
+################################################################################

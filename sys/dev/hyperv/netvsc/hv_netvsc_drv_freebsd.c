@@ -52,6 +52,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -72,9 +75,9 @@
 
 #include <net/bpf.h>
 
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/if.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -179,7 +182,8 @@ netvsc_drv_init(void)
 static void
 netvsc_init(void)
 {
-	printf("Netvsc initializing... ");
+	if (bootverbose)
+		printf("Netvsc initializing... ");
 
 	/*
 	 * XXXKYS: cleanup initialization
@@ -187,9 +191,10 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
-	} else {
+		if (bootverbose)
+			printf("done!\n");
+	} else if (bootverbose)
 		printf("Already initialized!\n");
-	}
 }
 
 /* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
@@ -210,7 +215,8 @@ netvsc_probe(device_t dev)
 	p = vmbus_get_type(dev);
 	if (!memcmp(p, &g_net_vsc_device_type.data, sizeof(hv_guid))) {
 		device_set_desc(dev, "Synthetic Network Interface");
-		printf("Netvsc probe... DONE \n");
+		if (bootverbose)
+			printf("Netvsc probe... DONE \n");
 
 		return (0);
 	}
@@ -296,7 +302,8 @@ netvsc_detach(device_t dev)
 {
 	struct hv_device *hv_device = vmbus_get_devctx(dev); 
 
-	printf("netvsc_detach\n");
+	if (bootverbose)
+		printf("netvsc_detach\n");
 
 	/*
 	 * XXXKYS:  Need to clean up all our
@@ -337,7 +344,7 @@ netvsc_xmit_completion(void *context)
 	struct mbuf *mb;
 	uint8_t *buf;
 
-	mb = (struct mbuf *)packet->compl.send.send_completion_tid;
+	mb = (struct mbuf *)(uintptr_t)packet->compl.send.send_completion_tid;
 	buf = ((uint8_t *)packet) - HV_NV_PACKET_OFFSET_IN_BUF;
 
 	free(buf, M_DEVBUF);
@@ -481,13 +488,13 @@ hn_start_locked(struct ifnet *ifp)
 		 * bpf_mtap code has a chance to run.
 		 */
 		if (ifp->if_bpf) {
-			mc_head = m_copypacket(m_head, M_DONTWAIT);
+			mc_head = m_copypacket(m_head, M_NOWAIT);
 		}
 retry_send:
 		/* Set the completion routine */
 		packet->compl.send.on_send_completion = netvsc_xmit_completion;
 		packet->compl.send.send_completion_context = packet;
-		packet->compl.send.send_completion_tid = (uint64_t)m_head;
+		packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)m_head;
 
 		/* Removed critical_enter(), does not appear necessary */
 		ret = hv_rf_on_send(device_ctx, packet);
@@ -590,7 +597,7 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		 * Allocate a new mbuf; could check space
 		 * and allocate a cluster instead.
 		 */
-		n = m_getjcl(M_DONTWAIT, m->m_type, 0, MJUMPAGESIZE);
+		n = m_getjcl(M_NOWAIT, m->m_type, 0, MJUMPAGESIZE);
 		if (n == NULL)
 			break;
 		n->m_len = min(MJUMPAGESIZE, remainder);
@@ -618,13 +625,15 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 {
 	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
 	struct mbuf *m_new;
-	struct ifnet *ifp = sc->hn_ifp;
+	struct ifnet *ifp;
 	int size;
 	int i;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
 	}
+
+	ifp = sc->hn_ifp;
 	
 	ifp = sc->arpcom.ac_ifp;
 
@@ -652,7 +661,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 		size = MJUMPAGESIZE;
 	}
 
-	m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
+	m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 
 	if (m_new == NULL)
 		return (0);
@@ -673,7 +682,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	 */
 	for (i=0; i < packet->page_buf_count; i++) {
 		/* Shift virtual page number to form virtual page address */
-		uint8_t *vaddr = (uint8_t *)
+		uint8_t *vaddr = (uint8_t *)(uintptr_t)
 		    (packet->page_buffers[i].pfn << PAGE_SHIFT);
 
 		hv_m_append(m_new, packet->page_buffers[i].length,
@@ -702,6 +711,17 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 }
 
 /*
+ * Rules for using sc->temp_unusable:
+ * 1.  sc->temp_unusable can only be read or written while holding NV_LOCK()
+ * 2.  code reading sc->temp_unusable under NV_LOCK(), and finding 
+ *     sc->temp_unusable set, must release NV_LOCK() and exit
+ * 3.  to retain exclusive control of the interface,
+ *     sc->temp_unusable must be set by code before releasing NV_LOCK()
+ * 4.  only code setting sc->temp_unusable can clear sc->temp_unusable
+ * 5.  code setting sc->temp_unusable must eventually clear sc->temp_unusable
+ */
+
+/*
  * Standard ioctl entry point.  Called when the user wants to configure
  * the interface.
  */
@@ -713,7 +733,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	netvsc_device_info device_info;
 	struct hv_device *hn_dev;
 	int mask, error = 0;
-
+	int retry_cnt = 500;
+	
 	switch(cmd) {
 
 	case SIOCSIFADDR:
@@ -723,38 +744,80 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMTU:
 		hn_dev = vmbus_get_devctx(sc->hn_dev);
 
-		NV_LOCK(sc);
+		/* Check MTU value change */
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
 
 		if (ifr->ifr_mtu > NETVSC_MAX_CONFIGURABLE_MTU) {
 			error = EINVAL;
-			NV_UNLOCK(sc);
 			break;
 		}
+
 		/* Obtain and record requested MTU */
 		ifp->if_mtu = ifr->ifr_mtu;
+ 		
+		do {
+			NV_LOCK(sc);
+			if (!sc->temp_unusable) {
+				sc->temp_unusable = TRUE;
+				retry_cnt = -1;
+			}
+			NV_UNLOCK(sc);
+			if (retry_cnt > 0) {
+				retry_cnt--;
+				DELAY(5 * 1000);
+			}
+		} while (retry_cnt > 0);
 
-		/*
-		 * We must remove and add back the device to cause the new
+		if (retry_cnt == 0) {
+			error = EINVAL;
+			break;
+		}
+
+		/* We must remove and add back the device to cause the new
 		 * MTU to take effect.  This includes tearing down, but not
 		 * deleting the channel, then bringing it back up.
 		 */
 		error = hv_rf_on_device_remove(hn_dev, HV_RF_NV_RETAIN_CHANNEL);
 		if (error) {
+			NV_LOCK(sc);
+			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
 		error = hv_rf_on_device_add(hn_dev, &device_info);
 		if (error) {
+			NV_LOCK(sc);
+			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
 
 		hn_ifinit_locked(sc);
 
+		NV_LOCK(sc);
+		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
-		NV_LOCK(sc);
+		do {
+                       NV_LOCK(sc);
+                       if (!sc->temp_unusable) {
+                               sc->temp_unusable = TRUE;
+                               retry_cnt = -1;
+                       }
+                       NV_UNLOCK(sc);
+                       if (retry_cnt > 0) {
+                      	        retry_cnt--;
+                        	DELAY(5 * 1000);
+                       }
+                } while (retry_cnt > 0);
+
+                if (retry_cnt == 0) {
+                       error = EINVAL;
+                       break;
+                }
+
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * If only the state of the PROMISC flag changed,
@@ -766,21 +829,14 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 */
 #ifdef notyet
 			/* Fixme:  Promiscuous mode? */
-			/* No promiscuous mode with Xen */
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->hn_if_flags & IFF_PROMISC)) {
 				/* do something here for Hyper-V */
-				;
-/*				XN_SETBIT(sc, XN_RX_MODE,		*/
-/*					  XN_RXMODE_RX_PROMISC);	*/
 			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-				   !(ifp->if_flags & IFF_PROMISC) &&
-				   sc->hn_if_flags & IFF_PROMISC) {
+			    !(ifp->if_flags & IFF_PROMISC) &&
+			    sc->hn_if_flags & IFF_PROMISC) {
 				/* do something here for Hyper-V */
-				;
-/*				XN_CLRBIT(sc, XN_RX_MODE,		*/
-/*					  XN_RXMODE_RX_PROMISC);	*/
 			} else
 #endif
 				hn_ifinit_locked(sc);
@@ -789,8 +845,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				hn_stop(sc);
 			}
 		}
-		sc->hn_if_flags = ifp->if_flags;
+		NV_LOCK(sc);
+		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
+		sc->hn_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCSIFCAP:
@@ -838,10 +896,10 @@ hn_stop(hn_softc_t *sc)
 	int ret;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
-	NV_LOCK_ASSERT(sc);
 	ifp = sc->hn_ifp;
 
-	printf(" Closing Device ...\n");
+	if (bootverbose)
+		printf(" Closing Device ...\n");
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->hn_initdone = 0;
@@ -859,6 +917,10 @@ hn_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	NV_LOCK(sc);
+	if (sc->temp_unusable) {
+		NV_UNLOCK(sc);
+		return;
+	}
 	hn_start_locked(ifp);
 	NV_UNLOCK(sc);
 }
@@ -872,8 +934,6 @@ hn_ifinit_locked(hn_softc_t *sc)
 	struct ifnet *ifp;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	int ret;
-
-	NV_LOCK_ASSERT(sc);
 
 	ifp = sc->hn_ifp;
 
@@ -902,7 +962,17 @@ hn_ifinit(void *xsc)
 	hn_softc_t *sc = xsc;
 
 	NV_LOCK(sc);
+	if (sc->temp_unusable) {
+		NV_UNLOCK(sc);
+		return;
+	}
+	sc->temp_unusable = TRUE;
+	NV_UNLOCK(sc);
+
 	hn_ifinit_locked(sc);
+
+	NV_LOCK(sc);
+	sc->temp_unusable = FALSE;
 	NV_UNLOCK(sc);
 }
 

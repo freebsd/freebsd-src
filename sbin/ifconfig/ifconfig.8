@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2013
+.Dd October 21, 2013
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -158,13 +158,8 @@ The address or protocol families currently
 supported are
 .Dq inet ,
 .Dq inet6 ,
-.Dq atalk ,
-.Dq ipx ,
-.\" .Dq iso ,
 and
 .Dq link .
-.\" and
-.\" .Dq ns .
 The default if available is
 .Dq inet
 or otherwise
@@ -309,12 +304,6 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
-.It Cm ipdst
-This is used to specify an Internet host who is willing to receive
-IP packets encapsulating IPX packets bound for a remote network.
-An apparent point to point link is constructed, and
-the address specified will be taken as the IPX address and network
-of the destination.
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
@@ -572,42 +561,6 @@ The prefix can also be specified using the slash notation after the address.
 See the
 .Ar address
 option above for more information.
-.\" see
-.\" Xr eon 5 .
-.\" .It Cm nsellength Ar n
-.\" .Pf ( Tn ISO
-.\" only)
-.\" This specifies a trailing number of bytes for a received
-.\" .Tn NSAP
-.\" used for local identification, the remaining leading part of which is
-.\" taken to be the
-.\" .Tn NET
-.\" (Network Entity Title).
-.\" The default value is 1, which is conformant to US
-.\" .Tn GOSIP .
-.\" When an ISO address is set in an ifconfig command,
-.\" it is really the
-.\" .Tn NSAP
-.\" which is being specified.
-.\" For example, in
-.\" .Tn US GOSIP ,
-.\" 20 hex digits should be
-.\" specified in the
-.\" .Tn ISO NSAP
-.\" to be assigned to the interface.
-.\" There is some evidence that a number different from 1 may be useful
-.\" for
-.\" .Tn AFI
-.\" 37 type addresses.
-.It Cm range Ar netrange
-Under appletalk, set the interface to respond to a
-.Ar netrange
-of the form
-.Ar startnet Ns - Ns Ar endnet .
-Appletalk uses this scheme instead of
-netmasks though
-.Fx
-implements it internally as a set of netmasks.
 .It Cm remove
 Another name for the
 .Fl alias
@@ -615,10 +568,6 @@ parameter.
 Introduced for compatibility
 with
 .Bsx .
-.It Cm phase
-The argument following this specifies the version (phase) of the
-Appletalk network attached to the interface.
-Values of 1 or 2 are permitted.
 .Sm off
 .It Cm link Op Cm 0 No - Cm 2
 .Sm on
@@ -2690,7 +2639,7 @@ as a synonym for the canonical form of the option
 .Pp
 Configure a single CARP redundant address on igb0, and then switch it
 to be master:
-.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
 .Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface

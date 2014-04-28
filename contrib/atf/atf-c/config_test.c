@@ -44,18 +44,14 @@ static struct varnames {
     const char *uc;
     bool can_be_empty;
 } all_vars[] = {
-    { "atf_arch",           "ATF_ARCH",           false },
     { "atf_build_cc",       "ATF_BUILD_CC",       false },
     { "atf_build_cflags",   "ATF_BUILD_CFLAGS",   true  },
     { "atf_build_cpp",      "ATF_BUILD_CPP",      false },
     { "atf_build_cppflags", "ATF_BUILD_CPPFLAGS", true  },
     { "atf_build_cxx",      "ATF_BUILD_CXX",      false },
     { "atf_build_cxxflags", "ATF_BUILD_CXXFLAGS", true  },
-    { "atf_confdir",        "ATF_CONFDIR",        false },
     { "atf_includedir",     "ATF_INCLUDEDIR",     false },
-    { "atf_libdir",         "ATF_LIBDIR",         false },
     { "atf_libexecdir",     "ATF_LIBEXECDIR",     false },
-    { "atf_machine",        "ATF_MACHINE",        false },
     { "atf_pkgdatadir",     "ATF_PKGDATADIR",     false },
     { "atf_shell",          "ATF_SHELL",          false },
     { "atf_workdir",        "ATF_WORKDIR",        false },

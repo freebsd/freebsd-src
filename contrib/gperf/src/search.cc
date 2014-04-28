@@ -36,7 +36,10 @@
 /* ============================== Portability ============================== */
 
 /* Assume ISO C++ 'for' scoping rule.  */
-#define for if (0) ; else for
+/* This code is used to work around scoping issues with visual studio 6 from
+ * 1998.  Comment it out here to queisce numerous -Wdangling-else warnings
+ * from clang.
+#define for if (0) ; else for */
 
 /* Dynamically allocated array with dynamic extent:
 

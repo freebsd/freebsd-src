@@ -76,6 +76,10 @@ static void tzic_post_filter(void *);
 static int
 tzic_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "fsl,tzic")) {
 		device_set_desc(dev, "TrustZone Interrupt Controller");
 		return (BUS_PROBE_DEFAULT);
@@ -142,9 +146,9 @@ static devclass_t tzic_devclass;
 
 /*
  * Memory space of controller located outside of device range, so let him to
- * attach not only to simplebus, but fdtbus also.
+ * attach not only to simplebus, but ofwbus also.
  */
-EARLY_DRIVER_MODULE(tzic, fdtbus, tzic_driver, tzic_devclass, 0, 0,
+EARLY_DRIVER_MODULE(tzic, ofwbus, tzic_driver, tzic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 EARLY_DRIVER_MODULE(tzic, simplebus, tzic_driver, tzic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
@@ -163,7 +167,7 @@ arm_get_next_irq(int last_irq)
 
 	for (i = 0; i < 4; i++) {
 		pending = tzic_read_4(TZIC_PND(i));
-		for (b = 0; b < 32; b++)
+		for (b = 0; pending != 0 && b < 32; b++)
 			if (pending & (1 << b)) {
 				return (i * 32 + b);
 			}

@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
@@ -125,10 +126,6 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
-
-#ifdef FLOWTABLE
-#include <net/flowtable.h>
-#endif
 
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
@@ -211,12 +208,25 @@ struct ip6protosw inet6sw[] = {
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
 	.pr_input =		sctp6_input,
-	.pr_ctlinput =	sctp6_ctlinput,
+	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp6_usrreqs
 },
 #endif /* SCTP */
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_UDPLITE,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		udp6_input,
+	.pr_ctlinput =		udplite6_ctlinput,
+	.pr_ctloutput =		udp_ctloutput,
+#ifndef INET	/* Do not call initialization twice. */
+	.pr_init =		udplite_init,
+#endif
+	.pr_usrreqs =		&udp6_usrreqs,
+},
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
@@ -573,16 +583,6 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu, CTLFLAG_RW,
 #ifdef IPSTEALTH
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
 	&VNET_NAME(ip6stealth), 0, "");
-#endif
-
-#ifdef FLOWTABLE
-VNET_DEFINE(int, ip6_output_flowtable_size) = 2048;
-VNET_DEFINE(struct flowtable *, ip6_ft);
-#define	V_ip6_output_flowtable_size	VNET(ip6_output_flowtable_size)
-
-SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
-    &VNET_NAME(ip6_output_flowtable_size), 2048,
-    "number of entries in the per-cpu output flow caches");
 #endif
 
 /* net.inet6.icmp6 */

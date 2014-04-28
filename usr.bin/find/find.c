@@ -175,13 +175,14 @@ find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;
-	int rval;
+	int e;
 
 	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
 	if (tree == NULL)
 		err(1, "ftsopen");
 
-	for (rval = 0; (entry = fts_read(tree)) != NULL;) {
+	exitstatus = 0;
+	while (errno = 0, (entry = fts_read(tree)) != NULL) {
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))
 				err(1, "%s", entry->fts_path);
@@ -206,7 +207,7 @@ find_execute(PLAN *plan, char *paths[])
 			(void)fflush(stdout);
 			warnx("%s: %s",
 			    entry->fts_path, strerror(entry->fts_errno));
-			rval = 1;
+			exitstatus = 1;
 			continue;
 #ifdef FTS_W
 		case FTS_W:
@@ -217,7 +218,7 @@ find_execute(PLAN *plan, char *paths[])
 		if (isxargs && strpbrk(entry->fts_path, BADCH)) {
 			(void)fflush(stdout);
 			warnx("%s: illegal path", entry->fts_path);
-			rval = 1;
+			exitstatus = 1;
 			continue;
 		}
 
@@ -231,8 +232,9 @@ find_execute(PLAN *plan, char *paths[])
 		 */
 		for (p = plan; p && (p->execute)(p, entry); p = p->next);
 	}
+	e = errno;
 	finish_execplus();
-	if (errno && (!ignore_readdir_race || errno != ENOENT))
-		err(1, "fts_read");
-	return (rval);
+	if (e && (!ignore_readdir_race || e != ENOENT))
+		errc(1, e, "fts_read");
+	return (exitstatus);
 }

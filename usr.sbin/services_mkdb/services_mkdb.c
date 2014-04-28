@@ -67,7 +67,7 @@ static const char *getprotostr(StringList *, size_t);
 static const char *mkaliases(StringList *, char *, size_t);
 static void	usage(void);
 
-const HASHINFO hinfo = {
+HASHINFO hinfo = {
 	.bsize = 256,
 	.ffactor = 4,
 	.nelem = 32768,
@@ -87,14 +87,21 @@ main(int argc, char *argv[])
 	int	 warndup = 1;
 	int	 unique = 0;
 	int	 otherflag = 0;
+	int	 byteorder = 0;
 	size_t	 cnt = 0;
 	StringList *sl, ***svc;
 	size_t port, proto;
 
 	setprogname(argv[0]);
 
-	while ((ch = getopt(argc, argv, "qo:u")) != -1)
+	while ((ch = getopt(argc, argv, "blo:qu")) != -1)
 		switch (ch) {
+		case 'b':
+		case 'l':
+			if (byteorder != 0)
+				usage();
+			byteorder = ch == 'b' ? 4321 : 1234;
+			break;
 		case 'q':
 			otherflag = 1;
 			warndup = 0;
@@ -118,6 +125,9 @@ main(int argc, char *argv[])
 		usage();
 	if (argc == 1)
 		fname = argv[0];
+
+	/* Set byte order. */
+	hinfo.lorder = byteorder;
 
 	if (unique)
 		uniq(fname);
@@ -423,7 +433,8 @@ out:
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "Usage:\t%s [-q] [-o <db>] [<servicefile>]\n"
+	(void)fprintf(stderr,
+	    "Usage:\t%s [-b | -l] [-q] [-o <db>] [<servicefile>]\n"
 	    "\t%s -u [<servicefile>]\n", getprogname(), getprogname());
 	exit(1);
 }

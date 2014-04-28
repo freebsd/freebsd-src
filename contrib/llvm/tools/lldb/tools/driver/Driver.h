@@ -10,6 +10,7 @@
 #ifndef lldb_Driver_h_
 #define lldb_Driver_h_
 
+#include "Platform.h"
 #include "lldb/Utility/PseudoTerminal.h"
 
 #include <set>
@@ -21,27 +22,15 @@
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBError.h"
-#include "lldb/API/SBInputReader.h"
 
 #define ASYNC true
 #define NO_ASYNC false
 
 class IOChannel;
 
-namespace lldb
-{
-    class SBInputReader;
-}
-
-
 class Driver : public lldb::SBBroadcaster
 {
 public:
-    enum {
-        eBroadcastBitReadyForInput    = (1 << 0),
-        eBroadcastBitThreadShouldExit = (1 << 1)
-    };
-
     Driver ();
 
     virtual
@@ -49,24 +38,6 @@ public:
 
     void
     MainLoop ();
-
-    void
-    PutSTDIN (const char *src, size_t src_len);
-
-    void
-    GetFromMaster (const char *src, size_t src_len);
-
-    bool
-    HandleIOEvent (const lldb::SBEvent &event);
-
-    void
-    HandleProcessEvent (const lldb::SBEvent &event);
-
-    void
-    HandleBreakpointEvent (const lldb::SBEvent &event);
-
-    void
-    HandleThreadEvent (const lldb::SBEvent &event);
 
     lldb::SBError
     ParseArgs (int argc, const char *argv[], FILE *out_fh, bool &do_exit);
@@ -83,12 +54,9 @@ public:
     lldb::ScriptLanguage
     GetScriptLanguage() const;
 
-    size_t
-    GetNumSourceCommandFiles () const;
-
-    const char *
-    GetSourceCommandFileAtIndex (uint32_t idx) const;
-
+    void
+    ExecuteInitialCommands (bool before_file);
+    
     bool
     GetDebugMode() const;
 
@@ -102,14 +70,19 @@ public:
         void
         Clear();
 
+        void
+        AddInitialCommand (const char *command, bool before_file, bool is_file, lldb::SBError &error);
+    
         //static OptionDefinition m_cmd_option_table[];
 
         std::vector<std::string> m_args;
         lldb::ScriptLanguage m_script_lang;
         std::string m_core_file;
         std::string m_crash_log;
-        std::vector<std::string> m_source_command_files;
+        std::vector<std::pair<bool,std::string> > m_initial_commands;
+        std::vector<std::pair<bool,std::string> > m_after_file_commands;
         bool m_debug_mode;
+        bool m_source_quietly;
         bool m_print_version;
         bool m_print_python_path;
         bool m_print_help;
@@ -134,66 +107,16 @@ public:
         return m_debugger;
     }
     
-    bool
-    EditlineReaderIsTop ()
-    {
-        return m_debugger.InputReaderIsTopReader (m_editline_reader);
-    }
-
-    bool
-    GetIsDone () const
-    {
-        return m_done;
-    }
-
-    void
-    SetIsDone ()
-    {
-        m_done = true;
-    }
-    
     void
     ResizeWindow (unsigned short col);
 
 private:
     lldb::SBDebugger m_debugger;
-    lldb_utility::PseudoTerminal m_editline_pty;
-    FILE *m_editline_slave_fh;
-    lldb::SBInputReader m_editline_reader;
-    std::unique_ptr<IOChannel> m_io_channel_ap;
     OptionData m_option_data;
-    bool m_executing_user_command;
-    bool m_waiting_for_command;
-    bool m_done;
 
     void
     ResetOptionValues ();
 
-    size_t
-    GetProcessSTDOUT ();
-
-    size_t
-    GetProcessSTDERR ();
-
-    void
-    UpdateSelectedThread ();
-
-    void
-    CloseIOChannelFile ();
-
-    static size_t
-    EditLineInputReaderCallback (void *baton, 
-                                 lldb::SBInputReader *reader, 
-                                 lldb::InputReaderAction notification,
-                                 const char *bytes, 
-                                 size_t bytes_len);
-
-    static void
-    ReadThreadBytesReceived (void *baton, const void *src, size_t src_len);
-
-    static void
-    MasterThreadBytesReceived (void *baton, const void *src, size_t src_len);
-    
     void
     ReadyForCommand ();
 };

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2011,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.30 2008/08/16 20:53:27 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.43 2013/07/20 19:29:59 tom Exp $
 .TH curs_terminfo 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.IP \(bu 4
+..
 .ds n 5
 .na
 .hy 0
@@ -42,12 +49,13 @@
 \fBtigetflag\fR,
 \fBtigetnum\fR,
 \fBtigetstr\fR,
+\fBtiparm\fR,
 \fBtparm\fR,
 \fBtputs\fR,
 \fBvid_attr\fR,
 \fBvid_puts\fR,
 \fBvidattr\fR,
-\fBvidputs\fR - \fBcurses\fR interfaces to terminfo database
+\fBvidputs\fR \- \fBcurses\fR interfaces to terminfo database
 .ad
 .hy
 .SH SYNOPSIS
@@ -76,7 +84,7 @@
 .br
 \fBint vidattr(chtype \fR\fIattrs\fR\fB);\fR
 .br
-\fBint vid_puts(attr_t \fR\fIattrs\fR\fB, short \fR\fIpair\fR\fB, void *\fR\fIopts\fR\fB, int (*\fR\fIputc\fR\fB)(char));\fR
+\fBint vid_puts(attr_t \fR\fIattrs\fR\fB, short \fR\fIpair\fR\fB, void *\fR\fIopts\fR\fB, int (*\fR\fIputc\fR\fB)(int));\fR
 .br
 \fBint vid_attr(attr_t \fR\fIattrs\fR\fB, short \fR\fIpair\fR\fB, void *\fR\fIopts\fR\fB);\fR
 .br
@@ -88,6 +96,8 @@
 .br
 \fBchar *tigetstr(char *\fR\fIcapname\fR\fB);\fR
 .br
+\fBchar *tiparm(const char *\fR\fIstr\fR\fB, ...);\fR
+.br
 .fi
 .SH DESCRIPTION
 These low-level routines must be called by programs that have to deal
@@ -95,40 +105,54 @@ directly with the \fBterminfo\fR database to handle certain terminal
 capabilities, such as programming function keys.  For all other
 functionality, \fBcurses\fR routines are more suitable and their use is
 recommended.
+.SS Initialization
 .PP
 Initially, \fBsetupterm\fR should be called.  Note that
 \fBsetupterm\fR is automatically called by \fBinitscr\fR and
 \fBnewterm\fR.  This defines the set of terminal-dependent variables
 [listed in \fBterminfo\fR(\*n)].
+.PP
+Each initialization routine provides applications with the
+terminal capabilities either directly (via header definitions),
+or by special functions.
+The header files \fBcurses.h\fR and \fBterm.h\fR should be included (in this
+order) to get the definitions for these strings, numbers, and flags.
+.PP
 The \fBterminfo\fR variables
 \fBlines\fR and \fBcolumns\fR are initialized by \fBsetupterm\fR as
 follows:
-.RS
-.PP
+.bP
 If \fBuse_env(FALSE)\fR has been called, values for
 \fBlines\fR and \fBcolumns\fR specified in \fBterminfo\fR are used.
-.PP
+.bP
 Otherwise, if the environment variables \fBLINES\fR and \fBCOLUMNS\fR
 exist, their values are used.  If these environment variables do not
 exist and the program is running in a window, the current window size
 is used.  Otherwise, if the environment variables do not exist, the
 values for \fBlines\fR and \fBcolumns\fR specified in the
 \fBterminfo\fR database are used.
-.RE
 .PP
-The header files \fBcurses.h\fR and \fBterm.h\fR should be included (in this
-order) to get the definitions for these strings, numbers, and flags.
 Parameterized strings should be passed through \fBtparm\fR to instantiate them. 
 All \fBterminfo\fR strings [including the output of \fBtparm\fR] should be printed
-with \fBtputs\fR or \fBputp\fR.  Call the \fBreset_shell_mode\fR to restore the
-tty modes before exiting [see \fBcurs_kernel\fR(3X)].  Programs which use
-cursor addressing should output \fBenter_ca_mode\fR upon startup and should
-output \fBexit_ca_mode\fR before exiting.  Programs desiring shell escapes
-should call
+with \fBtputs\fR or \fBputp\fR.
+Call \fBreset_shell_mode\fR to restore the
+tty modes before exiting [see \fBcurs_kernel\fR(3X)].
 .PP
-\fBreset_shell_mode\fR and output \fBexit_ca_mode\fR before the shell
-is called and should output \fBenter_ca_mode\fR and call
-\fBreset_prog_mode\fR after returning from the shell.
+Programs which use
+cursor addressing should
+.bP
+output \fBenter_ca_mode\fR upon startup and
+.bP
+output \fBexit_ca_mode\fR before exiting.
+.PP
+Programs which execute shell subprocesses should
+.bP
+call \fBreset_shell_mode\fR and
+output \fBexit_ca_mode\fR before the shell
+is called and
+.bP
+output \fBenter_ca_mode\fR and
+call \fBreset_prog_mode\fR after returning from the shell.
 .PP
 The \fBsetupterm\fR routine reads in the \fBterminfo\fR database,
 initializing the \fBterminfo\fR structures, but does not set up the
@@ -143,19 +167,23 @@ then \fBsetupterm\fR returns \fBOK\fR or
 A return value of \fBOK\fR combined with status of \fB1\fR in \fIerrret\fR
 is normal.
 If \fBERR\fR is returned, examine \fIerrret\fR:
-.RS
 .TP 5
 .B 1
 means that the terminal is hardcopy, cannot be used for curses applications.
+.IP
+\fBsetupterm\fP determines if the entry is a hardcopy type by
+checking the \fIhc\fP (\fIhardcopy\fP) capability.
 .TP 5
 .B 0
 means that the terminal could not be found,
 or that it is a generic type,
 having too little information for curses applications to run.
+.IP
+\fBsetupterm\fP determines if the entry is a generic type by
+checking the \fIgn\fP (\fIgeneric\fP) capability.
 .TP 5
-.B -1
+.B \-1
 means that the \fBterminfo\fR database could not be found.
-.RE
 .PP
 If \fIerrret\fR is
 null, \fBsetupterm\fR prints an error message upon finding an error
@@ -165,18 +193,33 @@ and exits.  Thus, the simplest call is:
 .sp
 which uses all the defaults and sends the output to \fBstdout\fR.
 .PP
-The \fBsetterm\fR routine is being replaced by \fBsetupterm\fR.  The call:
+The \fBsetterm\fR routine was replaced by \fBsetupterm\fR.  The call:
 .sp
       \fBsetupterm(\fR\fIterm\fR\fB, 1, (int *)0)\fR
 .sp
 provides the same functionality as \fBsetterm(\fR\fIterm\fR\fB)\fR.
-The \fBsetterm\fR routine is included here for BSD compatibility, and
+The \fBsetterm\fR routine is provided for BSD compatibility, and
 is not recommended for new programs.
+.\" ***************************************************************************
+.SS The Terminal State
 .PP
-The \fBset_curterm\fR routine sets the variable \fBcur_term\fR to
+The \fBsetupterm\fR routine stores its information about the terminal
+in a \fBTERMINAL\fP structure pointed to by the global variable \fBcur_term\fP.
+If it detects an error,
+or decides that the terminal is unsuitable (hardcopy or generic),
+it discards this information,
+making it not available to applications.
+.PP
+If \fBsetupterm\fP is called repeatedly for the same terminal type,
+it will reuse the information.
+It maintains only one copy of a given terminal's capabilities in memory.
+If it is called for different terminal types,
+\fBsetupterm\fP allocates new storage for each set of terminal capabilities.
+.PP
+The \fBset_curterm\fR routine sets \fBcur_term\fR to
 \fInterm\fR, and makes all of the \fBterminfo\fR boolean, numeric, and
-string variables use the values from \fInterm\fR.  It returns the old value
-of \fBcur_term\fR.
+string variables use the values from \fInterm\fR.
+It returns the old value of \fBcur_term\fR.
 .PP
 The \fBdel_curterm\fR routine frees the space pointed to by
 \fIoterm\fR and makes it available for further use.  If \fIoterm\fR is
@@ -186,15 +229,24 @@ memory locations until another \fBsetupterm\fR has been called.
 .PP
 The \fBrestartterm\fR routine is similar to \fBsetupterm\fR and \fBinitscr\fR,
 except that it is called after restoring memory to a previous state (for
-example, when reloading a game saved as a core image dump).  It assumes that
-the windows and the input and output options are the same as when memory was
-saved, but the terminal type and baud rate may be different.  Accordingly,
-it saves various tty state bits, calls \fBsetupterm\fP,
-and then restores the bits.
+example, when reloading a game saved as a core image dump).
+\fBrestartterm\fP assumes that the windows and the input and output options
+are the same as when memory was saved,
+but the terminal type and baud rate may be different.
+Accordingly, \fBrestartterm\fP saves various tty state bits,
+calls \fBsetupterm\fP, and then restores the bits.
+.\" ***************************************************************************
+.SS Formatting Output
 .PP
 The \fBtparm\fR routine instantiates the string \fIstr\fR with
 parameters \fIpi\fR.  A pointer is returned to the result of \fIstr\fR
 with the parameters applied.
+.PP
+\fBtiparm\fP is a newer form of \fBtparm\fP which uses \fI<stdarg.h>\fP
+rather than a fixed-parameter list.
+Its numeric parameters are integers (int) rather than longs.
+.\" ***************************************************************************
+.SS Output Functions
 .PP
 The \fBtputs\fR routine applies padding information to the string
 \fIstr\fR and outputs it.  The \fIstr\fR must be a terminfo string
@@ -228,26 +280,48 @@ Currently, applications must provide a null pointer for that argument.
 .PP
 The \fBmvcur\fR routine provides low-level cursor motion.  It takes
 effect immediately (rather than at the next refresh).
+.\" ***************************************************************************
+.SS Terminal Capability Functions
 .PP
 The \fBtigetflag\fR, \fBtigetnum\fR and \fBtigetstr\fR routines return
 the value of the capability corresponding to the \fBterminfo\fR
 \fIcapname\fR passed to them, such as \fBxenl\fR.
-.PP
-The \fBtigetflag\fR routine returns the value \fB-1\fR if
-\fIcapname\fR is not a boolean capability,
-or \fB0\fR if it is canceled or absent from the terminal description.
-.PP
-The \fBtigetnum\fR routine returns the value \fB-2\fR if
-\fIcapname\fR is not a numeric capability,
-or \fB-1\fR if it is canceled or absent from the terminal description.
-.PP
-The \fBtigetstr\fR routine returns the value \fB(char *)-1\fR
-if \fIcapname\fR is not a string capability,
-or \fB0\fR if it is canceled or absent from the terminal description.
-.PP
 The \fIcapname\fR for each capability is given in the table column entitled
 \fIcapname\fR code in the capabilities section of \fBterminfo\fR(\*n).
-.sp
+.PP
+These routines return special values to denote errors.
+.PP
+The \fBtigetflag\fR routine returns
+.TP
+\fB\-1\fR
+if \fIcapname\fR is not a boolean capability,
+or
+.TP
+\fB0\fR
+if it is canceled or absent from the terminal description.
+.PP
+The \fBtigetnum\fR routine returns
+.TP
+\fB\-2\fR
+if \fIcapname\fR is not a numeric capability, or
+.TP
+\fB\-1\fR
+if it is canceled or absent from the terminal description.
+.PP
+The \fBtigetstr\fR routine returns
+.TP
+\fB(char *)\-1\fR
+if \fIcapname\fR is not a string capability,
+or
+.TP
+\fB0\fR
+if it is canceled or absent from the terminal description.
+.\" ***************************************************************************
+.SS Terminal Capability Names
+These null-terminated arrays contain
+the short terminfo names ("codes"),
+the \fBtermcap\fR names, and the long terminfo names ("fnames")
+for each of the predefined \fBterminfo\fR variables:
 .RS
 \fBchar *boolnames[]\fR, \fB*boolcodes[]\fR, \fB*boolfnames[]\fR
 .sp
@@ -255,10 +329,6 @@ The \fIcapname\fR for each capability is given in the table column entitled
 .sp
 \fBchar *strnames[]\fR, \fB*strcodes[]\fR, \fB*strfnames[]\fR
 .RE
-.PP
-These null-terminated arrays contain the \fIcapnames\fR, the
-\fBtermcap\fR codes, and the full C names, for each of the
-\fBterminfo\fR variables.
 .SH RETURN VALUE
 Routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
 (SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
@@ -268,7 +338,7 @@ Routines that return pointers always return \fBNULL\fR on error.
 .PP
 X/Open defines no error conditions.
 In this implementation
-.RS
+.RS 5
 .TP 5
 \fBdel_curterm\fP
 returns an error
@@ -293,18 +363,40 @@ It does not detect I/O errors:
 X/Open states that \fBtputs\fP ignores the return value
 of the output function \fIputc\fP.
 .RE
-.SH NOTES
-The \fBsetupterm\fR routine should be used in place of \fBsetterm\fR.
-It may be useful when you want to test for terminal capabilities without
-committing to the allocation of storage involved in \fBinitscr\fR.
-.PP
-Note that \fBvidattr\fR and \fBvidputs\fR may be macros.
 .SH PORTABILITY
+X/Open notes that \fBvidattr\fR and \fBvidputs\fR may be macros.
+.PP
 The function \fBsetterm\fR is not described by X/Open and must
-be considered non-portable.  All other functions are as described by X/Open.
+be considered non-portable.
+All other functions are as described by X/Open.
 .PP
 \fBsetupterm\fP copies the terminal name to the array \fBttytype\fP.
 This is not part of X/Open Curses, but is assumed by some applications.
+.PP
+If configured to use the terminal-driver,
+e.g., for the MinGW port,
+.bP
+\fBsetupterm\fP interprets a missing/empty TERM variable as the
+special value \*(``unknown\*(''.
+.bP
+\fBsetupterm\fP allows explicit use of the
+the windows console driver by checking if $TERM is set to
+\*(``#win32con\*('' or an abbreviation of that string.
+.PP
+Older versions of \fBncurses\fP assumed that the file descriptor passed to
+\fBsetupterm\fP from \fBinitscr\fP or \fBnewterm\fP uses buffered I/O,
+and would write to the corresponding stream.
+In addition to the limitation that the terminal was left in block-buffered
+mode on exit (like SystemV curses),
+it was problematic because \fBncurses\fP
+did not allow a reliable way to cleanup on receiving SIGTSTP.
+The current version uses output buffers managed directly by \fBncurses\fP.
+Some of the low-level functions described in this manual page write
+to the standard output.
+They are not signal-safe.
+The high-level functions in \fBncurses\fP use
+alternate versions of these functions
+using the more reliable buffering scheme.
 .PP
 In System V Release 4, \fBset_curterm\fR has an \fBint\fR return type and
 returns \fBOK\fR or \fBERR\fR.  We have chosen to implement the X/Open Curses
@@ -319,34 +411,38 @@ That returns the length of the string, and does no error-checking.
 .PP
 X/Open Curses prototypes \fBtparm\fR with a fixed number of parameters,
 rather than a variable argument list.
-This implementation uses a variable argument list.
+This implementation uses a variable argument list, but can be
+configured to use the fixed-parameter list.
 Portable applications should provide 9 parameters after the format;
 zeroes are fine for this purpose.
+.PP
+In response to comments by Thomas E. Dickey,
+X/Open Curses Issue 7 proposed the \fBtiparm\fP function in mid-2009.
 .PP
 X/Open notes that after calling \fBmvcur\fR, the curses state may not match the
 actual terminal state, and that an application should touch and refresh
 the window before resuming normal curses calls.
-Both ncurses and System V Release 4 curses implement \fBmvcur\fR using
+Both \fBncurses\fP and System V Release 4 curses implement \fBmvcur\fR using
 the SCREEN data allocated in either \fBinitscr\fR or \fBnewterm\fR.
 So though it is documented as a terminfo function,
 \fBmvcur\fR is really a curses function which is not well specified.
 .PP
 X/Open states that the old location must be given for \fBmvcur\fP.
-This implementation allows the caller to use -1's for the old ordinates.
+This implementation allows the caller to use \-1's for the old ordinates.
 In that case, the old location is unknown.
 .PP
-Extended terminal capability names, e.g., as defined by \fBtic\ -x\fP,
-are not stored in the arrays described in this section.
+Other implementions may not declare the capability name arrays.
+Some provide them without declaring them.
+X/Open does not specify them.
+.PP
+Extended terminal capability names, e.g., as defined by \fB@TIC@\ \-x\fP,
+are not stored in the arrays described here.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_initscr\fR(3X),
 \fBcurs_kernel\fR(3X),
 \fBcurs_termcap\fR(3X),
+\fBcurs_variables\fR(3X),
+\fBterm_variables\fR(3X),
 \fBputc\fR(3),
 \fBterminfo\fR(\*n)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

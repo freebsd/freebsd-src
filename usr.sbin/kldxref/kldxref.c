@@ -274,7 +274,7 @@ usage(void)
 	exit(1);
 }
 
-int 
+static int
 compare(const FTSENT *const *a, const FTSENT *const *b)
 {
 	if ((*a)->fts_info == FTS_D && (*b)->fts_info != FTS_D)

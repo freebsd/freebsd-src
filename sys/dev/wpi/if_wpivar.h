@@ -162,8 +162,6 @@ struct wpi_softc {
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
 	void			*sc_ih;
-	int			mem_rid;
-	int			irq_rid;
 
 	struct wpi_config	config;
 	int			temp;

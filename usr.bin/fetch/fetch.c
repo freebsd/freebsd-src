@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2000-2014 Dag-Erling Smørgrav
  * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fetch.h>
 
-#define MINBUFSIZE	4096
+#define MINBUFSIZE	16384
 #define TIMEOUT		120
 
 /* Option flags */
@@ -109,7 +109,7 @@ enum options
 	OPTION_SSL_CLIENT_KEY_FILE,
 	OPTION_SSL_CRL_FILE,
 	OPTION_SSL_NO_SSL3,
-	OPTION_SSL_NO_TLS1,	
+	OPTION_SSL_NO_TLS1,
 	OPTION_SSL_NO_VERIFY_HOSTNAME,
 	OPTION_SSL_NO_VERIFY_PEER
 };
@@ -147,7 +147,7 @@ static struct option longopts[] =
 	{ "passive-portrange-default", no_argument, NULL, 'T' },
 	{ "verbose", no_argument, NULL, 'v' },
 	{ "retry-delay", required_argument, NULL, 'w' },
-	
+
 	/* options without a single character equivalent */
 	{ "bind-address", required_argument, NULL, OPTION_BIND_ADDRESS },
 	{ "no-passive", no_argument, NULL, OPTION_NO_FTP_PASSIVE_MODE },
@@ -716,6 +716,7 @@ fetch(char *URL, const char *path)
 	sigalrm = siginfo = sigint = 0;
 
 	/* suck in the data */
+	setvbuf(f, NULL, _IOFBF, B_size);
 	signal(SIGINFO, sig_handler);
 	while (!sigint) {
 		if (us.size != -1 && us.size - count < B_size &&

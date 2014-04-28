@@ -42,13 +42,6 @@ void MCExpr::print(raw_ostream &OS) const {
     // Parenthesize names that start with $ so that they don't look like
     // absolute names.
     bool UseParens = Sym.getName()[0] == '$';
-
-    if (SRE.getKind() == MCSymbolRefExpr::VK_PPC_DARWIN_HA16 ||
-        SRE.getKind() == MCSymbolRefExpr::VK_PPC_DARWIN_LO16) {
-      OS << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
-      UseParens = true;
-    }
-
     if (UseParens)
       OS << '(' << Sym << ')';
     else
@@ -65,9 +58,7 @@ void MCExpr::print(raw_ostream &OS) const {
         SRE.getKind() == MCSymbolRefExpr::VK_ARM_TARGET2 ||
         SRE.getKind() == MCSymbolRefExpr::VK_ARM_PREL31)
       OS << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
-    else if (SRE.getKind() != MCSymbolRefExpr::VK_None &&
-             SRE.getKind() != MCSymbolRefExpr::VK_PPC_DARWIN_HA16 &&
-             SRE.getKind() != MCSymbolRefExpr::VK_PPC_DARWIN_LO16)
+    else if (SRE.getKind() != MCSymbolRefExpr::VK_None)
       OS << '@' << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
 
     return;
@@ -205,26 +196,56 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_ARM_TARGET1: return "(target1)";
   case VK_ARM_TARGET2: return "(target2)";
   case VK_ARM_PREL31: return "(prel31)";
-  case VK_PPC_TOC: return "tocbase";
-  case VK_PPC_TOC_ENTRY: return "toc";
-  case VK_PPC_DARWIN_HA16: return "ha16";
-  case VK_PPC_DARWIN_LO16: return "lo16";
-  case VK_PPC_GAS_HA16: return "ha";
-  case VK_PPC_GAS_LO16: return "l";
-  case VK_PPC_TPREL16_HA: return "tprel@ha";
-  case VK_PPC_TPREL16_LO: return "tprel@l";
-  case VK_PPC_DTPREL16_HA: return "dtprel@ha";
-  case VK_PPC_DTPREL16_LO: return "dtprel@l";
-  case VK_PPC_TOC16_HA: return "toc@ha";
-  case VK_PPC_TOC16_LO: return "toc@l";
-  case VK_PPC_GOT_TPREL16_HA: return "got@tprel@ha";
-  case VK_PPC_GOT_TPREL16_LO: return "got@tprel@l";
+  case VK_PPC_LO: return "l";
+  case VK_PPC_HI: return "h";
+  case VK_PPC_HA: return "ha";
+  case VK_PPC_HIGHER: return "higher";
+  case VK_PPC_HIGHERA: return "highera";
+  case VK_PPC_HIGHEST: return "highest";
+  case VK_PPC_HIGHESTA: return "highesta";
+  case VK_PPC_GOT_LO: return "got@l";
+  case VK_PPC_GOT_HI: return "got@h";
+  case VK_PPC_GOT_HA: return "got@ha";
+  case VK_PPC_TOCBASE: return "tocbase";
+  case VK_PPC_TOC: return "toc";
+  case VK_PPC_TOC_LO: return "toc@l";
+  case VK_PPC_TOC_HI: return "toc@h";
+  case VK_PPC_TOC_HA: return "toc@ha";
+  case VK_PPC_DTPMOD: return "dtpmod";
+  case VK_PPC_TPREL: return "tprel";
+  case VK_PPC_TPREL_LO: return "tprel@l";
+  case VK_PPC_TPREL_HI: return "tprel@h";
+  case VK_PPC_TPREL_HA: return "tprel@ha";
+  case VK_PPC_TPREL_HIGHER: return "tprel@higher";
+  case VK_PPC_TPREL_HIGHERA: return "tprel@highera";
+  case VK_PPC_TPREL_HIGHEST: return "tprel@highest";
+  case VK_PPC_TPREL_HIGHESTA: return "tprel@highesta";
+  case VK_PPC_DTPREL: return "dtprel";
+  case VK_PPC_DTPREL_LO: return "dtprel@l";
+  case VK_PPC_DTPREL_HI: return "dtprel@h";
+  case VK_PPC_DTPREL_HA: return "dtprel@ha";
+  case VK_PPC_DTPREL_HIGHER: return "dtprel@higher";
+  case VK_PPC_DTPREL_HIGHERA: return "dtprel@highera";
+  case VK_PPC_DTPREL_HIGHEST: return "dtprel@highest";
+  case VK_PPC_DTPREL_HIGHESTA: return "dtprel@highesta";
+  case VK_PPC_GOT_TPREL: return "got@tprel";
+  case VK_PPC_GOT_TPREL_LO: return "got@tprel@l";
+  case VK_PPC_GOT_TPREL_HI: return "got@tprel@h";
+  case VK_PPC_GOT_TPREL_HA: return "got@tprel@ha";
+  case VK_PPC_GOT_DTPREL: return "got@dtprel";
+  case VK_PPC_GOT_DTPREL_LO: return "got@dtprel@l";
+  case VK_PPC_GOT_DTPREL_HI: return "got@dtprel@h";
+  case VK_PPC_GOT_DTPREL_HA: return "got@dtprel@ha";
   case VK_PPC_TLS: return "tls";
-  case VK_PPC_GOT_TLSGD16_HA: return "got@tlsgd@ha";
-  case VK_PPC_GOT_TLSGD16_LO: return "got@tlsgd@l";
-  case VK_PPC_GOT_TLSLD16_HA: return "got@tlsld@ha";
-  case VK_PPC_GOT_TLSLD16_LO: return "got@tlsld@l";
+  case VK_PPC_GOT_TLSGD: return "got@tlsgd";
+  case VK_PPC_GOT_TLSGD_LO: return "got@tlsgd@l";
+  case VK_PPC_GOT_TLSGD_HI: return "got@tlsgd@h";
+  case VK_PPC_GOT_TLSGD_HA: return "got@tlsgd@ha";
   case VK_PPC_TLSGD: return "tlsgd";
+  case VK_PPC_GOT_TLSLD: return "got@tlsld";
+  case VK_PPC_GOT_TLSLD_LO: return "got@tlsld@l";
+  case VK_PPC_GOT_TLSLD_HI: return "got@tlsld@h";
+  case VK_PPC_GOT_TLSLD_HA: return "got@tlsld@ha";
   case VK_PPC_TLSLD: return "tlsld";
   case VK_Mips_GPREL: return "GPREL";
   case VK_Mips_GOT_CALL: return "GOT_CALL";
@@ -290,40 +311,104 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("imgrel", VK_COFF_IMGREL32)
     .Case("SECREL32", VK_SECREL)
     .Case("secrel32", VK_SECREL)
-    .Case("HA", VK_PPC_GAS_HA16)
-    .Case("ha", VK_PPC_GAS_HA16)
-    .Case("L", VK_PPC_GAS_LO16)
-    .Case("l", VK_PPC_GAS_LO16)
-    .Case("TOCBASE", VK_PPC_TOC)
-    .Case("tocbase", VK_PPC_TOC)
-    .Case("TOC", VK_PPC_TOC_ENTRY)
-    .Case("toc", VK_PPC_TOC_ENTRY)
-    .Case("TOC@HA", VK_PPC_TOC16_HA)
-    .Case("toc@ha", VK_PPC_TOC16_HA)
-    .Case("TOC@L", VK_PPC_TOC16_LO)
-    .Case("toc@l", VK_PPC_TOC16_LO)
+    .Case("L", VK_PPC_LO)
+    .Case("l", VK_PPC_LO)
+    .Case("H", VK_PPC_HI)
+    .Case("h", VK_PPC_HI)
+    .Case("HA", VK_PPC_HA)
+    .Case("ha", VK_PPC_HA)
+    .Case("HIGHER", VK_PPC_HIGHER)
+    .Case("higher", VK_PPC_HIGHER)
+    .Case("HIGHERA", VK_PPC_HIGHERA)
+    .Case("highera", VK_PPC_HIGHERA)
+    .Case("HIGHEST", VK_PPC_HIGHEST)
+    .Case("highest", VK_PPC_HIGHEST)
+    .Case("HIGHESTA", VK_PPC_HIGHESTA)
+    .Case("highesta", VK_PPC_HIGHESTA)
+    .Case("GOT@L", VK_PPC_GOT_LO)
+    .Case("got@l", VK_PPC_GOT_LO)
+    .Case("GOT@H", VK_PPC_GOT_HI)
+    .Case("got@h", VK_PPC_GOT_HI)
+    .Case("GOT@HA", VK_PPC_GOT_HA)
+    .Case("got@ha", VK_PPC_GOT_HA)
+    .Case("TOCBASE", VK_PPC_TOCBASE)
+    .Case("tocbase", VK_PPC_TOCBASE)
+    .Case("TOC", VK_PPC_TOC)
+    .Case("toc", VK_PPC_TOC)
+    .Case("TOC@L", VK_PPC_TOC_LO)
+    .Case("toc@l", VK_PPC_TOC_LO)
+    .Case("TOC@H", VK_PPC_TOC_HI)
+    .Case("toc@h", VK_PPC_TOC_HI)
+    .Case("TOC@HA", VK_PPC_TOC_HA)
+    .Case("toc@ha", VK_PPC_TOC_HA)
     .Case("TLS", VK_PPC_TLS)
     .Case("tls", VK_PPC_TLS)
-    .Case("TPREL@HA", VK_PPC_TPREL16_HA)
-    .Case("tprel@ha", VK_PPC_TPREL16_HA)
-    .Case("TPREL@L", VK_PPC_TPREL16_LO)
-    .Case("tprel@l", VK_PPC_TPREL16_LO)
-    .Case("DTPREL@HA", VK_PPC_DTPREL16_HA)
-    .Case("dtprel@ha", VK_PPC_DTPREL16_HA)
-    .Case("DTPREL@L", VK_PPC_DTPREL16_LO)
-    .Case("dtprel@l", VK_PPC_DTPREL16_LO)
-    .Case("GOT@TPREL@HA", VK_PPC_GOT_TPREL16_HA)
-    .Case("got@tprel@ha", VK_PPC_GOT_TPREL16_HA)
-    .Case("GOT@TPREL@L", VK_PPC_GOT_TPREL16_LO)
-    .Case("got@tprel@l", VK_PPC_GOT_TPREL16_LO)
-    .Case("GOT@TLSGD@HA", VK_PPC_GOT_TLSGD16_HA)
-    .Case("got@tlsgd@ha", VK_PPC_GOT_TLSGD16_HA)
-    .Case("GOT@TLSGD@L", VK_PPC_GOT_TLSGD16_LO)
-    .Case("got@tlsgd@l", VK_PPC_GOT_TLSGD16_LO)
-    .Case("GOT@TLSLD@HA", VK_PPC_GOT_TLSLD16_HA)
-    .Case("got@tlsld@ha", VK_PPC_GOT_TLSLD16_HA)
-    .Case("GOT@TLSLD@L", VK_PPC_GOT_TLSLD16_LO)
-    .Case("got@tlsld@l", VK_PPC_GOT_TLSLD16_LO)
+    .Case("DTPMOD", VK_PPC_DTPMOD)
+    .Case("dtpmod", VK_PPC_DTPMOD)
+    .Case("TPREL", VK_PPC_TPREL)
+    .Case("tprel", VK_PPC_TPREL)
+    .Case("TPREL@L", VK_PPC_TPREL_LO)
+    .Case("tprel@l", VK_PPC_TPREL_LO)
+    .Case("TPREL@H", VK_PPC_TPREL_HI)
+    .Case("tprel@h", VK_PPC_TPREL_HI)
+    .Case("TPREL@HA", VK_PPC_TPREL_HA)
+    .Case("tprel@ha", VK_PPC_TPREL_HA)
+    .Case("TPREL@HIGHER", VK_PPC_TPREL_HIGHER)
+    .Case("tprel@higher", VK_PPC_TPREL_HIGHER)
+    .Case("TPREL@HIGHERA", VK_PPC_TPREL_HIGHERA)
+    .Case("tprel@highera", VK_PPC_TPREL_HIGHERA)
+    .Case("TPREL@HIGHEST", VK_PPC_TPREL_HIGHEST)
+    .Case("tprel@highest", VK_PPC_TPREL_HIGHEST)
+    .Case("TPREL@HIGHESTA", VK_PPC_TPREL_HIGHESTA)
+    .Case("tprel@highesta", VK_PPC_TPREL_HIGHESTA)
+    .Case("DTPREL", VK_PPC_DTPREL)
+    .Case("dtprel", VK_PPC_DTPREL)
+    .Case("DTPREL@L", VK_PPC_DTPREL_LO)
+    .Case("dtprel@l", VK_PPC_DTPREL_LO)
+    .Case("DTPREL@H", VK_PPC_DTPREL_HI)
+    .Case("dtprel@h", VK_PPC_DTPREL_HI)
+    .Case("DTPREL@HA", VK_PPC_DTPREL_HA)
+    .Case("dtprel@ha", VK_PPC_DTPREL_HA)
+    .Case("DTPREL@HIGHER", VK_PPC_DTPREL_HIGHER)
+    .Case("dtprel@higher", VK_PPC_DTPREL_HIGHER)
+    .Case("DTPREL@HIGHERA", VK_PPC_DTPREL_HIGHERA)
+    .Case("dtprel@highera", VK_PPC_DTPREL_HIGHERA)
+    .Case("DTPREL@HIGHEST", VK_PPC_DTPREL_HIGHEST)
+    .Case("dtprel@highest", VK_PPC_DTPREL_HIGHEST)
+    .Case("DTPREL@HIGHESTA", VK_PPC_DTPREL_HIGHESTA)
+    .Case("dtprel@highesta", VK_PPC_DTPREL_HIGHESTA)
+    .Case("GOT@TPREL", VK_PPC_GOT_TPREL)
+    .Case("got@tprel", VK_PPC_GOT_TPREL)
+    .Case("GOT@TPREL@L", VK_PPC_GOT_TPREL_LO)
+    .Case("got@tprel@l", VK_PPC_GOT_TPREL_LO)
+    .Case("GOT@TPREL@H", VK_PPC_GOT_TPREL_HI)
+    .Case("got@tprel@h", VK_PPC_GOT_TPREL_HI)
+    .Case("GOT@TPREL@HA", VK_PPC_GOT_TPREL_HA)
+    .Case("got@tprel@ha", VK_PPC_GOT_TPREL_HA)
+    .Case("GOT@DTPREL", VK_PPC_GOT_DTPREL)
+    .Case("got@dtprel", VK_PPC_GOT_DTPREL)
+    .Case("GOT@DTPREL@L", VK_PPC_GOT_DTPREL_LO)
+    .Case("got@dtprel@l", VK_PPC_GOT_DTPREL_LO)
+    .Case("GOT@DTPREL@H", VK_PPC_GOT_DTPREL_HI)
+    .Case("got@dtprel@h", VK_PPC_GOT_DTPREL_HI)
+    .Case("GOT@DTPREL@HA", VK_PPC_GOT_DTPREL_HA)
+    .Case("got@dtprel@ha", VK_PPC_GOT_DTPREL_HA)
+    .Case("GOT@TLSGD", VK_PPC_GOT_TLSGD)
+    .Case("got@tlsgd", VK_PPC_GOT_TLSGD)
+    .Case("GOT@TLSGD@L", VK_PPC_GOT_TLSGD_LO)
+    .Case("got@tlsgd@l", VK_PPC_GOT_TLSGD_LO)
+    .Case("GOT@TLSGD@H", VK_PPC_GOT_TLSGD_HI)
+    .Case("got@tlsgd@h", VK_PPC_GOT_TLSGD_HI)
+    .Case("GOT@TLSGD@HA", VK_PPC_GOT_TLSGD_HA)
+    .Case("got@tlsgd@ha", VK_PPC_GOT_TLSGD_HA)
+    .Case("GOT@TLSLD", VK_PPC_GOT_TLSLD)
+    .Case("got@tlsld", VK_PPC_GOT_TLSLD)
+    .Case("GOT@TLSLD@L", VK_PPC_GOT_TLSLD_LO)
+    .Case("got@tlsld@l", VK_PPC_GOT_TLSLD_LO)
+    .Case("GOT@TLSLD@H", VK_PPC_GOT_TLSLD_HI)
+    .Case("got@tlsld@h", VK_PPC_GOT_TLSLD_HI)
+    .Case("GOT@TLSLD@HA", VK_PPC_GOT_TLSLD_HA)
+    .Case("got@tlsld@ha", VK_PPC_GOT_TLSLD_HA)
     .Default(VK_Invalid);
 }
 

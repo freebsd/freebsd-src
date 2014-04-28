@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
 ##
-## Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+## Copyright (c) 1998-2002 Proofpoint, Inc. and its suppliers.
 ##	All rights reserved.
 ##
-## $Id: qtool.pl,v 8.31 2010/11/10 19:11:54 ca Exp $
+## $Id: qtool.pl,v 8.32 2013/11/22 20:51:18 ca Exp $
 ##
 use strict;
 use File::Basename;

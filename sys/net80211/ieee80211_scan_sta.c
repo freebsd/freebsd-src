@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -732,7 +733,7 @@ sta_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	return 0;
 }
 
-/* unalligned little endian access */     
+/* unaligned little endian access */     
 #define LE_READ_2(p)					\
 	((uint16_t)					\
 	 ((((const uint8_t *)(p))[0]      ) |		\

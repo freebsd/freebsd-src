@@ -805,7 +805,7 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 			mp->mnt_stat.f_mntonname, (u_long)ip->i_number,(long)offset, how);
 	else
 	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-            mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 
 }
 
@@ -884,12 +884,11 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	bcopy(cnp->cn_nameptr, newdir.e2d_name, (unsigned)cnp->cn_namelen + 1);
 	newentrysize = EXT2_DIR_REC_LEN(newdir.e2d_namlen);
 
-#ifdef EXT2FS_HTREE
 	if (ext2_htree_has_idx(dp)) {
 		error = ext2_htree_add_entry(dvp, &newdir, cnp);
 		if (error) {
-			dp->i_flags &= ~EXT4_INDEX;
-			dp->i_flags |= IN_CHANGE | IN_UPDATE;
+			dp->i_flag &= ~IN_E4INDEX;
+			dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		}
 		return (error);
 	}
@@ -905,7 +904,6 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 			return ext2_htree_create_index(dvp, cnp, &newdir);
 		}
 	}
-#endif	/* EXT2FS_HTREE */
 
 	if (dp->i_count == 0) {
 		/*

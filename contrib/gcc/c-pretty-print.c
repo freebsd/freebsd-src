@@ -137,6 +137,15 @@ pp_c_star (c_pretty_printer *pp)
   pp_base (pp)->padding = pp_none;
 }
 
+/* APPLE LOCAL begin blocks */
+void
+pp_c_caret (c_pretty_printer *pp)
+{
+  pp_carret (pp);
+  pp_base (pp)->padding = pp_none;
+}
+/* APPLE LOCAL end blocks */
+
 void
 pp_c_arrow (c_pretty_printer *pp)
 {
@@ -260,6 +269,12 @@ pp_c_pointer (c_pretty_printer *pp, tree t)
 	pp_c_ampersand (pp);
       pp_c_type_qualifier_list (pp, t);
       break;
+    /* APPLE LOCAL begin blocks */
+    case BLOCK_POINTER_TYPE:
+      pp_c_caret (pp);
+      pp_c_type_qualifier_list (pp, t);
+      break;
+    /* APPLE LOCAL end blocks */
 
       /* ??? This node is now in GENERIC and so shouldn't be here.  But
 	 we'll fix that later.  */
@@ -405,6 +420,8 @@ pp_c_specifier_qualifier_list (c_pretty_printer *pp, tree t)
     {
     case REFERENCE_TYPE:
     case POINTER_TYPE:
+    /* APPLE LOCAL blocks */
+    case BLOCK_POINTER_TYPE:
       {
 	/* Get the types-specifier of this type.  */
 	tree pointee = strip_pointer_operator (TREE_TYPE (t));
@@ -487,7 +504,10 @@ pp_c_parameter_type_list (c_pretty_printer *pp, tree t)
 static void
 pp_c_abstract_declarator (c_pretty_printer *pp, tree t)
 {
-  if (TREE_CODE (t) == POINTER_TYPE)
+  /* APPLE LOCAL begin blocks */
+  if (TREE_CODE (t) == POINTER_TYPE ||
+      TREE_CODE (t) == BLOCK_POINTER_TYPE)
+   /* APPLE LOCAL end blocks */
     {
       if (TREE_CODE (TREE_TYPE (t)) == ARRAY_TYPE
 	  || TREE_CODE (TREE_TYPE (t)) == FUNCTION_TYPE)
@@ -510,6 +530,8 @@ pp_c_direct_abstract_declarator (c_pretty_printer *pp, tree t)
   switch (TREE_CODE (t))
     {
     case POINTER_TYPE:
+    /* APPLE LOCAL blocks */
+    case BLOCK_POINTER_TYPE:
       pp_abstract_declarator (pp, t);
       break;
 
@@ -635,6 +657,8 @@ pp_c_direct_declarator (c_pretty_printer *pp, tree t)
 
     case ARRAY_TYPE:
     case POINTER_TYPE:
+    /* APPLE LOCAL blocks */
+    case BLOCK_POINTER_TYPE:
       pp_abstract_declarator (pp, TREE_TYPE (t));
       break;
 

@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/fdt.h>
 
@@ -161,6 +160,10 @@ static struct lpc_gpio_softc *lpc_gpio_sc = NULL;
 static int
 lpc_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,gpio"))
 		return (ENXIO);
 
@@ -503,12 +506,18 @@ lpc_gpio_get_state(device_t dev, int pin, int *state)
 void
 platform_gpio_init()
 {
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+
+	bst = fdtbus_bs_tag;
+
 	/* Preset SPI devices CS pins to one */
-	bus_space_write_4(fdtbus_bs_tag, 
-	    LPC_GPIO_BASE, LPC_GPIO_P3_OUTP_SET,
+	bus_space_map(bst, LPC_GPIO_PHYS_BASE, LPC_GPIO_SIZE, 0, &bsh);
+	bus_space_write_4(bst, bsh, LPC_GPIO_P3_OUTP_SET,
 	    1 << (SSD1289_CS_PIN - LPC_GPIO_GPO_00(0)) |
 	    1 << (SSD1289_DC_PIN - LPC_GPIO_GPO_00(0)) |
 	    1 << (ADS7846_CS_PIN - LPC_GPIO_GPO_00(0)));	
+	bus_space_unmap(bst, bsh, LPC_GPIO_SIZE);
 }
 
 static device_method_t lpc_gpio_methods[] = {

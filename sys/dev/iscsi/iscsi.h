@@ -69,7 +69,7 @@ struct iscsi_session {
 	char				is_target_alias[ISCSI_ALIAS_LEN];
 
 	TAILQ_HEAD(, iscsi_outstanding)	is_outstanding;
-	TAILQ_HEAD(, icl_pdu)		is_postponed;
+	STAILQ_HEAD(, icl_pdu)		is_postponed;
 
 	struct callout			is_callout;
 	unsigned int			is_timeout;

@@ -301,7 +301,7 @@ StackFrameList::GetFramesUpTo(uint32_t end_idx)
                     if (reg_ctx_sp)
                     {
 
-                        const bool success = unwinder->GetFrameInfoAtIndex(idx, cfa, pc);
+                        const bool success = unwinder && unwinder->GetFrameInfoAtIndex(idx, cfa, pc);
                         // There shouldn't be any way not to get the frame info for frame 0.
                         // But if the unwinder can't make one, lets make one by hand with the
                         // SP as the CFA and see if that gets any further.
@@ -329,14 +329,17 @@ StackFrameList::GetFramesUpTo(uint32_t end_idx)
             }
             else
             {
-                const bool success = unwinder->GetFrameInfoAtIndex(idx, cfa, pc);
+                const bool success = unwinder && unwinder->GetFrameInfoAtIndex(idx, cfa, pc);
                 if (!success)
                 {
                     // We've gotten to the end of the stack.
                     SetAllFramesFetched();
                     break;
                 }
-                unwind_frame_sp.reset (new StackFrame (m_thread.shared_from_this(), m_frames.size(), idx, cfa, pc, NULL));
+                const bool cfa_is_valid = true;
+                const bool stop_id_is_valid = false;
+                const bool is_history_frame = false;
+                unwind_frame_sp.reset (new StackFrame (m_thread.shared_from_this(), m_frames.size(), idx, cfa, cfa_is_valid, pc, 0, stop_id_is_valid, is_history_frame, NULL));
                 m_frames.push_back (unwind_frame_sp);
             }
             
@@ -448,14 +451,17 @@ StackFrameList::GetFramesUpTo(uint32_t end_idx)
     {
         if (end_idx < m_concrete_frames_fetched)
             return;
-            
-        uint32_t num_frames = unwinder->GetFramesUpTo(end_idx);
-        if (num_frames <= end_idx + 1)
+
+        if (unwinder)
         {
-            //Done unwinding.
-            m_concrete_frames_fetched = UINT32_MAX;
+            uint32_t num_frames = unwinder->GetFramesUpTo(end_idx);
+            if (num_frames <= end_idx + 1)
+            {
+                //Done unwinding.
+                m_concrete_frames_fetched = UINT32_MAX;
+            }
+            m_frames.resize(num_frames);
         }
-        m_frames.resize(num_frames);
     }
 }
 
@@ -534,7 +540,10 @@ StackFrameList::GetFrameAtIndex (uint32_t idx)
                 addr_t pc, cfa;
                 if (unwinder->GetFrameInfoAtIndex(idx, cfa, pc))
                 {
-                    frame_sp.reset (new StackFrame (m_thread.shared_from_this(), idx, idx, cfa, pc, NULL));
+                    const bool cfa_is_valid = true;
+                    const bool stop_id_is_valid = false;
+                    const bool is_history_frame = false;
+                    frame_sp.reset (new StackFrame (m_thread.shared_from_this(), idx, idx, cfa, cfa_is_valid, pc, 0, stop_id_is_valid, is_history_frame, NULL));
                     
                     Function *function = frame_sp->GetSymbolContext (eSymbolContextFunction).function;
                     if (function)
@@ -863,7 +872,8 @@ StackFrameList::GetStatus (Stream& strm,
                            uint32_t first_frame,
                            uint32_t num_frames,
                            bool show_frame_info,
-                           uint32_t num_frames_with_source)
+                           uint32_t num_frames_with_source,
+                           const char *selected_frame_marker)
 {
     size_t num_frames_displayed = 0;
     
@@ -880,15 +890,34 @@ StackFrameList::GetStatus (Stream& strm,
     else
         last_frame = first_frame + num_frames;
     
+    StackFrameSP selected_frame_sp = m_thread.GetSelectedFrame();
+    const char *unselected_marker = NULL;
+    std::string buffer;
+    if (selected_frame_marker)
+    {
+        size_t len = strlen(selected_frame_marker);
+        buffer.insert(buffer.begin(), len, ' ');
+        unselected_marker = buffer.c_str();
+    }
+    const char *marker = NULL;
+    
     for (frame_idx = first_frame; frame_idx < last_frame; ++frame_idx)
     {
         frame_sp = GetFrameAtIndex(frame_idx);
         if (frame_sp.get() == NULL)
             break;
         
+        if (selected_frame_marker != NULL)
+        {
+            if (frame_sp == selected_frame_sp)
+                marker = selected_frame_marker;
+            else
+                marker = unselected_marker;
+        }
+        
         if (!frame_sp->GetStatus (strm,
                                   show_frame_info,
-                                  num_frames_with_source > (first_frame - frame_idx)))
+                                  num_frames_with_source > (first_frame - frame_idx), marker))
             break;
         ++num_frames_displayed;
     }

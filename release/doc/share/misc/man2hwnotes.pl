@@ -200,7 +200,7 @@ sub parse {
 		    $found_hwlist = 1;
 		    add_sgmltag(\%mdocvars, "<!ENTITY hwlist.".$mdocvars{cur_manname}." '");
 		    if ($only_list_out) {
-			add_sgmltag("<para>&hwlist.preamble.pre; " .
+			add_sgmltag("<para xmlns=\"http://docbook.org/ns/docbook\">&hwlist.preamble.pre; " .
 				    "&man.".$mdocvars{EntNm}.".$cur_mansection; " .
 				    "&hwlist.preamble.post;</para>");
 		    }
@@ -260,7 +260,7 @@ sub parse {
 	    } elsif (/^Bl/) {
 		$mdocvars{isin_list} = 1;
 		flush_out(\%mdocvars);
-		add_sgmltag(\%mdocvars, "<itemizedlist>");
+		add_sgmltag(\%mdocvars, "<itemizedlist xmlns=\"http://docbook.org/ns/docbook\">");
 
 		if (/-tag/) {
 		    $mdocvars{listtype} = "tag";
@@ -302,7 +302,7 @@ sub parse {
 		my ($txt, $punct_str) = split_punct_chars($1);
 
 		parabuf_addline(\%mdocvars,
-				normalize("<quote>$txt</quote>$punct_str"));
+				normalize("<quote xmlns=\"http://docbook.org/ns/docbook\">$txt</quote>$punct_str"));
 	    } elsif (/^Sx (.+)$/) {
 		if ($mdocvars{isin_hwlist}) {
 		    dlog(1, "Warning: Reference to another section in the " .
@@ -328,7 +328,7 @@ sub parse {
 		my ($txt, $punct_str) = split_punct_chars($1);
 
 		parabuf_addline(\%mdocvars,
-				normalize("<emphasis>$txt</emphasis>$punct_str"));
+				normalize("<emphasis xmlns=\"http://docbook.org/ns/docbook\">$txt</emphasis>$punct_str"));
 	    } else {
 		# Ignore all other commands.
 		dlog(3, "Ignoring unknown command $cmd");
@@ -397,12 +397,12 @@ sub flush_out {
 	}
     }
     if ($compat_mode) {
-	$out = "<para".$para_arch.">&".$entity_name.";</para>";
+	$out = "<para xmlns=\"http://docbook.org/ns/docbook\"".$para_arch.">&".$entity_name.";</para>";
     } else {
 	if (${$mdocvars}{first_para}) {
-	    $out = "<para>".$para_arch."&".$entity_name.";</para>";
+	    $out = "<para xmlns=\"http://docbook.org/ns/docbook\">".$para_arch."&".$entity_name.";</para>";
 	} else {
-	    $out = "<para>&".$entity_name.";</para>";
+	    $out = "<para xmlns=\"http://docbook.org/ns/docbook\">&".$entity_name.";</para>";
 	}
 	${$mdocvars}{first_para} = 0;
     }
@@ -527,7 +527,7 @@ sub split_punct_chars {
 sub make_ulink {
     my ($str) = (@_);
 
-    $str =~ s,(http://[^ ]+),<ulink url="$1"></ulink>,;
+    $str =~ s,(http://[^ ]+),<link xmlns=\"http://docbook.org/ns/docbook\" xlink:href="$1"></link>,;
 
     return $str;
 }

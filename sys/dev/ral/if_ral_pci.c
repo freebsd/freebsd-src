@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*-
  * Copyright (c) 2005, 2006
  *	Damien Bergamini <damien.bergamini@free.fr>
@@ -25,32 +23,26 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
-#include <sys/endian.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
+#include <sys/socket.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
-#include <net/bpf.h>
-#include <net/if.h>
-#include <net/if_arp.h>
 #include <net/ethernet.h>
-#include <net/if_dl.h>
+#include <net/if.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
+#include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_amrr.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -63,6 +55,9 @@ MODULE_DEPEND(ral, pci, 1, 1, 1);
 MODULE_DEPEND(ral, firmware, 1, 1, 1);
 MODULE_DEPEND(ral, wlan, 1, 1, 1);
 MODULE_DEPEND(ral, wlan_amrr, 1, 1, 1);
+
+static int ral_msi_disable;
+TUNABLE_INT("hw.ral.msi_disable", &ral_msi_disable);
 
 struct ral_pci_ident {
 	uint16_t	vendor;
@@ -105,7 +100,7 @@ static const struct ral_pci_ident ral_pci_ids[] = {
 	{ 0, 0, NULL }
 };
 
-static struct ral_opns {
+static const struct ral_opns {
 	int	(*attach)(device_t, int);
 	int	(*detach)(void *);
 	void	(*shutdown)(void *);
@@ -144,9 +139,7 @@ struct ral_pci_softc {
 		struct rt2860_softc sc_rt2860;
 	} u;
 
-	struct ral_opns		*sc_opns;
-	int			irq_rid;
-	int			mem_rid;
+	const struct ral_opns	*sc_opns;
 	struct resource		*irq;
 	struct resource		*mem;
 	void			*sc_ih;
@@ -168,7 +161,7 @@ static device_method_t ral_pci_methods[] = {
 	DEVMETHOD(device_suspend,	ral_pci_suspend),
 	DEVMETHOD(device_resume,	ral_pci_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ral_pci_driver = {
@@ -179,7 +172,7 @@ static driver_t ral_pci_driver = {
 
 static devclass_t ral_devclass;
 
-DRIVER_MODULE(ral, pci, ral_pci_driver, ral_devclass, 0, 0);
+DRIVER_MODULE(ral, pci, ral_pci_driver, ral_devclass, NULL, NULL);
 
 static int
 ral_pci_probe(device_t dev)
@@ -190,29 +183,19 @@ ral_pci_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
 }
-
-/* Base Address Register */
-#define RAL_PCI_BAR0	0x10
 
 static int
 ral_pci_attach(device_t dev)
 {
 	struct ral_pci_softc *psc = device_get_softc(dev);
 	struct rt2560_softc *sc = &psc->u.sc_rt2560;
-	int error;
+	int count, error, rid;
 
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
-
-	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
 	switch (pci_get_device(dev)) {
@@ -229,8 +212,8 @@ ral_pci_attach(device_t dev)
 		break;
 	}
 
-	psc->mem_rid = RAL_PCI_BAR0;
-	psc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &psc->mem_rid,
+	rid = PCIR_BAR(0);
+	psc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (psc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
@@ -241,17 +224,27 @@ ral_pci_attach(device_t dev)
 	sc->sc_sh = rman_get_bushandle(psc->mem);
 	sc->sc_invalid = 1;
 	
-	psc->irq_rid = 0;
-	psc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &psc->irq_rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	rid = 0;
+	if (ral_msi_disable == 0) {
+		count = 1;
+		if (pci_alloc_msi(dev, &count) == 0)
+			rid = 1;
+	}
+	psc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
+	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (psc->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
+		pci_release_msi(dev);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(psc->mem), psc->mem);
 		return ENXIO;
 	}
 
 	error = (*psc->sc_opns->attach)(dev, pci_get_device(dev));
-	if (error != 0)
+	if (error != 0) {
+		(void)ral_pci_detach(dev);
 		return error;
+	}
 
 	/*
 	 * Hook our interrupt after all initialization is complete.
@@ -260,6 +253,7 @@ ral_pci_attach(device_t dev)
 	    NULL, psc->sc_opns->intr, psc, &psc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "could not set up interrupt\n");
+		(void)ral_pci_detach(dev);
 		return error;
 	}
 	sc->sc_invalid = 0;
@@ -275,14 +269,18 @@ ral_pci_detach(device_t dev)
 	
 	/* check if device was removed */
 	sc->sc_invalid = !bus_child_present(dev);
-	
+
+	if (psc->sc_ih != NULL)
+		bus_teardown_intr(dev, psc->irq, psc->sc_ih);
 	(*psc->sc_opns->detach)(psc);
 
 	bus_generic_detach(dev);
-	bus_teardown_intr(dev, psc->irq, psc->sc_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, psc->irq_rid, psc->irq);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(psc->irq),
+	    psc->irq);
+	pci_release_msi(dev);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, psc->mem_rid, psc->mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(psc->mem),
+	    psc->mem);
 
 	return 0;
 }

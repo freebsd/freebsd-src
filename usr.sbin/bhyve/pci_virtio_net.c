@@ -509,18 +509,17 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	char nstr[80];
 	char tname[MAXCOMLEN + 1];
 	struct pci_vtnet_softc *sc;
-	const char *env_msi;
 	char *devname;
 	char *vtopts;
 	int mac_provided;
-	int use_msix;
 
-	sc = malloc(sizeof(struct pci_vtnet_softc));
-	memset(sc, 0, sizeof(struct pci_vtnet_softc));
+	sc = calloc(1, sizeof(struct pci_vtnet_softc));
 
 	pthread_mutex_init(&sc->vsc_mtx, NULL);
 
 	vi_softc_linkup(&sc->vsc_vs, &vtnet_vi_consts, sc, pi, sc->vsc_queues);
+	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
+
 	sc->vsc_queues[VTNET_RXQ].vq_qsize = VTNET_RINGSZ;
 	sc->vsc_queues[VTNET_RXQ].vq_notify = pci_vtnet_ping_rxq;
 	sc->vsc_queues[VTNET_TXQ].vq_qsize = VTNET_RINGSZ;
@@ -530,15 +529,6 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
         sc->vsc_queues[VTNET_CTLQ].vq_notify = pci_vtnet_ping_ctlq;
 #endif
  
-	/*
-	 * Use MSI if set by user
-	 */
-	use_msix = 1;
-	if ((env_msi = getenv("BHYVE_USE_MSI")) != NULL) {
-		if (strcasecmp(env_msi, "yes") == 0)
-			use_msix = 0;
-	}
-
 	/*
 	 * Attempt to open the tap device and read the MAC address
 	 * if specified
@@ -599,7 +589,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	if (!mac_provided) {
 		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-	            pi->pi_func, vmname);
+		    pi->pi_func, vmname);
 
 		MD5Init(&mdctx);
 		MD5Update(&mdctx, nstr, strlen(nstr));
@@ -619,11 +609,13 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
 
+	pci_lintr_request(pi);
+
 	/* link always up */
 	sc->vsc_config.status = 1;
 	
 	/* use BAR 1 to map MSI-X table and PBA, if we're using MSI-X */
-	if (vi_intr_init(&sc->vsc_vs, 1, use_msix))
+	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))
 		return (1);
 
 	/* use BAR 0 to map config regs in IO space */
@@ -643,7 +635,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_mutex_init(&sc->tx_mtx, NULL);
 	pthread_cond_init(&sc->tx_cond, NULL);
 	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
-        snprintf(tname, sizeof(tname), "%s vtnet%d tx", vmname, pi->pi_slot);
+	snprintf(tname, sizeof(tname), "vtnet-%d:%d tx", pi->pi_slot,
+	    pi->pi_func);
         pthread_set_name_np(sc->tx_tid, tname);
 
 	return (0);

@@ -18,7 +18,7 @@
 #define GPLUSPLUS_INCLUDE_DIR		PREFIX"/include/c++/"GCCVER
 #define	GPLUSPLUS_BACKWARD_INCLUDE_DIR	PREFIX"/include/c++/"GCCVER"/backward"
 #define GCC_INCLUDE_DIR			PREFIX"/include/gcc/"GCCVER
-#ifdef CROSS_COMPILE
+#ifdef CROSS_DIRECTORY_STRUCTURE
 #define CROSS_INCLUDE_DIR		PREFIX"/include"
 #else
 #define STANDARD_INCLUDE_DIR		PREFIX"/include"

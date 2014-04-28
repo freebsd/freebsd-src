@@ -30,6 +30,7 @@ namespace llvm {
 /// ObjectFile) as needed, but the MemoryBuffer instance returned does not own the
 /// actual memory it points to.
 class ObjectBuffer {
+  virtual void anchor();
 public:
   ObjectBuffer() {}
   ObjectBuffer(MemoryBuffer* Buf) : Buffer(Buf) {}
@@ -44,6 +45,7 @@ public:
 
   const char *getBufferStart() const { return Buffer->getBufferStart(); }
   size_t getBufferSize() const { return Buffer->getBufferSize(); }
+  StringRef getBuffer() const { return Buffer->getBuffer(); }
 
 protected:
   // The memory contained in an ObjectBuffer
@@ -55,6 +57,7 @@ protected:
 /// while providing a common ObjectBuffer interface for access to the
 /// memory once the object has been generated.
 class ObjectBufferStream : public ObjectBuffer {
+  virtual void anchor();
 public:
   ObjectBufferStream() : OS(SV) {}
   virtual ~ObjectBufferStream() {}

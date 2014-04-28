@@ -145,11 +145,6 @@ struct mrt6stat {
 struct omrt6msg {
 	u_long	    unused1;
 	u_char	    im6_msgtype;		/* what type of message	    */
-#if 0
-#define MRT6MSG_NOCACHE	1
-#define MRT6MSG_WRONGMIF	2
-#define MRT6MSG_WHOLEPKT	3		/* used for user level encap*/
-#endif
 	u_char	    im6_mbz;			/* must be zero		    */
 	u_char	    im6_mif;			/* mif rec'd on		    */
 	u_char	    unused2;

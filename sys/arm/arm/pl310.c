@@ -84,6 +84,47 @@ static uint32_t g_ways_assoc;
 
 static struct pl310_softc *pl310_softc;
 
+void
+pl310_print_config(struct pl310_softc *sc)
+{
+	uint32_t aux, prefetch;
+	const char *dis = "disabled";
+	const char *ena = "enabled";
+
+	aux = pl310_read4(sc, PL310_AUX_CTRL);
+	prefetch = pl310_read4(sc, PL310_PREFETCH_CTRL);
+
+	device_printf(sc->sc_dev, "Early BRESP response: %s\n",
+		(aux & AUX_CTRL_EARLY_BRESP) ? ena : dis);
+	device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
+		(aux & AUX_CTRL_INSTR_PREFETCH) ? ena : dis);
+	device_printf(sc->sc_dev, "Data prefetch: %s\n",
+		(aux & AUX_CTRL_DATA_PREFETCH) ? ena : dis);
+	device_printf(sc->sc_dev, "Non-secure interrupt control: %s\n",
+		(aux & AUX_CTRL_NS_INT_CTRL) ? ena : dis);
+	device_printf(sc->sc_dev, "Non-secure lockdown: %s\n",
+		(aux & AUX_CTRL_NS_LOCKDOWN) ? ena : dis);
+	device_printf(sc->sc_dev, "Share override: %s\n",
+		(aux & AUX_CTRL_SHARE_OVERRIDE) ? ena : dis);
+
+	device_printf(sc->sc_dev, "Double linefill: %s\n",
+		(prefetch & PREFETCH_CTRL_DL) ? ena : dis);
+	device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
+		(prefetch & PREFETCH_CTRL_INSTR_PREFETCH) ? ena : dis);
+	device_printf(sc->sc_dev, "Data prefetch: %s\n",
+		(prefetch & PREFETCH_CTRL_DATA_PREFETCH) ? ena : dis);
+	device_printf(sc->sc_dev, "Double linefill on WRAP request: %s\n",
+		(prefetch & PREFETCH_CTRL_DL_ON_WRAP) ? ena : dis);
+	device_printf(sc->sc_dev, "Prefetch drop: %s\n",
+		(prefetch & PREFETCH_CTRL_PREFETCH_DROP) ? ena : dis);
+	device_printf(sc->sc_dev, "Incr double Linefill: %s\n",
+		(prefetch & PREFETCH_CTRL_INCR_DL) ? ena : dis);
+	device_printf(sc->sc_dev, "Not same ID on exclusive sequence: %s\n",
+		(prefetch & PREFETCH_CTRL_NOTSAMEID) ? ena : dis);
+	device_printf(sc->sc_dev, "Prefetch offset: %d\n",
+		(prefetch & PREFETCH_CTRL_OFFSET_MASK));
+}
+
 static int
 pl310_filter(void *arg)
 {
@@ -281,6 +322,9 @@ static int
 pl310_probe(device_t dev)
 {
 	
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,pl310"))
 		return (ENXIO);
 	device_set_desc(dev, "PL310 L2 cache controller");
@@ -341,8 +385,15 @@ pl310_attach(device_t dev)
 	ctrl_value = pl310_read4(sc, PL310_CTRL);
 
 	if (sc->sc_enabled && !(ctrl_value & CTRL_ENABLED)) {
+		/* invalidate current content */
+		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
+		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
+
 		/* Enable the L2 cache if disabled */
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
+		device_printf(dev, "L2 Cache enabled\n");
+		if (bootverbose)
+			pl310_print_config(sc);
 	} 
 
 	if (!sc->sc_enabled && (ctrl_value & CTRL_ENABLED)) {
@@ -375,6 +426,7 @@ pl310_attach(device_t dev)
 		    EVENT_COUNTER_CTRL_C0_RESET | 
 		    EVENT_COUNTER_CTRL_C1_RESET);
 
+		device_printf(dev, "L2 Cache disabled\n");
 	}
 
 	if (sc->sc_enabled)

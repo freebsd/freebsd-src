@@ -142,7 +142,8 @@ _CPUCFLAGS = -mcpu=ultrasparc3
 # presence of a CPU feature.
 
 . if ${MACHINE_CPUARCH} == "i386"
-.  if ${CPUTYPE} == "bdver2" || ${CPUTYPE} == "bdver1"
+.  if ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
+    ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "btver2"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
@@ -170,7 +171,7 @@ MACHINE_CPU = k5 i586
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "core-avx-i" || ${CPUTYPE} == "corei7-avx"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "corei7"
+.  elif ${CPUTYPE} == "slm" || ${CPUTYPE} == "corei7"
 MACHINE_CPU = sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3 sse2 sse i686 mmx i586
@@ -204,7 +205,8 @@ MACHINE_CPU = mmx
 .  endif
 MACHINE_CPU += i486
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "bdver2" || ${CPUTYPE} == "bdver1"
+.  if ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
+    ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "btver2"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse4a sse3
@@ -222,7 +224,7 @@ MACHINE_CPU = k8 3dnow
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "core-avx-i" || ${CPUTYPE} == "corei7-avx"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "corei7"
+.  elif ${CPUTYPE} == "slm" || ${CPUTYPE} == "corei7"
 MACHINE_CPU = sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3
@@ -260,3 +262,7 @@ CFLAGS += -G0
 .if !defined(NO_CPU_CFLAGS)
 CFLAGS += ${_CPUCFLAGS}
 .endif
+
+# Add in any architecture-specific CFLAGS.  
+# These come from make.conf or the command line or the environment.
+CFLAGS += ${CFLAGS.${MACHINE_ARCH}}

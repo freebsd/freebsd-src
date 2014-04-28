@@ -294,6 +294,27 @@
 #define	  M_CASID		0x0000000f /* Current AS Id */
 #define	SPR_MD_AP		0x31a	/* ..8 DMMU access protection */
 #define	SPR_MD_EPN		0x31b	/* ..8 DMMU effective number */
+
+#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
+#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
+#define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
+#define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
+#define	  SPR_970MMCR1_PMC3SEL(x)	  (((x) & 0x1f) << 27) /* PMC 3 selector */
+#define	  SPR_970MMCR1_PMC4SEL(x)	  (((x) & 0x1f) << 22) /* PMC 4 selector */
+#define	  SPR_970MMCR1_PMC5SEL(x)	  (((x) & 0x1f) << 17) /* PMC 5 selector */
+#define	  SPR_970MMCR1_PMC6SEL(x)	  (((x) & 0x1f) << 12) /* PMC 6 selector */
+#define	  SPR_970MMCR1_PMC7SEL(x)	  (((x) & 0x1f) << 7) /* PMC 7 selector */
+#define	  SPR_970MMCR1_PMC8SEL(x)	  (((x) & 0x1f) << 2) /* PMC 8 selector */
+#define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
+#define	SPR_970PMC1		0x313	/* ... PMC 1 */
+#define	SPR_970PMC2		0x314	/* ... PMC 2 */
+#define	SPR_970PMC3		0x315	/* ... PMC 3 */
+#define	SPR_970PMC4		0x316	/* ... PMC 4 */
+#define	SPR_970PMC5		0x317	/* ... PMC 5 */
+#define	SPR_970PMC6		0x318	/* ... PMC 6 */
+#define	SPR_970PMC7		0x319	/* ... PMC 7 */
+#define	SPR_970PMC8		0x31a	/* ... PMC 8 */
+
 #define	SPR_M_TWB		0x31c	/* ..8 MMU tablewalk base */
 #define	  M_TWB_L1TB		0xfffff000 /* level-1 translation base */
 #define	  M_TWB_L1INDX		0x00000ffc /* level-1 index */
@@ -323,19 +344,6 @@
 #define	SPR_DVC1		0x3b6	/* 4.. Data Value Compare 1 */
 #define	SPR_DVC2		0x3b7	/* 4.. Data Value Compare 2 */
 #define	SPR_MMCR0		0x3b8	/* .6. Monitor Mode Control Register 0 */
-
-#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
-#define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
-#define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
-#define	SPR_970PMC1		0x313	/* ... PMC 1 */
-#define	SPR_970PMC2		0x314	/* ... PMC 2 */
-#define	SPR_970PMC3		0x315	/* ... PMC 3 */
-#define	SPR_970PMC4		0x316	/* ... PMC 4 */
-#define	SPR_970PMC5		0x317	/* ... PMC 5 */
-#define	SPR_970PMC6		0x318	/* ... PMC 6 */
-#define	SPR_970PMC7		0x319	/* ... PMC 7 */
-#define	SPR_970PMC8		0x31a	/* ... PMC 8 */
-
 #define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
 #define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
 #define	  SPR_MMCR0_FCP		  0x20000000 /* Freeze counters in user mode */
@@ -354,8 +362,6 @@
 #define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
 #define	  SPR_MMCR0_PMC1SEL(x)	  (((x) & 0x3f) << 6) /* PMC1 selector */
 #define	  SPR_MMCR0_PMC2SEL(x)	  (((x) & 0x3f) << 0) /* PMC2 selector */
-#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
-#define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
 #define	SPR_SGR			0x3b9	/* 4.. Storage Guarded Register */
 #define	SPR_PMC1		0x3b9	/* .6. Performance Counter Register 1 */
 #define	SPR_DCWR		0x3ba	/* 4.. Data Cache Write-through Register */
@@ -519,6 +525,8 @@
 #define	  MSSCR0_EMODE		  0x00200000 /* 10: MPX bus mode (read-only) */
 #define	  MSSCR0_ABD		  0x00100000 /* 11: address bus driven (read-only) */
 #define	  MSSCR0_MBZ		  0x000fffff /* 12-31: must be zero */
+#define	  MSSCR0_L2PFE		  0x00000003 /* 30-31: L2 prefetch enable */
+#define	SPR_LDSTCR		0x3f8	/* .6. Load/Store Control Register */
 #define	SPR_L2PM		0x3f8	/* .6. L2 Private Memory Control Register */
 #define	SPR_L2CR		0x3f9	/* .6. L2 Control Register */
 #define	  L2CR_L2E		  0x80000000 /* 0: L2 enable */
@@ -543,12 +551,14 @@
 				      Setting this bit disables instruction
 				      caching. */
 #define	  L2CR_L2I		  0x00200000 /* 10: L2 global invalidate. */
+#define	  L2CR_L2IO_7450	  0x00010000 /* 11: L2 instruction-only (MPC745x). */
 #define	  L2CR_L2CTL		  0x00100000 /* 11: L2 RAM control (ZZ enable).
 				      Enables automatic operation of the
 				      L2ZZ (low-power mode) signal. */
 #define	  L2CR_L2WT		  0x00080000 /* 12: L2 write-through. */
 #define	  L2CR_L2TS		  0x00040000 /* 13: L2 test support. */
 #define	  L2CR_L2OH		  0x00030000 /* 14-15: L2 output hold. */
+#define	  L2CR_L2DO_7450	  0x00010000 /* 15: L2 data-only (MPC745x). */
 #define	  L2CR_L2SL		  0x00008000 /* 16: L2 DLL slow. */
 #define	  L2CR_L2DF		  0x00004000 /* 17: L2 differential clock. */
 #define	  L2CR_L2BYP		  0x00002000 /* 18: L2 DLL bypass. */

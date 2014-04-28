@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2011
+.Dd February 7, 2014
 .Dt SEM 4
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd POSIX semaphores
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following lines in your
+place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options P1003_1B_SEMAPHORES"
@@ -45,7 +45,11 @@ module at boot time, place the following line in
 sem_load="YES"
 .Ed
 .Pp
-.Dl "kldload sem"
+To load the driver as a module at run-time, run the following
+command as root:
+.Bd -ragged -offset indent
+kldload sem
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

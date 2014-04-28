@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/frame.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -419,6 +418,10 @@ ti_scm_padconf_init_from_fdt(struct ti_scm_softc *sc)
 static int
 ti_scm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,scm"))
 		return (ENXIO);
 

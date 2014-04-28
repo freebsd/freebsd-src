@@ -46,9 +46,7 @@
 
 struct connection {
 	int			conn_iscsi_fd;
-#ifndef ICL_KERNEL_PROXY
 	int			conn_socket;
-#endif
 	unsigned int		conn_session_id;
 	struct iscsi_session_conf	conn_conf;
 	char			conn_target_alias[ISCSI_ADDR_LEN];
@@ -106,12 +104,12 @@ void			log_init(int level);
 void			log_set_peer_name(const char *name);
 void			log_set_peer_addr(const char *addr);
 void			log_err(int, const char *, ...)
-			    __dead2 __printf0like(2, 3);
+			    __dead2 __printflike(2, 3);
 void			log_errx(int, const char *, ...)
-			    __dead2 __printf0like(2, 3);
-void			log_warn(const char *, ...) __printf0like(1, 2);
+			    __dead2 __printflike(2, 3);
+void			log_warn(const char *, ...) __printflike(1, 2);
 void			log_warnx(const char *, ...) __printflike(1, 2);
-void			log_debugx(const char *, ...) __printf0like(1, 2);
+void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);
 bool			timed_out(void);

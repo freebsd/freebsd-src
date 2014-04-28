@@ -13,10 +13,15 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Breakpoint/BreakpointLocationList.h"
+
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/Breakpoint.h"
+#include "lldb/Core/ArchSpec.h"
+#include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
+
 
 using namespace lldb;
 using namespace lldb_private;
@@ -36,12 +41,12 @@ BreakpointLocationList::~BreakpointLocationList()
 }
 
 BreakpointLocationSP
-BreakpointLocationList::Create (const Address &addr)
+BreakpointLocationList::Create (const Address &addr, bool resolve_indirect_symbols)
 {
     Mutex::Locker locker (m_mutex);
     // The location ID is just the size of the location list + 1
     lldb::break_id_t bp_loc_id = ++m_next_id;
-    BreakpointLocationSP bp_loc_sp (new BreakpointLocation (bp_loc_id, m_owner, addr));
+    BreakpointLocationSP bp_loc_sp (new BreakpointLocation (bp_loc_id, m_owner, addr, LLDB_INVALID_THREAD_ID, m_owner.IsHardware(), resolve_indirect_symbols));
     m_locations.push_back (bp_loc_sp);
     m_address_to_location[addr] = bp_loc_sp;
     return bp_loc_sp;
@@ -74,19 +79,22 @@ BreakpointLocationList::FindIDByAddress (const Address &addr)
     return LLDB_INVALID_BREAK_ID;
 }
 
+static bool
+Compare (BreakpointLocationSP lhs, lldb::break_id_t val)
+{
+    return lhs->GetID() < val;
+}
+
 BreakpointLocationSP
 BreakpointLocationList::FindByID (lldb::break_id_t break_id) const
 {
-    BreakpointLocationSP bp_loc_sp;
     Mutex::Locker locker (m_mutex);
-    // We never remove a breakpoint locations, so the ID can be translated into
-    // the location index by subtracting 1
-    uint32_t idx = break_id - 1;
-    if (idx <= m_locations.size())
-    {
-        bp_loc_sp = m_locations[idx];
-    }
-    return bp_loc_sp;
+    collection::const_iterator end = m_locations.end();
+    collection::const_iterator pos = std::lower_bound(m_locations.begin(), end, break_id, Compare);
+    if (pos != end && (*pos)->GetID() == break_id)
+        return *(pos);
+    else
+        return BreakpointLocationSP();
 }
 
 size_t
@@ -239,7 +247,7 @@ BreakpointLocationList::GetDescription (Stream *s, lldb::DescriptionLevel level)
 }
 
 BreakpointLocationSP
-BreakpointLocationList::AddLocation (const Address &addr, bool *new_location)
+BreakpointLocationList::AddLocation (const Address &addr, bool resolve_indirect_symbols, bool *new_location)
 {
     Mutex::Locker locker (m_mutex);
 
@@ -248,7 +256,7 @@ BreakpointLocationList::AddLocation (const Address &addr, bool *new_location)
     BreakpointLocationSP bp_loc_sp (FindByAddress(addr));
     if (!bp_loc_sp)
 	{
-		bp_loc_sp = Create (addr);
+		bp_loc_sp = Create (addr, resolve_indirect_symbols);
 		if (bp_loc_sp)
 		{
 	    	bp_loc_sp->ResolveBreakpointSite();
@@ -286,7 +294,41 @@ BreakpointLocationList::RemoveLocation (const lldb::BreakpointLocationSP &bp_loc
     return false;
 }
 
-
+void
+BreakpointLocationList::RemoveInvalidLocations (const ArchSpec &arch)
+{
+    Mutex::Locker locker (m_mutex);
+    size_t idx = 0;
+    // Don't cache m_location.size() as it will change since we might
+    // remove locations from our vector...
+    while (idx < m_locations.size())
+    {
+        BreakpointLocation *bp_loc = m_locations[idx].get();
+        if (bp_loc->GetAddress().SectionWasDeleted())
+        {
+            // Section was deleted which means this breakpoint comes from a module
+            // that is no longer valid, so we should remove it.
+            m_locations.erase(m_locations.begin() + idx);
+            continue;
+        }
+        if (arch.IsValid())
+        {
+            ModuleSP module_sp (bp_loc->GetAddress().GetModule());
+            if (module_sp)
+            {
+                if (!arch.IsCompatibleMatch(module_sp->GetArchitecture()))
+                {
+                    // The breakpoint was in a module whose architecture is no longer
+                    // compatible with "arch", so we need to remove it
+                    m_locations.erase(m_locations.begin() + idx);
+                    continue;
+                }
+            }
+        }
+        // Only increment the index if we didn't remove the locations at index "idx"
+        ++idx;
+    }
+}
 
 void
 BreakpointLocationList::StartRecordingNewLocations (BreakpointLocationCollection &new_locations)

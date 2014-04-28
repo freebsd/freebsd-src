@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2013
+.Dd December 17, 2013
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
@@ -145,10 +145,9 @@ the chap-name, defaults to
 .Em hostname .
 .It Cm chapDigest
 can be MD5 or SHA1.
-.It Cm tgtChapSecret/tgtChapName
-same as the none
-.Em tgt
-counterpart, but to authenticate the target.
+.It Cm tgtChapName/tgtChapSecret
+name and secret used for mutual CHAP; by default, mutual CHAP
+is not used.
 .El
 .Sh FILES
 .Bl -tag -width indent

@@ -192,6 +192,7 @@ struct xhci_stream_ctx {
 
 struct xhci_trb {
 	volatile uint64_t	qwTrb0;
+#define	XHCI_TRB_0_DIR_IN_MASK		(0x80ULL << 0)
 #define	XHCI_TRB_0_WLENGTH_MASK		(0xFFFFULL << 48)
 	volatile uint32_t	dwTrb2;
 #define	XHCI_TRB_2_ERROR_GET(x)		(((x) >> 24) & 0xFF)
@@ -480,6 +481,7 @@ struct xhci_softc {
 	uint16_t		sc_erst_max;
 	uint16_t		sc_event_idx;
 	uint16_t		sc_command_idx;
+	uint16_t		sc_imod_default;
 
 	uint8_t			sc_event_ccs;
 	uint8_t			sc_command_ccs;

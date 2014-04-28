@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -125,7 +126,6 @@ struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
-static int	 syncache_sysctl_count(SYSCTL_HANDLER_ARGS);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
 		    int docallout);
 static void	 syncache_timer(void *);
@@ -169,9 +169,8 @@ SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_syncache.cache_limit), 0,
     "Overall entry limit for syncache");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_syncache, OID_AUTO, count, (CTLTYPE_UINT|CTLFLAG_RD),
-    NULL, 0, &syncache_sysctl_count, "IU",
-    "Current number of entries in syncache");
+SYSCTL_UMA_CUR(_net_inet_tcp_syncache, OID_AUTO, count, CTLFLAG_VNET,
+    &VNET_NAME(tcp_syncache.zone), "Current number of entries in syncache");
 
 SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_syncache.hashsize), 0,
@@ -326,15 +325,6 @@ syncache_destroy(void)
 	callout_drain(&V_tcp_syncache.secret.reseed);
 }
 #endif
-
-static int
-syncache_sysctl_count(SYSCTL_HANDLER_ARGS)
-{
-	int count;
-
-	count = uma_zone_get_cur(V_tcp_syncache.zone);
-	return (sysctl_handle_int(oidp, &count, 0, req));
-}
 
 /*
  * Inserts a syncache entry into the specified bucket row.
@@ -681,7 +671,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * connection when the SYN arrived.  If we can't create
 	 * the connection, abort it.
 	 */
-	so = sonewconn(lso, SS_ISCONNECTED);
+	so = sonewconn(lso, 0);
 	if (so == NULL) {
 		/*
 		 * Drop the connection; we will either send a RST or
@@ -719,6 +709,16 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #ifdef INET6
 	}
 #endif
+
+	/*
+	 * If there's an mbuf and it has a flowid, then let's initialise the
+	 * inp with that particular flowid.
+	 */
+	if (m != NULL && m->m_flags & M_FLOWID) {
+		inp->inp_flags |= INP_HW_FLOWID;
+		inp->inp_flags &= ~INP_SW_FLOWID;
+		inp->inp_flowid = m->m_pkthdr.flowid;
+	}
 
 	/*
 	 * Install in the reservation hash table for now, but don't yet
@@ -910,6 +910,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
 	INP_WUNLOCK(inp);
+
+	soisconnected(so);
 
 	TCPSTAT_INC(tcps_accepts);
 	return (so);

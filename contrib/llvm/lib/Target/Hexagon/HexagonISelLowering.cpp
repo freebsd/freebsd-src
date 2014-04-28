@@ -39,13 +39,24 @@
 
 using namespace llvm;
 
-const unsigned Hexagon_MAX_RET_SIZE = 64;
-
 static cl::opt<bool>
 EmitJumpTables("hexagon-emit-jump-tables", cl::init(true), cl::Hidden,
                cl::desc("Control jump table emission on Hexagon target"));
 
-int NumNamedVarArgParams = -1;
+namespace {
+class HexagonCCState : public CCState {
+  int NumNamedVarArgParams;
+
+public:
+  HexagonCCState(CallingConv::ID CC, bool isVarArg, MachineFunction &MF,
+                 const TargetMachine &TM, SmallVectorImpl<CCValAssign> &locs,
+                 LLVMContext &C, int NumNamedVarArgParams)
+      : CCState(CC, isVarArg, MF, TM, locs, C),
+        NumNamedVarArgParams(NumNamedVarArgParams) {}
+
+  int getNumNamedVarArgParams() const { return NumNamedVarArgParams; }
+};
+}
 
 // Implement calling convention for Hexagon.
 static bool
@@ -82,12 +93,13 @@ static bool
 CC_Hexagon_VarArg (unsigned ValNo, MVT ValVT,
             MVT LocVT, CCValAssign::LocInfo LocInfo,
             ISD::ArgFlagsTy ArgFlags, CCState &State) {
+  HexagonCCState &HState = static_cast<HexagonCCState &>(State);
 
   // NumNamedVarArgParams can not be zero for a VarArg function.
-  assert ( (NumNamedVarArgParams > 0) &&
-           "NumNamedVarArgParams is not bigger than zero.");
+  assert((HState.getNumNamedVarArgParams() > 0) &&
+         "NumNamedVarArgParams is not bigger than zero.");
 
-  if ( (int)ValNo < NumNamedVarArgParams ) {
+  if ((int)ValNo < HState.getNumNamedVarArgParams()) {
     // Deal with named arguments.
     return CC_Hexagon(ValNo, ValVT, LocVT, LocInfo, ArgFlags, State);
   }
@@ -285,7 +297,7 @@ const {
 static SDValue
 CreateCopyOfByValArgument(SDValue Src, SDValue Dst, SDValue Chain,
                           ISD::ArgFlagsTy Flags, SelectionDAG &DAG,
-                          DebugLoc dl) {
+                          SDLoc dl) {
 
   SDValue SizeNode = DAG.getConstant(Flags.getByValSize(), MVT::i32);
   return DAG.getMemcpy(Chain, dl, Dst, Src, SizeNode, Flags.getByValAlign(),
@@ -302,7 +314,7 @@ HexagonTargetLowering::LowerReturn(SDValue Chain,
                                    CallingConv::ID CallConv, bool isVarArg,
                                    const SmallVectorImpl<ISD::OutputArg> &Outs,
                                    const SmallVectorImpl<SDValue> &OutVals,
-                                   DebugLoc dl, SelectionDAG &DAG) const {
+                                   SDLoc dl, SelectionDAG &DAG) const {
 
   // CCValAssign - represent the assignment of the return value to locations.
   SmallVector<CCValAssign, 16> RVLocs;
@@ -351,7 +363,7 @@ HexagonTargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
                                        CallingConv::ID CallConv, bool isVarArg,
                                        const
                                        SmallVectorImpl<ISD::InputArg> &Ins,
-                                       DebugLoc dl, SelectionDAG &DAG,
+                                       SDLoc dl, SelectionDAG &DAG,
                                        SmallVectorImpl<SDValue> &InVals,
                                        const SmallVectorImpl<SDValue> &OutVals,
                                        SDValue Callee) const {
@@ -382,10 +394,10 @@ SDValue
 HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                                  SmallVectorImpl<SDValue> &InVals) const {
   SelectionDAG &DAG                     = CLI.DAG;
-  DebugLoc &dl                          = CLI.DL;
-  SmallVector<ISD::OutputArg, 32> &Outs = CLI.Outs;
-  SmallVector<SDValue, 32> &OutVals     = CLI.OutVals;
-  SmallVector<ISD::InputArg, 32> &Ins   = CLI.Ins;
+  SDLoc &dl                             = CLI.DL;
+  SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
+  SmallVectorImpl<SDValue> &OutVals     = CLI.OutVals;
+  SmallVectorImpl<ISD::InputArg> &Ins   = CLI.Ins;
   SDValue Chain                         = CLI.Chain;
   SDValue Callee                        = CLI.Callee;
   bool &isTailCall                      = CLI.IsTailCall;
@@ -394,13 +406,8 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   bool IsStructRet    = (Outs.empty()) ? false : Outs[0].Flags.isSRet();
 
-  // Analyze operands of the call, assigning locations to each operand.
-  SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-                 getTargetMachine(), ArgLocs, *DAG.getContext());
-
   // Check for varargs.
-  NumNamedVarArgParams = -1;
+  int NumNamedVarArgParams = -1;
   if (GlobalAddressSDNode *GA = dyn_cast<GlobalAddressSDNode>(Callee))
   {
     const Function* CalleeFn = NULL;
@@ -416,6 +423,12 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       }
     }
   }
+
+  // Analyze operands of the call, assigning locations to each operand.
+  SmallVector<CCValAssign, 16> ArgLocs;
+  HexagonCCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+                        getTargetMachine(), ArgLocs, *DAG.getContext(),
+                        NumNamedVarArgParams);
 
   if (NumNamedVarArgParams > 0)
     CCInfo.AnalyzeCallOperands(Outs, CC_Hexagon_VarArg);
@@ -513,7 +526,8 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   if (!isTailCall)
     Chain = DAG.getCALLSEQ_START(Chain, DAG.getConstant(NumBytes,
-                                                        getPointerTy(), true));
+                                                        getPointerTy(), true),
+                                 dl);
 
   // Build a sequence of copy-to-reg nodes chained together with token
   // chain and flag operands which copy the outgoing args into registers.
@@ -588,7 +602,7 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // Create the CALLSEQ_END node.
   Chain = DAG.getCALLSEQ_END(Chain, DAG.getIntPtrConstant(NumBytes, true),
-                             DAG.getIntPtrConstant(0, true), InFlag);
+                             DAG.getIntPtrConstant(0, true), InFlag, dl);
   InFlag = Chain.getValue(1);
 
   // Handle result values, copying them out of physregs into vregs that we
@@ -730,7 +744,7 @@ LowerBR_JT(SDValue Op, SelectionDAG &DAG) const
   SDValue Chain = Op.getOperand(0);
   SDValue Table = Op.getOperand(1);
   SDValue Index = Op.getOperand(2);
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   JumpTableSDNode *JT = cast<JumpTableSDNode>(Table);
   unsigned JTI = JT->getIndex();
   MachineFunction &MF = DAG.getMachineFunction();
@@ -766,7 +780,7 @@ HexagonTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
                                                SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   SDValue Size = Op.getOperand(1);
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
 
   unsigned SPReg = getStackPointerRegisterToSaveRestore();
 
@@ -812,7 +826,7 @@ HexagonTargetLowering::LowerFormalArguments(SDValue Chain,
                                             bool isVarArg,
                                             const
                                             SmallVectorImpl<ISD::InputArg> &Ins,
-                                            DebugLoc dl, SelectionDAG &DAG,
+                                            SDLoc dl, SelectionDAG &DAG,
                                             SmallVectorImpl<SDValue> &InVals)
 const {
 
@@ -925,7 +939,7 @@ HexagonTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
   HexagonMachineFunctionInfo *QFI = MF.getInfo<HexagonMachineFunctionInfo>();
   SDValue Addr = DAG.getFrameIndex(QFI->getVarArgsFrameIndex(), MVT::i32);
   const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
-  return DAG.getStore(Op.getOperand(0), Op.getDebugLoc(), Addr,
+  return DAG.getStore(Op.getOperand(0), SDLoc(Op), Addr,
                       Op.getOperand(1), MachinePointerInfo(SV), false,
                       false, 0);
 }
@@ -937,7 +951,7 @@ HexagonTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue CC = Op.getOperand(4);
   SDValue TrueVal = Op.getOperand(2);
   SDValue FalseVal = Op.getOperand(3);
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   SDNode* OpNode = Op.getNode();
   EVT SVT = OpNode->getValueType(0);
 
@@ -948,8 +962,7 @@ HexagonTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
 SDValue
 HexagonTargetLowering::LowerConstantPool(SDValue Op, SelectionDAG &DAG) const {
   EVT ValTy = Op.getValueType();
-
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   ConstantPoolSDNode *CP = cast<ConstantPoolSDNode>(Op);
   SDValue Res;
   if (CP->isMachineConstantPoolEntry())
@@ -969,7 +982,7 @@ HexagonTargetLowering::LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const {
   MFI->setReturnAddressIsTaken(true);
 
   EVT VT = Op.getValueType();
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   if (Depth) {
     SDValue FrameAddr = LowerFRAMEADDR(Op, DAG);
@@ -991,7 +1004,7 @@ HexagonTargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
   MFI->setFrameAddressIsTaken(true);
 
   EVT VT = Op.getValueType();
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   SDValue FrameAddr = DAG.getCopyFromReg(DAG.getEntryNode(), dl,
                                          TRI->getFrameRegister(), VT);
@@ -1004,7 +1017,7 @@ HexagonTargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
 
 SDValue HexagonTargetLowering::LowerATOMIC_FENCE(SDValue Op,
                                                  SelectionDAG& DAG) const {
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   return DAG.getNode(HexagonISD::BARRIER, dl, MVT::Other, Op.getOperand(0));
 }
 
@@ -1014,7 +1027,7 @@ SDValue HexagonTargetLowering::LowerGLOBALADDRESS(SDValue Op,
   SDValue Result;
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
   int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   Result = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(), Offset);
 
   const HexagonTargetObjectFile &TLOF =
@@ -1030,7 +1043,7 @@ SDValue
 HexagonTargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const {
   const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
   SDValue BA_SD =  DAG.getTargetBlockAddress(BA, MVT::i32);
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   return DAG.getNode(HexagonISD::CONST32_GP, dl, getPointerTy(), BA_SD);
 }
 
@@ -1361,7 +1374,6 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
     // Increase jump tables cutover to 5, was 4.
     setMinimumJumpTableEntries(5);
 
-    setOperationAction(ISD::BR_CC, MVT::Other, Expand);
     setOperationAction(ISD::BR_CC, MVT::f32, Expand);
     setOperationAction(ISD::BR_CC, MVT::f64, Expand);
     setOperationAction(ISD::BR_CC, MVT::i1,  Expand);
@@ -1428,11 +1440,6 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
 
     setOperationAction(ISD::SMUL_LOHI, MVT::i64, Expand);
     setOperationAction(ISD::UMUL_LOHI, MVT::i64, Expand);
-
-    setOperationAction(ISD::EXCEPTIONADDR, MVT::i64, Expand);
-    setOperationAction(ISD::EHSELECTION,   MVT::i64, Expand);
-    setOperationAction(ISD::EXCEPTIONADDR, MVT::i32, Expand);
-    setOperationAction(ISD::EHSELECTION,   MVT::i32, Expand);
 
     setOperationAction(ISD::EH_RETURN,     MVT::Other, Custom);
 
@@ -1510,12 +1517,25 @@ bool HexagonTargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
   return ((VT1.getSimpleVT() == MVT::i64) && (VT2.getSimpleVT() == MVT::i32));
 }
 
+bool
+HexagonTargetLowering::allowTruncateForTailCall(Type *Ty1, Type *Ty2) const {
+  // Assuming the caller does not have either a signext or zeroext modifier, and
+  // only one value is accepted, any reasonable truncation is allowed.
+  if (!Ty1->isIntegerTy() || !Ty2->isIntegerTy())
+    return false;
+
+  // FIXME: in principle up to 64-bit could be made safe, but it would be very
+  // fragile at the moment: any support for multiple value returns would be
+  // liable to disallow tail calls involving i64 -> iN truncation in many cases.
+  return Ty1->getPrimitiveSizeInBits() <= 32;
+}
+
 SDValue
 HexagonTargetLowering::LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain     = Op.getOperand(0);
   SDValue Offset    = Op.getOperand(1);
   SDValue Handler   = Op.getOperand(2);
-  DebugLoc dl       = Op.getDebugLoc();
+  SDLoc dl(Op);
 
   // Mark function as containing a call to EH_RETURN.
   HexagonMachineFunctionInfo *FuncInfo =
@@ -1591,11 +1611,11 @@ const {
 std::pair<unsigned, const TargetRegisterClass*>
 HexagonTargetLowering::getRegForInlineAsmConstraint(const
                                                     std::string &Constraint,
-                                                    EVT VT) const {
+                                                    MVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':   // R0-R31
-       switch (VT.getSimpleVT().SimpleTy) {
+       switch (VT.SimpleTy) {
        default:
          llvm_unreachable("getRegForInlineAsmConstraint Unhandled data type");
        case MVT::i32:

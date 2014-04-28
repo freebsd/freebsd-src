@@ -41,13 +41,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
@@ -55,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_perfmon.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -66,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -141,11 +139,12 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ATPIC
 #include <x86/isa/icu.h>
 #else
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #include <isa/isareg.h>
 #include <isa/rtc.h>
+#include <x86/init.h>
 
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
@@ -165,6 +164,24 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp,
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
+
+/* Preload data parse function */
+static caddr_t native_parse_preload_data(u_int64_t);
+
+/* Native function to fetch and parse the e820 map */
+static void native_parse_memmap(caddr_t, vm_paddr_t *, int *);
+
+/* Default init_ops implementation. */
+struct init_ops init_ops = {
+	.parse_preload_data =	native_parse_preload_data,
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+	.parse_memmap =			native_parse_memmap,
+#ifdef SMP
+	.mp_bootaddress =		mp_bootaddress,
+	.start_all_aps =		native_start_all_aps,
+#endif
+};
 
 /*
  * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
@@ -216,6 +233,8 @@ struct mem_range_softc mem_range_softc;
 
 struct mtx dt_lock;	/* lock for GDT and LDT */
 
+void (*vmm_resume_p)(void);
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -256,7 +275,6 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	realmem = Maxmem;
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -267,9 +285,10 @@ cpu_startup(dummy)
 		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
 	}
-	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+	if (memsize < ptoa((uintmax_t)vm_cnt.v_free_count))
 		memsize = ptoa((uintmax_t)Maxmem);
 	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+	realmem = atop(memsize);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -293,8 +312,8 @@ cpu_startup(dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)cnt.v_free_count),
-	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_cnt.v_free_count),
+	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -486,17 +505,7 @@ sys_sigreturn(td, uap)
 	/*
 	 * Don't allow users to change privileged or reserved flags.
 	 */
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.
-	 * The cpu sets PSL_RF in tf_rflags for faults.  Debuggers
-	 * should sometimes set it there too.  tf_rflags is kept in
-	 * the signal context during signal handling and there is no
-	 * other place to remember it, so the PSL_RF bit may be
-	 * corrupted by the signal handler without us knowing.
-	 * Corruption of the PSL_RF bit at worst causes one more or
-	 * one less debugger trap, so allowing it is fairly harmless.
-	 */
-	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+	if (!EFL_SECURE(rflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
 		    td->td_name, rflags);
 		return (EINVAL);
@@ -844,7 +853,7 @@ cpu_idle(int busy)
 	/* Call main idle method. */
 	cpu_idle_fn(sbt);
 
-	/* Switch timers mack into active mode. */
+	/* Switch timers back into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
@@ -1338,21 +1347,15 @@ isa_irq_pending(void)
 u_int basemem;
 
 static int
-add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
+add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
+    int *physmap_idxp)
 {
 	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 
-	if (boothowto & RB_VERBOSE)
-		printf("SMAP type=%02x base=%016lx len=%016lx\n",
-		    smap->type, smap->base, smap->length);
-
-	if (smap->type != SMAP_TYPE_MEMORY)
+	if (length == 0)
 		return (1);
-
-	if (smap->length == 0)
-		return (0);
 
 	/*
 	 * Find insertion point while checking for overlap.  Start off by
@@ -1360,8 +1363,8 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	 */
 	insert_idx = physmap_idx + 2;
 	for (i = 0; i <= physmap_idx; i += 2) {
-		if (smap->base < physmap[i + 1]) {
-			if (smap->base + smap->length <= physmap[i]) {
+		if (base < physmap[i + 1]) {
+			if (base + length <= physmap[i]) {
 				insert_idx = i;
 				break;
 			}
@@ -1373,15 +1376,14 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 
 	/* See if we can prepend to the next entry. */
-	if (insert_idx <= physmap_idx &&
-	    smap->base + smap->length == physmap[insert_idx]) {
-		physmap[insert_idx] = smap->base;
+	if (insert_idx <= physmap_idx && base + length == physmap[insert_idx]) {
+		physmap[insert_idx] = base;
 		return (1);
 	}
 
 	/* See if we can append to the previous entry. */
-	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
-		physmap[insert_idx - 1] += smap->length;
+	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += length;
 		return (1);
 	}
 
@@ -1403,9 +1405,161 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 
 	/* Insert the new entry. */
-	physmap[insert_idx] = smap->base;
-	physmap[insert_idx + 1] = smap->base + smap->length;
+	physmap[insert_idx] = base;
+	physmap[insert_idx + 1] = base + length;
 	return (1);
+}
+
+void
+bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
+                      vm_paddr_t *physmap, int *physmap_idx)
+{
+	struct bios_smap *smap, *smapend;
+
+	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+
+	for (smap = smapbase; smap < smapend; smap++) {
+		if (boothowto & RB_VERBOSE)
+			printf("SMAP type=%02x base=%016lx len=%016lx\n",
+			    smap->type, smap->base, smap->length);
+
+		if (smap->type != SMAP_TYPE_MEMORY)
+			continue;
+
+		if (!add_physmap_entry(smap->base, smap->length, physmap,
+		    physmap_idx))
+			break;
+	}
+}
+
+#define efi_next_descriptor(ptr, size) \
+	((struct efi_md *)(((uint8_t *) ptr) + size))
+
+static void
+add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
+    int *physmap_idx)
+{
+	struct efi_md *map, *p;
+	const char *type;
+	size_t efisz;
+	int ndesc, i;
+
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode"
+	};
+
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+
+	if (efihdr->descriptor_size == 0)
+		return;
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	if (boothowto & RB_VERBOSE)
+		printf("%23s %12s %12s %8s %4s\n",
+		    "Type", "Physical", "Virtual", "#Pages", "Attr");
+
+	for (i = 0, p = map; i < ndesc; i++,
+	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+		if (boothowto & RB_VERBOSE) {
+			if (p->md_type <= EFI_MD_TYPE_PALCODE)
+				type = types[p->md_type];
+			else
+				type = "<INVALID>";
+			printf("%23s %012lx %12p %08lx ", type, p->md_phys,
+			    p->md_virt, p->md_pages);
+			if (p->md_attr & EFI_MD_ATTR_UC)
+				printf("UC ");
+			if (p->md_attr & EFI_MD_ATTR_WC)
+				printf("WC ");
+			if (p->md_attr & EFI_MD_ATTR_WT)
+				printf("WT ");
+			if (p->md_attr & EFI_MD_ATTR_WB)
+				printf("WB ");
+			if (p->md_attr & EFI_MD_ATTR_UCE)
+				printf("UCE ");
+			if (p->md_attr & EFI_MD_ATTR_WP)
+				printf("WP ");
+			if (p->md_attr & EFI_MD_ATTR_RP)
+				printf("RP ");
+			if (p->md_attr & EFI_MD_ATTR_XP)
+				printf("XP ");
+			if (p->md_attr & EFI_MD_ATTR_RT)
+				printf("RUNTIME");
+			printf("\n");
+		}
+
+		switch (p->md_type) {
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
+		case EFI_MD_TYPE_BS_CODE:
+		case EFI_MD_TYPE_BS_DATA:
+		case EFI_MD_TYPE_FREE:
+			/*
+			 * We're allowed to use any entry with these types.
+			 */
+			break;
+		default:
+			continue;
+		}
+
+		if (!add_physmap_entry(p->md_phys, (p->md_pages * PAGE_SIZE),
+		    physmap, physmap_idx))
+			break;
+	}
+}
+
+static char bootmethod[16] = "";
+SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
+    "System firmware boot method");
+
+static void
+native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+{
+	struct bios_smap *smap;
+	struct efi_map_header *efihdr;
+	u_int32_t size;
+
+	/*
+	 * Memory map from INT 15:E820.
+	 *
+	 * subr_module.c says:
+	 * "Consumer may safely assume that size value precedes data."
+	 * ie: an int32_t immediately precedes smap.
+	 */
+
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	smap = (struct bios_smap *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_SMAP);
+	if (efihdr == NULL && smap == NULL)
+		panic("No BIOS smap or EFI map info from loader!");
+
+	if (efihdr != NULL) {
+		add_efi_map_entries(efihdr, physmap, physmap_idx);
+		strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
+	} else {
+		size = *((u_int32_t *)smap - 1);
+		bios_add_smap_entries(smap, size, physmap, physmap_idx);
+		strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
+	}
 }
 
 /*
@@ -1425,32 +1579,13 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
-	struct bios_smap *smapbase, *smap, *smapend;
-	u_int32_t smapsize;
 	quad_t dcons_addr, dcons_size;
 
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
 	physmap_idx = 0;
 
-	/*
-	 * get memory map from INT 15:E820, kindly supplied by the loader.
-	 *
-	 * subr_module.c says:
-	 * "Consumer may safely assume that size value precedes data."
-	 * ie: an int32_t immediately precedes smap.
-	 */
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_SMAP);
-	if (smapbase == NULL)
-		panic("No BIOS smap info from loader!");
-
-	smapsize = *((u_int32_t *)smapbase - 1);
-	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
-
-	for (smap = smapbase; smap < smapend; smap++)
-		if (!add_smap_entry(smap, physmap, &physmap_idx))
-			break;
+	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
 
 	/*
 	 * Find the 'base memory' segment for SMP
@@ -1465,10 +1600,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	if (basemem == 0)
 		panic("BIOS smap did not include a basemem segment!");
 
-#ifdef SMP
-	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1] / 1024);
-#endif
+	/*
+	 * Make hole for "AP -> long mode" bootstrap code.  The
+	 * mp_bootaddress vector is only available when the kernel
+	 * is configured to support APs and APs for the system start
+	 * in 32bit mode (e.g. SMP bare metal).
+	 */
+	if (init_ops.mp_bootaddress)
+		physmap[1] = init_ops.mp_bootaddress(physmap[1] / 1024);
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
@@ -1486,13 +1625,15 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		Maxmem = atop(physmem_tunable);
 
 	/*
-	 * By default enable the memory test on real hardware, and disable
-	 * it if we appear to be running in a VM.  This avoids touching all
-	 * pages unnecessarily, which doesn't matter on real hardware but is
-	 * bad for shared VM hosts.  Use a general name so that
-	 * one could eventually do more with the code than just disable it.
+	 * The boot memory test is disabled by default, as it takes a
+	 * significant amount of time on large-memory systems, and is
+	 * unfriendly to virtual machines as it unnecessarily touches all
+	 * pages.
+	 *
+	 * A general name is used as the code may be extended to support
+	 * additional tests beyond the current "page present" test.
 	 */
-	memtest = (vm_guest > VM_GUEST_NO) ? 0 : 1;
+	memtest = 0;
 	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
 
 	/*
@@ -1681,6 +1822,26 @@ do_next:
 	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
 }
 
+static caddr_t
+native_parse_preload_data(u_int64_t modulep)
+{
+	caddr_t kmdp;
+
+	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
+	preload_bootstrap_relocate(KERNBASE);
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+#ifdef DDB
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
+
+	return (kmdp);
+}
+
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
@@ -1705,17 +1866,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	proc_linkup0(&proc0, &thread0);
 
-	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
-	preload_bootstrap_relocate(KERNBASE);
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
-#ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
+	kmdp = init_ops.parse_preload_data(modulep);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1799,10 +1950,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	lidt(&r_idt);
 
 	/*
-	 * Initialize the i8254 before the console so that console
+	 * Initialize the clock before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.

@@ -12,7 +12,9 @@
 
 #include "lldb/lldb-private.h"
 #include "lldb/Symbol/Type.h"
+#include "lldb/Utility/Iterable.h"
 #include <map>
+#include <functional>
 
 namespace lldb_private {
 
@@ -50,6 +52,15 @@ public:
 
     lldb::TypeSP
     GetTypeAtIndex(uint32_t idx);
+    
+    typedef std::multimap<lldb::user_id_t, lldb::TypeSP> collection;
+    typedef AdaptedIterable<collection, lldb::TypeSP, map_adapter> TypeIterable;
+    
+    TypeIterable
+    Types ()
+    {
+        return TypeIterable(m_types);
+    }
 
     void
     ForEach (std::function <bool(const lldb::TypeSP &type_sp)> const &callback) const;
@@ -74,7 +85,6 @@ public:
     RemoveMismatchedTypes (lldb::TypeClass type_class);
 
 private:
-    typedef std::multimap<lldb::user_id_t, lldb::TypeSP> collection;
     typedef collection::iterator iterator;
     typedef collection::const_iterator const_iterator;
 
