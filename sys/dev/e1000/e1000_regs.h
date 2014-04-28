@@ -207,7 +207,7 @@
 /* QAV Tx mode control register bitfields masks */
 #define E1000_TQAVCC_IDLE_SLOPE		0xFFFF /* Idle slope */
 #define E1000_TQAVCC_KEEP_CREDITS	(1 << 30) /* Keep credits opt enable */
-#define E1000_TQAVCC_QUEUE_MODE		(1 << 31) /* SP vs. SR Tx mode */
+#define E1000_TQAVCC_QUEUE_MODE		(1U << 31) /* SP vs. SR Tx mode */
 
 /* Good transmitted packets counter registers */
 #define E1000_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))

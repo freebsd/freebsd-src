@@ -76,7 +76,7 @@ ixp425_sdram_size(void)
 		size = sdram_other[MCU_SDR_CONFIG_MCONF(sdr_config)];
 
 	if (size == 0) {
-		printf("** SDR_CONFIG retuns unknown value, using 32M\n");
+		printf("** SDR_CONFIG returns unknown value, using 32M\n");
 		size = 32 * 1024 * 1024;
 	}
 

@@ -109,7 +109,7 @@ static void	usb_dev_uninit(void *);
 static int	usb_fifo_uiomove(struct usb_fifo *, void *, int,
 		    struct uio *);
 static void	usb_fifo_check_methods(struct usb_fifo_methods *);
-static struct	usb_fifo *usb_fifo_alloc(void);
+static struct	usb_fifo *usb_fifo_alloc(struct mtx *);
 static struct	usb_endpoint *usb_dev_get_ep(struct usb_device *, uint8_t,
 		    uint8_t);
 static void	usb_loc_fill(struct usb_fs_privdata *,
@@ -124,6 +124,7 @@ static d_ioctl_t usb_ioctl;
 static d_read_t usb_read;
 static d_write_t usb_write;
 static d_poll_t usb_poll;
+static d_kqfilter_t usb_kqfilter;
 
 static d_ioctl_t usb_static_ioctl;
 
@@ -141,7 +142,8 @@ struct cdevsw usb_devsw = {
 	.d_flags = D_TRACKCLOSE,
 	.d_read = usb_read,
 	.d_write = usb_write,
-	.d_poll = usb_poll
+	.d_poll = usb_poll,
+	.d_kqfilter = usb_kqfilter,
 };
 
 static struct cdev* usb_dev = NULL;
@@ -207,12 +209,18 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		DPRINTFN(2, "no device at %u\n", cpd->dev_index);
 		goto error;
 	}
-	if (cpd->udev->refcount == USB_DEV_REF_MAX) {
-		DPRINTFN(2, "no dev ref\n");
+	if (cpd->udev->state == USB_STATE_DETACHED &&
+	    (need_uref != 2)) {
+		DPRINTFN(2, "device is detached\n");
 		goto error;
 	}
 	if (need_uref) {
 		DPRINTFN(2, "ref udev - needed\n");
+
+		if (cpd->udev->refcount == USB_DEV_REF_MAX) {
+			DPRINTFN(2, "no dev ref\n");
+			goto error;
+		}
 		cpd->udev->refcount++;
 
 		mtx_unlock(&usb_ref_lock);
@@ -286,9 +294,8 @@ error:
 		usbd_enum_unlock(cpd->udev);
 
 	if (crd->is_uref) {
-		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(&cpd->udev->ref_cv);
-		}
+		cpd->udev->refcount--;
+		cv_broadcast(&cpd->udev->ref_cv);
 	}
 	mtx_unlock(&usb_ref_lock);
 	DPRINTFN(2, "fail\n");
@@ -354,24 +361,25 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 		crd->is_write = 0;
 	}
 	if (crd->is_uref) {
-		if (--(cpd->udev->refcount) == 0) {
-			cv_signal(&cpd->udev->ref_cv);
-		}
 		crd->is_uref = 0;
+		cpd->udev->refcount--;
+		cv_broadcast(&cpd->udev->ref_cv);
 	}
 	mtx_unlock(&usb_ref_lock);
 }
 
 static struct usb_fifo *
-usb_fifo_alloc(void)
+usb_fifo_alloc(struct mtx *mtx)
 {
 	struct usb_fifo *f;
 
 	f = malloc(sizeof(*f), M_USBDEV, M_WAITOK | M_ZERO);
-	if (f) {
+	if (f != NULL) {
 		cv_init(&f->cv_io, "FIFO-IO");
 		cv_init(&f->cv_drain, "FIFO-DRAIN");
+		f->priv_mtx = mtx;
 		f->refcount = 1;
+		knlist_init_mtx(&f->selinfo.si_note, mtx);
 	}
 	return (f);
 }
@@ -495,7 +503,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
-		f = usb_fifo_alloc();
+		f = usb_fifo_alloc(&udev->device_mtx);
 		if (f == NULL) {
 			DPRINTFN(5, "could not alloc tx fifo\n");
 			return (ENOMEM);
@@ -503,7 +511,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
 		f->dev_ep_index = e;
-		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -522,7 +529,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
-		f = usb_fifo_alloc();
+		f = usb_fifo_alloc(&udev->device_mtx);
 		if (f == NULL) {
 			DPRINTFN(5, "could not alloc rx fifo\n");
 			return (ENOMEM);
@@ -530,7 +537,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
 		f->dev_ep_index = e;
-		f->priv_mtx = &udev->device_mtx;
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -597,6 +603,13 @@ usb_fifo_free(struct usb_fifo *f)
 		mtx_unlock(f->priv_mtx);
 		mtx_lock(&usb_ref_lock);
 
+		/*
+		 * Check if the "f->refcount" variable reached zero
+		 * during the unlocked time before entering wait:
+		 */
+		if (f->refcount == 0)
+			break;
+
 		/* wait for sync */
 		cv_wait(&f->cv_drain, &usb_ref_lock);
 	}
@@ -607,6 +620,10 @@ usb_fifo_free(struct usb_fifo *f)
 
 	cv_destroy(&f->cv_io);
 	cv_destroy(&f->cv_drain);
+
+	knlist_clear(&f->selinfo.si_note, 0);
+	seldrain(&f->selinfo);
+	knlist_destroy(&f->selinfo.si_note);
 
 	free(f, M_USBDEV);
 }
@@ -762,7 +779,12 @@ usb_fifo_close(struct usb_fifo *f, int fflags)
 	mtx_lock(f->priv_mtx);
 
 	/* clear current cdev private data pointer */
+	mtx_lock(&usb_ref_lock);
 	f->curr_cpd = NULL;
+	mtx_unlock(&usb_ref_lock);
+
+	/* check if we are watched by kevent */
+	KNOTE_LOCKED(&f->selinfo.si_note, 0);
 
 	/* check if we are selected */
 	if (f->flag_isselect) {
@@ -915,23 +937,12 @@ usb_close(void *arg)
 
 	DPRINTFN(2, "cpd=%p\n", cpd);
 
-	err = usb_ref_device(cpd, &refs, 0);
-	if (err)
+	err = usb_ref_device(cpd, &refs,
+	    2 /* uref and allow detached state */);
+	if (err) {
+		DPRINTFN(2, "Cannot grab USB reference when "
+		    "closing USB file handle\n");
 		goto done;
-
-	/*
-	 * If this function is not called directly from the root HUB
-	 * thread, there is usually a need to lock the enumeration
-	 * lock. Check this.
-	 */
-	if (!usbd_enum_is_locked(cpd->udev)) {
-
-		DPRINTFN(2, "Locking enumeration\n");
-
-		/* reference device */
-		err = usb_usb_ref_device(cpd, &refs);
-		if (err)
-			goto done;
 	}
 	if (cpd->fflags & FREAD) {
 		usb_fifo_close(refs.rxfifo, cpd->fflags);
@@ -1099,7 +1110,7 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 
 	/* Wait for re-enumeration, if any */
 
-	while (f->udev->re_enumerate_wait != 0) {
+	while (f->udev->re_enumerate_wait != USB_RE_ENUM_DONE) {
 
 		usb_unref_device(cpd, &refs);
 
@@ -1112,6 +1123,162 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	}
 
 done:
+	usb_unref_device(cpd, &refs);
+	return (err);
+}
+
+static void
+usb_filter_detach(struct knote *kn)
+{
+	struct usb_fifo *f = kn->kn_hook;
+	knlist_remove(&f->selinfo.si_note, kn, 0);
+}
+
+static int
+usb_filter_write(struct knote *kn, long hint)
+{
+	struct usb_cdev_privdata* cpd;
+	struct usb_fifo *f;
+	struct usb_mbuf *m;
+
+	DPRINTFN(2, "\n");
+
+	f = kn->kn_hook;
+
+	mtx_assert(f->priv_mtx, MA_OWNED);
+
+	cpd = f->curr_cpd;
+	if (cpd == NULL) {
+		m = (void *)1;
+	} else if (f->fs_ep_max == 0) {
+		if (f->flag_iserror) {
+			/* we got an error */
+			m = (void *)1;
+		} else {
+			if (f->queue_data == NULL) {
+				/*
+				 * start write transfer, if not
+				 * already started
+				 */
+				(f->methods->f_start_write) (f);
+			}
+			/* check if any packets are available */
+			USB_IF_POLL(&f->free_q, m);
+		}
+	} else {
+		if (f->flag_iscomplete) {
+			m = (void *)1;
+		} else {
+			m = NULL;
+		}
+	}
+	return (m ? 1 : 0);
+}
+
+static int
+usb_filter_read(struct knote *kn, long hint)
+{
+	struct usb_cdev_privdata* cpd;
+	struct usb_fifo *f;
+	struct usb_mbuf *m;
+
+	DPRINTFN(2, "\n");
+
+	f = kn->kn_hook;
+
+	mtx_assert(f->priv_mtx, MA_OWNED);
+
+	cpd = f->curr_cpd;
+	if (cpd == NULL) {
+		m = (void *)1;
+	} else if (f->fs_ep_max == 0) {
+		if (f->flag_iserror) {
+			/* we have an error */
+			m = (void *)1;
+		} else {
+			if (f->queue_data == NULL) {
+				/*
+				 * start read transfer, if not
+				 * already started
+				 */
+				(f->methods->f_start_read) (f);
+			}
+			/* check if any packets are available */
+			USB_IF_POLL(&f->used_q, m);
+
+			/* start reading data, if any */
+			if (m == NULL)
+				(f->methods->f_start_read) (f);
+		}
+	} else {
+		if (f->flag_iscomplete) {
+			m = (void *)1;
+		} else {
+			m = NULL;
+		}
+	}
+	return (m ? 1 : 0);
+}
+
+static struct filterops usb_filtops_write = {
+	.f_isfd = 1,
+	.f_detach = usb_filter_detach,
+	.f_event = usb_filter_write,
+};
+
+static struct filterops usb_filtops_read = {
+	.f_isfd = 1,
+	.f_detach = usb_filter_detach,
+	.f_event = usb_filter_read,
+};
+
+
+/* ARGSUSED */
+static int
+usb_kqfilter(struct cdev* dev, struct knote *kn)
+{
+	struct usb_cdev_refdata refs;
+	struct usb_cdev_privdata* cpd;
+	struct usb_fifo *f;
+	int fflags;
+	int err = EINVAL;
+
+	DPRINTFN(2, "\n");
+
+	if (devfs_get_cdevpriv((void **)&cpd) != 0 ||
+	    usb_ref_device(cpd, &refs, 0) != 0)
+		return (ENXIO);
+
+	fflags = cpd->fflags;
+
+	/* Figure out who needs service */
+	switch (kn->kn_filter) {
+	case EVFILT_WRITE:
+		if (fflags & FWRITE) {
+			f = refs.txfifo;
+			kn->kn_fop = &usb_filtops_write;
+			err = 0;
+		}
+		break;
+	case EVFILT_READ:
+		if (fflags & FREAD) {
+			f = refs.rxfifo;
+			kn->kn_fop = &usb_filtops_read;
+			err = 0;
+		}
+		break;
+	default:
+		err = EOPNOTSUPP;
+		break;
+	}
+
+	if (err == 0) {
+		kn->kn_hook = f;
+		mtx_lock(f->priv_mtx);
+		knlist_add(&f->selinfo.si_note, kn, 1);
+		mtx_unlock(f->priv_mtx);
+	}
+
 	usb_unref_device(cpd, &refs);
 	return (err);
 }
@@ -1183,7 +1350,7 @@ usb_poll(struct cdev* dev, int events, struct thread* td)
 
 		if (!refs.is_usbfs) {
 			if (f->flag_iserror) {
-				/* we have and error */
+				/* we have an error */
 				m = (void *)1;
 			} else {
 				if (f->queue_data == NULL) {
@@ -1580,6 +1747,8 @@ usb_fifo_wakeup(struct usb_fifo *f)
 {
 	usb_fifo_signal(f);
 
+	KNOTE_LOCKED(&f->selinfo.si_note, 0);
+
 	if (f->flag_isselect) {
 		selwakeup(&f->selinfo);
 		f->flag_isselect = 0;
@@ -1695,8 +1864,8 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 		break;
 	}
 
-	f_tx = usb_fifo_alloc();
-	f_rx = usb_fifo_alloc();
+	f_tx = usb_fifo_alloc(priv_mtx);
+	f_rx = usb_fifo_alloc(priv_mtx);
 
 	if ((f_tx == NULL) || (f_rx == NULL)) {
 		usb_fifo_free(f_tx);
@@ -1707,7 +1876,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 	f_tx->fifo_index = n + USB_FIFO_TX;
 	f_tx->dev_ep_index = -1;
-	f_tx->priv_mtx = priv_mtx;
 	f_tx->priv_sc0 = priv_sc;
 	f_tx->methods = pm;
 	f_tx->iface_index = iface_index;
@@ -1715,7 +1883,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 	f_rx->fifo_index = n + USB_FIFO_RX;
 	f_rx->dev_ep_index = -1;
-	f_rx->priv_mtx = priv_mtx;
 	f_rx->priv_sc0 = priv_sc;
 	f_rx->methods = pm;
 	f_rx->iface_index = iface_index;

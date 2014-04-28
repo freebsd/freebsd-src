@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * Functions that perform the vfs operations required by the routines in
@@ -61,6 +61,7 @@ extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
@@ -672,6 +673,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	uiop->uio_resid = len;
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
+	uiop->uio_td = NULL;
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
@@ -1469,8 +1471,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
  * Updates the file rev and sets the mtime and ctime
  * to the current clock time, returning the va_filerev and va_Xtime
  * values.
+ * Return ESTALE to indicate the vnode is VI_DOOMED.
  */
-void
+int
 nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
     struct ucred *cred, struct thread *p)
 {
@@ -1478,8 +1481,14 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 
 	VATTR_NULL(&va);
 	vfs_timestamp(&va.va_mtime);
+	if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ESTALE);
+	}
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
+	return (0);
 }
 
 /*
@@ -1984,6 +1993,27 @@ again:
 	}
 
 	/*
+	 * Check to see if entries in this directory can be safely acquired
+	 * via VFS_VGET() or if a switch to VOP_LOOKUP() is required.
+	 * ZFS snapshot directories need VOP_LOOKUP(), so that any
+	 * automount of the snapshot directory that is required will
+	 * be done.
+	 * This needs to be done here for NFSv4, since NFSv4 never does
+	 * a VFS_VGET() for "." or "..".
+	 */
+	if (not_zfs == 0) {
+		r = VFS_VGET(mp, at.na_fileid, LK_SHARED, &nvp);
+		if (r == EOPNOTSUPP) {
+			usevget = 0;
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_lkflags = LK_SHARED | LK_RETRY;
+			cn.cn_cred = nd->nd_cred;
+			cn.cn_thread = p;
+		} else if (r == 0)
+			vput(nvp);
+	}
+
+	/*
 	 * Save this position, in case there is an error before one entry
 	 * is created.
 	 */
@@ -2120,6 +2150,22 @@ again:
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap,
 						nd->nd_cred, p, 1);
+					if (r == 0 && not_zfs == 0 &&
+					    nfsrv_enable_crossmntpt != 0 &&
+					    (nd->nd_flag & ND_NFSV4) != 0 &&
+					    nvp->v_type == VDIR &&
+					    vp->v_mount != nvp->v_mount) {
+					    /*
+					     * For a ZFS snapshot, there is a
+					     * pseudo mount that does not set
+					     * v_mountedhere, so it needs to
+					     * be detected via a different
+					     * mount structure.
+					     */
+					    at_root = 1;
+					    if (new_mp == mp)
+						new_mp = nvp->v_mount;
+					}
 				    }
 				} else {
 				    nvp = NULL;
@@ -2837,40 +2883,6 @@ out:
 }
 
 /*
- * Get the tcp socket sequence numbers we need.
- * (Maybe this should be moved to the tcp sources?)
- */
-int
-nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
-{
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	int error = 0;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("nfsrv_getsocksndseq: inp == NULL"));
-	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	tp = intotcpcb(inp);
-	if (tp->t_state != TCPS_ESTABLISHED) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	*maxp = tp->snd_max;
-	*unap = tp->snd_una;
-	INP_RUNLOCK(inp);
-
-out:
-	NFSEXITCODE(error);
-	return (error);
-}
-
-/*
  * This function needs to test to see if the system is near its limit
  * for memory allocation via malloc() or mget() and return True iff
  * either of these resources are near their limit.
@@ -3296,6 +3308,11 @@ nfsd_modevent(module_t mod, int type, void *data)
 			    i);
 			mtx_init(&nfsrchash_table[i].mtx,
 			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
+			snprintf(nfsrcahash_table[i].lock_name,
+			    sizeof(nfsrcahash_table[i].lock_name), "nfsrc_tcpa%d",
+			    i);
+			mtx_init(&nfsrcahash_table[i].mtx,
+			    nfsrcahash_table[i].lock_name, NULL, MTX_DEF);
 		}
 		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
@@ -3341,8 +3358,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 			svcpool_destroy(nfsrvd_pool);
 
 		/* and get rid of the locks */
-		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++)
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 			mtx_destroy(&nfsrchash_table[i].mtx);
+			mtx_destroy(&nfsrcahash_table[i].mtx);
+		}
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);

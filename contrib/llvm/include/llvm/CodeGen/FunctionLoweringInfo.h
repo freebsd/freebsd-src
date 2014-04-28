@@ -41,6 +41,7 @@ class MachineBasicBlock;
 class MachineFunction;
 class MachineModuleInfo;
 class MachineRegisterInfo;
+class SelectionDAG;
 class TargetLowering;
 class Value;
 
@@ -49,8 +50,8 @@ class Value;
 /// function that is used when lowering a region of the function.
 ///
 class FunctionLoweringInfo {
+  const TargetMachine &TM;
 public:
-  const TargetLowering &TLI;
   const Function *Fn;
   MachineFunction *MF;
   MachineRegisterInfo *RegInfo;
@@ -120,12 +121,12 @@ public:
   /// SelectionDAGISel::PrepareEHLandingPad().
   unsigned ExceptionPointerVirtReg, ExceptionSelectorVirtReg;
 
-  explicit FunctionLoweringInfo(const TargetLowering &TLI);
+  explicit FunctionLoweringInfo(const TargetMachine &TM) : TM(TM) {}
 
   /// set - Initialize this FunctionLoweringInfo with the given Function
   /// and its associated MachineFunction.
   ///
-  void set(const Function &Fn, MachineFunction &MF);
+  void set(const Function &Fn, MachineFunction &MF, SelectionDAG *DAG);
 
   /// clear - Clear out all the function-specific state. This returns this
   /// FunctionLoweringInfo to an empty state, ready to be used for a

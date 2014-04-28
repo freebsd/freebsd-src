@@ -29,7 +29,7 @@ namespace llvm {
   class HexagonTargetMachine;
   class raw_ostream;
 
-  FunctionPass *createHexagonISelDag(const HexagonTargetMachine &TM,
+  FunctionPass *createHexagonISelDag(HexagonTargetMachine &TM,
                                      CodeGenOpt::Level OptLevel);
   FunctionPass *createHexagonDelaySlotFillerPass(const TargetMachine &TM);
   FunctionPass *createHexagonFPMoverPass(const TargetMachine &TM);
@@ -37,11 +37,15 @@ namespace llvm {
   FunctionPass *createHexagonCFGOptimizer(const HexagonTargetMachine &TM);
 
   FunctionPass *createHexagonSplitTFRCondSets(const HexagonTargetMachine &TM);
+  FunctionPass *createHexagonSplitConst32AndConst64(
+                      const HexagonTargetMachine &TM);
   FunctionPass *createHexagonExpandPredSpillCode(
                       const HexagonTargetMachine &TM);
   FunctionPass *createHexagonHardwareLoops();
   FunctionPass *createHexagonPeephole();
   FunctionPass *createHexagonFixupHwLoops();
+  FunctionPass *createHexagonNewValueJump();
+  FunctionPass *createHexagonCopyToCombine();
   FunctionPass *createHexagonPacketizer();
   FunctionPass *createHexagonNewValueJump();
 

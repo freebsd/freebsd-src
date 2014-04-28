@@ -137,69 +137,84 @@ generate_status_desc(enum svn_wc_status_kind status)
 }
 
 /* Make a relative path containing '..' elements as needed.
-   RELATIVE_TO_PATH must be the path to a directory (not a file!) and
-   TARGET_PATH must be the path to any file or directory. Both
-   RELATIVE_TO_PATH and TARGET_PATH must be based on the same parent path,
-   i.e. they can either both be absolute or they can both be relative to the
-   same parent directory. Both paths are expected to be canonical.
+   TARGET_ABSPATH shall be the absolute version of TARGET_PATH.
+   TARGET_ABSPATH, TARGET_PATH and PATH shall be canonical.
 
-   If above conditions are met, a relative path that leads to TARGET_ABSPATH
-   from RELATIVE_TO_PATH is returned, but there is no error checking involved.
+   If above conditions are met, a relative path that leads to PATH
+   from TARGET_PATH is returned, but there is no error checking involved.
 
-   The returned path is allocated from RESULT_POOL, all other allocations are
-   made in SCRATCH_POOL. */
+   The returned path is allocated from RESULT_POOL, all other
+   allocations are made in SCRATCH_POOL.  */
 static const char *
-make_relpath(const char *relative_to_path,
+make_relpath(const char *target_abspath,
              const char *target_path,
+             const char *path,
              apr_pool_t *result_pool,
              apr_pool_t *scratch_pool)
 {
   const char *la;
   const char *parent_dir_els = "";
+  const char *abspath, *relative;
+  svn_error_t *err = svn_dirent_get_absolute(&abspath, path, scratch_pool);
+
+  if (err)
+    {
+      /* We probably got passed some invalid path. */
+      svn_error_clear(err);
+      return apr_pstrdup(result_pool, path);
+    }
+
+  relative = svn_dirent_skip_ancestor(target_abspath, abspath);
+  if (relative)
+    {
+      return svn_dirent_join(target_path, relative, result_pool);
+    }
 
   /* An example:
    *  relative_to_path = /a/b/c
-   *  target_path      = /a/x/y/z
+   *  path             = /a/x/y/z
    *  result           = ../../x/y/z
    *
    * Another example (Windows specific):
    *  relative_to_path = F:/wc
-   *  target_path      = C:/wc
+   *  path             = C:/wc
    *  result           = C:/wc
    */
 
   /* Skip the common ancestor of both paths, here '/a'. */
-  la = svn_dirent_get_longest_ancestor(relative_to_path, target_path,
+  la = svn_dirent_get_longest_ancestor(target_abspath, abspath,
                                        scratch_pool);
   if (*la == '\0')
     {
       /* Nothing in common: E.g. C:/ vs F:/ on Windows */
-      return apr_pstrdup(result_pool, target_path);
+      return apr_pstrdup(result_pool, path);
     }
-  relative_to_path = svn_dirent_skip_ancestor(la, relative_to_path);
-  target_path = svn_dirent_skip_ancestor(la, target_path);
+  relative = svn_dirent_skip_ancestor(la, target_abspath);
+  path = svn_dirent_skip_ancestor(la, path);
 
   /* In above example, we'd now have:
    *  relative_to_path = b/c
-   *  target_path      = x/y/z */
+   *  path             = x/y/z */
 
   /* Count the elements of relative_to_path and prepend as many '..' elements
-   * to target_path. */
-  while (*relative_to_path)
+   * to path. */
+  while (*relative)
     {
-      svn_dirent_split(&relative_to_path, NULL, relative_to_path,
+      svn_dirent_split(&relative, NULL, relative,
                        scratch_pool);
       parent_dir_els = svn_dirent_join(parent_dir_els, "..", scratch_pool);
     }
 
-  return svn_dirent_join(parent_dir_els, target_path, result_pool);
+  return svn_dirent_join(parent_dir_els, path, result_pool);
 }
 
 
 /* Print STATUS and PATH in a format determined by DETAILED and
    SHOW_LAST_COMMITTED. */
 static svn_error_t *
-print_status(const char *cwd_abspath, const char *path,
+print_status(const char *target_abspath,
+             const char *target_path,
+             const char *path,
              svn_boolean_t detailed,
              svn_boolean_t show_last_committed,
              svn_boolean_t repos_locks,
@@ -217,7 +232,7 @@ print_status(const char *cwd_abspath, const char *path,
   const char *moved_from_line = "";
   const char *moved_to_line = "";
 
-  path = make_relpath(cwd_abspath, path, pool, pool);
+  path = make_relpath(target_abspath, target_path, path, pool, pool);
 
   /* For historic reasons svn ignores the property status for added nodes, even
      if these nodes were copied and have local property changes.
@@ -294,7 +309,8 @@ print_status(const char *cwd_abspath, const char *path,
     {
       const char *relpath;
 
-      relpath = make_relpath(cwd_abspath, status->moved_from_abspath,
+      relpath = make_relpath(target_abspath, target_path,
+                             status->moved_from_abspath,
                              pool, pool);
       relpath = svn_dirent_local_style(relpath, pool);
       moved_from_line = apr_pstrcat(pool, "\n        > ",
@@ -309,7 +325,8 @@ print_status(const char *cwd_abspath, const char *path,
 
       if (status->moved_from_abspath)
         {
-          relpath = make_relpath(cwd_abspath, status->moved_from_abspath,
+          relpath = make_relpath(target_abspath, target_path,
+                                 status->moved_from_abspath,
                                  pool, pool);
           relpath = svn_dirent_local_style(relpath, pool);
           moved_from_line = apr_pstrcat(pool, "\n        > ",
@@ -320,7 +337,8 @@ print_status(const char *cwd_abspath, const char *path,
 
       if (status->moved_to_abspath)
         {
-          relpath = make_relpath(cwd_abspath, status->moved_to_abspath,
+          relpath = make_relpath(target_abspath, target_path,
+                                 status->moved_to_abspath,
                                  pool, pool);
           relpath = svn_dirent_local_style(relpath, pool);
           moved_to_line = apr_pstrcat(pool, "\n        > ",
@@ -329,6 +347,8 @@ print_status(const char *cwd_abspath, const char *path,
                                       (char *)NULL);
         }
     }
+
+  path = svn_dirent_local_style(path, pool);
 
   if (detailed)
     {
@@ -447,7 +467,8 @@ print_status(const char *cwd_abspath, const char *path,
 
 
 svn_error_t *
-svn_cl__print_status_xml(const char *cwd_abspath,
+svn_cl__print_status_xml(const char *target_abspath,
+                         const char *target_path,
                          const char *path,
                          const svn_client_status_t *status,
                          svn_client_ctx_t *ctx,
@@ -466,7 +487,7 @@ svn_cl__print_status_xml(const char *cwd_abspath,
     SVN_ERR(svn_wc_conflicted_p3(NULL, NULL, &tree_conflicted,
                                  ctx->wc_ctx, local_abspath, pool));
 
-  path = make_relpath(cwd_abspath, path, pool, pool);
+  path = make_relpath(target_abspath, target_path, path, pool, pool);
 
   svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "entry",
                         "path", svn_dirent_local_style(path, pool), NULL);
@@ -499,14 +520,16 @@ svn_cl__print_status_xml(const char *cwd_abspath,
 
       if (status->moved_from_abspath)
         {
-          relpath = make_relpath(cwd_abspath, status->moved_from_abspath,
+          relpath = make_relpath(target_abspath, target_path,
+                                 status->moved_from_abspath,
                                  pool, pool);
           relpath = svn_dirent_local_style(relpath, pool);
           svn_hash_sets(att_hash, "moved-from", relpath);
         }
       if (status->moved_to_abspath)
         {
-          relpath = make_relpath(cwd_abspath, status->moved_to_abspath,
+          relpath = make_relpath(target_abspath, target_path,
+                                 status->moved_to_abspath,
                                  pool, pool);
           relpath = svn_dirent_local_style(relpath, pool);
           svn_hash_sets(att_hash, "moved-to", relpath);
@@ -551,7 +574,8 @@ svn_cl__print_status_xml(const char *cwd_abspath,
 
 /* Called by status-cmd.c */
 svn_error_t *
-svn_cl__print_status(const char *cwd_abspath,
+svn_cl__print_status(const char *target_abspath,
+                     const char *target_path,
                      const char *path,
                      const svn_client_status_t *status,
                      svn_boolean_t suppress_externals_placeholders,
@@ -600,7 +624,7 @@ svn_cl__print_status(const char *cwd_abspath,
         return SVN_NO_ERROR;
     }
 
-  return print_status(cwd_abspath, svn_dirent_local_style(path, pool),
+  return print_status(target_abspath, target_path, path,
                       detailed, show_last_committed, repos_locks, status,
                       text_conflicts, prop_conflicts, tree_conflicts,
                       ctx, pool);

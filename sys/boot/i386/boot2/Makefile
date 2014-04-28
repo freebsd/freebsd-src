@@ -23,10 +23,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-Os \
-	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
 	-DUSE_XREAD \
@@ -40,10 +37,15 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100 \
+	-Winline \
 	${CLANG_OPT_SMALL}
 
-LDFLAGS=-static -N --gc-sections
+CFLAGS.gcc+=	-fno-guess-branch-probability \
+		-fno-unit-at-a-time \
+		-mno-align-long-strings \
+		--param max-inline-insns-single=100
+
+LD_FLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -59,7 +61,7 @@ boot1: boot1.out
 	objcopy -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
-	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
+	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
 		boot2.s boot2.s.tmp boot2.h sio.o
@@ -80,7 +82,7 @@ boot2.bin: boot2.out
 	objcopy -S -O binary boot2.out ${.TARGET}
 
 boot2.out: ${BTXCRT} boot2.o sio.o
-	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
 	${CC} ${ACFLAGS} -c boot2.s

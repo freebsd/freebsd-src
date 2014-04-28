@@ -11,6 +11,9 @@
 
 #include "lldb/DataFormatters/TypeCategoryMap.h"
 
+#include "lldb/DataFormatters/FormatClasses.h"
+#include "lldb/DataFormatters/FormatManager.h"
+
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
@@ -176,6 +179,34 @@ TypeCategoryMap::AnyMatches (ConstString type_name,
     return false;
 }
 
+lldb::TypeFormatImplSP
+TypeCategoryMap::GetFormat (ValueObject& valobj,
+                            lldb::DynamicValueType use_dynamic)
+{
+    Mutex::Locker locker(m_map_mutex);
+    
+    uint32_t reason_why;
+    ActiveCategoriesIterator begin, end = m_active_categories.end();
+    
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
+    
+    FormattersMatchVector matches = FormatManager::GetPossibleMatches(valobj, use_dynamic);
+    
+    for (begin = m_active_categories.begin(); begin != end; begin++)
+    {
+        lldb::TypeCategoryImplSP category_sp = *begin;
+        lldb::TypeFormatImplSP current_format;
+        if (log)
+            log->Printf("\n[TypeCategoryMap::GetFormat] Trying to use category %s", category_sp->GetName());
+        if (!category_sp->Get(valobj, matches, current_format, &reason_why))
+            continue;
+        return current_format;
+    }
+    if (log)
+        log->Printf("[TypeCategoryMap::GetFormat] nothing found - returning empty SP");
+    return lldb::TypeFormatImplSP();
+}
+
 lldb::TypeSummaryImplSP
 TypeCategoryMap::GetSummaryFormat (ValueObject& valobj,
                                    lldb::DynamicValueType use_dynamic)
@@ -187,13 +218,15 @@ TypeCategoryMap::GetSummaryFormat (ValueObject& valobj,
     
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
     
+    FormattersMatchVector matches = FormatManager::GetPossibleMatches(valobj, use_dynamic);
+    
     for (begin = m_active_categories.begin(); begin != end; begin++)
     {
         lldb::TypeCategoryImplSP category_sp = *begin;
         lldb::TypeSummaryImplSP current_format;
         if (log)
             log->Printf("\n[CategoryMap::GetSummaryFormat] Trying to use category %s", category_sp->GetName());
-        if (!category_sp->Get(valobj, current_format, use_dynamic, &reason_why))
+        if (!category_sp->Get(valobj, matches, current_format, &reason_why))
             continue;
         return current_format;
     }
@@ -215,13 +248,15 @@ TypeCategoryMap::GetSyntheticChildren (ValueObject& valobj,
     
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
     
+    FormattersMatchVector matches = FormatManager::GetPossibleMatches(valobj, use_dynamic);
+    
     for (begin = m_active_categories.begin(); begin != end; begin++)
     {
         lldb::TypeCategoryImplSP category_sp = *begin;
         lldb::SyntheticChildrenSP current_format;
         if (log)
             log->Printf("\n[CategoryMap::GetSyntheticChildren] Trying to use category %s", category_sp->GetName());
-        if (!category_sp->Get(valobj, current_format, use_dynamic, &reason_why))
+        if (!category_sp->Get(valobj, matches, current_format, &reason_why))
             continue;
         return current_format;
     }

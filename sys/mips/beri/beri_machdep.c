@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -116,26 +117,32 @@ mips_init(void)
 
 /*
  * Perform a board-level soft-reset.
- *
- * XXXRW: BERI doesn't yet have a board-level soft-reset.
  */
 void
 platform_reset(void)
 {
 
-	panic("%s: not yet", __func__);
+	/* XXX SMP will likely require us to do more. */
+	__asm__ __volatile__(
+		"mfc0 $k0, $12\n\t"
+		"li $k1, 0x00100000\n\t"
+		"or $k0, $k0, $k1\n\t"
+		"mtc0 $k0, $12\n");
+	for( ; ; )
+		__asm__ __volatile("wait");
 }
 
 void
 platform_start(__register_t a0, __register_t a1,  __register_t a2, 
     __register_t a3)
 {
+	struct bootinfo *bootinfop;
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
-	unsigned int memsize = a3;
+	long memsize;
 #ifdef FDT
 	vm_offset_t dtbp;
 	void *kmdp;
@@ -149,6 +156,25 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_postboot_fixup();
 
 	mips_pcpu0_init();
+
+	/*
+	 * Over time, we've changed out boot-time binary interface for the
+	 * kernel.  Miniboot simply provides a 'memsize' in a3, whereas the
+	 * FreeBSD boot loader provides a 'bootinfo *' in a3.  While slightly
+	 * grody, we support both here by detecting 'pointer-like' values in
+	 * a3 and assuming physical memory can never be that back.
+	 *
+	 * XXXRW: Pull more values than memsize out of bootinfop -- e.g.,
+	 * module information.
+	 */
+	if (a3 >= 0x9800000000000000ULL) {
+		bootinfop = (void *)a3;
+		memsize = bootinfop->bi_memsize;
+		preload_metadata = (caddr_t)bootinfop->bi_modulep;
+	} else {
+		bootinfop = NULL;
+		memsize = a3;
+	}
 
 #ifdef FDT
 	/*
@@ -173,9 +199,15 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
 		while (1);
-	if (OF_init(&fdt_static_dtb) != 0)
+	if (OF_init((void *)dtbp) != 0)
 		while (1);
 #endif
+
+	/*
+	 * Configure more boot-time parameters passed in by loader.
+	 */
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 
 	/*
 	 * XXXRW: We have no way to compare wallclock time to cycle rate on
@@ -198,7 +230,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		for (i = 0; envp[i]; i += 2)
 			printf("\t%s = %s\n", envp[i], envp[i+1]);
 
-		printf("memsize = %08x\n", memsize);
+		if (bootinfop != NULL)
+			printf("bootinfo found at %p\n", bootinfop);
+
+		printf("memsize = %p\n", (void *)memsize);
 	}
 
 	realmem = btoc(memsize);

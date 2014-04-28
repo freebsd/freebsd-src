@@ -10,8 +10,8 @@ CFLAGS+=-I${.CURDIR}/../../../contrib/llvm/tools/lldb/source/Plugins/Process/Uti
 SRCDIR=	tools/lldb/source/Plugins/Process/elf-core
 SRCS=	ProcessElfCore.cpp \
 	ThreadElfCore.cpp \
-	RegisterContextCoreLinux_x86_64.cpp \
-	RegisterContextCoreFreeBSD_x86_64.cpp
+	RegisterContextPOSIXCore_mips64.cpp \
+	RegisterContextPOSIXCore_x86_64.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \

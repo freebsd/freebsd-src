@@ -129,8 +129,10 @@ static apr_status_t dbm_open_type(apr_dbm_type_t const* * vtable,
         apr_pool_t *parent;
 
         /* Top level pool scope, need process-scope lifetime */
-        for (parent = pool;  parent; parent = apr_pool_parent_get(pool))
-             pool = parent;
+        for (parent = apr_pool_parent_get(pool);
+             parent && parent != pool;
+             parent = apr_pool_parent_get(pool))
+            pool = parent;
 
         /* deprecate in 2.0 - permit implicit initialization */
         apu_dso_init(pool);
@@ -162,7 +164,7 @@ static apr_status_t dbm_open_type(apr_dbm_type_t const* * vtable,
 
 #if defined(NETWARE)
     apr_snprintf(modname, sizeof(modname), "dbm%s.nlm", type);
-#elif defined(WIN32)
+#elif defined(WIN32) || defined (__CYGWIN__)
     apr_snprintf(modname, sizeof(modname),
                  "apr_dbm_%s-" APU_STRINGIFY(APU_MAJOR_VERSION) ".dll", type);
 #else

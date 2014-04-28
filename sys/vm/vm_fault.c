@@ -104,17 +104,8 @@ __FBSDID("$FreeBSD$");
 
 #define PFBAK 4
 #define PFFOR 4
-#define PAGEORDER_SIZE (PFBAK+PFFOR)
-
-static int prefault_pageorder[] = {
-	-1 * PAGE_SIZE, 1 * PAGE_SIZE,
-	-2 * PAGE_SIZE, 2 * PAGE_SIZE,
-	-3 * PAGE_SIZE, 3 * PAGE_SIZE,
-	-4 * PAGE_SIZE, 4 * PAGE_SIZE
-};
 
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
-static void vm_fault_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
 
 #define	VM_FAULT_READ_BEHIND	8
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
@@ -136,6 +127,8 @@ struct faultstate {
 };
 
 static void vm_fault_cache_behind(const struct faultstate *fs, int distance);
+static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
+	    int faultcount, int reqpage);
 
 static inline void
 release_page(struct faultstate *fs)
@@ -276,6 +269,10 @@ RetryFault:;
 	map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
+		if ((curthread->td_pflags & TDP_DEVMEMIO) != 0) {
+			vm_map_unlock_read(fs.map);
+			return (KERN_FAILURE);
+		}
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 		    (u_long)vaddr);
 	}
@@ -659,6 +656,8 @@ vnode_locked:
 			}
 			PCPU_INC(cnt.v_zfod);
 			fs.m->valid = VM_PAGE_BITS_ALL;
+			/* Don't try to prefault neighboring pages. */
+			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			KASSERT(fs.object != next_object,
@@ -904,8 +903,9 @@ vnode_locked:
 	 * won't find it (yet).
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
-	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
-		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
+	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
+	    wired == 0)
+		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
 
@@ -1000,31 +1000,49 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
  * of mmap time.
  */
 static void
-vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
+vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
+    int faultcount, int reqpage)
 {
-	int i;
+	pmap_t pmap;
+	vm_map_entry_t entry;
+	vm_object_t backing_object, lobject;
 	vm_offset_t addr, starta;
 	vm_pindex_t pindex;
 	vm_page_t m;
-	vm_object_t object;
+	int backward, forward, i;
 
+	pmap = fs->map->pmap;
 	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))
 		return;
 
-	object = entry->object.vm_object;
+	if (faultcount > 0) {
+		backward = reqpage;
+		forward = faultcount - reqpage - 1;
+	} else {
+		backward = PFBAK;
+		forward = PFFOR;
+	}
+	entry = fs->entry;
 
-	starta = addra - PFBAK * PAGE_SIZE;
+	starta = addra - backward * PAGE_SIZE;
 	if (starta < entry->start) {
 		starta = entry->start;
 	} else if (starta > addra) {
 		starta = 0;
 	}
 
-	for (i = 0; i < PAGEORDER_SIZE; i++) {
-		vm_object_t backing_object, lobject;
-
-		addr = addra + prefault_pageorder[i];
-		if (addr > addra + (PFFOR * PAGE_SIZE))
+	/*
+	 * Generate the sequence of virtual addresses that are candidates for
+	 * prefaulting in an outward spiral from the faulting virtual address,
+	 * "addra".  Specifically, the sequence is "addra - PAGE_SIZE", "addra
+	 * + PAGE_SIZE", "addra - 2 * PAGE_SIZE", "addra + 2 * PAGE_SIZE", ...
+	 * If the candidate address doesn't have a backing physical page, then
+	 * the loop immediately terminates.
+	 */
+	for (i = 0; i < 2 * imax(backward, forward); i++) {
+		addr = addra + ((i >> 1) + 1) * ((i & 1) == 0 ? -PAGE_SIZE :
+		    PAGE_SIZE);
+		if (addr > addra + forward * PAGE_SIZE)
 			addr = 0;
 
 		if (addr < starta || addr >= entry->end)
@@ -1034,7 +1052,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			continue;
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
-		lobject = object;
+		lobject = entry->object.vm_object;
 		VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
@@ -1046,9 +1064,6 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_RUNLOCK(lobject);
 			lobject = backing_object;
 		}
-		/*
-		 * give-up when a page is not in memory
-		 */
 		if (m == NULL) {
 			VM_OBJECT_RUNLOCK(lobject);
 			break;
@@ -1079,7 +1094,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 
 	if (len == 0)
 		return (0);
-	end = round_page(addr + len);	
+	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
 	/*
@@ -1088,9 +1103,9 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
 		return (-1);
 
-	count = howmany(end - addr, PAGE_SIZE);
-	if (count > max_count)
+	if (atop(end - addr) > max_count)
 		panic("vm_fault_quick_hold_pages: count > max_count");
+	count = atop(end - addr);
 
 	/*
 	 * Most likely, the physical pages are resident in the pmap, so it is
@@ -1225,7 +1240,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
-	boolean_t src_readonly, upgrade;
+	boolean_t upgrade;
 
 #ifdef	lint
 	src_map++;
@@ -1235,7 +1250,6 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
-	src_readonly = (src_entry->protection & VM_PROT_WRITE) == 0;
 
 	/*
 	 * Create the top-level object for the destination entry. (Doesn't
@@ -1306,25 +1320,33 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 
 		/*
 		 * Find the page in the source object, and copy it in.
-		 * (Because the source is wired down, the page will be in
-		 * memory.)
+		 * Because the source is wired down, the page will be
+		 * in memory.
 		 */
 		VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
-		    src_readonly &&
 		    (backing_object = object->backing_object) != NULL) {
 			/*
-			 * Allow fallback to backing objects if we are reading.
+			 * Unless the source mapping is read-only or
+			 * it is presently being upgraded from
+			 * read-only, the first object in the shadow
+			 * chain should provide all of the pages.  In
+			 * other words, this loop body should never be
+			 * executed when the source mapping is already
+			 * read/write.
 			 */
+			KASSERT((src_entry->protection & VM_PROT_WRITE) == 0 ||
+			    upgrade,
+			    ("vm_fault_copy_entry: main object missing page"));
+
 			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
-		if (src_m == NULL)
-			panic("vm_fault_copy_wired: page missing");
+		KASSERT(src_m != NULL, ("vm_fault_copy_entry: page missing"));
 		pmap_copy_page(src_m, dst_m);
 		VM_OBJECT_RUNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;

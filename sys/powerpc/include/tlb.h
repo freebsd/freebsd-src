@@ -126,6 +126,9 @@
 
 #if !defined(LOCORE)
 typedef struct tlb_entry {
+	vm_paddr_t phys;
+	vm_offset_t virt;
+	vm_size_t size;
 	uint32_t mas1;
 	uint32_t mas2;
 	uint32_t mas3;
@@ -134,7 +137,7 @@ typedef struct tlb_entry {
 void tlb0_print_tlbentries(void);
 
 void tlb1_inval_entry(unsigned int);
-void tlb1_init(vm_offset_t);
+void tlb1_init(void);
 void tlb1_print_entries(void);
 void tlb1_print_tlbentries(void);
 #endif /* !LOCORE */

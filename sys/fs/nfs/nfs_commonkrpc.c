@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
 
@@ -336,24 +335,25 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	mtx_lock(&nrp->nr_mtx);
 	if (nrp->nr_client != NULL) {
+		mtx_unlock(&nrp->nr_mtx);
 		/*
 		 * Someone else already connected.
 		 */
 		CLNT_RELEASE(client);
 	} else {
 		nrp->nr_client = client;
+		/*
+		 * Protocols that do not require connections may be optionally
+		 * left unconnected for servers that reply from a port other
+		 * than NFS_PORT.
+		 */
+		if (nmp == NULL || (nmp->nm_flag & NFSMNT_NOCONN) == 0) {
+			mtx_unlock(&nrp->nr_mtx);
+			CLNT_CONTROL(client, CLSET_CONNECT, &one);
+		} else
+			mtx_unlock(&nrp->nr_mtx);
 	}
 
-	/*
-	 * Protocols that do not require connections may be optionally left
-	 * unconnected for servers that reply from a port other than NFS_PORT.
-	 */
-	if (nmp == NULL || (nmp->nm_flag & NFSMNT_NOCONN) == 0) {
-		mtx_unlock(&nrp->nr_mtx);
-		CLNT_CONTROL(client, CLSET_CONNECT, &one);
-	} else {
-		mtx_unlock(&nrp->nr_mtx);
-	}
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;

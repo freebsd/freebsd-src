@@ -94,6 +94,7 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/route.h>
 #include <net/netisr.h>
@@ -784,7 +785,7 @@ stf_rtrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
+	rt->rt_mtu = rt->rt_ifp->if_mtu;
 }
 
 static int

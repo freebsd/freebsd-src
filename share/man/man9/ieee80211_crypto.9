@@ -236,7 +236,7 @@ For receive, drivers mark frames with the
 .Dv M_WEP
 mbuf flag to indicate the hardware has decrypted the payload.
 If frames have the
-.Dv IEEE80211_FC1_WEP
+.Dv IEEE80211_FC1_PROTECTED
 bit marked in their 802.11 header and are not tagged with
 .Dv M_WEP
 then decryption is done in software.

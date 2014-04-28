@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -2725,7 +2726,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		ATH_PCU_UNLOCK(sc);
 		IF_LOCK(&ifp->if_snd);
@@ -5566,7 +5567,9 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	an->an_mcastrix = ath_tx_findrix(sc, tp->mcastrate);
 	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
+	ATH_NODE_LOCK(an);
 	ath_rate_newassoc(sc, an, isnew);
+	ATH_NODE_UNLOCK(an);
 
 	if (isnew &&
 	    (vap->iv_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey &&
@@ -5947,14 +5950,15 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		ATH_LOCK(sc);
 		if (IS_RUNNING(ifp)) {
 			/*
 			 * To avoid rescanning another access point,
 			 * do not call ath_init() here.  Instead,
 			 * only reflect promisc mode settings.
 			 */
+			ATH_LOCK(sc);
 			ath_mode_init(sc);
+			ATH_UNLOCK(sc);
 		} else if (ifp->if_flags & IFF_UP) {
 			/*
 			 * Beware of being called during attach/detach
@@ -5968,14 +5972,15 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!sc->sc_invalid)
 				ath_init(sc);	/* XXX lose error */
 		} else {
+			ATH_LOCK(sc);
 			ath_stop_locked(ifp);
 #ifdef notyet
 			/* XXX must wakeup in places like ath_vap_delete */
 			if (!sc->sc_invalid)
 				ath_hal_setpower(sc->sc_ah, HAL_PM_FULL_SLEEP);
 #endif
+			ATH_UNLOCK(sc);
 		}
-		ATH_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -6430,7 +6435,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	 * Immediately punt.
 	 */
 	if (! an->an_is_powersave) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: not in powersave?\n",
 		    __func__,
 		    ni->ni_macaddr,
@@ -6498,7 +6503,8 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	/*
 	 * XXX nothing in the TIDs at this point? Eek.
 	 */
-	device_printf(sc->sc_dev, "%s: %6D: TIDs empty, but ath_node showed traffic?!\n",
+	DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+	    "%s: %6D: TIDs empty, but ath_node showed traffic?!\n",
 	    __func__,
 	    ni->ni_macaddr,
 	    ":");

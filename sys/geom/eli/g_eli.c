@@ -990,6 +990,7 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
 		    provider, name);
 		g_eli_crypto_hmac_update(ctx, data, size);
+		bzero(data, size);
 	}
 }
 
@@ -1170,9 +1171,9 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL || cp != NULL)
 		return;	/* Nothing here. */
 
-	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>", indent,
+	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_total);
-	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>", indent,
+	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_allocated);
 	sbuf_printf(sb, "%s<Flags>", indent);
 	if (sc->sc_flags == 0)

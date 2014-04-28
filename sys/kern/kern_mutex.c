@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_global.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -249,8 +248,6 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE, m);
 	__mtx_unlock(m, curthread, opts, file, line);
 	curthread->td_locks--;
 }

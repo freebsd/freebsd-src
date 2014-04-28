@@ -31,6 +31,14 @@ D: FreeBSD and Solaris ports, libcxxrt support, some atomics work.
 N: Marshall Clow
 E: mclow.lists@gmail.com
 E: marshall@idio.com
+D: C++14 support, patches and bug fixes.
+
+N: Bill Fisher
+E: william.w.fisher@gmail.com
+D: Regex bug fixes.
+
+N: Matthew Dempsky
+E: matthew@dempsky.org
 D: Minor patches and bug fixes.
 
 N: Google Inc.
@@ -48,6 +56,10 @@ N: Argyrios Kyrtzidis
 E: kyrtzidis@apple.com
 D: Bug fixes.
 
+N: Bruce Mitchener, Jr.
+E: bruce.mitchener@gmail.com
+D: Emscripten-related changes.
+
 N: Michel Morin
 E: mimomorin@gmail.com
 D: Minor patches to is_convertible.
@@ -64,6 +76,10 @@ N: Bjorn Reese
 E: breese@users.sourceforge.net
 D: Initial regex prototype
 
+N: Nico Rieck
+E: nico.rieck@gmail.com
+D: Windows fixes
+
 N: Jonathan Sauer
 D: Minor patches, mostly related to constexpr
 
@@ -73,6 +89,14 @@ D: Implemented Cityhash as the string hash function on 64-bit machines
 
 N: Richard Smith
 D: Minor patches.
+
+N: Joerg Sonnenberger
+E: joerg@NetBSD.org
+D: NetBSD port.
+
+N: Stephan Tolksdorf
+E: st@quanttec.com
+D: Minor <atomic> fix
 
 N: Michael van der Westhuizen
 E: r1mikey at gmail dot com
@@ -85,11 +109,15 @@ N: Zhang Xiongpang
 E: zhangxiongpang@gmail.com
 D: Minor patches and bug fixes.
 
+N: Xing Xue
+E: xingxue@ca.ibm.com
+D: AIX port
+
+N: Zhihao Yuan
+E: lichray@gmail.com
+D: Standard compatibility fixes.
+
 N: Jeffrey Yasskin
 E: jyasskin@gmail.com
 E: jyasskin@google.com
 D: Linux fixes.
-
-N: Bruce Mitchener, Jr.
-E: bruce.mitchener@gmail.com
-D: Emscripten-related changes.

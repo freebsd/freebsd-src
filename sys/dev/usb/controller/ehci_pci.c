@@ -124,6 +124,8 @@ ehci_pci_match(device_t self)
 		return ("Intel Panther Point USB 2.0 controller");
 	case 0x1e2d8086:
 		return ("Intel Panther Point USB 2.0 controller");
+	case 0x1f2c8086:
+		return ("Intel Avoton USB 2.0 controller");
 	case 0x25ad8086:
 		return "Intel 6300ESB USB 2.0 controller";
 	case 0x24cd8086:
@@ -152,6 +154,10 @@ ehci_pci_match(device_t self)
 		return ("Intel PCH USB 2.0 controller USB-A");
 	case 0x3b3c8086:
 		return ("Intel PCH USB 2.0 controller USB-B");
+	case 0x8c268086:
+		return ("Intel Lynx Point USB 2.0 controller USB-A");
+	case 0x8c2d8086:
+		return ("Intel Lynx Point USB 2.0 controller USB-B");
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");

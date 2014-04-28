@@ -1,7 +1,7 @@
-/*	$Id: html.c,v 1.150 2011/10/05 21:35:17 kristaps Exp $ */
+/*	$Id: html.c,v 1.152 2013/08/08 20:07:47 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -235,6 +235,9 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 	case (ESCAPE_FONTBOLD):
 		font = HTMLFONT_BOLD;
 		break;
+	case (ESCAPE_FONTBI):
+		font = HTMLFONT_BI;
+		break;
 	case (ESCAPE_FONT):
 		/* FALLTHROUGH */
 	case (ESCAPE_FONTROMAN):
@@ -253,17 +256,27 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 	h->metal = h->metac;
 	h->metac = font;
 
-	if (HTMLFONT_NONE != font)
-		h->metaf = HTMLFONT_BOLD == font ?
-			print_otag(h, TAG_B, 0, NULL) :
-			print_otag(h, TAG_I, 0, NULL);
+	switch (font) {
+	case (HTMLFONT_ITALIC):
+		h->metaf = print_otag(h, TAG_I, 0, NULL);
+		break;
+	case (HTMLFONT_BOLD):
+		h->metaf = print_otag(h, TAG_B, 0, NULL);
+		break;
+	case (HTMLFONT_BI):
+		h->metaf = print_otag(h, TAG_B, 0, NULL);
+		print_otag(h, TAG_I, 0, NULL);
+		break;
+	default:
+		break;
+	}
 }
 
 int
 html_strlen(const char *cp)
 {
-	int		 ssz, sz;
-	const char	*seq, *p;
+	size_t		 rsz;
+	int		 skip, sz;
 
 	/*
 	 * Account for escaped sequences within string length
@@ -274,10 +287,21 @@ html_strlen(const char *cp)
 	 */
 
 	sz = 0;
-	while (NULL != (p = strchr(cp, '\\'))) {
-		sz += (int)(p - cp);
-		++cp;
-		switch (mandoc_escape(&cp, &seq, &ssz)) {
+	skip = 0;
+	while (1) {
+		rsz = strcspn(cp, "\\");
+		if (rsz) {
+			cp += rsz;
+			if (skip) {
+				skip = 0;
+				rsz--;
+			}
+			sz += rsz;
+		}
+		if ('\0' == *cp)
+			break;
+		cp++;
+		switch (mandoc_escape(&cp, NULL, NULL)) {
 		case (ESCAPE_ERROR):
 			return(sz);
 		case (ESCAPE_UNICODE):
@@ -285,15 +309,19 @@ html_strlen(const char *cp)
 		case (ESCAPE_NUMBERED):
 			/* FALLTHROUGH */
 		case (ESCAPE_SPECIAL):
-			sz++;
+			if (skip)
+				skip = 0;
+			else
+				sz++;
+			break;
+		case (ESCAPE_SKIPCHAR):
+			skip = 1;
 			break;
 		default:
 			break;
 		}
 	}
-
-	assert(sz >= 0);
-	return(sz + strlen(cp));
+	return(sz);
 }
 
 static int
@@ -308,6 +336,12 @@ print_encode(struct html *h, const char *p, int norecurse)
 	nospace = 0;
 
 	while ('\0' != *p) {
+		if (HTML_SKIPCHAR & h->flags && '\\' != *p) {
+			h->flags &= ~HTML_SKIPCHAR;
+			p++;
+			continue;
+		}
+
 		sz = strcspn(p, rejs);
 
 		fwrite(p, 1, sz, stdout);
@@ -338,6 +372,33 @@ print_encode(struct html *h, const char *p, int norecurse)
 			break;
 
 		switch (esc) {
+		case (ESCAPE_FONT):
+			/* FALLTHROUGH */
+		case (ESCAPE_FONTPREV):
+			/* FALLTHROUGH */
+		case (ESCAPE_FONTBOLD):
+			/* FALLTHROUGH */
+		case (ESCAPE_FONTITALIC):
+			/* FALLTHROUGH */
+		case (ESCAPE_FONTBI):
+			/* FALLTHROUGH */
+		case (ESCAPE_FONTROMAN):
+			if (0 == norecurse)
+				print_metaf(h, esc);
+			continue;
+		case (ESCAPE_SKIPCHAR):
+			h->flags |= HTML_SKIPCHAR;
+			continue;
+		default:
+			break;
+		}
+
+		if (h->flags & HTML_SKIPCHAR) {
+			h->flags &= ~HTML_SKIPCHAR;
+			continue;
+		}
+
+		switch (esc) {
 		case (ESCAPE_UNICODE):
 			/* Skip passed "u" header. */
 			c = mchars_num2uc(seq + 1, len - 1);
@@ -355,19 +416,6 @@ print_encode(struct html *h, const char *p, int norecurse)
 				printf("&#%d;", c);
 			else if (-1 == c && 1 == len)
 				putchar((int)*seq);
-			break;
-		case (ESCAPE_FONT):
-			/* FALLTHROUGH */
-		case (ESCAPE_FONTPREV):
-			/* FALLTHROUGH */
-		case (ESCAPE_FONTBOLD):
-			/* FALLTHROUGH */
-		case (ESCAPE_FONTITALIC):
-			/* FALLTHROUGH */
-		case (ESCAPE_FONTROMAN):
-			if (norecurse)
-				break;
-			print_metaf(h, esc);
 			break;
 		case (ESCAPE_NOSPACE):
 			if ('\0' == *p)
@@ -511,10 +559,20 @@ print_text(struct html *h, const char *word)
 	}
 
 	assert(NULL == h->metaf);
-	if (HTMLFONT_NONE != h->metac)
-		h->metaf = HTMLFONT_BOLD == h->metac ?
-			print_otag(h, TAG_B, 0, NULL) :
-			print_otag(h, TAG_I, 0, NULL);
+	switch (h->metac) {
+	case (HTMLFONT_ITALIC):
+		h->metaf = print_otag(h, TAG_I, 0, NULL);
+		break;
+	case (HTMLFONT_BOLD):
+		h->metaf = print_otag(h, TAG_B, 0, NULL);
+		break;
+	case (HTMLFONT_BI):
+		h->metaf = print_otag(h, TAG_B, 0, NULL);
+		print_otag(h, TAG_I, 0, NULL);
+		break;
+	default:
+		break;
+	}
 
 	assert(word);
 	if ( ! print_encode(h, word, 0)) {

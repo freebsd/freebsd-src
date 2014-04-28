@@ -32,6 +32,12 @@
 #define GPIO_EXTINT_BASE	0x08
 #define GPIO_BASE		0x1a
 
+#define GPIO_EXTINT_COUNT	0x12
+#define GPIO_COUNT		0x11
+
+#define GPIO_LEVELS_0	0x50
+#define GPIO_LEVELS_1	0x54
+
 /* gpio bit definitions */
 #define GPIO_DATA		0x01 /* GPIO data */
 #define GPIO_LEVEL_RO		0x02 /* read-only level on pin */

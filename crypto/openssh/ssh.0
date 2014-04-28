@@ -9,9 +9,9 @@ SYNOPSIS
          [-F configfile] [-I pkcs11] [-i identity_file]
          [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]
          [-O ctl_cmd] [-o option] [-p port]
+         [-Q cipher | cipher-auth | mac | kex | key]
          [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]
          [-w local_tun[:remote_tun]] [user@]hostname [command]
-     ssh -Q protocol_feature
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -142,13 +142,13 @@ DESCRIPTION
      -i identity_file
              Selects a file from which the identity (private key) for public
              key authentication is read.  The default is ~/.ssh/identity for
-             protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and
-             ~/.ssh/id_rsa for protocol version 2.  Identity files may also be
-             specified on a per-host basis in the configuration file.  It is
-             possible to have multiple -i options (and multiple identities
-             specified in configuration files).  ssh will also try to load
-             certificate information from the filename obtained by appending
-             -cert.pub to identity filenames.
+             protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa,
+             ~/.ssh/id_ed25519 and ~/.ssh/id_rsa for protocol version 2.
+             Identity files may also be specified on a per-host basis in the
+             configuration file.  It is possible to have multiple -i options
+             (and multiple identities specified in configuration files).  ssh
+             will also try to load certificate information from the filename
+             obtained by appending -cert.pub to identity filenames.
 
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
@@ -222,6 +222,11 @@ DESCRIPTION
                    AddressFamily
                    BatchMode
                    BindAddress
+                   CanonicalDomains
+                   CanonicalizeFallbackLocal
+                   CanonicalizeHostname
+                   CanonicalizeMaxDots
+                   CanonicalizePermittedCNAMEs
                    ChallengeResponseAuthentication
                    CheckHostIP
                    Cipher
@@ -261,6 +266,7 @@ DESCRIPTION
                    LocalForward
                    LogLevel
                    MACs
+                   Match
                    NoHostAuthenticationForLocalhost
                    NumberOfPasswordPrompts
                    PasswordAuthentication
@@ -270,6 +276,7 @@ DESCRIPTION
                    PreferredAuthentications
                    Protocol
                    ProxyCommand
+                   ProxyUseFdpass
                    PubkeyAuthentication
                    RekeyLimit
                    RemoteForward
@@ -294,13 +301,12 @@ DESCRIPTION
              Port to connect to on the remote host.  This can be specified on
              a per-host basis in the configuration file.
 
-     -Q protocol_feature
+     -Q cipher | cipher-auth | mac | kex | key
              Queries ssh for the algorithms supported for the specified
-             version 2 protocol_feature.  The queriable features are:
-             ``cipher'' (supported symmetric ciphers), ``MAC'' (supported
-             message integrity codes), ``KEX'' (key exchange algorithms),
-             ``key'' (key types).  Protocol features are treated case-
-             insensitively.
+             version 2.  The available features are: cipher (supported
+             symmetric ciphers), cipher-auth (supported symmetric ciphers that
+             support authenticated encryption), mac (supported message
+             integrity codes), kex (key exchange algorithms), key (key types).
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -440,9 +446,10 @@ AUTHENTICATION
      creates a public/private key pair for authentication purposes.  The
      server knows the public key, and only the user knows the private key.
      ssh implements public key authentication protocol automatically, using
-     one of the DSA, ECDSA or RSA algorithms.  Protocol 1 is restricted to
-     using only RSA keys, but protocol 2 may use any.  The HISTORY section of
-     ssl(8) contains a brief discussion of the DSA and RSA algorithms.
+     one of the DSA, ECDSA, ED25519 or RSA algorithms.  Protocol 1 is
+     restricted to using only RSA keys, but protocol 2 may use any.  The
+     HISTORY section of ssl(8) contains a brief discussion of the DSA and RSA
+     algorithms.
 
      The file ~/.ssh/authorized_keys lists the public keys that are permitted
      for logging in.  When the user logs in, the ssh program tells the server
@@ -452,10 +459,11 @@ AUTHENTICATION
 
      The user creates his/her key pair by running ssh-keygen(1).  This stores
      the private key in ~/.ssh/identity (protocol 1), ~/.ssh/id_dsa (protocol
-     2 DSA), ~/.ssh/id_ecdsa (protocol 2 ECDSA), or ~/.ssh/id_rsa (protocol 2
-     RSA) and stores the public key in ~/.ssh/identity.pub (protocol 1),
-     ~/.ssh/id_dsa.pub (protocol 2 DSA), ~/.ssh/id_ecdsa.pub (protocol 2
-     ECDSA), or ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home
+     2 DSA), ~/.ssh/id_ecdsa (protocol 2 ECDSA), ~/.ssh/id_ed25519 (protocol 2
+     ED25519), or ~/.ssh/id_rsa (protocol 2 RSA) and stores the public key in
+     ~/.ssh/identity.pub (protocol 1), ~/.ssh/id_dsa.pub (protocol 2 DSA),
+     ~/.ssh/id_ecdsa.pub (protocol 2 ECDSA), ~/.ssh/id_ed25519.pub (protocol 2
+     ED25519), or ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home
      directory.  The user should then copy the public key to
      ~/.ssh/authorized_keys in his/her home directory on the remote machine.
      The authorized_keys file corresponds to the conventional ~/.rhosts file,
@@ -791,11 +799,11 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (DSA/ECDSA/RSA) that can be used for
-             logging in as this user.  The format of this file is described in
-             the sshd(8) manual page.  This file is not highly sensitive, but
-             the recommended permissions are read/write for the user, and not
-             accessible by others.
+             Lists the public keys (DSA, ECDSA, ED25519, RSA) that can be used
+             for logging in as this user.  The format of this file is
+             described in the sshd(8) manual page.  This file is not highly
+             sensitive, but the recommended permissions are read/write for the
+             user, and not accessible by others.
 
      ~/.ssh/config
              This is the per-user configuration file.  The file format and
@@ -810,6 +818,7 @@ FILES
      ~/.ssh/identity
      ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
+     ~/.ssh/id_ed25519
      ~/.ssh/id_rsa
              Contains the private key for authentication.  These files contain
              sensitive data and should be readable by the user but not
@@ -822,6 +831,7 @@ FILES
      ~/.ssh/identity.pub
      ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
+     ~/.ssh/id_ed25519.pub
      ~/.ssh/id_rsa.pub
              Contains the public key for authentication.  These files are not
              sensitive and can (but need not) be readable by anyone.
@@ -853,6 +863,7 @@ FILES
      /etc/ssh/ssh_host_key
      /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_ecdsa_key
+     /etc/ssh/ssh_host_ed25519_key
      /etc/ssh/ssh_host_rsa_key
              These files contain the private parts of the host keys and are
              used for host-based authentication.  If protocol version 1 is
@@ -932,4 +943,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.4                      July 18, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5

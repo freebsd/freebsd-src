@@ -681,7 +681,7 @@ ppc_parse_name (const char *name, expressionS *expr)
 
 /* The type of processor we are assembling for.  This is one or more
    of the PPC_OPCODE flags defined in opcode/ppc.h.  */
-static unsigned long ppc_cpu = 0;
+static unsigned long ppc_cpu = PPC_OPCODE_ANY;
 
 /* Whether to target xcoff64/elf64.  */
 static unsigned int ppc_obj64 = BFD_DEFAULT_TARGET_SIZE == 64;

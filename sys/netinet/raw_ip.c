@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -453,26 +454,26 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_src = inp->inp_laddr;
+		ip->ip_dst.s_addr = dst;
 		if (jailed(inp->inp_cred)) {
 			/*
 			 * prison_local_ip4() would be good enough but would
 			 * let a source of INADDR_ANY pass, which we do not
-			 * want to see from jails. We do not go through the
-			 * pain of in_pcbladdr() for raw sockets.
+			 * want to see from jails.
 			 */
-			if (ip->ip_src.s_addr == INADDR_ANY)
-				error = prison_get_ip4(inp->inp_cred,
-				    &ip->ip_src);
-			else
+			if (ip->ip_src.s_addr == INADDR_ANY) {
+				error = in_pcbladdr(inp, &ip->ip_dst, &ip->ip_src,
+				    inp->inp_cred);
+			} else {
 				error = prison_local_ip4(inp->inp_cred,
 				    &ip->ip_src);
+			}
 			if (error != 0) {
 				INP_RUNLOCK(inp);
 				m_freem(m);
 				return (error);
 			}
 		}
-		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
 	} else {
 		if (m->m_pkthdr.len > IP_MAXPACKET) {
@@ -735,9 +736,9 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				ifa_ref(&ia->ia_ifa);
 				IN_IFADDR_RUNLOCK();
 				/*
-				 * in_ifscrub kills the interface route.
+				 * in_scrubprefix() kills the interface route.
 				 */
-				in_ifscrub(ia->ia_ifp, ia, 0);
+				in_scrubprefix(ia, 0);
 				/*
 				 * in_ifadown gets rid of all the rest of the
 				 * routes.  This is not quite the right thing
@@ -773,16 +774,12 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			flags |= RTF_HOST;
 
 		err = ifa_del_loopback_route((struct ifaddr *)ia, sa);
-		if (err == 0)
-			ia->ia_flags &= ~IFA_RTSELF;
 
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
 
 		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
-		if (err == 0)
-			ia->ia_flags |= IFA_RTSELF;
 
 		ifa_free(&ia->ia_ifa);
 		break;

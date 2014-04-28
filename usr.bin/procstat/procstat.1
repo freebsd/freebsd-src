@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2013
+.Dd February 11, 2014
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -225,8 +225,6 @@ non-blocking
 direct I/O
 .It l
 lock held
-.It c
-descriptor is a capability
 .El
 .Pp
 If the
@@ -418,6 +416,9 @@ dead
 default
 .It dv
 device
+.It md
+device with managed pages
+.Pq GEM/TTM
 .It ph
 physical
 .It sg

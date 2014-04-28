@@ -854,20 +854,7 @@ sctp_disconnect(struct socket *so)
 					struct mbuf *op_err;
 
 			abort_anyway:
-					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-					    0, M_NOWAIT, 1, MT_DATA);
-					if (op_err) {
-						/*
-						 * Fill in the user
-						 * initiated abort
-						 */
-						struct sctp_paramhdr *ph;
-
-						SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
-						ph = mtod(op_err, struct sctp_paramhdr *);
-						ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-						ph->param_length = htons(SCTP_BUF_LEN(op_err));
-					}
+					op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_4;
 					sctp_send_abort_tcb(stcb, op_err, SCTP_SO_LOCKED);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
@@ -1063,17 +1050,7 @@ sctp_shutdown(struct socket *so)
 				struct mbuf *op_err;
 
 		abort_anyway:
-				op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-				    0, M_NOWAIT, 1, MT_DATA);
-				if (op_err) {
-					/* Fill in the user initiated abort */
-					struct sctp_paramhdr *ph;
-
-					SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
-					ph = mtod(op_err, struct sctp_paramhdr *);
-					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-					ph->param_length = htons(SCTP_BUF_LEN(op_err));
-				}
+				op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    op_err, SCTP_SO_LOCKED);
@@ -1120,9 +1097,17 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 {
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
-	int loopback_scope, ipv4_local_scope, local_scope, site_scope;
 	size_t actual;
-	int ipv4_addr_legal, ipv6_addr_legal;
+	int loopback_scope;
+
+#if defined(INET)
+	int ipv4_local_scope, ipv4_addr_legal;
+
+#endif
+#if defined(INET6)
+	int local_scope, site_scope, ipv6_addr_legal;
+
+#endif
 	struct sctp_vrf *vrf;
 
 	actual = 0;
@@ -1132,27 +1117,43 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 	if (stcb) {
 		/* Turn on all the appropriate scope */
 		loopback_scope = stcb->asoc.scope.loopback_scope;
+#if defined(INET)
 		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+#endif
+#if defined(INET6)
 		local_scope = stcb->asoc.scope.local_scope;
 		site_scope = stcb->asoc.scope.site_scope;
-		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
 		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
+#endif
 	} else {
 		/* Use generic values for endpoints. */
 		loopback_scope = 1;
+#if defined(INET)
 		ipv4_local_scope = 1;
+#endif
+#if defined(INET6)
 		local_scope = 1;
 		site_scope = 1;
+#endif
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+#if defined(INET6)
 			ipv6_addr_legal = 1;
+#endif
+#if defined(INET)
 			if (SCTP_IPV6_V6ONLY(inp)) {
 				ipv4_addr_legal = 0;
 			} else {
 				ipv4_addr_legal = 1;
 			}
+#endif
 		} else {
+#if defined(INET6)
 			ipv6_addr_legal = 0;
+#endif
+#if defined(INET)
 			ipv4_addr_legal = 1;
+#endif
 		}
 	}
 	vrf = sctp_find_vrf(vrf_id);
@@ -2764,7 +2765,7 @@ flags_out:
 
 			if (stcb) {
 				/* simply copy out the sockaddr_storage... */
-				int len;
+				size_t len;
 
 				len = *optsize;
 				if (len > stcb->asoc.primary_destination->ro._l_addr.sa.sa_len)
@@ -3281,7 +3282,7 @@ flags_out:
 				}
 			}
 			if (error == 0) {
-				*optsize = sizeof(struct sctp_paddrparams);
+				*optsize = sizeof(struct sctp_udpencaps);
 			}
 			break;
 		}
@@ -4796,11 +4797,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_10);
 						}
 						net->dest_state |= SCTP_ADDR_NO_PMTUD;
-						if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
-							net->mtu = paddrp->spp_pathmtu + ovh;
-							if (net->mtu < stcb->asoc.smallest_mtu) {
-								sctp_pathmtu_adjustment(stcb, net->mtu);
-							}
+						net->mtu = paddrp->spp_pathmtu + ovh;
+						if (net->mtu < stcb->asoc.smallest_mtu) {
+							sctp_pathmtu_adjustment(stcb, net->mtu);
 						}
 					}
 					if (paddrp->spp_flags & SPP_PMTUD_ENABLE) {
@@ -4920,11 +4919,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 								    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_10);
 							}
 							net->dest_state |= SCTP_ADDR_NO_PMTUD;
-							if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
-								net->mtu = paddrp->spp_pathmtu + ovh;
-								if (net->mtu < stcb->asoc.smallest_mtu) {
-									sctp_pathmtu_adjustment(stcb, net->mtu);
-								}
+							net->mtu = paddrp->spp_pathmtu + ovh;
+							if (net->mtu < stcb->asoc.smallest_mtu) {
+								sctp_pathmtu_adjustment(stcb, net->mtu);
 							}
 						}
 						sctp_stcb_feature_on(inp, stcb, SCTP_PCB_FLAGS_DO_NOT_PMTUD);

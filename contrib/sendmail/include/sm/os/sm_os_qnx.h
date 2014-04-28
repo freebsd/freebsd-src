@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2007 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sm_os_qnx.h,v 1.1 2007/03/21 23:56:20 ca Exp $
+ *	$Id: sm_os_qnx.h,v 1.2 2013/11/22 20:51:34 ca Exp $
  */
 
 /*

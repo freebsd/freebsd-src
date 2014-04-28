@@ -28,8 +28,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -65,8 +63,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_mlock, CTLFLAG_RW|CTLFLAG_TUN,
 TUNABLE_INT("security.bsd.unprivileged_mlock", &unprivileged_mlock);
 
 SDT_PROVIDER_DEFINE(priv);
-SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_ok, priv-ok, "int");
-SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_err, priv-err, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__ok, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv__err, "int");
 
 /*
  * Check a credential for privilege.  Lots of good reasons to deny privilege;
@@ -169,9 +167,9 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	error = EPERM;
 out:
 	if (error)
-		SDT_PROBE1(priv, kernel, priv_check, priv_err, priv);
+		SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
 	else
-		SDT_PROBE1(priv, kernel, priv_check, priv_ok, priv);
+		SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
 	return (error);
 }
 

@@ -1,6 +1,6 @@
 $FreeBSD$
 
-sendmail 8.14.7
+sendmail 8.14.8
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following directories were renamed:
@@ -9,7 +9,7 @@ For the import of sendmail, the following directories were renamed:
 
 Imported using the instructions at:
 
-http://wiki.freebsd.org/SubversionPrimer/VendorImports
+http://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-primer.html
 
 Then merged using:
 
@@ -97,4 +97,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-21-April-2013
+26-January-2014

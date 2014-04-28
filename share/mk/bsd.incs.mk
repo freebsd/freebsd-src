@@ -4,7 +4,7 @@
 .error bsd.incs.mk cannot be included directly.
 .endif
 
-.if !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"
+.if ${MK_TOOLCHAIN} != "no"
 
 INCSGROUPS?=	INCS
 
@@ -105,4 +105,4 @@ STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif
 
-.endif # !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_TOOLCHAIN} != "no"

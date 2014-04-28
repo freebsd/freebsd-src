@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -3139,12 +3140,10 @@ mxge_intr(void *arg)
 			sc->link_state = stats->link_up;
 			if (sc->link_state) {
 				if_link_state_change(sc->ifp, LINK_STATE_UP);
-				if_initbaudrate(sc->ifp, IF_Gbps(10));
 				if (mxge_verbose)
 					device_printf(sc->dev, "link up\n");
 			} else {
 				if_link_state_change(sc->ifp, LINK_STATE_DOWN);
-				sc->ifp->if_baudrate = 0;
 				if (mxge_verbose)
 					device_printf(sc->dev, "link down\n");
 			}
@@ -4886,7 +4885,7 @@ mxge_attach(device_t dev)
 		goto abort_with_rings;
 	}
 
-	if_initbaudrate(ifp, IF_Gbps(10));
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
 		IFCAP_VLAN_MTU | IFCAP_LINKSTATE | IFCAP_TXCSUM_IPV6 |
 		IFCAP_RXCSUM_IPV6;

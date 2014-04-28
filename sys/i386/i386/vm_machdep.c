@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 #endif
 
 #ifdef XBOX
@@ -457,7 +457,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE);
+	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
+	    PCB_KERNNPX);
 	pcb2->pcb_save = &pcb2->pcb_user_save;
 
 	/*
@@ -618,7 +619,7 @@ cpu_reset()
 	cpuset_t map;
 	u_int cnt;
 
-	if (smp_active) {
+	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);

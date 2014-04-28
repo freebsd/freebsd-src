@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: cf.h,v 1.2 2001/03/08 03:23:07 ca Exp $
+ *	$Id: cf.h,v 1.3 2013/11/22 20:51:31 ca Exp $
  */
 
 #ifndef SM_CF_H

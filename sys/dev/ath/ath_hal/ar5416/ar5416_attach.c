@@ -1059,6 +1059,11 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	if (! AH_PRIVATE(ah)->ah_ispcie)
 		pCap->halSerialiseRegWar = 1;
 
+	/*
+	 * AR5416 and later NICs support MYBEACON filtering.
+	 */
+	pCap->halRxDoMyBeacon = AH_TRUE;
+
 	return AH_TRUE;
 }
 

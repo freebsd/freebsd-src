@@ -154,7 +154,7 @@ adb_mouse_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	mtx_init(&sc->sc_mtx,"ams",MTX_DEF,0);
+	mtx_init(&sc->sc_mtx, "ams", NULL, MTX_DEF);
 	cv_init(&sc->sc_cv,"ams");
 
 	sc->flags = 0;

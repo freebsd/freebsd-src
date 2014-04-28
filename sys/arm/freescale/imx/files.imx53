@@ -4,16 +4,19 @@ arm/arm/bus_space_generic.c		standard
 arm/arm/cpufunc_asm_armv5.S		standard
 arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
-arm/arm/irq_dispatch.S			standard
 kern/kern_clocksource.c			standard
 
 # Init
+arm/freescale/imx/imx_common.c		standard
+arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx53_machdep.c	standard
-arm/freescale/imx/common.c		standard
-arm/freescale/imx/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 
-# Dummy serial console
-arm/freescale/imx/console.c		standard
+# Special serial console for debuging early boot code
+#arm/freescale/imx/console.c		standard
+
+# UART driver (includes serial console support)
+dev/uart/uart_dev_imx.c 		optional uart
 
 # TrustZone Interrupt Controller
 arm/freescale/imx/tzic.c		standard
@@ -33,10 +36,11 @@ arm/freescale/imx/imx51_ccm.c		standard
 # i.MX5xx PATA controller
 dev/ata/chipsets/ata-fsl.c		optional imxata
 
-# UART driver
-#dev/uart/uart_dev_imx.c			optional uart
+# SDHCI/MMC
+arm/freescale/imx/imx_sdhci.c		optional sdhci
 
-# USB join controller (1 OTG, 3 EHCI)
+# USB OH3 controller (1 OTG, 3 EHCI)
+arm/freescale/imx/imx_nop_usbphy.c	optional ehci
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog
@@ -44,8 +48,12 @@ arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
 arm/freescale/imx/i2c.c			optional fsliic
-dev/ofw/ofw_iicbus.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
+arm/freescale/imx/imx51_ipuv3_fbd.c	optional vt
+dev/vt/hw/fb/vt_early_fb.c		optional vt
+
+# Fast Ethernet Controller
+dev/ffec/if_ffec.c 			optional ffec
 

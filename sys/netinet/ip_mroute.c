@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/counter.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -2556,14 +2557,13 @@ pim_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
  * is passed to if_simloop().
  */
 void
-pim_input(struct mbuf *m, int off)
+pim_input(struct mbuf *m, int iphlen)
 {
     struct ip *ip = mtod(m, struct ip *);
     struct pim *pim;
     int minlen;
-    int datalen = ntohs(ip->ip_len);
+    int datalen = ntohs(ip->ip_len) - iphlen;
     int ip_tos;
-    int iphlen = off;
 
     /* Keep statistics */
     PIMSTAT_INC(pims_rcv_total_msgs);
@@ -2593,8 +2593,7 @@ pim_input(struct mbuf *m, int off)
      * Get the IP and PIM headers in contiguous memory, and
      * possibly the PIM REGISTER header.
      */
-    if ((m->m_flags & M_EXT || m->m_len < minlen) &&
-	(m = m_pullup(m, minlen)) == 0) {
+    if (m->m_len < minlen && (m = m_pullup(m, minlen)) == 0) {
 	CTR1(KTR_IPMF, "%s: m_pullup() failed", __func__);
 	return;
     }

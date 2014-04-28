@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sha.h>
 #include <sha256.h>
 #include <sha512.h>
+#include <spawn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,11 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 
 #include "mtree.h"
-
-/* Bootstrap aid - this doesn't exist in most older releases */
-#ifndef MAP_FAILED
-#define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
-#endif
 
 #define MAX_CMP_SIZE	(16 * 1024 * 1024)
 
@@ -107,6 +103,8 @@ static enum {
 	DIGEST_SHA512,
 } digesttype = DIGEST_NONE;
 
+extern char **environ;
+
 static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
@@ -126,7 +124,7 @@ static int	create_tempfile(const char *, char *, size_t);
 static char	*quiet_mktemp(char *template);
 static char	*digest_file(const char *);
 static void	digest_init(DIGEST_CTX *);
-static void	digest_update(DIGEST_CTX *, const unsigned char *, size_t);
+static void	digest_update(DIGEST_CTX *, const char *, size_t);
 static char	*digest_end(DIGEST_CTX *, char *);
 static int	do_link(const char *, const char *, const struct stat *);
 static void	do_symlink(const char *, const char *, const struct stat *);
@@ -431,7 +429,7 @@ digest_init(DIGEST_CTX *c)
 }
 
 static void
-digest_update(DIGEST_CTX *c, const unsigned char *data, size_t len)
+digest_update(DIGEST_CTX *c, const char *data, size_t len)
 {
 
 	switch (digesttype) {
@@ -1018,11 +1016,11 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    from_fd, (off_t)0);
-			if (p == (char *)MAP_FAILED)
+			if (p == MAP_FAILED)
 				goto out;
 			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    to_fd, (off_t)0);
-			if (q == (char *)MAP_FAILED) {
+			if (q == MAP_FAILED) {
 				munmap(p, from_len);
 				goto out;
 			}
@@ -1146,7 +1144,8 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 {
 	int nr, nw;
 	int serrno;
-	char *p, buf[MAXBSIZE];
+	char *p;
+	char buf[MAXBSIZE];
 	int done_copy;
 	DIGEST_CTX ctx;
 
@@ -1166,7 +1165,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
-		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
+		    from_fd, (off_t)0)) != MAP_FAILED) {
 		nw = write(to_fd, p, size);
 		if (nw != size) {
 			serrno = errno;
@@ -1219,27 +1218,33 @@ static void
 strip(const char *to_name)
 {
 	const char *stripbin;
-	int serrno, status;
+	const char *args[3];
+	pid_t pid;
+	int error, status;
 
-	switch (fork()) {
-	case -1:
-		serrno = errno;
+	stripbin = getenv("STRIPBIN");
+	if (stripbin == NULL)
+		stripbin = "strip";
+	args[0] = stripbin;
+	args[1] = to_name;
+	args[2] = NULL;
+	error = posix_spawnp(&pid, stripbin, NULL, NULL,
+	    __DECONST(char **, args), environ);
+	if (error != 0) {
 		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_TEMPFAIL, "fork");
-	case 0:
-		stripbin = getenv("STRIPBIN");
-		if (stripbin == NULL)
-			stripbin = "strip";
-		execlp(stripbin, stripbin, to_name, (char *)NULL);
-		err(EX_OSERR, "exec(%s)", stripbin);
-	default:
-		if (wait(&status) == -1 || status) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errc(EX_SOFTWARE, serrno, "wait");
-			/* NOTREACHED */
-		}
+		errc(error == EAGAIN || error == EPROCLIM || error == ENOMEM ?
+		    EX_TEMPFAIL : EX_OSERR, error, "spawn %s", stripbin);
+	}
+	if (waitpid(pid, &status, 0) == -1) {
+		error = errno;
+		(void)unlink(to_name);
+		errc(EX_SOFTWARE, error, "wait");
+		/* NOTREACHED */
+	}
+	if (status != 0) {
+		(void)unlink(to_name);
+		errx(EX_SOFTWARE, "strip command %s failed on %s",
+		    stripbin, to_name);
 	}
 }
 

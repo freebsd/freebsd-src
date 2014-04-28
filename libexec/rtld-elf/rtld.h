@@ -71,6 +71,9 @@ extern size_t tls_static_space;
 extern int tls_dtv_generation;
 extern int tls_max_index;
 
+extern int npagesizes;
+extern size_t *pagesizes;
+
 extern int main_argc;
 extern char **main_argv;
 extern char **environ;
@@ -352,6 +355,8 @@ Obj_Entry *map_object(int, const char *, const struct stat *);
 void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 char *xstrdup(const char *);
+void *malloc_aligned(size_t size, size_t align);
+void free_aligned(void *ptr);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 

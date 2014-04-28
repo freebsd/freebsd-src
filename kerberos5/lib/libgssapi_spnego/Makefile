@@ -38,6 +38,7 @@ CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
 		spnego_asn1_files spnego_asn1-template.c
 
+.ORDER: ${GEN}
 ${GEN}: spnego.asn1 spnego.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 		${.ALLSRC:M*.asn1} spnego_asn1
@@ -45,10 +46,10 @@ ${GEN}: spnego.asn1 spnego.opt
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cp ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cp ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 

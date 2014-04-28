@@ -4,5 +4,5 @@ PROG=	gaithrstress
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 
-NO_MAN=
+MAN=
 .include <bsd.prog.mk>

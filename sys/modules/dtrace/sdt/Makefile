@@ -1,15 +1,17 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/dev/sdt
+SYSDIR?=	${.CURDIR}/../../..
+
+.PATH:		${SYSDIR}/cddl/dev/sdt
 
 KMOD=		sdt
 SRCS=		sdt.c
-SRCS+=		vnode_if.h opt_kdtrace.h
+SRCS+=		vnode_if.h
 
-CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common \
-		-I${.CURDIR}/../../..
+CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
+		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SYSDIR}
 
 .include <bsd.kmod.mk>
 
-CFLAGS+=	-include ${.CURDIR}/../../../cddl/compat/opensolaris/sys/debug_compat.h
+CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h

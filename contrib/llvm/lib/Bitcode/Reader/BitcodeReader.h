@@ -21,6 +21,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/OperandTraits.h"
 #include "llvm/IR/Type.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/Support/ValueHandle.h"
 #include <vector>
 
@@ -132,8 +133,6 @@ class BitcodeReader : public GVMaterializer {
   uint64_t NextUnreadBit;
   bool SeenValueSymbolTable;
 
-  const char *ErrorString;
-
   std::vector<Type*> TypeList;
   BitcodeReaderValueList ValueList;
   BitcodeReaderMDValueList MDValueList;
@@ -142,6 +141,9 @@ class BitcodeReader : public GVMaterializer {
 
   std::vector<std::pair<GlobalVariable*, unsigned> > GlobalInits;
   std::vector<std::pair<GlobalAlias*, unsigned> > AliasInits;
+  std::vector<std::pair<Function*, unsigned> > FunctionPrefixes;
+
+  SmallVector<Instruction*, 64> InstsWithTBAATag;
 
   /// MAttributes - The set of attributes by index.  Index zero in the
   /// file is for null, and is thus not represented here.  As such all indices
@@ -191,17 +193,46 @@ class BitcodeReader : public GVMaterializer {
   /// not need this flag.
   bool UseRelativeIDs;
 
+  static const error_category &BitcodeErrorCategory();
+
 public:
+  enum ErrorType {
+    BitcodeStreamInvalidSize,
+    ConflictingMETADATA_KINDRecords,
+    CouldNotFindFunctionInStream,
+    ExpectedConstant,
+    InsufficientFunctionProtos,
+    InvalidBitcodeSignature,
+    InvalidBitcodeWrapperHeader,
+    InvalidConstantReference,
+    InvalidID, // A read identifier is not found in the table it should be in.
+    InvalidInstructionWithNoBB,
+    InvalidRecord, // A read record doesn't have the expected size or structure
+    InvalidTypeForValue, // Type read OK, but is invalid for its use
+    InvalidTYPETable,
+    InvalidType, // We were unable to read a type
+    MalformedBlock, // We are unable to advance in the stream.
+    MalformedGlobalInitializerSet,
+    InvalidMultipleBlocks, // We found multiple blocks of a kind that should
+                           // have only one
+    NeverResolvedValueFoundInFunction,
+    InvalidValue // Invalid version, inst number, attr number, etc
+  };
+
+  error_code Error(ErrorType E) {
+    return error_code(E, BitcodeErrorCategory());
+  }
+
   explicit BitcodeReader(MemoryBuffer *buffer, LLVMContext &C)
     : Context(C), TheModule(0), Buffer(buffer), BufferOwned(false),
       LazyStreamer(0), NextUnreadBit(0), SeenValueSymbolTable(false),
-      ErrorString(0), ValueList(C), MDValueList(C),
+      ValueList(C), MDValueList(C),
       SeenFirstFunctionBody(false), UseRelativeIDs(false) {
   }
   explicit BitcodeReader(DataStreamer *streamer, LLVMContext &C)
     : Context(C), TheModule(0), Buffer(0), BufferOwned(false),
       LazyStreamer(streamer), NextUnreadBit(0), SeenValueSymbolTable(false),
-      ErrorString(0), ValueList(C), MDValueList(C),
+      ValueList(C), MDValueList(C),
       SeenFirstFunctionBody(false), UseRelativeIDs(false) {
   }
   ~BitcodeReader() {
@@ -218,23 +249,17 @@ public:
 
   virtual bool isMaterializable(const GlobalValue *GV) const;
   virtual bool isDematerializable(const GlobalValue *GV) const;
-  virtual bool Materialize(GlobalValue *GV, std::string *ErrInfo = 0);
-  virtual bool MaterializeModule(Module *M, std::string *ErrInfo = 0);
+  virtual error_code Materialize(GlobalValue *GV);
+  virtual error_code MaterializeModule(Module *M);
   virtual void Dematerialize(GlobalValue *GV);
-
-  bool Error(const char *Str) {
-    ErrorString = Str;
-    return true;
-  }
-  const char *getErrorString() const { return ErrorString; }
 
   /// @brief Main interface to parsing a bitcode buffer.
   /// @returns true if an error occurred.
-  bool ParseBitcodeInto(Module *M);
+  error_code ParseBitcodeInto(Module *M);
 
   /// @brief Cheap mechanism to just extract module triple
   /// @returns true if an error occurred.
-  bool ParseTriple(std::string &Triple);
+  error_code ParseTriple(std::string &Triple);
 
   static uint64_t decodeSignRotatedValue(uint64_t V);
 
@@ -258,7 +283,7 @@ private:
   /// getValueTypePair - Read a value/type pair out of the specified record from
   /// slot 'Slot'.  Increment Slot past the number of slots used in the record.
   /// Return true on failure.
-  bool getValueTypePair(SmallVector<uint64_t, 64> &Record, unsigned &Slot,
+  bool getValueTypePair(SmallVectorImpl<uint64_t> &Record, unsigned &Slot,
                         unsigned InstNum, Value *&ResVal) {
     if (Slot == Record.size()) return true;
     unsigned ValNo = (unsigned)Record[Slot++];
@@ -282,7 +307,7 @@ private:
   /// popValue - Read a value out of the specified record from slot 'Slot'.
   /// Increment Slot past the number of slots used by the value in the record.
   /// Return true if there is an error.
-  bool popValue(SmallVector<uint64_t, 64> &Record, unsigned &Slot,
+  bool popValue(SmallVectorImpl<uint64_t> &Record, unsigned &Slot,
                 unsigned InstNum, Type *Ty, Value *&ResVal) {
     if (getValue(Record, Slot, InstNum, Ty, ResVal))
       return true;
@@ -292,7 +317,7 @@ private:
   }
 
   /// getValue -- Like popValue, but does not increment the Slot number.
-  bool getValue(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+  bool getValue(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                 unsigned InstNum, Type *Ty, Value *&ResVal) {
     ResVal = getValue(Record, Slot, InstNum, Ty);
     return ResVal == 0;
@@ -300,7 +325,7 @@ private:
 
   /// getValue -- Version of getValue that returns ResVal directly,
   /// or 0 if there is an error.
-  Value *getValue(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+  Value *getValue(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                   unsigned InstNum, Type *Ty) {
     if (Slot == Record.size()) return 0;
     unsigned ValNo = (unsigned)Record[Slot];
@@ -311,7 +336,7 @@ private:
   }
 
   /// getValueSigned -- Like getValue, but decodes signed VBRs.
-  Value *getValueSigned(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+  Value *getValueSigned(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                         unsigned InstNum, Type *Ty) {
     if (Slot == Record.size()) return 0;
     unsigned ValNo = (unsigned)decodeSignRotatedValue(Record[Slot]);
@@ -321,26 +346,27 @@ private:
     return getFnValueByID(ValNo, Ty);
   }
 
-  bool ParseModule(bool Resume);
-  bool ParseAttributeBlock();
-  bool ParseAttributeGroupBlock();
-  bool ParseTypeTable();
-  bool ParseTypeTableBody();
+  error_code ParseAttrKind(uint64_t Code, Attribute::AttrKind *Kind);
+  error_code ParseModule(bool Resume);
+  error_code ParseAttributeBlock();
+  error_code ParseAttributeGroupBlock();
+  error_code ParseTypeTable();
+  error_code ParseTypeTableBody();
 
-  bool ParseValueSymbolTable();
-  bool ParseConstants();
-  bool RememberAndSkipFunctionBody();
-  bool ParseFunctionBody(Function *F);
-  bool GlobalCleanup();
-  bool ResolveGlobalAndAliasInits();
-  bool ParseMetadata();
-  bool ParseMetadataAttachment();
-  bool ParseModuleTriple(std::string &Triple);
-  bool ParseUseLists();
-  bool InitStream();
-  bool InitStreamFromBuffer();
-  bool InitLazyStream();
-  bool FindFunctionInStream(Function *F,
+  error_code ParseValueSymbolTable();
+  error_code ParseConstants();
+  error_code RememberAndSkipFunctionBody();
+  error_code ParseFunctionBody(Function *F);
+  error_code GlobalCleanup();
+  error_code ResolveGlobalAndAliasInits();
+  error_code ParseMetadata();
+  error_code ParseMetadataAttachment();
+  error_code ParseModuleTriple(std::string &Triple);
+  error_code ParseUseLists();
+  error_code InitStream();
+  error_code InitStreamFromBuffer();
+  error_code InitLazyStream();
+  error_code FindFunctionInStream(Function *F,
          DenseMap<Function*, uint64_t>::iterator DeferredFunctionInfoIterator);
 };
 

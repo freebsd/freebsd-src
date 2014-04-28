@@ -149,6 +149,8 @@ static int adm5120_uart_bus_probe(struct uart_softc *);
 static int adm5120_uart_bus_receive(struct uart_softc *);
 static int adm5120_uart_bus_setsig(struct uart_softc *, int);
 static int adm5120_uart_bus_transmit(struct uart_softc *);
+static void adm5120_uart_bus_grab(struct uart_softc *);
+static void adm5120_uart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t adm5120_uart_methods[] = {
 	KOBJMETHOD(uart_attach,		adm5120_uart_bus_attach),
@@ -162,6 +164,8 @@ static kobj_method_t adm5120_uart_methods[] = {
 	KOBJMETHOD(uart_receive,	adm5120_uart_bus_receive),
 	KOBJMETHOD(uart_setsig,		adm5120_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	adm5120_uart_bus_transmit),
+	KOBJMETHOD(uart_grab,		adm5120_uart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		adm5120_uart_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -449,4 +453,27 @@ adm5120_uart_bus_transmit(struct uart_softc *sc)
 	adm5120_uart_enable_txintr(sc);
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+static void
+adm5120_uart_bus_grab(struct uart_softc *sc)
+{
+
+	/* Enable interrupts - no RX_INT or RX_TIMEOUT */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(&sc->sc_bas, UART_CR_REG,
+	    UART_CR_PORT_EN | UART_CR_MODEM_STATUS_INT_EN);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+adm5120_uart_bus_ungrab(struct uart_softc *sc)
+{
+
+	/* Enable interrupts */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(&sc->sc_bas, UART_CR_REG,
+	    UART_CR_PORT_EN|UART_CR_RX_INT_EN|UART_CR_RX_TIMEOUT_INT_EN|
+	    UART_CR_MODEM_STATUS_INT_EN);
+	uart_unlock(sc->sc_hwmtx);
 }

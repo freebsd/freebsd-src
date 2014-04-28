@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -39,6 +39,7 @@
 #include <sys/refcount.h>
 #include <sys/bplist.h>
 #include <sys/bpobj.h>
+#include <zfeature_common.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -81,16 +82,16 @@ typedef struct spa_config_dirent {
 	char		*scd_path;
 } spa_config_dirent_t;
 
-enum zio_taskq_type {
+typedef enum zio_taskq_type {
 	ZIO_TASKQ_ISSUE = 0,
 	ZIO_TASKQ_ISSUE_HIGH,
 	ZIO_TASKQ_INTERRUPT,
 	ZIO_TASKQ_INTERRUPT_HIGH,
 	ZIO_TASKQ_TYPES
-};
+} zio_taskq_type_t;
 
 /*
- * State machine for the zpool-pooname process.  The states transitions
+ * State machine for the zpool-poolname process.  The states transitions
  * are done as follows:
  *
  *	From		   To			Routine
@@ -107,6 +108,11 @@ typedef enum spa_proc_state {
 	SPA_PROC_DEACTIVATE,	/* spa_deactivate() requests process exit */
 	SPA_PROC_GONE		/* spa_thread() is exiting, spa_proc = &p0 */
 } spa_proc_state_t;
+
+typedef struct spa_taskqs {
+	uint_t stqs_count;
+	taskq_t **stqs_taskq;
+} spa_taskqs_t;
 
 struct spa {
 	/*
@@ -126,7 +132,7 @@ struct spa {
 	uint8_t		spa_sync_on;		/* sync threads are running */
 	spa_load_state_t spa_load_state;	/* current load operation */
 	uint64_t	spa_import_flags;	/* import specific flags */
-	taskq_t		*spa_zio_taskq[ZIO_TYPES][ZIO_TASKQ_TYPES];
+	spa_taskqs_t	spa_zio_taskq[ZIO_TYPES][ZIO_TASKQ_TYPES];
 	dsl_pool_t	*spa_dsl_pool;
 	boolean_t	spa_is_initializing;	/* true while opening pool */
 	metaslab_class_t *spa_normal_class;	/* normal data class */
@@ -232,6 +238,9 @@ struct spa {
 	uint64_t	spa_feat_for_write_obj;	/* required to write to pool */
 	uint64_t	spa_feat_for_read_obj;	/* required to read from pool */
 	uint64_t	spa_feat_desc_obj;	/* Feature descriptions */
+	uint64_t	spa_feat_enabled_txg_obj; /* Feature enabled txg */
+	/* cache feature refcounts */
+	uint64_t	spa_feat_refcount_cache[SPA_FEATURES];
 #ifdef illumos
 	cyclic_id_t	spa_deadman_cycid;	/* cyclic id */
 #else	/* FreeBSD */
@@ -240,9 +249,22 @@ struct spa {
 #endif
 #endif	/* illumos */
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */
-	uint64_t	spa_sync_starttime;	/* starting time fo spa_sync */
+	hrtime_t	spa_sync_starttime;	/* starting time fo spa_sync */
 	uint64_t	spa_deadman_synctime;	/* deadman expiration timer */
+#ifdef illumos
+	/*
+	 * spa_iokstat_lock protects spa_iokstat and
+	 * spa_queue_stats[].
+	 */
+	kmutex_t	spa_iokstat_lock;
+	struct kstat	*spa_iokstat;		/* kstat of io to this pool */
+	struct {
+		int spa_active;
+		int spa_queued;
+	} spa_queue_stats[ZIO_PRIORITY_NUM_QUEUEABLE];
+#endif
 	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
+
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements
 	 * because refcount_t changes size based on compilation options.
@@ -257,6 +279,9 @@ struct spa {
 };
 
 extern const char *spa_config_path;
+
+extern void spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
+    task_func_t *func, void *arg, uint_t flags, taskq_ent_t *ent);
 
 #ifdef	__cplusplus
 }

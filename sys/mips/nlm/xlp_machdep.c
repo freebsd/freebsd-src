@@ -150,7 +150,7 @@ xlp_setup_mmu(void)
 
 	/* Enable no-read, no-exec, large-physical-address */
 	pagegrain = mips_rd_pagegrain();
-	pagegrain |= (1 << 31)	|	/* RIE */
+	pagegrain |= (1U << 31)	|	/* RIE */
 	    (1 << 30)		|	/* XIE */
 	    (1 << 29);			/* ELPA */
 	mips_wr_pagegrain(pagegrain);

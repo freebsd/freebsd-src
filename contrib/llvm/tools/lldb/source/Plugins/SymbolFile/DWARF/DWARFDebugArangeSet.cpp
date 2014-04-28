@@ -162,7 +162,7 @@ DWARFDebugArangeSet::AddDescriptor(const DWARFDebugArangeSet::Descriptor& range)
 }
 
 bool
-DWARFDebugArangeSet::Extract(const DataExtractor &data, lldb::offset_t *offset_ptr)
+DWARFDebugArangeSet::Extract(const DWARFDataExtractor &data, lldb::offset_t *offset_ptr)
 {
     if (data.ValidOffset(*offset_ptr))
     {
@@ -183,9 +183,9 @@ DWARFDebugArangeSet::Extract(const DataExtractor &data, lldb::offset_t *offset_p
         // descriptor on the target system. This header is followed by a series
         // of tuples. Each tuple consists of an address and a length, each in
         // the size appropriate for an address on the target architecture.
-        m_header.length     = data.GetU32(offset_ptr);
+        m_header.length     = data.GetDWARFInitialLength(offset_ptr);
         m_header.version    = data.GetU16(offset_ptr);
-        m_header.cu_offset  = data.GetU32(offset_ptr);
+        m_header.cu_offset  = data.GetDWARFOffset(offset_ptr);
         m_header.addr_size  = data.GetU8(offset_ptr);
         m_header.seg_size   = data.GetU8(offset_ptr);
 

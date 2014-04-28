@@ -43,7 +43,7 @@
 #include <sys/queue.h>
 #include <sys/callout.h>
 #include <sys/sbuf.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <assert.h>
 #include <bsdxml.h>
 #include <ctype.h>
@@ -65,11 +65,13 @@
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
+#include "ctld.h"
+
 #ifdef ICL_KERNEL_PROXY
 #include <netdb.h>
 #endif
 
-#include "ctld.h"
+extern bool proxy_mode;
 
 static int	ctl_fd = 0;
 
@@ -352,7 +354,7 @@ retry:
 			log_warnx("found CTL lun %ju, backing lun %d, target "
 			    "%s, also backed by CTL lun %d; ignoring",
 			    (uintmax_t) lun->lun_id, cl->l_lun,
-			    cl->l_target->t_iqn, cl->l_ctl_lun);
+			    cl->l_target->t_name, cl->l_ctl_lun);
 			continue;
 		}
 
@@ -382,7 +384,7 @@ retry:
 				log_warnx("unable to add CTL lun option %s "
 				    "for CTL lun %ju for lun %d, target %s",
 				    nv->name, (uintmax_t) lun->lun_id,
-				    cl->l_lun, cl->l_target->t_iqn);
+				    cl->l_lun, cl->l_target->t_name);
 		}
 	}
 
@@ -434,10 +436,10 @@ kernel_lun_add(struct lun *lun)
 
 	lo = lun_option_find(lun, "cfiscsi_target");
 	if (lo != NULL) {
-		lun_option_set(lo, lun->l_target->t_iqn);
+		lun_option_set(lo, lun->l_target->t_name);
 	} else {
 		lo = lun_option_new(lun, "cfiscsi_target",
-		    lun->l_target->t_iqn);
+		    lun->l_target->t_name);
 		assert(lo != NULL);
 	}
 
@@ -598,8 +600,15 @@ kernel_handoff(struct connection *conn)
 		    conn->conn_initiator_alias, sizeof(req.data.handoff.initiator_alias));
 	}
 	strlcpy(req.data.handoff.target_name,
-	    conn->conn_target->t_iqn, sizeof(req.data.handoff.target_name));
+	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		req.data.handoff.connection_id = conn->conn_socket;
+	else
+		req.data.handoff.socket = conn->conn_socket;
+#else
 	req.data.handoff.socket = conn->conn_socket;
+#endif
 	req.data.handoff.portal_group_tag =
 	    conn->conn_portal->p_portal_group->pg_tag;
 	if (conn->conn_header_digest == CONN_DIGEST_CRC32C)
@@ -613,13 +622,15 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI handoff request: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 int
@@ -664,7 +675,7 @@ kernel_port_off(void)
 
 #ifdef ICL_KERNEL_PROXY
 void
-kernel_listen(struct addrinfo *ai, bool iser)
+kernel_listen(struct addrinfo *ai, bool iser, int portal_id)
 {
 	struct ctl_iscsi req;
 
@@ -677,26 +688,41 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	req.data.listen.protocol = ai->ai_protocol;
 	req.data.listen.addr = ai->ai_addr;
 	req.data.listen.addrlen = ai->ai_addrlen;
+	req.data.listen.portal_id = portal_id;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
+		log_err(1, "error issuing CTL_ISCSI ioctl");
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI listen: %s",
+		    req.error_str);
+	}
 }
 
-int
-kernel_accept(void)
+void
+kernel_accept(int *connection_id, int *portal_id,
+    struct sockaddr *client_sa, socklen_t *client_salen)
 {
 	struct ctl_iscsi req;
+	struct sockaddr_storage ss;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_ACCEPT;
+	req.data.accept.initiator_addr = (struct sockaddr *)&ss;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
-		return (0);
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+		log_err(1, "error issuing CTL_ISCSI ioctl");
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI accept: %s",
+		    req.error_str);
 	}
 
-	return (req.data.accept.connection_id);
+	*connection_id = req.data.accept.connection_id;
+	*portal_id = req.data.accept.portal_id;
+	*client_salen = req.data.accept.initiator_addrlen;
+	memcpy(client_sa, &ss, *client_salen);
 }
 
 void
@@ -712,13 +738,15 @@ kernel_send(struct pdu *pdu)
 	req.data.send.data_segment_len = pdu->pdu_data_len;
 	req.data.send.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI send: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 void
@@ -738,13 +766,15 @@ kernel_receive(struct pdu *pdu)
 	req.data.receive.data_segment_len = MAX_DATA_SEGMENT_LENGTH;
 	req.data.receive.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI receive: "
 		    "%s; dropping connection", req.error_str);
+	}
 
 }
 

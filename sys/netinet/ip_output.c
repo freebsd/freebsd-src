@@ -32,9 +32,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
 #include "opt_route.h"
@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
@@ -123,7 +124,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
-	int n;	/* scratchpad */
 	int error = 0;
 	struct sockaddr_in *dst;
 	const struct sockaddr_in *gw;
@@ -154,19 +154,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 #ifdef FLOWTABLE
-	if (ro->ro_rt == NULL) {
-		struct flentry *fle;
-			
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt. The
-		 * flow ID assignment must have happened before this point.
-		 */
-		fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET);
-		if (fle != NULL)
-			flow_to_route(fle, ro);
-	}
+	if (ro->ro_rt == NULL)
+		(void )flowtable_lookup(AF_INET, m, ro);
 #endif
 
 	if (opt) {
@@ -200,15 +189,21 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
+	/*
+	 * dst/gw handling:
+	 *
+	 * dst can be rewritten but always points to &ro->ro_dst.
+	 * gw is readonly but can point either to dst OR rt_gateway,
+	 * therefore we need restore gw if we're redoing lookup.
+	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
 	/*
-	 * If there is a cached route,
-	 * check that it is to the same destination
-	 * and is still up.  If not, free it and try again.
-	 * The address family should also be checked in case of sharing the
-	 * cache with IPv6.
+	 * If there is a cached route, check that it is to the same
+	 * destination and is still up.  If not, free it and try again.
+	 * The address family should also be checked in case of sharing
+	 * the cache with IPv6.
 	 */
 	rte = ro->ro_rt;
 	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
@@ -219,6 +214,7 @@ again:
 		RO_RTFREE(ro);
 		ro->ro_lle = NULL;
 		rte = NULL;
+		gw = dst;
 	}
 	if (rte == NULL && fwd_tag == NULL) {
 		bzero(dst, sizeof(*dst));
@@ -234,7 +230,8 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -245,8 +242,10 @@ again:
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+		    				    RT_DEFAULT_FIB))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
+		    				RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -297,9 +296,8 @@ again:
 			goto bad;
 		}
 		ia = ifatoia(rte->rt_ifa);
-		ifa_ref(&ia->ia_ifa);
 		ifp = rte->rt_ifp;
-		rte->rt_rmx.rmx_pksent++;
+		counter_u64_add(rte->rt_pksent, 1);
 		if (rte->rt_flags & RTF_GATEWAY)
 			gw = (struct sockaddr_in *)rte->rt_gateway;
 		if (rte->rt_flags & RTF_HOST)
@@ -319,9 +317,9 @@ again:
 		 * them, there is no way for one to update all its
 		 * routes when the MTU is changed.
 		 */
-		if (rte->rt_rmx.rmx_mtu > ifp->if_mtu)
-			rte->rt_rmx.rmx_mtu = ifp->if_mtu;
-		mtu = rte->rt_rmx.rmx_mtu;
+		if (rte->rt_mtu > ifp->if_mtu)
+			rte->rt_mtu = ifp->if_mtu;
+		mtu = rte->rt_mtu;
 	} else {
 		mtu = ifp->if_mtu;
 	}
@@ -330,6 +328,12 @@ again:
 	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
+		/*
+		 * IP destination address is multicast.  Make sure "gw"
+		 * still points to the address in "ro".  (It may have been
+		 * changed to point to a gateway address, above.)
+		 */
+		gw = dst;
 		/*
 		 * See if the caller provided any multicast options
 		 */
@@ -431,6 +435,25 @@ again:
 	}
 
 	/*
+	 * Both in the SMP world, pre-emption world if_transmit() world,
+	 * the following code doesn't really function as intended any further.
+	 *
+	 * + There can and will be multiple CPUs running this code path
+	 *   in parallel, and we do no lock holding when checking the
+	 *   queue depth;
+	 * + And since other threads can be running concurrently, even if
+	 *   we do pass this check, another thread may queue some frames
+	 *   before this thread does and it will end up partially or fully
+	 *   failing to send anyway;
+	 * + if_transmit() based drivers don't necessarily set ifq_len
+	 *   at all.
+	 *
+	 * This should be replaced with a method of pushing an entire list
+	 * of fragment frames to the driver and have the driver decide
+	 * whether it can queue or not queue the entire set.
+	 */
+#if 0
+	/*
 	 * Verify that we have any chance at all of being able to queue the
 	 * packet or packet fragments, unless ALTQ is enabled on the given
 	 * interface in which case packetdrop should be done by queueing.
@@ -446,6 +469,7 @@ again:
 		ifp->if_snd.ifq_drops += n;
 		goto bad;
 	}
+#endif
 
 	/*
 	 * Look for broadcast address and
@@ -528,11 +552,8 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else {
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
+		} else
 			goto again;	/* Redo the routing table lookup. */
-		}
 	}
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
@@ -561,8 +582,6 @@ sendit:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 
@@ -610,11 +629,12 @@ passout:
 		 */
 		if (!(flags & IP_FORWARDING) && ia) {
 			if (m->m_pkthdr.csum_flags & CSUM_TSO)
-				ia->ia_ifa.if_opackets +=
-				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz;
+				counter_u64_add(ia->ia_ifa.ifa_opackets,
+				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz);
 			else
-				ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+
+			counter_u64_add(ia->ia_ifa.ifa_obytes, m->m_pkthdr.len);
 		}
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
@@ -651,8 +671,9 @@ passout:
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia != NULL) {
-				ia->ia_ifa.if_opackets++;
-				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_obytes,
+				    m->m_pkthdr.len);
 			}
 			/*
 			 * Reset layer specific mbuf flags
@@ -673,8 +694,6 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
@@ -732,10 +751,10 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	}
 #endif
 	if (len > PAGE_SIZE) {
-		/* 
-		 * Fragment large datagrams such that each segment 
-		 * contains a multiple of PAGE_SIZE amount of data, 
-		 * plus headers. This enables a receiver to perform 
+		/*
+		 * Fragment large datagrams such that each segment
+		 * contains a multiple of PAGE_SIZE amount of data,
+		 * plus headers. This enables a receiver to perform
 		 * page-flipping zero-copy optimizations.
 		 *
 		 * XXX When does this help given that sender and receiver
@@ -749,7 +768,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 			off += m->m_len;
 
 		/*
-		 * firstlen (off - hlen) must be aligned on an 
+		 * firstlen (off - hlen) must be aligned on an
 		 * 8-byte boundary
 		 */
 		if (off < hlen)
@@ -1134,7 +1153,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_OPTIONS:
 		case IP_RETOPTS:
 			if (inp->inp_options)
-				error = sooptcopyout(sopt, 
+				error = sooptcopyout(sopt,
 						     mtod(inp->inp_options,
 							  char *),
 						     inp->inp_options->m_len);

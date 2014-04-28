@@ -68,54 +68,6 @@ password_value=
 opt_force=no
 
 # ======================================================================
-# Routine: create_host_keys
-# ======================================================================
-create_host_keys() {
-  local ret=0
-
-  if [ ! -f "${SYSCONFDIR}/ssh_host_key" ]
-  then
-    csih_inform "Generating ${SYSCONFDIR}/ssh_host_key"
-    if ! /usr/bin/ssh-keygen -t rsa1 -f ${SYSCONFDIR}/ssh_host_key -N '' > /dev/null
-    then
-    	csih_warning "Generating ${SYSCONFDIR}/ssh_host_key failed!"
-	let ++ret
-    fi
-  fi
-
-  if [ ! -f "${SYSCONFDIR}/ssh_host_rsa_key" ]
-  then
-    csih_inform "Generating ${SYSCONFDIR}/ssh_host_rsa_key"
-    if ! /usr/bin/ssh-keygen -t rsa -f ${SYSCONFDIR}/ssh_host_rsa_key -N '' > /dev/null
-    then
-    	csih_warning "Generating ${SYSCONFDIR}/ssh_host_key failed!"
-	let ++ret
-    fi
-  fi
-
-  if [ ! -f "${SYSCONFDIR}/ssh_host_dsa_key" ]
-  then
-    csih_inform "Generating ${SYSCONFDIR}/ssh_host_dsa_key"
-    if ! /usr/bin/ssh-keygen -t dsa -f ${SYSCONFDIR}/ssh_host_dsa_key -N '' > /dev/null
-    then
-    	csih_warning "Generating ${SYSCONFDIR}/ssh_host_key failed!"
-	let ++ret
-    fi
-  fi
-
-  if [ ! -f "${SYSCONFDIR}/ssh_host_ecdsa_key" ]
-  then
-    csih_inform "Generating ${SYSCONFDIR}/ssh_host_ecdsa_key"
-    if ! /usr/bin/ssh-keygen -t ecdsa -f ${SYSCONFDIR}/ssh_host_ecdsa_key -N '' > /dev/null
-    then
-    	csih_warning "Generating ${SYSCONFDIR}/ssh_host_key failed!"
-	let ++ret
-    fi
-  fi
-  return $ret
-} # --- End of create_host_keys --- #
-
-# ======================================================================
 # Routine: update_services_file
 # ======================================================================
 update_services_file() {
@@ -719,8 +671,8 @@ then
   let ++warning_cnt
 fi
 
-# host keys
-create_host_keys || let warning_cnt+=$?
+# generate missing host keys
+/usr/bin/ssh-keygen -A || let warning_cnt+=$?
 
 # handle ssh_config
 csih_install_config "${SYSCONFDIR}/ssh_config" "${SYSCONFDIR}/defaults" || let ++warning_cnt

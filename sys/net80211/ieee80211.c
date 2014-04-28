@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -1407,7 +1408,8 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	 * rate only when running; otherwise we may have a mismatch
 	 * in which case the rate will not be convertible.
 	 */
-	if (vap->iv_state == IEEE80211_S_RUN) {
+	if (vap->iv_state == IEEE80211_S_RUN ||
+	    vap->iv_state == IEEE80211_S_SLEEP) {
 		imr->ifm_status |= IFM_ACTIVE;
 		mode = ieee80211_chan2mode(ic->ic_curchan);
 	} else

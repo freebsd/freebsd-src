@@ -31,6 +31,109 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140418:
+	The YES_HESIOD knob has been removed. It has been obsolete for
+	a decade. Please move to using WITH_HESIOD instead or your builds
+	will silently lack HESIOD.
+
+20140405:
+	The uart(4) driver has been changed with respect to its handling
+	of the low-level console. Previously the uart(4) driver prevented
+	any process from changing the baudrate or the CLOCAL and HUPCL
+	control flags. By removing the restrictions, operators can make
+	changes to the serial console port without having to reboot.
+	However, when getty(8) is started on the serial device that is
+	associated with the low-level console, a misconfigured terminal
+	line in /etc/ttys will now have a real impact.
+	Before upgrading the kernel, make sure that /etc/ttys has the
+	serial console device configured as 3wire without baudrate to
+	preserve the previous behaviour. E.g:
+	    ttyu0  "/usr/libexec/getty 3wire"  vt100  on  secure
+
+20140306:
+	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
+	to improve performance.  To re-enable it, if needed, run rpcbind
+	with command line option -W.
+
+20140226:
+	Switched back to the GPL dtc compiler due to updates in the upstream
+	dts files not being supported by the BSDL dtc compiler. You will need
+	to rebuild your kernel toolchain to pick up the new compiler. Core dumps
+	may result while building dtb files during a kernel build if you fail
+	to do so. Set WITHOUT_GPL_DTC if you require the BSDL compiler.
+
+20140216:
+	Clang and llvm have been upgraded to 3.4 release.
+
+20140216:
+	The nve(4) driver has been removed.  Please use the nfe(4) driver
+	for NVIDIA nForce MCP Ethernet adapters instead.
+
+20140212:
+	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
+	This could cause certain C++ applications using shared libraries built
+	against the previous version of libc++ to crash.  The incompatibility
+	has now been fixed, but any C++ applications or shared libraries built
+	between r261283 and r261801 should be recompiled.
+
+20140204:
+	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
+	capability mode support.  Please note that enabling the feature in
+	kernel is still highly recommended.
+
+20140131:
+	OpenSSH is now built with sandbox support, and will use sandbox as
+	the default privilege separation method.  This requires Capsicum
+	capability mode support in kernel.
+
+20140128:
+	The libelf and libdwarf libraries have been updated to newer
+	versions from upstream. Shared library version numbers for
+	these two libraries were bumped. Any ports or binaries
+	requiring these two libraries should be recompiled.
+	__FreeBSD_version is bumped to 1100006.
+
+20140110:
+	If a Makefile in a tests/ directory was auto-generating a Kyuafile
+	instead of providing an explicit one, this would prevent such
+	Makefile from providing its own Kyuafile in the future during
+	NO_CLEAN builds.  This has been fixed in the Makefiles but manual
+	intervention is needed to clean an objdir if you use NO_CLEAN:
+	  # find /usr/obj -name Kyuafile | xargs rm -f
+
+20131213:
+	The behavior of gss_pseudo_random() for the krb5 mechanism
+	has changed, for applications requesting a longer random string
+	than produced by the underlying enctype's pseudo-random() function.
+	In particular, the random string produced from a session key of
+	enctype aes256-cts-hmac-sha1-96 or aes256-cts-hmac-sha1-96 will
+	be different at the 17th octet and later, after this change.
+	The counter used in the PRF+ construction is now encoded as a
+	big-endian integer in accordance with RFC 4402.
+	__FreeBSD_version is bumped to 1100004.
+
+20131108:
+	The WITHOUT_ATF build knob has been removed and its functionality
+	has been subsumed into the more generic WITHOUT_TESTS.  If you were
+	using the former to disable the build of the ATF libraries, you
+	should change your settings to use the latter.
+
+20131025:
+	The default version of mtree is nmtree which is obtained from
+	NetBSD.  The output is generally the same, but may vary
+	slightly.  If you found you need identical output adding
+	"-F freebsd9" to the command line should do the trick.  For the
+	time being, the old mtree is available as fmtree.
+
+20131014:
+	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
+	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
+	1.1.4_8 and verify bsdyml not linked in, before running "make
+	delete-old-libs":
+	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
+	  or
+	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
 20131010:
 	The rc.d/jail script has been updated to support jail(8)
 	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
@@ -54,7 +157,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
 	service instead.  Otherwise, several versions of BIND are
-	available in the ports tree.
+	available in the ports tree.   The dns/bind99 port is one example.
+
+	With this change, nslookup(1) and dig(1) are no longer in the base
+	system.  Users should instead use host(1) and drill(1) which are
+	in the base system.  Alternatively, nslookup and dig can
+	be obtained by installing the dns/bind-tools port.
 
 20130916:
 	With the addition of unbound(8), a new unbound user is now
@@ -1886,9 +1994,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 
@@ -1905,7 +2013,7 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
-	make installworld DESTDIR=${CURRENT_ROOT}
+	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
 	make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
 	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
@@ -1923,9 +2031,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 

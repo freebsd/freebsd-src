@@ -89,6 +89,11 @@ __FBSDID("$FreeBSD$");
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
 #endif
+static int panic_reboot_wait_time = PANIC_REBOOT_WAIT_TIME;
+SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RW | CTLFLAG_TUN,
+    &panic_reboot_wait_time, 0,
+    "Seconds to wait before rebooting after a panic");
+TUNABLE_INT("kern.panic_reboot_wait_time", &panic_reboot_wait_time);
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -197,26 +202,25 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
-static int shutdown_howto = 0;
-
 void
 shutdown_nice(int howto)
 {
 
-	shutdown_howto = howto;
-
-	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
+		/* Send a signal to init(8) and have it shutdown the world. */
 		PROC_LOCK(initproc);
-		kern_psignal(initproc, SIGINT);
+		if (howto & RB_POWEROFF)
+			kern_psignal(initproc, SIGUSR2);
+		else if (howto & RB_HALT)
+			kern_psignal(initproc, SIGUSR1);
+		else
+			kern_psignal(initproc, SIGINT);
 		PROC_UNLOCK(initproc);
 	} else {
-		/* No init(8) running, so simply reboot */
-		kern_reboot(RB_NOSYNC);
+		/* No init(8) running, so simply reboot. */
+		kern_reboot(howto | RB_NOSYNC);
 	}
-	return;
 }
-static int	waittime = -1;
 
 static void
 print_uptime(void)
@@ -290,6 +294,7 @@ void
 kern_reboot(int howto)
 {
 	static int first_buf_printf = 1;
+	static int waittime = -1;
 
 #if defined(SMP)
 	/*
@@ -306,9 +311,6 @@ kern_reboot(int howto)
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
-
-	/* collect extra flags that shutdown_nice might have set */
-	howto |= shutdown_howto;
 
 	/* We are out of the debugger now. */
 	kdb_active = 0;
@@ -485,12 +487,12 @@ shutdown_panic(void *junk, int howto)
 	int loop;
 
 	if (howto & RB_DUMP) {
-		if (PANIC_REBOOT_WAIT_TIME != 0) {
-			if (PANIC_REBOOT_WAIT_TIME != -1) {
+		if (panic_reboot_wait_time != 0) {
+			if (panic_reboot_wait_time != -1) {
 				printf("Automatic reboot in %d seconds - "
 				       "press a key on the console to abort\n",
-					PANIC_REBOOT_WAIT_TIME);
-				for (loop = PANIC_REBOOT_WAIT_TIME * 10;
+					panic_reboot_wait_time);
+				for (loop = panic_reboot_wait_time * 10;
 				     loop > 0; --loop) {
 					DELAY(1000 * 100); /* 1/10th second */
 					/* Did user type a key? */

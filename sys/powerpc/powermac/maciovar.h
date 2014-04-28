@@ -48,6 +48,9 @@
 #define FCR_ENET_ENABLE	0x60000000
 #define FCR_ENET_RESET	0x80000000
 
+#define FCR1_I2S0_CLK_ENABLE	0x00001000
+#define FCR1_I2S0_ENABLE	0x00002000
+
 /* Used only by macio_enable_wireless() for now. */
 #define KEYLARGO_GPIO_BASE	0x6a
 #define KEYLARGO_EXTINT_GPIO_REG_BASE	0x58

@@ -10,11 +10,12 @@
 #define IPI_PREEMPT	2
 #define IPI_RENDEZVOUS	3
 #define IPI_STOP	4
-#define IPI_STOP_HARD	5
+#define IPI_STOP_HARD	4
 #define IPI_HARDCLOCK	6
 #define IPI_TLB		7
 
 void	init_secondary(int cpu);
+void	mpentry(void);
 
 void	ipi_all_but_self(u_int ipi);
 void	ipi_cpu(int cpu, u_int ipi);

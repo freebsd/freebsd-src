@@ -492,6 +492,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
     struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
+	int					unit;
 
 	ns->ctrlr = ctrlr;
 	ns->id = id;
@@ -553,6 +554,12 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	if (ns->cdev != NULL)
 		return (0);
 
+	/*
+	 * Namespace IDs start at 1, so we need to subtract 1 to create a
+	 *  correct unit number.
+	 */
+	unit = device_get_unit(ctrlr->dev) * NVME_MAX_NAMESPACES + ns->id - 1;
+
 /*
  * MAKEDEV_ETERNAL was added in r210923, for cdevs that will never
  *  be destroyed.  This avoids refcounting on the cdev object.
@@ -560,11 +567,11 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
  *  surprise removal nor namespace deletion.
  */
 #ifdef MAKEDEV_ETERNAL_KLD
-	ns->cdev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &nvme_ns_cdevsw, 0,
+	ns->cdev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &nvme_ns_cdevsw, unit,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
 #else
-	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, 0,
+	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, unit,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
 #endif

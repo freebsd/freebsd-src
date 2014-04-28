@@ -326,7 +326,7 @@ mc.mf6cc_parent = iif_index;
 for (i = 0; i < maxvifs; i++)
     if (oifs_ttl[i] > 0)
         IF_SET(i, &mc.mf6cc_ifset);
-setsockopt(mrouter_s4, IPPROTO_IPV6, MRT6_ADD_MFC,
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_ADD_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
 .Pp
@@ -365,7 +365,7 @@ struct mf6cctl mc;
 memset(&mc, 0, sizeof(mc));
 memcpy(&mc.mf6cc_origin, &source_addr, sizeof(mc.mf6cc_origin));
 memcpy(&mc.mf6cc_mcastgrp, &group_addr, sizeof(mf6cc_mcastgrp));
-setsockopt(mrouter_s4, IPPROTO_IPV6, MRT6_DEL_MFC,
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_DEL_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
 .Pp

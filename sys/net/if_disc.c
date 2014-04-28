@@ -45,6 +45,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -185,7 +186,7 @@ static void
 discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = DSMTU;
+	rt->rt_mtu = DSMTU;
 }
 
 /*

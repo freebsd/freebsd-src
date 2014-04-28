@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2013
+.Dd February 15, 2014
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -917,6 +917,33 @@ Empty by default.
 This variable contains additional flags passed to the
 .Xr pflogd 8
 program.
+.It Va pflog_instances
+.Pq Vt str
+If logging to more than one
+.Xr pflog 4
+interface is desired,
+.Va pflog_instances
+is set to the list of
+.Xr pflogd 8
+instances that should be started at system boot time. If
+.Va pflog_instances
+is set, for each whitespace-seperated
+.Ar element
+in the list,
+.Ao Ar element Ac Ns Va _dev
+and
+.Ao Ar element Ac Ns Va _logfile
+elements are assumed to exist.
+.Ao Ar element Ac Ns Va _dev
+must contain the
+.Xr pflog 4
+interface to be watched by the named
+.Xr pflogd 8
+instance.
+.Ao Ar element Ac Ns Va _logfile
+must contain the name of the logfile that will be used by the
+.Xr pflogd 8
+instance.
 .It Va ftpproxy_enable
 .Pq Vt bool
 Set to
@@ -935,6 +962,19 @@ Empty by default.
 This variable contains additional flags passed to the
 .Xr ftp-proxy 8
 program.
+.It Va ftpproxy_instances
+.Pq Vt str
+Empty by default. If multiple instances of
+.Xr ftp-proxy 8
+are desired at boot time,
+.Va ftpproxy_instances
+should contain a whitespace-seperated list of instance names. For each
+.Ar element
+in the list, a variable named
+.Ao Ar element Ac Ns Va _flags
+should be defined, containing the command-line flags to be passed to the
+.Xr ftp-proxy 8
+instance.
 .It Va pfsync_enable
 .Pq Vt bool
 Set to
@@ -1676,33 +1716,6 @@ Even if this variable is specified to
 .Dq YES ,
 .Dq :nosticky
 keyword can be used to override it on per interface basis.
-.It Va fec_interfaces
-.Pq Vt str
-Set to the list of
-.Xr ng_fec 4
-Fast EtherChannel interfaces to configure on this host.
-A
-.Va fecconfig_ Ns Aq Ar interface
-variable is assumed to exist for each value of
-.Ar interface .
-The value of this variable is used to configure link aggregated interfaces
-according to the syntax of the
-.Cm NGM_FEC_ADD_IFACE
-to
-.Xr ngctl 8
-msg.
-Additionally, this option ensures that each listed interface is created
-via the
-.Cm mkpeer
-command to
-.Xr ngctl 8
-before attempting to configure it.
-For example:
-.Bd -literal
-fec_interfaces="fec0"
-fecconfig_fec0="em0 em1"
-ifconfig_fec0="DHCP"
-.Ed
 .It Va gif_interfaces
 .Pq Vt str
 This variable is deprecated in favor of
@@ -2048,85 +2061,6 @@ If set to
 run the
 .Xr unbound 8
 daemon as a local caching resolver.
-.It Va named_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr named 8
-daemon.
-.It Va named_program
-.Pq Vt str
-Path to
-.Xr named 8
-(default
-.Pa /usr/sbin/named ) .
-.It Va named_conf
-.Pq Vt str
-Path to
-.Xr named 8
-configuration file, (default
-.Pa /etc/namedb/named.conf ) .
-.It Va named_flags
-.Pq Vt str
-If
-.Va named_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to
-.Xr named 8 .
-.It Va named_uid
-.Pq Vt str
-The user that the
-.Xr named 8
-process should be run as.
-.It Va named_chrootdir
-.Pq Vt str
-The root directory for a name server run in a
-.Xr chroot 8
-environment (default
-.Pa /var/named ) .
-If left empty
-.Xr named 8
-will not be run in a
-.Xr chroot 8
-environment.
-.It Va named_chroot_autoupdate
-.Pq Vt bool
-Set to
-.Dq Li NO
-to disable automatic update of the
-.Xr chroot 8
-environment.
-.It Va named_symlink_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-to disable symlinking of
-daemon's PID file
-into the
-.Xr chroot 8
-environment.
-.It Va named_wait
-.Pq Vt bool
-Set to have
-.Pa /etc/rc.d/named
-loop until working name service is established.
-.It Va named_wait_host
-.Pq Vt str
-Name of host to lookup for the named_wait option.
-(Default localhost)
-.It Va named_auto_forward
-.Pq Vt bool
-Set to enable automatic creation of a forwarder
-configuration file derived from
-.Pa /etc/resolv.conf .
-.It Va named_auto_forward_only
-.Pq Vt bool
-Set to change the default forwarder configuration from
-.Dq forward first
-to
-.Dq forward only .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
@@ -2911,27 +2845,6 @@ If
 is set to
 .Dq Li YES
 this is the list of interfaces to use.
-.It Va ipxgateway_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable the routing of IPX traffic.
-.It Va ipxrouted_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr IPXrouted 8
-daemon at system boot time.
-.It Va ipxrouted_flags
-.Pq Vt str
-If
-.Va ipxrouted_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr IPXrouted 8
-daemon.
 .It Va arpproxy_all
 .Pq Vt bool
 If set to
@@ -3675,6 +3588,23 @@ and if
 is set to
 .Dq Li YES ,
 this specifies a list of additional iBCS2 loaders to enable.
+.It Va firstboot_sentinel
+.Pq Vt str
+This variable specifies the full path to a
+.Dq first boot
+sentinel file.
+If a file exists with this path,
+.Pa rc.d
+scripts with the
+.Dq firstboot
+keyword will be run on startup and the sentinel file will be deleted
+after the boot process completes.
+The sentinel file must be located on a writable file system which is
+mounted no later than
+.Va early_late_divider
+to function properly.
+The default is
+.Pa /firstboot .
 .It Va linux_enable
 .Pq Vt bool
 Set to
@@ -3992,9 +3922,7 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
 .It Li mount
 set from
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-or
-.Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable.
+.Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable .
 .It Li exec.fib
 set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fib
@@ -4042,6 +3970,9 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_ruleset .
 This must be an integer,
 not a string.
+.It Li mount.fdescfs
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
 .It Li allow.set_hostname
 set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _set_hostname_allow
@@ -4477,6 +4408,26 @@ interface if desired.
 Defines the total number of seconds to wait for link to become usable,
 polled at a 1-second interval.
 The default is 30.
+.It Va rctl_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to load
+.Xr rctl 8
+rules from the defined ruleset.
+The kernel must be built with
+.Cd "options RACCT"
+and
+.Cd "options RCTL" .
+.It Va rctl_rules
+.Pq Vt str
+Set to
+.Pa /etc/rctl.conf
+by default.
+This variables contains the
+.Xr rctl.conf 5
+ruleset to load for
+.Xr rctl 8 .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4510,6 +4461,7 @@ The default is 30.
 .Xr fstab 5 ,
 .Xr ipf 5 ,
 .Xr ipnat 5 ,
+.Xr jail.conf 5 ,
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
@@ -4541,7 +4493,6 @@ The default is 30.
 .Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
-.Xr named 8 ,
 .Xr newfs 8 ,
 .Xr newsyslog 8 ,
 .Xr nfsd 8 ,

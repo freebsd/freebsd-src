@@ -94,9 +94,9 @@ SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods avr32dci_bus_methods;
-struct usb_pipe_methods avr32dci_device_non_isoc_methods;
-struct usb_pipe_methods avr32dci_device_isoc_fs_methods;
+static const struct usb_bus_methods avr32dci_bus_methods;
+static const struct usb_pipe_methods avr32dci_device_non_isoc_methods;
+static const struct usb_pipe_methods avr32dci_device_isoc_fs_methods;
 
 static avr32dci_cmd_t avr32dci_setup_rx;
 static avr32dci_cmd_t avr32dci_data_rx;
@@ -1340,7 +1340,7 @@ avr32dci_device_non_isoc_start(struct usb_xfer *xfer)
 	avr32dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods avr32dci_device_non_isoc_methods =
+static const struct usb_pipe_methods avr32dci_device_non_isoc_methods =
 {
 	.open = avr32dci_device_non_isoc_open,
 	.close = avr32dci_device_non_isoc_close,
@@ -1425,7 +1425,7 @@ avr32dci_device_isoc_fs_start(struct usb_xfer *xfer)
 	avr32dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods avr32dci_device_isoc_fs_methods =
+static const struct usb_pipe_methods avr32dci_device_isoc_fs_methods =
 {
 	.open = avr32dci_device_isoc_fs_open,
 	.close = avr32dci_device_isoc_fs_close,
@@ -2084,7 +2084,7 @@ avr32dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods avr32dci_bus_methods =
+static const struct usb_bus_methods avr32dci_bus_methods =
 {
 	.endpoint_init = &avr32dci_ep_init,
 	.xfer_setup = &avr32dci_xfer_setup,

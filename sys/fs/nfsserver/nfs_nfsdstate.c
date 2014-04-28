@@ -79,7 +79,7 @@ static int nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp,
 static void nfsrv_getowner(struct nfsstatehead *hp, struct nfsstate *new_stp,
     struct nfsstate **stpp);
 static int nfsrv_getlockfh(vnode_t vp, u_short flags,
-    struct nfslockfile **new_lfpp, fhandle_t *nfhp, NFSPROC_T *p);
+    struct nfslockfile *new_lfp, fhandle_t *nfhp, NFSPROC_T *p);
 static int nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
     struct nfslockfile **lfpp, fhandle_t *nfhp, int lockit);
 static void nfsrv_insertlock(struct nfslock *new_lop,
@@ -1985,7 +1985,7 @@ tryagain:
 	MALLOC(new_lfp, struct nfslockfile *, sizeof (struct nfslockfile),
 	    M_NFSDLOCKFILE, M_WAITOK);
 	if (vp)
-		getfhret = nfsrv_getlockfh(vp, new_stp->ls_flags, &new_lfp,
+		getfhret = nfsrv_getlockfh(vp, new_stp->ls_flags, new_lfp,
 		    NULL, p);
 	NFSLOCKSTATE();
 	/*
@@ -2235,7 +2235,7 @@ tryagain:
 	    M_NFSDSTATE, M_WAITOK);
 	MALLOC(new_deleg, struct nfsstate *, sizeof (struct nfsstate),
 	    M_NFSDSTATE, M_WAITOK);
-	getfhret = nfsrv_getlockfh(vp, new_stp->ls_flags, &new_lfp,
+	getfhret = nfsrv_getlockfh(vp, new_stp->ls_flags, new_lfp,
 	    NULL, p);
 	NFSLOCKSTATE();
 	/*
@@ -3142,11 +3142,10 @@ out:
  * Get the file handle for a lock structure.
  */
 static int
-nfsrv_getlockfh(vnode_t vp, u_short flags,
-    struct nfslockfile **new_lfpp, fhandle_t *nfhp, NFSPROC_T *p)
+nfsrv_getlockfh(vnode_t vp, u_short flags, struct nfslockfile *new_lfp,
+    fhandle_t *nfhp, NFSPROC_T *p)
 {
 	fhandle_t *fhp = NULL;
-	struct nfslockfile *new_lfp;
 	int error;
 
 	/*
@@ -3154,7 +3153,7 @@ nfsrv_getlockfh(vnode_t vp, u_short flags,
 	 * a fhandle_t on the stack.
 	 */
 	if (flags & NFSLCK_OPEN) {
-		new_lfp = *new_lfpp;
+		KASSERT(new_lfp != NULL, ("nfsrv_getlockfh: new_lfp NULL"));
 		fhp = &new_lfp->lf_fh;
 	} else if (nfhp) {
 		fhp = nfhp;
@@ -4853,15 +4852,15 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 			    nva.na_filerev > delegfilerev) ||
 			    (NFSVNO_ISSETSIZE(&nva) &&
 			     nva.na_size != nvap->na_size)) {
-				nfsvno_updfilerev(vp, nvap, cred, p);
+				error = nfsvno_updfilerev(vp, nvap, cred, p);
 				if (NFSVNO_ISSETSIZE(&nva))
 					nvap->na_size = nva.na_size;
 			}
-		}
+		} else
+			error = 0;	/* Ignore callback errors for now. */
 	} else {
 		NFSUNLOCKSTATE();
 	}
-	error = 0;
 
 out:
 	NFSEXITCODE2(error, nd);

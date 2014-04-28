@@ -77,12 +77,13 @@
 				       * register */
 #define TSEC_REG_HAFDUP		0x50c /* Half-duplex register */
 #define TSEC_REG_MAXFRM		0x510 /* Maximum frame length register */
-#define TSEC_REG_MIIMCFG	0x520 /* MII Management configuration register */
-#define TSEC_REG_MIIMCOM	0x524 /* MII Management command register */
-#define TSEC_REG_MIIMADD	0x528 /* MII Management address register */
-#define TSEC_REG_MIIMCON	0x52c /* MII Management control register */
-#define TSEC_REG_MIIMSTAT	0x530 /* MII Management status register */
-#define TSEC_REG_MIIMIND	0x534 /* MII Management indicator register */
+#define TSEC_REG_MIIBASE	0x520 /* MII Management base, rest offsets */
+#define TSEC_REG_MIIMCFG	0x0   /* MII Management configuration register */
+#define TSEC_REG_MIIMCOM	0x4   /* MII Management command register */
+#define TSEC_REG_MIIMADD	0x8   /* MII Management address register */
+#define TSEC_REG_MIIMCON	0xc   /* MII Management control register */
+#define TSEC_REG_MIIMSTAT	0x10  /* MII Management status register */
+#define TSEC_REG_MIIMIND	0x14  /* MII Management indicator register */
 #define TSEC_REG_IFSTAT		0x53c /* Interface status register */
 #define TSEC_REG_MACSTNADDR1	0x540 /* Station address register, part 1 */
 #define TSEC_REG_MACSTNADDR2	0x544 /* Station address register, part 2 */

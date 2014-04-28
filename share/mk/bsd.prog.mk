@@ -176,8 +176,8 @@ _EXTRADEPEND:
 .endif
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX)
-.if ${MK_CLANG_IS_CC} != "no" && empty(CXXFLAGS:M-stdlib=libstdc++)
+.if defined(PROG_CXX) && !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}

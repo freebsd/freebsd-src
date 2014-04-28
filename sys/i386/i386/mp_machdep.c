@@ -805,7 +805,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -1551,6 +1550,72 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
+
+/*
+ * Handlers for TLB related IPIs
+ */
+void
+invltlb_handler(void)
+{
+	uint64_t cr3;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	cr3 = rcr3();
+	load_cr3(cr3);
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invlpg(smp_tlb_addr1);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlrng_handler(void)
+{
+	vm_offset_t addr;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < smp_tlb_addr2);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlcache_handler(void)
+{
+#ifdef COUNT_IPIS
+	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	wbinvd();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
 /*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.

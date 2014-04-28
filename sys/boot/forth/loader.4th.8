@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2004
+.Dd November 13, 2013
 .Dt LOADER.4TH 8
 .Os
 .Sh NAME
@@ -94,31 +94,35 @@ Reads
 .Pa /boot/defaults/loader.conf ,
 all other
 .Xr loader.conf 5
-files specified in it, and then proceeds to boot as specified in them.
-This
+files specified in it, then loads the desired kernel and modules
+.Pq if not already loaded .
+After which you can use the
+.Ic boot
+or
+.Ic autoboot
+commmands or simply exit (provided
+.Va autoboot_delay
+is not set to NO) to boot the system.
+.Ic start
 is the command used in the default
 .Pa /boot/loader.rc
-file, and it uses the
-.Ic autoboot
-command (see
-.Xr loader 8 ) ,
-so it can be stopped for further interaction with
-.Xr loader 8 .
+file
+.Pq see Xr loader 8 .
 .Pp
 .It Ic initialize
-Initialize the supporting library so commands can be used without
-executing
+Initialize the support library so commands can be used without executing
 .Ic start
 first.
 Like
 .Ic start ,
-reads
+it reads
 .Pa /boot/defaults/loader.conf
 and all other
 .Xr loader.conf 5
-files specified in it.
+files specified in it
+.Pq but does not load kernel or modules .
 Returns a flag on the stack to indicate
-if any configuration file was successfully loaded.
+if any configuration files were successfully loaded.
 .Pp
 .It Ic read-conf Ar filename
 Reads and processes a
@@ -154,6 +158,13 @@ files to specify the action after a module loading fails.
 Used inside
 .Xr loader.conf 5
 files to specify the action after a module loading fails.
+.It Ic try-include Ar file Op Ar
+Process script files if they exist.
+Each file, in turn, is completely read into memory,
+and then each of its lines is passed to the command line interpreter.
+If any error is returned by the interpreter, the try-include
+command aborts immediately, without reading any other files, and
+silently returns without error.
 .El
 .Sh FILES
 .Bl -tag -width /boot/loader.4th -compact

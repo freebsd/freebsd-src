@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." media/tcpip.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
@@ -110,10 +111,11 @@ f_struct_define DHCP_LEASE \
 # 	   	begin or end with a hyphen).
 # 	  3	One or more individual labels within the hostname are null.
 #
-# f_dialog_validate_hostname $hostname
+# To call this function and display an appropriate error message to the user
+# based on the above error codes, use the following function defined in
+# dialog.subr:
 #
-# If the hostname is determined to be invalid, the appropriate error will be
-# displayed using the f_show_msg function.
+# 	f_dialog_validate_hostname $hostname
 #
 f_validate_hostname()
 {
@@ -167,8 +169,9 @@ f_inet_atoi()
 {
 	local __addr="$1" __var_to_set="$2" __num=0
 	if f_validate_ipaddr "$__addr"; then
-		__num=$( IFS=.;  set -- $__addr; \
-			echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) )
+		local IFS=.
+		set -- $__addr
+		__num=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 ))
 	fi
 	if [ "$__var_to_set" ]; then
 		setvar "$__var_to_set" $__num
@@ -201,8 +204,7 @@ f_validate_ipaddr()
 	# Track number of octets for error checking
 	local noctets=0
 
-	local oldIFS="$IFS"
-	local IFS="." # Split on `dot'
+	local oldIFS="$IFS" IFS="." # Split on `dot'
 	for octet in $ip; do
 		# Return error if the octet is null
 		[ "$octet" ] || return 2
@@ -573,7 +575,7 @@ f_ifconfig_netmask()
 
 	local __octet __netmask=
 	for __octet in $__octets; do
-		__netmask="$__netmask.$( printf "%u" "0x$__octet" )"
+		f_sprintf __netmask "%s.%u" "$__netmask" "0x$__octet"
 	done
 	__netmask="${__netmask#.}"
 	if [ "$__var_to_set" ]; then
@@ -1020,10 +1022,42 @@ f_host_lookup()
 	# Fall back to host(1) -- which is further governed by nsswitch.conf(5)
 	#
 
-	local __output __ip6 __addrs="" __wait=""
-	f_getvar $VAR_MEDIA_TIMEOUT __wait
-	[ "$__wait" ] && __wait="-W $(( $__wait / 2 ))"
+	local __output __ip6 __addrs=
 	f_getvar $VAR_IPV6_ENABLE __ip6
+
+	# If we have a TCP media type configured, check for an SRV record
+	local __srvtypes=
+	{ f_quietly f_getvar $VAR_HTTP_PATH ||
+	  f_quietly f_getvar $VAR_HTTP_PROXY_PATH
+	} && __srvtypes="$__srvtypes _http._tcp"
+	f_quietly f_getvar $VAR_FTP_PATH && __srvtypes="$__srvtypes _ftp._tcp"
+	f_quietly f_getvar $VAR_NFS_PATH &&
+		__srvtypes="$__srvtypes _nfs._tcp _nfs._udp"
+
+	# Calculate wait time as dividend of total time and host(1) invocations
+	local __host_runs __wait
+	f_count __host_runs $__srvtypes
+	if [ "$__ip6" = "YES" ]; then
+		__host_runs=$(( $__host_runs + 2 ))
+	else
+		__host_runs=$(( $__host_runs + 1 ))
+	fi
+	f_getvar $VAR_MEDIA_TIMEOUT __wait
+	[ "$__wait" ] && __wait="-W $(( $__wait / $__host_runs ))"
+
+	# Query SRV types first (1st host response taken as new host to query)
+	for __type in $__srvtypes; do
+		if __output=$(
+			host -t SRV $__wait -- "$__type.$__host" \
+			2> /dev/null
+		); then
+			__host=$( echo "$__output" |
+					awk '/ SRV /{print $NF;exit}' )
+			break
+		fi
+	done
+
+	# Try IPv6 first (if enabled)
 	if [ "$__ip6" = "YES" ]; then
 		if ! __output=$( host -t AAAA $__wait -- "$__host" 2>&1 ); then
 			# An error occurred, display in-full and return error
@@ -1031,13 +1065,17 @@ f_host_lookup()
 				setvar "$__var_to_set" "$__output"
 			return $FAILURE
 		fi
+		# Add the IPv6 addresses and fall-through to collect IPv4 too
 		__addrs=$( echo "$__output" | awk '/ address /{print $NF}' )
 	fi
+
+	# Good ol' IPv4
 	if ! __output=$( host -t A $__wait -- "$__host" 2>&1 ); then
 		# An error occurred, display it in-full and return error
 		[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
 		return $FAILURE
 	fi
+
 	__addrs="$__addrs${__addrs:+ }$(
 		echo "$__output" | awk '/ address /{print $NF}' )"
 	if [ "$__var_to_set" ]; then
@@ -1098,15 +1136,16 @@ f_host_lookup()
 #
 f_device_dialog_tcp()
 {
-	local dev="$1" cp n
+	local dev="$1" devname cp n
 	local use_dhcp="" use_rtsol=""
 	local _ipaddr _netmask _extras
 
 	[ "$dev" ] || return $DIALOG_CANCEL
+	f_struct "$dev" get name devname || return $DIALOG_CANCEL
 
 	# Initialize vars from previous device values
 	local private
-	device_$dev get private private
+	$dev get private private
 	if [ "$private" ] && f_struct "$private"; then
 		$private get ipaddr    _ipaddr
 		$private get netmask   _netmask
@@ -1144,17 +1183,17 @@ f_device_dialog_tcp()
 
 			f_quietly sysctl net.inet6.ip6.forwarding=0
 			f_quietly sysctl net.inet6.ip6.accept_rtadv=1
-			f_quietly ifconfig $dev up
+			f_quietly ifconfig $devname up
 
 			i=$( sysctl -n net.inet6.ip6.dad_count )
 			sleep $(( $i + 1 ))
 
 			f_quietly mkdir -p /var/run
 			f_dialog_info "$msg_scanning_for_ra_servers"
-			if f_quietly rtsol $dev; then
+			if f_quietly rtsol $devname; then
 				i=$( sysctl -n net.inet6.ip6.dad_count )
 				sleep $(( $i + 1 ))
-				f_rtsol_get_info $dev
+				f_rtsol_get_info $devname
 				use_rtsol=1
 			else
 				use_rtsol=
@@ -1173,7 +1212,7 @@ f_device_dialog_tcp()
 			! f_isset $VAR_TRY_DHCP &&
 				f_dialog_noyes "$msg_try_dhcp_configuration"
 		}; then
-			f_quietly ifconfig $dev delete
+			f_quietly ifconfig $devname delete
 			f_quietly mkdir -p /var/db
 			f_quietly mkdir -p /var/run
 			f_quietly mkdir -p /tmp
@@ -1183,17 +1222,17 @@ f_device_dialog_tcp()
 			( # Execute in sub-shell to allow/catch Ctrl-C
 			  trap 'exit $FAILURE' SIGINT
 			  if [ "$USE_XDIALOG" ]; then
-			  	f_quietly dhclient $dev |
+			  	f_quietly dhclient $devname |
 			  			f_xdialog_info "$msg"
 			  else
 			  	f_dialog_info "$msg"
-			  	f_quietly dhclient $dev
+			  	f_quietly dhclient $devname
 			  fi
 			)
 			local retval=$?
 			trap 'f_interrupt' SIGINT
 			if [ $retval -eq $SUCCESS ]; then
-				f_dhcp_get_info $dev
+				f_dhcp_get_info $devname
 				use_dhcp=1
 			else
 				use_dhcp=
@@ -1214,7 +1253,7 @@ f_device_dialog_tcp()
 		if [ ! "$_ipaddr" ]; then
 			if f_getvar $VAR_IPADDR cp; then
 				_ipaddr="$cp"
-			elif f_getvar ${dev}_$VAR_IPADDR cp; then
+			elif f_getvar ${devname}_$VAR_IPADDR cp; then
 				_ipaddr="$cp"
 			fi
 		fi
@@ -1223,7 +1262,7 @@ f_device_dialog_tcp()
 		if [ ! "$_netmask" ]; then
 			if f_getvar $VAR_NETMASK cp; then
 				_netmask="$cp"
-			elif f_getvar ${dev}_$VAR_NETMASK cp; then
+			elif f_getvar ${devname}_$VAR_NETMASK cp; then
 				_netmask="$cp"
 			fi
 		fi
@@ -1232,7 +1271,7 @@ f_device_dialog_tcp()
 		if [ ! "$_extras" ]; then
 			if f_getvar $VAR_EXTRAS cp; then
 				_extras="$cp"
-			elif f_getvar ${dev}_$VAR_EXTRAS cp; then
+			elif f_getvar ${devname}_$VAR_EXTRAS cp; then
 				_extras="$cp"
 			fi
 		fi
@@ -1256,8 +1295,8 @@ f_device_dialog_tcp()
 	[ "$_gateway" ] || f_route_get_default _gateway
 	[ ! "$_nameserver" ] &&
 		f_resolv_conf_nameservers cp && _nameserver=${cp%%[$IFS]*}
-	[ "$_ipaddr" ] || f_ifconfig_inet $dev _ipaddr
-	[ "$_netmask" ] || f_ifconfig_netmask $dev _netmask
+	[ "$_ipaddr" ] || f_ifconfig_inet $devname _ipaddr
+	[ "$_netmask" ] || f_ifconfig_netmask $devname _netmask
 
 	# If non-interactive, jump over dialog section and into config section
 	if f_netinteractive || f_interactive || [ ! "$_hostname" ]
@@ -1270,7 +1309,7 @@ f_device_dialog_tcp()
 		local extras_help="$tcplayout_extras_help"
 
 		# Modify the help line for PLIP config
-		[ "${dev#plip}" != "$dev" ] &&
+		[ "${devname#plip}" != "$devname" ] &&
 			extras_help="$tcplayout_extras_help_for_plip"
 
 		f_getvar $VAR_IPV6ADDR cp && [ "$cp" ] &&
@@ -1279,7 +1318,8 @@ f_device_dialog_tcp()
 		if [ ! "$USE_XDIALOG" ]; then
 			local prompt="$msg_dialog_mixedform_navigation_help"
 			# Calculate center position for displaying device label
-			local devlabel="$msg_configuration_for_interface $dev"
+			local devlabel="$msg_configuration_for_interface"
+			devlabel="$devlabel $devname"
 			local width=54
 			local n=$(( $width/2 - (${#devlabel} + 4)/2 - 2 ))
 
@@ -1465,7 +1505,7 @@ f_device_dialog_tcp()
 
 	f_dprintf "Creating struct DEVICE_INFO devinfo_%s" "$dev"
 	f_struct_new DEVICE_INFO devinfo_$dev
-	device_$dev set private devinfo_$dev
+	$dev set private devinfo_$dev
 
 	devinfo_$dev set ipaddr    $_ipaddr
 	devinfo_$dev set netmask   $_netmask
@@ -1479,7 +1519,7 @@ f_device_dialog_tcp()
 		else
 			cp="inet $_ipaddr netmask $_netmask${extras:+ $extras}"
 		fi
-		setvar $VAR_IFCONFIG$dev "$cp"
+		setvar $VAR_IFCONFIG$devname "$cp"
 	fi
 	[ "$use_rtsol" ] &&
 		setvar $VAR_IPV6_ENABLE "YES"
@@ -1552,7 +1592,7 @@ f_device_scan_tcp()
 #
 f_device_select_tcp()
 {
-	local devs dev cnt network_dev
+	local devs dev cnt if network_dev
 	f_getvar $VAR_NETWORK_DEVICE network_dev
 
 	f_dprintf "f_device_select_tcp: %s=[%s]" \
@@ -1570,23 +1610,18 @@ f_device_select_tcp()
 
 		while [ "$network_dev" ]; do
 			case "$network_dev" in
-			*,*) dev="${network_dev%%,*}"
+			*,*) if="${network_dev%%,*}"
 			     network_dev="${network_dev#*,}"
 			     ;;
-			  *) dev="$network_dev"
+			  *) if="$network_dev"
 			     network_dev=
 			esac
 
-			f_device_find "$dev" $DEVICE_TYPE_NETWORK devs
-			cnt=$( set -- $devs; echo $# )
-
-			if [ ${cnt:=0} -gt 0 ]; then
-				dev="${devs%%[$IFS]*}"
-				f_device_dialog_tcp $dev
-				if [ $? -eq $DIALOG_OK ]; then
-					setvar $VAR_NETWORK_DEVICE $dev
-					return $DIALOG_OK
-				fi
+			f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+			f_device_dialog_tcp $dev
+			if [ $? -eq $DIALOG_OK ]; then
+				setvar $VAR_NETWORK_DEVICE $if
+				return $DIALOG_OK
 			fi
 		done
 
@@ -1596,8 +1631,9 @@ f_device_select_tcp()
 	fi # $network_dev
 
 	f_device_find "" $DEVICE_TYPE_NETWORK devs
-	cnt=$( set -- $devs; echo $# )
+	f_count cnt $devs
 	dev="${devs%%[$IFS]*}"
+	$dev get name if
 
 	f_quietly f_getvar NETWORK_CONFIGURED # for debugging info
 	if ! f_running_as_init &&
@@ -1606,7 +1642,7 @@ f_device_select_tcp()
 		trap 'f_interrupt' SIGINT
 		if f_dialog_yesno "$msg_assume_network_is_already_configured"
 		then
-			setvar $VAR_NETWORK_DEVICE $dev
+			setvar $VAR_NETWORK_DEVICE $if
 			return $DIALOG_OK
 		fi
 	fi
@@ -1618,7 +1654,7 @@ f_device_select_tcp()
 	elif [ $cnt -eq 1 ]; then
 		f_device_dialog_tcp $dev
 		retval=$?
-		[ $retval -eq $DIALOG_OK ] && setvar $VAR_NETWORK_DEVICE $dev
+		[ $retval -eq $DIALOG_OK ] && setvar $VAR_NETWORK_DEVICE $if
 	else
 		local title="$msg_network_interface_information_required"
 		local prompt="$msg_please_select_ethernet_device_to_configure"
@@ -1627,19 +1663,14 @@ f_device_select_tcp()
 		dev=$( f_device_menu \
 			"$title" "$prompt" "$hline" $DEVICE_TYPE_NETWORK \
 			"$NETWORK_DEVICE_HELPFILE" \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
-		retval=$?
-		[ "$dev" ] || return $DIALOG_CANCEL
-
-		f_device_find "$dev" $DEVICE_TYPE_NETWORK devs
-		[ "$devs" ] || return $DIALOG_CANCEL
-		dev="${devs%%[$IFS]*}"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $DIALOG_CANCEL
 
 		f_device_dialog_tcp $dev
 		retval=$?
 		if [ $retval -eq $DIALOG_OK ]; then
-			f_struct_copy device_$dev device_network
-			setvar $VAR_NETWORK_DEVICE network
+			f_struct_copy "$dev" device_network
+			setvar $VAR_NETWORK_DEVICE device_network
 		else
 			f_struct_free device_network
 		fi
@@ -1667,7 +1698,7 @@ f_dialog_menu_select_tcp()
 	   device_network get name name &&
 	   f_yesno "$msg_would_you_like_to_bring_interface_up" "$name"
 	then
-		if ! f_device_init network; then
+		if ! f_device_init device_network; then
 			f_show_msg "$msg_initialization_of_device_failed" \
 			           "$name"
 		fi

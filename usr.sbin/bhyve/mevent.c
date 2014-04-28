@@ -135,6 +135,9 @@ mevent_kq_filter(struct mevent *mevp)
 	if (mevp->me_type == EVF_TIMER)
 		retval = EVFILT_TIMER;
 
+	if (mevp->me_type == EVF_SIGNAL)
+		retval = EVFILT_SIGNAL;
+
 	return (retval);
 }
 
@@ -265,12 +268,11 @@ mevent_add(int tfd, enum ev_type type,
 	/*
 	 * Allocate an entry, populate it, and add it to the change list.
 	 */
-	mevp = malloc(sizeof(struct mevent));
+	mevp = calloc(1, sizeof(struct mevent));
 	if (mevp == NULL) {
 		goto exit;
 	}
 
-	memset(mevp, 0, sizeof(struct mevent));
 	if (type == EVF_TIMER) {
 		mevp->me_msecs = tfd;
 		mevp->me_timid = mevent_timid++;
@@ -381,10 +383,8 @@ mevent_delete_close(struct mevent *evp)
 static void
 mevent_set_name(void)
 {
-	char tname[MAXCOMLEN + 1];
 
-	snprintf(tname, sizeof(tname), "%s mevent", vmname);
-	pthread_set_name_np(mevent_tid, tname);
+	pthread_set_name_np(mevent_tid, "mevent");
 }
 
 void
@@ -439,7 +439,7 @@ mevent_dispatch(void)
 		 * Block awaiting events
 		 */
 		ret = kevent(mfd, NULL, 0, eventlist, MEVENT_MAX, NULL);
-		if (ret == -1) {
+		if (ret == -1 && errno != EINTR) {
 			perror("Error return from kevent monitor");
 		}
 		

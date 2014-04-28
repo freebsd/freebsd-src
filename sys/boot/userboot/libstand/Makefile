@@ -6,7 +6,7 @@
 #   quite large.
 #
 
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 MK_SSP=		no
@@ -16,7 +16,7 @@ S=		${.CURDIR}/../../../../lib/libstand
 .PATH:		${S}
 LIB=		stand
 INTERNALLIB=
-NO_PROFILE=
+MK_PROFILE=	no
 NO_PIC=
 
 WARNS?=		0
@@ -28,7 +28,7 @@ CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-sse3
 .endif
 .if ${MACHINE} == "pc98"

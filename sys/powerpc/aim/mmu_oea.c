@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -148,7 +141,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/sr.h>
 #include <machine/mmuvar.h>
-#include <machine/trap_aim.h>
+#include <machine/trap.h>
 
 #include "mmu_if.h"
 
@@ -1084,10 +1077,10 @@ moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 void
 moea_zero_page(mmu_t mmu, vm_page_t m)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	void *va = (void *)pa;
+	vm_offset_t off, pa = VM_PAGE_TO_PHYS(m);
 
-	bzero(va, PAGE_SIZE);
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbz 0,%0" :: "r"(pa + off));
 }
 
 void
@@ -1102,10 +1095,8 @@ moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 void
 moea_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	void *va = (void *)pa;
 
-	bzero(va, PAGE_SIZE);
+	moea_zero_page(mmu, m);
 }
 
 /*

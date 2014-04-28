@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2012
+.Dd October 22, 2013
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -161,6 +161,18 @@ or
 commands.
 Again, note that in the parts of the ports tree which are being
 updated, any local changes or additions will be removed.
+.It auto
+Run
+.Cm fetch
+or
+.Cm cron
+depending on whether stdin is a terminal; then run
+.Cm update
+or
+.Cm extract
+depending on whether
+.Ar portsdir
+exists.
 .El
 .Sh TIPS
 .Bl -bullet

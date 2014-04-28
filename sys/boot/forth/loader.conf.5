@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 6, 2013
+.Dd April 27, 2014
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -209,6 +209,9 @@ replacing it with
 character (useful for embedded products and such).
 .It Va kernel
 .Pq Dq kernel
+.It Va kernels
+.Pq Dq kernel kernel.old
+Space or comma separated list of kernels to present in the boot menu.
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
 .It Va splash_bmp_load
@@ -233,6 +236,8 @@ be displayed.
 If set to
 .Dq YES ,
 the beastie boot menu will be skipped.
+The beastie boot menu is always skipped if booting UEFI or running non-x86
+hardware.
 .It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:

@@ -234,6 +234,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (ostate) {
 		case IEEE80211_S_SLEEP:
 			/* XXX wakeup */
+			/* XXX driver hook to wakeup the hardware? */
 		case IEEE80211_S_RUN:
 			IEEE80211_SEND_MGMT(ni,
 			    IEEE80211_FC0_SUBTYPE_DISASSOC,
@@ -299,12 +300,18 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			if (vap->iv_roaming == IEEE80211_ROAMING_AUTO)
 				ieee80211_check_scan_current(vap);
 			break;
+		case IEEE80211_S_SLEEP:		/* beacon miss */
+			/*
+			 * XXX if in sleep we need to wakeup the hardware.
+			 */
+			/* FALLTHROUGH */
 		case IEEE80211_S_RUN:		/* beacon miss */
 			/*
 			 * Beacon miss.  Notify user space and if not
 			 * under control of a user application (roaming
 			 * manual) kick off a scan to re-connect.
 			 */
+
 			ieee80211_sta_leave(ni);
 			if (vap->iv_roaming == IEEE80211_ROAMING_AUTO)
 				ieee80211_check_scan_current(vap);
@@ -403,6 +410,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    arg == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 			break;
 		case IEEE80211_S_SLEEP:
+			/* Wake up from sleep */
 			vap->iv_sta_ps(vap, 0);
 			break;
 		default:
@@ -430,9 +438,11 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_node_authorize(ni);
 		/*
 		 * Fake association when joining an existing bss.
+		 *
+		 * Don't do this if we're doing SLEEP->RUN.
 		 */
-		if (ic->ic_newassoc != NULL)
-			ic->ic_newassoc(vap->iv_bss, ostate != IEEE80211_S_RUN);
+		if (ic->ic_newassoc != NULL && ostate != IEEE80211_S_SLEEP)
+			ic->ic_newassoc(vap->iv_bss, (ostate != IEEE80211_S_RUN));
 		break;
 	case IEEE80211_S_CSA:
 		if (ostate != IEEE80211_S_RUN)
@@ -728,7 +738,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -746,7 +756,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -881,7 +891,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if (subtype != IEEE80211_FC0_SUBTYPE_AUTH) {
 				/*
 				 * Only shared key auth frames with a challenge
@@ -910,7 +920,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		}
 		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
 		goto out;
@@ -1312,6 +1322,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				vap->iv_stats.is_beacon_bad++;
 			return;
 		}
+
 		/*
 		 * Count frame now that we know it's to be processed.
 		 */
@@ -1381,25 +1392,43 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			}
 			if (scan.quiet)
 				ic->ic_set_quiet(ni, scan.quiet);
+
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
-#if 0
+				/*
+				 * XXX Check/debug this code; see if it's about
+				 * the right time to force the VAP awake if we
+				 * receive a frame destined for us?
+				 */
 				int aid = IEEE80211_AID(ni->ni_associd);
 				int ix = aid / NBBY;
 				int min = tim->tim_bitctl &~ 1;
 				int max = tim->tim_len + min - 4;
-				if ((tim->tim_bitctl&1) ||
-				    (min <= ix && ix <= max &&
-				     isset(tim->tim_bitmap - min, aid))) {
-					/* 
-					 * XXX Do not let bg scan kick off
-					 * we are expecting data.
-					 */
+
+				/*
+				 * Only do this for unicast traffic in the TIM
+				 * The multicast traffic notification for
+				 * the scan notification stuff should occur
+				 * differently.
+				 */
+				if (min <= ix && ix <= max &&
+				     isset(tim->tim_bitmap - min, aid)) {
+					ieee80211_sta_tim_notify(vap, 1);
 					ic->ic_lastdata = ticks;
-					vap->iv_sta_ps(vap, 0);
+				}
+
+				/*
+				 * XXX TODO: do a separate notification
+				 * for the multicast bit being set.
+				 */
+#if 0
+				if (tim->tim_bitctl & 1) {
+					ieee80211_sta_tim_notify(vap, 1);
+					ic->ic_lastdata = ticks;
 				}
 #endif
+
 				ni->ni_dtim_count = tim->tim_count;
 				ni->ni_dtim_period = tim->tim_period;
 			}
@@ -1444,6 +1473,14 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 				ieee80211_bg_scan(vap, 0);
 			}
+
+			/*
+			 * Put the station to sleep if we haven't seen
+			 * traffic in a while.
+			 */
+			IEEE80211_LOCK(ic);
+			ieee80211_sta_ps_timer_check(vap);
+			IEEE80211_UNLOCK(ic);
 
 			/*
 			 * If we've had a channel width change (eg HT20<->HT40)

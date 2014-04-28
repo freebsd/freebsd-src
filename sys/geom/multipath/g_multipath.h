@@ -48,6 +48,7 @@ struct g_multipath_softc {
 	struct mtx		sc_mtx;
 	char			sc_name[16];
 	char			sc_uuid[40];
+	off_t			sc_size;
 	int			sc_opened;
 	int			sc_stopping;
 	int			sc_ndisks;

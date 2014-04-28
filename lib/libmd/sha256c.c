@@ -208,10 +208,10 @@ SHA256_Pad(SHA256_CTX * ctx)
 	 * Convert length to a vector of bytes -- we do this now rather
 	 * than later because the length will change after we pad.
 	 */
-	be32enc_vect(len, ctx->count, 8);
+	be64enc(len, ctx->count);
 
 	/* Add 1--64 bytes so that the resulting length is 56 mod 64 */
-	r = (ctx->count[1] >> 3) & 0x3f;
+	r = (ctx->count >> 3) & 0x3f;
 	plen = (r < 56) ? (56 - r) : (120 - r);
 	SHA256_Update(ctx, PAD, (size_t)plen);
 
@@ -225,7 +225,7 @@ SHA256_Init(SHA256_CTX * ctx)
 {
 
 	/* Zero bits processed so far */
-	ctx->count[0] = ctx->count[1] = 0;
+	ctx->count = 0;
 
 	/* Magic initialization constants */
 	ctx->state[0] = 0x6A09E667;
@@ -242,21 +242,18 @@ SHA256_Init(SHA256_CTX * ctx)
 void
 SHA256_Update(SHA256_CTX * ctx, const void *in, size_t len)
 {
-	uint32_t bitlen[2];
+	uint64_t bitlen;
 	uint32_t r;
 	const unsigned char *src = in;
 
 	/* Number of bytes left in the buffer from previous updates */
-	r = (ctx->count[1] >> 3) & 0x3f;
+	r = (ctx->count >> 3) & 0x3f;
 
 	/* Convert the length into a number of bits */
-	bitlen[1] = ((uint32_t)len) << 3;
-	bitlen[0] = (uint32_t)(len >> 29);
+	bitlen = len << 3;
 
 	/* Update number of bits */
-	if ((ctx->count[1] += bitlen[1]) < bitlen[1])
-		ctx->count[0]++;
-	ctx->count[0] += bitlen[0];
+	ctx->count += bitlen;
 
 	/* Handle the case where we don't need to perform any transforms */
 	if (len < 64 - r) {

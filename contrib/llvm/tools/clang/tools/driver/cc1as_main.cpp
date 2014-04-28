@@ -14,14 +14,12 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
-#include "clang/Driver/Arg.h"
-#include "clang/Driver/ArgList.h"
 #include "clang/Driver/CC1AsOptions.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/OptTable.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Frontend/Utils.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
@@ -37,8 +35,12 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCTargetAsmParser.h"
+#include "llvm/Option/Arg.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Option/OptTable.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -55,6 +57,7 @@
 using namespace clang;
 using namespace clang::driver;
 using namespace llvm;
+using namespace llvm::opt;
 
 namespace {
 
@@ -181,7 +184,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   // Language Options
   Opts.IncludePaths = Args->getAllArgValues(OPT_I);
   Opts.NoInitialTextSection = Args->hasArg(OPT_n);
-  Opts.SaveTemporaryLabels = Args->hasArg(OPT_L);
+  Opts.SaveTemporaryLabels = Args->hasArg(OPT_msave_temp_labels);
   Opts.GenDwarfForAssembly = Args->hasArg(OPT_g);
   Opts.DwarfDebugFlags = Args->getLastArgValue(OPT_dwarf_debug_flags);
   Opts.DwarfDebugProducer = Args->getLastArgValue(OPT_dwarf_debug_producer);
@@ -203,8 +206,6 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
     }
   }
   Opts.LLVMArgs = Args->getAllArgValues(OPT_mllvm);
-  if (Args->hasArg(OPT_fatal_warnings))
-    Opts.LLVMArgs.push_back("-fatal-assembler-warnings");
   Opts.OutputPath = Args->getLastArgValue(OPT_o);
   if (Arg *A = Args->getLastArg(OPT_filetype)) {
     StringRef Name = A->getValue();
@@ -224,14 +225,14 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   Opts.ShowVersion = Args->hasArg(OPT_version);
 
   // Transliterate Options
-  Opts.OutputAsmVariant = Args->getLastArgIntValue(OPT_output_asm_variant,
-                                                   0, Diags);
+  Opts.OutputAsmVariant =
+      getLastArgIntValue(*Args.get(), OPT_output_asm_variant, 0, Diags);
   Opts.ShowEncoding = Args->hasArg(OPT_show_encoding);
   Opts.ShowInst = Args->hasArg(OPT_show_inst);
 
   // Assemble Options
-  Opts.RelaxAll = Args->hasArg(OPT_relax_all);
-  Opts.NoExecStack =  Args->hasArg(OPT_no_exec_stack);
+  Opts.RelaxAll = Args->hasArg(OPT_mrelax_all);
+  Opts.NoExecStack =  Args->hasArg(OPT_mno_exec_stack);
 
   return Success;
 }
@@ -245,12 +246,12 @@ static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
   // Make sure that the Out file gets unlinked from the disk if we get a
   // SIGINT.
   if (Opts.OutputPath != "-")
-    sys::RemoveFileOnSignal(sys::Path(Opts.OutputPath));
+    sys::RemoveFileOnSignal(Opts.OutputPath);
 
   std::string Error;
   raw_fd_ostream *Out =
-    new raw_fd_ostream(Opts.OutputPath.c_str(), Error,
-                       (Binary ? raw_fd_ostream::F_Binary : 0));
+      new raw_fd_ostream(Opts.OutputPath.c_str(), Error,
+                         (Binary ? sys::fs::F_Binary : sys::fs::F_None));
   if (!Error.empty()) {
     Diags.Report(diag::err_fe_unable_to_open_output)
       << Opts.OutputPath << Error;
@@ -287,11 +288,11 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   // it later.
   SrcMgr.setIncludeDirs(Opts.IncludePaths);
 
-  OwningPtr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(Opts.Triple));
-  assert(MAI && "Unable to create target asm info!");
-
   OwningPtr<MCRegisterInfo> MRI(TheTarget->createMCRegInfo(Opts.Triple));
   assert(MRI && "Unable to create target register info!");
+
+  OwningPtr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(*MRI, Opts.Triple));
+  assert(MAI && "Unable to create target asm info!");
 
   bool IsBinary = Opts.OutputType == AssemblerInvocation::FT_Obj;
   formatted_raw_ostream *Out = GetOutputStream(Opts, Diags, IsBinary);
@@ -301,7 +302,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   // FIXME: This is not pretty. MCContext has a ptr to MCObjectFileInfo and
   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
   OwningPtr<MCObjectFileInfo> MOFI(new MCObjectFileInfo());
-  MCContext Ctx(*MAI, *MRI, MOFI.get(), &SrcMgr);
+  MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr);
   // FIXME: Assembler behavior can change with -static.
   MOFI->InitMCObjectFileInfo(Opts.Triple,
                              Reloc::Default, CodeModel::Default, Ctx);
@@ -341,7 +342,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     MCAsmBackend *MAB = 0;
     if (Opts.ShowEncoding) {
       CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
-      MAB = TheTarget->createMCAsmBackend(Opts.Triple, Opts.CPU);
+      MAB = TheTarget->createMCAsmBackend(*MRI, Opts.Triple, Opts.CPU);
     }
     Str.reset(TheTarget->createAsmStreamer(Ctx, *Out, /*asmverbose*/true,
                                            /*useLoc*/ true,
@@ -355,7 +356,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
     MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
-    MCAsmBackend *MAB = TheTarget->createMCAsmBackend(Opts.Triple, Opts.CPU);
+    MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, Opts.Triple,
+                                                      Opts.CPU);
     Str.reset(TheTarget->createMCObjectStreamer(Opts.Triple, Ctx, *MAB, *Out,
                                                 CE, Opts.RelaxAll,
                                                 Opts.NoExecStack));
@@ -364,7 +366,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
 
   OwningPtr<MCAsmParser> Parser(createMCAsmParser(SrcMgr, Ctx,
                                                   *Str.get(), *MAI));
-  OwningPtr<MCTargetAsmParser> TAP(TheTarget->createMCAsmParser(*STI, *Parser));
+  OwningPtr<MCTargetAsmParser> TAP(TheTarget->createMCAsmParser(*STI, *Parser, *MCII));
   if (!TAP) {
     Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
     return false;
@@ -379,7 +381,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
 
   // Delete output on errors.
   if (!Success && Opts.OutputPath != "-")
-    sys::Path(Opts.OutputPath).eraseFromDisk();
+    sys::fs::remove(Opts.OutputPath);
 
   return Success;
 }
@@ -426,7 +428,7 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
 
   // Honor -help.
   if (Asm.ShowHelp) {
-    OwningPtr<driver::OptTable> Opts(driver::createCC1AsOptTable());
+    OwningPtr<OptTable> Opts(driver::createCC1AsOptTable());
     Opts->PrintHelp(llvm::outs(), "clang -cc1as", "Clang Integrated Assembler");
     return 0;
   }

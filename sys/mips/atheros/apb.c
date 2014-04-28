@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #define dprintf(x, arg...)
 #endif  /* APB_DEBUG */
 
+#define	DEVTOAPB(dev)	((struct apb_ivar *) device_get_ivars(dev))
+
 static int	apb_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static device_t	apb_add_child(device_t, u_int, const char *, int);
@@ -103,7 +105,7 @@ static int
 apb_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -362,9 +364,9 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR9341:
 			case AR71XX_SOC_AR9342:
 			case AR71XX_SOC_AR9344:
-				/* Ack/clear the irq on status register for AR724x */
+				/* ACK/clear the given interrupt */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
-				    reg & ~(1 << irq));
+				    (1 << irq));
 				break;
 			default:
 				/* fallthrough */
@@ -385,7 +387,7 @@ apb_filter(void *arg)
 					continue;
 				}
 				/* Ignore timer interrupts */
-				if (irq != 0)
+				if (irq != 0 && irq != 8 && irq != 9 && irq != 10)
 					printf("Stray APB IRQ %d\n", irq);
 				continue;
 			}
@@ -477,6 +479,37 @@ apb_get_resource_list(device_t dev, device_t child)
 	return (&(ivar->resources));
 }
 
+static int
+apb_print_all_resources(device_t dev)
+{
+	struct apb_ivar *ndev = DEVTOAPB(dev);
+	struct resource_list *rl = &ndev->resources;
+	int retval = 0;
+
+	if (STAILQ_FIRST(rl))
+		retval += printf(" at");
+
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+
+	return (retval);
+}
+
+static int
+apb_print_child(device_t bus, device_t child)
+{
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, child);
+	retval += apb_print_all_resources(child);
+	if (device_get_flags(child))
+		retval += printf(" flags %#x", device_get_flags(child));
+	retval += printf(" on %s\n", device_get_nameunit(bus));
+
+	return (retval);
+}
+
+
 static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_activate_resource,	apb_activate_resource),
 	DEVMETHOD(bus_add_child,		apb_add_child),
@@ -491,6 +524,7 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(device_probe,			apb_probe),
 	DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
+	DEVMETHOD(bus_print_child,		apb_print_child),
 
 	DEVMETHOD_END
 };

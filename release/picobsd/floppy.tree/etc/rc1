@@ -52,8 +52,11 @@ pwd_mkdb -p ./master.passwd
 [ "${inetd_enable}" = "YES" -a -f /stand/inetd ] && \
 	{ echo "Starting inetd."; inetd ${inetd_flags} ; }
 
-[ "${sshd_enable}" = "YES" -a -f /stand/sshd ] && \
-	{ echo "Starting sshd..." ; sshd -f /etc/sshd_config ; }
+if [ "${sshd_enable}" = "YES" -a -f /usr/sbin/sshd ] ; then
+	echo "Starting sshd..."
+	chmod 600 /etc/ssh_host*key
+	/usr/sbin/sshd -f /etc/sshd_config
+fi
 
 echo ''
 cat /etc/motd

@@ -1,3 +1,728 @@
+2014-04-09  Rick.Spates
+
+	* main.c, defs.h: patch to allow DEBUG build with WIN32 system
+
+2014-04-09  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* output.c, reader.c: gcc warnings
+
+	* reader.c: fix const-cast warnings
+
+	* test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/code_error.tab.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/error.tab.c, test/btyacc/rename_debug.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.tab.c, output.c:
+	fix a few clang --analyze warnings; one was a case where output_ctable emitted
+	an empty table (which should be an error).
+
+	* reader.c: appease clang --analyze
+
+	* defs.h: mark two functions as no-return.
+
+	* package/debian/changelog: reason for release
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* makefile.in: use $LINT_OPTS from environment via configure script
+
+	* test/btyacc/ok_syntax1.output, test/btyacc/ok_syntax1.tab.c, test/yacc/ok_syntax1.tab.c, test/ok_syntax1.y, test/yacc/ok_syntax1.output:
+	tweaks to make generated files from ok_syntax1.y compile with check_make rule
+
+	* test/btyacc/rename_debug.c, test/btyacc/rename_debug.error, test/btyacc/rename_debug.h, test/btyacc/rename_debug.i, test/btyacc/rename_debug.output, test/yacc/rename_debug.c:
+	reference output for testing
+
+	* test/run_test.sh:
+	retain the renaming done for code_debug.y so that check_make will work.
+
+	* test/yacc/rename_debug.error, test/yacc/rename_debug.h, test/yacc/rename_debug.i, test/yacc/rename_debug.output:
+	reference output for testing
+
+	* test/btyacc/ok_syntax1.error: RCS_BASE
+
+	* test/yacc/quote_calc4-s.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, yaccpar.c:
+	regen
+
+	* yacc.1:
+	clarify relationship of btyacc features to default configuration.
+
+2014-04-08  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/yacc/ok_syntax1.output, test/yacc/ok_syntax1.tab.c, test/yacc/ok_syntax1.tab.h, test/btyacc/ok_syntax1.output, test/btyacc/ok_syntax1.tab.c, test/btyacc/ok_syntax1.tab.h:
+	reference output for testing
+
+	* test/ok_syntax1.y: RCS_BASE
+
+	* test/yacc/ok_syntax1.error: reference output for testing
+
+	* test/yacc/big_b.error, test/yacc/big_b.output, test/yacc/big_l.error, test/yacc/big_l.output, test/btyacc/big_b.error, test/btyacc/big_b.output, test/btyacc/big_l.error, test/btyacc/big_l.output, test/run_test.sh:
+	exercise -L/-B options
+
+	* test/yacc/code_debug.c, test/btyacc/code_debug.c, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax21.tab.c, test/yacc/err_syntax22.tab.c, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax27.tab.c, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax5.tab.c, test/yacc/err_syntax6.tab.c, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax9.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax14.tab.c, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.tab.c, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax27.tab.c, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax9.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/run_test.sh, test/yacc/no_b_opt1.output:
+	use a better renaming of the YYPATCH definition (none of the test-cases rely
+	upon it, but redefinition in the "make check_make" rule is a problem).
+
+	* test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax27.tab.c, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax9.tab.c, test/btyacc/varsyntax_calc1.tab.c:
+	undid temporary reordering in reader() by Tom Shields to align with byacc outputs
+
+	* test/run_test.sh: remove a repeated test-case
+
+	* mstring.c: minor reformatting to make coverage analysis simpler
+
+2014-04-07  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/run_test.sh: tidy
+
+	* test/yacc/help.error, test/yacc/help.output, test/yacc/no_b_opt.error, test/yacc/no_b_opt.output, test/yacc/no_b_opt1.error, test/yacc/no_b_opt1.output, test/yacc/no_code_c.error, test/yacc/no_code_c.output, test/yacc/no_defines.error, test/yacc/no_defines.output, test/yacc/no_graph.error, test/yacc/no_graph.output, test/yacc/no_include.error, test/yacc/no_include.output, test/yacc/no_opts.error, test/yacc/no_opts.output, test/yacc/no_output.error, test/yacc/no_output.output, test/yacc/no_output1.error, test/yacc/no_output1.output, test/yacc/no_output2.error, test/yacc/no_output2.output, test/yacc/no_p_opt.error, test/yacc/no_p_opt.output, test/yacc/no_p_opt1.error, test/yacc/no_p_opt1.output, test/yacc/no_verbose.error, test/yacc/no_verbose.output, test/yacc/nostdin.error, test/yacc/nostdin.output, test/yacc/test-no_b_opt1.output:
+	reference output for testing
+
+	* test/run_test.sh:
+	add special checks for flags which depend on writable/existing files
+
+	* test/btyacc/no_b_opt1.output, test/btyacc/no_p_opt1.output, test/btyacc/no_b_opt.error, test/btyacc/no_b_opt.output, test/btyacc/no_b_opt1.error, test/btyacc/no_code_c.output, test/btyacc/no_p_opt.error, test/btyacc/no_p_opt.output, test/btyacc/no_p_opt1.error, test/btyacc/no_output2.output, test/btyacc/no_code_c.error, test/btyacc/no_output2.error, test/btyacc/no_include.error, test/btyacc/no_include.output, test/btyacc/no_defines.output, test/btyacc/no_defines.error, test/btyacc/no_verbose.output, test/btyacc/no_graph.output, test/btyacc/no_graph.error, test/btyacc/no_opts.error, test/btyacc/no_opts.output, test/btyacc/no_verbose.error, test/btyacc/nostdin.error, test/btyacc/nostdin.output, test/btyacc/no_output.error, test/btyacc/no_output.output, test/btyacc/no_output1.error, test/btyacc/no_output1.output:
+	reference output for testing
+
+	* main.c:
+	change CREATE_FILE_NAMES() to use local function rather than inline code,
+	to simplify coverage analysis.
+
+	* test/btyacc/err_syntax27.error, test/btyacc/err_syntax27.output, test/btyacc/err_syntax27.tab.c, test/btyacc/err_syntax27.tab.h, test/btyacc/help.error, test/btyacc/help.output, test/yacc/err_syntax27.error, test/yacc/err_syntax27.output, test/yacc/err_syntax27.tab.c, test/yacc/err_syntax27.tab.h:
+	reference output for testing
+
+	* test/err_syntax27.y: testcase for missing_brace()
+
+	* error.c: ifdef'd non-btyacc function
+
+	* lr0.c: ifdef'd debug-code
+
+	* yaccpar.skel: use YYINT's to replace short's as in btyaccpar.skel
+
+	* test/btyacc/code_debug.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_debug.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, output.c, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax14.tab.c, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax21.tab.c, test/yacc/err_syntax22.tab.c, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax5.tab.c, test/yacc/err_syntax6.tab.c, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax9.tab.c, test/run_test.sh:
+	2010/11/26 simplification of output.c using putc_code() and putl_code()
+	omitted an adjustment of the #line value used for code-file.  Fix that.
+	Also, amend 2005/05/04 change to run_test.sh to retain a dummy line for
+	YYPATCH #define's to make test-outputs easier to compare #line's (report
+	by Tom Shields)
+
+2014-04-06  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c: fix for valgrind
+	(the calloc's are intentional - valgrind reported use of uninitialized memory)
+
+	* lr0.c, output.c: fix for valgrind
+
+	* test/btyacc/code_debug.c, test/btyacc/code_debug.error, test/btyacc/code_debug.h, test/btyacc/code_debug.i, test/btyacc/code_debug.output:
+	RCS_BASE
+
+	* test/yacc/code_debug.c, test/yacc/code_debug.h:
+	exercise the -i option
+
+	* test/yacc/code_debug.i: reference output for testing
+
+	* test/run_test.sh: exercise the -i option
+
+	* test/yacc/code_debug.c: reference output for testing
+
+	* test/run_test.sh: exercise the "-o" option
+
+	* test/yacc/code_debug.error, test/yacc/code_debug.h, test/yacc/code_debug.output:
+	reference output for testing
+
+	* output.c: don't call exit() without giving a chance to cleanup.
+
+	* mstring.c: ifdef'd functions not used in byacc
+
+	* btyaccpar.c: generated from btyaccpar.skel
+
+	* yaccpar.c: generated from yaccpar.skel
+
+	* skel2c:
+	change the generated-by comment to show which version of this script (and
+	which version of the given skeleton file) were used to produce the C-file.
+
+	* configure: regen
+
+	* makefile.in:
+	add rules to generate byacc and btyacc parser skeleton files independently
+
+	* aclocal.m4: CF_PROG_AWK - add to byacc's configure script
+	CF_INTEL_COMPILER
+		cleanup the -no-gcc option which was leftover from testing - prcs does
+		not build with this option.
+	CF_MAKE_DOCS
+		protect $2 from substitution, for luit's "$(manext)"
+	CF_XOPEN_SOURCE
+		for Solaris (tested with gcc/g++ 3.4.3 on Solaris 10 and gcc/g++ 4.5.2
+		on Solaris 11), suppress the followup check for defining _XOPEN_SOURCE
+		because it is not needed, as well as because g++ 4.7.3 (no package,
+		used in Sage for Solaris 10) has some unspecified header breakage which
+		is triggered by the duplicate definition.
+
+	* configure.in:
+	modify so skeleton-source is determined by configure options rather than by
+	having developer rename yaccpar.skel.old to yaccpar.skel
+
+	* descrip.mms: rename skeleton
+
+	* vmsbuild.com:
+	fwiw, renamed the skeleton for consistency with makefile
+
+	* skel2c, skeleton.c: resync skeleton and its generating files
+
+	* yaccpar.skel:
+	renamed yaccpar.skel.old to yaccpar.skel, to allow using makefile suffix rules
+
+	* yaccpar.skel.old: resync skeleton and its generating files
+
+	* test/run_make.sh: improve cleanup after error recovery
+
+	* test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, output.c, skeleton.c, defs.h:
+	use improvement from Tom Shield's btyacc changes, getting rid of special cases for generating two yyerror calls in skeleton
+
+	* output.c: simplify output_yyerror_decl()
+
+	* test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.tab.c, test/yacc/code_error.tab.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, output.c:
+	add second "const" to string-table declarations, from Tom Shield's btyacc changes
+
+	* test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c:
+	discard unnecessary call on write_code_lineno() from Tom Shield's changes
+
+	* test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_calc.tab.c, test/yacc/code_error.code.c, test/yacc/code_error.tab.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax20.tab.c, output.c:
+	use YYINT typedef from Tom Shield's btyacc changes to replace explicit "short"
+
+	* test/yacc/code_calc.code.c, test/yacc/code_error.code.c, output.c:
+	use fix from Tom Shield's btyacc changes: remove redundant extern-declaration for YYPARSE_DECL()
+
+	* test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c:
+	discard unnecessary call on write_code_lineno() from Tom Shield's changes
+
+	* output.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/code_calc.tab.c, test/yacc/code_error.tab.c:
+	use fix from Tom Shield's btyacc changes: prefix-definitions went to the
+	output (.tab.c) file in a case where they should have gone to the code
+	(.code.c) file.  Remove now-redundant call to output_prefix().
+
+	* main.c: do the same for help-message
+
+	* main.c: use OUTPUT_SUFFIX symbol in an overlooked case
+
+	* test/run_make.sh:
+	modify to avoid use of VPATH, which has no standard implementation
+
+2014-04-05  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c:
+	discard a change which merged CountLines() with explicit comparisons against
+	code_file because that adds extra to the #line values
+
+	* test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/calc.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/error.tab.c, output.c:
+	add Tom Shield's change to allow definition of YYSTYPE_IS_DECLARED symbol to
+	override fallback typedef for YYSTYPE when that symbol is undefined
+
+	* test/btyacc/error.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c:
+	minor tweak to coding style - use parenthesis for "defined" operator's parameter
+
+	* test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c:
+	regen to make YYMAXTOKEN and YYUNDFTOKEN adjacent
+
+	* test/yacc/err_syntax20.tab.c, test/yacc/grammar.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_calc.tab.c, test/yacc/code_error.code.c, test/yacc/code_error.tab.c, test/yacc/empty.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c:
+	regen after adding the YYUNDFTOKEN symbol
+
+	* output.c:
+	integrate Tom Shield's btyacc changes which introduce the YYUNDFTOKEN symbol
+	(I changed order of output to keep this adjacent to YYMAXTOKEN)
+
+	* reader.c:
+	merge all but one small change from Tom Shield's btyacc changes - that
+	changes the order of code-file in the tests.
+
+	* test/btyacc/btyacc_demo.tab.c: regen
+
+	* test/btyacc_demo.y: fix prototypes
+
+2014-04-04  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c, defs.h, main.c:
+	more merging of Tom Shield's btyacc changes.  In the merge, I moved the
+	symbol_pval inside the btyacc ifdef's and added some more btyacc ifdefs
+
+2014-04-03  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c:
+	merge-in 3/4 of btyacc's changes, deferring those which change test-outputs.
+	Tom Shield's changes split-out copy_string() and copy_comment() functions
+	to simplify some logic, as well as adding btyacc-only chunks
+
+	* makefile.in: build mstring.o, needed for changes in reader.c
+
+	* output.c:
+	merge-in all of btyacc's changes which do not change byacc's test-output.
+	Some of the merge uses ifdef-changes which I applied to ongoing resync,
+	e.g., the introduction of PER_STATE.
+
+2014-04-02  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c: regen
+
+	* output.c: fix typo
+
+	* output.c, reader.c:
+	merge in some chunks of reader and output files which do not affect byacc tests
+
+	* test/yacc/calc2.tab.c, test/yacc/calc3.tab.c: regen
+
+	* test/yacc/err_syntax6.tab.c, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax9.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax14.tab.c, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax21.tab.c, test/yacc/err_syntax22.tab.c, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax5.tab.c, skeleton.c:
+	incorporate YYENOMEM and YYEOF symbols from btyacc
+
+	* output.c: merge chunk from btyacc changes for header-guards
+
+	* btyaccpar.skel: RCS_BASE
+
+	* yaccpar.skel: comment-out yysccsid[], for FreeBSD build-issues
+	remove GCC_UNUSED to reduce name-pollution as well as being simpler
+
+	* main.c:
+	move a btyacc symbol outside ifdef to work around current state of merge
+
+	* defs.h:
+	add USE_HEADER_GUARDS to defer whether to modify byacc's header-output
+
+	* test/run_make.sh:
+	do not try to compile files used for testing syntax-errors, since they are
+	likely to be incomplete
+
+2014-04-02  Tom.Shields
+
+	* main.c: changes for btyacc
+
+2014-04-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c:
+	integrate change by Tom Shields to use bsearch rather than successive
+	calls to matchec()
+
+	* defs.h: typedef __compar_fn_t is unnecessary
+
+	* test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c:
+	omit the GCC_UNUSED, as noted by Tom Shields not really essential
+
+2014-04-01  Tom.Shields
+
+	* verbose.c: changes for btyacc, ifdef'd
+
+2014-04-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* mkpar.c: eliminate most of the ifdef's using macros
+
+2014-04-01  Tom.Shields
+
+	* mkpar.c: merge btyacc changes (ifdef'd - no change to byacc)
+
+	* error.c:
+	new functions used for reporting errors from the btyacc configuration
+	(I reordered some, and ifdef'd the new ones -TD)
+
+2014-03-31  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c:
+	omit the GCC_UNUSED, as noted by Tom Shields not really essential
+
+	* test/btyacc/empty.tab.c, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit5.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax24.tab.c:
+	regen
+
+2014-03-29  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/yacc/err_syntax22.tab.c, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax5.tab.c, test/yacc/err_syntax6.tab.c, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax9.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c, test/yacc/varsyntax_calc1.tab.c, test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_error.code.c, test/yacc/empty.tab.c, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax14.tab.c, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax21.tab.c, skeleton.c:
+	comment-out yysccsid in the banner because it produces unnecessary compiler
+	warnings.  The suggested alternative (using #pragma ident) in the preceding
+	comment is also obsolete; remove that comment (request by Gleb Smirnoff).
+
+	* test/run_test.sh:
+	for yacc, ignore the inherit testcases, since they are btyacc-specific
+
+2014-03-28  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/yacc/varsyntax_calc1.error, test/yacc/varsyntax_calc1.output, test/yacc/varsyntax_calc1.tab.c, test/yacc/varsyntax_calc1.tab.h, test/yacc/err_inherit3.error, test/yacc/err_inherit3.output, test/yacc/err_inherit3.tab.c, test/yacc/err_inherit3.tab.h, test/yacc/err_inherit4.error, test/yacc/err_inherit4.output, test/yacc/err_inherit4.tab.c, test/yacc/err_inherit4.tab.h, test/yacc/err_inherit5.error, test/yacc/err_inherit5.output, test/yacc/err_inherit5.tab.c, test/yacc/err_inherit5.tab.h, test/yacc/inherit0.error, test/yacc/inherit0.output, test/yacc/inherit0.tab.c, test/yacc/inherit0.tab.h, test/yacc/inherit1.error, test/yacc/inherit1.output, test/yacc/inherit1.tab.c, test/yacc/inherit1.tab.h, test/yacc/inherit2.error, test/yacc/inherit2.output, test/yacc/inherit2.tab.c, test/yacc/inherit2.tab.h, test/yacc/empty.error, test/yacc/empty.output, test/yacc/empty.tab.c, test/yacc/empty.tab.h, test/yacc/err_inherit1.error, test/yacc/err_inherit1.output, test/yacc/err_inherit1.tab.c, test/yacc/err_inherit1.tab.h, test/yacc/err_inherit2.error, test/yacc/err_inherit2.output, test/yacc/err_inherit2.tab.c, test/yacc/err_inherit2.tab.h:
+	reference output for testing
+
+	* test/run_lint.sh, test/run_make.sh, test/run_test.sh:
+	moving #define's out of makefile broke check for yacc vs btyacc (fix)
+
+2014-03-28  Tom.Shields
+
+	* test/btyacc/btyacc_demo.tab.c, test/btyacc/err_inherit3.error, test/btyacc/err_inherit3.output, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit3.tab.h, test/btyacc/err_inherit2.error, test/btyacc/err_inherit2.output, test/btyacc/err_inherit2.tab.c, test/btyacc/err_inherit2.tab.h, test/btyacc/err_inherit4.error, test/btyacc/err_inherit4.output, test/btyacc/err_inherit4.tab.c, test/btyacc/err_inherit4.tab.h, test/btyacc/err_inherit5.error, test/btyacc/err_inherit5.output, test/btyacc/err_inherit5.tab.c, test/btyacc/err_inherit5.tab.h, test/btyacc/inherit0.error, test/btyacc/inherit0.output, test/btyacc/inherit0.tab.c, test/btyacc/inherit0.tab.h, test/btyacc/inherit1.error, test/btyacc/inherit1.output, test/btyacc/inherit1.tab.c, test/btyacc/inherit1.tab.h, test/btyacc/inherit2.error, test/btyacc/inherit2.output, test/btyacc/inherit2.tab.c, test/btyacc/inherit2.tab.h, test/btyacc/calc.error, test/btyacc/err_inherit1.error, test/btyacc/err_inherit1.output, test/btyacc/err_inherit1.tab.c, test/btyacc/err_inherit1.tab.h:
+	reference output for testing
+
+	* defs.h: new functions/variables for btyacc
+	(I reordered and ifdef'd -TD)
+
+	* test/inherit0.y, test/inherit1.y: testcase for btyacc
+
+2014-03-27  Tom.Shields
+
+	* test/err_inherit5.y, test/err_inherit4.y, test/err_inherit3.y, test/err_inherit2.y, test/err_inherit1.y, test/inherit2.y:
+	testcase for btyacc
+
+2014-03-25  Tom.Shields
+
+	* symtab.c: extra initialization needed for btyacc
+	(I ifdef'd -TD)
+
+	* yacc.1: document -L/-B features from btyacc
+
+2014-03-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* yacc.1: typo
+
+	* configure: regen
+
+	* configure.in:
+	modified new options to act like those in my other configure-scripts, e.g.,
+	showing what option is being tested, and the resulting value.  Put the
+	definitions in config.h rather than in the makefile.
+
+2014-03-25  Tom.Shields
+
+	* makefile.in: add/use LINTFLAGS variable
+	make all of the objects (not just skeleton) rebuild if makefile changes
+	modify check-rule to reflect updates to run_test.sh vs subdirectory
+
+	* mstring.c: byacc-btyacc-20140323
+
+2014-03-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/btyacc/RCS, test/yacc/RCS: PERMIT FILE
+
+	* config_h.in: updated with autoheader-252
+
+2014-03-25  Tom.Shields
+
+	* README.BTYACC: byacc-btyacc-20140323
+
+2014-03-24  Tom.Shields
+
+	* test/btyacc/err_syntax1.output, test/btyacc/err_syntax1.tab.c, test/btyacc/err_syntax1.tab.h, test/btyacc/err_syntax10.error, test/btyacc/err_syntax10.output, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax10.tab.h, test/btyacc/err_syntax11.error, test/btyacc/err_syntax11.output, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax11.tab.h, test/btyacc/err_syntax12.error, test/btyacc/err_syntax12.output, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax12.tab.h, test/btyacc/err_syntax13.error, test/btyacc/err_syntax13.output, test/btyacc/err_syntax13.tab.c, test/btyacc/err_syntax13.tab.h, test/btyacc/err_syntax14.error, test/btyacc/err_syntax14.output, test/btyacc/err_syntax14.tab.c, test/btyacc/err_syntax14.tab.h, test/btyacc/err_syntax15.error, test/btyacc/err_syntax15.output, test/btyacc/err_syntax15.tab.c, test/btyacc/err_syntax15.tab.h, test/btyacc/err_syntax16.error, test/btyacc/err_syntax16.output, test/btyacc/err_syntax16.tab.c, test/btyacc/err_syntax16.tab.h, test/btyacc/err_syntax17.error, test/btyacc/err_syntax17.output, test/btyacc/err_syntax17.tab.c, test/btyacc/err_syntax17.tab.h, test/btyacc/err_syntax18.error, test/btyacc/err_syntax18.output, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax18.tab.h, test/btyacc/err_syntax19.error, test/btyacc/err_syntax19.output, test/btyacc/err_syntax19.tab.c, test/btyacc/err_syntax19.tab.h, test/btyacc/err_syntax2.output, test/btyacc/err_syntax2.tab.c, test/btyacc/err_syntax2.tab.h, test/btyacc/err_syntax20.error, test/btyacc/err_syntax20.output, test/btyacc/err_syntax20.tab.c, test/btyacc/err_syntax20.tab.h, test/btyacc/err_syntax21.error, test/btyacc/err_syntax21.output, test/btyacc/err_syntax21.tab.c, test/btyacc/err_syntax21.tab.h, test/btyacc/err_syntax22.error, test/btyacc/err_syntax22.output, test/btyacc/err_syntax22.tab.c, test/btyacc/err_syntax22.tab.h, test/btyacc/err_syntax23.error, test/btyacc/err_syntax23.output, test/btyacc/err_syntax23.tab.c, test/btyacc/err_syntax23.tab.h, test/btyacc/err_syntax24.error, test/btyacc/err_syntax24.output, test/btyacc/err_syntax24.tab.c, test/btyacc/err_syntax24.tab.h, test/btyacc/err_syntax25.error, test/btyacc/err_syntax25.output, test/btyacc/err_syntax25.tab.c, test/btyacc/err_syntax25.tab.h, test/btyacc/err_syntax26.error, test/btyacc/err_syntax26.output, test/btyacc/err_syntax26.tab.c, test/btyacc/err_syntax26.tab.h, test/btyacc/err_syntax3.output, test/btyacc/err_syntax3.tab.c, test/btyacc/err_syntax3.tab.h, test/btyacc/err_syntax4.output, test/btyacc/err_syntax4.tab.c, test/btyacc/err_syntax4.tab.h, test/btyacc/err_syntax5.output, test/btyacc/err_syntax5.tab.c, test/btyacc/err_syntax5.tab.h, test/btyacc/err_syntax6.output, test/btyacc/err_syntax6.tab.c, test/btyacc/err_syntax6.tab.h, test/btyacc/err_syntax7.output, test/btyacc/err_syntax7.tab.c, test/btyacc/err_syntax7.tab.h, test/btyacc/err_syntax7a.output, test/btyacc/err_syntax7a.tab.c, test/btyacc/err_syntax7a.tab.h, test/btyacc/err_syntax7b.output, test/btyacc/err_syntax7b.tab.c, test/btyacc/err_syntax7b.tab.h, test/btyacc/err_syntax8.output, test/btyacc/err_syntax8.tab.c, test/btyacc/err_syntax8.tab.h, test/btyacc/err_syntax8a.output, test/btyacc/err_syntax8a.tab.c, test/btyacc/err_syntax8a.tab.h, test/btyacc/err_syntax9.output, test/btyacc/err_syntax9.tab.c, test/btyacc/err_syntax9.tab.h:
+	reference output for testing
+
+2014-03-24  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* defs.h: fix compiler warnings due to mputc()
+
+2014-03-23  Tom.Shields
+
+	* test/btyacc_demo.y: testcase for btyacc
+
+	* test/btyacc/varsyntax_calc1.error, test/btyacc/varsyntax_calc1.output, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/varsyntax_calc1.tab.h:
+	reference output for testing
+
+	* test/varsyntax_calc1.y, test/btyacc_calc1.y: testcase for btyacc
+
+2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/err_syntax26.error, test/err_syntax26.output, test/err_syntax26.tab.c, test/err_syntax26.tab.h, test/yacc/err_syntax26.error, test/yacc/err_syntax26.output, test/yacc/err_syntax26.tab.c, test/yacc/err_syntax26.tab.h:
+	reference output for testing
+
+	* test/err_syntax26.y: testcase for missing_brace()
+
+	* test/err_syntax25.error, test/err_syntax25.output, test/err_syntax25.tab.c, test/err_syntax25.tab.h, test/yacc/err_syntax25.error, test/yacc/err_syntax25.output, test/yacc/err_syntax25.tab.c, test/yacc/err_syntax25.tab.h:
+	reference output for testing
+
+	* test/err_syntax25.y: testcase for over_unionized()
+
+	* test/err_syntax24.error, test/err_syntax24.output, test/err_syntax24.tab.c, test/err_syntax24.tab.h, test/yacc/err_syntax24.error, test/yacc/err_syntax24.output, test/yacc/err_syntax24.tab.c, test/yacc/err_syntax24.tab.h:
+	reference output for testing
+
+	* test/err_syntax24.y: testcase for default_action_warning()
+
+2014-03-23  Tom.Shields
+
+	* test/btyacc/quote_calc3-s.error, test/btyacc/quote_calc4-s.error, test/btyacc/quote_calc4.error, test/btyacc/grammar.dot, test/btyacc/grammar.error, test/btyacc/pure_calc.error, test/btyacc/pure_error.error, test/btyacc/quote_calc-s.error, test/btyacc/quote_calc.error, test/btyacc/quote_calc2-s.error, test/btyacc/quote_calc2.error, test/btyacc/quote_calc3.error, test/btyacc/err_syntax2.error, test/btyacc/err_syntax3.error, test/btyacc/err_syntax4.error, test/btyacc/err_syntax5.error, test/btyacc/err_syntax6.error, test/btyacc/err_syntax7.error, test/btyacc/err_syntax7a.error, test/btyacc/err_syntax7b.error, test/btyacc/err_syntax8.error, test/btyacc/err_syntax8a.error, test/btyacc/err_syntax9.error, test/btyacc/error.error, test/btyacc/calc1.error, test/btyacc/calc2.error, test/btyacc/calc3.error, test/btyacc/code_calc.error, test/btyacc/code_error.error, test/btyacc/empty.error, test/btyacc/err_syntax1.error, test/btyacc/btyacc_calc1.error, test/btyacc/btyacc_demo.error:
+	reference output for testing
+
+2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/err_syntax23.error, test/err_syntax23.output, test/err_syntax23.tab.c, test/err_syntax23.tab.h, test/yacc/err_syntax23.error, test/yacc/err_syntax23.output, test/yacc/err_syntax23.tab.c, test/yacc/err_syntax23.tab.h:
+	reference output for testing
+
+	* test/err_syntax23.y: testcase for untyped_lhs()
+
+2014-03-23  Tom.Shields
+
+	* test/run_test.sh:
+	move test-outputs into subdirectories to keep btyacc/yacc results separate
+
+2014-03-23  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/err_syntax22.error, test/err_syntax22.output, test/err_syntax22.tab.c, test/err_syntax22.tab.h, test/yacc/err_syntax22.error, test/yacc/err_syntax22.output, test/yacc/err_syntax22.tab.c, test/yacc/err_syntax22.tab.h:
+	reference output for testing
+
+	* test/err_syntax22.y: testcase for untyped_rhs()
+
+	* test/err_syntax21.error, test/err_syntax21.output, test/err_syntax21.tab.c, test/err_syntax21.tab.h, test/yacc/err_syntax21.error, test/yacc/err_syntax21.output, test/yacc/err_syntax21.tab.c, test/yacc/err_syntax21.tab.h, test/err_syntax20.error, test/err_syntax20.output, test/err_syntax20.tab.c, test/err_syntax20.tab.h, test/yacc/err_syntax20.error, test/yacc/err_syntax20.output, test/yacc/err_syntax20.tab.c, test/yacc/err_syntax20.tab.h:
+	reference output for testing
+
+	* test/err_syntax20.y: testcase for undefined_symbol_warning()
+
+	* test/err_syntax21.y: testcase for unknown_rhs()
+
+	* test/err_syntax19.error, test/err_syntax19.output, test/err_syntax19.tab.c, test/err_syntax19.tab.h, test/yacc/err_syntax19.error, test/yacc/err_syntax19.output, test/yacc/err_syntax19.tab.c, test/yacc/err_syntax19.tab.h:
+	reference output for testing
+
+	* test/err_syntax19.y: testcase for dollar_error()
+
+	* test/err_syntax18.error, test/err_syntax18.output, test/err_syntax18.tab.c, test/err_syntax18.tab.h, test/yacc/err_syntax18.error, test/yacc/err_syntax18.output, test/yacc/err_syntax18.tab.c, test/yacc/err_syntax18.tab.h:
+	reference output for testing
+
+	* test/err_syntax18.y: testcase for dollar_warning()
+
+	* test/err_syntax17.error, test/err_syntax17.output, test/err_syntax17.tab.c, test/err_syntax17.tab.h, test/yacc/err_syntax17.error, test/yacc/err_syntax17.output, test/yacc/err_syntax17.tab.c, test/yacc/err_syntax17.tab.h:
+	reference output for testing
+
+	* test/err_syntax17.y: testcase for unterminated_action()
+
+2014-03-22  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/err_syntax16.error, test/err_syntax16.output, test/err_syntax16.tab.c, test/err_syntax16.tab.h, test/yacc/err_syntax16.error, test/yacc/err_syntax16.output, test/yacc/err_syntax16.tab.c, test/yacc/err_syntax16.tab.h:
+	reference output for testing
+
+	* test/err_syntax16.y: testcase for terminal_lhs()
+
+	* test/err_syntax15.error, test/err_syntax15.output, test/err_syntax15.tab.c, test/err_syntax15.tab.h, test/yacc/err_syntax15.error, test/yacc/err_syntax15.output, test/yacc/err_syntax15.tab.c, test/yacc/err_syntax15.tab.h:
+	reference output for testing
+
+	* test/err_syntax15.y: testcase for no_grammar()
+
+	* test/err_syntax14.error, test/err_syntax14.output, test/err_syntax14.tab.c, test/err_syntax14.tab.h, test/yacc/err_syntax14.error, test/yacc/err_syntax14.output, test/yacc/err_syntax14.tab.c, test/yacc/err_syntax14.tab.h:
+	reference output for testing
+
+	* test/err_syntax14.y:
+	testcase for restarted_warning() and undefined_goal()
+
+	* test/err_syntax13.error, test/err_syntax13.output, test/err_syntax13.tab.c, test/err_syntax13.tab.h, test/yacc/err_syntax13.error, test/yacc/err_syntax13.output, test/yacc/err_syntax13.tab.c, test/yacc/err_syntax13.tab.h:
+	reference output for testing
+
+	* test/err_syntax13.y: testcase for terminal_start()
+
+	* test/err_syntax12.error, test/err_syntax12.output, test/err_syntax12.tab.c, test/err_syntax12.tab.h, test/yacc/err_syntax12.error, test/yacc/err_syntax12.output, test/yacc/err_syntax12.tab.c, test/yacc/err_syntax12.tab.h:
+	reference output for testing
+
+	* test/err_syntax12.y: testcase for revalued_warning()
+
+	* test/err_syntax11.error, test/err_syntax11.output, test/err_syntax11.tab.c, test/err_syntax11.tab.h, test/yacc/err_syntax11.error, test/yacc/err_syntax11.output, test/yacc/err_syntax11.tab.c, test/yacc/err_syntax11.tab.h:
+	reference output for testing
+
+	* test/err_syntax11.y: testcase for reprec_warning()
+
+	* test/err_syntax10.error, test/err_syntax10.output, test/err_syntax10.tab.c, test/err_syntax10.tab.h, test/yacc/err_syntax10.error, test/yacc/err_syntax10.output, test/yacc/err_syntax10.tab.c, test/yacc/err_syntax10.tab.h:
+	reference output for testing
+
+	* test/err_syntax10.y: testcase for retyped_warning()
+
+2014-03-21  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/err_syntax9.error, test/err_syntax9.output, test/err_syntax9.tab.c, test/err_syntax9.tab.h, test/yacc/err_syntax9.error, test/yacc/err_syntax9.output, test/yacc/err_syntax9.tab.c, test/yacc/err_syntax9.tab.h:
+	reference output for testing
+
+	* test/err_syntax9.y: testcase for tokenized_start()
+
+	* test/err_syntax8.error, test/err_syntax8.output, test/err_syntax8.tab.c, test/err_syntax8.tab.h, test/err_syntax8a.error, test/err_syntax8a.output, test/err_syntax8a.tab.c, test/err_syntax8a.tab.h, test/yacc/err_syntax8.error, test/yacc/err_syntax8.output, test/yacc/err_syntax8.tab.c, test/yacc/err_syntax8.tab.h, test/yacc/err_syntax8a.error, test/yacc/err_syntax8a.output, test/yacc/err_syntax8a.tab.c, test/yacc/err_syntax8a.tab.h:
+	reference output for testing
+
+	* test/err_syntax8a.y, test/err_syntax8.y: testcase for used_reserved()
+
+	* test/err_syntax7.error, test/err_syntax7.output, test/err_syntax7.tab.c, test/err_syntax7.tab.h, test/err_syntax7a.error, test/err_syntax7a.output, test/err_syntax7a.tab.c, test/err_syntax7a.tab.h, test/err_syntax7b.error, test/err_syntax7b.output, test/err_syntax7b.tab.c, test/err_syntax7b.tab.h, test/yacc/err_syntax7.error, test/yacc/err_syntax7.output, test/yacc/err_syntax7.tab.c, test/yacc/err_syntax7.tab.h, test/yacc/err_syntax7a.error, test/yacc/err_syntax7a.output, test/yacc/err_syntax7a.tab.c, test/yacc/err_syntax7a.tab.h, test/yacc/err_syntax7b.error, test/yacc/err_syntax7b.output, test/yacc/err_syntax7b.tab.c, test/yacc/err_syntax7b.tab.h:
+	reference output for testing
+
+	* test/err_syntax7b.y, test/err_syntax7a.y, test/err_syntax7.y:
+	testcase for illegal_character()
+
+	* test/err_syntax6.error, test/err_syntax6.output, test/err_syntax6.tab.c, test/err_syntax6.tab.h, test/yacc/err_syntax6.error, test/yacc/err_syntax6.output, test/yacc/err_syntax6.tab.c, test/yacc/err_syntax6.tab.h:
+	reference output for testing
+
+	* test/err_syntax6.y: testcase for illegal_tag()
+
+	* test/err_syntax5.error, test/err_syntax5.output, test/err_syntax5.tab.c, test/err_syntax5.tab.h, test/yacc/err_syntax5.error, test/yacc/err_syntax5.output, test/yacc/err_syntax5.tab.c, test/yacc/err_syntax5.tab.h:
+	reference output for testing
+
+	* test/err_syntax5.y: testcase for unterminated_union()
+
+	* test/err_syntax4.error, test/err_syntax4.output, test/err_syntax4.tab.c, test/err_syntax4.tab.h, test/yacc/err_syntax4.error, test/yacc/err_syntax4.output, test/yacc/err_syntax4.tab.c, test/yacc/err_syntax4.tab.h:
+	reference output for testing
+
+	* test/err_syntax4.y: testcase for unterminated_text()
+
+	* test/err_syntax3.error, test/err_syntax3.output, test/err_syntax3.tab.c, test/err_syntax3.tab.h, test/yacc/err_syntax3.error, test/yacc/err_syntax3.output, test/yacc/err_syntax3.tab.c, test/yacc/err_syntax3.tab.h:
+	reference output for testing
+
+	* test/err_syntax3.y: testcase for unterminated_string()
+
+	* test/err_syntax2.error, test/err_syntax2.output, test/err_syntax2.tab.c, test/err_syntax2.tab.h, test/yacc/err_syntax2.error, test/yacc/err_syntax2.output, test/yacc/err_syntax2.tab.c, test/yacc/err_syntax2.tab.h:
+	reference output for testing
+
+	* test/err_syntax2.y: testcase for unterminated_comment()
+
+	* test/err_syntax1.error, test/yacc/err_syntax1.error:
+	reference output for testing
+
+	* test/err_syntax1.y:
+	test-case with syntax error (and nonprinting character)
+
+	* test/calc.error, test/calc1.error, test/calc2.error, test/calc3.error, test/code_calc.error, test/code_error.error, test/err_syntax1.error, test/error.error, test/grammar.error, test/pure_calc.error, test/pure_error.error, test/quote_calc-s.error, test/quote_calc.error, test/quote_calc2-s.error, test/quote_calc2.error, test/quote_calc3-s.error, test/quote_calc3.error, test/quote_calc4-s.error, test/quote_calc4.error, test/yacc/calc.error, test/yacc/calc1.error, test/yacc/calc2.error, test/yacc/calc3.error, test/yacc/code_calc.error, test/yacc/code_error.error, test/yacc/error.error, test/yacc/grammar.error, test/yacc/pure_calc.error, test/yacc/pure_error.error, test/yacc/quote_calc-s.error, test/yacc/quote_calc.error, test/yacc/quote_calc2-s.error, test/yacc/quote_calc2.error, test/yacc/quote_calc3-s.error, test/yacc/quote_calc3.error, test/yacc/quote_calc4-s.error, test/yacc/quote_calc4.error:
+	reference output for testing
+
+	* test/run_test.sh:
+	save stderr to reference files, to capture shift/reduce messages as well
+	as syntax-error messages
+
+	* test/err_syntax1.output, test/err_syntax1.tab.c, test/err_syntax1.tab.h, test/yacc/err_syntax1.output, test/yacc/err_syntax1.tab.c, test/yacc/err_syntax1.tab.h:
+	reference output for testing
+
+	* test/run_test.sh: generate a ".dot" file for the grammar file
+
+	* test/grammar.dot: RCS_BASE
+
+	* test/yacc/grammar.dot: reference output for testing
+
+2014-03-19  Tom.Shields
+
+	* output.c: rename MAXSHORT to MAXYYINT
+
+2014-03-18  Tom.Shields
+
+	* yaccpar.skel: skeleton with btyacc additions
+
+	* NOTES-btyacc-Changes: byacc-btyacc-20140323
+
+	* test/btyacc/btyacc_calc1.output, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_calc1.tab.h:
+	reference output for testing
+
+	* test/run_make.sh:
+	move test-outputs into subdirectories to keep btyacc/yacc results separate
+
+	* test/btyacc/pure_calc.tab.c, test/btyacc/pure_calc.tab.h, test/btyacc/pure_error.output, test/btyacc/pure_error.tab.c, test/btyacc/pure_error.tab.h, test/btyacc/quote_calc-s.output, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc-s.tab.h, test/btyacc/quote_calc.output, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc.tab.h, test/btyacc/quote_calc2-s.output, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2-s.tab.h, test/btyacc/quote_calc2.output, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc2.tab.h, test/btyacc/quote_calc3-s.output, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3-s.tab.h, test/btyacc/quote_calc3.output, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc3.tab.h, test/btyacc/quote_calc4-s.output, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4-s.tab.h, test/btyacc/quote_calc4.output, test/btyacc/quote_calc4.tab.c, test/btyacc/quote_calc4.tab.h, test/btyacc/calc1.output, test/btyacc/calc1.tab.c, test/btyacc/calc1.tab.h, test/btyacc/calc2.output, test/btyacc/calc2.tab.c, test/btyacc/calc2.tab.h, test/btyacc/calc3.output, test/btyacc/calc3.tab.c, test/btyacc/calc3.tab.h, test/btyacc/code_calc.code.c, test/btyacc/code_calc.output, test/btyacc/code_calc.tab.c, test/btyacc/code_calc.tab.h, test/btyacc/code_error.code.c, test/btyacc/code_error.output, test/btyacc/code_error.tab.c, test/btyacc/code_error.tab.h, test/btyacc/empty.output, test/btyacc/empty.tab.c, test/btyacc/empty.tab.h, test/btyacc/error.output, test/btyacc/error.tab.c, test/btyacc/error.tab.h, test/btyacc/grammar.output, test/btyacc/grammar.tab.c, test/btyacc/grammar.tab.h, test/btyacc/pure_calc.output, test/btyacc/btyacc_demo.output, test/btyacc/btyacc_demo.tab.h, test/btyacc/calc.output, test/btyacc/calc.tab.c, test/btyacc/calc.tab.h:
+	reference output for testing
+
+	* defs.h:
+	several changes to help decouple the use of 'short' as the type of value
+	used in yacc parsers.
+
+	* NOTES-btyacc-Disposition: byacc-btyacc-20140323
+
+2014-03-17  Tom.Shields
+
+	* skel2c, yaccpar.skel, yaccpar.skel.old: RCS_BASE
+
+	* test/run_lint.sh:
+	move test-outputs into subdirectories to keep btyacc/yacc results separate
+
+	* configure.in: add --with-max-table-size and --enable-btyacc options
+
+2014-03-16  Tom.Shields
+
+	* main.c: use Value_t rather than short
+
+2014-03-11  Tom.Shields
+
+	* test/empty.y: testcase for btyacc
+
+2014-03-10  Tom.Shields
+
+	* test/calc3.y, test/calc2.y: fix unused-variable warning
+
+2014-02-18  Tom.Shields
+
+	* lr0.c, graph.c: use Value_t rather than short
+
+	* closure.c: use Value_t rather than short
+	ifdef'd forward-reference prototypes to match ifdef'ing of the actual functions
+
+	* lalr.c: rename MAXSHORT to MAXYYINT
+
+2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* yacc.1: document %token-table, improve presentation of double-quotes
+
+	* VERSION, package/byacc.spec, package/debian/changelog: bump
+
+	* test/yacc/calc.tab.c, test/yacc/calc1.tab.c, test/yacc/calc2.tab.c, test/yacc/calc3.tab.c, test/yacc/code_calc.code.c, test/yacc/code_calc.tab.c, test/yacc/code_error.code.c, test/yacc/code_error.tab.c, test/yacc/error.tab.c, test/yacc/grammar.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/quote_calc-s.tab.c, test/yacc/quote_calc.tab.c, test/yacc/quote_calc2-s.tab.c, test/yacc/quote_calc2.tab.c, test/yacc/quote_calc3-s.tab.c, test/yacc/quote_calc3.tab.c, test/yacc/quote_calc4-s.tab.c, test/yacc/quote_calc4.tab.c:
+	reference output for testing
+
+	* test/calc.tab.c, test/calc1.tab.c, test/calc2.tab.c, test/calc3.tab.c, test/code_calc.code.c, test/code_calc.tab.c, test/code_error.code.c, test/code_error.tab.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c, test/quote_calc-s.tab.c, test/quote_calc.tab.c, test/quote_calc2-s.tab.c, test/quote_calc2.tab.c, test/quote_calc3-s.tab.c, test/quote_calc3.tab.c, test/quote_calc4-s.tab.c, test/quote_calc4.tab.c:
+	regen
+
+	* output.c, skeleton.c:
+	amend the last change so that yytname is #define'd as needed rather than
+	permanent - to avoid breaking cproto for instance.
+
+2014-01-01  Christos.Zoulas
+
+	* output.c, defs.h, main.c, reader.c, skeleton.c:
+	changes to build ntpd using byacc:
+	- rename yyname[] to yytname[]
+	- add YYTRANSLATE() macro
+	- recognize bison's %token-table declaration
+
+2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* configure: regen
+
+	* yacc.1: s/EE/XE/ to work around groff bug on Debian 6
+
+	* makefile.in: use CF_MAKE_DOCS
+
+	* aclocal.m4: add CF_MAKE_DOCS
+
+	* configure.in: use CF_MAKE_DOCS
+
+2013-12-26  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.guess: 2013-11-29
+
+2013-11-19  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* aclocal.m4: resync with my-autoconf (fixes for clang and mingw)
+
+2013-10-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.sub: 2013-10-01
+
+2013-09-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c: fix two loop-limits found by clang 3.3 --analyze
+
+	* configure: regen
+
+	* aclocal.m4:
+	tweaks to CF_MIXEDCASE_FILENAMES and CF_XOPEN_SOURCE for msys from ncurses
+
+	* package/mingw-byacc.spec: RCS_BASE
+
+	* test/calc.tab.c, test/calc1.tab.c, test/calc2.tab.c, test/calc3.tab.c, test/code_calc.code.c, test/code_error.code.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c, test/quote_calc-s.tab.c, test/quote_calc.tab.c, test/quote_calc2-s.tab.c, test/quote_calc2.tab.c, test/quote_calc3-s.tab.c, test/quote_calc3.tab.c, test/quote_calc4-s.tab.c, test/quote_calc4.tab.c:
+	regen
+
+	* skeleton.c:
+	Increase default stack-size to match FreeBSD version noted as from
+	"BSD 4.4 Lite Usr.bin Sources".  See
+
+		http://svnweb.freebsd.org/base/vendor/CSRG/dist/usr.bin/yacc/
+		http://svnweb.freebsd.org/base/head/usr.bin/yacc/
+		http://svnweb.freebsd.org/base/vendor/byacc/
+
+	The original 1.9 sources (on which I based development) used 500 for
+	stacksize; the BSD Lite sources (a year or two later) used 10000.
+
+	This is a change to default values; the YYMAXDEPTH and YYSTACKSIZE
+	symbols have "always" been overridable by applications, but rarely
+	needed to do this.  RedHat began using the FreeBSD source in 2000,
+	and switched to this source in 2007 using the 20050813 snapshot.
+
+	RedHat #743343 misattributed the change in default stacksize to
+	a regression in byacc, but did not report the issue upstream.
+
+	* package/debian/changelog, VERSION, package/byacc.spec: bump
+
+2013-09-07  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.sub: update to 2013-09-15
+
+	* config.guess: update to 2013-06-10
+
 2013-03-04  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* package/debian/changelog, VERSION, package/byacc.spec: bump
@@ -30,7 +755,7 @@
 
 2013-02-10  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub, config.guess: 2013-02-04
+	* config.sub, config.guess: update to 2013-02-04
 
 2012-10-03  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -162,6 +887,8 @@
 
 	* VERSION, package/debian/changelog, package/byacc.spec: bump
 
+	* test/yacc/calc1.output: reference output for testing
+
 	* test/calc1.output, test/calc1.tab.c: regen
 
 	* test/calc1.y:
@@ -180,6 +907,8 @@
 
 	* test/calc2.tab.c, test/calc3.tab.c, test/code_error.code.c, test/ftp.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c:
 	regen
+
+	* test/code_debug.y: RCS_BASE
 
 	* test/calc2.y, test/calc3.y, test/code_error.y, test/ftp.y:
 	byacc already declares yyerror
@@ -273,6 +1002,9 @@
 	* test/quote_calc-s.output, test/quote_calc-s.tab.c, test/quote_calc-s.tab.h, test/quote_calc2-s.output, test/quote_calc2-s.tab.c, test/quote_calc2-s.tab.h, test/quote_calc3-s.output, test/quote_calc3-s.tab.c, test/quote_calc3-s.tab.h, test/quote_calc4-s.output, test/quote_calc4-s.tab.c, test/quote_calc4-s.tab.h:
 	RCS_BASE
 
+	* test/yacc/quote_calc-s.output, test/yacc/quote_calc-s.tab.h, test/yacc/quote_calc2-s.output, test/yacc/quote_calc2-s.tab.h, test/yacc/quote_calc3-s.output, test/yacc/quote_calc3-s.tab.h, test/yacc/quote_calc4-s.output, test/yacc/quote_calc4-s.tab.h:
+	reference output for testing
+
 	* test/run_test.sh: generate/test with "-s" option applied.
 
 2012-01-13  Thomas E. Dickey  <tom@invisible-island.net>
@@ -285,8 +1017,23 @@
 
 	* main.c: add -s option to usage message.
 
-	* test/quote_calc3.output, test/quote_calc3.tab.c, test/quote_calc4.output, test/quote_calc4.tab.c, test/quote_calc4.tab.h, test/quote_calc3.y, test/quote_calc.tab.h, test/quote_calc.output, test/quote_calc.tab.c, test/quote_calc2.output, test/quote_calc2.tab.c, test/quote_calc2.tab.h, test/quote_calc3.tab.h, test/quote_calc4.y, test/quote_calc.y, test/quote_calc2.y:
+	* test/quote_calc3.output, test/quote_calc3.tab.c, test/quote_calc4.output, test/quote_calc4.tab.c, test/quote_calc4.tab.h:
 	RCS_BASE
+
+	* test/yacc/quote_calc3.output, test/yacc/quote_calc4.output, test/yacc/quote_calc4.tab.h:
+	reference output for testing
+
+	* test/quote_calc3.y, test/quote_calc.tab.h: RCS_BASE
+
+	* test/yacc/quote_calc.tab.h: reference output for testing
+
+	* test/quote_calc.output, test/quote_calc.tab.c, test/quote_calc2.output, test/quote_calc2.tab.c, test/quote_calc2.tab.h, test/quote_calc3.tab.h:
+	RCS_BASE
+
+	* test/yacc/quote_calc.output, test/yacc/quote_calc2.output, test/yacc/quote_calc2.tab.h, test/yacc/quote_calc3.tab.h:
+	reference output for testing
+
+	* test/quote_calc4.y, test/quote_calc.y, test/quote_calc2.y: RCS_BASE
 
 	* configure: regen
 
@@ -348,11 +1095,11 @@
 
 2011-04-01  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2011-04-01
+	* config.sub: update to 2011-04-01
 
 2011-02-02  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2011-01-01
+	* config.guess: update to 2011-01-01
 
 2010-12-29  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -470,6 +1217,8 @@
 
 	* output.c: simplified a little, using putc_code() and putl_code()
 
+	* test/yacc/calc1.tab.h: reference output for testing
+
 	* test/calc1.tab.h: regen
 
 	* reader.c:
@@ -530,11 +1279,11 @@
 
 2010-09-28  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2010-09-24
+	* config.guess: update to 2010-09-24
 
 2010-09-10  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2010-09-11
+	* config.sub: update to 2010-09-11
 
 2010-06-10  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -551,8 +1300,19 @@
 	improve %lex-param / %parse-param implementation by allowing for arrays to
 	be passed as parameters, e.g., "int regs[26]".
 
-	* test/calc3.tab.c, test/calc3.y, test/calc3.output, test/calc3.tab.h, test/calc2.tab.c, test/calc2.y, test/calc2.tab.h, test/calc2.output:
+	* test/calc3.tab.c, test/calc3.y, test/calc3.output, test/calc3.tab.h:
 	RCS_BASE
+
+	* test/yacc/calc3.output, test/yacc/calc3.tab.h:
+	reference output for testing
+
+	* test/calc2.tab.c, test/calc2.y, test/calc2.tab.h: RCS_BASE
+
+	* test/yacc/calc2.tab.h: reference output for testing
+
+	* test/calc2.output: RCS_BASE
+
+	* test/yacc/calc2.output: reference output for testing
 
 	* output.c:
 	improve %lex-param / %parse-param implementation by allowing for arrays to
@@ -613,8 +1373,26 @@
 	provide for testing -r and -P options by checking if the ".y" filename
 	begins with "code_" or "pure_", respectively.
 
-	* test/code_error.code.c, test/code_error.tab.c, test/code_error.tab.h, test/code_calc.code.c, test/code_calc.tab.c, test/code_calc.tab.h, test/pure_calc.output, test/pure_calc.tab.h, test/pure_error.output, test/pure_error.tab.h, test/code_calc.output, test/code_error.output:
+	* test/code_error.code.c, test/code_error.tab.c, test/code_error.tab.h:
 	RCS_BASE
+
+	* test/yacc/code_error.tab.h: reference output for testing
+
+	* test/code_calc.code.c, test/code_calc.tab.c, test/code_calc.tab.h:
+	RCS_BASE
+
+	* test/yacc/code_calc.tab.h: reference output for testing
+
+	* test/pure_calc.output, test/pure_calc.tab.h, test/pure_error.output, test/pure_error.tab.h:
+	RCS_BASE
+
+	* test/yacc/pure_calc.output, test/yacc/pure_calc.tab.h, test/yacc/pure_error.output, test/yacc/pure_error.tab.h:
+	reference output for testing
+
+	* test/code_calc.output, test/code_error.output: RCS_BASE
+
+	* test/yacc/code_calc.output, test/yacc/code_error.output:
+	reference output for testing
 
 	* test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c: regen
 
@@ -770,9 +1548,9 @@
 
 2009-12-31  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2009-12-30
+	* config.guess: update to 2009-12-30
 
-	* config.sub: 2009-12-31
+	* config.sub: update to 2009-12-31
 
 2009-10-27  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -798,7 +1576,7 @@
 
 2009-08-25  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess, config.sub: 2009-08-19
+	* config.guess, config.sub: update to 2009-08-19
 
 2009-02-21  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -979,11 +1757,11 @@
 
 2006-12-22  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2006/12/22
+	* config.guess: update to 2006/12/22
 
 2006-12-08  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2006/12/08
+	* config.sub: update to 2006/12/08
 
 2005-08-13  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -1012,9 +1790,9 @@
 
 2005-06-25  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2005/6/2
+	* config.sub: update to 2005/6/2
 
-	* config.guess: 2005/5/27
+	* config.guess: update to 2005/5/27
 
 2005-05-05  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -1108,9 +1886,9 @@
 
 2005-04-16  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2005/2/10
+	* config.sub: update to 2005/2/10
 
-	* config.guess: 2005/3/24
+	* config.guess: update to 2005/3/24
 
 2005-04-13  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -1164,9 +1942,18 @@
 
 	* test/grammar.output, test/grammar.tab.c, test/grammar.tab.h: RCS_BASE
 
+	* test/yacc/grammar.output, test/yacc/grammar.tab.h:
+	reference output for testing
+
 	* makefile.in: turn on "make check" rule
 
-	* test/calc.output, test/run_test.sh, test/calc.tab.h: RCS_BASE
+	* test/calc.output: RCS_BASE
+
+	* test/yacc/calc.output: reference output for testing
+
+	* test/run_test.sh, test/calc.tab.h: RCS_BASE
+
+	* test/yacc/calc.tab.h: reference output for testing
 
 	* test/ftp.tab.c: yyparse() is now yyparse(void)
 
@@ -1252,8 +2039,16 @@
 
 1993-02-22  unknown
 
-	* test/ftp.output, test/ftp.tab.c, test/ftp.tab.h, test/error.output, test/error.tab.c, test/error.tab.h:
-	RCS_BASE
+	* test/ftp.output, test/ftp.tab.c, test/ftp.tab.h: RCS_BASE
+
+1993-02-22  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/yacc/error.output, test/yacc/error.tab.h:
+	reference output for testing
+
+1993-02-22  unknown
+
+	* test/error.output, test/error.tab.c, test/error.tab.h: RCS_BASE
 
 	* skeleton.c, warshall.c, main.c, output.c, reader.c, closure.c, NOTES:
 	original version

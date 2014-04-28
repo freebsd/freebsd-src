@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001, 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: errstring.c,v 1.19 2003/12/10 03:53:05 gshapiro Exp $")
+SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013/11/22 20:51:42 ca Exp $")
 
 #include <errno.h>
 #include <stdio.h>	/* sys_errlist, on some platforms */

@@ -37,7 +37,6 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
-	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -107,6 +106,7 @@ SUBDIR=	alias \
 	mkdep \
 	${_mkesdb} \
 	mkfifo \
+	mkimg \
 	mklocale \
 	mktemp \
 	mkulzma \
@@ -160,6 +160,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
+	${_tests} \
 	tftp \
 	time \
 	tip \
@@ -181,7 +182,6 @@ SUBDIR=	alias \
 	unvis \
 	uudecode \
 	uuencode \
-	vi \
 	vis \
 	vmstat \
 	w \
@@ -210,10 +210,6 @@ SUBDIR=	alias \
 SUBDIR+=	at
 .endif
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
 .endif
@@ -232,6 +228,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_GPL_DTC} != "yes"
+SUBDIR+=	dtc
 .endif
 
 .if ${MK_GROFF} != "no"
@@ -332,6 +332,11 @@ SUBDIR+=	vacation
 SUBDIR+=	telnet
 .endif
 
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
+.endif
+
 .if ${MK_TEXTPROC} != "no"
 SUBDIR+=	checknr
 SUBDIR+=	colcrt
@@ -355,6 +360,10 @@ SUBDIR+=	xstr
 SUBDIR+=	yacc
 .endif
 
+.if ${MK_VI} != "no"
+SUBDIR+=	vi
+.endif
+
 .if ${MK_USB} != "no"
 SUBDIR+=	usbhidaction
 SUBDIR+=	usbhidctl
@@ -373,5 +382,7 @@ SUBDIR+=	svn
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

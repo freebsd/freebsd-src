@@ -45,6 +45,9 @@ static int	elf32_obj_exec(struct preloaded_file *amp);
 struct file_format i386_elf = { elf32_loadfile, elf32_exec };
 struct file_format i386_elf_obj = { elf32_obj_loadfile, elf32_obj_exec };
 
+#define	GUEST_STACK	0x1000		/* Initial stack base */
+#define	GUEST_GDT	0x3000		/* Address of initial GDT */
+
 /*
  * There is an ELF kernel and one or more ELF modules loaded.  
  * We wish to start executing the kernel image, so make such 
@@ -57,7 +60,7 @@ elf32_exec(struct preloaded_file *fp)
 	Elf_Ehdr 		*ehdr;
 	vm_offset_t		entry, bootinfop, modulep, kernend;
 	int			boothowto, err, bootdev;
-	uint32_t		stack[1024];
+	uint32_t		stack[1024], *sp;
 
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
@@ -78,16 +81,27 @@ elf32_exec(struct preloaded_file *fp)
 	/*
 	 * Build a scratch stack at physical 0x1000
 	 */
-	stack[0] = boothowto;
-	stack[1] = bootdev;
-	stack[2] = 0;
-	stack[3] = 0;
-	stack[4] = 0;
-	stack[5] = bootinfop;
-	stack[6] = modulep;
-	stack[7] = kernend;
-	CALLBACK(copyin, stack, 0x1000, sizeof(stack));
-	CALLBACK(setreg, 4, 0x1000);
+	memset(stack, 0, sizeof(stack));
+	sp = (uint32_t *)((char *)stack + sizeof(stack));
+	*--sp = kernend;
+	*--sp = modulep;
+	*--sp = bootinfop;
+	*--sp = 0;
+	*--sp = 0;
+	*--sp = 0;
+	*--sp = bootdev;
+	*--sp = boothowto;
+
+	/*
+	 * Fake return address to mimic "new" boot blocks.  For more
+	 * details see recover_bootinfo in locore.S.
+	 */
+	*--sp = 0xbeefface;
+	CALLBACK(copyin, stack, GUEST_STACK, sizeof(stack));
+	CALLBACK(setreg, 4, (char *)sp - (char *)stack + GUEST_STACK);
+
+	CALLBACK(setgdt, GUEST_GDT, 8 * 4 - 1);
+
         CALLBACK(exec, entry);
 
 	panic("exec returned");

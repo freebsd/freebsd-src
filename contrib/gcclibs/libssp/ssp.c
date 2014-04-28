@@ -56,6 +56,8 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 # include <syslog.h>
 #endif
 
+#include <stdlib.h>
+
 void *__stack_chk_guard = 0;
 
 static void __attribute__ ((constructor))
@@ -128,7 +130,7 @@ fail (const char *msg1, size_t msg1len, const char *msg3)
 #ifdef HAVE_SYSLOG_H
   /* Only send the error to syslog if there was no tty available.  */
   else
-    syslog (LOG_CRIT, msg3);
+    syslog (LOG_CRIT, "%s", msg3);
 #endif /* HAVE_SYSLOG_H */
 
   /* Try very hard to exit.  Note that signals may be blocked preventing

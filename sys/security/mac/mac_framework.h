@@ -195,8 +195,6 @@ void	mac_mount_create(struct ucred *cred, struct mount *mp);
 void	mac_mount_destroy(struct mount *);
 void	mac_mount_init(struct mount *);
 
-void	mac_netatalk_aarp_send(struct ifnet *ifp, struct mbuf *m);
-
 void	mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend);
 void	mac_netinet_firewall_send(struct mbuf *m);

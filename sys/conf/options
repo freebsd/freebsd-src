@@ -62,12 +62,15 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
 SYSCTL_DEBUG	opt_sysctl.h
+EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
 
 # Miscellaneous options.
 ADAPTIVE_LOCKMGRS
 ALQ
+ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h
+ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
 BOOTVERBOSE	opt_global.h
@@ -99,6 +102,7 @@ GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
+GEOM_LABEL_GPT	opt_geom.h
 GEOM_LINUX_LVM	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
@@ -124,7 +128,9 @@ GEOM_UZIP	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
-KDTRACE_HOOKS	opt_kdtrace.h
+KDTRACE_HOOKS	opt_global.h
+KDTRACE_FRAME	opt_kdtrace.h
+KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE
@@ -154,6 +160,7 @@ NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
+NO_EVENTTIMERS		opt_timer.h
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
@@ -162,7 +169,6 @@ PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
-PROCDESC	opt_procdesc.h
 QUOTA
 SCHED_4BSD	opt_sched.h
 SCHED_STATS	opt_sched.h
@@ -394,10 +400,6 @@ DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
 DEV_VLAN		opt_vlan.h
 DUMMYNET		opt_ipdn.h
-ETHER_8022		opt_ef.h
-ETHER_8023		opt_ef.h
-ETHER_II		opt_ef.h
-ETHER_SNAP		opt_ef.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPDIVERT
@@ -415,7 +417,6 @@ IPSEC_DEBUG		opt_ipsec.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPSEC_NAT_T		opt_ipsec.h
 IPSTEALTH
-IPX
 KRPC
 LIBALIAS
 LIBMBPOOL
@@ -423,12 +424,12 @@ LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
-NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
 PF_DEFAULT_TO_DROP	opt_pf.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
+RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
@@ -436,6 +437,7 @@ TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
 FLOWTABLE		opt_route.h
+FLOWTABLE_HASH_ALL	opt_route.h
 
 #
 # SCTP
@@ -548,7 +550,6 @@ VP0_DEBUG		opt_vpo.h
 LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
 LOCKF_DEBUG		opt_debug_lockf.h
-NETATALKDEBUG		opt_atalk.h
 SI_DEBUG		opt_debug_si.h
 
 # Fb options
@@ -686,6 +687,7 @@ OPENSOLARIS_WITNESS	opt_global.h
 ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
+ACPI_DMAR		opt_acpi.h
 
 # ISA support
 DEV_ISA			opt_isa.h
@@ -728,8 +730,10 @@ SAFE_DEBUG		opt_safe.h
 SAFE_NO_RNG		opt_safe.h
 SAFE_RNDTEST		opt_safe.h
 
-# syscons options
+# syscons/vt options
 MAXCONS			opt_syscons.h
+VT_FB_DEFAULT_WIDTH	opt_syscons.h
+VT_FB_DEFAULT_HEIGHT	opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h
@@ -752,6 +756,9 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+DEV_SC			opt_syscons.h
+DEV_VT			opt_syscons.h
+
 
 # teken terminal emulator options
 TEKEN_CONS25		opt_teken.h
@@ -904,3 +911,9 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
+
+# Random number generator(s)
+RANDOM_YARROW	opt_random.h
+RANDOM_FORTUNA	opt_random.h
+RANDOM_DEBUG	opt_random.h
+RANDOM_RWFILE	opt_random.h

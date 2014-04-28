@@ -107,11 +107,13 @@ typedef void (*cpu_reset_t)(void);
 typedef void (*clk_init_t)(void);
 
 struct at91_soc_data {
-	DELAY_t		soc_delay;
-	cpu_reset_t	soc_reset;
-	clk_init_t      soc_clock_init;
-	const int	*soc_irq_prio;
-	const struct cpu_devs *soc_children;
+	DELAY_t		soc_delay;		/* SoC specific delay function */
+	cpu_reset_t	soc_reset;		/* SoC specific reset function */
+	clk_init_t      soc_clock_init;		/* SoC specific clock init function */
+	const int	*soc_irq_prio;		/* SoC specific IRQ priorities */
+	const struct cpu_devs *soc_children;	/* SoC specific children list */
+	const uint32_t  *soc_pio_base;		/* SoC specific PIO base registers */
+	size_t          soc_pio_count;		/* Count of PIO units (not pins) in SoC */
 };
 
 struct at91_soc_info {
@@ -166,5 +168,6 @@ void at91_add_child(device_t dev, int prio, const char *name, int unit,
 extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
 void at91_pmc_init_clock(void);
+void at91_soc_id(void);
 
 #endif /* _AT91VAR_H_ */

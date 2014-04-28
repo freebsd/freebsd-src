@@ -55,16 +55,14 @@
  *
  * - How to handle ptrace(2)?
  * - Will we want to add a pidtoprocdesc(2) system call to allow process
- *   descriptors to be created for processes without pfork(2)?
+ *   descriptors to be created for processes without pdfork(2)?
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_procdesc.h"
-
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -84,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
-
-#ifdef PROCDESC
 
 FEATURE(process_descriptors, "Process Descriptors");
 
@@ -240,6 +236,7 @@ procdesc_new(struct proc *p, int flags)
 	if (flags & PD_DAEMON)
 		pd->pd_flags |= PDF_DAEMON;
 	PROCDESC_LOCK_INIT(pd);
+	knlist_init_mtx(&pd->pd_selinfo.si_note, &pd->pd_lock);
 
 	/*
 	 * Process descriptors start out with two references: one from their
@@ -274,6 +271,7 @@ procdesc_free(struct procdesc *pd)
 		KASSERT((pd->pd_flags & PDF_CLOSED),
 		    ("procdesc_free: !PDF_CLOSED"));
 
+		knlist_destroy(&pd->pd_selinfo.si_note);
 		PROCDESC_LOCK_DESTROY(pd);
 		uma_zfree(procdesc_zone, pd);
 	}
@@ -300,6 +298,7 @@ procdesc_exit(struct proc *p)
 	    ("procdesc_exit: closed && parent not init"));
 
 	pd->pd_flags |= PDF_EXITED;
+	pd->pd_xstat = p->p_xstat;
 
 	/*
 	 * If the process descriptor has been closed, then we have nothing
@@ -318,6 +317,7 @@ procdesc_exit(struct proc *p)
 		pd->pd_flags &= ~PDF_SELECTED;
 		selwakeup(&pd->pd_selinfo);
 	}
+	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT);
 	PROCDESC_UNLOCK(pd);
 	return (0);
 }
@@ -368,39 +368,41 @@ procdesc_close(struct file *fp, struct thread *td)
 		 * collected and procdesc_reap() was already called.
 		 */
 		sx_xunlock(&proctree_lock);
-	} else if (p->p_state == PRS_ZOMBIE) {
-		/*
-		 * If the process is already dead and just awaiting reaping,
-		 * do that now.  This will release the process's reference to
-		 * the process descriptor when it calls back into
-		 * procdesc_reap().
-		 */
-		PROC_LOCK(p);
-		PROC_SLOCK(p);
-		proc_reap(curthread, p, NULL, 0);
 	} else {
-		/*
-		 * If the process is not yet dead, we need to kill it, but we
-		 * can't wait around synchronously for it to go away, as that
-		 * path leads to madness (and deadlocks).  First, detach the
-		 * process from its descriptor so that its exit status will
-		 * be reported normally.
-		 */
 		PROC_LOCK(p);
-		pd->pd_proc = NULL;
-		p->p_procdesc = NULL;
-		procdesc_free(pd);
+		if (p->p_state == PRS_ZOMBIE) {
+			/*
+			 * If the process is already dead and just awaiting
+			 * reaping, do that now.  This will release the
+			 * process's reference to the process descriptor when it
+			 * calls back into procdesc_reap().
+			 */
+			PROC_SLOCK(p);
+			proc_reap(curthread, p, NULL, 0);
+		} else {
+			/*
+			 * If the process is not yet dead, we need to kill it,
+			 * but we can't wait around synchronously for it to go
+			 * away, as that path leads to madness (and deadlocks).
+			 * First, detach the process from its descriptor so that
+			 * its exit status will be reported normally.
+			 */
+			pd->pd_proc = NULL;
+			p->p_procdesc = NULL;
+			procdesc_free(pd);
 
-		/*
-		 * Next, reparent it to init(8) so that there's someone to
-		 * pick up the pieces; finally, terminate with prejudice.
-		 */
-		p->p_sigparent = SIGCHLD;
-		proc_reparent(p, initproc);
-		if ((pd->pd_flags & PDF_DAEMON) == 0)
-			kern_psignal(p, SIGKILL);
-		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
+			/*
+			 * Next, reparent it to init(8) so that there's someone
+			 * to pick up the pieces; finally, terminate with
+			 * prejudice.
+			 */
+			p->p_sigparent = SIGCHLD;
+			proc_reparent(p, initproc);
+			if ((pd->pd_flags & PDF_DAEMON) == 0)
+				kern_psignal(p, SIGKILL);
+			PROC_UNLOCK(p);
+			sx_xunlock(&proctree_lock);
+		}
 	}
 
 	/*
@@ -462,11 +464,71 @@ procdesc_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (revents);
 }
 
+static void
+procdesc_kqops_detach(struct knote *kn)
+{
+	struct procdesc *pd;
+
+	pd = kn->kn_fp->f_data;
+	knlist_remove(&pd->pd_selinfo.si_note, kn, 0);
+}
+
+static int
+procdesc_kqops_event(struct knote *kn, long hint)
+{
+	struct procdesc *pd;
+	u_int event;
+
+	pd = kn->kn_fp->f_data;
+	if (hint == 0) {
+		/*
+		 * Initial test after registration. Generate a NOTE_EXIT in
+		 * case the process already terminated before registration.
+		 */
+		event = pd->pd_flags & PDF_EXITED ? NOTE_EXIT : 0;
+	} else {
+		/* Mask off extra data. */
+		event = (u_int)hint & NOTE_PCTRLMASK;
+	}
+
+	/* If the user is interested in this event, record it. */
+	if (kn->kn_sfflags & event)
+		kn->kn_fflags |= event;
+
+	/* Process is gone, so flag the event as finished. */
+	if (event == NOTE_EXIT) {
+		kn->kn_flags |= EV_EOF | EV_ONESHOT;
+		if (kn->kn_fflags & NOTE_EXIT)
+			kn->kn_data = pd->pd_xstat;
+		if (kn->kn_fflags == 0)
+			kn->kn_flags |= EV_DROP;
+		return (1);
+	}
+
+	return (kn->kn_fflags != 0);
+}
+
+static struct filterops procdesc_kqops = {
+	.f_isfd = 1,
+	.f_detach = procdesc_kqops_detach,
+	.f_event = procdesc_kqops_event,
+};
+
 static int
 procdesc_kqfilter(struct file *fp, struct knote *kn)
 {
+	struct procdesc *pd;
 
-	return (EOPNOTSUPP);
+	pd = fp->f_data;
+	switch (kn->kn_filter) {
+	case EVFILT_PROCDESC:
+		kn->kn_fop = &procdesc_kqops;
+		kn->kn_flags |= EV_CLEAR;
+		knlist_add(&pd->pd_selinfo.si_note, kn, 0);
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }
 
 static int
@@ -522,14 +584,3 @@ procdesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 	return (EOPNOTSUPP);
 }
-
-#else /* !PROCDESC */
-
-int
-sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-#endif /* PROCDESC */

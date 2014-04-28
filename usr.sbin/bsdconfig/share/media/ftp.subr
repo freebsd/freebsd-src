@@ -328,16 +328,17 @@ f_media_set_ftp()
 	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
 	then
 		f_struct device_network &&
-			f_device_shutdown network
+			f_device_shutdown device_network
 		if ! f_device_select_tcp; then
 			unset $VAR_FTP_PATH
 			return $FAILURE
 		fi
-		local dev
-		f_getvar $VAR_NETWORK_DEVICE dev
-		f_struct_copy "device_$dev" device_network
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
 	fi
-	if ! f_device_init network; then
+	if ! f_device_init device_network; then
 		f_dprintf "f_media_set_ftp: %s" "$msg_net_device_init_failed"
 		unset $VAR_FTP_PATH
 		return $FAILURE
@@ -420,7 +421,7 @@ f_media_set_ftp()
 		if ! f_quietly f_host_lookup "$hostname"; then
 			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
 			f_struct device_network &&
-				f_device_shutdown network
+				f_device_shutdown device_network
 			f_struct_free device_network
 			unset $VAR_FTP_PATH
 			return $FAILURE
@@ -436,7 +437,7 @@ f_media_set_ftp()
 	device_ftp set init     f_media_init_ftp
 	device_ftp set get      f_media_get_ftp
 	device_ftp set shutdown f_media_shutdown_ftp
-	device_ftp set private  network
+	device_ftp set private  device_network
 	f_struct_copy device_ftp device_media
 	f_struct_free device_ftp
 
@@ -503,8 +504,9 @@ f_media_set_ftp_userpass()
 f_device_network_up()
 {
 	local dev="$1" netDev
-	f_struct device_$dev || return $FAILURE
-	device_$dev get private netDev || return $SUCCESS # No net == happy net
+	f_struct "$dev" || return $FAILURE
+	$dev get private netDev || return $SUCCESS # No net == happy net
+debug=1 f_dprintf "netDev=[$netDev]"
 	f_device_init $netDev
 }
 
@@ -515,8 +517,8 @@ f_device_network_up()
 f_device_network_down()
 {
 	local dev="$1" netDev
-	f_struct device_$dev || return $FAILURE
-	device_$dev get private netDev || return $SUCCESS
+	f_struct "$dev" || return $FAILURE
+	$dev get private netDev || return $SUCCESS
 	f_device_shutdown $netDev
 }
 
@@ -576,9 +578,9 @@ f_device_network_down()
 f_media_init_ftp()
 {
 	local dev="$1"
-
 	local url
-	device_$dev get name url
+
+	$dev get name url
 	f_dprintf "Init routine called for FTP device. url=[%s]" "$url"
 
 	if [ "$FTP_INITIALIZED" ]; then
@@ -724,7 +726,6 @@ f_media_init_ftp()
 
 			local fdir
 			if fdir=$( echo "$rx" | awk '
-				BEGIN { found = 0 }
 				/^Remote directory: / {
 					sub(/^[^:]*:[[:space:]]*/, "")
 					if ($0 == "/") next
@@ -794,6 +795,7 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
+	local funcname=f_media_get_ftp
 	local dev="$1" file="$2" probe_type="$3" hosts=
 
 	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_type=%s" \
@@ -870,9 +872,10 @@ f_media_get_ftp()
 	if [ "$probe_type" ]; then
 		local url="ftp://$userpass$host$port/$dir/$file" size
 		[ "$use_anon" ] && url="ftp://$host$port/$dir/$file"
-		if ! size=$( fetch -s "$url" 2>&1 ) || ! f_isinteger "$size"
+		if ! f_eval_catch -dk size $funcname fetch \
+			'fetch -s "%s"' "$url" || ! f_isinteger "$size"
 		then
-			f_dprintf "request failed! size response=[%s]" "$size"
+			f_dprintf "size request failed!"
 			[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
 			return $FAILURE
 		fi

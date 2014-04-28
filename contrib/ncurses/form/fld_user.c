@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_user.c,v 1.15 2004/12/25 22:24:50 tom Exp $")
+MODULE_ID("$Id: fld_user.c,v 1.16 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,7 +46,7 @@ MODULE_ID("$Id: fld_user.c,v 1.15 2004/12/25 22:24:50 tom Exp $")
 NCURSES_EXPORT(int)
 set_field_userptr(FIELD *field, void *usrptr)
 {
-  T((T_CALLED("set_field_userptr(%p,%p)"), field, usrptr));
+  T((T_CALLED("set_field_userptr(%p,%p)"), (void *)field, (void *)usrptr));
 
   Normalize_Field(field)->usrptr = usrptr;
   RETURN(E_OK);
@@ -65,7 +65,7 @@ set_field_userptr(FIELD *field, void *usrptr)
 NCURSES_EXPORT(void *)
 field_userptr(const FIELD *field)
 {
-  T((T_CALLED("field_userptr(%p)"), field));
+  T((T_CALLED("field_userptr(%p)"), (const void *)field));
   returnVoidPtr(Normalize_Field(field)->usrptr);
 }
 

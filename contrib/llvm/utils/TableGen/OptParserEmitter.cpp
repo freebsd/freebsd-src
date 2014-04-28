@@ -13,18 +13,23 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
+#include <cstring>
+#include <cctype>
 #include <map>
 
 using namespace llvm;
 
+// Ordering on Info. The logic should match with the consumer-side function in
+// llvm/Option/OptTable.h.
 static int StrCmpOptionName(const char *A, const char *B) {
-  char a = *A, b = *B;
+  const char *X = A, *Y = B;
+  char a = tolower(*A), b = tolower(*B);
   while (a == b) {
     if (a == '\0')
-      return 0;
+      return strcmp(A, B);
 
-    a = *++A;
-    b = *++B;
+    a = tolower(*++X);
+    b = tolower(*++Y);
   }
 
   if (a == '\0') // A is a prefix of B.
@@ -36,9 +41,9 @@ static int StrCmpOptionName(const char *A, const char *B) {
   return (a < b) ? -1 : 1;
 }
 
-static int CompareOptionRecords(const void *Av, const void *Bv) {
-  const Record *A = *(const Record*const*) Av;
-  const Record *B = *(const Record*const*) Bv;
+static int CompareOptionRecords(Record *const *Av, Record *const *Bv) {
+  const Record *A = *Av;
+  const Record *B = *Bv;
 
   // Sentinel options precede all others and are only ordered by precedence.
   bool ASent = A->getValueAsDef("Kind")->getValueAsBit("Sentinel");
@@ -50,7 +55,7 @@ static int CompareOptionRecords(const void *Av, const void *Bv) {
   if (!ASent)
     if (int Cmp = StrCmpOptionName(A->getValueAsString("Name").c_str(),
                                    B->getValueAsString("Name").c_str()))
-    return Cmp;
+      return Cmp;
 
   if (!ASent) {
     std::vector<std::string> APrefixes = A->getValueAsListOfStrings("Prefixes");
@@ -74,7 +79,7 @@ static int CompareOptionRecords(const void *Av, const void *Bv) {
   if (APrec == BPrec &&
       A->getValueAsListOfStrings("Prefixes") ==
       B->getValueAsListOfStrings("Prefixes")) {
-    PrintError(A->getLoc(), Twine("Option is equivilent to"));
+    PrintError(A->getLoc(), Twine("Option is equivalent to"));
     PrintError(B->getLoc(), Twine("Other defined here"));
     PrintFatalError("Equivalent Options found.");
   }
@@ -178,7 +183,7 @@ void EmitOptParser(RecordKeeper &Records, raw_ostream &OS) {
       OS << "INVALID";
 
     // The other option arguments (unused for groups).
-    OS << ", INVALID, 0, 0";
+    OS << ", INVALID, 0, 0, 0";
 
     // The option help text.
     if (!isa<UnsetInit>(R.getValueInit("HelpText"))) {
@@ -227,6 +232,21 @@ void EmitOptParser(RecordKeeper &Records, raw_ostream &OS) {
       OS << getOptionName(*DI->getDef());
     else
       OS << "INVALID";
+
+    // The option alias arguments (if any).
+    // Emitted as a \0 separated list in a string, e.g. ["foo", "bar"]
+    // would become "foo\0bar\0". Note that the compiler adds an implicit
+    // terminating \0 at the end.
+    OS << ", ";
+    std::vector<std::string> AliasArgs = R.getValueAsListOfStrings("AliasArgs");
+    if (AliasArgs.size() == 0) {
+      OS << "0";
+    } else {
+      OS << "\"";
+      for (size_t i = 0, e = AliasArgs.size(); i != e; ++i)
+        OS << AliasArgs[i] << "\\0";
+      OS << "\"";
+    }
 
     // The option flags.
     const ListInit *LI = R.getValueAsListInit("Flags");

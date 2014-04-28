@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_char.7,v 1.51 2011/11/23 10:09:30 kristaps Exp $
+.\"	$Id: mandoc_char.7,v 1.56 2013/12/26 17:23:42 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 23 2011 $
+.Dd $Mdocdate: December 26 2013 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -98,26 +98,27 @@ in literal context, and when none of the following special cases apply,
 just use the normal space character
 .Pq Sq \  .
 .Pp
-When filling text, lines may be broken between words, i.e. at space
+When filling text, output lines may be broken between words, i.e. at space
 characters.
 To prevent a line break between two particular words,
-use the non-breaking space escape sequence
-.Pq Sq \e~
+use the unpaddable non-breaking space escape sequence
+.Pq Sq \e\ \&
 instead of the normal space character.
 For example, the input string
-.Dq number\e~1
+.Dq number\e\ 1
 will be kept together as
-.Dq number\~1
+.Dq number\ 1
 on the same output line.
 .Pp
 On request and macro lines, the normal space character serves as an
 argument delimiter.
-To include whitespace into arguments, quoting is usually the best choice.
-In some cases, using either the non-breaking
-.Pq Sq \e~
-or the breaking
+To include whitespace into arguments, quoting is usually the best choice;
+see the MACRO SYNTAX section in
+.Xr roff 7 .
+In some cases, using the non-breaking space escape sequence
 .Pq Sq \e\ \&
-space escape sequence may be preferable.
+may be preferable.
+.Pp
 To escape macro names and to protect whitespace at the end
 of input lines, the zero-width space
 .Pq Sq \e&
@@ -194,14 +195,13 @@ manual.
 Spacing:
 .Bl -column "Input" "Description" -offset indent -compact
 .It Em Input Ta Em Description
-.It \e~      Ta non-breaking, non-collapsing space
-.It \e       Ta breaking, non-collapsing n-width space
-.It \e^      Ta zero-width space
-.It \e%      Ta zero-width space
+.It Sq \e\ \& Ta unpaddable non-breaking space
+.It \e~      Ta paddable non-breaking space
+.It \e0      Ta unpaddable, breaking digit-width space
+.It \e|      Ta one-sixth \e(em narrow space, zero width in nroff mode
+.It \e^      Ta one-twelfth \e(em half-narrow space, zero width in nroff
 .It \e&      Ta zero-width space
-.It \e|      Ta zero-width space
-.It \e0      Ta breaking, non-collapsing digit-width space
-.It \ec      Ta removes any trailing space (if applicable)
+.It \e%      Ta zero-width space allowing hyphenation
 .El
 .Pp
 Lines:
@@ -655,13 +655,18 @@ manual.
 .It \e*(Ai   Ta \*(Ai       Ta ANSI standard name
 .El
 .Sh UNICODE CHARACTERS
-The escape sequence
+The escape sequences
 .Pp
-.Dl \e[uXXXX]
+.Dl \e[uXXXX] and \eC'uXXXX'
 .Pp
-is interpreted as a Unicode codepoint.
+are interpreted as Unicode codepoints.
 The codepoint must be in the range above U+0080 and less than U+10FFFF.
-For compatibility, points must be zero-padded to four characters; if
+For compatibility, the hexadecimal digits
+.Sq A
+to
+.Sq F
+must be given as uppercase characters,
+and points must be zero-padded to four characters; if
 greater than four characters, no zero padding is allowed.
 Unicode surrogates are not allowed.
 .\" .Pp
@@ -684,7 +689,7 @@ For example, do not use \eN'34', use \e(dq, or even the plain
 .Sq \(dq
 character where possible.
 .Sh COMPATIBILITY
-This section documents compatibility between mandoc and other other
+This section documents compatibility between mandoc and other
 troff implementations, at this time limited to GNU troff
 .Pq Qq groff .
 .Pp
@@ -728,12 +733,11 @@ known representation.
 The
 .Nm
 manual page was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
 .Sh CAVEATS
-The
+The predefined string
 .Sq \e*(Ba
-escape mimics the behaviour of the
+mimics the behaviour of the
 .Sq \&|
 character in
 .Xr mdoc 7 ;

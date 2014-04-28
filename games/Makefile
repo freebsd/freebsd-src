@@ -1,5 +1,6 @@
-#	@(#)Makefile	8.2 (Berkeley) 3/31/94
 # $FreeBSD$
+
+.include <bsd.own.mk>
 
 SUBDIR= \
 	bcd \
@@ -12,6 +13,11 @@ SUBDIR= \
 	pom \
 	ppt \
 	primes \
-	random
+	random \
+	${_tests}
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 .include <bsd.subdir.mk>

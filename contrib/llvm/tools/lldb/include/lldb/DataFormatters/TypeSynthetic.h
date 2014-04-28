@@ -12,7 +12,6 @@
 
 // C Includes
 #include <stdint.h>
-#include <unistd.h>
 
 // C++ Includes
 #include <string>
@@ -33,10 +32,24 @@ namespace lldb_private {
     {
     protected:
         ValueObject &m_backend;
+        
+        void
+        SetValid (bool valid)
+        {
+            m_valid = valid;
+        }
+        
+        bool
+        IsValid ()
+        {
+            return m_valid;
+        }
+        
     public:
         
         SyntheticChildrenFrontEnd (ValueObject &backend) :
-        m_backend(backend)
+        m_backend(backend),
+        m_valid(true)
         {}
         
         virtual
@@ -72,6 +85,7 @@ namespace lldb_private {
         typedef std::unique_ptr<SyntheticChildrenFrontEnd> AutoPointer;
         
     private:
+        bool m_valid;
         DISALLOW_COPY_AND_ASSIGN(SyntheticChildrenFrontEnd);
     };
     
@@ -533,6 +547,12 @@ namespace lldb_private {
             FrontEnd (std::string pclass,
                       ValueObject &backend);
             
+            bool
+            IsValid ()
+            {
+                return m_wrapper_sp.get() != nullptr && m_wrapper_sp->operator bool() && m_interpreter != nullptr;
+            }
+            
             virtual
             ~FrontEnd ();
             
@@ -582,8 +602,11 @@ namespace lldb_private {
         virtual SyntheticChildrenFrontEnd::AutoPointer
         GetFrontEnd(ValueObject &backend)
         {
-            return SyntheticChildrenFrontEnd::AutoPointer(new FrontEnd(m_python_class, backend));
-        }    
+            auto synth_ptr = SyntheticChildrenFrontEnd::AutoPointer(new FrontEnd(m_python_class, backend));
+            if (synth_ptr && ((FrontEnd*)synth_ptr.get())->IsValid())
+                return synth_ptr;
+            return NULL;
+        }
         
     private:
         DISALLOW_COPY_AND_ASSIGN(ScriptedSyntheticChildren);

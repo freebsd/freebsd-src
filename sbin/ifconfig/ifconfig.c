@@ -741,20 +741,6 @@ setifbroadaddr(const char *addr, int dummy __unused, int s,
 }
 
 static void
-setifipdst(const char *addr, int dummy __unused, int s,
-    const struct afswtch *afp)
-{
-	const struct afswtch *inet;
-
-	inet = af_getbyname("inet");
-	if (inet == NULL)
-		return;
-	inet->af_getaddr(addr, DSTADDR);
-	clearaddr = 0;
-	newaddr = 0;
-}
-
-static void
 notealias(const char *addr, int param, int s, const struct afswtch *afp)
 {
 #define rqtosa(x) (&(((struct ifreq *)(afp->x))->ifr_addr))
@@ -909,7 +895,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 }
 
 #define	IFFBITS \
-"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
+"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
 "\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP"
 
@@ -1176,7 +1162,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),
-	DEF_CMD_ARG("ipdst",			setifipdst),
 	DEF_CMD_ARG2("tunnel",			settunnel),
 	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),

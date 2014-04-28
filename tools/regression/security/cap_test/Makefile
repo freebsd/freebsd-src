@@ -11,7 +11,7 @@ SRCS=	cap_test.c \
 	cap_test_sysctl.c \
 
 WARNS=	3
-NO_MAN=
+MAN=
 
 # Use headers and libc from the build, if available.
 KERNCONF?=	GENERIC

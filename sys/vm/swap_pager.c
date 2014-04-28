@@ -164,6 +164,12 @@ static int overcommit = 0;
 SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
+static unsigned long swzone;
+SYSCTL_ULONG(_vm, OID_AUTO, swzone, CTLFLAG_RD, &swzone, 0,
+    "Actual size of swap metadata zone");
+static unsigned long swap_maxpages;
+SYSCTL_ULONG(_vm, OID_AUTO, swap_maxpages, CTLFLAG_RD, &swap_maxpages, 0,
+    "Maximum amount of swap supported");
 
 /* bits from overcommit */
 #define	SWAP_RESERVE_FORCE_ON		(1 << 0)
@@ -203,7 +209,7 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
-		s = cnt.v_page_count - cnt.v_free_reserved - cnt.v_wire_count;
+		s = vm_cnt.v_page_count - vm_cnt.v_free_reserved - vm_cnt.v_wire_count;
 		s *= PAGE_SIZE;
 	} else
 		s = 0;
@@ -506,7 +512,7 @@ swap_pager_init(void)
 void
 swap_pager_swap_init(void)
 {
-	int n, n2;
+	unsigned long n, n2;
 
 	/*
 	 * Number of in-transit swap bp operations.  Don't
@@ -542,10 +548,10 @@ swap_pager_swap_init(void)
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
 	 * we need based on the number of pages in the system.  Each swblock
-	 * can hold 16 pages, so this is probably overkill.  This reservation
+	 * can hold 32 pages, so this is probably overkill.  This reservation
 	 * is typically limited to around 32MB by default.
 	 */
-	n = cnt.v_page_count / 2;
+	n = vm_cnt.v_page_count / 2;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
@@ -563,7 +569,9 @@ swap_pager_swap_init(void)
 		n -= ((n + 2) / 3);
 	} while (n > 0);
 	if (n2 != n)
-		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
+		printf("Swap zone entries reduced from %lu to %lu.\n", n2, n);
+	swap_maxpages = n * SWAP_META_PAGES;
+	swzone = n * sizeof(struct swblock);
 	n2 = n;
 
 	/*
@@ -1713,7 +1721,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_object_pip_add(object, 1);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid == VM_PAGE_BITS_ALL) {
-		vm_object_pip_subtract(object, 1);
+		vm_object_pip_wakeup(object);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
@@ -1725,7 +1733,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
-	vm_object_pip_subtract(object, 1);
+	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);
 	vm_page_lock(m);
 	vm_page_deactivate(m);
@@ -2316,7 +2324,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (cnt.v_free_count + cnt.v_cache_count + swap_pager_avail <
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count + swap_pager_avail <
 	    nblks + nswap_lowat) {
 		return (ENOMEM);
 	}

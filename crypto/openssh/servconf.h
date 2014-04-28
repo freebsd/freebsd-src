@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.109 2013/07/19 07:37:48 markus Exp $ */
+/* $OpenBSD: servconf.h,v 1.112 2014/01/29 06:18:35 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -83,6 +83,7 @@ typedef struct {
 					 * searching at */
 	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
+	int	permit_tty;	/* If false, deny pty allocation */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
@@ -117,8 +118,6 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication;	/* If true, permit */
 	int     challenge_response_authentication;
-	int     zero_knowledge_password_authentication;
-					/* If true, permit jpake auth */
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */
@@ -210,6 +209,9 @@ struct connection_info {
  * Match sub-config and the main config, and must be sent from the
  * privsep slave to the privsep master. We use a macro to ensure all
  * the options are copied and the copies are done in the correct order.
+ *
+ * NB. an option must appear in servconf.c:copy_set_server_options() or
+ * COPY_MATCH_STRING_OPTS here but never both.
  */
 #define COPY_MATCH_STRING_OPTS() do { \
 		M_CP_STROPT(banner); \
