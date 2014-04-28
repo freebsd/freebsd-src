@@ -461,17 +461,18 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
-static int resetcpu = -1;
 
 static int
 vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	
-	assert(resetcpu != -1);
+	enum vm_suspend_how how;
+
+	how = vmexit->u.suspended.how;
+	assert(how == VM_SUSPEND_RESET || how == VM_SUSPEND_POWEROFF);
 
 	fbsdrun_deletecpu(ctx, *pvcpu);
 
-	if (*pvcpu != resetcpu) {
+	if (*pvcpu != BSP) {
 		pthread_mutex_lock(&resetcpu_mtx);
 		pthread_cond_signal(&resetcpu_cond);
 		pthread_mutex_unlock(&resetcpu_mtx);
@@ -483,7 +484,12 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
 	}
 	pthread_mutex_unlock(&resetcpu_mtx);
-	exit(0);
+
+	if (how == VM_SUSPEND_RESET)
+		exit(0);
+	if (how == VM_SUSPEND_POWEROFF)
+		exit(1);
+	return (0);	/* NOTREACHED */
 }
 
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
@@ -505,6 +511,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	cpuset_t mask;
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
+	enum vm_suspend_how how;
 
 	if (pincpu >= 0) {
 		CPU_ZERO(&mask);
@@ -538,10 +545,13 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                         rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_RESET:
-			if (vm_suspend(ctx) == 0) {
-				assert(resetcpu == -1);
-				resetcpu = vcpu;
-			}
+		case VMEXIT_POWEROFF:
+			if (rc == VMEXIT_RESET)
+				how = VM_SUSPEND_RESET;
+			else
+				how = VM_SUSPEND_POWEROFF;
+			error = vm_suspend(ctx, how);
+			assert(error == 0 || errno == EALREADY);
                         rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
 		default:
