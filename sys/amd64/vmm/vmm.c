@@ -1211,16 +1211,45 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 }
 
 int
-vm_suspend(struct vm *vm)
+vm_suspend(struct vm *vm, enum vm_suspend_how how)
 {
+	int i;
 
-	if (atomic_cmpset_int(&vm->suspend, 0, 1)) {
-		VM_CTR0(vm, "virtual machine suspended");
-		return (0);
-	} else {
-		VM_CTR0(vm, "virtual machine already suspended");
+	if (how <= VM_SUSPEND_NONE || how >= VM_SUSPEND_LAST)
+		return (EINVAL);
+
+	if (atomic_cmpset_int(&vm->suspend, 0, how) == 0) {
+		VM_CTR2(vm, "virtual machine already suspended %d/%d",
+		    vm->suspend, how);
 		return (EALREADY);
 	}
+
+	VM_CTR1(vm, "virtual machine successfully suspended %d", how);
+
+	/*
+	 * Notify all active vcpus that they are now suspended.
+	 */
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (CPU_ISSET(i, &vm->active_cpus))
+			vcpu_notify_event(vm, i, false);
+	}
+
+	return (0);
+}
+
+void
+vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	KASSERT(vm->suspend > VM_SUSPEND_NONE && vm->suspend < VM_SUSPEND_LAST,
+	    ("vm_exit_suspended: invalid suspend type %d", vm->suspend));
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_SUSPENDED;
+	vmexit->u.suspended.how = vm->suspend;
 }
 
 int
