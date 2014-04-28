@@ -2045,16 +2045,6 @@ vmx_exit_rendezvous(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static __inline int
-vmx_exit_suspended(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmexit->rip = vmcs_guest_rip();
-	vmexit->inst_length = 0;
-	vmexit->exitcode = VM_EXITCODE_SUSPENDED;
-	return (UNHANDLED);
-}
-
-static __inline int
 vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 {
 
@@ -2173,7 +2163,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		disable_intr();
 		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
-			handled = vmx_exit_suspended(vmx, vcpu, vmexit);
+			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			handled = UNHANDLED;
 			break;
 		}
 
