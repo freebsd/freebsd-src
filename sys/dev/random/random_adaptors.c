@@ -281,7 +281,7 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 	void *random_buf;
 
 #ifdef RANDOM_DEBUG
-	printf("random: %s %ld\n", __func__, uio->uio_resid);
+	printf("random: %s %zd\n", __func__, uio->uio_resid);
 #endif
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));

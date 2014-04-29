@@ -34,23 +34,16 @@
  * Everyone knows you always need the __uint128_t types!
  */
 
-#if !defined(__arm__) && !defined(__mips__) && !defined(__i386__) && !defined(__pc98__) && !defined(__powerpc__)
-/* We do have an inbuilt __uint128_t type */
-
+#ifdef __SIZEOF_INT128__
 typedef __uint128_t uint128_t;
-#define USE_128_BIT
-
 #else
-
-/* There is no inbuilt __uint128_t type */
 typedef uint64_t uint128_t[2];
-
 #endif
 
 static __inline void
 uint128_clear(uint128_t *big_uint)
 {
-#ifdef USE_128_BIT
+#ifdef __SIZEOF_INT128__
 	(*big_uint) = 0ULL;
 #else
 	(*big_uint)[0] = (*big_uint)[1] = 0UL;
@@ -60,7 +53,7 @@ uint128_clear(uint128_t *big_uint)
 static __inline void
 uint128_increment(uint128_t *big_uint)
 {
-#ifdef USE_128_BIT
+#ifdef __SIZEOF_INT128__
 	(*big_uint)++;
 #else
 	(*big_uint)[0]++;
@@ -72,7 +65,7 @@ uint128_increment(uint128_t *big_uint)
 static __inline int
 uint128_is_zero(uint128_t big_uint)
 {
-#ifdef USE_128_BIT
+#ifdef __SIZEOF_INT128__
 	return (big_uint == 0ULL);
 #else
 	return (big_uint[0] == 0UL && big_uint[1] == 0UL);
