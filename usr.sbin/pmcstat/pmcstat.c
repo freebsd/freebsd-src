@@ -503,7 +503,7 @@ pmcstat_show_usage(void)
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
-	    "\t -a <file>\t print sampled PCs and callgraph to \"file\"\n"
+	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
