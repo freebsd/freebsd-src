@@ -250,39 +250,42 @@ fdt_load_dtb_addr(struct fdt_header *header)
 static int
 fdt_setup_fdtp()
 {
-  struct preloaded_file *bfp;
-  struct fdt_header *hdr;
-  const char *s;
-  char *p;
-  vm_offset_t va;
+	struct preloaded_file *bfp;
+	struct fdt_header *hdr;
+	const char *s;
+	char *p;
+	vm_offset_t va;
+	
+	if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
+		printf("Using DTB from loaded file.\n");
+		return fdt_load_dtb(bfp->f_addr);
+	}
+	
+	if (fdt_to_load != NULL) {
+		printf("Using DTB from memory address 0x%08X.\n",
+		    (unsigned int)fdt_to_load);
+		return fdt_load_dtb_addr(fdt_to_load);
+	}
 
-  if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
-	  printf("Using DTB from loaded file.\n");
-	  return fdt_load_dtb(bfp->f_addr);
-  }
-
-  if (fdt_to_load != NULL) {
-	  printf("Using DTB from memory address 0x%08X.\n",
-		 (unsigned int)fdt_to_load);
-	  return fdt_load_dtb_addr(fdt_to_load);
-  }
-
-  s = ub_env_get("fdtaddr");
-  if (s != NULL && *s != '\0') {
-	  hdr = (struct fdt_header *)strtoul(s, &p, 16);
-	  if (*p == '\0') {
-		  printf("Using DTB provided by U-Boot.\n");
-		  return fdt_load_dtb_addr(hdr);
-	  }
-  }
-
-  if ((va = fdt_find_static_dtb()) != 0) {
-	  printf("Using DTB compiled into kernel.\n");
-	  return (fdt_load_dtb(va));
-  }
-
-  command_errmsg = "no device tree blob found!";
-  return (1);
+	/* Board vendors use both fdtaddr and fdt_addr names.  Grrrr. */
+	s = ub_env_get("fdtaddr");
+	if (s == NULL)
+		s = ub_env_get("fdt_addr");
+	if (s != NULL && *s != '\0') {
+		hdr = (struct fdt_header *)strtoul(s, &p, 16);
+		if (*p == '\0') {
+			printf("Using DTB provided by U-Boot.\n");
+			return fdt_load_dtb_addr(hdr);
+		}
+	}
+	
+	if ((va = fdt_find_static_dtb()) != 0) {
+		printf("Using DTB compiled into kernel.\n");
+		return (fdt_load_dtb(va));
+	}
+	
+	command_errmsg = "no device tree blob found!";
+	return (1);
 }
 
 #define fdt_strtovect(str, cellbuf, lim, cellsize) _fdt_strtovect((str), \
