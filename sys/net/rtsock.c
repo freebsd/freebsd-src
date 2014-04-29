@@ -160,7 +160,6 @@ static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so);
-static void	rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 
@@ -532,7 +531,6 @@ route_output(struct mbuf *m, struct socket *so)
 	sa_family_t saf = AF_UNSPEC;
 	struct rawcb *rp = NULL;
 	struct walkarg w;
-	char msgbuf[512];
 
 	fibnum = so->so_fibnum;
 
@@ -549,20 +547,12 @@ route_output(struct mbuf *m, struct socket *so)
 
 	/*
 	 * Most of current messages are in range 200-240 bytes,
-	 * minimize possible failures by using on-stack buffer
-	 * which should fit for most messages.
-	 * However, use stable memory if we need to handle
-	 * something large.
+	 * minimize possible re-allocation on reply using larger size
+	 * buffer aligned on 1k boundaty.
 	 */
-	if (len < sizeof(msgbuf)) {
-		alloc_len = sizeof(msgbuf);
-		rtm = (struct rt_msghdr *)msgbuf;
-	} else {
-		alloc_len = roundup2(len, 1024);
-		rtm = malloc(alloc_len, M_TEMP, M_NOWAIT);
-		if (rtm == NULL)
-			senderr(ENOBUFS);
-	}
+	alloc_len = roundup2(len, 1024);
+	if ((rtm = malloc(alloc_len, M_TEMP, M_NOWAIT)) == NULL)
+		senderr(ENOBUFS);
 
 	m_copydata(m, 0, len, (caddr_t)rtm);
 	bzero(&info, sizeof(info));
@@ -570,8 +560,7 @@ route_output(struct mbuf *m, struct socket *so)
 
 	if (rtm->rtm_version != RTM_VERSION) {
 		/* Do not touch message since format is unknown */
-		if ((char *)rtm != msgbuf)
-			free(rtm, M_TEMP);
+		free(rtm, M_TEMP);
 		rtm = NULL;
 		senderr(EPROTONOSUPPORT);
 	}
@@ -584,6 +573,10 @@ route_output(struct mbuf *m, struct socket *so)
 
 	rtm->rtm_pid = curproc->p_pid;
 	info.rti_addrs = rtm->rtm_addrs;
+
+	info.rti_mflags = rtm->rtm_inits;
+	info.rti_rmx = &rtm->rtm_rmx;
+
 	/*
 	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
 	 * link-local address because rtrequest requires addresses with
@@ -670,7 +663,6 @@ route_output(struct mbuf *m, struct socket *so)
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
 #endif
 			RT_LOCK(saved_nrt);
-			rt_setmetrics(rtm, saved_nrt);
 			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
 			RT_UNLOCK(saved_nrt);
@@ -859,7 +851,7 @@ flush:
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
 		if (V_route_cb.any_count <= 1) {
-			if (rtm != NULL && (char *)rtm != msgbuf)
+			if (rtm != NULL)
 				free(rtm, M_TEMP);
 			m_freem(m);
 			return (error);
@@ -897,8 +889,7 @@ flush:
 		} else if (m->m_pkthdr.len > rtm->rtm_msglen)
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 
-		if ((char *)rtm != msgbuf)
-			free(rtm, M_TEMP);
+		free(rtm, M_TEMP);
 	}
 	if (m != NULL) {
 		M_SETFIB(m, fibnum);
@@ -917,20 +908,6 @@ flush:
 	}
 
 	return (error);
-}
-
-static void
-rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt)
-{
-
-	if (rtm->rtm_inits & RTV_MTU)
-		rt->rt_mtu = rtm->rtm_rmx.rmx_mtu;
-	if (rtm->rtm_inits & RTV_WEIGHT)
-		rt->rt_weight = rtm->rtm_rmx.rmx_weight;
-	/* Kernel -> userland timebase conversion. */
-	if (rtm->rtm_inits & RTV_EXPIRE)
-		rt->rt_expire = rtm->rtm_rmx.rmx_expire ?
-		    rtm->rtm_rmx.rmx_expire - time_second + time_uptime : 0;
 }
 
 static void
