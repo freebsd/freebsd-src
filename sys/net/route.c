@@ -1431,7 +1431,6 @@ bad:
 #undef ifpaddr
 #undef flags
 
-#define	senderr(e) { error = e; goto bad; }
 static int
 rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
     struct rtentry **ret_nrt, u_int fibnum)
@@ -1476,7 +1475,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 			free_ifa = 1;
 
 		if (error != 0)
-			senderr(error);
+			goto bad;
 	}
 
 	/* Check if outgoing interface has changed */
@@ -1489,7 +1488,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	if (info->rti_info[RTAX_GATEWAY] != NULL) {
 		error = rt_setgate(rt, rt_key(rt), info->rti_info[RTAX_GATEWAY]);
 		if (error != 0)
-			senderr(error);
+			goto bad;
 
 		rt->rt_flags &= ~RTF_GATEWAY;
 		rt->rt_flags |= (RTF_GATEWAY & info->rti_flags);
@@ -1517,8 +1516,6 @@ bad:
 		ifa_free(info->rti_ifa);
 	return (error);
 }
-#undef senderr
-
 
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
