@@ -227,10 +227,15 @@ fdt_load_dtb(vm_offset_t va)
 static int
 fdt_load_dtb_addr(struct fdt_header *header)
 {
+	int err;
 
-	// TODO: Verify that there really is an FDT at
-	// the specified location.
 	fdtp_size = fdt_totalsize(header);
+	err = fdt_check_header(header);
+	if (err < 0) {
+		sprintf(command_errbuf, "error validating blob: %s",
+		    fdt_strerror(err));
+		return (err);
+	}
 	free(fdtp);
 	if ((fdtp = malloc(fdtp_size)) == NULL) {
 		command_errmsg = "can't allocate memory for device tree copy";
@@ -662,7 +667,7 @@ fdt_fixup(void)
 {
 	const char *env;
 	char *ethstr;
-	int chosen, err, eth_no, len;
+	int chosen, eth_no, len;
 	struct sys_info *si;
 
 	env = NULL;
@@ -670,13 +675,8 @@ fdt_fixup(void)
 	ethstr = NULL;
 	len = 0;
 
-	if (fdtp == NULL) {
-		err = fdt_setup_fdtp();
-		if (err) {
-			sprintf(command_errbuf, "No valid device tree blob found!");
-			return (0);
-		}
-	}
+	if (fdtp == NULL && fdt_setup_fdtp() != 0)
+		return (0);
 
 	/* Create /chosen node (if not exists) */
 	if ((chosen = fdt_subnode_offset(fdtp, 0, "chosen")) ==
@@ -742,7 +742,7 @@ fdt_copy(vm_offset_t va)
 	if (fdtp == NULL) {
 		err = fdt_setup_fdtp();
 		if (err) {
-			printf("No valid device tree blob found!");
+			printf("No valid device tree blob found!\n");
 			return (0);
 		}
 	}
