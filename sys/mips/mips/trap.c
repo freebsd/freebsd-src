@@ -93,6 +93,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #endif
 
+_Static_assert(F0 * sizeof(register_t) == __offsetof(struct trapframe, f0),
+	"Register offset mismatch between C and assembly");
+_Static_assert(CAUSE * sizeof(register_t) ==
+	__offsetof(struct trapframe, cause),
+	"Register offset mismatch between C and assembly");
+
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
 
