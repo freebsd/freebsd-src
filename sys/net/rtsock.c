@@ -160,7 +160,6 @@ static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so);
-static void	rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 
@@ -584,6 +583,10 @@ route_output(struct mbuf *m, struct socket *so)
 
 	rtm->rtm_pid = curproc->p_pid;
 	info.rti_addrs = rtm->rtm_addrs;
+
+	info.rti_mflags = rtm->rtm_inits;
+	info.rti_rmx = &rtm->rtm_rmx;
+
 	/*
 	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
 	 * link-local address because rtrequest requires addresses with
@@ -670,7 +673,6 @@ route_output(struct mbuf *m, struct socket *so)
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
 #endif
 			RT_LOCK(saved_nrt);
-			rt_setmetrics(rtm, saved_nrt);
 			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
 			RT_UNLOCK(saved_nrt);
@@ -917,20 +919,6 @@ flush:
 	}
 
 	return (error);
-}
-
-static void
-rt_setmetrics(const struct rt_msghdr *rtm, struct rtentry *rt)
-{
-
-	if (rtm->rtm_inits & RTV_MTU)
-		rt->rt_mtu = rtm->rtm_rmx.rmx_mtu;
-	if (rtm->rtm_inits & RTV_WEIGHT)
-		rt->rt_weight = rtm->rtm_rmx.rmx_weight;
-	/* Kernel -> userland timebase conversion. */
-	if (rtm->rtm_inits & RTV_EXPIRE)
-		rt->rt_expire = rtm->rtm_rmx.rmx_expire ?
-		    rtm->rtm_rmx.rmx_expire - time_second + time_uptime : 0;
 }
 
 static void

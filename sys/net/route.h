@@ -261,6 +261,8 @@ struct rt_addrinfo {
 	int	rti_flags;
 	struct	ifaddr *rti_ifa;
 	struct	ifnet *rti_ifp;
+	u_long	rti_mflags;
+	struct	rt_metrics *rti_rmx;
 };
 
 /*
