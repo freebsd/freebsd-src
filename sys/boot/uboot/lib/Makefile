@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../common
 
 LIB=		uboot
@@ -16,6 +18,16 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 .if !defined(LOADER_NO_DISK_SUPPORT)
 SRCS+=	disk.c
 CFLAGS+= -DLOADER_DISK_SUPPORT
+.endif
+
+.if ${MK_FDT} != "no"
+LOADER_FDT_SUPPORT=	yes
+.else
+LOADER_FDT_SUPPORT=	no
+.endif
+
+.if ${LOADER_FDT_SUPPORT} == "yes"
+CFLAGS+= -DLOADER_FDT_SUPPORT
 .endif
 
 # Pick up FDT includes

@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 
 #if defined(LOADER_FDT_SUPPORT)
-extern int fdt_copy(vm_offset_t);
+#include "libuboot.h"
 #endif
 
 /*
