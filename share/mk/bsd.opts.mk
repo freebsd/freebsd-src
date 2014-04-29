@@ -56,6 +56,7 @@ __DEFAULT_YES_OPTIONS = \
     MAN \
     MANCOMPRESS \
     NIS \
+    NLS \
     OPENSSH \
     PROFILE \
     SSP \
@@ -149,7 +150,6 @@ __DEFAULT_YES_OPTIONS = \
     NDIS \
     NETCAT \
     NETGRAPH \
-    NLS \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
