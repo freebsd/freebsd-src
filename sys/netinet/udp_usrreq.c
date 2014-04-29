@@ -303,7 +303,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
-		(*up->u_tun_func)(n, off, inp);
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *) udp_in);
 		return;
 	}
 

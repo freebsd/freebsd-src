@@ -55,7 +55,8 @@ struct udpiphdr {
 struct inpcb;
 struct mbuf;
 
-typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
+typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *,
+			      const struct sockaddr *);
 
 /*
  * UDP control block; one per udp.
