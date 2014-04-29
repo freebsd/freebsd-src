@@ -1,0 +1,10 @@
+# $FreeBSD$
+
+.PATH: ${.CURDIR}/../../net
+
+KMOD=	if_vxlan
+SRCS=	if_vxlan.c
+SRCS+=	opt_inet.h opt_inet6.h
+#SRCS+=	opt_vxlan.h
+
+.include <bsd.kmod.mk>
