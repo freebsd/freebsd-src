@@ -114,6 +114,7 @@ struct bhyvestats {
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
         int             io_reset;
+	int		io_poweroff;
 } stats;
 
 struct mt_vmm_info {
@@ -237,13 +238,6 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 }
 
 static int
-vmexit_catch_reset(void)
-{
-        stats.io_reset++;
-        return (VMEXIT_RESET);
-}
-
-static int
 vmexit_catch_inout(void)
 {
 	return (VMEXIT_ABORT);
@@ -293,8 +287,10 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
 	case INOUT_RESET:
+		stats.io_reset++;
 		return (VMEXIT_RESET);
 	case INOUT_POWEROFF:
+		stats.io_poweroff++;
 		return (VMEXIT_POWEROFF);
 	default:
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
@@ -362,17 +358,6 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 			   vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
 
 	return (retval);
-}
-
-static int
-vmexit_spindown_cpu(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
-{
-	int lastcpu;
-
-	lastcpu = fbsdrun_deletecpu(ctx, *pvcpu);
-	if (!lastcpu)
-		pthread_exit(NULL);
-	return (vmexit_catch_reset());
 }
 
 static int
@@ -501,7 +486,6 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
-	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
 };
 
