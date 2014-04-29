@@ -213,6 +213,45 @@ default_route_with_multiple_fibs_on_same_subnet_cleanup()
 }
 
 
+# Regression test for PR kern/189089
+# Create two tap interfaces and assign them both the same IP address but with
+# different netmasks, and both on the default FIB.  Then remove one's IP
+# address.  Hopefully the machine won't panic.
+atf_test_case same_ip_multiple_ifaces_fib0 cleanup
+same_ip_multiple_ifaces_fib0_head()
+{
+	atf_set "descr" "Can remove an IP alias from an interface when the same IP is also assigned to another interface."
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+same_ip_multiple_ifaces_fib0_body()
+{
+	ADDR="192.0.2.2"
+	MASK0="24"
+	MASK1="32"
+
+	# Unlike most of the tests in this file, this is applicable regardless
+	# of net.add_addr_allfibs
+
+	# Setup the interfaces, then remove one alias.  It should not panic.
+	setup_tap 0 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap 0 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP1} -alias ${ADDR}
+
+	# Do it again, in the opposite order.  It should not panic.
+	setup_tap 0 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap 0 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP0} -alias ${ADDR}
+}
+same_ip_multiple_ifaces_fib0_cleanup()
+{
+	cleanup_tap
+}
+
 # Regression test for kern/187550
 atf_test_case subnet_route_with_multiple_fibs_on_same_subnet cleanup
 subnet_route_with_multiple_fibs_on_same_subnet_head()
@@ -309,6 +348,7 @@ atf_init_test_cases()
 	atf_add_test_case arpresolve_checks_interface_fib
 	atf_add_test_case loopback_and_network_routes_on_nondefault_fib
 	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case same_ip_multiple_ifaces_fib0
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
 	atf_add_test_case udp_dontroute
 }
