@@ -752,35 +752,39 @@ vdev_geom_io_intr(struct bio *bp)
 	zio->io_error = bp->bio_error;
 	if (zio->io_error == 0 && bp->bio_resid != 0)
 		zio->io_error = EIO;
-	if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == ENOTSUP) {
+
+	switch(zio->io_error) {
+	case ENOTSUP:
 		/*
-		 * If we get ENOTSUP, we know that no future
-		 * attempts will ever succeed.  In this case we
-		 * set a persistent bit so that we don't bother
-		 * with the ioctl in the future.
+		 * If we get ENOTSUP for BIO_FLUSH or BIO_DELETE we know
+		 * that future attempts will never succeed. In this case
+		 * we set a persistent flag so that we don't bother with
+		 * requests in the future.
 		 */
-		vd->vdev_nowritecache = B_TRUE;
-	}
-	if (bp->bio_cmd == BIO_DELETE && bp->bio_error == ENOTSUP) {
-		/*
-		 * If we get ENOTSUP, we know that no future
-		 * attempts will ever succeed.  In this case we
-		 * set a persistent bit so that we don't bother
-		 * with the ioctl in the future.
-		 */
-		vd->vdev_notrim = B_TRUE;
-	}
-	if (zio->io_error == ENXIO && !vd->vdev_remove_wanted) {
-		/*
-		 * If provider's error is set we assume it is being
-		 * removed.
-		 */
-		if (bp->bio_to->error != 0) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		} else if (!vd->vdev_delayed_close) {
-			vd->vdev_delayed_close = B_TRUE;
+		switch(bp->bio_cmd) {
+		case BIO_FLUSH:
+			vd->vdev_nowritecache = B_TRUE;
+			break;
+		case BIO_DELETE:
+			vd->vdev_notrim = B_TRUE;
+			break;
 		}
+		break;
+	case ENXIO:
+		if (!vd->vdev_remove_wanted) {
+			/*
+			 * If provider's error is set we assume it is being
+			 * removed.
+			 */
+			if (bp->bio_to->error != 0) {
+				vd->vdev_remove_wanted = B_TRUE;
+				spa_async_request(zio->io_spa,
+				    SPA_ASYNC_REMOVE);
+			} else if (!vd->vdev_delayed_close) {
+				vd->vdev_delayed_close = B_TRUE;
+			}
+		}
+		break;
 	}
 	g_destroy_bio(bp);
 	zio_interrupt(zio);

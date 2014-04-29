@@ -272,6 +272,7 @@ SUBDIR=	\
 	ppi \
 	pps \
 	procfs \
+	proto \
 	pseudofs \
 	${_pst} \
 	pty  \

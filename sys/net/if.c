@@ -1485,7 +1485,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
 
 	if (error == 0 && rt != NULL) {
 		RT_LOCK(rt);
@@ -1517,7 +1517,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
 
 	if (error != 0)
 		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
@@ -1526,11 +1526,11 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 }
 
 int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
 {
 	struct rtentry *rt;
 
-	rt = rtalloc1_fib(sa, 0, 0, 0);
+	rt = rtalloc1_fib(sa, 0, 0, fib);
 	if (rt == NULL) {
 		log(LOG_DEBUG, "%s: fail", __func__);
 		return (EHOSTUNREACH);
@@ -1549,9 +1549,6 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
  */
-
-#define	sa_equal(a1, a2)	\
-	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
 
 #define	sa_dl_equal(a1, a2)	\
 	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
@@ -1653,7 +1650,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1661,6 +1658,8 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
+			continue;
+		if ((ifp->if_fib != fibnum))
 			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1686,7 +1685,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1706,12 +1705,14 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 
 	/*
 	 * Scan though each interface, looking for ones that have addresses
-	 * in this address family.  Maintain a reference on ifa_maybe once
-	 * we find one, as we release the IF_ADDR_RLOCK() that kept it stable
-	 * when we move onto the next interface.
+	 * in this address family and the requested fib.  Maintain a reference
+	 * on ifa_maybe once we find one, as we release the IF_ADDR_RLOCK() that
+	 * kept it stable when we move onto the next interface.
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifp->if_fib != fibnum)
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			char *cp, *cp2, *cp3;

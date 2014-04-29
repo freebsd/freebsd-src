@@ -49,6 +49,9 @@ NANO_TOOLS=tools/tools/nanobsd
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 NANO_PACKAGE_LIST="*"
 
+# where package metadata gets placed
+NANO_PKG_META_BASE=/var/db
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -173,6 +176,18 @@ SRCCONF=${SRCCONF:=/dev/null}
 # Can be overridden from the config file(s)
 #
 #######################################################################
+
+# run in the world chroot, errors fatal
+CR()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -exc "$*"
+}
+
+# run in the world chroot, errors not fatal
+CR0()
+{
+	chroot ${NANO_WORLDDIR} /bin/sh -c "$*" || true
+}
 
 nano_cleanup ( ) (
 	if [ $? -ne 0 ]; then
@@ -425,6 +440,12 @@ newfs_part ( ) (
 	mount -o async ${dev} ${mnt}
 )
 
+# Convenient spot to work around any umount issues that your build environment
+# hits by overriding this method.
+nano_umount () (
+	umount ${1}
+)
+
 populate_slice ( ) (
 	local dev dir mnt lbl
 	dev=$1
@@ -439,7 +460,7 @@ populate_slice ( ) (
 		find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${mnt}
 	fi
 	df -i ${mnt}
-	umount ${mnt}
+	nano_umount ${mnt}
 )
 
 populate_cfg_slice ( ) (
@@ -538,7 +559,7 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
-	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
 	fdisk ${MD}
@@ -554,7 +575,7 @@ create_i386_diskimage ( ) (
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
-	umount ${MNT}
+	nano_umount ${MNT}
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
@@ -565,7 +586,7 @@ create_i386_diskimage ( ) (
 		do
 			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
-		umount ${MNT}
+		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
 		if [ ! -z ${NANO_LABEL} ]; then
@@ -720,7 +741,7 @@ cust_pkg () (
 	fi
 
 	# Copy packages into chroot
-	mkdir -p ${NANO_WORLDDIR}/Pkg
+	mkdir -p ${NANO_WORLDDIR}/Pkg ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
 	(
 		cd ${NANO_PACKAGE_DIR}
 		find ${NANO_PACKAGE_LIST} -print |
@@ -735,18 +756,17 @@ cust_pkg () (
 	while true
 	do
 		# Record how many we have now
-		have=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+		have=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
 
 		# Attempt to install more packages
 		# ...but no more than 200 at a time due to pkg_add's internal
 		# limitations.
-		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*tbz | xargs -n 200 pkg_add -F' || true
+		CR0 'ls Pkg/*tbz | xargs -n 200 env PKG_DBDIR='${NANO_PKG_META_BASE}'/pkg pkg_add -v -F'
 
 		# See what that got us
-		now=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
+		now=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
 		echo "=== NOW $now"
-		ls ${NANO_WORLDDIR}/var/db/pkg
+		ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
 		echo "==="
 
 
@@ -787,9 +807,8 @@ cust_pkgng () (
 	)
 
 	#Bootstrap pkg
-	chroot ${NANO_WORLDDIR} sh -c \
-		"env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}"
-	chroot ${NANO_WORLDDIR} sh -c "pkg -N >/dev/null 2>&1;"
+	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}
+	CR pkg -N >/dev/null 2>&1
 	if [ "$?" -ne "0" ]; then
 		echo "FAILED: pkg bootstrapping faied"
 		exit 2
@@ -805,19 +824,15 @@ cust_pkgng () (
 	while true
 	do
 		# Record how many we have now
-		have=`chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+ 		have=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
 
 		# Attempt to install more packages
-		chroot ${NANO_WORLDDIR} sh -c \
-			'ls Pkg/*txz | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
+		CR0 'ls 'Pkg/*txz' | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add'
 
 		# See what that got us
-		now=`chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+ 		now=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
 		echo "=== NOW $now"
-		chroot ${NANO_WORLDDIR} sh -c \
-			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info'
+		CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info
 		echo "==="
 		if [ $now -eq $todo ] ; then
 			echo "DONE $now packages"
@@ -855,12 +870,12 @@ late_customize_cmd () {
 
 # Progress Print
 #	Print $2 at level $1.
-pprint() {
+pprint() (
     if [ "$1" -le $PPLEVEL ]; then
 	runtime=$(( `date +%s` - $NANO_STARTTIME ))
 	printf "%s %.${1}s %s\n" "`date -u -r $runtime +%H:%M:%S`" "#####" "$2" 1>&3
     fi
-}
+)
 
 usage () {
 	(

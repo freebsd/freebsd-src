@@ -34,18 +34,25 @@ FBSDRUN=/usr/sbin/bhyve
 DEFAULT_MEMSIZE=512M
 DEFAULT_CPUS=2
 DEFAULT_TAPDEV=tap0
+DEFAULT_CONSOLE=stdio
 
 DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
 usage() {
-	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-e <name=value>][-I <location of installation iso>][-t <tapdev>] <vmname>"
+	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
+	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
+	echo "                [-I <location of installation iso>] [-m <memsize>]"
+	echo "                [-t <tapdev>] <vmname>"
+	echo ""
 	echo "       -h: display this help message"
-	echo "       -a: force memory mapped local apic access"
+	echo "       -a: force memory mapped local APIC access"
 	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
+	echo "       -C: console device (default is ${DEFAULT_CONSOLE})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
 	echo "       -e: set FreeBSD loader environment variable"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
+	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
@@ -69,28 +76,36 @@ fi
 force_install=0
 isofile=${DEFAULT_ISOFILE}
 memsize=${DEFAULT_MEMSIZE}
+console=${DEFAULT_CONSOLE}
 cpus=${DEFAULT_CPUS}
 virtio_diskdev=${DEFAULT_VIRTIO_DISK}
 tapdev=${DEFAULT_TAPDEV}
 apic_opt=""
 gdbport=0
-env_opt=""
+loader_opt=""
 
-while getopts haic:e:g:I:m:d:t: c ; do
+while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
 	case $c in
-	h)
-		usage
-		;;
 	a)
 		apic_opt="-a"
+		;;
+	c)
+		cpus=${OPTARG}
+		;;
+	C)
+		console=${OPTARG}
 		;;
 	d)
 		virtio_diskdev=${OPTARG}
 		;;
 	e)
-		env_opt="${env_opt} -e ${OPTARG}"
+		loader_opt="${loader_opt} -e ${OPTARG}"
 		;;
-	g)	gdbport=${OPTARG}
+	g)	
+		gdbport=${OPTARG}
+		;;
+	H)
+		host_base=`realpath ${OPTARG}`
 		;;
 	i)
 		force_install=1
@@ -98,16 +113,13 @@ while getopts haic:e:g:I:m:d:t: c ; do
 	I)
 		isofile=${OPTARG}
 		;;
-	c)
-		cpus=${OPTARG}
-		;;
 	m)
 		memsize=${OPTARG}
 		;;
 	t)
 		tapdev=${OPTARG}
 		;;
-	\?)
+	*)
 		usage
 		;;
 	esac
@@ -120,6 +132,9 @@ if [ $# -ne 1 ]; then
 fi
 
 vmname="$1"
+if [ -n "${host_base}" ]; then
+	loader_opt="${loader_opt} -h ${host_base}"
+fi
 
 # Create the virtio diskdev file if needed
 if [ ! -f ${virtio_diskdev} ]; then
@@ -168,7 +183,8 @@ while [ 1 ]; do
 		installer_opt=""
 	fi
 
-	${LOADER} -m ${memsize} -d ${BOOTDISK} ${env_opt} ${vmname}
+	${LOADER} -c ${console} -m ${memsize} -d ${BOOTDISK} ${loader_opt} \
+		${vmname}
 	if [ $? -ne 0 ]; then
 		break
 	fi
@@ -179,7 +195,7 @@ while [ 1 ]; do
 		-s 1:0,lpc						\
 		-s 2:0,virtio-net,${tapdev}				\
 		-s 3:0,virtio-blk,${virtio_diskdev}			\
-		-l com1,stdio						\
+		-l com1,${console}					\
 		${installer_opt}					\
 		${vmname}
 	if [ $? -ne 0 ]; then

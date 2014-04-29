@@ -9,6 +9,7 @@ DEBUG_FLAGS= -g -O0
 MAN=	bhyve.8
 
 SRCS=	\
+	atkbdc.c		\
 	acpi.c			\
 	bhyverun.c		\
 	block_if.c		\

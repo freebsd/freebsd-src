@@ -161,6 +161,8 @@ pl310_write4(struct pl310_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->sc_mem_res, off, val);
 }
 
+void pl310_print_config(struct pl310_softc *sc);
+
 void platform_pl310_init(struct pl310_softc *);
 void platform_pl310_write_ctrl(struct pl310_softc *, uint32_t);
 void platform_pl310_write_debug(struct pl310_softc *, uint32_t);

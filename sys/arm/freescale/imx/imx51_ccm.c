@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx51_ccmvar.h>
 #include <arm/freescale/imx/imx51_ccmreg.h>
 #include <arm/freescale/imx/imx51_dpllreg.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
 
 #define	IMXCCMDEBUG
@@ -552,3 +553,30 @@ imx_ccm_usbphy_enable(device_t dev)
 	}
 }
 
+uint32_t
+imx_ccm_ipg_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_IPG_CLK_ROOT));
+}
+
+uint32_t
+imx_ccm_sdhci_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_ESDHC1_CLK_ROOT));
+}
+
+uint32_t
+imx_ccm_perclk_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_PERCLK_ROOT));
+}
+
+uint32_t
+imx_ccm_uart_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_UART_CLK_ROOT));
+}
