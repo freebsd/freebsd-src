@@ -226,6 +226,7 @@ xhci_pci_attach(device_t self)
 	case 0x1e318086:	/* Panther Point */
 	case 0x8c318086:	/* Lynx Point */
 		sc->sc_port_route = &xhci_pci_port_route;
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
 		break;
 	default:
 		break;

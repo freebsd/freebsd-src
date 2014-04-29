@@ -470,6 +470,7 @@ struct xhci_softc {
 	uint16_t		sc_erst_max;
 	uint16_t		sc_event_idx;
 	uint16_t		sc_command_idx;
+	uint16_t		sc_imod_default;
 
 	uint8_t			sc_event_ccs;
 	uint8_t			sc_command_ccs;
