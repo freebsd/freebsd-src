@@ -120,8 +120,9 @@ int
 main(void)
 {
 	struct api_signature *sig = NULL;
-	int i;
+	int diskdev, i, netdev, usedev;
 	struct open_file f;
+	const char * loaderdev;
 
 	if (!api_search_sig(&sig))
 		return (-1);
@@ -167,8 +168,49 @@ main(void)
 	meminfo();
 
 	/*
-	 * March through the device switch probing for things.
+	 * March through the device switch probing for things -- sort of.
+	 *
+	 * The devsw array will have one or two items in it. If
+	 * LOADER_DISK_SUPPORT is defined the first item will be a disk (which
+	 * may not actually work if u-boot didn't supply one). If
+	 * LOADER_NET_SUPPORT is defined the next item will be a network
+	 * interface.  Again it may not actually work at the u-boot level.
+	 *
+	 * The original logic was to always use a disk if it could be
+	 * successfully opened, otherwise use the network interface.  Now that
+	 * logic is amended to first check whether the u-boot environment
+	 * contains a loaderdev variable which tells us which device to use.  If
+	 * it does, we use it and skip the original (second) loop which "probes"
+	 * for a device. We still loop over the devsw just in case it ever gets
+	 * expanded to hold more than 2 devices (but then unit numbers, which
+	 * don't currently exist, may come into play).  If the device named by
+	 * loaderdev isn't found, fall back using to the old "probe" loop.
+	 *
+	 * The original probe loop still effectively behaves as it always has:
+	 * the first usable disk device is choosen, and a network device is used
+	 * only if no disk device is found.  The logic has been reworked so that
+	 * it examines (and thus lists) every potential device along the way
+	 * instead of breaking out of the loop when the first device is found.
 	 */
+	loaderdev = ub_env_get("loaderdev");
+	usedev = -1;
+	if (loaderdev != NULL) {
+		for (i = 0; devsw[i] != NULL; i++) {
+			if (strcmp(loaderdev, devsw[i]->dv_name) == 0) {
+				if (devsw[i]->dv_init == NULL)
+					continue;
+				if ((devsw[i]->dv_init)() != 0)
+					continue;
+				usedev = i;
+				goto have_device;
+			}
+		}
+		printf("U-Boot env contains 'loaderdev=%s', "
+		    "device not found.\n", loaderdev);
+	}
+	printf("Probing for bootable devices...\n");
+	diskdev = -1;
+	netdev = -1;
 	for (i = 0; devsw[i] != NULL; i++) {
 
 		if (devsw[i]->dv_init == NULL)
@@ -176,27 +218,43 @@ main(void)
 		if ((devsw[i]->dv_init)() != 0)
 			continue;
 
-		printf("\nDevice: %s\n", devsw[i]->dv_name);
-
-		currdev.d_dev = devsw[i];
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_unit = 0;
+		printf("Bootable device: %s\n", devsw[i]->dv_name);
 
 		if (strncmp(devsw[i]->dv_name, "disk",
 		    strlen(devsw[i]->dv_name)) == 0) {
 			f.f_devdata = &currdev;
+			currdev.d_dev = devsw[i];
+			currdev.d_type = currdev.d_dev->dv_type;
+			currdev.d_unit = 0;
 			currdev.d_disk.slice = 0;
-			if (devsw[i]->dv_open(&f,&currdev) == 0)
-				break;
+			if (devsw[i]->dv_open(&f, &currdev) == 0) {
+				devsw[i]->dv_close(&f);
+				if (diskdev == -1)
+					diskdev = i;
+			}
+		} else if (strncmp(devsw[i]->dv_name, "net",
+		    strlen(devsw[i]->dv_name)) == 0) {
+			if (netdev == -1)
+				netdev = i;
 		}
-
-		if (strncmp(devsw[i]->dv_name, "net",
-		    strlen(devsw[i]->dv_name)) == 0)
-			break;
 	}
 
-	if (devsw[i] == NULL)
-		panic("No boot device found!");
+	if (diskdev != -1)
+		usedev = diskdev;
+	else if (netdev != -1)
+		usedev = netdev;
+	else
+		panic("No bootable devices found!\n");
+
+have_device:
+
+	currdev.d_dev = devsw[usedev];
+	currdev.d_type = devsw[usedev]->dv_type;
+	currdev.d_unit = 0;
+	if (currdev.d_type == DEV_TYP_STOR)
+		currdev.d_disk.slice = 0;
+
+	printf("Current device: %s\n", currdev.d_dev->dv_name);
 
 	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
 	    uboot_setcurrdev, env_nounset);
