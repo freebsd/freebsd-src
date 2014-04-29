@@ -128,6 +128,8 @@ fdt_find_static_dtb()
 	char *strp;
 	int i, sym_count;
 
+	debugf("fdt_find_static_dtb()\n");
+
 	sym_count = symtab = strtab = 0;
 	strp = NULL;
 
@@ -189,6 +191,8 @@ fdt_load_dtb(vm_offset_t va)
 	struct fdt_header header;
 	int err;
 
+	debugf("fdt_load_dtb(0x%08jx)\n", (uintmax_t)va);
+
 	COPYOUT(va, &header, sizeof(header));
 	err = fdt_check_header(&header);
 	if (err < 0) {
@@ -229,6 +233,8 @@ fdt_load_dtb_addr(struct fdt_header *header)
 {
 	int err;
 
+	debugf("fdt_load_dtb_addr(0x%p)\n", header);
+
 	fdtp_size = fdt_totalsize(header);
 	err = fdt_check_header(header);
 	if (err < 0) {
@@ -248,6 +254,32 @@ fdt_load_dtb_addr(struct fdt_header *header)
 }
 
 static int
+fdt_load_dtb_file(const char * filename)
+{
+	struct preloaded_file *bfp, *oldbfp;
+	int err;
+
+	debugf("fdt_load_dtb_file(%s)\n", filename);
+
+	oldbfp = file_findfile(NULL, "dtb");
+
+	/* Attempt to load and validate a new dtb from a file. */
+	if ((bfp = file_loadraw(filename, "dtb")) == NULL) {
+		sprintf(command_errbuf, "failed to load file '%s'", filename);
+		return (1);
+	}
+	if ((err = fdt_load_dtb(bfp->f_addr)) != 0) {
+		file_discard(bfp);
+		return (err);
+	}
+
+	/* A new dtb was validated, discard any previous file. */
+	if (oldbfp)
+		file_discard(oldbfp);
+	return (0);
+}
+
+static int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
@@ -256,35 +288,68 @@ fdt_setup_fdtp()
 	char *p;
 	vm_offset_t va;
 	
+	debugf("fdt_setup_fdtp()\n");
+
+	/* If we already loaded a file, use it. */
 	if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
-		printf("Using DTB from loaded file.\n");
-		return fdt_load_dtb(bfp->f_addr);
-	}
-	
-	if (fdt_to_load != NULL) {
-		printf("Using DTB from memory address 0x%08X.\n",
-		    (unsigned int)fdt_to_load);
-		return fdt_load_dtb_addr(fdt_to_load);
+		if (fdt_load_dtb(bfp->f_addr) == 0) {
+			printf("Using DTB from loaded file '%s'.\n", 
+			    bfp->f_name);
+			return (0);
+		}
 	}
 
-	/* Board vendors use both fdtaddr and fdt_addr names.  Grrrr. */
+	/* If we were given the address of a valid blob in memory, use it. */
+	if (fdt_to_load != NULL) {
+		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
+			printf("Using DTB from memory address 0x%08X.\n",
+			    (unsigned int)fdt_to_load);
+			return (0);
+		}
+	}
+
+	/*
+	 * If the U-boot environment contains a variable giving the address of a
+	 * valid blob in memory, use it.  Board vendors use both fdtaddr and
+	 * fdt_addr names.
+	 */
 	s = ub_env_get("fdtaddr");
 	if (s == NULL)
 		s = ub_env_get("fdt_addr");
 	if (s != NULL && *s != '\0') {
 		hdr = (struct fdt_header *)strtoul(s, &p, 16);
 		if (*p == '\0') {
-			printf("Using DTB provided by U-Boot.\n");
-			return fdt_load_dtb_addr(hdr);
+			if (fdt_load_dtb_addr(hdr) == 0) {
+				printf("Using DTB provided by U-Boot at "
+				    "address 0x%p.\n", hdr);
+				return (0);
+			}
+		}
+	}
+
+	/*
+	 * If the U-boot environment contains a variable giving the name of a
+	 * file, use it if we can load and validate it.
+	 */
+	s = ub_env_get("fdtfile");
+	if (s == NULL)
+		s = ub_env_get("fdt_file");
+	if (s != NULL && *s != '\0') {
+		if (fdt_load_dtb_file(s) == 0) {
+			printf("Loaded DTB from file '%s'.\n", s);
+			return (0);
+		}
+	}
+
+	/* If there is a dtb compiled into the kernel, use it. */
+	if ((va = fdt_find_static_dtb()) != 0) {
+		if (fdt_load_dtb(va) == 0) {
+			printf("Using DTB compiled into kernel.\n");
+			return (0);
 		}
 	}
 	
-	if ((va = fdt_find_static_dtb()) != 0) {
-		printf("Using DTB compiled into kernel.\n");
-		return (fdt_load_dtb(va));
-	}
-	
-	command_errmsg = "no device tree blob found!";
+	command_errmsg = "No device tree blob found!\n";
 	return (1);
 }
 
@@ -678,6 +743,8 @@ fdt_fixup(void)
 	ethstr = NULL;
 	len = 0;
 
+	debugf("fdt_fixup()\n");
+
 	if (fdtp == NULL && fdt_setup_fdtp() != 0)
 		return (0);
 
@@ -741,7 +808,7 @@ int
 fdt_copy(vm_offset_t va)
 {
 	int err;
-
+	debugf("fdt_copy va 0x%08x\n", va);
 	if (fdtp == NULL) {
 		err = fdt_setup_fdtp();
 		if (err) {
