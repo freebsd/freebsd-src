@@ -74,7 +74,7 @@ proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			strlcpy(objname, rdl->rdl_path, objnamesz);
 			return (objname);
 		}
@@ -154,7 +154,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 			kve = kves + i;
 			if (kve->kve_type == KVME_TYPE_VNODE)
 				lastvn = i;
-			if (addr >= kve->kve_start && addr <= kve->kve_end) {
+			if (addr >= kve->kve_start && addr < kve->kve_end) {
 				if ((map = malloc(sizeof(*map))) == NULL) {
 					free(kves);
 					return (NULL);
@@ -187,7 +187,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			if ((map = malloc(sizeof(*map))) == NULL)
 				return (NULL);
 			proc_rdl2prmap(rdl, map);
