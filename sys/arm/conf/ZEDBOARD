@@ -56,6 +56,7 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Debugging
 makeoptions	DEBUG=-g
