@@ -2251,6 +2251,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
+	geom = NULL;
+	status = G_RAID_MD_TASTE_FAIL;
 	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
@@ -2259,8 +2261,9 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
+	if (g_access(cp, 1, 0, 0) != 0)
+		goto ofail;
 
-	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
 		if (!class->mdc_enable)
 			continue;
@@ -2276,6 +2279,9 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			break;
 	}
 
+	if (status == G_RAID_MD_TASTE_FAIL)
+		(void)g_access(cp, -1, 0, 0);
+ofail:
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);

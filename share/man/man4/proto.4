@@ -1,0 +1,121 @@
+.\"
+.\" Copyright (c) 2014 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 21, 2014
+.Dt PROTO 4
+.Os
+.\"
+.Sh NAME
+.Nm proto
+.Nd Driver for prototyping and H/W diagnostics
+.\"
+.Sh SYNOPSIS
+.Cd "device proto"
+.\"
+.Sh DESCRIPTION
+The
+.Nm
+device driver attaches to PCI devices when no other device drivers are
+present and creates device special files for all resources associated
+with the device.
+The driver itself has no knowledge of the device it attaches to.
+Programs can open these device special files and peform register-level
+reads and writes.
+As such, the
+.Nm
+device driver is nothing but a conduit or gateway between user space
+programs and the hardware device.
+.Pp
+Examples for why this is useful include hardware diagnostics and prototyping.
+In both these use cases, it's far more convenient to develop and run the
+logic in user space.
+Especially hardware diagnostics requires a somewhat user-friendly interface
+and adequate reporting.
+Neither is done easily as kernel code.
+.\"
+.Sh FILES
+All device special files corresponding to a PCI device are located under
+.Pa /dev/proto/pci<d>:<b>:<s>:<f>
+with
+.Pa pci<d>:<b>:<s>:<f>
+representing the location of the PCI device in the PCI hierarchy.
+A location includes:
+.Bl -tag -width XXXXXX -compact
+.It <d>
+The PCI domain number
+.It <b>
+The PCI bus number
+.It <s>
+The PCI slot or device number
+.It <f>
+The PCI function number
+.El
+.Pp
+Every PCI device has a device special file called
+.Pa pcicfg .
+This device special file gives access to the PCI configuration space.
+For each valid base address register (BAR), a device special file is created
+that contains the BAR offset and the resource type.
+A resource type can be either
+.Pa io
+or
+.Pa mem
+representing I/O port or memory mapped I/O space (resp.)
+.\"
+.Sh EXAMPLES
+A single function PCI device in domain 0, on bus 1, in slot 2 and having a
+single memory mapped I/O region will have the following device special files:
+.Bl -tag -compact
+.It Pa /dev/proto/pci0:1:2:0/10.mem
+.It Pa /dev/proto/pci0:1:2:0/pcicfg
+.El
+.\" 
+.Sh SECURITY CONSIDERATIONS
+Because programs have direct access to the hardware, the
+.Nm
+driver is inherently insecure.
+It is not advisable to use this driver on a production machine.
+.\"
+.Sh MISSING FUNCTIONALITY
+The
+.Nm
+driver does not yet support interrupts.
+Since interrupts cannot be handled by the driver itself, they must be converted
+into signals and delivered to the program that has registered for interrupts.
+.Pp
+In order to test the transmission or reception of data, some means of doing
+direct memory access (DMA) by the device must be possible. This too much be
+under the control of the program. The details of how a program can setup and
+initiate DMA still need to be fleshed out.
+.Pp
+Support for non-PCI devices has not been implemented yet.
+.\"
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Marcel Moolenaar Aq marcel@xcllnt.net .
