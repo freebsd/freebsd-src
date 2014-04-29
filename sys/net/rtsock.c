@@ -531,7 +531,6 @@ route_output(struct mbuf *m, struct socket *so)
 	sa_family_t saf = AF_UNSPEC;
 	struct rawcb *rp = NULL;
 	struct walkarg w;
-	char msgbuf[512];
 
 	fibnum = so->so_fibnum;
 
@@ -548,20 +547,12 @@ route_output(struct mbuf *m, struct socket *so)
 
 	/*
 	 * Most of current messages are in range 200-240 bytes,
-	 * minimize possible failures by using on-stack buffer
-	 * which should fit for most messages.
-	 * However, use stable memory if we need to handle
-	 * something large.
+	 * minimize possible re-allocation on reply using larger size
+	 * buffer aligned on 1k boundaty.
 	 */
-	if (len < sizeof(msgbuf)) {
-		alloc_len = sizeof(msgbuf);
-		rtm = (struct rt_msghdr *)msgbuf;
-	} else {
-		alloc_len = roundup2(len, 1024);
-		rtm = malloc(alloc_len, M_TEMP, M_NOWAIT);
-		if (rtm == NULL)
-			senderr(ENOBUFS);
-	}
+	alloc_len = roundup2(len, 1024);
+	if ((rtm = malloc(alloc_len, M_TEMP, M_NOWAIT)) == NULL)
+		senderr(ENOBUFS);
 
 	m_copydata(m, 0, len, (caddr_t)rtm);
 	bzero(&info, sizeof(info));
@@ -569,8 +560,7 @@ route_output(struct mbuf *m, struct socket *so)
 
 	if (rtm->rtm_version != RTM_VERSION) {
 		/* Do not touch message since format is unknown */
-		if ((char *)rtm != msgbuf)
-			free(rtm, M_TEMP);
+		free(rtm, M_TEMP);
 		rtm = NULL;
 		senderr(EPROTONOSUPPORT);
 	}
@@ -861,7 +851,7 @@ flush:
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
 		if (V_route_cb.any_count <= 1) {
-			if (rtm != NULL && (char *)rtm != msgbuf)
+			if (rtm != NULL)
 				free(rtm, M_TEMP);
 			m_freem(m);
 			return (error);
@@ -899,8 +889,7 @@ flush:
 		} else if (m->m_pkthdr.len > rtm->rtm_msglen)
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 
-		if ((char *)rtm != msgbuf)
-			free(rtm, M_TEMP);
+		free(rtm, M_TEMP);
 	}
 	if (m != NULL) {
 		M_SETFIB(m, fibnum);
