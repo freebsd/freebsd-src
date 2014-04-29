@@ -438,7 +438,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * that are needed.
 	 */
 
-	/* SMP Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_intr = MIPS_SR_INT_IE;
 #if 0
