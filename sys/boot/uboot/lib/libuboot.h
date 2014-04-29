@@ -69,3 +69,9 @@ struct file_format;
 extern struct file_format uboot_elf;
 
 void reboot(void);
+
+#if defined(LOADER_FDT_SUPPORT)
+extern int fdt_setup_fdtp();
+extern int fdt_copy(vm_offset_t);
+#endif
+
