@@ -114,6 +114,7 @@ struct lnc_softc {
 	int rap;
 	int rdp;
 	int bdp;
+	int reset;
 #ifdef DEBUG
 	int lnc_debug;
 #endif
@@ -1120,6 +1121,7 @@ pcnet_probe(struct lnc_softc *sc)
 {
 	u_long chip_id;
 	int type;
+	int reset_val;
 
 	/*
 	 * The PCnet family don't reset the RAP register on reset so we'll
@@ -1127,6 +1129,8 @@ pcnet_probe(struct lnc_softc *sc)
 	 * though so the probe is just a matter of reading it.
 	 */
 
+	reset_val = inw(sc->reset);
+	outw(reset_val, sc->reset);
 	if ((type = lance_probe(sc))) {
 		chip_id = read_csr(sc, CSR89);
 		chip_id <<= 16;
@@ -1293,6 +1297,7 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 		sc->rap = iobase + PCNET_RAP;
 		sc->rdp = iobase + PCNET_RDP;
 		sc->bdp = iobase + PCNET_BDP;
+		sc->reset = iobase + PCNET_RESET;
 
 		sc->nic.ic = pcnet_probe(sc);
 		if (sc->nic.ic >= PCnet_32) {
