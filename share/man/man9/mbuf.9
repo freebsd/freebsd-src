@@ -64,23 +64,23 @@
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
 .Fn M_MOVE_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
-.Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.Fn MCHTYPE "struct mbuf *mbuf" "short type"
 .Ft int
 .Fn M_WRITABLE "struct mbuf *mbuf"
 .\"
 .Ss Mbuf allocation functions
 .Ft struct mbuf *
-.Fn m_get "int how" "int type"
+.Fn m_get "int how" "short type"
 .Ft struct mbuf *
-.Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
+.Fn m_getm "struct mbuf *orig" "int len" "int how" "short type"
 .Ft struct mbuf *
 .Fn m_getjcl "int how" "short type" "int flags" "int size"
 .Ft struct mbuf *
 .Fn m_getcl "int how" "short type" "int flags"
 .Ft struct mbuf *
-.Fn m_getclr "int how" "int type"
+.Fn m_getclr "int how" "short type"
 .Ft struct mbuf *
-.Fn m_gethdr "int how" "int type"
+.Fn m_gethdr "int how" "short type"
 .Ft struct mbuf *
 .Fn m_free "struct mbuf *mbuf"
 .Ft void
