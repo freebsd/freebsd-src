@@ -61,12 +61,12 @@ static const char rcsid[] =
 #include <wchar.h>
 
 #ifdef SHELL
-#define main printfcmd
+#define	main printfcmd
 #include "bltin/bltin.h"
 #include "error.h"
 #endif
 
-#define PF(f, func) do {						\
+#define	PF(f, func) do {						\
 	char *b = NULL;							\
 	if (havewidth)							\
 		if (haveprec)						\
