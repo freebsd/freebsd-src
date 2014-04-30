@@ -1830,24 +1830,12 @@ DTBOUTPUTPATH= ${.CURDIR}
 # Build 'standalone' Device Tree Blob
 #
 builddtb:
-	@if [ "${FDT_DTS_FILE}" = "" ]; then \
-		echo "ERROR: FDT_DTS_FILE must be specified!"; \
-		exit 1; \
-	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${TARGET}/${FDT_DTS_FILE} ]; then \
-		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
-			exist!"; \
-		exit 1;	\
-	fi;	\
-	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
-		echo "WARNING: DTB will be placed in the current working \
-			directory"; \
-	fi
-	@PATH=${TMPPATH} \
-	MACHINE=${TARGET} \
+.if !defined(FDT_DTS_FILE)
+.error "FDT_DTS_FILE must be specified!"
+.endif
+	@PATH=${TMPPATH} MACHINE=${TARGET} \
 	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
-	    ${FDT_DTS_FILE} \
-	    ${DTBOUTPUTPATH}/`basename ${FDT_DTS_FILE} .dts`
+	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
 
 ###############
 
