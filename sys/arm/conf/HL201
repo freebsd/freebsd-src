@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		HL201
 
 include "../at91/std.hl201"

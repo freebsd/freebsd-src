@@ -17,7 +17,8 @@
 #
 # $FreeBSD$
 
-# NOUNIVERSE:	disable building in make universe
+#NO_UNIVERSE
+
 ident		SAM9X25EK
 
 include "../at91/std.sam9x25ek"
