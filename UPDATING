@@ -9,6 +9,10 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140430:	p12	FreeBSD-SA-14:08.tcp
+
+        Fix TCP reassembly vulnerability. [SA-14:08]
+
 20140408:	p11	FreeBSD-SA-14:05.nfsserver
 			FreeBSD-SA-14:06.openssl
 	Fix deadlock in the NFS server. [SA-14:05]
