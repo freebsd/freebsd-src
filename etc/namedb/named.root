@@ -13,8 +13,8 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    Jan 3, 2013
-;       related version of root zone:   2013010300
+;       last update:    Mar 26, 2014
+;       related version of root zone:   2014032601
 ;
 ; formerly NS.INTERNIC.NET
 ;
@@ -31,6 +31,7 @@ B.ROOT-SERVERS.NET.      3600000      A     192.228.79.201
 ;
 .                        3600000      NS    C.ROOT-SERVERS.NET.
 C.ROOT-SERVERS.NET.      3600000      A     192.33.4.12
+C.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:2::C
 ;
 ; FORMERLY TERP.UMD.EDU
 ;
