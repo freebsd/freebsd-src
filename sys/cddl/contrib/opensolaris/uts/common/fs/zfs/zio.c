@@ -1022,8 +1022,9 @@ zio_shrink(zio_t *zio, uint64_t size)
  */
 
 static int
-zio_read_bp_init(zio_t *zio)
+zio_read_bp_init(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	if (BP_GET_COMPRESS(bp) != ZIO_COMPRESS_OFF &&
@@ -1048,8 +1049,9 @@ zio_read_bp_init(zio_t *zio)
 }
 
 static int
-zio_write_bp_init(zio_t *zio)
+zio_write_bp_init(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	spa_t *spa = zio->io_spa;
 	zio_prop_t *zp = &zio->io_prop;
 	enum zio_compress compress = zp->zp_compress;
@@ -1199,8 +1201,9 @@ zio_write_bp_init(zio_t *zio)
 }
 
 static int
-zio_free_bp_init(zio_t *zio)
+zio_free_bp_init(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	if (zio->io_child_type == ZIO_CHILD_LOGICAL) {
@@ -1283,8 +1286,10 @@ zio_taskq_member(zio_t *zio, zio_taskq_type_t q)
 }
 
 static int
-zio_issue_async(zio_t *zio)
+zio_issue_async(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
+
 	zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_FALSE);
 
 	return (ZIO_PIPELINE_STOP);
@@ -1352,7 +1357,7 @@ zio_execute(zio_t *zio)
 		}
 
 		zio->io_stage = stage;
-		rv = zio_pipeline[highbit(stage) - 1](zio);
+		rv = zio_pipeline[highbit(stage) - 1](&zio);
 
 		if (rv == ZIO_PIPELINE_STOP)
 			return;
@@ -1786,8 +1791,9 @@ zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, void *data)
 }
 
 static int
-zio_gang_assemble(zio_t *zio)
+zio_gang_assemble(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	ASSERT(BP_IS_GANG(bp) && zio->io_gang_leader == NULL);
@@ -1801,8 +1807,9 @@ zio_gang_assemble(zio_t *zio)
 }
 
 static int
-zio_gang_issue(zio_t *zio)
+zio_gang_issue(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	if (zio_wait_for_children(zio, ZIO_CHILD_GANG, ZIO_WAIT_DONE))
@@ -1936,8 +1943,9 @@ zio_write_gang_block(zio_t *pio)
  * writes) and as a result is mutually exclusive with dedup.
  */
 static int
-zio_nop_write(zio_t *zio)
+zio_nop_write(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 	blkptr_t *bp_orig = &zio->io_bp_orig;
 	zio_prop_t *zp = &zio->io_prop;
@@ -2008,8 +2016,9 @@ zio_ddt_child_read_done(zio_t *zio)
 }
 
 static int
-zio_ddt_read_start(zio_t *zio)
+zio_ddt_read_start(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	ASSERT(BP_GET_DEDUP(bp));
@@ -2051,8 +2060,9 @@ zio_ddt_read_start(zio_t *zio)
 }
 
 static int
-zio_ddt_read_done(zio_t *zio)
+zio_ddt_read_done(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 
 	if (zio_wait_for_children(zio, ZIO_CHILD_DDT, ZIO_WAIT_DONE))
@@ -2220,8 +2230,9 @@ zio_ddt_ditto_write_done(zio_t *zio)
 }
 
 static int
-zio_ddt_write(zio_t *zio)
+zio_ddt_write(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	spa_t *spa = zio->io_spa;
 	blkptr_t *bp = zio->io_bp;
 	uint64_t txg = zio->io_txg;
@@ -2332,8 +2343,9 @@ zio_ddt_write(zio_t *zio)
 ddt_entry_t *freedde; /* for debugging */
 
 static int
-zio_ddt_free(zio_t *zio)
+zio_ddt_free(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	spa_t *spa = zio->io_spa;
 	blkptr_t *bp = zio->io_bp;
 	ddt_t *ddt = ddt_select(spa, bp);
@@ -2358,8 +2370,9 @@ zio_ddt_free(zio_t *zio)
  * ==========================================================================
  */
 static int
-zio_dva_allocate(zio_t *zio)
+zio_dva_allocate(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	spa_t *spa = zio->io_spa;
 	metaslab_class_t *mc = spa_normal_class(spa);
 	blkptr_t *bp = zio->io_bp;
@@ -2401,16 +2414,19 @@ zio_dva_allocate(zio_t *zio)
 }
 
 static int
-zio_dva_free(zio_t *zio)
+zio_dva_free(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
+
 	metaslab_free(zio->io_spa, zio->io_bp, zio->io_txg, B_FALSE);
 
 	return (ZIO_PIPELINE_CONTINUE);
 }
 
 static int
-zio_dva_claim(zio_t *zio)
+zio_dva_claim(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	int error;
 
 	error = metaslab_claim(zio->io_spa, zio->io_bp, zio->io_txg);
@@ -2504,8 +2520,9 @@ zio_free_zil(spa_t *spa, uint64_t txg, blkptr_t *bp)
  * ==========================================================================
  */
 static int
-zio_vdev_io_start(zio_t *zio)
+zio_vdev_io_start(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	vdev_t *vd = zio->io_vd;
 	uint64_t align;
 	spa_t *spa = zio->io_spa;
@@ -2599,6 +2616,7 @@ zio_vdev_io_start(zio_t *zio)
 
 		if ((zio = vdev_queue_io(zio)) == NULL)
 			return (ZIO_PIPELINE_STOP);
+		*ziop = zio;
 
 		if (!vdev_accessible(vd, zio)) {
 			zio->io_error = SET_ERROR(ENXIO);
@@ -2622,8 +2640,9 @@ zio_vdev_io_start(zio_t *zio)
 }
 
 static int
-zio_vdev_io_done(zio_t *zio)
+zio_vdev_io_done(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	vdev_t *vd = zio->io_vd;
 	vdev_ops_t *ops = vd ? vd->vdev_ops : &vdev_mirror_ops;
 	boolean_t unexpected_error = B_FALSE;
@@ -2697,8 +2716,9 @@ zio_vsd_default_cksum_report(zio_t *zio, zio_cksum_report_t *zcr, void *ignored)
 }
 
 static int
-zio_vdev_io_assess(zio_t *zio)
+zio_vdev_io_assess(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	vdev_t *vd = zio->io_vd;
 
 	if (zio_wait_for_children(zio, ZIO_CHILD_VDEV, ZIO_WAIT_DONE))
@@ -2811,8 +2831,9 @@ zio_vdev_io_bypass(zio_t *zio)
  * ==========================================================================
  */
 static int
-zio_checksum_generate(zio_t *zio)
+zio_checksum_generate(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 	enum zio_checksum checksum;
 
@@ -2842,8 +2863,9 @@ zio_checksum_generate(zio_t *zio)
 }
 
 static int
-zio_checksum_verify(zio_t *zio)
+zio_checksum_verify(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	zio_bad_cksum_t info;
 	blkptr_t *bp = zio->io_bp;
 	int error;
@@ -2914,8 +2936,9 @@ zio_worst_error(int e1, int e2)
  * ==========================================================================
  */
 static int
-zio_ready(zio_t *zio)
+zio_ready(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	blkptr_t *bp = zio->io_bp;
 	zio_t *pio, *pio_next;
 
@@ -2972,8 +2995,9 @@ zio_ready(zio_t *zio)
 }
 
 static int
-zio_done(zio_t *zio)
+zio_done(zio_t **ziop)
 {
+	zio_t *zio = *ziop;
 	spa_t *spa = zio->io_spa;
 	zio_t *lio = zio->io_logical;
 	blkptr_t *bp = zio->io_bp;
