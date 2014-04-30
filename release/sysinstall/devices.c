@@ -81,6 +81,7 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"ipsd%d",	"IBM ServeRAID array",	176, 65538, 8, 4			},
     { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	147, 65538, 8, 4			},
     { DEVICE_TYPE_DISK, 	"aacd%d",	"Adaptec FSA RAID array", 151, 65538, 8, 4			},
+    { DEVICE_TYPE_DISK, 	"mfid%d",	"LSI MegaRAID SAS", 254, 65538, 8, 4			},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	9, 0, 64, 4				},
     { DEVICE_TYPE_NETWORK,	"an",		"Aironet 4500/4800 802.11 wireless adapter"			},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
