@@ -7,7 +7,7 @@ S=$1
 dts="$2"
 dtb_path=$3
 
-if [ -n "$dts" ]; then
+if [ -z "$dts" ]; then
     echo "No DTS specified"
     exit 1
 fi
