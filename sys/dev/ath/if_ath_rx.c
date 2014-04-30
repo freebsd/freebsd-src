@@ -335,9 +335,17 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	int32_t tsf_delta_bmiss;
 	int32_t tsf_remainder;
 	uint64_t tsf_beacon_target;
+	int tsf_intval;
 
 	tsf_beacon_old = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
 	tsf_beacon_old |= LE_READ_4(ni->ni_tstamp.data);
+
+#define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
+	tsf_intval = 1;
+	if (ni != NULL && ni->ni_intval > 0) {
+		tsf_intval = TU_TO_TSF(ni->ni_intval);
+	}
+#undef	TU_TO_TSF
 
 	/*
 	 * Call up first so subsequent work can use information
@@ -362,12 +370,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		tsf_delta = (long long) tsf_beacon - (long long) tsf_beacon_old;
 
-		/*
-		 * For now let's just assume the intval is 100TU, which is
-		 * 102400uS.  So, we can just calculate the remainder from
-		 * that.
-		 */
-		tsf_delta_bmiss = tsf_delta / 102400;
+		tsf_delta_bmiss = tsf_delta / tsf_intval;
 
 		/*
 		 * If our delta is greater than half the beacon interval,
@@ -375,25 +378,26 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		 * interval.  Ie, we're running really, really early
 		 * on the next beacon.
 		 */
-		if (tsf_delta % 102400 > 51200)
+		if (tsf_delta % tsf_intval > (tsf_intval / 2))
 			tsf_delta_bmiss ++;
 
 		tsf_beacon_target = tsf_beacon_old +
-		    (((unsigned long long) tsf_delta_bmiss) * 102400ULL);
+		    (((unsigned long long) tsf_delta_bmiss) * (long long) tsf_intval);
 
 		/*
-		 * The remainder using '%' is between 0 .. 102400-1.
+		 * The remainder using '%' is between 0 .. intval-1.
 		 * If we're actually running too fast, then the remainder
-		 * will be some large number just under 102400-1.
+		 * will be some large number just under intval-1.
 		 * So we need to look at whether we're running
 		 * before or after the target beacon interval
 		 * and if we are, modify how we do the remainder
 		 * calculation.
 		 */
 		if (tsf_beacon < tsf_beacon_target) {
-			tsf_remainder = -(102400 - ((tsf_beacon - tsf_beacon_old) % 102400));
+			tsf_remainder =
+			    -(tsf_intval - ((tsf_beacon - tsf_beacon_old) % tsf_intval));
 		} else {
-			tsf_remainder = (tsf_beacon - tsf_beacon_old) % 102400;
+			tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
 		}
 
 		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu, new_tsf=%llu, target_tsf=%llu, delta=%lld, bmiss=%d, remainder=%d\n",
@@ -409,7 +413,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		    __func__,
 		    (unsigned long long) tsf_beacon,
 		    (unsigned long long) nexttbtt,
-		    (int32_t) tsf_beacon - (int32_t) nexttbtt + 102400);
+		    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
 
 		if (sc->sc_syncbeacon &&
 		    ni == vap->iv_bss &&
