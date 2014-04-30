@@ -156,6 +156,17 @@
 	clc		creg, treg, (SZCAP * offs)(CHERI_REG_KDC)
 
 /*
+ * Macro to save the capability-cause register; we will never restore it as
+ * part of a context switch.
+ *
+ * XXXRW: Or should we?
+ */
+#define	SAVE_U_PCB_CHERIFRAME_CAPCAUSE(cause, base, treg)		\
+	PTR_ADDIU	treg, base, U_PCB_CHERIFRAME;			\
+	csd		cause, treg, (SZCAP * CHERIFRAME_OFF_CAPCAUSE)	\
+			    (CHERI_REG_KDC);				\
+
+/*
  * XXXRW: Update once the assembler supports reserved CHERI register names to
  * avoid hard-coding here.
  *
@@ -165,7 +176,7 @@
  *
  * XXXRW: Note hard-coding of UDC here.
  */
-#define	SAVE_U_PCB_CHERIFRAME(base, treg)				\
+#define	SAVE_U_PCB_CHERIFRAME(cause, base, treg)			\
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_SEC0, CHERIFRAME_OFF_C0, base, treg);\
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_C1, CHERIFRAME_OFF_C1, base, treg);\
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_C2, CHERIFRAME_OFF_C2, base, treg);\
@@ -193,7 +204,8 @@
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_RCC, CHERIFRAME_OFF_RCC, base, treg);\
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_C25, CHERIFRAME_OFF_C25, base, treg);\
 	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_IDC, CHERIFRAME_OFF_IDC, base, treg);\
-	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_EPCC, CHERIFRAME_OFF_PCC, base, treg)
+	SAVE_U_PCB_CHERIFRAME_CREG(CHERI_REG_EPCC, CHERIFRAME_OFF_PCC, base, treg);\
+	SAVE_U_PCB_CHERIFRAME_CAPCAUSE(cause, base, treg)
 
 #define	RESTORE_U_PCB_CHERIFRAME(base, treg)				\
 	RESTORE_U_PCB_CHERIFRAME_CREG(CHERI_REG_SEC0, CHERIFRAME_OFF_C0, base, treg);\

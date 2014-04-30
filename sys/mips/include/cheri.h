@@ -104,17 +104,16 @@ struct cheri_frame {
 	 * Program counter capability -- extracted from exception frame EPCC.
 	 */
 	struct chericap	cf_pcc;
+
+	/* Padded out non-capability registers. */
+	register_t	cf_capcause;	/* Updated only on CP2 exceptions. */
+	register_t	_cf_pad[3];
 };
 
 #ifdef _KERNEL
-CTASSERT(sizeof(struct cheri_frame) == (28 * CHERICAP_SIZE));
+/* 28 capability registers + capcause + padding. */
+CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
 #endif
-
-struct cheri_sigframe {
-	register_t		cs_capcause;
-	register_t		_cs_pad[3];
-	struct cheri_frame	cs_frame;
-};
 
 #ifdef _KERNEL
 /*

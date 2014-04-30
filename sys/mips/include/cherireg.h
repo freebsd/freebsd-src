@@ -172,8 +172,8 @@
 #define	CHERI_CR_SEC0	CHERI_CR_KR2C	/* Saved $c0 in exception handler. */
 
 /*
- * Offsets of registers in struct cheri_frame -- must match the definition in
- * cheri.h.
+ * Offsets of registers in struct cheri_frame when treated as an array of
+ * capabilities -- must match the definition in cheri.h.
  */
 #define	CHERIFRAME_OFF_C0	0
 #define	CHERIFRAME_OFF_C1	1
@@ -203,6 +203,14 @@
 #define	CHERIFRAME_OFF_C25	25
 #define	CHERIFRAME_OFF_IDC	26
 #define	CHERIFRAME_OFF_PCC	27	/* NB: Not register $c27! */
+
+/*
+ * Offset of the capability cause register in struct cheri_kframe -- must
+ * match the definition in cheri.h.  Note that although this constant is sized
+ * based on capabilities, in fact the cause register is 64-bit.  We may want
+ * to revisit this if we add more 64-bit values.
+ */
+#define	CHERIFRAME_OFF_CAPCAUSE	28
 
 /*
  * Offsets of registers in struct cheri_kframe -- must match the definition in

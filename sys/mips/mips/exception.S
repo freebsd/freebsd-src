@@ -505,7 +505,8 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This saves EPCC, matching the explicit EPC save above.
 	 */
-	SAVE_U_PCB_CHERIFRAME(k1, t0)
+	CGetCause	k0
+	SAVE_U_PCB_CHERIFRAME(k0, k1, t0)
 #endif
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
@@ -786,7 +787,8 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	/*
 	 * Note: This saves EPCC, matching the explicit EPC save above.
 	 */
-	SAVE_U_PCB_CHERIFRAME(k1, t0)
+	CGetCause	k0
+	SAVE_U_PCB_CHERIFRAME(k0, k1, t0)
 #endif
 	PTR_SUBU	sp, k1, CALLFRAME_SIZ  # switch to kernel SP
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP

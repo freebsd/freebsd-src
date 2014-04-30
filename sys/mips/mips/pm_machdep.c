@@ -94,7 +94,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigframe sf, *sfp;
 	vm_offset_t sp;
 #ifdef CPU_CHERI
-	struct cheri_sigframe csf;    /* XXXRW: May be too big for the stack? */
+	struct cheri_frame cf;    /* XXXRW: May be too big for the stack? */
 	size_t cp2_len;
 #endif
 	int sig;
@@ -133,10 +133,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 #ifdef CPU_CHERI
-	bzero(&csf, sizeof(csf));
+	bzero(&cf, sizeof(cf));
 
 	/* XXXRW: Preserve register tags. */
-	csf.cs_frame = td->td_pcb->pcb_cheriframe;
+	cf = td->td_pcb->pcb_cheriframe;
 
 	/* XXXRW: capability-cause register. */
 #endif
@@ -149,7 +149,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	} else
 		sp = (vm_offset_t)regs->sp;
 #ifdef CPU_CHERI
-	cp2_len = sizeof(csf);
+	cp2_len = sizeof(cf);
 	sp -= cp2_len;
 	sp &= ~(CHERICAP_SIZE - 1);
 	sf.sf_uc.uc_mcontext.mc_cp2state = sp;
@@ -197,7 +197,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 #ifdef CPU_CHERI
 	/* XXXRW: Preserve register tags. */
-	if (copyout(&csf, (void *)sf.sf_uc.uc_mcontext.mc_cp2state,
+	if (copyout(&cf, (void *)sf.sf_uc.uc_mcontext.mc_cp2state,
 	    sf.sf_uc.uc_mcontext.mc_cp2state_len) != 0) {
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
@@ -424,18 +424,18 @@ int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 #ifdef CPU_CHERI
-	struct cheri_sigframe csf;    /* XXXRW: May be too big for the stack? */
+	struct cheri_frame cf;    /* XXXRW: May be too big for the stack? */
 	int error;
 #endif
 	struct trapframe *tp;
 
 #ifdef CPU_CHERI
 	if ((void *)mcp->mc_cp2state != NULL) {
-		if (mcp->mc_cp2state_len != sizeof(csf)) {
+		if (mcp->mc_cp2state_len != sizeof(cf)) {
 			printf("%s: invalid length\n", __func__);
 			return (EINVAL);
 		}
-		error = copyin((void *)mcp->mc_cp2state, &csf, sizeof(csf));
+		error = copyin((void *)mcp->mc_cp2state, &cf, sizeof(cf));
 		if (error) {
 			printf("%s: invalid pointer\n", __func__);
 			return (EINVAL);
@@ -461,9 +461,9 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 #if 0
 #ifdef CPU_CHERI
 	if ((void *)mcp->mc_cp2state != NULL) {
-		/* Note: we intentionally don't restore 'capcause'. */
+		/* XXXRW: Note: we intentionally don't restore 'capcause'. */
 		/* XXXRW: Preserve register tags. */
-		td->td_pcb->pcb_cheriframe = csf.cs_frame;
+		td->td_pcb->pcb_cheriframe = cf;
 	}
 #endif
 #endif
