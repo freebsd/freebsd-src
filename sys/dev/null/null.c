@@ -46,15 +46,23 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 /* For use with destroy_dev(9). */
+static struct cdev *full_dev;
 static struct cdev *null_dev;
 static struct cdev *zero_dev;
-static struct cdev *full_dev;
 
 static d_write_t full_write;
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_ioctl_t zero_ioctl;
 static d_read_t zero_read;
+
+static struct cdevsw full_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_read =	zero_read,
+	.d_write =	full_write,
+	.d_ioctl =	zero_ioctl,
+	.d_name =	"full",
+};
 
 static struct cdevsw null_cdevsw = {
 	.d_version =	D_VERSION,
@@ -73,13 +81,6 @@ static struct cdevsw zero_cdevsw = {
 	.d_flags =	D_MMAP_ANON,
 };
 
-static struct cdevsw full_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_read =	zero_read,
-	.d_write =	full_write,
-	.d_ioctl =	zero_ioctl,
-	.d_name =	"full",
-};
 
 
 /* ARGSUSED */
