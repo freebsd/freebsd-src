@@ -116,7 +116,7 @@ struct td_sched {
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 static struct td_sched td_sched0;
-struct mtx sched_lock;
+static struct mtx sched_lock;
 
 static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */

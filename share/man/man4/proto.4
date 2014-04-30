@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2014
+.Dd April 29, 2014
 .Dt PROTO 4
 .Os
 .\"
@@ -34,7 +34,19 @@
 .Nd Driver for prototyping and H/W diagnostics
 .\"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device proto"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+proto_load="YES"
+.Ed
 .\"
 .Sh DESCRIPTION
 The
@@ -43,7 +55,7 @@ device driver attaches to PCI devices when no other device drivers are
 present and creates device special files for all resources associated
 with the device.
 The driver itself has no knowledge of the device it attaches to.
-Programs can open these device special files and peform register-level
+Programs can open these device special files and perform register-level
 reads and writes.
 As such, the
 .Nm
@@ -51,7 +63,7 @@ device driver is nothing but a conduit or gateway between user space
 programs and the hardware device.
 .Pp
 Examples for why this is useful include hardware diagnostics and prototyping.
-In both these use cases, it's far more convenient to develop and run the
+In both these use cases, it is far more convenient to develop and run the
 logic in user space.
 Especially hardware diagnostics requires a somewhat user-friendly interface
 and adequate reporting.
@@ -108,8 +120,9 @@ Since interrupts cannot be handled by the driver itself, they must be converted
 into signals and delivered to the program that has registered for interrupts.
 .Pp
 In order to test the transmission or reception of data, some means of doing
-direct memory access (DMA) by the device must be possible. This too much be
-under the control of the program. The details of how a program can setup and
+direct memory access (DMA) by the device must be possible.
+This too must be under the control of the program.
+The details of how a program can set up and
 initiate DMA still need to be fleshed out.
 .Pp
 Support for non-PCI devices has not been implemented yet.

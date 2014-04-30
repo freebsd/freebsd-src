@@ -191,8 +191,6 @@ static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
 
-static void vm_deactivate_cpu(struct vm *vm, int vcpuid);
-
 static void
 vcpu_cleanup(struct vm *vm, int i)
 {
@@ -1006,59 +1004,46 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 static int
 vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
-	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
-	int t, timo, spindown;
+	const char *wmesg;
+	int t;
 
 	vcpu = &vm->vcpu[vcpuid];
-	spindown = 0;
 
 	vcpu_lock(vcpu);
+	while (1) {
+		/*
+		 * Do a final check for pending NMI or interrupts before
+		 * really putting this thread to sleep. Also check for
+		 * software events that would cause this vcpu to wakeup.
+		 *
+		 * These interrupts/events could have happened after the
+		 * vcpu returned from VMRUN() and before it acquired the
+		 * vcpu lock above.
+		 */
+		if (vm->rendezvous_func != NULL || vm->suspend)
+			break;
+		if (vm_nmi_pending(vm, vcpuid))
+			break;
+		if (!intr_disabled) {
+			if (vm_extint_pending(vm, vcpuid) ||
+			    vlapic_pending_intr(vcpu->vlapic, NULL)) {
+				break;
+			}
+		}
 
-	/*
-	 * Do a final check for pending NMI or interrupts before
-	 * really putting this thread to sleep.
-	 *
-	 * These interrupts could have happened any time after we
-	 * returned from VMRUN() and before we grabbed the vcpu lock.
-	 */
-	if (vm->rendezvous_func == NULL &&
-	    !vm_nmi_pending(vm, vcpuid) &&
-	    (intr_disabled || !vlapic_pending_intr(vcpu->vlapic, NULL))) {
+		if (vlapic_enabled(vcpu->vlapic))
+			wmesg = "vmidle";
+		else
+			wmesg = "vmhalt";
+
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-		if (vlapic_enabled(vcpu->vlapic)) {
-			/*
-			 * XXX msleep_spin() is not interruptible so use the
-			 * 'timo' to put an upper bound on the sleep time.
-			 */
-			timo = hz;
-			msleep_spin(vcpu, &vcpu->mtx, "vmidle", timo);
-		} else {
-			/*
-			 * Spindown the vcpu if the APIC is disabled and it
-			 * had entered the halted state, but never spin
-			 * down the BSP.
-			 */
-			if (vcpuid != 0)
-				spindown = 1;
-		}
+		msleep_spin(vcpu, &vcpu->mtx, wmesg, 0);
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
 	vcpu_unlock(vcpu);
-
-	/*
-	 * Since 'vm_deactivate_cpu()' grabs a sleep mutex we must call it
-	 * outside the confines of the vcpu spinlock.
-	 */
-	if (spindown) {
-		*retu = true;
-		vmexit = vm_exitinfo(vm, vcpuid);
-		vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
-		vm_deactivate_cpu(vm, vcpuid);
-		VCPU_CTR0(vm, vcpuid, "spinning down cpu");
-	}
 
 	return (0);
 }
@@ -1211,16 +1196,45 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 }
 
 int
-vm_suspend(struct vm *vm)
+vm_suspend(struct vm *vm, enum vm_suspend_how how)
 {
+	int i;
 
-	if (atomic_cmpset_int(&vm->suspend, 0, 1)) {
-		VM_CTR0(vm, "virtual machine suspended");
-		return (0);
-	} else {
-		VM_CTR0(vm, "virtual machine already suspended");
+	if (how <= VM_SUSPEND_NONE || how >= VM_SUSPEND_LAST)
+		return (EINVAL);
+
+	if (atomic_cmpset_int(&vm->suspend, 0, how) == 0) {
+		VM_CTR2(vm, "virtual machine already suspended %d/%d",
+		    vm->suspend, how);
 		return (EALREADY);
 	}
+
+	VM_CTR1(vm, "virtual machine successfully suspended %d", how);
+
+	/*
+	 * Notify all active vcpus that they are now suspended.
+	 */
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (CPU_ISSET(i, &vm->active_cpus))
+			vcpu_notify_event(vm, i, false);
+	}
+
+	return (0);
+}
+
+void
+vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	KASSERT(vm->suspend > VM_SUSPEND_NONE && vm->suspend < VM_SUSPEND_LAST,
+	    ("vm_exit_suspended: invalid suspend type %d", vm->suspend));
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_SUSPENDED;
+	vmexit->u.suspended.how = vm->suspend;
 }
 
 int
@@ -1642,30 +1656,6 @@ vm_activate_cpu(struct vm *vm, int vcpuid)
 
 	VCPU_CTR0(vm, vcpuid, "activated");
 	CPU_SET_ATOMIC(vcpuid, &vm->active_cpus);
-}
-
-static void
-vm_deactivate_cpu(struct vm *vm, int vcpuid)
-{
-
-	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
-	    ("vm_deactivate_cpu: invalid vcpuid %d", vcpuid));
-	KASSERT(CPU_ISSET(vcpuid, &vm->active_cpus),
-	    ("vm_deactivate_cpu: vcpuid %d is not active", vcpuid));
-
-	VCPU_CTR0(vm, vcpuid, "deactivated");
-	CPU_CLR_ATOMIC(vcpuid, &vm->active_cpus);
-
-	/*
-	 * If a vcpu rendezvous is in progress then it could be blocked
-	 * on 'vcpuid' - unblock it before disappearing forever.
-	 */
-	mtx_lock(&vm->rendezvous_mtx);
-	if (vm->rendezvous_func != NULL) {
-		VCPU_CTR0(vm, vcpuid, "unblock rendezvous after deactivation");
-		wakeup(&vm->rendezvous_func);
-	}
-	mtx_unlock(&vm->rendezvous_mtx);
 }
 
 cpuset_t

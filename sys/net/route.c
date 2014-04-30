@@ -142,6 +142,7 @@ static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 
 static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
+static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
 
 /*
  * handler for net.my_fibnum
@@ -1401,6 +1402,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, info);
 
+		rt_setmetrics(info, rt);
+
 		/*
 		 * actually return a resultant rtentry and
 		 * give the caller a single reference.
@@ -1431,7 +1434,6 @@ bad:
 #undef ifpaddr
 #undef flags
 
-#define	senderr(e) { error = e; goto bad; }
 static int
 rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
     struct rtentry **ret_nrt, u_int fibnum)
@@ -1476,7 +1478,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 			free_ifa = 1;
 
 		if (error != 0)
-			senderr(error);
+			goto bad;
 	}
 
 	/* Check if outgoing interface has changed */
@@ -1489,7 +1491,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	if (info->rti_info[RTAX_GATEWAY] != NULL) {
 		error = rt_setgate(rt, rt_key(rt), info->rti_info[RTAX_GATEWAY]);
 		if (error != 0)
-			senderr(error);
+			goto bad;
 
 		rt->rt_flags &= ~RTF_GATEWAY;
 		rt->rt_flags |= (RTF_GATEWAY & info->rti_flags);
@@ -1507,6 +1509,8 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
 	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
 
+	rt_setmetrics(info, rt);
+
 	if (ret_nrt) {
 		*ret_nrt = rt;
 		RT_ADDREF(rt);
@@ -1517,8 +1521,20 @@ bad:
 		ifa_free(info->rti_ifa);
 	return (error);
 }
-#undef senderr
 
+static void
+rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt)
+{
+
+	if (info->rti_mflags & RTV_MTU)
+		rt->rt_mtu = info->rti_rmx->rmx_mtu;
+	if (info->rti_mflags & RTV_WEIGHT)
+		rt->rt_weight = info->rti_rmx->rmx_weight;
+	/* Kernel -> userland timebase conversion. */
+	if (info->rti_mflags & RTV_EXPIRE)
+		rt->rt_expire = info->rti_rmx->rmx_expire ?
+		    info->rti_rmx->rmx_expire - time_second + time_uptime : 0;
+}
 
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
