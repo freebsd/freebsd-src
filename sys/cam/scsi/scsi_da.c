@@ -90,7 +90,8 @@ typedef enum {
 	DA_FLAG_SCTX_INIT	= 0x200,
 	DA_FLAG_CAN_RC16	= 0x400,
 	DA_FLAG_PROBED		= 0x800,
-	DA_FLAG_DIRTY		= 0x1000
+	DA_FLAG_DIRTY		= 0x1000,
+	DA_FLAG_ANNOUNCED	= 0x2000
 } da_flags;
 
 typedef enum {
@@ -1658,10 +1659,18 @@ daasync(void *callback_arg, u_int32_t code,
 		     &error_code, &sense_key, &asc, &ascq)) {
 			if (asc == 0x2A && ascq == 0x09) {
 				xpt_print(ccb->ccb_h.path,
-				    "capacity data has changed\n");
+				    "Capacity data has changed\n");
+				softc->flags &= ~DA_FLAG_PROBED;
 				dareprobe(periph);
-			} else if (asc == 0x28 && ascq == 0x00)
+			} else if (asc == 0x28 && ascq == 0x00) {
+				softc->flags &= ~DA_FLAG_PROBED;
 				disk_media_changed(softc->disk, M_NOWAIT);
+			} else if (asc == 0x3F && ascq == 0x03) {
+				xpt_print(ccb->ccb_h.path,
+				    "INQUIRY data has changed\n");
+				softc->flags &= ~DA_FLAG_PROBED;
+				dareprobe(periph);
+			}
 		}
 		cam_periph_async(periph, code, path, arg);
 		break;
@@ -1891,7 +1900,7 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 
 	dadeletemethodchoose(softc, DA_DELETE_NONE);
 
-	if (bootverbose && (softc->flags & DA_FLAG_PROBED) == 0) {
+	if (bootverbose && (softc->flags & DA_FLAG_ANNOUNCED) == 0) {
 		char buf[80];
 		int i, sep;
 
@@ -1932,10 +1941,11 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 	 */
 	xpt_release_ccb(ccb);
 	softc->state = DA_STATE_NORMAL;
+	softc->flags |= DA_FLAG_PROBED;
 	daschedule(periph);
 	wakeup(&softc->disk->d_mediasize);
-	if ((softc->flags & DA_FLAG_PROBED) == 0) {
-		softc->flags |= DA_FLAG_PROBED;
+	if ((softc->flags & DA_FLAG_ANNOUNCED) == 0) {
+		softc->flags |= DA_FLAG_ANNOUNCED;
 		cam_periph_unhold(periph);
 	} else
 		cam_periph_release_locked(periph);
@@ -3190,7 +3200,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(csio->data_ptr, M_SCSIDA);
-		if (announce_buf[0] != '\0' && ((softc->flags & DA_FLAG_PROBED) == 0)) {
+		if (announce_buf[0] != '\0' &&
+		    ((softc->flags & DA_FLAG_ANNOUNCED) == 0)) {
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
@@ -3206,6 +3217,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");
 			}
+		}
+
+		/* We already probed the device. */
+		if (softc->flags & DA_FLAG_PROBED) {
+			daprobedone(periph, done_ccb);
+			return;
 		}
 
 		/* Ensure re-probe doesn't see old delete. */
@@ -3546,13 +3563,21 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		 */
 		else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
 		    asc == 0x2A && ascq == 0x09) {
-			xpt_print(periph->path, "capacity data has changed\n");
+			xpt_print(periph->path, "Capacity data has changed\n");
+			softc->flags &= ~DA_FLAG_PROBED;
 			dareprobe(periph);
 			sense_flags |= SF_NO_PRINT;
 		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
-		    asc == 0x28 && ascq == 0x00)
+		    asc == 0x28 && ascq == 0x00) {
+			softc->flags &= ~DA_FLAG_PROBED;
 			disk_media_changed(softc->disk, M_NOWAIT);
-		else if (sense_key == SSD_KEY_NOT_READY &&
+		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
+		    asc == 0x3F && ascq == 0x03) {
+			xpt_print(periph->path, "INQUIRY data has changed\n");
+			softc->flags &= ~DA_FLAG_PROBED;
+			dareprobe(periph);
+			sense_flags |= SF_NO_PRINT;
+		} else if (sense_key == SSD_KEY_NOT_READY &&
 		    asc == 0x3a && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 			softc->flags |= DA_FLAG_PACK_INVALID;
 			disk_media_gone(softc->disk, M_NOWAIT);
