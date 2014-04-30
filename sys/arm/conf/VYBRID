@@ -17,6 +17,7 @@
 #
 # $FreeBSD$
 
+ident		VYBRID
 include		"../freescale/vybrid/std.vybrid"
 
 makeoptions	MODULES_OVERRIDE=""
