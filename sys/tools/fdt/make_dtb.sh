@@ -7,6 +7,11 @@ S=$1
 dts="$2"
 dtb_path=$3
 
+if [ -n "$dts" ]; then
+    echo "No DTS specified"
+    exit 1
+fi
+
 for d in ${dts}; do
     dtb=${dtb_path}/`basename $d .dts`.dtb
     echo "converting $d -> $dtb"
