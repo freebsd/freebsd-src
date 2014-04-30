@@ -135,9 +135,10 @@ typedef enum zio_priority {
 	ZIO_PRIORITY_ASYNC_READ,	/* prefetch */
 	ZIO_PRIORITY_ASYNC_WRITE,	/* spa_sync() */
 	ZIO_PRIORITY_SCRUB,		/* asynchronous scrub/resilver reads */
+	ZIO_PRIORITY_TRIM,		/* free requests used for TRIM */
 	ZIO_PRIORITY_NUM_QUEUEABLE,
 
-	ZIO_PRIORITY_NOW		/* non-queued i/os (e.g. free) */
+	ZIO_PRIORITY_NOW		/* non-queued I/Os (e.g. ioctl) */
 } zio_priority_t;
 
 #define	ZIO_PIPELINE_CONTINUE		0x100
@@ -508,7 +509,7 @@ extern zio_t *zio_claim(zio_t *pio, spa_t *spa, uint64_t txg,
 
 extern zio_t *zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
     uint64_t offset, uint64_t size, zio_done_func_t *done, void *priv,
-    enum zio_flag flags);
+    zio_priority_t priority, enum zio_flag flags);
 
 extern zio_t *zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset,
     uint64_t size, void *data, int checksum,
