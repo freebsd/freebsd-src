@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2014
+.Dd April 30, 2014
 .Dt MBUF 9
 .Os
 .\"
@@ -71,6 +71,8 @@
 .Ss Mbuf allocation functions
 .Ft struct mbuf *
 .Fn m_get "int how" "short type"
+.Ft struct mbuf *
+.Fn m_get2 "int size" "int how" "short type" "int flags"
 .Ft struct mbuf *
 .Fn m_getm "struct mbuf *orig" "int len" "int how" "short type"
 .Ft struct mbuf *
@@ -528,6 +530,10 @@ The functions are:
 A function version of
 .Fn MGET
 for non-critical paths.
+.It Fn m_get2 size how type flags
+Allocate an
+.Vt mbuf
+with enough space to hold specified amount of data.
 .It Fn m_getm orig len how type
 Allocate
 .Fa len
