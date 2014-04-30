@@ -131,14 +131,14 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    (void *)sf.sf_uc.uc_mcontext.mc_fpregs,
 		    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
 	}
+	/* XXXRW: sf.sf_uc.uc_mcontext.sr seems never to be set? */
+	sf.sf_uc.uc_mcontext.cause = regs->cause;
 
 #ifdef CPU_CHERI
 	bzero(&cf, sizeof(cf));
 
 	/* XXXRW: Preserve register tags. */
 	cf = td->td_pcb->pcb_cheriframe;
-
-	/* XXXRW: capability-cause register. */
 #endif
 
 	/* Allocate and validate space for the signal handler context. */

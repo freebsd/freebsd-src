@@ -58,6 +58,7 @@ typedef struct	__mcontext {
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	register_t	mc_fpc_eir;	/* fp exception instruction reg */
 	void		*mc_tls;	/* pointer to TLS area */
+	__register_t	cause;		/* cause register */
 
         /*
          * Optional externally referenced storage for coprocessors.  Modeled
@@ -74,9 +75,9 @@ typedef struct	__mcontext {
          * differently.
          */
 #if (defined(__mips_n32) || defined(__mips_n64))
-        int             xxx[4];         /* XXX reserved */
+        int             xxx[2];         /* XXX reserved */
 #else
-        int             xxx[6];         /* XXX reserved */
+        int             xxx[5];         /* XXX reserved */
 #endif
 } mcontext_t;
 
