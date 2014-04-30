@@ -85,7 +85,7 @@ static struct cdevsw zero_cdevsw = {
 
 /* ARGSUSED */
 static int
-full_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
+full_write(struct cdev *dev __unused, struct uio *uio __unused, int flags __unused)
 {
 
 	return (ENOSPC);
