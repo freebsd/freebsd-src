@@ -108,13 +108,26 @@ static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int slottime = ath_hal_getslottime(sc->sc_ah);
+	u_int slottime;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	slottime = ath_hal_getslottime(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &slottime, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return error;
 }
 
 static int

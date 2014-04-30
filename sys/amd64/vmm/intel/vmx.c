@@ -1797,6 +1797,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		retu = false;
 		ecx = vmxctx->guest_rcx;
+		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -1815,6 +1816,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
+		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
+		    ecx, (uint64_t)edx << 32 | eax);
 		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {

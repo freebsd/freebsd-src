@@ -128,6 +128,17 @@ extern	void ath_start_task(void *arg, int npending);
 extern void ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq);
 
 /*
+ * Power state tracking.
+ */
+extern	void _ath_power_setpower(struct ath_softc *sc, int power_state, const char *file, int line);
+extern	void _ath_power_set_power_state(struct ath_softc *sc, int power_state, const char *file, int line);
+extern	void _ath_power_restore_power_state(struct ath_softc *sc, const char *file, int line);
+
+#define	ath_power_setpower(sc, ps) _ath_power_setpower(sc, ps, __FILE__, __LINE__)
+#define	ath_power_set_power_state(sc, ps) _ath_power_set_power_state(sc, ps, __FILE__, __LINE__)
+#define	ath_power_restore_power_state(sc) _ath_power_restore_power_state(sc, __FILE__, __LINE__)
+
+/*
  * Kick the frame TX task.
  */
 static inline void

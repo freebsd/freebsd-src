@@ -166,10 +166,22 @@ ath_calcrxfilter(struct ath_softc *sc)
 	/* XXX ic->ic_monvaps != 0? */
 	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
+
+	/*
+	 * Only listen to all beacons if we're scanning.
+	 *
+	 * Otherwise we only really need to hear beacons from
+	 * our own BSSID.
+	 */
 	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_opmode == IEEE80211_M_IBSS ||
-	    sc->sc_swbmiss || sc->sc_scanning)
-		rfilt |= HAL_RX_FILTER_BEACON;
+	    ic->ic_opmode == IEEE80211_M_IBSS || sc->sc_swbmiss) {
+		if (sc->sc_do_mybeacon && ! sc->sc_scanning) {
+			rfilt |= HAL_RX_FILTER_MYBEACON;
+		} else { /* scanning, non-mybeacon chips */
+			rfilt |= HAL_RX_FILTER_BEACON;
+		}
+	}
+
 	/*
 	 * NB: We don't recalculate the rx filter when
 	 * ic_protmode changes; otherwise we could do
@@ -317,6 +329,23 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	uint64_t tsf_beacon_old, tsf_beacon;
+	uint64_t nexttbtt;
+	int64_t tsf_delta;
+	int32_t tsf_delta_bmiss;
+	int32_t tsf_remainder;
+	uint64_t tsf_beacon_target;
+	int tsf_intval;
+
+	tsf_beacon_old = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon_old |= LE_READ_4(ni->ni_tstamp.data);
+
+#define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
+	tsf_intval = 1;
+	if (ni != NULL && ni->ni_intval > 0) {
+		tsf_intval = TU_TO_TSF(ni->ni_intval);
+	}
+#undef	TU_TO_TSF
 
 	/*
 	 * Call up first so subsequent work can use information
@@ -328,14 +357,79 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		/* update rssi statistics for use by the hal */
 		/* XXX unlocked check against vap->iv_bss? */
 		ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
+
+		tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
+		tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
+
+		nexttbtt = ath_hal_getnexttbtt(sc->sc_ah);
+
+		/*
+		 * Let's calculate the delta and remainder, so we can see
+		 * if the beacon timer from the AP is varying by more than
+		 * a few TU.  (Which would be a huge, huge problem.)
+		 */
+		tsf_delta = (long long) tsf_beacon - (long long) tsf_beacon_old;
+
+		tsf_delta_bmiss = tsf_delta / tsf_intval;
+
+		/*
+		 * If our delta is greater than half the beacon interval,
+		 * let's round the bmiss value up to the next beacon
+		 * interval.  Ie, we're running really, really early
+		 * on the next beacon.
+		 */
+		if (tsf_delta % tsf_intval > (tsf_intval / 2))
+			tsf_delta_bmiss ++;
+
+		tsf_beacon_target = tsf_beacon_old +
+		    (((unsigned long long) tsf_delta_bmiss) * (long long) tsf_intval);
+
+		/*
+		 * The remainder using '%' is between 0 .. intval-1.
+		 * If we're actually running too fast, then the remainder
+		 * will be some large number just under intval-1.
+		 * So we need to look at whether we're running
+		 * before or after the target beacon interval
+		 * and if we are, modify how we do the remainder
+		 * calculation.
+		 */
+		if (tsf_beacon < tsf_beacon_target) {
+			tsf_remainder =
+			    -(tsf_intval - ((tsf_beacon - tsf_beacon_old) % tsf_intval));
+		} else {
+			tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
+		}
+
+		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu, new_tsf=%llu, target_tsf=%llu, delta=%lld, bmiss=%d, remainder=%d\n",
+		    __func__,
+		    (unsigned long long) tsf_beacon_old,
+		    (unsigned long long) tsf_beacon,
+		    (unsigned long long) tsf_beacon_target,
+		    (long long) tsf_delta,
+		    tsf_delta_bmiss,
+		    tsf_remainder);
+
+		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu, nexttbtt=%llu, delta=%d\n",
+		    __func__,
+		    (unsigned long long) tsf_beacon,
+		    (unsigned long long) nexttbtt,
+		    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
+
 		if (sc->sc_syncbeacon &&
-		    ni == vap->iv_bss && vap->iv_state == IEEE80211_S_RUN) {
+		    ni == vap->iv_bss &&
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
+			DPRINTF(sc, ATH_DEBUG_BEACON,
+			    "%s: syncbeacon=1; syncing\n",
+			    __func__);
 			/*
 			 * Resync beacon timers using the tsf of the beacon
 			 * frame we just received.
 			 */
 			ath_beacon_config(sc, vap);
+			sc->sc_syncbeacon = 0;
 		}
+
+
 		/* fall thru... */
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
@@ -911,6 +1005,10 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
 	ngood = 0;
 	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
@@ -1064,6 +1162,13 @@ rx_proc_next:
 			ath_tx_kick(sc);
 	}
 #undef PA2DESC
+
+	/*
+	 * Put the hardware to sleep again if we're done with it.
+	 */
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
 
 	/*
 	 * If we hit the maximum number of frames in this round,
