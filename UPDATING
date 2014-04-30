@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140430:	p2	FreeBSD-SA-14:07.devfs
+			FreeBSD-SA-14:08.tcp
+			FreeBSD-SA-14:09.openssl
+
+	Fix devfs rules not applied by default for jails. [SA-14:07]
+
+	Fix TCP reassembly vulnerability. [SA-14:08]
+
+	Fix OpenSSL use-after-free vulnerability. [SA-14:09]
+
 20140408:	p1	FreeBSD-SA-14:05.nfsserver
 			FreeBSD-SA-14:06.openssl
 	Fix deadlock in the NFS server. [SA-14:05]
