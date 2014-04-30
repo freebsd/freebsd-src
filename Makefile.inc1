@@ -1830,9 +1830,6 @@ DTBOUTPUTPATH= ${.CURDIR}
 # Build 'standalone' Device Tree Blob
 #
 builddtb:
-.if !defined(FDT_DTS_FILE)
-.error "FDT_DTS_FILE must be specified!"
-.endif
 	@PATH=${TMPPATH} MACHINE=${TARGET} \
 	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
 	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
