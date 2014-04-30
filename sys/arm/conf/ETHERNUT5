@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		ETHERNUT5
 
 include "../at91/std.ethernut5"
