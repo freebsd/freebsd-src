@@ -479,6 +479,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		}
 		offsets_read += nread;
 	}
+	free(buf, M_GEOM);
 	DPRINTF(("%s: done reading offsets\n", gp->name));
 	mtx_init(&sc->last_mtx, "geom_uzip cache", NULL, MTX_DEF);
 	sc->last_blk = -1;
