@@ -160,10 +160,15 @@
  * part of a context switch.
  *
  * XXXRW: Or should we?
+ *
+ * The immediate field in csd is only 8 bits (signed), wheres the immediate
+ * field in [d]addiu is 16 bits (unsigned), so we do all of the offset
+ * calculation in the daddiu.
  */
 #define	SAVE_U_PCB_CHERIFRAME_CAPCAUSE(cause, base, treg)		\
-	PTR_ADDIU	treg, base, U_PCB_CHERIFRAME;			\
-	csd		cause, treg, (SZCAP * CHERIFRAME_OFF_CAPCAUSE)	\
+	PTR_ADDIU	treg, base, (SZCAP * CHERIFRAME_OFF_CAPCAUSE) + \
+			U_PCB_CHERIFRAME;				\
+	csd		cause, treg, 0\
 			    (CHERI_REG_KDC);				\
 
 /*
