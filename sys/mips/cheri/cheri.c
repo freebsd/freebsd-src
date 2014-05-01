@@ -316,14 +316,14 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
-	CHERI_CGETCAUSE(cause);
+	/* XXXRW: awkward and unmaintainable pointer construction. */
+	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
+	cause = cheriframe->cf_capcause;
 	exccode = (cause >> 8) & 0xff;
 	regnum = cause & 0x1f;
 	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
 	    regnum, cheri_exccode_string(exccode));
 
-	/* XXXRW: awkward and unmaintainable pointer construction. */
-	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
 
 	/* C0 */
 	s = intr_disable();
