@@ -61,6 +61,8 @@ int cold = 1;
 long realmem = 0;
 
 #define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
+vm_paddr_t physmap[PHYSMAP_SIZE];
+u_int physmap_idx;
 
 void
 bzero(void *buf, size_t len)
@@ -286,9 +288,9 @@ typedef struct {
 
 static int
 add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    int *physmap_idxp)
+    u_int *physmap_idxp)
 {
-	int i, insert_idx, physmap_idx;
+	u_int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 
@@ -353,7 +355,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
-    int *physmap_idx)
+    u_int *physmap_idx)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -445,10 +447,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 void
 initarm(struct arm64_bootparams *abp)
 {
-	vm_paddr_t physmap[PHYSMAP_SIZE];
 	struct efi_map_header *efihdr;
 	vm_offset_t lastaddr;
-	int physmap_idx;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
 	int i;
@@ -466,10 +466,6 @@ initarm(struct arm64_bootparams *abp)
 	/* Find the address to start allocating from */
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 
-	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
-	    lastaddr - KERNBASE);
-
 	/* Load the physical memory ranges */
 	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
@@ -483,6 +479,11 @@ initarm(struct arm64_bootparams *abp)
 		printf("%llx - %llx\n", physmap[i], physmap[i + 1]);
 	}
 	printf("Total = %llx\n", mem_len);
+
+	/* Bootstrap enough of pmap  to enter the kernel proper */
+	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
+	    lastaddr - KERNBASE);
+
 
 	printf("End initarm\n");
 }
