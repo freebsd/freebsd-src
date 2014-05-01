@@ -245,12 +245,9 @@
 			sri-cambridge,devname = "de4bsw";
 		};
 
-		avgen@0x7f00a000 {
-			compatible = "sri-cambridge,avgen";
-			reg = <0x7f00a000 0x14>;
-			sri-cambridge,width = <4>;
-			sri-cambridge,fileio = "rw";
-			sri-cambridge,devname = "berirom";
+		berirom@0x7f00a000 {
+			compatible = "sri-cambridge,berirom";
+			reg = <0x7f00a000 0x1000>;
 		};
 
 		avgen@0x7f00c000 {

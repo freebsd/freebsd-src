@@ -55,6 +55,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
+device		berirom
 device		crypto
 device		cryptodev
 device		ether
