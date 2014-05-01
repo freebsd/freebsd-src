@@ -105,7 +105,12 @@ struct cheri_frame {
 	 */
 	struct chericap	cf_pcc;
 
-	/* Padded out non-capability registers. */
+	/*
+	 * Padded out non-capability registers.
+	 *
+	 * XXXRW: The comment below on only updating for CP2 exceptions is
+	 * incorrect, but should be made correct.
+	 */
 	register_t	cf_capcause;	/* Updated only on CP2 exceptions. */
 	register_t	_cf_pad[3];
 };
