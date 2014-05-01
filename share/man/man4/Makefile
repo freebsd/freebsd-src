@@ -70,6 +70,7 @@ MAN=	aac.4 \
 	axe.4 \
 	axge.4 \
 	bce.4 \
+	berirom.4 \
 	bfe.4 \
 	bge.4 \
 	${_bhyve.4} \
