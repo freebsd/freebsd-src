@@ -321,25 +321,12 @@ altera_avgen_attach(struct altera_avgen_softc *sc, const char *str_fileio,
     const char *str_mmapio, const char *str_devname, int devunit)
 {
 	device_t dev = sc->avg_dev;
-	char devname[SPECNAMELEN + 1];
 	int error;
 
 	error = altera_avgen_process_options(sc, str_fileio, str_mmapio,
 	    str_devname, devunit);
 	if (error)
 		return (error);
-
-	/* Select a device name. */
-	if (str_devname != NULL) {
-		if (devunit != -1)
-			(void)snprintf(devname, sizeof(devname), "%s%d",
-			    str_devname, devunit);
-		else
-			(void)snprintf(devname, sizeof(devname), "%s",
-			    str_devname);
-	} else
-		snprintf(devname, sizeof(devname), "%s%d", "avgen",
-		    sc->avg_unit);
 
 	if (rman_get_size(sc->avg_res) >= PAGE_SIZE || str_mmapio != NULL) {
 		if (rman_get_size(sc->avg_res) % PAGE_SIZE != 0) {
