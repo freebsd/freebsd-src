@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 
 #include <geom/geom.h>
 #include <net/zlib.h>
@@ -45,19 +44,19 @@ FEATURE(geom_uzip, "GEOM uzip read-only compressed disks support");
 
 #undef GEOM_UZIP_DEBUG
 #ifdef GEOM_UZIP_DEBUG
-#define DPRINTF(a)	printf a
+#define	DPRINTF(a)	printf a
 #else
-#define DPRINTF(a)
+#define	DPRINTF(a)
 #endif
 
 static MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 
-#define UZIP_CLASS_NAME	"UZIP"
+#define	UZIP_CLASS_NAME	"UZIP"
 
 /*
  * Maximum allowed valid block size (to prevent foot-shooting)
  */
-#define MAX_BLKSZ	(MAXPHYS - MAXPHYS / 1000 - 12)
+#define	MAX_BLKSZ	(MAXPHYS - MAXPHYS / 1000 - 12)
 
 /*
  * Integer values (block size, number of blocks, offsets)
@@ -65,7 +64,7 @@ static MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
  * and in native order in struct g_uzip_softc
  */
 
-#define CLOOP_MAGIC_LEN 128
+#define	CLOOP_MAGIC_LEN	128
 static char CLOOP_MAGIC_START[] = "#!/bin/sh\n";
 
 struct cloop_header {
@@ -89,12 +88,15 @@ struct g_uzip_softc {
 static void
 g_uzip_softc_free(struct g_uzip_softc *sc, struct g_geom *gp)
 {
+
 	if (gp != NULL) {
 		printf("%s: %d requests, %d cached\n",
 		    gp->name, sc->req_total, sc->req_cached);
 	}
-	if (sc->offsets != NULL)
+	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UZIP);
+		sc->offsets = NULL;
+	}
 	mtx_destroy(&sc->last_mtx);
 	free(sc->last_buf, M_GEOM_UZIP);
 	free(sc, M_GEOM_UZIP);
@@ -106,12 +108,14 @@ z_alloc(void *nil, u_int type, u_int size)
 	void *ptr;
 
 	ptr = malloc(type * size, M_GEOM_UZIP, M_NOWAIT);
-	return ptr;
+
+	return (ptr);
 }
 
 static void
 z_free(void *nil, void *ptr)
 {
+
 	free(ptr, M_GEOM_UZIP);
 }
 
@@ -258,10 +262,8 @@ g_uzip_start(struct bio *bp)
 
 	start_blk = bp->bio_offset / sc->blksz;
 	end_blk = (bp->bio_offset + bp->bio_length + sc->blksz - 1) / sc->blksz;
-	KASSERT(start_blk < sc->nblocks,
-		("start_blk out of range"));
-	KASSERT(end_blk <= sc->nblocks,
-		("end_blk out of range"));
+	KASSERT(start_blk < sc->nblocks, ("start_blk out of range"));
+	KASSERT(end_blk <= sc->nblocks, ("end_blk out of range"));
 
 	sc->req_total++;
 	if (start_blk + 1 == end_blk) {
@@ -331,7 +333,7 @@ g_uzip_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 
-	g_trace(G_T_TOPOLOGY, "g_uzip_orphan(%p/%s)", cp, cp->provider->name);
+	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, cp->provider->name);
 	g_topology_assert();
 
 	gp = cp->geom;
@@ -351,7 +353,7 @@ g_uzip_access(struct g_provider *pp, int dr, int dw, int de)
 	KASSERT (cp != NULL, ("g_uzip_access but no consumer"));
 
 	if (cp->acw + dw > 0)
-		return EROFS;
+		return (EROFS);
 
 	return (g_access(cp, dr, dw, de));
 }
@@ -362,7 +364,7 @@ g_uzip_spoiled(struct g_consumer *cp)
 	struct g_geom *gp;
 
 	gp = cp->geom;
-	g_trace(G_T_TOPOLOGY, "g_uzip_spoiled(%p/%s)", cp, gp->name);
+	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, gp->name);
 	g_topology_assert();
 
 	g_uzip_softc_free(gp->softc, gp);
@@ -382,7 +384,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_uzip_softc *sc;
 
-	g_trace(G_T_TOPOLOGY, "g_uzip_taste(%s,%s)", mp->name, pp->name);
+	g_trace(G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
 	/* Skip providers that are already open for writing. */
@@ -418,7 +420,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		goto err;
 	header = (struct cloop_header *) buf;
 	if (strncmp(header->magic, CLOOP_MAGIC_START,
-		    sizeof(CLOOP_MAGIC_START) - 1) != 0) {
+	    sizeof(CLOOP_MAGIC_START) - 1) != 0) {
 		DPRINTF(("%s: no CLOOP magic\n", gp->name));
 		goto err;
 	}
@@ -447,7 +449,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (sizeof(struct cloop_header) +
 	    total_offsets * sizeof(uint64_t) > pp->mediasize) {
 		printf("%s: media too small for %u blocks\n",
-		       gp->name, sc->nblocks);
+		    gp->name, sc->nblocks);
 		goto err;
 	}
 	sc->offsets = malloc(
@@ -487,8 +489,8 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	pp2 = g_new_providerf(gp, "%s", gp->name);
 	pp2->sectorsize = 512;
 	pp2->mediasize = (off_t)sc->nblocks * sc->blksz;
-        pp2->stripesize = pp->stripesize;
-        pp2->stripeoffset = pp->stripeoffset;
+	pp2->stripesize = pp->stripesize;
+	pp2->stripeoffset = pp->stripeoffset;
 	g_error_provider(pp2, 0);
 	g_access(cp, -1, 0, 0);
 
@@ -496,8 +498,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	    gp->name,
 	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
-	printf("%s: %u x %u blocks\n",
-	       gp->name, sc->nblocks, sc->blksz);
+	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
 	return (gp);
 
 err:
@@ -512,6 +513,7 @@ err:
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
+
 	return (NULL);
 }
 
@@ -520,7 +522,7 @@ g_uzip_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 	struct g_provider *pp;
 
-	g_trace(G_T_TOPOLOGY, "g_uzip_destroy_geom(%s, %s)", mp->name, gp->name);
+	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, gp->name);
 	g_topology_assert();
 
 	if (gp->softc == NULL) {
@@ -537,6 +539,7 @@ g_uzip_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	g_uzip_softc_free(gp->softc, gp);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
+
 	return (0);
 }
 
