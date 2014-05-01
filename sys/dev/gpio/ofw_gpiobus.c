@@ -33,16 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
-#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
-
-#include <machine/resource.h>
 
 #include "gpio_if.h"
 #include "gpiobus_if.h"
