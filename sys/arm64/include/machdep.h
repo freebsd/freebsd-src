@@ -35,6 +35,9 @@ struct arm64_bootparams {
 	uint64_t	kern_delta;
 };
 
+extern vm_paddr_t physmap[];
+extern u_int physmap_idx;
+
 void initarm(struct arm64_bootparams *);
 
 #endif /* _MACHINE_MACHDEP_H_ */
