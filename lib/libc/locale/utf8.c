@@ -203,8 +203,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		errno = EILSEQ;
 		return ((size_t)-1);
 	}
-	if ((wch >= 0xd800 && wch <= 0xdfff) ||
-	    wch == 0xfffe || wch == 0xffff) {
+	if (wch >= 0xd800 && wch <= 0xdfff) {
 		/*
 		 * Malformed input; invalid code points.
 		 */
