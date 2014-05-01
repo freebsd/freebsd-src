@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/limits.h>
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
@@ -147,7 +148,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	if (ct->mon < 1 || ct->mon > 12 || ct->day < 1 ||
 	    ct->day > days_in_month(year, ct->mon) ||
 	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 ||
-	    ct->year > 2037) {		/* time_t overflow */
+	    (sizeof(time_t) == 4 && year > 2037)) {	/* time_t overflow */
 		if (ct_debug)
 			printf(" = EINVAL\n");
 		return (EINVAL);
