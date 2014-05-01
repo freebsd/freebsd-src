@@ -243,7 +243,7 @@ beforedepend: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${_link}
+${OBJS}: ${.OBJDIR}/${_link}
 .endif
 .endfor
 
@@ -257,18 +257,23 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
-${_ILINKS}:
-	@case ${.TARGET} in \
+.for _link in ${_ILINKS}
+.PHONY: ${_link}
+${_link}: ${.OBJDIR}/${_link}
+
+${.OBJDIR}/${_link}:
+	@case ${.TARGET:T} in \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
 		path=${SYSDIR} ;; \
 	*) \
-		path=${SYSDIR}/${.TARGET}/include ;; \
+		path=${SYSDIR}/${.TARGET:T}/include ;; \
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
-	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -sf $$path ${.TARGET}
+	${ECHO} ${.TARGET:T} "->" $$path ; \
+	ln -sf $$path ${.TARGET:T}
+.endfor
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
