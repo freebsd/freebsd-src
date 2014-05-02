@@ -186,7 +186,6 @@ SUBDIR=	\
 	libiconv \
 	libmbpool \
 	libmchain \
-	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -516,7 +515,6 @@ _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
 .endif
-_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -720,7 +718,6 @@ _iwnfw=		iwnfw
 .endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
-_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
