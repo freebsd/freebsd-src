@@ -168,7 +168,7 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
-#define NKPML4E		1		/* number of kernel PML4 slots */
+#define NKPML4E		4		/* number of kernel PML4 slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
@@ -178,19 +178,26 @@
  * NDMPML4E is the number of PML4 entries that are used to implement the
  * direct map.  It must be a power of two.
  */
-#define	NDMPML4E	2
+#define	NDMPML4E	8
 
 /*
  * The *PDI values control the layout of virtual memory.  The starting address
  * of the direct map, which is controlled by DMPML4I, must be a multiple of
  * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
  */
-#define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
+#ifdef XEN
+/* Xen reserves entries 256 - 271 */
+#define	PML4PML4I	272		/* Index of recursive pml4 mapping */
+#else /* Native */
 
-#define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
+#define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
+#endif
+
 #define        KPML4BASE       (NPML4EPG-NKPML4E) /* KVM at highest addresses */
 
+#define	DMPML4I		rounddown(KPML4BASE - NDMPML4E, NDMPML4E) /* Below KVM */
+
+#define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
 /*
@@ -239,14 +246,9 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
  * the corresponding pde that in turn maps it.
  */
 
-#ifdef XEN
-pt_entry_t *vtopte_hold(vm_offset_t, void *);
-void vtopte_release(vm_offset_t, void *);
-#else
 pt_entry_t *vtopte(vm_offset_t);
-#endif
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
+#ifndef XEN
 #define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
 #define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
 #define	pte_store(ptep, pte) do { \
@@ -255,6 +257,9 @@ pt_entry_t *vtopte(vm_offset_t);
 #define	pte_clear(ptep)			pte_store(ptep, 0)
 
 #define	pde_store(pdep, pde)		pte_store(pdep, pde)
+#endif
+
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 #if defined(XEN)
 #include <machine/atomic.h>
@@ -265,16 +270,6 @@ pt_entry_t *vtopte(vm_offset_t);
 
 #include <sys/systm.h> /* XXX: for KASSERT() remove, when done */
 
-#define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
-#define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
-
-#define VTOM(va) xpmap_ptom(VTOP(va))
-vm_paddr_t pmap_kextract_ma(vm_offset_t);
-#define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
-
-vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
-
-void    pmap_kenter_ma(vm_offset_t va, vm_paddr_t pa);
 void    pmap_map_readonly(struct pmap *pmap, vm_offset_t va, int len);
 void    pmap_map_readwrite(struct pmap *pmap, vm_offset_t va, int len);
 

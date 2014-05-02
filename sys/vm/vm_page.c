@@ -323,7 +323,7 @@ vm_page_startup(vm_offset_t vaddr)
 			high_water = phys_avail[i + 1];
 	}
 
-#ifdef XEN
+#if defined(XEN) && !defined(__amd64__)
 	low_water = 0;
 #endif	
 
@@ -379,11 +379,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * included in a crash dump.  Since the message buffer is accessed
 	 * through the direct map, they are not automatically included.
 	 */
-#if defined(XEN)
-	pa = VTOP(msgbufp->msg_ptr);
-#else /* native */
 	pa = DMAP_TO_PHYS((vm_offset_t)msgbufp->msg_ptr);
-#endif
 	last_pa = pa + round_page(msgbufsize);
 	while (pa < last_pa) {
 		dump_add_page(pa);

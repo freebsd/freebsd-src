@@ -39,7 +39,6 @@ struct segment_descriptor; /* Forward declaration */
 #include <sys/types.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
@@ -100,6 +99,17 @@ void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
 #define SH_PD_SET_VA        1
 #define SH_PD_SET_VA_MA     2
 #define SH_PD_SET_VA_CLEAR  3
+
+#define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
+#define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
+
+#define VTOM(va) xpmap_ptom(VTOP(va))
+
+vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
+vm_paddr_t pmap_kextract_ma(vm_offset_t);
+void    pmap_kenter_ma(vm_offset_t va, vm_paddr_t pa);
+
+#define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
 
 struct pmap;
 void pd_set(struct pmap *pmap, int ptepindex, vm_paddr_t val, int type);
@@ -206,6 +216,30 @@ do { 								\
 #define	PT_UPDATES_FLUSH() do {				        \
         xen_flush_queue();                                      \
 } while (/*CONSTCOND*/0)
+
+#define	pte_store(ptep, pte) do { \
+		PT_SET_VA_MA((vm_offset_t)(ptep), (vm_paddr_t)(pte), true); \
+	} while (0)
+#define	pte_clear(ptep) do { \
+	PT_CLEAR_VA((vm_offset_t)(ptep), true); \
+	} while (0)
+
+#define	pde_store(pdep, pde) pte_store(pdep, pde)
+
+static inline pt_entry_t pte_load_store(pt_entry_t *ptep, pt_entry_t npte)
+{
+	pt_entry_t pte;
+
+	pte = *ptep;
+	
+	pte_store(ptep, npte);
+	/* XXX: SMP race! */
+
+	return pte;
+}
+
+#define pte_load_clear(ptep) pte_load_store(ptep, 0);
+
 
 static __inline vm_paddr_t
 xpmap_mtop(vm_paddr_t mpa)

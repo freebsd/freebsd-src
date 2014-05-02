@@ -38,6 +38,8 @@
 #ifndef __ASSEMBLY__
 
 #ifdef SMP
+extern int gdtset;
+
 #include <sys/time.h> /* XXX for pcpu.h */
 #include <sys/pcpu.h> /* XXX for PCPU_GET */
 static inline int 

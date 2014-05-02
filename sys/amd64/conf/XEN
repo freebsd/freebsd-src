@@ -7,7 +7,6 @@ cpu		HAMMER
 ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm hptmv ida malo mps mwl nve sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 nooptions 	PREEMPTION		# Enable kernel thread preemption
@@ -58,7 +57,7 @@ nooptions 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 nooptions 	VERBOSE_SYSINIT
 
 nooptions	NATIVE
-option		XEN
+options		XEN
 nodevice	atpic
 nodevice	isa
 nodevice uart_ns8250
@@ -77,6 +76,7 @@ nooptions 	SMP			# Symmetric MultiProcessor Kernel
 nodevice		atkbdc		# AT keyboard controller
 nodevice		atkbd		# AT keyboard
 nodevice		psm		# PS/2 mouse
+nodevice		xn		# XXX: Remove me - dom0 disaster.
 device		pci
 
 #device		kbdmux		# keyboard multiplexer
