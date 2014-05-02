@@ -453,7 +453,6 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	enum vm_suspend_how how;
 
 	how = vmexit->u.suspended.how;
-	assert(how == VM_SUSPEND_RESET || how == VM_SUSPEND_POWEROFF);
 
 	fbsdrun_deletecpu(ctx, *pvcpu);
 
@@ -470,10 +469,17 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	}
 	pthread_mutex_unlock(&resetcpu_mtx);
 
-	if (how == VM_SUSPEND_RESET)
+	switch (how) {
+	case VM_SUSPEND_RESET:
 		exit(0);
-	if (how == VM_SUSPEND_POWEROFF)
+	case VM_SUSPEND_POWEROFF:
 		exit(1);
+	case VM_SUSPEND_HALT:
+		exit(2);
+	default:
+		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
+		exit(100);
+	}
 	return (0);	/* NOTREACHED */
 }
 
