@@ -867,10 +867,19 @@ struct ath_softc {
 				    int status);
 
 	/*
-	 * powersave state tracking.
+	 * Powersave state tracking.
+	 *
+	 * target/cur powerstate is the chip power state.
+	 * target selfgen state is the self-generated frames
+	 *   state.  The chip can be awake but transmitted frames
+	 *   can have the PWRMGT bit set to 1 so the destination
+	 *   thinks the node is asleep.
 	 */
 	HAL_POWER_MODE		sc_target_powerstate;
+	HAL_POWER_MODE		sc_target_selfgen_state;
+
 	HAL_POWER_MODE		sc_cur_powerstate;
+
 	int			sc_powersave_refcnt;
 };
 
