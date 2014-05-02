@@ -275,6 +275,10 @@ struct rt_addrinfo {
 	sizeof(long)		:				\
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
 
+#define	sa_equal(a, b) (	\
+    (((struct sockaddr *)(a))->sa_len == ((struct sockaddr *)(b))->sa_len) && \
+    (bcmp((a), (b), ((struct sockaddr *)(b))->sa_len) == 0))
+
 #ifdef _KERNEL
 
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \

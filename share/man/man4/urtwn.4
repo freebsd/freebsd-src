@@ -14,12 +14,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2013
+.Dd April 25, 2014
 .Dt URTWN 4
 .Os
 .Sh NAME
 .Nm urtwn
-.Nd Realtek RTL8188CU/RTL8192CU USB IEEE 802.11b/g/n wireless network device
+.Nd Realtek RTL8188CU/RTL8188EU/RTL8192CU USB IEEE 802.11b/g/n wireless network device
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -50,11 +50,11 @@ legal.realtek.license_ack=1
 The
 .Nm
 driver supports USB 2.0 wireless network devices based on Realtek
-RTL8188CUS, RTL8188CE-VAU, RTL8188RU and RTL8192CU chipsets.
+RTL8188CUS, RTL8188CE-VAU, RTL8188EUS, RTL8188RU and RTL8192CU chipsets.
 .Pp
-The RTL8188CUS is a highly integrated 802.11n adapter that combines
-a MAC, a 1T1R capable baseband and an RF in a single chip.
-It operates in the 2GHz spectrum only.
+The RTL8188CUS and RTL8188EUS are highly integrated 802.11n adapter that
+combine a MAC, a 1T1R capable baseband and an RF in a single chip.
+They operate in the 2GHz spectrum only.
 The RTL8188RU is a high-power variant of the RTL8188CUS.
 The RTL8188CE-VAU is a PCI Express Mini Card adapter that attaches
 to the USB interface.
@@ -90,6 +90,8 @@ The following adapters should work:
 .It Netgear WNA1000M
 .It Realtek RTL8192CU
 .It Realtek RTL8188CUS
+.It TP-LINK TL-WN723N v3
+.It TP-LINK TL-WN725N v2
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):

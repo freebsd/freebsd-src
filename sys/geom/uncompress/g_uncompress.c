@@ -169,7 +169,7 @@ g_uncompress_done(struct bio *bp)
 	struct g_geom *gp;
 	struct bio *bp2;
 	uint32_t start_blk, i;
-	off_t pos, upos;
+	off_t iolen, pos, upos;
 	size_t bsize;
 	int err;
 
@@ -210,6 +210,7 @@ g_uncompress_done(struct bio *bp)
 	 */
 	start_blk = bp2->bio_offset / sc->blksz;
 	bsize = pp2->sectorsize;
+	iolen = bp->bio_completed;
 	pos = sc->offsets[start_blk] % bsize;
 	upos = 0;
 
@@ -237,6 +238,13 @@ g_uncompress_done(struct bio *bp)
 			upos += ulen;
 			bp2->bio_completed += ulen;
 			continue;
+		}
+
+		if (len > iolen) {
+			DPRINTF(("%s: done: early termination: len (%jd) > "
+			    "iolen (%jd)\n",
+			    gp->name, (intmax_t)len, (intmax_t)iolen));
+			break;
 		}
 
 		mtx_lock(&sc->last_mtx);
@@ -292,6 +300,7 @@ g_uncompress_done(struct bio *bp)
 		mtx_unlock(&sc->last_mtx);
 
 		pos += len;
+		iolen -= len;
 		upos += ulen;
 		bp2->bio_completed += ulen;
 	}
@@ -380,10 +389,18 @@ g_uncompress_start(struct bio *bp)
 	bsize = pp2->sectorsize;
 
 	bp2->bio_done = g_uncompress_done;
-	bp2->bio_offset = rounddown(sc->offsets[start_blk],bsize);
-	bp2->bio_length = roundup(sc->offsets[end_blk],bsize) -
-	    bp2->bio_offset;
-	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UNCOMPRESS, M_NOWAIT);
+	bp2->bio_offset = rounddown(sc->offsets[start_blk], bsize);
+	while (1) {
+		bp2->bio_length = roundup(sc->offsets[end_blk], bsize) -
+		    bp2->bio_offset;
+		if (bp2->bio_length < MAXPHYS)
+			break;
+
+		end_blk--;
+		DPRINTF((
+		    "%s: bio_length (%jd) > MAXPHYS: lowering end_blk to %u\n",
+		    gp->name, (intmax_t)bp2->bio_length, end_blk));
+	}
 
 	DPRINTF(("%s: start %jd + %jd -> %ju + %ju -> %jd + %jd\n",
 	    gp->name,
@@ -392,6 +409,7 @@ g_uncompress_start(struct bio *bp)
 	    (uintmax_t)sc->offsets[end_blk] - sc->offsets[start_blk],
 	    (intmax_t)bp2->bio_offset, (intmax_t)bp2->bio_length));
 
+	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UNCOMPRESS, M_NOWAIT);
 	if (bp2->bio_data == NULL) {
 		g_destroy_bio(bp2);
 		g_io_deliver(bp, ENOMEM);

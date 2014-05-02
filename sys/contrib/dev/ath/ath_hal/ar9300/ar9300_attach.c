@@ -2934,6 +2934,10 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         p_cap->halRxUsingLnaMixing = AH_TRUE;
     }
 
+    /*
+     * AR5416 and later NICs support MYBEACON filtering.
+     */
+    p_cap->halRxDoMyBeacon = AH_TRUE;
 
 #if ATH_WOW_OFFLOAD
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {

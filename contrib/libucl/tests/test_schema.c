@@ -58,10 +58,10 @@ read_stdin (char **buf)
 }
 
 static bool
-perform_test (ucl_object_t *schema, ucl_object_t *obj,
+perform_test (const ucl_object_t *schema, const ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *valid, *data, *description;
+	const const ucl_object_t *valid, *data, *description;
 	bool match;
 
 	data = ucl_object_find_key (obj, "data");
@@ -86,11 +86,11 @@ perform_test (ucl_object_t *schema, ucl_object_t *obj,
 }
 
 static int
-perform_tests (ucl_object_t *obj)
+perform_tests (const ucl_object_t *obj)
 {
 	struct ucl_schema_error err;
 	ucl_object_iter_t iter = NULL;
-	ucl_object_t *schema, *tests, *description, *test;
+	const ucl_object_t *schema, *tests, *description, *test;
 
 	if (obj->type != UCL_OBJECT) {
 		fprintf (stdout, "Bad test case\n");
@@ -124,7 +124,8 @@ main (int argc, char **argv)
 {
 	char *buf = NULL;
 	struct ucl_parser *parser;
-	ucl_object_t *obj = NULL, *elt;
+	ucl_object_t *obj = NULL;
+	const ucl_object_t *elt;
 	ucl_object_iter_t iter = NULL;
 	int ret = 0;
 

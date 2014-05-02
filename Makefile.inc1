@@ -15,7 +15,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
-#	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
+#	-DWITHOUT_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
@@ -247,8 +247,8 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
-		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -258,7 +258,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD MK_TESTS=no
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -276,8 +276,8 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -294,7 +294,7 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
 .if ${MK_CDDL} == "no"
-WMAKEENV+=	NO_CTF=1
+WMAKEENV+=	MK_CTF=no
 .endif
 
 .if defined(CROSS_TOOLCHAIN_PREFIX)
@@ -400,14 +400,14 @@ LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		-DCOMPAT_32BIT \
 		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
-		-DNO_CTF \
+		MK_CTF=no \
 		-DNO_LINT \
 		MK_TESTS=no
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		MK_MAN=no MK_INFO=no MK_HTML=no
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
-		${IMAKE_INSTALL}
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
+		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
 .endif
 
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
@@ -557,7 +557,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-	    -DNO_PROFILE MK_TESTS=no libraries
+	    MK_PROFILE=no  MK_TESTS=no libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -609,7 +609,7 @@ build32:
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF \
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no \
 	    -DEARLY_BUILD build-tools
 .endfor
 	cd ${.CURDIR}; \
@@ -1602,9 +1602,9 @@ ${_lib}__PL: .PHONY .MAKE
 		cd ${.CURDIR}/${_lib} && \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
-		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all && \
-		${MAKE} MK_TESTS=no -DNO_PROFILE -DNO_PIC \
+		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1833,7 +1833,7 @@ builddtb:
 		echo "ERROR: FDT_DTS_FILE must be specified!"; \
 		exit 1; \
 	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE} ]; then \
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${TARGET}/${FDT_DTS_FILE} ]; then \
 		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
 			exist!"; \
 		exit 1;	\
@@ -1843,6 +1843,7 @@ builddtb:
 			directory"; \
 	fi
 	@PATH=${TMPPATH} \
+	MACHINE=${TARGET} \
 	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
 	    ${FDT_DTS_FILE} \
 	    ${DTBOUTPUTPATH}/`basename ${FDT_DTS_FILE} .dts`
@@ -1858,7 +1859,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
-	MK_MAN=no MK_NLS=no -DNO_PROFILE \
+	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}

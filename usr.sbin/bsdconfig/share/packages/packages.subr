@@ -838,7 +838,7 @@ f_package_add()
 
 	{ # Verify and initialize device media if-defined
 		f_media_verify &&
-		f_device_init media &&
+		f_device_init device_media &&
 		f_index_initialize packages/INDEX
 	} || return $FAILURE
 
@@ -923,7 +923,7 @@ f_package_add()
 	# Done with the deps? Try to load the real m'coy.
 	#
 
-	f_package_extract media "$name" "$depended"
+	f_package_extract device_media "$name" "$depended"
 	retval=$?
 	if [ $retval -ne $SUCCESS ]; then
 		status=$(( $status | $retval ))
@@ -944,9 +944,11 @@ f_package_extract()
 {
 	local funcname=f_package_extract
 	local device="$1" name="$2" depended="$3"
+	local devname=
 
+	$device get name devname
 	f_dprintf "$funcname: device=[%s] name=[%s] depended=[%s]" \
-	          "$device" "$name" "$depended"
+	          "$devname" "$name" "$depended"
 
 	# Check to make sure it's not already there
 	local varpkg mark=
@@ -971,7 +973,7 @@ f_package_extract()
 	f_quietly mkdir -p -m 1777 "$tmpdir"
 
 	local path device_type
-	device_$device get type device_type
+	$device get type device_type
 	case "$name" in
 	*/*) path="$name" ;;
 	*)
@@ -1000,7 +1002,7 @@ f_package_extract()
 		fi
 	done
 	[ "$found" ] && f_dprintf "$funcname: found path=[%s] dev=[%s]" \
-	                          "$path" "$device"
+	                          "$path" "$devname"
 
 	local alert=f_show_msg no_confirm=
 	f_getvar $VAR_NO_CONFIRM no_confirm
@@ -1008,15 +1010,13 @@ f_package_extract()
 
 	if [ ! "$found" ]; then
 		f_dprintf "$funcname: No such %s file on %s device" \
-	                  "$path" "$device"
+	                  "$path" "$devname"
 		$alert "$msg_unable_to_fetch_package_from_selected_media" \
 		       "$name"
 		[ "$no_confirm" ] && sleep 2
 		return $FAILURE
 	fi
 
-	local devname=
-	f_struct device_$device get name devname
 	if [ "$depended" ]; then
 		f_show_info "$msg_adding_package_as_a_dependency_from_media" \
 		            "$name" "$devname"
@@ -1064,7 +1064,7 @@ f_package_delete()
 
 	{ # Verify and initialize device media if-defined
 		f_media_verify &&
-		f_device_init media &&
+		f_device_init device_media &&
 		f_index_initialize packages/INDEX
 	} || return $FAILURE
 

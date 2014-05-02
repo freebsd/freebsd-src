@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/imx/imx51_ccmvar.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -723,12 +723,7 @@ imx_sdhci_attach(device_t dev)
 	 */
 	WR4(sc, SDHC_WTMK_LVL, 0x08800880);
 
-	/* XXX get imx6 clock frequency from CCM */
-	if (sc->hwtype == HWTYPE_USDHC) {
-		sc->baseclk_hz = 200000000;
-	} else if (sc->hwtype == HWTYPE_ESDHC) {
-		sc->baseclk_hz = imx51_get_clock(IMX51CLK_PERCLK_ROOT);
-	}
+	sc->baseclk_hz = imx_ccm_sdhci_hz();
 
 	/*
 	 * If the slot is flagged with the non-removable property, set our flag

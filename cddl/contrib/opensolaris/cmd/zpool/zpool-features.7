@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2014
+.Dd April 23, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -187,6 +187,23 @@ This feature is
 .Sy active
 while there are any filesystems, volumes, or snapshots which were created
 after enabling this feature.
+.It Sy filesystem_limits
+.Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:filesystem_limits"
+.It GUID Ta com.joyent:filesystem_limits
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+This feature enables filesystem and snapshot limits.
+These limits can be used
+to control how many filesystems and/or snapshots can be created at the point in
+the tree on which the limits are set.
+.Pp
+This feature is
+.Sy active
+once either of the limit properties has been
+set on a dataset.
+Once activated the feature is never deactivated.
 .It Sy lz4_compress
 .Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:lz4_compress"
 .It GUID Ta org.illumos:lz4_compress

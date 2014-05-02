@@ -695,8 +695,6 @@ passin:
 		int bad;
 
 		bad = 1;
-#define	sa_equal(a1, a2)						\
-	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
@@ -706,7 +704,6 @@ passin:
 		}
 		KASSERT(ifa != NULL, ("%s: ifa not found for lle %p",
 		    __func__, lle));
-#undef sa_equal
 
 		ia6 = (struct in6_ifaddr *)ifa;
 		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {

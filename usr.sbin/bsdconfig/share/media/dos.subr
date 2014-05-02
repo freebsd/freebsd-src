@@ -61,26 +61,20 @@ f_media_set_dos()
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_show_msg "$msg_no_dos_primary_partitions_found"
 		return $FAILURE
-	elif [ $ndevs -gt 1 ]; then
+	elif [ $ndevs -eq 1 ]; then
+		f_struct_copy $devs device_media
+	else
+		local dev
 		local title="$msg_choose_a_dos_partition"
 		local prompt="$msg_please_select_dos_partition"
-		local hline=""
+		local hline=
 
-		local dev retval
 		dev=$( f_device_menu \
 			"$title" "$prompt" "$hline" $DEVICE_TYPE_DOS \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
-		retval=$?
-		[ "$dev" ] || return $FAILURE
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $FAILURE
 
-		f_device_find "$dev" $DEVICE_TYPE_DOS devs
-		[ "$devs" ] || return $FAILURE
-		dev="${devs%%[$IFS]*}"
-
-		f_struct_copy device_$dev device_media
-		[ $retval -eq $SUCCESS ] || return $FAILURE
-	else
-		f_struct_copy device_$devs device_media
+		f_struct_copy "$dev" device_media
 	fi
 
 	f_struct device_media || return $FAILURE
@@ -96,7 +90,7 @@ f_media_init_dos()
 	local funcname=f_media_init_dos
 	local dev="$1" devname err
 
-	device_$dev get devname devname || return $FAILURE
+	$dev get devname devname || return $FAILURE
 	f_dprintf "Init routine called for DOS device. devname=[%s]" \
 	          "$devname"
 
@@ -132,9 +126,11 @@ f_media_init_dos()
 f_media_get_dos()
 {
 	local dev="$1" file="$2" probe_type="$3"
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_dos: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
 	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }

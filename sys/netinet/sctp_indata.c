@@ -828,7 +828,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 {
 	struct mbuf *op_err;
 	char msg[SCTP_DIAG_INFO_LEN];
-
 	uint32_t cum_ackp1, prev_tsn, post_tsn;
 	struct sctp_tmit_chunk *at, *prev, *next;
 
@@ -1017,6 +1016,24 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					*abort_flag = 1;
 					return;
 				}
+				if ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) !=
+				    (prev->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+					/*
+					 * Huh, need the same ordering here,
+					 * they must be the same.
+					 */
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Prev check - Gak, Evil plot, U-bit not constant\n");
+					snprintf(msg, sizeof(msg),
+					    "Expect U-bit=%d for TSN=%8.8x, got U-bit=%d",
+					    (prev->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0,
+					    chk->rec.data.TSN_seq,
+					    (chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_7;
+					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					*abort_flag = 1;
+					return;
+				}
 				if ((prev->rec.data.rcv_flags & SCTP_DATA_UNORDERED) == 0 &&
 				    chk->rec.data.stream_seq !=
 				    prev->rec.data.stream_seq) {
@@ -1121,6 +1138,24 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    chk->rec.data.TSN_seq,
 					    chk->rec.data.stream_number,
 					    chk->rec.data.stream_seq);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_12;
+					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					*abort_flag = 1;
+					return;
+				}
+				if ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) !=
+				    (next->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+					/*
+					 * Huh, need the same ordering here,
+					 * they must be the same.
+					 */
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Next check - Gak, Evil plot, U-bit not constant\n");
+					snprintf(msg, sizeof(msg),
+					    "Expect U-bit=%d for TSN=%8.8x, got U-bit=%d",
+					    (next->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0,
+					    chk->rec.data.TSN_seq,
+					    (chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0);
 					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_12;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
@@ -1682,6 +1717,9 @@ failed_pdapi_express_del:
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_15;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 				*abort_flag = 1;
+				if (last_chunk) {
+					*m = NULL;
+				}
 				return (0);
 			} else {
 				if (sctp_does_tsn_belong_to_reasm(asoc, control->sinfo_tsn)) {
@@ -1698,6 +1736,9 @@ failed_pdapi_express_del:
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_16;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					*abort_flag = 1;
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1724,6 +1765,9 @@ failed_pdapi_express_del:
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_17;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					*abort_flag = 1;
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1787,6 +1831,9 @@ failed_pdapi_express_del:
 			} else {
 				sctp_queue_data_to_stream(stcb, asoc, control, abort_flag);
 				if (*abort_flag) {
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1799,7 +1846,9 @@ failed_pdapi_express_del:
 			 * the assoc is now gone and chk was put onto the
 			 * reasm queue, which has all been freed.
 			 */
-			*m = NULL;
+			if (last_chunk) {
+				*m = NULL;
+			}
 			return (0);
 		}
 	}
