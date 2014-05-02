@@ -142,6 +142,7 @@ MAN=	aac.4 \
 	filemon.4 \
 	firewire.4 \
 	fpa.4 \
+	full.4 \
 	fwe.4 \
 	fwip.4 \
 	fwohci.4 \
@@ -226,7 +227,6 @@ MAN=	aac.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
-	${_lindev.4} \
 	${_linux.4} \
 	lmc.4 \
 	lo.4 \
@@ -790,7 +790,6 @@ _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
-_lindev.4=	lindev.4
 _linux.4=	linux.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
@@ -819,7 +818,6 @@ _wpi.4=		wpi.4
 _xen.4=		xen.4
 _xnb.4=		xnb.4
 
-MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"

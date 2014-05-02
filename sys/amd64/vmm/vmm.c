@@ -142,6 +142,8 @@ struct vm {
 
 	int		suspend;
 	volatile cpuset_t suspended_cpus;
+
+	volatile cpuset_t halted_cpus;
 };
 
 static int vmm_initialized;
@@ -1006,9 +1008,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int t;
+	int t, vcpu_halted, vm_halted;
+
+	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
+	vcpu_halted = 0;
+	vm_halted = 0;
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1032,10 +1038,26 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			}
 		}
 
-		if (vlapic_enabled(vcpu->vlapic))
-			wmesg = "vmidle";
-		else
+		/*
+		 * Some Linux guests implement "halt" by having all vcpus
+		 * execute HLT with interrupts disabled. 'halted_cpus' keeps
+		 * track of the vcpus that have entered this state. When all
+		 * vcpus enter the halted state the virtual machine is halted.
+		 */
+		if (intr_disabled) {
 			wmesg = "vmhalt";
+			VCPU_CTR0(vm, vcpuid, "Halted");
+			if (!vcpu_halted) {
+				vcpu_halted = 1;
+				CPU_SET_ATOMIC(vcpuid, &vm->halted_cpus);
+			}
+			if (CPU_CMP(&vm->halted_cpus, &vm->active_cpus) == 0) {
+				vm_halted = 1;
+				break;
+			}
+		} else {
+			wmesg = "vmidle";
+		}
 
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
@@ -1043,7 +1065,14 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
+
+	if (vcpu_halted)
+		CPU_CLR_ATOMIC(vcpuid, &vm->halted_cpus);
+
 	vcpu_unlock(vcpu);
+
+	if (vm_halted)
+		vm_suspend(vm, VM_SUSPEND_HALT);
 
 	return (0);
 }

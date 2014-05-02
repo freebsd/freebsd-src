@@ -971,6 +971,8 @@ rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 	int stopping = 0;
 	int lastb;
 
+	KASSERT(m != NULL, ("%s: mask needs to be specified", __func__));
+
 	/*
 	 * rn_search_m is sort-of-open-coded here. We cannot use the
 	 * function because we need to keep track of the last node seen.
@@ -994,11 +996,11 @@ rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 	/*
 	 * Two cases: either we stepped off the end of our mask,
 	 * in which case last == rn, or we reached a leaf, in which
-	 * case we want to start from the last node we looked at.
-	 * Either way, last is the node we want to start from.
+	 * case we want to start from the leaf.
 	 */
-	rn = last;
-	lastb = rn->rn_bit;
+	if (rn->rn_bit >= 0)
+		rn = last;
+	lastb = last->rn_bit;
 
 	/* printf("rn %p, lastb %d\n", rn, lastb);*/
 

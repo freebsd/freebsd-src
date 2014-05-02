@@ -145,6 +145,7 @@ usage(int code)
 		"       -m: memory size in MB\n"
 		"       -w: ignore unimplemented MSRs\n"
 		"       -x: local apic is in x2APIC mode\n"
+		"       -Y: disable MPtable generation\n"
 		"       -U: uuid\n",
 		progname, (int)strlen(progname), "");
 
@@ -453,7 +454,6 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	enum vm_suspend_how how;
 
 	how = vmexit->u.suspended.how;
-	assert(how == VM_SUSPEND_RESET || how == VM_SUSPEND_POWEROFF);
 
 	fbsdrun_deletecpu(ctx, *pvcpu);
 
@@ -470,10 +470,17 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	}
 	pthread_mutex_unlock(&resetcpu_mtx);
 
-	if (how == VM_SUSPEND_RESET)
+	switch (how) {
+	case VM_SUSPEND_RESET:
 		exit(0);
-	if (how == VM_SUSPEND_POWEROFF)
+	case VM_SUSPEND_POWEROFF:
 		exit(1);
+	case VM_SUSPEND_HALT:
+		exit(2);
+	default:
+		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
+		exit(100);
+	}
 	return (0);	/* NOTREACHED */
 }
 
@@ -610,7 +617,7 @@ int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
-	int max_vcpus;
+	int max_vcpus, mptgen;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
@@ -620,8 +627,9 @@ main(int argc, char *argv[])
 	gdb_port = 0;
 	guest_ncpus = 1;
 	memsize = 256 * MB;
+	mptgen = 1;
 
-	while ((c = getopt(argc, argv, "abehwxAHIPWp:g:c:s:m:l:U:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxAHIPWYp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -687,6 +695,9 @@ main(int argc, char *argv[])
 		case 'x':
 			x2apic_mode = 1;
 			break;
+		case 'Y':
+			mptgen = 0;
+			break;
 		case 'h':
 			usage(0);			
 		default:
@@ -746,7 +757,11 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	mptable_build(ctx, guest_ncpus);
+	if (mptgen) {
+		error = mptable_build(ctx, guest_ncpus);
+		if (error)
+			exit(1);
+	}
 
 	error = smbios_build(ctx);
 	assert(error == 0);

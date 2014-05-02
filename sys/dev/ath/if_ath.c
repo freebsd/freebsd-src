@@ -305,6 +305,55 @@ _ath_power_setpower(struct ath_softc *sc, int power_state, const char *file, int
 	    power_state != sc->sc_cur_powerstate) {
 		sc->sc_cur_powerstate = power_state;
 		ath_hal_setpower(sc->sc_ah, power_state);
+
+		/*
+		 * If the NIC is force-awake, then set the
+		 * self-gen frame state appropriately.
+		 *
+		 * If the nic is in network sleep or full-sleep,
+		 * we let the above call leave the self-gen
+		 * state as "sleep".
+		 */
+		if (sc->sc_cur_powerstate == HAL_PM_AWAKE &&
+		    sc->sc_target_selfgen_state != HAL_PM_AWAKE) {
+			ath_hal_setselfgenpower(sc->sc_ah,
+			    sc->sc_target_selfgen_state);
+		}
+	}
+}
+
+/*
+ * Set the current self-generated frames state.
+ *
+ * This is separate from the target power mode.  The chip may be
+ * awake but the desired state is "sleep", so frames sent to the
+ * destination has PWRMGT=1 in the 802.11 header.  The NIC also
+ * needs to know to set PWRMGT=1 in self-generated frames.
+ */
+void
+_ath_power_set_selfgen(struct ath_softc *sc, int power_state, const char *file, int line)
+{
+
+	ATH_LOCK_ASSERT(sc);
+
+	DPRINTF(sc, ATH_DEBUG_PWRSAVE, "%s: (%s:%d) state=%d, refcnt=%d\n",
+	    __func__,
+	    file,
+	    line,
+	    power_state,
+	    sc->sc_target_selfgen_state);
+
+	sc->sc_target_selfgen_state = power_state;
+
+	/*
+	 * If the NIC is force-awake, then set the power state.
+	 * Network-state and full-sleep will already transition it to
+	 * mark self-gen frames as sleeping - and we can't
+	 * guarantee the NIC is awake to program the self-gen frame
+	 * setting anyway.
+	 */
+	if (sc->sc_cur_powerstate == HAL_PM_AWAKE) {
+		ath_hal_setselfgenpower(sc->sc_ah, power_state);
 	}
 }
 
@@ -334,6 +383,16 @@ _ath_power_set_power_state(struct ath_softc *sc, int power_state, const char *fi
 	if (power_state != sc->sc_cur_powerstate) {
 		ath_hal_setpower(sc->sc_ah, power_state);
 		sc->sc_cur_powerstate = power_state;
+
+		/*
+		 * Adjust the self-gen powerstate if appropriate.
+		 */
+		if (sc->sc_cur_powerstate == HAL_PM_AWAKE &&
+		    sc->sc_target_selfgen_state != HAL_PM_AWAKE) {
+			ath_hal_setselfgenpower(sc->sc_ah,
+			    sc->sc_target_selfgen_state);
+		}
+
 	}
 }
 
@@ -366,6 +425,16 @@ _ath_power_restore_power_state(struct ath_softc *sc, const char *file, int line)
 		sc->sc_cur_powerstate = sc->sc_target_powerstate;
 		ath_hal_setpower(sc->sc_ah, sc->sc_target_powerstate);
 	}
+
+	/*
+	 * Adjust the self-gen powerstate if appropriate.
+	 */
+	if (sc->sc_cur_powerstate == HAL_PM_AWAKE &&
+	    sc->sc_target_selfgen_state != HAL_PM_AWAKE) {
+		ath_hal_setselfgenpower(sc->sc_ah,
+		    sc->sc_target_selfgen_state);
+	}
+
 }
 
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
@@ -1734,6 +1803,7 @@ ath_resume(struct ath_softc *sc)
 
 	/* Ensure we set the current power state to on */
 	ATH_LOCK(sc);
+	ath_power_setselfgen(sc, HAL_PM_AWAKE);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ath_power_setpower(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
@@ -2252,6 +2322,7 @@ ath_init(void *arg)
 	/*
 	 * Force the sleep state awake.
 	 */
+	ath_power_setselfgen(sc, HAL_PM_AWAKE);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ath_power_setpower(sc, HAL_PM_AWAKE);
 
@@ -5656,6 +5727,20 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	/* Before we touch the hardware - wake it up */
 	ATH_LOCK(sc);
+	/*
+	 * If the NIC is in anything other than SLEEP state,
+	 * we need to ensure that self-generated frames are
+	 * set for PWRMGT=0.  Otherwise we may end up with
+	 * strange situations.
+	 *
+	 * XXX TODO: is this actually the case? :-)
+	 */
+	if (nstate != IEEE80211_S_SLEEP)
+		ath_power_setselfgen(sc, HAL_PM_AWAKE);
+
+	/*
+	 * Now, wake the thing up.
+	 */
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
 
@@ -5675,6 +5760,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		/* Ensure we stay awake during scan */
 		ATH_LOCK(sc);
+		ath_power_setselfgen(sc, HAL_PM_AWAKE);
 		ath_power_setpower(sc, HAL_PM_AWAKE);
 		ATH_UNLOCK(sc);
 
@@ -5850,6 +5936,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Force awake for RUN mode.
 		 */
 		ATH_LOCK(sc);
+		ath_power_setselfgen(sc, HAL_PM_AWAKE);
 		ath_power_setpower(sc, HAL_PM_AWAKE);
 		ATH_UNLOCK(sc);
 
@@ -5891,20 +5978,23 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    vap->iv_opmode == IEEE80211_M_STA) {
 			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: syncbeacon=%d\n", __func__, sc->sc_syncbeacon);
 			ATH_LOCK(sc);
+			/*
+			 * Always at least set the self-generated
+			 * frame config to set PWRMGT=1.
+			 */
+			ath_power_setselfgen(sc, HAL_PM_NETWORK_SLEEP);
+
+			/*
+			 * If we're not syncing beacons, transition
+			 * to NETWORK_SLEEP.
+			 *
+			 * We stay awake if syncbeacon > 0 in case
+			 * we need to listen for some beacons otherwise
+			 * our beacon timer config may be wrong.
+			 */
 			if (sc->sc_syncbeacon == 0) {
 				ath_power_setpower(sc, HAL_PM_NETWORK_SLEEP);
 			}
-			/*
-			 * Always at least set the self-generated
-			 * power bits appropriately.
-			 *
-			 * XXX TODO: this should be an ath_power_*() call
-			 * which also tracks whether we're doing self-gen
-			 * frames or not, and allows the hardware to be
-			 * awake _but_ self-gen frames to have PWRMGT=1.
-			 */
-			ath_hal_setselfgenpower(sc->sc_ah,
-			    HAL_PM_NETWORK_SLEEP);
 			ATH_UNLOCK(sc);
 		}
 	}
