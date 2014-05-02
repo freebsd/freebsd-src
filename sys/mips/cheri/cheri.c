@@ -102,11 +102,12 @@ cheri_memcpy(void *dst, void *src, size_t len)
 
 	/* NB: Assumes CHERICAP_SIZE is a power of two. */
 	KASSERT(((uintptr_t)dst & (CHERICAP_SIZE - 1)) == 0,
-	    ("%s: unaligned dst", __func__));
+	    ("%s: unaligned dst %p", __func__, dst));
 	KASSERT(((uintptr_t)src & (CHERICAP_SIZE - 1)) == 0,
-	    ("%s: unaligned src", __func__));
+	    ("%s: unaligned src %p", __func__, src));
 	KASSERT((len % CHERICAP_SIZE) == 0,
-	    ("%s: copy size not a multiple of capability size", __func__));
+	    ("%s: copy size not a multiple of capability size %ju", __func__,
+	    len));
 
 	/*
 	 * XXXRW: Prevent preemption during memory copy, as we're using an
