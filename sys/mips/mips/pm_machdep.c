@@ -415,22 +415,25 @@ int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 #ifdef CPU_CHERI
-	struct cheri_frame cf;    /* XXXRW: May be too big for the stack? */
 	int error;
 #endif
 	struct trapframe *tp;
 
 #ifdef CPU_CHERI
 	if ((void *)mcp->mc_cp2state != NULL) {
-		if (mcp->mc_cp2state_len != sizeof(cf)) {
+		if (mcp->mc_cp2state_len !=
+		    sizeof(td->td_pcb->pcb_cheriframe)) {
 			printf("%s: invalid length\n", __func__);
 			return (EINVAL);
 		}
-		error = copyin((void *)mcp->mc_cp2state, &cf, sizeof(cf));
+		error = copyincap((void *)mcp->mc_cp2state,
+		    &td->td_pcb->pcb_cheriframe,
+		    sizeof(td->td_pcb->pcb_cheriframe));
 		if (error) {
 			printf("%s: invalid pointer\n", __func__);
 			return (EINVAL);
 		}
+		td->td_pcb->pcb_cheriframe.cf_capcause = 0;
 	}
 #endif
 
@@ -449,15 +452,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_md.md_tls = mcp->mc_tls;
 	/* Dont let user to set any bits in status and cause registers. */
 
-#if 0
-#ifdef CPU_CHERI
-	if ((void *)mcp->mc_cp2state != NULL) {
-		/* XXXRW: Note: we intentionally don't restore 'capcause'. */
-		/* XXXRW: Preserve register tags. */
-		td->td_pcb->pcb_cheriframe = cf;
-	}
-#endif
-#endif
 	return (0);
 }
 
