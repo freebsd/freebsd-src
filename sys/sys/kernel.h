@@ -92,7 +92,6 @@ enum sysinit_sub_id {
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
 	SI_SUB_SETTINGS		= 0x0880000,	/* check and recheck settings */
 	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
-	SI_SUB_LOCKMGR		= 0x0980000,	/* lockmgr locks */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
