@@ -146,4 +146,29 @@ cleandir: cleanobj
 
 .include <bsd.subdir.mk>
 
+.if make(destroy*) && defined(OBJROOT)
+# this is much faster and more reliable than cleaning.
+
+# just in case we are playing games with these...
+_OBJDIR?= ${.OBJDIR}
+_CURDIR?= ${.CURDIR}
+
+destroy-arch: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
+	cd ${_CURDIR} && rm -rf ${_OBJDIR}
+.endif
+
+destroy: destroy-all
+destroy-all:
+
+.if ${_OBJDIR} != ${_CURDIR}
+.for m in ${ALL_MACHINE_LIST}
+destroy-all: destroy.$m
+destroy.$m: .NOMETA
+	cd ${_CURDIR} && rm -rf ${OBJROOT}$m*/${RELDIR:N.}
+.endfor
+.endif
+
+.endif
+
 .endif # !target(__<bsd.obj.mk>__)
