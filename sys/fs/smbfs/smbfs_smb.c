@@ -134,8 +134,49 @@ smbfs_smb_lock(struct smbnode *np, int op, caddr_t id,
 		return smbfs_smb_lockandx(np, op, (uintptr_t)id, start, end, scred);
 }
 
-int
-smbfs_smb_statfs2(struct smb_share *ssp, struct statfs *sbp,
+static int
+smbfs_query_info_fs(struct smb_share *ssp, struct statfs *sbp,
+	struct smb_cred *scred)
+{
+	struct smb_t2rq *t2p;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
+	uint32_t bsize, bpu;
+	int64_t units, funits;
+	int error;
+
+	error = smb_t2_alloc(SSTOCP(ssp), SMB_TRANS2_QUERY_FS_INFORMATION,
+	    scred, &t2p);
+	if (error)
+		return (error);
+	mbp = &t2p->t2_tparam;
+	mb_init(mbp);
+	mb_put_uint16le(mbp, SMB_QUERY_FS_SIZE_INFO);
+	t2p->t2_maxpcount = 2;
+	t2p->t2_maxdcount = sizeof(int64_t) * 2 + sizeof(uint32_t) * 2;
+	error = smb_t2_request(t2p);
+	if (error) {
+		smb_t2_done(t2p);
+		return (error);
+	}
+	mdp = &t2p->t2_rdata;
+	md_get_int64le(mdp, &units);
+	md_get_int64le(mdp, &funits);
+	md_get_uint32le(mdp, &bpu);
+	md_get_uint32le(mdp, &bsize);
+	sbp->f_bsize = bpu * bsize;	/* fundamental filesystem block size */
+	sbp->f_blocks= (uint64_t)units;	/* total data blocks in filesystem */
+	sbp->f_bfree = (uint64_t)funits;/* free blocks in fs */
+	sbp->f_bavail= (uint64_t)funits;/* free blocks avail to non-superuser */
+	sbp->f_files = 0xffff;		/* total file nodes in filesystem */
+	sbp->f_ffree = 0xffff;		/* free file nodes in fs */
+	smb_t2_done(t2p);
+	return (0);
+}
+
+
+static int
+smbfs_query_info_alloc(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred)
 {
 	struct smb_t2rq *t2p;
@@ -175,8 +216,8 @@ smbfs_smb_statfs2(struct smb_share *ssp, struct statfs *sbp,
 	return 0;
 }
 
-int
-smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
+static int
+smbfs_query_info_disk(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred)
 {
 	struct smb_rq rq, *rqp = &rq;
@@ -209,6 +250,20 @@ smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	sbp->f_ffree = 0xffff;		/* free file nodes in fs */
 	smb_rq_done(rqp);
 	return 0;
+}
+
+int
+smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
+	struct smb_cred *scred)
+{
+
+	if (SMB_DIALECT(SSTOVC(ssp)) >= SMB_DIALECT_LANMAN2_0) {
+		if (smbfs_query_info_fs(ssp, sbp, scred) == 0)
+			return (0);
+		if (smbfs_query_info_alloc(ssp, sbp, scred) == 0)
+			return (0);
+	}
+	return (smbfs_query_info_disk(ssp, sbp, scred));
 }
 
 static int

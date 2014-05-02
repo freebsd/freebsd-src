@@ -411,7 +411,7 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp)
 	struct smbnode *np = smp->sm_root;
 	struct smb_share *ssp = smp->sm_share;
 	struct smb_cred scred;
-	int error = 0;
+	int error;
 
 	if (np == NULL) {
 		vfs_mount_error(mp, "np == NULL");
@@ -420,13 +420,8 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp)
 	
 	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
 	smb_makescred(&scred, td, td->td_ucred);
-
-	if (SMB_DIALECT(SSTOVC(ssp)) >= SMB_DIALECT_LANMAN2_0)
-		error = smbfs_smb_statfs2(ssp, sbp, &scred);
-	else
-		error = smbfs_smb_statfs(ssp, sbp, &scred);
-	if (error)
-		return error;
-	sbp->f_flags = 0;		/* copy of mount exported flags */
-	return 0;
+	error = smbfs_smb_statfs(ssp, sbp, &scred);
+	if (error == 0)
+		sbp->f_flags = 0;	/* copy of mount exported flags */
+	return (error);
 }
