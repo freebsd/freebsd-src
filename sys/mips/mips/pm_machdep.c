@@ -94,7 +94,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigframe sf, *sfp;
 	vm_offset_t sp;
 #ifdef CPU_CHERI
-	struct cheri_frame cf;    /* XXXRW: May be too big for the stack? */
 	size_t cp2_len;
 #endif
 	int sig;
@@ -134,13 +133,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* XXXRW: sf.sf_uc.uc_mcontext.sr seems never to be set? */
 	sf.sf_uc.uc_mcontext.cause = regs->cause;
 
-#ifdef CPU_CHERI
-	bzero(&cf, sizeof(cf));
-
-	/* XXXRW: Preserve register tags. */
-	cf = td->td_pcb->pcb_cheriframe;
-#endif
-
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
@@ -149,7 +141,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	} else
 		sp = (vm_offset_t)regs->sp;
 #ifdef CPU_CHERI
-	cp2_len = sizeof(cf);
+	cp2_len = sizeof(td->td_pcb->pcb_cheriframe);
 	sp -= cp2_len;
 	sp &= ~(CHERICAP_SIZE - 1);
 	sf.sf_uc.uc_mcontext.mc_cp2state = sp;
@@ -196,9 +188,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Copy the sigframe out to the user's stack.
 	 */
 #ifdef CPU_CHERI
-	/* XXXRW: Preserve register tags. */
-	if (copyout(&cf, (void *)sf.sf_uc.uc_mcontext.mc_cp2state,
-	    sf.sf_uc.uc_mcontext.mc_cp2state_len) != 0) {
+	if (copyoutcap(&td->td_pcb->pcb_cheriframe,
+	    (void *)sf.sf_uc.uc_mcontext.mc_cp2state, cp2_len) != 0) {
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
