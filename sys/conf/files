@@ -2770,6 +2770,21 @@ contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
 	optional xz_embedded | geom_uncompress \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
+geom/vinum/geom_vinum.c		optional geom_vinum
+geom/vinum/geom_vinum_create.c	optional geom_vinum
+geom/vinum/geom_vinum_drive.c	optional geom_vinum
+geom/vinum/geom_vinum_plex.c	optional geom_vinum
+geom/vinum/geom_vinum_volume.c	optional geom_vinum
+geom/vinum/geom_vinum_subr.c	optional geom_vinum
+geom/vinum/geom_vinum_raid5.c	optional geom_vinum
+geom/vinum/geom_vinum_share.c	optional geom_vinum
+geom/vinum/geom_vinum_list.c	optional geom_vinum
+geom/vinum/geom_vinum_rm.c	optional geom_vinum
+geom/vinum/geom_vinum_init.c	optional geom_vinum
+geom/vinum/geom_vinum_state.c	optional geom_vinum
+geom/vinum/geom_vinum_rename.c	optional geom_vinum
+geom/vinum/geom_vinum_move.c	optional geom_vinum
+geom/vinum/geom_vinum_events.c	optional geom_vinum
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
