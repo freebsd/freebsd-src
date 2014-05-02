@@ -26,6 +26,11 @@ COMPILER_TYPE:=	clang
 
 .if ${COMPILER_TYPE} == "clang"
 COMPILER_FEATURES=	c++11
+.if !defined(_COMPILER_VERSION)
+_COMPILER_VERSION!=     ${CC} --version
+.endif
+# some warnings are version specific
+COMPILER_VERSION:= ${_COMPILER_VERSION:M[1-9].[0-9]*}
 .else
 COMPILER_FEATURES=
 .endif
