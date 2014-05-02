@@ -67,7 +67,7 @@ static struct ttydevsw aju_ttydevsw = {
  * When polling for the AC bit, the number of times we have to not see it
  * before assuming JTAG has disappeared on us.  By default, one second.
  */
-#define	AJU_JTAG_MAXMISS		5
+#define	AJU_JTAG_MAXMISS		10
 
 /*
  * Polling intervals for input/output and JTAG connection events.
