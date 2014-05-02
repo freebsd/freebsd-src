@@ -36,7 +36,7 @@
 .\" $Id$
 .\" $FreeBSD$
 .\"
-.Dd Apr 28, 2014
+.Dd May 2, 2014
 .Dt MPR 4
 .Os
 .Sh NAME
@@ -51,7 +51,8 @@ kernel configuration file:
 .Cd "device mpr"
 .Ed
 .Pp
-Or, to load the driver as a module at boot, place the following line in
+Alternatively, to load the driver as a
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 mpr_load="YES"
@@ -156,7 +157,8 @@ control for all adapters by setting the following variable in
 hw.mpr.exclude_ids=Y
 .Ed
 .Pp
-where Y is the target ID of the device.  If more than one device is to be
+where Y is the target ID of the device.
+If more than one device is to be
 excluded, target ID's are separated by commas.
 .Pp
 Devices can be excluded from
@@ -167,7 +169,8 @@ control for a specific adapter by setting the following variable in
 dev.mpr.X.exclude_ids=Y
 .Ed
 .Pp
-where X is the adapter number and Y is the target ID of the device.  If more
+where X is the adapter number and Y is the target ID of the device.
+If more
 than one device is to be excluded, target ID's are separated by commas.
 .Sh DEBUGGING
 To enable debugging prints from the
@@ -200,8 +203,8 @@ The following bits have the described effects:
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
-.Xr mpt 4 ,
 .Xr mps 4 ,
+.Xr mpt 4 ,
 .Xr pci 4 ,
 .Xr sa 4 ,
 .Xr scsi 4 ,
