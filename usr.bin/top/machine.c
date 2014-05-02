@@ -668,6 +668,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 	/* these are copied out of sel for speed */
 	int show_idle;
+	int show_jid;
 	int show_self;
 	int show_system;
 	int show_uid;
@@ -710,6 +711,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 	/* set up flags which define what we are going to select */
 	show_idle = sel->idle;
+	show_jid = sel->jid != -1;
 	show_self = sel->self == -1;
 	show_system = sel->system;
 	show_uid = sel->uid != -1;
@@ -762,6 +764,10 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 		if (displaymode == DISP_IO && !show_idle && p_io == 0)
 			/* skip processes that aren't doing I/O */
+			continue;
+
+		if (show_jid && pp->ki_jid != sel->jid)
+			/* skip proc. that don't belong to the selected JID */
 			continue;
 
 		if (show_uid && pp->ki_ruid != (uid_t)sel->uid)
