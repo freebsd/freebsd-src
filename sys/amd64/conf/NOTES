@@ -647,8 +647,5 @@ options 	VM_KMEM_SIZE_SCALE
 options 	NDISAPI
 device		ndis
 
-# Linux-specific pseudo devices support
-device		lindev
-
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
