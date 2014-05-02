@@ -126,7 +126,7 @@
 			reg = <0x12200000 0x1000>;
 			interrupts = <107>;
 			interrupt-parent = <&GIC>;
-			clock-frequency = <24000000>; /* TODO: verify freq */
+			max-frequency = <24000000>; /* TODO: verify freq */
 		};
 
 		sdhci@12210000 {
@@ -134,7 +134,7 @@
 			reg = <0x12210000 0x1000>;
 			interrupts = <108>;
 			interrupt-parent = <&GIC>;
-			clock-frequency = <24000000>;
+			max-frequency = <24000000>;
 		};
 
 		sdhci@12220000 {
@@ -142,7 +142,7 @@
 			reg = <0x12220000 0x1000>;
 			interrupts = <109>;
 			interrupt-parent = <&GIC>;
-			clock-frequency = <24000000>;
+			max-frequency = <24000000>;
 		};
 
 		sdhci@12230000 {
@@ -150,7 +150,7 @@
 			reg = <0x12230000 0x1000>;
 			interrupts = <110>;
 			interrupt-parent = <&GIC>;
-			clock-frequency = <24000000>;
+			max-frequency = <24000000>;
 		};
 
 		serial0: serial@12C00000 {
