@@ -1037,6 +1037,7 @@ cpufreq_unregister(device_t dev)
 	if (cf_dev == NULL) {
 		device_printf(dev,
 	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		free(devs, M_TEMP);
 		return (0);
 	}
 	cfcount = 0;
