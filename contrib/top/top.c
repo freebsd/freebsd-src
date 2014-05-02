@@ -1007,7 +1007,7 @@ restart:
 
 			    case CMD_user:
 				new_message(MT_standout,
-				    "Username to show: ");
+				    "Username to show (+ for all): ");
 				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
 				{
 				    if (tempbuf2[0] == '+' &&
@@ -1101,7 +1101,7 @@ restart:
 
 			    case CMD_jail:
 				new_message(MT_standout,
-				    "Jail to show: ");
+				    "Jail to show (+ for all): ");
 				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
 				{
 				    if (tempbuf2[0] == '+' &&
