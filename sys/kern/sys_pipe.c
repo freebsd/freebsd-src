@@ -221,8 +221,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizeallowed, CTLFLAG_RW,
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
-static int pipe_create(struct pipe *pipe, int backing);
-static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
+static void pipe_create(struct pipe *pipe, int backing);
+static void pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 #ifndef PIPE_NODIRECT
@@ -331,12 +331,11 @@ pipe_zone_fini(void *mem, int size)
 	mtx_destroy(&pp->pp_mtx);
 }
 
-static int
+static void
 pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 {
 	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
-	int error;
 
 	*p_pp = pp = uma_zalloc(pipe_zone, M_WAITOK);
 #ifdef MAC
@@ -355,30 +354,21 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
 	/* Only the forward direction pipe is backed by default */
-	if ((error = pipe_create(rpipe, 1)) != 0 ||
-	    (error = pipe_create(wpipe, 0)) != 0) {
-		pipeclose(rpipe);
-		pipeclose(wpipe);
-		return (error);
-	}
+	pipe_create(rpipe, 1);
+	pipe_create(wpipe, 0);
 
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
-	return (0);
 }
 
-int
+void
 pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 {
 	struct pipepair *pp;
-	int error;
 
-	error = pipe_paircreate(td, &pp);
-	if (error != 0)
-		return (error);
+	pipe_paircreate(td, &pp);
 	pp->pp_rpipe.pipe_state |= PIPE_NAMED;
 	*ppipe = &pp->pp_rpipe;
-	return (0);
 }
 
 void
@@ -419,9 +409,7 @@ kern_pipe2(struct thread *td, int fildes[2], int flags)
 	int fd, fflags, error;
 
 	fdp = td->td_proc->p_fd;
-	error = pipe_paircreate(td, &pp);
-	if (error != 0)
-		return (error);
+	pipe_paircreate(td, &pp);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 	error = falloc(td, &rf, &fd, flags);
@@ -642,24 +630,27 @@ pipeselwakeup(cpipe)
  * Initialize and allocate VM and memory for pipe.  The structure
  * will start out zero'd from the ctor, so we just manage the kmem.
  */
-static int
+static void
 pipe_create(pipe, backing)
 	struct pipe *pipe;
 	int backing;
 {
-	int error;
 
 	if (backing) {
+		/*
+		 * Note that these functions can fail if pipe map is exhausted
+		 * (as a result of too many pipes created), but we ignore the
+		 * error as it is not fatal and could be provoked by
+		 * unprivileged users. The only consequence is worse performance
+		 * with given pipe.
+		 */
 		if (amountpipekva > maxpipekva / 2)
-			error = pipespace_new(pipe, SMALL_PIPE_SIZE);
+			(void)pipespace_new(pipe, SMALL_PIPE_SIZE);
 		else
-			error = pipespace_new(pipe, PIPE_SIZE);
-	} else {
-		/* If we're not backing this pipe, no need to do anything. */
-		error = 0;
+			(void)pipespace_new(pipe, PIPE_SIZE);
 	}
+
 	pipe->pipe_ino = -1;
-	return (error);
 }
 
 /* ARGSUSED */
