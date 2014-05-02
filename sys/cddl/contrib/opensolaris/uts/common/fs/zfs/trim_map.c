@@ -490,7 +490,6 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 		zio_nowait(zio_trim(zio, spa, vd, offset, size));
 
 		mutex_enter(&tm->tm_lock);
-		ts = trim_map_first(tm, txgtarget, txgsafe, timelimit);
 	}
 	mutex_exit(&tm->tm_lock);
 }
