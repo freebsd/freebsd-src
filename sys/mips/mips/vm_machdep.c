@@ -188,7 +188,12 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+#ifdef CPU_CHERI
+	    ~(CHERICAP_SIZE - 1))
+#else
+	    ~(sizeof(__int64_t) - 1))
+#endif
+	    - CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td2;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td2->td_frame;
@@ -458,7 +463,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
 	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+#ifdef CPU_CHERI
+	    ~(CHERICAP_SIZE - 1))
+#else
+	    ~(sizeof(__int64_t) - 1))
+#endif
+	    - CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
