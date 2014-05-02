@@ -215,6 +215,7 @@ SUBDIR=	\
 	${_mly} \
 	mmc \
 	mmcsd \
+	mpr \
 	mps \
 	mpt \
 	mqueue \
