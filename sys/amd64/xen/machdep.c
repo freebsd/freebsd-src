@@ -408,6 +408,27 @@ xen_rootconf(void)
 
 SYSINIT(xen_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_ANY, xen_rootconf, NULL);
 
+/* See: xen/interface/memory.h */
+/* XXX: TODO: export to vm/ later in the boot process */
+xen_pfn_t xen_m2m_list[NPDPEPG];
+
+static void init_xen_super(void)
+{
+	int rc;
+
+	struct xen_machphys_mfn_list mfn_list = {
+		.max_extents = NPDPEPG,
+		.nr_extents = 0
+	};
+	set_xen_guest_handle(mfn_list.extent_start, xen_m2m_list);
+
+	rc = HYPERVISOR_memory_op(XENMEM_machphys_mfn_list, &mfn_list);
+
+	if (rc < 0) panic("Hypercall for 2M frame list fails!");
+
+	if (!mfn_list.nr_extents) panic("No 2M frames available!");
+}
+
 /* 
  * Setup early kernel environment, based on start_info passed to us by
  * xen
@@ -425,12 +446,16 @@ initxen(struct start_info *si)
 
 	/* global variables */
 	xen_start_info = si;
+	HYPERVISOR_start_info = si;
 
 	/* xen variables */
 	xen_phys_machine = (xen_pfn_t *)si->mfn_list;
 
+	/* XXX: if hypervisor has FEATURE 2M SUPER pages) */
+	init_xen_super();
+
 	physmem = si->nr_pages;
-	Maxmem = si->nr_pages + 1;
+	Maxmem = si->nr_pages;
 	memset(phys_avail, 0, sizeof phys_avail);
 	memset(dump_avail, 0 , sizeof dump_avail);
 
@@ -511,6 +536,15 @@ initxen(struct start_info *si)
 
 	/* gdt resides in R/O memory. Update mappings */
 	if (HYPERVISOR_update_va_mapping((vm_offset_t)gdt, 
+		gdt0_frame | PG_U | PG_V, UVMF_INVLPG)) {
+		printk("HYPERVISOR_update_va_mapping() failed\n");
+		cpu_halt();
+		/* NOTREACHED */
+	}
+
+
+	/* Update the DMAP mapping, which is an alias. */
+	if (HYPERVISOR_update_va_mapping((vm_offset_t)PHYS_TO_DMAP(VTOP(gdt)), 
 		gdt0_frame | PG_U | PG_V, UVMF_INVLPG)) {
 		printk("HYPERVISOR_update_va_mapping() failed\n");
 		cpu_halt();
@@ -639,7 +673,7 @@ initxen(struct start_info *si)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_pcb->pcb_cr3 = xpmap_ptom(VTOP(KPML4phys));
+	thread0.td_pcb->pcb_cr3 = xpmap_ptom(KPML4phys);
 	thread0.td_frame = &proc0_tf;
 	thread0.td_pcb->pcb_gsbase = (uint64_t) pc;
 
