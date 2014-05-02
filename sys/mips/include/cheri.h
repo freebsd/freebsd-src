@@ -500,6 +500,7 @@ void	cheri_capability_set_null(struct chericap *cp);
 /*
  * CHERI capability utility functions.
  */
+void	 cheri_bcopy(void *src, void *dst, size_t len);
 void	*cheri_memcpy(void *dst, void *src, size_t len);
 
 /*

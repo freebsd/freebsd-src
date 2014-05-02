@@ -271,14 +271,12 @@ NESTED(copyincap, CALLFRAME_SIZ, ra)
 	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
+	jal	_C_LABEL(cheri_bcopy)
 	PTR_L	v1, PC_CURPCB(v1)
-	# TODO: Implement a loop, perform more checking, etc.
-	clc	$c1, a0, 0(KDC)			# load the source
-	csc	$c1, a1, 0(KDC)			# store to the destination
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)	 	# bcopycap modified v1, so reload
+	PTR_L	v1, PC_CURPCB(v1)	# cheri_bcopy modified v1, so reload
 	PTR_S	zero, U_PCB_ONFAULT(v1)
 	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
@@ -328,14 +326,12 @@ NESTED(copyoutcap, CALLFRAME_SIZ, ra)
 	blt	a1, zero, _C_LABEL(copyerr) # make sure address is in user space
 	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
+	jal	_C_LABEL(cheri_bcopy)
 	PTR_L	v1, PC_CURPCB(v1)
-	# TODO: Implement a loop, perform more checking, etc.
-	clc	$c1, a0, 0(KDC)			# load the source
-	csc	$c1, a1, 0(KDC)			# store to the destination
 	PTR_S	v0, U_PCB_ONFAULT(v1)
 	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)	 	# bcopycap modified v1, so reload
+	PTR_L	v1, PC_CURPCB(v1)	 # cheri_bcopy modified v1, so reload
 	PTR_S	zero, U_PCB_ONFAULT(v1)
 	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra

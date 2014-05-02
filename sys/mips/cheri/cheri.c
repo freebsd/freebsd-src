@@ -123,6 +123,13 @@ cheri_memcpy(void *dst, void *src, size_t len)
 	return (dst);
 }
 
+void
+cheri_bcopy(void *src, void *dst, size_t len)
+{
+
+	(void)cheri_memcpy(dst, src, len);
+}
+
 /*
  * Given an existing more privileged capability (fromcrn), build a new
  * capability in tocrn with the contents of the passed flattened
