@@ -898,7 +898,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
  * The route must be locked.
  */
 int
-rtexpunge(struct rtentry *rt)
+rt_expunge(struct radix_node_head *rnh, struct rtentry *rt)
 {
 #if !defined(RADIX_MPATH)
 	struct radix_node *rn;
@@ -907,17 +907,10 @@ rtexpunge(struct rtentry *rt)
 	int fib;
 	struct rtentry *rt0;
 #endif
-	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int error = 0;
 
-	/*
-	 * Find the correct routing tree to use for this Address Family
-	 */
-	rnh = rt_tables_get_rnh(rt->rt_fibnum, rt_key(rt)->sa_family);
 	RT_LOCK_ASSERT(rt);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
 	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 
 #ifdef RADIX_MPATH
