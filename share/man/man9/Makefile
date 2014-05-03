@@ -192,6 +192,7 @@ MAN=	accept_filter.9 \
 	pci.9 \
 	pfil.9 \
 	pfind.9 \
+	pget.9 \
 	pgfind.9 \
 	physio.9 \
 	pmap.9 \
