@@ -30,18 +30,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/gpio.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/openfirm.h>
 
 #include "gpio_if.h"
-#include "gpiobus_if.h"
 
 static int ofw_gpiobus_parse_gpios(struct gpiobus_softc *,
     struct gpiobus_ivar *, phandle_t);

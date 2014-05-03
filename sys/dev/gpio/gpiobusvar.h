@@ -32,7 +32,6 @@
 
 #include "opt_platform.h"
 
-#include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
