@@ -441,6 +441,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 		rnh = rt_tables_get_rnh(fibnum, AF_INET);
+		arg.rnh = rnh;
 		arg.ifa = ifa;
 		arg.del = delete;
 		RADIX_NODE_HEAD_LOCK(rnh);
