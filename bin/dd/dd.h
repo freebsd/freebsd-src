@@ -41,7 +41,7 @@ typedef struct {
 	/* XXX ssize_t? */
 	size_t		dbcnt;		/* current buffer byte count */
 	size_t		dbrcnt;		/* last read byte count */
-	size_t		dbsz;		/* buffer size */
+	size_t		dbsz;		/* block size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe-like (see position.c) */
