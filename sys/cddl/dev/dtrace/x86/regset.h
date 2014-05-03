@@ -61,6 +61,7 @@ extern "C" {
 
 #define	REG_GSBASE	27
 #define	REG_FSBASE	26
+#if defined(sun)
 #define	REG_DS		25
 #define	REG_ES		24
 
@@ -88,11 +89,40 @@ extern "C" {
 #define	REG_R13		2
 #define	REG_R14		1
 #define	REG_R15		0
+#else
+#define	REG_SS		25
+#define	REG_RSP		24
+#define	REG_RFL		23
+#define	REG_CS		22
+#define	REG_RIP		21
+#define	REG_DS		20
+#define	REG_ES		19
+#define	REG_ERR		18
+#define	REG_GS		17
+#define	REG_FS		16
+#define	REG_TRAPNO	15
+#define	REG_RAX		14
+#define	REG_RCX		13
+#define	REG_RDX		12
+#define	REG_RBX		11
+#define	REG_RBP		10
+#define	REG_RSI		9
+#define	REG_RDI		8
+#define	REG_R8		7
+#define	REG_R9		6
+#define	REG_R10		5
+#define	REG_R11		4
+#define	REG_R12		3
+#define	REG_R13		2
+#define	REG_R14		1
+#define	REG_R15		0
+#endif
 
 /*
  * The names and offsets defined here are specified by i386 ABI suppl.
  */
 
+#if defined(sun)
 #define	SS		18	/* only stored on a privilege transition */
 #define	UESP		17	/* only stored on a privilege transition */
 #define	EFL		16
@@ -112,6 +142,27 @@ extern "C" {
 #define	ES		2
 #define	FS		1
 #define	GS		0
+#else
+#define	GS		18
+#define	SS		17	/* only stored on a privilege transition */
+#define	UESP		16	/* only stored on a privilege transition */
+#define	EFL		15
+#define	CS		14
+#define	EIP		13
+#define	ERR		12
+#define	TRAPNO		11
+#define	EAX		10
+#define	ECX		9
+#define	EDX		8
+#define	EBX		7
+#define	ESP		6
+#define	EBP		5
+#define	ESI		4
+#define	EDI		3
+#define	DS		2
+#define	ES		1
+#define	FS		0
+#endif
 
 #define REG_PC  EIP
 #define REG_FP  EBP
