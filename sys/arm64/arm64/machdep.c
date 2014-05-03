@@ -200,8 +200,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
-
-	panic("cpu_pcpu_init");
 }
 
 /* TODO: Move to swtch.S and implemenet */
@@ -479,6 +477,8 @@ initarm(struct arm64_bootparams *abp)
 		printf("%llx - %llx\n", physmap[i], physmap[i + 1]);
 	}
 	printf("Total = %llx\n", mem_len);
+
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
