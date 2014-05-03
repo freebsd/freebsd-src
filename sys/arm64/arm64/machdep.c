@@ -221,14 +221,14 @@ void
 spinlock_enter(void)
 {
 
-	panic("spinlock_enter");
+	printf("spinlock_enter\n");
 }
 
 void
 spinlock_exit(void)
 {
 
-	panic("spinlock_exit");
+	printf("spinlock_exit\n");
 }
 
 #ifndef	_SYS_SYSPROTO_H_
@@ -483,7 +483,6 @@ initarm(struct arm64_bootparams *abp)
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
 	    lastaddr - KERNBASE);
-
 
 	printf("End initarm\n");
 }
