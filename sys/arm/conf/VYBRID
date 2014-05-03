@@ -147,3 +147,5 @@ device		kbdmux
 options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp437
 device		ukbd
+
+options 	FDT

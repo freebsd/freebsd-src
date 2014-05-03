@@ -95,8 +95,10 @@ main(int argc, char **argv)
 	char buffer[BUFSIZ], *inputline, *token[GV_MAXARGS];
 
 	/* Load the module if necessary. */
-	if (kldfind(GVINUMMOD) < 0 && kldload(GVINUMMOD) < 0)
-		err(1, GVINUMMOD ": Kernel module not available");
+	if (modfind(GVINUMMOD) < 0) {
+		if (kldload(GVINUMKLD) < 0 && modfind(GVINUMMOD) < 0)
+			err(1, GVINUMKLD ": Kernel module not available");
+	}
 
 	/* Arguments given on the command line. */
 	if (argc > 1) {
@@ -1207,9 +1209,10 @@ gvinum_stop(int argc, char **argv)
 {
 	int err, fileid;
 
-	fileid = kldfind(GVINUMMOD);
+	fileid = kldfind(GVINUMKLD);
 	if (fileid == -1) {
-		warn("cannot find " GVINUMMOD);
+		if (modfind(GVINUMMOD) < 0)
+			warn("cannot find " GVINUMKLD);
 		return;
 	}
 
@@ -1219,7 +1222,7 @@ gvinum_stop(int argc, char **argv)
 	 * event thread will be free for the g_wither_geom() call from
 	 * gv_unload().  It's silly, but it works.
 	 */
-	printf("unloading " GVINUMMOD " kernel module... ");
+	printf("unloading " GVINUMKLD " kernel module... ");
 	fflush(stdout);
 	if ((err = kldunload(fileid)) != 0 && (errno == EAGAIN)) {
 		sleep(1);
@@ -1227,7 +1230,7 @@ gvinum_stop(int argc, char **argv)
 	}
 	if (err != 0) {
 		printf(" failed!\n");
-		warn("cannot unload " GVINUMMOD);
+		warn("cannot unload " GVINUMKLD);
 		return;
 	}
 
