@@ -85,6 +85,7 @@ int	sandbox_class_new(const char *path, size_t sandboxlen,
 	    struct sandbox_class **sbcpp);
 int	sandbox_class_method_declare(struct sandbox_class *sbcp,
 	    u_int methodnum, const char *methodname);
+size_t	sandbox_class_getlength(struct sandbox_class *sbcp);
 void	sandbox_class_destroy(struct sandbox_class *sbcp);
 
 struct sandbox_object;

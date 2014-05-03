@@ -272,3 +272,11 @@ sandbox_object_getbase(struct sandbox_object *sbop)
 
 	return (sbop->sbo_mem);
 }
+
+size_t
+sandbox_class_getlength(struct sandbox_class *sbcp) 
+{
+
+	return sbcp->sbc_sandboxlen;
+}
+
