@@ -1741,7 +1741,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			info.rti_info[RTAX_GATEWAY] =
 			    (ifma->ifma_addr->sa_family != AF_LINK) ?
 			    ifma->ifma_lladdr : NULL;
-			error = rtsock_msg_buffer(RTM_NEWADDR, &info, w, &len);
+			error = rtsock_msg_buffer(RTM_NEWMADDR, &info, w, &len);
 			if (error != 0)
 				goto done;
 			if (w->w_req && w->w_tmem) {
