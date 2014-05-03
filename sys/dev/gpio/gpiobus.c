@@ -28,13 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/types.h>
 
 #include <dev/gpio/gpiobusvar.h>
 
