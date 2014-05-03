@@ -14,7 +14,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2014
+.Dd May 3, 2014
 .Dt URTWN 4
 .Os
 .Sh NAME
@@ -80,7 +80,10 @@ must be agreed by adding the following line to
 firmware license
 .El
 .Sh HARDWARE
-The following adapters should work:
+The
+.Nm
+driver supports Realtek RTL8188CU/RTL8188EU/RTL8192CU based USB
+IEEE 802.11b/g/n wireless network adapters, including:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
 .It ASUS USB-N10 NANO
@@ -122,9 +125,9 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr urtwnfw 4 ,
 .Xr intro 4 ,
 .Xr netintro 4 ,
+.Xr urtwnfw 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
 .Xr wlan_ccmp 4 ,
