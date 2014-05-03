@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
+#include <machine/machdep.h>
 #include <machine/vmparam.h>
 
 #if !defined(DIAGNOSTIC)
@@ -58,14 +59,45 @@ struct pmap kernel_pmap_store;
 
 struct msgbuf *msgbufp = NULL;
 
+static pt_entry_t *
+pmap_early_page_idx(vm_offset_t l1pt, vm_offset_t va, uint64_t kern_delta,
+    u_int *l1_slot, u_int *l2_slot)
+{
+	pt_entry_t *ptep;
+	pd_entry_t *pde;
+
+	pde = (pd_entry_t *)l1pt;
+	*l1_slot = (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK;
+
+	/* Check locore has used a table L1 map */
+	KASSERT((pde[*l1_slot] & ATTR_DESCR_MASK) == L1_TABLE,
+	   ("Invalid bootstrap L1 table"));
+	/* Find the address of the L2 table */
+	ptep = (pt_entry_t *)((pde[*l1_slot] & ~ATTR_MASK) + kern_delta);
+	*l2_slot = (KERNBASE >> L2_SHIFT) & Ln_ADDR_MASK;
+
+	return (ptep);
+}
+
+static vm_paddr_t
+pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va, uint64_t kern_delta)
+{
+	u_int l1_slot, l2_slot;
+	pt_entry_t *ptep;
+
+	ptep = pmap_early_page_idx(l1pt, va, kern_delta, &l1_slot, &l2_slot);
+
+	return (ptep[l2_slot] & ~ATTR_MASK);
+}
+
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot;
+	u_int l1_slot, l2_slot, avail_slot, map_slot;
 	uint64_t kern_delta;
 	pt_entry_t *ptep;
-	pd_entry_t *pde;
-	vm_offset_t va;
+	vm_offset_t va, freemempos;
+	vm_offset_t dpcpu;
 	vm_paddr_t pa;
 
 	kern_delta = KERNBASE - kernstart;
@@ -74,35 +106,45 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	printf("%llx\n", l1pt);
 	printf("%lx\n", (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK);
 
+	va = KERNBASE;
+	pa = KERNBASE - kern_delta;
+
+	/*
+	 * Start to initialise phys_avail by copying from physmap
+	 * up to the physicaladdress KERNBASE points at.
+	 */
+	for (avail_slot = 0; avail_slot < physmap_idx; avail_slot += 2) {
+		if (physmap[avail_slot] <= pa &&
+		    physmap[avail_slot] + physmap[avail_slot + 1] > pa)
+			break;
+
+		phys_avail[avail_slot] = physmap[avail_slot];
+		phys_avail[avail_slot + 1] = physmap[avail_slot + 1];
+	}
+
+	/* Add the memory before the kernel */
+	if (physmap[avail_slot] != pa) {
+		phys_avail[avail_slot] = physmap[avail_slot];
+		phys_avail[avail_slot + 1] = pa - physmap[avail_slot];
+		avail_slot += 2;
+	}
+	map_slot = avail_slot;
+
 	/*
 	 * Read the page table to find out what is already mapped.
 	 * This assumes we have mapped a block of memory from KERNBASE
 	 * using a single L1 entry.
 	 */
-	pde = (pd_entry_t *)l1pt;
-	l1_slot = (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK;
+	ptep = pmap_early_page_idx(l1pt, KERNBASE, kern_delta, &l1_slot,
+	    &l2_slot);
 
-	/* Sanity check the index, KERNBASE should be the first VA */
-	KASSERT(l1_slot == 0, ("The L1 index is non-zero"));
-	/* Check locore has used a table L1 map */
-	KASSERT((pde[l1_slot] & ATTR_DESCR_MASK) == L1_TABLE,
-	   ("Invalid bootstrap L1 table"));
-
-	/* Find the address of the L2 table */
-	ptep = (pt_entry_t *)((pde[l1_slot] & ~ATTR_MASK) + kern_delta);
-	l2_slot = (KERNBASE >> L2_SHIFT) & Ln_ADDR_MASK;
 	/* Sanity check the index, KERNBASE should be the first VA */
 	KASSERT(l2_slot == 0, ("The L2 index is non-zero"));
-
-	va = KERNBASE;
-	pa = KERNBASE - kern_delta; /* Set to an invalid address */
 
 	/* Find how many pages we have mapped */
 	for (; l2_slot < Ln_ENTRIES; l2_slot++) {
 		if ((ptep[l2_slot] & ATTR_DESCR_MASK) == 0)
 			break;
-
-		printf("ptep[%u] = %016llx\n", l2_slot, ptep[l2_slot]);
 
 		/* Check locore used L2 blocks */
 		KASSERT((ptep[l2_slot] & ATTR_DESCR_MASK) == L2_BLOCK,
@@ -113,11 +155,18 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 		va += L2_SIZE;
 		pa += L2_SIZE;
 	}
+
 	/* And map the rest of L2 table */
 	for (; l2_slot < Ln_ENTRIES; l2_slot++) {
 		KASSERT(ptep[l2_slot] == 0, ("Invalid bootstrap L2 table"));
 		KASSERT(((va >> L2_SHIFT) & Ln_ADDR_MASK) == l2_slot,
 		    ("VA inconsistency detected"));
+
+		if (pa >= physmap[map_slot] + physmap[map_slot + 1]) {
+			map_slot += 2;
+			KASSERT(map_slot < physmap_idx, ("..."));
+			pa = physmap[map_slot];
+		}
 
 		/* TODO: Check if this pa is valid */
 		ptep[l2_slot] = (pa & ~L2_OFFSET) | ATTR_AF | L2_BLOCK;
@@ -134,6 +183,18 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	    "tlbi vmalle1is	\n"
 	    "dsb  sy		\n"
 	    "isb		\n");
+
+	freemempos = KERNBASE + kernlen;
+	freemempos = roundup2(freemempos, PAGE_SIZE);
+
+#define alloc_pages(var, np)						\
+	(var) = freemempos;						\
+	freemempos += (np * PAGE_SIZE);					\
+	memset((char *)(var), 0, ((np) * PAGE_SIZE));
+
+	/* Allocate dynamic per-cpu area. */
+	alloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu, 0);
 }
 
 /*
