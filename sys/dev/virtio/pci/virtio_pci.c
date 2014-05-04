@@ -757,8 +757,10 @@ vtpci_probe_and_attach_child(struct vtpci_softc *sc)
 		vtpci_release_child_resources(sc);
 		/* Reset status for future attempt. */
 		vtpci_set_status(dev, VIRTIO_CONFIG_STATUS_ACK);
-	} else
+	} else {
 		vtpci_set_status(dev, VIRTIO_CONFIG_STATUS_DRIVER_OK);
+		VIRTIO_ATTACH_COMPLETED(child);
+	}
 }
 
 static int
