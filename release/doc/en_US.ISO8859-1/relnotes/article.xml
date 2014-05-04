@@ -231,6 +231,17 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
+    <para revision="265249">The &man.top.1; utility has been updated
+      to filter by &man.jail.8; ID or name, in followup to the
+      &man.ps.1; change in <literal>r265229</literal>.</para>
+
+    <para revision="265229">The &man.ps.1; utility has been
+      updated to include the <literal>-J</literal> flag, used to
+      filter output by matching &man.jail.8; IDs and names.
+      Additionally, argument <literal>0</literal> can be used to
+      <literal>-J</literal> to only list processes running on the
+      host system.</para>
+
     <para revision="260926">Support for displaying VPD for PCI devices
       via &man.pciconf.8; has been added.</para>
 
