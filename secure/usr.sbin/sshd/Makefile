@@ -50,6 +50,16 @@ CFLAGS+= -DNONE_CIPHER_ENABLED
 DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD+= -lcrypt -lcrypto -lz
 
+# Fix the order of NEEDED entries for libthr and libc. The libthr
+# needs to interpose libc symbols, leaving the libthr loading as
+# dependency of krb causes reversed order and broken interposing. Put
+# the threading library last on the linker command line, just before
+# the -lc added by a compiler driver.
+.if ${MK_KERBEROS_SUPPORT} != "no"
+DPADD+= ${LIBPTHREAD}
+LDADD+= -lpthread
+.endif
+
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .endif
