@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/gpio/gpiobusvar.h>
 
-#include "gpio_if.h"
 #include "gpiobus_if.h"
 
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);

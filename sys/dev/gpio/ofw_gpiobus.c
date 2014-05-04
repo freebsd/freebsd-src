@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 
-#include "gpio_if.h"
-
 static int ofw_gpiobus_parse_gpios(struct gpiobus_softc *,
     struct gpiobus_ivar *, phandle_t);
 static struct ofw_gpiobus_devinfo *ofw_gpiobus_setup_devinfo(device_t,
@@ -180,7 +178,7 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 		}
 
 		/* Get the GPIO pin number and flags. */
-		if (ofw_bus_map_gpios(sc->sc_dev, child, gpio, cells,
+		if (gpio_map_gpios(sc->sc_dev, child, gpio, cells,
 		    &gpios[i + 1], &dinfo->pins[j], &dinfo->flags[j]) != 0) {
 			ofw_gpiobus_free_ivars(dinfo);
 			free(gpios, M_DEVBUF);
