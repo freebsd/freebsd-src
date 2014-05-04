@@ -143,6 +143,23 @@ vtoc8_parse_type(const char *type, uint16_t *tag)
 }
 
 static int
+vtoc8_align(struct g_part_vtoc8_table *table, uint64_t *start, uint64_t *size)
+{
+
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	if (start != NULL && (*start % table->secpercyl)) {
+		*size += (*start % table->secpercyl) - table->secpercyl;
+		*start -= (*start % table->secpercyl) - table->secpercyl;
+	}
+	if (*size % table->secpercyl)
+		*size -= (*size % table->secpercyl);
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
     struct g_part_parms *gpp)
 {
@@ -160,16 +177,9 @@ g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
 
 	table = (struct g_part_vtoc8_table *)basetable;
 	index = entry->gpe_index - 1;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (start % table->secpercyl) {
-		size = size - table->secpercyl + (start % table->secpercyl);
-		start = start - (start % table->secpercyl) + table->secpercyl;
-	}
-	if (size % table->secpercyl)
-		size = size - (size % table->secpercyl);
-	if (size < table->secpercyl)
+	if (vtoc8_align(table, &start, &size) != 0)
 		return (EINVAL);
 
 	KASSERT(entry->gpe_start <= start, (__func__));
@@ -355,9 +365,7 @@ g_part_vtoc8_resize(struct g_part_table *basetable,
 	}
 	table = (struct g_part_vtoc8_table *)basetable;
 	size = gpp->gpp_size;
-	if (size % table->secpercyl)
-		size = size - (size % table->secpercyl);
-	if (size < table->secpercyl)
+	if (vtoc8_align(table, NULL, &size) != 0)
 		return (EINVAL);
 
 	entry->gpe_end = entry->gpe_start + size - 1;
