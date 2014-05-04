@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 26, 2005
+.Dd May 4, 2014
 .Dt NL 1
 .Os
 .Sh NAME
@@ -71,12 +71,16 @@
 The
 .Nm
 utility reads lines from the named
+.Ar file ,
+applies a configurable line numbering filter operation,
+and writes the result to the standard output.
+If
 .Ar file
-or the standard input if the
-.Ar file
-argument is omitted,
-applies a configurable line numbering filter operation and writes the result
-to the standard output.
+is a single dash
+.Pq Sq Fl
+or absent,
+.Nm
+reads from the standard input.
 .Pp
 The
 .Nm
