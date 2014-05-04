@@ -105,9 +105,9 @@
     <title>Kernel Changes</title>
 
     <para revision="265132">The &man.full.4; device has been added,
-      and the lindev(4) device has been removed.  Prior to this
-      change, lindev(4) provided only the
-      <filename>/dev/null</filename> character device, returning
+      and the <literal>lindev(4)</literal> device has been removed.
+      Prior to this change, <literal>lindev(4)</literal> provided only
+      the <filename>/dev/null</filename> character device, returning
       <literal>ENOSPC</literal> on write attempts.  As this device is
       not specific to &linux;, a native &os; version has been
       added.</para>
