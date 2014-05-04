@@ -168,7 +168,8 @@
 #define	CHERI_CR_KDC	30
 #define	CHERI_CR_EPCC	31
 
-#define	CHERI_CR_CTEMP	CHERI_CR_KR1C	/* C-language temporary. */
+#define	CHERI_CR_CTEMP0	CHERI_CR_C11	/* C capability manipulation. */
+#define	CHERI_CR_CTEMP1	CHERI_CR_C12	/* C capability manipulation. */
 #define	CHERI_CR_SEC0	CHERI_CR_KR2C	/* Saved $c0 in exception handler. */
 
 /*

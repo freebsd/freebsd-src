@@ -124,7 +124,7 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 {
 	struct cheri_stack_frame *csfp;
 	struct pcb *pcb = td->td_pcb;
-	register_t s, sr, badvaddr, cause;
+	register_t sr, badvaddr, cause;
 	f_register_t fsr;
 
 	if (pcb->pcb_cheristack.cs_tsp == CHERI_STACK_SIZE)
@@ -176,12 +176,10 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	/*
 	 * Pop IDC, PCC.
 	 */
-	s = intr_disable();
-	cheri_capability_load(CHERI_CR_CTEMP, &csfp->csf_idc);
-	cheri_capability_store(CHERI_CR_CTEMP, &pcb->pcb_cheriframe.cf_idc);
-	cheri_capability_load(CHERI_CR_CTEMP, &csfp->csf_pcc);
-	cheri_capability_store(CHERI_CR_CTEMP, &pcb->pcb_cheriframe.cf_pcc);
-	intr_restore(s);
+	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_idc);
+	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_idc);
+	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_pcc);
+	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_pcc);
 
 	/*
 	 * Pop SP, PC (+4 already done).
@@ -226,8 +224,8 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		db_printf("  Frame %d%c\n", i,
 		    (i >= (pcb->pcb_cheristack.cs_tsp / CHERI_FRAME_SIZE)) ?
 		    '*' : ' ');
-		CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &csfp->csf_idc, 0);
-		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_idc, 0);
+		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 
 		c = csfp->csf_idc;
 		db_printf("\tIDC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",
@@ -236,8 +234,8 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		db_printf("\t\tbase 0x%016jx length 0x%016jx\n",
 		    (uintmax_t)c.c_base, (uintmax_t)c.c_length);
 
-		CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &csfp->csf_pcc, 0);
-		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_pcc, 0);
+		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 
 		c = csfp->csf_pcc;
 		db_printf("\tPCC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",

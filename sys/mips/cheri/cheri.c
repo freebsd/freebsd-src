@@ -97,7 +97,6 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
 void *
 cheri_memcpy(void *dst, void *src, size_t len)
 {
-	register_t s;
 	u_int i;
 
 	/* NB: Assumes CHERICAP_SIZE is a power of two. */
@@ -109,18 +108,12 @@ cheri_memcpy(void *dst, void *src, size_t len)
 	    ("%s: copy size not a multiple of capability size %ju", __func__,
 	    len));
 
-	/*
-	 * XXXRW: Prevent preemption during memory copy, as we're using an
-	 * exception handling temporary register.
-	 */
-	s = intr_disable();
 	for (i = 0; i < (len / CHERICAP_SIZE); i++) {
-		cheri_capability_load(CHERI_CR_CTEMP,
+		cheri_capability_load(CHERI_CR_CTEMP0,
 		    (struct chericap *)src + i);
-		cheri_capability_store(CHERI_CR_CTEMP,
+		cheri_capability_store(CHERI_CR_CTEMP0,
 		    (struct chericap *)dst + i);
 	}
-	intr_restore(s);
 	return (dst);
 }
 
@@ -147,21 +140,12 @@ void
 cheri_capability_set(struct chericap *cp, uint32_t perms,
     void *otypep /* eaddr */, void *basep, uint64_t length)
 {
-	register_t s;
 
-	/*
-	 * XXXRW: For now, we're using an exception handling temporary
-	 * register to construct capabilities to store.  Disable interrupts so
-	 * that this is safe.  In the future, we'd like to use a general
-	 * temporary preserved during kernel execution to avoid this.
-	 */
-	s = intr_disable();
-	CHERI_CINCBASE(CHERI_CR_CTEMP, CHERI_CR_KDC, (register_t)basep);
-	CHERI_CSETLEN(CHERI_CR_CTEMP, CHERI_CR_CTEMP, (register_t)length);
-	CHERI_CANDPERM(CHERI_CR_CTEMP, CHERI_CR_CTEMP, (register_t)perms);
-	CHERI_CSETTYPE(CHERI_CR_CTEMP, CHERI_CR_CTEMP, (register_t)otypep);
-	CHERI_CSC(CHERI_CR_CTEMP, CHERI_CR_KDC, (register_t)cp, 0);
-	intr_restore(s);
+	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
+	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)length);
+	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
+	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 static void
@@ -227,18 +211,9 @@ cheri_capability_set_null(struct chericap *cp)
 void
 cheri_capability_copy(struct chericap *cp_to, struct chericap *cp_from)
 {
-	register_t s;
 
-	/*
-	 * XXXRW: For now, we're using an exception handling temporary
-	 * register to construct capabilities to store.  Disable interrupts so
-	 * that this is safe.  In the future, we'd like to use a general
-	 * temporary preserved during kernel execution to avoid this.
-	 */
-	s = intr_disable();
-	cheri_capability_load(CHERI_CR_CTEMP, cp_from);
-	cheri_capability_store(CHERI_CR_CTEMP, cp_to);
-	intr_restore(s);
+	cheri_capability_load(CHERI_CR_CTEMP0, cp_from);
+	cheri_capability_store(CHERI_CR_CTEMP0, cp_to);
 }
 
 void
@@ -319,7 +294,6 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	register_t cause;
 	u_int ctag;
 	uint8_t exccode, regnum;
-	register_t s;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
@@ -334,67 +308,51 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 
 
 	/* C0 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 0);
 
 	/* C1 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c1, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c1, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 1);
 
 	/* C2 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c2, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c2, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 2);
 
 	/* C3 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c3, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c3, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 3);
 
 	/* C4 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c4, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c4, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 4);
 
 	/* C24 - RCC */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 24);
 
 	/* C26 - IDC */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_idc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_idc, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 26);
 
 	/* C31 - saved PCC */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_restore(s);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 31);
 
 #if DDB
@@ -415,7 +373,6 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
     register_t *args)
 {
 	struct chericap c;
-	register_t s;
 
 	/*
 	 * Allow the cycle counter to be read via sysarch.
@@ -433,11 +390,9 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
 	 */
-	s = intr_disable();
-	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC,
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	intr_restore(s);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
 	if ((c.c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_syscall_violations, 1);
 
@@ -520,7 +475,6 @@ DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
 {
 	struct thread *td;
 	struct cheri_frame *cfp;
-	register_t s;
 	u_int i;
 
 	if (have_addr)
@@ -534,17 +488,13 @@ DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
 
 	/* Laboriously load and print each user capability. */
 	for (i = 0; i < 27; i++) {
-		s = intr_disable();
-		cheri_capability_load(CHERI_CR_CTEMP,
+		cheri_capability_load(CHERI_CR_CTEMP0,
 		    (struct chericap *)&cfp->cf_c0 + i);
-		DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP, i);
-		intr_restore(s);
+		DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP0, i);
 	}
 	db_printf("\nPCC:\n");
-	s = intr_disable();
-	cheri_capability_load(CHERI_CR_CTEMP, (struct chericap *)&cfp->cf_c0 +
-	    CHERIFRAME_OFF_PCC);
-	DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP, CHERI_CR_EPCC);
-	intr_restore(s);
+	cheri_capability_load(CHERI_CR_CTEMP0,
+	    (struct chericap *)&cfp->cf_c0 + CHERIFRAME_OFF_PCC);
+	DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP0, CHERI_CR_EPCC);
 }
 #endif

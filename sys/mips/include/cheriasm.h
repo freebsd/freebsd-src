@@ -74,11 +74,11 @@
 #define	CHERI_REG_EPCC	$c31	/* Exception program counter capability. */
 
 /*
- * C-level code will manipulate capabilities using this exception-handling
- * register; label it here for consistency.  Interrupts must be disabled while
- * using the register to prevent awkward preemptions.
+ * The kernel maintains a CHERI micro-ABI preserving two registers, $c11 and
+ * $c12, for use by kernel threads.  Label them here for consistency.
  */
-#define	CHERI_REG_CTEMP	CHERI_REG_KR1C	/* C-level capability manipulation. */
+#define	CHERI_REG_CTEMP0	CHERI_REG_C11	/* C capability manipulation. */
+#define	CHERI_REG_CTEMP1	CHERI_REG_C12	/* C capability manipulation. */
 
 /*
  * Where to save the user $c0 during low-level exception handling.  Possibly
