@@ -162,13 +162,24 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 		KASSERT(((va >> L2_SHIFT) & Ln_ADDR_MASK) == l2_slot,
 		    ("VA inconsistency detected"));
 
-		if (pa >= physmap[map_slot] + physmap[map_slot + 1]) {
+		/*
+		 * Check if we can use the current pa, some of it
+		 * may fall out side the current physmap slot.
+		 */
+		if (pa + L2_SIZE > physmap[map_slot] + physmap[map_slot + 1]) {
 			map_slot += 2;
-			KASSERT(map_slot < physmap_idx, ("..."));
 			pa = physmap[map_slot];
+			pa = roundup2(pa, L2_SIZE);
+
+			/* TODO: should we wrap if we hit this? */
+			KASSERT(map_slot < physmap_idx,
+			    ("Attempting to use invalid physical memory"));
+			/* TODO: This should be easy to fix */
+			KASSERT(pa + L2_SIZE <
+			    physmap[map_slot] + physmap[map_slot + 1],
+			    ("Physical slot too small"));
 		}
 
-		/* TODO: Check if this pa is valid */
 		ptep[l2_slot] = (pa & ~L2_OFFSET) | ATTR_AF | L2_BLOCK;
 
 		va += L2_SIZE;
