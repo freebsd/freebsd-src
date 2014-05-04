@@ -1229,7 +1229,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
-	boolean_t src_readonly, upgrade;
+	boolean_t upgrade;
 
 #ifdef	lint
 	src_map++;
@@ -1239,7 +1239,6 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
-	src_readonly = (src_entry->protection & VM_PROT_WRITE) == 0;
 
 	/*
 	 * Create the top-level object for the destination entry. (Doesn't
@@ -1310,25 +1309,33 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 
 		/*
 		 * Find the page in the source object, and copy it in.
-		 * (Because the source is wired down, the page will be in
-		 * memory.)
+		 * Because the source is wired down, the page will be
+		 * in memory.
 		 */
 		VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
-		    src_readonly &&
 		    (backing_object = object->backing_object) != NULL) {
 			/*
-			 * Allow fallback to backing objects if we are reading.
+			 * Unless the source mapping is read-only or
+			 * it is presently being upgraded from
+			 * read-only, the first object in the shadow
+			 * chain should provide all of the pages.  In
+			 * other words, this loop body should never be
+			 * executed when the source mapping is already
+			 * read/write.
 			 */
+			KASSERT((src_entry->protection & VM_PROT_WRITE) == 0 ||
+			    upgrade,
+			    ("vm_fault_copy_entry: main object missing page"));
+
 			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
-		if (src_m == NULL)
-			panic("vm_fault_copy_wired: page missing");
+		KASSERT(src_m != NULL, ("vm_fault_copy_entry: page missing"));
 		pmap_copy_page(src_m, dst_m);
 		VM_OBJECT_RUNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
