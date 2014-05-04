@@ -104,6 +104,14 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="265132">The &man.full.4; device has been added,
+      and the &man.lindev.4; device has been removed.  Prior to this
+      change, &man.lindev.4; provided only the
+      <filename>/dev/null</filename> character device, returning
+      <literal>ENOSPC</literal> on write attempts.  As this device is
+      not specific to &linux;, a native &os; version has been
+      added.</para>
+
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
