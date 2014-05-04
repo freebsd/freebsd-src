@@ -1567,6 +1567,7 @@ invlpg_handler(void)
 void
 invlpg_pcid_handler(void)
 {
+	uint64_t cr3;
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1574,15 +1575,13 @@ invlpg_pcid_handler(void)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	if (invpcid_works) {
-		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
+	if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
+		invltlb_globpcid();
 	} else if (smp_tlb_invpcid.pcid == 0) {
 		invlpg(smp_tlb_invpcid.addr);
-	} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
-		invltlb_globpcid();
+	} else if (invpcid_works) {
+		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
 	} else {
-		uint64_t cr3;
-
 		/*
 		 * PCID supported, but INVPCID is not.
 		 * Temporarily switch to the target address
