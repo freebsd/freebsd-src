@@ -104,6 +104,23 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="265132">The &man.full.4; device has been added,
+      and the <literal>lindev(4)</literal> device has been removed.
+      Prior to this change, <literal>lindev(4)</literal> provided only
+      the <filename>/dev/null</filename> character device, returning
+      <literal>ENOSPC</literal> on write attempts.  As this device is
+      not specific to &linux;, a native &os; version has been
+      added.</para>
+
+    <para revision="264601">The <literal>if_nf10bmac(4)</literal>
+      device has been added, providing support for NetFPGA-10G
+      Embedded CPU Ethernet Core.</para>
+
+    <note>
+      <para>The <literal>if_nf10bmac(4)</literal> driver operates on
+	the FPGA, and is not suited for the PCI host interface.</para>
+    </note>
+
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
@@ -213,6 +230,17 @@
 
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
+
+    <para revision="265249">The &man.top.1; utility has been updated
+      to filter by &man.jail.8; ID or name, in followup to the
+      &man.ps.1; change in <literal>r265229</literal>.</para>
+
+    <para revision="265229">The &man.ps.1; utility has been
+      updated to include the <literal>-J</literal> flag, used to
+      filter output by matching &man.jail.8; IDs and names.
+      Additionally, argument <literal>0</literal> can be used to
+      <literal>-J</literal> to only list processes running on the
+      host system.</para>
 
     <para revision="260926">Support for displaying VPD for PCI devices
       via &man.pciconf.8; has been added.</para>
