@@ -35,10 +35,9 @@
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <unistd.h>
 #include "_libproc.h"
 
 int
@@ -59,11 +58,14 @@ proc_clearflags(struct proc_handle *phdl, int mask)
 int
 proc_continue(struct proc_handle *phdl)
 {
+	int pending = 0;
 
 	if (phdl == NULL)
 		return (-1);
 
-	if (ptrace(PT_CONTINUE, phdl->pid, (caddr_t)(uintptr_t) 1, 0) != 0)
+	if (phdl->status == PS_STOP && WSTOPSIG(phdl->wstat) != SIGTRAP)
+		pending = WSTOPSIG(phdl->wstat);
+	if (ptrace(PT_CONTINUE, phdl->pid, (caddr_t)(uintptr_t)1, pending) != 0)
 		return (-1);
 
 	phdl->status = PS_RUN;
@@ -208,12 +210,16 @@ proc_getlwpstatus(struct proc_handle *phdl)
 		return (NULL);
 	siginfo = &lwpinfo.pl_siginfo;
 	if (lwpinfo.pl_event == PL_EVENT_SIGNAL &&
-	    (lwpinfo.pl_flags & PL_FLAG_SI) &&
-	    siginfo->si_signo == SIGTRAP &&
-	    (siginfo->si_code == TRAP_BRKPT ||
-	    siginfo->si_code == TRAP_TRACE)) {
-		psp->pr_why = PR_FAULTED;
-		psp->pr_what = FLTBPT;
+	    (lwpinfo.pl_flags & PL_FLAG_SI) != 0) {
+		if (siginfo->si_signo == SIGTRAP &&
+		    (siginfo->si_code == TRAP_BRKPT ||
+		    siginfo->si_code == TRAP_TRACE)) {
+			psp->pr_why = PR_FAULTED;
+			psp->pr_what = FLTBPT;
+		} else {
+			psp->pr_why = PR_SIGNALLED;
+			psp->pr_what = siginfo->si_signo;
+		}
 	} else if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 		psp->pr_why = PR_SYSENTRY;
 	} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
