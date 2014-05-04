@@ -4,9 +4,16 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DIRDEPS = \
-	pkgs/pseudo/clang \
-	pkgs/pseudo/gcc \
-	usr.bin/xinstall \
+.if !defined(MK_CLANG)
+.include "${SRCTOP}/share/mk/bsd.opts.mk"
+.endif
+
+DIRDEPS= usr.bin/xinstall 
+.if ${MK_CLANG} == "yes"
+DIRDEPS+= pkgs/pseudo/clang
+.endif
+.if ${MK_GCC} == "yes"
+DIRDEPS+= pkgs/pseudo/gcc
+.endif
 
 .include <dirdeps.mk>
