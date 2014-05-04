@@ -253,6 +253,25 @@ SlowFault:
 #define	SAVE_REG(reg, offs, base) \
 	REG_S	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
+#ifdef CPU_CHERI
+/*
+ * Optionally save kernel-pertinent capability registers at the top end of the
+ * trap frame.  Because the 'csc' immediate is quite small, we need a
+ * temporary register to hold it in, against which small constant offsets can
+ * be applied.  If we save more registers, SAVE_CREG() will become desirable.
+ *
+ * XXXRW: Notice run-time 32-byte alignment hack.
+ */
+#define	SAVE_CHERI(t0reg, t1reg, base)					\
+	daddiu	t0reg, base, KERN_CREG_BASE;				\
+	dli	t1reg, -32;						\
+	and	t0reg, t1reg, t0reg;					\
+	csc	$c11, t0reg, 0(CHERI_REG_KDC);				\
+	csc	$c12, t0reg, 32(CHERI_REG_KDC)
+#else
+#define	SAVE_CHERI(t0reg, t1reg, base)
+#endif
+
 #if defined(CPU_CNMIPS)
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
@@ -288,8 +307,6 @@ SlowFault:
  * matching the form "sw ra, (off)sp" to figure out the address of the
  * calling function. So we must make sure that we save the exception
  * PC by staging it through 'ra' as opposed to any other register.
- *
- * XXXRW: CHERI kernel involuntary context save here.
  */
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
@@ -331,6 +348,7 @@ SlowFault:
 	SAVE_REG(a0, SR, sp)		;\
 	SAVE_REG(a1, CAUSE, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
+	SAVE_CHERI(t0, t1, sp);		;\
 	move	t0, ra			;\
 	move	ra, a3			;\
 	SAVE_REG(ra, PC, sp)		;\
@@ -345,11 +363,26 @@ SlowFault:
 #define	RESTORE_REG(reg, offs, base) \
 	REG_L	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
+#ifdef CPU_CHERI
 /*
- * XXXRW: CHERI kernel involuntary context restore here.
+ * Optionally restore kernel-pertinent capability registers.  See comment above
+ * about SAVE_CHERI() for details.
+ *
+ * XXXRW: Notice run-time 32-byte alignment hack.
  */
+#define	RESTORE_CHERI(t0reg, t1reg, base)				\
+	daddiu	t0reg, base, KERN_CREG_BASE;				\
+	dli	t1reg, -32;						\
+	and	t0reg, t1reg, t0reg;					\
+	clc	$c11, t0reg, 0(CHERI_REG_KDC);				\
+	clc	$c12, t0reg, 32(CHERI_REG_KDC);
+#else
+#define	RESTORE_CHERI(t0reg, t1reg, base)
+#endif
+
 #define	RESTORE_CPU \
 	CLEAR_STATUS			;\
+	RESTORE_CHERI(t0, t1, sp);	;\
 	RESTORE_REG(k0, SR, sp)		;\
 	RESTORE_REG(t0, MULLO, sp)	;\
 	RESTORE_REG(t1, MULHI, sp)	;\
@@ -393,9 +426,24 @@ SlowFault:
  * The kernel exception stack contains 18 saved general registers,
  * the status register and the multiply lo and high registers.
  * In addition, we set this up for linkage conventions.
+ *
+ * Place two CHERI kernel micro-ABI registers directly above the regular MIPS
+ * trap frame on the stack.
+ *
+ * XXXRW: Need NUMSAVECREGS and CHERICAP_SIZE in right header.
+ *
+ * XXXRW: The stack isn't guaranteed to have 32-byte alignment, so allocate
+ * (and later add/mask) an extra 16 bytes so we can do run-time adjustment.
  */
 #define	KERN_REG_SIZE		(NUMSAVEREGS * SZREG)
+#ifdef CPU_CHERI
+#define	KERN_CREG_SIZE		(2 * 32 + 16)
+#define	KERN_CREG_BASE		(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
+#define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + \
+				    KERN_CREG_SIZE + 16)
+#else
 #define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
+#endif
 
 NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
