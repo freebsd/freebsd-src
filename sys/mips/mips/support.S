@@ -99,11 +99,6 @@
 
 #include "assym.s"
 
-#ifdef CPU_CHERI 
-/* Build the kernel data capability (KDC) register identifier. */
-#define KDC $c30
-#endif
-
 	.set	noreorder		# Noreorder is default style!
 
 /*
