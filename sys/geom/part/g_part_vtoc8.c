@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vtoc.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -367,7 +368,11 @@ g_part_vtoc8_resize(struct g_part_table *basetable,
 	size = gpp->gpp_size;
 	if (vtoc8_align(table, NULL, &size) != 0)
 		return (EINVAL);
-
+	/* XXX: prevent unexpected shrinking. */
+	pp = entry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0))
+		return (EBUSY);
 	entry->gpe_end = entry->gpe_start + size - 1;
 	be32enc(&table->vtoc.map[entry->gpe_index - 1].nblks, size);
 

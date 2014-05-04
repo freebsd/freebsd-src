@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -360,7 +361,11 @@ g_part_pc98_resize(struct g_part_table *basetable,
 	size = gpp->gpp_size;
 	if (pc98_align(basetable, NULL, &size) != 0)
 		return (EINVAL);
-
+	/* XXX: prevent unexpected shrinking. */
+	pp = baseentry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0))
+		return (EBUSY);
 	entry = (struct g_part_pc98_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + size - 1;
 	pc98_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
