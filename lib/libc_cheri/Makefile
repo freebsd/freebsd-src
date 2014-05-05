@@ -82,6 +82,7 @@ SRCS+=		ascii.c big5.c gbk.c gb2312.c gb18030.c euc.c utf8.c \
 		none.c mbsnrtowcs.c mskanji.c rune.c setlocale.c wcsnrtombs.c
 
 SRCS+=		collate.c		\
+		collcmp.c		\
 		ctype.c			\
 		fix_grouping.c		\
 		ldpart.c		\
@@ -89,13 +90,16 @@ SRCS+=		collate.c		\
 		lmonetary.c		\
 		lnumeric.c		\
 		localeconv.c		\
+		mbrtowc.c		\
 		runetype.c		\
 		setlocale.c		\
 		setrunelocale.c		\
 		table.c			\
 		tolower.c		\
 		toupper.c		\
-		xlocale.c
+		xlocale.c		\
+		wcrtomb.c		\
+		wctype.c
 
 # libc/inet
 SRCS+=		inet_ntop.c		\
@@ -137,6 +141,7 @@ SRCS+=		bcopy.S			\
 		strchr_c.c		\
 		strcmp.S		\
 		strcmp_c.c		\
+		strcoll.c		\
 		strcpy.c		\
 		strcpy_c.c		\
 		strcspn.c		\
