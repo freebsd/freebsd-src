@@ -61,7 +61,6 @@ Where <alg> is YARROW or FORTUNA.
 
 #define NUM_THREADS	  3
 
-static mtx_t random_reseed_mtx;
 static volatile int stopseeding = 0;
 
 void
@@ -220,12 +219,11 @@ main(int argc, char *argv[])
 	int rc;
 	long t;
 
-	mtx_init(&random_reseed_mtx, mtx_plain);
 #ifdef RANDOM_YARROW
-	random_yarrow_init_alg(NULL, &random_reseed_mtx);
+	random_yarrow_init_alg();
 #endif
 #ifdef RANDOM_FORTUNA
-	random_fortuna_init_alg(NULL, &random_reseed_mtx);
+	random_fortuna_init_alg();
 #endif
 
 	for (t = 0; t < NUM_THREADS; t++) {
@@ -251,7 +249,6 @@ main(int argc, char *argv[])
 #ifdef RANDOM_FORTUNA
 	random_fortuna_deinit_alg();
 #endif
-	mtx_destroy(&random_reseed_mtx);
 
 	/* Last thing that main() should do */
 	thrd_exit(0);

@@ -118,7 +118,7 @@ static struct yarrow_state {
 } yarrow_state;
 
 /* The random_reseed_mtx mutex protects seeding and polling/blocking.  */
-static struct mtx random_reseed_mtx;
+static mtx_t random_reseed_mtx;
 
 #ifdef _KERNEL
 static struct sysctl_ctx_list random_clist;
@@ -146,7 +146,11 @@ random_yarrow_init_alg(void)
 	randomdev_hash_init(&yarrow_state.start_cache.hash);
 
 	/* Set up the lock for the reseed/gate state */
+#ifdef _KERNEL
 	mtx_init(&random_reseed_mtx, "reseed mutex", NULL, MTX_DEF);
+#else /* !_KERNEL */
+	mtx_init(&random_reseed_mtx, mtx_plain);
+#endif /* _KERNEL */
 
 	/* Start unseeded, therefore blocked. */
 	yarrow_state.seeded = 0;
@@ -223,7 +227,9 @@ random_yarrow_deinit_alg(void)
 	mtx_destroy(&random_reseed_mtx);
 	memset((void *)(&yarrow_state), 0, sizeof(struct yarrow_state));
 
+#ifdef _KERNEL
 	sysctl_ctx_free(&random_clist);
+#endif
 }
 
 static __inline void

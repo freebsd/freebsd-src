@@ -122,7 +122,7 @@ static struct fortuna_state {
 } fortuna_state;
 
 /* The random_reseed_mtx mutex protects seeding and polling/blocking.  */
-static struct mtx random_reseed_mtx;
+static mtx_t random_reseed_mtx;
 
 static struct fortuna_start_cache {
 	uint8_t junk[PAGE_SIZE];
@@ -148,7 +148,11 @@ random_fortuna_init_alg(void)
 	randomdev_hash_init(&fortuna_start_cache.hash);
 
 	/* Set up a lock for the reseed process */
+#ifdef _KERNEL
 	mtx_init(&random_reseed_mtx, "reseed mutex", NULL, MTX_DEF);
+#else /* !_KERNEL */
+	mtx_init(&random_reseed_mtx, mtx_plain);
+#endif /* _KERNEL */
 
 #ifdef _KERNEL
 	/* Fortuna parameters. Do not adjust these unless you have
