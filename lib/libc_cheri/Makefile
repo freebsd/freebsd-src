@@ -59,6 +59,7 @@ SRCS+=		assert.c		\
 		setprogname.c		\
 		_once_stub.c		\
 		_pthread_stubs.c
+
 # libc/locale
 CFLAGS.collate.c=	-Wno-sign-compare \
 			-Wno-incompatible-pointer-types-discards-qualifiers \
@@ -102,8 +103,10 @@ SRCS+=		collate.c		\
 		wctype.c
 
 # libc/inet
-SRCS+=		inet_ntop.c		\
-		inet_ntoa.c
+SRCS+=		inet_addr.c		\
+		inet_ntop.c		\
+		inet_ntoa.c		\
+		inet_pton.c
 
 # libc/regex
 CFLAGS.regcomp.c=	-DPOSIX_MISTAKE
