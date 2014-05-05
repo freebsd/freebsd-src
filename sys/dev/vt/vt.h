@@ -277,6 +277,7 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
@@ -295,7 +296,9 @@ typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
+	char		 vd_name[16];
 	/* Console attachment. */
+	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
 
 	/* Drawing. */
