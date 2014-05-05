@@ -100,6 +100,14 @@ SRCS+=		collate.c		\
 # libc/inet
 SRCS+=		inet_ntop.c		\
 		inet_ntoa.c
+
+# libc/regex
+CFLAGS.regcomp.c=	-DPOSIX_MISTAKE
+SRCS+=		regcomp.c		\
+		regerror.c		\
+		regexec.c		\
+		regfree.c
+
 # libc/stdlib
 SRCS+=		atoi.c			\
 		heapsort.c		\
@@ -248,6 +256,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 		-I${LIBC_DIR}/${LIBC_ARCH}		\
 		-I${LIBC_DIR}/${LIBC_ARCH}/softfloat	\
 		-I${LIBC_DIR}/locale			\
+		-I${LIBC_DIR}/regex			\
 		-I${LIBC_DIR}/softfloat			\
 		-I${LIBC_DIR}/string			\
 		-I${LIBC_DIR}/stdlib			\
@@ -263,6 +272,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${LIBC_DIR}/${MACHINE}/sys
 .PATH: ${LIBC_DIR}/stdio
 .PATH: ${LIBC_DIR}/string
+.PATH: ${LIBC_DIR}/regex
 .PATH: ${LIBC_DIR}/sys
 .PATH: ${LIBC_DIR}/gdtoa
 .PATH: ${LIBC_DIR}/locale
