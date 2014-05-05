@@ -164,7 +164,10 @@
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 
 #define	VM_MIN_KERNEL_ADDRESS	(0xffffff8000000000UL)
-#define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
+#define	VM_MAX_KERNEL_ADDRESS	(0xffffff8800000000UL)
+
+#define	DMAP_MIN_ADDRESS	(0xffffff8800000000UL)
+#define	DMAP_MAX_ADDRESS	(0xffffff8fffffffffUL)
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)
 #define	VM_MAX_USER_ADDRESS	(0x0000008000000000UL)
