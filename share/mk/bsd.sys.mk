@@ -24,7 +24,6 @@ CFLAGS+=	-std=iso9899:1999
 .else # CSTD
 CFLAGS+=	-std=${CSTD}
 .endif # CSTD
-.if !defined(NO_WARNS)
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
 .if defined(WARNS)
@@ -52,7 +51,7 @@ CWARNFLAGS+=	-Wcast-align
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 		-Wold-style-definition
-.if !defined(EARLY_BUILD) && !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
+.if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
 .endif
 .endif # WARNS >= 6
@@ -64,7 +63,6 @@ CWARNFLAGS+=	-Wno-uninitialized
 CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
-.if !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
 CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
 .endif # WARNS <= 6
@@ -81,7 +79,6 @@ CWARNFLAGS.clang+=	-Wno-parentheses
 .if defined(NO_WARRAY_BOUNDS)
 CWARNFLAGS.clang+=	-Wno-array-bounds
 .endif # NO_WARRAY_BOUNDS
-.endif # !EARLY_BUILD
 .endif # WARNS
 
 .if defined(FORMAT_AUDIT)
@@ -91,11 +88,9 @@ WFORMAT=	1
 .if ${WFORMAT} > 0
 #CWARNFLAGS+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
-.if !defined(EARLY_BUILD)
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-format-nonliteral
 .endif # WARNS <= 3
-.endif # !EARLY_BUILD
 .if !defined(NO_WERROR) && !defined(NO_WERROR.${COMPILER_TYPE})
 CWARNFLAGS+=	-Werror
 .endif # !NO_WERROR && !NO_WERROR.${COMPILER_TYPE}
@@ -104,7 +99,6 @@ CWARNFLAGS+=	-Werror
 .if defined(NO_WFORMAT) || defined(NO_WFORMAT.${COMPILER_TYPE})
 CWARNFLAGS+=	-Wno-format
 .endif # NO_WFORMAT || NO_WFORMAT.${COMPILER_TYPE}
-.endif # !NO_WARNS
 
 .if defined(IGNORE_PRAGMA)
 CWARNFLAGS+=	-Wno-unknown-pragmas
@@ -117,7 +111,6 @@ CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
-.if !defined(EARLY_BUILD)
 CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
@@ -129,9 +122,6 @@ CFLAGS.clang+=	 -fno-dwarf2-cfi-asm
 # Eventually we'll want to start building the base system C++ code as C++11,
 # but not yet.
 CXXFLAGS.clang+=	 -Wno-c++11-extensions
-CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
-CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
-.endif # !EARLY_BUILD
 
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
@@ -140,8 +130,19 @@ SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !IA64 && !ARM && !MIPS
 
-# Allow user-specified additional warning flags
+# Allow user-specified additional warning flags, plus compiler specific flag overrides.
+# Unless we're early in the build, in which case don't (which is lame, this should
+# be handled by NO_WARNS which needs to migrate to something else.
+.if !defined(NO_WARNS) && !defined(EARLY_BUILD)
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+.endif
+
+# Not sure this is 100% kosher, but I think that EARLY_BUILD must be only
+# defined when we're not building programs that use the CFLAGS.foo feature.
+.if !defined(EARLY_BUILD)
+CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
+CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
+.endif
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
