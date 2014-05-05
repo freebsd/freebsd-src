@@ -229,8 +229,7 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
 	if (!CPU_ISSET(vcpu, &cpumask)) {
-		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
-		    vcpu);
+		fprintf(stderr, "Attempting to delete unknown cpu %d\n", vcpu);
 		exit(1);
 	}
 
