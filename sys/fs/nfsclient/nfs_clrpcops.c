@@ -1846,6 +1846,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	nfsv4stateid_t stateid;
 	u_int32_t rflags;
 
+	np = VTONFS(dvp);
 	*unlockedp = 0;
 	*nfhpp = NULL;
 	*dpp = NULL;
@@ -1879,17 +1880,22 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OPEN_CLAIMNULL);
 	(void) nfsm_strtom(nd, name, namelen);
+	/* Get the new file's handle and attributes. */
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(NFSV4OP_GETFH);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
 	NFSGETATTR_ATTRBIT(&attrbits);
 	(void) nfsrv_putattrbit(nd, &attrbits);
+	/* Get the directory's post-op attributes. */
+	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(NFSV4OP_PUTFH);
+	(void) nfsm_fhtom(nd, np->n_fhp->nfh_fh, np->n_fhp->nfh_len, 0);
+	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+	*tl = txdr_unsigned(NFSV4OP_GETATTR);
+	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = nfscl_request(nd, dvp, p, cred, dstuff);
 	if (error)
 		return (error);
-	error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
-	if (error)
-		goto nfsmout;
 	NFSCL_INCRSEQID(owp->nfsow_seqid, nd);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID +
@@ -1961,6 +1967,13 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		error = nfscl_mtofh(nd, nfhpp, nnap, attrflagp);
 		if (error)
 			goto nfsmout;
+		/* Get rid of the PutFH and Getattr status values. */
+		NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
+		/* Load the directory attributes. */
+		error = nfsm_loadattr(nd, dnap);
+		if (error)
+			goto nfsmout;
+		*dattrflagp = 1;
 		if (dp != NULL && *attrflagp) {
 			dp->nfsdl_change = nnap->na_filerev;
 			dp->nfsdl_modtime = nnap->na_mtime;
@@ -2004,7 +2017,6 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		if ((rflags & NFSV4OPEN_RESULTCONFIRM) &&
 		    (owp->nfsow_clp->nfsc_flags & NFSCLFLAGS_GOTDELEG) &&
 		    !error && dp == NULL) {
-		    np = VTONFS(dvp);
 		    do {
 			ret = nfsrpc_openrpc(VFSTONFS(vnode_mount(dvp)), dvp,
 			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len,
