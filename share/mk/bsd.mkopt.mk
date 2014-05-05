@@ -30,7 +30,7 @@ MK_${var}:=	yes
 #
 .for var in ${__DEFAULT_NO_OPTIONS}
 .if !defined(MK_${var})
-.if defined(WITH_${var})	# If both WITH and WITHOUT defined, WITH wins
+.if defined(WITH_${var}) && !defined(WITHOUT_${var}) # WITHOUT wins
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
