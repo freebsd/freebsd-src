@@ -153,21 +153,42 @@ cleandir: cleanobj
 _OBJDIR?= ${.OBJDIR}
 _CURDIR?= ${.CURDIR}
 
+# destroy almost everything
+destroy: destroy-all
+destroy-all:
+
+# just remove our objdir
 destroy-arch: .NOMETA
 .if ${_OBJDIR} != ${_CURDIR}
 	cd ${_CURDIR} && rm -rf ${_OBJDIR}
 .endif
 
-destroy: destroy-all
-destroy-all:
+.if defined(HOST_OBJTOP)
+destroy-host: destroy.host
+destroy.host: .NOMETA
+	cd ${_CURDIR} && rm -rf ${HOST_OBJTOP}/${RELDIR:N.}
+.endif
 
-.if ${_OBJDIR} != ${_CURDIR}
+.if make(destroy-all) && ${RELDIR} == "."
+destroy-all: destroy-stage
+.endif
+
+# remove the stage tree
+destroy-stage: .NOMETA
+.if defined(STAGE_ROOT)
+	cd ${_CURDIR} && rm -rf ${STAGE_ROOT}
+.endif
+
+# allow parallel destruction
 .for m in ${ALL_MACHINE_LIST}
 destroy-all: destroy.$m
+.if !target(destroy.$m)
 destroy.$m: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
 	cd ${_CURDIR} && rm -rf ${OBJROOT}$m*/${RELDIR:N.}
-.endfor
 .endif
+.endif
+.endfor
 
 .endif
 
