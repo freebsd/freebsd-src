@@ -9,6 +9,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>
@@ -1557,18 +1558,6 @@ lib_window.po: curses.h
 lib_window.po: ncurses_def.h
 lib_window.po: term.h
 lib_window.po: unctrl.h
-memmove.So: curses.h
-memmove.So: ncurses_def.h
-memmove.So: term.h
-memmove.So: unctrl.h
-memmove.o: curses.h
-memmove.o: ncurses_def.h
-memmove.o: term.h
-memmove.o: unctrl.h
-memmove.po: curses.h
-memmove.po: ncurses_def.h
-memmove.po: term.h
-memmove.po: unctrl.h
 name_match.So: curses.h
 name_match.So: ncurses_def.h
 name_match.So: term.h
@@ -1608,6 +1597,18 @@ nc_panel.po: curses.h
 nc_panel.po: ncurses_def.h
 nc_panel.po: term.h
 nc_panel.po: unctrl.h
+obsolete.So: curses.h
+obsolete.So: ncurses_def.h
+obsolete.So: term.h
+obsolete.So: unctrl.h
+obsolete.o: curses.h
+obsolete.o: ncurses_def.h
+obsolete.o: term.h
+obsolete.o: unctrl.h
+obsolete.po: curses.h
+obsolete.po: ncurses_def.h
+obsolete.po: term.h
+obsolete.po: unctrl.h
 parse_entry.So: curses.h
 parse_entry.So: ncurses_def.h
 parse_entry.So: parametrized.h
@@ -1659,18 +1660,6 @@ safe_sprintf.po: curses.h
 safe_sprintf.po: ncurses_def.h
 safe_sprintf.po: term.h
 safe_sprintf.po: unctrl.h
-setbuf.So: curses.h
-setbuf.So: ncurses_def.h
-setbuf.So: term.h
-setbuf.So: unctrl.h
-setbuf.o: curses.h
-setbuf.o: ncurses_def.h
-setbuf.o: term.h
-setbuf.o: unctrl.h
-setbuf.po: curses.h
-setbuf.po: ncurses_def.h
-setbuf.po: term.h
-setbuf.po: unctrl.h
 strings.So: curses.h
 strings.So: ncurses_def.h
 strings.So: term.h

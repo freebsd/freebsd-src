@@ -34,6 +34,12 @@ _ashldi3.So: tm.h
 _ashrdi3.So: options.h
 _ashrdi3.So: tconfig.h
 _ashrdi3.So: tm.h
+_bswapdi2.So: options.h
+_bswapdi2.So: tconfig.h
+_bswapdi2.So: tm.h
+_bswapsi2.So: options.h
+_bswapsi2.So: tconfig.h
+_bswapsi2.So: tm.h
 _clear_cache.So: options.h
 _clear_cache.So: tconfig.h
 _clear_cache.So: tm.h
