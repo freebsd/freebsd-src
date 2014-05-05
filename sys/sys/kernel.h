@@ -94,7 +94,6 @@ enum sysinit_sub_id {
 	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
-	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
 	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
 						 * Hypervisor detection and
 						 * virtualization support 
@@ -138,7 +137,6 @@ enum sysinit_sub_id {
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual filesystem*/
 	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
-	SI_SUB_CLIST		= 0x5800000,	/* clists*/
 	SI_SUB_SYSV_SHM		= 0x6400000,	/* System V shared memory*/
 	SI_SUB_SYSV_SEM		= 0x6800000,	/* System V semaphores*/
 	SI_SUB_SYSV_MSG		= 0x6C00000,	/* System V message queues*/
