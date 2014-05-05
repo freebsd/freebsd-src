@@ -1,6 +1,9 @@
 WITH_INSTALL_AS_USER= yes
 
 .if defined(.PARSEDIR)		# bmake
+SRCCONF:= ${.PARSEDIR}/src.conf
+# ensure we are self contained
+__MAKE_CONF:= ${SRCCONF}
 
 # some handy macros
 _this = ${.PARSEDIR:tA}/${.PARSEFILE}
@@ -207,13 +210,15 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 .if ${MACHINE} != "host"
 CFLAGS_LAST+= -nostdinc
 .endif
-CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include 
+GCCVER?= 4.2
+CLANGVER?= 3.4
+CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -I${STAGE_OBJTOP}/usr/include
 CFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
-CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
+CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER} -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}
 # backward doesn't get searched if -nostdinc
-CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}/backward
-CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/${CLANGVER:U3.3}
+CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward
+CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/${CLANGVER} -I${STAGE_OBJTOP}/usr/include/clang/${CLANGVER}
 CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 .else
 # if ld suppored sysroot, this would suffice
