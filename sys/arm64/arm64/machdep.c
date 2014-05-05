@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
 
-vm_paddr_t phys_avail[10];
+vm_paddr_t phys_avail[PHYS_AVAIL_SIZE];
 
 int cold = 1;
 long realmem = 0;
@@ -478,7 +478,10 @@ initarm(struct arm64_bootparams *abp)
 	}
 	printf("Total = %llx\n", mem_len);
 
+	/* Set the pcpu data, this is needed by pmap_bootstrap */
+	set_curthread(&thread0);
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	PCPU_SET(curthread, &thread0);
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
