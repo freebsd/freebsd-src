@@ -67,14 +67,14 @@ pmap_early_page_idx(vm_offset_t l1pt, vm_offset_t va, uint64_t kern_delta,
 	pd_entry_t *pde;
 
 	pde = (pd_entry_t *)l1pt;
-	*l1_slot = (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK;
+	*l1_slot = (va >> L1_SHIFT) & Ln_ADDR_MASK;
 
 	/* Check locore has used a table L1 map */
 	KASSERT((pde[*l1_slot] & ATTR_DESCR_MASK) == L1_TABLE,
 	   ("Invalid bootstrap L1 table"));
 	/* Find the address of the L2 table */
 	ptep = (pt_entry_t *)((pde[*l1_slot] & ~ATTR_MASK) + kern_delta);
-	*l2_slot = (KERNBASE >> L2_SHIFT) & Ln_ADDR_MASK;
+	*l2_slot = (va >> L2_SHIFT) & Ln_ADDR_MASK;
 
 	return (ptep);
 }
@@ -87,13 +87,33 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va, uint64_t kern_delta)
 
 	ptep = pmap_early_page_idx(l1pt, va, kern_delta, &l1_slot, &l2_slot);
 
-	return (ptep[l2_slot] & ~ATTR_MASK);
+	return ((ptep[l2_slot] & ~ATTR_MASK) + (va & L2_OFFSET));
+}
+
+static void
+pmap_bootstrap_dmap(vm_offset_t l1pt)
+{
+	vm_offset_t va;
+	vm_paddr_t pa;
+	pd_entry_t *pde;
+	u_int l1_slot;
+
+	va = DMAP_MIN_ADDRESS;
+	pde = (pd_entry_t *)l1pt;
+	l1_slot = (DMAP_MIN_ADDRESS >> L1_SHIFT) & Ln_ADDR_MASK;
+
+	for (pa = 0; va < DMAP_MAX_ADDRESS;
+	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
+		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
+
+		pde[l1_slot] = (pa & ~L1_OFFSET) | ATTR_AF | L1_BLOCK;
+	}
 }
 
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot, avail_slot, map_slot;
+	u_int l1_slot, l2_slot, avail_slot, map_slot, used_map_slot;
 	uint64_t kern_delta;
 	pt_entry_t *ptep;
 	vm_offset_t va, freemempos;
@@ -111,24 +131,29 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	/*
 	 * Start to initialise phys_avail by copying from physmap
-	 * up to the physicaladdress KERNBASE points at.
+	 * up to the physical address KERNBASE points at.
 	 */
-	for (avail_slot = 0; avail_slot < physmap_idx; avail_slot += 2) {
-		if (physmap[avail_slot] <= pa &&
-		    physmap[avail_slot] + physmap[avail_slot + 1] > pa)
+	map_slot = avail_slot = 0;
+	for (; map_slot < (physmap_idx * 2); map_slot += 2) {
+		if (physmap[map_slot] == physmap[map_slot + 1])
+			continue;
+
+		if (physmap[map_slot] <= pa &&
+		    physmap[map_slot + 1] > pa)
 			break;
 
-		phys_avail[avail_slot] = physmap[avail_slot];
-		phys_avail[avail_slot + 1] = physmap[avail_slot + 1];
+		phys_avail[avail_slot] = physmap[map_slot];
+		phys_avail[avail_slot + 1] = physmap[map_slot + 1];
+		avail_slot += 2;
 	}
 
 	/* Add the memory before the kernel */
-	if (physmap[avail_slot] != pa) {
-		phys_avail[avail_slot] = physmap[avail_slot];
-		phys_avail[avail_slot + 1] = pa - physmap[avail_slot];
+	if (physmap[avail_slot] < pa) {
+		phys_avail[avail_slot] = physmap[map_slot];
+		phys_avail[avail_slot + 1] = pa;
 		avail_slot += 2;
 	}
-	map_slot = avail_slot;
+	used_map_slot = map_slot;
 
 	/*
 	 * Read the page table to find out what is already mapped.
@@ -149,7 +174,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 		/* Check locore used L2 blocks */
 		KASSERT((ptep[l2_slot] & ATTR_DESCR_MASK) == L2_BLOCK,
 		    ("Invalid bootstrap L2 table"));
-		KASSERT((ptep[l2_slot] & ~ATTR_DESCR_MASK) == pa,
+		KASSERT((ptep[l2_slot] & ~ATTR_MASK) == pa,
 		    ("Incorrect PA in L2 table"));
 
 		va += L2_SIZE;
@@ -206,6 +231,47 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	/* Allocate dynamic per-cpu area. */
 	alloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
 	dpcpu_init((void *)dpcpu, 0);
+
+	virtual_avail = roundup2(freemempos, L2_SIZE);
+
+	pa = pmap_early_vtophys(l1pt, virtual_avail, kern_delta);
+
+	/* Finish initialising physmap */
+	map_slot = used_map_slot;
+	for (; avail_slot < (PHYS_AVAIL_SIZE - 2) &&
+	    map_slot < (physmap_idx * 2); map_slot += 2) {
+		if (physmap[map_slot] == physmap[map_slot + 1])
+			continue;
+
+		/* Have we used the current range? */
+		if (physmap[map_slot + 1] <= pa)
+			continue;
+
+		/* Do we need to split the entry? */
+		if (physmap[map_slot] < pa) {
+			phys_avail[avail_slot] = pa;
+			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
+		} else {
+			phys_avail[avail_slot] = physmap[map_slot];
+			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
+		}
+
+		avail_slot += 2;
+	}
+	phys_avail[avail_slot] = 0;
+	phys_avail[avail_slot + 1] = 0;
+
+	/* Create a direct map region */
+	pmap_bootstrap_dmap(l1pt);
+
+	/* Flush the cache and tlb to ensure the new entries are valid */
+	/* TODO: Flush the cache, we are relying on it being off */
+	/* TODO: Move this to a function */
+	__asm __volatile(
+	    "dsb  sy		\n"
+	    "tlbi vmalle1is	\n"
+	    "dsb  sy		\n"
+	    "isb		\n");
 }
 
 /*
@@ -314,7 +380,7 @@ vm_offset_t
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 
-	panic("pmap_map");
+	return (start | DMAP_MIN_ADDRESS);
 }
 
 /*
