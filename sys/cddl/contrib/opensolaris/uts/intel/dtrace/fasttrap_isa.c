@@ -1429,10 +1429,7 @@ fasttrap_pid_probe(struct reg *rp)
 		if (tp->ftt_code == 0) {
 			new_pc = tp->ftt_dest;
 		} else {
-#ifdef __amd64
-			uintptr_t value;
-#endif
-			uintptr_t addr = tp->ftt_dest;
+			uintptr_t value, addr = tp->ftt_dest;
 
 			if (tp->ftt_base != FASTTRAP_NOREG)
 				addr += fasttrap_getreg(rp, tp->ftt_base);
@@ -1456,6 +1453,7 @@ fasttrap_pid_probe(struct reg *rp)
 
 #ifdef __amd64
 				if (p->p_model == DATAMODEL_NATIVE) {
+#endif
 					if ((value = fasttrap_fulword((void *)addr))
 					     == -1) {
 						fasttrap_sigsegv(p, curthread,
@@ -1464,9 +1462,8 @@ fasttrap_pid_probe(struct reg *rp)
 						break;
 					}
 					new_pc = value;
+#ifdef __amd64
 				} else {
-#endif
-#ifdef __i386__
 					uint32_t value32;
 					addr = (uintptr_t)(uint32_t)addr;
 					if ((value32 = fasttrap_fuword32((void *)addr))
@@ -1477,13 +1474,11 @@ fasttrap_pid_probe(struct reg *rp)
 						break;
 					}
 					new_pc = value32;
-#endif
 				}
-#ifdef __amd64
+#endif
 			} else {
 				new_pc = addr;
 			}
-#endif
 		}
 
 		/*
@@ -1502,11 +1497,9 @@ fasttrap_pid_probe(struct reg *rp)
 				ret = fasttrap_sulword((void *)addr, pcps);
 			} else {
 #endif
-#ifdef __i386__
 				addr = rp->r_rsp - sizeof (uint32_t);
 				pcps = (uint32_t)(pc + tp->ftt_size);
 				ret = fasttrap_suword32((void *)addr, pcps);
-#endif
 #ifdef __amd64
 			}
 #endif
