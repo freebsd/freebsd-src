@@ -762,7 +762,9 @@ nfs_close(struct vop_close_args *ap)
 		/*
 		 * Get attributes so "change" is up to date.
 		 */
-		if (error == 0 && nfscl_mustflush(vp) != 0) {
+		if (error == 0 && nfscl_mustflush(vp) != 0 &&
+		    vp->v_type == VREG &&
+		    (VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOCTO) == 0) {
 			ret = nfsrpc_getattr(vp, cred, ap->a_td, &nfsva,
 			    NULL);
 			if (!ret) {
