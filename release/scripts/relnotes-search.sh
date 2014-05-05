@@ -56,7 +56,7 @@ main() {
 				if [ -e "${where}" ]; then
 					echo "Log file already exists:"
 					echo "  (${where})"
-					exit 2
+					return 2
 				fi
 				;;
 			r)
@@ -64,7 +64,7 @@ main() {
 				c=$(echo -n ${rev} | tr -d '0-9' | wc -c)
 				if [ ${c} -ne 0 ]; then
 					echo "Revision number must be numeric."
-					exit 2
+					return 2
 				fi
 				# Since the last specified revision is
 				# specified, mangle the variable to
@@ -101,25 +101,25 @@ main() {
 	# Did we find svn?
 	if [ -z "${svn}" ]; then
 		echo "svn(1) binary not found."
-		exit 2
+		return 2
 	fi
 	# Is more than one path specified?  (This should never
 	# be triggered, because the argument count is checked
 	# above, but better safe than sorry.)
 	if [ $# -gt 1 ]; then
 		echo "Cannot specify more than one working path."
-		exit 2
+		return 2
 	fi
 	# Does the directory exist?
 	if [ ! -d "${1}" ]; then
 		echo "Specified path (${1}) is not a directory."
-		exit 2
+		return 2
 	fi
 	# Is it a subversion repository checkout?
 	${svn} info ${1} >/dev/null 2>&1
 	if [ "$?" -ne 0 ]; then
 		echo "Cannot determine svn repository information for ${1}"
-		exit 2
+		return 2
 	fi
 
 	# All tests passed.  Let's see what can possibly go wrong
