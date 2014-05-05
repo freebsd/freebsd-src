@@ -105,6 +105,7 @@ SRCS+=		atoi.c			\
 		strtol.c		\
 		strtol_c.c		\
 		strtoll.c		\
+		strtoul.c		\
 		strtoull.c		\
 		strtoq.c		\
 		strtouq.c
@@ -128,6 +129,7 @@ SRCS+=		bcopy.S			\
 		strcmp_c.c		\
 		strcpy.c		\
 		strcpy_c.c		\
+		strcspn.c		\
 		strdup.c		\
 		strerror.c		\
 		strlcat.c		\
@@ -137,7 +139,11 @@ SRCS+=		bcopy.S			\
 		strncmp_c.c		\
 		strncpy.c		\
 		strncpy_c.c		\
-		strnlen_c.c
+		strndup.c		\
+		strnlen.c		\
+		strnlen_c.c		\
+		strrchr.c		\
+		strstr.c
 
 # libc/sys
 SRCS+=		__error.c
@@ -150,6 +156,8 @@ CFLAGS.strtod.c=	-Wno-unused-parameter -Wno-uninitialized \
 			-Wno-incompatible-pointer-types-discards-qualifiers
 CFLAGS.strtodg.c=	-Wno-unused-parameter -Wno-uninitialized \
 			-Wno-incompatible-pointer-types-discards-qualifiers
+CFLAGS.strtof.c=	-Wno-unused-parameter -Wno-uninitialized \
+			-Wno-incompatible-pointer-types-discards-qualifiers
 SRCS+=		gethex.c		\
 		gmisc.c			\
 		hd_init.c		\
@@ -157,6 +165,7 @@ SRCS+=		gethex.c		\
 		smisc.c			\
 		strtod.c		\
 		strtodg.c		\
+		strtof.c		\
 		strtord.c		\
 		sum.c			\
 		ulp.c
