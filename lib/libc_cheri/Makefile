@@ -102,6 +102,8 @@ SRCS+=		inet_ntop.c		\
 		inet_ntoa.c
 # libc/stdlib
 SRCS+=		atoi.c			\
+		heapsort.c		\
+		qsort.c 		\
 		strtol.c		\
 		strtol_c.c		\
 		strtoll.c		\
