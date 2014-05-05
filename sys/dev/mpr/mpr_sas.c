@@ -2501,7 +2501,8 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb,
 	sg = NULL;
 	error = 0;
 
-#if __FreeBSD_version >= 1000029
+#if (__FreeBSD_version >= 1000028) || \
+    ((__FreeBSD_version >= 902001) && (__FreeBSD_version < 1000000))
 	switch (ccb->ccb_h.flags & CAM_DATA_MASK) {
 	case CAM_DATA_PADDR:
 	case CAM_DATA_SG_PADDR:
@@ -2561,7 +2562,7 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb,
 		xpt_done(ccb);
 		return;
 	}
-#else //__FreeBSD_version < 1000029
+#else /* __FreeBSD_version < 1000028 */
 	/*
 	 * XXX We don't yet support physical addresses here.
 	 */
@@ -2604,7 +2605,7 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb,
 			bus_dma_segment_t *req_sg;
 
 			req_sg = (bus_dma_segment_t *)ccb->smpio.smp_request;
-			request = (uint8_t *)req_sg[0].ds_addr;
+			request = (uint8_t *)(uintptr_t)req_sg[0].ds_addr;
 		} else
 			request = ccb->smpio.smp_request;
 
@@ -2612,14 +2613,14 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb,
 			bus_dma_segment_t *rsp_sg;
 
 			rsp_sg = (bus_dma_segment_t *)ccb->smpio.smp_response;
-			response = (uint8_t *)rsp_sg[0].ds_addr;
+			response = (uint8_t *)(uintptr_t)rsp_sg[0].ds_addr;
 		} else
 			response = ccb->smpio.smp_response;
 	} else {
 		request = ccb->smpio.smp_request;
 		response = ccb->smpio.smp_response;
 	}
-#endif //__FreeBSD_version >= 1000029
+#endif /* __FreeBSD_version < 1000028 */
 
 	cm = mpr_alloc_command(sc);
 	if (cm == NULL) {
