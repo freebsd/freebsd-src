@@ -24,9 +24,12 @@ M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
 
 #.info M_dep_qual_fixes=${M_dep_qual_fixes}
 # we want to supress these dependencies for host tools
+# but some libs are sadly needed.
+_need_host_libs= lib/libdwarf
+N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host = \
+	${N_host_libs} \
 	Ninclude* \
-	Nlib/lib* \
 	Nlib/csu* \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
