@@ -101,8 +101,8 @@ struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS] = {
 	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Lock */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockT */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockU */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookup */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookupp */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE },		/* Lookup */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE },		/* Lookupp */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* NVerify */
 	{ 1, 1, 0, 1, LK_EXCLUSIVE },		/* Open */
 	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* OpenAttr */

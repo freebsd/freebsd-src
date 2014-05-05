@@ -1135,14 +1135,23 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		}
 		if (nd->nd_flag & ND_NFSV3)
 		    error = nfscl_postop_attr(nd, dnap, dattrflagp, stuff);
+		else if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) ==
+		    ND_NFSV4) {
+			/* Load the directory attributes. */
+			error = nfsm_loadattr(nd, dnap);
+			if (error == 0)
+				*dattrflagp = 1;
+		}
 		goto nfsmout;
 	}
 	if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4) {
-		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if (*(tl + 1)) {
-			nd->nd_flag |= ND_NOMOREDATA;
+		/* Load the directory attributes. */
+		error = nfsm_loadattr(nd, dnap);
+		if (error != 0)
 			goto nfsmout;
-		}
+		*dattrflagp = 1;
+		/* Skip over the Lookup and GetFH operation status values. */
+		NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 	}
 	error = nfsm_getfh(nd, nfhpp);
 	if (error)
@@ -2566,14 +2575,6 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		 * Joy, oh joy. For V4 we get to hand craft '.' and '..'.
 		 */
 		if (uiop->uio_offset == 0) {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 800000
-			error = VOP_GETATTR(vp, &nfsva.na_vattr, cred);
-#else
-			error = VOP_GETATTR(vp, &nfsva.na_vattr, cred, p);
-#endif
-			if (error)
-			    return (error);
-			dotfileid = nfsva.na_fileid;
 			NFSCL_REQSTART(nd, NFSPROC_LOOKUPP, vp);
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(NFSV4OP_GETFH);
@@ -2582,9 +2583,16 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			error = nfscl_request(nd, vp, p, cred, stuff);
 			if (error)
 			    return (error);
+			dotfileid = 0;	/* Fake out the compiler. */
+			if ((nd->nd_flag & ND_NOMOREDATA) == 0) {
+			    error = nfsm_loadattr(nd, &nfsva);
+			    if (error != 0)
+				goto nfsmout;
+			    dotfileid = nfsva.na_fileid;
+			}
 			if (nd->nd_repstat == 0) {
-			    NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
-			    len = fxdr_unsigned(int, *(tl + 2));
+			    NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+			    len = fxdr_unsigned(int, *(tl + 4));
 			    if (len > 0 && len <= NFSX_V4FHMAX)
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 			    else
@@ -2993,15 +3001,6 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		 * Joy, oh joy. For V4 we get to hand craft '.' and '..'.
 		 */
 		if (uiop->uio_offset == 0) {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 800000
-			error = VOP_GETATTR(vp, &nfsva.na_vattr, cred);
-#else
-			error = VOP_GETATTR(vp, &nfsva.na_vattr, cred, p);
-#endif
-			if (error)
-			    return (error);
-			dctime = nfsva.na_ctime;
-			dotfileid = nfsva.na_fileid;
 			NFSCL_REQSTART(nd, NFSPROC_LOOKUPP, vp);
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(NFSV4OP_GETFH);
@@ -3010,9 +3009,17 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			error = nfscl_request(nd, vp, p, cred, stuff);
 			if (error)
 			    return (error);
+			dotfileid = 0;	/* Fake out the compiler. */
+			if ((nd->nd_flag & ND_NOMOREDATA) == 0) {
+			    error = nfsm_loadattr(nd, &nfsva);
+			    if (error != 0)
+				goto nfsmout;
+			    dctime = nfsva.na_ctime;
+			    dotfileid = nfsva.na_fileid;
+			}
 			if (nd->nd_repstat == 0) {
-			    NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
-			    len = fxdr_unsigned(int, *(tl + 2));
+			    NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
+			    len = fxdr_unsigned(int, *(tl + 4));
 			    if (len > 0 && len <= NFSX_V4FHMAX)
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
 			    else
