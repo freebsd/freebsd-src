@@ -426,7 +426,7 @@ int
 random_fortuna_seeded(void)
 {
 
-	return (uint128_is_zero(fortuna_state.counter.whole));
+	return (!uint128_is_zero(fortuna_state.counter.whole));
 }
 
 #endif /* RANDOM_FORTUNA */
