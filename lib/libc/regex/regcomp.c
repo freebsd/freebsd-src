@@ -214,7 +214,7 @@ regcomp(regex_t * __restrict preg,
 	if (g == NULL)
 		return(REG_ESPACE);
 	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
-	p->strip = (sop *)calloc(p->ssize, sizeof(sop));
+	p->strip = (sop *)malloc(p->ssize * sizeof(sop));
 	p->slen = 0;
 	if (p->strip == NULL) {
 		free((char *)g);
