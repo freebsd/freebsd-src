@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.21 2013/03/28 20:01:05 sjg Exp $
+# $Id: gendirdeps.mk,v 1.25 2014/03/14 21:28:37 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -162,7 +162,7 @@ dir_list != cd ${_OBJDIR} && \
 .warning Skipping ${_DEPENDFILE:S,${SRCTOP}/,,}
 # we are not going to update anything
 .else
-
+dpadd_dir_list=
 .if !empty(DPADD)
 _nonlibs := ${DPADD:T:Nlib*:N*include}
 .if !empty(_nonlibs)
@@ -174,6 +174,7 @@ ddep_list += $f.dirdep
 ddep_list += ${f:H}.dirdep
 .else
 dir_list += ${f:H:tA}
+dpadd_dir_list += ${f:H:tA}
 .endif
 .endfor
 .if !empty(ddep_list)
@@ -197,7 +198,7 @@ dir_list += ${ddeps}
 # so we add 
 # ${"${dir_list:M*bsd/sys/${MACHINE_ARCH}/include}":?bsd/include:}
 # to GENDIRDEPS_DIR_LIST_XTRAS
-_objtops = ${OBJTOP} ${_OBJTOP} ${_obtop}
+_objtops = ${OBJTOP} ${_OBJTOP} ${_objtop}
 _objtops := ${_objtops:O:u}
 dirdep_list = \
 	${_objtops:@o@${dir_list:M$o*/*:C,$o[^/]*/,,}@} \
@@ -212,8 +213,11 @@ M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
 .for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
 # we need := so only skip_ql to this point applies
-ql :=	${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
-qualdir_list += ${ql}
+ql.$o := ${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+qualdir_list += ${ql.$o}
+.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: o=$o ${ql.$o qualdir_list:L:@v@$v=${$v}@}
+.endif
 skip_ql+= $o*
 .endfor
 
@@ -225,7 +229,7 @@ DIRDEPS = \
 	${qualdir_list:N${RELDIR}.*:N${RELDIR}/*}
 
 # We only consider things below $RELDIR/ if they have a makefile.
-# This is the same test that _DIRDEPS_USE applies.
+# This is the same test that _DIRDEP_USE applies.
 # We have do a double test with dirdep_list as it _may_ contain 
 # qualified dirs - if we got anything from a stage dir.
 # qualdir_list we know are all qualified.
@@ -236,11 +240,12 @@ DIRDEPS += \
 	${dirdep_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/$d/$m):?$d:${exists(${SRCTOP}/${d:R}/$m):?$d:}}@}@} \
 	${qualdir_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/${d:R}/$m):?$d:}@}@}
 
-DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:O:u}
+DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:C,//+,/,g:O:u}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
 .info ${RELDIR}: dir_list='${dir_list}'
+.info ${RELDIR}: dpadd_dir_list='${dpadd_dir_list}'
 .info ${RELDIR}: dirdep_list='${dirdep_list}'
 .info ${RELDIR}: qualdir_list='${qualdir_list}'
 .info ${RELDIR}: SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS}'
@@ -256,7 +261,7 @@ src_dirdep_list = \
 SRC_DIRDEPS = \
 	${src_dirdep_list:N${RELDIR}:N${RELDIR}/*:C,(/h)/.*,,}
 
-SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:O:u}
+SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:O:u}
 
 # if you want to capture SRC_DIRDEPS in .MAKE.DEPENDFILE put
 # SRC_DIRDEPS_FILE = ${_DEPENDFILE} 
