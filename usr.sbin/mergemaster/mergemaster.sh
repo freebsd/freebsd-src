@@ -1327,7 +1327,7 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
-if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
+if [ -e "${DESTDIR}/etc/localtime" -a ! -L "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
   echo ''
   [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then
