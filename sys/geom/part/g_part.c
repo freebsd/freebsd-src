@@ -1316,7 +1316,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 
 	error = G_PART_RESIZE(table, entry, gpp);
 	if (error) {
-		gctl_error(req, "%d", error);
+		gctl_error(req, "%d%s", error, error != EBUSY ? "":
+		    " resizing will lead to unexpected shrinking"
+		    " due to alignment");
 		return (error);
 	}
 
@@ -2063,8 +2065,10 @@ g_part_resize(struct g_consumer *cp)
 		table->gpt_opened = 1;
 	}
 	if (G_PART_RESIZE(table, NULL, NULL) == 0)
-		printf("GEOM_PART: %s was automatically resized\n",
-		    cp->geom->name);
+		printf("GEOM_PART: %s was automatically resized.\n"
+		    "  Use `gpart commit %s` to save changes or "
+		    "`gpart undo %s` to revert them.\n", cp->geom->name,
+		    cp->geom->name, cp->geom->name);
 	if (g_part_check_integrity(table, cp) != 0) {
 		g_access(cp, -1, -1, -1);
 		table->gpt_opened = 0;

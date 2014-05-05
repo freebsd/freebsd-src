@@ -46,13 +46,13 @@ and fills a pointer to the
 structure in
 .Fa *pp .
 In the latter case, a process owning the specified thread is looked for.
-The actual operation is performed by invoking the
+The operation is performed by invoking the
 .Xr pfind 9
 function.
 The found process is returned locked.
-Only for
+For the
 .Dv PGET_HOLD
-case it is returned unlocked (but held).
+case, it is returned unlocked (but held).
 The
 .Fn pget
 function can
@@ -65,7 +65,7 @@ The
 argument is the logical OR of some subset of:
 .Bl -tag -width ".Dv PGET_NOTINEXEC"
 .It Dv PGET_HOLD
-If set, the found process will be referenced and unlocked.
+If set, the found process will be held and unlocked.
 .It Dv PGET_CANSEE
 If set, the found process will be checked for its visibility.
 See
@@ -93,6 +93,8 @@ If set,
 is not assumed as a thread id for values larger than
 .Dv PID_MAX .
 .It Dv PGET_WANTREAD
+If set, the found process will be checked that the caller may get
+a read access to its structure.
 A shorthand for
 .Pq Dv PGET_HOLD | PGET_CANDEBUG | PGET_NOTWEXIT .
 .El
