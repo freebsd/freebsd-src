@@ -45,10 +45,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__amd64__) || defined(__i386__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/metadata.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <sys/linker.h>
 #endif /* __amd64__ || __i386__ */
 
 struct vga_softc {
@@ -637,19 +635,6 @@ vga_init(struct vt_device *vd)
 {
 	struct vga_softc *sc = vd->vd_softc;
 	int textmode = 0;
-
-#if defined(__amd64__)
-	/* Disable if EFI framebuffer present. Should be handled by priority
-	 * logic in vt(9), but this will do for now. XXX */
-
-	caddr_t kmdp, efifb;
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efifb = preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_FB);
-	if (efifb != NULL)
-		return (CN_DEAD);
-#endif
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
