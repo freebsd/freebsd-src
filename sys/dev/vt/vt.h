@@ -394,6 +394,9 @@ TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
 SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
     vt_upgrade, &driver ## _consdev)
 
+/* name argument is not used yet. */
+#define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
+
 /*
  * Fonts.
  *
