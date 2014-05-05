@@ -52,9 +52,8 @@ CWARNFLAGS+=	-Wcast-align
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 		-Wold-style-definition
-.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD) && \
-    !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
-CWARNFLAGS+=	-Wmissing-variable-declarations
+.if !defined(EARLY_BUILD) && !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
+CWARNFLAGS.clang+=	-Wmissing-variable-declarations
 .endif
 .endif # WARNS >= 6
 .if ${WARNS} >= 2 && ${WARNS} <= 4
@@ -65,24 +64,24 @@ CWARNFLAGS+=	-Wno-uninitialized
 CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
-.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
+.if !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
-CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
+CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
-CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
+CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
-CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
+CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
 .endif # WARNS <= 2
 .if ${WARNS} <= 1
-CWARNFLAGS+=	-Wno-parentheses
+CWARNFLAGS.clang+=	-Wno-parentheses
 .endif # WARNS <= 1
 .if defined(NO_WARRAY_BOUNDS)
-CWARNFLAGS+=	-Wno-array-bounds
+CWARNFLAGS.clang+=	-Wno-array-bounds
 .endif # NO_WARRAY_BOUNDS
-.endif # CLANG
+.endif # !EARLY_BUILD
 .endif # WARNS
 
 .if defined(FORMAT_AUDIT)
@@ -92,11 +91,11 @@ WFORMAT=	1
 .if ${WFORMAT} > 0
 #CWARNFLAGS+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
-.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
+.if !defined(EARLY_BUILD)
 .if ${WARNS} <= 3
-CWARNFLAGS+=	-Wno-format-nonliteral
+CWARNFLAGS.clang+=	-Wno-format-nonliteral
 .endif # WARNS <= 3
-.endif # CLANG
+.endif # !EARLY_BUILD
 .if !defined(NO_WERROR) && !defined(NO_WERROR.${COMPILER_TYPE})
 CWARNFLAGS+=	-Werror
 .endif # !NO_WERROR && !NO_WERROR.${COMPILER_TYPE}
@@ -111,23 +110,25 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if !defined(EARLY_BUILD)
 .if ${COMPILER_TYPE} == "clang"
+# Would love to do this unconditionally, but can't due to its use in
+# kernel build coupled with CFLAGS.${TARGET} feature
 CLANG_NO_IAS=	 -no-integrated-as
+.endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
-CFLAGS+=	 -Qunused-arguments
+.if !defined(EARLY_BUILD)
+CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
-CFLAGS+=	 -fno-dwarf2-cfi-asm
+CFLAGS.clang+=	 -fno-dwarf2-cfi-asm
 .endif # SPARC64
 # The libc++ headers use c++11 extensions.  These are normally silenced because
 # they are treated as system headers, but we explicitly disable that warning
 # suppression when building the base system to catch bugs in our headers.
 # Eventually we'll want to start building the base system C++ code as C++11,
 # but not yet.
-CXXFLAGS+=	 -Wno-c++11-extensions
-.endif # CLANG
+CXXFLAGS.clang+=	 -Wno-c++11-extensions
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 .endif # !EARLY_BUILD
@@ -140,8 +141,7 @@ CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !IA64 && !ARM && !MIPS
 
 # Allow user-specified additional warning flags
-CFLAGS+=	${CWARNFLAGS}
-
+CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
