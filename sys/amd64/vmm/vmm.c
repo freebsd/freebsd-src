@@ -189,6 +189,16 @@ static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
 SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
 
+/*
+ * Halt the guest if all vcpus are executing a HLT instruction with
+ * interrupts disabled.
+ */
+static int halt_detection_enabled = 1;
+TUNABLE_INT("hw.vmm.halt_detection", &halt_detection_enabled);
+SYSCTL_INT(_hw_vmm, OID_AUTO, halt_detection, CTLFLAG_RDTUN,
+    &halt_detection_enabled, 0,
+    "Halt VM if all vcpus execute HLT with interrupts disabled");
+
 static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
@@ -1047,7 +1057,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		if (intr_disabled) {
 			wmesg = "vmhalt";
 			VCPU_CTR0(vm, vcpuid, "Halted");
-			if (!vcpu_halted) {
+			if (!vcpu_halted && halt_detection_enabled) {
 				vcpu_halted = 1;
 				CPU_SET_ATOMIC(vcpuid, &vm->halted_cpus);
 			}
