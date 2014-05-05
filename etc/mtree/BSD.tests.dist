@@ -97,8 +97,6 @@
             ..
             growfs
             ..
-            ifconfig
-            ..
             mdconfig
             ..
         ..
