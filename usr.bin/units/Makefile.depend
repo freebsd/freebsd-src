@@ -9,6 +9,8 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libedit \
+	lib/ncurses/ncurses \
 
 
 .include <dirdeps.mk>

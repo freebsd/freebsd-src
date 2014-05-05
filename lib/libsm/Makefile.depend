@@ -68,6 +68,8 @@ get.o: sm_os.h
 get.po: sm_os.h
 heap.o: sm_os.h
 heap.po: sm_os.h
+inet6_ntop.o: sm_os.h
+inet6_ntop.po: sm_os.h
 ldap.o: sm_os.h
 ldap.po: sm_os.h
 makebuf.o: sm_os.h
