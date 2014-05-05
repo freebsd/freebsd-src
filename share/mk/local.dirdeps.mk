@@ -1,6 +1,10 @@
 .if !target(_DIRDEP_USE)
 # we are the 1st makefile
 
+.if !defined(MK_CTF)
+.include "${SRCTOP}/share/mk/bsd.opts.mk"
+.endif
+
 # DEP_MACHINE is set before we get here, this may not be.
 DEP_RELDIR ?= ${RELDIR}
 
@@ -39,7 +43,7 @@ DIRDEPS += gnu/lib/libssp/libssp_nonshared
 .endif
 
 # some optional things
-.if !defined(WITHOUT_CTF) && ${DEP_RELDIR:U${RELDIR}:Mcddl/usr.bin/ctf*} == ""
+.if ${MK_CTF} == "yes" && ${DEP_RELDIR:U${RELDIR}:Mcddl/usr.bin/ctf*} == ""
 DIRDEPS += \
 	cddl/usr.bin/ctfconvert.host \
 	cddl/usr.bin/ctfmerge.host
