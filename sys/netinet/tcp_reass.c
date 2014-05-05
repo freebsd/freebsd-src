@@ -144,7 +144,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 
 		V_tcp_reass_overflows++;
 		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
 		*tlenp = 0;
 		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
 		    NULL))) {
@@ -152,6 +151,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			    "segment dropped\n", s, __func__);
 			free(s, M_TCPLOG);
 		}
+		m_freem(m);
 		return (0);
 	}
 
