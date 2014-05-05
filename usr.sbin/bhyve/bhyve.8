@@ -35,7 +35,7 @@
 .Op Fl aehwxAHPW
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
-.Op Fl p Ar pinnedcpu
+.Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Ar vmname
@@ -80,12 +80,11 @@ For
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
-.It Fl p Ar pinnedcpu
-Force guest virtual CPUs to be pinned to host CPUs.
-Virtual CPU
-.Em n
-is pinned to host CPU
-.Em pinnedcpu+n .
+.It Fl p Ar vcpu:hostcpu
+Pin guest's virtual CPU
+.Em vcpu
+to
+.Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl W
