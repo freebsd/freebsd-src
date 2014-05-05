@@ -165,6 +165,7 @@ static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
 static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
+static void	ath_update_mcast_hw(struct ath_softc *);
 static void	ath_update_mcast(struct ifnet *);
 static void	ath_update_promisc(struct ifnet *);
 static void	ath_updateslot(struct ifnet *);
@@ -3379,10 +3380,15 @@ ath_update_promisc(struct ifnet *ifp)
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x\n", __func__, rfilt);
 }
 
+/*
+ * Driver-internal mcast update call.
+ *
+ * Assumes the hardware is already awake.
+ */
 static void
-ath_update_mcast(struct ifnet *ifp)
+ath_update_mcast_hw(struct ath_softc *sc)
 {
-	struct ath_softc *sc = ifp->if_softc;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t mfilt[2];
 
 	/* calculate and install multicast filter */
@@ -3410,13 +3416,31 @@ ath_update_mcast(struct ifnet *ifp)
 		if_maddr_runlock(ifp);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
-	ATH_LOCK(sc);
-	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+
 	ath_hal_setmcastfilter(sc->sc_ah, mfilt[0], mfilt[1]);
-	ath_power_restore_power_state(sc);
-	ATH_UNLOCK(sc);
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: MC filter %08x:%08x\n",
 		__func__, mfilt[0], mfilt[1]);
+}
+
+/*
+ * Called from the net80211 layer - force the hardware
+ * awake before operating.
+ */
+static void
+ath_update_mcast(struct ifnet *ifp)
+{
+	struct ath_softc *sc = ifp->if_softc;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	ath_update_mcast_hw(sc);
+
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
 }
 
 void
@@ -3444,7 +3468,7 @@ ath_mode_init(struct ath_softc *sc)
 	ath_hal_setmac(ah, IF_LLADDR(ifp));
 
 	/* calculate and install multicast filter */
-	ath_update_mcast(ifp);
+	ath_update_mcast_hw(sc);
 }
 
 /*
