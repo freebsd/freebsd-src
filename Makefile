@@ -139,11 +139,7 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 # Choices add to complexity though.
 # We cannot blindly use a make which may not be the one we want
 # so be exlicit - until all choice is removed.
-.if !defined(WITHOUT_BMAKE)
 WANT_MAKE=	bmake
-.else
-WANT_MAKE=	fmake
-.endif
 MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
 .if defined(.PARSEDIR)
 HAVE_MAKE=	bmake
@@ -152,7 +148,7 @@ HAVE_MAKE=	fmake
 .endif
 .if exists(${MYMAKE})
 SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif ${WANT_MAKE} != ${HAVE_MAKE} || ${WANT_MAKE} != "bmake"
+.elif ${WANT_MAKE} != ${HAVE_MAKE}
 # It may not exist yet but we may cause it to.
 # In the case of fmake, upgrade_checks may cause a newer version to be built.
 SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
