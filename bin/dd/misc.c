@@ -40,14 +40,16 @@ static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/time.h>
 
+#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "dd.h"
@@ -56,16 +58,20 @@ __FBSDID("$FreeBSD$");
 void
 summary(void)
 {
-	struct timeval tv;
-	double secs;
+	struct timespec tv, tv_res;
+	double secs, res;
 
 	if (ddflags & C_NOINFO)
 		return;
 
-	(void)gettimeofday(&tv, NULL);
-	secs = tv.tv_sec + tv.tv_usec * 1e-6 - st.start;
-	if (secs < 1e-6)
-		secs = 1e-6;
+	if (clock_gettime(CLOCK_MONOTONIC_PRECISE, &tv))
+		err(EX_OSERR, "clock_gettime");
+	if (clock_getres(CLOCK_MONOTONIC_PRECISE, &tv_res))
+		err(EX_OSERR, "clock_getres");
+	secs = tv.tv_sec + tv.tv_nsec * 1.0e-9 - st.start;
+	res = tv_res.tv_sec + tv_res.tv_nsec * 1.0e-9;
+	if (secs < res)
+		secs = res;
 	(void)fprintf(stderr,
 	    "%ju+%ju records in\n%ju+%ju records out\n",
 	    st.in_full, st.in_part, st.out_full, st.out_part);
@@ -77,7 +83,7 @@ summary(void)
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
 	if (!(ddflags & C_NOXFER)) {
 		(void)fprintf(stderr,
-		    "%ju bytes transferred in %.6f secs (%.0f bytes/sec)\n",
+		    "%ju bytes transferred in %.9f secs (%.0f bytes/sec)\n",
 		    st.bytes, secs, st.bytes / secs);
 	}
 	need_summary = 0;
