@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # XXX MISSING:		icheck ncheck
 

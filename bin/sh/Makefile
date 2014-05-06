@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	sh
 INSTALLFLAGS= -S

@@ -5,7 +5,7 @@
 # compile modes.
 # bsd.lib.mk doesn't have an easy way to express that.
 MK_PROFILE?=no
-.include <bsd.own.mk>
+.include <src.opts.mk>
 NO_PIC=	
 # -fpic on some platforms, -fPIC on others.
 CFLAGS+=${PICFLAG} -DPIC -fvisibility=hidden

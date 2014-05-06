@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CXGBE = ${.CURDIR}/../../../dev/cxgbe
 .PATH: ${CXGBE}/iw_cxgbe

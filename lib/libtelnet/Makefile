@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet

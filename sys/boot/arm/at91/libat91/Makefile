@@ -1,5 +1,6 @@
 #  $FreeBSD$
 
+.include <src.opts.mk>
 .include "${.CURDIR}/../Makefile.inc"
 
 SOC?=at91rm9200

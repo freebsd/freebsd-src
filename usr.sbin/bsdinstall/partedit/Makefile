@@ -22,7 +22,7 @@ SRCS=	diskeditor.c partedit.c gpart_ops.c partedit_${PARTEDIT_ARCH}.c \
 WARNS?=	3
 MAN= sade.8
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}

@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 MAN=		assert.3 \
 		ATOMIC_VAR_INIT.3 \

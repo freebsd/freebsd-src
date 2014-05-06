@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c roaming_dummy.c

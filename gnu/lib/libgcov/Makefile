@@ -3,7 +3,7 @@
 MK_PROFILE=	no
 MK_SSP=		no
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
