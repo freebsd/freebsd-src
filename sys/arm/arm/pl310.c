@@ -355,9 +355,7 @@ pl310_attach(device_t dev)
 {
 	struct pl310_softc *sc = device_get_softc(dev);
 	int rid;
-	uint32_t aux_value;
-	uint32_t ctrl_value;
-	uint32_t cache_id;
+	uint32_t cache_id, debug_ctrl;
 
 	sc->sc_dev = dev;
 	rid = 0;
@@ -376,7 +374,6 @@ pl310_attach(device_t dev)
 
 	pl310_softc = sc;
 	mtx_init(&sc->sc_mtx, "pl310lock", NULL, MTX_SPIN);
-	sc->sc_enabled = pl310_enabled;
 
 	/* activate the interrupt */
 	bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
@@ -389,31 +386,48 @@ pl310_attach(device_t dev)
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
 
-	pl310_set_way_sizes();
+	/*
+	 * If L2 cache is already enabled then something has violated the rules,
+	 * because caches are supposed to be off at kernel entry.  The cache
+	 * must be disabled to write the configuration registers without
+	 * triggering an access error (SLVERR), but there's no documented safe
+	 * procedure for disabling the L2 cache in the manual.  So we'll try to
+	 * invent one:
+	 *  - Use the debug register to force write-through mode and prevent
+	 *    linefills (allocation of new lines on read); now anything we do
+	 *    will not cause new data to come into the L2 cache.
+	 *  - Writeback and invalidate the current contents.
+	 *  - Disable the controller.
+	 *  - Restore the original debug settings.
+	 */
+	if (pl310_read4(sc, PL310_CTRL) & CTRL_ENABLED) {
+		device_printf(dev, "Warning: L2 Cache should not already be "
+		    "active; trying to de-activate and re-initialize...\n");
+		sc->sc_enabled = 1;
+		debug_ctrl = pl310_read4(sc, PL310_DEBUG_CTRL);
+		platform_pl310_write_debug(sc, debug_ctrl |
+		    DEBUG_CTRL_DISABLE_WRITEBACK | DEBUG_CTRL_DISABLE_LINEFILL);
+		pl310_set_way_sizes(sc);
+		pl310_wbinv_all();
+		platform_pl310_write_ctrl(sc, CTRL_DISABLED);
+		platform_pl310_write_debug(sc, debug_ctrl);
+	}
+	sc->sc_enabled = pl310_enabled;
 
-	/* Print the information */
-	device_printf(dev, "L2 Cache: %uKB/%dB %d ways\n", (g_l2cache_size / 1024),
-	       g_l2cache_line_size, g_ways_assoc);
-
-	ctrl_value = pl310_read4(sc, PL310_CTRL);
-
-	if (sc->sc_enabled && !(ctrl_value & CTRL_ENABLED)) {
-		/* invalidate current content */
+	if (sc->sc_enabled) {
+		platform_pl310_init(sc);
+		pl310_set_way_sizes(sc); /* platform init might change these */
 		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
 		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
-
-		/* Enable the L2 cache if disabled */
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
-		device_printf(dev, "L2 Cache enabled\n");
+		device_printf(dev, "L2 Cache enabled: %uKB/%dB %d ways\n", 
+		    (g_l2cache_size / 1024), g_l2cache_line_size, g_ways_assoc);
 		if (bootverbose)
 			pl310_print_config(sc);
-	} 
-
-	if (!sc->sc_enabled && (ctrl_value & CTRL_ENABLED)) {
+	} else {
 		/*
-		 * Set counters so when cache event happens
-		 * we'll get interrupt and be warned that something 
-		 * is off
+		 * Set counters so when cache event happens we'll get interrupt
+		 * and be warned that something is off.
 		 */
 
 		/* Cache Line Eviction for Counter 0 */
@@ -422,12 +436,6 @@ pl310_attach(device_t dev)
 		/* Data Read Request for Counter 1 */
 		pl310_write4(sc, PL310_EVENT_COUNTER1_CONF, 
 		    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_DRREQ);
-
-		/* Temporary switch on for final flush*/
-		sc->sc_enabled = 1;
-		pl310_wbinv_all();
-		sc->sc_enabled = 0;
-		platform_pl310_write_ctrl(sc, CTRL_DISABLED);
 
 		/* Enable and clear pending interrupts */
 		pl310_write4(sc, PL310_INTR_CLEAR, INTR_MASK_ECNTR);
@@ -441,11 +449,6 @@ pl310_attach(device_t dev)
 
 		device_printf(dev, "L2 Cache disabled\n");
 	}
-
-	if (sc->sc_enabled)
-		platform_pl310_init(sc);
-
-	pl310_wbinv_all();
 
 	/* Set the l2 functions in the set of cpufuncs */
 	cpufuncs.cf_l2cache_wbinv_all = pl310_wbinv_all;
