@@ -65,8 +65,6 @@ __DEFAULT_NO_OPTIONS = \
 
 .include <bsd.mkopt.mk>
 
-# This should be elsewhere, but needs to be here first for now.
-.include <src.opts.mk>
 .endif # !_WITHOUT_SRCCONF
 
 .endif

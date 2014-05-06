@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_SENDMAIL} != "no"
 SUBDIR=	sendmail

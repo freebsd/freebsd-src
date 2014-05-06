@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	${_BSD.debug.dist} \
 	BSD.include.dist \

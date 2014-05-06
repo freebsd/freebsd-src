@@ -1,5 +1,7 @@
 #  $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH:	${.CURDIR}/../libat91
 
 P=bootspi

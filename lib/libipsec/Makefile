@@ -29,7 +29,7 @@
 
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	ipsec
 SHLIB_MAJOR= 4

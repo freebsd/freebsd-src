@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ssh-keysign
 SRCS=	ssh-keysign.c roaming_dummy.c readconf.c

@@ -2,7 +2,7 @@
 #	$FreeBSD$
 #	$OpenBSD: Makefile,v 1.6 2003/06/25 15:00:04 millert Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_BSD_GREP} == "yes"
 PROG=	grep

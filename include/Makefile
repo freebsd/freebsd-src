@@ -3,7 +3,7 @@
 #
 # Doing a "make install" builds /usr/include.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale

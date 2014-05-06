@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../netinet
 .PATH: ${.CURDIR}/../../crypto
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD=	carp
 SRCS=	ip_carp.c sha1.c

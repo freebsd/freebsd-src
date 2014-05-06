@@ -25,6 +25,7 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
 LIB=		atf-c++

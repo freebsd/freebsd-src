@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.16 2011/06/21 13:25:45 joerg Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=		gzip
 MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1

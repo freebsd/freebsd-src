@@ -8,7 +8,7 @@
 
 MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 S=		${.CURDIR}/../../../lib/libstand
