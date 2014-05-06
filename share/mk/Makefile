@@ -42,6 +42,9 @@ FILES=	\
 	sys.mk \
 	version_gen.awk
 
+# Installed for the moment, but not may not be in the future.
+FILES+=	src.opts.mk
+
 NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
