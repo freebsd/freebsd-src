@@ -45,7 +45,7 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
-.include <src.opts.mk>
+.include "share/mk/src.opts.mk"
 .include <bsd.arch.inc.mk>
 .include <bsd.compiler.mk>
 
