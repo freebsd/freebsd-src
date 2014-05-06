@@ -14,7 +14,7 @@
 # Makefiles must include bsd.srcpot.mk before they test the value of any MK_FOO
 # variable.
 #
-# Makefiles may also assume that this file is included by bsd.own.mk should it
+# Makefiles may also assume that this file is included by src.opts.mk should it
 # need variables defined there prior to the end of the Makefile where
 # bsd.{subdir,lib.bin}.mk is traditionally included.
 #
@@ -29,6 +29,9 @@
 
 .if !target(__<src.opts.mk>__)
 __<src.opts.mk>__:
+
+# Compat -- needed still?
+.include <bsd.own.mk>
 
 # Allow user to configure things, but in the future this will move
 # elsehwere...

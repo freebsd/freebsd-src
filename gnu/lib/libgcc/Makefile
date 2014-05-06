@@ -6,7 +6,7 @@ GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 #
 # libgcc is linked in last and thus cannot depend on ssp symbols coming
 # from earlier libraries. Disable stack protection for this library.

@@ -3,7 +3,7 @@
 # Part of a unified Makefile for building kernels.  This part contains all
 # of the definitions that need to be before %BEFORE_DEPEND.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 .include <bsd.compiler.mk>
 
 # backwards compat option for older systems.

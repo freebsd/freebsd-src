@@ -2,7 +2,7 @@
 #	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}

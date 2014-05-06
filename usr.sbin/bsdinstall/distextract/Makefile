@@ -8,7 +8,7 @@ LDADD=	-larchive -ldialog -lm
 WARNS?=	6
 MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}

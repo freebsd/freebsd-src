@@ -1,7 +1,7 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	\
 	bsd.README \
@@ -26,7 +26,7 @@ FILES=	\
 	bsd.nls.mk \
 	bsd.obj.mk \
 	bsd.opts.mk \
-	bsd.own.mk \
+	src.opts.mk \
 	bsd.port.mk \
 	bsd.port.options.mk \
 	bsd.port.post.mk \
