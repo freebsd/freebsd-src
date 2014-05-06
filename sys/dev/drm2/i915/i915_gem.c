@@ -1427,6 +1427,7 @@ unlocked_vmobj:
 	m = vm_phys_fictitious_to_vm_page(dev->agp->base + obj->gtt_offset +
 	    offset);
 	if (m == NULL) {
+		VM_OBJECT_UNLOCK(vm_obj);
 		cause = 60;
 		ret = -EFAULT;
 		goto unlock;
