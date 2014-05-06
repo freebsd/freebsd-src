@@ -63,7 +63,7 @@ apm_metadata(u_int where)
 }
 
 static int
-apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 {
 	u_char *buf;
 	struct apm_ddr *ddr;
