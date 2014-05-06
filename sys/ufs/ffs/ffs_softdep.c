@@ -1275,6 +1275,7 @@ static int stat_cleanup_blkrequests; /* Number of block cleanup requests */
 static int stat_cleanup_inorequests; /* Number of inode cleanup requests */
 static int stat_cleanup_retries; /* Number of cleanups that needed to flush */
 static int stat_cleanup_failures; /* Number of cleanup requests that failed */
+static int stat_emptyjblocks; /* Number of potentially empty journal blocks */
 
 SYSCTL_INT(_debug_softdep, OID_AUTO, max_softdeps, CTLFLAG_RW,
     &max_softdeps, 0, "");
@@ -1334,6 +1335,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
     &stat_cleanup_failures, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
     &softdep_flushcache, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, emptyjblocks, CTLFLAG_RD,
+    &stat_emptyjblocks, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -3328,6 +3331,24 @@ softdep_process_journal(mp, needwk, flags)
 		 */
 		data = bp->b_data;
 		off = 0;
+
+		/*
+		 * Always put a header on the first block.
+		 * XXX As with below, there might not be a chance to get
+		 * into the loop.  Ensure that something valid is written.
+		 */
+		jseg_write(ump, jseg, data);
+		off += JREC_SIZE;
+		data = bp->b_data + off;
+
+		/*
+		 * XXX Something is wrong here.  There's no work to do,
+		 * but we need to perform and I/O and allow it to complete
+		 * anyways.
+		 */
+		if (LIST_EMPTY(&ump->softdep_journal_pending))
+			stat_emptyjblocks++;
+
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
 			if (cnt == 0)
@@ -3377,6 +3398,11 @@ softdep_process_journal(mp, needwk, flags)
 			data = bp->b_data + off;
 			cnt--;
 		}
+
+		/* Clear any remaining space so we don't leak kernel data */
+		if (size > off)
+			bzero(data, size - off);
+
 		/*
 		 * Write this one buffer and continue.
 		 */
