@@ -320,6 +320,23 @@ pl310_inv_range(vm_paddr_t start, vm_size_t size)
 	PL310_UNLOCK(pl310_softc);
 }
 
+static void
+pl310_set_way_sizes(struct pl310_softc *sc)
+{
+	uint32_t aux_value;
+
+	aux_value = pl310_read4(sc, PL310_AUX_CTRL);
+	g_way_size = (aux_value & AUX_CTRL_WAY_SIZE_MASK) >>
+	    AUX_CTRL_WAY_SIZE_SHIFT;
+	g_way_size = 1 << (g_way_size + 13);
+	if (aux_value & (1 << AUX_CTRL_ASSOCIATIVITY_SHIFT))
+		g_ways_assoc = 16;
+	else
+		g_ways_assoc = 8;
+	g_l2cache_way_mask = (1 << g_ways_assoc) - 1;
+	g_l2cache_size = g_way_size * g_ways_assoc;
+}
+
 static int
 pl310_probe(device_t dev)
 {
@@ -371,16 +388,9 @@ pl310_attach(device_t dev)
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
-	aux_value = pl310_read4(sc, PL310_AUX_CTRL);
-	g_way_size = (aux_value & AUX_CTRL_WAY_SIZE_MASK) >>
-	    AUX_CTRL_WAY_SIZE_SHIFT;
-	g_way_size = 1 << (g_way_size + 13);
-	if (aux_value & (1 << AUX_CTRL_ASSOCIATIVITY_SHIFT))
-		g_ways_assoc = 16;
-	else
-		g_ways_assoc = 8;
-	g_l2cache_way_mask = (1 << g_ways_assoc) - 1;
-	g_l2cache_size = g_way_size * g_ways_assoc;
+
+	pl310_set_way_sizes();
+
 	/* Print the information */
 	device_printf(dev, "L2 Cache: %uKB/%dB %d ways\n", (g_l2cache_size / 1024),
 	       g_l2cache_line_size, g_ways_assoc);
