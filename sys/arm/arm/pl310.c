@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 } while(0);
 
 static int pl310_enabled = 1;
-TUNABLE_INT("pl310.enabled", &pl310_enabled);
+TUNABLE_INT("hw.pl310.enabled", &pl310_enabled);
 
 static uint32_t g_l2cache_way_mask;
 
@@ -149,7 +149,8 @@ static __inline void
 pl310_wait_background_op(uint32_t off, uint32_t mask)
 {
 
-	while (pl310_read4(pl310_softc, off) & mask);
+	while (pl310_read4(pl310_softc, off) & mask)
+		continue;
 }
 
 
@@ -167,6 +168,7 @@ pl310_wait_background_op(uint32_t off, uint32_t mask)
 static __inline void
 pl310_cache_sync(void)
 {
+
 	if ((pl310_softc == NULL) || !pl310_softc->sc_enabled)
 		return;
 
@@ -335,12 +337,13 @@ static int
 pl310_attach(device_t dev)
 {
 	struct pl310_softc *sc = device_get_softc(dev);
-	int rid = 0;
+	int rid;
 	uint32_t aux_value;
 	uint32_t ctrl_value;
 	uint32_t cache_id;
 
 	sc->sc_dev = dev;
+	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
@@ -446,7 +449,7 @@ pl310_attach(device_t dev)
 static device_method_t pl310_methods[] = {
 	DEVMETHOD(device_probe, pl310_probe),
 	DEVMETHOD(device_attach, pl310_attach),
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t pl310_driver = {
