@@ -14,7 +14,7 @@ Items affecting the ports and packages system can be found in
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process from
-older version of current accorss the gcc/clang cutover is a bit fragile.
+older version of current across the gcc/clang cutover is a bit fragile.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	FreeBSD 11.x has many debugging features turned on, in both the kernel
@@ -40,7 +40,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	behavior of incremental builds inside the tree of individual
 	directories. Set MAKESYSPATH to ".../share/mk" to do that.
 	Although this has survived make universe and some upgrade scenarios,
-	other upgrade scenarios may have broken.
+	other upgrade scenarios may have broken. At least one form of
+	temporary breakage was fixed with MAKESYSPATH settings for buildworld
+	as well...
 
 20140430:
 	The lindev device has been removed since /dev/full has been made a
