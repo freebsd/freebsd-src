@@ -302,13 +302,26 @@ fdcopy(int src, int dst, uint64_t *count)
 	return (errno);
 }
 
-int
+static int
 mkimg_seek(int fd, lba_t blk)
 {
 	off_t off;
 
 	off = blk * secsz;
 	if (lseek(fd, off, SEEK_SET) != off)
+		return (errno);
+	return (0);
+}
+
+int
+mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
+{
+
+	blk *= secsz;
+	if (lseek(fd, blk, SEEK_SET) != blk)
+		return (errno);
+	len *= secsz;
+	if (write(fd, buf, len) != len)
 		return (errno);
 	return (0);
 }
