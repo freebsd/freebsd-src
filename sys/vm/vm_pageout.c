@@ -942,13 +942,15 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 */
 	addl_page_shortage = 0;
 
-	deficit = atomic_readandclear_int(&vm_pageout_deficit);
-
 	/*
 	 * Calculate the number of pages we want to either free or move
 	 * to the cache.
 	 */
-	page_shortage = vm_paging_target() + deficit;
+	if (pass > 0) {
+		deficit = atomic_readandclear_int(&vm_pageout_deficit);
+		page_shortage = vm_paging_target() + deficit;
+	} else
+		page_shortage = deficit = 0;
 
 	/*
 	 * maxlaunder limits the number of dirty pages we flush per scan.
