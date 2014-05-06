@@ -347,7 +347,7 @@ make bmake: .PHONY
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= NO_MAN=t
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
 
