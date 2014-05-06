@@ -63,6 +63,7 @@ static vd_blank_t	ofwfb_blank;
 static vd_bitbltchr_t	ofwfb_bitbltchr;
 
 static const struct vt_driver vt_ofwfb_driver = {
+	.vd_name	= "ofwfb",
 	.vd_init	= ofwfb_init,
 	.vd_blank	= ofwfb_blank,
 	.vd_bitbltchr	= ofwfb_bitbltchr,

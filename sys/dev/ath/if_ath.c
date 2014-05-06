@@ -6504,7 +6504,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * only reflect promisc mode settings.
 			 */
 			ATH_LOCK(sc);
+			ath_power_set_power_state(sc, HAL_PM_AWAKE);
 			ath_mode_init(sc);
+			ath_power_restore_power_state(sc);
 			ATH_UNLOCK(sc);
 		} else if (ifp->if_flags & IFF_UP) {
 			/*

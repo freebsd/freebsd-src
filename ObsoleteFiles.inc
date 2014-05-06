@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140505: Reject PR kern/187551
+OLD_DIRS+=usr/tests/sbin/ifconfig
+OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
+OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
 # 20140502: Removal of lindev(4)
 OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140314: AppleTalk

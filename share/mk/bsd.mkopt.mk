@@ -1,22 +1,34 @@
 #
 # $FreeBSD$
 #
-# Generic mechanism to deal with WITH and WITHOUT options and turn them into MK_ options.
+# Generic mechanism to deal with WITH and WITHOUT options and turn
+# them into MK_ options.
 #
+# For each option FOO in __DEFUALT_YES_OPTIONS, MK_FOO is set to
+# "yes", unless WITHOUT_FOO is defined, in which case it is set to
+# "no".
 #
-# For each option FOO that defaults to YES, MK_FOO is set to yes, unless WITHOUT_FOO
-# is defined, in which case it is set to no. If both WITH_FOO and WITHOUT_FOO are
-# defined, WITHOUT_FOO wins. The list of default yes options is contained in the
-# __DEFAULT_YES_OPTIONS variable, which is undefined after expansion.
+# For each option FOO in __DEFUALT_NO_OPTIONS, MK_FOO is set to "no",
+# unless WITH_FOO is defined, in which case it is set to "yes".
 #
-# For each option FOO that defaults to NO, MK_FOO is set to no, unless WITH_FOO
-# is defined, in which case it is set to yes. If both WITH_FOO and WITHOUT_FOO are
-# defined, WITH_FOO wins. The list of default no options is contained in the
-# __DEFAULT_NO_OPTIONS variable, which is undefined after expansion.
+# If both WITH_FOO and WITHOUT_FOO are defined, WITHOUT_FOO wins and
+# MK_FOO is set to "no" regardless of which list it was in.
+#
+# Both __DEFAULT_YES_OPTIONS and __DEFAULT_NO_OPTIONS are undef'd
+# after all this processing, allowing this file to be included
+# multiple times with different lists.
+#
+# Users should generally define WITH_FOO or WITHOUT_FOO, but the build
+# system should use MK_FOO={yes,no} when it needs to override the
+# user's desires or default behavior.
+#
+
+#
+# MK_* options which default to "yes".
 #
 .for var in ${__DEFAULT_YES_OPTIONS}
 .if !defined(MK_${var})
-.if defined(WITHOUT_${var})	# IF both WITH and WITHOUT defined, WITHOUT wins.
+.if defined(WITHOUT_${var})			# WITHOUT always wins
 MK_${var}:=	no
 .else
 MK_${var}:=	yes
@@ -30,7 +42,7 @@ MK_${var}:=	yes
 #
 .for var in ${__DEFAULT_NO_OPTIONS}
 .if !defined(MK_${var})
-.if defined(WITH_${var})	# If both WITH and WITHOUT defined, WITH wins
+.if definfed(WITH_${var} && !defined(WITHOUT_${var}) # WITHOUT aways wins
 MK_${var}:=	yes
 .else
 MK_${var}:=	no

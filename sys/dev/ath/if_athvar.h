@@ -510,6 +510,7 @@ struct ath_rx_edma {
 	int		m_fifo_tail;
 	int		m_fifo_depth;
 	struct mbuf	*m_rxpending;
+	struct ath_buf	*m_holdbf;
 };
 
 struct ath_tx_edma_fifo {

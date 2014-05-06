@@ -10,7 +10,7 @@ CFLAGS+= -I${.CURDIR} -I${DIALOG}
 
 WARNS?= 6
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}

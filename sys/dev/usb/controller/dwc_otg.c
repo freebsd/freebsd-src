@@ -93,15 +93,13 @@
    DWC_OTG_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
 #define	DWC_OTG_MSK_GINT_ENABLED	\
-   (GINTSTS_ENUMDONE |			\
-   GINTSTS_USBRST |			\
-   GINTSTS_USBSUSP |			\
-   GINTSTS_IEPINT |			\
-   GINTSTS_RXFLVL |			\
-   GINTSTS_SESSREQINT |			\
+   (GINTMSK_ENUMDONEMSK |		\
+   GINTMSK_USBRSTMSK |			\
+   GINTMSK_USBSUSPMSK |			\
+   GINTMSK_IEPINTMSK |			\
+   GINTMSK_SESSREQINTMSK |		\
    GINTMSK_OTGINTMSK |			\
-   GINTMSK_HCHINTMSK |			\
-   GINTSTS_PRTINT)
+   GINTMSK_PRTINTMSK)
 
 static int dwc_otg_use_hsic;
 
@@ -207,6 +205,12 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		/* reset active endpoints */
 		sc->sc_active_rx_ep = 0;
 
+		/* reset TX size */
+		sc->sc_tx_cur_size = 0;
+
+		/* reset TT info */
+		memset(sc->sc_tt_info, 0, sizeof(sc->sc_tt_info));
+
 		fifo_size /= 2;
 
 		DWC_OTG_WRITE_4(sc, DOTG_GNPTXFSIZ,
@@ -215,23 +219,20 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 
 		tx_start += fifo_size;
 
+		for (x = 0; x != sc->sc_host_ch_max; x++) {
+			/* disable all host interrupts */
+			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x), 0);
+		}
+
 		DWC_OTG_WRITE_4(sc, DOTG_HPTXFSIZ,
 		    ((fifo_size / 4) << 16) |
 		    (tx_start / 4));
 
-		for (x = 0; x != sc->sc_host_ch_max; x++) {
-			/* enable interrupts */
-			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x),
-			    HCINT_STALL | HCINT_BBLERR |
-			    HCINT_XACTERR |
-			    HCINT_NAK | HCINT_ACK | HCINT_NYET |
-			    HCINT_CHHLTD | HCINT_FRMOVRUN |
-			    HCINT_DATATGLERR);
-		}
+		/* store maximum TX FIFO size */
+		sc->sc_tx_max_size = fifo_size;
 
-		/* enable host channel interrupts */
-		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK,
-		    (1U << sc->sc_host_ch_max) - 1U);
+		/* disable all host channel interrupts */
+		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, 0);
 	}
 
 	if (mode == DWC_MODE_DEVICE) {
@@ -309,8 +310,44 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 	} else {
 		/* reset active endpoints */
 		sc->sc_active_rx_ep = 0;
+
+		/* reset TX size */
+		sc->sc_tx_cur_size = 0;
+
+		/* reset TT info */
+		memset(sc->sc_tt_info, 0, sizeof(sc->sc_tt_info));
 	}
 	return (0);
+}
+
+static void
+dwc_otg_update_host_frame_interval(struct dwc_otg_softc *sc)
+{
+	uint32_t temp;
+
+	/* setup HOST frame interval register, based on existing value */
+	temp = DWC_OTG_READ_4(sc, DOTG_HFIR) & HFIR_FRINT_MASK;
+	if (temp >= 10000)
+		temp /= 1000;
+	else
+		temp /= 125;
+
+	/* figure out nearest X-tal value */
+	if (temp >= 54)
+		temp = 60;	/* MHz */
+	else if (temp >= 39)
+		temp = 48;	/* MHz */
+	else
+		temp = 30;	/* MHz */
+
+	if (sc->sc_flags.status_high_speed)
+		temp *= 125;
+	else
+		temp *= 1000;
+
+	DPRINTF("HFIR=0x%08x\n", temp);
+
+	DWC_OTG_WRITE_4(sc, DOTG_HFIR, temp);
 }
 
 static void
@@ -376,9 +413,11 @@ dwc_otg_pull_down(struct dwc_otg_softc *sc)
 static void
 dwc_otg_enable_sof_irq(struct dwc_otg_softc *sc)
 {
-	if (sc->sc_irq_mask & GINTSTS_SOF)
+	/* In device mode we don't use the SOF interrupt */
+	if (sc->sc_flags.status_device_mode != 0 ||
+	    (sc->sc_irq_mask & GINTMSK_SOFMSK) != 0)
 		return;
-	sc->sc_irq_mask |= GINTSTS_SOF;
+	sc->sc_irq_mask |= GINTMSK_SOFMSK;
 	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 }
 
@@ -395,8 +434,8 @@ dwc_otg_resume_irq(struct dwc_otg_softc *sc)
 			 * Disable resume interrupt and enable suspend
 			 * interrupt:
 			 */
-			sc->sc_irq_mask &= ~GINTSTS_WKUPINT;
-			sc->sc_irq_mask |= GINTSTS_USBSUSP;
+			sc->sc_irq_mask &= ~GINTMSK_WKUPINTMSK;
+			sc->sc_irq_mask |= GINTMSK_USBSUSPMSK;
 			DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 		}
 
@@ -418,8 +457,8 @@ dwc_otg_suspend_irq(struct dwc_otg_softc *sc)
 			 * Disable suspend interrupt and enable resume
 			 * interrupt:
 			 */
-			sc->sc_irq_mask &= ~GINTSTS_USBSUSP;
-			sc->sc_irq_mask |= GINTSTS_WKUPINT;
+			sc->sc_irq_mask &= ~GINTMSK_USBSUSPMSK;
+			sc->sc_irq_mask |= GINTMSK_WKUPINTMSK;
 			DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 		}
 
@@ -493,9 +532,11 @@ dwc_otg_common_rx_ack(struct dwc_otg_softc *sc)
 {
 	DPRINTFN(5, "RX status clear\n");
 
-	/* enable RX FIFO level interrupt */
-	sc->sc_irq_mask |= GINTSTS_RXFLVL;
-	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+	if (sc->sc_flags.status_device_mode != 0) {
+		/* enable RX FIFO level interrupt */
+		sc->sc_irq_mask |= GINTMSK_RXFLVLMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+	}
 
 	/* clear cached status */
 	sc->sc_last_rx_status = 0;
@@ -506,6 +547,7 @@ dwc_otg_clear_hcint(struct dwc_otg_softc *sc, uint8_t x)
 {
 	uint32_t hcint;
 
+	/* clear all pending interrupts */
 	hcint = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
 	DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), hcint);
 
@@ -513,6 +555,10 @@ dwc_otg_clear_hcint(struct dwc_otg_softc *sc, uint8_t x)
 	sc->sc_chan_state[x].hcint = 0;
 }
 
+/*
+ * This function waits until a DWC OTG host channel is ready to be
+ * used again:
+ */
 static uint8_t
 dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 {
@@ -544,6 +590,9 @@ dwc_otg_host_channel_wait(struct dwc_otg_td *td)
 
 		sc->sc_chan_state[td->channel].allocated = 0;
 		sc->sc_chan_state[x].allocated = 1;
+
+		sc->sc_chan_state[x].tx_size =
+		    sc->sc_chan_state[td->channel].tx_size;
 
 		if (sc->sc_chan_state[td->channel].suspended) {
 			sc->sc_chan_state[td->channel].suspended = 0;
@@ -579,6 +628,7 @@ static uint8_t
 dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 {
 	struct dwc_otg_softc *sc;
+	uint32_t tx_size;
 	uint8_t x;
 	uint8_t max_channel;
 
@@ -591,9 +641,25 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 	if ((td->hcchar & HCCHAR_EPNUM_MASK) == 0) {
 		max_channel = 1;
 		x = 0;
+		tx_size = td->max_packet_size;
+		if ((sc->sc_tx_cur_size + tx_size) > sc->sc_tx_max_size) {
+			DPRINTF("Too little FIFO space\n");
+			return (1);	/* too little FIFO */
+		}
 	} else {
 		max_channel = sc->sc_host_ch_max;
 		x = 1;
+		if ((td->hcchar & HCCHAR_EPDIR) == HCCHAR_EPDIR_OUT) {
+			tx_size = td->max_packet_size;
+			if (td->hcsplt != 0 && tx_size > HCSPLT_XACTLEN_MAX)
+				tx_size = HCSPLT_XACTLEN_MAX;
+			if ((sc->sc_tx_cur_size + tx_size) > sc->sc_tx_max_size) {
+				DPRINTF("Too little FIFO space\n");
+				return (1);	/* too little FIFO */
+			}
+		} else {
+			tx_size = 0;
+		}
 	}
 
 	for (; x != max_channel; x++) {
@@ -604,6 +670,10 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td)
 			continue;
 
 		sc->sc_chan_state[x].allocated = 1;
+		sc->sc_chan_state[x].tx_size = tx_size;
+
+		/* keep track of used FIFO */
+		sc->sc_tx_cur_size += tx_size;
 
 		/* clear interrupts */
 		dwc_otg_clear_hcint(sc, x);
@@ -635,8 +705,6 @@ dwc_otg_host_channel_disable(struct dwc_otg_softc *sc, uint8_t x)
 		    HCCHAR_CHENA | HCCHAR_CHDIS);
 		/* don't re-use channel until next SOF is transmitted */
 		sc->sc_chan_state[x].wait_sof = 2;
-		/* enable SOF interrupt */
-		dwc_otg_enable_sof_irq(sc);
 	}
 }
 
@@ -663,6 +731,9 @@ dwc_otg_host_channel_free(struct dwc_otg_td *td)
 	sc->sc_chan_state[x].allocated = 0;
 	sc->sc_chan_state[x].suspended = 0;
 
+	/* keep track of used FIFO */
+	sc->sc_tx_cur_size -= sc->sc_chan_state[x].tx_size;
+
 	/* ack any pending messages */
 	if (sc->sc_last_rx_status != 0 &&
 	    GRXSTSRD_CHNUM_GET(sc->sc_last_rx_status) == x) {
@@ -682,7 +753,7 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 	uint32_t hcchar;
 
 	if (dwc_otg_host_channel_alloc(td))
-		return (1);		/* busy */
+		goto busy;
 
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
@@ -701,13 +772,13 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 		DPRINTF("CH=%d STALL\n", td->channel);
 		td->error_stall = 1;
 		td->error_any = 1;
-		return (0);		/* complete */
+		goto complete;
 	} else if (hcint & HCINT_ERRORS) {
 		DPRINTF("CH=%d ERROR\n", td->channel);
 		td->errcnt++;
 		if (td->hcsplt != 0 || td->errcnt >= 3) {
 			td->error_any = 1;
-			return (0);		/* complete */
+			goto complete;
 		}
 	}
 
@@ -724,6 +795,8 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 
 	switch (td->state) {
 	case DWC_CHAN_ST_START:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
 		goto send_pkt;
 
 	case DWC_CHAN_ST_WAIT_ANE:
@@ -731,6 +804,7 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -739,14 +813,17 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle = 1;
-			return (0);	/* complete */
+			td->tt_scheduled = 0;
+			goto complete;
 		}
 		break;
+
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -755,6 +832,7 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			goto send_cpkt;
 		}
 		break;
+
 	case DWC_CHAN_ST_WAIT_C_ANE:
 		if (hcint & HCINT_NYET) {
 			if (!dwc_otg_host_channel_wait(td))
@@ -765,6 +843,7 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & HCINT_ACK) {
@@ -773,35 +852,33 @@ dwc_otg_host_setup_tx(struct dwc_otg_td *td)
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle = 1;
-			return (0);	/* complete */
+			goto complete;
 		}
 		break;
-	case DWC_CHAN_ST_TX_PKT_SYNC:
-		goto send_pkt_sync;
+
+	case DWC_CHAN_ST_WAIT_C_PKT:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
+		goto send_cpkt;
+
 	default:
 		break;
 	}
-	return (1);		/* busy */
+	goto busy;
 
 send_pkt:
 	if (sizeof(req) != td->remainder) {
 		td->error_any = 1;
-		return (0);		/* complete */
+		goto complete;
 	}
 
-send_pkt_sync:
 	if (td->hcsplt != 0) {
-		uint32_t count;
-
-		count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-		/* check for not first microframe */
-		if (count != 0) {
-			/* enable SOF interrupt */
-			dwc_otg_enable_sof_irq(sc);
-			/* set state */
-			td->state = DWC_CHAN_ST_TX_PKT_SYNC;
-			dwc_otg_host_channel_free(td);
-			return (1);	/* busy */
+		/* Wait for our turn, if TT transfer */
+		if (td->tt_scheduled == 0 ||
+		    (sc->sc_last_frame_num & 7) < td->tt_start_slot) {
+			/* set return state */
+			td->state = DWC_CHAN_ST_START;
+			goto tt_wait;
 		}
 
 		td->hcsplt &= ~HCSPLT_COMPSPLT;
@@ -832,9 +909,19 @@ send_pkt_sync:
 	/* store number of bytes transmitted */
 	td->tx_bytes = sizeof(req);
 
-	return (1);	/* busy */
+	goto busy;
 
 send_cpkt:
+	/* Wait for our turn, if TT transfer */
+	if (td->tt_scheduled == 0 ||
+	    (sc->sc_last_frame_num & 7) < td->tt_complete_slot) {
+		/* set return state */
+		td->state = DWC_CHAN_ST_WAIT_C_PKT;
+		goto tt_wait;
+	}
+	/* wait until next slot before trying again */
+	td->tt_complete_slot++;
+
 	td->hcsplt |= HCSPLT_COMPSPLT;
 	td->state = DWC_CHAN_ST_WAIT_C_ANE;
 
@@ -848,8 +935,15 @@ send_cpkt:
 
 	/* must enable channel before writing data to FIFO */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), hcchar);
+	goto busy;
 
+tt_wait:
+	/* free allocated channel */
+	dwc_otg_host_channel_free(td);
+busy:
 	return (1);	/* busy */
+complete:
+	return (0);	/* complete */
 }
 
 static uint8_t
@@ -984,6 +1078,25 @@ not_complete:
 }
 
 static uint8_t
+dwc_otg_host_rate_check_interrupt(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
+{
+	uint8_t delta;
+
+	delta = sc->sc_tmr_val - td->tmr_val;
+	if (delta >= 128)
+		return (1);	/* busy */
+
+	td->tmr_val = sc->sc_tmr_val + td->tmr_res;
+
+	/* set toggle, if any */
+	if (td->set_toggle) {
+		td->set_toggle = 0;
+		td->toggle = 1;
+	}
+	return (0);
+}
+
+static uint8_t
 dwc_otg_host_rate_check(struct dwc_otg_td *td)
 {
 	struct dwc_otg_softc *sc;
@@ -992,31 +1105,29 @@ dwc_otg_host_rate_check(struct dwc_otg_td *td)
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
 
+	if (td->channel < DWC_OTG_MAX_CHANNELS &&
+	    sc->sc_chan_state[td->channel].suspended)
+		goto busy;
+
 	ep_type = ((td->hcchar &
 	    HCCHAR_EPTYPE_MASK) >> HCCHAR_EPTYPE_SHIFT);
 
-	if (sc->sc_chan_state[td->channel].suspended)
-		goto busy;
-
 	if (ep_type == UE_ISOCHRONOUS) {
-		if (td->tmr_val & 1)
-			td->hcchar |= HCCHAR_ODDFRM;
-		else
-			td->hcchar &= ~HCCHAR_ODDFRM;
-		td->tmr_val += td->tmr_res;
-	} else if (ep_type == UE_INTERRUPT) {
-		uint8_t delta;
 
-		delta = sc->sc_tmr_val - td->tmr_val;
-		if (delta >= 128)
+		/* non TT isochronous traffic */
+		if ((td->tmr_val != 0) ||
+		    (sc->sc_last_frame_num & (td->tmr_res - 1))) {
 			goto busy;
-		td->tmr_val = sc->sc_tmr_val + td->tmr_res;
+		}
+		td->tmr_val = 1;	/* executed */
+		td->toggle = 0;
+
+	} else if (ep_type == UE_INTERRUPT) {
+		if (!td->tt_scheduled)
+			goto busy;
+		td->tt_scheduled = 0;
 	} else if (td->did_nak != 0) {
 		goto busy;
-	} 
-
-	if (ep_type == UE_ISOCHRONOUS) {
-		td->toggle = 0;
 	} else if (td->set_toggle) {
 		td->set_toggle = 0;
 		td->toggle = 1;
@@ -1036,7 +1147,7 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 	uint8_t ep_type;
 
 	if (dwc_otg_host_channel_alloc(td))
-		return (1);		/* busy */
+		goto busy;
 
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
@@ -1060,13 +1171,15 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 		DPRINTF("CH=%d STALL\n", td->channel);
 		td->error_stall = 1;
 		td->error_any = 1;
-		return (0);		/* complete */
+		goto complete;
 	} else if (hcint & HCINT_ERRORS) {
 		DPRINTF("CH=%d ERROR\n", td->channel);
 		td->errcnt++;
 		if (td->hcsplt != 0 || td->errcnt >= 3) {
-			td->error_any = 1;
-			return (0);		/* complete */
+			if (ep_type != UE_ISOCHRONOUS) {
+				td->error_any = 1;
+				goto complete;
+			}
 		}
 	}
 
@@ -1103,25 +1216,42 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 			break;
 		}
 
-		td->toggle ^= 1;
-
 		/* get the packet byte count */
 		count = GRXSTSRD_BCNT_GET(sc->sc_last_rx_status);
 
-		/* verify the packet byte count */
-		if (count != td->max_packet_size) {
-			if (count < td->max_packet_size) {
-				/* we have a short packet */
-				td->short_pkt = 1;
-				td->got_short = 1;
+		/* check for isochronous transfer or high-speed bandwidth endpoint */
+		if (ep_type == UE_ISOCHRONOUS || td->max_packet_count > 1) {
+			if ((sc->sc_last_rx_status & GRXSTSRD_DPID_MASK) != GRXSTSRD_DPID_DATA0) {
+				td->tt_xactpos = HCSPLT_XACTPOS_MIDDLE;
 			} else {
-				/* invalid USB packet */
-				td->error_any = 1;
-			  
-				/* release FIFO */
-				dwc_otg_common_rx_ack(sc);
-				return (0);	/* we are complete */
+				td->tt_xactpos = HCSPLT_XACTPOS_BEGIN;
+
+				/* verify the packet byte count */
+				if (count < td->max_packet_size) {
+					/* we have a short packet */
+					td->short_pkt = 1;
+					td->got_short = 1;
+				}
 			}
+			td->toggle = 0;
+		} else {
+			/* verify the packet byte count */
+			if (count != td->max_packet_size) {
+				if (count < td->max_packet_size) {
+					/* we have a short packet */
+					td->short_pkt = 1;
+					td->got_short = 1;
+				} else {
+					/* invalid USB packet */
+					td->error_any = 1;
+			  
+					/* release FIFO */
+					dwc_otg_common_rx_ack(sc);
+					goto complete;
+				}
+			}
+			td->toggle ^= 1;
+			td->tt_scheduled = 0;
 		}
 
 		/* verify the packet byte count */
@@ -1131,7 +1261,7 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 
 			/* release FIFO */
 			dwc_otg_common_rx_ack(sc);
-			return (0);		/* we are complete */
+			goto complete;
 		}
 
 		usbd_copy_in(td->pc, td->offset,
@@ -1144,7 +1274,6 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 		break;
 
 	default:
-		DPRINTF("OTHER\n");
 		break;
 	}
 	/* release FIFO */
@@ -1153,6 +1282,8 @@ dwc_otg_host_data_rx(struct dwc_otg_td *td)
 check_state:
 	switch (td->state) {
 	case DWC_CHAN_ST_START:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
 		if (td->hcsplt != 0)
 			goto receive_spkt;
 		else
@@ -1164,6 +1295,7 @@ check_state:
 				break;
 
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			if (td->hcsplt != 0)
 				goto receive_spkt;
 			else
@@ -1171,11 +1303,13 @@ check_state:
 		}
 		if (!(hcint & HCINT_SOFTWARE_ONLY)) {
 			if (hcint & HCINT_NYET) {
-				if (td->hcsplt != 0) {
-					if (!dwc_otg_host_channel_wait(td))
-						break;
-					goto receive_pkt;
+				if (ep_type == UE_ISOCHRONOUS) {
+					/* we missed the service interval */
+					goto complete;
 				}
+				if (!dwc_otg_host_channel_wait(td))
+					break;
+				goto receive_pkt;
 			}
 			break;
 		}
@@ -1183,29 +1317,44 @@ check_state:
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 
-			/* check if we are complete */
-			if ((td->remainder == 0) || (td->got_short != 0)) {
-				if (td->short_pkt)
-					return (0);	/* complete */
+			if (ep_type == UE_ISOCHRONOUS) {
+				/* check if we are complete */
+				if ((td->remainder == 0) ||
+				    (td->tt_xactpos == HCSPLT_XACTPOS_BEGIN))
+					goto complete;
 
-				/*
-				 * Else need to receive a zero length
-				 * packet.
-				 */
-			}
-			if (td->hcsplt != 0)
-				goto receive_spkt;
-			else
 				goto receive_pkt;
+			} else {
+				/* check if we are complete */
+				if ((td->remainder == 0) || (td->got_short != 0)) {
+					if (td->short_pkt)
+						goto complete;
+
+					/*
+					 * Else need to receive a zero length
+					 * packet.
+					 */
+				}
+				td->tt_scheduled = 0;
+				if (td->hcsplt != 0)
+					goto receive_spkt;
+				else
+					goto receive_pkt;
+			}
 		}
 		break;
 
 	case DWC_CHAN_ST_WAIT_S_ANE:
+		/*
+		 * NOTE: The DWC OTG hardware provides a fake ACK in
+		 * case of interrupt and isochronous transfers:
+		 */ 
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto receive_spkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1215,14 +1364,10 @@ check_state:
 		}
 		break;
 
-	case DWC_CHAN_ST_RX_PKT:
+	case DWC_CHAN_ST_WAIT_C_PKT:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
 		goto receive_pkt;
-
-	case DWC_CHAN_ST_RX_SPKT:
-		goto receive_spkt;
-
-	case DWC_CHAN_ST_RX_SPKT_SYNC:
-		goto receive_spkt_sync;
 
 	default:
 		break;
@@ -1230,84 +1375,79 @@ check_state:
 	goto busy;
 
 receive_pkt:
-	if (td->hcsplt != 0) {
-		count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-
-		/* check for even microframes */
-		if (count == td->curr_frame) {
-			td->state = DWC_CHAN_ST_RX_PKT;
-			dwc_otg_host_channel_free(td);
-			/* enable SOF interrupt */
-			dwc_otg_enable_sof_irq(sc);
-			goto busy;
-		} else if (count == 0) {
-			/* check for start split timeout */
-			goto receive_spkt;
+  	if (td->hcsplt != 0) {
+		/* Wait for our turn, if TT transfer */
+		if (td->tt_scheduled == 0 ||
+		    (sc->sc_last_frame_num & 7) < td->tt_complete_slot) {
+			/* set return state */
+			td->state = DWC_CHAN_ST_WAIT_C_PKT;
+			goto tt_wait;
 		}
+		/* wait until next slot before trying again */
+		td->tt_complete_slot++;
 
-		td->curr_frame = count;
+		/* set toggle, if any */
+		if (td->set_toggle) {
+			td->set_toggle = 0;
+			td->toggle = 1;
+		}
 		td->hcsplt |= HCSPLT_COMPSPLT;
-	} else if (dwc_otg_host_rate_check(td)) {
-		td->state = DWC_CHAN_ST_RX_PKT;
+		count = HCSPLT_XACTLEN_MAX;
+	} else if (td->tt_xactpos == HCSPLT_XACTPOS_BEGIN &&
+	    dwc_otg_host_rate_check(td)) {
+		td->state = DWC_CHAN_ST_START;
 		dwc_otg_host_channel_free(td);
 		goto busy;
+	} else {
+		count = td->max_packet_size;
 	}
-
 	td->state = DWC_CHAN_ST_WAIT_ANE;
 
 	/* receive one packet */
 	DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
-	    (td->max_packet_size << HCTSIZ_XFERSIZE_SHIFT) |
+	    (count << HCTSIZ_XFERSIZE_SHIFT) |
 	    (1 << HCTSIZ_PKTCNT_SHIFT) |
 	    (td->toggle ? (HCTSIZ_PID_DATA1 << HCTSIZ_PID_SHIFT) :
 	    (HCTSIZ_PID_DATA0 << HCTSIZ_PID_SHIFT)));
 
 	DWC_OTG_WRITE_4(sc, DOTG_HCSPLT(td->channel), td->hcsplt);
 
+	/* send ASAP */
+	if ((ep_type == UE_ISOCHRONOUS) && !(sc->sc_last_frame_num & 1))
+		td->hcchar |= HCCHAR_ODDFRM;
+	else
+		td->hcchar &= ~HCCHAR_ODDFRM;
+
 	hcchar = td->hcchar;
 	hcchar |= HCCHAR_EPDIR_IN;
 
 	/* must enable channel before data can be received */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), hcchar);
-
 	goto busy;
 
 receive_spkt:
-	if (dwc_otg_host_rate_check(td)) {
-		td->state = DWC_CHAN_ST_RX_SPKT;
-		dwc_otg_host_channel_free(td);
-		goto busy;
-	}
-
-receive_spkt_sync:
-	if (ep_type == UE_INTERRUPT ||
-	    ep_type == UE_ISOCHRONOUS) {
-		count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-		td->curr_frame = count;
-
-		/* check for non-zero microframe */
-		if (count != 0) {
-			/* enable SOF interrupt */
-			dwc_otg_enable_sof_irq(sc);
-			/* set state */
-			td->state = DWC_CHAN_ST_RX_SPKT_SYNC;
+	/* Wait for our turn, if TT transfer */
+	if (td->tt_scheduled == 0) {
+		if (ep_type == UE_INTERRUPT) {
+			td->state = DWC_CHAN_ST_START;
 			dwc_otg_host_channel_free(td);
 			goto busy;
 		}
-	} else {
-		count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-		td->curr_frame = count;
-
-		/* check for two last frames */
-		if (count >= 6) {
-			/* enable SOF interrupt */
-			dwc_otg_enable_sof_irq(sc);
-			/* set state */
-			td->state = DWC_CHAN_ST_RX_SPKT_SYNC;
-			dwc_otg_host_channel_free(td);
-			goto busy;
-		}
+		/* set return state */
+		td->state = DWC_CHAN_ST_START;
+		goto tt_wait;
 	}
+	if ((sc->sc_last_frame_num & 7) < td->tt_start_slot) {
+		/* set return state */
+		td->state = DWC_CHAN_ST_START;
+		goto tt_wait;
+	}
+
+	/* send ASAP */
+	if ((ep_type == UE_ISOCHRONOUS) && !(sc->sc_last_frame_num & 1))
+		td->hcchar |= HCCHAR_ODDFRM;
+	else
+		td->hcchar &= ~HCCHAR_ODDFRM;
 
 	td->hcsplt &= ~HCSPLT_COMPSPLT;
 	td->state = DWC_CHAN_ST_WAIT_S_ANE;
@@ -1324,9 +1464,15 @@ receive_spkt_sync:
 
 	/* must enable channel before data can be received */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), hcchar);
+	goto busy;
 
+tt_wait:
+	/* free allocated channel */
+	dwc_otg_host_channel_free(td);
 busy:
 	return (1);	/* busy */
+complete:
+	return (0);	/* complete */
 }
 
 static uint8_t
@@ -1452,7 +1598,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 	uint8_t ep_type;
 
 	if (dwc_otg_host_channel_alloc(td))
-		return (1);		/* busy */
+		goto busy;
 
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
@@ -1474,13 +1620,13 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		DPRINTF("CH=%d STALL\n", td->channel);
 		td->error_stall = 1;
 		td->error_any = 1;
-		return (0);		/* complete */
+		goto complete;
 	} else if (hcint & HCINT_ERRORS) {
 		DPRINTF("CH=%d ERROR\n", td->channel);
 		td->errcnt++;
 		if (td->hcsplt != 0 || td->errcnt >= 3) {
 			td->error_any = 1;
-			return (0);		/* complete */
+			goto complete;
 		}
 	}
 
@@ -1497,6 +1643,8 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 
 	switch (td->state) {
 	case DWC_CHAN_ST_START:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
 		goto send_pkt;
 
 	case DWC_CHAN_ST_WAIT_ANE:
@@ -1504,6 +1652,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1513,11 +1662,12 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
+			td->tt_scheduled = 0;
 
 			/* check remainder */
 			if (td->remainder == 0) {
 				if (td->short_pkt)
-					return (0);	/* complete */
+					goto complete;
 
 				/*
 				 * Else we need to transmit a short
@@ -1527,11 +1677,13 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			goto send_pkt;
 		}
 		break;
+
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1540,6 +1692,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			goto send_cpkt;
 		}
 		break;
+
 	case DWC_CHAN_ST_WAIT_C_ANE:
 		if (hcint & HCINT_NYET) {
 			if (!dwc_otg_host_channel_wait(td))
@@ -1550,6 +1703,7 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			if (!dwc_otg_host_channel_wait(td))
 				break;
 			td->did_nak = 1;
+			td->tt_scheduled = 0;
 			goto send_pkt;
 		}
 		if (hcint & HCINT_ACK) {
@@ -1558,11 +1712,12 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
+			td->tt_scheduled = 0;
 
 			/* check remainder */
 			if (td->remainder == 0) {
 				if (td->short_pkt)
-					return (0);	/* complete */
+					goto complete;
 
 				/* else we need to transmit a short packet */
 			}
@@ -1570,63 +1725,203 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		}
 		break;
 
-	case DWC_CHAN_ST_TX_PKT:
-		goto send_pkt;
-
-	case DWC_CHAN_ST_TX_PKT_SYNC:
-		goto send_pkt_sync;
-
-	case DWC_CHAN_ST_TX_CPKT:
+	case DWC_CHAN_ST_WAIT_C_PKT:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
 		goto send_cpkt;
 
+	case DWC_CHAN_ST_TX_WAIT_ISOC:
+
+		/* Check if isochronous OUT traffic is complete */
+		if ((hcint & HCINT_ACK) == 0)
+			break;
+
+		td->offset += td->tx_bytes;
+		td->remainder -= td->tx_bytes;
+
+		/* Update split token according to specification */
+		if (td->hcsplt != 0) {
+			if (td->tt_xactpos == HCSPLT_XACTPOS_BEGIN)
+				td->tt_xactpos = HCSPLT_XACTPOS_MIDDLE;
+		} else if (td->max_packet_count > 1) {
+			td->tt_xactpos++;
+		}
+
+		dwc_otg_host_channel_disable(sc, td->channel);
+
+		if (td->remainder == 0)
+			goto complete;
+
+		td->state = DWC_CHAN_ST_TX_PKT_ISOC;
+
+		/* FALLTHROUGH */
+
+	case DWC_CHAN_ST_TX_PKT_ISOC:
+		if (!dwc_otg_host_channel_wait(td))
+			break;
+
+		if (td->hcsplt != 0) {
+			if ((sc->sc_last_frame_num & 7) < td->tt_start_slot)
+				goto tt_wait;
+			/* packets must be 125us apart */
+			td->tt_start_slot++;
+		}
+		goto send_isoc_pkt;
 	default:
 		break;
 	}
 	goto busy;
 
 send_pkt:
-	if (dwc_otg_host_rate_check(td)) {
-		td->state = DWC_CHAN_ST_TX_PKT;
+	if (td->hcsplt != 0) {
+		/* Wait for our turn, if TT transfer */
+		if (td->tt_scheduled == 0) {
+			if (ep_type == UE_INTERRUPT) {
+				td->state = DWC_CHAN_ST_START;
+				dwc_otg_host_channel_free(td);
+				goto busy;
+			}
+			/* set return state */
+			td->state = DWC_CHAN_ST_START;
+			goto tt_wait;
+		}
+		if ((sc->sc_last_frame_num & 7) < td->tt_start_slot) {
+			/* set return state */
+			td->state = DWC_CHAN_ST_START;
+			goto tt_wait;
+		}
+
+		/* packets must be 125us apart */
+		td->tt_start_slot++;
+
+		/* set toggle, if any */
+		if (td->set_toggle) {
+			td->set_toggle = 0;
+			td->toggle = 1;
+		}
+	} else if (dwc_otg_host_rate_check(td)) {
+		td->state = DWC_CHAN_ST_START;
 		dwc_otg_host_channel_free(td);
 		goto busy;
 	}
 
-send_pkt_sync:
-	if (td->hcsplt != 0) {
- 		count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-		/* check for first or last microframe */
-		if (count == 7 || count == 0) {
-			/* enable SOF interrupt */
-			dwc_otg_enable_sof_irq(sc);
-			/* set state */
-			td->state = DWC_CHAN_ST_TX_PKT_SYNC;
-			dwc_otg_host_channel_free(td);
-			goto busy;
+	if (ep_type == UE_ISOCHRONOUS) {
+send_isoc_pkt:
+		/* Isochronous OUT transfers don't have any ACKs */
+		td->state = DWC_CHAN_ST_TX_WAIT_ISOC;
+		td->hcsplt &= ~HCSPLT_COMPSPLT;
+		if (td->hcsplt != 0) {
+			/* get maximum transfer length */
+			count = td->remainder;
+
+			/* Update split token according to specification */
+			if (td->tt_xactpos == HCSPLT_XACTPOS_BEGIN) {
+				if (count <= HCSPLT_XACTLEN_MAX)
+					td->tt_xactpos = HCSPLT_XACTPOS_ALL;
+				else
+					count = HCSPLT_XACTLEN_MAX;
+			} else if (td->tt_xactpos == HCSPLT_XACTPOS_MIDDLE) {
+				if (count <= HCSPLT_XACTLEN_MAX)
+					td->tt_xactpos = HCSPLT_XACTPOS_LAST;
+				else
+					count = HCSPLT_XACTLEN_MAX;
+			}
+
+			/* Update transaction position */
+			td->hcsplt &= ~HCSPLT_XACTPOS_MASK;
+			td->hcsplt |= ((uint32_t)td->tt_xactpos << HCSPLT_XACTPOS_SHIFT);
+		} else {
+			/* send one packet at a time */
+			count = td->max_packet_size;
+			if (td->remainder < count) {
+				/* we have a short packet */
+				td->short_pkt = 1;
+				count = td->remainder;
+			}
 		}
+	} else if (td->hcsplt != 0) {
 
 		td->hcsplt &= ~HCSPLT_COMPSPLT;
+
+		/* Wait for ACK/NAK/ERR from TT */
 		td->state = DWC_CHAN_ST_WAIT_S_ANE;
+
+		/* send one packet at a time */
+		count = td->max_packet_size;
+		if (td->remainder < count) {
+			/* we have a short packet */
+			td->short_pkt = 1;
+			count = td->remainder;
+		}
 	} else {
+		/* Wait for ACK/NAK/STALL from device */
 		td->state = DWC_CHAN_ST_WAIT_ANE;
+
+		/* send one packet at a time */
+		count = td->max_packet_size;
+		if (td->remainder < count) {
+			/* we have a short packet */
+			td->short_pkt = 1;
+			count = td->remainder;
+		}
 	}
 
-	/* send one packet at a time */
-	count = td->max_packet_size;
-	if (td->remainder < count) {
-		/* we have a short packet */
-		td->short_pkt = 1;
-		count = td->remainder;
+	/* check for High-Speed multi-packets */
+	if ((td->hcsplt == 0) && (td->max_packet_count > 1)) {
+		if (td->npkt == 0) {
+			if (td->remainder >= (3 * td->max_packet_size))
+				td->npkt = 3;
+			else if (td->remainder >= (2 * td->max_packet_size))
+				td->npkt = 2;
+			else
+				td->npkt = 1;
+
+			if (td->npkt > td->max_packet_count)
+				td->npkt = td->max_packet_count;
+
+			td->tt_xactpos = 1;	/* overload */
+		}
+		if (td->tt_xactpos == td->npkt) {
+			if (td->npkt == 1) {
+				DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
+				    (count << HCTSIZ_XFERSIZE_SHIFT) |
+				    (1 << HCTSIZ_PKTCNT_SHIFT) |
+				    (HCTSIZ_PID_DATA0 << HCTSIZ_PID_SHIFT));
+			} else if (td->npkt == 2) {
+				DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
+				    (count << HCTSIZ_XFERSIZE_SHIFT) |
+				    (1 << HCTSIZ_PKTCNT_SHIFT) |
+				    (HCTSIZ_PID_DATA1 << HCTSIZ_PID_SHIFT));
+			} else {
+				DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
+				    (count << HCTSIZ_XFERSIZE_SHIFT) |
+				    (1 << HCTSIZ_PKTCNT_SHIFT) |
+				    (HCTSIZ_PID_DATA2 << HCTSIZ_PID_SHIFT));
+			}
+			td->npkt = 0;
+		} else {
+			DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
+			    (count << HCTSIZ_XFERSIZE_SHIFT) |
+			    (1 << HCTSIZ_PKTCNT_SHIFT) |
+			    (HCTSIZ_PID_MDATA << HCTSIZ_PID_SHIFT));
+		}
+	} else {
+		/* TODO: HCTSIZ_DOPNG */
+
+		DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
+		    (count << HCTSIZ_XFERSIZE_SHIFT) |
+		    (1 << HCTSIZ_PKTCNT_SHIFT) |
+		    (td->toggle ? (HCTSIZ_PID_DATA1 << HCTSIZ_PID_SHIFT) :
+		    (HCTSIZ_PID_DATA0 << HCTSIZ_PID_SHIFT)));
 	}
-
-	/* TODO: HCTSIZ_DOPNG */
-
-	DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
-	    (count << HCTSIZ_XFERSIZE_SHIFT) |
-	    (1 << HCTSIZ_PKTCNT_SHIFT) |
-	    (td->toggle ? (HCTSIZ_PID_DATA1 << HCTSIZ_PID_SHIFT) :
-	    (HCTSIZ_PID_DATA0 << HCTSIZ_PID_SHIFT)));
 
 	DWC_OTG_WRITE_4(sc, DOTG_HCSPLT(td->channel), td->hcsplt);
+
+	/* send ASAP */
+	if ((ep_type == UE_ISOCHRONOUS) && !(sc->sc_last_frame_num & 1))
+		td->hcchar |= HCCHAR_ODDFRM;
+	else
+		td->hcchar &= ~HCCHAR_ODDFRM;
 
 	hcchar = td->hcchar;
 	hcchar &= ~HCCHAR_EPDIR_IN;
@@ -1651,18 +1946,20 @@ send_pkt_sync:
 
 	/* store number of bytes transmitted */
 	td->tx_bytes = count;
-
 	goto busy;
 
 send_cpkt:
-	count = DWC_OTG_READ_4(sc, DOTG_HFNUM) & 7;
-	/* check for first microframe */
-	if (count == 0) {
-		/* send packet again */
-		goto send_pkt;
+	/* Wait for our turn, if TT transfer */
+	if (td->tt_scheduled == 0 ||
+	    (sc->sc_last_frame_num & 7) < td->tt_complete_slot) {
+		/* set return state */
+		td->state = DWC_CHAN_ST_WAIT_C_PKT;
+		goto tt_wait;
 	}
+	/* wait until next slot before trying again */
+	td->tt_complete_slot++;
 
-	td->hcsplt |= HCSPLT_COMPSPLT;
+ 	td->hcsplt |= HCSPLT_COMPSPLT;
 	td->state = DWC_CHAN_ST_WAIT_C_ANE;
 
 	DWC_OTG_WRITE_4(sc, DOTG_HCTSIZ(td->channel),
@@ -1676,9 +1973,15 @@ send_cpkt:
 
 	/* must enable channel before writing data to FIFO */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(td->channel), hcchar);
+ 	goto busy;
 
+tt_wait:
+	/* free allocated channel */
+	dwc_otg_host_channel_free(td);
 busy:
 	return (1);	/* busy */
+complete:
+	return (0);	/* complete */
 }
 
 static uint8_t
@@ -2003,8 +2306,8 @@ dwc_otg_timer(void *_sc)
 			td->did_nak = 0;
 	}
 
-	/* poll jobs */
-	dwc_otg_interrupt_poll(sc);
+	/* enable SOF interrupt, which will poll jobs */
+	dwc_otg_enable_sof_irq(sc);
 
 	if (sc->sc_timer_active) {
 		/* restart timer */
@@ -2038,6 +2341,238 @@ dwc_otg_timer_stop(struct dwc_otg_softc *sc)
 
 	/* stop timer */
 	usb_callout_stop(&sc->sc_timer);
+}
+
+static void
+dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
+{
+	TAILQ_HEAD(, usb_xfer) head;
+	struct usb_xfer *xfer;
+	struct usb_xfer *xfer_next;
+	struct dwc_otg_td *td;
+	uint8_t needsof;
+	uint16_t temp;
+
+	/* FS/LS TT frames are one behind, so add one here */
+	temp = (DWC_OTG_READ_4(sc, DOTG_HFNUM) + 1) & HFNUM_FRNUM_MASK;
+
+	if (sc->sc_last_frame_num == temp)
+		return;
+
+	sc->sc_last_frame_num = temp;
+
+	needsof = 0;
+
+	TAILQ_INIT(&head);
+
+	if (sc->sc_irq_mask & GINTMSK_SOFMSK) {
+		uint8_t x;
+
+		for (x = 0; x != sc->sc_host_ch_max; x++) {
+			if (sc->sc_chan_state[x].wait_sof != 0) {
+				if (--(sc->sc_chan_state[x].wait_sof) != 0)
+					needsof = 1;
+			}
+		}
+	}
+
+	if ((temp & 7) == 0) {
+
+		/* reset TT info */
+		memset(sc->sc_tt_info, 0, sizeof(sc->sc_tt_info));
+
+		/*
+		 * Plan ahead FULL speed transfers going through the
+		 * transaction translator, according to the USB
+		 * specified priority:
+		 */
+		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
+			struct dwc_otg_tt_info *pinfo;
+
+			td = xfer->td_transfer_cache;
+			if (td == NULL || td->did_nak != 0 ||
+			    (td->hcchar & HCCHAR_EPTYPE_MASK) !=
+			    (UE_CONTROL << HCCHAR_EPTYPE_SHIFT))
+				continue;
+
+			needsof = 1;
+
+			if (td->hcsplt == 0)
+				continue;
+
+			/* Reset state if stuck waiting for complete split */
+			if (td->state == DWC_CHAN_ST_WAIT_C_PKT)
+				td->state = DWC_CHAN_ST_START;
+
+			pinfo = sc->sc_tt_info + td->tt_index;
+
+			td->tt_start_slot = pinfo->slot_index;
+			pinfo->bytes_used += td->max_packet_size;
+			while (pinfo->bytes_used >= HCSPLT_XACTLEN_MAX) {
+				pinfo->bytes_used -= HCSPLT_XACTLEN_MAX;
+				pinfo->slot_index ++;
+			}
+
+			td->tt_complete_slot = pinfo->slot_index + 2;
+			if (td->tt_complete_slot < 8) {
+				td->tt_scheduled = 1;
+				TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
+				TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
+			} else {
+				td->tt_scheduled = 0;
+			}
+		}
+
+		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
+			struct dwc_otg_tt_info *pinfo;
+
+			td = xfer->td_transfer_cache;
+			if (td == NULL ||
+			    (td->hcchar & HCCHAR_EPTYPE_MASK) !=
+			    (UE_ISOCHRONOUS << HCCHAR_EPTYPE_SHIFT))
+				continue;
+
+			/* execute more frames */
+			td->tmr_val = 0;
+
+			needsof = 1;
+
+			if (td->hcsplt == 0)
+				continue;
+
+			/* Reset state if stuck waiting for complete split */
+			if (td->state == DWC_CHAN_ST_WAIT_C_PKT)
+				td->state = DWC_CHAN_ST_START;
+
+			pinfo = sc->sc_tt_info + td->tt_index;
+
+			td->tt_start_slot = pinfo->slot_index;
+			pinfo->bytes_used += td->remainder;
+			while (pinfo->bytes_used >= HCSPLT_XACTLEN_MAX) {
+				pinfo->bytes_used -= HCSPLT_XACTLEN_MAX;
+				pinfo->slot_index ++;
+			}
+
+			td->tt_complete_slot = pinfo->slot_index + 2;
+			if (td->tt_complete_slot < 8) {
+				td->tt_scheduled = 1;
+				TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
+				TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
+			} else {
+				td->tt_scheduled = 0;
+			}
+		}
+
+		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
+			struct dwc_otg_tt_info *pinfo;
+
+			td = xfer->td_transfer_cache;
+			if (td == NULL ||
+			    (td->hcchar & HCCHAR_EPTYPE_MASK) !=
+			    (UE_INTERRUPT << HCCHAR_EPTYPE_SHIFT)) {
+				continue;
+			}
+
+			if (dwc_otg_host_rate_check_interrupt(sc, td))
+				continue;
+
+			needsof = 1;
+
+			if (td->hcsplt == 0) {
+				td->tt_scheduled = 1;
+				continue;
+			}
+
+			/* Reset state if stuck waiting for complete split */
+			if (td->state == DWC_CHAN_ST_WAIT_C_PKT)
+				td->state = DWC_CHAN_ST_START;
+
+			pinfo = sc->sc_tt_info + td->tt_index;
+
+			td->tt_start_slot = pinfo->slot_index;
+			pinfo->bytes_used += td->remainder;
+			while (pinfo->bytes_used >= HCSPLT_XACTLEN_MAX) {
+				pinfo->bytes_used -= HCSPLT_XACTLEN_MAX;
+				pinfo->slot_index ++;
+			}
+
+			td->tt_complete_slot = pinfo->slot_index + 2;
+			if (td->tt_complete_slot < 8) {
+				td->tt_scheduled = 1;
+				TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
+				TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
+			} else {
+				td->tt_scheduled = 0;
+			}
+		}
+	}
+
+	if ((temp & 7) < 6) {
+		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
+			struct dwc_otg_tt_info *pinfo;
+
+			td = xfer->td_transfer_cache;
+			if (td == NULL || td->did_nak != 0 ||
+			    (td->hcchar & HCCHAR_EPTYPE_MASK) !=
+			    (UE_BULK << HCCHAR_EPTYPE_SHIFT)) {
+				continue;
+			}
+
+			needsof = 1;
+
+			if (td->hcsplt == 0)
+				continue;
+
+			if ((temp & 7) == 0) {
+				/* Reset state if stuck waiting for complete split */
+				if (td->state == DWC_CHAN_ST_WAIT_C_PKT)
+					td->state = DWC_CHAN_ST_START;
+			} else if (td->tt_scheduled != 0)
+				continue;	/* already scheduled */
+
+			pinfo = sc->sc_tt_info + td->tt_index;
+
+			td->tt_start_slot = pinfo->slot_index;
+			pinfo->bytes_used += td->remainder;
+			while (pinfo->bytes_used >= HCSPLT_XACTLEN_MAX) {
+				pinfo->bytes_used -= HCSPLT_XACTLEN_MAX;
+				pinfo->slot_index ++;
+			}
+
+			td->tt_complete_slot = pinfo->slot_index + 2;
+			if (td->tt_complete_slot < 8) {
+				td->tt_scheduled = 1;
+				TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
+				TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
+			} else {
+				td->tt_scheduled = 0;
+			}
+		}
+	}
+
+	/* TT transfers need to be executed in a specific order */
+	TAILQ_CONCAT(&head, &sc->sc_bus.intr_q.head, wait_entry);
+
+	/* Put TT transfers first in the queue */
+	TAILQ_CONCAT(&sc->sc_bus.intr_q.head, &head, wait_entry);
+
+	if ((temp & 7) == 0) {
+		DPRINTFN(12, "SOF interrupt #%d, needsof=%d\n",
+		    (int)temp, (int)needsof);
+
+		/* update SOF IRQ mask */
+		if (sc->sc_irq_mask & GINTMSK_SOFMSK) {
+			if (needsof == 0) {
+				sc->sc_irq_mask &= ~GINTMSK_SOFMSK; 
+				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+			}
+		} else {
+			if (needsof != 0) {
+				sc->sc_irq_mask |= GINTMSK_SOFMSK; 
+				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+			}
+		}
+	}
 }
 
 static void
@@ -2126,10 +2661,24 @@ repeat:
 		got_rx_status = 1;
 	}
 
+	/* scan for completion events first */
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
 		if (!dwc_otg_xfer_do_fifo(xfer)) {
 			/* queue has been modified */
 			goto repeat;
+		}
+	}
+
+	if (sc->sc_flags.status_device_mode == 0) {
+		/* update host transfer schedule, so that new transfers can be issued */
+		dwc_otg_update_host_transfer_schedule(sc);
+
+		/* start re-scheduled transfers */
+		TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+			if (!dwc_otg_xfer_do_fifo(xfer)) {
+				/* queue has been modified */
+				goto repeat;
+			}
 		}
 	}
 
@@ -2139,7 +2688,7 @@ repeat:
 			goto repeat;
 
 		/* disable RX FIFO level interrupt */
-		sc->sc_irq_mask &= ~GINTSTS_RXFLVL;
+		sc->sc_irq_mask &= ~GINTMSK_RXFLVLMSK;
 		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 	}
 }
@@ -2201,6 +2750,12 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 		sc->sc_flags.change_suspend = 0;
 		sc->sc_flags.change_connect = 1;
 
+		/* Disable SOF interrupt */
+		sc->sc_irq_mask &= ~GINTMSK_SOFMSK;
+		/* Enable RX frame interrupt */
+		sc->sc_irq_mask |= GINTMSK_RXFLVLMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+
 		/* complete root HUB interrupt endpoint */
 		dwc_otg_root_intr(sc);
 	}
@@ -2234,10 +2789,12 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 		else
 			sc->sc_flags.status_high_speed = 0;
 
-		/* disable resume interrupt and enable suspend interrupt */
-		
-		sc->sc_irq_mask &= ~GINTSTS_WKUPINT;
-		sc->sc_irq_mask |= GINTSTS_USBSUSP;
+		/*
+		 * Disable resume and SOF interrupt, and enable
+		 * suspend and RX frame interrupt:
+		 */
+		sc->sc_irq_mask &= ~(GINTMSK_WKUPINTMSK | GINTMSK_SOFMSK);
+		sc->sc_irq_mask |= (GINTMSK_USBSUSPMSK | GINTMSK_RXFLVLMSK);
 		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 		/* complete root HUB interrupt endpoint */
@@ -2307,6 +2864,13 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 
 		/* complete root HUB interrupt endpoint */
 		dwc_otg_root_intr(sc);
+
+		/* disable RX FIFO level interrupt */
+		sc->sc_irq_mask &= ~GINTMSK_RXFLVLMSK;
+		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
+
+		/* update host frame interval */
+		dwc_otg_update_host_frame_interval(sc);
 	}
 
 	/*
@@ -2355,27 +2919,6 @@ dwc_otg_interrupt(struct dwc_otg_softc *sc)
 		}
 	}
 
-	/* check for SOF interrupt */
-	if (status & GINTSTS_SOF) {
-		if (sc->sc_irq_mask & GINTMSK_SOFMSK) {
-			uint8_t x;
-			uint8_t y;
-
-			DPRINTFN(12, "SOF interrupt\n");
-
-			for (x = y = 0; x != sc->sc_host_ch_max; x++) {
-				if (sc->sc_chan_state[x].wait_sof != 0) {
-					if (--(sc->sc_chan_state[x].wait_sof) != 0)
-						y = 1;
-				}
-			}
-			if (y == 0) {
-				sc->sc_irq_mask &= ~GINTMSK_SOFMSK; 
-				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
-			}
-		}
-	}
-
 	/* poll FIFO(s) */
 	dwc_otg_interrupt_poll(sc);
 
@@ -2412,6 +2955,9 @@ dwc_otg_setup_standard_chain_sub(struct dwc_otg_std_temp *temp)
 	td->channel = DWC_OTG_MAX_CHANNELS;
 	td->state = 0;
 	td->errcnt = 0;
+	td->tt_scheduled = 0;
+	td->tt_index = temp->tt_index;
+	td->tt_xactpos = HCSPLT_XACTPOS_BEGIN;
 }
 
 static void
@@ -2419,6 +2965,7 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 {
 	struct dwc_otg_std_temp temp;
 	struct dwc_otg_td *td;
+	struct usb_device *udev;
 	uint32_t x;
 	uint8_t need_sync;
 	uint8_t is_host;
@@ -2428,6 +2975,16 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
+
+	udev = xfer->xroot->udev;
+	if (udev->parent_hs_hub != NULL && udev->speed != USB_SPEED_HIGH) {
+		if (udev->parent_hs_hub->ddesc.bDeviceProtocol == UDPROTO_HSHUBMTT)
+			temp.tt_index = udev->device_index;
+		else
+			temp.tt_index = udev->parent_hs_hub->device_index;
+	} else {
+		temp.tt_index = udev->device_index;
+	}
 
 	td = xfer->td_start[0];
 	xfer->td_transfer_first = td;
@@ -2439,7 +2996,8 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	is_host = (xfer->xroot->udev->flags.usb_mode == USB_MODE_HOST);
@@ -2637,14 +3195,12 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 		case USB_SPEED_FULL:
 		case USB_SPEED_LOW:
 			/* check if root HUB port is running High Speed */
-			if (sc->sc_flags.status_high_speed != 0) {
+			if (xfer->xroot->udev->parent_hs_hub != NULL) {
 				hcsplt = HCSPLT_SPLTENA |
 				    (xfer->xroot->udev->hs_port_no <<
 				    HCSPLT_PRTADDR_SHIFT) |
 				    (xfer->xroot->udev->hs_hub_addr <<
 				    HCSPLT_HUBADDR_SHIFT);
-				if (xfer_type == UE_ISOCHRONOUS)  /* XXX */
-					hcsplt |= (3 << HCSPLT_XACTPOS_SHIFT);
 			} else {
 				hcsplt = 0;
 			}
@@ -2657,6 +3213,12 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 					ival = 127;
 				td->tmr_val = sc->sc_tmr_val + ival;
 				td->tmr_res = ival;
+			} else if (xfer_type == UE_ISOCHRONOUS) {
+				td->tmr_val = 0;
+				td->tmr_res = 1;
+			} else {
+				td->tmr_val = 0;
+				td->tmr_res = 0;
 			}
 			break;
 		case USB_SPEED_HIGH:
@@ -2675,19 +3237,19 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 					ival = 127;
 				td->tmr_val = sc->sc_tmr_val + ival;
 				td->tmr_res = ival;
+			} else if (xfer_type == UE_ISOCHRONOUS) {
+				td->tmr_val = 0;
+				td->tmr_res = 1 << usbd_xfer_get_fps_shift(xfer);
+			} else {
+				td->tmr_val = 0;
+				td->tmr_res = 0;
 			}
 			break;
 		default:
 			hcsplt = 0;
-			break;
-		}
-
-		if (xfer_type == UE_ISOCHRONOUS) {
-			td->tmr_val = xfer->endpoint->isoc_next & 0xFF;
-			td->tmr_res = 1 << usbd_xfer_get_fps_shift(xfer);
-		} else if (xfer_type != UE_INTERRUPT) {
 			td->tmr_val = 0;
 			td->tmr_res = 0;
+			break;
 		}
 
 		/* store configuration in all TD's */
@@ -2719,6 +3281,8 @@ dwc_otg_timeout(void *arg)
 static void
 dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 {
+	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
+
 	DPRINTFN(9, "\n");
 
 	/* poll one time - will turn on interrupts */
@@ -2732,6 +3296,9 @@ dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 			usbd_transfer_timeout_ms(xfer,
 			    &dwc_otg_timeout, xfer->timeout);
 		}
+
+		/* enable SOF interrupt, if any */
+		dwc_otg_enable_sof_irq(sc);
 	}
 }
 
@@ -2787,7 +3354,8 @@ dwc_otg_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -3357,9 +3925,15 @@ dwc_otg_device_isoc_close(struct usb_xfer *xfer)
 static void
 dwc_otg_device_isoc_enter(struct usb_xfer *xfer)
 {
+}
+
+static void
+dwc_otg_device_isoc_start(struct usb_xfer *xfer)
+{
 	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
-	uint32_t nframes;
+	uint32_t msframes;
+	uint32_t framenum;
 	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
@@ -3369,34 +3943,42 @@ dwc_otg_device_isoc_enter(struct usb_xfer *xfer)
 		temp = DWC_OTG_READ_4(sc, DOTG_HFNUM);
 
 		/* get the current frame index */
-		nframes = (temp & HFNUM_FRNUM_MASK);
+		framenum = (temp & HFNUM_FRNUM_MASK);
 	} else {
 		temp = DWC_OTG_READ_4(sc, DOTG_DSTS);
 
 		/* get the current frame index */
-		nframes = DSTS_SOFFN_GET(temp);
+		framenum = DSTS_SOFFN_GET(temp);
 	}
 
-	if (sc->sc_flags.status_high_speed)
-		nframes /= 8;
+	if (xfer->xroot->udev->parent_hs_hub != NULL)
+		framenum /= 8;
 
-	nframes &= DWC_OTG_FRAME_MASK;
+	framenum &= DWC_OTG_FRAME_MASK;
+
+	/*
+	 * Compute number of milliseconds worth of data traffic for
+	 * this USB transfer:
+	 */ 
+	if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
+		msframes = ((xfer->nframes << shift) + 7) / 8;
+	else
+		msframes = xfer->nframes;
 
 	/*
 	 * check if the frame index is within the window where the frames
 	 * will be inserted
 	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & DWC_OTG_FRAME_MASK;
+	temp = (framenum - xfer->endpoint->isoc_next) & DWC_OTG_FRAME_MASK;
 
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < (((xfer->nframes << shift) + 7) / 8))) {
+	if ((xfer->endpoint->is_synced == 0) || (temp < msframes)) {
 		/*
 		 * If there is data underflow or the pipe queue is
 		 * empty we schedule the transfer a few frames ahead
 		 * of the current frame position. Else two isochronous
 		 * transfers might overlap.
 		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & DWC_OTG_FRAME_MASK;
+		xfer->endpoint->isoc_next = (framenum + 3) & DWC_OTG_FRAME_MASK;
 		xfer->endpoint->is_synced = 1;
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 	}
@@ -3404,25 +3986,20 @@ dwc_otg_device_isoc_enter(struct usb_xfer *xfer)
 	 * compute how many milliseconds the insertion is ahead of the
 	 * current frame position:
 	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & DWC_OTG_FRAME_MASK;
+	temp = (xfer->endpoint->isoc_next - framenum) & DWC_OTG_FRAME_MASK;
 
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    (((xfer->nframes << shift) + 7) / 8);
+		usb_isoc_time_expand(&sc->sc_bus, framenum) + temp + msframes;
 
 	/* setup TDs */
 	dwc_otg_setup_standard_chain(xfer);
 
 	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += (xfer->nframes << shift);
-}
+	xfer->endpoint->isoc_next += msframes;
 
-static void
-dwc_otg_device_isoc_start(struct usb_xfer *xfer)
-{
 	/* start TD chain */
 	dwc_otg_start_standard_chain(xfer);
 }
@@ -3987,8 +4564,8 @@ dwc_otg_xfer_setup(struct usb_setup_params *parm)
 	 * reasonable dummies:
 	 */
 	parm->hc_max_packet_size = 0x500;
-	parm->hc_max_packet_count = 1;
-	parm->hc_max_frame_size = 0x500;
+	parm->hc_max_packet_count = 3;
+	parm->hc_max_frame_size = 3 * 0x500;
 
 	usbd_transfer_setup_sub(parm);
 
@@ -4045,6 +4622,7 @@ dwc_otg_xfer_setup(struct usb_setup_params *parm)
 
 			/* init TD */
 			td->max_packet_size = xfer->max_packet_size;
+			td->max_packet_count = xfer->max_packet_count;
 			td->ep_no = ep_no;
 			td->obj_next = last_obj;
 
@@ -4081,40 +4659,7 @@ dwc_otg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 				/* not supported */
 				return;
 			}
-		} else {
-			uint16_t mps;
-
-			mps = UGETW(edesc->wMaxPacketSize);
-
-			/* Apply limitations of our USB host driver */
-
-			switch (udev->speed) {
-			case USB_SPEED_HIGH:
-				if (mps > 512) {
-					DPRINTF("wMaxPacketSize=0x%04x"
-					    "is not supported\n", (int)mps);
-					/* not supported */
-					return;
-				}
-				break;
-
-			case USB_SPEED_FULL:
-			case USB_SPEED_LOW:
-				if (mps > 188) {
-					DPRINTF("wMaxPacketSize=0x%04x"
-					    "is not supported\n", (int)mps);
-					/* not supported */
-					return;
-				}
-				break;
-
-			default:
-				DPRINTF("Invalid device speed\n");
-				/* not supported */
-				return;
-			}
 		}
-
 		if ((edesc->bmAttributes & UE_XFERTYPE) == UE_ISOCHRONOUS)
 			ep->methods = &dwc_otg_device_isoc_methods;
 		else
