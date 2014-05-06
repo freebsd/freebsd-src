@@ -1732,9 +1732,17 @@ skip_thunk:
 		td->td_frame->tf_rflags &= ~PSL_IOPL;
 #endif
 		return (0);
-	case KDMKTONE:      	/* sound the bell */
-		/* TODO */
+	case KDMKTONE: {      	/* sound the bell */
+		int freq, period;
+
+		freq = 1193182 / ((*(int*)data) & 0xffff);
+		period = (((*(int*)data)>>16) & 0xffff) * hz / 1000;
+		if(*(int*)data)
+			sysbeep(freq, period);
+		else
+			vtterm_bell(tm);
 		return (0);
+	}
 	case KIOCSOUND:     	/* make tone (*data) hz */
 		/* TODO */
 		return (0);
