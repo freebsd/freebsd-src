@@ -65,7 +65,6 @@ __DEFAULT_YES_OPTIONS = \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
-    BMAKE \
     BOOT \
     BSD_CPIO \
     BSNMP \
