@@ -245,6 +245,8 @@ ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 	struct mbuf *m;
 	struct ath_desc *ds;
 
+	/* XXX TODO: ATH_RX_LOCK_ASSERT(sc); */
+
 	m = bf->bf_m;
 	if (m == NULL) {
 		/*
@@ -974,6 +976,14 @@ rx_next:
 
 #define	ATH_RX_MAX		128
 
+/*
+ * XXX TODO: break out the "get buffers" from "call ath_rx_pkt()" like
+ * the EDMA code does.
+ *
+ * XXX TODO: then, do all of the RX list management stuff inside
+ * ATH_RX_LOCK() so we don't end up potentially racing.  The EDMA
+ * code is doing it right.
+ */
 static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
@@ -995,6 +1005,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	u_int64_t tsf;
 	int npkts = 0;
 	int kickpcu = 0;
+	int ret;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -1094,8 +1105,26 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf, m))
 			ngood++;
 rx_proc_next:
-		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
-	} while (ath_rxbuf_init(sc, bf) == 0);
+		/*
+		 * If there's a holding buffer, insert that onto
+		 * the RX list; the hardware is now definitely not pointing
+		 * to it now.
+		 */
+		ret = 0;
+		if (sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf != NULL) {
+			TAILQ_INSERT_TAIL(&sc->sc_rxbuf,
+			    sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf,
+			    bf_list);
+			ret = ath_rxbuf_init(sc,
+			    sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf);
+		}
+		/*
+		 * Next, throw our buffer into the holding entry.  The hardware
+		 * may use the descriptor to read the link pointer before
+		 * DMAing the next descriptor in to write out a packet.
+		 */
+		sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf = bf;
+	} while (ret == 0);
 
 	/* rx signal state monitoring */
 	ath_hal_rxmonitor(ah, &sc->sc_halstats, sc->sc_curchan);
@@ -1126,6 +1155,13 @@ rx_proc_next:
 		 * to get confused under certain conditions and
 		 * constantly write over the same frame, leading
 		 * the RX driver code here to get heavily confused.
+		 */
+		/*
+		 * XXX Has RX DMA stopped enough here to just call
+		 *     ath_startrecv()?
+		 * XXX Do we need to use the holding buffer to restart
+		 *     RX DMA by appending entries to the final
+		 *     descriptor?  Quite likely.
 		 */
 #if 1
 		ath_startrecv(sc);
@@ -1217,6 +1253,58 @@ ath_legacy_flushrecv(struct ath_softc *sc)
 	ath_rx_proc(sc, 0);
 }
 
+static void
+ath_legacy_flush_rxpending(struct ath_softc *sc)
+{
+
+	/* XXX ATH_RX_LOCK_ASSERT(sc); */
+
+	if (sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
+	}
+	if (sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending != NULL) {
+		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending);
+		sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
+	}
+}
+
+static int
+ath_legacy_flush_rxholdbf(struct ath_softc *sc)
+{
+	struct ath_buf *bf;
+
+	/* XXX ATH_RX_LOCK_ASSERT(sc); */
+	/*
+	 * If there are RX holding buffers, free them here and return
+	 * them to the list.
+	 *
+	 * XXX should just verify that bf->bf_m is NULL, as it must
+	 * be at this point!
+	 */
+	bf = sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf;
+	if (bf != NULL) {
+		if (bf->bf_m != NULL)
+			m_freem(bf->bf_m);
+		bf->bf_m = NULL;
+		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
+		(void) ath_rxbuf_init(sc, bf);
+	}
+	sc->sc_rxedma[HAL_RX_QUEUE_HP].m_holdbf = NULL;
+
+	bf = sc->sc_rxedma[HAL_RX_QUEUE_LP].m_holdbf;
+	if (bf != NULL) {
+		if (bf->bf_m != NULL)
+			m_freem(bf->bf_m);
+		bf->bf_m = NULL;
+		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
+		(void) ath_rxbuf_init(sc, bf);
+	}
+	sc->sc_rxedma[HAL_RX_QUEUE_LP].m_holdbf = NULL;
+
+	return (0);
+}
+
 /*
  * Disable the receive h/w in preparation for a reset.
  */
@@ -1227,6 +1315,8 @@ ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_hal *ah = sc->sc_ah;
+
+	ATH_RX_LOCK(sc);
 
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
@@ -1261,20 +1351,21 @@ ath_legacy_stoprecv(struct ath_softc *sc, int dodelay)
 		}
 	}
 #endif
-	/*
-	 * Free both high/low RX pending, just in case.
-	 */
-	if (sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending != NULL) {
-		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending);
-		sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
-	}
-	if (sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending != NULL) {
-		m_freem(sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending);
-		sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
-	}
+
+	(void) ath_legacy_flush_rxpending(sc);
+	(void) ath_legacy_flush_rxholdbf(sc);
+
 	sc->sc_rxlink = NULL;		/* just in case */
+
+	ATH_RX_UNLOCK(sc);
 #undef PA2DESC
 }
+
+/*
+ * XXX TODO: something was calling startrecv without calling
+ * stoprecv.  Let's figure out what/why.  It was showing up
+ * as a mbuf leak (rxpending) and ath_buf leak (holdbf.)
+ */
 
 /*
  * Enable the receive h/w following a reset.
@@ -1285,9 +1376,18 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
+	ATH_RX_LOCK(sc);
+
+	/*
+	 * XXX should verify these are already all NULL!
+	 */
 	sc->sc_rxlink = NULL;
-	sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
-	sc->sc_rxedma[HAL_RX_QUEUE_HP].m_rxpending = NULL;
+	(void) ath_legacy_flush_rxpending(sc);
+	(void) ath_legacy_flush_rxholdbf(sc);
+
+	/*
+	 * Re-chain all of the buffers in the RX buffer list.
+	 */
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 		int error = ath_rxbuf_init(sc, bf);
 		if (error != 0) {
@@ -1303,6 +1403,8 @@ ath_legacy_startrecv(struct ath_softc *sc)
 	ath_hal_rxena(ah);		/* enable recv descriptors */
 	ath_mode_init(sc);		/* set filters, etc. */
 	ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+
+	ATH_RX_UNLOCK(sc);
 	return 0;
 }
 
