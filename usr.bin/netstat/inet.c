@@ -660,7 +660,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_rcvbadsum, "\t\t%ju discarded for bad checksum%s\n");
 	p(tcps_rcvbadoff, "\t\t%ju discarded for bad header offset field%s\n");
 	p1a(tcps_rcvshort, "\t\t%ju discarded because packet too short\n");
-	p1a(tcps_rcvmemdrop, "\t\t%ju discarded due to memory problems\n");
+	p1a(tcps_rcvreassfull,
+	    "\t\t%ju discarded due to no space in reassembly queue\n");
 	p(tcps_connattempt, "\t%ju connection request%s\n");
 	p(tcps_accepts, "\t%ju connection accept%s\n");
 	p(tcps_badsyn, "\t%ju bad connection attempt%s\n");
