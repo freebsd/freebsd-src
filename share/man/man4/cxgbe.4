@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2013, Chelsio Inc
+.\" Copyright (c) 2011-2014, Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2013
+.Dd March 20, 2014
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -141,11 +141,11 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.cxgbe.ntxq10g
-The number of tx queues to use for a 10Gb port.
+The number of tx queues to use for a 10Gb or 40Gb port.
 The default is 16 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nrxq10g
-The number of rx queues to use for a 10Gb port.
+The number of rx queues to use for a 10Gb or 40Gb port.
 The default is 8 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.ntxq1g
@@ -157,11 +157,11 @@ The number of rx queues to use for a 1Gb port.
 The default is 2 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldtxq10g
-The number of TOE tx queues to use for a 10Gb port.
+The number of TOE tx queues to use for a 10Gb or 40Gb port.
 The default is 8 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldrxq10g
-The number of TOE rx queues to use for a 10Gb port.
+The number of TOE rx queues to use for a 10Gb or 40Gb port.
 The default is 2 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldtxq1g
@@ -177,8 +177,7 @@ The timer index value to use to delay interrupts.
 The holdoff timer list has the values 1, 5, 10, 50, 100, and 200
 by default (all values are in microseconds) and the index selects a
 value from this list.
-The default value is 1 for both 10Gb and 1Gb ports, which means the
-timer value is 5us.
+The default value is 1 which means the timer value is 5us.
 Different interfaces can be assigned different values at any time via the
 dev.cxgbe.X.holdoff_tmr_idx or dev.cxl.X.holdoff_tmr_idx sysctl.
 .It Va hw.cxgbe.holdoff_pktc_idx_10G
@@ -186,9 +185,8 @@ dev.cxgbe.X.holdoff_tmr_idx or dev.cxl.X.holdoff_tmr_idx sysctl.
 The packet-count index value to use to delay interrupts.
 The packet-count list has the values 1, 8, 16, and 32 by default
 and the index selects a value from this list.
-The default value is -1 for both 10Gb and 1Gb ports, which means packet
-counting is disabled and interrupts are generated based solely on the
-holdoff timer value.
+The default value is -1 which means packet counting is disabled and interrupts
+are generated based solely on the holdoff timer value.
 Different interfaces can be assigned different values via the
 dev.cxgbe.X.holdoff_pktc_idx or dev.cxl.X.holdoff_pktc_idx sysctl.
 This sysctl works only when the interface has never been marked up (as done by
@@ -228,6 +226,43 @@ already on the card.
 long as it is compatible with the driver and is a different version than
 the one already on the card.
 The default is 1.
+.It Va hw.cxgbe.fl_pktshift
+The number of bytes of padding inserted before the begining of an Ethernet
+frame in the receive buffer.
+The default value of 2 ensures that the Ethernet payload (usually the IP header)
+is at a 4 byte aligned address.
+0-7 are all valid values.
+.It Va hw.cxgbe.fl_pad
+A non-zero value ensures that writes from the hardware to a receive buffer are
+padded up to the specified boundary.
+The default is -1 which lets the driver pick a pad boundary.
+0 disables trailer padding completely.
+.It Va hw.cxgbe.cong_drop
+Controls the hardware response to congestion.
+-1 disables congestion feedback and is not recommended.
+0 instructs the hardware to backpressure its pipeline on congestion.
+This usually results in the port emitting pause frames.
+1 instructs the hardware to drop frames destined for congested queues.
+.It Va hw.cxgbe.buffer_packing
+Allow the hardware to deliver multiple frames in the same receive buffer
+opportunistically.
+The default is -1 which lets the driver decide.
+0 or 1 explicitly disable or enable this feature.
+.It Va hw.cxgbe.allow_mbufs_in_cluster
+1 allows the driver to lay down one or more mbufs within the receive buffer
+opportunistically.  This is the default.
+0 prohibits the driver from doing so.
+.It Va hw.cxgbe.largest_rx_cluster
+.It Va hw.cxgbe.safest_rx_cluster
+Sizes of rx clusters.  Each of these must be set to one of the sizes available
+(usually 2048, 4096, 9216, and 16384) and largest_rx_cluster must be greater
+than or equal to safest_rx_cluster.
+The defaults are 16384 and 4096 respectively.
+The driver will never attempt to allocate a receive buffer larger than
+largest_rx_cluster and will fall back to allocating buffers of
+safest_rx_cluster size if an allocation larger than safest_rx_cluster fails.
+Note that largest_rx_cluster merely establishes a ceiling -- the driver is
+allowed to allocate buffers of smaller sizes.
 .It Va hw.cxgbe.config_file
 Select a pre-packaged device configuration file.
 A configuration file contains a recipe for partitioning and configuring the
@@ -235,7 +270,7 @@ hardware resources on the card.
 This tunable is for specialized applications only and should not be used in
 normal operation.
 The configuration profile currently in use is available in the dev.t4nex.X.cf
-and dev.t4nex.X.cfcsum sysctls.
+and dev.t4nex.X.cfcsum (dev.t5nex for T5 cards) sysctls.
 .It Va hw.cxgbe.linkcaps_allowed
 .It Va hw.cxgbe.niccaps_allowed
 .It Va hw.cxgbe.toecaps_allowed
@@ -249,7 +284,7 @@ capability.
 This tunable is for specialized applications only and should not be used in
 normal operation.
 The capabilities for which hardware resources have been reserved are listed in
-dev.t4nex.X.*caps sysctls.
+dev.t4nex.X.*caps or dev.t5nex.X.*caps sysctls.
 .El
 .Sh SUPPORT
 For general information and support,
