@@ -1,6 +1,6 @@
 # $FreeBSD$ 
 
-.include "src.opts.mk"
+.include <src.opts.mk>
 
 .if defined(.PARSEDIR)
 # make sure this is available to unit-tests/Makefile
