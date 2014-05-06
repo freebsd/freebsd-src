@@ -2622,6 +2622,7 @@ build_medialist(struct port_info *pi)
 		ifmedia_set(media, m | IFM_10G_CX4);
 		break;
 
+	case FW_PORT_TYPE_QSFP_10G:
 	case FW_PORT_TYPE_SFP:
 	case FW_PORT_TYPE_FIBER_XFI:
 	case FW_PORT_TYPE_FIBER_XAUI:
@@ -7754,11 +7755,11 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 		if (port_id >= sc->params.nports)
 			return (EINVAL);
+		pi = sc->port[port_id];
 
 		/* MAC stats */
-		t4_clr_port_stats(sc, port_id);
+		t4_clr_port_stats(sc, pi->tx_chan);
 
-		pi = sc->port[port_id];
 		if (pi->flags & PORT_INIT_DONE) {
 			struct sge_rxq *rxq;
 			struct sge_txq *txq;
