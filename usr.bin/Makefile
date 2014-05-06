@@ -279,11 +279,7 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
-.if ${MK_BMAKE} != "no"
 SUBDIR+=	bmake
-.else
-SUBDIR+=	make
-.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
