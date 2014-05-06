@@ -568,6 +568,10 @@ t4_read_chip_settings(struct adapter *sc)
 
 	r = t4_read_reg(sc, A_SGE_CONM_CTRL);
 	s->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
+	if (is_t4(sc))
+		s->fl_starve_threshold2 = s->fl_starve_threshold;
+	else
+		s->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
 
 	/* egress queues: log2 of # of doorbells per BAR2 page */
 	r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
@@ -2232,7 +2236,9 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			return (rc);
 		}
 		fl->needed = fl->cap;
-		fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
+		fl->lowat = fl->flags & FL_BUF_PACKING ?
+		    roundup2(sc->sge.fl_starve_threshold2, 8) :
+		    roundup2(sc->sge.fl_starve_threshold, 8);
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2467,7 +2473,7 @@ tnl_cong(struct port_info *pi)
 	else if (cong_drop == 1)
 		return (0);
 	else
-		return (1 << pi->tx_chan);
+		return (pi->rx_chan_map);
 }
 
 static int
@@ -2574,7 +2580,7 @@ alloc_ofld_rxq(struct port_info *pi, struct sge_ofld_rxq *ofld_rxq,
 	char name[16];
 
 	rc = alloc_iq_fl(pi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx,
-	    1 << pi->tx_chan);
+	    pi->rx_chan_map);
 	if (rc != 0)
 		return (rc);
 
