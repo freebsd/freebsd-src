@@ -72,16 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 
-static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
-    "TCP Segment Reassembly Queue");
-
-static VNET_DEFINE(int, tcp_reass_overflows) = 0;
-#define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows,
-    CTLTYPE_INT | CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_overflows), 0,
-    "Global number of TCP Segment Reassembly Queue Overflows");
-
 void
 tcp_reass_flush(struct tcpcb *tp)
 {
@@ -142,8 +132,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	    tp->t_segqlen + m->m_pkthdr.len >= sbspace(&so->so_rcv)) {
 		char *s;
 
-		V_tcp_reass_overflows++;
-		TCPSTAT_INC(tcps_rcvmemdrop);
+		TCPSTAT_INC(tcps_rcvreassfull);
 		*tlenp = 0;
 		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
 		    NULL))) {
