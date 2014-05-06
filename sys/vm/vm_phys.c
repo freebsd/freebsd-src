@@ -600,7 +600,9 @@ vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
 
 #ifdef VM_PHYSSEG_DENSE
 	pi = atop(start);
-	if (pi >= first_page && atop(end) < vm_page_array_size) {
+	if (pi >= first_page && pi < vm_page_array_size + first_page) {
+		if (atop(end) >= vm_page_array_size + first_page)
+			return (EINVAL);
 		fp = &vm_page_array[pi - first_page];
 		malloced = FALSE;
 	} else
