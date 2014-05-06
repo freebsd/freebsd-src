@@ -166,7 +166,7 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon*/
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
 	SI_SUB_SMP		= 0xf000000,	/* start the APs*/
-	SI_SUB_RACCTD		= 0xf100000,	/* start raccd*/
+	SI_SUB_RACCTD		= 0xf100000,	/* start racctd*/
 	SI_SUB_LAST		= 0xfffffff	/* final initialization */
 };
 
