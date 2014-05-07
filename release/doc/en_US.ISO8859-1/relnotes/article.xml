@@ -115,7 +115,8 @@
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
-    <para revision="264601">The <literal>if_nf10bmac(4)</literal>
+    <para revision="264601" contrib="sponsor"
+      sponsor="&darpa;">The <literal>if_nf10bmac(4)</literal>
       device has been added, providing support for NetFPGA-10G
       Embedded CPU Ethernet Core.</para>
 
