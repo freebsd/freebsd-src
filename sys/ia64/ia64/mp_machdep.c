@@ -455,7 +455,7 @@ cpu_mp_unleash(void *dummy)
 		    mp_ncpus, cpus, smp_cpus);
 	}
 
-	smp_active = 1;
+	/* XXX Atomic set operation? */
 	smp_started = 1;
 
 	/*
