@@ -61,20 +61,20 @@
 SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 static int debug = 1;
 TUNABLE_INT("kern.icl.debug", &debug);
-SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 1, "Enable debug messages");
 static int partial_receive_len = 1 * 1024; /* XXX: More? */
 TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
-SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RW,
+SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
     &partial_receive_len, 1 * 1024, "Minimum read size for partially received "
     "data segment");
 static int sendspace = 1048576;
 TUNABLE_INT("kern.icl.sendspace", &sendspace);
-SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RW,
+SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RWTUN,
     &sendspace, 1048576, "Default send socket buffer size");
 static int recvspace = 1048576;
 TUNABLE_INT("kern.icl.recvspace", &recvspace);
-SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RW,
+SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 1048576, "Default receive socket buffer size");
 
 static uma_zone_t icl_conn_zone;
