@@ -13065,7 +13065,7 @@ ctl_wakeup_thread()
 
 	softc = control_softc;
 
-	wakeup(softc);
+	wakeup_one(softc);
 }
 
 /* Initialization and failover */
