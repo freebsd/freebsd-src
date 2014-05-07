@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -487,9 +487,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		 *  the queue's vector to get the corresponding rid to use.
 		 */
 		qpair->rid = vector + 1;
-
-		qpair->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
-		    &qpair->rid, RF_ACTIVE);
+		qpair->res = ctrlr->msi_res[vector];
 
 		bus_setup_intr(ctrlr->dev, qpair->res,
 		    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
