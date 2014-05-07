@@ -209,7 +209,8 @@
 	  advised to use the &man.nfe.4; driver instead, which has been
 	  the default driver for this hardware since &os; 7.0.</para>
 
-	<para revision="265348">The &man.ath.hal.4; driver has been
+	<para revision="265348" contrib="sponsor"
+	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
 	  updated to support the Atheros AR1111 chipset.</para>
       </sect4>
     </sect3>
