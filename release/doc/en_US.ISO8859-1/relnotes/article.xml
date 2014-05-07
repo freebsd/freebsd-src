@@ -116,7 +116,7 @@
       &man.uhso.4;.</para>
 
     <para revision="264601" contrib="sponsor"
-      sponsor="&darpa;">The <literal>if_nf10bmac(4)</literal>
+      sponsor="&darpa_afrl;">The <literal>if_nf10bmac(4)</literal>
       device has been added, providing support for NetFPGA-10G
       Embedded CPU Ethernet Core.</para>
 
@@ -300,7 +300,7 @@
     <title>Contributed Software</title>
 
     <para revision="258884" contrib="sponsor"
-      sponsor="&darpa;">&man.lldb.1; has been updated to upstream
+      sponsor="&darpa_afrl;">&man.lldb.1; has been updated to upstream
       snapshot version r196259.</para>
 
     <para revision="259626">Timezone data files have been updated to
