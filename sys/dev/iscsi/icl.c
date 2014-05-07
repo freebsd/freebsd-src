@@ -85,9 +85,10 @@ static volatile u_int	icl_ncons;
 		    __func__, ## __VA_ARGS__);			\
 	} while (0)
 
-#define ICL_CONN_LOCK(X)		mtx_lock(&X->ic_lock)
-#define ICL_CONN_UNLOCK(X)		mtx_unlock(&X->ic_lock)
-#define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(&X->ic_lock, MA_OWNED)
+#define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
+#define ICL_CONN_UNLOCK(X)		mtx_unlock(X->ic_lock)
+#define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
+#define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
 
 static void
 icl_conn_fail(struct icl_conn *ic)
@@ -893,7 +894,7 @@ icl_send_thread(void *arg)
 			break;
 		}
 		icl_conn_send_pdus(ic);
-		cv_wait(&ic->ic_send_cv, &ic->ic_lock);
+		cv_wait(&ic->ic_send_cv, ic->ic_lock);
 	}
 
 	ic->ic_send_running = false;
@@ -958,20 +959,19 @@ icl_pdu_queue(struct icl_pdu *ip)
 
 	ic = ip->ip_conn;
 
-	ICL_CONN_LOCK(ic);
+	ICL_CONN_LOCK_ASSERT(ic);
+
 	if (ic->ic_disconnecting || ic->ic_socket == NULL) {
 		ICL_DEBUG("icl_pdu_queue on closed connection");
-		ICL_CONN_UNLOCK(ic);
 		icl_pdu_free(ip);
 		return;
 	}
 	TAILQ_INSERT_TAIL(&ic->ic_to_send, ip, ip_next);
-	ICL_CONN_UNLOCK(ic);
 	cv_signal(&ic->ic_send_cv);
 }
 
 struct icl_conn *
-icl_conn_new(void)
+icl_conn_new(struct mtx *lock)
 {
 	struct icl_conn *ic;
 
@@ -980,7 +980,7 @@ icl_conn_new(void)
 	ic = uma_zalloc(icl_conn_zone, M_WAITOK | M_ZERO);
 
 	TAILQ_INIT(&ic->ic_to_send);
-	mtx_init(&ic->ic_lock, "icl_lock", NULL, MTX_DEF);
+	ic->ic_lock = lock;
 	cv_init(&ic->ic_send_cv, "icl_tx");
 	cv_init(&ic->ic_receive_cv, "icl_rx");
 #ifdef DIAGNOSTIC
@@ -995,7 +995,6 @@ void
 icl_conn_free(struct icl_conn *ic)
 {
 
-	mtx_destroy(&ic->ic_lock);
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
 	uma_zfree(icl_conn_zone, ic);
@@ -1099,6 +1098,8 @@ icl_conn_handoff(struct icl_conn *ic, int fd)
 	cap_rights_t rights;
 	int error;
 
+	ICL_CONN_LOCK_ASSERT_NOT(ic);
+
 	/*
 	 * Steal the socket from userland.
 	 */
@@ -1138,6 +1139,7 @@ icl_conn_handoff(struct icl_conn *ic, int fd)
 void
 icl_conn_shutdown(struct icl_conn *ic)
 {
+	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
 	ICL_CONN_LOCK(ic);
 	if (ic->ic_socket == NULL) {
@@ -1153,6 +1155,8 @@ void
 icl_conn_close(struct icl_conn *ic)
 {
 	struct icl_pdu *pdu;
+
+	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
 	ICL_CONN_LOCK(ic);
 	if (ic->ic_socket == NULL) {
@@ -1211,6 +1215,7 @@ icl_conn_close(struct icl_conn *ic)
 bool
 icl_conn_connected(struct icl_conn *ic)
 {
+	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
 	ICL_CONN_LOCK(ic);
 	if (ic->ic_socket == NULL) {
@@ -1230,6 +1235,8 @@ int
 icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so)
 {
 	int error;
+
+	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
 	if (so->so_type != SOCK_STREAM)
 		return (EINVAL);
