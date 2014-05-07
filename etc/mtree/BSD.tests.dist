@@ -123,6 +123,8 @@
         sys
             kern
             ..
+            netinet
+            ..
         ..
         usr.bin
             apply
