@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if !target(__<bsd.compiler.mk>__)
+__<bsd.compiler.mk>__:
+
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:Mgcc*}
 COMPILER_TYPE:=	gcc  
@@ -25,3 +28,5 @@ COMPILER_FEATURES=	c++11
 .else
 COMPILER_FEATURES=
 .endif
+
+.endif	# !target(__<bsd.compiler.mk>__)
