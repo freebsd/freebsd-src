@@ -678,6 +678,22 @@ vtterm_bell(struct terminal *tm)
 }
 
 static void
+vtterm_beep(struct terminal *tm, u_int param)
+{
+	u_int freq, period;
+
+	if ((param == 0) || ((param & 0xffff) == 0)) {
+		vtterm_bell(tm);
+		return;
+	}
+
+	period = ((param >> 16) & 0xffff) * hz / 1000;
+	freq = 1193182 / (param & 0xffff);
+
+	sysbeep(freq, period);
+}
+
+static void
 vtterm_cursor(struct terminal *tm, const term_pos_t *p)
 {
 	struct vt_window *vw = tm->tm_softc;
@@ -1732,17 +1748,9 @@ skip_thunk:
 		td->td_frame->tf_rflags &= ~PSL_IOPL;
 #endif
 		return (0);
-	case KDMKTONE: {      	/* sound the bell */
-		int freq, period;
-
-		freq = 1193182 / ((*(int*)data) & 0xffff);
-		period = (((*(int*)data)>>16) & 0xffff) * hz / 1000;
-		if(*(int*)data)
-			sysbeep(freq, period);
-		else
-			vtterm_bell(tm);
+	case KDMKTONE:      	/* sound the bell */
+		vtterm_beep(tm, *(u_int *)data);
 		return (0);
-	}
 	case KIOCSOUND:     	/* make tone (*data) hz */
 		/* TODO */
 		return (0);
