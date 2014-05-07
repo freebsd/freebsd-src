@@ -86,15 +86,18 @@ static uma_zone_t icl_pdu_zone;
 
 static volatile u_int	icl_ncons;
 
-#define	ICL_DEBUG(X, ...)					\
-	if (debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	ICL_DEBUG(X, ...)						\
+	do {								\
+		if (debug > 1)						\
+			printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
 	} while (0)
 
-#define	ICL_WARN(X, ...)					\
-	if (debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	ICL_WARN(X, ...)						\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+			    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
 #define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)

@@ -99,29 +99,36 @@ static uma_zone_t iscsi_outstanding_zone;
 #define	CONN_SESSION(X)	((struct iscsi_session *)X->ic_prv0)
 #define	PDU_SESSION(X)	(CONN_SESSION(X->ip_conn))
 
-#define	ISCSI_DEBUG(X, ...)					\
-	if (debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	ISCSI_DEBUG(X, ...)						\
+	do {								\
+		if (debug > 1) 						\
+			printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
 	} while (0)
 
-#define	ISCSI_WARN(X, ...)					\
-	if (debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	ISCSI_WARN(X, ...)						\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+			    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
-#define	ISCSI_SESSION_DEBUG(S, X, ...)				\
-	if (debug > 1) {					\
-		printf("%s: %s (%s): " X "\n",			\
-		    __func__, S->is_conf.isc_target_addr,	\
-		    S->is_conf.isc_target, ## __VA_ARGS__);	\
+#define	ISCSI_SESSION_DEBUG(S, X, ...)					\
+	do {								\
+		if (debug > 1) {					\
+			printf("%s: %s (%s): " X "\n",			\
+			    __func__, S->is_conf.isc_target_addr,	\
+			    S->is_conf.isc_target, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
-#define	ISCSI_SESSION_WARN(S, X, ...)				\
-	if (debug > 0) {					\
-		printf("WARNING: %s (%s): " X "\n",		\
-		    S->is_conf.isc_target_addr,			\
-		    S->is_conf.isc_target, ## __VA_ARGS__);	\
+#define	ISCSI_SESSION_WARN(S, X, ...)					\
+	do {								\
+		if (debug > 0) {					\
+			printf("WARNING: %s (%s): " X "\n",		\
+			    S->is_conf.isc_target_addr,			\
+			    S->is_conf.isc_target, ## __VA_ARGS__);	\
+		}							\
 	} while (0)
 
 #define ISCSI_SESSION_LOCK(X)		mtx_lock(&X->is_lock)
