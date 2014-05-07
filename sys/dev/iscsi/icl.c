@@ -102,6 +102,8 @@ static volatile u_int	icl_ncons;
 #define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
 #define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
 
+STAILQ_HEAD(icl_pdu_stailq, icl_pdu);
+
 static void
 icl_conn_fail(struct icl_conn *ic)
 {
@@ -828,9 +830,8 @@ icl_pdu_finalize(struct icl_pdu *request)
 }
 
 static void
-icl_conn_send_pdus(struct icl_conn *ic, void *fts)
+icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 {
-	STAILQ_HEAD(, icl_pdu) *queue = fts; /* XXX */
 	struct icl_pdu *request, *request2;
 	struct socket *so;
 	size_t available, size, size2;
@@ -940,7 +941,7 @@ static void
 icl_send_thread(void *arg)
 {
 	struct icl_conn *ic;
-	STAILQ_HEAD(, icl_pdu) queue;
+	struct icl_pdu_stailq queue;
 
 	ic = arg;
 
