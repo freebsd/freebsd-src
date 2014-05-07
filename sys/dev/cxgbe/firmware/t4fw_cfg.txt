@@ -14,10 +14,14 @@
 
 	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
 
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE
+	reg[0x7d04] = 0x00010000/0x00010000
+
 	# TP_SHIFT_CNT
 	reg[0x7dc0] = 0x62f8849
 
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMask = protocol, fcoe
 
 	# TP rx and tx channels (0 = auto).
 	tp_nrxch = 0
@@ -28,6 +32,9 @@
 	tp_pmtx = 60
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
+
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
 
 # PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
 # these 4 PFs only.  Not used here at all.
@@ -141,7 +148,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x6cc2514b
+	checksum = 0x6f516705
 #
 # $FreeBSD$
 #

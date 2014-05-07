@@ -246,7 +246,7 @@ struct pci_params {
  * Firmware device log.
  */
 struct devlog_params {
-	u32 memtype;			/* which memory (EDC0, EDC1, MC) */
+	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
 };
