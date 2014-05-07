@@ -128,7 +128,8 @@ struct icl_listen_sock {
 struct icl_listen	{
 	TAILQ_HEAD(, icl_listen_sock)	il_sockets;
 	struct sx			il_lock;
-	void				(*il_accept)(struct socket *, int);
+	void				(*il_accept)(struct socket *,
+					    struct sockaddr *, int);
 };
 
 /*
@@ -140,7 +141,8 @@ int			icl_conn_connect(struct icl_conn *ic, bool rdma,
 /*
  * Target part.
  */
-struct icl_listen	*icl_listen_new(void (*accept_cb)(struct socket *, int));
+struct icl_listen	*icl_listen_new(void (*accept_cb)(struct socket *,
+			    struct sockaddr *, int));
 void			icl_listen_free(struct icl_listen *il);
 int			icl_listen_add(struct icl_listen *il, bool rdma,
 			    int domain, int socktype, int protocol,

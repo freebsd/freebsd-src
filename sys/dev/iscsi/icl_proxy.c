@@ -182,7 +182,7 @@ icl_conn_connect(struct icl_conn *ic, bool rdma, int domain, int socktype,
 }
 
 struct icl_listen *
-icl_listen_new(void (*accept_cb)(struct socket *, int))
+icl_listen_new(void (*accept_cb)(struct socket *, struct sockaddr *, int))
 {
 	struct icl_listen *il;
 
@@ -296,9 +296,10 @@ icl_accept_thread(void *arg)
 			if (sa != NULL)
 				free(sa, M_SONAME);
 			soclose(so);
+			continue;
 		}
 
-		(ils->ils_listen->il_accept)(so, ils->ils_id);
+		(ils->ils_listen->il_accept)(so, sa, ils->ils_id);
 	}
 }
 

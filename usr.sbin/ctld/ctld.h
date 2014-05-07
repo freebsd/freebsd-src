@@ -33,6 +33,10 @@
 #define	CTLD_H
 
 #include <sys/queue.h>
+#ifdef ICL_KERNEL_PROXY
+#include <sys/types.h>
+#include <sys/socket.h>
+#endif
 #include <stdbool.h>
 #include <libutil.h>
 
@@ -269,14 +273,15 @@ int			kernel_port_on(void);
 int			kernel_port_off(void);
 void			kernel_capsicate(void);
 
-/*
- * ICL_KERNEL_PROXY
- */
+#ifdef ICL_KERNEL_PROXY
 void			kernel_listen(struct addrinfo *ai, bool iser,
 			    int portal_id);
-void			kernel_accept(int *connection_id, int *portal_id);
+void			kernel_accept(int *connection_id, int *portal_id,
+			    struct sockaddr *client_sa,
+			    socklen_t *client_salen);
 void			kernel_send(struct pdu *pdu);
 void			kernel_receive(struct pdu *pdu);
+#endif
 
 struct keys		*keys_new(void);
 void			keys_delete(struct keys *keys);
