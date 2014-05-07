@@ -104,9 +104,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="265348">The &man.ath.hal.4; driver has been
-      updated to support the Atheros AR1111 chipset.</para>
-
     <para revision="265236">The &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
       controllers.</para>
@@ -188,6 +185,9 @@
 
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
+
+	<para revision="265348">The &man.ath.hal.4; driver has been
+	  updated to support the Atheros AR1111 chipset.</para>
 
 	<para revision="260552">Firmware for &intel;
 	  Centrino&trade; Wireless-N 105 devices has been added
