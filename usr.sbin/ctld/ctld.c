@@ -1222,6 +1222,13 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		}
 	}
 
+	/*
+	 * XXX: If target or lun removal fails, we should somehow "move"
+	 * 	the old lun or target into newconf, so that subsequent
+	 * 	conf_apply() will try to remove them again.  That would
+	 * 	be somewhat hairy, and lun deletion doesn't really happen,
+	 * 	so leave it as it is for now.
+	 */
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
 		/*
 		 * First, remove any targets present in the old configuration
@@ -1344,7 +1351,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	TAILQ_FOREACH(newtarg, &newconf->conf_targets, t_next) {
 		oldtarg = target_find(oldconf, newtarg->t_name);
 
-		TAILQ_FOREACH(newlun, &newtarg->t_luns, l_next) {
+		TAILQ_FOREACH_SAFE(newlun, &newtarg->t_luns, l_next, tmplun) {
 			if (oldtarg != NULL) {
 				oldlun = lun_find(oldtarg, newlun->l_lun);
 				if (oldlun != NULL) {
@@ -1376,6 +1383,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			if (error != 0) {
 				log_warnx("failed to add lun %d, target %s",
 				    newlun->l_lun, newtarg->t_name);
+				lun_delete(newlun);
 				cumulated_error++;
 			}
 		}
