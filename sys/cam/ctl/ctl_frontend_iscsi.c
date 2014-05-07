@@ -1130,6 +1130,9 @@ cfiscsi_session_terminate(struct cfiscsi_session *cs)
 		return;
 	cs->cs_terminating = 1;
 	cv_signal(&cs->cs_maintenance_cv);
+#ifdef ICL_KERNEL_PROXY
+	cv_signal(&cs->cs_login_cv);
+#endif
 }
 
 static int
@@ -1864,6 +1867,7 @@ cfiscsi_ioctl_receive(struct ctl_iscsi *ci)
 	struct cfiscsi_session *cs;
 	struct icl_pdu *ip;
 	void *data;
+	int error;
 
 	cirp = (struct ctl_iscsi_receive_params *)&(ci->data);
 
@@ -1874,7 +1878,8 @@ cfiscsi_ioctl_receive(struct ctl_iscsi *ci)
 	}
 	if (cs == NULL) {
 		mtx_unlock(&cfiscsi_softc.lock);
-		snprintf(ci->error_str, sizeof(ci->error_str), "connection not found");
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "connection not found");
 		ci->status = CTL_ISCSI_ERROR;
 		return;
 	}
@@ -1886,12 +1891,21 @@ cfiscsi_ioctl_receive(struct ctl_iscsi *ci)
 #endif
 
 	CFISCSI_SESSION_LOCK(cs);
-	while (cs->cs_login_pdu == NULL &&
-	    cs->cs_terminating == false)
-		cv_wait(&cs->cs_login_cv, &cs->cs_lock);
+	while (cs->cs_login_pdu == NULL && cs->cs_terminating == false) {
+		error = cv_wait_sig(&cs->cs_login_cv, &cs->cs_lock);
+		if (error != 0) {
+			CFISCSI_SESSION_UNLOCK(cs);
+			snprintf(ci->error_str, sizeof(ci->error_str),
+			    "interrupted by signal");
+			ci->status = CTL_ISCSI_ERROR;
+			return;
+		}
+	}
+
 	if (cs->cs_terminating) {
 		CFISCSI_SESSION_UNLOCK(cs);
-		snprintf(ci->error_str, sizeof(ci->error_str), "connection terminating");
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "connection terminating");
 		ci->status = CTL_ISCSI_ERROR;
 		return;
 	}
@@ -1901,7 +1915,8 @@ cfiscsi_ioctl_receive(struct ctl_iscsi *ci)
 
 	if (ip->ip_data_len > cirp->data_segment_len) {
 		icl_pdu_free(ip);
-		snprintf(ci->error_str, sizeof(ci->error_str), "data segment too big");
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "data segment too big");
 		ci->status = CTL_ISCSI_ERROR;
 		return;
 	}
