@@ -2005,7 +2005,6 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	if (is->is_terminating) {
-		ISCSI_SESSION_DEBUG(is, "called during termination");
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		xpt_done(ccb);
 		return;
