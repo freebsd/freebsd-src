@@ -75,6 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #endif
 
+#ifdef ICL_KERNEL_PROXY
+FEATURE(cfiscsi_kernel_proxy, "iSCSI target built with ICL_KERNEL_PROXY");
+#endif
+
 static MALLOC_DEFINE(M_CFISCSI, "cfiscsi", "Memory used for CTL iSCSI frontend");
 static uma_zone_t cfiscsi_data_wait_zone;
 
@@ -1960,7 +1964,18 @@ cfiscsi_ioctl(struct cdev *dev,
 	case CTL_ISCSI_CLOSE:
 		cfiscsi_ioctl_close(ci);
 		break;
-#endif /* ICL_KERNEL_PROXY */
+#else
+	case CTL_ISCSI_LISTEN:
+	case CTL_ISCSI_ACCEPT:
+	case CTL_ISCSI_SEND:
+	case CTL_ISCSI_RECEIVE:
+	case CTL_ISCSI_CLOSE:
+		ci->status = CTL_ISCSI_ERROR;
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "%s: CTL compiled without ICL_KERNEL_PROXY",
+		    __func__);
+		break;
+#endif /* !ICL_KERNEL_PROXY */
 	default:
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),
