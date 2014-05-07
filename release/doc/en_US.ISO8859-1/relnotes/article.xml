@@ -296,7 +296,8 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para revision="258884">&man.lldb.1; has been updated to upstream
+    <para revision="258884" contrib="sponsor"
+      sponsor="&darpa;">&man.lldb.1; has been updated to upstream
       snapshot version r196259.</para>
 
     <para revision="259626">Timezone data files have been updated to
