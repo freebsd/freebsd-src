@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	cheritest
-SRCS=	cheritest.c cheritest_sandbox.S
+SRCS=	cheritest.c cheritest_fault.c cheritest_sandbox.S
 NO_MAN=yes
 USE_CHERI=	yes
 
