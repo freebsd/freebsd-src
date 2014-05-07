@@ -211,7 +211,8 @@ int			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
-struct auth_group	*auth_group_find(struct conf *conf, const char *name);
+struct auth_group	*auth_group_find(const struct conf *conf,
+			    const char *name);
 int			auth_group_set_type_str(struct auth_group *ag,
 			    const char *type);
 
@@ -220,7 +221,7 @@ const struct auth	*auth_new_chap(struct auth_group *ag,
 const struct auth	*auth_new_chap_mutual(struct auth_group *ag,
 			    const char *user, const char *secret,
 			    const char *user2, const char *secret2);
-const struct auth	*auth_find(struct auth_group *ag,
+const struct auth	*auth_find(const struct auth_group *ag,
 			    const char *user);
 
 const struct auth_name	*auth_name_new(struct auth_group *ag,
@@ -237,7 +238,8 @@ const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
-struct portal_group	*portal_group_find(struct conf *conf, const char *name);
+struct portal_group	*portal_group_find(const struct conf *conf,
+			    const char *name);
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 
@@ -248,7 +250,7 @@ struct target		*target_find(struct conf *conf,
 
 struct lun		*lun_new(struct target *target, int lun_id);
 void			lun_delete(struct lun *lun);
-struct lun		*lun_find(struct target *target, int lun_id);
+struct lun		*lun_find(const struct target *target, int lun_id);
 void			lun_set_backend(struct lun *lun, const char *value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
@@ -260,7 +262,8 @@ void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 struct lun_option	*lun_option_new(struct lun *lun,
 			    const char *name, const char *value);
 void			lun_option_delete(struct lun_option *clo);
-struct lun_option	*lun_option_find(struct lun *lun, const char *name);
+struct lun_option	*lun_option_find(const struct lun *lun,
+			    const char *name);
 void			lun_option_set(struct lun_option *clo,
 			    const char *value);
 
