@@ -792,6 +792,8 @@ void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
+void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);

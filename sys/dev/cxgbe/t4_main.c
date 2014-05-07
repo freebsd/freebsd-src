@@ -379,6 +379,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
@@ -392,6 +393,7 @@ static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
 static int sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_sched(SYSCTL_HANDLER_ARGS);
 static int sysctl_lb_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_linkdnrc(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
@@ -2474,7 +2476,7 @@ get_params__post_init(struct adapter *sc)
 		param[3] = FW_PARAM_PFVF(CQ_END);
 		param[4] = FW_PARAM_PFVF(OCQ_START);
 		param[5] = FW_PARAM_PFVF(OCQ_END);
-		rc = -t4_query_params(sc, 0, 0, 0, 6, param, val);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
@@ -2531,9 +2533,9 @@ t4_set_desc(struct adapter *sc)
 	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, E/C:%s",
-	    p->vpd.id, is_offload(sc) ? "R" : "", chip_rev(sc), p->vpd.sn,
-	    p->vpd.ec);
+	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, "
+	    "P/N:%s, E/C:%s", p->vpd.id, is_offload(sc) ? "R" : "",
+	    chip_rev(sc), p->vpd.sn, p->vpd.pn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -4195,6 +4197,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
+	    CTLFLAG_RD, sc, 0, sysctl_temperature, "A",
+	    "chip temperature (in Celsius)");
+
+	t4_sge_sysctls(sc, ctx, children);
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
@@ -4412,8 +4420,8 @@ cxgbe_sysctls(struct port_info *pi)
 	oid = device_get_sysctl_tree(pi->dev);
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "linkdnrc", CTLFLAG_RD,
-	    &pi->linkdnrc, 0, "reason why link is down");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkdnrc", CTLTYPE_STRING |
+	   CTLFLAG_RD, pi, 0, sysctl_linkdnrc, "A", "reason why link is down");
 	if (pi->port_type == FW_PORT_TYPE_BT_XAUI) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
 		    CTLTYPE_INT | CTLFLAG_RD, pi, 0, sysctl_btphy, "I",
@@ -4833,6 +4841,31 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	val = t4_read_reg64(sc, reg);
 
 	return (sysctl_handle_64(oidp, &val, 0, req));
+}
+
+static int
+sysctl_temperature(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int rc, t;
+	uint32_t param, val;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4temp");
+	if (rc)
+		return (rc);
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_DIAG) |
+	    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_DIAG_TMP);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+
+	/* unknown is returned as 0 but we display -1 in that case */
+	t = val == 0 ? -1 : val;
+
+	rc = sysctl_handle_int(oidp, &t, 0, req);
+	return (rc);
 }
 
 #ifdef SBUF_DRAIN
@@ -5452,6 +5485,37 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(sb, "\n%-17s %20ju %20ju", stat_name[j],
 				   *p0++, *p1++);
 	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
+{
+	int rc = 0;
+	struct port_info *pi = arg1;
+	struct sbuf *sb;
+	static const char *linkdnreasons[] = {
+		"non-specific", "remote fault", "autoneg failed", "reserved3",
+		"PHY overheated", "unknown", "rx los", "reserved7"
+	};
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 64, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	if (pi->linkdnrc < 0)
+		sbuf_printf(sb, "n/a");
+	else if (pi->linkdnrc < nitems(linkdnreasons))
+		sbuf_printf(sb, "%s", linkdnreasons[pi->linkdnrc]);
+	else
+		sbuf_printf(sb, "%d", pi->linkdnrc);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
