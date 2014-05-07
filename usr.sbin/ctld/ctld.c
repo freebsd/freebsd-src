@@ -48,6 +48,8 @@
 
 #include "ctld.h"
 
+bool proxy_mode = false;
+
 static volatile bool sighup_received = false;
 static volatile bool sigterm_received = false;
 static volatile bool sigalrm_received = false;
@@ -552,14 +554,6 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	char *addr, *ch, *arg;
 	const char *port;
 	int error, colons = 0;
-
-#ifndef ICL_KERNEL_PROXY
-	if (iser) {
-		log_warnx("ctld(8) compiled without ICL_KERNEL_PROXY "
-		    "does not support iSER protocol");
-		return (-1);
-	}
-#endif
 
 	portal = portal_new(pg);
 	portal->p_listen = checked_strdup(value);
@@ -1180,9 +1174,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	struct portal *oldp, *newp;
 	pid_t otherpid;
 	int changed, cumulated_error = 0, error;
-#ifndef ICL_KERNEL_PROXY
 	int one = 1;
-#endif
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
 		log_debugx("changing debug level to %d", newconf->conf_debug);
@@ -1415,10 +1407,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			}
 
 #ifdef ICL_KERNEL_PROXY
-			log_debugx("listening on %s, portal-group \"%s\" using ICL proxy",
-			    newp->p_listen, newpg->pg_name);
-			kernel_listen(newp->p_ai, newp->p_iser);
-#else
+			if (proxy_mode) {
+				log_debugx("listening on %s, portal-group \"%s\" using ICL proxy",
+				    newp->p_listen, newpg->pg_name);
+				kernel_listen(newp->p_ai, newp->p_iser);
+				continue;
+			}
+#endif
+			assert(proxy_mode == false);
 			assert(newp->p_iser == false);
 
 			log_debugx("listening on %s, portal-group \"%s\"",
@@ -1461,7 +1457,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 				continue;
 			}
-#endif /* !ICL_KERNEL_PROXY */
 		}
 	}
 
@@ -1579,11 +1574,9 @@ static void
 handle_connection(struct portal *portal, int fd, bool dont_fork)
 {
 	struct connection *conn;
-#ifndef ICL_KERNEL_PROXY
 	struct sockaddr_storage ss;
 	socklen_t sslen = sizeof(ss);
 	int error;
-#endif
 	pid_t pid;
 	char host[NI_MAXHOST + 1];
 	struct conf *conf;
@@ -1619,20 +1612,25 @@ handle_connection(struct portal *portal, int fd, bool dont_fork)
 	/*
 	 * XXX
 	 */
-	log_set_peer_addr("XXX");
-#else
-	error = getpeername(fd, (struct sockaddr *)&ss, &sslen);
-	if (error != 0)
-		log_err(1, "getpeername");
-	error = getnameinfo((struct sockaddr *)&ss, sslen,
-	    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-	if (error != 0)
-		log_errx(1, "getaddrinfo: %s", gai_strerror(error));
+	if (proxy_mode) {
+		log_set_peer_addr("XXX");
+	} else {
+#endif
+		assert(proxy_mode == false);
+		error = getpeername(fd, (struct sockaddr *)&ss, &sslen);
+		if (error != 0)
+			log_err(1, "getpeername");
+		error = getnameinfo((struct sockaddr *)&ss, sslen,
+		    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+		if (error != 0)
+			log_errx(1, "getaddrinfo: %s", gai_strerror(error));
 
-	log_debugx("accepted connection from %s; portal group \"%s\"",
-	    host, portal->p_portal_group->pg_name);
-	log_set_peer_addr(host);
-	setproctitle("%s", host);
+		log_debugx("accepted connection from %s; portal group \"%s\"",
+		    host, portal->p_portal_group->pg_name);
+		log_set_peer_addr(host);
+		setproctitle("%s", host);
+#ifdef ICL_KERNEL_PROXY
+	}
 #endif
 
 	conn = connection_new(portal, fd, host);
@@ -1650,7 +1648,6 @@ handle_connection(struct portal *portal, int fd, bool dont_fork)
 	exit(0);
 }
 
-#ifndef ICL_KERNEL_PROXY
 static int
 fd_add(int fd, fd_set *fdset, int nfds)
 {
@@ -1666,7 +1663,6 @@ fd_add(int fd, fd_set *fdset, int nfds)
 		nfds = fd;
 	return (nfds);
 }
-#endif
 
 static void
 main_loop(struct conf *conf, bool dont_fork)
@@ -1675,10 +1671,9 @@ main_loop(struct conf *conf, bool dont_fork)
 	struct portal *portal;
 #ifdef ICL_KERNEL_PROXY
 	int connection_id;
-#else
+#endif
 	fd_set fdset;
 	int error, nfds, client_fd;
-#endif
 
 	pidfile_write(conf->conf_pidfh);
 
@@ -1687,42 +1682,48 @@ main_loop(struct conf *conf, bool dont_fork)
 			return;
 
 #ifdef ICL_KERNEL_PROXY
-		connection_id = kernel_accept();
-		if (connection_id == 0)
-			continue;
+		if (proxy_mode) {
+			connection_id = kernel_accept();
+			if (connection_id == 0)
+				continue;
 
-		/*
-		 * XXX: This is obviously temporary.
-		 */
-		pg = TAILQ_FIRST(&conf->conf_portal_groups);
-		portal = TAILQ_FIRST(&pg->pg_portals);
+			/*
+			 * XXX: This is obviously temporary.
+			 */
+			pg = TAILQ_FIRST(&conf->conf_portal_groups);
+			portal = TAILQ_FIRST(&pg->pg_portals);
 
-		handle_connection(portal, connection_id, dont_fork);
-#else
-		FD_ZERO(&fdset);
-		nfds = 0;
-		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-			TAILQ_FOREACH(portal, &pg->pg_portals, p_next)
-				nfds = fd_add(portal->p_socket, &fdset, nfds);
-		}
-		error = select(nfds + 1, &fdset, NULL, NULL, NULL);
-		if (error <= 0) {
-			if (errno == EINTR)
-				return;
-			log_err(1, "select");
-		}
-		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-			TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-				if (!FD_ISSET(portal->p_socket, &fdset))
-					continue;
-				client_fd = accept(portal->p_socket, NULL, 0);
-				if (client_fd < 0)
-					log_err(1, "accept");
-				handle_connection(portal, client_fd, dont_fork);
-				break;
+			handle_connection(portal, connection_id, dont_fork);
+		} else {
+#endif
+			assert(proxy_mode == false);
+
+			FD_ZERO(&fdset);
+			nfds = 0;
+			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+				TAILQ_FOREACH(portal, &pg->pg_portals, p_next)
+					nfds = fd_add(portal->p_socket, &fdset, nfds);
 			}
+			error = select(nfds + 1, &fdset, NULL, NULL, NULL);
+			if (error <= 0) {
+				if (errno == EINTR)
+					return;
+				log_err(1, "select");
+			}
+			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+				TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
+					if (!FD_ISSET(portal->p_socket, &fdset))
+						continue;
+					client_fd = accept(portal->p_socket, NULL, 0);
+					if (client_fd < 0)
+						log_err(1, "accept");
+					handle_connection(portal, client_fd, dont_fork);
+					break;
+				}
+			}
+#ifdef ICL_KERNEL_PROXY
 		}
-#endif /* !ICL_KERNEL_PROXY */
+#endif
 	}
 }
 
@@ -1788,7 +1789,7 @@ main(int argc, char **argv)
 	int debug = 0, ch, error;
 	bool dont_daemonize = false;
 
-	while ((ch = getopt(argc, argv, "df:")) != -1) {
+	while ((ch = getopt(argc, argv, "df:R")) != -1) {
 		switch (ch) {
 		case 'd':
 			dont_daemonize = true;
@@ -1796,6 +1797,13 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			config_path = optarg;
+			break;
+		case 'R':
+#ifndef ICL_KERNEL_PROXY
+			log_errx(1, "ctld(8) compiled without ICL_KERNEL_PROXY "
+			    "does not support iSER protocol");
+#endif
+			proxy_mode = true;
 			break;
 		case '?':
 		default:
@@ -1818,12 +1826,10 @@ main(int argc, char **argv)
 		newconf->conf_debug = debug;
 	}
 
-#ifdef ICL_KERNEL_PROXY
 	log_debugx("enabling CTL iSCSI port");
 	error = kernel_port_on();
 	if (error != 0)
 		log_errx(1, "failed to enable CTL iSCSI port, exiting");
-#endif
 
 	error = conf_apply(oldconf, newconf);
 	if (error != 0)
@@ -1832,13 +1838,6 @@ main(int argc, char **argv)
 	oldconf = NULL;
 
 	register_signals();
-
-#ifndef ICL_KERNEL_PROXY
-	log_debugx("enabling CTL iSCSI port");
-	error = kernel_port_on();
-	if (error != 0)
-		log_errx(1, "failed to enable CTL iSCSI port, exiting");
-#endif
 
 	if (dont_daemonize == false) {
 		log_debugx("daemonizing");
