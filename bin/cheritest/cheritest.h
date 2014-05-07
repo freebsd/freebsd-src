@@ -61,10 +61,13 @@
 } while (0)
 
 /* cheritest_fault.c */
-void	cheritest_overrun(void);
-void	cheritest_ccheck_user_fail(void);
-void	cheritest_ccheck_user_pass(void);
-void	cheritest_listcausereg(void);
-void	cheritest_listprivregs(void);
+void	test_fault_overrun(void);
+void	test_fault_ccheck_user_fail(void);
+void	test_nofault_ccheck_user_pass(void);
+void	test_fault_read_kr1c(void);
+void	test_fault_read_kr2c(void);
+void	test_fault_read_kcc(void);
+void	test_fault_read_kdc(void);
+void	test_fault_read_epcc(void);
 
 #endif /* !_CHERITEST_H_ */

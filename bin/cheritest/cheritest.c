@@ -72,8 +72,6 @@ usage(void)
 	fprintf(stderr, "cheritest creturn\n");
 	fprintf(stderr, "cheritest ccall_creturn\n");
 	fprintf(stderr, "cheritest ccall_nop_creturn\n");
-	fprintf(stderr, "cheritest ccheck_user_fail\n");
-	fprintf(stderr, "cheritest ccheck_user_pass\n");
 	fprintf(stderr, "cheritest copyregs\n");
 	fprintf(stderr, "cheritest invoke_abort\n");
 	fprintf(stderr, "cheritest invoke_clock_gettime\n");
@@ -98,10 +96,16 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_vm_rfault\n");
 	fprintf(stderr, "cheritest invoke_vm_wfault\n");
 	fprintf(stderr, "cheritest invoke_vm_xfault\n");
-	fprintf(stderr, "cheritest listcausereg\n");
-	fprintf(stderr, "cheritest listprivregs\n");
 	fprintf(stderr, "cheritest listregs\n");
-	fprintf(stderr, "cheritest overrun\n");
+	fprintf(stderr, "cheritest test_fault_cgetcause\n");
+	fprintf(stderr, "cheritest test_fault_ccheck_user_fail\n");
+	fprintf(stderr, "cheritest test_nofault_ccheck_user_pass\n");
+	fprintf(stderr, "cheritest test_fault_overrun\n");
+	fprintf(stderr, "cheritest test_fault_read_kr1c\n");
+	fprintf(stderr, "cheritest test_fault_read_kr2c\n");
+	fprintf(stderr, "cheritest test_fault_read_kcc\n");
+	fprintf(stderr, "cheritest test_fault_read_kdc\n");
+	fprintf(stderr, "cheritest test_fault_read_epcc\n");
 	fprintf(stderr, "cheritest revoke_fd\n");
 	fprintf(stderr, "cheritest sleep\n");
 	exit(EX_USAGE);
@@ -389,20 +393,12 @@ main(__unused int argc, __unused char *argv[])
 
 	cheritest_libcheri_setup();
 	for (i = 0; i < argc; i++) {
-		if (strcmp(argv[i], "listcausereg") == 0)
-			cheritest_listcausereg();
-		else if (strcmp(argv[i], "listprivregs") == 0)
-			cheritest_listprivregs();
-		else if (strcmp(argv[i], "listregs") == 0)
+		if (strcmp(argv[i], "listregs") == 0)
 			cheritest_listregs();
 		else if (strcmp(argv[i], "ccall_creturn") == 0)
 			cheritest_ccall_creturn();
 		else if (strcmp(argv[i], "ccall_nop_creturn") == 0)
 			cheritest_ccall_nop_creturn();
-		else if (strcmp(argv[i], "ccheck_user_fail") == 0)
-			cheritest_ccheck_user_fail();
-		else if (strcmp(argv[i], "ccheck_user_pass") == 0)
-			cheritest_ccheck_user_pass();
 		else if (strcmp(argv[i], "creturn") == 0)
 			cheritest_creturn();
 		else if (strcmp(argv[i], "copyregs") == 0)
@@ -473,12 +469,30 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_vm_xfault") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_VM_XFAULT);
-		else if (strcmp(argv[i], "overrun") == 0)
-			cheritest_overrun();
 		else if (strcmp(argv[i], "revoke_fd") == 0)
 			cheritest_revoke_fd();
 		else if (strcmp(argv[i], "sleep") == 0)
 			sleep(10);
+		else if (strcmp(argv[i], "test_fault_cgetcause") == 0)
+			test_fault_cgetcause();
+		else if (strcmp(argv[i], "test_fault_overrun") == 0)
+			test_fault_overrun();
+		else if (strcmp(argv[i], "test_fault_ccheck_user_fail") == 0)
+			test_fault_ccheck_user_fail();
+		else if (strcmp(argv[i], "test_nofault_ccheck_user_pass") == 0)
+			test_nofault_ccheck_user_pass();
+		else if (strcmp(argv[i], "test_fault_read_kr1c") == 0)
+			test_fault_read_kr1c();
+		else if (strcmp(argv[i], "test_fault_read_kr2c") == 0)
+			test_fault_read_kr2c();
+		else if (strcmp(argv[i], "test_fault_read_kcc") == 0)
+			test_fault_read_kcc();
+		else if (strcmp(argv[i], "test_fault_read_kdc") == 0)
+			test_fault_read_kdc();
+		else if (strcmp(argv[i], "test_fault_read_epcc") == 0)
+			test_fault_read_epcc();
+		else if (strcmp(argv[i], "") == 0)
+			test_fault_read_epcc();
 		else
 			usage();
 	}
