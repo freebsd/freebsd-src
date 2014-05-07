@@ -242,7 +242,8 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para revision="258838">The &man.casperd.8; daemon has been added,
+    <para revision="258838" contrib="sponsor" sponsor="&ff;"
+      sponsorurl="&ff.url;">The &man.casperd.8; daemon has been added,
       which provides access to functionality that is not available in
       the <quote>capability mode</quote> sandbox.</para>
 
