@@ -268,9 +268,9 @@ netstat -M $VMCORE -N $KERNEL -m
 echo
 
 echo "------------------------------------------------------------------------"
-echo "netstat -id"
+echo "netstat -idW"
 echo
-netstat -M $VMCORE -N $KERNEL -id
+netstat -M $VMCORE -N $KERNEL -idW
 echo
 
 echo "------------------------------------------------------------------------"
