@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -203,15 +204,17 @@ main(int argc, char *argv[])
 {
 	struct stat st;
 	int ch, rc, errs, am_readlink;
-	int lsF, fmtchar, usestat, fn, nonl, quiet;
+	int lsF, fmtchar, usestat, nfs_handle, fn, nonl, quiet;
 	const char *statfmt, *options, *synopsis;
 	char dname[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
+	fhandle_t fhnd;
 	const char *file;
 
 	am_readlink = 0;
 	lsF = 0;
 	fmtchar = '\0';
 	usestat = 0;
+        nfs_handle = 0;
 	nonl = 0;
 	quiet = 0;
 	linkfail = 0;
@@ -226,15 +229,18 @@ main(int argc, char *argv[])
 		fmtchar = 'f';
 		quiet = 1;
 	} else {
-		options = "f:FlLnqrst:x";
+		options = "f:FHlLnqrst:x";
 		synopsis = "[-FLnq] [-f format | -l | -r | -s | -x] "
-		    "[-t timefmt] [file ...]";
+		    "[-t timefmt] [file|handle ...]";
 	}
 
 	while ((ch = getopt(argc, argv, options)) != -1)
 		switch (ch) {
 		case 'F':
 			lsF = 1;
+			break;
+                case 'H':
+			nfs_handle = 1;
 			break;
 		case 'L':
 			usestat = 1;
@@ -320,8 +326,35 @@ main(int argc, char *argv[])
 				file = "(stdin)";
 			rc = fstat(STDIN_FILENO, &st);
 		} else {
+			int j;
+			char *inval;
+
 			file = argv[0];
-			if (usestat) {
+			if (nfs_handle) {
+				rc = 0;
+				bzero (&fhnd, sizeof fhnd);
+				j = MIN(2 * sizeof fhnd, strlen(file));
+				if (j & 1) {
+					rc = -1;
+				} else {
+					while (j) {
+						((char*) &fhnd)[j / 2 - 1] =
+						    strtol(&file[j - 2],
+						           &inval, 16);
+						if (inval != NULL) {
+							rc = -1;
+							break;
+						}
+						argv[0][j - 2] = '\0';
+						j -= 2;
+					}
+					if (!rc)
+						rc = fhstat(&fhnd, &st);
+					else
+						errno = EINVAL;
+				}
+
+			} else if (usestat) {
 				/*
 				 * Try stat() and if it fails, fall back to
 				 * lstat() just in case we're examining a
