@@ -371,7 +371,7 @@ g_part_vtoc8_resize(struct g_part_table *basetable,
 	/* XXX: prevent unexpected shrinking. */
 	pp = entry->gpe_pp;
 	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
-	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0))
+	    pp->mediasize / pp->sectorsize > size)
 		return (EBUSY);
 	entry->gpe_end = entry->gpe_start + size - 1;
 	be32enc(&table->vtoc.map[entry->gpe_index - 1].nblks, size);
