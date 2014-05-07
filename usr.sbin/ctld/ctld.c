@@ -1588,11 +1588,10 @@ wait_for_children(bool block)
 }
 
 static void
-handle_connection(struct portal *portal, int fd, bool dont_fork)
+handle_connection(struct portal *portal, int fd, const struct sockaddr_storage *ss,
+    socklen_t sslen, bool dont_fork)
 {
 	struct connection *conn;
-	struct sockaddr_storage ss;
-	socklen_t sslen = sizeof(ss);
 	int error;
 	pid_t pid;
 	char host[NI_MAXHOST + 1];
@@ -1634,13 +1633,10 @@ handle_connection(struct portal *portal, int fd, bool dont_fork)
 	} else {
 #endif
 		assert(proxy_mode == false);
-		error = getpeername(fd, (struct sockaddr *)&ss, &sslen);
-		if (error != 0)
-			log_err(1, "getpeername");
-		error = getnameinfo((struct sockaddr *)&ss, sslen,
+		error = getnameinfo((struct sockaddr *)ss, sslen,
 		    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
 		if (error != 0)
-			log_errx(1, "getaddrinfo: %s", gai_strerror(error));
+			log_errx(1, "getnameinfo: %s", gai_strerror(error));
 
 		log_debugx("accepted connection from %s; portal group \"%s\"",
 		    host, portal->p_portal_group->pg_name);
@@ -1686,6 +1682,8 @@ main_loop(struct conf *conf, bool dont_fork)
 {
 	struct portal_group *pg;
 	struct portal *portal;
+	struct sockaddr_storage client_sa;
+	socklen_t client_salen;
 #ifdef ICL_KERNEL_PROXY
 	int connection_id;
 	int portal_id;
@@ -1717,7 +1715,7 @@ main_loop(struct conf *conf, bool dont_fork)
 			    portal_id);
 
 found:
-			handle_connection(portal, connection_id, dont_fork);
+			handle_connection(portal, connection_id, NULL, 0, dont_fork);
 		} else {
 #endif
 			assert(proxy_mode == false);
@@ -1738,10 +1736,14 @@ found:
 				TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
 					if (!FD_ISSET(portal->p_socket, &fdset))
 						continue;
-					client_fd = accept(portal->p_socket, NULL, 0);
+					client_salen = sizeof(client_sa);
+					client_fd = accept(portal->p_socket,
+					    (struct sockaddr *)&client_sa,
+					    &client_salen);
 					if (client_fd < 0)
 						log_err(1, "accept");
-					handle_connection(portal, client_fd, dont_fork);
+					handle_connection(portal, client_fd,
+					    &client_sa, client_salen, dont_fork);
 					break;
 				}
 			}
