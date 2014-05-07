@@ -68,6 +68,14 @@ TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
 SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RW,
     &partial_receive_len, 1 * 1024, "Minimum read size for partially received "
     "data segment");
+static int sendspace = 1048576;
+TUNABLE_INT("kern.icl.sendspace", &sendspace);
+SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RW,
+    &sendspace, 1048576, "Default send socket buffer size");
+static int recvspace = 1048576;
+TUNABLE_INT("kern.icl.recvspace", &recvspace);
+SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RW,
+    &recvspace, 1048576, "Default receive socket buffer size");
 
 static uma_zone_t icl_conn_zone;
 static uma_zone_t icl_pdu_zone;
@@ -1005,7 +1013,7 @@ icl_conn_free(struct icl_conn *ic)
 static int
 icl_conn_start(struct icl_conn *ic)
 {
-	size_t bufsize;
+	size_t minspace;
 	struct sockopt opt;
 	int error, one = 1;
 
@@ -1026,18 +1034,28 @@ icl_conn_start(struct icl_conn *ic)
 	ICL_CONN_UNLOCK(ic);
 
 	/*
-	 * Use max available sockbuf size for sending.  Do it manually
-	 * instead of sbreserve(9) to work around resource limits.
+	 * For sendspace, this is required because the current code cannot
+	 * send a PDU in pieces; thus, the minimum buffer size is equal
+	 * to the maximum PDU size.  "+4" is to account for possible padding.
 	 *
-	 * XXX: This kind of sucks.  On one hand, we don't currently support
-	 *	sending a part of data segment; we always do it in one piece,
-	 *	so we have to make sure it can fit in the socket buffer.
-	 *	Once I've implemented partial send, we'll get rid of this
-	 *	and use autoscaling.
+	 * What we should actually do here is to use autoscaling, but set
+	 * some minimal buffer size to "minspace".  I don't know a way to do
+	 * that, though.
 	 */
-        bufsize = (sizeof(struct iscsi_bhs) +
-            ic->ic_max_data_segment_length) * 8;
-	error = soreserve(ic->ic_socket, bufsize, bufsize);
+	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
+	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
+	if (sendspace < minspace) {
+		ICL_WARN("kern.icl.sendspace too low; must be at least %zd",
+		    minspace);
+		sendspace = minspace;
+	}
+	if (recvspace < minspace) {
+		ICL_WARN("kern.icl.recvspace too low; must be at least %zd",
+		    minspace);
+		recvspace = minspace;
+	}
+
+	error = soreserve(ic->ic_socket, sendspace, recvspace);
 	if (error != 0) {
 		ICL_WARN("soreserve failed with error %d", error);
 		icl_conn_close(ic);
