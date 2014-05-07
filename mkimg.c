@@ -318,7 +318,7 @@ fdcopy(int src, lba_t sblk, int dst, lba_t dblk, uint64_t *count)
 }
 
 static void
-mkimg(int ofd, int bfd)
+mkimg(int bfd)
 {
 	FILE *fp;
 	struct part *part;
@@ -352,7 +352,7 @@ mkimg(int ofd, int bfd)
 		case PART_KIND_FILE:
 			fd = open(part->contents, O_RDONLY, 0);
 			if (fd != -1) {
-				error = fdcopy(fd, -1, ofd, block, &bytesize);
+				error = image_copyin(block, fd, &bytesize);
 				close(fd);
 			} else
 				error = errno;
@@ -361,7 +361,7 @@ mkimg(int ofd, int bfd)
 			fp = popen(part->contents, "r");
 			if (fp != NULL) {
 				fd = fileno(fp);
-				error = fdcopy(fd, -1, ofd, block, &bytesize);
+				error = image_copyin(block, fd, &bytesize);
 				pclose(fp);
 			} else
 				error = errno;
@@ -488,7 +488,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
 	}
 
-	mkimg(tmpfd, bcfd);
+	mkimg(bcfd);
 
 	if (verbose)
 		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
