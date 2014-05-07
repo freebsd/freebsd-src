@@ -104,6 +104,10 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="265236">The &man.mpr.4; device has been added,
+      providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
+      controllers.</para>
+
     <para revision="265132">The &man.full.4; device has been added,
       and the <literal>lindev(4)</literal> device has been removed.
       Prior to this change, <literal>lindev(4)</literal> provided only
