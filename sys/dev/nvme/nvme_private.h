@@ -289,6 +289,8 @@ struct nvme_controller {
 	struct task		fail_req_task;
 	struct taskqueue	*taskqueue;
 
+	struct resource		*msi_res[MAXCPU + 1];
+
 	/* For shared legacy interrupt. */
 	int			rid;
 	struct resource		*res;
