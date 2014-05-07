@@ -1633,7 +1633,7 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 		return (EBUSY);
 	}
 
-	is->is_conn = icl_conn_new();
+	is->is_conn = icl_conn_new(&is->is_lock);
 	is->is_conn->ic_receive = iscsi_receive_callback;
 	is->is_conn->ic_error = iscsi_error_callback;
 	is->is_conn->ic_prv0 = is;

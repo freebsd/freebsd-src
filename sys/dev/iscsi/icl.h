@@ -74,7 +74,7 @@ void			icl_pdu_free(struct icl_pdu *ip);
 #define	ICL_MAX_DATA_SEGMENT_LENGTH	(128 * 1024)
 
 struct icl_conn {
-	struct mtx		ic_lock;
+	struct mtx		*ic_lock;
 	struct socket		*ic_socket;
 #ifdef DIAGNOSTIC
 	volatile u_int		ic_outstanding_pdus;
@@ -102,7 +102,7 @@ struct icl_conn {
 	void			*ic_prv0;
 };
 
-struct icl_conn		*icl_conn_new(void);
+struct icl_conn		*icl_conn_new(struct mtx *lock);
 void			icl_conn_free(struct icl_conn *ic);
 int			icl_conn_handoff(struct icl_conn *ic, int fd);
 void			icl_conn_shutdown(struct icl_conn *ic);
