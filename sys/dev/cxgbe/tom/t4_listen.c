@@ -1007,7 +1007,7 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 			opt2 |= F_TSTAMPS_EN;
 		if (tcpopt->sack)
 			opt2 |= F_SACK_EN;
-		if (tcpopt->wsf > 0)
+		if (tcpopt->wsf <= 14)
 			opt2 |= F_WND_SCALE_EN;
 	}
 

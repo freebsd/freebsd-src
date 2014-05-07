@@ -148,6 +148,7 @@ alloc_toepcb(struct port_info *pi, int txqid, int rxqid, int flags)
 
 	toep->td = sc->tom_softc;
 	toep->port = pi;
+	toep->tx_total = tx_credits;
 	toep->tx_credits = tx_credits;
 	toep->ofld_txq = &sc->sge.ofld_txq[txqid];
 	toep->ofld_rxq = &sc->sge.ofld_rxq[rxqid];
