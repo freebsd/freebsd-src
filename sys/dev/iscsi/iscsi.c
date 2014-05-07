@@ -1201,8 +1201,10 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 	sx_slock(&sc->sc_lock);
 	for (;;) {
 		TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+			ISCSI_SESSION_LOCK(is);
 			if (is->is_waiting_for_iscsid)
 				break;
+			ISCSI_SESSION_UNLOCK(is);
 		}
 
 		if (is == NULL) {
@@ -1217,7 +1219,6 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 			continue;
 		}
 
-		ISCSI_SESSION_LOCK(is);
 		is->is_waiting_for_iscsid = false;
 		is->is_login_phase = true;
 		is->is_reason[0] = '\0';
@@ -1650,8 +1651,10 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	/*
 	 * Trigger immediate reconnection.
 	 */
+	ISCSI_SESSION_LOCK(is);
 	is->is_waiting_for_iscsid = true;
 	strlcpy(is->is_reason, "Waiting for iscsid(8)", sizeof(is->is_reason));
+	ISCSI_SESSION_UNLOCK(is);
 	cv_signal(&sc->sc_cv);
 
 	sx_xunlock(&sc->sc_lock);
