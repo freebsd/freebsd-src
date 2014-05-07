@@ -579,6 +579,14 @@
 	<literal>local w=<replaceable>~/myfile</replaceable></literal>
 	will expand the tilde (<literal>~</literal>).</para>
 
+      <para revision="264699">The &man.find.1; utility has been
+	updated to implement <literal>-ignore_readdir_race</literal>.
+	Prior to this change, <literal>-ignore_readdir_race</literal>
+	existed as an option for GNU &man.find.1; compatibility, and
+	was ignored if specified.  A counter primary,
+	<literal>-noignore_readdir_race</literal> now also exists, and
+	is the default behavior.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
