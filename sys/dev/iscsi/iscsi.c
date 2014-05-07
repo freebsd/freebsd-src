@@ -65,6 +65,10 @@
 #include <sys/socketvar.h>
 #endif
 
+#ifdef ICL_KERNEL_PROXY
+FEATURE(iscsi_kernel_proxy, "iSCSI initiator built with ICL_KERNEL_PROXY");
+#endif
+
 /*
  * XXX: This is global so the iscsi_unload() can access it.
  * 	Think about how to do this properly.
