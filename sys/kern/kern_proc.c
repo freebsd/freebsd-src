@@ -2725,17 +2725,17 @@ proc_get_sbmetadata_ptrlen(struct thread *td, struct proc *p,
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
 		error = proc_read_mem(td, p,
-		    (vm_offset_t)p->p_sysent->sv_psstrings), &pss32,
+		    (vm_offset_t)p->p_sysent->sv_psstrings, &pss32,
 		    sizeof(pss32));
 
 		/*
 		 * NB: Only copy exactly the pss fields we might need here.
 		 */
-		pss.ps_sbclasses = (vm_offset_t)pss32.ps_sbclasses;
+		pss.ps_sbclasses = (void *)(vm_offset_t)pss32.ps_sbclasses;
 		pss.ps_sbclasseslen = (size_t)pss32.ps_sbclasseslen;
-		pss.ps_sbmethods = (vm_offset_t)pss32.ps_sbmethods;
+		pss.ps_sbmethods = (void *)(vm_offset_t)pss32.ps_sbmethods;
 		pss.ps_sbmethodslen = (size_t)pss32.ps_sbmethodslen;
-		pss.ps_sbobjects = (vm_offset_t)pss32.ps_sbobjects;
+		pss.ps_sbobjects = (void *)(vm_offset_t)pss32.ps_sbobjects;
 		pss.ps_sbobjectslen = (size_t)pss32.ps_sbobjectslen;
 	 } else {
 #endif
