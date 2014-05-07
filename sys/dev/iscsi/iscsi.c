@@ -96,6 +96,10 @@ static int maxtags = 255;
 TUNABLE_INT("kern.iscsi.maxtags", &maxtags);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN, &maxtags,
     255, "Max number of IO requests queued");
+static int fail_on_disconnection = 0;
+TUNABLE_INT("kern.iscsi.fail_on_disconnection", &fail_on_disconnection);
+SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
+    &fail_on_disconnection, 0, "Destroy CAM SIM on connection failure");
 
 static MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI initiator");
 static uma_zone_t iscsi_outstanding_zone;
@@ -300,22 +304,11 @@ iscsi_session_terminate_tasks(struct iscsi_session *is, bool requeue)
 }
 
 static void
-iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
+iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 {
 	struct icl_pdu *pdu;
 
-	icl_conn_shutdown(is->is_conn);
-	icl_conn_close(is->is_conn);
-
-	ISCSI_SESSION_LOCK(is);
-
-#ifdef ICL_KERNEL_PROXY
-	if (is->is_login_pdu != NULL) {
-		icl_pdu_free(is->is_login_pdu);
-		is->is_login_pdu = NULL;
-	}
-	cv_signal(&is->is_login_cv);
-#endif
+	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	/*
 	 * Don't queue any new PDUs.
@@ -335,12 +328,63 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 		icl_pdu_free(pdu);
 	}
 
-	/*
-	 * Terminate SCSI tasks, asking CAM to requeue them.
-	 */
-	//ISCSI_SESSION_DEBUG(is, "terminating tasks");
-	iscsi_session_terminate_tasks(is, true);
+	if (destroy_sim == false) {
+		/*
+		 * Terminate SCSI tasks, asking CAM to requeue them.
+		 */
+		iscsi_session_terminate_tasks(is, true);
+		return;
+	}
 
+	iscsi_session_terminate_tasks(is, false);
+
+	if (is->is_sim == NULL)
+		return;
+
+	ISCSI_SESSION_DEBUG(is, "deregistering SIM");
+	xpt_async(AC_LOST_DEVICE, is->is_path, NULL);
+
+	if (is->is_simq_frozen) {
+		xpt_release_simq(is->is_sim, 1);
+		is->is_simq_frozen = false;
+	}
+
+	xpt_free_path(is->is_path);
+	is->is_path = NULL;
+	xpt_bus_deregister(cam_sim_path(is->is_sim));
+	cam_sim_free(is->is_sim, TRUE /*free_devq*/);
+	is->is_sim = NULL;
+	is->is_devq = NULL;
+}
+
+static void
+iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
+{
+
+	icl_conn_shutdown(is->is_conn);
+	icl_conn_close(is->is_conn);
+
+	ISCSI_SESSION_LOCK(is);
+
+	is->is_connected = false;
+	is->is_reconnecting = false;
+	is->is_login_phase = false;
+
+#ifdef ICL_KERNEL_PROXY
+	if (is->is_login_pdu != NULL) {
+		icl_pdu_free(is->is_login_pdu);
+		is->is_login_pdu = NULL;
+	}
+	cv_signal(&is->is_login_cv);
+#endif
+ 
+	if (fail_on_disconnection) {
+		ISCSI_SESSION_DEBUG(is, "connection failed, destroying devices");
+		iscsi_session_cleanup(is, true);
+	} else {
+		iscsi_session_cleanup(is, false);
+	}
+ 
 	KASSERT(TAILQ_EMPTY(&is->is_outstanding),
 	    ("destroying session with active tasks"));
 	KASSERT(STAILQ_EMPTY(&is->is_postponed),
@@ -350,9 +394,6 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 	 * Request immediate reconnection from iscsid(8).
 	 */
 	//ISCSI_SESSION_DEBUG(is, "waking up iscsid(8)");
-	is->is_connected = false;
-	is->is_reconnecting = false;
-	is->is_login_phase = false;
 	is->is_waiting_for_iscsid = true;
 	strlcpy(is->is_reason, "Waiting for iscsid(8)", sizeof(is->is_reason));
 	is->is_timeout = 0;
@@ -364,7 +405,6 @@ static void
 iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 {
 	struct iscsi_softc *sc;
-	struct icl_pdu *pdu;
 
 	sc = is->is_softc;
 	sx_xlock(&sc->sc_lock);
@@ -385,48 +425,9 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 	cv_signal(&is->is_login_cv);
 #endif
 
-	/*
-	 * Don't queue any new PDUs.
-	 */
 	callout_drain(&is->is_callout);
-	if (is->is_sim != NULL && is->is_simq_frozen == false) {
-		ISCSI_SESSION_DEBUG(is, "freezing");
-		xpt_freeze_simq(is->is_sim, 1);
-		is->is_simq_frozen = true;
-	}
 
-	/*
-	 * Remove postponed PDUs.
-	 */
-	while (!STAILQ_EMPTY(&is->is_postponed)) {
-		pdu = STAILQ_FIRST(&is->is_postponed);
-		STAILQ_REMOVE_HEAD(&is->is_postponed, ip_next);
-		icl_pdu_free(pdu);
-	}
-
-	/*
-	 * Forcibly terminate SCSI tasks.
-	 */
-	ISCSI_SESSION_DEBUG(is, "terminating tasks");
-	iscsi_session_terminate_tasks(is, false);
-
-	/*
-	 * Deregister CAM.
-	 */
-	if (is->is_sim != NULL) {
-		ISCSI_SESSION_DEBUG(is, "deregistering SIM");
-		xpt_async(AC_LOST_DEVICE, is->is_path, NULL);
-
-		if (is->is_simq_frozen) {
-			xpt_release_simq(is->is_sim, 1);
-			is->is_simq_frozen = false;
-		}
-
-		xpt_free_path(is->is_path);
-		xpt_bus_deregister(cam_sim_path(is->is_sim));
-		cam_sim_free(is->is_sim, TRUE /*free_devq*/);
-		is->is_sim = NULL;
-	}
+	iscsi_session_cleanup(is, true);
 
 	KASSERT(TAILQ_EMPTY(&is->is_outstanding),
 	    ("destroying session with active tasks"));
@@ -2004,7 +2005,8 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
-	if (is->is_terminating) {
+	if (is->is_terminating ||
+	    (is->is_connected == false && fail_on_disconnection)) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		xpt_done(ccb);
 		return;
