@@ -1206,7 +1206,7 @@ cfiscsi_session_new(struct cfiscsi_softc *softc)
 	cv_init(&cs->cs_login_cv, "cfiscsi_login");
 #endif
 
-	cs->cs_conn = icl_conn_new(&cs->cs_lock);
+	cs->cs_conn = icl_conn_new("cfiscsi", &cs->cs_lock);
 	cs->cs_conn->ic_receive = cfiscsi_receive_callback;
 	cs->cs_conn->ic_error = cfiscsi_error_callback;
 	cs->cs_conn->ic_prv0 = cs;
