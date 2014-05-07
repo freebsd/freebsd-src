@@ -496,6 +496,24 @@ t4_create_dma_tag(struct adapter *sc)
 	return (rc);
 }
 
+void
+t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *children)
+{
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pktshift", CTLFLAG_RD,
+	    NULL, fl_pktshift, "payload DMA offset in rx buffer (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pad", CTLFLAG_RD,
+	    NULL, fl_pad, "payload pad boundary (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "spg_len", CTLFLAG_RD,
+	    NULL, spg_len, "status page size (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
+	    NULL, cong_drop, "congestion drop setting");
+}
+
 int
 t4_destroy_dma_tag(struct adapter *sc)
 {
@@ -1782,9 +1800,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 
 		/* Allocate space for one software descriptor per buffer. */
 		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
-		FL_LOCK(fl);
 		rc = alloc_fl_sdesc(fl);
-		FL_UNLOCK(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to setup fl software descriptors: %d\n",
@@ -1852,6 +1868,31 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		iq->flags |= IQ_HAS_FL;
 	}
 
+	if (is_t5(sc) && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(iq->cntxt_id);
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", iq->cntxt_id, rc);
+		}
+	}
+
 	/* Enable IQ interrupts */
 	atomic_store_rel_int(&iq->state, IQS_IDLE);
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
@@ -1892,11 +1933,8 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba,
 		    fl->desc);
 
-		if (fl->sdesc) {
-			FL_LOCK(fl);
+		if (fl->sdesc)
 			free_fl_sdesc(fl);
-			FL_UNLOCK(fl);
-		}
 
 		if (mtx_initialized(&fl->fl_lock))
 			mtx_destroy(&fl->fl_lock);
@@ -2743,8 +2781,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 	bus_dma_tag_t tag;
 	int i, rc;
 
-	FL_LOCK_ASSERT_OWNED(fl);
-
 	fl->sdesc = malloc(fl->cap * sizeof(struct fl_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -2782,8 +2818,6 @@ free_fl_sdesc(struct sge_fl *fl)
 {
 	struct fl_sdesc *sd;
 	int i;
-
-	FL_LOCK_ASSERT_OWNED(fl);
 
 	sd = fl->sdesc;
 	for (i = 0; i < fl->cap; i++, sd++) {
