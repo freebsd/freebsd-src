@@ -4141,13 +4141,15 @@ t4_sysctls(struct adapter *sc)
 	struct sysctl_oid_list *children, *c0;
 	static char *caps[] = {
 		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL",	/* caps[1] niccaps */
+		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
+		    "\6HASHFILTER\7ETHOFLD",
 		"\20\1TOE",				/* caps[2] toecaps */
 		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
 		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
 		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
+		    "\4PO_INITIAOR\5PO_TARGET"
 	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
@@ -5925,10 +5927,13 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i;
-	uint32_t tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
-	uint64_t tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
-	static const char *pm_stats[] = {
-		"Read:", "Write bypass:", "Write mem:", "Flush:", "FIFO wait:"
+	uint32_t cnt[PM_NSTATS];
+	uint64_t cyc[PM_NSTATS];
+	static const char *rx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Flush:"
+	};
+	static const char *tx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:"
 	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
@@ -5939,14 +5944,17 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	t4_pmtx_get_stats(sc, tx_cnt, tx_cyc);
-	t4_pmrx_get_stats(sc, rx_cnt, rx_cyc);
+	t4_pmtx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "                Tx pcmds             Tx bytes");
+	for (i = 0; i < ARRAY_SIZE(tx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", tx_stats[i], cnt[i],
+		    cyc[i]);
 
-	sbuf_printf(sb, "                Tx count            Tx cycles    "
-	    "Rx count            Rx cycles");
-	for (i = 0; i < PM_NSTATS; i++)
-		sbuf_printf(sb, "\n%-13s %10u %20ju  %10u %20ju",
-		    pm_stats[i], tx_cnt[i], tx_cyc[i], rx_cnt[i], rx_cyc[i]);
+	t4_pmrx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "\n                Rx pcmds             Rx bytes");
+	for (i = 0; i < ARRAY_SIZE(rx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", rx_stats[i], cnt[i],
+		    cyc[i]);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
