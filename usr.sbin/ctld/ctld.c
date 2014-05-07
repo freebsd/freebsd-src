@@ -1408,9 +1408,13 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 
 #ifdef ICL_KERNEL_PROXY
 			if (proxy_mode) {
-				log_debugx("listening on %s, portal-group \"%s\" using ICL proxy",
-				    newp->p_listen, newpg->pg_name);
-				kernel_listen(newp->p_ai, newp->p_iser);
+				newpg->pg_conf->conf_portal_id++;
+				newp->p_id = newpg->pg_conf->conf_portal_id;
+				log_debugx("listening on %s, portal-group "
+				    "\"%s\", portal id %d, using ICL proxy",
+				    newp->p_listen, newpg->pg_name, newp->p_id);
+				kernel_listen(newp->p_ai, newp->p_iser,
+				    newp->p_id);
 				continue;
 			}
 #endif
@@ -1671,6 +1675,7 @@ main_loop(struct conf *conf, bool dont_fork)
 	struct portal *portal;
 #ifdef ICL_KERNEL_PROXY
 	int connection_id;
+	int portal_id;
 #endif
 	fd_set fdset;
 	int error, nfds, client_fd;
@@ -1683,16 +1688,22 @@ main_loop(struct conf *conf, bool dont_fork)
 
 #ifdef ICL_KERNEL_PROXY
 		if (proxy_mode) {
-			connection_id = kernel_accept();
-			if (connection_id == 0)
-				continue;
+			kernel_accept(&connection_id, &portal_id);
 
-			/*
-			 * XXX: This is obviously temporary.
-			 */
-			pg = TAILQ_FIRST(&conf->conf_portal_groups);
-			portal = TAILQ_FIRST(&pg->pg_portals);
+			log_debugx("incoming connection, id %d, portal id %d",
+			    connection_id, portal_id);
+			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+				TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
+					if (portal->p_id == portal_id) {
+						goto found;
+					}
+				}
+			}
 
+			log_errx(1, "kernel returned invalid portal_id %d",
+			    portal_id);
+
+found:
 			handle_connection(portal, connection_id, dont_fork);
 		} else {
 #endif

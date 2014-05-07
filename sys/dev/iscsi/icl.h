@@ -118,16 +118,17 @@ struct icl_listen;
 
 struct icl_listen_sock {
 	TAILQ_ENTRY(icl_listen_sock)	ils_next;
-	struct icl_listen	*ils_listen;
-	struct socket		*ils_socket;
-	bool			ils_running;
-	bool			ils_disconnecting;
+	struct icl_listen		*ils_listen;
+	struct socket			*ils_socket;
+	bool				ils_running;
+	bool				ils_disconnecting;
+	int				ils_id;
 };
 
 struct icl_listen	{
 	TAILQ_HEAD(, icl_listen_sock)	il_sockets;
 	struct sx			il_lock;
-	void				(*il_accept)(struct socket *);
+	void				(*il_accept)(struct socket *, int);
 };
 
 /*
@@ -139,10 +140,11 @@ int			icl_conn_connect(struct icl_conn *ic, bool rdma,
 /*
  * Target part.
  */
-struct icl_listen	*icl_listen_new(void (*accept_cb)(struct socket *));
+struct icl_listen	*icl_listen_new(void (*accept_cb)(struct socket *, int));
 void			icl_listen_free(struct icl_listen *il);
-int			icl_listen_add(struct icl_listen *il, bool rdma, int domain,
-    int socktype, int protocol, struct sockaddr *sa);
+int			icl_listen_add(struct icl_listen *il, bool rdma,
+			    int domain, int socktype, int protocol,
+			    struct sockaddr *sa, int portal_id);
 int			icl_listen_remove(struct icl_listen *il, struct sockaddr *sa);
 
 /*
