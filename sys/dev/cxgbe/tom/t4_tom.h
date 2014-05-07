@@ -99,7 +99,7 @@ struct ddp_buffer {
 
 struct toepcb {
 	TAILQ_ENTRY(toepcb) link; /* toep_list */
-	unsigned int flags;	/* miscellaneous flags */
+	u_int flags;		/* miscellaneous flags */
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
 	struct port_info *port;	/* physical port */
@@ -109,13 +109,20 @@ struct toepcb {
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
 	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 	int tid;		/* Connection identifier */
-	unsigned int tx_credits;/* tx WR credits (in 16 byte units) remaining */
-	unsigned int sb_cc;	/* last noted value of so_rcv->sb_cc */
+
+	/* tx credit handling */
+	u_int tx_total;		/* total tx WR credits (in 16B units) */
+	u_int tx_credits;	/* tx WR credits (in 16B units) available */
+	u_int tx_nocompl;	/* tx WR credits since last compl request */
+	u_int plen_nocompl;	/* payload since last compl request */
+
+	/* rx credit handling */
+	u_int sb_cc;		/* last noted value of so_rcv->sb_cc */
 	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
 
-	unsigned int ulp_mode;	/* ULP mode */
+	u_int ulp_mode;	/* ULP mode */
 
-	unsigned int ddp_flags;
+	u_int ddp_flags;
 	struct ddp_buffer *db[2];
 	time_t ddp_disabled;
 	uint8_t ddp_score;
