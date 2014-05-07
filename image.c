@@ -38,6 +38,18 @@ __FBSDID("$FreeBSD$");
 
 #define	BUFFER_SIZE	(1024*1024)
 
+static char image_tmpfile[] = "/tmp/mkimg-XXXXXX";
+static int image_fd = -1;
+
+static void
+cleanup(void)
+{
+
+	if (image_fd != -1)
+		close(image_fd);
+	unlink(image_tmpfile);
+}
+
 int
 image_copyin(lba_t blk, int fd, uint64_t *sizep)
 {
@@ -76,17 +88,69 @@ image_copyin(lba_t blk, int fd, uint64_t *sizep)
 }
 
 int
-image_set_size(lba_t blk __unused)
+image_copyout(int fd)
+{
+	char *buffer;
+	off_t ofs;
+	ssize_t rdsz, wrsz;
+	int error;
+
+	ofs = lseek(fd, 0L, SEEK_CUR);
+
+	buffer = malloc(BUFFER_SIZE);
+	if (buffer == NULL)
+		return (errno);
+	if (lseek(image_fd, 0, SEEK_SET) != 0)
+		return (errno);
+	error = 0;
+	while (1) {
+		rdsz = read(image_fd, buffer, BUFFER_SIZE);
+		if (rdsz <= 0) {
+			error = (rdsz < 0) ? errno : 0;
+			break;
+		}
+		wrsz = (ofs == -1) ?
+		    write(fd, buffer, rdsz) :
+		    sparse_write(fd, buffer, rdsz);
+		if (wrsz < 0) {
+			error = errno;
+			break;
+		}
+	}
+	free(buffer);
+	return (error);
+}
+
+int
+image_set_size(lba_t blk)
 {
 
-	/* TODO */
+	if (ftruncate(image_fd, blk * secsz) == -1)
+		return (errno);
 	return (0);
 }
 
 int
-image_write(lba_t blk __unused, void *buf __unused, ssize_t len __unused)
+image_write(lba_t blk, void *buf, ssize_t len)
 {
 
-	/* TODO */
+	blk *= secsz;
+	if (lseek(image_fd, blk, SEEK_SET) != blk)
+		return (errno);
+	len *= secsz;
+	if (write(image_fd, buf, len) != len)
+		return (errno);
+	return (0);
+}
+
+int
+image_init(void)
+{
+
+	if (atexit(cleanup) == -1)
+		return (errno);
+	image_fd = mkstemp(image_tmpfile);
+	if (image_fd == -1)
+		return (errno);
 	return (0);
 }

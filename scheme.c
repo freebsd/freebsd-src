@@ -105,8 +105,6 @@ scheme_bootcode(int fd)
 	struct stat sb;
 	int error;
 
-	if (fd == -1)
-		return (0);
 	if (scheme->bootcode == 0)
 		return (ENXIO);
 

@@ -65,4 +65,10 @@ round_block(lba_t n)
 	return ((n + b - 1) & ~(b - 1));
 }
 
+#if !defined(SPARSE_WRITE)
+#define	sparse_write	write
+#else
+ssize_t sparse_write(int, const char *, size_t);
+#endif
+
 #endif /* _MKIMG_MKIMG_H_ */
