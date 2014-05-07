@@ -231,24 +231,6 @@ __DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
 .include <bsd.mkopt.mk>
 
 #
-# Supported NO_* options (if defined, MK_* will be forced to "no",
-# regardless of user's setting).
-#
-# These are transitional and will disappaer in the FreeBSD 12.
-#
-.for var in \
-    CTF \
-    DEBUG_FILES \
-    INSTALLLIB \
-    MAN \
-    PROFILE
-.if defined(NO_${var})
-.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."
-MK_${var}:=no
-.endif
-.endfor
-
-#
 # MK_* options that default to "yes" if the compiler is a C++11 compiler.
 #
 .include <bsd.compiler.mk>
