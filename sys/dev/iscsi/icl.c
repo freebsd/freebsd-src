@@ -851,11 +851,11 @@ icl_conn_send_pdus(struct icl_conn *ic)
 	available = sbspace(&so->so_snd);
 	SOCKBUF_UNLOCK(&so->so_snd);
 
-	while (!TAILQ_EMPTY(&ic->ic_to_send)) {
+	while (!STAILQ_EMPTY(&ic->ic_to_send)) {
 		if (ic->ic_disconnecting)
 			return;
 
-		request = TAILQ_FIRST(&ic->ic_to_send);
+		request = STAILQ_FIRST(&ic->ic_to_send);
 		size = icl_pdu_size(request);
 		if (available < size) {
 			/*
@@ -874,7 +874,7 @@ icl_conn_send_pdus(struct icl_conn *ic)
 			return;
 		}
 		available -= size;
-		TAILQ_REMOVE(&ic->ic_to_send, request, ip_next);
+		STAILQ_REMOVE_HEAD(&ic->ic_to_send, ip_next);
 		error = icl_pdu_send(request);
 		if (error != 0) {
 			ICL_DEBUG("failed to send PDU; "
@@ -974,7 +974,7 @@ icl_pdu_queue(struct icl_pdu *ip)
 		icl_pdu_free(ip);
 		return;
 	}
-	TAILQ_INSERT_TAIL(&ic->ic_to_send, ip, ip_next);
+	STAILQ_INSERT_TAIL(&ic->ic_to_send, ip, ip_next);
 	cv_signal(&ic->ic_send_cv);
 }
 
@@ -987,7 +987,7 @@ icl_conn_new(const char *name, struct mtx *lock)
 
 	ic = uma_zalloc(icl_conn_zone, M_WAITOK | M_ZERO);
 
-	TAILQ_INIT(&ic->ic_to_send);
+	STAILQ_INIT(&ic->ic_to_send);
 	ic->ic_lock = lock;
 	cv_init(&ic->ic_send_cv, "icl_tx");
 	cv_init(&ic->ic_receive_cv, "icl_rx");
@@ -1214,13 +1214,13 @@ icl_conn_close(struct icl_conn *ic)
 	/*
 	 * Remove any outstanding PDUs from the send queue.
 	 */
-	while (!TAILQ_EMPTY(&ic->ic_to_send)) {
-		pdu = TAILQ_FIRST(&ic->ic_to_send);
-		TAILQ_REMOVE(&ic->ic_to_send, pdu, ip_next);
+	while (!STAILQ_EMPTY(&ic->ic_to_send)) {
+		pdu = STAILQ_FIRST(&ic->ic_to_send);
+		STAILQ_REMOVE_HEAD(&ic->ic_to_send, ip_next);
 		icl_pdu_free(pdu);
 	}
 
-	KASSERT(TAILQ_EMPTY(&ic->ic_to_send),
+	KASSERT(STAILQ_EMPTY(&ic->ic_to_send),
 	    ("destroying session with non-empty send queue"));
 #ifdef DIAGNOSTIC
 	KASSERT(ic->ic_outstanding_pdus == 0,
