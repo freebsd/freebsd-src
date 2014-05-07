@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 

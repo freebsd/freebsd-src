@@ -44,6 +44,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	temporary breakage was fixed with MAKESYSPATH settings for buildworld
 	as well...
 
+	One side effect of all this cleaning up is that bsd.compiler.mk
+	is no longer implicitly included by bsd.own.mk. If you wish to
+	use COMPILER_TYPE, you must now explicitly include bsd.compiler.mk
+	as well.
+
 20140430:
 	The lindev device has been removed since /dev/full has been made a
 	standard device.  __FreeBSD_version has been bumped.
