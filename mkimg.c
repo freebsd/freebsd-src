@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -316,28 +317,6 @@ fdcopy(int src, lba_t sblk, int dst, lba_t dblk, uint64_t *count)
 	return (errno);
 }
 
-int
-mkimg_set_size(int fd, lba_t blk)
-{
-
-	if (ftruncate(fd, blk * secsz) == -1)
-		return (errno);
-	return (0);
-}
-
-int
-mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
-{
-
-	blk *= secsz;
-	if (lseek(fd, blk, SEEK_SET) != blk)
-		return (errno);
-	len *= secsz;
-	if (write(fd, buf, len) != len)
-		return (errno);
-	return (0);
-}
-
 static void
 mkimg(int ofd, int bfd)
 {
@@ -401,7 +380,7 @@ mkimg(int ofd, int bfd)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
-	error = (scheme_write(ofd, block));
+	error = (scheme_write(block));
 }
 
 int

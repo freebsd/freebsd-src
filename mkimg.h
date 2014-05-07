@@ -31,8 +31,6 @@
 
 #include <sys/queue.h>
 
-typedef int64_t	lba_t;
-
 struct part {
 	STAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */
@@ -66,8 +64,5 @@ round_block(lba_t n)
 	lba_t b = blksz / secsz;
 	return ((n + b - 1) & ~(b - 1));
 }
-
-int mkimg_set_size(int fd, lba_t blk);
-int mkimg_write(int fd, lba_t blk, void *buf, ssize_t len);
 
 #endif /* _MKIMG_MKIMG_H_ */

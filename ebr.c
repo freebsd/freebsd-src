@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -67,7 +68,7 @@ ebr_chs(u_char *cyl, u_char *hd, u_char *sec, uint32_t lba __unused)
 }
 
 static int
-ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
+ebr_write(lba_t imgsz __unused, void *bootcode __unused)
 {
 	u_char *ebr;
 	struct dos_partition *dp;
@@ -104,7 +105,7 @@ ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
 			le32enc(&dp->dp_size, next->size + nsecs);
 		}
 
-		error = mkimg_write(fd, block, ebr, 1);
+		error = image_write(block, ebr, 1);
 		if (error)
 			break;
 

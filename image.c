@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "mkimg.h"
 #include "image.h"
+#include "mkimg.h"
 
 #define	BUFFER_SIZE	(1024*1024)
 

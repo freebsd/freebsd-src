@@ -29,6 +29,8 @@
 #ifndef _MKIMG_IMAGE_H_
 #define	_MKIMG_IMAGE_H_
 
+typedef int64_t lba_t;
+
 int image_copyin(lba_t blk, int fd, uint64_t *sizep);
 int image_set_size(lba_t blk);
 int image_write(lba_t blk, void *buf, ssize_t len);

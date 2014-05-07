@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -181,7 +182,7 @@ scheme_metadata(u_int where, lba_t start)
 }
 
 int
-scheme_write(int fd, lba_t end)
+scheme_write(lba_t end)
 {
 	u_int cylsz;
 	int error;
@@ -189,8 +190,8 @@ scheme_write(int fd, lba_t end)
 	cylsz = nsecs * nheads;
 	ncyls = (end + cylsz - 1) / cylsz;
 
-	error = mkimg_set_size(fd, end);
+	error = image_set_size(end);
 	if (!error)
-		error = scheme->write(fd, end, bootcode);
+		error = scheme->write(end, bootcode);
 	return (error);
 }
