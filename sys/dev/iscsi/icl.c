@@ -135,11 +135,15 @@ icl_pdu_new(struct icl_conn *ic, int flags)
 {
 	struct icl_pdu *ip;
 
+#ifdef DIAGNOSTIC
 	refcount_acquire(&ic->ic_outstanding_pdus);
+#endif
 	ip = uma_zalloc(icl_pdu_zone, flags | M_ZERO);
 	if (ip == NULL) {
 		ICL_WARN("failed to allocate %zd bytes", sizeof(*ip));
+#ifdef DIAGNOSTIC
 		refcount_release(&ic->ic_outstanding_pdus);
+#endif
 		return (NULL);
 	}
 
@@ -159,7 +163,9 @@ icl_pdu_free(struct icl_pdu *ip)
 	m_freem(ip->ip_ahs_mbuf);
 	m_freem(ip->ip_data_mbuf);
 	uma_zfree(icl_pdu_zone, ip);
+#ifdef DIAGNOSTIC
 	refcount_release(&ic->ic_outstanding_pdus);
+#endif
 }
 
 /*
@@ -977,7 +983,9 @@ icl_conn_new(void)
 	mtx_init(&ic->ic_lock, "icl_lock", NULL, MTX_DEF);
 	cv_init(&ic->ic_send_cv, "icl_tx");
 	cv_init(&ic->ic_receive_cv, "icl_rx");
+#ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
+#endif
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 
 	return (ic);
