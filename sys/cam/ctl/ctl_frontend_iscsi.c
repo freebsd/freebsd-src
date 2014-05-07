@@ -1353,7 +1353,7 @@ cfiscsi_module_event_handler(module_t mod, int what, void *arg)
 
 #ifdef ICL_KERNEL_PROXY
 static void
-cfiscsi_accept(struct socket *so, int portal_id)
+cfiscsi_accept(struct socket *so, struct sockaddr *sa, int portal_id)
 {
 	struct cfiscsi_session *cs;
 
@@ -1364,6 +1364,7 @@ cfiscsi_accept(struct socket *so, int portal_id)
 	}
 
 	icl_conn_handoff_sock(cs->cs_conn, so);
+	cs->cs_initiator_sa = sa;
 	cs->cs_portal_id = portal_id;
 	cs->cs_waiting_for_ctld = true;
 	cv_signal(&cfiscsi_softc.accept_cv);
@@ -1788,6 +1789,16 @@ cfiscsi_ioctl_accept(struct ctl_iscsi *ci)
 
 	ciap->connection_id = cs->cs_id;
 	ciap->portal_id = cs->cs_portal_id;
+	ciap->initiator_addrlen = cs->cs_initiator_sa->sa_len;
+	error = copyout(cs->cs_initiator_sa, ciap->initiator_addr,
+	    cs->cs_initiator_sa->sa_len);
+	if (error != 0) {
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "copyout failed with error %d", error);
+		ci->status = CTL_ISCSI_ERROR;
+		return;
+	}
+
 	ci->status = CTL_ISCSI_OK;
 }
 
