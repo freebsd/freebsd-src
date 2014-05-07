@@ -1,0 +1,10 @@
+<!-- -*- sgml -*-
+
+     $FreeBSD$
+
+     Sponsors of various works.
+
+-->
+
+<!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
+<!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
