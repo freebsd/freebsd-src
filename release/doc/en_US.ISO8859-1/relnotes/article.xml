@@ -134,6 +134,10 @@
       which allows controlling how long the system will wait after
       &man.panic.9; before rebooting.</para>
 
+    <para revision="265388">The &man.mpr.4; device has been added,
+      providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
+      controllers.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
