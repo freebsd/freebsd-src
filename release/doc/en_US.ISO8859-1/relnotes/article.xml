@@ -133,9 +133,10 @@
       not specific to &linux;, a native &os; version has been
       added.</para>
 
-    <para revision="265236">The &man.mpr.4; device has been added,
-      providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
-      controllers.</para>
+    <para revision="265236" contrib="sponsor"
+      sponsor="&lsi;, &spectralogic;" sponsorurl="">The &man.mpr.4;
+      device has been added, providing support for LSI Fusion-MPT
+      3 12Gb SCSI/SATA controllers.</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
