@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef FS_NANDFS
+#define	FS_NANDFS	30
+#endif
+
 static struct mkimg_alias bsd_aliases[] = {
     {	ALIAS_FREEBSD_NANDFS, ALIAS_INT2TYPE(FS_NANDFS) },
     {	ALIAS_FREEBSD_SWAP, ALIAS_INT2TYPE(FS_SWAP) },
@@ -107,11 +111,7 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 		checksum ^= le16dec(p);
 	le16enc(&d->d_checksum, checksum);
 
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		if (write(fd, buf, BBSIZE) != BBSIZE)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, buf, BBSIZE / secsz);
 	free(buf);
 	return (error);
 }

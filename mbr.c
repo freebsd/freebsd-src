@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef DOSPTYP_FAT32
+#define	DOSPTYP_FAT32	0x0b
+#endif
+
 static struct mkimg_alias mbr_aliases[] = {
     {	ALIAS_EBR, ALIAS_INT2TYPE(DOSPTYP_EXT) },
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
@@ -92,11 +96,7 @@ mbr_write(int fd, lba_t imgsz __unused, void *bootcode)
 		le32enc(&dp->dp_start, part->block);
 		le32enc(&dp->dp_size, part->size);
 	}
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		if (write(fd, mbr, secsz) != (ssize_t)secsz)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, mbr, 1);
 	free(mbr);
 	return (error);
 }

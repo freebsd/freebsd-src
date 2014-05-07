@@ -38,6 +38,19 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef PC98_MAGIC
+#define	PC98_MAGIC		0xaa55
+#endif
+#ifndef PC98_MAGICOFS
+#define	PC98_MAGICOFS		510
+#endif
+#ifndef PC98_NPARTS
+#define	PC98_NPARTS		16
+#endif
+#ifndef PC98_PTYP_386BSD
+#define	PC98_PTYP_386BSD	0xc494
+#endif
+
 #define	PC98_BOOTCODESZ		8192
 
 static struct mkimg_alias pc98_aliases[] = {
@@ -93,11 +106,7 @@ pc98_write(int fd, lba_t imgsz __unused, void *bootcode)
 		if (part->label != NULL)
 			memcpy(dp->dp_name, part->label, strlen(part->label));
 	}
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		if (write(fd, buf, PC98_BOOTCODESZ) != PC98_BOOTCODESZ)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, buf, PC98_BOOTCODESZ / secsz);
 	free(buf);
 	return (error);
 }
