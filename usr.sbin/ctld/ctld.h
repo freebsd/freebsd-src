@@ -156,6 +156,7 @@ struct conf {
 
 	bool				conf_default_pg_defined;
 	bool				conf_default_ag_defined;
+	bool				conf_kernel_port_on;
 };
 
 #define	CONN_SESSION_TYPE_NONE		0
