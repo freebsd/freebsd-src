@@ -269,14 +269,28 @@ sparse_write(int fd, const char *buf, size_t sz)
 #endif /* SPARSE_WRITE */
 
 static int
-fdcopy(int src, int dst, uint64_t *count)
+fdcopy(int src, lba_t sblk, int dst, lba_t dblk, uint64_t *count)
 {
 	char *buffer;
 	off_t ofs;
 	ssize_t rdsz, wrsz;
 
-	/* A return value of -1 means that we can't write a sparse file. */
-	ofs = lseek(dst, 0L, SEEK_CUR);
+	if (sblk != -1) {
+		ofs = sblk * secsz;
+		if (lseek(src, ofs, SEEK_SET) != ofs)
+			return (errno);
+	}
+
+	if (dblk != -1) {
+		ofs = dblk * secsz;
+		if (lseek(dst, ofs, SEEK_SET) != ofs)
+			return (errno);
+	} else
+		ofs = lseek(dst, 0L, SEEK_CUR);
+
+	/*
+	 * We can't write a sparse file when ofs holds -1 at this point.
+	 */
 
 	if (count != NULL)
 		*count = 0;
@@ -302,17 +316,6 @@ fdcopy(int src, int dst, uint64_t *count)
 	return (errno);
 }
 
-static int
-mkimg_seek(int fd, lba_t blk)
-{
-	off_t off;
-
-	off = blk * secsz;
-	if (lseek(fd, off, SEEK_SET) != off)
-		return (errno);
-	return (0);
-}
-
 int
 mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
 {
@@ -327,7 +330,7 @@ mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
 }
 
 static void
-mkimg(int bfd)
+mkimg(int ofd, int bfd)
 {
 	FILE *fp;
 	struct part *part;
@@ -353,7 +356,6 @@ mkimg(int bfd)
 			fprintf(stderr, "partition %d: starting block %llu "
 			    "... ", part->index + 1, (long long)block);
 		part->block = block;
-		error = mkimg_seek(tmpfd, block);
 		switch (part->kind) {
 		case PART_KIND_SIZE:
 			if (expand_number(part->contents, &bytesize) == -1)
@@ -362,7 +364,7 @@ mkimg(int bfd)
 		case PART_KIND_FILE:
 			fd = open(part->contents, O_RDONLY, 0);
 			if (fd != -1) {
-				error = fdcopy(fd, tmpfd, &bytesize);
+				error = fdcopy(fd, -1, ofd, block, &bytesize);
 				close(fd);
 			} else
 				error = errno;
@@ -370,7 +372,8 @@ mkimg(int bfd)
 		case PART_KIND_PIPE:
 			fp = popen(part->contents, "r");
 			if (fp != NULL) {
-				error = fdcopy(fileno(fp), tmpfd, &bytesize);
+				fd = fileno(fp);
+				error = fdcopy(fd, -1, ofd, block, &bytesize);
 				pclose(fp);
 			} else
 				error = errno;
@@ -389,7 +392,7 @@ mkimg(int bfd)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
-	error = (scheme_write(tmpfd, block));
+	error = (scheme_write(ofd, block));
 }
 
 int
@@ -497,15 +500,13 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
 	}
 
-	mkimg(bcfd);
+	mkimg(tmpfd, bcfd);
 
 	if (verbose)
 		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
 
 	if (tmpfd != outfd) {
-		error = mkimg_seek(tmpfd, 0);
-		if (error == 0)
-			error = fdcopy(tmpfd, outfd, NULL);
+		error = fdcopy(tmpfd, 0, outfd, -1, NULL);
 		if (error)
 			errc(EX_IOERR, error, "writing to stdout");
 	}
