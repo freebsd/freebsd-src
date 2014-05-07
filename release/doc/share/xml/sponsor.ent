@@ -6,5 +6,7 @@
 
 -->
 
+<!ENTITY darpa		"DARPA, AFRL">
+
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
