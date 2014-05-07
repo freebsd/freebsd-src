@@ -12,4 +12,7 @@
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
 
 <!ENTITY lsi		"LSI">
+
+<!ENTITY netgate	"Netgate">
+
 <!ENTITY spectralogic	"Spectra Logic">
