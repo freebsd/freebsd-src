@@ -1225,9 +1225,9 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	/*
 	 * XXX: If target or lun removal fails, we should somehow "move"
 	 * 	the old lun or target into newconf, so that subsequent
-	 * 	conf_apply() will try to remove them again.  That would
-	 * 	be somewhat hairy, and lun deletion doesn't really happen,
-	 * 	so leave it as it is for now.
+	 * 	conf_apply() would try to remove them again.  That would
+	 * 	be somewhat hairy, though, and lun deletion failures don't
+	 * 	really happen, so leave it as it is for now.
 	 */
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
 		/*
