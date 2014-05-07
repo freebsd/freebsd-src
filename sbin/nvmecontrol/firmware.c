@@ -141,7 +141,7 @@ update_firmware(int fd, uint8_t *payload, int32_t payload_size)
 	}
 }
 
-static void
+static int
 activate_firmware(int fd, int slot, int activate_action)
 {
 	struct nvme_pt_command	pt;
@@ -154,8 +154,14 @@ activate_firmware(int fd, int slot, int activate_action)
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "firmware activate request failed");
 
+	if (pt.cpl.status.sct == NVME_SCT_COMMAND_SPECIFIC &&
+	    pt.cpl.status.sc == NVME_SC_FIRMWARE_REQUIRES_RESET)
+		return 1;
+
 	if (nvme_completion_is_error(&pt.cpl))
 		errx(1, "firmware activate request returned error");
+
+	return 0;
 }
 
 static void
@@ -171,6 +177,7 @@ firmware(int argc, char *argv[])
 {
 	int				fd = -1, slot = 0;
 	int				a_flag, s_flag, f_flag;
+	int				activate_action, reboot_required;
 	char				ch, *p, *image = NULL;
 	char				*controller = NULL, prompt[64];
 	void				*buf = NULL;
@@ -287,21 +294,27 @@ firmware(int argc, char *argv[])
 	if (f_flag) {
 		update_firmware(fd, buf, size);
 		if (a_flag)
-			activate_firmware(fd, slot,
-			    NVME_AA_REPLACE_ACTIVATE);
+			activate_action = NVME_AA_REPLACE_ACTIVATE;
 		else
-			activate_firmware(fd, slot,
-			    NVME_AA_REPLACE_NO_ACTIVATE);
+			activate_action = NVME_AA_REPLACE_NO_ACTIVATE;
 	} else {
-		activate_firmware(fd, slot, NVME_AA_ACTIVATE);
+		activate_action = NVME_AA_ACTIVATE;
 	}
 
+	reboot_required = activate_firmware(fd, slot, activate_action);
+
 	if (a_flag) {
-		printf("New firmware image activated and will take "
-		       "effect after next controller reset.\n"
-		       "Controller reset can be initiated via "
-		       "'nvmecontrol reset %s'\n",
-		       controller);
+		if (reboot_required) {
+			printf("New firmware image activated but requires "
+			       "conventional reset (i.e. reboot) to "
+			       "complete activation.\n");
+		} else {
+			printf("New firmware image activated and will take "
+			       "effect after next controller reset.\n"
+			       "Controller reset can be initiated via "
+			       "'nvmecontrol reset %s'\n",
+			       controller);
+		}
 	}
 
 	close(fd);
