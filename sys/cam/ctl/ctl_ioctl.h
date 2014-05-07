@@ -640,15 +640,7 @@ struct ctl_iscsi_handoff_params {
 	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
 	char			target_name[CTL_ISCSI_NAME_LEN];
-#ifdef ICL_KERNEL_PROXY
-	int			connection_id;
-	/*
-	 * XXX
-	 */
 	int			socket;
-#else
-	int			socket;
-#endif
 	int			portal_group_tag;
 	
 	/*
@@ -662,7 +654,12 @@ struct ctl_iscsi_handoff_params {
 	uint32_t		max_burst_length;
 	uint32_t		first_burst_length;
 	uint32_t		immediate_data;
+#ifdef ICL_KERNEL_PROXY
+	int			connection_id;
+	int			spare[3];
+#else
 	int			spare[4];
+#endif
 };
 
 struct ctl_iscsi_list_params {
@@ -715,7 +712,7 @@ struct ctl_iscsi_send_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
 struct ctl_iscsi_receive_params {
@@ -725,7 +722,7 @@ struct ctl_iscsi_receive_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
 struct ctl_iscsi_close_params {
