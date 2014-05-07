@@ -1280,8 +1280,8 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		is->is_conn->ic_data_crc32c = false;
 
 	is->is_cmdsn = 0;
-	is->is_expcmdsn = 1;
-	is->is_maxcmdsn = 1;
+	is->is_expcmdsn = 0;
+	is->is_maxcmdsn = 0;
 	is->is_waiting_for_iscsid = false;
 	is->is_login_phase = false;
 	is->is_timeout = 0;
