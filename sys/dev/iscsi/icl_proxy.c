@@ -182,7 +182,7 @@ icl_conn_connect(struct icl_conn *ic, bool rdma, int domain, int socktype,
 }
 
 struct icl_listen *
-icl_listen_new(void (*accept_cb)(struct socket *))
+icl_listen_new(void (*accept_cb)(struct socket *, int))
 {
 	struct icl_listen *il;
 
@@ -298,13 +298,13 @@ icl_accept_thread(void *arg)
 			soclose(so);
 		}
 
-		(ils->ils_listen->il_accept)(so);
+		(ils->ils_listen->il_accept)(so, ils->ils_id);
 	}
 }
 
 static int
-icl_listen_add_tcp(struct icl_listen *il, int domain, int socktype, int protocol,
-    struct sockaddr *sa)
+icl_listen_add_tcp(struct icl_listen *il, int domain, int socktype,
+    int protocol, struct sockaddr *sa, int portal_id)
 {
 	struct icl_listen_sock *ils;
 	struct socket *so;
@@ -348,6 +348,7 @@ icl_listen_add_tcp(struct icl_listen *il, int domain, int socktype, int protocol
 	ils = malloc(sizeof(*ils), M_ICL_PROXY, M_ZERO | M_WAITOK);
 	ils->ils_listen = il;
 	ils->ils_socket = so;
+	ils->ils_id = portal_id;
 
 	error = kthread_add(icl_accept_thread, ils, NULL, NULL, 0, 0, "iclacc");
 	if (error != 0) {
@@ -366,8 +367,8 @@ icl_listen_add_tcp(struct icl_listen *il, int domain, int socktype, int protocol
 }
 
 int
-icl_listen_add(struct icl_listen *il, bool rdma, int domain, int socktype, int protocol,
-    struct sockaddr *sa)
+icl_listen_add(struct icl_listen *il, bool rdma, int domain, int socktype,
+    int protocol, struct sockaddr *sa, int portal_id)
 {
 
 	if (rdma) {
@@ -375,12 +376,14 @@ icl_listen_add(struct icl_listen *il, bool rdma, int domain, int socktype, int p
 		ICL_DEBUG("RDMA not supported");
 		return (EOPNOTSUPP);
 #else
-		return (icl_listen_add_rdma(il, domain, socktype, protocol, sa));
+		return (icl_listen_add_rdma(il, domain, socktype, protocol,
+		    sa, portal_id));
 #endif
 	}
 
 
-	return (icl_listen_add_tcp(il, domain, socktype, protocol, sa));
+	return (icl_listen_add_tcp(il, domain, socktype, protocol, sa,
+	    portal_id));
 }
 
 int

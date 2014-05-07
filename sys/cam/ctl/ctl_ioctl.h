@@ -626,7 +626,6 @@ typedef enum {
 	CTL_ISCSI_ACCEPT,
 	CTL_ISCSI_SEND,
 	CTL_ISCSI_RECEIVE,
-	CTL_ISCSI_CLOSE,
 #endif
 } ctl_iscsi_type;
 
@@ -701,11 +700,14 @@ struct ctl_iscsi_listen_params {
 	int				protocol;
 	struct sockaddr			*addr;
 	socklen_t			addrlen;
+	int				portal_id;
 	int				spare[4];
 };
 
 struct ctl_iscsi_accept_params {
 	int				connection_id;
+	struct sockaddr			*initiator_addr;
+	int				portal_id;
 	int				spare[4];
 };
 
@@ -729,10 +731,6 @@ struct ctl_iscsi_receive_params {
 	int				spare3[4];
 };
 
-struct ctl_iscsi_close_params {
-	int				connection_id;
-	int				spare[4];
-};
 #endif /* ICL_KERNEL_PROXY */
 
 union ctl_iscsi_data {
@@ -745,7 +743,6 @@ union ctl_iscsi_data {
 	struct ctl_iscsi_accept_params		accept;
 	struct ctl_iscsi_send_params		send;
 	struct ctl_iscsi_receive_params		receive;
-	struct ctl_iscsi_close_params		close;
 #endif
 };
 

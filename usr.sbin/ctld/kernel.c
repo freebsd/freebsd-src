@@ -622,13 +622,15 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI handoff request: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 int
@@ -673,7 +675,7 @@ kernel_port_off(void)
 
 #ifdef ICL_KERNEL_PROXY
 void
-kernel_listen(struct addrinfo *ai, bool iser)
+kernel_listen(struct addrinfo *ai, bool iser, int portal_id)
 {
 	struct ctl_iscsi req;
 
@@ -686,11 +688,10 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	req.data.listen.protocol = ai->ai_protocol;
 	req.data.listen.addr = ai->ai_addr;
 	req.data.listen.addrlen = ai->ai_addrlen;
+	req.data.listen.portal_id = portal_id;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
 		log_err(1, "error issuing CTL_ISCSI ioctl");
-		return;
-	}
 
 	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI listen: %s",
@@ -698,8 +699,8 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	}
 }
 
-int
-kernel_accept(void)
+void
+kernel_accept(int *connection_id, int *portal_id)
 {
 	struct ctl_iscsi req;
 
@@ -707,18 +708,16 @@ kernel_accept(void)
 
 	req.type = CTL_ISCSI_ACCEPT;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_warn("error issuing CTL_ISCSI ioctl");
-		return (0);
-	}
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+		log_err(1, "error issuing CTL_ISCSI ioctl");
 
 	if (req.status != CTL_ISCSI_OK) {
-		log_warnx("error returned from CTL iSCSI accept: %s",
+		log_errx(1, "error returned from CTL iSCSI accept: %s",
 		    req.error_str);
-		return (0);
 	}
 
-	return (req.data.accept.connection_id);
+	*connection_id = req.data.accept.connection_id;
+	*portal_id = req.data.accept.portal_id;
 }
 
 void
