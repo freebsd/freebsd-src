@@ -203,6 +203,17 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct port_info *pi)
 		return (NULL);
 	}
 
+	if (inp->inp_vflag & INP_IPV6 &&
+	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
+		struct tom_data *td = sc->tom_softc;
+
+		lctx->ce = hold_lip(td, &inp->in6p_laddr);
+		if (lctx->ce == NULL) {
+			free(lctx, M_CXGBE);
+			return (NULL);
+		}
+	}
+
 	lctx->ctrlq = &sc->sge.ctrlq[pi->port_id];
 	lctx->ofld_rxq = &sc->sge.ofld_rxq[pi->first_ofld_rxq];
 	refcount_init(&lctx->refcount, 1);
@@ -219,6 +230,7 @@ static int
 free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 {
 	struct inpcb *inp = lctx->inp;
+	struct tom_data *td = sc->tom_softc;
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(lctx->refcount == 0,
@@ -230,6 +242,8 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 	CTR4(KTR_CXGBE, "%s: stid %u, lctx %p, inp %p",
 	    __func__, lctx->stid, lctx, lctx->inp);
 
+	if (lctx->ce)
+		release_lip(td, lctx->ce);
 	free_stid(sc, lctx);
 	free(lctx, M_CXGBE);
 
@@ -495,6 +509,12 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 
 	INP_WLOCK_ASSERT(inp);
 
+	/* Don't start a hardware listener for any loopback address. */
+	if (inp->inp_vflag & INP_IPV6 && IN6_IS_ADDR_LOOPBACK(&inp->in6p_laddr))
+		return (0);
+	if (!(inp->inp_vflag & INP_IPV6) &&
+	    IN_LOOPBACK(ntohl(inp->inp_laddr.s_addr)))
+		return (0);
 #if 0
 	ADAPTER_LOCK(sc);
 	if (IS_BUSY(sc)) {

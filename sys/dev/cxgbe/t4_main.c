@@ -197,6 +197,9 @@ TUNABLE_INT("hw.cxgbe.ntxq1g", &t4_ntxq1g);
 static int t4_nrxq1g = -1;
 TUNABLE_INT("hw.cxgbe.nrxq1g", &t4_nrxq1g);
 
+static int t4_rsrv_noflowq = 0;
+TUNABLE_INT("hw.cxgbe.rsrv_noflowq", &t4_rsrv_noflowq);
+
 #ifdef TCP_OFFLOAD
 #define NOFLDTXQ_10G 8
 static int t4_nofldtxq10g = -1;
@@ -299,6 +302,7 @@ struct intrs_and_queues {
 	int nrxq10g;		/* # of NIC rxq's for each 10G port */
 	int ntxq1g;		/* # of NIC txq's for each 1G port */
 	int nrxq1g;		/* # of NIC rxq's for each 1G port */
+	int rsrv_noflowq;	/* Flag whether to reserve queue 0 */
 #ifdef TCP_OFFLOAD
 	int nofldtxq10g;	/* # of TOE txq's for each 10G port */
 	int nofldrxq10g;	/* # of TOE rxq's for each 10G port */
@@ -375,6 +379,7 @@ static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
 static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
+static int sysctl_noflowq(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
@@ -488,6 +493,8 @@ CTASSERT(offsetof(struct sge_ofld_rxq, fl) == offsetof(struct sge_rxq, fl));
 /* No easy way to include t4_msg.h before adapter.h so we check this way */
 CTASSERT(nitems(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
 CTASSERT(nitems(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
+
+CTASSERT(sizeof(struct cluster_metadata) <= CL_METADATA_SIZE);
 
 static int
 t4_probe(device_t dev)
@@ -773,6 +780,11 @@ t4_attach(device_t dev)
 			pi->nrxq = iaq.nrxq1g;
 			pi->ntxq = iaq.ntxq1g;
 		}
+
+		if (pi->ntxq > 1)
+			pi->rsrv_noflowq = iaq.rsrv_noflowq ? 1 : 0;
+		else
+			pi->rsrv_noflowq = 0;
 
 		rqidx += pi->nrxq;
 		tqidx += pi->ntxq;
@@ -1252,7 +1264,8 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (m->m_flags & M_FLOWID)
-		txq += (m->m_pkthdr.flowid % pi->ntxq);
+		txq += ((m->m_pkthdr.flowid % (pi->ntxq - pi->rsrv_noflowq))
+		    + pi->rsrv_noflowq);
 	br = txq->br;
 
 	if (TXQ_TRYLOCK(txq) == 0) {
@@ -1704,6 +1717,7 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	iaq->ntxq1g = t4_ntxq1g;
 	iaq->nrxq10g = nrxq10g = t4_nrxq10g;
 	iaq->nrxq1g = nrxq1g = t4_nrxq1g;
+	iaq->rsrv_noflowq = t4_rsrv_noflowq;
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
 		iaq->nofldtxq10g = t4_nofldtxq10g;
@@ -2624,6 +2638,7 @@ build_medialist(struct port_info *pi)
 		ifmedia_set(media, m | IFM_10G_CX4);
 		break;
 
+	case FW_PORT_TYPE_QSFP_10G:
 	case FW_PORT_TYPE_SFP:
 	case FW_PORT_TYPE_FIBER_XFI:
 	case FW_PORT_TYPE_FIBER_XAUI:
@@ -4029,6 +4044,7 @@ static void
 cxgbe_tick(void *arg)
 {
 	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 	struct ifnet *ifp = pi->ifp;
 	struct sge_txq *txq;
 	int i, drops;
@@ -4040,7 +4056,7 @@ cxgbe_tick(void *arg)
 		return;	/* without scheduling another callout */
 	}
 
-	t4_get_port_stats(pi->adapter, pi->tx_chan, s);
+	t4_get_port_stats(sc, pi->tx_chan, s);
 
 	ifp->if_opackets = s->tx_frames - s->tx_pause;
 	ifp->if_ipackets = s->rx_frames - s->rx_pause;
@@ -4051,6 +4067,19 @@ cxgbe_tick(void *arg)
 	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
 	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
 	    s->rx_trunc3;
+	for (i = 0; i < 4; i++) {
+		if (pi->rx_chan_map & (1 << i)) {
+			uint32_t v;
+
+			/*
+			 * XXX: indirect reads from the same ADDR/DATA pair can
+			 * race with each other.
+			 */
+			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
+			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			ifp->if_iqdrops += v;
+		}
+	}
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
@@ -4197,6 +4226,10 @@ t4_sysctls(struct adapter *sc)
 	oid = device_get_sysctl_tree(sc->dev);
 	c0 = children = SYSCTL_CHILDREN(oid);
 
+	sc->sc_do_rxcopy = 1;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "do_rx_copy", CTLFLAG_RW,
+	    &sc->sc_do_rxcopy, 1, "Do RX copy of small frames");
+
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD, NULL,
 	    sc->params.nports, "# of ports");
 
@@ -4257,7 +4290,7 @@ t4_sysctls(struct adapter *sc)
 	    NULL, sc->tids.nftids, "number of filters");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
-	    CTLFLAG_RD, sc, 0, sysctl_temperature, "A",
+	    CTLFLAG_RD, sc, 0, sysctl_temperature, "I",
 	    "chip temperature (in Celsius)");
 
 	t4_sge_sysctls(sc, ctx, children);
@@ -4498,6 +4531,9 @@ cxgbe_sysctls(struct port_info *pi)
 	    &pi->first_rxq, 0, "index of first rx queue");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_txq", CTLFLAG_RD,
 	    &pi->first_txq, 0, "index of first tx queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rsrv_noflowq", CTLTYPE_INT |
+	    CTLFLAG_RW, pi, 0, sysctl_noflowq, "IU",
+	    "Reserve queue 0 for non-flowid packets");
 
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc)) {
@@ -4748,6 +4784,25 @@ sysctl_btphy(SYSCTL_HANDLER_ARGS)
 		v /= 256;
 
 	rc = sysctl_handle_int(oidp, &v, 0, req);
+	return (rc);
+}
+
+static int
+sysctl_noflowq(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	int rc, val;
+
+	val = pi->rsrv_noflowq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if ((val >= 1) && (pi->ntxq > 1))
+		pi->rsrv_noflowq = 1;
+	else
+		pi->rsrv_noflowq = 0;
+
 	return (rc);
 }
 
@@ -7728,11 +7783,11 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 		if (port_id >= sc->params.nports)
 			return (EINVAL);
+		pi = sc->port[port_id];
 
 		/* MAC stats */
-		t4_clr_port_stats(sc, port_id);
+		t4_clr_port_stats(sc, pi->tx_chan);
 
-		pi = sc->port[port_id];
 		if (pi->flags & PORT_INIT_DONE) {
 			struct sge_rxq *rxq;
 			struct sge_txq *txq;
