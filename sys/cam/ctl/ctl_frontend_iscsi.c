@@ -2488,7 +2488,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 		return;
 	}
 	cdw->cdw_ctl_io = io;
-	cdw->cdw_target_transfer_tag = htonl(target_transfer_tag);
+	cdw->cdw_target_transfer_tag = target_transfer_tag;
 	cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
 
 	if (cs->cs_immediate_data && icl_pdu_data_segment_length(request) > 0) {
@@ -2528,7 +2528,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	bhsr2t->bhsr2t_flags = 0x80;
 	bhsr2t->bhsr2t_lun = bhssc->bhssc_lun;
 	bhsr2t->bhsr2t_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
-	bhsr2t->bhsr2t_target_transfer_tag = htonl(target_transfer_tag);
+	bhsr2t->bhsr2t_target_transfer_tag = target_transfer_tag;
 	/*
 	 * XXX: Here we assume that cfiscsi_datamove() won't ever
 	 *	be running concurrently on several CPUs for a given
