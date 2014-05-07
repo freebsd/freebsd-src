@@ -8,7 +8,10 @@
 
 -->
 
-<!ENTITY darpa		"DARPA, AFRL">
+<!ENTITY afrl		"AFRL">
+
+<!ENTITY darpa		"DARPA">
+<!ENTITY darpa_afrl	"DARPA, AFRL">
 
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
