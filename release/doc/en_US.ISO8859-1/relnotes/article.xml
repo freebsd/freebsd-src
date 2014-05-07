@@ -568,6 +568,17 @@
 	&man.openpam.ttyconv.3; library has been completely
 	rewritten.</para>
 
+      <para revision="264423">The &man.sh.1; command interpreter has
+	been updated to expand assignments after
+	<literal>export</literal>, <literal>local</literal>, and
+	<literal>readonly</literal> differently.  As result of this
+	change, variable assignment such as <literal>local
+	  v=&dollar;1</literal> will assign the first positional
+	parameter to <literal>v</literal>, even if
+	<literal>&dollar;1</literal> contains spaces, and
+	<literal>local w=<replaceable>~/myfile</replaceable></literal>
+	will expand the tilde (<literal>~</literal>).</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
