@@ -267,7 +267,7 @@ cpu_mp_unleash(void *dummy)
 	/* Let the APs get into the scheduler */
 	DELAY(10000);
 
-	smp_active = 1;
+	/* XXX Atomic set operation? */
 	smp_started = 1;
 }
 
