@@ -138,6 +138,23 @@
       device has been added, providing support for LSI Fusion-MPT
       3 12Gb SCSI/SATA controllers.</para>
 
+    <para revision="265555" contrib="sponsor"
+      sponsor="&lsi;">The &man.mrsas.4; driver has been added,
+      providing support for LSI MegaRAID SAS controllers.  The
+      &man.mfi.4; driver will attach to the controller, by default.
+      To enable &man.mrsas.4; add
+      <literal>hw.mfi.mrsas_enable=1</literal> to
+      <filename>/boot/loader.conf</filename>, which turns off
+      &man.mfi.4; device probing.</para>
+
+    <note>
+      <para>At this time, the &man.mfiutil.8; utility and
+	the &os; version of
+	<application>MegaCLI</application> and
+	<application>StorCli</application> do not work with
+	&man.mrsas.4;.</para>
+    </note>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
