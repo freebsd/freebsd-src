@@ -317,6 +317,15 @@ fdcopy(int src, lba_t sblk, int dst, lba_t dblk, uint64_t *count)
 }
 
 int
+mkimg_set_size(int fd, lba_t blk)
+{
+
+	if (ftruncate(fd, blk * secsz) == -1)
+		return (errno);
+	return (0);
+}
+
+int
 mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
 {
 

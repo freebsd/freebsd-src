@@ -86,7 +86,9 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.nsecs, nsecs);
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
 
-	ftruncate(fd, imgsz * secsz);
+	error = mkimg_set_size(fd, imgsz);
+	if (error)
+		return (error);
 
 	be32enc(&vtoc8.map[VTOC_RAW_PART].nblks, imgsz);
 	STAILQ_FOREACH(part, &partlist, link) {

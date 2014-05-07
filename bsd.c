@@ -80,7 +80,9 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 		memset(buf, 0, BBSIZE);
 
 	imgsz = ncyls * nheads * nsecs;
-	ftruncate(fd, imgsz * secsz);
+	error = mkimg_set_size(fd, imgsz);
+	if (error)
+		return (error);
 
 	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);

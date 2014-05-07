@@ -67,6 +67,7 @@ round_block(lba_t n)
 	return ((n + b - 1) & ~(b - 1));
 }
 
+int mkimg_set_size(int fd, lba_t blk);
 int mkimg_write(int fd, lba_t blk, void *buf, ssize_t len);
 
 #endif /* _MKIMG_MKIMG_H_ */

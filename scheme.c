@@ -189,9 +189,8 @@ scheme_write(int fd, lba_t end)
 	cylsz = nsecs * nheads;
 	ncyls = (end + cylsz - 1) / cylsz;
 
-	if (ftruncate(fd, end * secsz) == -1)
-		return (errno);
-
-	error = scheme->write(fd, end, bootcode);
+	error = mkimg_set_size(fd, end);
+	if (!error)
+		error = scheme->write(fd, end, bootcode);
 	return (error);
 }
