@@ -531,8 +531,8 @@
 	<filename>libmap32.conf</filename> has been added, for 32-bit
 	applications.</para>
 
-      <para revision="263032">The <literal>libucl</literal> library
-	a JSON-compatible configuration file parsing library,has been
+      <para revision="263032">The <literal>libucl</literal> library,
+	a JSON-compatible configuration file parsing library, has been
 	imported.</para>
 
       <para revision="263038">The &man.pkg.7; package management
