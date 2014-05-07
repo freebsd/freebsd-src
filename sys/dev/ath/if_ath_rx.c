@@ -344,7 +344,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 
 #define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
 	tsf_intval = 1;
-	if (ni != NULL && ni->ni_intval > 0) {
+	if (ni->ni_intval > 0) {
 		tsf_intval = TU_TO_TSF(ni->ni_intval);
 	}
 #undef	TU_TO_TSF
