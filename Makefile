@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mkimg
-SRCS=	mkimg.c scheme.c
+SRCS=	image.c mkimg.c scheme.c
 MAN=	mkimg.1
 
 CFLAGS+=-DSPARSE_WRITE
