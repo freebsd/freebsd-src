@@ -1382,8 +1382,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	meta = NULL;
 	vendor = 0xffff;
 	disk_pos = 0;
-	if (g_access(cp, 1, 0, 0) != 0)
-		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
 	error = g_raid_md_get_label(cp, serial, sizeof(serial));
 	if (error != 0) {
@@ -1396,7 +1394,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = intel_meta_read(cp);
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor != 0x8086) {
@@ -1476,6 +1473,9 @@ search:
 		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
+	/* There is no return after this point, so we close passed consumer. */
+	g_access(cp, -1, 0, 0);
+
 	rcp = g_new_consumer(geom);
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
@@ -1511,7 +1511,6 @@ search:
 	return (result);
 fail2:
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 fail1:
 	free(meta, M_MD_INTEL);
 	return (G_RAID_MD_TASTE_FAIL);
