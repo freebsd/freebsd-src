@@ -2016,6 +2016,10 @@ vt_upgrade(struct vt_device *vd)
 	/* Start timer when everything ready. */
 	callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
 	VT_UNLOCK(vd);
+
+	/* Refill settings with new sizes. */
+	vt_resize(vd);
+
 }
 
 static void
@@ -2089,9 +2093,6 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	VT_UNLOCK(vd);
 
 	vt_upgrade(vd);
-
-	/* Refill settings with new sizes. */
-	vt_resize(vd);
 
 #ifdef DEV_SPLASH
 	if (vd->vd_flags & VDF_SPLASH)
