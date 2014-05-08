@@ -57,51 +57,125 @@
 #include <unistd.h>
 
 #include "cheritest.h"
-#include "cheritest_sandbox.h"
+
+static const struct cheri_test {
+	const char	*ct_name;
+	int		 ct_arg;	/* 0: ct_func; otherwise ct_func_arg. */
+	void		(*ct_func)(void);
+	void		(*ct_func_arg)(int);
+} cheri_tests[] = {
+	{ .ct_name = "creturn",
+	  .ct_func = cheritest_creturn },
+	{ .ct_name = "ccall_creturn",
+	  .ct_func = cheritest_ccall_creturn },
+	{ .ct_name = "ccall_nop_creturn",
+	  .ct_func = cheritest_ccall_nop_creturn },
+	{ .ct_name = "copyregs",
+	  .ct_func = cheritest_copyregs },
+	{ .ct_name = "listregs",
+	  .ct_func = cheritest_listregs },
+	{ .ct_name = "invoke_abort",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_ABORT },
+	{ .ct_name = "invoke_clock_gettime",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME },
+	{ .ct_name = "invoke_cp2_bound",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CP2_BOUND },
+	{ .ct_name = "invoke_cp2_perm",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CP2_PERM },
+	{ .ct_name = "invoke_cp2_tag",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CP2_TAG },
+	{ .ct_name = "invoke_cp2_seal",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CP2_SEAL },
+	{ .ct_name = "invoke_divzero",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_DIVZERO },
+	{ .ct_name = "invoke_fd_fstat_c",
+	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_arg = CHERITEST_HELPER_OP_FD_FSTAT_C },
+	{ .ct_name = "invoke_fd_lseek_c",
+	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_arg = CHERITEST_HELPER_OP_FD_LSEEK_C },
+	{ .ct_name = "invoke_fd_read_c",
+	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_arg = CHERITEST_HELPER_OP_FD_READ_C },
+	{ .ct_name = "invoke_fd_write_c",
+	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_arg = CHERITEST_HELPER_OP_FD_WRITE_C },
+	{ .ct_name = "invoke_helloworld",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CS_HELLOWORLD },
+	{ .ct_name = "invoke_md5",
+	  .ct_func = cheritest_invoke_md5 },
+	{ .ct_name = "invoke_malloc",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_MALLOC },
+	{ .ct_name = "invoke_printf",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_PRINTF },
+	{ .ct_name = "invoke_cs_putchar",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTCHAR },
+	{ .ct_name = "invoke_cs_puts",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTS },
+	{ .ct_name = "invoke_spin",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_SPIN },
+	{ .ct_name = "invoke_syscall",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_SYSCALL },
+	{ .ct_name = "invoke_syscap",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_SYSCAP },
+	{ .ct_name = "invoke_vm_rfault",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_VM_RFAULT },
+	{ .ct_name = "invoke_vm_wfault",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_VM_WFAULT },
+	{ .ct_name = "invoke_vm_xfault",
+	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_VM_XFAULT },
+	{ .ct_name = "revoke_fd",
+	  .ct_func = cheritest_revoke_fd },
+	{ .ct_name = "sleep",
+	  .ct_arg = 10,
+	  .ct_func = sleep },
+	{ .ct_name = "test_fault_cgetcause",
+	  .ct_func = test_fault_cgetcause },
+	{ .ct_name = "test_fault_overrun",
+	  .ct_func = test_fault_overrun },
+	{ .ct_name = "test_fault_ccheck_user_fail",
+	  .ct_func = test_fault_ccheck_user_fail },
+	{ .ct_name = "test_nofault_ccheck_user_pass",
+	  .ct_func = test_nofault_ccheck_user_pass },
+	{ .ct_name = "test_fault_read_kr1c",
+	  .ct_func = test_fault_read_kr1c },
+	{ .ct_name = "test_fault_read_kr2c",
+	  .ct_func = test_fault_read_kr2c },
+	{ .ct_name = "test_fault_read_kcc",
+	  .ct_func = test_fault_read_kcc },
+	{ .ct_name = "test_fault_read_kdc",
+	  .ct_func = test_fault_read_kdc },
+	{ .ct_name = "test_fault_read_epcc",
+	  .ct_func = test_fault_read_epcc },
+};
+static const u_int cheri_tests_len = sizeof(cheri_tests) /
+	    sizeof(cheri_tests[0]);
 
 static void
 usage(void)
 {
+	u_int i;
 
-	fprintf(stderr, "cheritest creturn\n");
-	fprintf(stderr, "cheritest ccall_creturn\n");
-	fprintf(stderr, "cheritest ccall_nop_creturn\n");
-	fprintf(stderr, "cheritest copyregs\n");
-	fprintf(stderr, "cheritest invoke_abort\n");
-	fprintf(stderr, "cheritest invoke_clock_gettime\n");
-	fprintf(stderr, "cheritest invoke_cp2_bound\n");
-	fprintf(stderr, "cheritest invoke_cp2_perm\n");
-	fprintf(stderr, "cheritest invoke_cp2_seal\n");
-	fprintf(stderr, "cheritest invoke_cp2_tag\n");
-	fprintf(stderr, "cheritest invoke_divzero\n");
-	fprintf(stderr, "cheritest invoke_fd_fstat_c\n");
-	fprintf(stderr, "cheritest invoke_fd_lseek_c\n");
-	fprintf(stderr, "cheritest invoke_fd_read_c\n");
-	fprintf(stderr, "cheritest invoke_fd_write_c\n");
-	fprintf(stderr, "cheritest invoke_helloworld\n");
-	fprintf(stderr, "cheritest invoke_md5\n");
-	fprintf(stderr, "cheritest invoke_malloc\n");
-	fprintf(stderr, "cheritest invoke_printf\n");
-	fprintf(stderr, "cheritest invoke_putchar\n");
-	fprintf(stderr, "cheritest invoke_puts\n");
-	fprintf(stderr, "cheritest invoke_spin\n");
-	fprintf(stderr, "cheritest invoke_syscall\n");
-	fprintf(stderr, "cheritest invoke_syscap\n");
-	fprintf(stderr, "cheritest invoke_vm_rfault\n");
-	fprintf(stderr, "cheritest invoke_vm_wfault\n");
-	fprintf(stderr, "cheritest invoke_vm_xfault\n");
-	fprintf(stderr, "cheritest listregs\n");
-	fprintf(stderr, "cheritest test_fault_cgetcause\n");
-	fprintf(stderr, "cheritest test_fault_ccheck_user_fail\n");
-	fprintf(stderr, "cheritest test_nofault_ccheck_user_pass\n");
-	fprintf(stderr, "cheritest test_fault_overrun\n");
-	fprintf(stderr, "cheritest test_fault_read_kr1c\n");
-	fprintf(stderr, "cheritest test_fault_read_kr2c\n");
-	fprintf(stderr, "cheritest test_fault_read_kcc\n");
-	fprintf(stderr, "cheritest test_fault_read_kdc\n");
-	fprintf(stderr, "cheritest test_fault_read_epcc\n");
-	fprintf(stderr, "cheritest revoke_fd\n");
-	fprintf(stderr, "cheritest sleep\n");
+	for (i = 0; i < cheri_tests_len; i++)
+		fprintf(stderr, "cheritest %s\n", cheri_tests[i].ct_name);
 	exit(EX_USAGE);
 }
 
@@ -109,6 +183,7 @@ int
 main(__unused int argc, __unused char *argv[])
 {
 	int i, opt;
+	u_int t;
 
 	while ((opt = getopt(argc, argv, "")) != -1) {
 		switch (opt) {
@@ -123,108 +198,16 @@ main(__unused int argc, __unused char *argv[])
 
 	cheritest_libcheri_setup();
 	for (i = 0; i < argc; i++) {
-		if (strcmp(argv[i], "listregs") == 0)
-			cheritest_listregs();
-		else if (strcmp(argv[i], "ccall_creturn") == 0)
-			cheritest_ccall_creturn();
-		else if (strcmp(argv[i], "ccall_nop_creturn") == 0)
-			cheritest_ccall_nop_creturn();
-		else if (strcmp(argv[i], "creturn") == 0)
-			cheritest_creturn();
-		else if (strcmp(argv[i], "copyregs") == 0)
-			cheritest_copyregs();
-		else if (strcmp(argv[i], "invoke_abort") == 0)
-			cheritest_invoke_simple_op(CHERITEST_HELPER_OP_ABORT);
-		else if (strcmp(argv[i], "invoke_clock_gettime") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME);
-		else if (strcmp(argv[i], "invoke_cp2_bound") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CP2_BOUND);
-		else if (strcmp(argv[i], "invoke_cp2_perm") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CP2_PERM);
-		else if (strcmp(argv[i], "invoke_cp2_tag") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CP2_TAG);
-		else if (strcmp(argv[i], "invoke_cp2_seal") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CP2_SEAL);
-		else if (strcmp(argv[i], "invoke_divzero") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_DIVZERO);
-		else if (strcmp(argv[i], "invoke_fd_fstat_c") == 0)
-			cheritest_invoke_fd_op(
-			     CHERITEST_HELPER_OP_FD_FSTAT_C);
-		else if (strcmp(argv[i], "invoke_fd_lseek_c") == 0)
-			cheritest_invoke_fd_op(
-			     CHERITEST_HELPER_OP_FD_LSEEK_C);
-		else if (strcmp(argv[i], "invoke_fd_read_c") == 0)
-			cheritest_invoke_fd_op(
-			     CHERITEST_HELPER_OP_FD_READ_C);
-		else if (strcmp(argv[i], "invoke_fd_write_c") == 0)
-			cheritest_invoke_fd_op(
-			     CHERITEST_HELPER_OP_FD_WRITE_C);
-		else if (strcmp(argv[i], "invoke_helloworld") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CS_HELLOWORLD);
-		else if (strcmp(argv[i], "invoke_md5") == 0)
-			cheritest_invoke_md5();
-		else if (strcmp(argv[i], "invoke_malloc") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_MALLOC);
-		else if (strcmp(argv[i], "invoke_printf") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_PRINTF);
-		else if (strcmp(argv[i], "invoke_putchar") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CS_PUTCHAR);
-		else if (strcmp(argv[i], "invoke_puts") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_CS_PUTS);
-		else if (strcmp(argv[i], "invoke_spin") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_SPIN);
-		else if (strcmp(argv[i], "invoke_syscall") == 0)
-			cheritest_invoke_syscall();
-		else if (strcmp(argv[i], "invoke_syscap") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_SYSCAP);
-		else if (strcmp(argv[i], "invoke_vm_rfault") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_VM_RFAULT);
-		else if (strcmp(argv[i], "invoke_vm_wfault") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_VM_WFAULT);
-		else if (strcmp(argv[i], "invoke_vm_xfault") == 0)
-			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_VM_XFAULT);
-		else if (strcmp(argv[i], "revoke_fd") == 0)
-			cheritest_revoke_fd();
-		else if (strcmp(argv[i], "sleep") == 0)
-			sleep(10);
-		else if (strcmp(argv[i], "test_fault_cgetcause") == 0)
-			test_fault_cgetcause();
-		else if (strcmp(argv[i], "test_fault_overrun") == 0)
-			test_fault_overrun();
-		else if (strcmp(argv[i], "test_fault_ccheck_user_fail") == 0)
-			test_fault_ccheck_user_fail();
-		else if (strcmp(argv[i], "test_nofault_ccheck_user_pass") == 0)
-			test_nofault_ccheck_user_pass();
-		else if (strcmp(argv[i], "test_fault_read_kr1c") == 0)
-			test_fault_read_kr1c();
-		else if (strcmp(argv[i], "test_fault_read_kr2c") == 0)
-			test_fault_read_kr2c();
-		else if (strcmp(argv[i], "test_fault_read_kcc") == 0)
-			test_fault_read_kcc();
-		else if (strcmp(argv[i], "test_fault_read_kdc") == 0)
-			test_fault_read_kdc();
-		else if (strcmp(argv[i], "test_fault_read_epcc") == 0)
-			test_fault_read_epcc();
-		else if (strcmp(argv[i], "") == 0)
-			test_fault_read_epcc();
-		else
+		for (t = 0; t < cheri_tests_len; t++) {
+			if (strcmp(argv[i], cheri_tests[t].ct_name) == 0)
+				break;
+		}
+		if (t == cheri_tests_len)
 			usage();
+		if (cheri_tests[t].ct_arg != 0)
+			cheri_tests[t].ct_func_arg(cheri_tests[t].ct_arg);
+		else
+			cheri_tests[t].ct_func();
 	}
 	cheritest_libcheri_destroy();
 	exit(EX_OK);
