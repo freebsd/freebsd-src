@@ -2120,13 +2120,10 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	pp = cp->provider;
 
 	/* Read metadata from device. */
-	if (g_access(cp, 1, 0, 0) != 0)
-		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
 	bzero(&meta, sizeof(meta));
 	error = ddf_meta_read(cp, &meta);
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 	if (error != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	be = meta.bigendian;
@@ -2163,6 +2160,9 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
 	}
+
+	/* There is no return after this point, so we close passed consumer. */
+	g_access(cp, -1, 0, 0);
 
 	rcp = g_new_consumer(geom);
 	g_attach(rcp, pp);
