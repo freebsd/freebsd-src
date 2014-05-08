@@ -59,12 +59,6 @@
 #include "cheritest.h"
 #include "cheritest_sandbox.h"
 
-static struct sandbox_class	*cheritest_classp;
-static struct sandbox_object	*cheritest_objectp;
-
-static int zero_fd = -1;
-static struct cheri_object zero_fd_object;
-
 static void
 usage(void)
 {
@@ -177,15 +171,6 @@ main(__unused int argc, __unused char *argv[])
 	argv += optind;
 	if (argc == 0)
 		usage();
-
-	/*
-	 * Prepare a CHERI object representing /dev/zero for fd-related tests.
-	 */
-	zero_fd = open("/dev/zero", O_RDWR);
-	if (zero_fd < 0)
-		err(EX_OSFILE, "open: /dev/zero");
-	if (cheri_fd_new(zero_fd, &zero_fd_object) < 0)
-		err(EX_OSFILE, "cheri_fd_new: /dev/zero");
 
 	cheritest_libcheri_setup();
 	for (i = 0; i < argc; i++) {

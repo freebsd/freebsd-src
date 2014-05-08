@@ -163,6 +163,15 @@ int
 cheritest_libcheri_setup(void)
 {
 
+	/*
+	 * Prepare a CHERI object representing /dev/zero for fd-related tests.
+	 */
+	zero_fd = open("/dev/zero", O_RDWR);
+	if (zero_fd < 0)
+		err(EX_OSFILE, "open: /dev/zero");
+	if (cheri_fd_new(zero_fd, &zero_fd_object) < 0)
+		err(EX_OSFILE, "cheri_fd_new: /dev/zero");
+
 	if (sandbox_class_new("/usr/libexec/cheritest-helper.bin",
 	    4*1024*1024, &cheritest_classp) < 0)
 		return (-1);
