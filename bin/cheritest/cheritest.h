@@ -64,20 +64,20 @@
 void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	    register_t sandbox_pc, __capability void **codecapp,
 	    __capability void **datacapp);
-void	cheritest_creturn(void);
-void	cheritest_ccall_creturn(void);
-void	cheritest_ccall_nop_creturn(void);
+void	test_fault_creturn(void);
+void	test_nofault_ccall_creturn(void);
+void	test_nofault_ccall_nop_creturn(void);
 
 /* cheritest_fault.c */
 void	test_fault_cgetcause(void);
 void	test_fault_overrun(void);
 void	test_fault_ccheck_user_fail(void);
-void	test_nofault_ccheck_user_pass(void);
 void	test_fault_read_kr1c(void);
 void	test_fault_read_kr2c(void);
 void	test_fault_read_kcc(void);
 void	test_fault_read_kdc(void);
 void	test_fault_read_epcc(void);
+void	test_nofault_ccheck_user_pass(void);
 
 /* cheritest_libcheri.c */
 void	cheritest_invoke_fd_op(int op);

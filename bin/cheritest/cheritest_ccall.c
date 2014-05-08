@@ -87,14 +87,14 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 }
 
 void
-cheritest_creturn(void)
+test_fault_creturn(void)
 {
 
 	CHERI_CRETURN();
 }
 
 void
-cheritest_ccall_creturn(void)
+test_nofault_ccall_creturn(void)
 {
 	__capability void *codecap, *datacap;
 
@@ -104,7 +104,7 @@ cheritest_ccall_creturn(void)
 }
 
 void
-cheritest_ccall_nop_creturn(void)
+test_nofault_ccall_nop_creturn(void)
 {
 	__capability void *codecap, *datacap;
 

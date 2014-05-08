@@ -64,12 +64,12 @@ static const struct cheri_test {
 	void		(*ct_func)(void);
 	void		(*ct_func_arg)(int);
 } cheri_tests[] = {
-	{ .ct_name = "creturn",
-	  .ct_func = cheritest_creturn },
-	{ .ct_name = "ccall_creturn",
-	  .ct_func = cheritest_ccall_creturn },
-	{ .ct_name = "ccall_nop_creturn",
-	  .ct_func = cheritest_ccall_nop_creturn },
+	{ .ct_name = "test_fault_creturn",
+	  .ct_func = test_fault_creturn },
+	{ .ct_name = "test_nofault_ccall_creturn",
+	  .ct_func = test_nofault_ccall_creturn },
+	{ .ct_name = "test_nofault_ccall_nop_creturn",
+	  .ct_func = test_nofault_ccall_nop_creturn },
 	{ .ct_name = "copyregs",
 	  .ct_func = cheritest_copyregs },
 	{ .ct_name = "listregs",
