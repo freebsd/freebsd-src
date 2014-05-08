@@ -118,6 +118,8 @@ image_copyout(int fd)
 		}
 	}
 	free(buffer);
+	ofs = lseek(fd, 0L, SEEK_CUR);
+	ftruncate(fd, ofs);
 	return (error);
 }
 
