@@ -60,6 +60,14 @@
 	CHERI_CAP_PRINT(cap);						\
 } while (0)
 
+/* cheritest_ccall.c */
+void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
+	    register_t sandbox_pc, __capability void **codecapp,
+	    __capability void **datacapp);
+void	cheritest_creturn(void);
+void	cheritest_ccall_creturn(void);
+void	cheritest_ccall_nop_creturn(void);
+
 /* cheritest_fault.c */
 void	test_fault_overrun(void);
 void	test_fault_ccheck_user_fail(void);

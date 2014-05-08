@@ -111,60 +111,6 @@ usage(void)
 	exit(EX_USAGE);
 }
 
-/*
- * Configure $c1 and $c2 to enter a simple sandbox.  Not suitable for more
- * complex tests as it has no notion of configuring heaps/stacks/etc.  For
- * that, we use libcheri.
- */
-static void
-cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
-    register_t sandbox_pc, __capability void **codecapp,
-    __capability void **datacapp)
-{
-	__capability void *codecap, *datacap, *basecap;
-
-	basecap = cheri_ptrtype(sandbox_base, (uintptr_t)sandbox_end -
-	    (uintptr_t)sandbox_base, sandbox_pc);
-
-	codecap = cheri_andperm(basecap, CHERI_PERM_EXECUTE |
-	    CHERI_PERM_SEAL | CHERI_PERM_STORE_EPHEM_CAP);
-	codecap = cheri_sealcode(codecap);
-
-	datacap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
-	datacap = cheri_sealdata(datacap, basecap);
-
-	*codecapp = codecap;
-	*datacapp = datacap;
-}
-
-static void
-cheritest_creturn(void)
-{
-
-	CHERI_CRETURN();
-}
-
-static void
-cheritest_ccall_creturn(void)
-{
-	__capability void *codecap, *datacap;
-
-	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0,
-	    &codecap, &datacap);
-	cheritest_ccall(codecap, datacap);
-}
-
-static void
-cheritest_ccall_nop_creturn(void)
-{
-	__capability void *codecap, *datacap;
-
-	cheritest_sandbox_setup(&sandbox_nop_creturn,
-	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
-	cheritest_ccall(codecap, datacap);
-}
-
 static void
 cheritest_copyregs(void)
 {
