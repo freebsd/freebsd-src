@@ -7,7 +7,7 @@ SRCS=	cheritest.c							\
 	cheritest_libcheri.c						\
 	cheritest_sandbox.S
 
-NO_MAN=yes
+MK_MAN=	no
 USE_CHERI=	yes
 
 #DPADD=  ${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
