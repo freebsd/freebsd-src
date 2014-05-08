@@ -119,9 +119,9 @@ struct radix_node_head {
 		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_delpkt)	/* remove based on packet hdr */
 		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
+	struct	radix_node *(*rnh_matchaddr)	/* longest match for sockaddr */
 		(void *v, struct radix_node_head *head);
-	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
+	struct	radix_node *(*rnh_lookup)	/*exact match for sockaddr*/
 		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
 		(void *v, struct radix_node_head *head);
