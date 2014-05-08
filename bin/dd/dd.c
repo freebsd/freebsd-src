@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -126,7 +125,6 @@ static void
 setup(void)
 {
 	u_int cnt;
-	struct timespec tv;
 
 	if (in.name == NULL) {
 		in.name = "stdin";
@@ -245,9 +243,8 @@ setup(void)
 		ctab = casetab;
 	}
 
-	if (clock_gettime(CLOCK_MONOTONIC_PRECISE, &tv))
-		err(EX_OSERR, "clock_gettime");
-	st.start = tv.tv_sec + tv.tv_nsec * 1.0e-9;
+	if (clock_gettime(CLOCK_MONOTONIC, &st.start))
+		err(1, "clock_gettime");
 }
 
 static void
