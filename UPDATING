@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140508:
+	We bogusly installed src.opts.mk in /usr/share/mk. This file should
+	be removed to avoid issues in the future (and has been added to
+	ObsoleteFiles.inc).
+
 20140505:
 	/etc/src.conf now affects only builds of the FreeBSD src tree. In the
 	past, it affected all builds that used the bsd.*.mk files. The old
