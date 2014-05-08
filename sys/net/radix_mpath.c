@@ -151,6 +151,7 @@ rt_mpath_deldup(struct rtentry *headrt, struct rtentry *rt)
 
 /*
  * check if we have the same key/mask/gateway on the table already.
+ * Assume @rt rt_key host bits are cleared according to @netmask
  */
 int
 rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
@@ -158,76 +159,13 @@ rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
 {
 	struct radix_node *rn, *rn1;
 	struct rtentry *rt1;
-	char *p, *q, *eq;
-	int same, l, skip;
 
 	rn = (struct radix_node *)rt;
 	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, rnh);
 	if (!rn1 || rn1->rn_flags & RNF_ROOT)
-		return 0;
+		return (0);
 
-	/*
-	 * unlike other functions we have in this file, we have to check
-	 * all key/mask/gateway as rnh_lookup can match less specific entry.
-	 */
-	rt1 = (struct rtentry *)rn1;
-
-	/* compare key. */
-	if (rt_key(rt1)->sa_len != rt_key(rt)->sa_len ||
-	    bcmp(rt_key(rt1), rt_key(rt), rt_key(rt1)->sa_len))
-		goto different;
-
-	/* key was the same.  compare netmask.  hairy... */
-	if (rt_mask(rt1) && netmask) {
-		skip = rnh->rnh_treetop->rn_offset;
-		if (rt_mask(rt1)->sa_len > netmask->sa_len) {
-			/*
-			 * as rt_mask(rt1) is made optimal by radix.c,
-			 * there must be some 1-bits on rt_mask(rt1)
-			 * after netmask->sa_len.  therefore, in
-			 * this case, the entries are different.
-			 */
-			if (rt_mask(rt1)->sa_len > skip)
-				goto different;
-			else {
-				/* no bits to compare, i.e. same*/
-				goto maskmatched;
-			}
-		}
-
-		l = rt_mask(rt1)->sa_len;
-		if (skip > l) {
-			/* no bits to compare, i.e. same */
-			goto maskmatched;
-		}
-		p = (char *)rt_mask(rt1);
-		q = (char *)netmask;
-		if (bcmp(p + skip, q + skip, l - skip))
-			goto different;
-		/*
-		 * need to go through all the bit, as netmask is not
-		 * optimal and can contain trailing 0s
-		 */
-		eq = (char *)netmask + netmask->sa_len;
-		q += l;
-		same = 1;
-		while (eq > q)
-			if (*q++) {
-				same = 0;
-				break;
-			}
-		if (!same)
-			goto different;
-	} else if (!rt_mask(rt1) && !netmask)
-		; /* no mask to compare, i.e. same */
-	else {
-		/* one has mask and the other does not, different */
-		goto different;
-	}
-
-maskmatched:
-
-	/* key/mask were the same.  compare gateway for all multipaths */
+	/* key/mask are the same. compare gateway for all multipaths */
 	do {
 		rt1 = (struct rtentry *)rn1;
 
@@ -248,11 +186,10 @@ maskmatched:
 		}
 
 		/* all key/mask/gateway are the same.  conflicting entry. */
-		return EEXIST;
+		return (EEXIST);
 	} while ((rn1 = rn_mpath_next(rn1)) != NULL);
 
-different:
-	return 0;
+	return (0);
 }
 
 void
