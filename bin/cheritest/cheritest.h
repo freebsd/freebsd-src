@@ -69,6 +69,7 @@ void	cheritest_ccall_creturn(void);
 void	cheritest_ccall_nop_creturn(void);
 
 /* cheritest_fault.c */
+void	test_fault_cgetcause(void);
 void	test_fault_overrun(void);
 void	test_fault_ccheck_user_fail(void);
 void	test_nofault_ccheck_user_pass(void);
