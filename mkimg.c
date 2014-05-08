@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "format.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
@@ -60,7 +61,8 @@ u_int blksz = 0;
 static void
 usage(const char *why)
 {
-	struct mkimg_scheme *s, **iter;
+	struct mkimg_format *f, **f_iter;
+	struct mkimg_scheme *s, **s_iter;
 
 	warnx("error: %s", why);
 	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
@@ -75,13 +77,19 @@ usage(const char *why)
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
 
-	fprintf(stderr, "    schemes:\n");
-	SET_FOREACH(iter, schemes) {
-		s = *iter;
+	fprintf(stderr, "\n    formats:\n");
+	SET_FOREACH(f_iter, formats) {
+		f = *f_iter;
+		fprintf(stderr, "\t%s\t-  %s\n", f->name, f->description);
+	}
+
+	fprintf(stderr, "\n    schemes:\n");
+	SET_FOREACH(s_iter, schemes) {
+		s = *s_iter;
 		fprintf(stderr, "\t%s\t-  %s\n", s->name, s->description);
 	}
 
-	fprintf(stderr, "    partition specification:\n");
+	fprintf(stderr, "\n    partition specification:\n");
 	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
