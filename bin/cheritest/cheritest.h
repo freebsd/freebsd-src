@@ -78,4 +78,13 @@ void	test_fault_read_kcc(void);
 void	test_fault_read_kdc(void);
 void	test_fault_read_epcc(void);
 
+/* cheritest_libcheri.c */
+void	cheritest_invoke_fd_op(int op);
+void	cheritest_revoke_fd(void);
+void	cheritest_invoke_simple_op(int op);
+void	cheritest_invoke_syscall(void);
+void	cheritest_invoke_md5(void);
+int	cheritest_libcheri_setup(void);
+void	cheritest_libcheri_destroy(void);
+
 #endif /* !_CHERITEST_H_ */

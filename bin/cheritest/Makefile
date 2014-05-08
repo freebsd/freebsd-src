@@ -4,6 +4,7 @@ PROG=	cheritest
 SRCS=	cheritest.c							\
 	cheritest_ccall.c						\
 	cheritest_fault.c						\
+	cheritest_libcheri.c						\
 	cheritest_sandbox.S
 
 NO_MAN=yes
