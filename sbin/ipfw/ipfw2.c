@@ -4274,13 +4274,24 @@ table_fill_xentry(char *arg, ipfw_table_xentry *xent)
 			addrlen = sizeof(struct in6_addr);
 		} else {
 			/* Port or any other key */
-			key = strtol(arg, &p, 10);
 			/* Skip non-base 10 entries like 'fa1' */
-			if (p != arg) {
+			key = strtol(arg, &p, 10);
+			if (*p == '\0') {
 				pkey = (uint32_t *)paddr;
 				*pkey = htonl(key);
 				type = IPFW_TABLE_CIDR;
+				masklen = 32;
 				addrlen = sizeof(uint32_t);
+			} else if ((p != arg) && (*p == '.')) {
+				/*
+				 * Warn on IPv4 address strings
+				 * which are "valid" for inet_aton() but not
+				 * in inet_pton().
+				 *
+				 * Typical examples: '10.5' or '10.0.0.05'
+				 */
+				errx(EX_DATAERR,
+				    "Invalid IPv4 address: %s", arg);
 			}
 		}
 	}
