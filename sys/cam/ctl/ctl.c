@@ -324,6 +324,10 @@ SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, disable, CTLFLAG_RDTUN, &ctl_disable, 0,
 	   "Disable CTL");
 TUNABLE_INT("kern.cam.ctl.disable", &ctl_disable);
+static int verbose = 0;
+TUNABLE_INT("kern.cam.ctl.verbose", &verbose);
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
+    &verbose, 0, "Show SCSI errors returned to initiator");
 
 /*
  * Serial number (0x80), device id (0x83), and supported pages (0x00)
@@ -12264,7 +12268,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		ctl_io_error_print(io, NULL);
+		if (bootverbose || verbose > 0)
+			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
 		else
@@ -12520,7 +12525,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 					    "skipped", skipped_prints);
 #endif
 				}
-				ctl_io_error_print(io, NULL);
+				if (bootverbose || verbose > 0)
+					ctl_io_error_print(io, NULL);
 			}
 		} else {
 			if (have_lock == 0)
@@ -12531,7 +12537,8 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_TASK:
 		if (have_lock == 0)
 			mtx_unlock(&ctl_softc->ctl_lock);
-		ctl_io_error_print(io, NULL);
+		if (bootverbose || verbose > 0)
+			ctl_io_error_print(io, NULL);
 		break;
 	default:
 		if (have_lock == 0)
