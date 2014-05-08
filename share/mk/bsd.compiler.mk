@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if !target(__<bsd.compiler.mk>__)
+__<bsd.compiler.mk>__:
+
 .if ${MACHINE} == "common"
 COMPILER_TYPE= none
 .endif
@@ -34,3 +37,5 @@ COMPILER_VERSION:= ${_COMPILER_VERSION:M[1-9].[0-9]*}
 .else
 COMPILER_FEATURES=
 .endif
+
+.endif	# !target(__<bsd.compiler.mk>__)

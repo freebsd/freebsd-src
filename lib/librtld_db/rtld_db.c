@@ -81,20 +81,40 @@ rd_errstr(rd_err_e rderr)
 }
 
 rd_err_e
-rd_event_addr(rd_agent_t *rdap, rd_event_e event __unused, rd_notify_t *notify)
+rd_event_addr(rd_agent_t *rdap, rd_event_e event, rd_notify_t *notify)
 {
-	DPRINTF("%s rdap %p notify %p\n", __func__, rdap, notify);	
+	rd_err_e ret;
 
-	notify->type = RD_NOTIFY_BPT;
-	notify->u.bptaddr = rdap->rda_addr;
+	DPRINTF("%s rdap %p event %d notify %p\n", __func__, rdap, event,
+	    notify);
 
-	return (RD_OK);
+	ret = RD_OK;
+	switch (event) {
+	case RD_NONE:
+		break;
+	case RD_PREINIT:
+		notify->type = RD_NOTIFY_BPT;
+		notify->u.bptaddr = rdap->rda_preinit_addr;
+		break;
+	case RD_POSTINIT:
+		notify->type = RD_NOTIFY_BPT;
+		notify->u.bptaddr = rdap->rda_postinit_addr;
+		break;
+	case RD_DLACTIVITY:
+		notify->type = RD_NOTIFY_BPT;
+		notify->u.bptaddr = rdap->rda_dlactivity_addr;
+		break;
+	default:
+		ret = RD_ERR;
+		break;
+	}
+	return (ret);
 }
 
 rd_err_e
 rd_event_enable(rd_agent_t *rdap __unused, int onoff)
 {
-	DPRINTF("%s onoff %d\n", __func__, onoff);	
+	DPRINTF("%s onoff %d\n", __func__, onoff);
 
 	return (RD_OK);
 }
@@ -220,7 +240,15 @@ rd_reset(rd_agent_t *rdap)
 	    &sym) < 0)
 		return (RD_ERR);
 	DPRINTF("found r_debug_state at 0x%lx\n", (unsigned long)sym.st_value);
-	rdap->rda_addr = sym.st_value;
+	rdap->rda_preinit_addr = sym.st_value;
+	rdap->rda_dlactivity_addr = sym.st_value;
+
+	if (proc_name2sym(rdap->rda_php, "ld-elf.so.1", "_r_debug_postinit",
+	    &sym) < 0)
+		return (RD_ERR);
+	DPRINTF("found _r_debug_postinit at 0x%lx\n",
+	    (unsigned long)sym.st_value);
+	rdap->rda_postinit_addr = sym.st_value;
 
 	return (RD_OK);
 }

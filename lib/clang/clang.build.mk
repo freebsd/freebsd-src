@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 
 CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \

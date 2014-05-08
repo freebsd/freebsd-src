@@ -45,10 +45,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__amd64__) || defined(__i386__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/metadata.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <sys/linker.h>
 #endif /* __amd64__ || __i386__ */
 
 struct vga_softc {
@@ -73,6 +71,7 @@ struct vga_softc {
 #define	VT_VGA_HEIGHT	480
 #define	VT_VGA_MEMSIZE	(VT_VGA_WIDTH * VT_VGA_HEIGHT / 8)
 
+static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
@@ -83,6 +82,8 @@ static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
 static const struct vt_driver vt_vga_driver = {
+	.vd_name	= "vga",
+	.vd_probe	= vga_probe,
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
@@ -99,8 +100,7 @@ static const struct vt_driver vt_vga_driver = {
  * buffer is always big enough to support both.
  */
 static struct vga_softc vga_conssoftc;
-VT_CONSDEV_DECLARE(vt_vga_driver, MAX(80, PIXEL_WIDTH(VT_VGA_WIDTH)),
-    MAX(25, PIXEL_HEIGHT(VT_VGA_HEIGHT)), &vga_conssoftc);
+VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
 vga_setcolor(struct vt_device *vd, term_color_t color)
@@ -633,23 +633,22 @@ vga_initialize(struct vt_device *vd, int textmode)
 }
 
 static int
+vga_probe(struct vt_device *vd)
+{
+
+	return (CN_INTERNAL);
+}
+
+static int
 vga_init(struct vt_device *vd)
 {
-	struct vga_softc *sc = vd->vd_softc;
-	int textmode = 0;
+	struct vga_softc *sc;
+	int textmode;
 
-#if defined(__amd64__)
-	/* Disable if EFI framebuffer present. Should be handled by priority
-	 * logic in vt(9), but this will do for now. XXX */
-
-	caddr_t kmdp, efifb;
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efifb = preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_FB);
-	if (efifb != NULL)
-		return (CN_DEAD);
-#endif
+	if (vd->vd_softc == NULL)
+		vd->vd_softc = (void *)&vga_conssoftc;
+	sc = vd->vd_softc;
+	textmode = 0;
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;

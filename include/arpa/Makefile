@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 INCS=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 

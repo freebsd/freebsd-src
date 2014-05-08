@@ -144,6 +144,83 @@ static int vt_window_switch(struct vt_window *);
 static int vt_late_window_switch(struct vt_window *);
 static int vt_proc_alive(struct vt_window *);
 static void vt_resize(struct vt_device *);
+static void vt_update_static(void *);
+
+SET_DECLARE(vt_drv_set, struct vt_driver);
+
+#define _VTDEFH MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
+#define _VTDEFW MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
+
+static struct terminal	vt_consterm;
+static struct vt_window	vt_conswindow;
+static struct vt_device	vt_consdev = {
+	.vd_driver = NULL,
+	.vd_softc = NULL,
+	.vd_flags = VDF_INVALID,
+	.vd_windows = { [VT_CONSWINDOW] =  &vt_conswindow, },
+	.vd_curwindow = &vt_conswindow,
+	.vd_markedwin = NULL,
+	.vd_kbstate = 0,
+};
+static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
+static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
+static struct vt_window	vt_conswindow = {
+	.vw_number = VT_CONSWINDOW,
+	.vw_flags = VWF_CONSOLE,
+	.vw_buf = {
+		.vb_buffer = vt_constextbuf,
+		.vb_rows = vt_constextbufrows,
+		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,
+		.vb_curroffset = 0,
+		.vb_roffset = 0,
+		.vb_flags = VBF_STATIC,
+		.vb_mark_start = {.tp_row = 0, .tp_col = 0,},
+		.vb_mark_end = {.tp_row = 0, .tp_col = 0,},
+		.vb_scr_size = {
+			.tp_row = _VTDEFH,
+			.tp_col = _VTDEFW,
+		},
+	},
+	.vw_device = &vt_consdev,
+	.vw_terminal = &vt_consterm,
+	.vw_kbdmode = K_XLATE,
+};
+static struct terminal vt_consterm = {
+	.tm_class = &vt_termclass,
+	.tm_softc = &vt_conswindow,
+	.tm_flags = TF_CONS,
+};
+static struct consdev vt_consterm_consdev = {
+	.cn_ops = &termcn_cnops,
+	.cn_arg = &vt_consterm,
+	.cn_name = "ttyv0",
+};
+
+/* Add to set of consoles. */
+DATA_SET(cons_set, vt_consterm_consdev);
+
+/*
+ * Right after kmem is done to allow early drivers to use locking and allocate
+ * memory.
+ */
+SYSINIT(vt_update_static, SI_SUB_KMEM, SI_ORDER_ANY, vt_update_static,
+    &vt_consdev);
+/* Delay until all devices attached, to not waste time. */
+SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY, vt_upgrade,
+    &vt_consdev);
+
+/* Initialize locks/mem depended members. */
+static void
+vt_update_static(void *dummy)
+{
+
+	if (main_vd != NULL) {
+		printf("VT: running with driver \"%s\".\n",
+		    main_vd->vd_driver->vd_name);
+		mtx_init(&main_vd->vd_lock, "vtdev", NULL, MTX_DEF);
+		cv_init(&main_vd->vd_winswitch, "vtwswt");
+	}
+}
 
 static void
 vt_switch_timer(void *arg)
@@ -601,6 +678,22 @@ vtterm_bell(struct terminal *tm)
 }
 
 static void
+vtterm_beep(struct terminal *tm, u_int param)
+{
+	u_int freq, period;
+
+	if ((param == 0) || ((param & 0xffff) == 0)) {
+		vtterm_bell(tm);
+		return;
+	}
+
+	period = ((param >> 16) & 0xffff) * hz / 1000;
+	freq = 1193182 / (param & 0xffff);
+
+	sysbeep(freq, period);
+}
+
+static void
 vtterm_cursor(struct terminal *tm, const term_pos_t *p)
 {
 	struct vt_window *vw = tm->tm_softc;
@@ -775,7 +868,7 @@ vt_flush(struct vt_device *vd)
 	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
 	    VDF_MOUSECURSOR) {
 		m = &vt_default_mouse_pointer;
-		bpl = (m->w + 7) >> 3; /* Bytes per sorce line. */
+		bpl = (m->w + 7) >> 3; /* Bytes per source line. */
 		w = m->w;
 		h = m->h;
 
@@ -851,9 +944,11 @@ vtterm_splash(struct vt_device *vd)
 }
 #endif
 
+
 static void
 vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 {
+	struct vt_driver *vtd, **vtdlist, *vtdbest = NULL;
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
@@ -861,6 +956,24 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	if (vd->vd_flags & VDF_INITIALIZED)
 		/* Initialization already done. */
 		return;
+
+	SET_FOREACH(vtdlist, vt_drv_set) {
+		vtd = *vtdlist;
+		if (vtd->vd_probe == NULL)
+			continue;
+		if (vtd->vd_probe(vd) == CN_DEAD)
+			continue;
+		if ((vtdbest == NULL) ||
+		    (vtd->vd_priority > vtdbest->vd_priority))
+			vtdbest = vtd;
+	}
+	if (vtdbest == NULL) {
+		cp->cn_pri = CN_DEAD;
+		vd->vd_flags |= VDF_DEAD;
+		return;
+	}
+
+	vd->vd_driver = vtdbest;
 
 	cp->cn_pri = vd->vd_driver->vd_init(vd);
 	if (cp->cn_pri == CN_DEAD) {
@@ -1636,7 +1749,7 @@ skip_thunk:
 #endif
 		return (0);
 	case KDMKTONE:      	/* sound the bell */
-		/* TODO */
+		vtterm_beep(tm, *(u_int *)data);
 		return (0);
 	case KIOCSOUND:     	/* make tone (*data) hz */
 		/* TODO */
@@ -1705,6 +1818,7 @@ skip_thunk:
 			vw->vw_flags |= VWF_VTYLOCK;
 		else
 			vw->vw_flags &= ~VWF_VTYLOCK;
+		return (0);
 	case VT_OPENQRY:
 		VT_LOCK(vd);
 		for (i = 0; i < VT_MAXWINDOWS; i++) {
@@ -1871,12 +1985,6 @@ vt_upgrade(struct vt_device *vd)
 		return;
 	vd->vd_flags |= VDF_ASYNC;
 
-	mtx_init(&vd->vd_lock, "vtdev", NULL, MTX_DEF);
-	cv_init(&vd->vd_winswitch, "vtwswt");
-
-	/* Init 25 Hz timer. */
-	callout_init_mtx(&vd->vd_timer, &vd->vd_lock, 0);
-
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
 		if (vw == NULL) {
@@ -1894,6 +2002,7 @@ vt_upgrade(struct vt_device *vd)
 		terminal_maketty(vw->vw_terminal, "v%r", VT_UNIT(vw));
 
 	}
+	VT_LOCK(vd);
 	if (vd->vd_curwindow == NULL)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
@@ -1901,8 +2010,16 @@ vt_upgrade(struct vt_device *vd)
 	vt_allocate_keyboard(vd);
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
+	/* Init 25 Hz timer. */
+	callout_init_mtx(&vd->vd_timer, &vd->vd_lock, 0);
+
 	/* Start timer when everything ready. */
 	callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
+	VT_UNLOCK(vd);
+
+	/* Refill settings with new sizes. */
+	vt_resize(vd);
+
 }
 
 static void
@@ -1913,9 +2030,11 @@ vt_resize(struct vt_device *vd)
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
+		VT_LOCK(vd);
 		/* Assign default font to window, if not textmode. */
 		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
 			vw->vw_font = vtfont_ref(&vt_font_default);
+		VT_UNLOCK(vd);
 		/* Resize terminal windows */
 		vt_change_font(vw, vw->vw_font);
 	}
@@ -1929,21 +2048,26 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (main_vd == NULL) {
 		main_vd = malloc(sizeof *vd, M_VT, M_WAITOK|M_ZERO);
-		printf("%s: VT initialize with new VT driver.\n", __func__);
+		printf("VT: initialize with new VT driver \"%s\".\n",
+		    drv->vd_name);
+		mtx_init(&main_vd->vd_lock, "vtdev", NULL, MTX_DEF);
+		cv_init(&main_vd->vd_winswitch, "vtwswt");
+
 	} else {
 		/*
 		 * Check if have rights to replace current driver. For example:
 		 * it is bad idea to replace KMS driver with generic VGA one.
 		 */
 		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
-			printf("%s: Driver priority %d too low. Current %d\n ",
-			    __func__, drv->vd_priority,
-			    main_vd->vd_driver->vd_priority);
+			printf("VT: Driver priority %d too low. Current %d\n ",
+			    drv->vd_priority, main_vd->vd_driver->vd_priority);
 			return;
 		}
-		printf("%s: Replace existing VT driver.\n", __func__);
+		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
+		    main_vd->vd_driver->vd_name, drv->vd_name);
 	}
 	vd = main_vd;
+	VT_LOCK(vd);
 	if (drv->vd_maskbitbltchr == NULL)
 		drv->vd_maskbitbltchr = drv->vd_bitbltchr;
 
@@ -1966,11 +2090,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	vd->vd_driver = drv;
 	vd->vd_softc = softc;
 	vd->vd_driver->vd_init(vd);
+	VT_UNLOCK(vd);
 
 	vt_upgrade(vd);
-
-	/* Refill settings with new sizes. */
-	vt_resize(vd);
 
 #ifdef DEV_SPLASH
 	if (vd->vd_flags & VDF_SPLASH)

@@ -343,10 +343,13 @@ vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 }
 
 int
-vm_suspend(struct vmctx *ctx)
+vm_suspend(struct vmctx *ctx, enum vm_suspend_how how)
 {
+	struct vm_suspend vmsuspend;
 
-	return (ioctl(ctx->fd, VM_SUSPEND, 0));
+	bzero(&vmsuspend, sizeof(vmsuspend));
+	vmsuspend.how = how;
+	return (ioctl(ctx->fd, VM_SUSPEND, &vmsuspend));
 }
 
 static int

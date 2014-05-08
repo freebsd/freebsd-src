@@ -166,6 +166,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
+	struct vm_suspend *vmsuspend;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -241,7 +242,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_run(sc->vm, vmrun);
 		break;
 	case VM_SUSPEND:
-		error = vm_suspend(sc->vm);
+		vmsuspend = (struct vm_suspend *)data;
+		error = vm_suspend(sc->vm, vmsuspend->how);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;

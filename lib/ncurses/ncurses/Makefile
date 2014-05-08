@@ -7,7 +7,7 @@ SHLIBDIR?=	/lib
 MK_MAN=no
 .endif
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .include "${.CURDIR}/../config.mk"
 

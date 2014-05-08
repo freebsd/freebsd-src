@@ -1261,6 +1261,13 @@ pci_write_dsdt(void)
 }
 
 int
+pci_bus_configured(int bus)
+{
+	assert(bus >= 0 && bus < MAXBUSES);
+	return (pci_businfo[bus] != NULL);
+}
+
+int
 pci_msi_enabled(struct pci_devinst *pi)
 {
 	return (pi->pi_msi.enabled);

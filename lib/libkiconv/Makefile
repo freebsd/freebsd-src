@@ -2,7 +2,7 @@
 
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=		kiconv
 SRCS=		kiconv_sysctl.c xlat16_iconv.c xlat16_sysctl.c

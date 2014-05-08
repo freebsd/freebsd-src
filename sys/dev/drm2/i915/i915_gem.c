@@ -1431,6 +1431,7 @@ retry:
 	m = vm_phys_fictitious_to_vm_page(dev->agp->base + obj->gtt_offset +
 	    offset);
 	if (m == NULL) {
+		VM_OBJECT_WUNLOCK(vm_obj);
 		cause = 60;
 		ret = -EFAULT;
 		goto unlock;
@@ -1450,7 +1451,6 @@ retry:
 		DRM_UNLOCK(dev);
 		VM_OBJECT_WUNLOCK(vm_obj);
 		VM_WAIT;
-		VM_OBJECT_WLOCK(vm_obj);
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;

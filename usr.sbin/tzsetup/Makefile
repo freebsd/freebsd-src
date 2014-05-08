@@ -10,7 +10,7 @@ WARNS?=	3
 DPADD=	${LIBDIALOG} ${LIBM}
 LDADD=	-ldialog -lm
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}

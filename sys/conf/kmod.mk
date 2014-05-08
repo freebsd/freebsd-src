@@ -72,6 +72,7 @@ OBJCOPY?=	objcopy
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 

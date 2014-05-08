@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140505: Bogusly installing src.opts.mk
+OLD_FILES+=usr/share/mk/src.opts.mk
+# 20140505: Reject PR kern/187551
+OLD_DIRS+=usr/tests/sbin/ifconfig
+OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
+OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
+# 20140502: Removal of lindev(4)
+OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140314: AppleTalk
 OLD_DIRS+=usr/include/netatalk
 OLD_FILES+=usr/include/netatalk/aarp.h
@@ -49,7 +57,6 @@ OLD_FILES+=usr/include/netatalk/ddp_pcb.h
 OLD_FILES+=usr/include/netatalk/ddp_var.h
 OLD_FILES+=usr/include/netatalk/endian.h
 OLD_FILES+=usr/include/netatalk/phase2.h
-
 # 20140314: Remove IPX/SPX
 OLD_LIBS+=lib/libipx.so.5
 OLD_FILES+=usr/include/netipx/ipx.h

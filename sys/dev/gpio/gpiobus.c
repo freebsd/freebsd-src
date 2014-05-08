@@ -29,21 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
-#include <sys/sysctl.h>
-#include <sys/types.h>
 
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <sys/gpio.h>
 #include <dev/gpio/gpiobusvar.h>
-#include "gpio_if.h"
+
 #include "gpiobus_if.h"
 
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);

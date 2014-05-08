@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 static struct mkimg_alias apm_aliases[] = {
     {	ALIAS_FREEBSD, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD) },
+    {	ALIAS_FREEBSD_BOOT, ALIAS_PTR2TYPE(APM_ENT_TYPE_APPLE_BOOT) },
     {	ALIAS_FREEBSD_NANDFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_NANDFS) },
     {	ALIAS_FREEBSD_SWAP, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_SWAP) },
     {	ALIAS_FREEBSD_UFS, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD_UFS) },
@@ -62,13 +63,12 @@ apm_metadata(u_int where)
 }
 
 static int
-apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 {
 	u_char *buf;
 	struct apm_ddr *ddr;
 	struct apm_ent *ent;
 	struct part *part;
-	ssize_t nbytes;
 	int error;
 
 	buf = calloc(nparts + 2, secsz);
@@ -99,12 +99,7 @@ apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 			strcpy(ent->ent_name, part->label);
 	}
 
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		nbytes = (nparts + 2) * secsz;
-		if (write(fd, buf, nbytes) != nbytes)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, buf, nparts + 2);
 	free(buf);
 	return (error);
 }

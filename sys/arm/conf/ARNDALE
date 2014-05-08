@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"EXYNOS5250.common"
 ident		ARNDALE
 

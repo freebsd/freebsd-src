@@ -166,19 +166,6 @@ gpt_metadata(u_int where)
 }
 
 static int
-gpt_filewrite(int fd, lba_t blk, void *buf, ssize_t bufsz)
-{
-	int error;
-
-	error = mkimg_seek(fd, blk);
-	if (error == 0) {
-		if (write(fd, buf, bufsz) != bufsz)
-			error = errno;
-	}
-	return (error);
-}
-
-static int
 gpt_write_pmbr(int fd, lba_t blks, void *bootcode)
 {
 	u_char *pmbr;
@@ -203,7 +190,7 @@ gpt_write_pmbr(int fd, lba_t blks, void *bootcode)
 	le32enc(pmbr + DOSPARTOFF + 8, 1);
 	le32enc(pmbr + DOSPARTOFF + 12, secs);
 	le16enc(pmbr + DOSMAGICOFFSET, DOSMAGIC);
-	error = gpt_filewrite(fd, 0, pmbr, secsz);
+	error = mkimg_write(fd, 0, pmbr, 1);
 	free(pmbr);
 	return (error);
 }
@@ -250,7 +237,7 @@ gpt_write_hdr(int fd, struct gpt_hdr *hdr, uint64_t self, uint64_t alt,
 	hdr->hdr_crc_self = 0;
 	crc = crc32(hdr, offsetof(struct gpt_hdr, padding));
 	le64enc(&hdr->hdr_crc_self, crc);
-	return (gpt_filewrite(fd, self, hdr, secsz));
+	return (mkimg_write(fd, self, hdr, 1));
 }
 
 static int
@@ -273,10 +260,10 @@ gpt_write(int fd, lba_t imgsz, void *bootcode)
 	tbl = gpt_mktbl(tblsz);
 	if (tbl == NULL)
 		return (errno);
-	error = gpt_filewrite(fd, 2, tbl, tblsz * secsz);
+	error = mkimg_write(fd, 2, tbl, tblsz);
 	if (error)
 		goto out;
-	error = gpt_filewrite(fd, imgsz - (tblsz + 1), tbl, tblsz * secsz);
+	error = mkimg_write(fd, imgsz - (tblsz + 1), tbl, tblsz);
 	if (error)
 		goto out;
 

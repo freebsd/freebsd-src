@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 "Bjoern A. Zeeb" <bz@FreeBSD.org>
+ * Copyright 2011 Semihalf
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,50 +24,33 @@
  * SUCH DAMAGE.
  */
 
-/*
- * "lindev" is supposed to be a collection of linux-specific devices
- * that we also support, just not by default.
- * While currently there is only "/dev/full", we are planning to see
- * more in the future.
- * This file is only the container to load/unload all supported devices;
- * the implementation of each should go into its own file.
- */
+#include <machine/asm.h>
+#include <machine/armreg.h>
 
-#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+ASENTRY_NP(mptramp)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c7, 0
 
-#include <dev/lindev/lindev.h>
+	mrs	r3, cpsr
+	bic	r3, r3, #(PSR_MODE)
+	orr	r3, r3, #(PSR_SVC32_MODE)
+        msr	cpsr_fsxc, r3
 
-/* ARGSUSED */
-static int
-lindev_modevent(module_t mod, int type, void *data)
-{
-	int error;
+	mrc	p15, 0, r0, c0, c0, 5
+	and	r0, #0x0f		/* Get CPU ID */
 
-	switch(type) {
-	case MOD_LOAD:
-		error = lindev_modevent_full(mod, type, data);
-		break;
+	/* Read boot address for CPU */
+	mov	r1, #0x100
+	mul	r2, r0, r1
+	ldr	r1, Lpmureg
+	add	r0, r2, r1
+	ldr	r1, [r0], #0x00
 
-	case MOD_UNLOAD:
-		error = lindev_modevent_full(mod, type, data);
-		break;
+	mov pc, r1
 
-	case MOD_SHUTDOWN:
-		error = lindev_modevent_full(mod, type, data);
-		break;
+Lpmureg:
+        .word   0xd0022124
+END(mptramp)
 
-	default:
-		return (EOPNOTSUPP);
-	}
-
-	return (error);
-}
-
-DEV_MODULE(lindev, lindev_modevent, NULL);
-MODULE_VERSION(lindev, 1);

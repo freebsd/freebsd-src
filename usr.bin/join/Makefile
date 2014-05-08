@@ -1,7 +1,7 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	join
 
