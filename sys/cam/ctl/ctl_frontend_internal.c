@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <vm/uma.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
 #include <cam/ctl/ctl_io.h>
@@ -73,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_private.h>
-#include <cam/ctl/ctl_mem_pool.h>
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
@@ -118,7 +118,6 @@ struct cfi_metatask {
 	cfi_tasktype		tasktype;
 	cfi_mt_status		status;
 	union cfi_taskinfo	taskinfo;
-	struct ctl_mem_element	*element;
 	void			*cfi_context;
 	STAILQ_ENTRY(cfi_metatask) links;
 };
@@ -153,7 +152,6 @@ struct cfi_lun {
 	int blocksize_powerof2;
 	uint32_t cur_tag_num;
 	cfi_lun_state state;
-	struct ctl_mem_element *element;
 	struct cfi_softc *softc;
 	STAILQ_HEAD(, cfi_lun_io) io_list;
 	STAILQ_ENTRY(cfi_lun) links;
@@ -181,11 +179,12 @@ struct cfi_softc {
 	cfi_flags flags;
 	STAILQ_HEAD(, cfi_lun) lun_list;
 	STAILQ_HEAD(, cfi_metatask) metatask_list;
-	struct ctl_mem_pool lun_pool;
-	struct ctl_mem_pool metatask_pool;
 };
 
 MALLOC_DEFINE(M_CTL_CFI, "ctlcfi", "CTL CFI");
+
+static uma_zone_t cfi_lun_zone;
+static uma_zone_t cfi_metatask_zone;
 
 static struct cfi_softc fetd_internal_softc;
 extern int ctl_disable;
@@ -280,48 +279,15 @@ cfi_init(void)
 	if (ctl_frontend_register(fe, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
 	{
 		printf("%s: internal frontend registration failed\n", __func__);
-		retval = 1;
-		goto bailout;
+		return (0);
 	}
 
-	if (ctl_init_mem_pool(&softc->lun_pool,
-			      sizeof(struct cfi_lun),
-			      CTL_MEM_POOL_PERM_GROW, /*grow_inc*/ 3,
-			      /* initial_pool_size */ CTL_MAX_LUNS) != 0) {
-		printf("%s: can't initialize LUN memory pool\n", __func__);
-		retval = 1;
-		goto bailout_error;
-	}
-
-	if (ctl_init_mem_pool(&softc->metatask_pool,
-			      sizeof(struct cfi_metatask),
-			      CTL_MEM_POOL_PERM_GROW, /*grow_inc*/ 3,
-			      /*initial_pool_size*/ 10) != 0) {
-		printf("%s: can't initialize metatask memory pool\n", __func__);
-		retval = 2;
-		goto bailout_error;
-	}
-bailout:
+	cfi_lun_zone = uma_zcreate("cfi_lun", sizeof(struct cfi_lun),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	cfi_metatask_zone = uma_zcreate("cfi_metatask", sizeof(struct cfi_metatask),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	return (0);
-
-bailout_error:
-
-	switch (retval) {
-	case 3:
-		ctl_shrink_mem_pool(&softc->metatask_pool);
-		/* FALLTHROUGH */
-	case 2:
-		ctl_shrink_mem_pool(&softc->lun_pool);
-		/* FALLTHROUGH */
-	case 1:
-		ctl_frontend_deregister(fe);
-		break;
-	default:
-		break;
-	}
-
-	return (ENOMEM);
 }
 
 void
@@ -337,11 +303,8 @@ cfi_shutdown(void)
 	if (ctl_frontend_deregister(&softc->fe) != 0)
 		printf("%s: ctl_frontend_deregister() failed\n", __func__);
 
-	if (ctl_shrink_mem_pool(&softc->lun_pool) != 0)
-		printf("%s: error shrinking LUN pool\n", __func__);
-
-	if (ctl_shrink_mem_pool(&softc->metatask_pool) != 0)
-		printf("%s: error shrinking LUN pool\n", __func__);
+	uma_zdestroy(cfi_lun_zone);
+	uma_zdestroy(cfi_metatask_zone);
 }
 
 static int
@@ -403,7 +366,6 @@ cfi_targ_disable(void *arg, struct ctl_id targ_id)
 static int
 cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 {
-	struct ctl_mem_element *element;
 	struct cfi_softc *softc;
 	struct cfi_lun *lun;
 	int found;
@@ -428,16 +390,12 @@ cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 	if (found != 0)
 		return (0);
 
-	element = ctl_alloc_mem_element(&softc->lun_pool, /*can_wait*/ 0);
-
-	if (element == NULL) {
+	lun = uma_zalloc(cfi_lun_zone, M_NOWAIT | M_ZERO);
+	if (lun == NULL) {
 		printf("%s: unable to allocate LUN structure\n", __func__);
 		return (1);
 	}
 
-	lun = (struct cfi_lun *)element->bytes;
-
-	lun->element = element;
 	lun->target_id = target_id;
 	lun->lun_id = lun_id;
 	lun->cur_tag_num = 0;
@@ -490,7 +448,7 @@ cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 		return (1);
 	}
 
-	ctl_free_mem_element(lun->element);
+	uma_zfree(cfi_lun_zone, lun);
 
 	return (0);
 }
@@ -1687,106 +1645,20 @@ cfi_action(struct cfi_metatask *metatask)
 	}
 }
 
-#ifdef oldapi
-void
-cfi_shutdown_shelf(cfi_cb_t callback, void *callback_arg)
-{
-	struct ctl_mem_element *element;
-	struct cfi_softc *softc;
-	struct cfi_metatask *metatask;
-
-	softc = &fetd_internal_softc;
-
-	element = ctl_alloc_mem_element(&softc->metatask_pool, /*can_wait*/ 0);
-	if (element == NULL) {
-		callback(callback_arg,
-			 /*status*/ CFI_MT_ERROR,
-			 /*sluns_found*/ 0,
-			 /*sluns_complete*/ 0,
-			 /*sluns_failed*/ 0);
-		return;
-	}
-
-	metatask = (struct cfi_metatask *)element->bytes;
-
-	memset(metatask, 0, sizeof(*metatask));
-	metatask->tasktype = CFI_TASK_SHUTDOWN;
-	metatask->status = CFI_MT_NONE;
-	metatask->taskinfo.startstop.callback = callback;
-	metatask->taskinfo.startstop.callback_arg = callback_arg;
-	metatask->element = element;
-
-	cfi_action(softc, metatask);
-
-	/*
-	 * - send a report luns to lun 0, get LUN list.
-	 * - send an inquiry to each lun
-	 * - send a stop/offline to each direct access LUN
-	 *    - if we get a reservation conflict, reset the LUN and then
-	 *      retry sending the stop/offline
-	 * - return status back to the caller
-	 */
-}
-
-void
-cfi_start_shelf(cfi_cb_t callback, void *callback_arg)
-{
-	struct ctl_mem_element *element;
-	struct cfi_softc *softc;
-	struct cfi_metatask *metatask;
-
-	softc = &fetd_internal_softc;
-
-	element = ctl_alloc_mem_element(&softc->metatask_pool, /*can_wait*/ 0);
-	if (element == NULL) {
-		callback(callback_arg,
-			 /*status*/ CFI_MT_ERROR,
-			 /*sluns_found*/ 0,
-			 /*sluns_complete*/ 0,
-			 /*sluns_failed*/ 0);
-		return;
-	}
-
-	metatask = (struct cfi_metatask *)element->bytes;
-
-	memset(metatask, 0, sizeof(*metatask));
-	metatask->tasktype = CFI_TASK_STARTUP;
-	metatask->status = CFI_MT_NONE;
-	metatask->taskinfo.startstop.callback = callback;
-	metatask->taskinfo.startstop.callback_arg = callback_arg;
-	metatask->element = element;
-
-	cfi_action(softc, metatask);
-
-	/*
-	 * - send a report luns to lun 0, get LUN list.
-	 * - send an inquiry to each lun
-	 * - send a stop/offline to each direct access LUN
-	 *    - if we get a reservation conflict, reset the LUN and then
-	 *      retry sending the stop/offline
-	 * - return status back to the caller
-	 */
-}
-
-#endif
-
 struct cfi_metatask *
 cfi_alloc_metatask(int can_wait)
 {
-	struct ctl_mem_element *element;
 	struct cfi_metatask *metatask;
 	struct cfi_softc *softc;
 
 	softc = &fetd_internal_softc;
 
-	element = ctl_alloc_mem_element(&softc->metatask_pool, can_wait);
-	if (element == NULL)
+	metatask = uma_zalloc(cfi_metatask_zone,
+	    (can_wait ? M_WAITOK : M_NOWAIT) | M_ZERO);
+	if (metatask == NULL)
 		return (NULL);
 
-	metatask = (struct cfi_metatask *)element->bytes;
-	memset(metatask, 0, sizeof(*metatask));
 	metatask->status = CFI_MT_NONE;
-	metatask->element = element;
 
 	return (metatask);
 }
@@ -1794,7 +1666,8 @@ cfi_alloc_metatask(int can_wait)
 void
 cfi_free_metatask(struct cfi_metatask *metatask)
 {
-	ctl_free_mem_element(metatask->element);
+
+	uma_zfree(cfi_metatask_zone, metatask);
 }
 
 /*
