@@ -349,51 +349,8 @@ pagetable:
 	.word	_C_LABEL(cpufuncs)
 
 #if defined(SMP)
-Lsramaddr:
-	.word	0xffff0080
-
-#if 0
-#define	AP_DEBUG(tmp)			\
-	mrc	p15, 0, r1, c0, c0, 5;	\
-	ldr	r0, Lsramaddr;		\
-	add	r0, r1, lsl #2;		\
-	mov	r1, tmp;		\
-	str	r1, [r0], #0x0000;
-#else
-#define AP_DEBUG(tmp)
-#endif
-
-
-ASENTRY_NP(mptramp)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c7, 0
-
-	AP_DEBUG(#1)
-
-	mrs	r3, cpsr
-	bic	r3, r3, #(PSR_MODE)
-	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_fsxc, r3
-
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, #0x0f		/* Get CPU ID */
-
-	/* Read boot address for CPU */
-	mov	r1, #0x100
-	mul	r2, r0, r1
-	ldr	r1, Lpmureg
-	add	r0, r2, r1
-	ldr	r1, [r0], #0x00
-
-	mov pc, r1
-
-Lpmureg:
-        .word   0xd0022124
-END(mptramp)
 
 ASENTRY_NP(mpentry)
-
-	AP_DEBUG(#2)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
@@ -417,8 +374,6 @@ ASENTRY_NP(mpentry)
 	nop
 	nop
 
-	AP_DEBUG(#3)
-
 Ltag:
 	ldr	r0, Lstartup_pagetable_secondary
 	bic	r0, r0, #0xf0000000
@@ -434,8 +389,6 @@ Ltag:
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
-
-	AP_DEBUG(#4)
 
 	/* Set the Domain Access register.  Very important! */
 	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
