@@ -39,10 +39,66 @@ __FBSDID("$FreeBSD$");
 #include "image.h"
 #include "mkimg.h"
 
+struct vmdk_header {
+	uint32_t	magic;
+#define	VMDK_MAGIC		0x564d444b
+	uint32_t	version;
+#define	VMDK_VERSION		1
+	uint32_t	flags;
+#define	VMDK_FLAGS_NL_TEST	(1 << 0)
+#define	VMDK_FLAGS_RGT_USED	(1 << 1)
+#define	VMDK_FLAGS_COMPRESSED	(1 << 16)
+#define	VMDK_FLAGS_MARKERS	(1 << 17)
+	uint64_t	capacity;
+	uint64_t	grain_size;
+	uint64_t	desc_offset;
+	uint64_t	desc_size;
+	uint32_t	ngtes;
+#define	VMDK_NGTES		512
+	uint64_t	rgd_offset;
+	uint64_t	gd_offset;
+	uint64_t	overhead;
+	uint8_t		unclean;
+	uint8_t		nl_test[4];
+#define	VMDK_NL_TEST		0x0a200d0a
+	uint16_t	compress;
+#define	VMDK_COMPRESS_NONE	0
+#define	VMDK_COMPRESS_DEFLATE	1
+	char		padding[433];
+} __attribute__((__packed__));
+
 static int
 vmdk_write(int fd __unused)
 {
 
+	/*
+	 * Steps:
+	 * 1. create embedded descriptor. We need to know its size upfront.
+	 * 2. create and populate grain directory and tables. This means
+	 *    iterating over the written sectors of the image.
+	 * 3. (optional) create and populate redundant directory and
+	 *    tables while doing step 2.
+	 * 4. create and write header (512 bytes)
+	 * 5. write descriptor (# x 512 bytes)
+	 * 6. write grain directory and tables (# x 512 bytes)
+	 * 7. (optional) write redundant directory and tables (# x 512 bytes)
+	 * 8. align to grain size.
+	 * 9. create and write grains.
+	 *
+	 * Notes:
+	 * 1. The drain directory is being ignored by some implementations
+	 *    so the tables must be at their known/assumed offsets.
+	 * 2. Default grain size is 128 sectors (= 64KB).
+	 * 3. There are 512 entries in a table, each entry being 32-bits.
+	 *    Thus, a grain table is 2KB (= 4 sectors).
+	 * 4. Each grain table covers 512 * 128 sectors (= 64K sectors).
+	 *    With 512-bytes per sector, this yields 32MB of disk data.
+	 * 5. For smaller images, the grain size can be reduced to avoid
+	 *    rounding the output file to 32MB. The minimum grain size is
+	 *    8 sectors (= 4KB). The smallest VMDK file is 2MB without
+	 *    overhead (= metadata).
+	 * 6. The capacity is a multiple of the grain size.
+	 */
 	return (ENOSYS);
 }
 
