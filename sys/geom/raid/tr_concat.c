@@ -74,7 +74,8 @@ static struct g_raid_tr_class g_raid_tr_concat_class = {
 	g_raid_tr_concat_methods,
 	sizeof(struct g_raid_tr_concat_object),
 	.trc_enable = 1,
-	.trc_priority = 50
+	.trc_priority = 50,
+	.trc_accept_unmapped = 1
 };
 
 static int
@@ -227,7 +228,10 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 
 	offset = bp->bio_offset;
 	remain = bp->bio_length;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	no = 0;
 	while (no < vol->v_disks_count &&
 	    offset >= vol->v_subdisks[no].sd_size) {
@@ -244,8 +248,16 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		if (cbp == NULL)
 			goto failure;
 		cbp->bio_offset = offset;
-		cbp->bio_data = addr;
 		cbp->bio_length = length;
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+		    bp->bio_cmd != BIO_DELETE) {
+			cbp->bio_ma_offset += (uintptr_t)addr;
+			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+			cbp->bio_ma_offset %= PAGE_SIZE;
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+			    cbp->bio_length) / PAGE_SIZE;
+		} else
+			cbp->bio_data = addr;
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 		remain -= length;
@@ -257,20 +269,15 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		    ("Request ends after volume end (%ju, %ju)",
 			bp->bio_offset, bp->bio_length));
 	} while (remain > 0);
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
