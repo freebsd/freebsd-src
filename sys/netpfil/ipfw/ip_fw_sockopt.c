@@ -159,7 +159,7 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	int i, l, insert_before;
 	struct ip_fw **map;	/* the new array of pointers */
 
-	if (chain->rules == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE-1)
+	if (chain->map == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE - 1)
 		return (EINVAL);
 
 	l = RULESIZE(input_rule);
@@ -655,7 +655,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_IP_SRC_LOOKUP:
 		case O_IP_DST_LOOKUP:
-			if (cmd->arg1 >= IPFW_TABLES_MAX) {
+			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
 				    cmd->arg1);
 				return (EINVAL);
