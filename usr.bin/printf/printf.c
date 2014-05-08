@@ -110,7 +110,7 @@ int
 main(int argc, char *argv[])
 {
 	size_t len;
-	int chopped, end, rval;
+	int end, rval;
 	char *format, *fmt, *start;
 #ifndef SHELL
 	int ch;
@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 	 * up the format string.
 	 */
 	fmt = format = *argv;
-	chopped = escape(fmt, 1, &len);		/* backslash interpretation */
+	escape(fmt, 1, &len);		/* backslash interpretation */
 	rval = end = 0;
 	gargv = ++argv;
 
@@ -195,7 +195,7 @@ main(int argc, char *argv[])
 			return (1);
 		}
 		fwrite(start, 1, fmt - start, stdout);
-		if (chopped || !*gargv) {
+		if (!*gargv) {
 #ifdef SHELL
 			INTON;
 #endif
@@ -241,8 +241,8 @@ printf_doformat(char *fmt, int *rval)
 			maxargv = gargv;
 		fmt += l + 1;
 
-	/* save format argument */
-	fargv = gargv;
+		/* save format argument */
+		fargv = gargv;
 	} else {
 	fargv = NULL;
 	}
@@ -352,7 +352,7 @@ printf_doformat(char *fmt, int *rval)
 
 	/* save the current arg offset, and set to the format arg */
 	if (fargv != NULL) {
-	gargv = fargv;
+		gargv = fargv;
 	}
 
 	convch = *fmt;
@@ -371,12 +371,10 @@ printf_doformat(char *fmt, int *rval)
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
-		*(fmt - 1) = 's';
-		PF(start, p);
-		*(fmt - 1) = 'b';
+		fputs(p, stdout);
 		free(p);
 		if (getout)
-			return (fmt);
+			exit(*rval);
 		break;
 	}
 	case 'c': {
@@ -488,9 +486,13 @@ escape(char *fmt, int percent, size_t *len)
 			*store = '\b';
 			break;
 		case 'c':
-			*store = '\0';
-			*len = store - save;
-			return (1);
+			if (!percent) {
+				*store = '\0';
+				*len = store - save;
+				return (1);
+			}
+			*store = 'c';
+			break;
 		case 'f':		/* form-feed */
 			*store = '\f';
 			break;
