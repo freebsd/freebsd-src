@@ -151,7 +151,7 @@ struct walkarg {
 };
 
 static void	rts_input(struct mbuf *m);
-static struct mbuf *rt_msg1(int type, struct rt_addrinfo *rtinfo);
+static struct mbuf *rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo);
 static int	rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo,
 			struct walkarg *w, int *plen);
 static int	rt_xaddrs(caddr_t cp, caddr_t cplim,
@@ -989,10 +989,14 @@ rtsock_fix_netmask(struct sockaddr *dst, struct sockaddr *smask,
 }
 
 /*
- * Used by the routing socket.
+ * Writes information related to @rtinfo object to newly-allocated mbuf.
+ * Assumes MCLBYTES is enough to construct any message.
+ * Used for OS notifications of vaious events (if/ifa announces,etc)
+ *
+ * Returns allocated mbuf or NULL on failure.
  */
 static struct mbuf *
-rt_msg1(int type, struct rt_addrinfo *rtinfo)
+rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo)
 {
 	struct rt_msghdr *rtm;
 	struct mbuf *m;
@@ -1204,7 +1208,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 
 	if (V_route_cb.any_count == 0)
 		return;
-	m = rt_msg1(type, rtinfo);
+	m = rtsock_msg_mbuf(type, rtinfo);
 	if (m == NULL)
 		return;
 
@@ -1243,7 +1247,7 @@ rt_ifmsg(struct ifnet *ifp)
 	if (V_route_cb.any_count == 0)
 		return;
 	bzero((caddr_t)&info, sizeof(info));
-	m = rt_msg1(RTM_IFINFO, &info);
+	m = rtsock_msg_mbuf(RTM_IFINFO, &info);
 	if (m == NULL)
 		return;
 	ifm = mtod(m, struct if_msghdr *);
@@ -1282,7 +1286,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(
 	    info.rti_info[RTAX_IFP], ifa->ifa_netmask, &ss);
 	info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
-	if ((m = rt_msg1(ncmd, &info)) == NULL)
+	if ((m = rtsock_msg_mbuf(ncmd, &info)) == NULL)
 		return (ENOBUFS);
 	ifam = mtod(m, struct ifa_msghdr *);
 	ifam->ifam_index = ifp->if_index;
@@ -1328,7 +1332,7 @@ rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 	info.rti_info[RTAX_DST] = sa = rt_key(rt);
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(sa, rt_mask(rt), &ss);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-	if ((m = rt_msg1(cmd, &info)) == NULL)
+	if ((m = rtsock_msg_mbuf(cmd, &info)) == NULL)
 		return (ENOBUFS);
 	rtm = mtod(m, struct rt_msghdr *);
 	rtm->rtm_index = ifp->if_index;
@@ -1370,7 +1374,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	 * (similarly to how ARP entries, e.g., are presented).
 	 */
 	info.rti_info[RTAX_GATEWAY] = ifma->ifma_lladdr;
-	m = rt_msg1(cmd, &info);
+	m = rtsock_msg_mbuf(cmd, &info);
 	if (m == NULL)
 		return;
 	ifmam = mtod(m, struct ifma_msghdr *);
@@ -1391,7 +1395,7 @@ rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
 	if (V_route_cb.any_count == 0)
 		return NULL;
 	bzero((caddr_t)info, sizeof(*info));
-	m = rt_msg1(type, info);
+	m = rtsock_msg_mbuf(type, info);
 	if (m != NULL) {
 		ifan = mtod(m, struct if_announcemsghdr *);
 		ifan->ifan_index = ifp->if_index;
