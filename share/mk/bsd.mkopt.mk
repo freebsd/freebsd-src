@@ -42,7 +42,7 @@ MK_${var}:=	yes
 #
 .for var in ${__DEFAULT_NO_OPTIONS}
 .if !defined(MK_${var})
-.if definfed(WITH_${var} && !defined(WITHOUT_${var}) # WITHOUT aways wins
+.if defined(WITH_${var} && !defined(WITHOUT_${var}) # WITHOUT aways wins
 MK_${var}:=	yes
 .else
 MK_${var}:=	no
