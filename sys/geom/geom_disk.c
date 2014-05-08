@@ -249,13 +249,14 @@ g_disk_done(struct bio *bp)
 	bp2->bio_completed += bp->bio_completed;
 	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0)
 		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
-	g_destroy_bio(bp);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
+		mtx_unlock(&sc->done_mtx);
 		bp2->bio_resid = bp2->bio_bcount - bp2->bio_completed;
 		g_io_deliver(bp2, bp2->bio_error);
-	}
-	mtx_unlock(&sc->done_mtx);
+	} else
+		mtx_unlock(&sc->done_mtx);
+	g_destroy_bio(bp);
 }
 
 static int
