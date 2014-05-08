@@ -792,7 +792,7 @@ xpt_scanner_thread(void *dummy)
 	for (;;) {
 		if (TAILQ_EMPTY(&xsoftc.ccb_scanq))
 			msleep(&xsoftc.ccb_scanq, &xsoftc.xpt_topo_lock, PRIBIO,
-			       "ccb_scanq", 0);
+			       "-", 0);
 		if ((ccb = (union ccb *)TAILQ_FIRST(&xsoftc.ccb_scanq)) != NULL) {
 			TAILQ_REMOVE(&xsoftc.ccb_scanq, &ccb->ccb_h, sim_links.tqe);
 			xpt_unlock_buses();
