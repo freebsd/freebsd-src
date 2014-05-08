@@ -183,7 +183,8 @@ mprsas_startup_increment(struct mprsas_softc *sassc)
 			/* just starting, freeze the simq */
 			mpr_dprint(sassc->sc, MPR_INIT,
 			    "%s freezing simq\n", __func__);
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 			xpt_hold_boot();
 #endif
 			xpt_freeze_simq(sassc->sim, 1);
@@ -217,7 +218,8 @@ mprsas_startup_decrement(struct mprsas_softc *sassc)
 			    "%s releasing simq\n", __func__);
 			sassc->flags &= ~MPRSAS_IN_STARTUP;
 			xpt_release_simq(sassc->sim, 1);
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 			xpt_release_boot();
 #else
 			mprsas_rescan_target(sassc->sc, NULL);
@@ -974,7 +976,8 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED | PIM_NOSCAN;
 #else
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
