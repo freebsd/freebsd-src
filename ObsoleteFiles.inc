@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140505: Bogusly installing src.opts.mk
+OLD_FILES+=usr/share/mk/src.opts.mk
 # 20140505: Reject PR kern/187551
 OLD_DIRS+=usr/tests/sbin/ifconfig
 OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
