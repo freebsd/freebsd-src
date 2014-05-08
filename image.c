@@ -140,7 +140,7 @@ image_write(lba_t blk, void *buf, ssize_t len)
 	if (lseek(image_fd, blk, SEEK_SET) != blk)
 		return (errno);
 	len *= secsz;
-	if (write(image_fd, buf, len) != len)
+	if (sparse_write(image_fd, buf, len) != len)
 		return (errno);
 	return (0);
 }
