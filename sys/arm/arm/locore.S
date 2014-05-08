@@ -308,11 +308,6 @@ Lreal_start:
 Lend:
 	.word	_edata
 
-#ifdef SMP
-Lstartup_pagetable_secondary:
-	.word	temp_pagetable
-#endif
-
 .Lstart:
 	.word	_edata
 	.word	_ebss
@@ -320,10 +315,6 @@ Lstartup_pagetable_secondary:
 
 .Lvirt_done:
 	.word	virt_done
-#if defined(SMP)
-.Lmpvirt_done:
-	.word	mpvirt_done
-#endif
 
 .Lmainreturned:
 	.asciz	"main() returned"
@@ -349,6 +340,11 @@ pagetable:
 	.word	_C_LABEL(cpufuncs)
 
 #if defined(SMP)
+
+.Lmpvirt_done:
+	.word	mpvirt_done
+Lstartup_pagetable_secondary:
+	.word	temp_pagetable
 
 ASENTRY_NP(mpentry)
 
@@ -379,26 +375,20 @@ Ltag:
 	bic	r0, r0, #0xf0000000
 	orr	r0, r0, #PHYSADDR
 	ldr	r0, [r0]
-#if defined(SMP)
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
 
 	/* Set the Domain Access register.  Very important! */
 	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-#endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
@@ -426,7 +416,7 @@ mpvirt_done:
 	/* NOTREACHED */
 
 .Lmpreturned:
-	.asciz	"main() returned"
+	.asciz	"init_secondary() returned"
 	.align	0
 END(mpentry)
 #endif
