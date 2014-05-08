@@ -78,7 +78,13 @@ one 'device sc' or 'device vt'"
 #endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
+#ifdef VT_DEBUG
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define VT_CONSOLECTL_DEBUG
+#define VT_SYSMOUSE_DEBUG
+#else
+#define	DPRINTF(_l, ...)	do {} while (0)
+#endif
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
