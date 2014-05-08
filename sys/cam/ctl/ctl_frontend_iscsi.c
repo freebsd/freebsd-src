@@ -709,7 +709,7 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 	    ("bad opcode 0x%x", request->ip_bhs->bhs_opcode));
 
 	/*
-	 * We're only using fields common for Data Out and SCSI Command PDUs.
+	 * We're only using fields common for Data-Out and SCSI Command PDUs.
 	 */
 	bhsdo = (struct iscsi_bhs_data_out *)request->ip_bhs;
 
@@ -742,10 +742,13 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 	 * Make sure the offset, as sent by the initiator, matches the offset
 	 * we're supposed to be at in the scatter-gather list.
 	 */
-	if (buffer_offset != io->scsiio.ext_data_filled) {
+	if (buffer_offset !=
+	    io->scsiio.kern_rel_offset + io->scsiio.ext_data_filled) {
 		CFISCSI_SESSION_WARN(cs, "received bad buffer offset %zd, "
-		    "expected %zd", buffer_offset,
+		    "expected %zd; dropping connection", buffer_offset,
+		    (size_t)io->scsiio.kern_rel_offset +
 		    (size_t)io->scsiio.ext_data_filled);
+		ctl_set_data_phase_error(&io->scsiio);
 		cfiscsi_session_terminate(cs);
 		return (true);
 	}
@@ -804,40 +807,62 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 	}
 
 	if (len > off) {
+		/*
+		 * In case of unsolicited data, it's possible that the buffer
+		 * provided by CTL is smaller than negotiated FirstBurstLength.
+		 * Just ignore the superfluous data; will ask for them with R2T
+		 * on next call to cfiscsi_datamove().
+		 *
+		 * This obviously can only happen with SCSI Command PDU. 
+		 */
+		if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
+		    ISCSI_BHS_OPCODE_SCSI_COMMAND) {
+			CFISCSI_SESSION_DEBUG(cs, "received too much immediate "
+			    "data: got %zd bytes, expected %zd",
+			    icl_pdu_data_segment_length(request), off);
+			return (true);
+		}
+
 		CFISCSI_SESSION_WARN(cs, "received too much data: got %zd bytes, "
-		    "expected %zd", icl_pdu_data_segment_length(request), off);
+		    "expected %zd; dropping connection",
+		    icl_pdu_data_segment_length(request), off);
+		ctl_set_data_phase_error(&io->scsiio);
 		cfiscsi_session_terminate(cs);
 		return (true);
 	}
 
-	if (bhsdo->bhsdo_flags & BHSDO_FLAGS_F ||
-	    io->scsiio.ext_data_filled == io->scsiio.kern_total_len) {
-		if ((bhsdo->bhsdo_flags & BHSDO_FLAGS_F) == 0) {
-			CFISCSI_SESSION_WARN(cs, "got the final packet without "
-			    "the F flag; flags = 0x%x; dropping connection",
-			    bhsdo->bhsdo_flags);
+	if (io->scsiio.ext_data_filled == io->scsiio.kern_data_len &&
+	    (bhsdo->bhsdo_flags & BHSDO_FLAGS_F) == 0) {
+		CFISCSI_SESSION_WARN(cs, "got the final packet without "
+		    "the F flag; flags = 0x%x; dropping connection",
+		    bhsdo->bhsdo_flags);
+		ctl_set_data_phase_error(&io->scsiio);
+		cfiscsi_session_terminate(cs);
+		return (true);
+	}
+
+	if (io->scsiio.ext_data_filled != io->scsiio.kern_data_len &&
+	    (bhsdo->bhsdo_flags & BHSDO_FLAGS_F) != 0) {
+		if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
+		    ISCSI_BHS_OPCODE_SCSI_DATA_OUT) {
+			CFISCSI_SESSION_WARN(cs, "got the final packet, but the "
+			    "transmitted size was %zd bytes instead of %d; "
+			    "dropping connection",
+			    (size_t)io->scsiio.ext_data_filled,
+			    io->scsiio.kern_data_len);
+			ctl_set_data_phase_error(&io->scsiio);
 			cfiscsi_session_terminate(cs);
 			return (true);
+		} else {
+			/*
+			 * For SCSI Command PDU, this just means we need to
+			 * solicit more data by sending R2T.
+			 */
+			return (false);
 		}
+	}
 
-		if (io->scsiio.ext_data_filled != io->scsiio.kern_total_len) {
-			if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
-			    ISCSI_BHS_OPCODE_SCSI_DATA_OUT) {
-				CFISCSI_SESSION_WARN(cs, "got the final packet, but the "
-				    "transmitted size was %zd bytes instead of %d; "
-				    "dropping connection",
-				    (size_t)io->scsiio.ext_data_filled,
-				    io->scsiio.kern_total_len);
-				cfiscsi_session_terminate(cs);
-				return (true);
-			} else {
-				/*
-				 * For SCSI Command PDU, this just means we need to
-				 * solicit more data by sending R2T.
-				 */
-				return (false);
-			}
-		}
+	if (io->scsiio.ext_data_filled == io->scsiio.kern_data_len) {
 #if 0
 		CFISCSI_SESSION_DEBUG(cs, "no longer expecting Data-Out with target "
 		    "transfer tag 0x%x", cdw->cdw_target_transfer_tag);
@@ -2390,8 +2415,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 	/*
 	 * This is the offset within the current SCSI command; for the first
 	 * call to cfiscsi_datamove() it will be 0, and for subsequent ones
-	 * it will be the sum of lengths of previous ones.  It's being
-	 * incremented as we append data to the data segment.
+	 * it will be the sum of lengths of previous ones.
 	 */
 	buffer_offset = io->scsiio.kern_rel_offset;
 
@@ -2402,10 +2426,11 @@ cfiscsi_datamove_in(union ctl_io *io)
 	 */
 	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
 #if 0
-	if (expected_len != io->scsiio.kern_total_len)
-		CFISCSI_SESSION_DEBUG(cs, "expected transfer length = %zd, "
-		    "actual length = %zd", expected_len,
-		    io->scsiio.kern_total_len);
+	if (expected_len != io->scsiio.kern_total_len) {
+		CFISCSI_SESSION_DEBUG(cs, "expected transfer length %zd, "
+		    "actual length %zd", expected_len,
+		    (size_t)io->scsiio.kern_total_len);
+	}
 #endif
 
 	if (buffer_offset >= expected_len) {
@@ -2413,7 +2438,6 @@ cfiscsi_datamove_in(union ctl_io *io)
 		CFISCSI_SESSION_DEBUG(cs, "buffer_offset = %zd, "
 		    "already sent the expected len", buffer_offset);
 #endif
-		io->scsiio.ext_data_filled = io->scsiio.kern_total_len;
 		io->scsiio.be_move_done(io);
 		return;
 	}
@@ -2456,26 +2480,31 @@ cfiscsi_datamove_in(union ctl_io *io)
 		 * Truncate to maximum data segment length.
 		 */
 		KASSERT(response->ip_data_len < cs->cs_max_data_segment_length,
-		    ("max_data_segment_length %zd >= ip_data_len %zd",
+		    ("ip_data_len %zd >= max_data_segment_length %zd",
 		    response->ip_data_len, cs->cs_max_data_segment_length));
 		if (response->ip_data_len + len >
-		    cs->cs_max_data_segment_length)
+		    cs->cs_max_data_segment_length) {
 			len = cs->cs_max_data_segment_length -
 			    response->ip_data_len;
+			KASSERT(len <= sg_len, ("len %zd > sg_len %zd",
+			    len, sg_len));
+		}
 
 		/*
 		 * Truncate to expected data transfer length.
 		 */
 		KASSERT(buffer_offset + response->ip_data_len < expected_len,
-		    ("%zd >= %zd", buffer_offset + response->ip_data_len, expected_len));
+		    ("buffer_offset %zd + ip_data_len %zd >= expected_len %zd",
+		    buffer_offset, response->ip_data_len, expected_len));
 		if (buffer_offset + response->ip_data_len + len > expected_len) {
 			CFISCSI_SESSION_DEBUG(cs, "truncating from %zd "
 			    "to expected data transfer length %zd",
 			    buffer_offset + response->ip_data_len + len, expected_len);
 			len = expected_len - (buffer_offset + response->ip_data_len);
+			KASSERT(len <= sg_len, ("len %zd > sg_len %zd",
+			    len, sg_len));
 		}
 
-		KASSERT(len <= sg_len, ("len > sg_len"));
 		error = icl_pdu_append_data(response, sg_addr, len, M_NOWAIT);
 		if (error != 0) {
 			CFISCSI_SESSION_WARN(cs, "failed to "
@@ -2488,10 +2517,11 @@ cfiscsi_datamove_in(union ctl_io *io)
 		}
 		sg_addr += len;
 		sg_len -= len;
-		buffer_offset += len;
-		io->scsiio.ext_data_filled += len;
 
-		if (buffer_offset == expected_len) {
+		KASSERT(buffer_offset + request->ip_data_len <= expected_len,
+		    ("buffer_offset %zd + ip_data_len %zd > expected_len %zd",
+		    buffer_offset, request->ip_data_len, expected_len));
+		if (buffer_offset + request->ip_data_len == expected_len) {
 			/*
 			 * Already have the amount of data the initiator wanted.
 			 */
@@ -2521,6 +2551,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 			 * call to cfiscsi_datamove(), and we want
 			 * to set the F flag only on the last of them.
 			 */
+			buffer_offset += response->ip_data_len;
 			if (buffer_offset == io->scsiio.kern_total_len ||
 			    buffer_offset == expected_len)
 				bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
@@ -2530,6 +2561,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 		}
 	}
 	if (response != NULL) {
+		buffer_offset += response->ip_data_len;
 		if (buffer_offset == io->scsiio.kern_total_len ||
 		    buffer_offset == expected_len)
 			bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
@@ -2565,6 +2597,11 @@ cfiscsi_datamove_out(union ctl_io *io)
 	 */
 	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
+	/*
+	 * We hadn't received anything during this datamove yet.
+	 */
+	io->scsiio.ext_data_filled = 0;
+
 	target_transfer_tag =
 	    atomic_fetchadd_32(&cs->cs_target_transfer_tag, 1);
 
@@ -2586,19 +2623,14 @@ cfiscsi_datamove_out(union ctl_io *io)
 	cdw->cdw_target_transfer_tag = target_transfer_tag;
 	cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
 
-	if (cs->cs_immediate_data && icl_pdu_data_segment_length(request) > 0) {
+	if (cs->cs_immediate_data && io->scsiio.kern_rel_offset == 0 &&
+	    icl_pdu_data_segment_length(request) > 0) {
 		done = cfiscsi_handle_data_segment(request, cdw);
 		if (done) {
 			uma_zfree(cfiscsi_data_wait_zone, cdw);
 			io->scsiio.be_move_done(io);
 			return;
 		}
-
-#if 0
-		if (io->scsiio.ext_data_filled != 0)
-			CFISCSI_SESSION_DEBUG(cs, "got %zd bytes of immediate data, need %zd",
-			    io->scsiio.ext_data_filled, io->scsiio.kern_data_len);
-#endif
 	}
 
 	CFISCSI_SESSION_LOCK(cs);
