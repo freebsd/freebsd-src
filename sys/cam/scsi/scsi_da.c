@@ -956,6 +956,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Corsair Force 3*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+        {
+		/*
+		 * Corsair Neutron GTX SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Neutron GTX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
 	{
 		/*
 		 * Corsair Force GT SSDs

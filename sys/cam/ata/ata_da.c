@@ -293,6 +293,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Corsair Neutron GTX SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Neutron GTX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Corsair Force GT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
