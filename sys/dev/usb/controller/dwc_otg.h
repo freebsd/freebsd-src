@@ -57,23 +57,24 @@ struct dwc_otg_td {
 	uint32_t hcsplt;		/* HOST CFG */
 	uint16_t max_packet_size;	/* packet_size */
 	uint16_t npkt;
+	uint8_t max_packet_count;	/* packet_count */
 	uint8_t errcnt;
 	uint8_t tmr_res;
 	uint8_t tmr_val;
-	uint8_t curr_frame;
 	uint8_t	ep_no;
 	uint8_t channel;
+	uint8_t tt_index;		/* TT data */
+	uint8_t tt_start_slot;		/* TT data */
+	uint8_t tt_complete_slot;	/* TT data */
+	uint8_t tt_xactpos;		/* TT data */
 	uint8_t state;
 #define	DWC_CHAN_ST_START 0
 #define	DWC_CHAN_ST_WAIT_ANE 1
 #define	DWC_CHAN_ST_WAIT_S_ANE 2
 #define	DWC_CHAN_ST_WAIT_C_ANE 3
-#define	DWC_CHAN_ST_RX_PKT 4
-#define	DWC_CHAN_ST_RX_SPKT 5
-#define	DWC_CHAN_ST_RX_SPKT_SYNC 6
-#define	DWC_CHAN_ST_TX_PKT 4
-#define	DWC_CHAN_ST_TX_CPKT 5
-#define	DWC_CHAN_ST_TX_PKT_SYNC 6
+#define	DWC_CHAN_ST_WAIT_C_PKT 4
+#define	DWC_CHAN_ST_TX_PKT_ISOC 5
+#define	DWC_CHAN_ST_TX_WAIT_ISOC 6
 	uint8_t	error:1;
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
@@ -84,6 +85,7 @@ struct dwc_otg_td {
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
 	uint8_t did_nak:1;
+	uint8_t tt_scheduled:1;
 };
 
 struct dwc_otg_std_temp {
@@ -103,6 +105,7 @@ struct dwc_otg_std_temp {
 	uint8_t	setup_alt_next;
 	uint8_t did_stall;
 	uint8_t bulk_or_control;
+	uint8_t tt_index;
 };
 
 struct dwc_otg_config_desc {
@@ -143,9 +146,16 @@ struct dwc_otg_profile {
 
 struct dwc_otg_chan_state {
 	uint32_t hcint;
+	uint32_t tx_size;
 	uint8_t wait_sof;
 	uint8_t allocated;
 	uint8_t suspended;
+};
+
+struct dwc_otg_tt_info {
+	uint16_t bytes_used;
+	uint8_t slot_index;
+	uint8_t dummy;
 };
 
 struct dwc_otg_softc {
@@ -163,9 +173,11 @@ struct dwc_otg_softc {
 	bus_space_handle_t sc_io_hdl;
 
 	uint32_t sc_rx_bounce_buffer[1024 / 4];
-	uint32_t sc_tx_bounce_buffer[(512 * DWC_OTG_MAX_TXP) / 4];
+	uint32_t sc_tx_bounce_buffer[MAX(512 * DWC_OTG_MAX_TXP, 1024) / 4];
 
 	uint32_t sc_fifo_size;
+	uint32_t sc_tx_max_size;
+	uint32_t sc_tx_cur_size;
 	uint32_t sc_irq_mask;
 	uint32_t sc_last_rx_status;
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];
@@ -174,7 +186,9 @@ struct dwc_otg_softc {
 	uint32_t sc_tmr_val;
 	uint32_t sc_hprt_val;
 
+	struct dwc_otg_tt_info sc_tt_info[DWC_OTG_MAX_DEVICES];
 	uint16_t sc_active_rx_ep;
+	uint16_t sc_last_frame_num;
 
 	uint8_t sc_timer_active;
 	uint8_t	sc_dev_ep_max;

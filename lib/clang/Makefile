@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if !make(install)
 .if !defined(EARLY_BUILD)

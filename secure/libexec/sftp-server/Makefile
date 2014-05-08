@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=   sftp-server
 SRCS=   sftp-server.c sftp-common.c sftp-server-main.c

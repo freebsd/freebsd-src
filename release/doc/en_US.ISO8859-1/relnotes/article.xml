@@ -3,6 +3,10 @@
 	"../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
+<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN" "sponsor.ent">
+ %sponsor;
+<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
+ %vendor;
 ]>
 <article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <info><title>&os; &release.current; Release Notes</title>
@@ -104,28 +108,63 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="263754">The &man.sysctl.8;
-      <literal>hw.bus.devctl_disable</literal> has been
-      removed.</para>
-
-    <para revision="260903">Support for GPS ports has been added to
-      &man.uhso.4;.</para>
-
     <para revision="260888">The <filename>VT</filename> kernel
       configuration file has been added, which enables the new
       <literal>vt</literal> console driver.</para>
 
+    <para revision="260903">Support for GPS ports has been added to
+      &man.uhso.4;.</para>
+
+    <para revision="264601" contrib="sponsor"
+      sponsor="&darpa_afrl;">The <literal>if_nf10bmac(4)</literal>
+      device has been added, providing support for NetFPGA-10G
+      Embedded CPU Ethernet Core.</para>
+
+    <note>
+      <para>The <literal>if_nf10bmac(4)</literal> driver operates on
+	the FPGA, and is not suited for the PCI host interface.</para>
+    </note>
+
+    <para revision="265132">The &man.full.4; device has been added,
+      and the <literal>lindev(4)</literal> device has been removed.
+      Prior to this change, <literal>lindev(4)</literal> provided only
+      the <filename>/dev/full</filename> character device, returning
+      <literal>ENOSPC</literal> on write attempts.  As this device is
+      not specific to &linux;, a native &os; version has been
+      added.</para>
+
+    <para revision="265236" contrib="sponsor"
+      sponsor="&lsi;, &spectralogic;" sponsorurl="">The &man.mpr.4;
+      device has been added, providing support for LSI Fusion-MPT
+      3 12Gb SCSI/SATA controllers.</para>
+
+    <para revision="265555" contrib="sponsor"
+      sponsor="&lsi;">The &man.mrsas.4; driver has been added,
+      providing support for LSI MegaRAID SAS controllers.  The
+      &man.mfi.4; driver will attach to the controller, by default.
+      To enable &man.mrsas.4; add
+      <literal>hw.mfi.mrsas_enable=1</literal> to
+      <filename>/boot/loader.conf</filename>, which turns off
+      &man.mfi.4; device probing.</para>
+
+    <note>
+      <para>At this time, the &man.mfiutil.8; utility and
+	the &os; version of
+	<application>MegaCLI</application> and
+	<application>StorCli</application> do not work with
+	&man.mrsas.4;.</para>
+    </note>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
-      <para revision="260847">The &man.virtio_random.4; driver has
-	been added to harvest entropy from the host system.</para>
-
-      <para revision="260583">Unmapped IO support has been added to
-	&man.virtio_scsi.4;.</para>
-
-      <para revision="260582">Unmapped IO support has been added to
-	&man.virtio_blk.4;.</para>
+      <para revision="260410">Support for the <quote>Virtual Interrupt
+	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
+	supported by the CPU.  This feature can be disabled by running
+	<literal>sysctl hw.vmm.vmx.use_apic_vid=0</literal>.
+	Additionally, to persist this setting across reboots, add
+	<literal>hw.vmm.vmx.use_apic_vid=0</literal> to
+	<filename>/etc/sysctl.conf</filename>.</para>
 
       <para revision="260532">Support for <quote>Posted Interrupt
 	  Processing</quote> is enabled if supported by the CPU.  This
@@ -135,13 +174,14 @@
 	<literal>hw.vmm.vmx.use_apic_pir=0</literal> to
 	<filename>/etc/sysctl.conf</filename>.</para>
 
-      <para revision="260410">Support for the <quote>Virtual Interrupt
-	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
-	supported by the CPU.  This feature can be disabled by running
-	<literal>sysctl hw.vmm.vmx.use_apic_vid=0</literal>.
-	Additionally, to persist this setting across reboots, add
-	<literal>hw.vmm.vmx.use_apic_vid=0</literal> to
-	<filename>/etc/sysctl.conf</filename>.</para>
+      <para revision="260582">Unmapped IO support has been added to
+	&man.virtio_blk.4;.</para>
+
+      <para revision="260583">Unmapped IO support has been added to
+	&man.virtio_scsi.4;.</para>
+
+      <para revision="260847">The &man.virtio_random.4; driver has
+	been added to harvest entropy from the host system.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
@@ -169,22 +209,26 @@
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para revision="260552">Firmware for &intel;
-	  Centrino&trade; Wireless-N 105 devices has been added
-	  to the base system.</para>
+	<para revision="258830">Support for Broadcom chipsets
+	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
+	  been added to &man.bge.4;.</para>
 
 	<para revision="260448">Support for the &intel;
 	  Centrino&trade; Wireless-N 135 chipset has been
 	  added.</para>
 
-	<para revision="258830">Support for Broadcom chipsets
-	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
-	  been added to &man.bge.4;.</para>
+	<para revision="260552">Firmware for &intel;
+	  Centrino&trade; Wireless-N 105 devices has been added
+	  to the base system.</para>
 
 	<para revision="261975">The deprecated nve(4) driver has been
 	  removed.  Users of NVIDIA nForce MCP network adapters are
 	  advised to use the &man.nfe.4; driver instead, which has been
 	  the default driver for this hardware since &os; 7.0.</para>
+
+	<para revision="265348" contrib="sponsor"
+	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
+	  updated to support the Atheros AR1111 chipset.</para>
       </sect4>
     </sect3>
 
@@ -218,14 +262,15 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para revision="260926">Support for displaying VPD for PCI devices
-      via &man.pciconf.8; has been added.</para>
+    <para revision="258838" contrib="sponsor" sponsor="&ff;, &google;"
+      sponsorurl="">The &man.casperd.8; daemon has been added,
+      which provides access to functionality that is not available in
+      the <quote>capability mode</quote> sandbox.</para>
 
-    <para revision="260913">A new flag, <quote>onifconsole</quote> has
-      been added to <filename>/etc/ttys</filename>.  This allows the
-      system to provide a login prompt via serial console if the
-      device is an active kernel console, otherwise it is equivalent
-      to <literal>off</literal>.</para>
+    <para revision="260594">When unable to load a kernel module with
+      &man.kldload.8;, a message informing to view output of
+      &man.dmesg.8; is now printed, opposed to the previous output
+      <quote>Exec format error.</quote>.</para>
 
     <para revision="260910">Allow &man.pciconf.8; to identify PCI
       devices that are attached to a driver to be identified by their
@@ -234,14 +279,14 @@
       to restrict the output to only listing details about a single
       device.</para>
 
-    <para revision="260594">When unable to load a kernel module with
-      &man.kldload.8;, a message informing to view output of
-      &man.dmesg.8; is now printed, opposed to the previous output
-      <quote>Exec format error.</quote>.</para>
+    <para revision="260913">A new flag, <quote>onifconsole</quote> has
+      been added to <filename>/etc/ttys</filename>.  This allows the
+      system to provide a login prompt via serial console if the
+      device is an active kernel console, otherwise it is equivalent
+      to <literal>off</literal>.</para>
 
-    <para revision="258838">The &man.casperd.8; daemon has been added,
-      which provides access to functionality that is not available in
-      the <quote>capability mode</quote> sandbox.</para>
+    <para revision="260926">Support for displaying VPD for PCI devices
+      via &man.pciconf.8; has been added.</para>
 
     <para revision="261498">&man.ping.8; protects against malicious
       network packets using the Capsicum framework to drop
@@ -249,6 +294,17 @@
 
     <para revision="261504">&os;/&arch.i386; guests can be run under
       bhyve.</para>
+
+    <para revision="265229">The &man.ps.1; utility has been
+      updated to include the <literal>-J</literal> flag, used to
+      filter output by matching &man.jail.8; IDs and names.
+      Additionally, argument <literal>0</literal> can be used to
+      <literal>-J</literal> to only list processes running on the
+      host system.</para>
+
+    <para revision="265249">The &man.top.1; utility has been updated
+      to filter by &man.jail.8; ID or name, in followup to the
+      &man.ps.1; change in <literal>r265229</literal>.</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -260,14 +316,15 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para revision="260445">&man.byacc.1; has been updated to version
-      20140101.</para>
+    <para revision="258884" contrib="sponsor"
+      sponsor="&darpa_afrl;">&man.lldb.1; has been updated to upstream
+      snapshot version r196259.</para>
 
     <para revision="259626">Timezone data files have been updated to
       version 2013i.</para>
 
-    <para revision="258884">&man.lldb.1; has been updated to upstream
-      snapshot version r196259.</para>
+    <para revision="260445">&man.byacc.1; has been updated to version
+      20140101.</para>
 
     <para revision="261037"><application>OpenSSL</application> has
       been updated to version 1.0.1.f.</para>
@@ -275,17 +332,17 @@
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
-    <para role="merged"><application>sendmail</application> has been
-      updated from 8.14.7 to 8.14.8.</para>
-
-    <para revision="261320"><application>OpenSSH</application> has
-      been updated to 6.5p1.</para>
+    <para revision="261197" role="merged"><application>Sendmail</application>
+      has been updated from 8.14.7 to 8.14.8.</para>
 
     <para revision="261212"><application>bmake</application> has been
       updated to version 20140101.</para>
 
     <para revision="261283"><application>libc++</application> has been
       updated to version 3.4.</para>
+
+    <para revision="261320"><application>OpenSSH</application> has
+      been updated to 6.5p1.</para>
 
     <para revision="261344"><application>mdocml</application> has been
       updated to version 1.12.3.</para>

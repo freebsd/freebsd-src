@@ -1,7 +1,7 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	\
 	bsd.README \
@@ -41,6 +41,9 @@ FILES=	\
 	bsd.test.mk \
 	sys.mk \
 	version_gen.awk
+
+# Installed for the moment, but not may not be in the future.
+#FILES+=	src.opts.mk
 
 FILESDIR=	${BINDIR}/mk
 

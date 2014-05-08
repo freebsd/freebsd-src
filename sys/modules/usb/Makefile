@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 #
 # Check for common USB debug flags to pass when building the USB

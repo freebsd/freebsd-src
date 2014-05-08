@@ -111,11 +111,7 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 		checksum ^= le16dec(p);
 	le16enc(&d->d_checksum, checksum);
 
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		if (write(fd, buf, BBSIZE) != BBSIZE)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, buf, BBSIZE / secsz);
 	free(buf);
 	return (error);
 }

@@ -51,14 +51,11 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/rockchip/rk30xx_wdog.h>
 
-/* Start of address space used for bootstrap map */
-#define DEVMAP_BOOTSTRAP_MAP_START	0xF0000000
-
 vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START);
+	return (arm_devmap_lastaddr());
 }
 
 void
@@ -81,27 +78,14 @@ initarm_late_init(void)
 	    CPU_CONTROL_DC_ENABLE|CPU_CONTROL_IC_ENABLE);
 }
 
-#define FDT_DEVMAP_MAX		(1 + 2 + 1 + 1)
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Set up static device mappings.
  */
 int
 initarm_devmap_init(void)
 {
-	int i = 0;
 
-	fdt_devmap[i].pd_va = 0xF0000000;
-	fdt_devmap[i].pd_pa = 0x20000000;
-	fdt_devmap[i].pd_size = 0x100000;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
-	i++;
-
-	arm_devmap_register_table(&fdt_devmap[0]);
+	arm_devmap_add_entry(0x20000000, 0x00100000);
 	
 	return (0);
 }

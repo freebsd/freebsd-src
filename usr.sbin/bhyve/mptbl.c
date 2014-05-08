@@ -303,14 +303,29 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	proc_entry_ptr		mpep;
 	mpfps_t			mpfp;
 	int_entry_ptr		mpie;
-	int			ioints;
+	int			ioints, bus;
 	char 			*curraddr;
 	char 			*startaddr;
 
 	startaddr = paddr_guest2host(ctx, MPTABLE_BASE, MPTABLE_MAX_LENGTH);
 	if (startaddr == NULL) {
-		printf("mptable requires mapped mem\n");
+		fprintf(stderr, "mptable requires mapped mem\n");
 		return (ENOMEM);
+	}
+
+	/*
+	 * There is no way to advertise multiple PCI hierarchies via MPtable
+	 * so require that there is no PCI hierarchy with a non-zero bus
+	 * number.
+	 */
+	for (bus = 1; bus <= PCI_BUSMAX; bus++) {
+		if (pci_bus_configured(bus)) {
+			fprintf(stderr, "MPtable is incompatible with "
+			    "multiple PCI hierarchies.\r\n");
+			fprintf(stderr, "MPtable generation can be disabled "
+			    "by passing the -Y option to bhyve(8).\r\n");
+			return (EINVAL);
+		}
 	}
 
 	curraddr = startaddr;

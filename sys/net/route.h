@@ -261,6 +261,8 @@ struct rt_addrinfo {
 	int	rti_flags;
 	struct	ifaddr *rti_ifa;
 	struct	ifnet *rti_ifp;
+	u_long	rti_mflags;
+	struct	rt_metrics *rti_rmx;
 };
 
 /*
@@ -369,7 +371,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rtexpunge(struct rtentry *);
+int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 

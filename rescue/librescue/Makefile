@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 # Certain library entries have hard-coded references to
