@@ -91,11 +91,12 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_error.h>
 
 /*
- * The idea here is that we'll allocate enough S/G space to hold a 16MB
- * I/O.  If we get an I/O larger than that, we'll reject it.
+ * The idea here is that we'll allocate enough S/G space to hold a 1MB
+ * I/O.  If we get an I/O larger than that, we'll split it.
  */
-#define	CTLBLK_MAX_IO_SIZE	(16 * 1024 * 1024)
-#define	CTLBLK_MAX_SEGS		(CTLBLK_MAX_IO_SIZE / MAXPHYS) + 1
+#define	CTLBLK_MAX_IO_SIZE	(1024 * 1024)
+#define	CTLBLK_MAX_SEG		MAXPHYS
+#define	CTLBLK_MAX_SEGS		MAX(CTLBLK_MAX_IO_SIZE / CTLBLK_MAX_SEG, 1)
 
 #ifdef CTLBLK_DEBUG
 #define DPRINTF(fmt, args...) \
@@ -500,14 +501,6 @@ ctl_be_block_biodone(struct bio *bio)
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
-		io->scsiio.be_move_done = ctl_be_block_move_done;
-		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
-		io->scsiio.kern_data_len = beio->io_len;
-		io->scsiio.kern_total_len = beio->io_len;
-		io->scsiio.kern_rel_offset = 0;
-		io->scsiio.kern_data_resid = 0;
-		io->scsiio.kern_sg_entries = beio->num_segs;
-		io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -707,14 +700,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		ctl_complete_beio(beio);
 	} else {
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
-		io->scsiio.be_move_done = ctl_be_block_move_done;
-		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
-		io->scsiio.kern_data_len = beio->io_len;
-		io->scsiio.kern_total_len = beio->io_len;
-		io->scsiio.kern_rel_offset = 0;
-		io->scsiio.kern_data_resid = 0;
-		io->scsiio.kern_sg_entries = beio->num_segs;
-		io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -1014,7 +999,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
-		seglen = MIN(MAXPHYS, len_left);
+		seglen = MIN(CTLBLK_MAX_SEG, len_left);
 		seglen -= seglen % be_lun->blocksize;
 		beio->sg_segs[i].len = seglen;
 		beio->sg_segs[i].addr = uma_zalloc(be_lun->lun_zone, M_WAITOK);
@@ -1167,13 +1152,44 @@ SDT_PROBE_DEFINE1(cbb, kernel, read, alloc_done, "uint64_t");
 SDT_PROBE_DEFINE1(cbb, kernel, write, alloc_done, "uint64_t");
 
 static void
+ctl_be_block_next(struct ctl_be_block_io *beio)
+{
+	struct ctl_be_block_lun *be_lun;
+	union ctl_io *io;
+
+	io = beio->io;
+	be_lun = beio->lun;
+	ctl_free_beio(beio);
+	if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
+	  && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+		ctl_done(io);
+		return;
+	}
+
+	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
+	io->io_hdr.status &= ~CTL_STATUS_MASK;
+	io->io_hdr.status |= CTL_STATUS_NONE;
+
+	mtx_lock(&be_lun->lock);
+	/*
+	 * XXX KDM make sure that links is okay to use at this point.
+	 * Otherwise, we either need to add another field to ctl_io_hdr,
+	 * or deal with resource allocation here.
+	 */
+	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
+	mtx_unlock(&be_lun->lock);
+
+	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
+}
+
+static void
 ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 			   union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len lbalen;
-	uint64_t len_left, io_size_bytes;
+	uint64_t len_left, lbaoff;
 	int i;
 
 	softc = be_lun->softc;
@@ -1184,29 +1200,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		SDT_PROBE(cbb, kernel, read, start, 0, 0, 0, 0, 0);
 	} else {
 		SDT_PROBE(cbb, kernel, write, start, 0, 0, 0, 0, 0);
-	}
-
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
-
-	io_size_bytes = lbalen.len * be_lun->blocksize;
-
-	/*
-	 * XXX KDM this is temporary, until we implement chaining of beio
-	 * structures and multiple datamove calls to move all the data in
-	 * or out.
-	 */
-	if (io_size_bytes > CTLBLK_MAX_IO_SIZE) {
-		printf("%s: IO length %ju > max io size %u\n", __func__,
-		       io_size_bytes, CTLBLK_MAX_IO_SIZE);
-		ctl_set_invalid_field(&io->scsiio,
-				      /*sks_valid*/ 0,
-				      /*command*/ 1,
-				      /*field*/ 0,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
-		ctl_done(io);
-		return;
 	}
 
 	beio = ctl_alloc_beio(softc);
@@ -1255,20 +1248,25 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		beio->ds_trans_type = DEVSTAT_WRITE;
 	}
 
-	beio->io_len = lbalen.len * be_lun->blocksize;
-	beio->io_offset = lbalen.lba * be_lun->blocksize;
-
-	DPRINTF("%s at LBA %jx len %u\n",
+	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
+	       sizeof(lbalen));
+	DPRINTF("%s at LBA %jx len %u @%ju\n",
 	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
-	       (uintmax_t)lbalen.lba, lbalen.len);
+	       (uintmax_t)lbalen.lba, lbalen.len, lbaoff);
+	lbaoff = io->scsiio.kern_rel_offset / be_lun->blocksize;
+	beio->io_offset = (lbalen.lba + lbaoff) * be_lun->blocksize;
+	beio->io_len = MIN((lbalen.len - lbaoff) * be_lun->blocksize,
+	    CTLBLK_MAX_IO_SIZE);
+	beio->io_len -= beio->io_len % be_lun->blocksize;
 
-	for (i = 0, len_left = io_size_bytes; i < CTLBLK_MAX_SEGS &&
-	     len_left > 0; i++) {
+	for (i = 0, len_left = beio->io_len; len_left > 0; i++) {
+		KASSERT(i < CTLBLK_MAX_SEGS, ("Too many segs (%d >= %d)",
+		    i, CTLBLK_MAX_SEGS));
 
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
-		beio->sg_segs[i].len = min(MAXPHYS, len_left);
+		beio->sg_segs[i].len = min(CTLBLK_MAX_SEG, len_left);
 		beio->sg_segs[i].addr = uma_zalloc(be_lun->lun_zone, M_WAITOK);
 
 		DPRINTF("segment %d addr %p len %zd\n", i,
@@ -1277,6 +1275,15 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		beio->num_segs++;
 		len_left -= beio->sg_segs[i].len;
 	}
+	if (io->scsiio.kern_rel_offset + beio->io_len <
+	    io->scsiio.kern_total_len)
+		beio->beio_cont = ctl_be_block_next;
+	io->scsiio.be_move_done = ctl_be_block_move_done;
+	io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
+	io->scsiio.kern_data_len = beio->io_len;
+	io->scsiio.kern_data_resid = 0;
+	io->scsiio.kern_sg_entries = beio->num_segs;
+	io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
 
 	/*
 	 * For the read case, we need to read the data into our buffers and
@@ -1288,14 +1295,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		be_lun->dispatch(be_lun, beio);
 	} else {
 		SDT_PROBE(cbb, kernel, write, alloc_done, 0, 0, 0, 0, 0);
-		io->scsiio.be_move_done = ctl_be_block_move_done;
-		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
-		io->scsiio.kern_data_len = beio->io_len;
-		io->scsiio.kern_total_len = beio->io_len;
-		io->scsiio.kern_rel_offset = 0;
-		io->scsiio.kern_data_resid = 0;
-		io->scsiio.kern_sg_entries = beio->num_segs;
-		io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -1386,6 +1385,7 @@ ctl_be_block_worker(void *context, int pending)
 static int
 ctl_be_block_submit(union ctl_io *io)
 {
+	struct ctl_lba_len lbalen;
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_be_lun *ctl_be_lun;
 	int retval;
@@ -1403,6 +1403,11 @@ ctl_be_block_submit(union ctl_io *io)
 	 */
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI, ("Non-SCSI I/O (type "
 		"%#x) encountered", io->io_hdr.io_type));
+
+	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
+	       sizeof(lbalen));
+	io->scsiio.kern_total_len = lbalen.len * be_lun->blocksize;
+	io->scsiio.kern_rel_offset = 0;
 
 	mtx_lock(&be_lun->lock);
 	/*
@@ -1840,7 +1845,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
 
-	be_lun->lun_zone = uma_zcreate(be_lun->lunname, MAXPHYS, 
+	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
 	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
 
 	if (be_lun->lun_zone == NULL) {
