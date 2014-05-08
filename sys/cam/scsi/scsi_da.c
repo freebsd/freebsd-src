@@ -213,6 +213,7 @@ struct da_softc {
 	int	 trim_max_ranges;
 	int	 delete_running;
 	int	 delete_available;	/* Delete methods possibly available */
+	u_int	 maxio;
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
 	uint64_t		ws_max_blks;
@@ -2152,11 +2153,12 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_name = "da";
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
-		softc->disk->d_maxsize = DFLTPHYS;	/* traditional default */
+		softc->maxio = DFLTPHYS;	/* traditional default */
 	else if (cpi.maxio > MAXPHYS)
-		softc->disk->d_maxsize = MAXPHYS;	/* for safety */
+		softc->maxio = MAXPHYS;		/* for safety */
 	else
-		softc->disk->d_maxsize = cpi.maxio;
+		softc->maxio = cpi.maxio;
+	softc->disk->d_maxsize = softc->maxio;
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
@@ -3292,14 +3294,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				     (lbp->flags & SVPD_LBP_WS10));
 			dadeleteflag(softc, DA_DELETE_UNMAP,
 				     (lbp->flags & SVPD_LBP_UNMAP));
-
-			if (lbp->flags & SVPD_LBP_UNMAP) {
-				free(lbp, M_SCSIDA);
-				xpt_release_ccb(done_ccb);
-				softc->state = DA_STATE_PROBE_BLK_LIMITS;
-				xpt_schedule(periph, priority);
-				return;
-			}
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,
@@ -3325,7 +3319,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		free(lbp, M_SCSIDA);
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_BDC;
+		softc->state = DA_STATE_PROBE_BLK_LIMITS;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3336,12 +3330,20 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		block_limits = (struct scsi_vpd_block_limits *)csio->data_ptr;
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			uint32_t max_txfer_len = scsi_4btoul(
+				block_limits->max_txfer_len);
 			uint32_t max_unmap_lba_cnt = scsi_4btoul(
 				block_limits->max_unmap_lba_cnt);
 			uint32_t max_unmap_blk_cnt = scsi_4btoul(
 				block_limits->max_unmap_blk_cnt);
 			uint64_t ws_max_blks = scsi_8btou64(
 				block_limits->max_write_same_length);
+
+			if (max_txfer_len != 0) {
+				softc->disk->d_maxsize = MIN(softc->maxio,
+				    (off_t)max_txfer_len * softc->params.secsize);
+			}
+
 			/*
 			 * We should already support UNMAP but we check lba
 			 * and block count to be sure
