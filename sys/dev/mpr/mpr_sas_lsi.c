@@ -801,7 +801,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		    "and connector name (%4s)\n", targ->encl_level,
 		    targ->connector_name);
 	}
-#if __FreeBSD_version < 1000039
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
 	if ((sassc->flags & MPRSAS_IN_STARTUP) == 0)
 #endif
 		mprsas_rescan_target(sc, targ);
@@ -992,7 +993,8 @@ mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 		free(lun, M_MPR);
 	}
 	SLIST_INIT(&targ->luns);
-#if __FreeBSD_version < 1000039
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
 	if ((sassc->flags & MPRSAS_IN_STARTUP) == 0)
 #endif
 		mprsas_rescan_target(sc, targ);
