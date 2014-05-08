@@ -88,4 +88,8 @@ void	cheritest_invoke_md5(void);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
+/* cheritest_registers.c */
+void	cheritest_copyregs(void);
+void	cheritest_listregs(void);
+
 #endif /* !_CHERITEST_H_ */
