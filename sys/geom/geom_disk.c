@@ -233,6 +233,7 @@ g_disk_setstate(struct bio *bp, struct g_disk_softc *sc)
 static void
 g_disk_done(struct bio *bp)
 {
+	struct bintime now;
 	struct bio *bp2;
 	struct g_disk_softc *sc;
 
@@ -241,12 +242,13 @@ g_disk_done(struct bio *bp)
 	bp2 = bp->bio_parent;
 	sc = bp2->bio_to->private;
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
+	binuptime(&now);
 	mtx_lock(&sc->done_mtx);
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
 	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0)
-		devstat_end_transaction_bio(sc->dp->d_devstat, bp);
+		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
