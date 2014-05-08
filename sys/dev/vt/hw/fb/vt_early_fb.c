@@ -291,13 +291,6 @@ vt_efb_init(struct vt_device *vd)
 	/* Get pixel storage size. */
 	info->fb_bpp = info->fb_stride / info->fb_width * 8;
 
-	/*
-	 * Early FB driver work with static window buffer 80x25, so reduce
-	 * size to 640x480.
-	 */
-	info->fb_width = VT_FB_DEFAULT_WIDTH;
-	info->fb_height = VT_FB_DEFAULT_HEIGHT;
-
 #ifdef	FDT
 	vt_efb_initialize(info, node);
 #else
