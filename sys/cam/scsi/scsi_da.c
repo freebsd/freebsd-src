@@ -99,7 +99,8 @@ typedef enum {
 	DA_Q_NO_6_BYTE		= 0x02,
 	DA_Q_NO_PREVENT		= 0x04,
 	DA_Q_4K			= 0x08,
-	DA_Q_NO_RC16		= 0x10
+	DA_Q_NO_RC16		= 0x10,
+	DA_Q_NO_UNMAP		= 0x20
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -349,6 +350,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "COMPAQ", "RAID*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * The STEC 842 sometimes hang on UNMAP.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "S842E800M2", "*"},
+		/*quirks*/ DA_Q_NO_UNMAP
 	},
 	/* USB mass storage devices supported by umass(4) */
 	{
@@ -3210,7 +3218,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		/* Ensure re-probe doesn't see old delete. */
 		softc->delete_available = 0;
-		if (lbp) {
+		if (lbp && (softc->quirks & DA_Q_NO_UNMAP) == 0) {
 			/*
 			 * Based on older SBC-3 spec revisions
 			 * any of the UNMAP methods "may" be
@@ -3409,7 +3417,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			for (i = 0; i < sizeof(*ata_params) / 2; i++)
 				ptr[i] = le16toh(ptr[i]);
-			if (ata_params->support_dsm & ATA_SUPPORT_DSM_TRIM) {
+			if (ata_params->support_dsm & ATA_SUPPORT_DSM_TRIM &&
+			    (softc->quirks & DA_Q_NO_UNMAP) == 0) {
 				dadeleteflag(softc, DA_DELETE_ATA_TRIM, 1);
 				if (ata_params->max_dsm_blocks != 0)
 					softc->trim_max_ranges = min(
