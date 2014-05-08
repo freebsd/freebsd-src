@@ -993,20 +993,15 @@ g_raid_tr_flush_common(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -1639,11 +1634,13 @@ static void
 g_raid_launch_provider(struct g_raid_volume *vol)
 {
 	struct g_raid_disk *disk;
+	struct g_raid_subdisk *sd;
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
 	char   announce_buf[80], buf1[32];
 	off_t off;
+	int i;
 
 	sc = vol->v_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
@@ -1673,6 +1670,17 @@ g_raid_launch_provider(struct g_raid_volume *vol)
         }
 
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
+	if (vol->v_tr->tro_class->trc_accept_unmapped) {
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+		for (i = 0; i < vol->v_disks_count; i++) {
+			sd = &vol->v_subdisks[i];
+			if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+				continue;
+			if ((sd->sd_disk->d_consumer->provider->flags &
+			    G_PF_ACCEPT_UNMAPPED) == 0)
+				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+		}
+	}
 	pp->private = vol;
 	pp->mediasize = vol->v_mediasize;
 	pp->sectorsize = vol->v_sectorsize;
