@@ -1723,8 +1723,6 @@ int
 zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 {
 	zvol_state_t *zv;
-	struct dk_cinfo dki;
-	struct dk_minfo dkm;
 	struct dk_callback *dkc;
 	int error = 0;
 	rl_t *rl;
@@ -1742,6 +1740,9 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 	switch (cmd) {
 
 	case DKIOCINFO:
+	{
+		struct dk_cinfo dki;
+
 		bzero(&dki, sizeof (dki));
 		(void) strcpy(dki.dki_cname, "zvol");
 		(void) strcpy(dki.dki_dname, "zvol");
@@ -1752,8 +1753,12 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		if (ddi_copyout(&dki, (void *)arg, sizeof (dki), flag))
 			error = SET_ERROR(EFAULT);
 		return (error);
+	}
 
 	case DKIOCGMEDIAINFO:
+	{
+		struct dk_minfo dkm;
+
 		bzero(&dkm, sizeof (dkm));
 		dkm.dki_lbsize = 1U << zv->zv_min_bs;
 		dkm.dki_capacity = zv->zv_volsize >> zv->zv_min_bs;
@@ -1762,16 +1767,32 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		if (ddi_copyout(&dkm, (void *)arg, sizeof (dkm), flag))
 			error = SET_ERROR(EFAULT);
 		return (error);
+	}
+
+	case DKIOCGMEDIAINFOEXT:
+	{
+		struct dk_minfo_ext dkmext;
+
+		bzero(&dkmext, sizeof (dkmext));
+		dkmext.dki_lbsize = 1U << zv->zv_min_bs;
+		dkmext.dki_pbsize = zv->zv_volblocksize;
+		dkmext.dki_capacity = zv->zv_volsize >> zv->zv_min_bs;
+		dkmext.dki_media_type = DK_UNKNOWN;
+		mutex_exit(&spa_namespace_lock);
+		if (ddi_copyout(&dkmext, (void *)arg, sizeof (dkmext), flag))
+			error = SET_ERROR(EFAULT);
+		return (error);
+	}
 
 	case DKIOCGETEFI:
-		{
-			uint64_t vs = zv->zv_volsize;
-			uint8_t bs = zv->zv_min_bs;
+	{
+		uint64_t vs = zv->zv_volsize;
+		uint8_t bs = zv->zv_min_bs;
 
-			mutex_exit(&spa_namespace_lock);
-			error = zvol_getefi((void *)arg, flag, vs, bs);
-			return (error);
-		}
+		mutex_exit(&spa_namespace_lock);
+		error = zvol_getefi((void *)arg, flag, vs, bs);
+		return (error);
+	}
 
 	case DKIOCFLUSHWRITECACHE:
 		dkc = (struct dk_callback *)arg;
@@ -1784,31 +1805,31 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		return (error);
 
 	case DKIOCGETWCE:
-		{
-			int wce = (zv->zv_flags & ZVOL_WCE) ? 1 : 0;
-			if (ddi_copyout(&wce, (void *)arg, sizeof (int),
-			    flag))
-				error = SET_ERROR(EFAULT);
+	{
+		int wce = (zv->zv_flags & ZVOL_WCE) ? 1 : 0;
+		if (ddi_copyout(&wce, (void *)arg, sizeof (int),
+		    flag))
+			error = SET_ERROR(EFAULT);
+		break;
+	}
+	case DKIOCSETWCE:
+	{
+		int wce;
+		if (ddi_copyin((void *)arg, &wce, sizeof (int),
+		    flag)) {
+			error = SET_ERROR(EFAULT);
 			break;
 		}
-	case DKIOCSETWCE:
-		{
-			int wce;
-			if (ddi_copyin((void *)arg, &wce, sizeof (int),
-			    flag)) {
-				error = SET_ERROR(EFAULT);
-				break;
-			}
-			if (wce) {
-				zv->zv_flags |= ZVOL_WCE;
-				mutex_exit(&spa_namespace_lock);
-			} else {
-				zv->zv_flags &= ~ZVOL_WCE;
-				mutex_exit(&spa_namespace_lock);
-				zil_commit(zv->zv_zilog, ZVOL_OBJ);
-			}
-			return (0);
+		if (wce) {
+			zv->zv_flags |= ZVOL_WCE;
+			mutex_exit(&spa_namespace_lock);
+		} else {
+			zv->zv_flags &= ~ZVOL_WCE;
+			mutex_exit(&spa_namespace_lock);
+			zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		}
+		return (0);
+	}
 
 	case DKIOCGGEOM:
 	case DKIOCGVTOC:
