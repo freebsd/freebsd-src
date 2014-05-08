@@ -57,7 +57,6 @@
 #include <unistd.h>
 
 #include "cheritest.h"
-#include "cheritest_sandbox.h"
 
 void
 cheritest_copyregs(void)

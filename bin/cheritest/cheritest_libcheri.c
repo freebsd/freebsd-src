@@ -57,7 +57,6 @@
 #include <unistd.h>
 
 #include "cheritest.h"
-#include "cheritest_sandbox.h"
 
 static struct sandbox_class	*cheritest_classp;
 static struct sandbox_object	*cheritest_objectp;
