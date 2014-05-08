@@ -887,15 +887,23 @@ in_delayed_cksum(struct mbuf *m)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
+	/* find the mbuf in the chain where the checksum starts*/
+	while ((m != NULL) && (offset >= m->m_len)) {
+		offset -= m->m_len;
+		m = m->m_next;
+	}
+	if (m == NULL) {
+		/* This should not happen. */
+		printf("in_delayed_cksum(): checksum outside mbuf chain.\n");
+		return;
+	}
 	if (offset + sizeof(u_short) > m->m_len) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    m->m_len, offset, ip->ip_p);
 		/*
 		 * XXX
-		 * this shouldn't happen, but if it does, the
-		 * correct behavior may be to insert the checksum
-		 * in the appropriate next mbuf in the chain.
+		 * This should not happen, but if it does, it might make more
+		 * sense to fix the caller than to add code to split it here.
 		 */
+		printf("in_delayed_cksum(): checksum split between mbufs.\n");
 		return;
 	}
 	*(u_short *)(m->m_data + offset) = csum;
