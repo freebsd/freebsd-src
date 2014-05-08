@@ -1992,13 +1992,15 @@ xptplistperiphfunc(struct cam_periph *periph, void *arg)
 			cdm->matches[j].result.periph_result.target_id =
 				periph->path->target->target_id;
 		else
-			cdm->matches[j].result.periph_result.target_id = -1;
+			cdm->matches[j].result.periph_result.target_id =
+				CAM_TARGET_WILDCARD;
 
 		if (periph->path->device)
 			cdm->matches[j].result.periph_result.target_lun =
 				periph->path->device->lun_id;
 		else
-			cdm->matches[j].result.periph_result.target_lun = -1;
+			cdm->matches[j].result.periph_result.target_lun =
+				CAM_LUN_WILDCARD;
 
 		cdm->matches[j].result.periph_result.unit_number =
 			periph->unit_number;
