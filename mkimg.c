@@ -69,6 +69,7 @@ usage(const char *why)
 
 	fprintf(stderr, "    options:\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
+	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
@@ -326,7 +327,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt(argc, argv, "b:o:p:s:vH:P:S:T:")) != -1) {
+	while ((c = getopt(argc, argv, "b:f:o:p:s:vH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -334,6 +335,13 @@ main(int argc, char *argv[])
 			bcfd = open(optarg, O_RDONLY, 0);
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
+			break;
+		case 'f':	/* OUTPUT FORMAT */
+			if (format_selected() != NULL)
+				usage("multiple formats given");
+			error = format_select(optarg);
+			if (error)
+				errc(EX_DATAERR, error, "format");
 			break;
 		case 'o':	/* OUTPUT FILE */
 			if (outfd != 1)
@@ -409,6 +417,9 @@ main(int argc, char *argv[])
 		errx(EX_DATAERR, "%d partitions supported; %d given",
 		    scheme_max_parts(), nparts);
 
+	if (format_selected() == NULL)
+		format_select("raw");
+
 	if (bcfd != -1) {
 		error = scheme_bootcode(bcfd);
 		close(bcfd);
@@ -421,6 +432,12 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Physical block size: %u\n", blksz);
 		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
+		fputc('\n', stderr);
+		fprintf(stderr, "Partitioning scheme: %s\n",
+		    scheme_selected()->name);
+		fprintf(stderr, "Output file format:  %s\n",
+		    format_selected()->name);
+		fputc('\n', stderr);
 	}
 
 	error = image_init();
@@ -429,8 +446,10 @@ main(int argc, char *argv[])
 
 	mkimg();
 
-	if (verbose)
+	if (verbose) {
+		fputc('\n', stderr);
 		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
+	}
 
 	error = image_copyout(outfd);
 	if (error)
