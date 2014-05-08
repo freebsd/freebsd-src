@@ -14,6 +14,7 @@ SRCS=	deviceid.c \
 	fsshare.c \
 	mkdirp.c \
 	mnttab.c \
+	thread_pool.c \
 	zmount.c \
 	zone.c
 
