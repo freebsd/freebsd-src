@@ -277,6 +277,5 @@ size_t
 sandbox_class_getlength(struct sandbox_class *sbcp) 
 {
 
-	return sbcp->sbc_sandboxlen;
+	return (sbcp->sbc_sandboxlen);
 }
-
