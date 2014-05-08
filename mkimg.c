@@ -451,7 +451,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
 	}
 
-	error = image_copyout(outfd);
+	error = format_write(outfd);
 	if (error)
 		errc(EX_IOERR, error, "writing image");
 

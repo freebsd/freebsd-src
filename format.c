@@ -65,3 +65,13 @@ format_selected(void)
 
 	return (format);
 }
+
+int
+format_write(int fd)
+{
+
+	if (format == NULL)
+		return (ENOSYS);
+
+	return (format->write(fd));
+}

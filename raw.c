@@ -40,10 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 
 static int
-raw_write(int fd __unused)
+raw_write(int fd)
 {
 
-	return (ENOSYS);
+	return (image_copyout(fd));
 }
 
 static struct mkimg_format raw_format = {

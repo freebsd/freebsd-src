@@ -42,5 +42,6 @@ SET_DECLARE(formats, struct mkimg_format);
 
 int	format_select(const char *);
 struct mkimg_format *format_selected(void);
+int	format_write(int);
 
 #endif /* _MKIMG_FORMAT_H_ */
