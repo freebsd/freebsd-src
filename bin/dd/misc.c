@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -58,18 +57,19 @@ __FBSDID("$FreeBSD$");
 void
 summary(void)
 {
-	struct timespec tv, tv_res;
+	struct timespec end, ts_res;
 	double secs, res;
 
 	if (ddflags & C_NOINFO)
 		return;
 
-	if (clock_gettime(CLOCK_MONOTONIC_PRECISE, &tv))
-		err(EX_OSERR, "clock_gettime");
-	if (clock_getres(CLOCK_MONOTONIC_PRECISE, &tv_res))
-		err(EX_OSERR, "clock_getres");
-	secs = tv.tv_sec + tv.tv_nsec * 1.0e-9 - st.start;
-	res = tv_res.tv_sec + tv_res.tv_nsec * 1.0e-9;
+	if (clock_gettime(CLOCK_MONOTONIC, &end))
+		err(1, "clock_gettime");
+	if (clock_getres(CLOCK_MONOTONIC, &ts_res))
+		err(1, "clock_getres");
+	secs = (end.tv_sec - st.start.tv_sec) + \
+	       (end.tv_nsec - st.start.tv_nsec) * 1e-9;
+	res = ts_res.tv_sec + ts_res.tv_nsec * 1e-9;
 	if (secs < res)
 		secs = res;
 	(void)fprintf(stderr,
@@ -83,7 +83,7 @@ summary(void)
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
 	if (!(ddflags & C_NOXFER)) {
 		(void)fprintf(stderr,
-		    "%ju bytes transferred in %.9f secs (%.0f bytes/sec)\n",
+		    "%ju bytes transferred in %.6f secs (%.0f bytes/sec)\n",
 		    st.bytes, secs, st.bytes / secs);
 	}
 	need_summary = 0;
