@@ -448,8 +448,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 
 	history_size = MAX(history_size, p->tp_row);
 
-	if (history_size > vb->vb_history_size || p->tp_col >
-	    vb->vb_scr_size.tp_col) {
+	/* If new screen/history size bigger or buffer is VBF_STATIC. */
+	if ((history_size > vb->vb_history_size) || (p->tp_col >
+	    vb->vb_scr_size.tp_col) || (vb->vb_flags & VBF_STATIC)) {
 		/* Allocate new buffer. */
 		bufsize = history_size * p->tp_col * sizeof(term_char_t);
 		new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
