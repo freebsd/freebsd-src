@@ -892,20 +892,8 @@ in_delayed_cksum(struct mbuf *m)
 		offset -= m->m_len;
 		m = m->m_next;
 	}
-	if (m == NULL) {
-		/* This should not happen. */
-		printf("in_delayed_cksum(): checksum outside mbuf chain.\n");
-		return;
-	}
-	if (offset + sizeof(u_short) > m->m_len) {
-		/*
-		 * XXX
-		 * This should not happen, but if it does, it might make more
-		 * sense to fix the caller than to add code to split it here.
-		 */
-		printf("in_delayed_cksum(): checksum split between mbufs.\n");
-		return;
-	}
+	KASSERT(m != NULL, ("in_delayed_cksum: checksum outside mbuf chain."));
+	KASSERT(offset + sizeof(u_short) <= m->m_len, ("in_delayed_cksum: checksum split between mbufs."));
 	*(u_short *)(m->m_data + offset) = csum;
 }
 
