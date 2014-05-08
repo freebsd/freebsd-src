@@ -134,6 +134,18 @@ struct ctl_lba_len {
 	uint32_t len;
 };
 
+struct ctl_lba_len_flags {
+	uint64_t lba;
+	uint32_t len;
+	uint32_t flags;
+};
+
+struct ctl_ptr_len_flags {
+	uint8_t *ptr;
+	uint32_t len;
+	uint32_t flags;
+};
+
 union ctl_priv {
 	uint8_t		bytes[sizeof(uint64_t) * 2];
 	uint64_t	integer;
