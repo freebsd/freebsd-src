@@ -462,9 +462,10 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 
 	/* offset -= offset % stripesize; */
 	offset -= offset & (stripesize - 1);
-	addr += length;
+	if (bp->bio_cmd != BIO_DELETE)
+		addr += length;
 	length = bp->bio_length - length;
-	for (no++; length > 0; no++, length -= stripesize, addr += stripesize) {
+	for (no++; length > 0; no++, length -= stripesize) {
 		if (no > sc->sc_ndisks - 1) {
 			no = 0;
 			offset += stripesize;
@@ -489,6 +490,9 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		cbp->bio_length = MIN(stripesize, length);
 
 		cbp->bio_caller2 = sc->sc_disks[no];
+
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += stripesize;
 	}
 	/*
 	 * Fire off all allocated requests!
@@ -613,9 +617,12 @@ g_stripe_start(struct bio *bp)
 	 * 3. Request size is bigger than stripesize * ndisks. If it isn't,
 	 *    there will be no need to send more than one I/O request to
 	 *    a provider, so there is nothing to optmize.
+	 * and
+	 * 5. It is not a BIO_DELETE.
 	 */
 	if (g_stripe_fast && bp->bio_length <= MAXPHYS &&
-	    bp->bio_length >= stripesize * sc->sc_ndisks) {
+	    bp->bio_length >= stripesize * sc->sc_ndisks &&
+	    bp->bio_cmd != BIO_DELETE) {
 		fast = 1;
 	}
 	error = 0;
