@@ -9,7 +9,7 @@ SRCS=	cheritest-helper.c			\
 INCS=	cheritest-helper.h
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
-MK_MAN=	no
+MAN=
 #STRIP=
 DPADD=	${LIBMD} ${LIBC_CHERI}
 LDADD=	-lmd -lc_cheri
