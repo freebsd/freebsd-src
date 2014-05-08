@@ -1727,8 +1727,6 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 	    (sp[RTAX_IFP]->sa_family != AF_LINK ||
 	     ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_nlen == 0))
 			sp[RTAX_IFP] = NULL;
-	if (sp[RTAX_DST] && sp[RTAX_NETMASK])
-		sp[RTAX_NETMASK]->sa_family = sp[RTAX_DST]->sa_family; /* XXX */
 	if (sp[RTAX_DST])
 		(void)printf("destination: %s\n", routename(sp[RTAX_DST]));
 	if (sp[RTAX_NETMASK])
