@@ -162,6 +162,8 @@ static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
+static struct sockaddr	*rtsock_fix_netmask(struct sockaddr *dst,
+			struct sockaddr *smask, struct sockaddr_storage *dmask);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -520,8 +522,8 @@ route_output(struct mbuf *m, struct socket *so)
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
-#ifdef INET6
 	struct sockaddr_storage ss;
+#ifdef INET6
 	struct sockaddr_in6 *sin6;
 	int i, rti_need_deembed = 0;
 #endif
@@ -784,7 +786,8 @@ report:
 		}
 		info.rti_info[RTAX_DST] = rt_key(rt);
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+		info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
+		    rt_mask(rt), &ss);
 		info.rti_info[RTAX_GENMASK] = 0;
 		if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 			ifp = rt->rt_ifp;
@@ -964,6 +967,25 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 		cp += SA_SIZE(sa);
 	}
 	return (0);
+}
+
+/*
+ * Fill in @dmask with valid netmask leaving original @smask
+ * intact. Mostly used with radix netmasks.
+ */
+static struct sockaddr *
+rtsock_fix_netmask(struct sockaddr *dst, struct sockaddr *smask,
+    struct sockaddr_storage *dmask)
+{
+	if (dst == NULL || smask == NULL)
+		return (NULL);
+
+	memset(dmask, 0, dst->sa_len);
+	memcpy(dmask, smask, smask->sa_len);
+	dmask->ss_len = dst->sa_len;
+	dmask->ss_family = dst->sa_family;
+
+	return ((struct sockaddr *)dmask);
 }
 
 /*
@@ -1247,6 +1269,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	struct mbuf *m;
 	struct ifa_msghdr *ifam;
 	struct ifnet *ifp = ifa->ifa_ifp;
+	struct sockaddr_storage ss;
 
 	if (V_route_cb.any_count == 0)
 		return (0);
@@ -1256,7 +1279,8 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
 	info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
-	info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
+	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(
+	    info.rti_info[RTAX_IFP], ifa->ifa_netmask, &ss);
 	info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 	if ((m = rt_msg1(ncmd, &info)) == NULL)
 		return (ENOBUFS);
@@ -1295,13 +1319,14 @@ rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 	struct sockaddr *sa;
 	struct mbuf *m;
 	struct rt_msghdr *rtm;
+	struct sockaddr_storage ss;
 
 	if (V_route_cb.any_count == 0)
 		return (0);
 
 	bzero((caddr_t)&info, sizeof(info));
-	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 	info.rti_info[RTAX_DST] = sa = rt_key(rt);
+	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(sa, rt_mask(rt), &ss);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 	if ((m = rt_msg1(cmd, &info)) == NULL)
 		return (ENOBUFS);
@@ -1473,6 +1498,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int error = 0, size;
 	struct rt_addrinfo info;
+	struct sockaddr_storage ss;
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
@@ -1483,7 +1509,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
+	    rt_mask(rt), &ss);
 	info.rti_info[RTAX_GENMASK] = 0;
 	if (rt->rt_ifp) {
 		info.rti_info[RTAX_IFP] = rt->rt_ifp->if_addr->ifa_addr;
@@ -1659,6 +1686,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	struct ifaddr *ifa;
 	struct rt_addrinfo info;
 	int len, error = 0;
+	struct sockaddr_storage ss;
 
 	bzero((caddr_t)&info, sizeof(info));
 	IFNET_RLOCK_NOSLEEP();
@@ -1687,7 +1715,8 @@ sysctl_iflist(int af, struct walkarg *w)
 			    ifa->ifa_addr) != 0)
 				continue;
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
-			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
+			info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(
+			    ifa->ifa_addr, ifa->ifa_netmask, &ss);
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 			error = rtsock_msg_buffer(RTM_NEWADDR, &info, w, &len);
 			if (error != 0)
@@ -1704,8 +1733,9 @@ sysctl_iflist(int af, struct walkarg *w)
 			}
 		}
 		IF_ADDR_RUNLOCK(ifp);
-		info.rti_info[RTAX_IFA] = info.rti_info[RTAX_NETMASK] =
-			info.rti_info[RTAX_BRD] = NULL;
+		info.rti_info[RTAX_IFA] = NULL;
+		info.rti_info[RTAX_NETMASK] = NULL;
+		info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
 	if (ifp != NULL)
