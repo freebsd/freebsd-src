@@ -41,7 +41,7 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
  * avoid having to load lots of space_maps in a given txg. There are,
  * however, some cases where we want to avoid "fast" ganging and instead
  * we want to do an exhaustive search of all metaslabs on this device.
- * Currently we don't allow any gang, zil, or dump device related allocations
+ * Currently we don't allow any gang, slog, or dump device related allocations
  * to "fast" gang.
  */
 #define	CAN_FASTGANG(flags) \
@@ -72,18 +72,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, condense_pct, CTLFLAG_RWTUN,
     &zfs_condense_pct, 0,
     "Condense on-disk spacemap when it is more than this many percents"
     " of in-memory counterpart");
-
-/*
- * This value defines the number of allowed allocation failures per vdev.
- * If a device reaches this threshold in a given txg then we consider skipping
- * allocations on that device. The value of zfs_mg_alloc_failures is computed
- * in zio_init() unless it has been overridden in /etc/system.
- */
-int zfs_mg_alloc_failures = 0;
-TUNABLE_INT("vfs.zfs.mg_alloc_failures", &zfs_mg_alloc_failures);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_alloc_failures, CTLFLAG_RWTUN,
-    &zfs_mg_alloc_failures, 0,
-    "Number of allowed allocation failures per vdev");
 
 /*
  * The zfs_mg_noalloc_threshold defines which metaslab groups should
@@ -1708,10 +1696,7 @@ metaslab_sync_done(metaslab_t *msp, uint64_t txg)
 void
 metaslab_sync_reassess(metaslab_group_t *mg)
 {
-	int64_t failures = mg->mg_alloc_failures;
-
 	metaslab_group_alloc_update(mg);
-	atomic_add_64(&mg->mg_alloc_failures, -failures);
 
 	/*
 	 * Preload the next potential metaslabs
@@ -1738,7 +1723,7 @@ metaslab_distance(metaslab_t *msp, dva_t *dva)
 
 static uint64_t
 metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
-    uint64_t txg, uint64_t min_distance, dva_t *dva, int d, int flags)
+    uint64_t txg, uint64_t min_distance, dva_t *dva, int d)
 {
 	spa_t *spa = mg->mg_vd->vdev_spa;
 	metaslab_t *msp = NULL;
@@ -1765,10 +1750,9 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 				spa_dbgmsg(spa, "%s: failed to meet weight "
 				    "requirement: vdev %llu, txg %llu, mg %p, "
 				    "msp %p, psize %llu, asize %llu, "
-				    "failures %llu, weight %llu",
-				    spa_name(spa), mg->mg_vd->vdev_id, txg,
-				    mg, msp, psize, asize,
-				    mg->mg_alloc_failures, msp->ms_weight);
+				    "weight %llu", spa_name(spa),
+				    mg->mg_vd->vdev_id, txg,
+				    mg, msp, psize, asize, msp->ms_weight);
 				mutex_exit(&mg->mg_lock);
 				return (-1ULL);
 			}
@@ -1799,27 +1783,6 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 			return (-1ULL);
 
 		mutex_enter(&msp->ms_lock);
-
-		/*
-		 * If we've already reached the allowable number of failed
-		 * allocation attempts on this metaslab group then we
-		 * consider skipping it. We skip it only if we're allowed
-		 * to "fast" gang, the physical size is larger than
-		 * a gang block, and we're attempting to allocate from
-		 * the primary metaslab.
-		 */
-		if (mg->mg_alloc_failures > zfs_mg_alloc_failures &&
-		    CAN_FASTGANG(flags) && psize > SPA_GANGBLOCKSIZE &&
-		    activation_weight == METASLAB_WEIGHT_PRIMARY) {
-			spa_dbgmsg(spa, "%s: skipping metaslab group: "
-			    "vdev %llu, txg %llu, mg %p, msp[%llu] %p, "
-			    "psize %llu, asize %llu, failures %llu",
-			    spa_name(spa), mg->mg_vd->vdev_id, txg, mg,
-			    msp->ms_id, msp, psize, asize,
-			    mg->mg_alloc_failures);
-			mutex_exit(&msp->ms_lock);
-			return (-1ULL);
-		}
 
 		/*
 		 * Ensure that the metaslab we have selected is still
@@ -1859,8 +1822,6 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 
 		if ((offset = metaslab_block_alloc(msp, asize)) != -1ULL)
 			break;
-
-		atomic_inc_64(&mg->mg_alloc_failures);
 
 		metaslab_passivate(msp, metaslab_block_maxsize(msp));
 		mutex_exit(&msp->ms_lock);
@@ -2016,7 +1977,7 @@ top:
 		ASSERT(P2PHASE(asize, 1ULL << vd->vdev_ashift) == 0);
 
 		offset = metaslab_group_alloc(mg, psize, asize, txg, distance,
-		    dva, d, flags);
+		    dva, d);
 		if (offset != -1ULL) {
 			/*
 			 * If we've just selected this metaslab group,
