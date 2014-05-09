@@ -34,6 +34,8 @@
 #define	DWC_OTG_MAX_CHANNELS 16
 #define	DWC_OTG_MAX_ENDPOINTS 16
 #define	DWC_OTG_HOST_TIMER_RATE 10 /* ms */
+#define	DWC_OTG_TT_SLOT_MAX 8
+#define	DWC_OTG_SLOT_IDLE_MAX 4
 
 #define	DWC_OTG_READ_4(sc, reg) \
   bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -62,8 +64,8 @@ struct dwc_otg_td {
 	uint8_t tmr_res;
 	uint8_t tmr_val;
 	uint8_t	ep_no;
-	uint8_t channel;
-	uint8_t tt_index;		/* TT data */
+	uint8_t ep_type;
+	uint8_t channel[2];
 	uint8_t tt_start_slot;		/* TT data */
 	uint8_t tt_complete_slot;	/* TT data */
 	uint8_t tt_xactpos;		/* TT data */
@@ -86,6 +88,7 @@ struct dwc_otg_td {
 	uint8_t got_short:1;
 	uint8_t did_nak:1;
 	uint8_t tt_scheduled:1;
+	uint8_t tt_channel_tog:1;
 };
 
 struct dwc_otg_std_temp {
@@ -105,7 +108,6 @@ struct dwc_otg_std_temp {
 	uint8_t	setup_alt_next;
 	uint8_t did_stall;
 	uint8_t bulk_or_control;
-	uint8_t tt_index;
 };
 
 struct dwc_otg_config_desc {
@@ -145,17 +147,11 @@ struct dwc_otg_profile {
 };
 
 struct dwc_otg_chan_state {
+	uint16_t allocated;
+	uint16_t wait_sof;
 	uint32_t hcint;
-	uint32_t tx_size;
-	uint8_t wait_sof;
-	uint8_t allocated;
-	uint8_t suspended;
-};
-
-struct dwc_otg_tt_info {
-	uint16_t bytes_used;
-	uint8_t slot_index;
-	uint8_t dummy;
+	uint16_t tx_p_size;	/* periodic */
+	uint16_t tx_np_size;	/* non-periodic */
 };
 
 struct dwc_otg_softc {
@@ -177,7 +173,8 @@ struct dwc_otg_softc {
 
 	uint32_t sc_fifo_size;
 	uint32_t sc_tx_max_size;
-	uint32_t sc_tx_cur_size;
+	uint32_t sc_tx_cur_p_level;	/* periodic */
+	uint32_t sc_tx_cur_np_level;	/* non-periodic */
 	uint32_t sc_irq_mask;
 	uint32_t sc_last_rx_status;
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];
@@ -186,7 +183,6 @@ struct dwc_otg_softc {
 	uint32_t sc_tmr_val;
 	uint32_t sc_hprt_val;
 
-	struct dwc_otg_tt_info sc_tt_info[DWC_OTG_MAX_DEVICES];
 	uint16_t sc_active_rx_ep;
 	uint16_t sc_last_frame_num;
 
@@ -194,6 +190,7 @@ struct dwc_otg_softc {
 	uint8_t	sc_dev_ep_max;
 	uint8_t sc_dev_in_ep_max;
 	uint8_t	sc_host_ch_max;
+	uint8_t sc_needsof;
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_conf;		/* root HUB config */
 	uint8_t sc_mode;		/* mode of operation */
