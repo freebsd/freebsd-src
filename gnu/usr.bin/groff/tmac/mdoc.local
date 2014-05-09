@@ -57,6 +57,7 @@
 .ds doc-operating-system-FreeBSD-8.4    8.4
 .ds doc-operating-system-FreeBSD-9.1    9.1
 .ds doc-operating-system-FreeBSD-9.2    9.2
+.ds doc-operating-system-FreeBSD-9.3    9.3
 .ds doc-operating-system-FreeBSD-10.0   10.0
 .ds doc-operating-system-FreeBSD-10.1   10.1
 .ds doc-operating-system-NetBSD-7.0     7.0
