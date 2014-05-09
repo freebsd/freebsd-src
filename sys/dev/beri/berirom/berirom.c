@@ -98,9 +98,9 @@ berirom_attach(struct berirom_softc *sc)
 		return;
 	}
 
-	sc->br_cdev = make_dev(&berirom_cdevsw, sc->br_unit, UID_ROOT,
-	     GID_WHEEL, S_IRUSR | S_IRGRP | S_IROTH, "berirom%d", sc->br_unit);
-	sc->br_cdev->si_drv1 = sc;
+	sc->br_cdev = make_dev_drv(&berirom_cdevsw, sc->br_unit, UID_ROOT,
+	     GID_WHEEL, S_IRUSR | S_IRGRP | S_IROTH, sc, NULL, "berirom%d",
+	     sc->br_unit);
 	if (sc->br_unit == 0) {
 		sc->br_cdev_alias = make_dev_alias(sc->br_cdev, "berirom");
 		sc->br_cdev_alias->si_drv1 = sc;
