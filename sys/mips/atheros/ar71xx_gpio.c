@@ -437,10 +437,13 @@ ar71xx_gpio_attach(device_t dev)
 		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], DEFAULT_CAPS);
 		i++;
 	}
+	/* Turn on the hinted pins. */
 	for (i = 0; i < sc->gpio_npins; i++) {
 		j = sc->gpio_pins[i].gp_pin;
-		if ((pinon & (1 << j)) != 0)
+		if ((pinon & (1 << j)) != 0) {
+			ar71xx_gpio_pin_setflags(dev, j, GPIO_PIN_OUTPUT);
 			ar71xx_gpio_pin_set(dev, j, 1);
+		}
 	}
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
