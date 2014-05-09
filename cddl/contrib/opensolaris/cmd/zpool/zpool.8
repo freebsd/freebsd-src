@@ -1,5 +1,6 @@
 '\" te
 .\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2013-2014, Xin Li <delphij@FreeBSD.org>.
 .\" All Rights Reserved.
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd March 28, 2014
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -70,6 +71,8 @@
 .Ar pool ...
 .Nm
 .Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar pool ...
 .Nm
@@ -120,7 +123,7 @@
 .Ar device
 .Nm
 .Cm list
-.Op Fl H
+.Op Fl Hpv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -1018,6 +1021,8 @@ is currently being used. This may lead to potential data corruption.
 .It Xo
 .Nm
 .Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar pool ...
 .Xc
@@ -1036,6 +1041,19 @@ the following fields:
 See the
 .Qq Sx Properties
 section for more information on the available pool properties.
+.Pp
+.It Fl H
+Scripted mode. Do not display headers, and separate fields by a single tab
+instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl o Ar field
+A comma-separated list of columns to display.
+.Sy name Ns , Ns
+.Sy property Ns , Ns
+.Sy value Ns , Ns
+.Sy source
+is the default value.
 .It Xo
 .Nm
 .Cm history
@@ -1335,7 +1353,7 @@ Treat exported or foreign devices as inactive.
 .It Xo
 .Nm
 .Cm list
-.Op Fl Hv
+.Op Fl Hpv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -1371,6 +1389,8 @@ for unixtime
 .It Fl H
 Scripted mode. Do not display headers, and separate fields by a single tab
 instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
 .It Fl v
 Show more detailed information.
 .It Fl o Ar property Ns Op , Ns Ar ...
