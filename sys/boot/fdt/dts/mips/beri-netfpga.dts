@@ -135,13 +135,14 @@
 
 		ethernet@7f005000 {
 			compatible = "netfpag10g,nf10bmac";
-			// TX, RX, LOOP
-			reg = <0x7f005010 0xc
-			       0x7f005020 0xc
-			       0x7f005030 0x4>;
+			// LOOP, TX, RX, INTR
+			reg = <0x7f005000 0x20
+			       0x7f005020 0x30
+			       0x7f005050 0x30
+			       0x7f005100 0x10>;
 			// RX
-			#interrupts = <1>;
-			#interrupt-parent = <&beripic>;
+			interrupts = <1>;
+			interrupt-parent = <&beripic>;
 		};
 	};
 
