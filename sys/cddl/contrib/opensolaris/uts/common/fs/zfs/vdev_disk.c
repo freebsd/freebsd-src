@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
 
@@ -512,7 +512,7 @@ skip_open:
 	    FKIOCTL, kcred, NULL) != 0)
 		dkmext.dki_pbsize = DEV_BSIZE;
 
-	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit64(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	if (vd->vdev_wholedisk == 1) {
 		uint64_t capacity = dkmext.dki_capacity - 1;
