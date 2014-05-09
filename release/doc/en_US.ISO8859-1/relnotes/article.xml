@@ -282,6 +282,10 @@
       <para revision="263817,263818">The <literal>vt</literal> driver
 	has been merged from <literal>head/</literal>.</para>
 
+      <para revision="265729">The &man.mpr.4; device has been added,
+	providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
+	controllers.</para>
+
       <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
 
