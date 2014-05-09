@@ -81,8 +81,8 @@ _start:
 
 virtdone:
 	/* Set up the stack */
-	adr	x15, initstack
-	mov	sp, x15
+	adr	x25, initstack
+	mov	sp, x25
 
 	/* Zero the BSS */
 	ldr	x15, .Lbss
@@ -109,6 +109,7 @@ virtdone:
 	str	x1,  [x0]	/* modulep */
 	str	x26, [x0, 8]	/* kern_l1pt */
 	str	x29, [x0, 16]	/* kern_delta */
+	str	x25, [x0, 24]	/* kern_stack */
 
 	/* Branch to C code */
 	bl	initarm
@@ -459,4 +460,4 @@ pagetable:
 	.space	(PAGE_SIZE * 3) /* 3 tables */
 
 initstack:
-	.space	(PAGE_SIZE * 4)
+	.space	(PAGE_SIZE * KSTACK_PAGES)

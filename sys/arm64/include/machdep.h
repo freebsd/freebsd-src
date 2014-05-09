@@ -33,6 +33,7 @@ struct arm64_bootparams {
 	vm_offset_t	modulep;
 	vm_offset_t	kern_l1pt;	/* L1 page table for the kernel */
 	uint64_t	kern_delta;
+	vm_offset_t	kern_stack;
 };
 
 extern vm_paddr_t physmap[];
