@@ -30,16 +30,14 @@
 .if !target(__<src.opts.mk>__)
 __<src.opts.mk>__:
 
-# Compat -- needed still?
-.include <bsd.own.mk>
-
-# Allow user to configure things, but in the future this will move
-# elsehwere...
-
+# Allow user to configure things that only effect src tree builds.
 SRCCONF?=	/etc/src.conf
 .if exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf"
 .include "${SRCCONF}"
 .endif
+
+# Must be included after src.conf
+.include <bsd.own.mk>
 
 #
 # Define MK_* variables (which are either "yes" or "no") for users
