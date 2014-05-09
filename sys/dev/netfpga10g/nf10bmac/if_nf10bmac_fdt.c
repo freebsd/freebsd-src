@@ -85,16 +85,34 @@ nf10bmac_attach_fdt(device_t dev)
 	/*
 	 * FDT lists our resources.  For convenience we use three different
 	 * mappings.  We need to attach them in the oder specified in .dts:
-	 * TX (size 0xc), RX (size 0xc), LOOP (size 0x4).
+	 * LOOP (size 0x1f), TX (0x2f), RX (0x2f), INTR (0xf).
 	 */
+
+	/*
+	 * LOOP memory region (this could be a general control region).
+	 * 0x00: 32bit register to enable a Y-"lopback".
+	 */
+        sc->nf10bmac_ctrl_rid = 0;
+        sc->nf10bmac_ctrl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+            &sc->nf10bmac_ctrl_rid, RF_ACTIVE);
+        if (sc->nf10bmac_ctrl_res == NULL) {
+                device_printf(dev, "failed to map memory for CTRL region\n");
+                error = ENXIO;
+                goto err;
+        } 
+        if (bootverbose)
+                device_printf(sc->nf10bmac_dev, "CTRL region at mem %p-%p\n",
+                    (void *)rman_get_start(sc->nf10bmac_ctrl_res),
+                    (void *)(rman_get_start(sc->nf10bmac_ctrl_res) + 
+                    rman_get_size(sc->nf10bmac_ctrl_res)));
 
         /*
          * TX and TX metadata FIFO memory region.
          * 0x00: 32bit FIFO data,
-	 * 0x04: 32bit FIFO metadata,
-         * 0x08: 32bit packet length.
+	 * 0x08: 32bit FIFO metadata,
+         * 0x10: 32bit packet length.
          */
-        sc->nf10bmac_tx_mem_rid = 0;
+        sc->nf10bmac_tx_mem_rid = 1;
         sc->nf10bmac_tx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
             &sc->nf10bmac_tx_mem_rid, RF_ACTIVE);
         if (sc->nf10bmac_tx_mem_res == NULL) {
@@ -111,10 +129,10 @@ nf10bmac_attach_fdt(device_t dev)
         /*
          * RX and RXC metadata FIFO memory region.
          * 0x00: 32bit FIFO data,
-	 * 0x04: 32bit FIFO metadata,
-         * 0x08: 32bit packet length.
+	 * 0x08: 32bit FIFO metadata,
+         * 0x10: 32bit packet length.
          */
-        sc->nf10bmac_rx_mem_rid = 1;
+        sc->nf10bmac_rx_mem_rid = 2;
         sc->nf10bmac_rx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
             &sc->nf10bmac_rx_mem_rid, RF_ACTIVE);
         if (sc->nf10bmac_rx_mem_res == NULL) {
@@ -129,22 +147,28 @@ nf10bmac_attach_fdt(device_t dev)
                     rman_get_size(sc->nf10bmac_rx_mem_res)));
 
 	/*
-	 * LOOP memory region (this could be a general control region).
-	 * 0x00: 32bit register to enable a Y-"lopback".
+	 * Interrupt handling registers.
+	 * 0x00: 32bit register to clear (and disable) the RX interrupt.
+	 * 0x08: 32bit register to enable or disable the RX interrupt.
 	 */
-        sc->nf10bmac_mem_rid = 2;
-        sc->nf10bmac_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-            &sc->nf10bmac_mem_rid, RF_ACTIVE);
-        if (sc->nf10bmac_mem_res == NULL) {
-                device_printf(dev, "failed to map memory for CTRL region\n");
+        sc->nf10bmac_intr_rid = 3;
+        sc->nf10bmac_intr_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+            &sc->nf10bmac_intr_rid, RF_ACTIVE);
+        if (sc->nf10bmac_intr_res == NULL) {
+                device_printf(dev, "failed to map memory for INTR region\n");
                 error = ENXIO;
                 goto err;
         } 
         if (bootverbose)
-                device_printf(sc->nf10bmac_dev, "CTRL region at mem %p-%p\n",
-                    (void *)rman_get_start(sc->nf10bmac_mem_res),
-                    (void *)(rman_get_start(sc->nf10bmac_mem_res) + 
-                    rman_get_size(sc->nf10bmac_mem_res)));
+                device_printf(sc->nf10bmac_dev, "INTR region at mem %p-%p\n",
+                    (void *)rman_get_start(sc->nf10bmac_intr_res),
+                    (void *)(rman_get_start(sc->nf10bmac_intr_res) + 
+                    rman_get_size(sc->nf10bmac_intr_res)));
+
+	/* (Optional) RX and TX IRQ. */
+	sc->nf10bmac_rx_irq_rid = 0;
+	sc->nf10bmac_rx_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->nf10bmac_rx_irq_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	error = nf10bmac_attach(dev);
 	if (error)
