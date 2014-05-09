@@ -21,8 +21,8 @@ WARNS?=	0
 CFLAGS+= -D"Table_size=${TOP_TABLE_SIZE}"
 .endif
 
-DPADD=	${LIBTERMCAP} ${LIBM} ${LIBKVM}
-LDADD=	-ltermcap -lm -lkvm
+DPADD=	${LIBTERMCAPW} ${LIBM} ${LIBKVM}
+LDADD=	-ltermcapw -lm -lkvm
 
 CLEANFILES= sigdesc.h
 SIGCONV_AWK= ${.CURDIR}/../../contrib/top/sigconv.awk

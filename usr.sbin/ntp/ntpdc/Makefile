@@ -15,8 +15,8 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
 DPADD=	${LIBNTP} ${LIBM} ${LIBMD} ${LIBOPTS}
 LDADD=	${LIBNTP} -lm -lmd ${LIBOPTS}
 
-DPADD+=		${LIBEDIT} ${LIBTERMCAP}
-LDADD+=		-ledit -ltermcap
+DPADD+=		${LIBEDIT} ${LIBTERMCAPW}
+LDADD+=		-ledit -ltermcapw
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
 		-I${DESTDIR}/${INCLUDEDIR}/edit
 

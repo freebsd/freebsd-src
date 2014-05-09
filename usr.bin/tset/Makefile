@@ -3,8 +3,8 @@
 PROG=	tset
 SRCS=	map.c misc.c set.c term.c tset.c wrterm.c
 
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+DPADD=	${LIBTERMCAPW}
+LDADD=	-ltermcapw
 LINKS=	${BINDIR}/tset ${BINDIR}/reset
 MLINKS=	tset.1 reset.1
 

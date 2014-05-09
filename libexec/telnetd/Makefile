@@ -28,8 +28,8 @@ CFLAGS+=	-I${TELNETDIR}
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
-LDADD=		-lutil -ltermcap ${LIBTELNET}
+DPADD=		${LIBUTIL} ${LIBTERMCAPW} ${LIBTELNET}
+LDADD=		-lutil -ltermcapw ${LIBTELNET}
 
 # XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)

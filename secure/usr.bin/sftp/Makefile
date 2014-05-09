@@ -11,8 +11,8 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	roaming_dummy.c
 .endif
 
-DPADD=	${LIBSSH} ${LIBEDIT} ${LIBNCURSES}
-LDADD=	-lssh -ledit -lncurses
+DPADD=	${LIBSSH} ${LIBEDIT} ${LIBNCURSESW}
+LDADD=	-lssh -ledit -lncursesw
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"
