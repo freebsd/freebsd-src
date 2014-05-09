@@ -82,6 +82,8 @@ device		ahd		# AHA39320/29320 and AIC79xx devices
 device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI-Logic MPT-Fusion 3
 device		sym		# NCR/Symbios Logic
 
 # RAID controllers interfaced to the SCSI subsystem

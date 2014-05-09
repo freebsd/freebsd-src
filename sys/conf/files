@@ -1543,6 +1543,17 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
+dev/mpr/mpr.c			optional mpr
+dev/mpr/mpr_config.c		optional mpr
+# XXX Work around clang warning, until maintainer approves fix.
+dev/mpr/mpr_mapping.c		optional mpr \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/mpr/mpr_pci.c		optional mpr pci
+dev/mpr/mpr_sas.c		optional mpr \
+	compile-with "${NORMAL_C} ${NO_WUNNEEDED_INTERNAL_DECL}"
+dev/mpr/mpr_sas_lsi.c		optional mpr
+dev/mpr/mpr_table.c		optional mpr
+dev/mpr/mpr_user.c		optional mpr
 dev/mps/mps.c			optional mps
 dev/mps/mps_config.c		optional mps
 # XXX Work around clang warning, until maintainer approves fix.
