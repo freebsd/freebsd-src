@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2013
+.Dd March 20, 2014
 .Dt ZDB 8
 .Os
 .Sh NAME
@@ -127,6 +127,12 @@ compression ratio (compress), inflation due to the zfs copies property
 If specified twice, display a histogram of deduplication statistics, showing
 the allocated (physically present on disk) and referenced (logically
 referenced in the pool) block counts and sizes by reference count.
+.Pp
+If specified a third time, display the statistics independently for each deduplication table.
+.Pp
+If specified a fourth time, dump the contents of the deduplication tables describing duplicate blocks.
+.Pp
+If specified a fifth time, also dump the contents of the deduplication tables describing unique blocks.
 .It Fl h
 Display pool history similar to
 .Cm zpool history ,
