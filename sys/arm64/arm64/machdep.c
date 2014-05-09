@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpu.h>
 #include <sys/efi.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h> 
 #include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
+
+static struct trapframe proc0_tf;
 
 vm_paddr_t phys_avail[PHYS_AVAIL_SIZE];
 
@@ -279,6 +282,17 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	panic("sendsig");
 }
 
+static void
+init_proc0(vm_offset_t kstack)
+{
+	proc_linkup0(&proc0, &thread0);
+	thread0.td_kstack = kstack;
+	thread0.td_pcb = (struct pcb *)
+	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_frame = &proc0_tf;
+	pcpup->pc_curpcb = thread0.td_pcb;
+}
+
 #ifdef EARLY_PRINTF
 static void 
 foundation_early_putc(int c)
@@ -499,9 +513,17 @@ initarm(struct arm64_bootparams *abp)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
 	    lastaddr - KERNBASE);
+
+	init_proc0(abp->kern_stack);
+	mutex_init();
+	init_param2(physmem);
+	kdb_init();
 
 	printf("End initarm\n");
 }
