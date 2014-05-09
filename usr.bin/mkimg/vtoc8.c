@@ -103,11 +103,7 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 		sum ^= be16dec(p + ofs);
 	be16enc(&vtoc8.cksum, sum);
 
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		if (write(fd, &vtoc8, sizeof(vtoc8)) != sizeof(vtoc8))
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, &vtoc8, 1);
 	return (error);
 }
 

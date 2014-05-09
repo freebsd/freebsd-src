@@ -104,11 +104,7 @@ ebr_write(int fd, lba_t imgsz __unused, void *bootcode __unused)
 			le32enc(&dp->dp_size, next->size + nsecs);
 		}
 
-		error = mkimg_seek(fd, block);
-		if (error == 0) {
-			if (write(fd, ebr, secsz) != (ssize_t)secsz)
-				error = errno;
-		}
+		error = mkimg_write(fd, block, ebr, 1);
 		if (error)
 			break;
 

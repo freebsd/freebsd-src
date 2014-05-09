@@ -64,7 +64,7 @@ typedef struct {
 	uintmax_t	trunc;		/* # of truncated records */
 	uintmax_t	swab;		/* # of odd-length swab blocks */
 	uintmax_t	bytes;		/* # of bytes written */
-	double		start;		/* start time of dd */
+	struct timespec	start;		/* start time of dd */
 } STAT;
 
 /* Flags (in ddflags). */

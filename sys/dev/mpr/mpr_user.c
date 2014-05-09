@@ -212,7 +212,7 @@ mpr_attach_user(struct mpr_softc *sc)
 
 	unit = device_get_unit(sc->mpr_dev);
 	sc->mpr_cdev = make_dev(&mpr_cdevsw, unit, UID_ROOT, GID_OPERATOR,
-	    0640, "mpr_%d", unit);
+	    0640, "mpr%d", unit);
 	if (sc->mpr_cdev == NULL) {
 		return (ENOMEM);
 	}

@@ -63,13 +63,12 @@ apm_metadata(u_int where)
 }
 
 static int
-apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
+apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 {
 	u_char *buf;
 	struct apm_ddr *ddr;
 	struct apm_ent *ent;
 	struct part *part;
-	ssize_t nbytes;
 	int error;
 
 	buf = calloc(nparts + 2, secsz);
@@ -100,12 +99,7 @@ apm_write(int fd __unused, lba_t imgsz __unused, void *bootcode __unused)
 			strcpy(ent->ent_name, part->label);
 	}
 
-	error = mkimg_seek(fd, 0);
-	if (error == 0) {
-		nbytes = (nparts + 2) * secsz;
-		if (write(fd, buf, nbytes) != nbytes)
-			error = errno;
-	}
+	error = mkimg_write(fd, 0, buf, nparts + 2);
 	free(buf);
 	return (error);
 }

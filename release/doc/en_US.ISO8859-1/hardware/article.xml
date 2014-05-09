@@ -739,6 +739,8 @@
 
       &hwlist.mpt;
 
+      &hwlist.mrsas;
+
       &hwlist.mvs;
 
       &hwlist.ncr;

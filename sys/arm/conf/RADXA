@@ -121,3 +121,4 @@ options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=rk3188-radxa.dts
 
+options		SMP			# Enable multiple cores

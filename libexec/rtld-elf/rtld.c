@@ -3551,7 +3551,7 @@ r_debug_state(struct r_debug* rd, struct link_map *m)
      * even when marked __noinline.  However, gdb depends on those
      * calls being made.
      */
-    __asm __volatile("" : : : "memory");
+    __compiler_membar();
 }
 
 /*
@@ -3564,7 +3564,7 @@ _r_debug_postinit(struct link_map *m)
 {
 
 	/* See r_debug_state(). */
-	__asm __volatile("" : : : "memory");
+	__compiler_membar();
 }
 
 /*

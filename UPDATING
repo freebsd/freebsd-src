@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140508:
+	We bogusly installed src.opts.mk in /usr/share/mk. This file should
+	be removed to avoid issues in the future (and has been added to
+	ObsoleteFiles.inc).
+
 20140505:
 	/etc/src.conf now affects only builds of the FreeBSD src tree. In the
 	past, it affected all builds that used the bsd.*.mk files. The old
@@ -43,6 +48,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	other upgrade scenarios may have broken. At least one form of
 	temporary breakage was fixed with MAKESYSPATH settings for buildworld
 	as well...
+
+	One side effect of all this cleaning up is that bsd.compiler.mk
+	is no longer implicitly included by bsd.own.mk. If you wish to
+	use COMPILER_TYPE, you must now explicitly include bsd.compiler.mk
+	as well.
 
 20140430:
 	The lindev device has been removed since /dev/full has been made a
