@@ -43,6 +43,7 @@ struct md_utrap {
 
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
+	register_t md_saved_daif;	/* (k) */
 };
 
 struct mdproc {
