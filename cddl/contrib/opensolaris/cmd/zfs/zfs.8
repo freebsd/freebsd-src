@@ -24,13 +24,13 @@
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
-.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd April 23, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -536,6 +536,13 @@ if the snapshot has been marked for deferred destroy by using the
 .Qq Nm Cm destroy -d
 command. Otherwise, the property is
 .Cm off .
+.It Sy filesystem_count
+The total number of filesystems and volumes that exist under this location in the
+dataset tree.
+This value is only available when a
+.Sy filesystem_limit
+has
+been set somewhere in the tree under which the dataset resides.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
@@ -594,6 +601,12 @@ The compression ratio achieved for the
 space of this dataset, expressed as a multiplier.  See also the
 .Sy compressratio
 property.
+.It Sy snapshot_count
+The total number of snapshots that exist under this location in the dataset tree.
+This value is only available when a
+.Sy snapshot_limit
+has been set somewhere
+in the tree under which the dataset resides.
 .It Sy type
 The type of dataset:
 .Sy filesystem , volume , No or Sy snapshot .
@@ -1014,6 +1027,23 @@ The
 .Sy mlslabel
 property is currently not supported on
 .Fx .
+.It Sy filesystem_limit Ns = Ns Ar count | Cm none
+Limits the number of filesystems and volumes that can exist under this point in
+the dataset tree.
+The limit is not enforced if the user is allowed to change
+the limit.
+Setting a
+.Sy filesystem_limit
+on a descendent of a filesystem that
+already has a
+.Sy filesystem_limit
+does not override the ancestor's
+.Sy filesystem_limit ,
+but rather imposes an additional limit.
+This feature must be enabled to be used
+.Po see
+.Xr zpool-features 7
+.Pc .
 .It Sy mountpoint Ns = Ns Ar path | Cm none | legacy
 Controls the mount point used for this file system. See the
 .Qq Sx Mount Points
@@ -1055,6 +1085,27 @@ the ancestor's quota, but rather imposes an additional limit.
 Quotas cannot be set on volumes, as the
 .Sy volsize
 property acts as an implicit quota.
+.It Sy snapshot_limit Ns = Ns Ar count | Cm none
+Limits the number of snapshots that can be created on a dataset and its
+descendents.
+Setting a
+.Sy snapshot_limit
+on a descendent of a dataset that already
+has a
+.Sy snapshot_limit
+does not override the ancestor's
+.Sy snapshot_limit ,
+but
+rather imposes an additional limit.
+The limit is not enforced if the user is
+allowed to change the limit.
+For example, this means that recursive snapshots
+taken from the global zone are counted against each delegated dataset within
+a jail.
+This feature must be enabled to be used
+.Po see
+.Xr zpool-features 7
+.Pc .
 .It Sy userquota@ Ns Ar user Ns = Ns Ar size | Cm none
 Limits the amount of space consumed by the specified user.
 Similar to the
@@ -2698,6 +2749,7 @@ protocol
 .It dedup Ta property
 .It devices Ta property
 .It exec Ta property
+.It filesystem_limit Ta property
 .It logbias Ta property
 .It jailed Ta property
 .It mlslabel Ta property
@@ -2716,6 +2768,7 @@ protocol
 .It sharenfs Ta property
 .It sharesmb Ta property
 .It snapdir Ta property
+.It snapshot_limit Ta property
 .It sync Ta property
 .It utf8only Ta property
 .It version Ta property
@@ -3063,10 +3116,12 @@ pool/home/bob  compression           on                     local
 pool/home/bob  atime                 on                     default
 pool/home/bob  devices               on                     default
 pool/home/bob  exec                  on                     default
+pool/home/bob  filesystem_limit      none                   default
 pool/home/bob  setuid                on                     default
 pool/home/bob  readonly              off                    default
 pool/home/bob  jailed                off                    default
 pool/home/bob  snapdir               hidden                 default
+pool/home/bob  snapshot_limit        none                   default
 pool/home/bob  aclmode               discard                default
 pool/home/bob  aclinherit            restricted             default
 pool/home/bob  canmount              on                     default
