@@ -24,7 +24,7 @@
 #
 # Makefiles should never test WITH_FOO or WITHOUT_FOO directly (although an
 # exception is made for _WITHOUT_SRCONF which turns off this mechanism
-# completely).
+# completely inside bsd.*.mk files).
 #
 
 .if !target(__<src.opts.mk>__)
@@ -84,7 +84,6 @@ __DEFAULT_YES_OPTIONS = \
     FDT \
     FLOPPY \
     FMTREE \
-    FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
@@ -105,7 +104,6 @@ __DEFAULT_YES_OPTIONS = \
     IPFW \
     JAIL \
     KDUMP \
-    KERNEL_SYMBOLS \
     KVM \
     LDNS \
     LDNS_UTILS \
