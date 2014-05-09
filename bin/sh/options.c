@@ -474,7 +474,7 @@ atend:
 				err |= setvarsafe("OPTARG", s, 0);
 			}
 			else {
-				out1fmt("Illegal option -%c\n", c);
+				out2fmt_flush("Illegal option -%c\n", c);
 				INTOFF;
 				(void) unsetvar("OPTARG");
 				INTON;
@@ -495,7 +495,7 @@ atend:
 				c = ':';
 			}
 			else {
-				out1fmt("No arg for -%c option\n", c);
+				out2fmt_flush("No arg for -%c option\n", c);
 				INTOFF;
 				(void) unsetvar("OPTARG");
 				INTON;
