@@ -1375,7 +1375,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 			faddr.s_addr = INADDR_BROADCAST;
 		if ((ui->ui_sum = in_cksum(m, sizeof(struct ip) + cscov)) == 0)
 			ui->ui_sum = 0xffff;
-	} else if (V_udp_cksum || !cscov_partial) {
+	} else if (V_udp_cksum || pr == IPPROTO_UDPLITE) {
+		/* for UDP-Lite full checksum coverage is requested */
 		if (inp->inp_flags & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
 		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,
