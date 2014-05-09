@@ -31,6 +31,8 @@
 .Nm make_dev ,
 .Nm make_dev_cred ,
 .Nm make_dev_credf ,
+.Nm make_dev_credf_drv ,
+.Nm make_dev_drv ,
 .Nm make_dev_p ,
 .Nm make_dev_alias ,
 .Nm make_dev_alias_p ,
@@ -51,6 +53,10 @@ and DEVFS registration for devices
 .Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
 .Ft struct cdev *
 .Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_credf_drv "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "void *drv1" "void *drv2" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_drv "struct cdevsw *cdevsw" "int unit" "uid_t uid" "gid_t gid" "int perms" "void *drv1" "void *drv2" "const char *fmt" ...
 .Ft int
 .Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
 .Ft struct cdev *
@@ -246,7 +252,24 @@ and
 that are available to store state.
 Both fields are of type
 .Ft void * .
-These are designed to replace the
+They can be initalized using the
+.Fn make_dev_drv
+and
+.Fn make_dev_credf_drv
+functions which are equivalent to
+.Fn make_dev
+and
+.Fn make_dev_credf
+respectively except for initalizing these fields before the device node
+is created in
+.Pa /dev
+which closes a race between the creation of the device and the point
+when it can safely be used.
+The
+.Fa si_drv1
+and
+.Fa si_drv2
+fields are designed to replace the
 .Fa unit
 argument to
 .Fn make_dev ,

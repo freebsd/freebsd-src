@@ -59,6 +59,9 @@ static void destroy_dev_tq(void *ctx, int pending);
 static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
     int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
+static int make_dev_cred_drv_v(int flags, struct cdev **dres,
+    struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid, gid_t gid,
+    int mode, void *drv1, void *drv2, const char *fmt, va_list ap);
 
 static struct cdev_priv_list cdevp_free_list =
     TAILQ_HEAD_INITIALIZER(cdevp_free_list);
@@ -736,9 +739,9 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 }
 
 static int
-make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
-    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
-    va_list ap)
+make_dev_cred_drv_v(int flags, struct cdev **dres, struct cdevsw *devsw,
+    int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode,
+    void *drv1, void *drv2, const char *fmt, va_list ap)
 {
 	struct cdev *dev, *dev_new;
 	int res;
@@ -798,6 +801,9 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 	dev->si_gid = gid;
 	dev->si_mode = mode;
 
+	dev->si_drv1 = drv1;
+	dev->si_drv2 = drv2;
+
 	devfs_create(dev);
 	clean_unrhdrl(devfs_inos);
 	dev_unlock_and_free();
@@ -806,6 +812,15 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 
 	*dres = dev;
 	return (0);
+}
+
+static int
+make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
+    int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode,
+    const char *fmt, va_list ap) {
+
+    return (make_dev_cred_drv_v(flags, dres, devsw, unit, cr, uid, gid,
+        mode, NULL, NULL, fmt, ap));
 }
 
 struct cdev *
@@ -859,6 +874,43 @@ make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
 	    ((flags & MAKEDEV_CHECKNAME) != 0 && res != ENOMEM) || res == 0,
 	    ("make_dev_credf: failed make_dev_credv (error=%d)", res));
 	return (res == 0 ? dev : NULL);
+}
+
+struct cdev *
+make_dev_credf_drv(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
+    uid_t uid, gid_t gid, int mode, void *drv1, void *drv2, const char *fmt,
+    ...)
+{
+	struct cdev *dev;
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_cred_drv_v(flags, &dev, devsw, unit, cr, uid, gid, mode,
+	    drv1, drv2, fmt, ap);
+	va_end(ap);
+
+	KASSERT(((flags & MAKEDEV_NOWAIT) != 0 && res == ENOMEM) ||
+	    ((flags & MAKEDEV_CHECKNAME) != 0 && res != ENOMEM) || res == 0,
+	    ("make_dev_credf_dev: failed make_dev_credv (error=%d)", res));
+	return (res == 0 ? dev : NULL);
+}
+
+struct cdev *
+make_dev_drv(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
+    void *drv1, void *drv2, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_cred_drv_v(0, &dev, devsw, unit, NULL, uid, gid, mode,
+	    drv1, drv2, fmt, ap);
+	va_end(ap);
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev: failed make_dev_credv (error=%d)", res));
+	return (dev);
 }
 
 int
