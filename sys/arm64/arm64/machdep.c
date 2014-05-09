@@ -218,15 +218,31 @@ void cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 void
 spinlock_enter(void)
 {
+	struct thread *td;
+	register_t daif;
 
-	printf("spinlock_enter\n");
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0) {
+		daif = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_daif = daif;
+	} else
+		td->td_md.md_spinlock_count++;
+	critical_enter();
 }
 
 void
 spinlock_exit(void)
 {
+	struct thread *td;
+	register_t daif;
 
-	printf("spinlock_exit\n");
+	td = curthread;
+	critical_exit();
+	daif = td->td_md.md_saved_daif;
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(daif);
 }
 
 #ifndef	_SYS_SYSPROTO_H_
