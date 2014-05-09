@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/apm.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -67,9 +69,34 @@ struct vmdk_header {
 	char		padding[433];
 } __attribute__((__packed__));
 
+static const char desc_fmt[] =
+    "# Disk DescriptorFile\n"
+    "version=%d\n"
+    "CID=%08x\n"
+    "parentCID=ffffffff\n"
+    "createType=\"monolithicSparse\"\n"
+    "# Extent description\n"
+    "RW %ju SPARSE \"%s\"\n"
+    "# The Disk Data Base\n"
+    "#DDB\n"
+    "ddb.adapterType = \"ide\"\n"
+    "ddb.geometry.cylinders = \"%u\"\n"
+    "ddb.geometry.heads = \"%u\"\n"
+    "ddb.geometry.sectors = \"%u\"\n";
+
 static int
 vmdk_write(int fd __unused)
 {
+	char *desc;
+	lba_t imgsz;
+	int desc_len;
+
+	imgsz = image_get_size();
+	desc_len = asprintf(&desc, desc_fmt, 1 /*version*/, 0 /*CID*/,
+	    (uintmax_t)imgsz /*size*/, "mkimg.vmdk" /*name*/,
+	    ncyls /*cylinders*/, nheads /*heads*/, nsecs /*sectors*/);
+	desc_len = (desc_len + 512 - 1) & ~(512 - 1);
+	desc = realloc(desc, desc_len);
 
 	/*
 	 * Steps:

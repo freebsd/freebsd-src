@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 static char image_tmpfile[] = "/tmp/mkimg-XXXXXX";
 static int image_fd = -1;
+static lba_t image_size;
 
 static void
 cleanup(void)
@@ -123,10 +124,18 @@ image_copyout(int fd)
 	return (error);
 }
 
+lba_t
+image_get_size(void)
+{
+
+	return (image_size);
+}
+
 int
 image_set_size(lba_t blk)
 {
 
+	image_size = blk;
 	if (ftruncate(image_fd, blk * secsz) == -1)
 		return (errno);
 	return (0);

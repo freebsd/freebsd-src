@@ -33,6 +33,7 @@ typedef int64_t lba_t;
 
 int image_copyin(lba_t blk, int fd, uint64_t *sizep);
 int image_copyout(int fd);
+lba_t image_get_size(void);
 int image_init(void);
 int image_set_size(lba_t blk);
 int image_write(lba_t blk, void *buf, ssize_t len);
