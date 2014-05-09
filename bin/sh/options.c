@@ -475,7 +475,9 @@ atend:
 			}
 			else {
 				out1fmt("Illegal option -%c\n", c);
+				INTOFF;
 				(void) unsetvar("OPTARG");
+				INTON;
 			}
 			c = '?';
 			goto bad;
@@ -494,7 +496,9 @@ atend:
 			}
 			else {
 				out1fmt("No arg for -%c option\n", c);
+				INTOFF;
 				(void) unsetvar("OPTARG");
+				INTON;
 				c = '?';
 			}
 			goto bad;
