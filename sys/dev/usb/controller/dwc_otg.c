@@ -1240,6 +1240,10 @@ check_state:
 				goto complete;
 			}
 		} else if (hcint & HCINT_ACK) {
+			/* wait for data - ACK arrived first */
+			if (!(hcint & HCINT_SOFTWARE_ONLY))
+				goto busy;
+
 			if (td->ep_type == UE_ISOCHRONOUS) {
 				/* check if we are complete */
 				if ((td->remainder == 0) ||
@@ -1595,8 +1599,6 @@ dwc_otg_host_data_tx(struct dwc_otg_td *td)
 		}
 	}
 
-	/* channel must be disabled before we can complete the transfer */
-
 	if (hcint & (HCINT_ERRORS | HCINT_RETRY |
 	    HCINT_ACK | HCINT_NYET)) {
 
@@ -1646,15 +1648,13 @@ check_state:
 		break;
 
 	case DWC_CHAN_ST_WAIT_C_ANE:
-		if (hcint & HCINT_NYET)
+		if (hcint & HCINT_NYET) {
 			goto send_cpkt;
-
-		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
+		} else if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
-		}
-		if (hcint & HCINT_ACK) {
+		} else if (hcint & HCINT_ACK) {
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
