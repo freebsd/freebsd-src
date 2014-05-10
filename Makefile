@@ -316,13 +316,6 @@ kernel: buildkernel installkernel
 upgrade_checks:
 .if ${HAVE_MAKE} != ${WANT_MAKE}
 	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
-.elif ${WANT_MAKE} == "fmake"
-	@if ! (cd ${.CURDIR}/tools/build/make_check && \
-	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
-	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
-	then \
-	    (cd ${.CURDIR} && ${MAKE} make); \
-	fi
 .endif
 
 #
@@ -336,18 +329,18 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 MMAKE=		${MMAKEENV} ${MAKE} \
 		-D_UPGRADING -DNO_MAN -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR \
-		DESTDIR= MK_TESTS=no PROGNAME=${MYMAKE:T}
+		DESTDIR= PROGNAME=${MYMAKE:T}
 
-make bmake: .PHONY
+bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date make(1)"
+	@echo ">>> Building an up-to-date ${.TARGET}(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= NO_MAN=t
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
 
