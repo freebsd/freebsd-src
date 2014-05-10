@@ -135,11 +135,13 @@ STAGE_LIBS ?= ${.ALLSRC:N.dirdep}
 
 stage_libs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${STAGE_LIBS}
+.if !defined(NO_SHLIB_LINKS)
 .if !empty(SHLIB_LINKS)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
 	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK} ${SYMLINKS:T}
+.endif
 .endif
 	@touch $@
 .endif
