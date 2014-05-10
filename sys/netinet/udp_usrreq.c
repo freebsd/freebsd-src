@@ -1340,7 +1340,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * For UDP-Lite, checksum coverage length of zero means
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
-		 cscov_partial = (cscov == 0) ? 0 : 1;
+		cscov_partial = (cscov == 0) ? 0 : 1;
 	} else
 		ui->ui_v = IPVERSION << 4;
 
