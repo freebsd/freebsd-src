@@ -3,10 +3,12 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	gnu/lib/csu \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libc_nonshared \
 
 
 .include <dirdeps.mk>

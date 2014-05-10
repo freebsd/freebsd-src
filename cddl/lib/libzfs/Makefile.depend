@@ -6,11 +6,13 @@ DIRDEPS = \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	cddl/lib/libzfs_core \
+	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libgeom \
 	lib/libmd \
