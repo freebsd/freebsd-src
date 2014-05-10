@@ -352,6 +352,7 @@ ar71xx_gpio_attach(device_t dev)
 	int error = 0;
 	int i, j, maxpin;
 	int mask, pinon;
+	uint32_t oe;
 
 	KASSERT((device_get_unit(dev) == 0),
 	    ("ar71xx_gpio: Only one gpio module supported"));
@@ -398,8 +399,7 @@ ar71xx_gpio_attach(device_t dev)
 		ar71xx_gpio_function_disable(sc, mask);
 	}
 
-	/* Configure all pins as input */
-	/* disable interrupts for all pins */
+	/* Disable interrupts for all pins. */
 	GPIO_WRITE(sc, AR71XX_GPIO_INT_MASK, 0);
 
 	/* Initialise all pins specified in the mask, up to the pin count */
@@ -416,6 +416,8 @@ ar71xx_gpio_attach(device_t dev)
 			continue;
 		sc->gpio_npins++;
 	}
+	/* Iniatilize the GPIO pins, keep the loader settings. */
+	oe = GPIO_READ(sc, AR71XX_GPIO_OE);
 	sc->gpio_pins = malloc(sizeof(*sc->gpio_pins) * sc->gpio_npins,
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 	for (i = 0, j = 0; j <= maxpin; j++) {
@@ -425,8 +427,10 @@ ar71xx_gpio_attach(device_t dev)
 		    "pin %d", j);
 		sc->gpio_pins[i].gp_pin = j;
 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
-		sc->gpio_pins[i].gp_flags = 0;
-		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], DEFAULT_CAPS);
+		if (oe & (1 << j))
+			sc->gpio_pins[i].gp_flags = GPIO_PIN_OUTPUT;
+		else
+			sc->gpio_pins[i].gp_flags = GPIO_PIN_INPUT;
 		i++;
 	}
 	/* Turn on the hinted pins. */
