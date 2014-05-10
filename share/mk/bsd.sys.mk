@@ -4,7 +4,7 @@
 # sources.
 
 # Enable various levels of compiler warning checks.  These may be
-# overridden (e.g. if using a non-gcc compiler) by defining NO_WARNS.
+# overridden (e.g. if using a non-gcc compiler) by defining MK_WARNS=no.
 
 # for GCC:   http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Warning-Options.html
 
@@ -134,9 +134,8 @@ CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !IA64 && !ARM && !MIPS
 
 # Allow user-specified additional warning flags, plus compiler specific flag overrides.
-# Unless we're early in the build, in which case don't (which is lame, this should
-# be handled by NO_WARNS which needs to migrate to something else.
-.if !defined(NO_WARNS) && !defined(EARLY_BUILD)
+# Unless we've overriden this...
+.if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
 .endif
 
