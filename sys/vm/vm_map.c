@@ -3023,7 +3023,8 @@ vm_map_copy_entry(
 		 * If the source entry is marked needs_copy, it is already
 		 * write-protected.
 		 */
-		if ((src_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) {
+		if ((src_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0 &&
+		    (src_entry->protection & VM_PROT_WRITE) != 0) {
 			pmap_protect(src_map->pmap,
 			    src_entry->start,
 			    src_entry->end,
