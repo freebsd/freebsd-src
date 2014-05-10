@@ -450,7 +450,7 @@ TARGET!=	uname -m
 .if defined(MAKE_ALL_KERNELS)
 _THINNER=cat
 .else
-_THINNER=xargs grep -L "^.NO_UNIVERSE"
+_THINNER=xargs grep -L "^.NO_UNIVERSE" || true
 .endif
 KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
