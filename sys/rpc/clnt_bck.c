@@ -106,11 +106,6 @@ static struct clnt_ops clnt_bck_ops = {
 	.cl_control =	clnt_bck_control
 };
 
-static const char clnt_bck_errstr[] = "%s : %s";
-static const char clnt_bck_str[] = "clnt_bck_create";
-static const char clnt_read_bck_str[] = "read_bck";
-static const char __no_mem_str[] = "out of memory";
-
 /*
  * Create a client handle for a connection.
  * Default options are set, which the user can change using clnt_control()'s.
