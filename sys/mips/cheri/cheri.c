@@ -88,43 +88,6 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
 } while (0)
 
 /*
- * Capability memcpy() routine -- not a general-purpose memcpy() as it has
- * much stronger alignment and size requirements.
- *
- * XXXRW: Eventually, true memcpy() will support capabilities, and this will
- * go away.  We hope.
- */
-void *
-cheri_memcpy(void *dst, void *src, size_t len)
-{
-	u_int i;
-
-	/* NB: Assumes CHERICAP_SIZE is a power of two. */
-	KASSERT(((uintptr_t)dst & (CHERICAP_SIZE - 1)) == 0,
-	    ("%s: unaligned dst %p", __func__, dst));
-	KASSERT(((uintptr_t)src & (CHERICAP_SIZE - 1)) == 0,
-	    ("%s: unaligned src %p", __func__, src));
-	KASSERT((len % CHERICAP_SIZE) == 0,
-	    ("%s: copy size not a multiple of capability size %ju", __func__,
-	    len));
-
-	for (i = 0; i < (len / CHERICAP_SIZE); i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0,
-		    (struct chericap *)src + i);
-		cheri_capability_store(CHERI_CR_CTEMP0,
-		    (struct chericap *)dst + i);
-	}
-	return (dst);
-}
-
-void
-cheri_bcopy(void *src, void *dst, size_t len)
-{
-
-	(void)cheri_memcpy(dst, src, len);
-}
-
-/*
  * Given an existing more privileged capability (fromcrn), build a new
  * capability in tocrn with the contents of the passed flattened
  * representation.
@@ -301,8 +264,9 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
 	cause = cheriframe->cf_capcause;
-	exccode = (cause >> 8) & 0xff;
-	regnum = cause & 0x1f;
+	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
 	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
 	    regnum, cheri_exccode_string(exccode));
 
