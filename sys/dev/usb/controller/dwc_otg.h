@@ -36,6 +36,7 @@
 #define	DWC_OTG_HOST_TIMER_RATE 10 /* ms */
 #define	DWC_OTG_TT_SLOT_MAX 8
 #define	DWC_OTG_SLOT_IDLE_MAX 4
+#define	DWC_OTG_SLOT_IDLE_MIN 2
 
 #define	DWC_OTG_READ_4(sc, reg) \
   bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
