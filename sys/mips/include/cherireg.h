@@ -257,6 +257,13 @@
 #define	CHERI_EXCCODE_ACCESS_KR2C	0x1e
 
 /*
+ * How to turn the cause register into an exception code and register number.
+ */
+#define	CHERI_CAPCAUSE_EXCCODE_MASK	0xff00
+#define	CHERI_CAPCAUSE_EXCCODE_SHIFT	8
+#define	CHERI_CAPCAUSE_REGNUM_MASK	0x1f
+
+/*
  * Location of the CHERI CCall/CReturn software-path exception vector.
  */
 #define	CHERI_CCALL_EXC_VEC	((intptr_t)(int32_t)0x80000280)
