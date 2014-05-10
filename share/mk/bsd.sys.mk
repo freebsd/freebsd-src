@@ -64,7 +64,10 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
 .if ${WARNS} <= 6
-CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
+CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} > 30300
+CWARNFLAGS.clang+= -Wno-unused-const-variable
+.endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
