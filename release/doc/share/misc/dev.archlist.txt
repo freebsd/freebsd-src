@@ -109,6 +109,7 @@ qlxgbe	amd64
 qlxge	amd64
 rc	i386
 ral	i386,amd64
+rsu	i386,amd64
 rue	i386,pc98,amd64
 rum	i386,amd64
 run	i386,amd64
