@@ -96,16 +96,14 @@ test_fault_cgetcause(void)
 {
 	register_t cause;
 
-	printf("CP2 cause register:\n");
 	cause = cheri_getcause();
-	printf("Cause: %ju\n", (uintmax_t)cause);
+	printf("CP2 cause register: %ju\n", (uintmax_t)cause);
 }
 
 void
 test_fault_read_kr1c(void)
 {
 
-	printf("CP2 KR1C:\n");
 	CHERI_CAPREG_PRINT(27);
 }
 
@@ -113,7 +111,6 @@ void
 test_fault_read_kr2c(void)
 {
 
-	printf("CP2 KR2C:\n");
 	CHERI_CAPREG_PRINT(28);
 }
 
@@ -121,7 +118,6 @@ void
 test_fault_read_kcc(void)
 {
 
-	printf("CP2 KCC:\n");
 	CHERI_CAPREG_PRINT(29);
 }
 
@@ -129,7 +125,6 @@ void
 test_fault_read_kdc(void)
 {
 
-	printf("CP2 KDC:\n");
 	CHERI_CAPREG_PRINT(30);
 }
 
@@ -137,6 +132,5 @@ void
 test_fault_read_epcc(void)
 {
 
-	printf("CP2 EPCC:\n");
 	CHERI_CAPREG_PRINT(31);
 }
