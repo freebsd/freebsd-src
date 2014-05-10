@@ -1,6 +1,6 @@
-#ifndef lint
-static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
-#endif
+/* original parser id follows */
+/* yysccsid[] = "@(#)yaccpar 1.9 (Berkeley) 02/21/93" */
+/* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
 #define YYMAJOR 1
@@ -15,7 +15,7 @@ static const char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 
 #define YYPURE 0
 
-#line 39 "util/configparser.y"
+#line 39 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 #include "config.h"
 
 #include <stdarg.h>
@@ -40,7 +40,7 @@ extern struct config_parser_state* cfg_parser;
 #define OUTYY(s)
 #endif
 
-#line 64 "util/configparser.y"
+#line 64 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
@@ -51,7 +51,7 @@ typedef union {
 	char*	str;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 54 "util/configparser.c"
+#line 54 "y.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -839,10 +839,10 @@ typedef struct {
 } YYSTACKDATA;
 /* variables for the parser stack */
 static YYSTACKDATA yystack;
-#line 1277 "util/configparser.y"
+#line 1277 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 
 /* parse helper routines could be here */
-#line 845 "util/configparser.c"
+#line 845 "y.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -1049,13 +1049,13 @@ yyreduce:
     switch (yyn)
     {
 case 8:
-#line 118 "util/configparser.y"
+#line 118 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("\nP(server:)\n")); 
 	}
 break;
 case 109:
-#line 167 "util/configparser.y"
+#line 167 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		struct config_stub* s;
 		OUTYY(("\nP(stub_zone:)\n")); 
@@ -1068,7 +1068,7 @@ case 109:
 	}
 break;
 case 117:
-#line 183 "util/configparser.y"
+#line 183 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		struct config_stub* s;
 		OUTYY(("\nP(forward_zone:)\n")); 
@@ -1081,7 +1081,7 @@ case 117:
 	}
 break;
 case 124:
-#line 199 "util/configparser.y"
+#line 199 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("P(server_num_threads:%s)\n", yystack.l_mark[0].str)); 
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1091,7 +1091,7 @@ case 124:
 	}
 break;
 case 125:
-#line 208 "util/configparser.y"
+#line 208 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("P(server_verbosity:%s)\n", yystack.l_mark[0].str)); 
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1101,7 +1101,7 @@ case 125:
 	}
 break;
 case 126:
-#line 217 "util/configparser.y"
+#line 217 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("P(server_statistics_interval:%s)\n", yystack.l_mark[0].str)); 
 		if(strcmp(yystack.l_mark[0].str, "") == 0 || strcmp(yystack.l_mark[0].str, "0") == 0)
@@ -1113,7 +1113,7 @@ case 126:
 	}
 break;
 case 127:
-#line 228 "util/configparser.y"
+#line 228 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_statistics_cumulative:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1123,7 +1123,7 @@ case 127:
 	}
 break;
 case 128:
-#line 237 "util/configparser.y"
+#line 237 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_extended_statistics:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1133,7 +1133,7 @@ case 128:
 	}
 break;
 case 129:
-#line 246 "util/configparser.y"
+#line 246 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_port:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1143,7 +1143,7 @@ case 129:
 	}
 break;
 case 130:
-#line 255 "util/configparser.y"
+#line 255 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_interface:%s)\n", yystack.l_mark[0].str));
 		if(cfg_parser->cfg->num_ifs == 0)
@@ -1157,7 +1157,7 @@ case 130:
 	}
 break;
 case 131:
-#line 268 "util/configparser.y"
+#line 268 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_outgoing_interface:%s)\n", yystack.l_mark[0].str));
 		if(cfg_parser->cfg->num_out_ifs == 0)
@@ -1173,7 +1173,7 @@ case 131:
 	}
 break;
 case 132:
-#line 283 "util/configparser.y"
+#line 283 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_outgoing_range:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1183,7 +1183,7 @@ case 132:
 	}
 break;
 case 133:
-#line 292 "util/configparser.y"
+#line 292 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_outgoing_port_permit:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_mark_ports(yystack.l_mark[0].str, 1, 
@@ -1193,7 +1193,7 @@ case 133:
 	}
 break;
 case 134:
-#line 301 "util/configparser.y"
+#line 301 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_outgoing_port_avoid:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_mark_ports(yystack.l_mark[0].str, 0, 
@@ -1203,7 +1203,7 @@ case 134:
 	}
 break;
 case 135:
-#line 310 "util/configparser.y"
+#line 310 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_outgoing_num_tcp:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1213,7 +1213,7 @@ case 135:
 	}
 break;
 case 136:
-#line 319 "util/configparser.y"
+#line 319 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_incoming_num_tcp:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1223,7 +1223,7 @@ case 136:
 	}
 break;
 case 137:
-#line 328 "util/configparser.y"
+#line 328 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_interface_automatic:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1233,7 +1233,7 @@ case 137:
 	}
 break;
 case 138:
-#line 337 "util/configparser.y"
+#line 337 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_ip4:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1243,7 +1243,7 @@ case 138:
 	}
 break;
 case 139:
-#line 346 "util/configparser.y"
+#line 346 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_ip6:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1253,7 +1253,7 @@ case 139:
 	}
 break;
 case 140:
-#line 355 "util/configparser.y"
+#line 355 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_udp:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1263,7 +1263,7 @@ case 140:
 	}
 break;
 case 141:
-#line 364 "util/configparser.y"
+#line 364 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_tcp:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1273,7 +1273,7 @@ case 141:
 	}
 break;
 case 142:
-#line 373 "util/configparser.y"
+#line 373 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_tcp_upstream:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1283,7 +1283,7 @@ case 142:
 	}
 break;
 case 143:
-#line 382 "util/configparser.y"
+#line 382 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_ssl_upstream:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1293,7 +1293,7 @@ case 143:
 	}
 break;
 case 144:
-#line 391 "util/configparser.y"
+#line 391 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_ssl_service_key:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->ssl_service_key);
@@ -1301,7 +1301,7 @@ case 144:
 	}
 break;
 case 145:
-#line 398 "util/configparser.y"
+#line 398 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_ssl_service_pem:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->ssl_service_pem);
@@ -1309,7 +1309,7 @@ case 145:
 	}
 break;
 case 146:
-#line 405 "util/configparser.y"
+#line 405 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_ssl_port:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1319,7 +1319,7 @@ case 146:
 	}
 break;
 case 147:
-#line 414 "util/configparser.y"
+#line 414 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_daemonize:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1329,7 +1329,7 @@ case 147:
 	}
 break;
 case 148:
-#line 423 "util/configparser.y"
+#line 423 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_use_syslog:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1344,7 +1344,7 @@ case 148:
 	}
 break;
 case 149:
-#line 437 "util/configparser.y"
+#line 437 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_log_time_ascii:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1354,7 +1354,7 @@ case 149:
 	}
 break;
 case 150:
-#line 446 "util/configparser.y"
+#line 446 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_log_queries:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1364,7 +1364,7 @@ case 150:
 	}
 break;
 case 151:
-#line 455 "util/configparser.y"
+#line 455 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_chroot:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->chrootdir);
@@ -1372,7 +1372,7 @@ case 151:
 	}
 break;
 case 152:
-#line 462 "util/configparser.y"
+#line 462 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_username:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->username);
@@ -1380,7 +1380,7 @@ case 152:
 	}
 break;
 case 153:
-#line 469 "util/configparser.y"
+#line 469 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_directory:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->directory);
@@ -1388,7 +1388,7 @@ case 153:
 	}
 break;
 case 154:
-#line 476 "util/configparser.y"
+#line 476 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_logfile:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->logfile);
@@ -1397,7 +1397,7 @@ case 154:
 	}
 break;
 case 155:
-#line 484 "util/configparser.y"
+#line 484 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_pidfile:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->pidfile);
@@ -1405,7 +1405,7 @@ case 155:
 	}
 break;
 case 156:
-#line 491 "util/configparser.y"
+#line 491 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_root_hints:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->root_hints, yystack.l_mark[0].str))
@@ -1413,7 +1413,7 @@ case 156:
 	}
 break;
 case 157:
-#line 498 "util/configparser.y"
+#line 498 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_dlv_anchor_file:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->dlv_anchor_file);
@@ -1421,7 +1421,7 @@ case 157:
 	}
 break;
 case 158:
-#line 505 "util/configparser.y"
+#line 505 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_dlv_anchor:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->dlv_anchor_list, yystack.l_mark[0].str))
@@ -1429,7 +1429,7 @@ case 158:
 	}
 break;
 case 159:
-#line 512 "util/configparser.y"
+#line 512 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_auto_trust_anchor_file:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->
@@ -1438,7 +1438,7 @@ case 159:
 	}
 break;
 case 160:
-#line 520 "util/configparser.y"
+#line 520 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_trust_anchor_file:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->
@@ -1447,7 +1447,7 @@ case 160:
 	}
 break;
 case 161:
-#line 528 "util/configparser.y"
+#line 528 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_trusted_keys_file:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->
@@ -1456,7 +1456,7 @@ case 161:
 	}
 break;
 case 162:
-#line 536 "util/configparser.y"
+#line 536 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_trust_anchor:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->trust_anchor_list, yystack.l_mark[0].str))
@@ -1464,7 +1464,7 @@ case 162:
 	}
 break;
 case 163:
-#line 543 "util/configparser.y"
+#line 543 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_domain_insecure:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->domain_insecure, yystack.l_mark[0].str))
@@ -1472,7 +1472,7 @@ case 163:
 	}
 break;
 case 164:
-#line 550 "util/configparser.y"
+#line 550 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_hide_identity:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1482,7 +1482,7 @@ case 164:
 	}
 break;
 case 165:
-#line 559 "util/configparser.y"
+#line 559 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_hide_version:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1492,7 +1492,7 @@ case 165:
 	}
 break;
 case 166:
-#line 568 "util/configparser.y"
+#line 568 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_identity:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->identity);
@@ -1500,7 +1500,7 @@ case 166:
 	}
 break;
 case 167:
-#line 575 "util/configparser.y"
+#line 575 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_version:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->version);
@@ -1508,7 +1508,7 @@ case 167:
 	}
 break;
 case 168:
-#line 582 "util/configparser.y"
+#line 582 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_so_rcvbuf:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->so_rcvbuf))
@@ -1517,7 +1517,7 @@ case 168:
 	}
 break;
 case 169:
-#line 590 "util/configparser.y"
+#line 590 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_so_sndbuf:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->so_sndbuf))
@@ -1526,7 +1526,7 @@ case 169:
 	}
 break;
 case 170:
-#line 598 "util/configparser.y"
+#line 598 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_edns_buffer_size:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1540,7 +1540,7 @@ case 170:
 	}
 break;
 case 171:
-#line 611 "util/configparser.y"
+#line 611 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_msg_buffer_size:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1552,7 +1552,7 @@ case 171:
 	}
 break;
 case 172:
-#line 622 "util/configparser.y"
+#line 622 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_msg_cache_size:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->msg_cache_size))
@@ -1561,7 +1561,7 @@ case 172:
 	}
 break;
 case 173:
-#line 630 "util/configparser.y"
+#line 630 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_msg_cache_slabs:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1575,7 +1575,7 @@ case 173:
 	}
 break;
 case 174:
-#line 643 "util/configparser.y"
+#line 643 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_num_queries_per_thread:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1585,7 +1585,7 @@ case 174:
 	}
 break;
 case 175:
-#line 652 "util/configparser.y"
+#line 652 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_jostle_timeout:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1595,7 +1595,7 @@ case 175:
 	}
 break;
 case 176:
-#line 661 "util/configparser.y"
+#line 661 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_rrset_cache_size:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->rrset_cache_size))
@@ -1604,7 +1604,7 @@ case 176:
 	}
 break;
 case 177:
-#line 669 "util/configparser.y"
+#line 669 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_rrset_cache_slabs:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1618,7 +1618,7 @@ case 177:
 	}
 break;
 case 178:
-#line 682 "util/configparser.y"
+#line 682 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_infra_host_ttl:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1628,7 +1628,7 @@ case 178:
 	}
 break;
 case 179:
-#line 691 "util/configparser.y"
+#line 691 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_infra_lame_ttl:%s)\n", yystack.l_mark[0].str));
 		verbose(VERB_DETAIL, "ignored infra-lame-ttl: %s (option "
@@ -1637,7 +1637,7 @@ case 179:
 	}
 break;
 case 180:
-#line 699 "util/configparser.y"
+#line 699 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_infra_cache_numhosts:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1647,7 +1647,7 @@ case 180:
 	}
 break;
 case 181:
-#line 708 "util/configparser.y"
+#line 708 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_infra_cache_lame_size:%s)\n", yystack.l_mark[0].str));
 		verbose(VERB_DETAIL, "ignored infra-cache-lame-size: %s "
@@ -1656,7 +1656,7 @@ case 181:
 	}
 break;
 case 182:
-#line 716 "util/configparser.y"
+#line 716 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_infra_cache_slabs:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -1670,7 +1670,7 @@ case 182:
 	}
 break;
 case 183:
-#line 729 "util/configparser.y"
+#line 729 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_target_fetch_policy:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->target_fetch_policy);
@@ -1678,7 +1678,7 @@ case 183:
 	}
 break;
 case 184:
-#line 736 "util/configparser.y"
+#line 736 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_short_bufsize:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1689,7 +1689,7 @@ case 184:
 	}
 break;
 case 185:
-#line 746 "util/configparser.y"
+#line 746 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_large_queries:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1700,7 +1700,7 @@ case 185:
 	}
 break;
 case 186:
-#line 756 "util/configparser.y"
+#line 756 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_glue:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1711,7 +1711,7 @@ case 186:
 	}
 break;
 case 187:
-#line 766 "util/configparser.y"
+#line 766 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_dnssec_stripped:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1722,7 +1722,7 @@ case 187:
 	}
 break;
 case 188:
-#line 776 "util/configparser.y"
+#line 776 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_below_nxdomain:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1733,7 +1733,7 @@ case 188:
 	}
 break;
 case 189:
-#line 786 "util/configparser.y"
+#line 786 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_harden_referral_path:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1744,7 +1744,7 @@ case 189:
 	}
 break;
 case 190:
-#line 796 "util/configparser.y"
+#line 796 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_use_caps_for_id:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1755,7 +1755,7 @@ case 190:
 	}
 break;
 case 191:
-#line 806 "util/configparser.y"
+#line 806 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_private_address:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->private_address, yystack.l_mark[0].str))
@@ -1763,7 +1763,7 @@ case 191:
 	}
 break;
 case 192:
-#line 813 "util/configparser.y"
+#line 813 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_private_domain:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->private_domain, yystack.l_mark[0].str))
@@ -1771,7 +1771,7 @@ case 192:
 	}
 break;
 case 193:
-#line 820 "util/configparser.y"
+#line 820 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_prefetch:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1781,7 +1781,7 @@ case 193:
 	}
 break;
 case 194:
-#line 829 "util/configparser.y"
+#line 829 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_prefetch_key:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1791,7 +1791,7 @@ case 194:
 	}
 break;
 case 195:
-#line 838 "util/configparser.y"
+#line 838 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_unwanted_reply_threshold:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1801,7 +1801,7 @@ case 195:
 	}
 break;
 case 196:
-#line 847 "util/configparser.y"
+#line 847 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_not_query_address:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->donotqueryaddrs, yystack.l_mark[0].str))
@@ -1809,7 +1809,7 @@ case 196:
 	}
 break;
 case 197:
-#line 854 "util/configparser.y"
+#line 854 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_do_not_query_localhost:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1820,7 +1820,7 @@ case 197:
 	}
 break;
 case 198:
-#line 864 "util/configparser.y"
+#line 864 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_access_control:%s %s)\n", yystack.l_mark[-1].str, yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "deny")!=0 && strcmp(yystack.l_mark[0].str, "refuse")!=0 &&
@@ -1835,7 +1835,7 @@ case 198:
 	}
 break;
 case 199:
-#line 878 "util/configparser.y"
+#line 878 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_module_conf:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->module_conf);
@@ -1843,7 +1843,7 @@ case 199:
 	}
 break;
 case 200:
-#line 885 "util/configparser.y"
+#line 885 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_override_date:%s)\n", yystack.l_mark[0].str));
 		if(strlen(yystack.l_mark[0].str) == 0 || strcmp(yystack.l_mark[0].str, "0") == 0) {
@@ -1862,7 +1862,7 @@ case 200:
 	}
 break;
 case 201:
-#line 903 "util/configparser.y"
+#line 903 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_sig_skew_min:%s)\n", yystack.l_mark[0].str));
 		if(strlen(yystack.l_mark[0].str) == 0 || strcmp(yystack.l_mark[0].str, "0") == 0) {
@@ -1876,7 +1876,7 @@ case 201:
 	}
 break;
 case 202:
-#line 916 "util/configparser.y"
+#line 916 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_sig_skew_max:%s)\n", yystack.l_mark[0].str));
 		if(strlen(yystack.l_mark[0].str) == 0 || strcmp(yystack.l_mark[0].str, "0") == 0) {
@@ -1890,7 +1890,7 @@ case 202:
 	}
 break;
 case 203:
-#line 929 "util/configparser.y"
+#line 929 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_cache_max_ttl:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1900,7 +1900,7 @@ case 203:
 	}
 break;
 case 204:
-#line 938 "util/configparser.y"
+#line 938 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_cache_min_ttl:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1910,7 +1910,7 @@ case 204:
 	}
 break;
 case 205:
-#line 947 "util/configparser.y"
+#line 947 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_bogus_ttl:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1920,7 +1920,7 @@ case 205:
 	}
 break;
 case 206:
-#line 956 "util/configparser.y"
+#line 956 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_clean_additional:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1931,7 +1931,7 @@ case 206:
 	}
 break;
 case 207:
-#line 966 "util/configparser.y"
+#line 966 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_permissive_mode:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1942,7 +1942,7 @@ case 207:
 	}
 break;
 case 208:
-#line 976 "util/configparser.y"
+#line 976 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_ignore_cd_flag:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -1952,7 +1952,7 @@ case 208:
 	}
 break;
 case 209:
-#line 985 "util/configparser.y"
+#line 985 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_log_level:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1962,7 +1962,7 @@ case 209:
 	}
 break;
 case 210:
-#line 994 "util/configparser.y"
+#line 994 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_val_nsec3_keysize_iterations:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->val_nsec3_key_iterations);
@@ -1970,7 +1970,7 @@ case 210:
 	}
 break;
 case 211:
-#line 1001 "util/configparser.y"
+#line 1001 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_add_holddown:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1980,7 +1980,7 @@ case 211:
 	}
 break;
 case 212:
-#line 1010 "util/configparser.y"
+#line 1010 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_del_holddown:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -1990,7 +1990,7 @@ case 212:
 	}
 break;
 case 213:
-#line 1019 "util/configparser.y"
+#line 1019 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_keep_missing:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0 && strcmp(yystack.l_mark[0].str, "0") != 0)
@@ -2000,7 +2000,7 @@ case 213:
 	}
 break;
 case 214:
-#line 1028 "util/configparser.y"
+#line 1028 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_key_cache_size:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->key_cache_size))
@@ -2009,7 +2009,7 @@ case 214:
 	}
 break;
 case 215:
-#line 1036 "util/configparser.y"
+#line 1036 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_key_cache_slabs:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -2023,7 +2023,7 @@ case 215:
 	}
 break;
 case 216:
-#line 1049 "util/configparser.y"
+#line 1049 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_neg_cache_size:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_parse_memsize(yystack.l_mark[0].str, &cfg_parser->cfg->neg_cache_size))
@@ -2032,7 +2032,7 @@ case 216:
 	}
 break;
 case 217:
-#line 1057 "util/configparser.y"
+#line 1057 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_local_zone:%s %s)\n", yystack.l_mark[-1].str, yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "static")!=0 && strcmp(yystack.l_mark[0].str, "deny")!=0 &&
@@ -2055,7 +2055,7 @@ case 217:
 	}
 break;
 case 218:
-#line 1079 "util/configparser.y"
+#line 1079 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_local_data:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->local_data, yystack.l_mark[0].str))
@@ -2063,7 +2063,7 @@ case 218:
 	}
 break;
 case 219:
-#line 1086 "util/configparser.y"
+#line 1086 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		char* ptr;
 		OUTYY(("P(server_local_data_ptr:%s)\n", yystack.l_mark[0].str));
@@ -2079,7 +2079,7 @@ case 219:
 	}
 break;
 case 220:
-#line 1101 "util/configparser.y"
+#line 1101 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_minimal_responses:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2090,7 +2090,7 @@ case 220:
 	}
 break;
 case 221:
-#line 1111 "util/configparser.y"
+#line 1111 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(server_rrset_roundrobin:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2101,7 +2101,7 @@ case 221:
 	}
 break;
 case 222:
-#line 1121 "util/configparser.y"
+#line 1121 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(name:%s)\n", yystack.l_mark[0].str));
 		if(cfg_parser->cfg->stubs->name)
@@ -2112,7 +2112,7 @@ case 222:
 	}
 break;
 case 223:
-#line 1131 "util/configparser.y"
+#line 1131 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(stub-host:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->stubs->hosts, yystack.l_mark[0].str))
@@ -2120,7 +2120,7 @@ case 223:
 	}
 break;
 case 224:
-#line 1138 "util/configparser.y"
+#line 1138 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(stub-addr:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->stubs->addrs, yystack.l_mark[0].str))
@@ -2128,7 +2128,7 @@ case 224:
 	}
 break;
 case 225:
-#line 1145 "util/configparser.y"
+#line 1145 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(stub-first:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2138,7 +2138,7 @@ case 225:
 	}
 break;
 case 226:
-#line 1154 "util/configparser.y"
+#line 1154 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(stub-prime:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2149,7 +2149,7 @@ case 226:
 	}
 break;
 case 227:
-#line 1164 "util/configparser.y"
+#line 1164 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(name:%s)\n", yystack.l_mark[0].str));
 		if(cfg_parser->cfg->forwards->name)
@@ -2160,7 +2160,7 @@ case 227:
 	}
 break;
 case 228:
-#line 1174 "util/configparser.y"
+#line 1174 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(forward-host:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->forwards->hosts, yystack.l_mark[0].str))
@@ -2168,7 +2168,7 @@ case 228:
 	}
 break;
 case 229:
-#line 1181 "util/configparser.y"
+#line 1181 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(forward-addr:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->forwards->addrs, yystack.l_mark[0].str))
@@ -2176,7 +2176,7 @@ case 229:
 	}
 break;
 case 230:
-#line 1188 "util/configparser.y"
+#line 1188 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(forward-first:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2186,13 +2186,13 @@ case 230:
 	}
 break;
 case 231:
-#line 1197 "util/configparser.y"
+#line 1197 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("\nP(remote-control:)\n")); 
 	}
 break;
 case 241:
-#line 1208 "util/configparser.y"
+#line 1208 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(control_enable:%s)\n", yystack.l_mark[0].str));
 		if(strcmp(yystack.l_mark[0].str, "yes") != 0 && strcmp(yystack.l_mark[0].str, "no") != 0)
@@ -2203,7 +2203,7 @@ case 241:
 	}
 break;
 case 242:
-#line 1218 "util/configparser.y"
+#line 1218 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(control_port:%s)\n", yystack.l_mark[0].str));
 		if(atoi(yystack.l_mark[0].str) == 0)
@@ -2213,7 +2213,7 @@ case 242:
 	}
 break;
 case 243:
-#line 1227 "util/configparser.y"
+#line 1227 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(control_interface:%s)\n", yystack.l_mark[0].str));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->control_ifs, yystack.l_mark[0].str))
@@ -2221,7 +2221,7 @@ case 243:
 	}
 break;
 case 244:
-#line 1234 "util/configparser.y"
+#line 1234 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(rc_server_key_file:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->server_key_file);
@@ -2229,7 +2229,7 @@ case 244:
 	}
 break;
 case 245:
-#line 1241 "util/configparser.y"
+#line 1241 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(rc_server_cert_file:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->server_cert_file);
@@ -2237,7 +2237,7 @@ case 245:
 	}
 break;
 case 246:
-#line 1248 "util/configparser.y"
+#line 1248 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(rc_control_key_file:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->control_key_file);
@@ -2245,7 +2245,7 @@ case 246:
 	}
 break;
 case 247:
-#line 1255 "util/configparser.y"
+#line 1255 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(rc_control_cert_file:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->control_cert_file);
@@ -2253,20 +2253,20 @@ case 247:
 	}
 break;
 case 248:
-#line 1262 "util/configparser.y"
+#line 1262 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{ 
 		OUTYY(("\nP(python:)\n")); 
 	}
 break;
 case 252:
-#line 1271 "util/configparser.y"
+#line 1271 "/home/rpaulo/freebsd-svn/stable/10/lib/libunbound/../../contrib/unbound/util/configparser.y"
 	{
 		OUTYY(("P(python-script:%s)\n", yystack.l_mark[0].str));
 		free(cfg_parser->cfg->python_script);
 		cfg_parser->cfg->python_script = yystack.l_mark[0].str;
 	}
 break;
-#line 2269 "util/configparser.c"
+#line 2269 "y.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
