@@ -74,10 +74,6 @@ CTFMERGE	?=	ctfmerge
 DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
-.else
-# XXX: What to do here? Is removing the CFLAGS part completely ok here?
-# For now comment it out to not compile with -g unconditionally.
-#CFLAGS		+=	-g
 .endif
 
 CXX		?=	c++
@@ -338,11 +334,7 @@ SHELL=	${__MAKE_SHELL}
 
 # Toggle on warnings
 .WARN: dirsyntax
-.endif
-
-.endif
-
-.if defined(.PARSEDIR)
+.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -359,7 +351,8 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-
-.endif
+.endif # bmake
 
 .include <bsd.cpu.mk>
+
+.endif # ! Posix
