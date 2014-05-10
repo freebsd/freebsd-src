@@ -480,7 +480,7 @@ atend:
 				INTON;
 			}
 			c = '?';
-			goto bad;
+			goto out;
 		}
 		if (*++q == ':')
 			q++;
@@ -501,7 +501,7 @@ atend:
 				INTON;
 				c = '?';
 			}
-			goto bad;
+			goto out;
 		}
 
 		if (p == **optnext)
@@ -511,14 +511,10 @@ atend:
 	}
 	else
 		setvarsafe("OPTARG", "", 0);
-	ind = *optnext - optfirst + 1;
-	goto out;
 
-bad:
-	ind = 1;
-	*optnext = NULL;
-	p = NULL;
 out:
+	if (*optnext != NULL)
+		ind = *optnext - optfirst + 1;
 	*optptr = p;
 	fmtstr(s, sizeof(s), "%d", ind);
 	err |= setvarsafe("OPTIND", s, VNOFUNC);
