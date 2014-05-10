@@ -266,7 +266,7 @@ CLEANFILES += *.meta filemon.* *.db
 now_utc = ${%s:L:gmtime}
 start_utc := ${now_utc}
 
-meta_stats= meta=${.MAKE.META.FILES:[#]} \
+meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
 	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
 
 #.END: _reldir_finish
@@ -280,7 +280,7 @@ _reldir_finish: .NOMETA
 _reldir_failed: .NOMETA
 	@echo "${TIME_STAMP} Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
 
-.ifdef WITH_META_STATS
+.if defined(WITH_META_STATS) && ${.MAKE.LEVEL} > 0
 .END: _reldir_finish
 .ERROR: _reldir_failed
 .endif
