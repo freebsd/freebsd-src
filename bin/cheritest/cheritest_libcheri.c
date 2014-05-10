@@ -91,6 +91,13 @@ cheritest_invoke_simple_op(int op)
 {
 	register_t v;
 
+	/*
+	 * Test must be done in 10 seconds or less: not the ideal way to do
+	 * this, as we'd rather time it out in the parent, I think, but works
+	 * fine in practice.
+	 */
+	alarm(10);
+
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
