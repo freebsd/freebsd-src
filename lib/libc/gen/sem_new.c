@@ -294,13 +294,13 @@ _sem_unlink(const char *name)
 		return -1;
 	}
 	name++;
-
 	strcpy(path, SEM_PREFIX);
 	if (strlcat(path, name, sizeof(path)) >= sizeof(path)) {
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	return unlink(path);
+
+	return (unlink(path));
 }
 
 int
