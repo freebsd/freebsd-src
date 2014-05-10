@@ -78,7 +78,7 @@ initarm_gpio_init(void)
 	/*
 	 * Set initial values of GPIO output ports
 	 */
-	platform_gpio_init();
+	lpc_gpio_init();
 }
 
 void
