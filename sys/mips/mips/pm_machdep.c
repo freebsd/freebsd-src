@@ -192,6 +192,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    (void *)sf.sf_uc.uc_mcontext.mc_cp2state, cp2_len) != 0) {
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
+		/* NOTREACHED */
 	}
 #endif
 	if (copyout(&sf, sfp, sizeof(struct sigframe)) != 0) {
@@ -201,6 +202,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 */
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
+		/* NOTREACHED */
 	}
 
 	regs->pc = (register_t)(intptr_t)catcher;
