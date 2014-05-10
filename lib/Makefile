@@ -31,8 +31,12 @@
 # Except it appears bind needs to be compiled last
 
 SUBDIR_ORDERED=	${_csu} \
+	.WAIT \
 	libc \
 	libc_nonshared \
+	.WAIT \
+	msun \
+	.WAIT \
 	libbsm \
 	libauditd \
 	libutil \
@@ -45,7 +49,6 @@ SUBDIR_ORDERED=	${_csu} \
 	${_libiconv_modules} \
 	libkvm \
 	${_libldns} \
-	msun \
 	libmd \
 	ncurses \
 	${_libnetgraph} \
@@ -62,6 +65,7 @@ SUBDIR_ORDERED+=	libcom_err
 .endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
+	.WAIT \
 	libalias \
 	libarchive \
 	${_libatm} \
