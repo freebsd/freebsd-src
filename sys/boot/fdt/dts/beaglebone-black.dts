@@ -52,6 +52,12 @@
 				/* I2C0 */
 				"I2C0_SDA", "I2C0_SDA","i2c",
 				"I2C0_SCL", "I2C0_SCL","i2c",
+				/* I2C1 */
+				"SPI0_D1", "I2C1_SDA", "i2c",
+				"SPI0_CS0", "I2C1_SCL", "i2c",
+				/* I2C2 */
+				"UART1_CTSn", "I2C2_SDA", "i2c",
+				"UART1_RTSn", "I2C2_SCL", "i2c",
 				/* Ethernet */
 				"MII1_RX_ER", "gmii1_rxerr", "input_pulldown",
 				"MII1_TX_EN", "gmii1_txen", "output",
