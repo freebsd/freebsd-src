@@ -2098,6 +2098,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	int lockfail;
 	int cpu;
 
+	/* XXX: FIX!! Do not commit this to CURRENT!! MarkM */
 	random_harvest(&(zone->uz_name), sizeof(void *), 1, RANDOM_UMA_ALLOC);
 
 	/* This is the fast path allocation */
@@ -2130,6 +2131,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
+			/* XXX: FIX!! Do not commit this to CURRENT!! MarkM */
 			random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 			return (item);
 		}
@@ -2173,6 +2175,7 @@ zalloc_start:
 #endif
 		if (flags & M_ZERO)
 			uma_zero_item(item, zone);
+		/* XXX: FIX!! Do not commit this to CURRENT!! MarkM */
 		random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 		return (item);
 	}
@@ -2294,6 +2297,7 @@ zalloc_start:
 zalloc_item:
 	item = zone_alloc_item(zone, udata, flags);
 
+	/* XXX: FIX!! Do not commit this to CURRENT!! MarkM */
 	random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 	return (item);
 }
@@ -2648,6 +2652,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 
 	entropy.uz_name = zone->uz_name;
 	entropy.item = item;
+	/* XXX: FIX!! Do not commit this to CURRENT!! MarkM */
 	random_harvest(&entropy, sizeof(struct entropy), 2, RANDOM_UMA_ALLOC);
 
 #ifdef UMA_DEBUG_ALLOC_1
