@@ -1219,6 +1219,17 @@ abortit:
 			VOP_UNLOCK(fvp, 0);
 			goto bad;
 		}
+		/*
+		 * If ip is for a directory, then its name should always
+		 * be "." since it is for the directory entry in the
+		 * directory itself (msdosfs_lookup() always translates
+		 * to the "." entry so as to get a unique denode, except
+		 * for the root directory there are different
+		 * complications).  However, we just corrupted its name
+		 * to pass the correct name to createde().  Undo this.
+		 */
+		if ((ip->de_Attributes & ATTR_DIRECTORY) != 0)
+			bcopy(oldname, ip->de_Name, 11);
 		ip->de_refcnt++;
 		zp->de_fndoffset = from_diroffset;
 		error = removede(zp, ip);
