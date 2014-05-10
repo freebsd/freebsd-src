@@ -72,9 +72,15 @@ OBJCOPY?=	objcopy
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
-.include <src.opts.mk>
+# Note: we're really bsd.kmod.mk, so we have to allow src.opts.mk to be
+# optional. Include it if we can so we can get /etc/src.conf changes,
+# if we're in the tree. If we can't include it that's OK. kern.opts.mk
+# has all the kernel options in it, and should be included after src.opts.mk
+# so it picks everything up.
+.sinclude <src.opts.mk>
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
+.include "kern.opts.mk"
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 

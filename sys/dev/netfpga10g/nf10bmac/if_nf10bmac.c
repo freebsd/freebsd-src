@@ -92,13 +92,15 @@ static poll_handler_t nf10bmac_poll;
 #define	NF10BMAC_LOCK_ASSERT(_sc)	\
 	mtx_assert(&(_sc)->nf10bmac_mtx, MA_OWNED)
 
-#define	NF10BMAC_TX_LEN			0x08
-#define	NF10BMAC_TX_META		0x04
-#define	NF10BMAC_TX_DATA		0x00
-#define	NF10BMAC_RX_LEN			0x08
-#define	NF10BMAC_RX_META		0x04
-#define	NF10BMAC_RX_DATA		0x00
 #define	NF10BMAC_CTRL0			0x00
+#define	NF10BMAC_TX_DATA		0x00
+#define	NF10BMAC_TX_META		0x08
+#define	NF10BMAC_TX_LEN			0x10
+#define	NF10BMAC_RX_DATA		0x00
+#define	NF10BMAC_RX_META		0x08
+#define	NF10BMAC_RX_LEN			0x10
+#define	NF10BMAC_INTR_CLEAR_DIS		0x00
+#define	NF10BMAC_INTR_CTRL		0x08
 
 #define NF10BMAC_TUSER_MAC0		(1 << 0)
 #define NF10BMAC_TUSER_CPU0		(1 << 1)
@@ -109,11 +111,12 @@ static poll_handler_t nf10bmac_poll;
 #define NF10BMAC_TUSER_MAC3		(1 << 6)
 #define NF10BMAC_TUSER_CPU3		(1 << 7)
 
+#define	NF10BMAC_DATA_LEN_MASK		0x0000ffff
 #define	NF10BMAC_DATA_DPORT_MASK	0xff000000
 #define	NF10BMAC_DATA_DPORT_SHIFT	24
 #define	NF10BMAC_DATA_SPORT_MASK	0x00ff0000
 #define	NF10BMAC_DATA_SPORT_SHIFT	16
-#define	NF10BMAC_DATA_LAST		0x00000080
+#define	NF10BMAC_DATA_LAST		0x00008000
 #define	NF10BMAC_DATA_STRB		0x0000000f
 
 
@@ -151,7 +154,7 @@ nf10bmac_read_4_be(struct resource *res, uint32_t reg,
 }
 
 #define	NF10BMAC_WRITE_CTRL_4(sc, reg, val)				\
-	nf10bmac_write_4((sc)->nf10bmac_mem_res, (reg), (val),		\
+	nf10bmac_write_4((sc)->nf10bmac_ctrl_res, (reg), (val),		\
 	    __func__, __LINE__)
 #define	NF10BMAC_WRITE_4(sc, reg, val)					\
 	nf10bmac_write_4((sc)->nf10bmac_tx_mem_res, (reg), (val),	\
@@ -165,6 +168,21 @@ nf10bmac_read_4_be(struct resource *res, uint32_t reg,
 #define	NF10BMAC_READ_4_BE(sc, reg)					\
 	nf10bmac_read_4_be((sc)->nf10bmac_rx_mem_res, (reg),		\
 	    __func__, __LINE__)
+
+#define	NF10BMAC_WRITE_INTR_4(sc, reg, val, _f, _l)			\
+	nf10bmac_write_4((sc)->nf10bmac_intr_res, (reg), (val),		\
+	    (_f), (_l))
+
+#define	NF10BMAC_RX_INTR_CLEAR_DIS(sc)					\
+	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CLEAR_DIS, 1,		\
+	__func__, __LINE__)
+#define	NF10BMAC_RX_INTR_ENABLE(sc)					\
+	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CTRL, 1,		\
+	__func__, __LINE__)
+#define	NF10BMAC_RX_INTR_DISABLE(sc)					\
+	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CTRL, 0,		\
+	__func__, __LINE__)
+
 
 #ifdef ENABLE_WATCHDOG
 static void nf10bmac_tick(void *);
@@ -318,7 +336,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	 * skip to tlast).
 	 */
 
-	len = NF10BMAC_READ_4(sc, NF10BMAC_RX_LEN);
+	len = NF10BMAC_READ_4(sc, NF10BMAC_RX_LEN) & NF10BMAC_DATA_LEN_MASK;
 	if (len > (MCLBYTES - ETHER_ALIGN)) {
 		nf10bmac_eat_packet_munch_munch(sc);
 		return (0);
@@ -435,6 +453,7 @@ nf10bmac_stop_locked(struct nf10bmac_softc *sc)
 
 	ifp = sc->nf10bmac_ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	NF10BMAC_RX_INTR_CLEAR_DIS(sc);
 
 	sc->nf10bmac_flags &= ~NF10BMAC_FLAGS_LINK;
 	if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -498,6 +517,16 @@ nf10bmac_init_locked(struct nf10bmac_softc *sc)
 	/* Instead drain the FIFO; or at least a possible first packet.. */
 	nf10bmac_eat_packet_munch_munch(sc);
 
+#ifdef DEVICE_POLLING
+	/* Only enable interrupts if we are not polling. */
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		NF10BMAC_RX_INTR_CLEAR_DIS(sc);
+	} else
+#endif
+	{
+		NF10BMAC_RX_INTR_ENABLE(sc);
+	}
+
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
@@ -555,6 +584,49 @@ nf10bmac_tick(void *xsc)
 	callout_reset(&sc->nf10bmac_tick, hz, nf10bmac_tick, sc);
 }
 #endif
+
+static void
+nf10bmac_intr(void *arg)
+{
+	struct nf10bmac_softc *sc;
+	struct ifnet *ifp;
+	int rx_npkts;
+
+	sc = (struct nf10bmac_softc *)arg;
+	ifp = sc->nf10bmac_ifp;
+
+	NF10BMAC_LOCK(sc);
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		NF10BMAC_UNLOCK(sc);
+		return;
+	} 
+#endif
+
+	/* NF10BMAC_RX_INTR_DISABLE(sc); */
+	NF10BMAC_RX_INTR_CLEAR_DIS(sc);
+
+	/* We only have an RX interrupt and no status information. */
+	rx_npkts = 0;
+	while (rx_npkts < NF10BMAC_MAX_PKTS) {
+		int c;
+
+		c = nf10bmac_rx_locked(sc);
+		rx_npkts += c;
+		if (c == 0)
+			break;
+	}
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/* Re-enable interrupts. */
+		NF10BMAC_RX_INTR_ENABLE(sc);
+
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			nf10bmac_start_locked(ifp);
+	}
+	NF10BMAC_UNLOCK(sc);
+}
+
 
 #ifdef DEVICE_POLLING
 static int
@@ -649,10 +721,16 @@ nf10bmac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					break;
 				}
 
+				NF10BMAC_RX_INTR_CLEAR_DIS(sc);
+
 			/*
 			 * Do not allow disabling of polling if we do
 			 * not have interrupts.
 			 */
+			} else if (sc->nf10bmac_rx_irq_res != NULL) {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				NF10BMAC_RX_INTR_ENABLE(sc);
 			} else {
 				ifp->if_capenable ^= IFCAP_POLLING;
 				error = EINVAL;
@@ -672,7 +750,6 @@ nf10bmac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	return (error);
 }
-
 
 /*
  * Generic device handling routines.
@@ -733,18 +810,40 @@ nf10bmac_attach(device_t dev)
         ifmedia_add(&sc->nf10bmac_media, IFM_ETHER | IFM_10G_T, 0, NULL);
         ifmedia_set(&sc->nf10bmac_media, IFM_ETHER | IFM_10G_T);
 
-	/* Interrupts would go here. */
+	/* Initialise. */
+	error = 0;
 
+	/* Hook up interrupts. Well the one. */
+	if (sc->nf10bmac_rx_irq_res != NULL) {
+		error = bus_setup_intr(dev, sc->nf10bmac_rx_irq_res,
+		    INTR_TYPE_NET | INTR_MPSAFE, NULL, nf10bmac_intr,
+		    sc, &sc->nf10bmac_rx_intrhand);
+		if (error != 0) {
+			device_printf(dev, "enabling RX IRQ failed\n");
+			ether_ifdetach(ifp);
+			goto err;
+		}
+	}
+
+	if ((ifp->if_capenable & IFCAP_POLLING) != 0 ||
+	    sc->nf10bmac_rx_irq_res == NULL) {
 #ifdef DEVICE_POLLING
-	ifp->if_capenable |= IFCAP_POLLING;
-	device_printf(dev, "forcing to polling due to no interrupts\n");
-	error = ether_poll_register(nf10bmac_poll, ifp);
-	if (error != 0)
-		goto err;
+		/* If not on and no IRQs force it on. */
+		if (sc->nf10bmac_rx_irq_res == NULL) {
+			ifp->if_capenable |= IFCAP_POLLING;
+			device_printf(dev,
+			    "forcing to polling due to no interrupts\n");
+		}
+		error = ether_poll_register(nf10bmac_poll, ifp);
+		if (error != 0)
+			goto err;
 #else
-	device_printf(dev, "no DEVICE_POLLING in kernel and no IRQs\n");
-	error = ENXIO;
+		device_printf(dev, "no DEVICE_POLLING in kernel and no IRQs\n");
+		error = ENXIO;
 #endif
+	} else {
+		NF10BMAC_RX_INTR_ENABLE(sc);
+	}
 
 err:
 	if (error != 0)
@@ -780,6 +879,10 @@ nf10bmac_detach(device_t dev)
 		ether_ifdetach(ifp);
 	}
 
+	if (sc->nf10bmac_rx_intrhand)
+		bus_teardown_intr(dev, sc->nf10bmac_rx_irq_res,
+		    sc->nf10bmac_rx_intrhand);
+
 	if (ifp != NULL)
 		if_free(ifp);
 	ifmedia_removeall(&sc->nf10bmac_media);
@@ -797,10 +900,15 @@ nf10bmac_detach_resources(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->nf10bmac_mem_res != NULL) {
+	if (sc->nf10bmac_rx_irq_res != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, sc->nf10bmac_rx_irq_rid,
+		    sc->nf10bmac_rx_irq_res);
+		sc->nf10bmac_rx_irq_res = NULL;
+	}
+	if (sc->nf10bmac_intr_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->nf10bmac_mem_rid, sc->nf10bmac_mem_res);
-		sc->nf10bmac_mem_res = NULL;
+		    sc->nf10bmac_intr_rid, sc->nf10bmac_intr_res);
+		sc->nf10bmac_intr_res = NULL;
 	}
 	if (sc->nf10bmac_rx_mem_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -811,6 +919,11 @@ nf10bmac_detach_resources(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->nf10bmac_tx_mem_rid, sc->nf10bmac_tx_mem_res);
 		sc->nf10bmac_tx_mem_res = NULL;
+	}
+	if (sc->nf10bmac_ctrl_res != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->nf10bmac_ctrl_rid, sc->nf10bmac_ctrl_res);
+		sc->nf10bmac_ctrl_res = NULL;
 	}
 }
 
