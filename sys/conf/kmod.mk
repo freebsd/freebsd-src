@@ -65,10 +65,6 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-.if defined(KMODDEPS)
-.error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
-.endif
-
 # Note: we're really bsd.kmod.mk, so we have to allow src.opts.mk to be
 # optional. Include it if we can so we can get /etc/src.conf changes,
 # if we're in the tree. If we can't include it that's OK. kern.opts.mk
@@ -204,7 +200,7 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-.if defined(MK_CTF) && ${MK_CTF} != "no"
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .if defined(EXPORT_SYMS)
