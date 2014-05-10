@@ -23,7 +23,7 @@ M_ListToSkip= O:u:ts::S,:,:N,g:S,^,N,
 # type should be a builtin in any sh since about 1980,
 # AUTOCONF := ${autoconf:L:${M_whence}}
 M_type = @x@(type $$x 2> /dev/null); echo;@:sh:[0]:N* found*:[@]:C,[()],,g
-M_whence = ${M_type}:M/*
+M_whence = ${M_type}:M/*:[1]
 
 # convert a path to a valid shell variable
 M_P2V = tu:C,[./-],_,g
@@ -206,6 +206,9 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
+.if ${MACHINE} == "host" && defined(EARLY_BUILD)
+# we literally want to build with host cc and includes
+.else
 .ifndef WITH_SYSROOT
 .if ${MACHINE} != "host"
 CFLAGS_LAST+= -nostdinc
@@ -214,7 +217,7 @@ GCCVER?= 4.2
 CLANGVER?= 3.4
 CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -I${STAGE_OBJTOP}/usr/include
 CFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
-LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
+LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR} -L${STAGE_OBJTOP}/lib
 CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER} -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}
 # backward doesn't get searched if -nostdinc
 CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward
@@ -227,6 +230,7 @@ CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP}
 LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .endif
+.endif				# EARLY_BUILD for host
 
 .if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
@@ -283,10 +287,26 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 # these are handy
 # we can use this for a cheap timestamp at the start of a target's script,
 # but not at the end - since make will expand both at the same time.
+AnEmptyVar=
 TIME_STAMP_FMT = @ %s [%Y-%m-%d %T]
 TIME_STAMP = ${TIME_STAMP_FMT:localtime}
 # this will produce the same output but as of when date(1) is run.
 TIME_STAMP_DATE = `date '+${TIME_STAMP_FMT}'`
 TIME_STAMP_END?= ${TIME_STAMP_DATE}
+
+.ifdef WITH_TIMESTAMPS
+TRACER= ${TIME_STAMP} ${AnEmptyVar}
+.endif
+
+# toolchains can be a pain - especially bootstrappping them
+.ifdef WITH_TOOLSDIR
+TOOLSDIR?= ${HOST_OBJTOP}/tools
+.elif defined(STAGE_HOST_OBJTOP) && exists(${STAGE_HOST_OBJTOP}/usr/bin)
+TOOLSDIR?= ${STAGE_HOST_OBJTOP}
+.endif
+.if ${.MAKE.LEVEL} == 0 && exists(${TOOLSDIR}/usr/bin)
+PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
+.export PATH
+.endif
 
 .endif				# bmake
