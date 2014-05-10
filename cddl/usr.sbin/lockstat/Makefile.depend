@@ -5,12 +5,15 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DIRDEPS = \
 	cddl/lib/libctf \
 	cddl/lib/libdtrace \
+	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libc_nonshared \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
 	lib/libelf \
 	lib/libproc \
 	lib/librt \
