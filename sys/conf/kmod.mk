@@ -116,11 +116,9 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-.endif
+CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=100
+CFLAGS.gcc+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.

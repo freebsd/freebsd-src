@@ -37,10 +37,10 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} != "clang"
-COPTFLAGS?=-O2 -frename-registers -pipe
-.else
+.if ${COMPILER_TYPE} == "clang"
 COPTFLAGS?=-O2 -pipe
+.else
+COPTFLAGS?=-O2 -frename-registers -pipe
 .endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
@@ -86,13 +86,11 @@ CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS_ARCH_PARAMS?=--param max-inline-insns-single=1000
 .endif
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
-CFLAGS+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
+CFLAGS.gcc+= -fno-common -finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
+CFLAGS.gcc+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
 .if defined(CFLAGS_ARCH_PARAMS)
-CFLAGS+=${CFLAGS_ARCH_PARAMS}
-.endif
+CFLAGS.gcc+=${CFLAGS_ARCH_PARAMS}
 .endif
 WERROR?= -Werror
 
@@ -107,13 +105,11 @@ GCC_MS_EXTENSIONS= -fms-extensions
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-falign-functions=16
-.endif
+CFLAGS.gcc+=	-falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
 PROF=		-pg
-.if ${COMPILER_TYPE} != "clang"
+.if ${COMPILER_TYPE} == "gcc"
 PROF+=		-mprofiler-epilogue
 .endif
 .else
