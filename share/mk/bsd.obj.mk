@@ -129,7 +129,7 @@ cleanobj: clean cleandepend
 
 # Tell bmake not to look for generated files via .PATH
 .if !empty(CLEANFILES)
-.NOPATH: ${CLEANFILES}
+.NOPATH: ${CLEANFILES:N*\**}
 .endif
 
 .if !target(clean)
@@ -180,7 +180,8 @@ destroy-stage: .NOMETA
 .endif
 
 # allow parallel destruction
-.for m in ${ALL_MACHINE_LIST}
+_destroy_machine_list = common host ${ALL_MACHINE_LIST}
+.for m in ${_destroy_machine_list:O:u}
 destroy-all: destroy.$m
 .if !target(destroy.$m)
 destroy.$m: .NOMETA
