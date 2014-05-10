@@ -84,6 +84,10 @@ typedef struct	__mcontext {
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
 #include <compat/freebsd32/freebsd32_signal.h>
 
+/*
+ * XXXRW: TODO: Extend with cp2-state fields even though CHERI doesn't support
+ * 32-bit emulation.
+ */
 typedef struct __mcontext32 {
 	int		mc_onstack;
 	int32_t		mc_pc;
