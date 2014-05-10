@@ -139,12 +139,8 @@ CFLAGS+=	${SSP_CFLAGS}
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
 .endif
 
-# Not sure this is 100% kosher, but I think that EARLY_BUILD must be only
-# defined when we're not building programs that use the CFLAGS.foo feature.
-.if !defined(EARLY_BUILD)
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
-.endif
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
