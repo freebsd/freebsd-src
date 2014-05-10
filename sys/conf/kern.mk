@@ -64,11 +64,8 @@ FORMAT_EXTENSIONS=	-fformat-extensions
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
-.else
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.gcc+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
@@ -93,11 +90,8 @@ INLINE_LIMIT?=	15000
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_CPUARCH} == "sparc64"
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-mcmodel=large -fno-dwarf2-cfi-asm
-.else
-CFLAGS+=	-mcmodel=medany -msoft-float
-.endif
+CFLAGS.clang+=	-mcmodel=large -fno-dwarf2-cfi-asm
+CFLAGS.gcc+=	-mcmodel=medany -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -116,9 +110,7 @@ INLINE_LIMIT?=	15000
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \
 		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
@@ -173,3 +165,5 @@ CFLAGS+=	-fstack-protector
 .if ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf*} == ""
 CFLAGS+=	-gdwarf-2
 .endif
+
+CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}
