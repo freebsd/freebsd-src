@@ -1,0 +1,75 @@
+.\" Copyright (c) 2013 Kevin Lo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2013
+.Dt URTWNFW 4
+.Os
+.Sh NAME
+.Nm urtwnfw
+.Nd "Firmware Module for Realtek Wireless driver"
+.Sh SYNOPSIS
+To compile this module into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device urtwnfw"
+.Ed
+.Pp
+This will include three firmware images inside the kernel.
+If you want to pick only the firmware image for your network adapter choose one
+of the following:
+.Bd -ragged -offset indent
+.Cd "device urtwn-rtl8192cfwT"
+.Cd "device urtwn-rtl8192cfwU"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+urtwn-rtl8192cfwT_load="YES"
+urtwn-rtl8192cfwU_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module provides access to firmware sets for the
+Realtek RTL8188CUS, RTL8188CE-VAU, RTL8188RU and RTL8192CU
+chip based USB WiFi adapters.
+It may be
+statically linked into the kernel, or loaded as a module.
+.Pp
+For the loaded firmware to be enabled for use the license at
+.Pa /usr/share/doc/legal/realtek
+must be agreed to by adding the following line to
+.Xr loader.conf 5 :
+.Pp
+.Dl "legal.realtek.license_ack=1"
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek" -compact
+.It Pa /usr/share/doc/legal/realtek
+.Nm
+firmware license
+.El
+.Sh SEE ALSO
+.Xr urtwn 4 ,
+.Xr firmware 9
