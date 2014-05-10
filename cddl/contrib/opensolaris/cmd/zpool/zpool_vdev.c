@@ -512,6 +512,7 @@ make_leaf_vdev(const char *arg, uint64_t is_log)
 		verify(nvlist_add_uint64(vdev, ZPOOL_CONFIG_WHOLE_DISK,
 		    (uint64_t)wholedisk) == 0);
 
+#ifdef have_devid
 	/*
 	 * For a whole disk, defer getting its devid until after labeling it.
 	 */
@@ -546,6 +547,7 @@ make_leaf_vdev(const char *arg, uint64_t is_log)
 
 		(void) close(fd);
 	}
+#endif
 
 	return (vdev);
 }
