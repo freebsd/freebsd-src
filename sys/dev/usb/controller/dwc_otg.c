@@ -141,6 +141,7 @@ static void dwc_otg_do_poll(struct usb_bus *);
 static void dwc_otg_standard_done(struct usb_xfer *);
 static void dwc_otg_root_intr(struct dwc_otg_softc *);
 static void dwc_otg_interrupt_poll(struct dwc_otg_softc *);
+static void dwc_otg_host_channel_disable(struct dwc_otg_softc *, uint8_t);
 
 /*
  * Here is a configuration that the chip supports.
@@ -210,6 +211,13 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		return (EINVAL);
 	}
 
+	/* disable any leftover host channels */
+	for (x = 0; x != sc->sc_host_ch_max; x++) {
+		if (sc->sc_chan_state[x].wait_sof == 0)
+			continue;
+		dwc_otg_host_channel_disable(sc, x);
+	}
+
 	if (mode == DWC_MODE_HOST) {
 
 		/* reset active endpoints */
@@ -235,6 +243,9 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		DWC_OTG_WRITE_4(sc, DOTG_HPTXFSIZ,
 		    ((fifo_size / 4) << 16) |
 		    (tx_start / 4));
+
+		/* reset host channel state */
+		memset(sc->sc_chan_state, 0, sizeof(sc->sc_chan_state));
 
 		/* reset FIFO TX levels */
 		sc->sc_tx_cur_p_level = 0;
@@ -325,6 +336,9 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 
 		/* reset periodic and non-periodic FIFO TX size */
 		sc->sc_tx_max_size = fifo_size;
+
+		/* reset host channel state */
+		memset(sc->sc_chan_state, 0, sizeof(sc->sc_chan_state));
 
 		/* reset FIFO TX levels */
 		sc->sc_tx_cur_p_level = 0;
@@ -569,7 +583,7 @@ dwc_otg_clear_hcint(struct dwc_otg_softc *sc, uint8_t x)
 }
 
 static uint8_t
-dwc_otg_host_channel_alloc(struct dwc_otg_td *td, uint8_t which)
+dwc_otg_host_channel_alloc(struct dwc_otg_td *td, uint8_t which, uint8_t is_out)
 {
 	struct dwc_otg_softc *sc;
 	uint32_t tx_p_size;
@@ -587,11 +601,7 @@ dwc_otg_host_channel_alloc(struct dwc_otg_td *td, uint8_t which)
 	sc = DWC_OTG_PC2SC(td->pc);
 
 	/* compute needed TX FIFO size */
-	if (td->ep_type == UE_CONTROL) {
-		/* RX and TX transactions */
-		tx_p_size = 0;
-		tx_np_size = td->max_packet_size;
-	} else if ((td->hcchar & HCCHAR_EPDIR) == HCCHAR_EPDIR_OUT) {
+	if (is_out != 0) {
 		if (td->ep_type == UE_INTERRUPT ||
 		    td->ep_type == UE_ISOCHRONOUS) {
 			tx_p_size = td->max_packet_size;
@@ -669,12 +679,22 @@ dwc_otg_host_channel_free(struct dwc_otg_td *td, uint8_t which)
 
 	/* get pointer to softc */
 	sc = DWC_OTG_PC2SC(td->pc);
-	sc->sc_chan_state[x].wait_sof = DWC_OTG_SLOT_IDLE_MAX;
-	sc->sc_chan_state[x].allocated = 0;
 
-	/* keep track of used TX FIFO, if any */
-	sc->sc_tx_cur_p_level -= sc->sc_chan_state[x].tx_p_size;
-	sc->sc_tx_cur_np_level -= sc->sc_chan_state[x].tx_np_size;
+	/*
+	 * We need to let programmed host channels run till complete
+	 * else the host channel will stop functioning. Assume that
+	 * after a fixed given amount of time the host channel is no
+	 * longer doing any USB traffic:
+	 */
+	if (td->ep_type == UE_ISOCHRONOUS || td->ep_type == UE_INTERRUPT) {
+		/* double buffered */
+		sc->sc_chan_state[x].wait_sof = DWC_OTG_SLOT_IDLE_MAX;
+	} else {
+		/* single buffered */
+		sc->sc_chan_state[x].wait_sof = DWC_OTG_SLOT_IDLE_MIN;
+	}
+
+	sc->sc_chan_state[x].allocated = 0;
 
 	/* ack any pending messages */
 	if (sc->sc_last_rx_status != 0 &&
@@ -810,7 +830,7 @@ send_pkt:
 	}
 
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, 0)) {
+	if (dwc_otg_host_channel_alloc(td, 0, 1)) {
 		td->state = DWC_CHAN_ST_START;
 		goto busy;
 	}
@@ -863,7 +883,7 @@ send_cpkt:
 		goto complete;
 	}
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, 0)) {
+	if (dwc_otg_host_channel_alloc(td, 0, 0)) {
 		td->state = DWC_CHAN_ST_WAIT_C_PKT;
 		goto busy;
 	}
@@ -1322,7 +1342,7 @@ receive_pkt:
 	}
 
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, td->tt_channel_tog)) {
+	if (dwc_otg_host_channel_alloc(td, td->tt_channel_tog, 0)) {
 		td->state = DWC_CHAN_ST_WAIT_C_PKT;
 		goto busy;
 	}
@@ -1404,7 +1424,7 @@ receive_spkt:
 	}
 
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, 0)) {
+	if (dwc_otg_host_channel_alloc(td, 0, 0)) {
 		td->state = DWC_CHAN_ST_START;
 		goto busy;
 	}
@@ -1616,8 +1636,7 @@ check_state:
 			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
-		}
-		if (hcint & (HCINT_ACK | HCINT_NYET)) {
+		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
@@ -1642,8 +1661,7 @@ check_state:
 			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
-		}
-		if (hcint & (HCINT_ACK | HCINT_NYET))
+		} else if (hcint & (HCINT_ACK | HCINT_NYET))
 			goto send_cpkt;
 		break;
 
@@ -1698,7 +1716,7 @@ check_state:
 		/* FALLTHROUGH */
 
 	case DWC_CHAN_ST_TX_PKT_ISOC:
-		if (dwc_otg_host_channel_alloc(td, 0))
+		if (dwc_otg_host_channel_alloc(td, 0, 1))
 			break;
 		channel = td->channel[0];
 		goto send_isoc_pkt;
@@ -1731,7 +1749,7 @@ send_pkt:
 	}
 
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, 0)) {
+	if (dwc_otg_host_channel_alloc(td, 0, 1)) {
 		td->state = DWC_CHAN_ST_START;
 		goto busy;
 	}
@@ -1896,7 +1914,7 @@ send_cpkt:
 	}
 
 	/* allocate a new channel */
-	if (dwc_otg_host_channel_alloc(td, td->tt_channel_tog)) {
+	if (dwc_otg_host_channel_alloc(td, td->tt_channel_tog, 0)) {
 		td->state = DWC_CHAN_ST_WAIT_C_PKT;
 		goto busy;
 	}
@@ -2306,6 +2324,31 @@ dwc_otg_timer_stop(struct dwc_otg_softc *sc)
 	usb_callout_stop(&sc->sc_timer);
 }
 
+static void
+dwc_otg_host_channel_disable(struct dwc_otg_softc *sc, uint8_t x)
+{
+	uint32_t hcchar;
+
+	hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
+
+	/* disable host channel, if any */
+	if (hcchar & (HCCHAR_CHENA | HCCHAR_CHDIS)) {
+		/* disable channel */
+		DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x),
+		    HCCHAR_CHENA | HCCHAR_CHDIS);
+		/* wait for chip to get its brains in order */
+		sc->sc_chan_state[x].wait_sof = 2;
+	}
+
+	/* release TX FIFO usage, if any */
+	sc->sc_tx_cur_p_level -= sc->sc_chan_state[x].tx_p_size;
+	sc->sc_tx_cur_np_level -= sc->sc_chan_state[x].tx_np_size;
+
+	/* don't release TX FIFO usage twice */
+	sc->sc_chan_state[x].tx_p_size = 0;
+	sc->sc_chan_state[x].tx_np_size = 0;
+}
+
 static uint8_t
 dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
 {
@@ -2326,26 +2369,12 @@ dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
 	TAILQ_INIT(&head);
 
 	for (x = 0; x != sc->sc_host_ch_max; x++) {
-		uint32_t hcchar;
-
 		if (sc->sc_chan_state[x].wait_sof == 0)
 			continue;
 
 		sc->sc_needsof = 1;
-		sc->sc_chan_state[x].wait_sof--;
-		if (sc->sc_chan_state[x].wait_sof != 0)
-			continue;
-
-		hcchar = DWC_OTG_READ_4(sc, DOTG_HCCHAR(x));
-
-		/* disable host channel, if any */
-		if (hcchar & (HCCHAR_CHENA | HCCHAR_CHDIS)) {
-			/* disable channel */
-			DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(x),
-			    HCCHAR_CHENA | HCCHAR_CHDIS);
-			/* wait for chip to get its brains in order */
-			sc->sc_chan_state[x].wait_sof = 2;
-		}
+		if (--(sc->sc_chan_state[x].wait_sof) == 0)
+			dwc_otg_host_channel_disable(sc, x);
 	}
 
 	if ((temp & 7) == 0) {
