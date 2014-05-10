@@ -1220,6 +1220,17 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 
+		if (op & BUS_DMASYNC_PREREAD) {
+			bpage = STAILQ_FIRST(&map->bpages);
+			while (bpage != NULL) {
+				cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
+				    bpage->datacount);
+				l2cache_inv_range((vm_offset_t)bpage->vaddr,
+				    (vm_offset_t)bpage->busaddr,
+				    bpage->datacount);
+				bpage = STAILQ_NEXT(bpage, links);
+			}
+		}
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
 				vm_offset_t startv;

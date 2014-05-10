@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright (c) 2013 by Joyent, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -143,6 +144,8 @@ process_old_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 {
 	struct process_old_arg *poa = arg;
 	dsl_pool_t *dp = poa->ds->ds_dir->dd_pool;
+
+	ASSERT(!BP_IS_HOLE(bp));
 
 	if (bp->blk_birth <= poa->ds->ds_phys->ds_prev_snap_txg) {
 		dsl_deadlist_insert(&poa->ds->ds_deadlist, bp, tx);
@@ -428,7 +431,7 @@ dsl_destroy_snapshot_sync_impl(dsl_dataset_t *ds, boolean_t defer, dmu_tx_t *tx)
 		ASSERT3U(val, ==, obj);
 	}
 #endif
-	VERIFY0(dsl_dataset_snap_remove(ds_head, ds->ds_snapname, tx));
+	VERIFY0(dsl_dataset_snap_remove(ds_head, ds->ds_snapname, tx, B_TRUE));
 	dsl_dataset_rele(ds_head, FTAG);
 
 	if (ds_prev != NULL)
@@ -536,7 +539,7 @@ kill_blkptr(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	struct killarg *ka = arg;
 	dmu_tx_t *tx = ka->tx;
 
-	if (bp == NULL)
+	if (BP_IS_HOLE(bp))
 		return (0);
 
 	if (zb->zb_level == ZB_ZIL_LEVEL) {
@@ -653,6 +656,17 @@ dsl_dir_destroy_sync(uint64_t ddobj, dmu_tx_t *tx)
 	VERIFY0(dsl_dir_hold_obj(dp, ddobj, NULL, FTAG, &dd));
 
 	ASSERT0(dd->dd_phys->dd_head_dataset_obj);
+
+	/*
+	 * Decrement the filesystem count for all parent filesystems.
+	 *
+	 * When we receive an incremental stream into a filesystem that already
+	 * exists, a temporary clone is created.  We never count this temporary
+	 * clone, whose name begins with a '%'.
+	 */
+	if (dd->dd_myname[0] != '%' && dd->dd_parent != NULL)
+		dsl_fs_ss_count_adjust(dd->dd_parent, -1,
+		    DD_FIELD_FILESYSTEM_COUNT, tx);
 
 	/*
 	 * Remove our reservation. The impl() routine avoids setting the
@@ -805,6 +819,12 @@ dsl_destroy_head_sync_impl(dsl_dataset_t *ds, dmu_tx_t *tx)
 	ddobj = ds->ds_dir->dd_object;
 	ASSERT(ds->ds_phys->ds_snapnames_zapobj != 0);
 	VERIFY0(zap_destroy(mos, ds->ds_phys->ds_snapnames_zapobj, tx));
+
+	if (ds->ds_bookmarks != 0) {
+		VERIFY0(zap_destroy(mos,
+		    ds->ds_bookmarks, tx));
+		spa_feature_decr(dp->dp_spa, SPA_FEATURE_BOOKMARKS, tx);
+	}
 
 	spa_prop_clear_bootfs(dp->dp_spa, ds->ds_object, tx);
 

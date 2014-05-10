@@ -674,6 +674,10 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 static int
 bcm_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-gpio"))
 		return (ENXIO);
 
@@ -762,6 +766,14 @@ bcm_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
+static phandle_t
+bcm_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t bcm_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_gpio_probe),
@@ -777,6 +789,9 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		bcm_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	bcm_gpio_get_node),
 
 	DEVMETHOD_END
 };

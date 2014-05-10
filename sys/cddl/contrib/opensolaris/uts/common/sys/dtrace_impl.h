@@ -1139,7 +1139,11 @@ struct dtrace_state {
 	int dts_nspeculations;			/* number of speculations */
 	int dts_naggregations;			/* number of aggregations */
 	dtrace_aggregation_t **dts_aggregations; /* aggregation array */
+#if defined(sun)
 	vmem_t *dts_aggid_arena;		/* arena for aggregation IDs */
+#else
+	struct unrhdr *dts_aggid_arena;		/* arena for aggregation IDs */
+#endif
 	uint64_t dts_errors;			/* total number of errors */
 	uint32_t dts_speculations_busy;		/* number of spec. busy */
 	uint32_t dts_speculations_unavail;	/* number of spec unavail */

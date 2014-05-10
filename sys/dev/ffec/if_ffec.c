@@ -96,6 +96,7 @@ enum {
 	FECTYPE_GENERIC,
 	FECTYPE_IMX53,
 	FECTYPE_IMX6,
+	FECTYPE_MVF,
 };
 
 /*
@@ -112,8 +113,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
-	{"fsl,mvf600-fec",	FECTYPE_GENERIC},
-	{"fsl,vf-fec",		FECTYPE_GENERIC},
+	{"fsl,mvf600-fec",	FECTYPE_MVF},
+	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
 };
 
@@ -958,9 +959,10 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 		TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			/* 6 bits from MSB in LE CRC32 are used for hash. */
+			crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
 			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			ghash |= 1 << (crc & 0x3f);
+			ghash |= 1LLU << (((uint8_t *)&crc)[3] >> 2);
 		}
 		if_maddr_runlock(ifp);
 	}
@@ -1686,7 +1688,8 @@ ffec_attach(device_t dev)
 
 	/* Attach the mii driver. */
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
-	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");
 		goto out;
@@ -1710,6 +1713,9 @@ static int
 ffec_probe(device_t dev)
 {
 	uintptr_t fectype;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (fectype == FECTYPE_NONE)

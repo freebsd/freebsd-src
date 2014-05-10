@@ -1004,7 +1004,7 @@ wi_start_locked(struct ifnet *ifp)
 		    mtod(m0, const uint8_t *) + ieee80211_hdrsize(wh));
 		frmhdr.wi_ehdr.ether_type = llc->llc_snap.ether_type;
 		frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			k = ieee80211_crypto_encap(ni, m0);
 			if (k == NULL) {
 				ieee80211_free_node(ni);
@@ -1107,7 +1107,7 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 	frmhdr.wi_tx_ctl = htole16(WI_ENC_TX_802_11|WI_TXCNTL_TX_EX);
 	if (params && (params->ibp_flags & IEEE80211_BPF_NOACK))
 		frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_ALTRTRY);
-	if ((wh->i_fc[1] & IEEE80211_FC1_WEP) &&
+	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
 	    (!params || (params && (params->ibp_flags & IEEE80211_BPF_CRYPTO)))) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {

@@ -22,9 +22,9 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved
- * Use is subject to license terms.
+ * Copyright 2008 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -155,7 +155,7 @@
 int		dtrace_destructive_disallow = 0;
 dtrace_optval_t	dtrace_nonroot_maxsize = (16 * 1024 * 1024);
 size_t		dtrace_difo_maxsize = (256 * 1024);
-dtrace_optval_t	dtrace_dof_maxsize = (256 * 1024);
+dtrace_optval_t	dtrace_dof_maxsize = (8 * 1024 * 1024);
 size_t		dtrace_global_maxsize = (16 * 1024);
 size_t		dtrace_actions_max = (16 * 1024);
 size_t		dtrace_retain_max = 1024;
@@ -206,11 +206,12 @@ const char	dtrace_zero[256] = { 0 };	/* zero-filled memory */
 #if defined(sun)
 static dev_info_t	*dtrace_devi;		/* device info */
 #endif
-static vmem_t		*dtrace_arena;		/* probe ID arena */
 #if defined(sun)
+static vmem_t		*dtrace_arena;		/* probe ID arena */
 static vmem_t		*dtrace_minor;		/* minor number arena */
 #else
 static taskq_t		*dtrace_taskq;		/* task queue */
+static struct unrhdr	*dtrace_arena;		/* Probe ID number.     */
 #endif
 static dtrace_probe_t	**dtrace_probes;	/* array of all probes */
 static int		dtrace_nprobes;		/* number of probes */
@@ -302,7 +303,8 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 #define PRIV_PROC_ZONE		(1 << 5)
 #define PRIV_ALL		~0
 
-SYSCTL_NODE(_debug, OID_AUTO, dtrace, CTLFLAG_RD, 0, "DTrace Information");
+SYSCTL_DECL(_debug_dtrace);
+SYSCTL_DECL(_kern_dtrace);
 #endif
 
 #if defined(sun)
@@ -7831,7 +7833,7 @@ dtrace_unregister(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)(probe->dtpr_id), 1);
 #else
-		vmem_free(dtrace_arena, (vmem_addr_t)(probe->dtpr_id), 1);
+		free_unr(dtrace_arena, probe->dtpr_id);
 #endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
@@ -7952,7 +7954,7 @@ dtrace_condense(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)((uintptr_t)i + 1), 1);
 #else
-		vmem_free(dtrace_arena, (vmem_addr_t)i + 1, 1);
+		free_unr(dtrace_arena, i + 1);
 #endif
 	}
 
@@ -7982,9 +7984,6 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 	dtrace_probe_t *probe, **probes;
 	dtrace_provider_t *provider = (dtrace_provider_t *)prov;
 	dtrace_id_t id;
-#if !defined(sun)
-	vmem_addr_t addr;
-#endif
 
 	if (provider == dtrace_provider) {
 		ASSERT(MUTEX_HELD(&dtrace_lock));
@@ -7994,10 +7993,9 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 
 #if defined(sun)
 	id = (dtrace_id_t)(uintptr_t)vmem_alloc(dtrace_arena, 1,
-	    VM_BESTFIT | VM_WAITOK);
+	    VM_BESTFIT | VM_SLEEP);
 #else
-	vmem_alloc(dtrace_arena, 1, M_BESTFIT | M_WAITOK, &addr);
-	id = (dtrace_id_t)addr;
+	id = alloc_unr(dtrace_arena);
 #endif
 	probe = kmem_zalloc(sizeof (dtrace_probe_t), KM_SLEEP);
 
@@ -10048,9 +10046,6 @@ dtrace_ecb_aggregation_create(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 	dtrace_recdesc_t *frec;
 	dtrace_aggid_t aggid;
 	dtrace_state_t *state = ecb->dte_state;
-#if !defined(sun)
-	vmem_addr_t addr;
-#endif
 
 	agg = kmem_zalloc(sizeof (dtrace_aggregation_t), KM_SLEEP);
 	agg->dtag_ecb = ecb;
@@ -10190,8 +10185,7 @@ success:
 	aggid = (dtrace_aggid_t)(uintptr_t)vmem_alloc(state->dts_aggid_arena, 1,
 	    VM_BESTFIT | VM_SLEEP);
 #else
-	vmem_alloc(state->dts_aggid_arena, 1, M_BESTFIT | M_WAITOK, &addr);
-	aggid = (dtrace_aggid_t)addr;
+	aggid = alloc_unr(state->dts_aggid_arena);
 #endif
 
 	if (aggid - 1 >= state->dts_naggregations) {
@@ -10244,7 +10238,7 @@ dtrace_ecb_aggregation_destroy(dtrace_ecb_t *ecb, dtrace_action_t *act)
 #if defined(sun)
 	vmem_free(state->dts_aggid_arena, (void *)(uintptr_t)aggid, 1);
 #else
-	vmem_free(state->dts_aggid_arena, (vmem_addr_t)aggid, 1);
+	free_unr(state->dts_aggid_arena, aggid);
 #endif
 
 	ASSERT(state->dts_aggregations[aggid - 1] == agg);
@@ -10860,16 +10854,19 @@ dtrace_buffer_activate(dtrace_state_t *state)
 
 static int
 dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
-    processorid_t cpu)
+    processorid_t cpu, int *factor)
 {
 #if defined(sun)
 	cpu_t *cp;
 #endif
 	dtrace_buffer_t *buf;
+	int allocated = 0, desired = 0;
 
 #if defined(sun)
 	ASSERT(MUTEX_HELD(&cpu_lock));
 	ASSERT(MUTEX_HELD(&dtrace_lock));
+
+	*factor = 1;
 
 	if (size > dtrace_nonroot_maxsize &&
 	    !PRIV_POLICY_CHOICE(CRED(), PRIV_ALL, B_FALSE))
@@ -10894,7 +10891,8 @@ dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
 
 		ASSERT(buf->dtb_xamot == NULL);
 
-		if ((buf->dtb_tomax = kmem_zalloc(size, KM_NOSLEEP)) == NULL)
+		if ((buf->dtb_tomax = kmem_zalloc(size,
+		    KM_NOSLEEP | KM_NORMALPRI)) == NULL)
 			goto err;
 
 		buf->dtb_size = size;
@@ -10905,7 +10903,8 @@ dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
 		if (flags & DTRACEBUF_NOSWITCH)
 			continue;
 
-		if ((buf->dtb_xamot = kmem_zalloc(size, KM_NOSLEEP)) == NULL)
+		if ((buf->dtb_xamot = kmem_zalloc(size,
+		    KM_NOSLEEP | KM_NORMALPRI)) == NULL)
 			goto err;
 	} while ((cp = cp->cpu_next) != cpu_list);
 
@@ -10919,27 +10918,29 @@ err:
 			continue;
 
 		buf = &bufs[cp->cpu_id];
+		desired += 2;
 
 		if (buf->dtb_xamot != NULL) {
 			ASSERT(buf->dtb_tomax != NULL);
 			ASSERT(buf->dtb_size == size);
 			kmem_free(buf->dtb_xamot, size);
+			allocated++;
 		}
 
 		if (buf->dtb_tomax != NULL) {
 			ASSERT(buf->dtb_size == size);
 			kmem_free(buf->dtb_tomax, size);
+			allocated++;
 		}
 
 		buf->dtb_tomax = NULL;
 		buf->dtb_xamot = NULL;
 		buf->dtb_size = 0;
 	} while ((cp = cp->cpu_next) != cpu_list);
-
-	return (ENOMEM);
 #else
 	int i;
 
+	*factor = 1;
 #if defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
@@ -10947,7 +10948,7 @@ err:
 	 * to do something that might well end in tears at bedtime.
 	 */
 	if (size > physmem * PAGE_SIZE / (128 * (mp_maxid + 1)))
-		return(ENOMEM);
+		return (ENOMEM);
 #endif
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
@@ -10969,7 +10970,8 @@ err:
 
 		ASSERT(buf->dtb_xamot == NULL);
 
-		if ((buf->dtb_tomax = kmem_zalloc(size, KM_NOSLEEP)) == NULL)
+		if ((buf->dtb_tomax = kmem_zalloc(size,
+		    KM_NOSLEEP | KM_NORMALPRI)) == NULL)
 			goto err;
 
 		buf->dtb_size = size;
@@ -10980,7 +10982,8 @@ err:
 		if (flags & DTRACEBUF_NOSWITCH)
 			continue;
 
-		if ((buf->dtb_xamot = kmem_zalloc(size, KM_NOSLEEP)) == NULL)
+		if ((buf->dtb_xamot = kmem_zalloc(size,
+		    KM_NOSLEEP | KM_NORMALPRI)) == NULL)
 			goto err;
 	}
 
@@ -10996,16 +10999,19 @@ err:
 			continue;
 
 		buf = &bufs[i];
+		desired += 2;
 
 		if (buf->dtb_xamot != NULL) {
 			ASSERT(buf->dtb_tomax != NULL);
 			ASSERT(buf->dtb_size == size);
 			kmem_free(buf->dtb_xamot, size);
+			allocated++;
 		}
 
 		if (buf->dtb_tomax != NULL) {
 			ASSERT(buf->dtb_size == size);
 			kmem_free(buf->dtb_tomax, size);
+			allocated++;
 		}
 
 		buf->dtb_tomax = NULL;
@@ -11013,9 +11019,10 @@ err:
 		buf->dtb_size = 0;
 
 	}
+#endif
+	*factor = desired / (allocated > 0 ? allocated : 1);
 
 	return (ENOMEM);
-#endif
 }
 
 /*
@@ -12968,7 +12975,7 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	if (size < (min = dstate->dtds_chunksize + sizeof (dtrace_dynhash_t)))
 		size = min;
 
-	if ((base = kmem_zalloc(size, KM_NOSLEEP)) == NULL)
+	if ((base = kmem_zalloc(size, KM_NOSLEEP | KM_NORMALPRI)) == NULL)
 		return (ENOMEM);
 
 	dstate->dtds_size = size;
@@ -13212,7 +13219,7 @@ dtrace_state_create(struct cdev *dev)
 	if (dev != NULL) {
 		cr = dev->si_cred;
 		m = dev2unit(dev);
-	}
+		}
 
 	/* Allocate memory for the state. */
 	state = kmem_zalloc(sizeof(dtrace_state_t), KM_SLEEP);
@@ -13224,12 +13231,7 @@ dtrace_state_create(struct cdev *dev)
 #if defined(sun)
 	state->dts_aggid_arena = vmem_create(c, (void *)1, UINT32_MAX, 1,
 	    NULL, NULL, NULL, 0, VM_SLEEP | VMC_IDENTIFIER);
-#else
-	state->dts_aggid_arena = vmem_create(c, (vmem_addr_t)1, UINT32_MAX, 1,
-	    0, M_WAITOK);
-#endif
 
-#if defined(sun)
 	if (devp != NULL) {
 		major = getemajor(*devp);
 	} else {
@@ -13241,6 +13243,7 @@ dtrace_state_create(struct cdev *dev)
 	if (devp != NULL)
 		*devp = state->dts_dev;
 #else
+	state->dts_aggid_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
 	state->dts_dev = dev;
 #endif
 
@@ -13424,7 +13427,7 @@ dtrace_state_buffer(dtrace_state_t *state, dtrace_buffer_t *buf, int which)
 {
 	dtrace_optval_t *opt = state->dts_options, size;
 	processorid_t cpu = 0;;
-	int flags = 0, rval;
+	int flags = 0, rval, factor, divisor = 1;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 	ASSERT(MUTEX_HELD(&cpu_lock));
@@ -13454,7 +13457,7 @@ dtrace_state_buffer(dtrace_state_t *state, dtrace_buffer_t *buf, int which)
 			flags |= DTRACEBUF_INACTIVE;
 	}
 
-	for (size = opt[which]; size >= sizeof (uint64_t); size >>= 1) {
+	for (size = opt[which]; size >= sizeof (uint64_t); size /= divisor) {
 		/*
 		 * The size must be 8-byte aligned.  If the size is not 8-byte
 		 * aligned, drop it down by the difference.
@@ -13472,7 +13475,7 @@ dtrace_state_buffer(dtrace_state_t *state, dtrace_buffer_t *buf, int which)
 			return (E2BIG);
 		}
 
-		rval = dtrace_buffer_alloc(buf, size, flags, cpu);
+		rval = dtrace_buffer_alloc(buf, size, flags, cpu, &factor);
 
 		if (rval != ENOMEM) {
 			opt[which] = size;
@@ -13481,6 +13484,9 @@ dtrace_state_buffer(dtrace_state_t *state, dtrace_buffer_t *buf, int which)
 
 		if (opt[DTRACEOPT_BUFRESIZE] == DTRACEOPT_BUFRESIZE_MANUAL)
 			return (rval);
+
+		for (divisor = 2; divisor < factor; divisor <<= 1)
+			continue;
 	}
 
 	return (ENOMEM);
@@ -13582,7 +13588,8 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 		goto out;
 	}
 
-	spec = kmem_zalloc(nspec * sizeof (dtrace_speculation_t), KM_NOSLEEP);
+	spec = kmem_zalloc(nspec * sizeof (dtrace_speculation_t),
+	    KM_NOSLEEP | KM_NORMALPRI);
 
 	if (spec == NULL) {
 		rval = ENOMEM;
@@ -13593,7 +13600,8 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	state->dts_nspeculations = (int)nspec;
 
 	for (i = 0; i < nspec; i++) {
-		if ((buf = kmem_zalloc(bufsize, KM_NOSLEEP)) == NULL) {
+		if ((buf = kmem_zalloc(bufsize,
+		    KM_NOSLEEP | KM_NORMALPRI)) == NULL) {
 			rval = ENOMEM;
 			goto err;
 		}
@@ -14047,7 +14055,11 @@ dtrace_state_destroy(dtrace_state_t *state)
 	dtrace_format_destroy(state);
 
 	if (state->dts_aggid_arena != NULL) {
+#if defined(sun)
 		vmem_destroy(state->dts_aggid_arena);
+#else
+		delete_unrhdr(state->dts_aggid_arena);
+#endif
 		state->dts_aggid_arena = NULL;
 	}
 #if defined(sun)
@@ -14623,8 +14635,8 @@ dtrace_helper_provider_add(dof_helper_t *dofhp, int gen)
 	 * Check to make sure this isn't a duplicate.
 	 */
 	for (i = 0; i < help->dthps_nprovs; i++) {
-		if (dofhp->dofhp_addr ==
-		    help->dthps_provs[i]->dthp_prov.dofhp_addr)
+		if (dofhp->dofhp_dof ==
+		    help->dthps_provs[i]->dthp_prov.dofhp_dof)
 			return (EALREADY);
 	}
 
@@ -15382,7 +15394,7 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)probe->dtpr_id, 1);
 #else
-		vmem_free(dtrace_arena, (vmem_addr_t)probe->dtpr_id, 1);
+		free_unr(dtrace_arena, probe->dtpr_id);
 #endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}

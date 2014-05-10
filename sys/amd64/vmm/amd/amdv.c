@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "io/iommu.h"
 
 static int
-amdv_init(void)
+amdv_init(int ipinum)
 {
 
 	printf("amdv_init: not implemented\n");
@@ -67,7 +67,8 @@ amdv_vminit(struct vm *vm, struct pmap *pmap)
 }
 
 static int
-amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap)
+amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap,
+    void *rptr, void *sptr)
 {
 
 	printf("amdv_vmrun: not implemented\n");
@@ -111,15 +112,6 @@ amdv_setdesc(void *vmi, int vcpu, int num, struct seg_desc *desc)
 {
 
 	printf("amdv_get_desc: not implemented\n");
-	return (EINVAL);
-}
-
-static int
-amdv_inject_event(void *vmi, int vcpu, int type, int vector,
-		  uint32_t error_code, int error_code_valid)
-{
-
-	printf("amdv_inject_event: not implemented\n");
 	return (EINVAL);
 }
 
@@ -180,7 +172,6 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_setreg,
 	amdv_getdesc,
 	amdv_setdesc,
-	amdv_inject_event,
 	amdv_getcap,
 	amdv_setcap,
 	amdv_vmspace_alloc,
@@ -251,14 +242,14 @@ amd_iommu_remove_mapping(void *domain, vm_paddr_t gpa, uint64_t len)
 }
 
 static void
-amd_iommu_add_device(void *domain, int bus, int slot, int func)
+amd_iommu_add_device(void *domain, uint16_t rid)
 {
 
 	printf("amd_iommu_add_device: not implemented\n");
 }
 
 static void
-amd_iommu_remove_device(void *domain, int bus, int slot, int func)
+amd_iommu_remove_device(void *domain, uint16_t rid)
 {
 
 	printf("amd_iommu_remove_device: not implemented\n");

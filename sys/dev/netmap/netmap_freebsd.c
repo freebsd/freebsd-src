@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Universita` di Pisa. All rights reserved.
+ * Copyright (C) 2013-2014 Universita` di Pisa. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,8 +29,10 @@
 #include <sys/module.h>
 #include <sys/errno.h>
 #include <sys/param.h>  /* defines used in kernel.h */
+#include <sys/poll.h>  /* POLLIN, POLLOUT */
 #include <sys/kernel.h> /* types used in module initialization */
 #include <sys/conf.h>	/* DEV_MODULE */
+#include <sys/endian.h>
 
 #include <sys/rwlock.h>
 
@@ -49,6 +51,8 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <machine/bus.h>        /* bus_dmamap_* */
+#include <netinet/in.h>		/* in6_cksum_pseudo() */
+#include <machine/in_cksum.h>  /* in_pseudo(), in_cksum_hdr() */
 
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
@@ -56,6 +60,81 @@
 
 
 /* ======================== FREEBSD-SPECIFIC ROUTINES ================== */
+
+rawsum_t nm_csum_raw(uint8_t *data, size_t len, rawsum_t cur_sum)
+{
+	/* TODO XXX please use the FreeBSD implementation for this. */
+	uint16_t *words = (uint16_t *)data;
+	int nw = len / 2;
+	int i;
+
+	for (i = 0; i < nw; i++)
+		cur_sum += be16toh(words[i]);
+
+	if (len & 1)
+		cur_sum += (data[len-1] << 8);
+
+	return cur_sum;
+}
+
+/* Fold a raw checksum: 'cur_sum' is in host byte order, while the
+ * return value is in network byte order.
+ */
+uint16_t nm_csum_fold(rawsum_t cur_sum)
+{
+	/* TODO XXX please use the FreeBSD implementation for this. */
+	while (cur_sum >> 16)
+		cur_sum = (cur_sum & 0xFFFF) + (cur_sum >> 16);
+
+	return htobe16((~cur_sum) & 0xFFFF);
+}
+
+uint16_t nm_csum_ipv4(struct nm_iphdr *iph)
+{
+#if 0
+	return in_cksum_hdr((void *)iph);
+#else
+	return nm_csum_fold(nm_csum_raw((uint8_t*)iph, sizeof(struct nm_iphdr), 0));
+#endif
+}
+
+void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
+					size_t datalen, uint16_t *check)
+{
+#ifdef INET
+	uint16_t pseudolen = datalen + iph->protocol;
+
+	/* Compute and insert the pseudo-header cheksum. */
+	*check = in_pseudo(iph->saddr, iph->daddr,
+				 htobe16(pseudolen));
+	/* Compute the checksum on TCP/UDP header + payload
+	 * (includes the pseudo-header).
+	 */
+	*check = nm_csum_fold(nm_csum_raw(data, datalen, 0));
+#else
+	static int notsupported = 0;
+	if (!notsupported) {
+		notsupported = 1;
+		D("inet4 segmentation not supported");
+	}
+#endif
+}
+
+void nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
+					size_t datalen, uint16_t *check)
+{
+#ifdef INET6
+	*check = in6_cksum_pseudo((void*)ip6h, datalen, ip6h->nexthdr, 0);
+	*check = nm_csum_fold(nm_csum_raw(data, datalen, 0));
+#else
+	static int notsupported = 0;
+	if (!notsupported) {
+		notsupported = 1;
+		D("inet6 segmentation not supported");
+	}
+#endif
+}
+
 
 /*
  * Intercept the rx routine in the standard device driver.
@@ -86,22 +165,30 @@ netmap_catch_rx(struct netmap_adapter *na, int intercept)
 	return 0;
 }
 
+
 /*
  * Intercept the packet steering routine in the tx path,
  * so that we can decide which queue is used for an mbuf.
  * Second argument is non-zero to intercept, 0 to restore.
- *
- * XXX see if FreeBSD has such a mechanism
+ * On freebsd we just intercept if_transmit.
  */
 void
-netmap_catch_packet_steering(struct netmap_generic_adapter *na, int enable)
+netmap_catch_tx(struct netmap_generic_adapter *gna, int enable)
 {
+	struct netmap_adapter *na = &gna->up.up;
+	struct ifnet *ifp = na->ifp;
+
 	if (enable) {
+		na->if_transmit = ifp->if_transmit;
+		ifp->if_transmit = netmap_transmit;
 	} else {
+		ifp->if_transmit = na->if_transmit;
 	}
 }
 
-/* Transmit routine used by generic_netmap_txsync(). Returns 0 on success
+
+/*
+ * Transmit routine used by generic_netmap_txsync(). Returns 0 on success
  * and non-zero on error (which may be packet drops or other errors).
  * addr and len identify the netmap buffer, m is the (preallocated)
  * mbuf to use for transmissions.
@@ -126,15 +213,15 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 
 	// copy data to the mbuf
 	m_copyback(m, 0, len, addr);
-
 	// inc refcount. We are alone, so we can skip the atomic
 	atomic_fetchadd_int(m->m_ext.ref_cnt, 1);
 	m->m_flags |= M_FLOWID;
 	m->m_pkthdr.flowid = ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
-	ret = ifp->if_transmit(ifp, m);
+	ret = NA(ifp)->if_transmit(ifp, m);
 	return ret;
 }
+
 
 /*
  * The following two functions are empty until we have a generic
@@ -147,41 +234,48 @@ generic_find_num_desc(struct ifnet *ifp, unsigned int *tx, unsigned int *rx)
 	return 0;
 }
 
+
 void
 generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
 {
 	D("called");
-	*txq = 1;
-	*rxq = 1;
+	*txq = netmap_generic_rings;
+	*rxq = netmap_generic_rings;
 }
 
-void netmap_mitigation_init(struct netmap_generic_adapter *na)
+
+void netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *na)
 {
 	ND("called");
-	na->mit_pending = 0;
+	mit->mit_pending = 0;
+	mit->mit_na = na;
 }
 
 
-void netmap_mitigation_start(struct netmap_generic_adapter *na)
-{
-	ND("called");
-}
-
-void netmap_mitigation_restart(struct netmap_generic_adapter *na)
+void netmap_mitigation_start(struct nm_generic_mit *mit)
 {
 	ND("called");
 }
 
-int netmap_mitigation_active(struct netmap_generic_adapter *na)
+
+void netmap_mitigation_restart(struct nm_generic_mit *mit)
+{
+	ND("called");
+}
+
+
+int netmap_mitigation_active(struct nm_generic_mit *mit)
 {
 	ND("called");
 	return 0;
 }
 
-void netmap_mitigation_cleanup(struct netmap_generic_adapter *na)
+
+void netmap_mitigation_cleanup(struct nm_generic_mit *mit)
 {
 	ND("called");
 }
+
 
 /*
  * In order to track whether pages are still mapped, we hook into
@@ -194,13 +288,16 @@ struct netmap_vm_handle_t {
 	struct netmap_priv_d	*priv;
 };
 
+
 static int
 netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
 	struct netmap_vm_handle_t *vmh = handle;
-	D("handle %p size %jd prot %d foff %jd",
-		handle, (intmax_t)size, prot, (intmax_t)foff);
+
+	if (netmap_verbose)
+		D("handle %p size %jd prot %d foff %jd",
+			handle, (intmax_t)size, prot, (intmax_t)foff);
 	dev_ref(vmh->dev);
 	return 0;
 }
@@ -212,11 +309,14 @@ netmap_dev_pager_dtor(void *handle)
 	struct netmap_vm_handle_t *vmh = handle;
 	struct cdev *dev = vmh->dev;
 	struct netmap_priv_d *priv = vmh->priv;
-	D("handle %p", handle);
+
+	if (netmap_verbose)
+		D("handle %p", handle);
 	netmap_dtor(priv);
 	free(vmh, M_DEVBUF);
 	dev_rel(dev);
 }
+
 
 static int
 netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
@@ -284,8 +384,9 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 	struct netmap_priv_d *priv;
 	vm_object_t obj;
 
-	D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
-	    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
+	if (netmap_verbose)
+		D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
+		    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
 
 	vmh = malloc(sizeof(struct netmap_vm_handle_t), M_DEVBUF,
 			      M_NOWAIT | M_ZERO);
@@ -365,6 +466,157 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	return 0;
 }
 
+/******************** kqueue support ****************/
+
+/*
+ * The OS_selwakeup also needs to issue a KNOTE_UNLOCKED.
+ * We use a non-zero argument to distinguish the call from the one
+ * in kevent_scan() which instead also needs to run netmap_poll().
+ * The knote uses a global mutex for the time being. We might
+ * try to reuse the one in the si, but it is not allocated
+ * permanently so it might be a bit tricky.
+ *
+ * The *kqfilter function registers one or another f_event
+ * depending on read or write mode.
+ * In the call to f_event() td_fpop is NULL so any child function
+ * calling devfs_get_cdevpriv() would fail - and we need it in
+ * netmap_poll(). As a workaround we store priv into kn->kn_hook
+ * and pass it as first argument to netmap_poll(), which then
+ * uses the failure to tell that we are called from f_event()
+ * and do not need the selrecord().
+ */
+
+void freebsd_selwakeup(struct selinfo *si, int pri);
+
+void
+freebsd_selwakeup(struct selinfo *si, int pri)
+{
+	if (netmap_verbose)
+		D("on knote %p", &si->si_note);
+	selwakeuppri(si, pri);
+	/* use a non-zero hint to tell the notification from the
+	 * call done in kqueue_scan() which uses 0
+	 */
+	KNOTE_UNLOCKED(&si->si_note, 0x100 /* notification */);
+}
+
+static void
+netmap_knrdetach(struct knote *kn)
+{
+	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
+	struct selinfo *si = priv->np_rxsi;
+
+	D("remove selinfo %p", si);
+	knlist_remove(&si->si_note, kn, 0);
+}
+
+static void
+netmap_knwdetach(struct knote *kn)
+{
+	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
+	struct selinfo *si = priv->np_txsi;
+
+	D("remove selinfo %p", si);
+	knlist_remove(&si->si_note, kn, 0);
+}
+
+/*
+ * callback from notifies (generated externally) and our
+ * calls to kevent(). The former we just return 1 (ready)
+ * since we do not know better.
+ * In the latter we call netmap_poll and return 0/1 accordingly.
+ */
+static int
+netmap_knrw(struct knote *kn, long hint, int events)
+{
+	struct netmap_priv_d *priv;
+	int revents;
+
+	if (hint != 0) {
+		ND(5, "call from notify");
+		return 1; /* assume we are ready */
+	}
+	priv = kn->kn_hook;
+	/* the notification may come from an external thread,
+	 * in which case we do not want to run the netmap_poll
+	 * This should be filtered above, but check just in case.
+	 */
+	if (curthread != priv->np_td) { /* should not happen */
+		RD(5, "curthread changed %p %p", curthread, priv->np_td);
+		return 1;
+	} else {
+		revents = netmap_poll((void *)priv, events, curthread);
+		return (events & revents) ? 1 : 0;
+	}
+}
+
+static int
+netmap_knread(struct knote *kn, long hint)
+{
+	return netmap_knrw(kn, hint, POLLIN);
+}
+
+static int
+netmap_knwrite(struct knote *kn, long hint)
+{
+	return netmap_knrw(kn, hint, POLLOUT);
+}
+
+static struct filterops netmap_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = netmap_knrdetach,
+	.f_event = netmap_knread,
+};
+
+static struct filterops netmap_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = netmap_knwdetach,
+	.f_event = netmap_knwrite,
+};
+
+
+/*
+ * This is called when a thread invokes kevent() to record
+ * a change in the configuration of the kqueue().
+ * The 'priv' should be the same as in the netmap device.
+ */
+static int
+netmap_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct netmap_priv_d *priv;
+	int error;
+	struct netmap_adapter *na;
+	struct selinfo *si;
+	int ev = kn->kn_filter;
+
+	if (ev != EVFILT_READ && ev != EVFILT_WRITE) {
+		D("bad filter request %d", ev);
+		return 1;
+	}
+	error = devfs_get_cdevpriv((void**)&priv);
+	if (error) {
+		D("device not yet setup");
+		return 1;
+	}
+	na = priv->np_na;
+	if (na == NULL) {
+		D("no netmap adapter for this file descriptor");
+		return 1;
+	}
+	/* the si is indicated in the priv */
+	si = (ev == EVFILT_WRITE) ? priv->np_txsi : priv->np_rxsi;
+	// XXX lock(priv) ?
+	kn->kn_fop = (ev == EVFILT_WRITE) ?
+		&netmap_wfiltops : &netmap_rfiltops;
+	kn->kn_hook = priv;
+	knlist_add(&si->si_note, kn, 1);
+	// XXX unlock(priv)
+	ND("register %p %s td %p priv %p kn %p np_nifp %p kn_fp/fpop %s",
+		na, na->ifp->if_xname, curthread, priv, kn,
+		priv->np_nifp,
+		kn->kn_fp == curthread->td_fpop ? "match" : "MISMATCH");
+	return 0;
+}
 
 struct cdevsw netmap_cdevsw = {
 	.d_version = D_VERSION,
@@ -373,9 +625,10 @@ struct cdevsw netmap_cdevsw = {
 	.d_mmap_single = netmap_mmap_single,
 	.d_ioctl = netmap_ioctl,
 	.d_poll = netmap_poll,
+	.d_kqfilter = netmap_kqfilter,
 	.d_close = netmap_close,
 };
-
+/*--- end of kqueue support ----*/
 
 /*
  * Kernel entry point.

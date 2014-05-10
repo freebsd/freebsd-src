@@ -202,7 +202,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	if (savectx(susppcbs[0])) {
 #ifdef __amd64__
-		ctx_fpusave(susppcbs[0]->pcb_fpususpend);
+		fpususpend(susppcbs[0]->pcb_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {

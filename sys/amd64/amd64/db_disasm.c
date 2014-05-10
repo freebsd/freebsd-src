@@ -1353,6 +1353,16 @@ db_disasm(loc, altfmt)
 			i_size = NONE;
 			i_mode = 0;
 			break;
+		case 0xca:
+			i_name = "clac";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xcb:
+			i_name = "stac";
+			i_size = NONE;
+			i_mode = 0;
+			break;
 		case 0xd0:
 			i_name = "xgetbv";
 			i_size = NONE;

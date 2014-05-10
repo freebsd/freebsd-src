@@ -242,13 +242,11 @@ aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 static int
 aac_cam_probe(device_t dev)
 {
-	struct aac_softc *sc;
 	struct aac_cam *camsc;
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
 	if (!camsc->inf)
 		return (0);
-	sc = camsc->inf->aac_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	return (0);
 }
@@ -1133,11 +1131,9 @@ aac_cam_poll(struct cam_sim *sim)
 static void
 aac_container_complete(struct aac_command *cm)
 {
-	struct	aac_softc *sc;
 	union	ccb *ccb;
 	u_int32_t status;
 
-	sc = cm->cm_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
 	status = ((u_int32_t *)cm->cm_fib->data)[0];

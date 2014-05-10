@@ -876,7 +876,7 @@ ipoib_intf_alloc(const char *name)
 	dev->if_output = ipoib_output;
 	dev->if_input = ipoib_input;
 	dev->if_resolvemulti = ipoib_resolvemulti;
-	if_initbaudrate(dev, IF_Gbps(10));
+	dev->if_baudrate = IF_Gbps(10);
 	dev->if_broadcastaddr = priv->broadcastaddr;
 	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
 	sdl = (struct sockaddr_dl *)dev->if_addr->ifa_addr;
@@ -1490,14 +1490,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_INFINIBAND;
+		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
 		ip_ib_mc_map(sin->sin_addr.s_addr, ifp->if_broadcastaddr,
@@ -1517,14 +1510,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			return EADDRNOTAVAIL;
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_INFINIBAND;
+		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
 		ipv6_ib_mc_map(&sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);

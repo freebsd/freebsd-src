@@ -116,7 +116,7 @@ struct vmmeter {
 };
 #ifdef _KERNEL
 
-extern struct vmmeter cnt;
+extern struct vmmeter vm_cnt;
 
 extern int vm_pageout_wakeup_thresh;
 
@@ -131,7 +131,8 @@ static __inline
 int
 vm_page_count_severe(void)
 {
-    return (cnt.v_free_severe > (cnt.v_free_count + cnt.v_cache_count));
+    return (vm_cnt.v_free_severe > (vm_cnt.v_free_count +
+          vm_cnt.v_cache_count));
 }
 
 /*
@@ -148,7 +149,7 @@ static __inline
 int
 vm_page_count_min(void)
 {
-    return (cnt.v_free_min > (cnt.v_free_count + cnt.v_cache_count));
+    return (vm_cnt.v_free_min > (vm_cnt.v_free_count + vm_cnt.v_cache_count));
 }
 
 /*
@@ -160,7 +161,8 @@ static __inline
 int
 vm_page_count_target(void)
 {
-    return (cnt.v_free_target > (cnt.v_free_count + cnt.v_cache_count));
+    return (vm_cnt.v_free_target > (vm_cnt.v_free_count +
+          vm_cnt.v_cache_count));
 }
 
 /*
@@ -172,7 +174,8 @@ static __inline
 int
 vm_paging_target(void)
 {
-    return (cnt.v_free_target - (cnt.v_free_count + cnt.v_cache_count));
+    return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
+          vm_cnt.v_cache_count));
 }
 
 /*
@@ -183,7 +186,8 @@ static __inline
 int
 vm_paging_needed(void)
 {
-    return (cnt.v_free_count + cnt.v_cache_count < vm_pageout_wakeup_thresh);
+    return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
+        vm_pageout_wakeup_thresh);
 }
 
 #endif

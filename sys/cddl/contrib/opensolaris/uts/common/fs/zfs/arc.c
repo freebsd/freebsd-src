@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  */
 
@@ -845,7 +845,7 @@ buf_hash(uint64_t spa, const dva_t *dva, uint64_t birth)
 #define	BUF_EMPTY(buf)						\
 	((buf)->b_dva.dva_word[0] == 0 &&			\
 	(buf)->b_dva.dva_word[1] == 0 &&			\
-	(buf)->b_birth == 0)
+	(buf)->b_cksum0 == 0)
 
 #define	BUF_EQUAL(spa, dva, birth, buf)				\
 	((buf)->b_dva.dva_word[0] == (dva)->dva_word[0]) &&	\
@@ -3767,9 +3767,13 @@ arc_write_done(zio_t *zio)
 	ASSERT(hdr->b_acb == NULL);
 
 	if (zio->io_error == 0) {
-		hdr->b_dva = *BP_IDENTITY(zio->io_bp);
-		hdr->b_birth = BP_PHYSICAL_BIRTH(zio->io_bp);
-		hdr->b_cksum0 = zio->io_bp->blk_cksum.zc_word[0];
+		if (BP_IS_HOLE(zio->io_bp)) {
+			buf_discard_identity(hdr);
+		} else {
+			hdr->b_dva = *BP_IDENTITY(zio->io_bp);
+			hdr->b_birth = BP_PHYSICAL_BIRTH(zio->io_bp);
+			hdr->b_cksum0 = zio->io_bp->blk_cksum.zc_word[0];
+		}
 	} else {
 		ASSERT(BUF_EMPTY(hdr));
 	}
@@ -3873,7 +3877,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 {
 #ifdef _KERNEL
 	uint64_t available_memory =
-	    ptoa((uintmax_t)cnt.v_free_count + cnt.v_cache_count);
+	    ptoa((uintmax_t)vm_cnt.v_free_count + vm_cnt.v_cache_count);
 	static uint64_t page_load = 0;
 	static uint64_t last_txg = 0;
 
@@ -3884,7 +3888,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 #endif
 #endif	/* sun */
 
-	if (cnt.v_free_count + cnt.v_cache_count >
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count >
 	    (uint64_t)physmem * arc_lotsfree_percent / 100)
 		return (0);
 
@@ -4593,6 +4597,13 @@ l2arc_write_done(zio_t *zio)
 	 */
 	for (ab = list_prev(buflist, head); ab; ab = ab_prev) {
 		ab_prev = list_prev(buflist, ab);
+		abl2 = ab->b_l2hdr;
+
+		/*
+		 * Release the temporary compressed buffer as soon as possible.
+		 */
+		if (abl2->b_compress != ZIO_COMPRESS_OFF)
+			l2arc_release_cdata_buf(ab);
 
 		hash_lock = HDR_LOCK(ab);
 		if (!mutex_tryenter(hash_lock)) {
@@ -4604,14 +4615,6 @@ l2arc_write_done(zio_t *zio)
 			ARCSTAT_BUMP(arcstat_l2_writes_hdr_miss);
 			continue;
 		}
-
-		abl2 = ab->b_l2hdr;
-
-		/*
-		 * Release the temporary compressed buffer as soon as possible.
-		 */
-		if (abl2->b_compress != ZIO_COMPRESS_OFF)
-			l2arc_release_cdata_buf(ab);
 
 		if (zio->io_error != 0) {
 			/*

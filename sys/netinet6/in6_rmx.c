@@ -136,8 +136,8 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		}
 	}
 
-	if (!rt->rt_rmx.rmx_mtu && rt->rt_ifp)
-		rt->rt_rmx.rmx_mtu = IN6_LINKMTU(rt->rt_ifp);
+	if (!rt->rt_mtu && rt->rt_ifp)
+		rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
@@ -207,12 +207,11 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 	if (!rt)
 		panic("rt == NULL in in6_mtuexpire");
 
-	if (rt->rt_rmx.rmx_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
-		if (rt->rt_rmx.rmx_expire <= time_uptime) {
+	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
+		if (rt->rt_expire <= time_uptime) {
 			rt->rt_flags |= RTF_PROBEMTU;
 		} else {
-			ap->nextstop = lmin(ap->nextstop,
-					rt->rt_rmx.rmx_expire);
+			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
 		}
 	}
 

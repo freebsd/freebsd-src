@@ -1184,7 +1184,7 @@ in6_mc_join_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 	IN6_MULTI_LOCK_ASSERT();
 
 	CTR4(KTR_MLD, "%s: join %s on %p(%s))", __func__,
-	    ip6_sprintf(ip6tbuf, mcaddr), ifp, ifp->if_xname);
+	    ip6_sprintf(ip6tbuf, mcaddr), ifp, if_name(ifp));
 
 	error = 0;
 	inm = NULL;
@@ -1275,7 +1275,7 @@ in6_mc_leave_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 
 	CTR5(KTR_MLD, "%s: leave inm %p, %s/%s, imf %p", __func__,
 	    inm, ip6_sprintf(ip6tbuf, &inm->in6m_addr),
-	    (in6m_is_ifp_detached(inm) ? "null" : inm->in6m_ifp->if_xname),
+	    (in6m_is_ifp_detached(inm) ? "null" : if_name(inm->in6m_ifp)),
 	    imf);
 
 	/*
@@ -1450,15 +1450,14 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 
@@ -1781,8 +1780,6 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p,
 	    ("%s: not INP_IPV6 inpcb", __func__));
 	KASSERT(gsin6->sin6_family == AF_INET6,
 	    ("%s: not AF_INET6 group", __func__));
-	KASSERT(IN6_IS_ADDR_MULTICAST(&gsin6->sin6_addr),
-	    ("%s: not multicast", __func__));
 
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
@@ -2046,29 +2043,27 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (is_new) {
 		error = in6_mc_join_locked(ifp, &gsa->sin6.sin6_addr, imf,
 		    &inm, 0);
-		if (error)
+		if (error) {
+			IN6_MULTI_UNLOCK();
 			goto out_im6o_free;
+		}
 		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
-			goto out_im6f_rollback;
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
-
-out_im6f_rollback:
 	INP_WLOCK_ASSERT(inp);
 	if (error) {
 		im6f_rollback(imf);
@@ -2295,23 +2290,20 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
 
-out_im6f_rollback:
 	if (error)
 		im6f_rollback(imf);
 	else
@@ -2520,15 +2512,14 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 
@@ -2808,7 +2799,7 @@ in6m_print(const struct in6_multi *inm)
 	printf("addr %s ifp %p(%s) ifma %p\n",
 	    ip6_sprintf(ip6tbuf, &inm->in6m_addr),
 	    inm->in6m_ifp,
-	    inm->in6m_ifp->if_xname,
+	    if_name(inm->in6m_ifp),
 	    inm->in6m_ifma);
 	printf("timer %u state %s refcount %u scq.len %u\n",
 	    inm->in6m_timer,

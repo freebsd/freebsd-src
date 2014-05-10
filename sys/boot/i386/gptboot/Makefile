@@ -35,9 +35,13 @@ CFLAGS=	-DBOOTPROG=\"gptboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100
+	-Winline
+
+CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS=-static -N --gc-sections
+
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>

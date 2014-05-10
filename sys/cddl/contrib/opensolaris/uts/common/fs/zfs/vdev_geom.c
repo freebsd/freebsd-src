@@ -752,35 +752,39 @@ vdev_geom_io_intr(struct bio *bp)
 	zio->io_error = bp->bio_error;
 	if (zio->io_error == 0 && bp->bio_resid != 0)
 		zio->io_error = EIO;
-	if (bp->bio_cmd == BIO_FLUSH && bp->bio_error == ENOTSUP) {
+
+	switch(zio->io_error) {
+	case ENOTSUP:
 		/*
-		 * If we get ENOTSUP, we know that no future
-		 * attempts will ever succeed.  In this case we
-		 * set a persistent bit so that we don't bother
-		 * with the ioctl in the future.
+		 * If we get ENOTSUP for BIO_FLUSH or BIO_DELETE we know
+		 * that future attempts will never succeed. In this case
+		 * we set a persistent flag so that we don't bother with
+		 * requests in the future.
 		 */
-		vd->vdev_nowritecache = B_TRUE;
-	}
-	if (bp->bio_cmd == BIO_DELETE && bp->bio_error == ENOTSUP) {
-		/*
-		 * If we get ENOTSUP, we know that no future
-		 * attempts will ever succeed.  In this case we
-		 * set a persistent bit so that we don't bother
-		 * with the ioctl in the future.
-		 */
-		vd->vdev_notrim = B_TRUE;
-	}
-	if (zio->io_error == ENXIO && !vd->vdev_remove_wanted) {
-		/*
-		 * If provider's error is set we assume it is being
-		 * removed.
-		 */
-		if (bp->bio_to->error != 0) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		} else if (!vd->vdev_delayed_close) {
-			vd->vdev_delayed_close = B_TRUE;
+		switch(bp->bio_cmd) {
+		case BIO_FLUSH:
+			vd->vdev_nowritecache = B_TRUE;
+			break;
+		case BIO_DELETE:
+			vd->vdev_notrim = B_TRUE;
+			break;
 		}
+		break;
+	case ENXIO:
+		if (!vd->vdev_remove_wanted) {
+			/*
+			 * If provider's error is set we assume it is being
+			 * removed.
+			 */
+			if (bp->bio_to->error != 0) {
+				vd->vdev_remove_wanted = B_TRUE;
+				spa_async_request(zio->io_spa,
+				    SPA_ASYNC_REMOVE);
+			} else if (!vd->vdev_delayed_close) {
+				vd->vdev_delayed_close = B_TRUE;
+			}
+		}
+		break;
 	}
 	g_destroy_bio(bp);
 	zio_interrupt(zio);
@@ -796,10 +800,11 @@ vdev_geom_io_start(zio_t *zio)
 
 	vd = zio->io_vd;
 
-	if (zio->io_type == ZIO_TYPE_IOCTL) {
+	switch (zio->io_type) {
+	case ZIO_TYPE_IOCTL:
 		/* XXPOLICY */
 		if (!vdev_readable(vd)) {
-			zio->io_error = ENXIO;
+			zio->io_error = SET_ERROR(ENXIO);
 			return (ZIO_PIPELINE_CONTINUE);
 		}
 
@@ -808,28 +813,28 @@ vdev_geom_io_start(zio_t *zio)
 			if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
 				break;
 			if (vd->vdev_nowritecache) {
-				zio->io_error = ENOTSUP;
-				break;
-			}
-			goto sendreq;
-		case DKIOCTRIM:
-			if (vdev_geom_bio_delete_disable)
-				break;
-			if (vd->vdev_notrim) {
-				zio->io_error = ENOTSUP;
+				zio->io_error = SET_ERROR(ENOTSUP);
 				break;
 			}
 			goto sendreq;
 		default:
-			zio->io_error = ENOTSUP;
+			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
 		return (ZIO_PIPELINE_CONTINUE);
+	case ZIO_TYPE_FREE:
+		if (vdev_geom_bio_delete_disable)
+			return (ZIO_PIPELINE_CONTINUE);
+
+		if (vd->vdev_notrim) {
+			zio->io_error = SET_ERROR(ENOTSUP);
+			return (ZIO_PIPELINE_CONTINUE);
+		}
 	}
 sendreq:
 	cp = vd->vdev_tsd;
 	if (cp == NULL) {
-		zio->io_error = ENXIO;
+		zio->io_error = SET_ERROR(ENXIO);
 		return (ZIO_PIPELINE_CONTINUE);
 	}
 	bp = g_alloc_bio();
@@ -842,20 +847,19 @@ sendreq:
 		bp->bio_offset = zio->io_offset;
 		bp->bio_length = zio->io_size;
 		break;
+	case ZIO_TYPE_FREE:
+		bp->bio_cmd = BIO_DELETE;
+		bp->bio_data = NULL;
+		bp->bio_offset = zio->io_offset;
+		bp->bio_length = zio->io_size;
+		break;
 	case ZIO_TYPE_IOCTL:
-		switch (zio->io_cmd) {
-		case DKIOCFLUSHWRITECACHE:
+		if (zio->io_cmd == DKIOCFLUSHWRITECACHE) {
 			bp->bio_cmd = BIO_FLUSH;
 			bp->bio_flags |= BIO_ORDERED;
 			bp->bio_data = NULL;
 			bp->bio_offset = cp->provider->mediasize;
 			bp->bio_length = 0;
-			break;
-		case DKIOCTRIM:
-			bp->bio_cmd = BIO_DELETE;
-			bp->bio_data = NULL;
-			bp->bio_offset = zio->io_offset;
-			bp->bio_length = zio->io_size;
 			break;
 		}
 		break;

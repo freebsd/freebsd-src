@@ -66,7 +66,7 @@ static enum xprt_stat svc_dg_stat(SVCXPRT *);
 static bool_t svc_dg_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
 static bool_t svc_dg_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *);
+    struct sockaddr *, struct mbuf *, uint32_t *);
 static void svc_dg_destroy(SVCXPRT *);
 static bool_t svc_dg_control(SVCXPRT *, const u_int, void *);
 static int svc_dg_soupcall(struct socket *so, void *arg, int waitflag);
@@ -230,7 +230,7 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 static bool_t
 svc_dg_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m)
+    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	XDR xdrs;
 	struct mbuf *mrep;

@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/smp.h>
+#include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -69,9 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-/* Always enable for now - useful for queue hangs. */
-#define VMXNET3_DEBUG_SYSCTL
-
 #ifdef VMXNET3_FAILPOINTS
 #include <sys/fail.h>
 static SYSCTL_NODE(DEBUG_FP, OID_AUTO, vmxnet3, CTLFLAG_RW, 0,
@@ -88,6 +87,7 @@ static int	vmxnet3_alloc_resources(struct vmxnet3_softc *);
 static void	vmxnet3_free_resources(struct vmxnet3_softc *);
 static int	vmxnet3_check_version(struct vmxnet3_softc *);
 static void	vmxnet3_initial_config(struct vmxnet3_softc *);
+static void	vmxnet3_check_multiqueue(struct vmxnet3_softc *);
 
 static int	vmxnet3_alloc_msix_interrupts(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_msi_interrupts(struct vmxnet3_softc *);
@@ -103,6 +103,13 @@ static int	vmxnet3_alloc_interrupts(struct vmxnet3_softc *);
 static void	vmxnet3_free_interrupt(struct vmxnet3_softc *,
 		    struct vmxnet3_interrupt *);
 static void	vmxnet3_free_interrupts(struct vmxnet3_softc *);
+
+#ifndef VMXNET3_LEGACY_TX
+static int	vmxnet3_alloc_taskqueue(struct vmxnet3_softc *);
+static void	vmxnet3_start_taskqueue(struct vmxnet3_softc *);
+static void	vmxnet3_drain_taskqueue(struct vmxnet3_softc *);
+static void	vmxnet3_free_taskqueue(struct vmxnet3_softc *);
+#endif
 
 static int	vmxnet3_init_rxq(struct vmxnet3_softc *, int);
 static int	vmxnet3_init_txq(struct vmxnet3_softc *, int);
@@ -122,6 +129,7 @@ static void	vmxnet3_free_queue_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_mcast_table(struct vmxnet3_softc *);
 static void	vmxnet3_init_shared_data(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_interface(struct vmxnet3_softc *);
+static void	vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_shared_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_data(struct vmxnet3_softc *);
@@ -152,13 +160,24 @@ static int	vmxnet3_reinit(struct vmxnet3_softc *);
 static void	vmxnet3_init_locked(struct vmxnet3_softc *);
 static void	vmxnet3_init(void *);
 
-static int	vmxnet3_txq_offload_ctx(struct mbuf *, int *, int *, int *);
+static int	vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *,struct mbuf *,
+		    int *, int *, int *);
 static int	vmxnet3_txq_load_mbuf(struct vmxnet3_txqueue *, struct mbuf **,
 		    bus_dmamap_t, bus_dma_segment_t [], int *);
 static void	vmxnet3_txq_unload_mbuf(struct vmxnet3_txqueue *, bus_dmamap_t);
 static int	vmxnet3_txq_encap(struct vmxnet3_txqueue *, struct mbuf **);
+static void	vmxnet3_txq_update_pending(struct vmxnet3_txqueue *);
+#ifdef VMXNET3_LEGACY_TX
 static void	vmxnet3_start_locked(struct ifnet *);
 static void	vmxnet3_start(struct ifnet *);
+#else
+static int	vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *,
+		    struct mbuf *);
+static int	vmxnet3_txq_mq_start(struct ifnet *, struct mbuf *);
+static void	vmxnet3_txq_tq_deferred(void *, int);
+#endif
+static void	vmxnet3_txq_start(struct vmxnet3_txqueue *);
+static void	vmxnet3_tx_start_all(struct vmxnet3_softc *);
 
 static void	vmxnet3_update_vlan_filter(struct vmxnet3_softc *, int,
 		    uint16_t);
@@ -168,7 +187,16 @@ static void	vmxnet3_set_rxfilter(struct vmxnet3_softc *);
 static int	vmxnet3_change_mtu(struct vmxnet3_softc *, int);
 static int	vmxnet3_ioctl(struct ifnet *, u_long, caddr_t);
 
+#ifndef VMXNET3_LEGACY_TX
+static void	vmxnet3_qflush(struct ifnet *);
+#endif
+
 static int	vmxnet3_watchdog(struct vmxnet3_txqueue *);
+static void	vmxnet3_refresh_host_stats(struct vmxnet3_softc *);
+static void	vmxnet3_txq_accum_stats(struct vmxnet3_txqueue *,
+		    struct vmxnet3_txq_stats *);
+static void	vmxnet3_rxq_accum_stats(struct vmxnet3_rxqueue *,
+		    struct vmxnet3_rxq_stats *);
 static void	vmxnet3_tick(void *);
 static void	vmxnet3_link_status(struct vmxnet3_softc *);
 static void	vmxnet3_media_status(struct ifnet *, struct ifmediareq *);
@@ -213,6 +241,12 @@ typedef enum {
 static void	vmxnet3_barrier(struct vmxnet3_softc *, vmxnet3_barrier_t);
 
 /* Tunables. */
+static int vmxnet3_mq_disable = 0;
+TUNABLE_INT("hw.vmx.mq_disable", &vmxnet3_mq_disable);
+static int vmxnet3_default_txnqueue = VMXNET3_DEF_TX_QUEUES;
+TUNABLE_INT("hw.vmx.txnqueue", &vmxnet3_default_txnqueue);
+static int vmxnet3_default_rxnqueue = VMXNET3_DEF_RX_QUEUES;
+TUNABLE_INT("hw.vmx.rxnqueue", &vmxnet3_default_rxnqueue);
 static int vmxnet3_default_txndesc = VMXNET3_DEF_TX_NDESC;
 TUNABLE_INT("hw.vmx.txndesc", &vmxnet3_default_txndesc);
 static int vmxnet3_default_rxndesc = VMXNET3_DEF_RX_NDESC;
@@ -282,9 +316,17 @@ vmxnet3_attach(device_t dev)
 	if (error)
 		goto fail;
 
+#ifndef VMXNET3_LEGACY_TX
+	error = vmxnet3_alloc_taskqueue(sc);
+	if (error)
+		goto fail;
+#endif
+
 	error = vmxnet3_alloc_interrupts(sc);
 	if (error)
 		goto fail;
+
+	vmxnet3_check_multiqueue(sc);
 
 	error = vmxnet3_alloc_data(sc);
 	if (error)
@@ -302,7 +344,9 @@ vmxnet3_attach(device_t dev)
 	}
 
 	vmxnet3_setup_sysctl(sc);
-	vmxnet3_link_status(sc);
+#ifndef VMXNET3_LEGACY_TX
+	vmxnet3_start_taskqueue(sc);
+#endif
 
 fail:
 	if (error)
@@ -321,11 +365,16 @@ vmxnet3_detach(device_t dev)
 	ifp = sc->vmx_ifp;
 
 	if (device_is_attached(dev)) {
-		ether_ifdetach(ifp);
 		VMXNET3_CORE_LOCK(sc);
 		vmxnet3_stop(sc);
 		VMXNET3_CORE_UNLOCK(sc);
+
 		callout_drain(&sc->vmx_tick);
+#ifndef VMXNET3_LEGACY_TX
+		vmxnet3_drain_taskqueue(sc);
+#endif
+
+		ether_ifdetach(ifp);
 	}
 
 	if (sc->vmx_vlan_attach != NULL) {
@@ -337,6 +386,9 @@ vmxnet3_detach(device_t dev)
 		sc->vmx_vlan_detach = NULL;
 	}
 
+#ifndef VMXNET3_LEGACY_TX
+	vmxnet3_free_taskqueue(sc);
+#endif
 	vmxnet3_free_interrupts(sc);
 
 	if (ifp != NULL) {
@@ -463,14 +515,26 @@ vmxnet3_check_version(struct vmxnet3_softc *sc)
 static void
 vmxnet3_initial_config(struct vmxnet3_softc *sc)
 {
-	int ndesc;
+	int nqueue, ndesc;
 
-	/*
-	 * BMV Much of the work is already done, but this driver does
-	 * not support multiqueue yet.
-	 */
-	sc->vmx_ntxqueues = VMXNET3_TX_QUEUES;
-	sc->vmx_nrxqueues = VMXNET3_RX_QUEUES;
+	nqueue = vmxnet3_tunable_int(sc, "txnqueue", vmxnet3_default_txnqueue);
+	if (nqueue > VMXNET3_MAX_TX_QUEUES || nqueue < 1)
+		nqueue = VMXNET3_DEF_TX_QUEUES;
+	if (nqueue > mp_ncpus)
+		nqueue = mp_ncpus;
+	sc->vmx_max_ntxqueues = nqueue;
+
+	nqueue = vmxnet3_tunable_int(sc, "rxnqueue", vmxnet3_default_rxnqueue);
+	if (nqueue > VMXNET3_MAX_RX_QUEUES || nqueue < 1)
+		nqueue = VMXNET3_DEF_RX_QUEUES;
+	if (nqueue > mp_ncpus)
+		nqueue = mp_ncpus;
+	sc->vmx_max_nrxqueues = nqueue;
+
+	if (vmxnet3_tunable_int(sc, "mq_disable", vmxnet3_mq_disable)) {
+		sc->vmx_max_nrxqueues = 1;
+		sc->vmx_max_ntxqueues = 1;
+	}
 
 	ndesc = vmxnet3_tunable_int(sc, "txd", vmxnet3_default_txndesc);
 	if (ndesc > VMXNET3_MAX_TX_NDESC || ndesc < VMXNET3_MIN_TX_NDESC)
@@ -488,6 +552,27 @@ vmxnet3_initial_config(struct vmxnet3_softc *sc)
 	sc->vmx_max_rxsegs = VMXNET3_MAX_RX_SEGS;
 }
 
+static void
+vmxnet3_check_multiqueue(struct vmxnet3_softc *sc)
+{
+
+	if (sc->vmx_intr_type != VMXNET3_IT_MSIX)
+		goto out;
+
+	/* BMV: Just use the maximum configured for now. */
+	sc->vmx_nrxqueues = sc->vmx_max_nrxqueues;
+	sc->vmx_ntxqueues = sc->vmx_max_ntxqueues;
+
+	if (sc->vmx_nrxqueues > 1)
+		sc->vmx_flags |= VMXNET3_FLAG_RSS;
+
+	return;
+
+out:
+	sc->vmx_ntxqueues = 1;
+	sc->vmx_nrxqueues = 1;
+}
+
 static int
 vmxnet3_alloc_msix_interrupts(struct vmxnet3_softc *sc)
 {
@@ -500,7 +585,7 @@ vmxnet3_alloc_msix_interrupts(struct vmxnet3_softc *sc)
 		return (1);
 
 	/* Allocate an additional vector for the events interrupt. */
-	required = sc->vmx_nrxqueues + sc->vmx_ntxqueues + 1;
+	required = sc->vmx_max_nrxqueues + sc->vmx_max_ntxqueues + 1;
 
 	nmsix = pci_msix_count(dev);
 	if (nmsix < required)
@@ -512,6 +597,8 @@ vmxnet3_alloc_msix_interrupts(struct vmxnet3_softc *sc)
 		return (0);
 	} else
 		pci_release_msi(dev);
+
+	/* BMV TODO Fallback to sharing MSIX vectors if possible. */
 
 	return (1);
 }
@@ -586,10 +673,6 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_softc *sc)
 	return (0);
 }
 
-/*
- * NOTE: We only support the simple case of each Rx and Tx queue on its
- * own MSIX vector. This is good enough until we support mulitqueue.
- */
 static int
 vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 {
@@ -651,10 +734,6 @@ vmxnet3_setup_legacy_interrupt(struct vmxnet3_softc *sc)
 	return (error);
 }
 
-/*
- * XXX BMV Should probably reorganize the attach and just do
- * this in vmxnet3_init_shared_data().
- */
 static void
 vmxnet3_set_interrupt_idx(struct vmxnet3_softc *sc)
 {
@@ -784,6 +863,71 @@ vmxnet3_free_interrupts(struct vmxnet3_softc *sc)
 		pci_release_msi(sc->vmx_dev);
 }
 
+#ifndef VMXNET3_LEGACY_TX
+static int
+vmxnet3_alloc_taskqueue(struct vmxnet3_softc *sc)
+{
+	device_t dev;
+
+	dev = sc->vmx_dev;
+
+	sc->vmx_tq = taskqueue_create(device_get_nameunit(dev), M_NOWAIT,
+	    taskqueue_thread_enqueue, &sc->vmx_tq);
+	if (sc->vmx_tq == NULL)
+		return (ENOMEM);
+
+	return (0);
+}
+
+static void
+vmxnet3_start_taskqueue(struct vmxnet3_softc *sc)
+{
+	device_t dev;
+	int nthreads, error;
+
+	dev = sc->vmx_dev;
+
+	/*
+	 * The taskqueue is typically not frequently used, so a dedicated
+	 * thread for each queue is unnecessary.
+	 */
+	nthreads = MAX(1, sc->vmx_ntxqueues / 2);
+
+	/*
+	 * Most drivers just ignore the return value - it only fails
+	 * with ENOMEM so an error is not likely. It is hard for us
+	 * to recover from an error here.
+	 */
+	error = taskqueue_start_threads(&sc->vmx_tq, nthreads, PI_NET,
+	    "%s taskq", device_get_nameunit(dev));
+	if (error)
+		device_printf(dev, "failed to start taskqueue: %d", error);
+}
+
+static void
+vmxnet3_drain_taskqueue(struct vmxnet3_softc *sc)
+{
+	struct vmxnet3_txqueue *txq;
+	int i;
+
+	if (sc->vmx_tq != NULL) {
+		for (i = 0; i < sc->vmx_max_ntxqueues; i++) {
+			txq = &sc->vmx_txq[i];
+			taskqueue_drain(sc->vmx_tq, &txq->vxtxq_defrtask);
+		}
+	}
+}
+
+static void
+vmxnet3_free_taskqueue(struct vmxnet3_softc *sc)
+{
+	if (sc->vmx_tq != NULL) {
+		taskqueue_free(sc->vmx_tq);
+		sc->vmx_tq = NULL;
+	}
+}
+#endif
+
 static int
 vmxnet3_init_rxq(struct vmxnet3_softc *sc, int q)
 {
@@ -839,6 +983,15 @@ vmxnet3_init_txq(struct vmxnet3_softc *sc, int q)
 
 	txq->vxtxq_comp_ring.vxcr_ndesc = sc->vmx_ntxdescs;
 
+#ifndef VMXNET3_LEGACY_TX
+	TASK_INIT(&txq->vxtxq_defrtask, 0, vmxnet3_txq_tq_deferred, txq);
+
+	txq->vxtxq_br = buf_ring_alloc(VMXNET3_DEF_BUFRING_SIZE, M_DEVBUF,
+	    M_NOWAIT, &txq->vxtxq_mtx);
+	if (txq->vxtxq_br == NULL)
+		return (ENOMEM);
+#endif
+
 	return (0);
 }
 
@@ -847,20 +1000,32 @@ vmxnet3_alloc_rxtx_queues(struct vmxnet3_softc *sc)
 {
 	int i, error;
 
+	/*
+	 * Only attempt to create multiple queues if MSIX is available. MSIX is
+	 * disabled by default because its apparently broken for devices passed
+	 * through by at least ESXi 5.1. The hw.pci.honor_msi_blacklist tunable
+	 * must be set to zero for MSIX. This check prevents us from allocating
+	 * queue structures that we will not use.
+	 */
+	if (sc->vmx_flags & VMXNET3_FLAG_NO_MSIX) {
+		sc->vmx_max_nrxqueues = 1;
+		sc->vmx_max_ntxqueues = 1;
+	}
+
 	sc->vmx_rxq = malloc(sizeof(struct vmxnet3_rxqueue) *
-	    sc->vmx_nrxqueues, M_DEVBUF, M_NOWAIT | M_ZERO);
+	    sc->vmx_max_nrxqueues, M_DEVBUF, M_NOWAIT | M_ZERO);
 	sc->vmx_txq = malloc(sizeof(struct vmxnet3_txqueue) *
-	    sc->vmx_ntxqueues, M_DEVBUF, M_NOWAIT | M_ZERO);
+	    sc->vmx_max_ntxqueues, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vmx_rxq == NULL || sc->vmx_txq == NULL)
 		return (ENOMEM);
 
-	for (i = 0; i < sc->vmx_nrxqueues; i++) {
+	for (i = 0; i < sc->vmx_max_nrxqueues; i++) {
 		error = vmxnet3_init_rxq(sc, i);
 		if (error)
 			return (error);
 	}
 
-	for (i = 0; i < sc->vmx_ntxqueues; i++) {
+	for (i = 0; i < sc->vmx_max_ntxqueues; i++) {
 		error = vmxnet3_init_txq(sc, i);
 		if (error)
 			return (error);
@@ -901,6 +1066,13 @@ vmxnet3_destroy_txq(struct vmxnet3_txqueue *txq)
 	txq->vxtxq_sc = NULL;
 	txq->vxtxq_id = -1;
 
+#ifndef VMXNET3_LEGACY_TX
+	if (txq->vxtxq_br != NULL) {
+		buf_ring_free(txq->vxtxq_br, M_DEVBUF);
+		txq->vxtxq_br = NULL;
+	}
+#endif
+
 	if (txr->vxtxr_txbuf != NULL) {
 		free(txr->vxtxr_txbuf, M_DEVBUF);
 		txr->vxtxr_txbuf = NULL;
@@ -916,14 +1088,14 @@ vmxnet3_free_rxtx_queues(struct vmxnet3_softc *sc)
 	int i;
 
 	if (sc->vmx_rxq != NULL) {
-		for (i = 0; i < sc->vmx_nrxqueues; i++)
+		for (i = 0; i < sc->vmx_max_nrxqueues; i++)
 			vmxnet3_destroy_rxq(&sc->vmx_rxq[i]);
 		free(sc->vmx_rxq, M_DEVBUF);
 		sc->vmx_rxq = NULL;
 	}
 
 	if (sc->vmx_txq != NULL) {
-		for (i = 0; i < sc->vmx_ntxqueues; i++)
+		for (i = 0; i < sc->vmx_max_ntxqueues; i++)
 			vmxnet3_destroy_txq(&sc->vmx_txq[i]);
 		free(sc->vmx_txq, M_DEVBUF);
 		sc->vmx_txq = NULL;
@@ -967,12 +1139,28 @@ vmxnet3_alloc_shared_data(struct vmxnet3_softc *sc)
 		kva += sizeof(struct vmxnet3_rxq_shared);
 	}
 
+	if (sc->vmx_flags & VMXNET3_FLAG_RSS) {
+		size = sizeof(struct vmxnet3_rss_shared);
+		error = vmxnet3_dma_malloc(sc, size, 128, &sc->vmx_rss_dma);
+		if (error) {
+			device_printf(dev, "cannot alloc rss shared memory\n");
+			return (error);
+		}
+		sc->vmx_rss =
+		    (struct vmxnet3_rss_shared *) sc->vmx_rss_dma.dma_vaddr;
+	}
+
 	return (0);
 }
 
 static void
 vmxnet3_free_shared_data(struct vmxnet3_softc *sc)
 {
+
+	if (sc->vmx_rss != NULL) {
+		vmxnet3_dma_free(sc, &sc->vmx_rss_dma);
+		sc->vmx_rss = NULL;
+	}
 
 	if (sc->vmx_qs != NULL) {
 		vmxnet3_dma_free(sc, &sc->vmx_qs_dma);
@@ -1010,7 +1198,7 @@ vmxnet3_alloc_txq_data(struct vmxnet3_softc *sc)
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    VMXNET3_TSO_MAXSIZE,	/* maxsize */
+		    VMXNET3_TX_MAXSIZE,		/* maxsize */
 		    VMXNET3_TX_MAXSEGS,		/* nsegments */
 		    VMXNET3_TX_MAXSEGSIZE,	/* maxsegsize */
 		    0,				/* flags */
@@ -1335,6 +1523,13 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 	ds->queue_shared_len = sc->vmx_qs_dma.dma_size;
 	ds->nrxsg_max = sc->vmx_max_rxsegs;
 
+	/* RSS conf */
+	if (sc->vmx_flags & VMXNET3_FLAG_RSS) {
+		ds->rss.version = 1;
+		ds->rss.paddr = sc->vmx_rss_dma.dma_paddr;
+		ds->rss.len = sc->vmx_rss_dma.dma_size;
+	}
+
 	/* Interrupt control. */
 	ds->automask = sc->vmx_intr_mask_mode == VMXNET3_IMM_AUTO;
 	ds->nintr = sc->vmx_nintrs;
@@ -1394,9 +1589,43 @@ vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
 	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
+		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+		ifp->if_hwassist |= CSUM_IP6_TSO;
+}
+
+static void
+vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *sc)
+{
+	/*
+	 * Use the same key as the Linux driver until FreeBSD can do
+	 * RSS (presumably Toeplitz) in software.
+	 */
+	static const uint8_t rss_key[UPT1_RSS_MAX_KEY_SIZE] = {
+	    0x3b, 0x56, 0xd1, 0x56, 0x13, 0x4a, 0xe7, 0xac,
+	    0xe8, 0x79, 0x09, 0x75, 0xe8, 0x65, 0x79, 0x28,
+	    0x35, 0x12, 0xb9, 0x56, 0x7c, 0x76, 0x4b, 0x70,
+	    0xd8, 0x56, 0xa3, 0x18, 0x9b, 0x0a, 0xee, 0xf3,
+	    0x96, 0xa6, 0x9f, 0x8f, 0x9e, 0x8c, 0x90, 0xc9,
+	};
+
+	struct vmxnet3_driver_shared *ds;
+	struct vmxnet3_rss_shared *rss;
+	int i;
+
+	ds = sc->vmx_ds;
+	rss = sc->vmx_rss;
+
+	rss->hash_type =
+	    UPT1_RSS_HASH_TYPE_IPV4 | UPT1_RSS_HASH_TYPE_TCP_IPV4 |
+	    UPT1_RSS_HASH_TYPE_IPV6 | UPT1_RSS_HASH_TYPE_TCP_IPV6;
+	rss->hash_func = UPT1_RSS_HASH_FUNC_TOEPLITZ;
+	rss->hash_key_size = UPT1_RSS_MAX_KEY_SIZE;
+	rss->ind_table_size = UPT1_RSS_MAX_IND_TABLE_SIZE;
+	memcpy(rss->hash_key, rss_key, UPT1_RSS_MAX_KEY_SIZE);
+
+	for (i = 0; i < UPT1_RSS_MAX_IND_TABLE_SIZE; i++)
+		rss->ind_table[i] = i % sc->vmx_nrxqueues;
 }
 
 static void
@@ -1408,6 +1637,10 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
 
+	ds->mtu = ifp->if_mtu;
+	ds->ntxqueue = sc->vmx_ntxqueues;
+	ds->nrxqueue = sc->vmx_nrxqueues;
+
 	ds->upt_features = 0;
 	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		ds->upt_features |= UPT1_F_CSUM;
@@ -1416,9 +1649,10 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	if (ifp->if_capenable & IFCAP_LRO)
 		ds->upt_features |= UPT1_F_LRO;
 
-	ds->mtu = ifp->if_mtu;
-	ds->ntxqueue = sc->vmx_ntxqueues;
-	ds->nrxqueue = sc->vmx_nrxqueues;
+	if (sc->vmx_flags & VMXNET3_FLAG_RSS) {
+		ds->upt_features |= UPT1_F_RSS;
+		vmxnet3_reinit_rss_shared_data(sc);
+	}
 
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_DSL, sc->vmx_ds_dma.dma_paddr);
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_DSH,
@@ -1473,17 +1707,26 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 #if __FreeBSD_version < 1000025
 	ifp->if_baudrate = 1000000000;
-#else
+#elif __FreeBSD_version < 1100011
 	if_initbaudrate(ifp, IF_Gbps(10));
+#else
+	ifp->if_baudrate = IF_Gbps(10);
 #endif
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vmxnet3_init;
 	ifp->if_ioctl = vmxnet3_ioctl;
+	ifp->if_hw_tsomax = VMXNET3_TSO_MAXSIZE;
+
+#ifdef VMXNET3_LEGACY_TX
 	ifp->if_start = vmxnet3_start;
 	ifp->if_snd.ifq_drv_maxlen = sc->vmx_ntxdescs - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, sc->vmx_ntxdescs - 1);
 	IFQ_SET_READY(&ifp->if_snd);
+#else
+	ifp->if_transmit = vmxnet3_txq_mq_start;
+	ifp->if_qflush = vmxnet3_qflush;
+#endif
 
 	vmxnet3_get_lladdr(sc);
 	ether_ifattach(ifp, sc->vmx_lladdr);
@@ -1531,8 +1774,11 @@ vmxnet3_evintr(struct vmxnet3_softc *sc)
 	event = sc->vmx_ds->event;
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_EVENT, event);
 
-	if (event & VMXNET3_EVENT_LINK)
+	if (event & VMXNET3_EVENT_LINK) {
 		vmxnet3_link_status(sc);
+		if (sc->vmx_link_active != 0)
+			vmxnet3_tx_start_all(sc);
+	}
 
 	if (event & (VMXNET3_EVENT_TQERROR | VMXNET3_EVENT_RQERROR)) {
 		reset = 1;
@@ -1568,6 +1814,7 @@ vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 	struct vmxnet3_comp_ring *txc;
 	struct vmxnet3_txcompdesc *txcd;
 	struct vmxnet3_txbuf *txb;
+	struct mbuf *m;
 	u_int sop;
 
 	sc = txq->vxtxq_sc;
@@ -1591,15 +1838,18 @@ vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 		sop = txr->vxtxr_next;
 		txb = &txr->vxtxr_txbuf[sop];
 
-		if (txb->vtxb_m != NULL) {
+		if ((m = txb->vtxb_m) != NULL) {
 			bus_dmamap_sync(txr->vxtxr_txtag, txb->vtxb_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(txr->vxtxr_txtag, txb->vtxb_dmamap);
 
-			m_freem(txb->vtxb_m);
-			txb->vtxb_m = NULL;
+			txq->vxtxq_stats.vmtxs_opackets++;
+			txq->vxtxq_stats.vmtxs_obytes += m->m_pkthdr.len;
+			if (m->m_flags & M_MCAST)
+				txq->vxtxq_stats.vmtxs_omcasts++;
 
-			ifp->if_opackets++;
+			m_freem(m);
+			txb->vtxb_m = NULL;
 		}
 
 		txr->vxtxr_next = (txcd->eop_idx + 1) % txr->vxtxr_ndesc;
@@ -1773,10 +2023,38 @@ vmxnet3_rxq_input(struct vmxnet3_rxqueue *rxq,
 	ifp = sc->vmx_ifp;
 
 	if (rxcd->error) {
-		ifp->if_ierrors++;
+		rxq->vxrxq_stats.vmrxs_ierrors++;
 		m_freem(m);
 		return;
 	}
+
+#ifdef notyet
+	switch (rxcd->rss_type) {
+	case VMXNET3_RCD_RSS_TYPE_IPV4:
+		m->m_pkthdr.flowid = rxcd->rss_hash;
+		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV4);
+		break;
+	case VMXNET3_RCD_RSS_TYPE_TCPIPV4:
+		m->m_pkthdr.flowid = rxcd->rss_hash;
+		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_TCP_IPV4);
+		break;
+	case VMXNET3_RCD_RSS_TYPE_IPV6:
+		m->m_pkthdr.flowid = rxcd->rss_hash;
+		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
+		break;
+	case VMXNET3_RCD_RSS_TYPE_TCPIPV6:
+		m->m_pkthdr.flowid = rxcd->rss_hash;
+		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_TCP_IPV6);
+		break;
+	default: /* VMXNET3_RCD_RSS_TYPE_NONE */
+		m->m_pkthdr.flowid = rxq->vxrxq_id;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+		break;
+	}
+#else
+	m->m_pkthdr.flowid = rxq->vxrxq_id;
+	m->m_flags |= M_FLOWID;
+#endif
 
 	if (!rxcd->no_csum)
 		vmxnet3_rx_csum(rxcd, m);
@@ -1785,7 +2063,9 @@ vmxnet3_rxq_input(struct vmxnet3_rxqueue *rxq,
 		m->m_pkthdr.ether_vtag = rxcd->vtag;
 	}
 
-	ifp->if_ipackets++;
+	rxq->vxrxq_stats.vmrxs_ipackets++;
+	rxq->vxrxq_stats.vmrxs_ibytes += m->m_pkthdr.len;
+
 	VMXNET3_RXQ_UNLOCK(rxq);
 	(*ifp->if_input)(ifp, m);
 	VMXNET3_RXQ_LOCK(rxq);
@@ -1867,7 +2147,7 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 			}
 
 			if (vmxnet3_newbuf(sc, rxr) != 0) {
-				ifp->if_iqdrops++;
+				rxq->vxrxq_stats.vmrxs_iqdrops++;
 				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
 				if (!rxcd->eop)
 					vmxnet3_rxq_discard_chain(rxq);
@@ -1886,7 +2166,7 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 			    ("%s: frame not started?", __func__));
 
 			if (vmxnet3_newbuf(sc, rxr) != 0) {
-				ifp->if_iqdrops++;
+				rxq->vxrxq_stats.vmrxs_iqdrops++;
 				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
 				if (!rxcd->eop)
 					vmxnet3_rxq_discard_chain(rxq);
@@ -1955,8 +2235,7 @@ vmxnet3_legacy_intr(void *xsc)
 
 	VMXNET3_TXQ_LOCK(txq);
 	vmxnet3_txq_eof(txq);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vmxnet3_start_locked(ifp);
+	vmxnet3_txq_start(txq);
 	VMXNET3_TXQ_UNLOCK(txq);
 
 	vmxnet3_enable_all_intrs(sc);
@@ -1978,8 +2257,7 @@ vmxnet3_txq_intr(void *xtxq)
 
 	VMXNET3_TXQ_LOCK(txq);
 	vmxnet3_txq_eof(txq);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vmxnet3_start_locked(ifp);
+	vmxnet3_txq_start(txq);
 	VMXNET3_TXQ_UNLOCK(txq);
 
 	vmxnet3_enable_intr(sc, txq->vxtxq_intr_idx);
@@ -2058,6 +2336,7 @@ vmxnet3_rxstop(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 
 			if (rxb->vrxb_m == NULL)
 				continue;
+
 			bus_dmamap_sync(rxr->vxrxr_rxtag, rxb->vrxb_dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(rxr->vxrxr_rxtag, rxb->vrxb_dmamap);
@@ -2320,7 +2599,8 @@ vmxnet3_init(void *xsc)
  * the mbuf packet header. Bug andre@.
  */
 static int
-vmxnet3_txq_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
+vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
+    int *etype, int *proto, int *start)
 {
 	struct ether_vlan_header *evh;
 	int offset;
@@ -2344,7 +2624,7 @@ vmxnet3_txq_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 			    (caddr_t) &iphdr);
 			ip = &iphdr;
 		} else
-			ip = (struct ip *)(m->m_data + offset);
+			ip = mtodo(m, offset);
 		*proto = ip->ip_p;
 		*start = offset + (ip->ip_hl << 2);
 		break;
@@ -2372,19 +2652,21 @@ vmxnet3_txq_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 			return (EINVAL);
 		}
 
-		if (m->m_len < *start + sizeof(struct tcphdr)) {
-			m_copydata(m, offset, sizeof(struct tcphdr),
-			    (caddr_t) &tcphdr);
-			tcp = &tcphdr;
-		} else
-			tcp = (struct tcphdr *)(m->m_data + *start);
+		txq->vxtxq_stats.vmtxs_tso++;
 
 		/*
 		 * For TSO, the size of the protocol header is also
 		 * included in the descriptor header size.
 		 */
+		if (m->m_len < *start + sizeof(struct tcphdr)) {
+			m_copydata(m, offset, sizeof(struct tcphdr),
+			    (caddr_t) &tcphdr);
+			tcp = &tcphdr;
+		} else
+			tcp = mtodo(m, *start);
 		*start += (tcp->th_off << 2);
-	}
+	} else
+		txq->vxtxq_stats.vmtxs_csum++;
 
 	return (0);
 }
@@ -2396,18 +2678,17 @@ vmxnet3_txq_load_mbuf(struct vmxnet3_txqueue *txq, struct mbuf **m0,
 	struct vmxnet3_txring *txr;
 	struct mbuf *m;
 	bus_dma_tag_t tag;
-	int maxsegs, error;
+	int error;
 
 	txr = &txq->vxtxq_cmd_ring;
 	m = *m0;
 	tag = txr->vxtxr_txtag;
-	maxsegs = VMXNET3_TX_MAXSEGS;
 
 	error = bus_dmamap_load_mbuf_sg(tag, dmap, m, segs, nsegs, 0);
 	if (error == 0 || error != EFBIG)
 		return (error);
 
-	m = m_collapse(m, M_NOWAIT, maxsegs);
+	m = m_defrag(m, M_NOWAIT);
 	if (m != NULL) {
 		*m0 = m;
 		error = bus_dmamap_load_mbuf_sg(tag, dmap, m, segs, nsegs, 0);
@@ -2417,8 +2698,9 @@ vmxnet3_txq_load_mbuf(struct vmxnet3_txqueue *txq, struct mbuf **m0,
 	if (error) {
 		m_freem(*m0);
 		*m0 = NULL;
+		txq->vxtxq_sc->vmx_stats.vmst_defrag_failed++;
 	} else
-		txq->vxtxq_sc->vmx_stats.vmst_collapsed++;
+		txq->vxtxq_sc->vmx_stats.vmst_defragged++;
 
 	return (error);
 }
@@ -2461,13 +2743,13 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	    ("%s: mbuf %p with too many segments %d", __func__, m, nsegs));
 
 	if (VMXNET3_TXRING_AVAIL(txr) < nsegs) {
-		txq->vxtxq_stats.vtxrs_full++;
+		txq->vxtxq_stats.vmtxs_full++;
 		vmxnet3_txq_unload_mbuf(txq, dmap);
 		return (ENOSPC);
 	} else if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_ALL_OFFLOAD) {
-		error = vmxnet3_txq_offload_ctx(m, &etype, &proto, &start);
+		error = vmxnet3_txq_offload_ctx(txq, m, &etype, &proto, &start);
 		if (error) {
-			txq->vxtxq_stats.vtxrs_offload_failed++;
+			txq->vxtxq_stats.vmtxs_offload_failed++;
 			vmxnet3_txq_unload_mbuf(txq, dmap);
 			m_freem(m);
 			*m0 = NULL;
@@ -2533,6 +2815,22 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 }
 
 static void
+vmxnet3_txq_update_pending(struct vmxnet3_txqueue *txq)
+{
+	struct vmxnet3_txring *txr;
+
+	txr = &txq->vxtxq_cmd_ring;
+
+	if (txq->vxtxq_ts->npending > 0) {
+		txq->vxtxq_ts->npending = 0;
+		vmxnet3_write_bar0(txq->vxtxq_sc,
+		    VMXNET3_BAR0_TXH(txq->vxtxq_id), txr->vxtxr_head);
+	}
+}
+
+#ifdef VMXNET3_LEGACY_TX
+
+static void
 vmxnet3_start_locked(struct ifnet *ifp)
 {
 	struct vmxnet3_softc *sc;
@@ -2577,11 +2875,7 @@ vmxnet3_start_locked(struct ifnet *ifp)
 	}
 
 	if (tx > 0) {
-		if (txq->vxtxq_ts->npending > 0) {
-			txq->vxtxq_ts->npending = 0;
-			vmxnet3_write_bar0(sc, VMXNET3_BAR0_TXH(txq->vxtxq_id),
-			    txr->vxtxr_head);
-		}
+		vmxnet3_txq_update_pending(txq);
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
 	}
 }
@@ -2598,6 +2892,153 @@ vmxnet3_start(struct ifnet *ifp)
 	VMXNET3_TXQ_LOCK(txq);
 	vmxnet3_start_locked(ifp);
 	VMXNET3_TXQ_UNLOCK(txq);
+}
+
+#else /* !VMXNET3_LEGACY_TX */
+
+static int
+vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
+{
+	struct vmxnet3_softc *sc;
+	struct vmxnet3_txring *txr;
+	struct buf_ring *br;
+	struct ifnet *ifp;
+	int tx, avail, error;
+
+	sc = txq->vxtxq_sc;
+	br = txq->vxtxq_br;
+	ifp = sc->vmx_ifp;
+	txr = &txq->vxtxq_cmd_ring;
+	tx = 0;
+	error = 0;
+
+	VMXNET3_TXQ_LOCK_ASSERT(txq);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    sc->vmx_link_active == 0) {
+		if (m != NULL)
+			error = drbr_enqueue(ifp, br, m);
+		return (error);
+	}
+
+	if (m != NULL) {
+		error = drbr_enqueue(ifp, br, m);
+		if (error)
+			return (error);
+	}
+
+	while ((avail = VMXNET3_TXRING_AVAIL(txr)) >= 2) {
+		m = drbr_peek(ifp, br);
+		if (m == NULL)
+			break;
+
+		/* Assume worse case if this mbuf is the head of a chain. */
+		if (m->m_next != NULL && avail < VMXNET3_TX_MAXSEGS) {
+			drbr_putback(ifp, br, m);
+			error = ENOBUFS;
+			break;
+		}
+
+		error = vmxnet3_txq_encap(txq, &m);
+		if (error) {
+			if (m != NULL)
+				drbr_putback(ifp, br, m);
+			else
+				drbr_advance(ifp, br);
+			break;
+		}
+		drbr_advance(ifp, br);
+
+		tx++;
+		ETHER_BPF_MTAP(ifp, m);
+	}
+
+	if (tx > 0) {
+		vmxnet3_txq_update_pending(txq);
+		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
+	}
+
+	return (error);
+}
+
+static int
+vmxnet3_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
+{
+	struct vmxnet3_softc *sc;
+	struct vmxnet3_txqueue *txq;
+	int i, ntxq, error;
+
+	sc = ifp->if_softc;
+	ntxq = sc->vmx_ntxqueues;
+
+	if (m->m_flags & M_FLOWID)
+		i = m->m_pkthdr.flowid % ntxq;
+	else
+		i = curcpu % ntxq;
+
+	txq = &sc->vmx_txq[i];
+
+	if (VMXNET3_TXQ_TRYLOCK(txq) != 0) {
+		error = vmxnet3_txq_mq_start_locked(txq, m);
+		VMXNET3_TXQ_UNLOCK(txq);
+	} else {
+		error = drbr_enqueue(ifp, txq->vxtxq_br, m);
+		taskqueue_enqueue(sc->vmx_tq, &txq->vxtxq_defrtask);
+	}
+
+	return (error);
+}
+
+static void
+vmxnet3_txq_tq_deferred(void *xtxq, int pending)
+{
+	struct vmxnet3_softc *sc;
+	struct vmxnet3_txqueue *txq;
+
+	txq = xtxq;
+	sc = txq->vxtxq_sc;
+
+	VMXNET3_TXQ_LOCK(txq);
+	if (!drbr_empty(sc->vmx_ifp, txq->vxtxq_br))
+		vmxnet3_txq_mq_start_locked(txq, NULL);
+	VMXNET3_TXQ_UNLOCK(txq);
+}
+
+#endif /* VMXNET3_LEGACY_TX */
+
+static void
+vmxnet3_txq_start(struct vmxnet3_txqueue *txq)
+{
+	struct vmxnet3_softc *sc;
+	struct ifnet *ifp;
+
+	sc = txq->vxtxq_sc;
+	ifp = sc->vmx_ifp;
+
+#ifdef VMXNET3_LEGACY_TX
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		vmxnet3_start_locked(ifp);
+#else
+	if (!drbr_empty(ifp, txq->vxtxq_br))
+		vmxnet3_txq_mq_start_locked(txq, NULL);
+#endif
+}
+
+static void
+vmxnet3_tx_start_all(struct vmxnet3_softc *sc)
+{
+	struct vmxnet3_txqueue *txq;
+	int i;
+
+	VMXNET3_CORE_LOCK_ASSERT(sc);
+
+	for (i = 0; i < sc->vmx_ntxqueues; i++) {
+		txq = &sc->vmx_txq[i];
+
+		VMXNET3_TXQ_LOCK(txq);
+		vmxnet3_txq_start(txq);
+		VMXNET3_TXQ_UNLOCK(txq);
+	}
 }
 
 static void
@@ -2659,9 +3100,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
 
-	mode = VMXNET3_RXMODE_UCAST;
-	if (ifp->if_flags & IFF_BROADCAST)
-		mode |= VMXNET3_RXMODE_BCAST;
+	mode = VMXNET3_RXMODE_UCAST | VMXNET3_RXMODE_BCAST;
 	if (ifp->if_flags & IFF_PROMISC)
 		mode |= VMXNET3_RXMODE_PROMISC;
 	if (ifp->if_flags & IFF_ALLMULTI)
@@ -2822,6 +3261,30 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 }
 
+#ifndef VMXNET3_LEGACY_TX
+static void
+vmxnet3_qflush(struct ifnet *ifp)
+{
+	struct vmxnet3_softc *sc;
+	struct vmxnet3_txqueue *txq;
+	struct mbuf *m;
+	int i;
+
+	sc = ifp->if_softc;
+
+	for (i = 0; i < sc->vmx_ntxqueues; i++) {
+		txq = &sc->vmx_txq[i];
+
+		VMXNET3_TXQ_LOCK(txq);
+		while ((m = buf_ring_dequeue_sc(txq->vxtxq_br)) != NULL)
+			m_freem(m);
+		VMXNET3_TXQ_UNLOCK(txq);
+	}
+
+	if_qflush(ifp);
+}
+#endif
+
 static int
 vmxnet3_watchdog(struct vmxnet3_txqueue *txq)
 {
@@ -2842,10 +3305,77 @@ vmxnet3_watchdog(struct vmxnet3_txqueue *txq)
 }
 
 static void
-vmxnet3_refresh_stats(struct vmxnet3_softc *sc)
+vmxnet3_refresh_host_stats(struct vmxnet3_softc *sc)
 {
 
 	vmxnet3_write_cmd(sc, VMXNET3_CMD_GET_STATS);
+}
+
+static void
+vmxnet3_txq_accum_stats(struct vmxnet3_txqueue *txq,
+    struct vmxnet3_txq_stats *accum)
+{
+	struct vmxnet3_txq_stats *st;
+
+	st = &txq->vxtxq_stats;
+
+	accum->vmtxs_opackets += st->vmtxs_opackets;
+	accum->vmtxs_obytes += st->vmtxs_obytes;
+	accum->vmtxs_omcasts += st->vmtxs_omcasts;
+	accum->vmtxs_csum += st->vmtxs_csum;
+	accum->vmtxs_tso += st->vmtxs_tso;
+	accum->vmtxs_full += st->vmtxs_full;
+	accum->vmtxs_offload_failed += st->vmtxs_offload_failed;
+}
+
+static void
+vmxnet3_rxq_accum_stats(struct vmxnet3_rxqueue *rxq,
+    struct vmxnet3_rxq_stats *accum)
+{
+	struct vmxnet3_rxq_stats *st;
+
+	st = &rxq->vxrxq_stats;
+
+	accum->vmrxs_ipackets += st->vmrxs_ipackets;
+	accum->vmrxs_ibytes += st->vmrxs_ibytes;
+	accum->vmrxs_iqdrops += st->vmrxs_iqdrops;
+	accum->vmrxs_ierrors += st->vmrxs_ierrors;
+}
+
+static void
+vmxnet3_accumulate_stats(struct vmxnet3_softc *sc)
+{
+	struct ifnet *ifp;
+	struct vmxnet3_statistics *st;
+	struct vmxnet3_txq_stats txaccum;
+	struct vmxnet3_rxq_stats rxaccum;
+	int i;
+
+	ifp = sc->vmx_ifp;
+	st = &sc->vmx_stats;
+
+	bzero(&txaccum, sizeof(struct vmxnet3_txq_stats));
+	bzero(&rxaccum, sizeof(struct vmxnet3_rxq_stats));
+
+	for (i = 0; i < sc->vmx_ntxqueues; i++)
+		vmxnet3_txq_accum_stats(&sc->vmx_txq[i], &txaccum);
+	for (i = 0; i < sc->vmx_nrxqueues; i++)
+		vmxnet3_rxq_accum_stats(&sc->vmx_rxq[i], &rxaccum);
+
+	/*
+	 * With the exception of if_ierrors, these ifnet statistics are
+	 * only updated in the driver, so just set them to our accumulated
+	 * values. if_ierrors is updated in ether_input() for malformed
+	 * frames that we should have already discarded.
+	 */
+	ifp->if_ipackets = rxaccum.vmrxs_ipackets;
+	ifp->if_iqdrops = rxaccum.vmrxs_iqdrops;
+	ifp->if_ierrors = rxaccum.vmrxs_ierrors;
+	ifp->if_opackets = txaccum.vmtxs_opackets;
+#ifndef VMXNET3_LEGACY_TX
+	ifp->if_obytes = txaccum.vmtxs_obytes;
+	ifp->if_omcasts = txaccum.vmtxs_omcasts;
+#endif
 }
 
 static void
@@ -2860,7 +3390,9 @@ vmxnet3_tick(void *xsc)
 	timedout = 0;
 
 	VMXNET3_CORE_LOCK_ASSERT(sc);
-	vmxnet3_refresh_stats(sc);
+
+	vmxnet3_accumulate_stats(sc);
+	vmxnet3_refresh_host_stats(sc);
 
 	for (i = 0; i < sc->vmx_ntxqueues; i++)
 		timedout |= vmxnet3_watchdog(&sc->vmx_txq[i]);
@@ -2977,10 +3509,20 @@ vmxnet3_setup_txq_sysctl(struct vmxnet3_txqueue *txq,
 	    NULL, "Transmit Queue");
 	txq->vxtxq_sysctl = list = SYSCTL_CHILDREN(node);
 
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "opackets", CTLFLAG_RD,
+	    &stats->vmtxs_opackets, "Transmit packets");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "obytes", CTLFLAG_RD,
+	    &stats->vmtxs_obytes, "Transmit bytes");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "omcasts", CTLFLAG_RD,
+	    &stats->vmtxs_omcasts, "Transmit multicasts");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
+	    &stats->vmtxs_csum, "Transmit checksum offloaded");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso", CTLFLAG_RD,
+	    &stats->vmtxs_tso, "Transmit TCP segmentation offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ringfull", CTLFLAG_RD,
-	    &stats->vtxrs_full, "Tx ring full");
+	    &stats->vmtxs_full, "Transmit ring full");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "offload_failed", CTLFLAG_RD,
-	    &stats->vtxrs_offload_failed, "Tx checksum offload failed");
+	    &stats->vmtxs_offload_failed, "Transmit checksum offload failed");
 
 	/*
 	 * Add statistics reported by the host. These are updated once
@@ -3025,6 +3567,15 @@ vmxnet3_setup_rxq_sysctl(struct vmxnet3_rxqueue *rxq,
 	    NULL, "Receive Queue");
 	rxq->vxrxq_sysctl = list = SYSCTL_CHILDREN(node);
 
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ipackets", CTLFLAG_RD,
+	    &stats->vmrxs_ipackets, "Receive packets");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ibytes", CTLFLAG_RD,
+	    &stats->vmrxs_ibytes, "Receive bytes");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "iqdrops", CTLFLAG_RD,
+	    &stats->vmrxs_iqdrops, "Receive drops");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ierrors", CTLFLAG_RD,
+	    &stats->vmrxs_ierrors, "Receive errors");
+
 	/*
 	 * Add statistics reported by the host. These are updated once
 	 * per second.
@@ -3054,7 +3605,6 @@ vmxnet3_setup_rxq_sysctl(struct vmxnet3_rxqueue *rxq,
 	    &rxstats->error, "Errors");
 }
 
-#ifdef VMXNET3_DEBUG_SYSCTL
 static void
 vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
     struct sysctl_ctx_list *ctx, struct sysctl_oid_list *child)
@@ -3113,7 +3663,6 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		    &rxq->vxrxq_comp_ring.vxcr_gen, 0, "");
 	}
 }
-#endif
 
 static void
 vmxnet3_setup_queue_sysctl(struct vmxnet3_softc *sc,
@@ -3126,9 +3675,7 @@ vmxnet3_setup_queue_sysctl(struct vmxnet3_softc *sc,
 	for (i = 0; i < sc->vmx_nrxqueues; i++)
 		vmxnet3_setup_rxq_sysctl(&sc->vmx_rxq[i], ctx, child);
 
-#ifdef VMXNET3_DEBUG_SYSCTL
 	vmxnet3_setup_debug_sysctl(sc, ctx, child);
-#endif
 }
 
 static void
@@ -3145,14 +3692,21 @@ vmxnet3_setup_sysctl(struct vmxnet3_softc *sc)
 	tree = device_get_sysctl_tree(dev);
 	child = SYSCTL_CHILDREN(tree);
 
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "max_ntxqueues", CTLFLAG_RD,
+	    &sc->vmx_max_ntxqueues, 0, "Maximum number of Tx queues");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "max_nrxqueues", CTLFLAG_RD,
+	    &sc->vmx_max_nrxqueues, 0, "Maximum number of Rx queues");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ntxqueues", CTLFLAG_RD,
 	    &sc->vmx_ntxqueues, 0, "Number of Tx queues");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "nrxqueues", CTLFLAG_RD,
 	    &sc->vmx_nrxqueues, 0, "Number of Rx queues");
 
 	stats = &sc->vmx_stats;
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "collapsed", CTLFLAG_RD,
-	    &stats->vmst_collapsed, 0, "Tx mbuf chains collapsed");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "defragged", CTLFLAG_RD,
+	    &stats->vmst_defragged, 0, "Tx mbuf chains defragged");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "defrag_failed", CTLFLAG_RD,
+	    &stats->vmst_defrag_failed, 0,
+	    "Tx mbuf dropped because defrag failed");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "mgetcl_failed", CTLFLAG_RD,
 	    &stats->vmst_mgetcl_failed, 0, "mbuf cluster allocation failed");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "mbuf_load_failed", CTLFLAG_RD,

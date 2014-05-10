@@ -37,12 +37,14 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100 \
-	${CLANG_OPT_SMALL}
+	-Winline \
 
 CFLAGS.gcc+=	-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
 		-mno-align-long-strings \
+		--param max-inline-insns-single=100
+
+CFLAGS.clang+=${CLANG_OPT_SMALL}
 
 LD_FLAGS=-static -N --gc-sections
 

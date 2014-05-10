@@ -250,7 +250,7 @@ struct fxp_cb_ucode {
 /*
  * Number of DMA segments in a TxCB.
  */
-#define FXP_NTXSEG	32
+#define FXP_NTXSEG	35
 
 struct fxp_tbd {
 	uint32_t tb_addr;

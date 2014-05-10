@@ -119,12 +119,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 
-#ifdef FLOWTABLE
-#include <net/flowtable.h>
-VNET_DECLARE(int, ip6_output_flowtable_size);
-#define	V_ip6_output_flowtable_size	VNET(ip6_output_flowtable_size)
-#endif
-
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
@@ -194,24 +188,6 @@ ip6_init(void)
 	nd6_init();
 	frag6_init();
 
-#ifdef FLOWTABLE
-	if (TUNABLE_INT_FETCH("net.inet6.ip6.output_flowtable_size",
-		&V_ip6_output_flowtable_size)) {
-		if (V_ip6_output_flowtable_size < 256)
-			V_ip6_output_flowtable_size = 256;
-		if (!powerof2(V_ip6_output_flowtable_size)) {
-			printf("flowtable must be power of 2 size\n");
-			V_ip6_output_flowtable_size = 2048;
-		}
-	} else {
-		/*
-		 * round up to the next power of 2
-		 */
-		V_ip6_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
-	}
-	V_ip6_ft = flowtable_alloc("ipv6", V_ip6_output_flowtable_size, FL_IPV6|FL_PCPU);
-#endif	
-	
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
@@ -571,7 +547,18 @@ ip6_input(struct mbuf *m)
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
-
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+	    IPV6_ADDR_MC_SCOPE(&ip6->ip6_dst) == 0) {
+		/*
+		 * RFC4291 2.7:
+		 * Nodes must not originate a packet to a multicast address
+		 * whose scop field contains the reserved value 0; if such
+		 * a packet is received, it must be silently dropped.
+		 */
+		IP6STAT_INC(ip6s_badscope);
+		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		goto bad;
+	}
 #ifdef ALTQ
 	if (altq_input != NULL && (*altq_input)(m, AF_INET6) == 0) {
 		/* packet is dropped by traffic conditioner */
@@ -708,8 +695,6 @@ passin:
 		int bad;
 
 		bad = 1;
-#define	sa_equal(a1, a2)						\
-	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
@@ -719,7 +704,6 @@ passin:
 		}
 		KASSERT(ifa != NULL, ("%s: ifa not found for lle %p",
 		    __func__, lle));
-#undef sa_equal
 
 		ia6 = (struct in6_ifaddr *)ifa;
 		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
@@ -1089,7 +1073,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
-	u_int8_t *opt;
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
@@ -1116,8 +1099,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 #endif
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
-	opt = (u_int8_t *)hbh + sizeof(struct ip6_hbh);
-
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
 				hbhlen, rtalertp, plenp) < 0)
 		return (-1);

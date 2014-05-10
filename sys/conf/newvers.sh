@@ -133,7 +133,7 @@ fi
 if [ -d "${SYSDIR}/../.hg" ] ; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/hg" ] ; then
-			hg_cmd="${dir}/hg -R ${SYSDIR}/../.hg"
+			hg_cmd="${dir}/hg -R ${SYSDIR}/.."
 			break
 		fi
 	done

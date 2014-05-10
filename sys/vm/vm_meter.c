@@ -53,24 +53,24 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct vmmeter cnt;
+struct vmmeter vm_cnt;
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
-	CTLFLAG_RW, &cnt.v_free_min, 0, "Minimum low-free-pages threshold");
+	CTLFLAG_RW, &vm_cnt.v_free_min, 0, "Minimum low-free-pages threshold");
 SYSCTL_UINT(_vm, VM_V_FREE_TARGET, v_free_target,
-	CTLFLAG_RW, &cnt.v_free_target, 0, "Desired free pages");
+	CTLFLAG_RW, &vm_cnt.v_free_target, 0, "Desired free pages");
 SYSCTL_UINT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
-	CTLFLAG_RW, &cnt.v_free_reserved, 0, "Pages reserved for deadlock");
+	CTLFLAG_RW, &vm_cnt.v_free_reserved, 0, "Pages reserved for deadlock");
 SYSCTL_UINT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
-	CTLFLAG_RW, &cnt.v_inactive_target, 0, "Pages desired inactive");
+	CTLFLAG_RW, &vm_cnt.v_inactive_target, 0, "Pages desired inactive");
 SYSCTL_UINT(_vm, VM_V_CACHE_MIN, v_cache_min,
-	CTLFLAG_RW, &cnt.v_cache_min, 0, "Min pages on cache queue");
+	CTLFLAG_RW, &vm_cnt.v_cache_min, 0, "Min pages on cache queue");
 SYSCTL_UINT(_vm, VM_V_CACHE_MAX, v_cache_max,
-	CTLFLAG_RW, &cnt.v_cache_max, 0, "Max pages on cache queue");
+	CTLFLAG_RW, &vm_cnt.v_cache_max, 0, "Max pages on cache queue");
 SYSCTL_UINT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
-	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "Min pages reserved for kernel");
+	CTLFLAG_RW, &vm_cnt.v_pageout_free_min, 0, "Min pages reserved for kernel");
 SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
-	CTLFLAG_RW, &cnt.v_free_severe, 0, "Severe page depletion point");
+	CTLFLAG_RW, &vm_cnt.v_free_severe, 0, "Severe page depletion point");
 
 static int
 sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
@@ -231,7 +231,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	mtx_unlock(&vm_object_list_mtx);
-	total.t_free = cnt.v_free_count + cnt.v_cache_count;
+	total.t_free = vm_cnt.v_free_count + vm_cnt.v_cache_count;
 	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
 }
 
@@ -251,7 +251,7 @@ static int
 vcnt(SYSCTL_HANDLER_ARGS)
 {
 	int count = *(int *)arg1;
-	int offset = (char *)arg1 - (char *)&cnt;
+	int offset = (char *)arg1 - (char *)&vm_cnt;
 	int i;
 
 	CPU_FOREACH(i) {
@@ -273,7 +273,7 @@ SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
 #define	VM_STATS(parent, var, descr) \
 	SYSCTL_PROC(parent, OID_AUTO, var, \
-	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &cnt.var, 0, vcnt, \
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0, vcnt, \
 	    "IU", descr)
 #define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
 #define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)

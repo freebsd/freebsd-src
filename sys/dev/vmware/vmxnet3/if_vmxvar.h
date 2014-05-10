@@ -31,10 +31,10 @@ struct vmxnet3_dma_alloc {
 };
 
 /*
- * The number of Rx/Tx queues this driver supports.
+ * The number of Rx/Tx queues this driver prefers.
  */
-#define VMXNET3_RX_QUEUES	1
-#define VMXNET3_TX_QUEUES	1
+#define VMXNET3_DEF_RX_QUEUES	8
+#define VMXNET3_DEF_TX_QUEUES	8
 
 /*
  * The number of Rx rings in each Rx queue.
@@ -119,13 +119,21 @@ struct vmxnet3_comp_ring {
 };
 
 struct vmxnet3_txq_stats {
-	uint64_t		vtxrs_full;
-	uint64_t		vtxrs_offload_failed;
+	uint64_t		vmtxs_opackets;	/* if_opackets */
+	uint64_t		vmtxs_obytes;	/* if_obytes */
+	uint64_t		vmtxs_omcasts;	/* if_omcasts */
+	uint64_t		vmtxs_csum;
+	uint64_t		vmtxs_tso;
+	uint64_t		vmtxs_full;
+	uint64_t		vmtxs_offload_failed;
 };
 
 struct vmxnet3_txqueue {
 	struct mtx			 vxtxq_mtx;
 	struct vmxnet3_softc		*vxtxq_sc;
+#ifndef VMXNET3_TX_LEGACY
+	struct buf_ring			*vxtxq_br;
+#endif
 	int				 vxtxq_id;
 	int				 vxtxq_intr_idx;
 	int				 vxtxq_watchdog;
@@ -134,8 +142,11 @@ struct vmxnet3_txqueue {
 	struct vmxnet3_txq_stats	 vxtxq_stats;
 	struct vmxnet3_txq_shared	*vxtxq_ts;
 	struct sysctl_oid_list		*vxtxq_sysctl;
+#ifndef VMXNET3_TX_LEGACY
+	struct task			 vxtxq_defrtask;
+#endif
 	char				 vxtxq_name[16];
-};
+} __aligned(CACHE_LINE_SIZE);
 
 #define VMXNET3_TXQ_LOCK(_txq)		mtx_lock(&(_txq)->vxtxq_mtx)
 #define VMXNET3_TXQ_TRYLOCK(_txq)	mtx_trylock(&(_txq)->vxtxq_mtx)
@@ -146,7 +157,10 @@ struct vmxnet3_txqueue {
     mtx_assert(&(_txq)->vxtxq_mtx, MA_NOTOWNED)
 
 struct vmxnet3_rxq_stats {
-
+	uint64_t		vmrxs_ipackets;	/* if_ipackets */
+	uint64_t		vmrxs_ibytes;	/* if_ibytes */
+	uint64_t		vmrxs_iqdrops;	/* if_iqdrops */
+	uint64_t		vmrxs_ierrors;	/* if_ierrors */
 };
 
 struct vmxnet3_rxqueue {
@@ -160,7 +174,7 @@ struct vmxnet3_rxqueue {
 	struct vmxnet3_rxq_shared	*vxrxq_rs;
 	struct sysctl_oid_list		*vxrxq_sysctl;
 	char				 vxrxq_name[16];
-};
+} __aligned(CACHE_LINE_SIZE);
 
 #define VMXNET3_RXQ_LOCK(_rxq)		mtx_lock(&(_rxq)->vxrxq_mtx)
 #define VMXNET3_RXQ_UNLOCK(_rxq)	mtx_unlock(&(_rxq)->vxrxq_mtx)
@@ -170,10 +184,10 @@ struct vmxnet3_rxqueue {
     mtx_assert(&(_rxq)->vxrxq_mtx, MA_NOTOWNED)
 
 struct vmxnet3_statistics {
-	uint32_t		vmst_collapsed;
+	uint32_t		vmst_defragged;
+	uint32_t		vmst_defrag_failed;
 	uint32_t		vmst_mgetcl_failed;
 	uint32_t		vmst_mbuf_load_failed;
-
 };
 
 struct vmxnet3_interrupt {
@@ -188,6 +202,7 @@ struct vmxnet3_softc {
 	struct vmxnet3_driver_shared	*vmx_ds;
 	uint32_t			 vmx_flags;
 #define VMXNET3_FLAG_NO_MSIX	0x0001
+#define VMXNET3_FLAG_RSS	0x0002
 
 	struct vmxnet3_rxqueue		*vmx_rxq;
 	struct vmxnet3_txqueue		*vmx_txq;
@@ -219,13 +234,20 @@ struct vmxnet3_softc {
 	struct vmxnet3_interrupt	 vmx_intrs[VMXNET3_MAX_INTRS];
 
 	struct mtx			 vmx_mtx;
+#ifndef VMXNET3_LEGACY_TX
+	struct taskqueue		*vmx_tq;
+#endif
 	uint8_t				*vmx_mcast;
 	void				*vmx_qs;
+	struct vmxnet3_rss_shared	*vmx_rss;
 	struct callout			 vmx_tick;
 	struct vmxnet3_dma_alloc	 vmx_ds_dma;
 	struct vmxnet3_dma_alloc	 vmx_qs_dma;
 	struct vmxnet3_dma_alloc	 vmx_mcast_dma;
+	struct vmxnet3_dma_alloc	 vmx_rss_dma;
 	struct ifmedia			 vmx_media;
+	int				 vmx_max_ntxqueues;
+	int				 vmx_max_nrxqueues;
 	eventhandler_tag		 vmx_vlan_attach;
 	eventhandler_tag		 vmx_vlan_detach;
 	uint32_t			 vmx_vlan_filter[4096/32];
@@ -252,7 +274,9 @@ struct vmxnet3_softc {
  * any TSO packets based on the number of segments.
  */
 #define VMXNET3_TX_MAXSEGS		32
-#define VMXNET3_TSO_MAXSIZE		65550
+#define VMXNET3_TX_MAXSIZE		(VMXNET3_TX_MAXSEGS * MCLBYTES)
+#define VMXNET3_TSO_MAXSIZE \
+    (VMXNET3_TX_MAXSIZE - sizeof(struct ether_vlan_header))
 
 /*
  * Maximum support Tx segments size. The length field in the
@@ -278,6 +302,12 @@ struct vmxnet3_softc {
  * Our Tx watchdog timeout.
  */
 #define VMXNET3_WATCHDOG_TIMEOUT	5
+
+/*
+ * Number of slots in the Tx bufrings. This value matches most other
+ * multiqueue drivers.
+ */
+#define VMXNET3_DEF_BUFRING_SIZE	4096
 
 /*
  * IP protocols that we can perform Tx checksum offloading of.

@@ -285,6 +285,7 @@ nandfs_sblocks_in_block(struct nandfs_device *fsdev)
 	return (fsdev->nd_devblocksize / sizeof(struct nandfs_super_block));
 }
 
+#if 0
 static __inline int
 nandfs_sblocks_in_first_block(struct nandfs_device *fsdev)
 {
@@ -297,6 +298,7 @@ nandfs_sblocks_in_first_block(struct nandfs_device *fsdev)
 
 	return (n);
 }
+#endif
 
 static int
 nandfs_write_superblock_at(struct nandfs_device *fsdev,
@@ -716,15 +718,24 @@ nandfs_mount_base(struct nandfs_device *nandfsdev, struct mount *mp,
 	nandfsdev->nd_ts.tv_sec = nandfsdev->nd_last_segsum.ss_create;
 	nandfsdev->nd_last_cno = nandfsdev->nd_super.s_last_cno;
 	nandfsdev->nd_fakevblk = 1;
+	/*
+	 * FIXME: bogus calculation. Should use actual number of usable segments
+	 * instead of total amount.
+	 */
+	nandfsdev->nd_segs_reserved =
+	    nandfsdev->nd_fsdata.f_nsegments *
+	    nandfsdev->nd_fsdata.f_r_segments_percentage / 100;
 	nandfsdev->nd_last_ino  = NANDFS_USER_INO;
 	DPRINTF(VOLUMES, ("%s: last_pseg %#jx last_cno %#jx last_seq %#jx\n"
-	    "fsdev: last_seg: seq %#jx num %#jx, next_seg_num %#jx\n",
+	    "fsdev: last_seg: seq %#jx num %#jx, next_seg_num %#jx "
+	    "segs_reserved %#jx\n",
 	    __func__, (uintmax_t)nandfsdev->nd_last_pseg,
 	    (uintmax_t)nandfsdev->nd_last_cno,
 	    (uintmax_t)nandfsdev->nd_seg_sequence,
 	    (uintmax_t)nandfsdev->nd_seg_sequence,
 	    (uintmax_t)nandfsdev->nd_seg_num,
-	    (uintmax_t)nandfsdev->nd_next_seg_num));
+	    (uintmax_t)nandfsdev->nd_next_seg_num,
+	    (uintmax_t)nandfsdev->nd_segs_reserved));
 
 	DPRINTF(VOLUMES, ("nandfs_mount: accepted super root\n"));
 
@@ -902,7 +913,6 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 			 * We conclude that this is not NAND storage
 			 */
 			nandfsdev->nd_erasesize = NANDFS_DEF_ERASESIZE;
-			nandfsdev->nd_is_nand = 0;
 		} else {
 			DROP_GIANT();
 			g_topology_lock();
@@ -913,10 +923,9 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 			free(nandfsdev, M_NANDFSMNT);
 			return (error);
 		}
-	} else {
-		nandfsdev->nd_erasesize = erasesize;
-		nandfsdev->nd_is_nand = 1;
 	}
+
+	nandfsdev->nd_erasesize = erasesize;
 
 	DPRINTF(VOLUMES, ("%s: erasesize %x\n", __func__,
 	    nandfsdev->nd_erasesize));

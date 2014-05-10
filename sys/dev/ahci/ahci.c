@@ -134,18 +134,19 @@ static struct {
 	"\014ALTSIG"		\
 	"\015NOMSI"
 } ahci_ids[] = {
-	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
-	{0x43901002, 0x00, "ATI IXP700",	0},
-	{0x43911002, 0x00, "ATI IXP700",	0},
-	{0x43921002, 0x00, "ATI IXP700",	0},
-	{0x43931002, 0x00, "ATI IXP700",	0},
-	{0x43941002, 0x00, "ATI IXP800",	0},
-	{0x43951002, 0x00, "ATI IXP800",	0},
+	{0x43801002, 0x00, "AMD SB600",	AHCI_Q_NOMSI},
+	{0x43901002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43911002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43921002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43931002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43941002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43951002, 0x00, "AMD SB8x0/SB9x0",	0},
 	{0x78001022, 0x00, "AMD Hudson-2",	0},
 	{0x78011022, 0x00, "AMD Hudson-2",	0},
 	{0x78021022, 0x00, "AMD Hudson-2",	0},
 	{0x78031022, 0x00, "AMD Hudson-2",	0},
 	{0x78041022, 0x00, "AMD Hudson-2",	0},
+	{0x06111b21, 0x00, "ASMedia ASM2106",	0},
 	{0x06121b21, 0x00, "ASMedia ASM1061",	0},
 	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
 	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
@@ -374,6 +375,13 @@ ahci_probe(device_t dev)
 	int i, valid = 0;
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
+
+	/*
+	 * Ensure it is not a PCI bridge (some vendors use
+	 * the same PID and VID in PCI bridge and AHCI cards).
+	 */
+	if (pci_get_class(dev) == PCIC_BRIDGE)
+		return (ENXIO);
 
 	/* Is this a possible AHCI candidate? */
 	if (pci_get_class(dev) == PCIC_STORAGE &&

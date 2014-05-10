@@ -998,7 +998,6 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	if (hdr_len == 0) {
 		if ((nsegs > Q8_TX_MAX_SEGMENTS) ||
 			(mp->m_pkthdr.len > ha->max_frame_size)){
-			/* TBD: copy into private buffer and send it */
         		device_printf(dev,
 				"%s: (nsegs[%d, %d, 0x%b] > Q8_TX_MAX_SEGMENTS)\n",
 				__func__, nsegs, mp->m_pkthdr.len,

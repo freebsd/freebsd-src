@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/counter.h>
 #include <sys/refcount.h>
 #include <sys/tree.h>
 
@@ -512,13 +513,9 @@ struct pf_rule {
 
 	int			 rtableid;
 	u_int32_t		 timeout[PFTM_MAX];
-	u_int32_t		 states_cur;
-	u_int32_t		 states_tot;
 	u_int32_t		 max_states;
-	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
-	u_int32_t		 spare1;			/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -531,6 +528,10 @@ struct pf_rule {
 	u_int32_t		 prob;
 	uid_t			 cuid;
 	pid_t			 cpid;
+
+	counter_u64_t		 states_cur;
+	counter_u64_t		 states_tot;
+	counter_u64_t		 src_nodes;
 
 	u_int16_t		 return_icmp;
 	u_int16_t		 return_icmp6;
@@ -579,6 +580,10 @@ struct pf_rule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+
+	uint64_t		 u_states_cur;
+	uint64_t		 u_states_tot;
+	uint64_t		 u_src_nodes;
 };
 
 /* rule flags */
@@ -1483,19 +1488,17 @@ struct pf_idhash {
 	struct mtx			lock;
 };
 
+extern u_long		pf_hashmask;
+extern u_long		pf_srchashmask;
 #define	PF_HASHSIZ	(32768)
 VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
 VNET_DECLARE(struct pf_idhash *, pf_idhash);
-VNET_DECLARE(u_long, pf_hashmask);
 #define V_pf_keyhash	VNET(pf_keyhash)
 #define	V_pf_idhash	VNET(pf_idhash)
-#define	V_pf_hashmask	VNET(pf_hashmask)
 VNET_DECLARE(struct pf_srchash *, pf_srchash);
-VNET_DECLARE(u_long, pf_srchashmask);
 #define	V_pf_srchash	VNET(pf_srchash)
-#define V_pf_srchashmask VNET(pf_srchashmask)
 
-#define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
+#define PF_IDHASH(s)	(be64toh((s)->id) % (pf_hashmask + 1))
 
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
@@ -1526,6 +1529,8 @@ VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
 void				 pf_initialize(void);
+void				 pf_mtag_initialize(void);
+void				 pf_mtag_cleanup(void);
 void				 pf_cleanup(void);
 
 struct pf_mtag			*pf_get_mtag(struct mbuf *);

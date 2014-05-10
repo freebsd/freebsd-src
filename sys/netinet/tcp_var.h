@@ -46,15 +46,6 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 
 #endif /* _KERNEL */
 
-/* TCP segment queue entry */
-struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
-	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
-};
-LIST_HEAD(tsegqe_head, tseg_qent);
-
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
 	tcp_seq end;		/* end seq no. */
@@ -100,7 +91,7 @@ do {								\
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	struct	mbuf *t_segq;		/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
@@ -353,8 +344,7 @@ struct tcptw {
 	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
-	void		*tw_pspare;	/* TCP_SIGNATURE */
-	u_int		*tw_spare;	/* TCP_SIGNATURE */
+	u_int		tw_refcount;	/* refcount */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -436,7 +426,7 @@ struct	tcpstat {
 	uint64_t tcps_rcvbyte;		/* bytes received in sequence */
 	uint64_t tcps_rcvbadsum;	/* packets received with ccksum errs */
 	uint64_t tcps_rcvbadoff;	/* packets received with bad offset */
-	uint64_t tcps_rcvmemdrop;	/* packets dropped for lack of memory */
+	uint64_t tcps_rcvreassfull;	/* packets dropped for no reass space */
 	uint64_t tcps_rcvshort;		/* packets received too short */
 	uint64_t tcps_rcvduppack;	/* duplicate-only packets received */
 	uint64_t tcps_rcvdupbyte;	/* duplicate-only bytes received */
@@ -576,7 +566,7 @@ struct	xtcpcb {
 #endif
 
 /*
- * Names for TCP sysctl objects
+ * Identifiers for TCP sysctl nodes
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
@@ -592,8 +582,6 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
-#define	TCPCTL_MAXID		16
-#define TCPCTL_FINWAIT2_TIMEOUT        17
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
@@ -666,11 +654,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
-void	 tcp_reass_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
-#ifdef VIMAGE
-void	 tcp_reass_destroy(void);
-#endif
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);

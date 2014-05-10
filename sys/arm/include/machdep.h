@@ -32,6 +32,7 @@ vm_offset_t freebsd_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t linux_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t fake_preload_metadata(struct arm_boot_params *abp);
 vm_offset_t parse_boot_param(struct arm_boot_params *abp);
+void arm_generic_initclocks(void);
 
 /*
  * Initialization functions called by the common initarm() function in
@@ -70,8 +71,5 @@ void initarm_late_init(void);
 /* Board-specific attributes */
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
-
-/* Setup standard arrays */
-void arm_dump_avail_init( vm_offset_t memsize, size_t max);
 
 #endif /* !_MACHINE_MACHDEP_H_ */

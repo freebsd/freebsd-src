@@ -176,6 +176,9 @@ static int
 vybrid_ehci_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "fsl,mvf600-usb-ehci") == 0)
 		return (ENXIO);
 

@@ -72,8 +72,15 @@ OBJCOPY?=	objcopy
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
+# Note: we're really bsd.kmod.mk, so we have to allow src.opts.mk to be
+# optional. Include it if we can so we can get /etc/src.conf changes,
+# if we're in the tree. If we can't include it that's OK. kern.opts.mk
+# has all the kernel options in it, and should be included after src.opts.mk
+# so it picks everything up.
+.sinclude <src.opts.mk>
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
+.include "kern.opts.mk"
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
@@ -238,7 +245,7 @@ beforedepend: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${_link}
+${OBJS}: ${.OBJDIR}/${_link}
 .endif
 .endfor
 
@@ -252,18 +259,23 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
-${_ILINKS}:
-	@case ${.TARGET} in \
+.for _link in ${_ILINKS}
+.PHONY: ${_link}
+${_link}: ${.OBJDIR}/${_link}
+
+${.OBJDIR}/${_link}:
+	@case ${.TARGET:T} in \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
 		path=${SYSDIR} ;; \
 	*) \
-		path=${SYSDIR}/${.TARGET}/include ;; \
+		path=${SYSDIR}/${.TARGET:T}/include ;; \
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
-	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -sf $$path ${.TARGET}
+	${ECHO} ${.TARGET:T} "->" $$path ; \
+	ln -sf $$path ${.TARGET:T}
+.endfor
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 

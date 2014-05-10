@@ -744,7 +744,7 @@ zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
 			 * allocate and populate nvlist with recursive
 			 * snapshots
 			 */
-			if (snapshot_namecheck(zc->zc_value, NULL,
+			if (zfs_component_namecheck(zc->zc_value, NULL,
 			    NULL) == 0) {
 				tmpnvl = fnvlist_alloc();
 				if (dmu_get_recursive_snaps_nvl(zc->zc_name,

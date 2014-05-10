@@ -42,7 +42,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,11 +73,6 @@
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -171,30 +165,6 @@ iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
                         arp_ifinit(ifp, ifa);
                         break;
 #endif	/* INET */
-#ifdef IPX
-                /*
-                 * XXX - This code is probably wrong
-                 */
-                case AF_IPX: {
-				struct ipx_addr *ina;
-
-				ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina))
-					ina->x_host = *(union ipx_host *)
-							IF_LLADDR(ifp);
-				else
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) IF_LLADDR(ifp),
-					      ISO88025_ADDR_LEN);
-
-				/*
-				 * Set new address
-				 */
-				ifp->if_init(ifp->if_softc);
-			}
-			break;
-#endif	/* IPX */
                 default:
                         ifp->if_init(ifp->if_softc);
                         break;
@@ -328,25 +298,6 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		snap_type = ETHERTYPE_IPV6;
 		break;
 #endif	/* INET6 */
-#ifdef IPX
-	case AF_IPX:
-	{
-		u_int8_t	*cp;
-
-		bcopy((caddr_t)&(satoipx_addr(dst).x_host), (caddr_t)edst,
-		      ISO88025_ADDR_LEN);
-
-		M_PREPEND(m, 3, M_WAITOK);
-		m = m_pullup(m, 3);
-		if (m == 0)
-			senderr(ENOBUFS);
-		cp = mtod(m, u_int8_t *);
-		*cp++ = ETHERTYPE_IPX_8022;
-		*cp++ = ETHERTYPE_IPX_8022;
-		*cp++ = LLC_UI;
-	}
-	break;
-#endif	/* IPX */
 	case AF_UNSPEC:
 	{
 		const struct iso88025_sockaddr_data *sd;
@@ -546,19 +497,6 @@ iso88025_input(ifp, m)
 	l = mtod(m, struct llc *);
 
 	switch (l->llc_dsap) {
-#ifdef IPX
-	case ETHERTYPE_IPX_8022:	/* Thanks a bunch Novell */
-		if ((l->llc_control != LLC_UI) ||
-		    (l->llc_ssap != ETHERTYPE_IPX_8022)) {
-			ifp->if_noproto++;
-			goto dropanyway;
-		}
-
-		th->iso88025_shost[0] &= ~(TR_RII); 
-		m_adj(m, 3);
-		isr = NETISR_IPX;
-		break;
-#endif	/* IPX */
 	case LLC_SNAP_LSAP: {
 		u_int16_t type;
 		if ((l->llc_control != LLC_UI) ||
@@ -591,12 +529,6 @@ iso88025_input(ifp, m)
 			isr = NETISR_ARP;
 			break;
 #endif	/* INET */
-#ifdef IPX_SNAP	/* XXX: Not supported! */
-		case ETHERTYPE_IPX:
-			th->iso88025_shost[0] &= ~(TR_RII); 
-			isr = NETISR_IPX;
-			break;
-#endif	/* IPX_SNAP */
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			th->iso88025_shost[0] &= ~(TR_RII); 
@@ -721,14 +653,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -751,14 +676,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);

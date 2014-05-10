@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -157,6 +157,8 @@ userret(struct thread *td, struct trapframe *frame)
 	    td->td_rw_rlocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
+	KASSERT((td->td_pflags & TDP_DEVMEMIO) == 0,
+	    ("userret: Returning with /dev/mem i/o leaked"));
 	KASSERT(td->td_no_sleeping == 0,
 	    ("userret: Returning with sleep disabled"));
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,

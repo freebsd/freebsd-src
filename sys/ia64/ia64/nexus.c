@@ -44,6 +44,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -55,7 +56,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/efi.h>
 #include <machine/intr.h>
 #include <machine/pmap.h>
 #include <machine/resource.h>

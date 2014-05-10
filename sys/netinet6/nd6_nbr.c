@@ -242,7 +242,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 		/* Always use the default FIB. */
 #ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, RTF_ANNOUNCE,
+		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
 		    RT_DEFAULT_FIB);
 #else
 		in6_rtalloc(&ro, RT_DEFAULT_FIB);
@@ -723,9 +723,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL) {
 		goto freeit;
 	}

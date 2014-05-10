@@ -67,7 +67,6 @@
 #define NIRQ		32
 #endif
 
-#include <machine/psl.h>
 
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
@@ -77,6 +76,8 @@ void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
     void *, int, int, void **);
 int arm_remove_irqhandler(int, void *);
 extern void (*arm_post_filter)(void *);
+extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
+    enum intr_polarity pol);
 
 void gic_init_secondary(void);
 

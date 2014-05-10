@@ -268,7 +268,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * switching the main CPU.  XXXTODO: Need to think more about how to
 	 * handle having different CPUs at different frequencies.  
 	 */
-	if (mp_ncpus > 1 && !smp_active) {
+	if (mp_ncpus > 1 && !smp_started) {
 		device_printf(dev, "rejecting change, SMP not started yet\n");
 		error = ENXIO;
 		goto out;
@@ -1037,6 +1037,7 @@ cpufreq_unregister(device_t dev)
 	if (cf_dev == NULL) {
 		device_printf(dev,
 	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		free(devs, M_TEMP);
 		return (0);
 	}
 	cfcount = 0;

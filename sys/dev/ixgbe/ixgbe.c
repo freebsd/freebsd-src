@@ -1245,7 +1245,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(adapter->ifp);
 			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
 
 			IXGBE_WRITE_REG(hw, IXGBE_RDT(i), t);
 		} else
@@ -2628,11 +2628,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-#if __FreeBSD_version < 1000025
-	ifp->if_baudrate = 1000000000;
-#else
-	if_initbaudrate(ifp, IF_Gbps(10));
-#endif
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

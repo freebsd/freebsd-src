@@ -174,7 +174,7 @@ nandbus_attach(device_t dev)
 	nfc = device_get_parent(dev);
 	nfc_sc = device_get_softc(nfc);
 
-	mtx_init(&sc->nandbus_mtx, "nandbus lock", MTX_DEF, 0);
+	mtx_init(&sc->nandbus_mtx, "nandbus lock", NULL, MTX_DEF);
 	cv_init(&sc->nandbus_cv, "nandbus cv");
 
 	/* Check each possible CS for existing nand devices */
@@ -503,7 +503,7 @@ nandbus_wait_ready(device_t dev, uint8_t *status)
 	struct timeval tv, tv2;
 
 	tv2.tv_sec = 0;
-	tv2.tv_usec = 50 * 5000; /* 10ms */
+	tv2.tv_usec = 50 * 5000; /* 250ms */
 
 	getmicrotime(&tv);
 	timevaladd(&tv, &tv2);

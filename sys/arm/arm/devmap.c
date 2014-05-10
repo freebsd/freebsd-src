@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
  * Routines for mapping device memory.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
@@ -54,6 +56,36 @@ static u_int			akva_devmap_idx;
 static vm_offset_t		akva_devmap_vaddr = ARM_VECTORS_HIGH;
 
 /*
+ * Print the contents of the static mapping table using the provided printf-like
+ * output function (which will be either printf or db_printf).
+ */
+static void
+devmap_dump_table(int (*prfunc)(const char *, ...))
+{
+	const struct arm_devmap_entry *pd;
+
+	if (devmap_table == NULL || devmap_table[0].pd_size == 0) {
+		prfunc("No static device mappings.\n");
+		return;
+	}
+
+	prfunc("Static device mappings:\n");
+	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+		prfunc("  0x%08x - 0x%08x mapped at VA 0x%08x\n",
+		    pd->pd_pa, pd->pd_pa + pd->pd_size - 1, pd->pd_va);
+	}
+}
+
+/*
+ * Print the contents of the static mapping table.  Used for bootverbose.
+ */
+void
+arm_devmap_print_table()
+{
+	devmap_dump_table(printf);
+}
+
+/*
  * Return the "last" kva address used by the registered devmap table.  It's
  * actually the lowest address used by the static mappings, i.e., the address of
  * the first unusable byte of KVA.
@@ -67,11 +99,8 @@ arm_devmap_lastaddr()
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
 
-	if (devmap_table == NULL)
-		panic("arm_devmap_lastaddr(): No devmap table registered.");
-
 	lowaddr = ARM_VECTORS_HIGH;
-	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+	for (pd = devmap_table; pd != NULL && pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
 	}
@@ -145,22 +174,21 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 {
 	const struct arm_devmap_entry *pd;
 
+	devmap_bootstrap_done = true;
+
 	/*
-	 * If given a table pointer, use it, else ensure a table was previously
-	 * registered.  This happens early in boot, and there's a good chance
-	 * the panic message won't be seen, but there's not much we can do.
+	 * If given a table pointer, use it.  Otherwise, if a table was
+	 * previously registered, use it.  Otherwise, no work to do.
 	 */
 	if (table != NULL)
 		devmap_table = table;
 	else if (devmap_table == NULL)
-		panic("arm_devmap_bootstrap(): No devmap table registered");
+		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
 		    pd->pd_prot,pd->pd_cache);
 	}
-
-	devmap_bootstrap_done = true;
 }
 
 /*
@@ -207,13 +235,23 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
- * Return a pointer to where it is mapped. This routine is intended to be used
- * for mapping device memory, NOT real memory.
+ * Return a pointer to where it is mapped.
+ *
+ * This uses a pre-established static mapping if one exists for the requested
+ * range, otherwise it allocates kva space and maps the physical pages into it.
+ *
+ * This routine is intended to be used for mapping device memory, NOT real
+ * memory; the mapping type is inherently PTE_DEVICE in pmap_kenter_device().
  */
 void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, offset;
+	void * rva;
+
+	/* First look in the static mapping table. */
+	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
+		return (rva);
 	
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
@@ -240,8 +278,13 @@ void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t tmpva, offset;
-	vm_size_t origsize = size;
-	
+	vm_size_t origsize;
+
+	/* Nothing to do if we find the mapping in the static table. */
+	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
+		return;
+
+	origsize = size;
 	offset = va & PAGE_MASK;
 	va = trunc_page(va);
 	size = round_page(size + offset);
@@ -254,4 +297,14 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 
 	kva_free(va, origsize);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(devmap, db_show_devmap)
+{
+	devmap_dump_table(db_printf);
+}
+
+#endif /* DDB */
 

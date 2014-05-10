@@ -104,6 +104,7 @@ ARGE_MDIO			opt_arge.h
 AR71XX_REALMEM			opt_ar71xx.h
 AR71XX_ENV_UBOOT		opt_ar71xx.h
 AR71XX_ENV_REDBOOT		opt_ar71xx.h
+AR71XX_ENV_ROUTERBOOT		opt_ar71xx.h
 AR71XX_ATH_EEPROM		opt_ar71xx.h
 
 #

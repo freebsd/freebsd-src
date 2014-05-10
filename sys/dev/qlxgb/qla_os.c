@@ -669,7 +669,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	if_initbaudrate(ifp, IF_Gbps(10));
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1063,10 +1063,7 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 	ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head, segs, &nsegs,
 			BUS_DMA_NOWAIT);
 
-	if ((ret == EFBIG) ||
-		((nsegs > Q8_TX_MAX_SEGMENTS) &&
-		 (((m_head->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-			(m_head->m_pkthdr.len <= ha->max_frame_size)))) {
+	if (ret == EFBIG) {
 
 		struct mbuf *m;
 

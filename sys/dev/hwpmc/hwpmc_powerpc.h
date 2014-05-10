@@ -46,11 +46,13 @@
 
 struct powerpc_cpu {
 	struct pmc_hw   *pc_ppcpmcs;
+	enum pmc_class	 pc_class;
 };
 
 extern struct powerpc_cpu **powerpc_pcpu;
 
 extern int pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep);
+extern int pmc_ppc970_initialize(struct pmc_mdep *pmc_mdep);
 
 extern int powerpc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc);
 extern int powerpc_get_config(int cpu, int ri, struct pmc **ppm);

@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -62,6 +59,9 @@ cpuset_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
+
+static int sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS);
+
 /* This is used in modules that need to work in both SMP and UP. */
 cpuset_t all_cpus;
 
@@ -81,9 +81,8 @@ SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxid, 0,
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxcpus,
     0, "Max number of CPUs that the system was compiled for.");
 
-int smp_active = 0;	/* are the APs allowed to run? */
-SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
-    "Number of Auxillary Processors (APs) that were successfully started");
+SYSCTL_PROC(_kern_smp, OID_AUTO, active, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
+    sysctl_kern_smp_active, "I", "Indicates system is running in SMP mode");
 
 int smp_disabled = 0;	/* has smp been disabled? */
 SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
@@ -834,3 +833,15 @@ quiesce_all_cpus(const char *wmesg, int prio)
 
 	return quiesce_cpus(all_cpus, wmesg, prio);
 }
+
+/* Extra care is taken with this sysctl because the data type is volatile */
+static int
+sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS)
+{
+	int error, active;
+
+	active = smp_started;
+	error = SYSCTL_OUT(req, &active, sizeof(active));
+	return (error);
+}
+

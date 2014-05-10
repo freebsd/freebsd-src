@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
+#include "io/vatpic.h"
 #include "io/vioapic.h"
 #include "io/vhpet.h"
 
@@ -150,10 +151,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_register *vmreg;
 	struct vm_seg_desc *vmsegdesc;
 	struct vm_run *vmrun;
-	struct vm_event *vmevent;
+	struct vm_exception *vmexc;
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
+	struct vm_isa_irq *isa_irq;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -164,11 +166,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
+	struct vm_suspend *vmsuspend;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -181,7 +185,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SET_REGISTER:
 	case VM_GET_SEGMENT_DESCRIPTOR:
 	case VM_SET_SEGMENT_DESCRIPTOR:
-	case VM_INJECT_EVENT:
+	case VM_INJECT_EXCEPTION:
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
 	case VM_PPTDEV_MSI:
@@ -237,6 +241,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vmrun = (struct vm_run *)data;
 		error = vm_run(sc->vm, vmrun);
 		break;
+	case VM_SUSPEND:
+		vmsuspend = (struct vm_suspend *)data;
+		error = vm_suspend(sc->vm, vmsuspend->how);
+		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
 		error = vmm_stat_desc_copy(statdesc->index,
@@ -282,12 +290,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
 					   pptdev->func);
 		break;
-	case VM_INJECT_EVENT:
-		vmevent = (struct vm_event *)data;
-		error = vm_inject_event(sc->vm, vmevent->cpuid, vmevent->type,
-					vmevent->vector,
-					vmevent->error_code,
-					vmevent->error_code_valid);
+	case VM_INJECT_EXCEPTION:
+		vmexc = (struct vm_exception *)data;
+		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc);
 		break;
 	case VM_INJECT_NMI:
 		vmnmi = (struct vm_nmi *)data;
@@ -317,6 +322,29 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_IOAPIC_PULSE_IRQ:
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_pulse_irq(sc->vm, ioapic_irq->irq);
+		break;
+	case VM_IOAPIC_PINCOUNT:
+		*(int *)data = vioapic_pincount(sc->vm);
+		break;
+	case VM_ISA_ASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_assert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_assert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_DEASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_deassert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_deassert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_PULSE_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_pulse_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;

@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * Functions that perform the vfs operations required by the routines in
@@ -62,6 +62,7 @@ extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
@@ -81,6 +82,7 @@ static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
+extern int nfsd_enable_stringtouid;
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "New NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
@@ -95,6 +97,8 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
     0, "Debug level for new nfs server");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid, CTLFLAG_RW,
+    &nfsd_enable_stringtouid, 0, "Enable nfsd to accept numeric owner_names");
 
 #define	MAX_REORDERED_RPC	16
 #define	NUM_HEURISTIC		1031
@@ -676,6 +680,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	uiop->uio_resid = len;
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
+	uiop->uio_td = NULL;
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
@@ -2885,40 +2890,6 @@ out:
 }
 
 /*
- * Get the tcp socket sequence numbers we need.
- * (Maybe this should be moved to the tcp sources?)
- */
-int
-nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
-{
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	int error = 0;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("nfsrv_getsocksndseq: inp == NULL"));
-	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	tp = intotcpcb(inp);
-	if (tp->t_state != TCPS_ESTABLISHED) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	*maxp = tp->snd_max;
-	*unap = tp->snd_una;
-	INP_RUNLOCK(inp);
-
-out:
-	NFSEXITCODE(error);
-	return (error);
-}
-
-/*
  * This function needs to test to see if the system is near its limit
  * for memory allocation via malloc() or mget() and return True iff
  * either of these resources are near their limit.
@@ -3356,6 +3327,11 @@ nfsd_modevent(module_t mod, int type, void *data)
 			    i);
 			mtx_init(&nfsrchash_table[i].mtx,
 			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
+			snprintf(nfsrcahash_table[i].lock_name,
+			    sizeof(nfsrcahash_table[i].lock_name), "nfsrc_tcpa%d",
+			    i);
+			mtx_init(&nfsrcahash_table[i].mtx,
+			    nfsrcahash_table[i].lock_name, NULL, MTX_DEF);
 		}
 		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
@@ -3404,8 +3380,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 			svcpool_destroy(nfsrvd_pool);
 
 		/* and get rid of the locks */
-		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++)
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 			mtx_destroy(&nfsrchash_table[i].mtx);
+			mtx_destroy(&nfsrcahash_table[i].mtx);
+		}
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);

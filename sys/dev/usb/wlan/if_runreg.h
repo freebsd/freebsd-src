@@ -691,6 +691,8 @@
 #define	RT3070_TX0_PD	(1 << 3)
 #define	RT3070_RX1_PD	(1 << 4)
 #define	RT3070_TX1_PD	(1 << 5)
+#define	RT3070_RX2_PD	(1 << 6)
+#define	RT3070_TX2_PD	(1 << 7)
 
 /* possible flags for RT3020 RF register 15 */
 #define	RT3070_TX_LO2	(1 << 3)
@@ -703,6 +705,15 @@
 
 /* possible flags for RT3020 RF register 21 */
 #define	RT3070_RX_LO2	(1 << 3)
+
+/* possible flags for RT3053 RF register 18 */
+#define	RT3593_AUTOTUNE_BYPASS	(1 << 6)
+
+/* possible flags for RT3053 RF register 50 */
+#define	RT3593_TX_LO2	(1 << 4)
+
+/* possible flags for RT3053 RF register 51 */
+#define	RT3593_TX_LO1	(1 << 4)
 
 /* Possible flags for RT5390 RF register 2. */
 #define	RT5390_RESCAL	(1 << 7)
@@ -853,6 +864,7 @@ struct rt2860_rxwi {
 #define	RT3070_RF_3021	0x0007	/* 1T2R */
 #define	RT3070_RF_3022	0x0008	/* 2T2R */
 #define	RT3070_RF_3052	0x0009	/* dual-band 2T2R */
+#define	RT3593_RF_3053	0x000d	/* dual-band 3T3R */
 #define	RT5592_RF_5592	0x000f	/* dual-band 2T2R */
 #define	RT5390_RF_5370	0x5370	/* 1T1R */
 #define	RT5390_RF_5372	0x5372	/* 2T2R */
@@ -902,6 +914,25 @@ struct rt2860_rxwi {
 #define	RT2860_EEPROM_RPWR		0x6f
 #define	RT2860_EEPROM_BBP_BASE		0x78
 #define	RT3071_EEPROM_RF_BASE		0x82
+
+/* EEPROM registers for RT3593. */
+#define	RT3593_EEPROM_FREQ_LEDS		0x21
+#define	RT3593_EEPROM_FREQ		0x22
+#define	RT3593_EEPROM_LED1		0x22
+#define	RT3593_EEPROM_LED2		0x23
+#define	RT3593_EEPROM_LED3		0x24
+#define	RT3593_EEPROM_LNA		0x26
+#define	RT3593_EEPROM_LNA_5GHZ		0x27
+#define	RT3593_EEPROM_RSSI1_2GHZ	0x28
+#define	RT3593_EEPROM_RSSI2_2GHZ	0x29
+#define	RT3593_EEPROM_RSSI1_5GHZ	0x2a
+#define	RT3593_EEPROM_RSSI2_5GHZ	0x2b
+#define	RT3593_EEPROM_PWR2GHZ_BASE1	0x30
+#define	RT3593_EEPROM_PWR2GHZ_BASE2	0x37
+#define	RT3593_EEPROM_PWR2GHZ_BASE3	0x3e
+#define	RT3593_EEPROM_PWR5GHZ_BASE1	0x4b
+#define	RT3593_EEPROM_PWR5GHZ_BASE2	0x65
+#define	RT3593_EEPROM_PWR5GHZ_BASE3	0x7f
 
 /*
  * EEPROM IQ calibration.
@@ -1336,6 +1367,40 @@ struct rt2860_rxwi {
 	{ 29, 0x9b },	\
 	{ 30, 0x09 },	\
 	{ 31, 0x10 }
+
+#define	RT3593_DEF_RF	\
+	{  1, 0x03 },	\
+	{  3, 0x80 },	\
+	{  5, 0x00 },	\
+	{  6, 0x40 },	\
+	{  8, 0xf1 },	\
+	{  9, 0x02 },	\
+	{ 10, 0xd3 },	\
+	{ 11, 0x40 },	\
+	{ 12, 0x4e },	\
+	{ 13, 0x12 },	\
+	{ 18, 0x40 },	\
+	{ 22, 0x20 },	\
+	{ 30, 0x10 },	\
+	{ 31, 0x80 },	\
+	{ 32, 0x78 },	\
+	{ 33, 0x3b },	\
+	{ 34, 0x3c },	\
+	{ 35, 0xe0 },	\
+	{ 38, 0x86 },	\
+	{ 39, 0x23 },	\
+	{ 44, 0xd3 },	\
+	{ 45, 0xbb },	\
+	{ 46, 0x60 },	\
+	{ 49, 0x81 },	\
+	{ 50, 0x86 },	\
+	{ 51, 0x75 },	\
+	{ 52, 0x45 },	\
+	{ 53, 0x18 },	\
+	{ 54, 0x18 },	\
+	{ 55, 0x18 },	\
+	{ 56, 0xdb },	\
+	{ 57, 0x6e }
 
 #define	RT5390_DEF_RF	\
 	{  1, 0x0f },	\

@@ -265,6 +265,7 @@ g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
 	/* Perform inner SHA512. */
 	SHA512_Init(&ctx->shactx);
 	SHA512_Update(&ctx->shactx, k_ipad, sizeof(k_ipad));
+	bzero(k_ipad, sizeof(k_ipad));
 }
 
 void

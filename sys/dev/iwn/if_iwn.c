@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwn/if_iwn_devid.h>
 #include <dev/iwn/if_iwn_chip_cfg.h>
 #include <dev/iwn/if_iwn_debug.h>
+#include <dev/iwn/if_iwn_ioctl.h>
 
 struct iwn_ident {
 	uint16_t	vendor;
@@ -108,6 +109,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_135_1, "Intel Centrino Wireless-N 135"		},
+	{ 0x8086, IWN_DID_135_2, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
 	{ 0x8086, IWN_DID_6x00_1, "Intel Centrino Ultimate-N 6300"		},
 	{ 0x8086, IWN_DID_6x00_2, "Intel Centrino Advanced-N 6200"		},
@@ -682,6 +685,13 @@ iwn_attach(device_t dev)
 		goto fail;
 	}
 
+#if 0
+	device_printf(sc->sc_dev, "%s: rx_stats=%d, rx_stats_bt=%d\n",
+	    __func__,
+	    sizeof(struct iwn_stats),
+	    sizeof(struct iwn_stats_bt));
+#endif
+
 	if (bootverbose)
 		ieee80211_announce(ic);
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
@@ -957,6 +967,28 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 				sc->limits = &iwn1000_sensitivity_limits;
 				sc->base_params = &iwn1000_base_params;
 				sc->fwname = "iwn100fw";
+				break;
+			default:
+				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
+				    "0x%04x rev %d not supported (subdevice)\n", pid,
+				    sc->subdevice_id,sc->hw_type);
+				return ENOTSUP;
+		}
+		break;
+
+/* 135 Series */
+/* XXX: This series will need adjustment for rate.
+ * see rx_with_siso_diversity in linux kernel
+ */
+	case IWN_DID_135_1:
+	case IWN_DID_135_2:
+		switch(sc->subdevice_id) {
+			case IWN_SDID_135_1:
+			case IWN_SDID_135_2:
+			case IWN_SDID_135_3:
+				sc->limits = &iwn2030_sensitivity_limits;
+				sc->base_params = &iwn2030_base_params;
+				sc->fwname = "iwn135fw";
 				break;
 			default:
 				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
@@ -3116,6 +3148,67 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	memcpy(sc->calibcmd[idx].buf, calib, len);
 }
 
+static void
+iwn_stats_update(struct iwn_softc *sc, struct iwn_calib_state *calib,
+    struct iwn_stats *stats, int len)
+{
+	struct iwn_stats_bt *stats_bt;
+	struct iwn_stats *lstats;
+
+	/*
+	 * First - check whether the length is the bluetooth or normal.
+	 *
+	 * If it's normal - just copy it and bump out.
+	 * Otherwise we have to convert things.
+	 */
+
+	if (len == sizeof(struct iwn_stats) + 4) {
+		memcpy(&sc->last_stat, stats, sizeof(struct iwn_stats));
+		sc->last_stat_valid = 1;
+		return;
+	}
+
+	/*
+	 * If it's not the bluetooth size - log, then just copy.
+	 */
+	if (len != sizeof(struct iwn_stats_bt) + 4) {
+		DPRINTF(sc, IWN_DEBUG_STATS,
+		    "%s: size of rx statistics (%d) not an expected size!\n",
+		    __func__,
+		    len);
+		memcpy(&sc->last_stat, stats, sizeof(struct iwn_stats));
+		sc->last_stat_valid = 1;
+		return;
+	}
+
+	/*
+	 * Ok. Time to copy.
+	 */
+	stats_bt = (struct iwn_stats_bt *) stats;
+	lstats = &sc->last_stat;
+
+	/* flags */
+	lstats->flags = stats_bt->flags;
+	/* rx_bt */
+	memcpy(&lstats->rx.ofdm, &stats_bt->rx_bt.ofdm,
+	    sizeof(struct iwn_rx_phy_stats));
+	memcpy(&lstats->rx.cck, &stats_bt->rx_bt.cck,
+	    sizeof(struct iwn_rx_phy_stats));
+	memcpy(&lstats->rx.general, &stats_bt->rx_bt.general_bt.common,
+	    sizeof(struct iwn_rx_general_stats));
+	memcpy(&lstats->rx.ht, &stats_bt->rx_bt.ht,
+	    sizeof(struct iwn_rx_ht_phy_stats));
+	/* tx */
+	memcpy(&lstats->tx, &stats_bt->tx,
+	    sizeof(struct iwn_tx_stats));
+	/* general */
+	memcpy(&lstats->general, &stats_bt->general,
+	    sizeof(struct iwn_general_stats));
+
+	/* XXX TODO: Squirrel away the extra bluetooth stats somewhere */
+	sc->last_stat_valid = 1;
+}
+
 /*
  * Process an RX_STATISTICS or BEACON_STATISTICS firmware notification.
  * The latter is sent by the firmware after each received beacon.
@@ -3130,6 +3223,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwn_calib_state *calib = &sc->calib;
 	struct iwn_stats *stats = (struct iwn_stats *)(desc + 1);
+	struct iwn_stats *lstats;
 	int temp;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
@@ -3144,12 +3238,26 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: received statistics, cmd %d\n",
-	    __func__, desc->type);
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE | IWN_DEBUG_STATS,
+	    "%s: received statistics, cmd %d, len %d\n",
+	    __func__, desc->type, le16toh(desc->len));
 	sc->calib_cnt = 0;	/* Reset TX power calibration timeout. */
 
+	/*
+	 * Collect/track general statistics for reporting.
+	 *
+	 * This takes care of ensuring that the bluetooth sized message
+	 * will be correctly converted to the legacy sized message.
+	 */
+	iwn_stats_update(sc, calib, stats, le16toh(desc->len));
+
+	/*
+	 * And now, let's take a reference of it to use!
+	 */
+	lstats = &sc->last_stat;
+
 	/* Test if temperature has changed. */
-	if (stats->general.temp != sc->rawtemp) {
+	if (lstats->general.temp != sc->rawtemp) {
 		/* Convert "raw" temperature to degC. */
 		sc->rawtemp = stats->general.temp;
 		temp = ops->get_temperature(sc);
@@ -3164,25 +3272,25 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (desc->type != IWN_BEACON_STATISTICS)
 		return;	/* Reply to a statistics request. */
 
-	sc->noise = iwn_get_noise(&stats->rx.general);
+	sc->noise = iwn_get_noise(&lstats->rx.general);
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: noise %d\n", __func__, sc->noise);
 
 	/* Test that RSSI and noise are present in stats report. */
-	if (le32toh(stats->rx.general.flags) != 1) {
+	if (le32toh(lstats->rx.general.flags) != 1) {
 		DPRINTF(sc, IWN_DEBUG_ANY, "%s\n",
 		    "received statistics without RSSI");
 		return;
 	}
 
 	if (calib->state == IWN_CALIB_STATE_ASSOC)
-		iwn_collect_noise(sc, &stats->rx.general);
+		iwn_collect_noise(sc, &lstats->rx.general);
 	else if (calib->state == IWN_CALIB_STATE_RUN) {
-		iwn_tune_sensitivity(sc, &stats->rx);
+		iwn_tune_sensitivity(sc, &lstats->rx);
 		/*
 		 * XXX TODO: Only run the RX recovery if we're associated!
 		 */
-		iwn_check_rx_recovery(sc, stats);
-		iwn_save_stats_counters(sc, stats);
+		iwn_check_rx_recovery(sc, lstats);
+		iwn_save_stats_counters(sc, lstats);
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
@@ -4137,7 +4245,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 
 	/* Encrypt the frame if need be. */
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
@@ -4687,6 +4795,19 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
+		break;
+	case SIOCGIWNSTATS:
+		IWN_LOCK(sc);
+		/* XXX validate permissions/memory/etc? */
+		error = copyout(&sc->last_stat, ifr->ifr_data,
+		    sizeof(struct iwn_stats));
+		IWN_UNLOCK(sc);
+		break;
+	case SIOCZIWNSTATS:
+		IWN_LOCK(sc);
+		memset(&sc->last_stat, 0, sizeof(struct iwn_stats));
+		IWN_UNLOCK(sc);
+		error = 0;
 		break;
 	default:
 		error = EINVAL;
@@ -5894,7 +6015,7 @@ iwn_check_rx_recovery(struct iwn_softc *sc, struct iwn_stats *rs)
 	 * if ((delta * 100 / msecs) > threshold)
 	 */
 	if (thresh > 0 && (delta_cck + delta_ofdm + delta_ht) * 100 > thresh) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, IWN_DEBUG_ANY,
 		    "%s: PLCP error threshold raw (%d) comparison (%d) "
 		    "over limit (%d); retune!\n",
 		    __func__,

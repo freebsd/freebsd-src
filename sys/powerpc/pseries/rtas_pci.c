@@ -99,7 +99,7 @@ struct rtaspci_softc {
 static devclass_t	rtaspci_devclass;
 DEFINE_CLASS_1(pcib, rtaspci_driver, rtaspci_methods,
     sizeof(struct rtaspci_softc), ofw_pci_driver);
-DRIVER_MODULE(rtaspci, nexus, rtaspci_driver, rtaspci_devclass, 0, 0);
+DRIVER_MODULE(rtaspci, ofwbus, rtaspci_driver, rtaspci_devclass, 0, 0);
 
 static int
 rtaspci_probe(device_t dev)

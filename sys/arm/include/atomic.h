@@ -450,13 +450,13 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 		__asm __volatile(			\
 			"mrs  %0, cpsr;"		\
 			"orr  %1, %0, %2;"		\
-			"msr  cpsr_all, %1;"		\
+			"msr  cpsr_fsxc, %1;"		\
 			: "=r" (cpsr_save), "=r" (tmp)	\
 			: "I" (I32_bit | F32_bit)		\
 		        : "cc" );		\
 		(expr);				\
 		 __asm __volatile(		\
-			"msr  cpsr_all, %0"	\
+			"msr  cpsr_fsxc, %0"	\
 			: /* no output */	\
 			: "r" (cpsr_save)	\
 			: "cc" );		\

@@ -177,6 +177,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_HASWELL;
 			nclasses = 5;
 			break;
+		case 0x4D:      /* Per Intel document 330061-001 01/2014. */
+			cputype = PMC_CPU_INTEL_ATOM_SILVERMONT;
+			nclasses = 3;
+			break;
 		}
 		break;
 #if	defined(__i386__) || defined(__amd64__)
@@ -209,6 +213,7 @@ pmc_intel_initialize(void)
 		 * Intel Core, Core 2 and Atom processors.
 		 */
 	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
@@ -297,6 +302,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	switch (md->pmd_cputype) {
 #if	defined(__i386__) || defined(__amd64__)
 	case PMC_CPU_INTEL_ATOM:
+	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:

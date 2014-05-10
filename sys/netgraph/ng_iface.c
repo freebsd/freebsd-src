@@ -43,7 +43,7 @@
 
 /*
  * This node is also a system networking interface. It has
- * a hook for each protocol (IP, AppleTalk, IPX, etc). Packets
+ * a hook for each protocol (IP, AppleTalk, etc). Packets
  * are simply relayed between the interface and the hooks.
  *
  * Interfaces are named ng0, ng1, etc.  New nodes take the
@@ -52,10 +52,8 @@
  * This node also includes Berkeley packet filter support.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -104,8 +102,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_APPLETALK,	NG_IFACE_HOOK_ATALK	},
-	{ AF_IPX,	NG_IFACE_HOOK_IPX	},
 	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
 	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
@@ -759,16 +755,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 #ifdef INET6
 	case AF_INET6:
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
 		break;
 #endif
 	default:

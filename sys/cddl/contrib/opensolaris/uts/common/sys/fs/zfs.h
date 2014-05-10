@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -49,10 +49,11 @@ extern "C" {
  * combined into masks that can be passed to various functions.
  */
 typedef enum {
-	ZFS_TYPE_FILESYSTEM	= 0x1,
-	ZFS_TYPE_SNAPSHOT	= 0x2,
-	ZFS_TYPE_VOLUME		= 0x4,
-	ZFS_TYPE_POOL		= 0x8
+	ZFS_TYPE_FILESYSTEM	= (1 << 0),
+	ZFS_TYPE_SNAPSHOT	= (1 << 1),
+	ZFS_TYPE_VOLUME		= (1 << 2),
+	ZFS_TYPE_POOL		= (1 << 3),
+	ZFS_TYPE_BOOKMARK	= (1 << 4)
 } zfs_type_t;
 
 typedef enum dmu_objset_type {
@@ -144,6 +145,11 @@ typedef enum {
 	ZFS_PROP_LOGICALUSED,
 	ZFS_PROP_LOGICALREFERENCED,
 	ZFS_PROP_INCONSISTENT,		/* not exposed to the user */
+	ZFS_PROP_VOLMODE,
+	ZFS_PROP_FILESYSTEM_LIMIT,
+	ZFS_PROP_SNAPSHOT_LIMIT,
+	ZFS_PROP_FILESYSTEM_COUNT,
+	ZFS_PROP_SNAPSHOT_COUNT,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -336,6 +342,12 @@ typedef enum {
 	ZFS_SYNC_DISABLED = 2
 } zfs_sync_type_t;
 
+typedef enum {
+	ZFS_VOLMODE_DEFAULT = 0,
+	ZFS_VOLMODE_GEOM = 1,
+	ZFS_VOLMODE_DEV = 2,
+	ZFS_VOLMODE_NONE = 3
+} zfs_volmode_t;
 
 /*
  * On-disk version number.
@@ -839,6 +851,9 @@ typedef enum zfs_ioc {
 	ZFS_IOC_SEND_NEW,
 	ZFS_IOC_SEND_SPACE,
 	ZFS_IOC_CLONE,
+	ZFS_IOC_BOOKMARK,
+	ZFS_IOC_GET_BOOKMARKS,
+	ZFS_IOC_DESTROY_BOOKMARKS,
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 

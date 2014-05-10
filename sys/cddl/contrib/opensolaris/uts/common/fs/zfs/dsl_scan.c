@@ -481,7 +481,7 @@ dsl_scan_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 	zil_header_t *zh = zsa->zsa_zh;
 	zbookmark_t zb;
 
-	if (bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
+	if (BP_IS_HOLE(bp) || bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
 		return (0);
 
 	/*
@@ -513,7 +513,8 @@ dsl_scan_zil_record(zilog_t *zilog, lr_t *lrc, void *arg, uint64_t claim_txg)
 		blkptr_t *bp = &lr->lr_blkptr;
 		zbookmark_t zb;
 
-		if (bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
+		if (BP_IS_HOLE(bp) ||
+		    bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
 			return (0);
 
 		/*
@@ -765,7 +766,7 @@ dsl_scan_visitbp(blkptr_t *bp, const zbookmark_t *zb,
 	if (dsl_scan_check_resume(scn, dnp, zb))
 		return;
 
-	if (bp->blk_birth == 0)
+	if (BP_IS_HOLE(bp))
 		return;
 
 	scn->scn_visited_this_txg++;
@@ -1346,6 +1347,9 @@ static boolean_t
 dsl_scan_free_should_pause(dsl_scan_t *scn)
 {
 	uint64_t elapsed_nanosecs;
+
+	if (zfs_recover)
+		return (B_FALSE);
 
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	return (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||

@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/dev/fbt
+SYSDIR?=	${.CURDIR}/../../..
+
+.PATH:		${SYSDIR}/cddl/dev/fbt
 
 KMOD=		fbt
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -10,10 +12,10 @@ SRCS=		fbt.c
 .endif
 SRCS+=		vnode_if.h
 
-CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common \
-		-I${.CURDIR}/../../..
+CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
+		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SYSDIR}
 
 .include <bsd.kmod.mk>
 
-CFLAGS+=	-include ${.CURDIR}/../../../cddl/compat/opensolaris/sys/debug_compat.h
+CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h

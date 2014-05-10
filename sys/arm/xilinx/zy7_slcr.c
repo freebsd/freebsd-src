@@ -192,6 +192,10 @@ zy7_slcr_postload_pl(int en_level_shifters)
 static int
 zy7_slcr_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "xlnx,zy7_slcr"))
 		return (ENXIO);
 

@@ -159,7 +159,7 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	int i, l, insert_before;
 	struct ip_fw **map;	/* the new array of pointers */
 
-	if (chain->rules == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE-1)
+	if (chain->map == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE - 1)
 		return (EINVAL);
 
 	l = RULESIZE(input_rule);
@@ -1039,8 +1039,10 @@ ipfw_ctl(struct sockopt *sopt)
 		if (sopt->sopt_valsize == RULESIZE7(rule)) {
 		    is7 = 1;
 		    error = convert_rule_to_8(rule);
-		    if (error)
+		    if (error) {
+			free(rule, M_TEMP);
 			return error;
+		    }
 		    if (error == 0)
 			error = check_ipfw_struct(rule, RULESIZE(rule));
 		} else {
@@ -1056,11 +1058,13 @@ ipfw_ctl(struct sockopt *sopt)
 				if (is7) {
 					error = convert_rule_to_7(rule);
 					size = RULESIZE7(rule);
-					if (error)
+					if (error) {
+						free(rule, M_TEMP);
 						return error;
+					}
 				}
 				error = sooptcopyout(sopt, rule, size);
-		}
+			}
 		}
 		free(rule, M_TEMP);
 		break;

@@ -715,7 +715,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	}
 
 	/*
-	 * Ideal allocation size for the transient bio submap if 10%
+	 * Ideal allocation size for the transient bio submap is 10%
 	 * of the maximal space buffer map.  This roughly corresponds
 	 * to the amount of the buffer mapped for typical UFS load.
 	 *
@@ -4290,7 +4290,7 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 			    (intmax_t)bp->b_blkno, (intmax_t)bp->b_lblkno);
 		p->wire_count--;
 		vm_page_free(p);
-		atomic_subtract_int(&cnt.v_wire_count, 1);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	}
 	bp->b_npages = newnpages;
 }

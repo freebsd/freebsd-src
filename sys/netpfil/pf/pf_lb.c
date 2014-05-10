@@ -53,15 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#endif
-
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
@@ -232,21 +223,9 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
-	switch (proto) {
-	case IPPROTO_ICMP:
-		if (dport != htons(ICMP_ECHO))
-			return (0);
+	if (proto == IPPROTO_ICMP) {
 		low = 1;
 		high = 65535;
-		break;
-#ifdef INET6
-	case IPPROTO_ICMPV6:
-		if (dport != htons(ICMP6_ECHO_REQUEST))
-			return (0);
-		low = 1;
-		high = 65535;
-		break;
-#endif
 	}
 
 	bzero(&key, sizeof(key));
@@ -686,6 +665,7 @@ notrans:
 	uma_zfree(V_pf_state_key_z, *nkp);
 	uma_zfree(V_pf_state_key_z, *skp);
 	*skp = *nkp = NULL;
+	*sn = NULL;
 
 	return (NULL);
 }
