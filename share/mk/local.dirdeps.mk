@@ -2,7 +2,7 @@
 # we are the 1st makefile
 
 .if !defined(MK_CTF)
-.include "${SRCTOP}/share/mk/bsd.opts.mk"
+.include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 
 # DEP_MACHINE is set before we get here, this may not be.
@@ -41,7 +41,7 @@ DIRDEPS_FILTER.host = \
 .if ${DEP_MACHINE} != "host"
 
 # this is how we can handle optional dependencies
-.if ${MK_SSP:Uno} != "no" && defined(PROG)
+.if ${MK_SSP:Uno} != "no" && ${DEP_RELDIR:U${RELDIR}} == "lib/libc"
 DIRDEPS += gnu/lib/libssp/libssp_nonshared
 .endif
 
