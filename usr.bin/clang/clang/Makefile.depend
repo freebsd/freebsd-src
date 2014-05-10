@@ -55,12 +55,20 @@ DIRDEPS = \
 	lib/clang/libllvmmipsinstprinter \
 	lib/clang/libllvmobjcarcopts \
 	lib/clang/libllvmobject \
+	lib/clang/libllvmoption \
+	lib/clang/libllvmpowerpcasmparser \
 	lib/clang/libllvmpowerpccodegen \
 	lib/clang/libllvmpowerpcdesc \
 	lib/clang/libllvmpowerpcinfo \
 	lib/clang/libllvmpowerpcinstprinter \
 	lib/clang/libllvmscalaropts \
 	lib/clang/libllvmselectiondag \
+	lib/clang/libllvmsparcasmparser \
+	lib/clang/libllvmsparccodegen \
+	lib/clang/libllvmsparcdesc \
+	lib/clang/libllvmsparcdisassembler \
+	lib/clang/libllvmsparcinfo \
+	lib/clang/libllvmsparcinstprinter \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtarget \
 	lib/clang/libllvmtransformutils \
