@@ -135,7 +135,7 @@
 				compatible = "ti,am335x-pmic";
 				reg = <0x24>;
 			};
-		}
+		};
 	};
 
 	chosen {
