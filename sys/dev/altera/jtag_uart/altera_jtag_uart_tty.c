@@ -255,6 +255,22 @@ aju_handle_output(struct altera_jtag_uart_softc *sc, struct tty *tp)
 			if (ttydisc_getc(tp, &ch, sizeof(ch)) != sizeof(ch))
 				panic("%s: ttydisc_getc", __func__);
 			AJU_LOCK(sc);
+
+			/*
+			 * XXXRW: There is a slight race here in which we test
+			 * for writability, drop the lock, get the character
+			 * from the tty layer, re-acquire the lock, and then
+			 * write.  It's possible for other code --
+			 * specifically, the low-level console -- to have
+			 * written in the mean time, which might mean that
+			 * there is no longer space.  The BERI memory bus will
+			 * cause this write to block, wedging the processor
+			 * until space is available -- which could be a while
+			 * if JTAG is not attached!
+			 *
+			 * The 'easy' fix is to drop the character if WSPACE
+			 * has become unset.  Not sure what the 'hard' fix is.
+			 */
 			aju_data_write(sc, ch);
 		} else {
 			/*
