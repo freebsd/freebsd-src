@@ -1359,6 +1359,7 @@ again:
 					VM_OBJECT_WUNLOCK(dst_object);
 					VM_OBJECT_RUNLOCK(object);
 					VM_WAIT;
+					VM_OBJECT_WLOCK(dst_object);
 					goto again;
 				}
 			} while (dst_m == NULL);
