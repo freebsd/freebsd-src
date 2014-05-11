@@ -58,22 +58,48 @@ struct ofwfb_softc {
 	uint32_t	sc_colormap[16];
 };
 
+static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_blank_t	ofwfb_blank;
 static vd_bitbltchr_t	ofwfb_bitbltchr;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
+	.vd_probe	= ofwfb_probe,
 	.vd_init	= ofwfb_init,
 	.vd_blank	= ofwfb_blank,
 	.vd_bitbltchr	= ofwfb_bitbltchr,
+	.vd_maskbitbltchr = ofwfb_bitbltchr,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
-VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1920), PIXEL_HEIGHT(1200),
-    &ofwfb_conssoftc);
-/* XXX: hardcoded max size */
+VT_DRIVER_DECLARE(vt_ofwfb, vt_ofwfb_driver);
+
+static int
+ofwfb_probe(struct vt_device *vd)
+{
+	phandle_t chosen, node;
+	ihandle_t stdout;
+	char type[64];
+
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	node = OF_instance_to_package(stdout);
+	if (node == -1) {
+		/*
+		 * The "/chosen/stdout" does not exist try
+		 * using "screen" directly.
+		 */
+		node = OF_finddevice("screen");
+	}
+	OF_getprop(node, "device_type", type, sizeof(type));
+	if (strcmp(type, "display") != 0)
+		return (CN_DEAD);
+
+	/* Looks OK... */
+	return (CN_INTERNAL);
+}
 
 static void
 ofwfb_blank(struct vt_device *vd, term_color_t color)
@@ -218,7 +244,7 @@ ofwfb_initialize(struct vt_device *vd)
 static int
 ofwfb_init(struct vt_device *vd)
 {
-	struct ofwfb_softc *sc = vd->vd_softc;
+	struct ofwfb_softc *sc;
 	char type[64];
 	phandle_t chosen;
 	ihandle_t stdout;
@@ -233,6 +259,9 @@ ofwfb_init(struct vt_device *vd)
 	bus_addr_t phys;
 	int space;
 #endif
+
+	/* Initialize softc */
+	vd->vd_softc = sc = &ofwfb_conssoftc;
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
