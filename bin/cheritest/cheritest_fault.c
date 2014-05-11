@@ -89,6 +89,7 @@ test_nofault_ccheck_user_pass(void)
 
 	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_USER0);
 	cheri_ccheckperm(cp, CHERI_PERM_USER0);
+	cheritest_success();
 }
 
 void

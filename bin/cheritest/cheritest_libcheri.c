@@ -48,6 +48,7 @@
 
 #include <cheritest-helper.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -75,7 +76,13 @@ cheritest_invoke_fd_op(int op)
 	    cheri_zerocap(), cheri_zerocap(),
 	    zero_fd_object.co_codecap, zero_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap());
-	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
+
+	/*
+	 * XXXRW: Pretty soon we'll want to break this one function out into
+	 * test-specific functions that have more rich definitions of
+	 * 'success'.
+	 */
+	cheritest_success();
 }
 
 void
@@ -83,7 +90,12 @@ cheritest_revoke_fd(void)
 {
 
 	cheri_fd_revoke(zero_fd_object);
-	printf("/dev/zero fd_object revoked\n");
+
+	/*
+	 * XXXRW: Soon we will rewrite this test to actually perform a series
+	 * of operations and ensure that after a revoke, they stop happening.
+	 */
+	cheritest_success();
 }
 
 void
@@ -103,7 +115,13 @@ cheritest_invoke_simple_op(int op)
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
-	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
+
+	/*
+	 * XXXRW: Pretty soon we'll want to break this one function out into
+	 * test-specific functions that have more rich definitions of
+	 * 'success'.
+	 */
+	cheritest_success();
 }
 
 void
@@ -122,26 +140,24 @@ cheritest_invoke_syscall(void)
 	len = sizeof(old);
 	if (sysctlbyname("security.cheri.syscall_violations", &old, &len,
 	    NULL, 0) < 0)
-		err(EX_OSERR, "security.cheri.syscall_violations");
-
+		cheritest_failure_errx(
+		    "security.cheri.syscall_violations sysctl read (%d)",
+		    errno);
 	cheritest_invoke_simple_op(CHERITEST_HELPER_OP_SYSCALL);
-
 	len = sizeof(new);
 	if (sysctlbyname("security.cheri.syscall_violations", &new, &len,
 	    NULL, 0) < 0)
-		err(EX_OSERR, "security.cheri.syscall_violations");
-	if (old == new)
-		warnx("security.cheri.syscall_violations unchanged: bug?");
-	else
-		printf("security.cheri.syscall_violations increased as "
-		    "expected\n");
+		cheritest_failure_errx(
+		    "security.cheri.syscall_violations sysctl read (%d)",
+		    errno);
+	if (new <= old)
+		cheritest_failure_errx(
+		    "security.cheri.syscall_violations unchanged");
+	cheritest_success();
 }
 
-/*
- * XXXRW: c1 and c2 were not getting properly aligned when placed in the
- * stack.  Odd.
- */
-static char md5string[] = "hello world";
+static char string_to_md5[] = "hello world";
+static char string_md5[] = "5eb63bbbe01eeed093cb22bb8f5acdc3";
 
 void
 cheritest_invoke_md5(void)
@@ -151,18 +167,21 @@ cheritest_invoke_md5(void)
 	register_t v;
 
 	cclear = cheri_zerocap();
-	md5cap = cheri_ptrperm(md5string, sizeof(md5string), CHERI_PERM_LOAD);
+	md5cap = cheri_ptrperm(string_to_md5, sizeof(string_to_md5),
+	    CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
 	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(md5string), 0, 0, 0, 0, 0, 0,
+	    strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear);
 
-	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	buf[32] = '\0';
-	printf("MD5 checksum of '%s' is %s\n", md5string, buf);
+	if (strcmp(buf, string_md5) != 0)
+		cheritest_failure_errx(
+		    "Incorrect MD5 checksum returned from sandbox");
+	cheritest_success();
 }
 
 int

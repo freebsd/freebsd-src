@@ -6,7 +6,8 @@ SRCS=	cheritest.c							\
 	cheritest_fault.c						\
 	cheritest_libcheri.c						\
 	cheritest_registers.c						\
-	cheritest_sandbox.S
+	cheritest_sandbox.S						\
+	cheritest_util.c
 
 MAN=
 USE_CHERI=	yes

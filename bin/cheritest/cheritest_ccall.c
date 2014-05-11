@@ -86,6 +86,10 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	*datacapp = datacap;
 }
 
+/*
+ * Trigger a CReturn underflow by trying to return from an unsandboxed
+ * context.
+ */
 void
 test_fault_creturn(void)
 {
@@ -93,6 +97,9 @@ test_fault_creturn(void)
 	CHERI_CRETURN();
 }
 
+/*
+ * CCall code that will immediately CReturn.
+ */
 void
 test_nofault_ccall_creturn(void)
 {
@@ -101,8 +108,12 @@ test_nofault_ccall_creturn(void)
 	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0,
 	    &codecap, &datacap);
 	cheritest_ccall(codecap, datacap);
+	cheritest_success();
 }
 
+/*
+ * CCall code that will execute a few NOPs, then CReturn.
+ */
 void
 test_nofault_ccall_nop_creturn(void)
 {
@@ -111,4 +122,5 @@ test_nofault_ccall_nop_creturn(void)
 	cheritest_sandbox_setup(&sandbox_nop_creturn,
 	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
 	cheritest_ccall(codecap, datacap);
+	cheritest_success();
 }

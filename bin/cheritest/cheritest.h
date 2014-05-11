@@ -60,6 +60,41 @@
 	CHERI_CAP_PRINT(cap);						\
 } while (0)
 
+/*
+ * Shared memory interface between tests and the test controller process.
+ */
+#define	TESTRESULT_STR_LEN	80
+struct cheritest_child_state {
+	/* Fields filled in by the child signal handler. */
+	int		ccs_signum;
+	register_t	ccs_mips_cause;
+	register_t	ccs_cp2_cause;
+
+	/* Fields filled in by the test itself. */
+	int		ccs_testresult;
+	char		ccs_testresult_str[TESTRESULT_STR_LEN];
+};
+extern struct cheritest_child_state *ccsp;
+
+/*
+ * If the test runs to completion, it must set ccs_testresult to SUCCESS or
+ * FAILURE.  If the latter, it should also fill ccs_testresult_str with a
+ * suitable message to display to the user.
+ */
+#define	TESTRESULT_UNKNOWN	0	/* Default initialisation. */
+#define	TESTRESULT_SUCCESS	1	/* Test declares success. */
+#define	TESTRESULT_FAILURE	2	/* Test declares failure. */
+
+/*
+ * Useful APIs for tests.  These terminate the process returning either
+ * success or failure with a test-defined, human-readable string describing
+ * the error.
+ *
+ * XXXRW: It would be nice to also offer a cheritest_failure_err().
+ */
+void	cheritest_failure_errx(const char *msg, ...);
+void	cheritest_success(void);
+
 /* cheritest_ccall.c */
 void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	    register_t sandbox_pc, __capability void **codecapp,

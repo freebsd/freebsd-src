@@ -320,17 +320,15 @@ static const struct cheri_test {
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
 
-static struct cheritest_child_state {
-	int		ccs_signum;
-	register_t	ccs_mips_cause;
-	register_t	ccs_cp2_cause;
-} *ccsp;
+/* Shared memory page with child process. */
+struct cheritest_child_state *ccsp;
 
 static void
 usage(void)
 {
 	u_int i;
 
+	fprintf(stderr, "cheritest all\n");
 	for (i = 0; i < cheri_tests_len; i++)
 		fprintf(stderr, "cheritest %s\n", cheri_tests[i].ct_name);
 	exit(EX_USAGE);
@@ -358,7 +356,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	struct sigaction sa;
 	pid_t childpid;
 	int status;
-	char reason[80];
+	char reason[TESTRESULT_STR_LEN];
 	register_t cp2_exccode, mips_exccode;
 
 	bzero(ccsp, sizeof(*ccsp));
@@ -391,6 +389,9 @@ cheritest_run_test(const struct cheri_test *ctp)
 	(void)waitpid(childpid, &status, 0);
 
 	/*
+	 * First, check for errors from the test framework: successful process
+	 * termination, signal disposition/exception codes/etc.
+	 *
 	 * Analyse child's signal state returned via shared memory.
 	 */
 	if (!WIFEXITED(status)) {
@@ -410,6 +411,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	    ccsp->ccs_signum != ctp->ct_signum) {
 		snprintf(reason, sizeof(reason), "Expected signal %d, got %d",
 		    ctp->ct_signum, ccsp->ccs_signum);
+		goto fail;
 	}
 	if (ctp->ct_flags & CT_FLAG_MIPS_EXCCODE) {
 		mips_exccode = (ccsp->ccs_mips_cause & MIPS_CR_EXC_CODE) >>
@@ -432,6 +434,40 @@ cheritest_run_test(const struct cheri_test *ctp)
 			goto fail;
 		}
 	}
+
+	/*
+	 * Next, we are concerned with whether the test itself reports a
+	 * success.  This is based not on whether the test experiences a
+	 * fault, but whether its semantics are correct -- e.g., did code in a
+	 * sandbox run as expected.  Tests that have successfully experienced
+	 * an expected/desired fault don't undergo these checks.
+	 */
+	if (!(ctp->ct_flags & CT_FLAG_SIGNAL)) {
+		if (ccsp->ccs_testresult == TESTRESULT_UNKNOWN) {
+			snprintf(reason, sizeof(reason),
+			    "Test failed to set a success/failure status");
+			goto fail;
+		}
+		if (ccsp->ccs_testresult == TESTRESULT_FAILURE) {
+			/*
+			 * Ensure string is nul-terminated, as we will print
+			 * it in due course, and a failed test might have left
+			 * a corrupted string.
+			 */
+			ccsp->ccs_testresult_str[
+			    sizeof(ccsp->ccs_testresult_str) - 1] = '\0';
+			memcpy(reason, ccsp->ccs_testresult_str,
+			    sizeof(reason));
+			goto fail;
+		}
+		if (ccsp->ccs_testresult != TESTRESULT_SUCCESS) {
+			snprintf(reason, sizeof(reason),
+			    "Test returned unexpected result (%d)",
+			    ccsp->ccs_testresult);
+			goto fail;
+		}
+	}
+
 	fprintf(stderr, "PASS: %s\n", ctp->ct_name);
 	return;
 
