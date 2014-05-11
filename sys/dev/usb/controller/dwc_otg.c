@@ -760,7 +760,7 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -774,7 +774,7 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -786,7 +786,7 @@ check_state:
 		if (hcint & HCINT_NYET) {
 			goto send_cpkt;
 		} else if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & HCINT_ACK) {
@@ -1085,7 +1085,7 @@ dwc_otg_host_rate_check(struct dwc_otg_td *td)
 		if (!td->tt_scheduled)
 			goto busy;
 		td->tt_scheduled = 0;
-	} else if (td->did_nak != 0) {
+	} else if (td->did_nak >= DWC_OTG_NAK_MAX) {
 		goto busy;
 	} else if (td->set_toggle) {
 		td->set_toggle = 0;
@@ -1244,7 +1244,7 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			if (td->hcsplt != 0)
 				goto receive_spkt;
@@ -1284,6 +1284,7 @@ check_state:
 					 */
 				}
 				td->tt_scheduled = 0;
+				td->did_nak = 0;
 				if (td->hcsplt != 0)
 					goto receive_spkt;
 				else
@@ -1298,14 +1299,16 @@ check_state:
 		 * case of interrupt and isochronous transfers:
 		 */ 
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto receive_spkt;
 		} else if (hcint & HCINT_NYET) {
 			td->tt_scheduled = 0;
 			goto receive_spkt;
-		} else if (hcint & HCINT_ACK)
+		} else if (hcint & HCINT_ACK) {
+			td->did_nak = 0;
 			goto receive_pkt;
+		}
 		break;
 
 	case DWC_CHAN_ST_WAIT_C_PKT:
@@ -1633,13 +1636,14 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
+			td->did_nak = 0;
 			td->tt_scheduled = 0;
 
 			/* check remainder */
@@ -1658,24 +1662,27 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
-		} else if (hcint & (HCINT_ACK | HCINT_NYET))
+		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
+			td->did_nak = 0;
 			goto send_cpkt;
+		}
 		break;
 
 	case DWC_CHAN_ST_WAIT_C_ANE:
 		if (hcint & HCINT_NYET) {
 			goto send_cpkt;
 		} else if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak = 1;
+			td->did_nak++;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & HCINT_ACK) {
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
+			td->did_nak = 0;
 			td->tt_scheduled = 0;
 
 			/* check remainder */
@@ -2283,8 +2290,10 @@ dwc_otg_timer(void *_sc)
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
 		td = xfer->td_transfer_cache;
-		if (td != NULL)
+		if (td != NULL) {
+			/* reset NAK counter */ 
 			td->did_nak = 0;
+		}
 	}
 
 	/* enable SOF interrupt, which will poll jobs */
@@ -2429,8 +2438,11 @@ dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
 
 		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
 			td = xfer->td_transfer_cache;
-			if (td == NULL || td->did_nak != 0 || td->ep_type != UE_CONTROL)
+			if (td == NULL ||
+			    td->ep_type != UE_CONTROL ||
+			    td->did_nak >= DWC_OTG_NAK_MAX) {
 				continue;
+			}
 
 			sc->sc_needsof = 1;
 
@@ -2448,8 +2460,11 @@ dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
 	if ((temp & 7) < 6) {
 		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
 			td = xfer->td_transfer_cache;
-			if (td == NULL || td->did_nak != 0 || td->ep_type != UE_BULK)
+			if (td == NULL ||
+			    td->ep_type != UE_BULK ||
+			    td->did_nak >= DWC_OTG_NAK_MAX) {
 				continue;
+			}
 
 			sc->sc_needsof = 1;
 
@@ -3206,24 +3221,53 @@ static void
 dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 {
 	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
+	struct usb_xfer_root *xroot;
+	struct dwc_otg_td *td;
 
 	DPRINTFN(9, "\n");
 
-	/* poll one time - will turn on interrupts */
-	if (dwc_otg_xfer_do_fifo(xfer)) {
+	/*
+	 * Poll one time in device mode, which will turn on the
+	 * endpoint interrupts. Else wait for SOF interrupt in host
+	 * mode.
+	 */
+	if (sc->sc_flags.status_device_mode != 0 &&
+	    dwc_otg_xfer_do_fifo(xfer) == 0)
+		goto done;
 
-		/* put transfer on interrupt queue */
-		usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
+	/* put transfer on interrupt queue */
+	usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
-		/* start timeout, if any */
-		if (xfer->timeout != 0) {
-			usbd_transfer_timeout_ms(xfer,
-			    &dwc_otg_timeout, xfer->timeout);
-		}
-
-		/* enable SOF interrupt, if any */
-		dwc_otg_enable_sof_irq(sc);
+	/* start timeout, if any */
+	if (xfer->timeout != 0) {
+		usbd_transfer_timeout_ms(xfer,
+		    &dwc_otg_timeout, xfer->timeout);
 	}
+
+	if (sc->sc_flags.status_device_mode != 0)
+		goto done;
+
+	/* enable SOF interrupt, if any */
+	dwc_otg_enable_sof_irq(sc);
+
+	td = xfer->td_transfer_cache;
+	if (td->ep_type != UE_BULK)
+		goto done;
+
+	xroot = xfer->xroot;
+
+	/*
+	 * Optimise the ping-pong effect by waking up other BULK
+	 * transfers belonging to the same device group:
+	 */
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+		td = xfer->td_transfer_cache;
+		if (td == NULL || td->ep_type != UE_BULK || xfer->xroot != xroot)
+			continue;
+		/* reset NAK counter */ 
+		td->did_nak = 0;
+	}
+done:;
 }
 
 static void
