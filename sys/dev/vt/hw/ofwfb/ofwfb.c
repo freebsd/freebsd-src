@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 struct ofwfb_softc {
 	phandle_t	sc_node;
 
+	struct ofw_pci_register sc_pciaddrs[8];
+	int		sc_num_pciaddrs;
+
+
 	intptr_t	sc_addr;
 	int		sc_depth;
 	int		sc_stride;
@@ -62,6 +66,7 @@ static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_blank_t	ofwfb_blank;
 static vd_bitbltchr_t	ofwfb_bitbltchr;
+static vd_fb_mmap_t	ofwfb_mmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
@@ -70,6 +75,7 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_blank	= ofwfb_blank,
 	.vd_bitbltchr	= ofwfb_bitbltchr,
 	.vd_maskbitbltchr = ofwfb_bitbltchr,
+	.vd_fb_mmap	= ofwfb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
@@ -288,8 +294,6 @@ ofwfb_init(struct vt_device *vd)
 	ihandle_t stdout;
 	phandle_t node;
 	uint32_t depth, height, width;
-	struct ofw_pci_register pciaddrs[8];
-	int n_pciaddrs;
 	uint32_t fb_phys;
 	int i, len;
 #ifdef __sparc64__
@@ -343,15 +347,15 @@ ofwfb_init(struct vt_device *vd)
 	 * child of the PCI device: in that case, try the parent for
 	 * the assigned-addresses property.
 	 */
-	len = OF_getprop(node, "assigned-addresses", pciaddrs,
-	    sizeof(pciaddrs));
+	len = OF_getprop(node, "assigned-addresses", sc->sc_pciaddrs,
+	    sizeof(sc->sc_pciaddrs));
 	if (len == -1) {
 		len = OF_getprop(OF_parent(node), "assigned-addresses",
-		    pciaddrs, sizeof(pciaddrs));
+		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
         }
         if (len == -1)
                 len = 0;
-	n_pciaddrs = len / sizeof(struct ofw_pci_register);
+	sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
@@ -381,13 +385,13 @@ ofwfb_init(struct vt_device *vd)
 		 * Linux does the same thing.
 		 */
 
-		fb_phys = n_pciaddrs;
-		for (i = 0; i < n_pciaddrs; i++) {
+		fb_phys = sc->sc_num_pciaddrs;
+		for (i = 0; i < sc->sc_num_pciaddrs; i++) {
 			/* If it is too small, not the framebuffer */
-			if (pciaddrs[i].size_lo < sc->sc_stride*height)
+			if (sc->sc_pciaddrs[i].size_lo < sc->sc_stride*height)
 				continue;
 			/* If it is not memory, it isn't either */
-			if (!(pciaddrs[i].phys_hi &
+			if (!(sc->sc_pciaddrs[i].phys_hi &
 			    OFW_PCI_PHYS_HI_SPACE_MEM32))
 				continue;
 
@@ -395,11 +399,12 @@ ofwfb_init(struct vt_device *vd)
 			fb_phys = i;
 
 			/* If it is prefetchable, it certainly is */
-			if (pciaddrs[i].phys_hi & OFW_PCI_PHYS_HI_PREFETCHABLE)
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
 				break;
 		}
 
-		if (fb_phys == n_pciaddrs) /* No candidates found */
+		if (fb_phys == sc->sc_num_pciaddrs) /* No candidates found */
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
@@ -414,5 +419,39 @@ ofwfb_init(struct vt_device *vd)
 	ofwfb_initialize(vd);
 
 	return (CN_INTERNAL);
+}
+
+static int
+ofwfb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
+{
+	struct ofwfb_softc *sc = vd->vd_softc;
+        int i;
+
+	/*
+	 * Make sure the requested address lies within the PCI device's
+	 * assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
+		{
+			/*
+			 * If this is a prefetchable BAR, we can (and should)
+			 * enable write-combining.
+			 */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
+
+			*paddr = offset;
+			return (0);
+		}
+
+        /*
+         * Hack for Radeon...
+         */
+	*paddr = offset;
+	return (0);
 }
 
