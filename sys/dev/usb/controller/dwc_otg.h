@@ -37,6 +37,7 @@
 #define	DWC_OTG_TT_SLOT_MAX 8
 #define	DWC_OTG_SLOT_IDLE_MAX 4
 #define	DWC_OTG_SLOT_IDLE_MIN 2
+#define	DWC_OTG_NAK_MAX 8	/* 1 ms */
 
 #define	DWC_OTG_READ_4(sc, reg) \
   bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -64,6 +65,7 @@ struct dwc_otg_td {
 	uint8_t errcnt;
 	uint8_t tmr_res;
 	uint8_t tmr_val;
+	uint8_t did_nak;		/* NAK counter */
 	uint8_t	ep_no;
 	uint8_t ep_type;
 	uint8_t channel[2];
@@ -87,7 +89,6 @@ struct dwc_otg_td {
 	uint8_t toggle:1;
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
-	uint8_t did_nak:1;
 	uint8_t tt_scheduled:1;
 	uint8_t tt_channel_tog:1;
 };
