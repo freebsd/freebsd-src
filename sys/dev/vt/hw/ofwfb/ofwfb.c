@@ -136,6 +136,10 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	uint32_t fgc, bgc;
 	int c;
 	uint8_t b, m;
+	union {
+		uint32_t l;
+		uint8_t	 c[4];
+	} ch1, ch2;
 
 	fgc = sc->sc_colormap[fg];
 	bgc = sc->sc_colormap[bg];
@@ -147,36 +151,70 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 		return;
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
-	for (; height > 0; height--) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
+	if (mask == NULL && sc->sc_depth == 8 && (width % 8 == 0)) {
+		for (; height > 0; height--) {
+			for (c = 0; c < width; c += 8) {
 				b = *src++;
-			else
-				b <<= 1;
-			if (mask != NULL) {
-				if (c % 8 == 0)
-					m = *mask++;
-				else
-					m <<= 1;
-				/* Skip pixel write, if mask has no bit set. */
-				if ((m & 0x80) == 0)
-					continue;
+
+				/*
+				 * Assume that there is more background than
+				 * foreground in characters and init accordingly
+				 */
+				ch1.l = ch2.l = (bg << 24) | (bg << 16) |
+				    (bg << 8) | bg;
+
+				/*
+				 * Calculate 2 x 4-chars at a time, and then
+				 * write these out.
+				 */
+				if (b & 0x80) ch1.c[0] = fg;
+				if (b & 0x40) ch1.c[1] = fg;
+				if (b & 0x20) ch1.c[2] = fg;
+				if (b & 0x10) ch1.c[3] = fg;
+
+				if (b & 0x08) ch2.c[0] = fg;
+				if (b & 0x04) ch2.c[1] = fg;
+				if (b & 0x02) ch2.c[2] = fg;
+				if (b & 0x01) ch2.c[3] = fg;
+
+				*(uint32_t *)(sc->sc_addr + line + c) = ch1.l;
+				*(uint32_t *)(sc->sc_addr + line + c + 4) =
+				    ch2.l;
 			}
-			switch(sc->sc_depth) {
-			case 8:
-				*(uint8_t *)(sc->sc_addr + line + c) =
-				    b & 0x80 ? fg : bg;
-				break;
-			case 32:
-				*(uint32_t *)(sc->sc_addr + line + 4*c) = 
-				    (b & 0x80) ? fgc : bgc;
-				break;
-			default:
-				/* panic? */
-				break;
-			}
+			line += sc->sc_stride;
 		}
-		line += sc->sc_stride;
+	} else {
+		for (; height > 0; height--) {
+			for (c = 0; c < width; c++) {
+				if (c % 8 == 0)
+					b = *src++;
+				else
+					b <<= 1;
+				if (mask != NULL) {
+					if (c % 8 == 0)
+						m = *mask++;
+					else
+						m <<= 1;
+					/* Skip pixel write, if mask not set. */
+					if ((m & 0x80) == 0)
+						continue;
+				}
+				switch(sc->sc_depth) {
+				case 8:
+					*(uint8_t *)(sc->sc_addr + line + c) =
+					    b & 0x80 ? fg : bg;
+					break;
+				case 32:
+					*(uint32_t *)(sc->sc_addr + line + 4*c)
+					    = (b & 0x80) ? fgc : bgc;
+					break;
+				default:
+					/* panic? */
+					break;
+				}
+			}
+			line += sc->sc_stride;
+		}
 	}
 }
 
