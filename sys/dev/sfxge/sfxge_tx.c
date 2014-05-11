@@ -27,6 +27,21 @@
  * SUCH DAMAGE.
  */
 
+/* Theory of operation:
+ *
+ * Tx queues allocation and mapping
+ *
+ * One Tx queue with enabled checksum offload is allocated per Rx channel
+ * (event queue).  Also 2 Tx queues (one without checksum offload and one
+ * with IP checksum offload only) are allocated and bound to event queue 0.
+ * sfxge_txq_type is used as Tx queue label.
+ *
+ * So, event queue plus label mapping to Tx queue index is:
+ *	if event queue index is 0, TxQ-index = TxQ-label * [0..SFXGE_TXQ_NTYPES)
+ *	else TxQ-index = SFXGE_TXQ_NTYPES + EvQ-index - 1
+ * See sfxge_get_txq_by_label() sfxge_ev.c
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -536,6 +551,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	return (0);
 
 fail:
+	m_freem(m);
 	return (rc);
 	
 }
@@ -1177,7 +1193,7 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	}
 
 	/* Create the common code transmit queue. */
-	if ((rc = efx_tx_qcreate(sc->enp, index, index, esmp,
+	if ((rc = efx_tx_qcreate(sc->enp, index, txq->type, esmp,
 	    SFXGE_NDESCS, txq->buf_base_id, flags, evq->common,
 	    &txq->common)) != 0)
 		goto fail;
