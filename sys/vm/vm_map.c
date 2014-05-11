@@ -1978,10 +1978,17 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		else
 			current->protection = new_prot;
 
-		if ((current->eflags & (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED))
-		     == (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED) &&
+		/*
+		 * For user wired map entries, the normal lazy evaluation of
+		 * write access upgrades through soft page faults is
+		 * undesirable.  Instead, immediately copy any pages that are
+		 * copy-on-write and enable write access in the physical map.
+		 */
+		if ((current->eflags & MAP_ENTRY_USER_WIRED) != 0 &&
 		    (current->protection & VM_PROT_WRITE) != 0 &&
 		    (old_prot & VM_PROT_WRITE) == 0) {
+			KASSERT(old_prot != VM_PROT_NONE,
+			    ("vm_map_protect: inaccessible wired map entry"));
 			vm_fault_copy_entry(map, map, current, current, NULL);
 		}
 
