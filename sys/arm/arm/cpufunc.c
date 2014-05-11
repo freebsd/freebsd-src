@@ -150,6 +150,7 @@ struct cpu_functions arm9_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -214,6 +215,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
       	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -276,6 +278,7 @@ struct cpu_functions sheeva_cpufuncs = {
 	sheeva_l2cache_wbinv_range,	/* l2cache_wbinv_range  */
 	sheeva_l2cache_inv_range,	/* l2cache_inv_range    */
 	sheeva_l2cache_wb_range,	/* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -338,6 +341,7 @@ struct cpu_functions arm10_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -401,6 +405,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -466,6 +471,7 @@ struct cpu_functions xscale_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -530,6 +536,7 @@ struct cpu_functions xscalec3_cpufuncs = {
 	xscalec3_l2cache_purge_rng,	/* l2cache_wbinv_range	*/
 	xscalec3_l2cache_flush_rng,	/* l2cache_inv_range	*/
 	xscalec3_l2cache_clean_rng,	/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -593,6 +600,7 @@ struct cpu_functions fa526_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -656,6 +664,7 @@ struct cpu_functions arm1136_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
@@ -718,6 +727,7 @@ struct cpu_functions arm1176_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
@@ -789,6 +799,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
