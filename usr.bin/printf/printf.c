@@ -101,6 +101,8 @@ static void	 usage(void);
 
 static const char digits[] = "0123456789";
 
+static char end_fmt[1];
+
 static int  myargc;
 static char **myargv;
 static char **gargv;
@@ -171,11 +173,11 @@ main(int argc, char *argv[])
 					fmt += 2;
 				} else {
 					fmt = printf_doformat(fmt, &rval);
-					if (fmt == NULL) {
+					if (fmt == NULL || fmt == end_fmt) {
 #ifdef SHELL
 						INTON;
 #endif
-						return (1);
+						return (fmt == NULL ? 1 : rval);
 					}
 					end = 0;
 				}
@@ -372,7 +374,7 @@ printf_doformat(char *fmt, int *rval)
 		fputs(p, stdout);
 		free(p);
 		if (getout)
-			exit(*rval);
+			return (end_fmt);
 		break;
 	}
 	case 'c': {
