@@ -247,4 +247,6 @@ cheritest_libcheri_destroy(void)
 
 	sandbox_object_destroy(cheritest_objectp);
 	sandbox_class_destroy(cheritest_classp);
+	cheri_fd_destroy(zero_fd_object);
+	close(zero_fd);
 }
