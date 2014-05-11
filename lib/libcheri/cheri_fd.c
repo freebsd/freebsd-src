@@ -128,7 +128,6 @@ cheri_fd_destroy(struct cheri_object co)
 	basecap = cheri_settype(cheri_getdefault(),
 	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
 	cfp = cheri_unseal(co.co_datacap, basecap);
-	assert(cfp->cf_fd == -1);
 	free((void *)cfp);
 }
 
