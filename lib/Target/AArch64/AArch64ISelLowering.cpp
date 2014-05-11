@@ -31,12 +31,8 @@ using namespace llvm;
 
 static TargetLoweringObjectFile *createTLOF(AArch64TargetMachine &TM) {
   const AArch64Subtarget *Subtarget = &TM.getSubtarget<AArch64Subtarget>();
-
-  if (Subtarget->isTargetLinux())
-    return new AArch64LinuxTargetObjectFile();
-  if (Subtarget->isTargetELF())
-    return new TargetLoweringObjectFileELF();
-  llvm_unreachable("unknown subtarget type");
+  assert (Subtarget->isTargetELF() && "unknown subtarget type");
+  return new AArch64ElfTargetObjectFile();
 }
 
 AArch64TargetLowering::AArch64TargetLowering(AArch64TargetMachine &TM)
@@ -2782,7 +2778,7 @@ AArch64TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
 SDValue
 AArch64TargetLowering::LowerVACOPY(SDValue Op, SelectionDAG &DAG) const {
   const Value *DestSV = cast<SrcValueSDNode>(Op.getOperand(3))->getValue();
-  const Value *SrcSV = cast<SrcValueSDNode>(Op.getOperand(3))->getValue();
+  const Value *SrcSV = cast<SrcValueSDNode>(Op.getOperand(4))->getValue();
 
   // We have to make sure we copy the entire structure: 8+8+8+4+4 = 32 bytes
   // rather than just 8.
