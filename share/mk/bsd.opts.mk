@@ -45,6 +45,7 @@ __<bsd.opts.mk>__:
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
+    DOCCOMPRESS \
     INFO \
     INSTALLLIB \
     KERBEROS \
@@ -56,7 +57,8 @@ __DEFAULT_YES_OPTIONS = \
     PROFILE \
     SSP \
     SYMVER \
-    TOOLCHAIN
+    TOOLCHAIN \
+    WARNS
 
 __DEFAULT_NO_OPTIONS = \
     CTF \
@@ -76,7 +78,8 @@ __DEFAULT_NO_OPTIONS = \
     DEBUG_FILES \
     INSTALLLIB \
     MAN \
-    PROFILE
+    PROFILE \
+    WARNS
 .if defined(NO_${var})
 # This warning may be premature...
 #.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."

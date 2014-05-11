@@ -215,12 +215,10 @@ printf_doformat(char *fmt, int *rval)
 	static const char skip1[] = "#'-+ 0";
 	int fieldwidth, haveprec, havewidth, mod_ldbl, precision;
 	char convch, nextch;
-	char *start;
+	char start[strlen(fmt) + 1];
 	char **fargv;
 	char *dptr;
 	int l;
-
-	start = alloca(strlen(fmt) + 1);
 
 	dptr = start;
 	*dptr++ = '%';

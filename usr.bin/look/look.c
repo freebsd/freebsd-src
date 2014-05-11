@@ -102,8 +102,11 @@ main(int argc, char *argv[])
 
 	file = _path_words;
 	termchar = L'\0';
-	while ((ch = getopt(argc, argv, "dft:")) != -1)
+	while ((ch = getopt(argc, argv, "adft:")) != -1)
 		switch(ch) {
+		case 'a':
+			/* COMPATIBILITY */
+			break;
 		case 'd':
 			dflag = 1;
 			break;

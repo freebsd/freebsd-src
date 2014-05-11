@@ -230,6 +230,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_FMAKE} != "no"
+SUBDIR+=	make
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 SUBDIR+=	dtc
 .endif

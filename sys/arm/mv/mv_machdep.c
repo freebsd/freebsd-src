@@ -284,7 +284,7 @@ moveon:
 	map->pd_pa = base;
 	map->pd_size = size;
 	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	map->pd_cache = PTE_NOCACHE;
+	map->pd_cache = PTE_DEVICE;
 
 	return (0);
 out:
@@ -350,7 +350,7 @@ initarm_devmap_init(void)
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
+	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 
 	/*

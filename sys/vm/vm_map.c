@@ -1949,7 +1949,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * charged clipped mapping of the same object later.
 		 */
 		KASSERT(obj->charge == 0,
-		    ("vm_map_protect: object %p overcharged\n", obj));
+		    ("vm_map_protect: object %p overcharged (entry %p)",
+		    obj, current));
 		if (!swap_reserve(ptoa(obj->size))) {
 			VM_OBJECT_WUNLOCK(obj);
 			vm_map_unlock(map);
@@ -3022,7 +3023,8 @@ vm_map_copy_entry(
 		 * If the source entry is marked needs_copy, it is already
 		 * write-protected.
 		 */
-		if ((src_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) {
+		if ((src_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0 &&
+		    (src_entry->protection & VM_PROT_WRITE) != 0) {
 			pmap_protect(src_map->pmap,
 			    src_entry->start,
 			    src_entry->end,
@@ -4153,7 +4155,7 @@ vm_map_print(vm_map_t map)
 				db_indent += 2;
 				vm_object_print((db_expr_t)(intptr_t)
 						entry->object.vm_object,
-						1, 0, (char *)0);
+						0, 0, (char *)0);
 				db_indent -= 2;
 			}
 		}
