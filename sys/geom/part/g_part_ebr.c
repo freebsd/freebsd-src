@@ -217,47 +217,54 @@ ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
 }
 
 static int
+ebr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
+{
+	uint32_t sectors;
+
+	sectors = basetable->gpt_sectors;
+	if (*size < 2 * sectors)
+		return (EINVAL);
+	if (*start % sectors) {
+		*size += (*start % sectors) - sectors;
+		*start -= (*start % sectors) - sectors;
+	}
+	if (*size % sectors)
+		*size -= (*size % sectors);
+	if (*size < 2 * sectors)
+		return (EINVAL);
+	return (0);
+}
+
+
+static int
 g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
-	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_ebr_entry *entry;
-	uint32_t start, size, sectors;
+	uint32_t start, size;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
 
-	gp = basetable->gpt_gp;
-	pp = LIST_FIRST(&gp->consumer)->provider;
-	sectors = basetable->gpt_sectors;
-
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 	entry = (struct g_part_ebr_entry *)baseentry;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < 2 * sectors)
+	if (ebr_align(basetable, &start, &size) != 0)
 		return (EINVAL);
-	if (start % sectors) {
-		size = size - sectors + (start % sectors);
-		start = start - (start % sectors) + sectors;
-	}
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < 2 * sectors)
-		return (EINVAL);
-
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
 	KASSERT(baseentry->gpe_start <= start, ("%s", __func__));
 	KASSERT(baseentry->gpe_end >= start + size - 1, ("%s", __func__));
-	baseentry->gpe_index = (start / sectors) + 1;
-	baseentry->gpe_offset = (off_t)(start + sectors) * pp->sectorsize;
+	baseentry->gpe_index = (start / basetable->gpt_sectors) + 1;
+	baseentry->gpe_offset =
+	    (off_t)(start + basetable->gpt_sectors) * pp->sectorsize;
 	baseentry->gpe_start = start;
 	baseentry->gpe_end = start + size - 1;
-	entry->ent.dp_start = sectors;
-	entry->ent.dp_size = size - sectors;
+	entry->ent.dp_start = basetable->gpt_sectors;
+	entry->ent.dp_size = size - basetable->gpt_sectors;
 	ebr_set_chs(basetable, entry->ent.dp_start, &entry->ent.dp_scyl,
 	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
 	ebr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
