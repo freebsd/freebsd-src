@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2014
+.Dd May 11, 2014
 .Dt LM75 4
 .Os
 .Sh NAME
@@ -69,28 +69,28 @@ dev.lm75.0.shutdown: 0
 Is the read-only value of the current temperature read by the sensor.
 .It Va dev.lm75.%d.thyst
 Sets the hysteresis temperature.
-Once the temperature get over the overtemperature shutdown value (tos)
-it need to drop bellow the hysteresis temperature to disable the output
+Once the temperature gets over the overtemperature shutdown value (tos)
+it needs to drop below the hysteresis temperature to disable the output
 (interrupt) pin again.
 .It Va dev.lm75.%d.tos
 Sets the overtemperature shutdown value.
-Once the temperature get over this value the output pin will be enabled.
+Once the temperature gets over this value the output pin will be enabled.
 The way the output (interrupt) pin works, depends on the mode configuration.
 .It Va dev.lm75.%d.faults
 Is the number of faults that must occur consecutively to activate the
 interrupt (output) pin.
 It can be set to 1, 2, 4, and 6.
 .It Va dev.lm75.%d.mode
-Set the operation mode for the sensor interrupt pin.
+Sets the operation mode for the sensor interrupt pin.
 It can be set to 'comparator' (default) or 'interrupt'.
 .It Va dev.lm75.%d.polarity
-Set the polarity of the sensor interrupt pin.
+Sets the polarity of the sensor interrupt pin.
 It can be set to 'active-low' (default) or 'active-high'.
 Please note that the output pin is an open-drain output and it needs a
 proper pull-up resistor to work.
 .It Va dev.lm75.%d.shutdown
-When set to '1' it shutdown the sensor.
-The temperature convertion stops but the sensor remains with its i2c bus
+When set to '1' it shuts down the sensor.
+The temperature conversion stops but the sensor remains with its i2c bus
 active, i.e., it can be woken up by setting this option to '0' again.
 .El
 .Pp
@@ -124,7 +124,7 @@ On a
 .Xr device.hints 5
 based system, like
 .Li MIPS ,
-these values are configurable for the
+these values are configurable for
 .Nm :
 .Bl -tag -width ".Va hint.lm75.%d.addr"
 .It Va hint.lm75.%d.at
@@ -168,7 +168,7 @@ property indicates which i2c address the
 .Nm
 is wired at.
 .Nm
-temperature sensors can be wired to 8 different address, allowing up to 8
+temperature sensors can be wired to 8 different addresses, allowing up to 8
 sensors on the same
 .Xr iicbus 4 .
 .El
@@ -187,5 +187,5 @@ driver first appeared in
 .An -nosplit
 The
 .Nm
-driver and this manual page was written by
-.An Luiz Otavio O Souza Aq loos@FreeBSD.org
+driver and this manual page were written by
+.An Luiz Otavio O Souza Aq loos@FreeBSD.org .
