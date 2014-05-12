@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
-#define	VMEXIT_SWITCH		0	/* force vcpu switch in mux mode */
 #define	VMEXIT_CONTINUE		1	/* continue from next instruction */
 #define	VMEXIT_RESTART		2	/* restart current instruction */
 #define	VMEXIT_ABORT		3	/* abort the vm run loop */
@@ -272,12 +271,6 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 }
 
 static int
-vmexit_catch_inout(void)
-{
-	return (VMEXIT_ABORT);
-}
-
-static int
 vmexit_handle_notify(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu,
 		     uint32_t eax)
 {
@@ -330,7 +323,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
 			in ? "in" : "out",
 			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
-		return (vmexit_catch_inout());
+		return (VMEXIT_ABORT);
 	}
 }
 
@@ -575,6 +568,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 			assert(error == 0 || errno == EALREADY);
                         rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
+		case VMEXIT_ABORT:
+			abort();
 		default:
 			exit(1);
 		}
