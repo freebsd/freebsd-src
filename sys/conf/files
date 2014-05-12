@@ -1868,6 +1868,10 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
+dev/mrsas/mrsas.c		optional mrsas
+dev/mrsas/mrsas_cam.c		optional mrsas
+dev/mrsas/mrsas_ioctl.c		optional mrsas
+dev/mrsas/mrsas_fp.c		optional mrsas
 dev/msk/if_msk.c		optional msk
 dev/mvs/mvs.c			optional mvs
 dev/mvs/mvs_if.m		optional mvs
