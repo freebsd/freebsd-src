@@ -51,26 +51,49 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_prcm.h>
 
-#define AM335X_NUM_TIMERS	8
+#define	AM335X_NUM_TIMERS	8
 
-#define DMTIMER_TIDR		0x00 /* Identification Register */
-#define DMTIMER_TIOCP_CFG	0x10 /* Timer OCP Configuration Reg */
-#define DMTIMER_IQR_EOI		0x20 /* Timer IRQ End-Of-Interrupt Reg */
-#define DMTIMER_IRQSTATUS_RAW	0x24 /* Timer IRQSTATUS Raw Reg */
-#define DMTIMER_IRQSTATUS	0x28 /* Timer IRQSTATUS Reg */
-#define DMTIMER_IRQENABLE_SET	0x2c /* Timer IRQSTATUS Set Reg */
-#define DMTIMER_IRQENABLE_CLR	0x30 /* Timer IRQSTATUS Clear Reg */
-#define DMTIMER_IRQWAKEEN	0x34 /* Timer IRQ Wakeup Enable Reg */
-#define DMTIMER_TCLR		0x38 /* Timer Control Register */
-#define DMTIMER_TCRR		0x3C /* Timer Counter Register */
-#define DMTIMER_TLDR		0x40 /* Timer Load Reg */
-#define DMTIMER_TTGR		0x44 /* Timer Trigger Reg */
-#define DMTIMER_TWPS		0x48 /* Timer Write Posted Status Reg */
-#define DMTIMER_TMAR		0x4C /* Timer Match Reg */
-#define DMTIMER_TCAR1		0x50 /* Timer Capture Reg */
-#define DMTIMER_TSICR		0x54 /* Timer Synchr. Interface Control Reg */
-#define DMTIMER_TCAR2		0x48 /* Timer Capture Reg */
- 
+#define	DMT_TIDR		0x00		/* Identification Register */
+#define	DMT_TIOCP_CFG		0x10		/* OCP Configuration Reg */
+#define	  DMT_TIOCP_RESET	  (1 << 0)	/* TIOCP perform soft reset */
+#define	DMT_IQR_EOI		0x20		/* IRQ End-Of-Interrupt Reg */
+#define	DMT_IRQSTATUS_RAW	0x24		/* IRQSTATUS Raw Reg */
+#define	DMT_IRQSTATUS		0x28		/* IRQSTATUS Reg */
+#define	DMT_IRQENABLE_SET	0x2c		/* IRQSTATUS Set Reg */
+#define	DMT_IRQENABLE_CLR	0x30		/* IRQSTATUS Clear Reg */
+#define	DMT_IRQWAKEEN		0x34		/* IRQ Wakeup Enable Reg */
+#define	  DMT_IRQ_TCAR		  (1 << 0)	/* IRQ: Capture */
+#define	  DMT_IRQ_OVF		  (1 << 1)	/* IRQ: Overflow */
+#define	  DMT_IRQ_MAT		  (1 << 2)	/* IRQ: Match */
+#define	  DMT_IRQ_MASK		  (DMT_IRQ_TCAR | DMT_IRQ_OVF | DMT_IRQ_MAT)
+#define	DMT_TCLR		0x38		/* Control Register */
+#define	  DMT_TCLR_START	  (1 << 0)	/* Start timer */
+#define	  DMT_TCLR_AUTOLOAD	  (1 << 1)	/* Auto-reload on overflow */
+#define	  DMT_TCLR_PRES_MASK	  (7 << 2)	/* Prescaler mask */
+#define	  DMT_TCLR_PRES_ENABLE	  (1 << 5)	/* Prescaler enable */
+#define	  DMT_TCLR_COMP_ENABLE	  (1 << 6)	/* Compare enable */
+#define	  DMT_TCLR_PWM_HIGH	  (1 << 7)	/* PWM default output high */
+#define	  DMT_TCLR_CAPTRAN_MASK	  (3 << 8)	/* Capture transition mask */
+#define	  DMT_TCLR_CAPTRAN_NONE	  (0 << 8)	/* Capture: none */
+#define	  DMT_TCLR_CAPTRAN_LOHI	  (1 << 8)	/* Capture lo->hi transition */
+#define	  DMT_TCLR_CAPTRAN_HILO	  (2 << 8)	/* Capture hi->lo transition */
+#define	  DMT_TCLR_CAPTRAN_BOTH	  (3 << 8)	/* Capture both transitions */
+#define	  DMT_TCLR_TRGMODE_MASK	  (3 << 10)	/* Trigger output mode mask */
+#define	  DMT_TCLR_TRGMODE_NONE	  (0 << 10)	/* Trigger off */
+#define	  DMT_TCLR_TRGMODE_OVFL	  (1 << 10)	/* Trigger on overflow */
+#define	  DMT_TCLR_TRGMODE_BOTH	  (2 << 10)	/* Trigger on match + ovflow */
+#define	  DMT_TCLR_PWM_PTOGGLE	  (1 << 12)	/* PWM toggles */
+#define	  DMT_TCLR_CAP_MODE_2ND	  (1 << 13)	/* Capture second event mode */
+#define	  DMT_TCLR_GPO_CFG	  (1 << 14)	/* (no descr in datasheet) */
+#define	DMT_TCRR		0x3C		/* Counter Register */
+#define	DMT_TLDR		0x40		/* Load Reg */
+#define	DMT_TTGR		0x44		/* Trigger Reg */
+#define	DMT_TWPS		0x48		/* Write Posted Status Reg */
+#define	DMT_TMAR		0x4C		/* Match Reg */
+#define	DMT_TCAR1		0x50		/* Capture Reg */
+#define	DMT_TSICR		0x54		/* Synchr. Interface Ctrl Reg */
+#define	  DMT_TSICR_RESET	0x02		/* TSICR perform soft reset */
+#define	DMT_TCAR2		0x48		/* Capture Reg */
 
 struct am335x_dmtimer_softc {
 	struct resource *	tmr_mem_res[AM335X_NUM_TIMERS];
@@ -138,7 +161,7 @@ static struct timecounter am335x_dmtimer_tc = {
 static unsigned
 am335x_dmtimer_tc_get_timecount(struct timecounter *tc)
 {
-	return am335x_dmtimer_tc_read_4(DMTIMER_TCRR);
+	return am335x_dmtimer_tc_read_4(DMT_TCRR);
 }
 
 static int
@@ -162,23 +185,23 @@ am335x_dmtimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		count = load;
 
 	/* Reset Timer */
-	am335x_dmtimer_et_write_4(DMTIMER_TSICR, 2);
+	am335x_dmtimer_et_write_4(DMT_TSICR, 2);
 
 	/* Wait for reset to complete */
-	while (am335x_dmtimer_et_read_4(DMTIMER_TIOCP_CFG) & 1);
+	while (am335x_dmtimer_et_read_4(DMT_TIOCP_CFG) & 1);
 
 	/* set load value */
-	am335x_dmtimer_et_write_4(DMTIMER_TLDR, 0xFFFFFFFE - load);
+	am335x_dmtimer_et_write_4(DMT_TLDR, 0xFFFFFFFE - load);
 
 	/* set counter value */
-	am335x_dmtimer_et_write_4(DMTIMER_TCRR, 0xFFFFFFFE - count);
+	am335x_dmtimer_et_write_4(DMT_TCRR, 0xFFFFFFFE - count);
 
 	/* enable overflow interrupt */
-	am335x_dmtimer_et_write_4(DMTIMER_IRQENABLE_SET, 2);
+	am335x_dmtimer_et_write_4(DMT_IRQENABLE_SET, 2);
 
 	/* start timer(ST) */
 	tclr |= 1;
-	am335x_dmtimer_et_write_4(DMTIMER_TCLR, tclr);
+	am335x_dmtimer_et_write_4(DMT_TCLR, tclr);
 
 	return (0);
 }
@@ -189,10 +212,10 @@ am335x_dmtimer_stop(struct eventtimer *et)
 	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)et->et_priv;
 
 	/* Disable all interrupts */
-	am335x_dmtimer_et_write_4(DMTIMER_IRQENABLE_CLR, 7);
+	am335x_dmtimer_et_write_4(DMT_IRQENABLE_CLR, 7);
 
 	/* Stop Timer */
-	am335x_dmtimer_et_write_4(DMTIMER_TCLR, 0);
+	am335x_dmtimer_et_write_4(DMT_TCLR, 0);
 
 	return (0);
 }
@@ -203,7 +226,7 @@ am335x_dmtimer_intr(void *arg)
 	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)arg;
 
 	/* Ack interrupt */
-	am335x_dmtimer_et_write_4(DMTIMER_IRQSTATUS, 7);
+	am335x_dmtimer_et_write_4(DMT_IRQSTATUS, 7);
 	if (tmr->et.et_active)
 		tmr->et.et_event_cb(&tmr->et, tmr->et.et_arg);
 
@@ -277,19 +300,19 @@ am335x_dmtimer_attach(device_t dev)
 	am335x_dmtimer_tc_tmr = &sc->t[2];
 
 	/* Reset Timer */
-	am335x_dmtimer_tc_write_4(DMTIMER_TSICR, 2);
+	am335x_dmtimer_tc_write_4(DMT_TSICR, 2);
 
 	/* Wait for reset to complete */
-	while (am335x_dmtimer_tc_read_4(DMTIMER_TIOCP_CFG) & 1);
+	while (am335x_dmtimer_tc_read_4(DMT_TIOCP_CFG) & 1);
 
 	/* set load value */
-	am335x_dmtimer_tc_write_4(DMTIMER_TLDR, 0);
+	am335x_dmtimer_tc_write_4(DMT_TLDR, 0);
 
 	/* set counter value */
-	am335x_dmtimer_tc_write_4(DMTIMER_TCRR, 0);
+	am335x_dmtimer_tc_write_4(DMT_TCRR, 0);
 
 	/* Set Timer autoreload(AR) and start timer(ST) */
-	am335x_dmtimer_tc_write_4(DMTIMER_TCLR, 3);
+	am335x_dmtimer_tc_write_4(DMT_TCLR, 3);
 
 	am335x_dmtimer_tc.tc_frequency = sc->sysclk_freq;
 	tc_init(&am335x_dmtimer_tc);
@@ -361,10 +384,10 @@ DELAY(int usec)
 	/* Get the number of times to count */
 	counts = usec * (am335x_dmtimer_tc.tc_frequency / 1000000) + 1;
 
-	first = am335x_dmtimer_tc_read_4(DMTIMER_TCRR);
+	first = am335x_dmtimer_tc_read_4(DMT_TCRR);
 
 	while (counts > 0) {
-		last = am335x_dmtimer_tc_read_4(DMTIMER_TCRR);
+		last = am335x_dmtimer_tc_read_4(DMT_TCRR);
 		if (last>first) {
 			counts -= (int32_t)(last - first);
 		} else {
