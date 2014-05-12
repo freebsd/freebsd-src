@@ -4129,7 +4129,7 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/text_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/user_test
-.if ${MK_MAKE} == yes && ${MK_BMAKE} == yes
+.if ${MK_MAKE} == yes
 OLD_FILES+=usr/tests/usr.bin/make/archives/fmt_44bsd/legacy_test
 OLD_FILES+=usr/tests/usr.bin/make/archives/fmt_44bsd/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/make/archives/fmt_44bsd/Makefile.test
