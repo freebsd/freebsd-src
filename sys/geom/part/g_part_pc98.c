@@ -352,6 +352,12 @@ g_part_pc98_resize(struct g_part_table *basetable,
 	struct g_provider *pp;
 	uint32_t size;
 
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		basetable->gpt_last = MIN(pp->mediasize / SECSIZE,
+		    UINT32_MAX) - 1;
+		return (0);
+	}
 	size = gpp->gpp_size;
 	if (pc98_align(basetable, NULL, &size) != 0)
 		return (EINVAL);
