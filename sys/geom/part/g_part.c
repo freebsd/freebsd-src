@@ -1310,7 +1310,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 
 	error = G_PART_RESIZE(table, entry, gpp);
 	if (error) {
-		gctl_error(req, "%d", error);
+		gctl_error(req, "%d%s", error, error != EBUSY ? "":
+		    " resizing will lead to unexpected shrinking"
+		    " due to alignment");
 		return (error);
 	}
 

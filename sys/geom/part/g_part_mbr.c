@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -194,34 +195,39 @@ mbr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
 }
 
 static int
+mbr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
+{
+	uint32_t sectors;
+
+	sectors = basetable->gpt_sectors;
+	if (*size < sectors)
+		return (EINVAL);
+	if (start != NULL && (*start % sectors)) {
+		*size += (*start % sectors) - sectors;
+		*start -= (*start % sectors) - sectors;
+	}
+	if (*size % sectors)
+		*size -= (*size % sectors);
+	if (*size < sectors)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_mbr_entry *entry;
-	struct g_part_mbr_table *table;
-	uint32_t start, size, sectors;
+	uint32_t start, size;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
 
-	sectors = basetable->gpt_sectors;
-
 	entry = (struct g_part_mbr_entry *)baseentry;
-	table = (struct g_part_mbr_table *)basetable;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < sectors)
+	if (mbr_align(basetable, &start, &size) != 0)
 		return (EINVAL);
-	if (start % sectors) {
-		size = size - sectors + (start % sectors);
-		start = start - (start % sectors) + sectors;
-	}
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < sectors)
-		return (EINVAL);
-
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
@@ -335,18 +341,17 @@ g_part_mbr_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_mbr_entry *entry;
-	uint32_t size, sectors;
+	struct g_provider *pp;
+	uint32_t size;
 
-	sectors = basetable->gpt_sectors;
 	size = gpp->gpp_size;
-
-	if (size < sectors)
+	if (mbr_align(basetable, NULL, &size) != 0)
 		return (EINVAL);
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < sectors)
-		return (EINVAL);
-
+	/* XXX: prevent unexpected shrinking. */
+	pp = baseentry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    pp->mediasize / pp->sectorsize > size)
+		return (EBUSY);
 	entry = (struct g_part_mbr_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + size - 1;
 	entry->ent.dp_size = size;
