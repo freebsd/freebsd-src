@@ -426,9 +426,9 @@ cpu_idle(int busy)
 	
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
+	spinlock_enter();
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
-		critical_enter();
 		cpu_idleclock();
 	}
 #endif
@@ -437,9 +437,9 @@ cpu_idle(int busy)
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
-		critical_exit();
 	}
 #endif
+	spinlock_exit();
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
 	    busy, curcpu);
 }
