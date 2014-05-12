@@ -424,24 +424,20 @@ void
 cpu_idle(int busy)
 {
 	
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 	spinlock_enter();
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
+	if (!busy)
 		cpu_idleclock();
-	}
 #endif
 	if (!sched_runnable())
 		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
+	if (!busy)
 		cpu_activeclock();
-	}
 #endif
 	spinlock_exit();
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
 
 int
