@@ -262,6 +262,7 @@ MAN=	aac.4 \
 	mpr.4 \
 	mps.4 \
 	mpt.4 \
+	mrsas.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
