@@ -1,5 +1,4 @@
-.\" Copyright (c) 2006 Broadcom Corporation
-.\"  David Christensen <davidch@broadcom.com>.  All rights reserved.
+.\" Copyright (c) 2006-2014 QLogic Corporation
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -10,9 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. Neither the name of Broadcom Corporation nor the name of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written consent.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
 .\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm bce
-.Nd "Broadcom NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
+.Nd "QLogic NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,7 +48,7 @@ if_bce_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports Broadcom's NetXtreme II product family, including the
+driver supports QLogic's NetXtreme II product family, including the
 BCM5706, BCM5708, BCM5709 and BCM5716 Ethernet controllers.
 .Pp
 The NetXtreme II product family is composed of various Converged NIC (or CNIC)
@@ -141,25 +137,25 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver provides support for various NICs based on the Broadcom NetXtreme II
+driver provides support for various NICs based on the QLogic NetXtreme II
 family of Gigabit Ethernet controllers, including the
 following:
 .Pp
 .Bl -bullet -compact
 .It
-Broadcom NetXtreme II BCM5706 1000Base-SX
+QLogic NetXtreme II BCM5706 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5706 1000Base-T
+QLogic NetXtreme II BCM5706 1000Base-T
 .It
-Broadcom NetXtreme II BCM5708 1000Base-SX
+QLogic NetXtreme II BCM5708 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5708 1000Base-T
+QLogic NetXtreme II BCM5708 1000Base-T
 .It
-Broadcom NetXtreme II BCM5709 1000Base-SX
+QLogic NetXtreme II BCM5709 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5709 1000Base-T
+QLogic NetXtreme II BCM5709 1000Base-T
 .It
-Broadcom NetXtreme II BCM5716 1000Base-T
+QLogic NetXtreme II BCM5716 1000Base-T
 .It
 Dell PowerEdge 1950 integrated BCM5708 NIC
 .It
@@ -346,6 +342,12 @@ with the cable connection, or a driver logic problem has occurred..
 A controller hardware failure has occurred.
 If the problem continues replace the controller.
 .El
+.Sh SUPPORT
+For support questions please contact your QLogic approved reseller or
+QLogic Technical Support at
+.Pa http://support.qlogic.com ,
+or by E-mail at
+.Aq support@qlogic.com .
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,

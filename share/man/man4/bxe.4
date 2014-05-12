@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013 Broadcom Corporation. All rights reserved.
+.\" Copyright (c) 2014 Qlogic Corporation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,9 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. Neither the name of Broadcom Corporation nor the name of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written consent.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
 .\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -32,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm bxe
-.Nd Broadcom NetXtreme II Ethernet 10Gb PCIe adapter driver
+.Nd QLogic NetXtreme II Ethernet 10Gb PCIe adapter driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -50,7 +47,7 @@ if_bxe_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCIe 10Gb Ethernet adapters based on the Broadcom
+driver provides support for PCIe 10Gb Ethernet adapters based on the QLogic
 NetXtreme II family of 10Gb chips.
 The driver supports Jumbo Frames, VLAN
 tagging, checksum offload (IPv4, TCP, UDP, IPv6-TCP, IPv6-UDP), MSI-X
@@ -59,32 +56,32 @@ Receive Side Scaling (RSS).
 .Sh HARDWARE
 The
 .Nm
-driver provides support for various NICs based on the Broadcom NetXtreme II
+driver provides support for various NICs based on the QLogic NetXtreme II
 family of 10Gb Ethernet controller chips, including the following:
 .Pp
 .Bl -bullet -compact
 .It
-Broadcom NetXtreme II BCM57710 10Gb
+QLogic NetXtreme II BCM57710 10Gb
 .It
-Broadcom NetXtreme II BCM57711 10Gb
+QLogic NetXtreme II BCM57711 10Gb
 .It
-Broadcom NetXtreme II BCM57711E 10Gb
+QLogic NetXtreme II BCM57711E 10Gb
 .It
-Broadcom NetXtreme II BCM57712 10Gb
+QLogic NetXtreme II BCM57712 10Gb
 .It
-Broadcom NetXtreme II BCM57712-MF 10Gb
+QLogic NetXtreme II BCM57712-MF 10Gb
 .It
-Broadcom NetXtreme II BCM57800 10Gb
+QLogic NetXtreme II BCM57800 10Gb
 .It
-Broadcom NetXtreme II BCM57800-MF 10Gb
+QLogic NetXtreme II BCM57800-MF 10Gb
 .It
-Broadcom NetXtreme II BCM57810 10Gb
+QLogic NetXtreme II BCM57810 10Gb
 .It
-Broadcom NetXtreme II BCM57810-MF 10Gb
+QLogic NetXtreme II BCM57810-MF 10Gb
 .It
-Broadcom NetXtreme II BCM57840 10Gb / 20Gb
+QLogic NetXtreme II BCM57840 10Gb / 20Gb
 .It
-Broadcom NetXtreme II BCM57840-MF 10Gb
+QLogic NetXtreme II BCM57840-MF 10Gb
 .El
 .Sh CONFIGURATION
 There a number of configuration parameters that can be set to tweak the
@@ -318,6 +315,12 @@ When finished turn the logging back off:
 .Bd -literal -offset indent
 # sysctl dev.bxe.0.debug=0
 .Ed
+.Sh SUPPORT
+For support questions please contact your QLogic approved reseller or
+QLogic Technical Support at
+.Pa http://support.qlogic.com ,
+or by E-mail at
+.Aq support@qlogic.com .
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr altq 4 ,
