@@ -80,7 +80,6 @@ static bool verbose = false;
 static const char * havestr;
 static const char * wantstr;
 
-
 static int	 addsubunit(char *product[], char *toadd);
 static int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
 static void	 cancelunit(struct unittype * theunit);
@@ -719,7 +718,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "fqvUV:")) != -1) {
+	while ((optchar = getopt(argc, argv, "f:qvUV")) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -734,16 +733,15 @@ main(int argc, char **argv)
 		case 'v':
 			verbose = true;
 			break;
+		case 'V':
+			fprintf(stderr, "FreeBSD units\n");
+			/* FALLTHROUGH */
 		case 'U':
 			if (access(UNITSFILE, F_OK) == 0)
 				printf("%s\n", UNITSFILE);
 			else
 				printf("Units data file not found");
 			exit(0);
-			break;
-		case 'V':
-			fprintf(stderr, "FreeBSD units\n");
-			usage();
 			break;
 		default:
 			usage();
