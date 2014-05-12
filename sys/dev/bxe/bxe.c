@@ -98,126 +98,126 @@ static struct bxe_device_type bxe_devs[] = {
         BRCM_VENDORID,
         CHIP_NUM_57710,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57710 10GbE"
+        "QLogic NetXtreme II BCM57710 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57711,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57711 10GbE"
+        "QLogic NetXtreme II BCM57711 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57711E,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57711E 10GbE"
+        "QLogic NetXtreme II BCM57711E 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57712,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 10GbE"
+        "QLogic NetXtreme II BCM57712 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57712_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 MF 10GbE"
+        "QLogic NetXtreme II BCM57712 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57712_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 VF 10GbE"
+        "QLogic NetXtreme II BCM57712 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57800,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 10GbE"
+        "QLogic NetXtreme II BCM57800 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57800_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 MF 10GbE"
+        "QLogic NetXtreme II BCM57800 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57800_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 VF 10GbE"
+        "QLogic NetXtreme II BCM57800 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57810,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 10GbE"
+        "QLogic NetXtreme II BCM57810 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57810_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 MF 10GbE"
+        "QLogic NetXtreme II BCM57810 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57810_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 VF 10GbE"
+        "QLogic NetXtreme II BCM57810 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57811,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 10GbE"
+        "QLogic NetXtreme II BCM57811 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57811_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 MF 10GbE"
+        "QLogic NetXtreme II BCM57811 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57811_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 VF 10GbE"
+        "QLogic NetXtreme II BCM57811 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_4_10,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 4x10GbE"
+        "QLogic NetXtreme II BCM57840 4x10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_2_20,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 2x20GbE"
+        "QLogic NetXtreme II BCM57840 2x20GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 MF 10GbE"
+        "QLogic NetXtreme II BCM57840 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 VF 10GbE"
+        "QLogic NetXtreme II BCM57840 VF 10GbE"
     },
 #endif
     {
