@@ -451,7 +451,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	mtx_lock(rm->rm_mtx);
 
 	for (r = TAILQ_FIRST(&rm->rm_list);
-	     r && r->r_end < start;
+	     r && r->r_end < start + count - 1;
 	     r = TAILQ_NEXT(r, r_link))
 		;
 
@@ -461,6 +461,11 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	}
 
 	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
+	if (start + amask < start) {
+		DPRINTF(("start+amask wrapped around\n"));
+		goto out;
+	}
+
 	/* If bound is 0, bmask will also be 0 */
 	bmask = ~(bound - 1);
 	/*
@@ -468,9 +473,18 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
-		if (s->r_start + count - 1 > end) {
+		/*
+		 * The resource list is sorted, so there is no point in
+		 * searching further once r_start is too large.
+		 */
+		if (s->r_start > end - (count - 1)) {
 			DPRINTF(("s->r_start (%#lx) + count - 1> end (%#lx)\n",
 			    s->r_start, end));
+			break;
+		}
+		if (s->r_start + amask < s->r_start) {
+			DPRINTF(("s->r_start (%#lx) + amask (%#lx) wrapped\n",
+			    s->r_start, amask));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
