@@ -810,5 +810,6 @@ main(int argc, char **argv)
 	}
 
 	history_end(inhistory);
+	el_end(el);
 	return(0);
 }
