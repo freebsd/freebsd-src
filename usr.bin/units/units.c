@@ -111,10 +111,9 @@ dupstr(const char *str)
 {
 	char *ret;
 
-	ret = malloc(strlen(str) + 1);
+	ret = strdup(str);
 	if (!ret)
-		errx(3, "memory allocation error");
-	strcpy(ret, str);
+		err(3, "dupstr");
 	return (ret);
 }
 
