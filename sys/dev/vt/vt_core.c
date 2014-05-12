@@ -1981,8 +1981,11 @@ vt_upgrade(struct vt_device *vd)
 	unsigned int i;
 
 	/* Device didn't pass vd_init() or already upgraded. */
-	if (vd->vd_flags & (VDF_ASYNC|VDF_DEAD))
+	if (vd->vd_flags & (VDF_ASYNC|VDF_DEAD)) {
+		/* Refill settings with new sizes anyway. */
+		vt_resize(vd);
 		return;
+	}
 	vd->vd_flags |= VDF_ASYNC;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
@@ -2019,7 +2022,6 @@ vt_upgrade(struct vt_device *vd)
 
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
-
 }
 
 static void
