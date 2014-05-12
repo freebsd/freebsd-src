@@ -99,12 +99,15 @@ struct am335x_dmtimer_softc {
 	struct resource *	tmr_mem_res[AM335X_NUM_TIMERS];
 	struct resource *	tmr_irq_res[AM335X_NUM_TIMERS];
 	uint32_t		sysclk_freq;
-	struct am335x_dmtimer {
-		bus_space_tag_t		bst;
-		bus_space_handle_t	bsh;
-		struct eventtimer	et;
-	} t[AM335X_NUM_TIMERS];
+	uint32_t		tc_num;		/* Which timer number is tc. */
+	uint32_t		et_num;		/* Which timer number is et. */
+	struct resource *	tc_memres;	/* Resources for tc timer. */
+	struct resource *	et_memres;	/* Resources for et timer. */
+	struct timecounter	tc;
+	struct eventtimer	et;
 };
+
+static struct am335x_dmtimer_softc *am335x_dmtimer_sc;
 
 static struct resource_spec am335x_dmtimer_mem_spec[] = {
 	{ SYS_RES_MEMORY,   0,  RF_ACTIVE },
@@ -129,51 +132,58 @@ static struct resource_spec am335x_dmtimer_irq_spec[] = {
 	{ -1,               0,  0 }
 };
 
-static struct am335x_dmtimer *am335x_dmtimer_tc_tmr = NULL;
+static inline uint32_t
+am335x_dmtimer_tc_read_4(struct am335x_dmtimer_softc *sc, uint32_t reg)
+{
 
-/* Read/Write macros for Timer used as timecounter */
-#define am335x_dmtimer_tc_read_4(reg)		\
-	bus_space_read_4(am335x_dmtimer_tc_tmr->bst, \
-		am335x_dmtimer_tc_tmr->bsh, reg)
+	return (bus_read_4(sc->tc_memres, reg));
+}
 
-#define am335x_dmtimer_tc_write_4(reg, val)	\
-	bus_space_write_4(am335x_dmtimer_tc_tmr->bst, \
-		am335x_dmtimer_tc_tmr->bsh, reg, val)
+static inline void
+am335x_dmtimer_tc_write_4(struct am335x_dmtimer_softc *sc, uint32_t reg,
+    uint32_t val)
+{
 
-/* Read/Write macros for Timer used as eventtimer */
-#define am335x_dmtimer_et_read_4(reg)		\
-	bus_space_read_4(tmr->bst, tmr->bsh, reg)
+	bus_write_4(sc->tc_memres, reg, val);
+}
 
-#define am335x_dmtimer_et_write_4(reg, val)	\
-	bus_space_write_4(tmr->bst, tmr->bsh, reg, val)
+static inline uint32_t
+am335x_dmtimer_et_read_4(struct am335x_dmtimer_softc *sc, uint32_t reg)
+{
 
-static unsigned am335x_dmtimer_tc_get_timecount(struct timecounter *);
+	return (bus_read_4(sc->et_memres, reg));
+}
 
-static struct timecounter am335x_dmtimer_tc = {
-	.tc_name           = "AM335x Timecounter",
-	.tc_get_timecount  = am335x_dmtimer_tc_get_timecount,
-	.tc_poll_pps       = NULL,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 1000,
-};
+static inline void
+am335x_dmtimer_et_write_4(struct am335x_dmtimer_softc *sc, uint32_t reg,
+    uint32_t val)
+{
+
+	bus_write_4(sc->et_memres, reg, val);
+}
 
 static unsigned
 am335x_dmtimer_tc_get_timecount(struct timecounter *tc)
 {
-	return am335x_dmtimer_tc_read_4(DMT_TCRR);
+	struct am335x_dmtimer_softc *sc;
+
+	sc = tc->tc_priv;
+
+	return (am335x_dmtimer_tc_read_4(sc, DMT_TCRR));
 }
 
 static int
 am335x_dmtimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
-	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)et->et_priv;
-	uint32_t load, count;
-	uint32_t tclr = 0;
+	struct am335x_dmtimer_softc *sc;
+	uint32_t count, load, tclr;
 
+	sc = et->et_priv;
+
+	tclr = 0;
 	if (period != 0) {
 		load = ((uint32_t)et->et_frequency * period) >> 32;
-		tclr |= 2; /* autoreload bit */
+		tclr |= DMT_TCLR_AUTOLOAD;
 		panic("periodic timer not implemented\n");
 	} else {
 		load = 0;
@@ -185,23 +195,24 @@ am335x_dmtimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		count = load;
 
 	/* Reset Timer */
-	am335x_dmtimer_et_write_4(DMT_TSICR, 2);
+	am335x_dmtimer_et_write_4(sc, DMT_TSICR, DMT_TSICR_RESET);
 
 	/* Wait for reset to complete */
-	while (am335x_dmtimer_et_read_4(DMT_TIOCP_CFG) & 1);
+	while (am335x_dmtimer_et_read_4(sc, DMT_TIOCP_CFG) & DMT_TIOCP_RESET)
+		continue;
 
 	/* set load value */
-	am335x_dmtimer_et_write_4(DMT_TLDR, 0xFFFFFFFE - load);
+	am335x_dmtimer_et_write_4(sc, DMT_TLDR, 0xFFFFFFFE - load);
 
 	/* set counter value */
-	am335x_dmtimer_et_write_4(DMT_TCRR, 0xFFFFFFFE - count);
+	am335x_dmtimer_et_write_4(sc, DMT_TCRR, 0xFFFFFFFE - count);
 
 	/* enable overflow interrupt */
-	am335x_dmtimer_et_write_4(DMT_IRQENABLE_SET, 2);
+	am335x_dmtimer_et_write_4(sc, DMT_IRQENABLE_SET, DMT_IRQ_OVF);
 
 	/* start timer(ST) */
-	tclr |= 1;
-	am335x_dmtimer_et_write_4(DMT_TCLR, tclr);
+	tclr |= DMT_TCLR_START;
+	am335x_dmtimer_et_write_4(sc, DMT_TCLR, tclr);
 
 	return (0);
 }
@@ -209,13 +220,15 @@ am335x_dmtimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 static int
 am335x_dmtimer_stop(struct eventtimer *et)
 {
-	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)et->et_priv;
+	struct am335x_dmtimer_softc *sc;
+
+	sc = et->et_priv;
 
 	/* Disable all interrupts */
-	am335x_dmtimer_et_write_4(DMT_IRQENABLE_CLR, 7);
+	am335x_dmtimer_et_write_4(sc, DMT_IRQENABLE_CLR, DMT_IRQ_MASK);
 
 	/* Stop Timer */
-	am335x_dmtimer_et_write_4(DMT_TCLR, 0);
+	am335x_dmtimer_et_write_4(sc, DMT_TCLR, 0);
 
 	return (0);
 }
@@ -223,12 +236,13 @@ am335x_dmtimer_stop(struct eventtimer *et)
 static int
 am335x_dmtimer_intr(void *arg)
 {
-	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)arg;
+	struct am335x_dmtimer_softc *sc;
 
+	sc = arg;
 	/* Ack interrupt */
-	am335x_dmtimer_et_write_4(DMT_IRQSTATUS, 7);
-	if (tmr->et.et_active)
-		tmr->et.et_event_cb(&tmr->et, tmr->et.et_arg);
+	am335x_dmtimer_et_write_4(sc, DMT_IRQSTATUS, DMT_IRQ_OVF);
+	if (sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 	return (FILTER_HANDLED);
 }
@@ -236,8 +250,6 @@ am335x_dmtimer_intr(void *arg)
 static int
 am335x_dmtimer_probe(device_t dev)
 {
-	struct	am335x_dmtimer_softc *sc;
-	sc = (struct am335x_dmtimer_softc *)device_get_softc(dev);
 
 	if (ofw_bus_is_compatible(dev, "ti,am335x-dmtimer")) {
 		device_set_desc(dev, "AM335x DMTimer");
@@ -250,22 +262,29 @@ am335x_dmtimer_probe(device_t dev)
 static int
 am335x_dmtimer_attach(device_t dev)
 {
-	struct am335x_dmtimer_softc *sc = device_get_softc(dev);
+	struct am335x_dmtimer_softc *sc;
 	void *ihl;
 	int err;
-	int i;
 
-	if (am335x_dmtimer_tc_tmr != NULL)
+	/*
+	 * Note that if this routine returns an error status rather than running
+	 * to completion it makes no attempt to clean up allocated resources;
+	 * the system is essentially dead anyway without functional timers.
+	 */
+
+	sc = device_get_softc(dev);
+
+	if (am335x_dmtimer_sc != NULL)
 		return (EINVAL);
 
-	/* Get the base clock frequency */
+	/* Get the base clock frequency. */
 	err = ti_prcm_clk_get_source_freq(SYS_CLK, &sc->sysclk_freq);
 	if (err) {
 		device_printf(dev, "Error: could not get sysclk frequency\n");
 		return (ENXIO);
 	}
 
-	/* Request the memory resources */
+	/* Request the memory resources. */
 	err = bus_alloc_resources(dev, am335x_dmtimer_mem_spec,
 		sc->tmr_mem_res);
 	if (err) {
@@ -273,7 +292,7 @@ am335x_dmtimer_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Request the IRQ resources */
+	/* Request the IRQ resources. */
 	err = bus_alloc_resources(dev, am335x_dmtimer_irq_spec,
 		sc->tmr_irq_res);
 	if (err) {
@@ -281,65 +300,64 @@ am335x_dmtimer_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	for(i=0;i<AM335X_NUM_TIMERS;i++) {
-		sc->t[i].bst = rman_get_bustag(sc->tmr_mem_res[i]);
-		sc->t[i].bsh = rman_get_bushandle(sc->tmr_mem_res[i]);
-	}
+	/* Configure DMTimer3 as eventtimer and DMTimer4 as timecounter.  */
+	sc->et_num = 3;
+	sc->tc_num = 2;
+	sc->et_memres = sc->tmr_mem_res[sc->et_num];
+	sc->tc_memres = sc->tmr_mem_res[sc->tc_num];
 
-	/* Configure DMTimer2 and DMTimer3 source and enable them */
-	err  = ti_prcm_clk_set_source(DMTIMER2_CLK, SYSCLK_CLK);
-	err |= ti_prcm_clk_enable(DMTIMER2_CLK);
-	err |= ti_prcm_clk_set_source(DMTIMER3_CLK, SYSCLK_CLK);
-	err |= ti_prcm_clk_enable(DMTIMER3_CLK);
+	err  = ti_prcm_clk_set_source(DMTIMER0_CLK + sc->et_num, SYSCLK_CLK);
+	err |= ti_prcm_clk_enable(DMTIMER0_CLK + sc->et_num);
+	err |= ti_prcm_clk_set_source(DMTIMER0_CLK + sc->tc_num, SYSCLK_CLK);
+	err |= ti_prcm_clk_enable(DMTIMER0_CLK + sc->tc_num);
 	if (err) {
 		device_printf(dev, "Error: could not setup timer clock\n");
 		return (ENXIO);
 	}
 
-	/* Take DMTimer2 for TC */
-	am335x_dmtimer_tc_tmr = &sc->t[2];
+	/* Set up timecounter; register tc. */
+	am335x_dmtimer_tc_write_4(sc, DMT_TSICR, DMT_TSICR_RESET);
+	while (am335x_dmtimer_tc_read_4(sc, DMT_TIOCP_CFG) & DMT_TIOCP_RESET)
+		continue;
 
-	/* Reset Timer */
-	am335x_dmtimer_tc_write_4(DMT_TSICR, 2);
+	am335x_dmtimer_tc_write_4(sc, DMT_TLDR, 0);
+	am335x_dmtimer_tc_write_4(sc, DMT_TCRR, 0);
+	am335x_dmtimer_tc_write_4(sc, DMT_TCLR, 
+	    DMT_TCLR_START | DMT_TCLR_AUTOLOAD);
 
-	/* Wait for reset to complete */
-	while (am335x_dmtimer_tc_read_4(DMT_TIOCP_CFG) & 1);
+	sc->tc.tc_name           = "AM335x Timecounter";
+	sc->tc.tc_get_timecount  = am335x_dmtimer_tc_get_timecount;
+	sc->tc.tc_poll_pps       = NULL;
+	sc->tc.tc_counter_mask   = ~0u;
+	sc->tc.tc_frequency      = sc->sysclk_freq;
+	sc->tc.tc_quality        = 1000;
+	sc->tc.tc_priv           = sc;
+	tc_init(&sc->tc);
 
-	/* set load value */
-	am335x_dmtimer_tc_write_4(DMT_TLDR, 0);
-
-	/* set counter value */
-	am335x_dmtimer_tc_write_4(DMT_TCRR, 0);
-
-	/* Set Timer autoreload(AR) and start timer(ST) */
-	am335x_dmtimer_tc_write_4(DMT_TCLR, 3);
-
-	am335x_dmtimer_tc.tc_frequency = sc->sysclk_freq;
-	tc_init(&am335x_dmtimer_tc);
-
-	/* Register DMTimer3 as ET */
-
-	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->tmr_irq_res[3], INTR_TYPE_CLK,
-			am335x_dmtimer_intr, NULL, &sc->t[3], &ihl) != 0) {
+        /* Setup eventtimer; register et. */
+	if (bus_setup_intr(dev, sc->tmr_irq_res[sc->et_num], INTR_TYPE_CLK,
+			am335x_dmtimer_intr, NULL, sc, &ihl) != 0) {
 		bus_release_resources(dev, am335x_dmtimer_irq_spec,
 			sc->tmr_irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
 		return (ENXIO);
 	}
 
-	sc->t[3].et.et_name = "AM335x Eventtimer0";
-	sc->t[3].et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
-	sc->t[3].et.et_quality = 1000;
-	sc->t[3].et.et_frequency = sc->sysclk_freq;
-	sc->t[3].et.et_min_period =
-	    (0x00000002LLU << 32) / sc->t[3].et.et_frequency;
-	sc->t[3].et.et_max_period =
-	    (0xfffffffeLLU << 32) / sc->t[3].et.et_frequency;
-	sc->t[3].et.et_start = am335x_dmtimer_start;
-	sc->t[3].et.et_stop = am335x_dmtimer_stop;
-	sc->t[3].et.et_priv = &sc->t[3];
-	et_register(&sc->t[3].et);
+	sc->et.et_name = "AM335x Eventtimer";
+	sc->et.et_flags = ET_FLAGS_ONESHOT;
+	sc->et.et_quality = 1000;
+	sc->et.et_frequency = sc->sysclk_freq;
+	sc->et.et_min_period =
+	    ((0x00000005LLU << 32) / sc->et.et_frequency);
+	sc->et.et_max_period =
+	    (0xfffffffeLLU << 32) / sc->et.et_frequency;
+	sc->et.et_start = am335x_dmtimer_start;
+	sc->et.et_stop = am335x_dmtimer_stop;
+	sc->et.et_priv = sc;
+	et_register(&sc->et);
+
+	/* Store a pointer to the softc for use in DELAY(). */
+	am335x_dmtimer_sc = sc;
 
 	return (0);
 }
@@ -370,10 +388,13 @@ cpu_initclocks(void)
 void
 DELAY(int usec)
 {
-		int32_t counts;
+	struct am335x_dmtimer_softc *sc;
+	int32_t counts;
 	uint32_t first, last;
 
-	if (am335x_dmtimer_tc_tmr == NULL) {
+	sc = am335x_dmtimer_sc;
+
+	if (sc == NULL) {
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/* Prevent gcc from optimizing  out the loop */
@@ -382,13 +403,13 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-	counts = usec * (am335x_dmtimer_tc.tc_frequency / 1000000) + 1;
+	counts = (usec + 1) * (sc->sysclk_freq / 1000000);
 
-	first = am335x_dmtimer_tc_read_4(DMT_TCRR);
+	first = am335x_dmtimer_tc_read_4(sc, DMT_TCRR);
 
 	while (counts > 0) {
-		last = am335x_dmtimer_tc_read_4(DMT_TCRR);
-		if (last>first) {
+		last = am335x_dmtimer_tc_read_4(sc, DMT_TCRR);
+		if (last > first) {
 			counts -= (int32_t)(last - first);
 		} else {
 			counts -= (int32_t)((0xFFFFFFFF - first) + last);
