@@ -2,6 +2,8 @@
 
 .include <bsd.own.mk>
 
+SUBDIR_PARALLEL=
+
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
