@@ -26,8 +26,8 @@ __DEFAULT_NO_OPTIONS = \
 # bsd.mkopt.mk from there. If it is defined, trust it to point someplace sane
 # and include bsd.mkopt.mk from there. We need the !defined case to keep ports
 # kernel modules working (though arguably they should define MAKESYSPATH). We
-# need the latter case to keep the JIRA case working where they specifically
-# use a non-standard layout, but do define MAKESYSPATH correctly.
+# need the latter case to keep the Jenkins testing harness working where they
+# specifically use a non-standard layout, but do define MAKESYSPATH correctly.
 .if !defined(MAKESYSPATH)
 .include "../../share/mk/bsd.mkopt.mk"
 .else
