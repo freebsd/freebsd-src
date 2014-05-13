@@ -1167,6 +1167,7 @@ in_ifdetach(struct ifnet *ifp)
 
 	in_pcbpurgeif0(&V_ripcbinfo, ifp);
 	in_pcbpurgeif0(&V_udbinfo, ifp);
+	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in_purgemaddrs(ifp);
 }
 
