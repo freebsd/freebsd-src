@@ -329,7 +329,7 @@ fdt_nextprop(int offset, char *buf, size_t size)
 			depth = -1;
 	} while (depth >= 0);
 
-	return (-1);
+	return (0);
 }
 
 /*

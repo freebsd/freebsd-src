@@ -128,7 +128,6 @@ powerpc/mambo/mambocall.S	optional	mambo
 powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
 powerpc/mambo/mambo_disk.c	optional	mambo
-powerpc/mambo/mambo_openpic.c	optional	mambo
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
@@ -147,6 +146,7 @@ powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/ofw/ofwcall32.S		optional	aim powerpc
 powerpc/ofw/ofwcall64.S		optional	aim powerpc64
 powerpc/ofw/ofwmagic.S		optional	aim
+powerpc/ofw/openpic_ofw.c	optional	aim | fdt
 powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
@@ -162,7 +162,6 @@ powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/nvbl.c		optional	powermac nvbl
-powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/powermac_thermal.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
@@ -200,7 +199,6 @@ powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/openpic.c	standard
-powerpc/powerpc/openpic_fdt.c	optional	fdt
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
 powerpc/powerpc/platform.c	standard
