@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20140513:	p10	FreeBSD-EN-14:03.pkg
+			FreeBSD-EN-14:04.kldxref
+
+	Add pkg bootstrapping, configuration and public keys. [EN-14:03]
+
+	Improve build repeatability for kldxref(8). [EN-14:04]
+
 20140430:	p9	FreeBSD-SA-14:08.tcp
 
         Fix TCP reassembly vulnerability. [SA-14:08]
