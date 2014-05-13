@@ -10,6 +10,7 @@ SUBDIR=	${_colldef} \
 	${_doc} \
 	${_examples} \
 	${_i18n} \
+	keys \
 	${_man} \
 	${_me} \
 	misc \
