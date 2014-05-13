@@ -1191,7 +1191,6 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
     uint16_t type)
 {
 	struct sctp_asconf_addr *aa, *aa_next;
-	struct sockaddr *sa;
 
 	/* make sure the request isn't already in the queue */
 	TAILQ_FOREACH_SAFE(aa, &stcb->asoc.asconf_queue, next, aa_next) {
@@ -1255,7 +1254,6 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 			struct sockaddr_in6 *sin6;
 
 			sin6 = (struct sockaddr_in6 *)&ifa->address.sa;
-			sa = (struct sockaddr *)sin6;
 			aa->ap.addrp.ph.param_type = SCTP_IPV6_ADDRESS;
 			aa->ap.addrp.ph.param_length = (sizeof(struct sctp_ipv6addr_param));
 			aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_paramhdr) +
@@ -1271,7 +1269,6 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 			struct sockaddr_in *sin;
 
 			sin = (struct sockaddr_in *)&ifa->address.sa;
-			sa = (struct sockaddr *)sin;
 			aa->ap.addrp.ph.param_type = SCTP_IPV4_ADDRESS;
 			aa->ap.addrp.ph.param_length = (sizeof(struct sctp_ipv4addr_param));
 			aa->ap.aph.ph.param_length = sizeof(struct sctp_asconf_paramhdr) +
@@ -1294,13 +1291,13 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 	if (SCTP_BASE_SYSCTL(sctp_debug_on) & SCTP_DEBUG_ASCONF2) {
 		if (type == SCTP_ADD_IP_ADDRESS) {
 			SCTP_PRINTF("asconf_queue_mgmt: inserted asconf ADD_IP_ADDRESS: ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, sa);
+			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, &ifa->address.sa);
 		} else if (type == SCTP_DEL_IP_ADDRESS) {
 			SCTP_PRINTF("asconf_queue_mgmt: appended asconf DEL_IP_ADDRESS: ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, sa);
+			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, &ifa->address.sa);
 		} else {
 			SCTP_PRINTF("asconf_queue_mgmt: appended asconf SET_PRIM_ADDR: ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, sa);
+			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, &ifa->address.sa);
 		}
 	}
 #endif
