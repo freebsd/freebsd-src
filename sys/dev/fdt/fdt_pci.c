@@ -320,7 +320,7 @@ fdt_pci_route_intr(int bus, int slot, int func, int pin,
 		    trig, pol);
 
 #if defined(__powerpc__)
-		powerpc_config_intr(FDT_MAP_IRQ(intr_par, *interrupt), trig,
+		powerpc_config_intr(FDT_MAP_IRQ(iph, *interrupt), trig,
 		    pol);
 #endif
 		return (0);
