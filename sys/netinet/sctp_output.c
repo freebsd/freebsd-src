@@ -7621,7 +7621,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 #endif
 )
 {
-	/*
+	/**
 	 * Ok this is the generic chunk service queue. we must do the
 	 * following: - Service the stream queue that is next, moving any
 	 * message (note I must get a complete message i.e. FIRST/MIDDLE and

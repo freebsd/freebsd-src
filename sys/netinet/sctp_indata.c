@@ -1417,7 +1417,6 @@ sctp_does_tsn_belong_to_reasm(struct sctp_association *asoc,
 	return (0);
 }
 
-
 static int
 sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct mbuf **m, int offset, struct sctp_data_chunk *ch, int chk_length,
