@@ -156,7 +156,8 @@ vdevice_attach(device_t dev)
 			for (i = 0; i < nintr; i += icells) {
 				u_int irq = intr[i];
 				if (iparent != -1)
-					irq = MAP_IRQ(iparent, intr[i]);
+					irq = ofw_bus_map_intr(dev, iparent,
+					    intr[i]);
 
 				resource_list_add(&dinfo->mdi_resources,
 				    SYS_RES_IRQ, i, irq, irq, i);

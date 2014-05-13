@@ -48,6 +48,7 @@ dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
+dev/ofw/ofw_nexus.c		optional	aim | fdt
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
