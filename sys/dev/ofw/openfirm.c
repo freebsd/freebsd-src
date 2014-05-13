@@ -135,7 +135,8 @@ OF_init(void *cookie)
 	rv = OFW_INIT(ofw_obj, cookie);
 
 	if ((chosen = OF_finddevice("/chosen")) != -1)
-		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+		if (OF_getencprop(chosen, "stdout", &stdout,
+		    sizeof(stdout)) == -1)
 			stdout = -1;
 
 	return (rv);
@@ -354,11 +355,9 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	pcell_t *cell;
 	int i;
 
-	KASSERT(elsz % 4 == 0, ("Need a multiple of 4 bytes"));
-
 	retval = OF_getprop_alloc(package, name, elsz, buf);
-	if (retval == -1)
-		return (retval);
+	if (retval == -1 || retval*elsz % 4 != 0)
+		return (-1);
 
 	cell = *buf;
 	for (i = 0; i < retval*elsz/4; i++)
@@ -450,9 +449,9 @@ OF_child_xref_phandle(phandle_t parent, phandle_t xref)
 		if (rxref != -1)
 			return (rxref);
 
-		if (OF_getprop(child, "phandle", &rxref, sizeof(rxref)) == -1 &&
-		    OF_getprop(child, "ibm,phandle", &rxref,
-		    sizeof(rxref)) == -1 && OF_getprop(child,
+		if (OF_getencprop(child, "phandle", &rxref, sizeof(rxref)) ==
+		    -1 && OF_getencprop(child, "ibm,phandle", &rxref,
+		    sizeof(rxref)) == -1 && OF_getencprop(child,
 		    "linux,phandle", &rxref, sizeof(rxref)) == -1)
 			continue;
 
