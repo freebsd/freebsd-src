@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
@@ -88,19 +89,8 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
 
-enum nexus_ivars {
-	NEXUS_IVAR_NODE,
-	NEXUS_IVAR_NAME,
-	NEXUS_IVAR_DEVICE_TYPE,
-	NEXUS_IVAR_COMPATIBLE,
-};
-
 struct nexus_devinfo {
-	phandle_t	ndi_node;
-	/* Some common properties. */
-	const char     	*ndi_name;
-	const char     	*ndi_device_type;
-	const char     	*ndi_compatible;
+	struct ofw_bus_devinfo ndi_ofwinfo;
 };
 
 struct nexus_softc {
@@ -118,8 +108,6 @@ static int	nexus_attach(device_t);
  */
 static device_t nexus_add_child(device_t, u_int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
-static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
-static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
 #ifdef SMP
 static int	nexus_bind_intr(device_t dev, device_t child,
 		    struct resource *irq, int cpu);
@@ -138,14 +126,8 @@ static int	nexus_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static int	nexus_release_resource(device_t, device_t, int, int,
 		    struct resource *);
-
-/*
- * OFW bus interface.
- */
-static phandle_t	 nexus_ofw_get_node(device_t, device_t);
-static const char	*nexus_ofw_get_name(device_t, device_t);
-static const char	*nexus_ofw_get_type(device_t, device_t);
-static const char	*nexus_ofw_get_compat(device_t, device_t);
+static const struct ofw_bus_devinfo *nexus_get_devinfo(device_t dev,
+		    device_t child);
 
 /*
  * Local routines
@@ -165,8 +147,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 #ifdef SMP
@@ -179,10 +159,12 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 
 	/* OFW bus interface */
-	DEVMETHOD(ofw_bus_get_node, nexus_ofw_get_node),
-	DEVMETHOD(ofw_bus_get_name, nexus_ofw_get_name),
-	DEVMETHOD(ofw_bus_get_type, nexus_ofw_get_type),
-	DEVMETHOD(ofw_bus_get_compat, nexus_ofw_get_compat),
+	DEVMETHOD(ofw_bus_get_devinfo,	nexus_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
@@ -246,14 +228,13 @@ nexus_attach(device_t dev)
 static void
 nexus_probe_nomatch(device_t dev, device_t child)
 {
-	char	*name, *type;
+	const char *name, *type;
 
-	if (BUS_READ_IVAR(dev, child, NEXUS_IVAR_NAME,
-	    (uintptr_t *)&name) != 0 ||
-	    BUS_READ_IVAR(dev, child, NEXUS_IVAR_DEVICE_TYPE,
-	    (uintptr_t *)&type) != 0)
-		return;
+	name = ofw_bus_get_name(child);
+	type = ofw_bus_get_type(child);
 
+	if (name == NULL)
+		name = "unknown";
 	if (type == NULL)
 		type = "(unknown)";
 
@@ -276,65 +257,15 @@ nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 	if (dinfo == NULL)
 		return (NULL);
 
-	dinfo->ndi_node = -1;
-	dinfo->ndi_name = name;
+	dinfo->ndi_ofwinfo.obd_node = -1;
+	dinfo->ndi_ofwinfo.obd_name = NULL;
+	dinfo->ndi_ofwinfo.obd_compat = NULL;
+	dinfo->ndi_ofwinfo.obd_type = NULL;
+	dinfo->ndi_ofwinfo.obd_model = NULL;
+
 	device_set_ivars(child, dinfo);
 
         return (child);
-}
-
-
-static int
-nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(child)) == 0)
-		return (ENOENT);
-	switch (which) {
-	case NEXUS_IVAR_NODE:
-		*result = dinfo->ndi_node;
-		break;
-	case NEXUS_IVAR_NAME:
-		*result = (uintptr_t)dinfo->ndi_name;
-		break;
-	case NEXUS_IVAR_DEVICE_TYPE:
-		*result = (uintptr_t)dinfo->ndi_device_type;
-		break;
-	case NEXUS_IVAR_COMPATIBLE:
-		*result = (uintptr_t)dinfo->ndi_compatible;
-		break;
-	default:
-		return (ENOENT);
-	}
-	return 0;
-}
-
-static int
-nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(child)) == 0)
-		return (ENOENT);
-
-	switch (which) {
-	case NEXUS_IVAR_NAME:
-		return (EINVAL);
-
-	/* Identified devices may want to set these */
-	case NEXUS_IVAR_NODE:
-		dinfo->ndi_node = (phandle_t)value;
-		break;
-
-	case NEXUS_IVAR_DEVICE_TYPE:
-		dinfo->ndi_device_type = (char *)value;
-		break;
-
-	default:
-		return (ENOENT);
-	}
-	return 0;
 }
 
 static int
@@ -462,66 +393,23 @@ nexus_device_from_node(device_t parent, phandle_t node)
 {
 	device_t	cdev;
 	struct		nexus_devinfo *dinfo;
-	char		*name, *type, *compatible;
 
-	OF_getprop_alloc(node, "name", 1, (void **)&name);
-	OF_getprop_alloc(node, "device_type", 1, (void **)&type);
-	OF_getprop_alloc(node, "compatible", 1, (void **)&compatible);
 	cdev = device_add_child(parent, NULL, -1);
 	if (cdev != NULL) {
 		dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
-		dinfo->ndi_node = node;
-		dinfo->ndi_name = name;
-		dinfo->ndi_device_type = type;
-		dinfo->ndi_compatible = compatible;
+		ofw_bus_gen_setup_devinfo(&dinfo->ndi_ofwinfo, node);
 		device_set_ivars(cdev, dinfo);
-	} else
-		free(name, M_OFWPROP);
+	}
 
 	return (cdev);
 }
 
-static const char *
-nexus_ofw_get_name(device_t bus, device_t dev)
+static const struct ofw_bus_devinfo *
+nexus_get_devinfo(device_t dev, device_t child)
 {
 	struct nexus_devinfo *dinfo;
 
-	if ((dinfo = device_get_ivars(dev)) == NULL)
-		return (NULL);
-	
-	return (dinfo->ndi_name);
-}
-
-static phandle_t
-nexus_ofw_get_node(device_t bus, device_t dev)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(dev)) == NULL)
-		return (0);
-	
-	return (dinfo->ndi_node);
-}
-
-static const char *
-nexus_ofw_get_type(device_t bus, device_t dev)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(dev)) == NULL)
-		return (NULL);
-	
-	return (dinfo->ndi_device_type);
-}
-
-static const char *
-nexus_ofw_get_compat(device_t bus, device_t dev)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(dev)) == NULL)
-		return (NULL);
-	
-	return (dinfo->ndi_compatible);
+	dinfo = device_get_ivars(child);
+	return (&dinfo->ndi_ofwinfo);
 }
 
