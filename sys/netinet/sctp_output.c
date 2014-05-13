@@ -4543,11 +4543,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct mbuf *m;
 	struct sctp_nets *net;
 	struct sctp_init_chunk *init;
-
-#if defined(INET) || defined(INET6)
 	struct sctp_supported_addr_param *sup_addr;
-
-#endif
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	struct sctp_paramhdr *ph;
