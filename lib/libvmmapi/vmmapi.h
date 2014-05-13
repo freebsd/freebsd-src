@@ -42,6 +42,8 @@ enum vm_mmap_style {
 	VM_MMAP_SPARSE,		/* mappings created on-demand */
 };
 
+#define	VM_MEM_F_INCORE	0x01	/* include guest memory in core file */
+
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
@@ -53,6 +55,7 @@ void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
+void	vm_set_memflags(struct vmctx *ctx, int flags);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
