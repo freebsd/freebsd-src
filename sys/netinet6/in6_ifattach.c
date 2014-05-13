@@ -856,6 +856,7 @@ in6_ifdetach(struct ifnet *ifp)
 	}
 
 	in6_pcbpurgeif0(&V_udbinfo, ifp);
+	in6_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in6_pcbpurgeif0(&V_ripcbinfo, ifp);
 	/* leave from all multicast groups joined */
 	in6_purgemaddrs(ifp);
