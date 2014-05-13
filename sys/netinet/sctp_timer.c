@@ -446,7 +446,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 				}
 			}
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
-			if (chk->pr_sctp_on) {
+			if (PR_SCTP_ENABLED(chk->flags)) {
 				if (asoc->pr_sctp_cnt != 0)
 					asoc->pr_sctp_cnt--;
 			}
