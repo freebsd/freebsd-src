@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140513:	p6	FreeBSD-EN-14:03.pkg
+			FreeBSD-EN-14:04.kldxref
+			FreeBSD-EN-14:05.ciss
+
+	Add pkg bootstrapping, configuration and public keys. [EN-14:03]
+
+	Improve build repeatability for kldxref(8). [EN-14:04]
+
+	Fix data corruption with ciss(4). [EN-14:05]
+
 20140430:	p5	FreeBSD-SA-14:08.tcp
 
         Fix TCP reassembly vulnerability. [SA-14:08]
