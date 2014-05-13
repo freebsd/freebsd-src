@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 static int	openpic_ofw_probe(device_t);
 static int	openpic_ofw_attach(device_t);
 
+static void	openpic_ofw_translate_code(device_t, u_int irq, int code,
+		    enum intr_trigger *trig, enum intr_polarity *pol);
+
 static device_method_t  openpic_ofw_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_ofw_probe),
@@ -75,6 +78,8 @@ static device_method_t  openpic_ofw_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
+
+	DEVMETHOD(pic_translate_code,	openpic_ofw_translate_code),
 
 	DEVMETHOD_END
 };
@@ -125,5 +130,36 @@ openpic_ofw_attach(device_t dev)
 		xref = node;
 
 	return (openpic_common_attach(dev, xref));
+}
+
+static void
+openpic_ofw_translate_code(device_t dev, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol)
+{
+	switch (code) {
+	case 0:
+		/* L to H edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	case 1:
+		/* Active L level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	case 2:
+		/* Active H level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	case 3:
+		/* H to L edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	default:
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	}
 }
 

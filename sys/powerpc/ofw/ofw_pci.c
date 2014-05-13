@@ -272,7 +272,7 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
 	    &iparent, maskbuf))
-		return (MAP_IRQ(iparent, mintr));
+		return (ofw_bus_map_intr(dev, iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)
