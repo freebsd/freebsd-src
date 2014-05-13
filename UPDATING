@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140513:	p3	FreeBSD-SA-14:10.openssl
+			FreeBSD-EN-14:05.ciss
+
+	Fix OpenSSL NULL pointer deference vulnerability. [SA-14:10]
+
+	Fix data corruption with ciss(4). [EN-14:05]
+
 20140430:	p2	FreeBSD-SA-14:07.devfs
 			FreeBSD-SA-14:08.tcp
 			FreeBSD-SA-14:09.openssl
