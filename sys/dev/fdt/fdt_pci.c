@@ -258,7 +258,7 @@ fdt_pci_route_intr(int bus, int slot, int func, int pin,
     struct fdt_pci_intr *intr_info, int *interrupt)
 {
 	pcell_t child_spec[4], masked[4];
-	ihandle_t iph;
+	phandle_t iph;
 	pcell_t intr_par;
 	pcell_t *map_ptr;
 	uint32_t addr;
@@ -283,7 +283,7 @@ fdt_pci_route_intr(int bus, int slot, int func, int pin,
 	i = 0;
 	while (i < map_len) {
 		iph = fdt32_to_cpu(map_ptr[par_idx]);
-		intr_par = OF_instance_to_package(iph);
+		intr_par = OF_xref_phandle(iph);
 
 		err = fdt_addr_cells(intr_par, &par_addr_cells);
 		if (err != 0) {

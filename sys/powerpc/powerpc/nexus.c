@@ -248,9 +248,9 @@ nexus_attach(device_t dev)
 	 * Some important numbers
 	 */
 	sc->acells = 2;
-	OF_getprop(node, "#address-cells", &sc->acells, sizeof(sc->acells));
+	OF_getencprop(node, "#address-cells", &sc->acells, sizeof(sc->acells));
 	sc->scells = 1;
-	OF_getprop(node, "#size-cells", &sc->scells, sizeof(sc->scells));
+	OF_getencprop(node, "#size-cells", &sc->scells, sizeof(sc->scells));
 
 	/*
 	 * Now walk the OFW tree and attach top-level devices.
@@ -564,7 +564,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	}
 
 	resource_list_init(&ndi->ndi_rl);
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1)
 		nreg = 0;
 	if (nreg % (sc->acells + sc->scells) != 0) {
@@ -591,7 +591,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	}
 	free(reg, M_OFWPROP);
 
-	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
+	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
 		iparent = 0;
