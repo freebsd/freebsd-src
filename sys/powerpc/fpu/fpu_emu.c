@@ -326,8 +326,10 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				/* Store as integer */
 				ra = instr.i_x.i_ra;
 				rb = instr.i_x.i_rb;
-				DPRINTF(FPE_INSN, ("reg %d has %x reg %d has %x\n",
-					ra, tf->fixreg[ra], rb, tf->fixreg[rb]));
+				DPRINTF(FPE_INSN,
+					("reg %d has %jx reg %d has %jx\n",
+					ra, (uintmax_t)tf->fixreg[ra], rb,
+					(uintmax_t)tf->fixreg[rb]));
 
 				addr = tf->fixreg[rb];
 				if (ra != 0)
@@ -356,8 +358,9 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			/* calculate EA of load/store */
 			ra = instr.i_x.i_ra;
 			rb = instr.i_x.i_rb;
-			DPRINTF(FPE_INSN, ("reg %d has %x reg %d has %x\n",
-				ra, tf->fixreg[ra], rb, tf->fixreg[rb]));
+			DPRINTF(FPE_INSN, ("reg %d has %jx reg %d has %jx\n",
+				ra, (uintmax_t)tf->fixreg[ra], rb,
+				(uintmax_t)tf->fixreg[rb]));
 			addr = tf->fixreg[rb];
 			if (ra != 0)
 				addr += tf->fixreg[ra];
@@ -373,8 +376,9 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			/* calculate EA of load/store */
 			ra = instr.i_d.i_ra;
 			addr = instr.i_d.i_d;
-			DPRINTF(FPE_INSN, ("reg %d has %x displ %x\n",
-				ra, tf->fixreg[ra], addr));
+			DPRINTF(FPE_INSN, ("reg %d has %jx displ %jx\n",
+				ra, (uintmax_t)tf->fixreg[ra],
+				(uintmax_t)addr));
 			if (ra != 0)
 				addr += tf->fixreg[ra];
 			rt = instr.i_d.i_rt;
@@ -420,7 +424,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 		return (0);
 #ifdef notyet
 	} else if (instr.i_any.i_opcd == OPC_load_st_62) {
-		/* These are 64-bit extenstions */
+		/* These are 64-bit extensions */
 		return (NOTFPU);
 #endif
 	} else if (instr.i_any.i_opcd == OPC_sp_fp_59 ||
@@ -784,7 +788,8 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 		/* Move fpu condition codes to cr[1] */
 		tf->cr &= ~(0xf0000000>>bf);
 		tf->cr |= (cond>>bf);
-		DPRINTF(FPE_INSN, ("fpu_execute: cr[%d] (cr=%x) <= %x\n", bf/4, tf->cr, cond));
+		DPRINTF(FPE_INSN, ("fpu_execute: cr[%d] (cr=%jx) <= %x\n",
+			bf/4, (uintmax_t)tf->cr, cond));
 	}
 
 	((int *)&fs->fpscr)[1] = fsr;
