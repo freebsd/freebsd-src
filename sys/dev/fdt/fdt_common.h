@@ -35,17 +35,10 @@
 #include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
-#include <machine/fdt.h>
 
 #define FDT_MEM_REGIONS	8
 
 #define DI_MAX_INTR_NUM	32
-
-struct fdt_pci_range {
-	u_long	base_pci;
-	u_long	base_parent;
-	u_long	len;
-};
 
 struct fdt_sense_level {
 	enum intr_trigger	trig;
@@ -101,9 +94,6 @@ int fdt_is_enabled(phandle_t);
 int fdt_pm_is_enabled(phandle_t);
 int fdt_is_type(phandle_t, const char *);
 int fdt_parent_addr_cells(phandle_t);
-int fdt_pci_ranges(phandle_t, struct fdt_pci_range *, struct fdt_pci_range *);
-int fdt_pci_ranges_decode(phandle_t, struct fdt_pci_range *,
-    struct fdt_pci_range *);
 int fdt_ranges_verify(pcell_t *, int, int, int, int);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);

@@ -209,6 +209,8 @@
 			reg = <0x30000 0x10000>;
 			interrupts = <22>;
 			interrupt-parent = <&PIC>;
+
+			sram-handle = <&SRAM>;
 		};
 
 		usb@50000 {

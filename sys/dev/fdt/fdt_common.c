@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/limits.h>
 
-#include <machine/fdt.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/fdt_common.h>

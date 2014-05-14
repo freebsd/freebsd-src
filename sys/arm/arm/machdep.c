@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
