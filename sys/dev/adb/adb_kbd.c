@@ -621,7 +621,7 @@ akbd_read_char(keyboard_t *kbd, int wait)
 
 	if (!sc->buffers) {
 		mtx_unlock(&sc->sc_mutex);
-		return (0);
+		return (NOKEY);
 	}
 
 	adb_code = sc->buffer[0];

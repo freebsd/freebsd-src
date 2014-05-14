@@ -189,6 +189,7 @@ static tlb_entry_t tlb1[TLB1_ENTRIES];
 
 /* Next free entry in the TLB1 */
 static unsigned int tlb1_idx;
+static vm_offset_t tlb1_map_base = VM_MAX_KERNEL_ADDRESS;
 
 static tlbtid_t tid_alloc(struct pmap *);
 
@@ -2681,11 +2682,23 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	size = roundup(size, PAGE_SIZE);
 
+	/*
+	 * We leave a hole for device direct mapping between the maximum user
+	 * address (0x8000000) and the minimum KVA address (0xc0000000). If
+	 * devices are in there, just map them 1:1. If not, map them to the
+	 * device mapping area about VM_MAX_KERNEL_ADDRESS. These mapped
+	 * addresses should be pulled from an allocator, but since we do not
+	 * ever free TLB1 entries, it is safe just to increment a counter.
+	 * Note that there isn't a lot of address space here (128 MB) and it
+	 * is not at all difficult to imagine running out, since that is a 4:1
+	 * compression from the 0xc0000000 - 0xf0000000 address space that gets
+	 * mapped there.
+	 */
 	if (pa >= (VM_MAXUSER_ADDRESS + PAGE_SIZE) &&
 	    (pa + size - 1) < VM_MIN_KERNEL_ADDRESS) 
 		va = pa;
 	else
-		va = kva_alloc(size);
+		va = atomic_fetchadd_int(&tlb1_map_base, size);
 	res = (void *)va;
 
 	do {
@@ -3085,7 +3098,7 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	}
 
 	mapped = (va - base);
-	debugf("mapped size 0x%08x (wasted space 0x%08x)\n",
+	printf("mapped size 0x%08x (wasted space 0x%08x)\n",
 	    mapped, mapped - size);
 	return (mapped);
 }
@@ -3148,7 +3161,6 @@ tlb1_init()
 vm_offset_t 
 pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 {
-	static vm_offset_t early_io_map_base = VM_MAX_KERNEL_ADDRESS;
 	vm_paddr_t pa_base;
 	vm_offset_t va, sz;
 	int i;
@@ -3165,14 +3177,14 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 
 	pa_base = trunc_page(pa);
 	size = roundup(size + (pa - pa_base), PAGE_SIZE);
-	va = early_io_map_base + (pa - pa_base);
+	va = tlb1_map_base + (pa - pa_base);
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);
-		tlb1_set_entry(early_io_map_base, pa_base, sz, _TLB_ENTRY_IO);
+		tlb1_set_entry(tlb1_map_base, pa_base, sz, _TLB_ENTRY_IO);
 		size -= sz;
 		pa_base += sz;
-		early_io_map_base += sz;
+		tlb1_map_base += sz;
 	} while (size > 0);
 
 #ifdef SMP
