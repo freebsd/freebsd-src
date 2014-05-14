@@ -40,9 +40,9 @@ struct uninorth_softc {
 };
 
 struct unin_chip_softc {
-	u_int32_t		sc_physaddr;
+	uint64_t		sc_physaddr;
+	uint64_t		sc_size;
 	vm_offset_t		sc_addr;
-	u_int32_t		sc_size;
 	struct rman  		sc_mem_rman;
 	int			sc_version;
 };

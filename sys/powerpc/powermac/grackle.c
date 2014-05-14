@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
@@ -59,8 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
-int      badaddr(void *, size_t);  /* XXX */
-
 /*
  * Device interface.
  */
@@ -81,6 +80,9 @@ static void		grackle_write_config(device_t, u_int, u_int, u_int,
 static int		grackle_enable_config(struct grackle_softc *, u_int,
 			    u_int, u_int, u_int);
 static void		grackle_disable_config(struct grackle_softc *);
+static int		badaddr(void *, size_t);
+
+int			setfault(faultbuf);	/* defined in locore.S */
 
 /*
  * Driver methods.
@@ -236,6 +238,50 @@ grackle_disable_config(struct grackle_softc *sc)
 	 * accesses from causing config cycles
 	 */
 	out32rb(sc->sc_addr, 0);
+}
+
+static int
+badaddr(void *addr, size_t size)
+{
+	struct thread	*td;
+	faultbuf	env, *oldfaultbuf;
+	int		x;
+
+	/* Get rid of any stale machine checks that have been waiting.  */
+	__asm __volatile ("sync; isync");
+
+	td = curthread;
+
+	oldfaultbuf = td->td_pcb->pcb_onfault;
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = oldfaultbuf;
+		__asm __volatile ("sync");
+		return 1;
+	}
+
+	__asm __volatile ("sync");
+
+	switch (size) {
+	case 1:
+		x = *(volatile int8_t *)addr;
+		break;
+	case 2:
+		x = *(volatile int16_t *)addr;
+		break;
+	case 4:
+		x = *(volatile int32_t *)addr;
+		break;
+	default:
+		panic("badaddr: invalid size (%zd)", size);
+	}
+
+	/* Make sure we took the machine check, if we caused one. */
+	__asm __volatile ("sync; isync");
+
+	td->td_pcb->pcb_onfault = oldfaultbuf;
+	__asm __volatile ("sync");	/* To be sure. */
+
+	return (0);
 }
 
 /*
