@@ -232,8 +232,7 @@ at91_probe(device_t dev)
 {
 
 	device_set_desc(dev, "AT91 device bus");
-	arm_post_filter = at91_eoi;
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -261,6 +260,8 @@ at91_attach(device_t dev)
 	struct at91_softc *sc = device_get_softc(dev);
 	const struct arm_devmap_entry *pdevmap;
 	int i;
+
+	arm_post_filter = at91_eoi;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;

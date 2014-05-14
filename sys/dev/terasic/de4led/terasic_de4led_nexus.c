@@ -58,7 +58,7 @@ terasic_de4led_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Terasic DE4 8-element LED");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
