@@ -104,6 +104,7 @@ device		spibus
 device		bpf		# Berkeley packet filter
 
 #options USB_DEBUG
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 #device		ohci
 #device		usb
 #device		umass		# Disks/Mass storage - Requires scbus and da

@@ -77,6 +77,7 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 device		md
 
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ohci

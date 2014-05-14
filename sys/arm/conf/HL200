@@ -94,6 +94,7 @@ device		icee
 
 device		bpf
 # USB support
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG	# enable debug msgs
 device		ohci		# OHCI localbus->USB interface
 device		usb		# USB Bus (required)
