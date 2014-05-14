@@ -47,8 +47,6 @@ void
 booke_init_tlb(vm_paddr_t fdt_immr_pa)
 {
 
-	/* Initialize TLB1 handling */
-	tlb1_init(fdt_immr_pa);
 }
 
 void
