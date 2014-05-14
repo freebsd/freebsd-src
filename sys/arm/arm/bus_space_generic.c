@@ -62,16 +62,12 @@ generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	void *va;
 
 	/*
-	 * Look up the address in the static device mappings.  If it's not
-	 * there, establish a new dynamic mapping.
-	 *
 	 * We don't even examine the passed-in flags.  For ARM, the CACHEABLE
 	 * flag doesn't make sense (we create PTE_DEVICE mappings), and the
 	 * LINEAR flag is just implied because we use kva_alloc(size).
 	 */
-	if ((va = arm_devmap_ptov(bpa, size)) == NULL)
-		if ((va = pmap_mapdev(bpa, size)) == NULL)
-			return (ENOMEM);
+	if ((va = pmap_mapdev(bpa, size)) == NULL)
+		return (ENOMEM);
 	*bshp = (bus_space_handle_t)va;
 	return (0);
 }
@@ -90,12 +86,7 @@ void
 generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 
-	/*
-	 * If the region is static-mapped do nothing, otherwise remove the
-	 * dynamic mapping.
-	 */
-	if (arm_devmap_vtop((void*)h, size) == DEVMAP_PADDR_NOTFOUND)
-		pmap_unmapdev((vm_offset_t)h, size);
+	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 void
