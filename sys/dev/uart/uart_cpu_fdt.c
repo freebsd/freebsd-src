@@ -142,14 +142,19 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Retrieve /chosen/std{in,out}.
 	 */
-	if ((chosen = OF_finddevice("/chosen")) == -1)
-		return (ENXIO);
-	for (name = propnames; *name != NULL; name++) {
-		if (phandle_chosen_propdev(chosen, *name, &node) == 0)
-			break;
+	node = -1;
+	if ((chosen = OF_finddevice("/chosen")) != -1) {
+		for (name = propnames; *name != NULL; name++) {
+			if (phandle_chosen_propdev(chosen, *name, &node) == 0)
+				break;
+		}
 	}
-	if (*name == NULL)
+	if (chosen == -1 || *name == NULL)
+		node = OF_finddevice("serial0"); /* Last ditch */
+
+	if (node == -1) /* Can't find anything */
 		return (ENXIO);
+
 	/*
 	 * Retrieve serial attributes.
 	 */
