@@ -1,0 +1,223 @@
+/*-
+ * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	model = "Freescale Vybrid Family";
+	compatible = "freescale,vybrid", "fsl,vf";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&GIC>;
+
+	aliases {
+		soc = &SOC;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		src = &SRC;
+	};
+
+	SOC: vybrid {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		SRC: src@4006E000 {
+			compatible = "fsl,mvf600-src";
+			reg = <0x4006E000 0x100>;
+		};
+
+		mscm@40001000 {
+			compatible = "fsl,mvf600-mscm";
+			reg = <0x40001000 0x1000>;
+		};
+
+		GIC: interrupt-controller@01c81000 {
+			compatible = "arm,gic";
+			reg = 	<0x40003000 0x1000>,	/* Distributor Registers */
+				<0x40002100 0x100>;	/* CPU Interface Registers */
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		anadig@40050000 {
+			compatible = "fsl,mvf600-anadig";
+			reg = <0x40050000 0x300>;
+		};
+
+		ccm@4006b000 {
+			compatible = "fsl,mvf600-ccm";
+			reg = <0x4006b000 0x1000>;
+		};
+
+		mp_tmr@40002100 {
+			compatible = "arm,mpcore-timers";
+			clock-frequency = <133000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = < 0x40002200 0x100 >, /* Global Timer Registers */
+			      < 0x40002600 0x100 >; /* Private Timer Registers */
+			interrupts = < 27 29 >;
+			interrupt-parent = < &GIC >;
+		};
+
+		pit@40037000 {
+			compatible = "fsl,mvf600-pit";
+			reg = <0x40037000 0x1000>;
+			interrupts = < 71 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 24000000 >;
+		};
+
+		lptmr@40040000 {
+			compatible = "fsl,mvf600-lptmr";
+			reg = <0x40040000 0x1000>;
+			interrupts = < 72 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 24000000 >;
+		};
+
+		iomuxc@40048000 {
+			compatible = "fsl,mvf600-iomuxc";
+			reg = <0x40048000 0x1000>;
+		};
+
+		gpio@400FF000 {
+			compatible = "fsl,mvf600-gpio";
+			reg = <0x400FF000 0x200>;
+			#gpio-cells = <3>;
+			gpio-controller;
+			interrupts = < 139 140 141 142 143 >;
+			interrupt-parent = <&GIC>;
+
+		};
+
+		nand@400E0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mvf600-nand";
+			reg = <0x400E0000 0x10000>;
+			interrupts = < 115 >;
+			interrupt-parent = <&GIC>;
+
+			partition@40000 {
+				reg = <0x40000 0x200000>; /* 2MB */
+				label =	"u-boot";
+				read-only;
+			};
+
+			partition@240000 {
+				reg = <0x240000 0x200000>; /* 2MB */
+				label =	"test";
+			};
+
+			partition@440000 {
+				reg = <0x440000 0xa00000>; /* 10MB */
+				label =	"kernel";
+			};
+
+			partition@e40000 {
+				reg = <0xe40000 0x1e000000>; /* 480MB */
+				label =	"root";
+			};
+
+		};
+
+		sdhci0: sdhci@400B1000 {
+			compatible = "fsl,mvf600-sdhci";
+			reg = <0x400B1000 0x1000>;
+			interrupts = < 59 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = <50000000>;
+		};
+
+		sdhci1: sdhci@400B2000 {
+			compatible = "fsl,mvf600-sdhci";
+			reg = <0x400B2000 0x1000>;
+			interrupts = < 60 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = <50000000>;
+		};
+
+		serial0: serial@40027000 {
+			compatible = "fsl,mvf600-uart";
+			reg = <0x40027000 0x1000>;
+			interrupts = <93>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+		};
+
+		serial1: serial@40028000 {
+			compatible = "fsl,mvf600-uart";
+			reg = <0x40028000 0x1000>;
+			interrupts = <94>;
+			interrupt-parent = <&GIC>;
+			current-speed = <115200>;
+			clock-frequency = < 24000000 >;
+		};
+
+		usb@40034000 {
+			compatible = "fsl,mvf600-usb-ehci", "usb-ehci";
+			reg = < 0x40034000 0x1000 >, /* ehci */
+			      < 0x40035000 0x1000 >, /* usbc */
+			      < 0x40050800 0x100 >; /* phy */
+			interrupts = < 107 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		usb@400b4000 {
+			compatible = "fsl,mvf600-usb-ehci", "usb-ehci";
+			reg = < 0x400b4000 0x1000 >, /* ehci */
+			      < 0x400b5000 0x1000 >, /* usbc */
+			      < 0x40050C00 0x100 >; /* phy */
+			interrupts = < 108 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		fec0: ethernet@400D0000 {
+			compatible = "fsl,mvf600-fec";
+			reg = <0x400D0000 0x1000>;
+			interrupts = < 110 >;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rmii";
+			phy-disable-preamble;
+		};
+
+		fec1: ethernet@400D1000 {
+			compatible = "fsl,mvf600-fec";
+			reg = <0x400D1000 0x1000>;
+			interrupts = < 111 >;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rmii";
+			phy-disable-preamble;
+		};
+
+	};
+};
