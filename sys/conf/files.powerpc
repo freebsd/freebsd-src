@@ -105,7 +105,7 @@ powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/machdep.c		optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
 powerpc/booke/mp_cpudep.c	optional	booke smp
-powerpc/booke/platform_bare.c	optional	mpc85xx
+powerpc/booke/platform_bare.c	optional	booke
 powerpc/booke/pmap.c		optional	booke
 powerpc/booke/trap.c		optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
@@ -131,6 +131,7 @@ powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
+powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
 powerpc/ofw/ofw_cpu.c		optional	aim
 powerpc/ofw/ofw_machdep.c	standard
