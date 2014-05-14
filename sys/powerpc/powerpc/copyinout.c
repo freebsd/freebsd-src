@@ -69,9 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/sr.h>
 #include <machine/slb.h>
+#include <machine/vmparam.h>
 
 int	setfault(faultbuf);	/* defined in locore.S */
 
+#ifdef AIM
 /*
  * Makes sure that the right segment of userspace is mapped in.
  */
@@ -132,6 +134,43 @@ set_user_sr(pmap_t pm, const void *addr)
 }
 #endif
 
+static __inline int
+map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+    size_t *klen)
+{
+	size_t l;
+
+	*kaddr = (char *)USER_ADDR + ((uintptr_t)uaddr & ~SEGMENT_MASK);
+
+	l = ((char *)USER_ADDR + SEGMENT_LENGTH) - (char *)(*kaddr);
+	if (l > ulen)
+		l = ulen;
+	if (klen)
+		*klen = l;
+	else if (l != ulen)
+		return (EFAULT);
+
+	set_user_sr(pm, uaddr);
+
+	return (0);
+}
+#else /* Book-E uses a combined kernel/user mapping */
+static __inline int
+map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+    size_t *klen)
+{
+
+	if ((uintptr_t)uaddr + ulen > VM_MAXUSER_ADDRESS + PAGE_SIZE)
+		return (EFAULT);
+
+	*kaddr = (void *)(uintptr_t)uaddr;
+	if (klen)
+		*klen = ulen;
+
+	return (0);
+}
+#endif
+
 int
 copyout(const void *kaddr, void *udaddr, size_t len)
 {
@@ -154,13 +193,10 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	up = udaddr;
 
 	while (len > 0) {
-		p = (char *)USER_ADDR + ((uintptr_t)up & ~SEGMENT_MASK);
-
-		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
-		if (l > len)
-			l = len;
-
-		set_user_sr(pm,up);
+		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
+			td->td_pcb->pcb_onfault = NULL;
+			return (EFAULT);
+		}
 
 		bcopy(kp, p, l);
 
@@ -195,13 +231,10 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	up = udaddr;
 
 	while (len > 0) {
-		p = (char *)USER_ADDR + ((uintptr_t)up & ~SEGMENT_MASK);
-
-		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
-		if (l > len)
-			l = len;
-
-		set_user_sr(pm,up);
+		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
+			td->td_pcb->pcb_onfault = NULL;
+			return (EFAULT);
+		}
 
 		bcopy(p, kp, l);
 
@@ -269,14 +302,16 @@ subyte(void *addr, int byte)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (char *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	*p = (char)byte;
 
@@ -295,14 +330,16 @@ suword32(void *addr, int word)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (int *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	*p = word;
 
@@ -321,14 +358,16 @@ suword(void *addr, long word)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	*p = word;
 
@@ -361,14 +400,16 @@ fubyte(const void *addr)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (u_char *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	val = *p;
 
@@ -387,14 +428,16 @@ fuword32(const void *addr)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (int32_t *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	val = *p;
 
@@ -413,14 +456,16 @@ fuword(const void *addr)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
 	if (setfault(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	set_user_sr(pm,addr);
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
 
 	val = *p;
 
@@ -446,11 +491,14 @@ casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (uint32_t *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
-
-	set_user_sr(pm,(const void *)(vm_offset_t)addr);
 
 	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p, sizeof(*p),
+	    NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -491,11 +539,14 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (u_long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
-
-	set_user_sr(pm,(const void *)(vm_offset_t)addr);
 
 	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p, sizeof(*p),
+	    NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
