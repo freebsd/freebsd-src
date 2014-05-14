@@ -827,18 +827,30 @@ out_now:
 static int
 sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 {
-	int loopback_scope, ipv4_local_scope, local_scope, site_scope;
-	int ipv4_addr_legal, ipv6_addr_legal;
+	int loopback_scope;
+
+#if defined(INET)
+	int ipv4_local_scope, ipv4_addr_legal;
+
+#endif
+#if defined(INET6)
+	int local_scope, site_scope, ipv6_addr_legal;
+
+#endif
 	struct sctp_vrf *vrf;
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
 
 	loopback_scope = stcb->asoc.scope.loopback_scope;
+#if defined(INET)
 	ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+	ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+#endif
+#if defined(INET6)
 	local_scope = stcb->asoc.scope.local_scope;
 	site_scope = stcb->asoc.scope.site_scope;
-	ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
 	ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
+#endif
 
 	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(stcb->asoc.vrf_id);
@@ -1971,8 +1983,13 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
     struct sockaddr *dst)
 {
 	struct sctp_paramhdr *phdr, parm_buf;
+
+#if defined(INET) || defined(INET6)
 	struct sctp_tcb *stcb;
-	uint32_t ptype, plen;
+	uint16_t ptype;
+
+#endif
+	uint16_t plen;
 
 #ifdef INET
 	struct sockaddr_in sin4;
@@ -1996,13 +2013,14 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
 	sin6.sin6_port = sh->src_port;
 #endif
 
-	stcb = NULL;
 	offset += sizeof(struct sctp_init_chunk);
 
 	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
 	while (phdr != NULL) {
 		/* now we must see if we want the parameter */
+#if defined(INET) || defined(INET6)
 		ptype = ntohs(phdr->param_type);
+#endif
 		plen = ntohs(phdr->param_length);
 		if (plen == 0) {
 			break;

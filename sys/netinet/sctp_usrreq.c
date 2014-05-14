@@ -1120,9 +1120,17 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 {
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
-	int loopback_scope, ipv4_local_scope, local_scope, site_scope;
 	size_t actual;
-	int ipv4_addr_legal, ipv6_addr_legal;
+	int loopback_scope;
+
+#if defined(INET)
+	int ipv4_local_scope, ipv4_addr_legal;
+
+#endif
+#if defined(INET6)
+	int local_scope, site_scope, ipv6_addr_legal;
+
+#endif
 	struct sctp_vrf *vrf;
 
 	actual = 0;
@@ -1132,27 +1140,43 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 	if (stcb) {
 		/* Turn on all the appropriate scope */
 		loopback_scope = stcb->asoc.scope.loopback_scope;
+#if defined(INET)
 		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+#endif
+#if defined(INET6)
 		local_scope = stcb->asoc.scope.local_scope;
 		site_scope = stcb->asoc.scope.site_scope;
-		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
 		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
+#endif
 	} else {
 		/* Use generic values for endpoints. */
 		loopback_scope = 1;
+#if defined(INET)
 		ipv4_local_scope = 1;
+#endif
+#if defined(INET6)
 		local_scope = 1;
 		site_scope = 1;
+#endif
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+#if defined(INET6)
 			ipv6_addr_legal = 1;
+#endif
+#if defined(INET)
 			if (SCTP_IPV6_V6ONLY(inp)) {
 				ipv4_addr_legal = 0;
 			} else {
 				ipv4_addr_legal = 1;
 			}
+#endif
 		} else {
+#if defined(INET6)
 			ipv6_addr_legal = 0;
+#endif
+#if defined(INET)
 			ipv4_addr_legal = 1;
+#endif
 		}
 	}
 	vrf = sctp_find_vrf(vrf_id);
