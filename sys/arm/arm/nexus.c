@@ -85,6 +85,8 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 #endif
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 
@@ -103,6 +105,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 #endif
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
@@ -223,6 +226,18 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (rv);
 }
 #endif
+
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	int ret = ENODEV;
+
+	if (arm_config_irq)
+		ret = (*arm_config_irq)(irq, trig, pol);
+
+	return (ret);
+}
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
