@@ -251,8 +251,9 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    phandle_t *iparent, void *maskbuf)
+    phandle_t *iparent)
 {
+	uint8_t maskbuf[regsz + pintrsz];
 	int rv;
 
 	if (ii->opi_imapsz <= 0)
@@ -285,7 +286,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
  * maskbuf must point to a buffer of length physsz + intrsz.
  * The interrupt is returned in result, which must point to a buffer of length
  * rintrsz (which gives the expected size of the mapped interrupt).
- * Returns 1 if a mapping was found, 0 otherwise.
+ * Returns number of cells in the interrupt if a mapping was found, 0 otherwise.
  */
 int
 ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
@@ -325,19 +326,13 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 
-		/*
-		 * XXX: Apple hardware uses a second cell to set information
-		 * on the interrupt trigger type.  This information should
-		 * be used somewhere to program the PIC.
-		 */
-
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
-			    result, rintrsz);
+			    result, MIN(rintrsz, pintrsz));
 
 			if (iparent != NULL)
 				*iparent = parent;
-			return (1);
+			return (pintrsz/sizeof(pcell_t));
 		}
 		mptr += tsz;
 		i -= tsz;

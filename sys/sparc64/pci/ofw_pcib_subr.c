@@ -70,7 +70,6 @@ ofw_pcib_gen_route_interrupt(device_t bridge, device_t dev, int intpin)
 	struct ofw_bus_iinfo *ii;
 	struct ofw_pci_register reg;
 	ofw_pci_intr_t pintr, mintr;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bridge);
 	ii = &sc->ops_iinfo;
@@ -78,7 +77,7 @@ ofw_pcib_gen_route_interrupt(device_t bridge, device_t dev, int intpin)
 		pintr = intpin;
 		if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), ii, &reg,
 		    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-		    NULL, maskbuf)) {
+		    NULL)) {
 			/*
 			 * If we've found a mapping, return it and don't map
 			 * it again on higher levels - that causes problems

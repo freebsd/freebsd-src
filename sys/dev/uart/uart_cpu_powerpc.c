@@ -89,13 +89,13 @@ ofw_get_console_phandle_path(phandle_t node, phandle_t *result,
 		return (ENXIO);
 	OF_getprop(node, prop, &field, sizeof(field));
 
-	/* This property might be a phandle or might be a path. Hooray. */
+	/* This property might be either a ihandle or path. Hooray. */
 
 	output = -1;
 	if (field.buf[size - 1] == 0)
 		output = OF_finddevice(field.buf);
 	if (output == -1 && size == 4)
-		output = OF_xref_phandle(field.ref);
+		output = OF_instance_to_package(field.ref);
 	
 	if (output != -1) {
 		*result = output;
