@@ -880,6 +880,9 @@
 
       &hwlist.axe;
 
+      <para>ASIX Electronics AX88178A/AX88179 USB Gigabit Ethernet
+	adapters (&man.axge.4; driver)</para>
+
       &hwlist.bce;
 
       <para>[&arch.amd64;, &arch.i386;] Broadcom BCM4401 based Fast
