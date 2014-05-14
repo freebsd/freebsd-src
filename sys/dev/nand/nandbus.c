@@ -503,7 +503,7 @@ nandbus_wait_ready(device_t dev, uint8_t *status)
 	struct timeval tv, tv2;
 
 	tv2.tv_sec = 0;
-	tv2.tv_usec = 50 * 5000; /* 10ms */
+	tv2.tv_usec = 50 * 5000; /* 250ms */
 
 	getmicrotime(&tv);
 	timevaladd(&tv, &tv2);
