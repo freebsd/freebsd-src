@@ -748,7 +748,7 @@ sys_mount(td, uap)
 		return (EOPNOTSUPP);
 	}
 
-	ma = mount_argsu(ma, "fstype", uap->type, MNAMELEN);
+	ma = mount_argsu(ma, "fstype", uap->type, MFSNAMELEN);
 	ma = mount_argsu(ma, "fspath", uap->path, MNAMELEN);
 	ma = mount_argb(ma, flags & MNT_RDONLY, "noro");
 	ma = mount_argb(ma, !(flags & MNT_NOSUID), "nosuid");
