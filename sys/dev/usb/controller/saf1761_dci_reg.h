@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2014 Hans Petter Selasky
+ * Copyright (c) 2014 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -105,8 +105,10 @@
 #define	SOTG_OTG_CTRL 0x374
 #define	SOTG_EP_INDEX 0x22c
 #define	SOTG_EP_INDEX_EP0SETUP (1 << 5)
-#define	SOTG_EP_INDEX_ENDP_INDEX (15 << 1)
+#define	SOTG_EP_INDEX_ENDP_INDEX_MASK (15 << 1)
+#define	SOTG_EP_INDEX_ENDP_INDEX_SHIFT 1
 #define	SOTG_EP_INDEX_DIR_IN (1 << 0)
+#define	SOTG_EP_INDEX_DIR_OUT 0
 #define	SOTG_CTRL_FUNC 0x228
 #define	SOTG_CTRL_FUNC_CLBUF (1 << 4)
 #define	SOTG_CTRL_FUNC_VENDP (1 << 3)
@@ -116,6 +118,7 @@
 #define	SOTG_DATA_PORT 0x220
 #define	SOTG_BUF_LENGTH 0x21C
 #define	SOTG_DCBUFFERSTATUS 0x21E
+#define	SOTG_DCBUFFERSTATUS_FILLED_MASK (3 << 0)
 #define	SOTG_EP_MAXPACKET 0x204
 #define	SOTG_EP_TYPE 0x208
 #define	SOTG_EP_TYPE_NOEMPPKT (1 << 4)
@@ -144,9 +147,9 @@
 #define	SOTG_DCINTERRUPT_IEBRST (1 << 0)
 #define	SOTG_DCCHIP_ID 0x270
 #define	SOTG_FRAME_NUM 0x274
-#define	SOTG_FRAME_NUM_MICROSOFR 0x3800
+#define	SOTG_FRAME_NUM_MICROSOFR_MASK 0x3800
 #define	SOTG_FRAME_NUM_MICROSOFR_SHIFT 11
-#define	SOTG_FRAME_NUM_SOFR 0x7FF
+#define	SOTG_FRAME_NUM_SOFR_MASK 0x7FF
 #define	SOTG_DCSCRATCH 0x278
 #define	SOTG_UNLOCK_DEVICE 0x27C
 #define	SOTG_UNLOCK_DEVICE_CODE 0xAA37
