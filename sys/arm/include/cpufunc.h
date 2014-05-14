@@ -188,7 +188,7 @@ extern u_int cputype;
 #else
 void tlb_broadcast(int);
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 #define TLB_BROADCAST	/* No need to explicitely send an IPI */
 #else
 #define TLB_BROADCAST	tlb_broadcast(7)
@@ -482,14 +482,6 @@ void	arm11_drain_writebuf	(void);
 
 void	pj4b_setttb			(u_int);
 
-void	pj4b_icache_sync_range		(vm_offset_t, vm_size_t);
-
-void	pj4b_dcache_wbinv_range		(vm_offset_t, vm_size_t);
-void	pj4b_dcache_inv_range		(vm_offset_t, vm_size_t);
-void	pj4b_dcache_wb_range		(vm_offset_t, vm_size_t);
-
-void	pj4b_idcache_wbinv_range	(vm_offset_t, vm_size_t);
-
 void	pj4b_drain_readbuf		(void);
 void	pj4b_flush_brnchtgt_all		(void);
 void	pj4b_flush_brnchtgt_va		(u_int);
@@ -523,7 +515,6 @@ void	armv7_drain_writebuf		(void);
 void	armv7_sev			(void);
 u_int	armv7_auxctrl			(u_int, u_int);
 void	pj4bv7_setup			(char *string);
-void	pj4bv6_setup			(char *string);
 void	pj4b_config			(void);
 
 int	get_core_id			(void);
