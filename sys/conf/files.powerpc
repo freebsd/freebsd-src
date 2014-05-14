@@ -65,8 +65,7 @@ dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
-dev/uart/uart_cpu_fdt.c		optional	uart fdt
-dev/uart/uart_cpu_powerpc.c	optional	uart aim
+dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
 kern/kern_clocksource.c		standard
@@ -111,15 +110,15 @@ powerpc/booke/trap.c		optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
-powerpc/fpu/fpu_add.c		optional	fpu_emu powerpc
-powerpc/fpu/fpu_compare.c	optional	fpu_emu powerpc
-powerpc/fpu/fpu_div.c		optional	fpu_emu powerpc
-powerpc/fpu/fpu_emu.c		optional	fpu_emu powerpc
-powerpc/fpu/fpu_explode.c	optional	fpu_emu powerpc
-powerpc/fpu/fpu_implode.c	optional	fpu_emu powerpc
-powerpc/fpu/fpu_mul.c		optional	fpu_emu powerpc
-powerpc/fpu/fpu_sqrt.c		optional	fpu_emu powerpc
-powerpc/fpu/fpu_subr.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_add.c		optional	fpu_emu
+powerpc/fpu/fpu_compare.c	optional	fpu_emu
+powerpc/fpu/fpu_div.c		optional	fpu_emu
+powerpc/fpu/fpu_emu.c		optional	fpu_emu
+powerpc/fpu/fpu_explode.c	optional	fpu_emu
+powerpc/fpu/fpu_implode.c	optional	fpu_emu
+powerpc/fpu/fpu_mul.c		optional	fpu_emu
+powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
+powerpc/fpu/fpu_subr.c		optional	fpu_emu
 powerpc/mambo/mambocall.S	optional	mambo
 powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
