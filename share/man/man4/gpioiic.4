@@ -1,0 +1,96 @@
+.\" Copyright (c) 2013, Luiz Otavio O Souza <loos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 5, 2013
+.Dt GPIOIIC 4
+.Os
+.Sh NAME
+.Nm gpioiic
+.Nd GPIO I2C bit-banging device driver
+.Sh SYNOPSIS
+.Cd "device gpio"
+.Cd "device gpioiic"
+.Cd "device iic"
+.Cd "device iicbb"
+.Cd "device iicbus"
+.Sh DESCRIPTION
+The
+.Em gpioiic
+driver provides an IIC bit-banging interface using two GPIO pins for the
+SCL and SDA on the
+.Em gpiobus .
+.Nm
+implements an open colector kind of output, as recommended by the standard,
+when driving the pins on the
+.Em gpiobus ,
+i.e, they are never switched to the logical value of '1',
+or they are '0' or simply open (Hi-Z/tri-state).
+So the pullup resistors are required so
+.Nm
+can work.
+.Pp
+On a hint based system, like
+.Li MIPS , these values are configureable for the
+.Nm gpioiic :
+.Bl -tag -width ".Va hint.gpioiic.%d.atXXX"
+.It Va hint.gpioiic.%d.at
+The gpiobus you are attaching to.
+Normally just gpiobus0.
+.It Va hint.gpioiic.%d.pins
+This is a bitmask of the pins on the
+.Em gpiobus
+that are to be used for SCLOCK and SDATA from the GPIO IIC
+bit-banging bus.
+To configure pin 0 and 7, use the bitmask of
+10000001 and convert it to a hexadecimal value of 0x0081.
+Please note that this mask should only ever have two bits set
+(any others bits - i.e., pins - will be ignored).
+.It Va hint.gpioiic.%d.scl
+Indicates which bit in the
+.Va hint.gpioiic.%d.pins
+should be used as the SCLOCK
+source.
+.It Va hint.gpioiic.%d.sda
+Indicates which bit in the
+.Va hint.gpioiic.%d.pins
+should be used as the SDATA
+source.
+.El
+.Sh SEE ALSO
+.Xr gpio 4 ,
+.Xr gpioled 4 ,
+.Xr iic 4 ,
+.Xr iicbb 4 ,
+.Xr iicbus 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Luiz Otavio O Souza .
