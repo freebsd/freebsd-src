@@ -100,7 +100,6 @@ ENTRY(cpu_switch)
 	mr	%r16,%r5		/* and the new lock */
 	mr	%r17,%r6		/* and the PCB */
 	
-#ifdef AIM
 	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
 	andi.	%r7, %r7, PCB_FPU
@@ -116,7 +115,6 @@ ENTRY(cpu_switch)
 	bl	save_vec
 	
 .L2:
-#endif
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
@@ -143,7 +141,6 @@ blocked_loop:
 	mr	%r3,%r2			/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
-#ifdef AIM
 	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
@@ -160,7 +157,6 @@ blocked_loop:
 	bl	enable_vec
 
 .L4:
-#endif
 	/* thread to restore is in r3 */
 	mr	%r3,%r17		/* Recover PCB ptr */
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
