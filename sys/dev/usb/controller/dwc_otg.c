@@ -350,6 +350,12 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 static void
 dwc_otg_update_host_frame_interval(struct dwc_otg_softc *sc)
 {
+
+  /*
+   * Disabled until further. Assuming that the register is already
+   * programmed correctly by the boot loader.
+   */
+#if 0
 	uint32_t temp;
 
 	/* setup HOST frame interval register, based on existing value */
@@ -375,6 +381,7 @@ dwc_otg_update_host_frame_interval(struct dwc_otg_softc *sc)
 	DPRINTF("HFIR=0x%08x\n", temp);
 
 	DWC_OTG_WRITE_4(sc, DOTG_HFIR, temp);
+#endif
 }
 
 static void
