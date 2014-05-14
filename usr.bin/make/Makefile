@@ -116,8 +116,4 @@ PROG=	fmake
 fmake.1: make.1
 	cp ${.ALLSRC} ${.TARGET}
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
-
 .include <bsd.prog.mk>
