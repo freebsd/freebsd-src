@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,8 +40,10 @@
  * windows (no shell). 
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "libunbound/unbound.h"
+#include "ldns/rrdef.h"
+#include "ldns/pkthdr.h"
+#include "ldns/wire2str.h"
 
 /** usage */
 static void
@@ -79,37 +81,28 @@ do_lookup(struct ub_ctx* ctx, char* domain)
 	return result;
 }
 
-/** get answer into ldns rr list */
-static ldns_rr_list*
-result2answer(struct ub_result* result)
-{
-	ldns_pkt* p = NULL;
-	ldns_rr_list* a;
-	if(ldns_wire2pkt(&p, result->answer_packet, (size_t)result->answer_len) 
-		!= LDNS_STATUS_OK) 
-		return NULL;
-	a = ldns_pkt_answer(p);
-	ldns_pkt_set_answer(p, NULL);
-	ldns_pkt_free(p);
-	return a;
-}
-
 /** print result to file */
 static void
 do_print(struct ub_result* result, char* file)
 {
-	FILE* out;
-	ldns_rr_list* list = result2answer(result);
-	if(!list) fatal("result2answer failed");
-	
-	out = fopen(file, "w");
+	FILE* out = fopen(file, "w");
+	char s[65535], t[32];
+	int i;
 	if(!out) {
 		perror(file);
 		fatal("fopen failed");
 	}
-	ldns_rr_list_print(out, list);
+	i = 0;
+	if(result->havedata)
+	  while(result->data[i]) {
+		sldns_wire2str_rdata_buf((uint8_t*)result->data[i],
+			(size_t)result->len[i], s, sizeof(s),
+			(uint16_t)result->qtype);
+		sldns_wire2str_type_buf((uint16_t)result->qtype, t, sizeof(t));
+		fprintf(out, "%s\t%s\t%s\n", result->qname, t, s);
+		i++;
+	}
 	fclose(out);
-	ldns_rr_list_deep_free(list);
 }
 
 /** update domain to file */

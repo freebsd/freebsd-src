@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -50,6 +50,7 @@
 #include <sys/time.h>
 #include "util/net_help.h"
 #include "util/config_file.h"
+#include "ldns/sbuffer.h"
 #include <signal.h>
 
 /** number of reads per select for delayer */
@@ -221,15 +222,15 @@ ring_delete(struct ringbuf* r)
 
 /** add entry to ringbuffer */
 static void
-ring_add(struct ringbuf* r, ldns_buffer* pkt, struct timeval* now, 
+ring_add(struct ringbuf* r, sldns_buffer* pkt, struct timeval* now, 
 	struct timeval* delay, struct proxy* p)
 {
 	/* time -- proxy* -- 16bitlen -- message */
-	uint16_t len = (uint16_t)ldns_buffer_limit(pkt);
+	uint16_t len = (uint16_t)sldns_buffer_limit(pkt);
 	struct timeval when;
 	size_t needed;
 	uint8_t* where = NULL;
-	log_assert(ldns_buffer_limit(pkt) <= 65535);
+	log_assert(sldns_buffer_limit(pkt) <= 65535);
 	needed = sizeof(when) + sizeof(p) + sizeof(len) + len;
 	/* put item into ringbuffer */
 	if(r->low < r->high) {
@@ -278,7 +279,7 @@ ring_add(struct ringbuf* r, ldns_buffer* pkt, struct timeval* now,
 	memmove(where+sizeof(when), &p, sizeof(p));
 	memmove(where+sizeof(when)+sizeof(p), &len, sizeof(len));
 	memmove(where+sizeof(when)+sizeof(p)+sizeof(len), 
-		ldns_buffer_begin(pkt), len);
+		sldns_buffer_begin(pkt), len);
 }
 
 /** see if the ringbuffer is empty */
@@ -299,7 +300,7 @@ ring_peek_time(struct ringbuf* r)
 
 /** get entry from ringbuffer */
 static int
-ring_pop(struct ringbuf* r, ldns_buffer* pkt, struct timeval* tv, 
+ring_pop(struct ringbuf* r, sldns_buffer* pkt, struct timeval* tv, 
 	struct proxy** p)
 {
 	/* time -- proxy* -- 16bitlen -- message */
@@ -312,9 +313,9 @@ ring_pop(struct ringbuf* r, ldns_buffer* pkt, struct timeval* tv,
 	memmove(tv, where, sizeof(*tv));
 	memmove(p, where+sizeof(*tv), sizeof(*p));
 	memmove(&len, where+sizeof(*tv)+sizeof(*p), sizeof(len));
-	memmove(ldns_buffer_begin(pkt), 
+	memmove(sldns_buffer_begin(pkt), 
 		where+sizeof(*tv)+sizeof(*p)+sizeof(len), len);
-	ldns_buffer_set_limit(pkt, (size_t)len);
+	sldns_buffer_set_limit(pkt, (size_t)len);
 	done = sizeof(*tv)+sizeof(*p)+sizeof(len)+len;
 	/* move lowmark */
 	if(r->low < r->high) {
@@ -352,7 +353,7 @@ static RETSIGTYPE delayer_sigh(int sig)
 
 /** send out waiting packets */
 static void
-service_send(struct ringbuf* ring, struct timeval* now, ldns_buffer* pkt,
+service_send(struct ringbuf* ring, struct timeval* now, sldns_buffer* pkt,
 	struct sockaddr_storage* srv_addr, socklen_t srv_len)
 {
 	struct proxy* p;
@@ -367,8 +368,8 @@ service_send(struct ringbuf* ring, struct timeval* now, ldns_buffer* pkt,
 			(unsigned)tv.tv_sec, (unsigned)tv.tv_usec);
 		log_addr(1, "from client", &p->addr, p->addr_len);
 		/* send it */
-		sent = sendto(p->s, (void*)ldns_buffer_begin(pkt), 
-			ldns_buffer_limit(pkt), 0, 
+		sent = sendto(p->s, (void*)sldns_buffer_begin(pkt), 
+			sldns_buffer_limit(pkt), 0, 
 			(struct sockaddr*)srv_addr, srv_len);
 		if(sent == -1) {
 #ifndef USE_WINSOCK
@@ -376,7 +377,7 @@ service_send(struct ringbuf* ring, struct timeval* now, ldns_buffer* pkt,
 #else
 			log_err("sendto: %s", wsa_strerror(WSAGetLastError()));
 #endif
-		} else if(sent != (ssize_t)ldns_buffer_limit(pkt)) {
+		} else if(sent != (ssize_t)sldns_buffer_limit(pkt)) {
 			log_err("sendto: partial send");
 		}
 		p->lastuse = *now;
@@ -386,13 +387,13 @@ service_send(struct ringbuf* ring, struct timeval* now, ldns_buffer* pkt,
 
 /** do proxy for one readable client */
 static void
-do_proxy(struct proxy* p, int retsock, ldns_buffer* pkt)
+do_proxy(struct proxy* p, int retsock, sldns_buffer* pkt)
 {
 	int i;
 	ssize_t r;
 	for(i=0; i<TRIES_PER_SELECT; i++) {
-		r = recv(p->s, (void*)ldns_buffer_begin(pkt), 
-			ldns_buffer_capacity(pkt), 0);
+		r = recv(p->s, (void*)sldns_buffer_begin(pkt), 
+			sldns_buffer_capacity(pkt), 0);
 		if(r == -1) {
 #ifndef USE_WINSOCK
 			if(errno == EAGAIN || errno == EINTR)
@@ -406,11 +407,11 @@ do_proxy(struct proxy* p, int retsock, ldns_buffer* pkt)
 #endif
 			return;
 		}
-		ldns_buffer_set_limit(pkt, (size_t)r);
+		sldns_buffer_set_limit(pkt, (size_t)r);
 		log_addr(1, "return reply to client", &p->addr, p->addr_len);
 		/* send reply back to the real client */
 		p->numreturn++;
-		r = sendto(retsock, (void*)ldns_buffer_begin(pkt), (size_t)r, 
+		r = sendto(retsock, (void*)sldns_buffer_begin(pkt), (size_t)r, 
 			0, (struct sockaddr*)&p->addr, p->addr_len);
 		if(r == -1) {
 #ifndef USE_WINSOCK
@@ -425,7 +426,7 @@ do_proxy(struct proxy* p, int retsock, ldns_buffer* pkt)
 /** proxy return replies to clients */
 static void
 service_proxy(fd_set* rset, int retsock, struct proxy* proxies, 
-	ldns_buffer* pkt, struct timeval* now)
+	sldns_buffer* pkt, struct timeval* now)
 {
 	struct proxy* p;
 	for(p = proxies; p; p = p->next) {
@@ -487,7 +488,7 @@ find_create_proxy(struct sockaddr_storage* from, socklen_t from_len,
 
 /** recv new waiting packets */
 static void
-service_recv(int s, struct ringbuf* ring, ldns_buffer* pkt, 
+service_recv(int s, struct ringbuf* ring, sldns_buffer* pkt, 
 	fd_set* rorig, int* max, struct proxy** proxies,
 	struct sockaddr_storage* srv_addr, socklen_t srv_len, 
 	struct timeval* now, struct timeval* delay, struct timeval* reuse)
@@ -499,8 +500,8 @@ service_recv(int s, struct ringbuf* ring, ldns_buffer* pkt,
 	struct proxy* p;
 	for(i=0; i<TRIES_PER_SELECT; i++) {
 		from_len = (socklen_t)sizeof(from);
-		len = recvfrom(s, (void*)ldns_buffer_begin(pkt),
-			ldns_buffer_capacity(pkt), 0,
+		len = recvfrom(s, (void*)sldns_buffer_begin(pkt),
+			sldns_buffer_capacity(pkt), 0,
 			(struct sockaddr*)&from, &from_len);
 		if(len < 0) {
 #ifndef USE_WINSOCK
@@ -515,7 +516,7 @@ service_recv(int s, struct ringbuf* ring, ldns_buffer* pkt,
 				wsa_strerror(WSAGetLastError()));
 #endif
 		}
-		ldns_buffer_set_limit(pkt, (size_t)len);
+		sldns_buffer_set_limit(pkt, (size_t)len);
 		/* find its proxy element */
 		p = find_create_proxy(&from, from_len, rorig, max, proxies,
 			addr_is_ip6(srv_addr, srv_len), now, reuse);
@@ -640,11 +641,11 @@ service_tcp_listen(int s, fd_set* rorig, int* max, struct tcp_proxy** proxies,
 static int
 tcp_relay_read(int s, struct tcp_send_list** first, 
 	struct tcp_send_list** last, struct timeval* now, 
-	struct timeval* delay, ldns_buffer* pkt)
+	struct timeval* delay, sldns_buffer* pkt)
 {
 	struct tcp_send_list* item;
-	ssize_t r = recv(s, (void*)ldns_buffer_begin(pkt), 
-		ldns_buffer_capacity(pkt), 0);
+	ssize_t r = recv(s, (void*)sldns_buffer_begin(pkt), 
+		sldns_buffer_capacity(pkt), 0);
 	if(r == -1) {
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
@@ -668,7 +669,7 @@ tcp_relay_read(int s, struct tcp_send_list** first,
 	}
 	verbose(1, "read item len %d", (int)r);
 	item->len = (size_t)r;
-	item->item = memdup(ldns_buffer_begin(pkt), item->len);
+	item->item = memdup(sldns_buffer_begin(pkt), item->len);
 	if(!item->item) {
 		free(item);
 		log_err("out of memory");
@@ -740,7 +741,7 @@ tcp_relay_write(int s, struct tcp_send_list** first,
 /** perform TCP relaying */
 static void
 service_tcp_relay(struct tcp_proxy** tcp_proxies, struct timeval* now,
-	struct timeval* delay, struct timeval* tcp_timeout, ldns_buffer* pkt,
+	struct timeval* delay, struct timeval* tcp_timeout, sldns_buffer* pkt,
 	fd_set* rset, fd_set* rorig, fd_set* worig)
 {
 	struct tcp_proxy* p, **prev;
@@ -889,12 +890,12 @@ proxy_list_clear(struct proxy* p)
 			if(inet_ntop(AF_INET6, 
 				&((struct sockaddr_in6*)&p->addr)->sin6_addr,
 				from, (socklen_t)sizeof(from)) == 0)
-				strncpy(from, "err", sizeof(from));
+				(void)strlcpy(from, "err", sizeof(from));
 		} else {
 			if(inet_ntop(AF_INET, 
 				&((struct sockaddr_in*)&p->addr)->sin_addr,
 				from, (socklen_t)sizeof(from)) == 0)
-				strncpy(from, "err", sizeof(from));
+				(void)strlcpy(from, "err", sizeof(from));
 		}
 		printf("client[%d]: last %s@%d of %d : %u in, %u out, "
 			"%u returned\n", i++, from, port, (int)p->numreuse+1,
@@ -927,7 +928,7 @@ static void
 service_loop(int udp_s, int listen_s, struct ringbuf* ring, 
 	struct timeval* delay, struct timeval* reuse,
 	struct sockaddr_storage* srv_addr, socklen_t srv_len, 
-	ldns_buffer* pkt)
+	sldns_buffer* pkt)
 {
 	fd_set rset, rorig;
 	fd_set wset, worig;
@@ -996,7 +997,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 	socklen_t bind_len, srv_len;
 	struct ringbuf* ring = ring_create(memsize);
 	struct timeval delay, reuse;
-	ldns_buffer* pkt;
+	sldns_buffer* pkt;
 	int i, s, listen_s;
 #ifndef S_SPLINT_S
 	delay.tv_sec = delay_msec / 1000;
@@ -1012,7 +1013,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 		printf("cannot parse forward address: %s\n", serv_str);
 		exit(1);
 	}
-	pkt = ldns_buffer_new(65535);
+	pkt = sldns_buffer_new(65535);
 	if(!pkt)
 		fatal_exit("out of memory");
 	if( signal(SIGINT, delayer_sigh) == SIG_ERR ||
@@ -1115,7 +1116,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 	closesocket(s);
 	closesocket(listen_s);
 #endif
-	ldns_buffer_free(pkt);
+	sldns_buffer_free(pkt);
 	ring_delete(ring);
 }
 

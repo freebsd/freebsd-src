@@ -21,16 +21,16 @@
  * specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 /**
@@ -46,7 +46,7 @@
 #include "validator/val_nsec.h"
 #include "validator/val_nsec3.h"
 #include "validator/validator.h"
-#include "testcode/ldns-testpkts.h"
+#include "testcode/testpkts.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
 #include "util/data/dname.h"
@@ -56,39 +56,33 @@
 #include "util/net_help.h"
 #include "util/module.h"
 #include "util/config_file.h"
+#include "ldns/sbuffer.h"
+#include "ldns/keyraw.h"
+#include "ldns/str2wire.h"
+#include "ldns/wire2str.h"
 
 /** verbose signature test */
 static int vsig = 0;
 
 /** entry to packet buffer with wireformat */
 static void
-entry_to_buf(struct entry* e, ldns_buffer* pkt)
+entry_to_buf(struct entry* e, sldns_buffer* pkt)
 {
 	unit_assert(e->reply_list);
 	if(e->reply_list->reply_from_hex) {
-		ldns_buffer_copy(pkt, e->reply_list->reply_from_hex);
+		sldns_buffer_copy(pkt, e->reply_list->reply_from_hex);
 	} else {
-		ldns_status status;
-		size_t answer_size;
-		uint8_t* ans = NULL;
-		status = ldns_pkt2wire(&ans, e->reply_list->reply, 
-			&answer_size);
-		if(status != LDNS_STATUS_OK) {
-			log_err("could not create reply: %s",
-				ldns_get_errorstr_by_id(status));
-			fatal_exit("error in test");
-		}
-		ldns_buffer_clear(pkt);
-		ldns_buffer_write(pkt, ans, answer_size);
-		ldns_buffer_flip(pkt);
-		free(ans);
+		sldns_buffer_clear(pkt);
+		sldns_buffer_write(pkt, e->reply_list->reply_pkt,
+			e->reply_list->reply_len);
+		sldns_buffer_flip(pkt);
 	}
 }
 
 /** entry to reply info conversion */
 static void
 entry_to_repinfo(struct entry* e, struct alloc_cache* alloc, 
-	struct regional* region, ldns_buffer* pkt, struct query_info* qi, 
+	struct regional* region, sldns_buffer* pkt, struct query_info* qi, 
 	struct reply_info** rep)
 {
 	int ret;
@@ -102,8 +96,9 @@ entry_to_repinfo(struct entry* e, struct alloc_cache* alloc,
 	ret = reply_info_parse(pkt, alloc, qi, rep, region, &edns);
 	lock_quick_unlock(&alloc->lock);
 	if(ret != 0) {
-		printf("parse code %d: %s\n", ret,
-			ldns_lookup_by_id(ldns_rcodes, ret)->name);
+		char rcode[16];
+		sldns_wire2str_rcode_buf(ret, rcode, sizeof(rcode));
+		printf("parse code %d: %s\n", ret, rcode);
 		unit_assert(ret != 0);
 	}
 }
@@ -111,7 +106,7 @@ entry_to_repinfo(struct entry* e, struct alloc_cache* alloc,
 /** extract DNSKEY rrset from answer and convert it */
 static struct ub_packed_rrset_key* 
 extract_keys(struct entry* e, struct alloc_cache* alloc, 
-	struct regional* region, ldns_buffer* pkt)
+	struct regional* region, sldns_buffer* pkt)
 {
 	struct ub_packed_rrset_key* dnskey = NULL;
 	struct query_info qinfo;
@@ -206,7 +201,7 @@ verifytest_rrset(struct module_env* env, struct val_env* ve,
 /** verify and test an entry - every rr in the message */
 static void
 verifytest_entry(struct entry* e, struct alloc_cache* alloc, 
-	struct regional* region, ldns_buffer* pkt, 
+	struct regional* region, sldns_buffer* pkt, 
 	struct ub_packed_rrset_key* dnskey, struct module_env* env, 
 	struct val_env* ve)
 {
@@ -216,9 +211,10 @@ verifytest_entry(struct entry* e, struct alloc_cache* alloc,
 
 	regional_free_all(region);
 	if(vsig) {
-		printf("verifying pkt:\n");
-		ldns_pkt_print(stdout, e->reply_list->reply);
-		printf("\n");
+		char* s = sldns_wire2str_pkt(e->reply_list->reply_pkt,
+			e->reply_list->reply_len);
+		printf("verifying pkt:\n%s\n", s?s:"outofmemory");
+		free(s);
 	}
 	entry_to_repinfo(e, alloc, region, pkt, &qinfo, &rep);
 
@@ -245,7 +241,7 @@ find_rrset_type(struct reply_info* rep, uint16_t type)
 /** DS sig test an entry - get DNSKEY and DS in entry and verify */
 static void
 dstest_entry(struct entry* e, struct alloc_cache* alloc, 
-	struct regional* region, ldns_buffer* pkt, struct module_env* env)
+	struct regional* region, sldns_buffer* pkt, struct module_env* env)
 {
 	struct query_info qinfo;
 	struct reply_info* rep = NULL;
@@ -254,9 +250,10 @@ dstest_entry(struct entry* e, struct alloc_cache* alloc,
 
 	regional_free_all(region);
 	if(vsig) {
-		printf("verifying DS-DNSKEY match:\n");
-		ldns_pkt_print(stdout, e->reply_list->reply);
-		printf("\n");
+		char* s = sldns_wire2str_pkt(e->reply_list->reply_pkt,
+			e->reply_list->reply_len);
+		printf("verifying DS-DNSKEY match:\n%s\n", s?s:"outofmemory");
+		free(s);
 	}
 	entry_to_repinfo(e, alloc, region, pkt, &qinfo, &rep);
 	ds = find_rrset_type(rep, LDNS_RR_TYPE_DS);
@@ -296,7 +293,7 @@ verifytest_file(const char* fname, const char* at_date)
 	struct ub_packed_rrset_key* dnskey;
 	struct regional* region = regional_create();
 	struct alloc_cache alloc;
-	ldns_buffer* buf = ldns_buffer_new(65535);
+	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct entry* e;
 	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
@@ -326,7 +323,7 @@ verifytest_file(const char* fname, const char* at_date)
 	delete_entry(list);
 	regional_destroy(region);
 	alloc_clear(&alloc);
-	ldns_buffer_free(buf);
+	sldns_buffer_free(buf);
 }
 
 /** verify DS matches DNSKEY from a file */
@@ -340,7 +337,7 @@ dstest_file(const char* fname)
 	 */
 	struct regional* region = regional_create();
 	struct alloc_cache alloc;
-	ldns_buffer* buf = ldns_buffer_new(65535);
+	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct entry* e;
 	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
@@ -361,7 +358,7 @@ dstest_file(const char* fname)
 	delete_entry(list);
 	regional_destroy(region);
 	alloc_clear(&alloc);
-	ldns_buffer_free(buf);
+	sldns_buffer_free(buf);
 }
 
 /** helper for unittest of NSEC routines */
@@ -417,7 +414,7 @@ nsectest(void)
 static void
 nsec3_hash_test_entry(struct entry* e, rbtree_t* ct,
 	struct alloc_cache* alloc, struct regional* region, 
-	ldns_buffer* buf)
+	sldns_buffer* buf)
 {
 	struct query_info qinfo;
 	struct reply_info* rep = NULL;
@@ -427,9 +424,10 @@ nsec3_hash_test_entry(struct entry* e, rbtree_t* ct,
 	uint8_t* qname;
 
 	if(vsig) {
-		printf("verifying NSEC3 hash:\n");
-		ldns_pkt_print(stdout, e->reply_list->reply);
-		printf("\n");
+		char* s = sldns_wire2str_pkt(e->reply_list->reply_pkt,
+			e->reply_list->reply_len);
+		printf("verifying NSEC3 hash:\n%s\n", s?s:"outofmemory");
+		free(s);
 	}
 	entry_to_repinfo(e, alloc, region, buf, &qinfo, &rep);
 	nsec3 = find_rrset_type(rep, LDNS_RR_TYPE_NSEC3);
@@ -473,7 +471,7 @@ nsec3_hash_test(const char* fname)
 	rbtree_t ct;
 	struct regional* region = regional_create();
 	struct alloc_cache alloc;
-	ldns_buffer* buf = ldns_buffer_new(65535);
+	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct entry* e;
 	struct entry* list = read_datafile(fname, 1);
 
@@ -491,7 +489,7 @@ nsec3_hash_test(const char* fname)
 	delete_entry(list);
 	regional_destroy(region);
 	alloc_clear(&alloc);
-	ldns_buffer_free(buf);
+	sldns_buffer_free(buf);
 }
 
 void 
@@ -517,7 +515,7 @@ verify_test(void)
 	verifytest_file("testdata/test_sigs.hinfo", "20090107100022");
 	verifytest_file("testdata/test_sigs.revoked", "20080414005004");
 #ifdef USE_GOST
-	if(ldns_key_EVP_load_gost_id())
+	if(sldns_key_EVP_load_gost_id())
 	  verifytest_file("testdata/test_sigs.gost", "20090807060504");
 	else printf("Warning: skipped GOST, openssl does not provide gost.\n");
 #endif

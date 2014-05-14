@@ -18,6 +18,6 @@ SECTION QUESTION
 www.example.net.    IN      A 
 SECTION ANSWER
 www.example.net. 3600  IN  A  192.0.2.91
-www.example.net. 3600  IN  RRSIG  (A 8 3 3600 20300101000000 20000101000000 9033 example.net. kRCOH6u7l0QGy9qpC9 l1sLncJcOKFLJ7GhiUOibu4teYp5VE9RncriShZNz85mwlMgNEa cFYK/lPtPiVYP4bwg== ;{id = 9033}
+www.example.net. 3600  IN  RRSIG  (A 8 3 3600 20300101000000 20000101000000 9033 example.net. kRCOH6u7l0QGy9qpC9 l1sLncJcOKFLJ7GhiUOibu4teYp5VE9RncriShZNz85mwlMgNEa cFYK/lPtPiVYP4bwg== );{id = 9033}
 ENTRY_END
 

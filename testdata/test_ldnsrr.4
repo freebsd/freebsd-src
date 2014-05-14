@@ -1,0 +1,79 @@
+; opendnssec all.rr.org file
+@			IN	SOA		ns1 postmaster.all.rr.org. ( 1            3600         600          86400        3600 )       ; min TTL   [1h]
+ns1.all.rr.org.		IN	A		10.1.0.52
+all.rr.org.		IN	NS		ns1.example.com.
+; MD
+; MF
+foo.all.rr.org.		IN	CNAME		ns1.all.rr.org.
+all.rr.org.		IN	MB		mb-madname.example.com.
+all.rr.org.		IN	MG		mg-mgmname.example.com.
+all.rr.org.		IN	MR		mr-newname.example.com.
+; NULL
+; WKS
+bar.all.rr.org.		IN	PTR		ns1.all.rr.org.
+all.rr.org.		IN	HINFO		SUN4/110 UNIX
+helium				IN HINFO	"Shuttle-ST61G4 Intel PIV3000" "FreeBSD 7.0-STABLE"
+all.rr.org.		IN	MINFO		minfo-rmailbx.example.com. minfo-emailbx.example.com.
+all.rr.org.		IN	MX		10 VENERA.all.rr.org.
+selector._domainkey.all.rr.org.	IN	TXT		"v=DKIM1; n=Use=20DKIM; p=AwEAAZfbYw8SffZwsbrCLbC+JLErREIF6Yfe9aqsa1Pz6tpGWiLxm9rSL6/YoBvNP3UWX91YDF0JMo6lhu3UIZjITvIwDhx+RJYko9vLzaaJKXGf3ygy6z+deWoZJAV1lTY0Ltx9genboe88CSCHw9aSLkh0obN9Ck8R6zAMYR19ciM/; t=s"
+all.rr.org.		IN	RP		rp-mbox.example.com. rp-txtdname.example.com.
+all.rr.org.		IN	AFSDB		1 afsdb-hostname.example.com.
+all.rr.org.		IN	X25		311061700956
+all.rr.org.		IN	ISDN		150862028003217 004
+all.rr.org.		IN	RT		10   NET.Prime.COM.
+all.rr.org.		IN	NSAP		0x47.0005.80.005a00.0000.0001.e133.ffffff000161.00
+; NSAP-PTR
+; SIG
+; KEY
+all.rr.org.		IN	PX		10   net2.it.  PRMD-net2.ADMD-p400.C-it.
+; GPOS
+all.rr.org.		IN	AAAA		2001:db8::3
+all.rr.org.		IN	LOC		42 21 54.5 N 71 06 18.3 W -24m 30m
+; too lenient LOC record
+all.rr.org.		IN	LOC		42N 71 06 18.3W -24m 30m
+; NXT
+; EID
+; NIMLOC
+_http._tcp.all.rr.org.	IN	SRV		0 5 80 ns1.example.com.
+; ATMA
+all.rr.org.		IN	NAPTR		100   10   ""  ""  "!^urn:cid:.+@([^\\.]+\\.)(.*)$!\\2!i"    .
+all.rr.org.		IN	KX		2 rt1.example.com.
+all.rr.org.		IN	CERT		6 0 0 FFsAyW1dVK7hIGuvhN56r26UwJx/
+; A6
+frobozz.all.rr.org.	IN	DNAME		frobozz-division.acme.example.
+; SINK
+; OPT
+; APL
+sub.all.rr.org.		IN	DS		12345 3 1 123456789abcdef67890123456789abcdef67890
+all.rr.org.		IN	SSHFP		2 1 123456789abcdef67890123456789abcdef67890
+all.rr.org.		IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+all.rr.org.		IN	RRSIG		A 5 3 86400 20030322173103 ( 20030220173103 2642 example.com.  oJB1W6WNGv+ldvQ3WDG0MQkg5IEhjRip8WTr PYGv07h108dUKGMeDPKijVCHX3DDKdfb+v6o B9wfuh3DTJXUAfI/M0zmO/zz8bW0Rznl8O3t GNazPwQKkRN20XPXV6nwwfoXmJQbsLNrLfkG J5D6fwFm8nN+6pBzeDQfsS3Ap3o= )
+all.rr.org.		IN	NSEC		host.example.com. A MX RRSIG NSEC
+all.rr.org.		IN	DNSKEY		256 3 5 ( AQPSKmynfzW4kyBv015MUG2DeIQ3 Cbl+BBZH4b/0PY1kxkmvHjcZc8no kfzj31GajIQKY+5CptLr3buXA10h WqTkF7H6RfoRqXQeogmMHfpftf6z Mv1LyBUgia7za6ZEzOJBOztyvhjL 742iU/TpPSEDhm2SNKLijfUppn1U aNvv4w== )
+all.rr.org.		IN	DHCID		( AAIBY2/AuCccgoJbsaxcQc9TUapptP69l OjxfNuVAA2kjEA= )
+ee19kl3631qol646kjjrh6lh96pduqii.all.rr.org.	IN	NSEC3	1 0 5 6467b16f6f36ba4d  13k9b8dv58kcn28us3fc0lqa60jeadp0 A RRSIG
+all.rr.org.		IN	NSEC3PARAM	1 0 5 6467b16f6f36ba4d
+; 52-54
+all.rr.org.		IN	HIP		( 2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D rvs.example.com. )
+; NINFO
+; RKEY
+; 58-98
+all.rr.org.		IN	SPF		"v=spf1 +mx a:colo.example.com/28 -all"
+; UINFO
+; UID
+; GID
+; UNSPEC
+; 104-248
+; TKEY
+; TSIG
+; IXFR
+; AXFR
+; MAILB
+; MAILA
+; ANY
+; 256-32767
+; TA
+all.rr.org.		IN	DLV		12345 3 1 123456789abcdef67890123456789abcdef67890
+; 32770-65279  
+; 65280-65534
+; 65535

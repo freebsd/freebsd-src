@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -63,6 +63,8 @@
 #include "validator/val_kcache.h"
 #include "validator/val_kentry.h"
 #include "validator/val_utils.h"
+#include "validator/val_sigcrypt.h"
+#include "ldns/sbuffer.h"
 
 /** time when nameserver glue is said to be 'recent' */
 #define SUSPICION_RECENT_EXPIRY 86400
@@ -389,7 +391,7 @@ iter_server_selection(struct iter_env* iter_env,
 }
 
 struct dns_msg* 
-dns_alloc_msg(ldns_buffer* pkt, struct msg_parse* msg, 
+dns_alloc_msg(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct regional* region)
 {
 	struct dns_msg* m = (struct dns_msg*)regional_alloc(region,
@@ -682,7 +684,7 @@ rrset_equal(struct ub_packed_rrset_key* k1, struct ub_packed_rrset_key* k2)
 }
 
 int 
-reply_equal(struct reply_info* p, struct reply_info* q, ldns_buffer* scratch)
+reply_equal(struct reply_info* p, struct reply_info* q, struct regional* region)
 {
 	size_t i;
 	if(p->flags != q->flags ||
@@ -697,27 +699,12 @@ reply_equal(struct reply_info* p, struct reply_info* q, ldns_buffer* scratch)
 		return 0;
 	for(i=0; i<p->rrset_count; i++) {
 		if(!rrset_equal(p->rrsets[i], q->rrsets[i])) {
-			/* fallback procedure: try to sort and canonicalize */
-			ldns_rr_list* pl, *ql;
-			pl = packed_rrset_to_rr_list(p->rrsets[i], scratch);
-			ql = packed_rrset_to_rr_list(q->rrsets[i], scratch);
-			if(!pl || !ql) {
-				ldns_rr_list_deep_free(pl);
-				ldns_rr_list_deep_free(ql);
+			if(!rrset_canonical_equal(region, p->rrsets[i],
+				q->rrsets[i])) {
+				regional_free_all(region);
 				return 0;
 			}
-			ldns_rr_list2canonical(pl);
-			ldns_rr_list2canonical(ql);
-			ldns_rr_list_sort(pl);
-			ldns_rr_list_sort(ql);
-			if(ldns_rr_list_compare(pl, ql) != 0) {
-				ldns_rr_list_deep_free(pl);
-				ldns_rr_list_deep_free(ql);
-				return 0;
-			}
-			ldns_rr_list_deep_free(pl);
-			ldns_rr_list_deep_free(ql);
-			continue;
+			regional_free_all(region);
 		}
 	}
 	return 1;
@@ -817,7 +804,7 @@ void iter_store_parentside_neg(struct module_env* env,
 	newd->rr_len[0] = 0 /* zero len rdata */ + sizeof(uint16_t);
 	packed_rrset_ptr_fixup(newd);
 	newd->rr_ttl[0] = newd->ttl;
-	ldns_write_uint16(newd->rr_data[0], 0 /* zero len rdata */);
+	sldns_write_uint16(newd->rr_data[0], 0 /* zero len rdata */);
 	/* store it */
 	log_rrset_key(VERB_ALGO, "store parent-side negative", neg);
 	iter_store_parentside_rrset(env, neg);

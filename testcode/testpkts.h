@@ -1,5 +1,5 @@
 /*
- * ldns-testpkts. Data file parse for test packets, and query matching.
+ * testpkts. Data file parse for test packets, and query matching.
  *
  * Data storage for specially crafted replies for testing purposes.
  *
@@ -7,8 +7,10 @@
  * See the file LICENSE for the license
  */
 
-#ifndef LDNS_TESTPKTS_H
-#define LDNS_TESTPKTS_H
+#ifndef TESTPKTS_H
+#define TESTPKTS_H
+struct sldns_buffer;
+struct sldns_file_parse_state;
 
 /**
  * \file
@@ -131,8 +133,6 @@ ENTRY_END
    void verbose(int level, char* format, ...); output function.
 */
 
-#include <ldns/ldns.h>
-
 /** Type of transport, since some entries match based on UDP or TCP of query */
 enum transport_type {transport_any = 0, transport_udp, transport_tcp };
 
@@ -141,9 +141,11 @@ struct reply_packet {
 	/** next in list of reply packets, for TCP multiple pkts on wire */
 	struct reply_packet* next;
 	/** the reply pkt */
-	ldns_pkt* reply;
+	uint8_t* reply_pkt;
+	/** length of reply pkt */
+	size_t reply_len;
 	/** or reply pkt in hex if not parsable */
-	ldns_buffer* reply_from_hex;
+	struct sldns_buffer* reply_from_hex;
 	/** seconds to sleep before giving packet */
 	unsigned int packet_sleep; 
 };
@@ -154,23 +156,23 @@ struct entry {
 	/* match */
 	/* How to match an incoming query with this canned reply */
 	/** match query opcode with answer opcode */
-	bool match_opcode; 
+	uint8_t match_opcode; 
 	/** match qtype with answer qtype */
-	bool match_qtype;  
+	uint8_t match_qtype;  
 	/** match qname with answer qname */
-	bool match_qname;  
+	uint8_t match_qname;  
 	/** match qname as subdomain of answer qname */
-	bool match_subdomain;  
+	uint8_t match_subdomain;  
 	/** match SOA serial number, from auth section */
-	bool match_serial; 
+	uint8_t match_serial; 
 	/** match all of the packet */
-	bool match_all;
+	uint8_t match_all;
 	/** match ttls in the packet */
-	bool match_ttl;
+	uint8_t match_ttl;
 	/** match DO bit */
-	bool match_do;
+	uint8_t match_do;
 	/** match absence of EDNS OPT record in query */
-	bool match_noedns;
+	uint8_t match_noedns;
 	/** match query serial with this value. */
 	uint32_t ixfr_soa_serial; 
 	/** match on UDP/TCP */
@@ -181,9 +183,9 @@ struct entry {
 
 	/** how to adjust the reply packet */
 	/** copy over the ID from the query into the answer */
-	bool copy_id; 
+	uint8_t copy_id; 
 	/** copy the query nametypeclass from query into the answer */
-	bool copy_query;
+	uint8_t copy_query;
 	/** in seconds */
 	unsigned int sleeptime; 
 
@@ -211,32 +213,39 @@ void delete_entry(struct entry* list);
  * Read one entry from the data file.
  * @param in: file to read from. Filepos must be at the start of a new line.
  * @param name: name of the file for prettier errors.
- * @param lineno: line number in file, incremented as lines are read.
- *	for prettier errors.
- * @param default_ttl: on first call set to default TTL for entries,
- *	later it stores the $TTL value last seen. Try 3600 first call.
- * @param origin: domain name for origin appending. Can be &NULL on first call.
- *	later it stores the $ORIGIN value last seen. Often &NULL or the zone
- *	name on first call.
- * @param prev_rr: previous rr name for correcter parsing. &NULL on first call.
+ * @param pstate: file parse state with lineno, default_ttl,
+ * 	oirigin and prev_rr name.
  * @param skip_whitespace: skip leftside whitespace.
  * @return: The entry read (malloced) or NULL if no entry could be read.
  */
-struct entry* read_entry(FILE* in, const char* name, int *lineno, 
-	uint32_t* default_ttl, ldns_rdf** origin, ldns_rdf** prev_rr,
-	int skip_whitespace);
+struct entry* read_entry(FILE* in, const char* name, 
+	struct sldns_file_parse_state* pstate, int skip_whitespace);
 
 /**
  * finds entry in list, or returns NULL.
  */
-struct entry* find_match(struct entry* entries, ldns_pkt* query_pkt,
-	enum transport_type transport);
+struct entry* find_match(struct entry* entries, uint8_t* query_pkt,
+	size_t query_pkt_len, enum transport_type transport);
 
 /**
- * copy & adjust packet 
+ * match two packets, all must match
+ * @param q: packet 1
+ * @param qlen: length of q.
+ * @param p: packet 2
+ * @param plen: length of p.
+ * @param mttl: if true, ttls must match, if false, ttls do not need to match
+ * @param noloc: if true, rrs may be reordered in their packet-section.
+ * 	rrs are then matches without location of the rr being important.
+ * @return true if matched.
  */
-void adjust_packet(struct entry* match, ldns_pkt* answer_pkt, 
-	ldns_pkt* query_pkt);
+int match_all(uint8_t* q, size_t qlen, uint8_t* p, size_t plen, int mttl,
+	int noloc);
+
+/**
+ * copy & adjust packet, mallocs a copy.
+ */
+void adjust_packet(struct entry* match, uint8_t** answer_pkt,
+	size_t* answer_pkt_len, uint8_t* query_pkt, size_t query_pkt_len);
 
 /**
  * Parses data buffer to a query, finds the correct answer 
@@ -256,4 +265,4 @@ void handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries,
 	void (*sendfunc)(uint8_t*, size_t, void*), void* userdata,
 	FILE* verbose_out);
 
-#endif /* LDNS_TESTPKTS_H */
+#endif /* TESTPKTS_H */

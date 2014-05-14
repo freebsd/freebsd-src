@@ -73,10 +73,10 @@ void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qin
  *  This function fills qstate.return_msg up with data of a given packet
  * 
  * @param qstate: module environment
- * @param pkt: a ldns_buffer which contains ldns_packet data
+ * @param pkt: a sldns_buffer which contains sldns_packet data
  * @return 0 on failure, out of memory or parse error.
  */
-int createResponse(struct module_qstate* qstate, ldns_buffer* pkt);
+int createResponse(struct module_qstate* qstate, sldns_buffer* pkt);
 
 /**
  *  Convert reply->addr to string

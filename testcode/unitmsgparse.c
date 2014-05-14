@@ -21,16 +21,16 @@
  * specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 /**
@@ -39,7 +39,7 @@
  */
 
 #include "config.h"
-#include <ldns/ldns.h>
+#include <sys/time.h>
 #include "util/log.h"
 #include "testcode/unitmain.h"
 #include "util/data/msgparse.h"
@@ -50,6 +50,10 @@
 #include "util/regional.h"
 #include "util/net_help.h"
 #include "testcode/readhex.h"
+#include "testcode/testpkts.h"
+#include "ldns/sbuffer.h"
+#include "ldns/str2wire.h"
+#include "ldns/wire2str.h"
 
 /** verbose message parse unit test */
 static int vbmp = 0;
@@ -62,203 +66,105 @@ static int check_rrsigs = 0;
 /** do not check buffer sameness */
 static int check_nosameness = 0;
 
-/** match two rr lists */
-static int
-match_list(ldns_rr_list* q, ldns_rr_list *p)
-{
-	size_t i;
-	if(ldns_rr_list_rr_count(q) != ldns_rr_list_rr_count(p)) {
-		verbose(3, "rrlistcount different %d %d", 
-			(int)ldns_rr_list_rr_count(q), 
-			(int)ldns_rr_list_rr_count(p));
-		return 0;
-	}
-	for(i=0; i<ldns_rr_list_rr_count(q); i++)
-	{
-		if(matches_nolocation) {
-			if(!ldns_rr_list_contains_rr(p, ldns_rr_list_rr(q, i)))
-			{
-				verbose(3, "rr %u not found", (unsigned)i);
-				return 0;
-			}
-		} else {
-			if(ldns_rr_compare(ldns_rr_list_rr(q, i),
-				ldns_rr_list_rr(p, i)) != 0) {
-				verbose(3, "rr %u different", (unsigned)i);
-				return 0;
-			}
-			/* and check the ttl */
-			if(ldns_rr_ttl(ldns_rr_list_rr(q, i)) !=
-				ldns_rr_ttl(ldns_rr_list_rr(p, i))) {
-				verbose(3, "rr %u ttl different", (unsigned)i);
-				return 0;
-			}
-		}
-	}
-	return 1;
-}
-
-/** match edns sections */
-static int
-match_edns(ldns_pkt* q, ldns_pkt* p)
-{
-	if(ldns_pkt_edns_udp_size(q) != ldns_pkt_edns_udp_size(p))
-		return 0;
-	if(ldns_pkt_edns_extended_rcode(q) != ldns_pkt_edns_extended_rcode(p))
-		return 0;
-	if(ldns_pkt_edns_version(q) != ldns_pkt_edns_version(p))
-		return 0;
-	if(ldns_pkt_edns_do(q) != ldns_pkt_edns_do(p))
-		return 0;
-	if(ldns_pkt_edns_z(q) != ldns_pkt_edns_z(p))
-		return 0;
-	if(ldns_rdf_compare(ldns_pkt_edns_data(q), ldns_pkt_edns_data(p)) != 0)
-		return 0;
-	return 1;
-}
-
-/** compare two booleans */
-static int
-cmp_bool(int x, int y)
-{
-	if(!x && !y) return 0;
-	if(x && y) return 0;
-	if(!x) return -1;
-	return 1;
-}
-
-/** match all of the packet */
-static int
-match_all(ldns_pkt* q, ldns_pkt* p)
-{
-	if(ldns_pkt_get_opcode(q) != ldns_pkt_get_opcode(p))
-	{ verbose(3, "allmatch: opcode different"); return 0;}
-	if(ldns_pkt_get_rcode(q) != ldns_pkt_get_rcode(p))
-	{ verbose(3, "allmatch: rcode different"); return 0;}
-	if(ldns_pkt_id(q) != ldns_pkt_id(p))
-	{ verbose(3, "allmatch: id different"); return 0;}
-	if(cmp_bool(ldns_pkt_qr(q), ldns_pkt_qr(p)) != 0)
-	{ verbose(3, "allmatch: qr different"); return 0;}
-	if(cmp_bool(ldns_pkt_aa(q), ldns_pkt_aa(p)) != 0)
-	{ verbose(3, "allmatch: aa different"); return 0;}
-	if(cmp_bool(ldns_pkt_tc(q), ldns_pkt_tc(p)) != 0)
-	{ verbose(3, "allmatch: tc different"); return 0;}
-	if(cmp_bool(ldns_pkt_rd(q), ldns_pkt_rd(p)) != 0)
-	{ verbose(3, "allmatch: rd different"); return 0;}
-	if(cmp_bool(ldns_pkt_cd(q), ldns_pkt_cd(p)) != 0)
-	{ verbose(3, "allmatch: cd different"); return 0;}
-	if(cmp_bool(ldns_pkt_ra(q), ldns_pkt_ra(p)) != 0)
-	{ verbose(3, "allmatch: ra different"); return 0;}
-	if(cmp_bool(ldns_pkt_ad(q), ldns_pkt_ad(p)) != 0)
-	{ verbose(3, "allmatch: ad different"); return 0;}
-	if(ldns_pkt_qdcount(q) != ldns_pkt_qdcount(p))
-	{ verbose(3, "allmatch: qdcount different"); return 0;}
-	if(ldns_pkt_ancount(q) != ldns_pkt_ancount(p))
-	{ verbose(3, "allmatch: ancount different"); return 0;}
-	if(ldns_pkt_nscount(q) != ldns_pkt_nscount(p))
-	{ verbose(3, "allmatch: nscount different"); return 0;}
-	if(ldns_pkt_arcount(q) != ldns_pkt_arcount(p))
-	{ verbose(3, "allmatch: arcount different"); return 0;}
-	if(!match_list(ldns_pkt_question(q), ldns_pkt_question(p)))
-	{ verbose(3, "allmatch: qd section different"); return 0;}
-	if(!match_list(ldns_pkt_answer(q), ldns_pkt_answer(p)))
-	{ verbose(3, "allmatch: an section different"); return 0;}
-	if(!match_list(ldns_pkt_authority(q), ldns_pkt_authority(p)))
-	{ verbose(3, "allmatch: ns section different"); return 0;}
-	if(!match_list(ldns_pkt_additional(q), ldns_pkt_additional(p)))
-	{ verbose(3, "allmatch: ar section different"); return 0;}
-	if(!match_edns(q, p))
-	{ verbose(3, "edns different."); return 0;}
-	return 1;
-}
-
 /** see if buffers contain the same packet */
 static int
-test_buffers(ldns_buffer* pkt, ldns_buffer* out)
+test_buffers(sldns_buffer* pkt, sldns_buffer* out)
 {
-	ldns_pkt* p1=0, *p2=0;
-	ldns_status s1, s2;
 	/* check binary same */
-	if(ldns_buffer_limit(pkt) == ldns_buffer_limit(out) &&
-		memcmp(ldns_buffer_begin(pkt), ldns_buffer_begin(out),
-			ldns_buffer_limit(pkt)) == 0) {
+	if(sldns_buffer_limit(pkt) == sldns_buffer_limit(out) &&
+		memcmp(sldns_buffer_begin(pkt), sldns_buffer_begin(out),
+			sldns_buffer_limit(pkt)) == 0) {
 		if(vbmp) printf("binary the same (length=%u)\n",
-				(unsigned)ldns_buffer_limit(pkt));
+				(unsigned)sldns_buffer_limit(pkt));
 		return 1;
 	}
 
 	if(vbmp) {
 		size_t sz = 16;
 		size_t count;
-		size_t lim = ldns_buffer_limit(out);
-		if(ldns_buffer_limit(pkt) < lim)
-			lim = ldns_buffer_limit(pkt);
+		size_t lim = sldns_buffer_limit(out);
+		if(sldns_buffer_limit(pkt) < lim)
+			lim = sldns_buffer_limit(pkt);
 		for(count=0; count<lim; count+=sz) {
 			size_t rem = sz;
 			if(lim-count < sz) rem = lim-count;
-			if(memcmp(ldns_buffer_at(pkt, count), 
-				ldns_buffer_at(out, count), rem) == 0) {
+			if(memcmp(sldns_buffer_at(pkt, count), 
+				sldns_buffer_at(out, count), rem) == 0) {
 				log_info("same %d %d", (int)count, (int)rem);
-				log_hex("same: ", ldns_buffer_at(pkt, count),
+				log_hex("same: ", sldns_buffer_at(pkt, count),
 					rem);
 			} else {
 				log_info("diff %d %d", (int)count, (int)rem);
-				log_hex("difp: ", ldns_buffer_at(pkt, count),
+				log_hex("difp: ", sldns_buffer_at(pkt, count),
 					rem);
-				log_hex("difo: ", ldns_buffer_at(out, count),
+				log_hex("difo: ", sldns_buffer_at(out, count),
 					rem);
 			}
 		}
 	}
+
 	/* check if it 'means the same' */
-	s1 = ldns_buffer2pkt_wire(&p1, pkt);
-	s2 = ldns_buffer2pkt_wire(&p2, out);
 	if(vbmp) {
+		char* s1, *s2;
 		log_buf(0, "orig in hex", pkt);
 		log_buf(0, "unbound out in hex", out);
 		printf("\npacket from unbound (%d):\n", 
-			(int)ldns_buffer_limit(out));
-		ldns_pkt_print(stdout, p2);
+			(int)sldns_buffer_limit(out));
+		s1 = sldns_wire2str_pkt(sldns_buffer_begin(out),
+			sldns_buffer_limit(out));
+		printf("%s\n", s1?s1:"null");
+		free(s1);
 
 		printf("\npacket original (%d):\n", 
-			(int)ldns_buffer_limit(pkt));
-		ldns_pkt_print(stdout, p1);
+			(int)sldns_buffer_limit(pkt));
+		s2 = sldns_wire2str_pkt(sldns_buffer_begin(pkt),
+			sldns_buffer_limit(pkt));
+		printf("%s\n", s2?s2:"null");
+		free(s2);
 		printf("\n");
 	}
-	if(s1 != s2) {
-		/* oops! */
-		printf("input ldns parse: %s, output ldns parse: %s.\n",
-			ldns_get_errorstr_by_id(s1), 
-			ldns_get_errorstr_by_id(s2));
-		unit_assert(0);
+	/* if it had two EDNS sections, skip comparison */
+	if(1) {
+		char* s = sldns_wire2str_pkt(sldns_buffer_begin(pkt),
+			sldns_buffer_limit(pkt));
+		char* e1 = strstr(s, "; EDNS:");
+		if(e1 && strstr(e1+4, "; EDNS:")) {
+			free(s);
+			return 0;
+		}
+		free(s);
 	}
 	/* compare packets */
-	unit_assert(match_all(p1, p2));
-	ldns_pkt_free(p1);
-	ldns_pkt_free(p2);
+	unit_assert(match_all(sldns_buffer_begin(pkt), sldns_buffer_limit(pkt),
+		sldns_buffer_begin(out), sldns_buffer_limit(out), 1,
+		matches_nolocation));
 	return 0;
 }
 
 /** check if unbound formerr equals ldns formerr */
 static void
-checkformerr(ldns_buffer* pkt)
+checkformerr(sldns_buffer* pkt)
 {
-	ldns_pkt* p;
-	ldns_status status = ldns_buffer2pkt_wire(&p, pkt);
-	if(vbmp) printf("formerr, ldns parse is: %s\n",
-			ldns_get_errorstr_by_id(status));
-	if(status == LDNS_STATUS_OK) {
+	int status = 0;
+	char* s = sldns_wire2str_pkt(sldns_buffer_begin(pkt),
+		sldns_buffer_limit(pkt));
+	if(!s) fatal_exit("out of memory");
+	if(strstr(s, "Error")) status = 1;
+	if(strstr(s, "error")) status = 1;
+	if(status == 0) {
 		printf("Formerr, but ldns gives packet:\n");
-		ldns_pkt_print(stdout, p);
+		printf("%s\n", s);
+		free(s);
 		exit(1);
 	}
-	unit_assert(status != LDNS_STATUS_OK);
+	free(s);
+	unit_assert(status != 0);
 }
 
 /** performance test message encoding */
 static void
 perf_encode(struct query_info* qi, struct reply_info* rep, uint16_t id, 
-	uint16_t flags, ldns_buffer* out, time_t timenow, 
+	uint16_t flags, sldns_buffer* out, time_t timenow, 
 	struct edns_data* edns)
 {
 	static int num = 0;
@@ -285,13 +191,13 @@ perf_encode(struct query_info* qi, struct reply_info* rep, uint16_t id,
 		((double)end.tv_usec - (double)start.tv_usec)/1000.;
 	printf("[%d] did %u in %g msec for %f encode/sec size %d\n", num++,
 		(unsigned)max, dt, (double)max / (dt/1000.), 
-		(int)ldns_buffer_limit(out));
+		(int)sldns_buffer_limit(out));
 	regional_destroy(r2);
 }
 
 /** perf test a packet */
 static void
-perftestpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out, 
+perftestpkt(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out, 
 	const char* hex)
 {
 	struct query_info qi;
@@ -304,15 +210,16 @@ perftestpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 	struct edns_data edns;
 
 	hex_to_buf(pkt, hex);
-	memmove(&id, ldns_buffer_begin(pkt), sizeof(id));
-	if(ldns_buffer_limit(pkt) < 2)
+	memmove(&id, sldns_buffer_begin(pkt), sizeof(id));
+	if(sldns_buffer_limit(pkt) < 2)
 		flags = 0;
-	else	memmove(&flags, ldns_buffer_at(pkt, 2), sizeof(flags));
+	else	memmove(&flags, sldns_buffer_at(pkt, 2), sizeof(flags));
 	flags = ntohs(flags);
 	ret = reply_info_parse(pkt, alloc, &qi, &rep, region, &edns);
 	if(ret != 0) {
-		if(vbmp) printf("parse code %d: %s\n", ret, 
-			ldns_lookup_by_id(ldns_rcodes, ret)->name);
+		char rbuf[16];
+		sldns_wire2str_rcode_buf(ret, rbuf, sizeof(rbuf));
+		if(vbmp) printf("parse code %d: %s\n", ret, rbuf);
 		if(ret == LDNS_RCODE_FORMERR)
 			checkformerr(pkt);
 		unit_assert(ret != LDNS_RCODE_SERVFAIL);
@@ -325,37 +232,44 @@ perftestpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 	regional_destroy(region);
 }
 
+/** print packed rrset */
+static void
+print_rrset(struct ub_packed_rrset_key* rrset)
+{
+	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
+	                entry.data;
+	char buf[65535];
+	size_t i;
+	for(i=0; i<d->count+d->rrsig_count; i++) {
+		if(!packed_rr_to_string(rrset, i, 0, buf, sizeof(buf)))
+			printf("failedtoconvert %d\n", (int)i);
+		else
+			printf("%s\n", buf);
+	}
+}
+
 /** debug print a packet that failed */
 static void
 print_packet_rrsets(struct query_info* qinfo, struct reply_info* rep)
 {
 	size_t i;
-	ldns_rr_list* l;
-	ldns_buffer* buf = ldns_buffer_new(65536);
 	log_query_info(0, "failed query", qinfo);
 	printf(";; ANSWER SECTION (%d rrsets)\n", (int)rep->an_numrrsets);
 	for(i=0; i<rep->an_numrrsets; i++) {
-		l = packed_rrset_to_rr_list(rep->rrsets[i], buf);
 		printf("; rrset %d\n", (int)i);
-		ldns_rr_list_print(stdout, l);
-		ldns_rr_list_deep_free(l);
+		print_rrset(rep->rrsets[i]);
 	}
 	printf(";; AUTHORITY SECTION (%d rrsets)\n", (int)rep->ns_numrrsets);
 	for(i=rep->an_numrrsets; i<rep->an_numrrsets+rep->ns_numrrsets; i++) {
-		l = packed_rrset_to_rr_list(rep->rrsets[i], buf);
 		printf("; rrset %d\n", (int)i);
-		ldns_rr_list_print(stdout, l);
-		ldns_rr_list_deep_free(l);
+		print_rrset(rep->rrsets[i]);
 	}
 	printf(";; ADDITIONAL SECTION (%d rrsets)\n", (int)rep->ar_numrrsets);
 	for(i=rep->an_numrrsets+rep->ns_numrrsets; i<rep->rrset_count; i++) {
-		l = packed_rrset_to_rr_list(rep->rrsets[i], buf);
 		printf("; rrset %d\n", (int)i);
-		ldns_rr_list_print(stdout, l);
-		ldns_rr_list_deep_free(l);
+		print_rrset(rep->rrsets[i]);
 	}
 	printf(";; packet end\n");
-	ldns_buffer_free(buf);
 }
 
 /** check that there is no data element that matches the RRSIG */
@@ -397,7 +311,7 @@ check_the_rrsigs(struct query_info* qinfo, struct reply_info* rep)
 
 /** test a packet */
 static void
-testpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out, 
+testpkt(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out, 
 	const char* hex)
 {
 	struct query_info qi;
@@ -410,15 +324,16 @@ testpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 	struct edns_data edns;
 
 	hex_to_buf(pkt, hex);
-	memmove(&id, ldns_buffer_begin(pkt), sizeof(id));
-	if(ldns_buffer_limit(pkt) < 2)
+	memmove(&id, sldns_buffer_begin(pkt), sizeof(id));
+	if(sldns_buffer_limit(pkt) < 2)
 		flags = 0;
-	else	memmove(&flags, ldns_buffer_at(pkt, 2), sizeof(flags));
+	else	memmove(&flags, sldns_buffer_at(pkt, 2), sizeof(flags));
 	flags = ntohs(flags);
 	ret = reply_info_parse(pkt, alloc, &qi, &rep, region, &edns);
 	if(ret != 0) {
-		if(vbmp) printf("parse code %d: %s\n", ret, 
-			ldns_lookup_by_id(ldns_rcodes, ret)->name);
+		char rbuf[16];
+		sldns_wire2str_rcode_buf(ret, rbuf, sizeof(rbuf));
+		if(vbmp) printf("parse code %d: %s\n", ret, rbuf);
 		if(ret == LDNS_RCODE_FORMERR) {
 			unit_assert(!check_formerr_gone);
 			checkformerr(pkt);
@@ -431,30 +346,30 @@ testpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 		unit_assert(ret != 0); /* udp packets should fit */
 		attach_edns_record(out, &edns);
 		if(vbmp) printf("inlen %u outlen %u\n", 
-			(unsigned)ldns_buffer_limit(pkt),
-			(unsigned)ldns_buffer_limit(out));
+			(unsigned)sldns_buffer_limit(pkt),
+			(unsigned)sldns_buffer_limit(out));
 		if(!check_nosameness)
 			test_buffers(pkt, out);
 		if(check_rrsigs)
 			check_the_rrsigs(&qi, rep);
 
-		if(ldns_buffer_limit(out) > lim) {
+		if(sldns_buffer_limit(out) > lim) {
 			ret = reply_info_encode(&qi, rep, id, flags, out, 
 				timenow, region, 
 				lim - calc_edns_field_size(&edns),
 				(int)(edns.bits & EDNS_DO));
 			unit_assert(ret != 0); /* should fit, but with TC */
 			attach_edns_record(out, &edns);
-			if( LDNS_QDCOUNT(ldns_buffer_begin(out)) !=
-				LDNS_QDCOUNT(ldns_buffer_begin(pkt)) ||
-				LDNS_ANCOUNT(ldns_buffer_begin(out)) !=
-				LDNS_ANCOUNT(ldns_buffer_begin(pkt)) ||
-				LDNS_NSCOUNT(ldns_buffer_begin(out)) !=
-				LDNS_NSCOUNT(ldns_buffer_begin(pkt)))
+			if( LDNS_QDCOUNT(sldns_buffer_begin(out)) !=
+				LDNS_QDCOUNT(sldns_buffer_begin(pkt)) ||
+				LDNS_ANCOUNT(sldns_buffer_begin(out)) !=
+				LDNS_ANCOUNT(sldns_buffer_begin(pkt)) ||
+				LDNS_NSCOUNT(sldns_buffer_begin(out)) !=
+				LDNS_NSCOUNT(sldns_buffer_begin(pkt)))
 				unit_assert(
-				LDNS_TC_WIRE(ldns_buffer_begin(out)));
+				LDNS_TC_WIRE(sldns_buffer_begin(out)));
 				/* must set TC bit if shortened */
-			unit_assert(ldns_buffer_limit(out) <= lim);
+			unit_assert(sldns_buffer_limit(out) <= lim);
 		}
 	} 
 
@@ -465,7 +380,7 @@ testpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 
 /** simple test of parsing */
 static void
-simpletest(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out)
+simpletest(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out)
 {
 	/* a root query  drill -q - */
 	testpkt(pkt, alloc, out, 
@@ -522,7 +437,7 @@ simpletest(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out)
 
 /** simple test of parsing, pcat file */
 static void
-testfromfile(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
+testfromfile(sldns_buffer* pkt, struct alloc_cache* alloc, sldns_buffer* out,
 	const char* fname)
 {
 	FILE* in = fopen(fname, "r");
@@ -549,8 +464,8 @@ testfromfile(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 
 /** simple test of parsing, drill file */
 static void
-testfromdrillfile(ldns_buffer* pkt, struct alloc_cache* alloc, 
-	ldns_buffer* out, const char* fname)
+testfromdrillfile(sldns_buffer* pkt, struct alloc_cache* alloc, 
+	sldns_buffer* out, const char* fname)
 {
 	/*  ;-- is used to indicate a new message */
 	FILE* in = fopen(fname, "r");
@@ -582,8 +497,8 @@ testfromdrillfile(ldns_buffer* pkt, struct alloc_cache* alloc,
 
 void msgparse_test(void)
 {
-	ldns_buffer* pkt = ldns_buffer_new(65553);
-	ldns_buffer* out = ldns_buffer_new(65553);
+	sldns_buffer* pkt = sldns_buffer_new(65553);
+	sldns_buffer* out = sldns_buffer_new(65553);
 	struct alloc_cache super_a, alloc;
 	/* init */
 	alloc_init(&super_a, NULL, 0);
@@ -619,6 +534,6 @@ void msgparse_test(void)
 	/* cleanup */
 	alloc_clear(&alloc);
 	alloc_clear(&super_a);
-	ldns_buffer_free(pkt);
-	ldns_buffer_free(out);
+	sldns_buffer_free(pkt);
+	sldns_buffer_free(out);
 }

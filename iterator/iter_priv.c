@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,7 +41,6 @@
  */
 
 #include "config.h"
-#include <ldns/dname.h>
 #include "iterator/iter_priv.h"
 #include "util/regional.h"
 #include "util/log.h"
@@ -50,6 +49,8 @@
 #include "util/data/msgparse.h"
 #include "util/net_help.h"
 #include "util/storage/dnstree.h"
+#include "ldns/str2wire.h"
+#include "ldns/sbuffer.h"
 
 struct iter_priv* priv_create(void)
 {
@@ -110,23 +111,21 @@ static int read_names(struct iter_priv* priv, struct config_file* cfg)
 	/* parse names, report errors, insert into tree */
 	struct config_strlist* p;
 	struct name_tree_node* n;
-	uint8_t* nm;
+	uint8_t* nm, *nmr;
 	size_t nm_len;
 	int nm_labs;
-	ldns_rdf* rdf;
 
 	for(p = cfg->private_domain; p; p = p->next) {
 		log_assert(p->str);
-		rdf = ldns_dname_new_frm_str(p->str);
-		if(!rdf) {
+		nm = sldns_str2wire_dname(p->str, &nm_len);
+		if(!nm) {
 			log_err("cannot parse private-domain: %s", p->str);
 			return 0;
 		}
-		nm = ldns_rdf_data(rdf);
 		nm_labs = dname_count_size_labels(nm, &nm_len);
-		nm = (uint8_t*)regional_alloc_init(priv->region, nm, nm_len);
-		ldns_rdf_deep_free(rdf);
-		if(!nm) {
+		nmr = (uint8_t*)regional_alloc_init(priv->region, nm, nm_len);
+		free(nm);
+		if(!nmr) {
 			log_err("out of memory");
 			return 0;
 		}
@@ -136,7 +135,7 @@ static int read_names(struct iter_priv* priv, struct config_file* cfg)
 			log_err("out of memory");
 			return 0;
 		}
-		if(!name_tree_insert(&priv->n, n, nm, nm_len, nm_labs,
+		if(!name_tree_insert(&priv->n, n, nmr, nm_len, nm_labs,
 			LDNS_RR_CLASS_IN)) {
 			verbose(VERB_QUERY, "ignoring duplicate "
 				"private-domain: %s", p->str);
@@ -188,7 +187,7 @@ priv_lookup_addr(struct iter_priv* priv, struct sockaddr_storage* addr,
  * @return: true if the name is OK. false if unlisted.
  */
 static int 
-priv_lookup_name(struct iter_priv* priv, ldns_buffer* pkt,
+priv_lookup_name(struct iter_priv* priv, sldns_buffer* pkt,
 	uint8_t* name, size_t name_len, uint16_t dclass)
 {
 	size_t len;
@@ -210,7 +209,7 @@ size_t priv_get_mem(struct iter_priv* priv)
 
 /** remove RR from msgparse RRset, return true if rrset is entirely bad */
 static int
-remove_rr(const char* str, ldns_buffer* pkt, struct rrset_parse* rrset,
+remove_rr(const char* str, sldns_buffer* pkt, struct rrset_parse* rrset,
 	struct rr_parse* prev, struct rr_parse** rr, struct sockaddr_storage* addr, socklen_t addrlen)
 {
 	if(verbosity >= VERB_QUERY && rrset->dname_len <= LDNS_MAX_DOMAINLEN && str) {
@@ -230,7 +229,7 @@ remove_rr(const char* str, ldns_buffer* pkt, struct rrset_parse* rrset,
 	return rrset->rr_count == 0;
 }
 
-int priv_rrset_bad(struct iter_priv* priv, ldns_buffer* pkt,
+int priv_rrset_bad(struct iter_priv* priv, sldns_buffer* pkt,
 	struct rrset_parse* rrset)
 {
 	if(priv->a.count == 0) 
@@ -253,7 +252,7 @@ int priv_rrset_bad(struct iter_priv* priv, ldns_buffer* pkt,
 			sa.sin_family = AF_INET;
 			sa.sin_port = (in_port_t)htons(UNBOUND_DNS_PORT);
 			for(rr = rrset->rr_first; rr; rr = rr->next) {
-				if(ldns_read_uint16(rr->ttl_data+4) 
+				if(sldns_read_uint16(rr->ttl_data+4) 
 					!= INET_SIZE) {
 					prev = rr;
 					continue;
@@ -276,7 +275,7 @@ int priv_rrset_bad(struct iter_priv* priv, ldns_buffer* pkt,
 			sa.sin6_family = AF_INET6;
 			sa.sin6_port = (in_port_t)htons(UNBOUND_DNS_PORT);
 			for(rr = rrset->rr_first; rr; rr = rr->next) {
-				if(ldns_read_uint16(rr->ttl_data+4) 
+				if(sldns_read_uint16(rr->ttl_data+4) 
 					!= INET6_SIZE) {
 					prev = rr;
 					continue;

@@ -43,28 +43,18 @@ Note, if your username contains a space, create a directory
 C:\msys\...\home\user to work in (click on MSYS; type: mkdir /home/user ).
 
 2. Install openssl, or compile it yourself.  http://www.openssl.org
-Ldns and unbound need the header files and libraries.  Static linking makes
+Unbounds need the header files and libraries.  Static linking makes
 things easier.  This is an open source library for cryptographic functions.
+And libexpat is needed.
 
-3. Compile LDNS
-Get the source code tarball  http://nlnetlabs.nl/ldns
-Move it into the C:\msys\...\home\user directory.
-Double click on the MSYS icon and give these commands
-$ cd /home/user
-$ tar xzvf ldns-xxx.tar.gz
-$ cd ldns-xxx
-$ ./configure
-If you compiled openssl yourself, pass --with-ssl=../openssl-xxx
-$ make
-
-4. Compile Unbound
+3. Compile Unbound
 Get the source code tarball  http://unbound.net
 Move it into the C:\msys\...\home\user directory.
 Double click on the MSYS icon and give these commands
 $ cd /home/user
 $ tar xzvf unbound-xxx.tar.gz
 $ cd unbound-xxx
-$ ./configure --enable-static-exe --with-ldns=../ldns-xxx
+$ ./configure --enable-static-exe
 If you compiled openssl yourself, pass --with-ssl=../openssl-xxx too.
 If you compiled libexpat yourself, pass --with-libexpat=../expat-install too.
 The configure options for libevent or threads are not applicable for 

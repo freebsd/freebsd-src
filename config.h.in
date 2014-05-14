@@ -70,6 +70,12 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the `endprotoent' function. */
+#undef HAVE_ENDPROTOENT
+
+/* Define to 1 if you have the `endservent' function. */
+#undef HAVE_ENDSERVENT
+
 /* Define to 1 if you have the `event_base_free' function. */
 #undef HAVE_EVENT_BASE_FREE
 
@@ -165,15 +171,6 @@
 
 /* Define to 1 if you have the `kill' function. */
 #undef HAVE_KILL
-
-/* Define to 1 if you have the `ldns_key_EVP_unload_gost' function. */
-#undef HAVE_LDNS_KEY_EVP_UNLOAD_GOST
-
-/* Define to 1 if you have the <ldns/ldns.h> header file. */
-#undef HAVE_LDNS_LDNS_H
-
-/* Define to 1 if you have the `ldns' library (-lldns). */
-#undef HAVE_LIBLDNS
 
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
@@ -309,6 +306,9 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strlcat' function. */
+#undef HAVE_STRLCAT
 
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
@@ -475,6 +475,9 @@
 /* Shared data */
 #undef SHARE_DIR
 
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
@@ -568,6 +571,9 @@
 
 /* Define to 1 if on MINIX. */
 #undef _MINIX
+
+/* Enable for compile on Minix */
+#undef _NETBSD_SOURCE
 
 /* Define to 2 if the system does not provide POSIX.1 features except with
    this defined. */
@@ -687,6 +693,12 @@
 #  define NDEBUG
 #endif
 
+/** Use small-ldns codebase */
+#define USE_SLDNS 1
+#ifdef HAVE_SSL
+#  define LDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -695,6 +707,10 @@
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
 #endif
 
 #ifdef HAVE_STDINT_H
@@ -729,6 +745,12 @@
 
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
+#endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
 #endif
 
 
@@ -793,6 +815,12 @@ int inet_aton(const char *cp, struct in_addr *addr);
 #ifndef HAVE_MEMMOVE
 #define memmove memmove_unbound
 void *memmove(void *dest, const void *src, size_t n);
+#endif
+
+
+#ifndef HAVE_STRLCAT
+#define strlcat strlcat_unbound
+size_t strlcat(char *dst, const char *src, size_t siz);
 #endif
 
 

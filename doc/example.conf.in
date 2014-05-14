@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.4.21.
+# See unbound.conf(5) man page, version 1.4.22.
 #
 # this is a comment.
 
@@ -84,6 +84,9 @@ server:
 	# buffer size for UDP port 53 outgoing (SO_SNDBUF socket option).
 	# 0 is system default.  Use 4m to handle spikes on very busy servers.
 	# so-sndbuf: 0
+	
+	# on Linux(3.9+) use SO_REUSEPORT to distribute queries over threads.
+	# so-reuseport: no
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
 	# is set with msg-buffer-size). 1480 can solve fragmentation (timeouts).
@@ -111,6 +114,9 @@ server:
 
 	# if very busy, 50% queries run to completion, 50% get timeout in msec
 	# jostle-timeout: 200
+	
+	# msec to wait before close of port on timeout UDP. 0 disables.
+	# delay-close: 0
 
 	# the amount of memory to use for the RRset cache.
 	# plain value in bytes or you can append k, m or G. default is "4Mb". 
@@ -165,6 +171,8 @@ server:
 	# By default everything is refused, except for localhost.
 	# Choose deny (drop message), refuse (polite error reply),
 	# allow (recursive ok), allow_snoop (recursive and nonrecursive ok)
+	# deny_non_local (drop queries unless can be answered from local-data)
+	# refuse_non_local (like deny_non_local but polite error reply).
 	# access-control: 0.0.0.0/0 refuse
 	# access-control: 127.0.0.0/8 allow
 	# access-control: ::0/0 refuse

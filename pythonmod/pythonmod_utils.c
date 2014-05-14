@@ -48,6 +48,7 @@
 #include "util/data/msgreply.h"
 #include "util/storage/slabhash.h"
 #include "util/regional.h"
+#include "ldns/sbuffer.h"
 
 #undef _POSIX_C_SOURCE
 #undef _XOPEN_SOURCE
@@ -106,7 +107,7 @@ void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qin
 }
 
 /* Create response according to the ldns packet content */
-int createResponse(struct module_qstate* qstate, ldns_buffer* pkt)
+int createResponse(struct module_qstate* qstate, sldns_buffer* pkt)
 {
     struct msg_parse* prs;
     struct edns_data edns;
@@ -121,7 +122,7 @@ int createResponse(struct module_qstate* qstate, ldns_buffer* pkt)
     memset(prs, 0, sizeof(*prs));
     memset(&edns, 0, sizeof(edns));
 
-    ldns_buffer_set_position(pkt, 0);
+    sldns_buffer_set_position(pkt, 0);
     if (parse_packet(pkt, prs, qstate->env->scratch) != LDNS_RCODE_NOERROR) {
 	verbose(VERB_ALGO, "storeResponse: parse error on reply packet");
 	return 0;

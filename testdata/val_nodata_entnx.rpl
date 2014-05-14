@@ -1,0 +1,148 @@
+; config options
+; The island of trust is at example.com
+server:
+	trust-anchor: "example.com.    IN      DS      29332 8 2 751f8b755718a7b4ef8920a4b42407520889c3d2142a64f6ffad9e12fa9fc262"
+	val-override-date: "20140301134226"
+	target-fetch-policy: "0 0 0 0 0"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test validator with nodata on empty nonterminal response with rcode NXDOMAIN
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+0.example.com. IN A
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.    IN NS   a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.     IN      A       192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+0.example.com. IN A
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.    3600    IN      NS      ns.example.com.
+example.com.    3600    IN      RRSIG   NS 8 2 3600 20140320093645 20140220093645 55566 example.com. Z+gwYHWVcSXkIYX35nm3bHzlARf1AsI51gH7lGUSwKoD+ZEePXgkqnVS3jrzl/VjeNrmGutpl1rP1tZvTLD5Hs7Q04BlmhS5X22jiGpfwfdaKbbBUNDuCLN31+W8A4B6PBA+jNO3m3+vYNctWfemWX2YTIxKIyOppFOZP2+ll4A=
+SECTION ADDITIONAL
+ns.example.com. 3600    IN      A       1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20140320093645 20140220093645 55566 example.com. Fgdfl8Jp4xFHxHyjkjaso7pt0AdrRifUEP2fer8pNnW4KIH83uA4OjfYcMwdP4HqSBJFPb04wQLFoDrLDdFp3zSjHwQQm+4OIBffBMXQ42RSWFgjCygOzQ/vdBUsBDV9tf6y/ggQg+CVfI7l2oPrUwMQCrr69KdzzrRRlsivotM=
+ENTRY_END
+
+; response to DNSKEY priming query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN DNSKEY
+SECTION ANSWER
+example.com.    3600    IN      DNSKEY  256 3 8 AwEAAdug/L739i0mgN2nuK/bhxu3wFn5Ud9nK2+XUmZQlPUEZUC5YZvm1rfMmEWTGBn87fFxEu/kjFZHJ55JLzqsbbpVHLbmKCTT2gYR2FV2WDKROGKuYbVkJIXdKAjJ0ONuK507NinYvlWXIoxHn22KAWOd9wKgSTNHBlmGkX+ts3hh ;{id = 55566 (zsk), size = 1024b}
+example.com.    3600    IN      DNSKEY  257 3 8 AwEAAb4WMOTBLTFvmBra5m6SK4VfViOzmvyUAU0qv861ZQXeEFvwlndqNU9rwRsMxrSWAYs5nHErKDn49usC/HyxxW1477iGFHhfgL4mjNreJm9zft2QFB1VLbRbEPYdDMLCn4co0qnG7/KG8W2i8Pym1L7f+aREwbLo+/716AS2PbaKMhfWLKLiq5wnBcUClQMNzCiwhqxDJp1oePqfkVdeUgXOtgi0dYRIKyQFhJ5VWJ22npoi/Gif0XLCADAlAwRLKc8o/yJkCxskzgpHpw5Cki1lclg0aq4ssOuPRQ+ne6IHYCz9D2mwzulblhLFamKdq7aHzNt4NlyxhpANVFiKLD8= ;{id = 29332 (ksk), size = 2048b}
+example.com.    3600    IN      RRSIG   DNSKEY 8 2 3600 20140320093645 20140220093645 29332 example.com. Vjcu4FD2hbHO4jgRXBeWwhUU29DOyUhdcQuRBhcNNZPYS4/MNKrKzhqZ/5jGRx//UffVvZMrVjb2xbJXf0UALrBktbG/yRK0lETXu4JHVtUyCY8jiKlmSl4LabsYC5GvvoLCzXilYFtp1zzagorONmJtmBc9DiP3fp/ju0gZ45/pTn6cLY8cm2/ja5U5SQ4KQ4SVQsiNduvpLAm3CM2qkqOdspWtNEjjG92EXqgBg5lQ0pt5U2wKk3igecACGUiKzrc9qlSBoErS+rDYAZ3TKqUdW489o4hd0vOowvwgb7Z+lqleplyptlCAwpw/djNqA4dX+FTK/oB6lokX5bxnjQ==
+SECTION AUTHORITY
+example.com.    3600    IN      NS      ns.example.com.
+example.com.    3600    IN      RRSIG   NS 8 2 3600 20140320093645 20140220093645 55566 example.com. Z+gwYHWVcSXkIYX35nm3bHzlARf1AsI51gH7lGUSwKoD+ZEePXgkqnVS3jrzl/VjeNrmGutpl1rP1tZvTLD5Hs7Q04BlmhS5X22jiGpfwfdaKbbBUNDuCLN31+W8A4B6PBA+jNO3m3+vYNctWfemWX2YTIxKIyOppFOZP2+ll4A=
+SECTION ADDITIONAL
+ns.example.com. 3600    IN      A       1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 8 3 3600 20140320093645 20140220093645 55566 example.com. Fgdfl8Jp4xFHxHyjkjaso7pt0AdrRifUEP2fer8pNnW4KIH83uA4OjfYcMwdP4HqSBJFPb04wQLFoDrLDdFp3zSjHwQQm+4OIBffBMXQ42RSWFgjCygOzQ/vdBUsBDV9tf6y/ggQg+CVfI7l2oPrUwMQCrr69KdzzrRRlsivotM=
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NXDOMAIN
+SECTION QUESTION
+0.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.    3600    IN      SOA     ns.example.com. postmaster.example.com. 1337 1200 180 1209600 3600
+example.com.    3600    IN      RRSIG   SOA 8 2 3600 20140320093645 20140220093645 55566 example.com. dcglYOgcxQS6G0PIGitAvMsOUdChGmGAKKb9PYewds2CnoBZq9Tn5F27A4agfJJrUcMC1g3m/O9+kbIYSRs3L9qYwpV/hOu7WLAS/fw+8S3ASSWP2RE+uu0IC1qo0YdHtH5y/cNjqEUcH8uhD1CAYfgKdn3hWEwqXKpWAFrUE7U=
+; Denies A and wildcard
+example.com.    3600    IN      NSEC    0.0.0.0.example.com. NS SOA MX TXT RRSIG NSEC DNSKEY 
+example.com.    3600    IN      RRSIG   NSEC 8 2 3600 20140320093645 20140220093645 55566 example.com. dL8lR8Wsvow+dCR24E7BTG3NxzxVCJb0wxQ+k8gLVbQMMsMkQEh4gw2zOXkfX21764ULm6RxEww0ibuKnidXLGUEkCc6g+WL2hsnE2DUpwIGZXn/O3VamrB9+GJ+dbCj4NFl+IXNlrfQFsYOiw055jjQjZTxrsCzodnfxqDgwUg=
+SECTION ADDITIONAL
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+0.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AD DO NOERROR
+SECTION QUESTION
+0.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.    3600    IN      SOA     ns.example.com. postmaster.example.com. 1337 1200 180 1209600 3600
+example.com.    3600    IN      RRSIG   SOA 8 2 3600 20140320093645 20140220093645 55566 example.com. dcglYOgcxQS6G0PIGitAvMsOUdChGmGAKKb9PYewds2CnoBZq9Tn5F27A4agfJJrUcMC1g3m/O9+kbIYSRs3L9qYwpV/hOu7WLAS/fw+8S3ASSWP2RE+uu0IC1qo0YdHtH5y/cNjqEUcH8uhD1CAYfgKdn3hWEwqXKpWAFrUE7U=
+example.com.    3600    IN      NSEC    0.0.0.0.example.com. NS SOA MX TXT RRSIG NSEC DNSKEY 
+example.com.    3600    IN      RRSIG   NSEC 8 2 3600 20140320093645 20140220093645 55566 example.com. dL8lR8Wsvow+dCR24E7BTG3NxzxVCJb0wxQ+k8gLVbQMMsMkQEh4gw2zOXkfX21764ULm6RxEww0ibuKnidXLGUEkCc6g+WL2hsnE2DUpwIGZXn/O3VamrB9+GJ+dbCj4NFl+IXNlrfQFsYOiw055jjQjZTxrsCzodnfxqDgwUg=
+SECTION ADDITIONAL
+ENTRY_END
+
+SCENARIO_END
