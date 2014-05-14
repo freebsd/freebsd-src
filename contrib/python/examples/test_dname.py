@@ -388,7 +388,7 @@ if True:
     dn = ldns.ldns_dname("www.nic.cz.")
     try:
         ret = dn.label_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 3:
             set_error()

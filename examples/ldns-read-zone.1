@@ -22,6 +22,10 @@ that is not of type NSEC, NSEC3, RRSIG or DNSKEY. DS records are not
 printed.
 
 .TP
+\fB-b\fR
+Include Bubble Babble encoding of DS's.
+
+.TP
 \fB-0\fR
 Print a (null) for the RRSIG inception, expiry and key data. This option
 can be used when comparing different signing systems that use the same
@@ -58,6 +62,23 @@ increased by one.
 When updating a serial number, records of type NSEC, NSEC3, RRSIG and DNSKEY
 will be skipped when printing the zone.
 
+.TP
+\fB-u\fR \fIRR type\fR
+Mark \fIRR type\fR for printing in unknown type format.
+
+\fB-u\fR is not meant to be used together with \fB-U\fR.
+
+.TP
+\fB-U\fR \fIRR type\fR
+Mark \fIRR type\fR for \fBnot\fR printing in unknown type format.
+
+The first occurrence of the \fB-U\fR option marks all RR types for printing
+in unknown type format except for the given \fIRR type\fR.
+Subsequent \fB-U\fR options will clear the mark for those \fIRR type\fRs too,
+so that only the given \fIRR type\fRs will be printed in the presentation 
+format specific for those \fIRR type\fRs.
+
+\fB-U\fR is not meant to be used together with \fB-u\fR.
 
 .TP
 \fB-v\fR

@@ -1,0 +1,23 @@
+Revision history for Perl extension DNS::LDNS.
+
+0.01  Thu Nov 22 12:48:29 2012
+	- original version; created by h2xs 1.23 with options
+		-A -n LDNS
+
+0.02  Fri Jan 18 09:47:57 2013
+        - Support for DNSSec and Resolver. Added some more constants from 
+	  the header files; created by h2xs 1.23 with options
+                -n LDNS /usr/include/ldns/ldns.h /usr/include/ldns/error.h /usr/include/ldns/rr.h /usr/include/ldns/keys.h /usr/include/ldns/packet.h /usr/include/ldns/resolver.h /usr/include/ldns/rdata.h /usr/include/ldns/dnssec.h
+
+0.03  Fri Apr 19 13:40:57 2013
+        - Renamed module to Net::LDNS
+
+0.04  Fri Dec 13 14:15:26 2013
+        - Renamed module to DNS::LDNS
+
+0.05  Mon Dec 30 10:14:00 2013
+        - Corrected versioning variable in all classes.
+        - Cleaned up the base class documentation.
+
+0.06  Tue Dec 31 12:17:00 2013
+        - Corrected pod syntax

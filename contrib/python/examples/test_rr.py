@@ -385,7 +385,7 @@ if True:
     pubkey = ldns.ldns_rr.new_frm_str("example1. 3600 IN DNSKEY 256 3 3 APw7tG8Nf7MYXjt2Y6DmyWUVxVy73bRKvKbKoGXhAXJx2vbcGGxfXsScT0i4FIC2wsJ/8zy/otB5vymm3JHBf2+7cQvRdp12UMLAnzlfrbgZUpvV36D+q6ch7kbmFzaBfwRjOKhnZkRLCcMYPAdX1SrgKVNXaOzAl9KytbzGQs5MKEHU+a0PAwKfIvEsS/+pW6gKgBnL0uy4Gr5cYJ5rk48iwFXOlZ/B30gUS5dD+rNRJuR0ZgEkxtVIPVxxhQPtEI53JhlJ2nEy0CqNW88nYLmX402b ;{id = 34898 (zsk), size = 512b}")
     try:
         ret = pubkey.dnskey_key_size()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 512:
             set_error()
@@ -394,7 +394,7 @@ if True:
     rr = ldns.ldns_rr.new_frm_str("test 600 IN A 0.0.0.0")
     try:
         ret = rr.dnskey_key_size()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 0:
             set_error()
@@ -638,7 +638,7 @@ if True:
     rr = ldns.ldns_rr.new_frm_str("test.dom. IN A 0.0.0.0", 600)
     try:
         ret = rr.label_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 2:
             set_error()
@@ -647,7 +647,7 @@ if True:
     rr = ldns.ldns_rr.new_frm_str(". IN A 0.0.0.0", 600)
     try:
         ret = rr.label_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error(string)
         if ret != 0:
             set_error()
@@ -951,7 +951,7 @@ if True:
     rr = ldns.ldns_rr.new_frm_str("test 600 IN A 0.0.0.0")
     try:
         ret = rr.rd_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 1:
             set_error()
@@ -1643,7 +1643,7 @@ if True:
     rr = ldns.ldns_rr.new_frm_str("test 600 IN A 0.0.0.0")
     try:
         ret = rr.uncompressed_size()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 20:
             set_error()
@@ -1723,7 +1723,7 @@ if True:
     desc_a = ldns.ldns_rr_descriptor.ldns_rr_descriptor(ldns.LDNS_RR_TYPE_A)
     try:
         ret = desc_a.maximum()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 1:
             set_error()
@@ -1737,7 +1737,7 @@ if True:
     desc_a = ldns.ldns_rr_descriptor.ldns_rr_descriptor(ldns.LDNS_RR_TYPE_A)
     try:
         ret = desc_a.minimum()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 1:
             set_error()
@@ -2203,7 +2203,7 @@ if True:
     rrl = ldns.ldns_rr_list.new()
     try:
         ret = rrl.rr_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 0:
             set_error()
@@ -2213,7 +2213,7 @@ if True:
     rrl.push_rr(rr)
     try:
         ret = rrl.rr_count()
-        if not isinstance(ret, int):
+        if (not isinstance(ret, int)) and (not isinstance(ret, long)):
             set_error()
         if ret != 1:
             set_error()

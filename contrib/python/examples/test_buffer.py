@@ -174,7 +174,7 @@ if True:
         ret = buf.capacity()
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         # Should be int.
         set_error()
 
@@ -284,7 +284,7 @@ if True:
         ret = buf.position()
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
 
 
@@ -328,7 +328,7 @@ if True:
         ret = buf.read_u16()
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != (ord("a") * 0x0101):
         set_error()
@@ -343,7 +343,7 @@ if True:
         ret = buf.read_u16_at(1)
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != (ord("b") * 0x0101):
         set_error()
@@ -418,7 +418,7 @@ if True:
         ret = buf.read_u8()
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != ord("a"):
         set_error()
@@ -433,7 +433,7 @@ if True:
         ret = buf.read_u8_at(1)
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != ord("b"):
         set_error()
@@ -462,7 +462,7 @@ if True:
         ret = buf.remaining()
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != (capacity - 6):
         set_error()
@@ -477,7 +477,7 @@ if True:
         ret = buf.remaining_at(1)
     except:
         set_error()
-    if not isinstance(ret, int):
+    if (not isinstance(ret, int)) and (not isinstance(ret, long)):
         set_error()
     if ret != (capacity - 1):
         set_error()

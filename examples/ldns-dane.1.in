@@ -151,6 +151,9 @@ Read TLSA record(s) from \fItlsafile\fR. When \fIname\fR and \fIport\fR
 are also given, only TLSA records that match the \fIname\fR, \fIport\fR and
 \fItransport\fR are used. Otherwise the owner name of the TLSA record(s)
 will be used to determine \fIname\fR, \fIport\fR and \fItransport\fR.
+.IP -T
+Return exit status 2 for PKIX validated connections without (secure)
+TLSA records(s)
 .IP -u
 Use UDP transport instead of TCP.
 .IP -v

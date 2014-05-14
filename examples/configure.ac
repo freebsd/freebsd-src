@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.56)
-AC_INIT(ldns, 1.6.16, libdns@nlnetlabs.nl,libdns)
+AC_INIT(ldns, 1.6.17, libdns@nlnetlabs.nl,libdns)
 AC_CONFIG_SRCDIR([ldns-read-zone.c])
 sinclude(../acx_nlnetlabs.m4)
 
@@ -137,7 +137,7 @@ AC_SUBST(LIBSSL_CPPFLAGS)
 AC_SUBST(LIBSSL_LDFLAGS)
 AC_SUBST(LIBSSL_LIBS)
 if test "x$HAVE_SSL" = "xyes"; then
-AC_SUBST(LIBSSL_SSL_LIBS, ["$LIBSSL_LIBS -lssl"])
+AC_SUBST(LIBSSL_SSL_LIBS, ["-lssl $LIBSSL_LIBS"])
 fi
 CPPFLAGS="$tmp_CPPFLAGS"
 LDFLAGS="$tmp_LDFLAGS"
@@ -176,18 +176,34 @@ case "$enable_gost" in
         ;;
 esac
 
-AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--enable-ecdsa], [Enable ECDSA support, experimental]))
+AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
 case "$enable_ecdsa" in
-    yes)
-	AC_CHECK_FUNC(ECDSA_sign,,[AC_MSG_ERROR([OpenSSL does not support ECDSA])])
-        AC_DEFINE_UNQUOTED([USE_ECDSA], [1], [Define this to enable ECDSA support.])
-        AC_WARN([
-        *****************************************************************
-        *** YOU HAVE ENABLED ECDSA WHICH IS EXPERIMENTAL AT THIS TIME ***
-        *** PLEASE DO NOT USE THIS ON THE PUBLIC INTERNET             ***
-        *****************************************************************])
+    no)
       ;;
-    no|*)
+    *) dnl default
+      if test "x$HAVE_SSL" != "xyes"; then
+        AC_MSG_ERROR([ECDSA enabled, but no SSL support])
+      fi
+      AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade OpenSSL or rerun with --disable-ecdsa])])
+      AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade OpenSSL or rerun with --disable-ecdsa])])
+      AC_CHECK_DECLS([NID_X9_62_prime256v1, NID_secp384r1], [], [AC_MSG_ERROR([OpenSSL does not support the ECDSA curves: please upgrade OpenSSL or rerun with --disable-ecdsa])], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+      ])
+      # we now know we have ECDSA and the required curves.
+      AC_DEFINE_UNQUOTED([USE_ECDSA], [1], [Define this to enable ECDSA support.])
+      ;;
+esac
+
+AC_ARG_ENABLE(dane, AC_HELP_STRING([--disable-dane], [Disable DANE support]))
+case "$enable_dane" in
+    no)
+      ;;
+    *) dnl default
+      if test "x$HAVE_SSL" != "xyes"; then
+        AC_MSG_ERROR([DANE enabled, but no SSL support])
+      fi
+      AC_CHECK_FUNC(X509_check_ca, [], [AC_MSG_ERROR([OpenSSL does not support DANE: please upgrade OpenSSL or rerun with --disable-dane])])
+      AC_DEFINE_UNQUOTED([USE_DANE], [1], [Define this to enable DANE support.])
       ;;
 esac
 

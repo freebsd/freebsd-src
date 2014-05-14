@@ -17,7 +17,7 @@ ldns_update_resolver_new(const char *fqdn, const char *zone,
     ldns_rr_class class, uint16_t port, ldns_tsig_credentials *tsig_cred, ldns_rdf **zone_rdf)
 {
         ldns_resolver   *r1, *r2;
-        ldns_pkt        *query = NULL, *resp;
+        ldns_pkt        *query = NULL, *resp = NULL;
         ldns_rr_list    *nslist, *iplist;
         ldns_rdf        *soa_zone, *soa_mname = NULL, *ns_name;
         size_t          i;

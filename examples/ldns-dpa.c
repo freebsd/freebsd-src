@@ -2823,13 +2823,13 @@ int main(int argc, char *argv[]) {
 }
 
 #else
-int main() {
+int main(void) {
 	fprintf(stderr, "ldns-dpa was not built because there is no pcap library on this system, or there was no pcap header file at compilation time. Please install pcap and rebuild.\n");
 	return 1;
 }
 #endif
 #else
-int main() {
+int main(void) {
 	fprintf(stderr, "ldns-dpa was not built because there is no pcap library on this system, or there was no pcap header file at compilation time. Please install pcap and rebuild.\n");
 	return 1;
 }

@@ -15,6 +15,52 @@
 
 #include <errno.h>
 
+void print_usage(const char* progname)
+{
+	printf("Usage: %s [OPTIONS] <zonefile>\n", progname);
+	printf("\tReads the zonefile and prints it.\n");
+	printf("\tThe RR count of the zone is printed to stderr.\n");
+	printf("\t-b include Bubble Babble encoding of DS's.\n");
+	printf("\t-0 zeroize timestamps and signature in RRSIG records.\n");
+	printf("\t-c canonicalize all rrs in the zone.\n");
+	printf("\t-d only show DNSSEC data from the zone\n");
+	printf("\t-h show this text\n");
+	printf("\t-n do not print the SOA record\n");
+	printf("\t-p prepend SOA serial with spaces so"
+		" it takes exactly ten characters.\n");
+	printf("\t-s strip DNSSEC data from the zone\n");
+	printf("\t-S [[+|-]<number> | YYYYMMDDxx | "
+			" unixtime ]\n"
+		"\t\tSet serial number to <number> or,"
+			" when preceded by a sign,\n"
+		"\t\toffset the existing number with "
+			"<number>.  With YYYYMMDDxx\n"
+		"\t\tthe serial is formatted as a datecounter"
+			", and with unixtime as\n"
+		"\t\tthe number of seconds since 1-1-1970."
+			"  However, on serial\n"
+		"\t\tnumber decrease, +1 is used in stead"
+			".  (implies -s)\n");
+	printf("\t-u <rr type>\n");
+	printf("\t\tMark <rr type> for printing in unknown type format.\n");
+	printf("\t\tThis option may be given multiple times.\n");
+	printf("\t\t-u is not meant to be used together with -U.\n");
+	printf("\t-U <rr type>\n");
+	printf("\t\tMark <rr type> for not printing in unknown type format.\n");
+	printf("\t\tThis option may be given multiple times.\n");
+	printf(
+	"\t\tThe first occurrence of the -U option marks all RR types for"
+	"\n\t\tprinting in unknown type format except for the given <rr type>."
+	"\n\t\tSubsequent -U options will clear the mark for those <rr type>s"
+	"\n\t\ttoo, so that only the given <rr type>s will be printed in the"
+	"\n\t\tpresentation format specific for those <rr type>s.\n");
+	printf("\t\t-U is not meant to be used together with -u.\n");
+	printf("\t-v shows the version and exits\n");
+	printf("\t-z sort the zone (implies -c).\n");
+	printf("\nif no file is given standard input is read\n");
+	exit(EXIT_SUCCESS);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -33,22 +79,21 @@ main(int argc, char **argv)
 	ldns_rr_list *stripped_list;
 	ldns_rr *cur_rr;
 	ldns_rr_type cur_rr_type;
-	ldns_output_format fmt = { 
-		ldns_output_format_default->flags,
-		ldns_output_format_default->data
-	};
+	ldns_output_format_storage fmt_storage;
+	ldns_output_format* fmt = ldns_output_format_init(&fmt_storage);
+
 	ldns_soa_serial_increment_func_t soa_serial_increment_func = NULL;
 	int soa_serial_increment_func_data = 0;
 
-        while ((c = getopt(argc, argv, "0bcdhnpsvzS:")) != -1) {
+        while ((c = getopt(argc, argv, "0bcdhnpsu:U:vzS:")) != -1) {
                 switch(c) {
 			case 'b':
-				fmt.flags |= 
+				fmt->flags |= 
 					( LDNS_COMMENT_BUBBLEBABBLE |
 					  LDNS_COMMENT_FLAGS        );
 				break;
 			case '0':
-				fmt.flags |= LDNS_FMT_ZEROIZE_RRSIGS;
+				fmt->flags |= LDNS_FMT_ZEROIZE_RRSIGS;
 				break;
                 	case 'c':
                 		canonicalize = true;
@@ -60,40 +105,13 @@ main(int argc, char **argv)
 				}
 				break;
 			case 'h':
-				printf("Usage: %s [OPTIONS] <zonefile>\n", argv[0]);
-				printf("\tReads the zonefile and prints it.\n");
-				printf("\tThe RR count of the zone is printed to stderr.\n");
-				printf("\t-b include bubblebabble of DS's.\n");
-				printf("\t-0 zeroize timestamps and signature in RRSIG records.\n");
-				printf("\t-c canonicalize all rrs in the zone.\n");
-				printf("\t-d only show DNSSEC data from the zone\n");
-				printf("\t-h show this text\n");
-				printf("\t-n do not print the SOA record\n");
-				printf("\t-p prepend SOA serial with spaces so"
-					" it takes exactly ten characters.\n");
-				printf("\t-s strip DNSSEC data from the zone\n");
-				printf("\t-S [[+|-]<number> | YYYYMMDDxx | "
-						" unixtime ]\n"
-				       "\t\tSet serial number to <number> or,"
-						" when preceded by a sign,\n"
-				       "\t\toffset the existing number with "
-						"<number>.  With YYYYMMDDxx\n"
-				       "\t\tthe serial is formatted as a datecounter"
-						", and with unixtime as the\n"
-				       "\t\tnumber of seconds since 1-1-1970."
-				       		"  However, on serial number"
-				       "\n\t\tdecrease, +1 is used in stead"
-						".  (implies -s)\n");
-				printf("\t-v shows the version and exits\n");
-				printf("\t-z sort the zone (implies -c).\n");
-				printf("\nif no file is given standard input is read\n");
-				exit(EXIT_SUCCESS);
+				print_usage("ldns-read-zone");
 				break;
 			case 'n':
 				print_soa = false;
 				break;
 			case 'p':
-				fmt.flags |= LDNS_FMT_PAD_SOA_SERIAL;
+				fmt->flags |= LDNS_FMT_PAD_SOA_SERIAL;
 				break;
                         case 's':
                         	strip = true;
@@ -101,6 +119,38 @@ main(int argc, char **argv)
                 			fprintf(stderr, "Warning: stripping both DNSSEC and non-DNSSEC records. Output will be sparse.\n");
 				}
                         	break;
+			case 'u':
+				s = ldns_output_format_set_type(fmt,
+					ldns_get_rr_type_by_name(optarg));
+				if (s != LDNS_STATUS_OK) {
+					fprintf( stderr
+					       , "Cannot set rr type %s "
+					         "in output format to "
+						 "print as unknown type: %s\n"
+					       , ldns_rr_descript(
+					       ldns_get_rr_type_by_name(optarg)
+						       )->_name
+					       , ldns_get_errorstr_by_id(s)
+					       );
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 'U':
+				s = ldns_output_format_clear_type(fmt,
+					ldns_get_rr_type_by_name(optarg));
+				if (s != LDNS_STATUS_OK) {
+					fprintf( stderr
+					       , "Cannot set rr type %s "
+					         "in output format to not "
+						 "print as unknown type: %s\n"
+					       , ldns_rr_descript(
+					       ldns_get_rr_type_by_name(optarg)
+						       )->_name
+					       , ldns_get_errorstr_by_id(s)
+					       );
+					exit(EXIT_FAILURE);
+				}
+				break;
 			case 'v':
 				printf("read zone version %s (ldns version %s)\n", LDNS_VERSION, ldns_version());
 				exit(EXIT_SUCCESS);
@@ -218,9 +268,9 @@ main(int argc, char **argv)
 				, soa_serial_increment_func_data
 				);
 		}
-		ldns_rr_print_fmt(stdout, &fmt, ldns_zone_soa(z));
+		ldns_rr_print_fmt(stdout, fmt, ldns_zone_soa(z));
 	}
-	ldns_rr_list_print_fmt(stdout, &fmt, ldns_zone_rrs(z));
+	ldns_rr_list_print_fmt(stdout, fmt, ldns_zone_rrs(z));
 
 	ldns_zone_deep_free(z);
 

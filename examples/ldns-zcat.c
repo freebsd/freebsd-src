@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	progname = strdup(argv[0]);
 	origin = NULL;
 	
-	while ((c = getopt(argc, argv, "n:o:v")) != -1) {
+	while ((c = getopt(argc, argv, "o:v")) != -1) {
 		switch(c) {
 			case 'o':
 				origin = ldns_dname_new_frm_str(strdup(optarg));
@@ -95,7 +95,7 @@ main(int argc, char **argv)
 		}
 
 		zrr = ldns_zone_rrs(z);
-		soa = ldns_zone_soa(z); /* SOA is stored seperately */
+		soa = ldns_zone_soa(z); /* SOA is stored separately */
 
 		fprintf(stderr, "%s\n", argv[i]);
 

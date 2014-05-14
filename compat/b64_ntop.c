@@ -40,26 +40,9 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <ldns/config.h>
-
-#include <sys/types.h>
-#include <sys/param.h>
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-
 #include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define Assert(Cond) if (!(Cond)) abort()
 
 static const char Base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -154,10 +137,10 @@ ldns_b64_ntop(uint8_t const *src, size_t srclength, char *target, size_t targsiz
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
 		output[3] = input[2] & 0x3f;
-		Assert(output[0] < 64);
-		Assert(output[1] < 64);
-		Assert(output[2] < 64);
-		Assert(output[3] < 64);
+		assert(output[0] < 64);
+		assert(output[1] < 64);
+		assert(output[2] < 64);
+		assert(output[3] < 64);
 
 		if (datalength + 4 > targsize) {
 			return (-1);
@@ -178,9 +161,9 @@ ldns_b64_ntop(uint8_t const *src, size_t srclength, char *target, size_t targsiz
 		output[0] = input[0] >> 2;
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
-		Assert(output[0] < 64);
-		Assert(output[1] < 64);
-		Assert(output[2] < 64);
+		assert(output[0] < 64);
+		assert(output[1] < 64);
+		assert(output[2] < 64);
 
 		if (datalength + 4 > targsize) {
 			return (-2);

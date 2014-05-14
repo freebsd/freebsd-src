@@ -1,6 +1,6 @@
 #!/bin/ksh
 #
-# $Id: build-solaris.sh 2597 2008-04-15 08:39:58Z jelte $
+# $Id$
 
 
 PREFIX=/opt/ldns

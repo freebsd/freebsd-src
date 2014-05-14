@@ -48,6 +48,7 @@
 	; 'ttl' used with all, rrs in packet must also have matching TTLs.
 	; 'DO' will match only queries with DO bit set.
 	; 'noedns' matches queries without EDNS OPT records.
+	; 'ednsdata' matches queries to HEX_EDNS section.
 	MATCH [opcode] [qtype] [qname] [serial=<value>] [all] [ttl]
 	MATCH [UDP|TCP] DO
 	MATCH ...
@@ -82,6 +83,11 @@
 				; be parsed, ADJUST rules for the answer packet
 				; are ignored. Only copy_id is done.
 	HEX_ANSWER_END
+	HEX_EDNS_BEGIN	; follow with hex data.
+					; Raw EDNS data to match against. It must be an 
+					; exact match (all options are matched) and will be 
+					; evaluated only when 'MATCH ednsdata' given.
+	HEX_EDNS_END
 	ENTRY_END
 
 
@@ -142,6 +148,8 @@ struct reply_packet {
 	struct reply_packet* next;
 	/** the reply pkt */
 	ldns_pkt* reply;
+	/** Additional EDNS data for matching queries. */
+	ldns_buffer* raw_ednsdata;
 	/** or reply pkt in hex if not parsable */
 	ldns_buffer* reply_from_hex;
 	/** seconds to sleep before giving packet */
@@ -171,6 +179,8 @@ struct entry {
 	bool match_do;
 	/** match absence of EDNS OPT record in query */
 	bool match_noedns;
+	/** match edns data field given in hex */
+	bool match_ednsdata_raw;
 	/** match query serial with this value. */
 	uint32_t ixfr_soa_serial; 
 	/** match on UDP/TCP */
@@ -197,7 +207,8 @@ struct entry {
 /**
  * reads the canned reply file and returns a list of structs 
  * does an exit on error.
- * @param skip_withespace: skip leftside whitespace.
+ * @param name: name of the file to read.
+ * @param skip_whitespace: skip leftside whitespace.
  */
 struct entry* read_datafile(const char* name, int skip_whitespace);
 

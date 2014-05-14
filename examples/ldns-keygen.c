@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 	random = NULL;
 	ksk = false; /* don't create a ksk per default */
 
-	while ((c = getopt(argc, argv, "a:kb:r:v25")) != -1) {
+	while ((c = getopt(argc, argv, "a:kb:r:v")) != -1) {
 		switch (c) {
 		case 'a':
 			if (algorithm != 0) {
@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 	/* generate a new key */
 	key = ldns_key_new_frm_algorithm(algorithm, bits);
 
-	/* set the owner name in the key - this is a /seperate/ step */
+	/* set the owner name in the key - this is a /separate/ step */
 	ldns_key_set_pubkey_owner(key, domain);
 
 	/* ksk flag */
