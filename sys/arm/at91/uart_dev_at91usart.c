@@ -288,6 +288,10 @@ volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
 void
 eputc(int c)
 {
+
+	if (c == '\n')
+		eputc('\r');
+
 	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
 		continue;
 	at91_dbgu[USART_THR / 4] = c;
