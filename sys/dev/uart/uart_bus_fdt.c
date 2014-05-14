@@ -71,6 +71,8 @@ static driver_t uart_fdt_driver = {
  */
 static struct ofw_compat_data compat_data[] = {
 	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
+	{"atmel,at91rm9200-usart",(uintptr_t)&at91_usart_class},
+	{"atmel,at91sam9260-usart",(uintptr_t)&at91_usart_class},
 	{"cadence,uart",	(uintptr_t)&uart_cdnc_class},
 	{"exynos",		(uintptr_t)&uart_s3c2410_class},
 	{"fsl,imx6q-uart",	(uintptr_t)&uart_imx_class},
