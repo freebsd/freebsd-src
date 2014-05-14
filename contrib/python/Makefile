@@ -41,7 +41,7 @@ help:
 ../../Makefile: ../../configure
 	cd ../.. && ./configure --with-python
 	
-_ldns.so:	../../Makefile
+_ldns.so: ../../Makefile
 	$(MAKE) -C ../..
 
 ../../.libs/libldns.so.1:	../../Makefile
@@ -59,13 +59,15 @@ testenv: ../../.libs/libldns.so.1 _ldns.so
 	cd examples && LD_LIBRARY_PATH=ldns bash
 	rm -rf examples/ldns
 
-test: ../../.libs/libldns.so.1 _ldns.so examples/test_buffer.py examples/test_rdf.py examples/test_dname.py examples/test_rr.py
+test: ../../.libs/libldns.so.1 _ldns.so examples/test_buffer.py examples/test_rdf.py examples/test_dname.py examples/test_rr.py examples/test_pkt.py examples/test_resolver.py
 	@rm -rf examples/ldns
 	@cd examples && mkdir ldns && ln -s ../../ldns.py ldns/__init__.py && ln -s ../../../../.libs/_ldns.so ldns/_ldns.so && ln -s ../../../../.libs/libldns.so.1 ldns/libldns.so.1
 	@cd examples && LD_LIBRARY_PATH=ldns ./test_buffer.py 2>/dev/null
 	@cd examples && LD_LIBRARY_PATH=ldns ./test_rdf.py 2>/dev/null
 	@cd examples && LD_LIBRARY_PATH=ldns ./test_dname.py 2>/dev/null
 	@cd examples && LD_LIBRARY_PATH=ldns ./test_rr.py 2>/dev/null
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_pkt.py 2>/dev/null
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_resolver.py 2>/dev/null
 	@rm -rf examples/ldns
 
 doc: ../../.libs/libldns.so.1 _ldns.so

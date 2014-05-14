@@ -223,7 +223,7 @@ find_or_create_pubkey(const char *keyfile_name_base, ldns_key *key, ldns_zone *o
 	}
 
 	/* find the public key in the zone, or in a
-	 * seperate file
+	 * separate file
 	 * we 'generate' one anyway, 
 	 * then match that to any present in the zone,
 	 * if it matches, we drop our own. If not,
@@ -368,9 +368,8 @@ main(int argc, char *argv[])
 	char *prog = strdup(argv[0]);
 	ldns_status result;
 
-	ldns_output_format fmt = { ldns_output_format_default->flags, NULL };
-	void **hashmap = NULL;
-
+	ldns_output_format_storage fmt_st;
+	ldns_output_format* fmt = ldns_output_format_init(&fmt_st);
 	
 	inception = 0;
 	expiration = 0;
@@ -379,7 +378,7 @@ main(int argc, char *argv[])
 
 	OPENSSL_config(NULL);
 
-	while ((c = getopt(argc, argv, "a:bde:f:i:k:lno:ps:t:vAE:K:")) != -1) {
+	while ((c = getopt(argc, argv, "a:bde:f:i:k:no:ps:t:vAE:K:")) != -1) {
 		switch (c) {
 		case 'a':
 			nsec3_algorithm = (uint8_t) atoi(optarg);
@@ -389,11 +388,10 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'b':
-			fmt.flags |= LDNS_COMMENT_BUBBLEBABBLE;
-			fmt.flags |= LDNS_COMMENT_FLAGS;
-			fmt.flags |= LDNS_COMMENT_NSEC3_CHAIN;
-			fmt.flags |= LDNS_COMMENT_LAYOUT;
-			hashmap = &fmt.data;
+			ldns_output_format_set(fmt, LDNS_COMMENT_FLAGS
+						  | LDNS_COMMENT_LAYOUT      
+						  | LDNS_COMMENT_NSEC3_CHAIN
+						  | LDNS_COMMENT_BUBBLEBABBLE);
 			break;
 		case 'd':
 			add_keys = false;
@@ -767,7 +765,7 @@ main(int argc, char *argv[])
 			nsec3_salt_length,
 			nsec3_salt,
 			signflags,
-			(ldns_rbtree_t**) hashmap);
+			&fmt_st.hashmap);
 	} else {
 		result = ldns_dnssec_zone_sign_flg(signed_zone,
 				added_rrs,
@@ -796,7 +794,7 @@ main(int argc, char *argv[])
 					   outputfile_name, strerror(errno));
 			} else {
 				ldns_dnssec_zone_print_fmt(
-						outputfile, &fmt, signed_zone);
+						outputfile, fmt, signed_zone);
 				fclose(outputfile);
 			}
 		}

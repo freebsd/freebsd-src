@@ -132,9 +132,9 @@ def secure_query(name, rr_type, rr_class="IN", flags=["RD"], tries = 1, flex=Fal
 		raise Exception("%s lookup failed (server error or dnssec validation failed)" % name)
 	if pkt.rcode() == "NXDOMAIN":
 		if "AD" in pkt.flags():
-			raise Exception("%s lookup failed (non-existence proven by DNSSEC)" % hostname )
+			raise Exception("%s lookup failed (non-existence proven by DNSSEC)" % name )
 		else:
-			raise Exception("%s lookup failed" % hostname )
+			raise Exception("%s lookup failed" % name )
 	if pkt.rcode() == "NOERROR":
 		if "AD" not in pkt.flags():
 			if not flex:
@@ -698,7 +698,7 @@ class resource_record:
 
 	def __len__(self):
 		try:
-			return len(_rdfs)
+			return len(self._rdfs)
 		except:
 			return 0
 
@@ -891,6 +891,7 @@ _rr_types={
 	"NSAP_PTR" : ldns.LDNS_RR_TYPE_NSAP_PTR,
 	"NSEC" : ldns.LDNS_RR_TYPE_NSEC,
 	"NSEC3": ldns.LDNS_RR_TYPE_NSEC3,
+	"NSEC3PARAM" : ldns.LDNS_RR_TYPE_NSEC3PARAM,
 	"NSEC3PARAMS" : ldns.LDNS_RR_TYPE_NSEC3PARAMS,
 	"NULL" : ldns.LDNS_RR_TYPE_NULL,
 	"NXT"  : ldns.LDNS_RR_TYPE_NXT,

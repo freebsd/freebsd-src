@@ -205,7 +205,7 @@
 			case LDNS_RDF_TYPE_TIME:       return "TIME";
 			case LDNS_RDF_TYPE_PERIOD:     return "PERIOD";
 			case LDNS_RDF_TYPE_TSIGTIME:   return "TSIGTIME";
-			case LDNS_RDF_TYPE_TSIG:       return "TSIG";
+			case LDNS_RDF_TYPE_HIP:        return "HIP";
 			case LDNS_RDF_TYPE_INT16_DATA: return "INT16_DATA";
 			case LDNS_RDF_TYPE_SERVICE:    return "SERVICE";
 			case LDNS_RDF_TYPE_LOC:        return "LOC";
@@ -216,10 +216,35 @@
 			case LDNS_RDF_TYPE_NSEC3_SALT: return "NSEC3_SALT";
 			case LDNS_RDF_TYPE_NSEC3_NEXT_OWNER:
 			    return "NSEC3_NEXT_OWNER";
+			case LDNS_RDF_TYPE_ILNP64:     return "ILNP64";
+                        case LDNS_RDF_TYPE_EUI48:      return "EUI48";
+                        case LDNS_RDF_TYPE_EUI64:      return "EUI64";
+                        case LDNS_RDF_TYPE_TAG:        return "TAG";
+                        case LDNS_RDF_TYPE_LONG_STR:   return "LONG_STR";
 			}
 		}
 		return 0;
 	}
+%}
+
+
+%inline
+%{
+  /*!
+   * @brief Returns the rdf data organised into a list of bytes.
+   */
+  PyObject * ldns_rdf_data_as_bytearray(const ldns_rdf *rdf)
+  {
+    Py_ssize_t len;
+    uint8_t *data;
+
+    assert(rdf != NULL);
+
+    len = ldns_rdf_size(rdf);
+    data = ldns_rdf_data(rdf);
+
+    return PyByteArray_FromStringAndSize((char *) data, len);
+  }
 %}
 
 
@@ -462,6 +487,16 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             return _ldns.ldns_rdf_data(self)
             #parameters: const ldns_rdf *,
             #retvals: uint8_t *
+
+        def data_as_bytearray(self):
+            """
+               Returns the data of the rdf as a bytearray.
+
+               :return: (bytearray) Bytearray containing the rdf data.
+            """
+            return _ldns.ldns_rdf_data_as_bytearray(self)
+            #parameters: const ldns_rdf *,
+            #retvals: bytearray
 
         def get_type(self):
             """
@@ -818,7 +853,8 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
                Returns a clone of the given dname with the labels reversed.
 
                When reversing non-dnames a "." (root name) dname is returned.
-               
+
+               :throws Exception: When used on non-dname rdfs.
                :return: (:class:`ldns_rdf`) Clone of the dname with the labels
                    reversed or ".".
 
@@ -831,6 +867,8 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
                 " to be deprecated in future releases." +
                 " Convert the ldns_rdf to ldsn_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
+            if self.get_type() != _ldns.LDNS_RDF_TYPE_DNAME:
+                raise Exception("Operand must be a dname rdf.")
             return _ldns.ldns_dname_reverse(self)
             #parameters: const ldns_rdf *,
             #retvals: ldns_rdf *

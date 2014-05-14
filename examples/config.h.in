@@ -19,6 +19,14 @@
    don't. */
 #undef HAVE_DECL_IN6ADDR_ANY
 
+/* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
+   don't. */
+#undef HAVE_DECL_NID_SECP384R1
+
+/* Define to 1 if you have the declaration of `NID_X9_62_prime256v1', and to 0
+   if you don't. */
+#undef HAVE_DECL_NID_X9_62_PRIME256V1
+
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -186,6 +194,9 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define this to enable DANE support. */
+#undef USE_DANE
 
 /* Define this to enable ECDSA support. */
 #undef USE_ECDSA

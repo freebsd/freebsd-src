@@ -22,6 +22,14 @@ Of course the nameserver that is used must be DNSSEC-aware.
 
 .SH OPTIONS
 .TP
+\fB-4\fR
+Use only IPv4.
+
+.TP
+\fB-6\fR
+Use only IPv6.
+
+.TP
 \fB-f\fR
 Do a 'full' zone walk; by default, ldns-walk will only show the names, and types present at those names. If this option is given, all resource records will be printed.
 
@@ -29,6 +37,10 @@ Do a 'full' zone walk; by default, ldns-walk will only show the names, and types
 \fB-s\fR \fIname\fR
 Start the walk with this owner name. Useful when continuing the walk for a
 large zone.
+
+.TP
+\fB-v\fR \fIverbosity\fR
+Verbosity level [1-5].
 
 .TP
 \fB@\fR \fInameserver\fR

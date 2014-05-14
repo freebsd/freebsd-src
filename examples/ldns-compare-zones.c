@@ -33,6 +33,8 @@ usage(char *prog)
 	printf("       -a - print all differences (-i -d -c)\n");
 	printf("       -s - do not exclude SOA record from comparison\n");
 	printf("       -z - do not sort zones\n");
+	printf("       -h - show usage and exit\n");
+	printf("       -v - show the version and exit\n");
 }
 
 int 

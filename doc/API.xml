@@ -196,7 +196,7 @@ TODO the 'set' functions of the 'get'
 <t>
 In the DNS the atomic data type is an RRset. This is a list
 of RRs with the same ownername, type and class. Net::DNS doesn't
-have rrsets as a seperate object.
+have rrsets as a separate object.
 </t>
 <t>
 In lDNS we have the ldns_rr_list, which just holds a bunch of RR's.

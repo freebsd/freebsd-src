@@ -151,7 +151,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 			 * try to resolve the names we do got 
 			 */
 			if (verbosity >= 3) {
-				printf("Did not get address record for nameserver, doing seperate query.\n");
+				printf("Did not get address record for nameserver, doing separate query.\n");
 			}
 			ns_addr = ldns_rr_list_new();
 			for(i = 0; (size_t) i < ldns_rr_list_rr_count(new_nss); i++) {

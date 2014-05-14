@@ -63,8 +63,7 @@ suitable_hash(ldns_signing_algorithm algorithm)
 	case LDNS_SIGN_ECDSAP384SHA384:
 		return LDNS_SHA384;
 #endif
-	default:
-		return LDNS_SHA1;
+	default: break;
 	}
 	return LDNS_SHA1;
 }

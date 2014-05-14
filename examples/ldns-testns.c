@@ -155,7 +155,7 @@ static const char* prog_name = "ldns-testns";
 static FILE* logfile = 0;
 static int do_verbose = 0;
 
-static void usage()
+static void usage(void)
 {
 	printf("Usage: %s [options] <datafile>\n", prog_name);
 	printf("  -r	listens on random port. Port number is printed.\n");
