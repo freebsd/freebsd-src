@@ -108,12 +108,6 @@
 
 #else /* Book-E */
 
-/*
- * Kernel CCSRBAR location. We make this the reset location.
- */
-#define	CCSRBAR_VA		0xfef00000
-#define	CCSRBAR_SIZE		0x00100000
-
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
