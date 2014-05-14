@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2006
+.Dd October 1, 2013
 .Dt GBDE 8
 .Os
 .Sh NAME
@@ -207,23 +207,23 @@ used).
 .Sh EXAMPLES
 To initialize a device, using default parameters:
 .Pp
-.Dl "gbde init /dev/ad0s1f -L /etc/ad0s1f.lock"
+.Dl "gbde init /dev/ada0s1f -L /etc/ada0s1f.lock"
 .Pp
 To attach an encrypted device:
 .Pp
-.Dl "gbde attach ad0s1f -l /etc/ad0s1f.lock"
+.Dl "gbde attach ada0s1f -l /etc/ada0s1f.lock"
 .Pp
 The encrypted device has the suffix
 .Pa .bde
 so a typical
 command to create and mount a file system would be:
 .Pp
-.Dl "newfs /dev/ad0s1f.bde"
-.Dl "mount /dev/ad0s1f.bde /secret"
+.Dl "newfs /dev/ada0s1f.bde"
+.Dl "mount /dev/ada0s1f.bde /secret"
 .Pp
 To detach an encrypted device:
 .Pp
-.Dl "gbde detach ad0s1f"
+.Dl "gbde detach ada0s1f"
 .Pp
 Please notice that detaching an encrypted device corresponds to
 physically removing it, do not forget to unmount the file system first.
@@ -231,11 +231,11 @@ physically removing it, do not forget to unmount the file system first.
 To initialize the second key using a detached lockfile and a trivial
 pass-phrase:
 .Pp
-.Dl "gbde setkey ad0s1f -n 2 -P foo -L key2.lockfile"
+.Dl "gbde setkey ada0s1f -n 2 -P foo -L key2.lockfile"
 .Pp
 To destroy all copies of the masterkey:
 .Pp
-.Dl "gbde destroy ad0s1f -n -1"
+.Dl "gbde destroy ada0s1f -n -1"
 .Sh SEE ALSO
 .Xr gbde 4 ,
 .Xr geom 4
