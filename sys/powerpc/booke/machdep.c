@@ -409,6 +409,11 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/* Initialize system mutexes. */
