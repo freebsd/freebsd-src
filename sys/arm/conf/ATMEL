@@ -175,3 +175,6 @@ device		at91_wdt	# Atmel AT91 Watchdog Timer
 device		at91_rtc
 device		at91_ssc
 #device		at91_tc		# missing?
+
+# NAND Flash - Reference design has Samsung 256MB but others possible
+device		nand			# NAND interface on CS3
