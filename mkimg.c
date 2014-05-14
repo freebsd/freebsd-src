@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-#include "format.h"
 #include "image.h"
+#include "format.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -316,7 +316,16 @@ mkimg(void)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
+	error = image_set_size(block);
+	if (!error)
+		error = format_resize(block);
+	if (error)
+		errc(EX_IOERR, error, "image sizing");
+	block = image_get_size();
+	ncyls = block / (nsecs * nheads);
 	error = (scheme_write(block));
+	if (error)
+		errc(EX_IOERR, error, "writing metadata");
 }
 
 int

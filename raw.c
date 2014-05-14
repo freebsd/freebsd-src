@@ -35,9 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "format.h"
 #include "image.h"
+#include "format.h"
 #include "mkimg.h"
+
+static int
+raw_resize(lba_t imgsz __unused)
+{
+
+	return (0);
+}
 
 static int
 raw_write(int fd)
@@ -49,6 +56,7 @@ raw_write(int fd)
 static struct mkimg_format raw_format = {
 	.name = "raw",
 	.description = "Raw Disk",
+	.resize = raw_resize,
 	.write = raw_write,
 };
 

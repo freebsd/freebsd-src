@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "format.h"
 #include "image.h"
+#include "format.h"
 #include "mkimg.h"
 
 struct vmdk_header {
@@ -83,6 +83,17 @@ static const char desc_fmt[] =
     "ddb.geometry.cylinders = \"%u\"\n"
     "ddb.geometry.heads = \"%u\"\n"
     "ddb.geometry.sectors = \"%u\"\n";
+
+static int
+vmdk_resize(lba_t imgsz __unused)
+{
+
+	/*
+	 * Caulculate optimal grain size and round image size to
+	 * a multiple of the grain size.
+	 */
+	return (ENOSYS);
+}
 
 static int
 vmdk_write(int fd __unused)
@@ -132,6 +143,7 @@ vmdk_write(int fd __unused)
 static struct mkimg_format vmdk_format = {
 	.name = "vmdk",
 	.description = "Virtual Machine Disk",
+	.resize = vmdk_resize,
 	.write = vmdk_write,
 };
 

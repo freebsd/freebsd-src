@@ -182,14 +182,9 @@ scheme_metadata(u_int where, lba_t start)
 int
 scheme_write(lba_t end)
 {
-	u_int cylsz;
 	int error;
 
-	cylsz = nsecs * nheads;
-	ncyls = (end + cylsz - 1) / cylsz;
-
-	error = image_set_size(end);
-	if (!error)
-		error = scheme->write(end, bootcode);
+	end = image_get_size();
+	error = scheme->write(end, bootcode);
 	return (error);
 }

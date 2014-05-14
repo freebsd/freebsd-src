@@ -34,12 +34,14 @@
 struct mkimg_format {
 	const char	*name;
 	const char	*description;
+	int		(*resize)(lba_t);
 	int		(*write)(int);
 };
 
 SET_DECLARE(formats, struct mkimg_format);
 #define	FORMAT_DEFINE(nm)	DATA_SET(formats, nm)
 
+int	format_resize(lba_t);
 int	format_select(const char *);
 struct mkimg_format *format_selected(void);
 int	format_write(int);

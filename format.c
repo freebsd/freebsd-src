@@ -38,11 +38,20 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "format.h"
 #include "image.h"
+#include "format.h"
 #include "mkimg.h"
 
 static struct mkimg_format *format;
+
+int
+format_resize(lba_t end)
+{
+
+	if (format == NULL || format->resize == NULL)
+		return (ENOSYS);
+	return (format->resize(end));
+}
 
 int
 format_select(const char *spec)
@@ -70,8 +79,7 @@ int
 format_write(int fd)
 {
 
-	if (format == NULL)
+	if (format == NULL || format->write == NULL)
 		return (ENOSYS);
-
 	return (format->write(fd));
 }
