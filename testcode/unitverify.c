@@ -301,7 +301,7 @@ verifytest_file(const char* fname, const char* at_date)
 	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
 	struct val_env ve;
-	uint32_t now = time(NULL);
+	time_t now = time(NULL);
 
 	if(!list)
 		fatal_exit("could not read %s: %s", fname, strerror(errno));
@@ -422,7 +422,7 @@ nsec3_hash_test_entry(struct entry* e, rbtree_t* ct,
 	struct query_info qinfo;
 	struct reply_info* rep = NULL;
 	struct ub_packed_rrset_key* answer, *nsec3;
-	struct nsec3_cached_hash* hash;
+	struct nsec3_cached_hash* hash = NULL;
 	int ret;
 	uint8_t* qname;
 

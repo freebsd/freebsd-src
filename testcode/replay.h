@@ -293,7 +293,7 @@ struct replay_runtime {
 	struct infra_cache* infra;
 
 	/** the current time in seconds */
-	uint32_t now_secs;
+	time_t now_secs;
 	/** the current time in microseconds */
 	struct timeval now_tv;
 

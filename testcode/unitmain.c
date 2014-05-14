@@ -411,7 +411,7 @@ rtt_test(void)
 /* lookup and get key and data structs easily */
 static struct infra_data* infra_lookup_host(struct infra_cache* infra,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, int wr, uint32_t now, struct infra_key** k)
+	size_t zonelen, int wr, time_t now, struct infra_key** k)
 {
 	struct infra_data* d;
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,
@@ -436,7 +436,7 @@ infra_test(void)
 	size_t zonelen = 13;
 	struct infra_cache* slab;
 	struct config_file* cfg = config_create();
-	uint32_t now = 0;
+	time_t now = 0;
 	uint8_t edns_lame;
 	int vs, to;
 	struct infra_key* k;

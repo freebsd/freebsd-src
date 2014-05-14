@@ -63,7 +63,7 @@ struct outside_network {
 	/** Base for select calls */
 	struct comm_base* base;
 	/** pointer to time in seconds */
-	uint32_t* now_secs;
+	time_t* now_secs;
 	/** pointer to time in microseconds */
 	struct timeval* now_tv;
 

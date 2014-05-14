@@ -1231,7 +1231,7 @@ xml_charhandle(void *userData, const XML_Char *s, int len)
 		printf("'\n");
 	}
 	if(strcasecmp(data->tag, "Zone") == 0) {
-		if(BIO_write(data->czone, s, len) <= 0) {
+		if(BIO_write(data->czone, s, len) < 0) {
 			if(verb) printf("out of memory in BIO_write\n");
 			exit(0);
 		}
@@ -1242,7 +1242,7 @@ xml_charhandle(void *userData, const XML_Char *s, int len)
 		return;
 	b = xml_selectbio(data, data->tag);
 	if(b) {
-		if(BIO_write(b, s, len) <= 0) {
+		if(BIO_write(b, s, len) < 0) {
 			if(verb) printf("out of memory in BIO_write\n");
 			exit(0);
 		}
@@ -1435,7 +1435,7 @@ xml_startelem(void *userData, const XML_Char *name, const XML_Char **atts)
 static void
 xml_append_str(BIO* b, const char* s)
 {
-	if(BIO_write(b, s, (int)strlen(s)) <= 0) {
+	if(BIO_write(b, s, (int)strlen(s)) < 0) {
 		if(verb) printf("out of memory in BIO_write\n");
 		exit(0);
 	}
@@ -1459,7 +1459,7 @@ xml_append_bio(BIO* b, BIO* a)
 			z[i] = ' ';
 	}
 	/* write to BIO */
-	if(BIO_write(b, z, len) <= 0) {
+	if(BIO_write(b, z, len) < 0) {
 		if(verb) printf("out of memory in BIO_write\n");
 		exit(0);
 	}
@@ -1545,7 +1545,7 @@ xml_parse_setup(XML_Parser parser, struct xml_data* data, time_t now)
 	}
 	snprintf(buf, sizeof(buf), "; created by unbound-anchor on %s",
 		ctime(&now));
-	if(BIO_write(data->ds, buf, (int)strlen(buf)) <= 0) {
+	if(BIO_write(data->ds, buf, (int)strlen(buf)) < 0) {
 		if(verb) printf("out of memory\n");
 		exit(0);
 	}

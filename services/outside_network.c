@@ -1210,6 +1210,8 @@ serviced_create(struct outside_network* outnet, ldns_buffer* buff, int dnssec,
 	sq->to_be_deleted = 0;
 #ifdef UNBOUND_DEBUG
 	ins = 
+#else
+	(void)
 #endif
 	rbtree_insert(outnet->serviced, &sq->node);
 	log_assert(ins != NULL); /* must not be already present */
@@ -1361,7 +1363,7 @@ serviced_udp_send(struct serviced_query* sq, ldns_buffer* buff)
 {
 	int rtt, vs;
 	uint8_t edns_lame_known;
-	uint32_t now = *sq->outnet->now_secs;
+	time_t now = *sq->outnet->now_secs;
 
 	if(!infra_host(sq->outnet->infra, &sq->addr, sq->addrlen, sq->zone,
 		sq->zonelen, now, &vs, &edns_lame_known, &rtt))
@@ -1449,6 +1451,8 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 	size_t backlen = 0;
 #ifdef UNBOUND_DEBUG
 	rbnode_t* rem =
+#else
+	(void)
 #endif
 	/* remove from tree, and schedule for deletion, so that callbacks
 	 * can safely deregister themselves and even create new serviced
@@ -1567,7 +1571,7 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 		(now.tv_sec == sq->last_sent_time.tv_sec &&
 		now.tv_usec > sq->last_sent_time.tv_usec)) {
 		/* convert from microseconds to milliseconds */
-		int roundtime = ((int)now.tv_sec - (int)sq->last_sent_time.tv_sec)*1000
+		int roundtime = ((int)(now.tv_sec - sq->last_sent_time.tv_sec))*1000
 		  + ((int)now.tv_usec - (int)sq->last_sent_time.tv_usec)/1000;
 		verbose(VERB_ALGO, "measured TCP-time at %d msec", roundtime);
 		log_assert(roundtime >= 0);
@@ -1576,7 +1580,7 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 		if(roundtime < TCP_AUTH_QUERY_TIMEOUT*1000) {
 		    if(!infra_rtt_update(sq->outnet->infra, &sq->addr,
 			sq->addrlen, sq->zone, sq->zonelen, sq->qtype,
-			roundtime, sq->last_rtt, (uint32_t)now.tv_sec))
+			roundtime, sq->last_rtt, (time_t)now.tv_sec))
 			log_err("out of memory noting rtt.");
 		}
 	    }
@@ -1668,7 +1672,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		sq->retry++;
 		if(!(rto=infra_rtt_update(outnet->infra, &sq->addr, sq->addrlen,
 			sq->zone, sq->zonelen, sq->qtype, -1, sq->last_rtt,
-			(uint32_t)now.tv_sec)))
+			(time_t)now.tv_sec)))
 			log_err("out of memory in UDP exponential backoff");
 		if(sq->retry < OUTBOUND_UDP_RETRY) {
 			log_name_addr(VERB_ALGO, "retry query", sq->qbuf+10,
@@ -1712,7 +1716,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		/* only store noEDNS in cache if domain is noDNSSEC */
 		if(!sq->want_dnssec)
 		  if(!infra_edns_update(outnet->infra, &sq->addr, sq->addrlen,
-			sq->zone, sq->zonelen, -1, (uint32_t)now.tv_sec)) {
+			sq->zone, sq->zonelen, -1, (time_t)now.tv_sec)) {
 			log_err("Out of memory caching no edns for host");
 		  }
 		sq->status = serviced_query_UDP;
@@ -1722,7 +1726,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		log_addr(VERB_ALGO, "serviced query: EDNS works for",
 			&sq->addr, sq->addrlen);
 		if(!infra_edns_update(outnet->infra, &sq->addr, sq->addrlen, 
-			sq->zone, sq->zonelen, 0, (uint32_t)now.tv_sec)) {
+			sq->zone, sq->zonelen, 0, (time_t)now.tv_sec)) {
 			log_err("Out of memory caching edns works");
 		}
 		sq->edns_lame_known = 1;
@@ -1739,7 +1743,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		  log_addr(VERB_ALGO, "serviced query: EDNS fails for",
 			&sq->addr, sq->addrlen);
 		  if(!infra_edns_update(outnet->infra, &sq->addr, sq->addrlen,
-			sq->zone, sq->zonelen, -1, (uint32_t)now.tv_sec)) {
+			sq->zone, sq->zonelen, -1, (time_t)now.tv_sec)) {
 			log_err("Out of memory caching no edns for host");
 		  }
 		} else {
@@ -1753,7 +1757,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		(now.tv_sec == sq->last_sent_time.tv_sec &&
 		now.tv_usec > sq->last_sent_time.tv_usec)) {
 		/* convert from microseconds to milliseconds */
-		int roundtime = ((int)now.tv_sec - (int)sq->last_sent_time.tv_sec)*1000
+		int roundtime = ((int)(now.tv_sec - sq->last_sent_time.tv_sec))*1000
 		  + ((int)now.tv_usec - (int)sq->last_sent_time.tv_usec)/1000;
 		verbose(VERB_ALGO, "measured roundtrip at %d msec", roundtime);
 		log_assert(roundtime >= 0);
@@ -1762,7 +1766,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		if(roundtime < 60000) {
 		    if(!infra_rtt_update(outnet->infra, &sq->addr, sq->addrlen, 
 			sq->zone, sq->zonelen, sq->qtype, roundtime,
-			sq->last_rtt, (uint32_t)now.tv_sec))
+			sq->last_rtt, (time_t)now.tv_sec))
 			log_err("out of memory noting rtt.");
 		}
 	    }
@@ -1866,6 +1870,8 @@ void outnet_serviced_query_stop(struct serviced_query* sq, void* cb_arg)
 	if(!sq->cblist && !sq->to_be_deleted) {
 #ifdef UNBOUND_DEBUG
 		rbnode_t* rem =
+#else
+		(void)
 #endif
 		rbtree_delete(sq->outnet->serviced, sq);
 		log_assert(rem); /* should be present */

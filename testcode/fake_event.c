@@ -478,7 +478,7 @@ time_passes(struct replay_runtime* runtime, struct replay_moment* mom)
 #endif
 	}
 	timeval_add(&runtime->now_tv, &tv);
-	runtime->now_secs = (uint32_t)runtime->now_tv.tv_sec;
+	runtime->now_secs = (time_t)runtime->now_tv.tv_sec;
 #ifndef S_SPLINT_S
 	log_info("elapsed %d.%6.6d  now %d.%6.6d", 
 		(int)tv.tv_sec, (int)tv.tv_usec,
@@ -801,7 +801,7 @@ comm_base_delete(struct comm_base* b)
 }
 
 void
-comm_base_timept(struct comm_base* b, uint32_t** tt, struct timeval** tv)
+comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)b;
 	*tt = &runtime->now_secs;
@@ -909,8 +909,10 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	runtime->infra = infra;
 	outnet->base = base;
 	outnet->udp_buff = ldns_buffer_new(bufsize);
-	if(!outnet->udp_buff)
+	if(!outnet->udp_buff) {
+		free(outnet);
 		return NULL;
+	}
 	return outnet;
 }
 

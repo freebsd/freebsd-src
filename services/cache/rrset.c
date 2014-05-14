@@ -120,7 +120,7 @@ rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
 
 /** see if rrset needs to be updated in the cache */
 static int
-need_to_update_rrset(void* nd, void* cd, uint32_t timenow, int equal, int ns)
+need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 {
 	struct packed_rrset_data* newd = (struct packed_rrset_data*)nd;
 	struct packed_rrset_data* cached = (struct packed_rrset_data*)cd;
@@ -181,7 +181,7 @@ rrset_update_id(struct rrset_ref* ref, struct alloc_cache* alloc)
 
 int 
 rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
-	struct alloc_cache* alloc, uint32_t timenow)
+	struct alloc_cache* alloc, time_t timenow)
 {
 	struct lruhash_entry* e;
 	struct ub_packed_rrset_key* k = ref->key;
@@ -237,7 +237,7 @@ rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 
 struct ub_packed_rrset_key* 
 rrset_cache_lookup(struct rrset_cache* r, uint8_t* qname, size_t qnamelen, 
-	uint16_t qtype, uint16_t qclass, uint32_t flags, uint32_t timenow,
+	uint16_t qtype, uint16_t qclass, uint32_t flags, time_t timenow,
 	int wr)
 {
 	struct lruhash_entry* e;
@@ -268,7 +268,7 @@ rrset_cache_lookup(struct rrset_cache* r, uint8_t* qname, size_t qnamelen,
 }
 
 int 
-rrset_array_lock(struct rrset_ref* ref, size_t count, uint32_t timenow)
+rrset_array_lock(struct rrset_ref* ref, size_t count, time_t timenow)
 {
 	size_t i;
 	for(i=0; i<count; i++) {
@@ -327,7 +327,7 @@ rrset_array_unlock_touch(struct rrset_cache* r, struct regional* scratch,
 
 void 
 rrset_update_sec_status(struct rrset_cache* r, 
-	struct ub_packed_rrset_key* rrset, uint32_t now)
+	struct ub_packed_rrset_key* rrset, time_t now)
 {
 	struct packed_rrset_data* updata = 
 		(struct packed_rrset_data*)rrset->entry.data;
@@ -366,7 +366,7 @@ rrset_update_sec_status(struct rrset_cache* r,
 
 void 
 rrset_check_sec_status(struct rrset_cache* r, 
-	struct ub_packed_rrset_key* rrset, uint32_t now)
+	struct ub_packed_rrset_key* rrset, time_t now)
 {
 	struct packed_rrset_data* updata = 
 		(struct packed_rrset_data*)rrset->entry.data;

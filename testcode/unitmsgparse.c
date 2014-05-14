@@ -258,7 +258,7 @@ checkformerr(ldns_buffer* pkt)
 /** performance test message encoding */
 static void
 perf_encode(struct query_info* qi, struct reply_info* rep, uint16_t id, 
-	uint16_t flags, ldns_buffer* out, uint32_t timenow, 
+	uint16_t flags, ldns_buffer* out, time_t timenow, 
 	struct edns_data* edns)
 {
 	static int num = 0;
@@ -299,7 +299,7 @@ perftestpkt(ldns_buffer* pkt, struct alloc_cache* alloc, ldns_buffer* out,
 	int ret;
 	uint16_t id;
 	uint16_t flags;
-	uint32_t timenow = 0;
+	time_t timenow = 0;
 	struct regional* region = regional_create();
 	struct edns_data edns;
 

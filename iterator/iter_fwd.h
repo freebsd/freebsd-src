@@ -105,6 +105,16 @@ void forwards_delete(struct iter_forwards* fwd);
 int forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg);
 
 /**
+ * Find forward zone exactly by name
+ * @param fwd: forward storage.
+ * @param qname: The qname of the query.
+ * @param qclass: The qclass of the query.
+ * @return: A delegation point or null.
+ */
+struct delegpt* forwards_find(struct iter_forwards* fwd, uint8_t* qname,
+	uint16_t qclass);
+
+/**
  * Find forward zone information
  * For this qname/qclass find forward zone information, returns delegation
  * point with server names and addresses, or NULL if no forwarding is needed.

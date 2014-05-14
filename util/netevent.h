@@ -308,7 +308,7 @@ void comm_base_delete(struct comm_base* b);
  * @param tt: pointer to time in seconds is returned.
  * @param tv: pointer to time in microseconds is returned.
  */
-void comm_base_timept(struct comm_base* b, uint32_t** tt, struct timeval** tv);
+void comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv);
 
 /**
  * Dispatch the comm base events.

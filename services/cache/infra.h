@@ -68,10 +68,10 @@ struct infra_key {
  */
 struct infra_data {
 	/** TTL value for this entry. absolute time. */
-	uint32_t ttl;
+	time_t ttl;
 
 	/** time in seconds (absolute) when probing re-commences, 0 disabled */
-	uint32_t probedelay;
+	time_t probedelay;
 	/** round trip times for timeout calculation */
 	struct rtt_info rtt;
 
@@ -173,7 +173,7 @@ struct lruhash_entry* infra_lookup_nottl(struct infra_cache* infra,
  */
 int infra_host(struct infra_cache* infra, struct sockaddr_storage* addr, 
 	socklen_t addrlen, uint8_t* name, size_t namelen,
-	uint32_t timenow, int* edns_vs, uint8_t* edns_lame_known, int* to);
+	time_t timenow, int* edns_vs, uint8_t* edns_lame_known, int* to);
 
 /**
  * Set a host to be lame for the given zone.
@@ -192,7 +192,7 @@ int infra_host(struct infra_cache* infra, struct sockaddr_storage* addr,
  */
 int infra_set_lame(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* name, size_t namelen, uint32_t timenow, int dnsseclame,
+	uint8_t* name, size_t namelen, time_t timenow, int dnsseclame,
 	int reclame, uint16_t qtype);
 
 /**
@@ -212,7 +212,7 @@ int infra_set_lame(struct infra_cache* infra,
  */
 int infra_rtt_update(struct infra_cache* infra, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* name, size_t namelen, int qtype,
-	int roundtrip, int orig_rtt, uint32_t timenow);
+	int roundtrip, int orig_rtt, time_t timenow);
 
 /**
  * Update information for the host, store that a TCP transaction works.
@@ -240,7 +240,7 @@ void infra_update_tcp_works(struct infra_cache* infra,
  */
 int infra_edns_update(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* name, size_t namelen, int edns_version, uint32_t timenow);
+	uint8_t* name, size_t namelen, int edns_version, time_t timenow);
 
 /**
  * Get Lameness information and average RTT if host is in the cache.
@@ -263,7 +263,7 @@ int infra_edns_update(struct infra_cache* infra,
 int infra_get_lame_rtt(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen, 
 	uint8_t* name, size_t namelen, uint16_t qtype, 
-	int* lame, int* dnsseclame, int* reclame, int* rtt, uint32_t timenow);
+	int* lame, int* dnsseclame, int* reclame, int* rtt, time_t timenow);
 
 /**
  * Get additional (debug) info on timing.
@@ -281,9 +281,9 @@ int infra_get_lame_rtt(struct infra_cache* infra,
  * @return TTL the infra host element is valid for. If -1: not found in cache.
  *	TTL -2: found but expired.
  */
-int infra_get_host_rto(struct infra_cache* infra,
+long long infra_get_host_rto(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* name,
-	size_t namelen, struct rtt_info* rtt, int* delay, uint32_t timenow,
+	size_t namelen, struct rtt_info* rtt, int* delay, time_t timenow,
 	int* tA, int* tAAAA, int* tother);
 
 /**

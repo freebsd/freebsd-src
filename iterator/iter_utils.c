@@ -177,7 +177,7 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
  */
 static int
 iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
-	uint8_t* name, size_t namelen, uint16_t qtype, uint32_t now, 
+	uint8_t* name, size_t namelen, uint16_t qtype, time_t now, 
 	struct delegpt_addr* a)
 {
 	int rtt, lame, reclame, dnsseclame;
@@ -217,14 +217,16 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 		/* select remainder from worst to best */
 		else if(reclame)
 			return rtt+USEFUL_SERVER_TOP_TIMEOUT*3; /* nonpref */
-		else if(dnsseclame )
+		else if(dnsseclame || a->dnsseclame)
 			return rtt+USEFUL_SERVER_TOP_TIMEOUT*2; /* nonpref */
 		else if(a->lame)
 			return rtt+USEFUL_SERVER_TOP_TIMEOUT+1; /* nonpref */
 		else	return rtt;
 	}
 	/* no server information present */
-	if(a->lame)
+	if(a->dnsseclame)
+		return UNKNOWN_SERVER_NICENESS+USEFUL_SERVER_TOP_TIMEOUT*2; /* nonpref */
+	else if(a->lame)
 		return USEFUL_SERVER_TOP_TIMEOUT+1+UNKNOWN_SERVER_NICENESS; /* nonpref */
 	return UNKNOWN_SERVER_NICENESS;
 }
@@ -232,7 +234,7 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 /** lookup RTT information, and also store fastest rtt (if any) */
 static int
 iter_fill_rtt(struct iter_env* iter_env, struct module_env* env,
-	uint8_t* name, size_t namelen, uint16_t qtype, uint32_t now, 
+	uint8_t* name, size_t namelen, uint16_t qtype, time_t now, 
 	struct delegpt* dp, int* best_rtt, struct sock_list* blacklist)
 {
 	int got_it = 0;
@@ -261,7 +263,7 @@ iter_fill_rtt(struct iter_env* iter_env, struct module_env* env,
  * returns number of best targets (or 0, no suitable targets) */
 static int
 iter_filter_order(struct iter_env* iter_env, struct module_env* env,
-	uint8_t* name, size_t namelen, uint16_t qtype, uint32_t now, 
+	uint8_t* name, size_t namelen, uint16_t qtype, time_t now, 
 	struct delegpt* dp, int* selected_rtt, int open_target, 
 	struct sock_list* blacklist)
 {
@@ -420,7 +422,7 @@ dns_copy_msg(struct dns_msg* from, struct regional* region)
 
 void 
 iter_dns_store(struct module_env* env, struct query_info* msgqinf,
-	struct reply_info* msgrep, int is_referral, uint32_t leeway, int pside,
+	struct reply_info* msgrep, int is_referral, time_t leeway, int pside,
 	struct regional* region)
 {
 	if(!dns_cache_store(env, msgqinf, msgrep, is_referral, leeway,
@@ -768,7 +770,7 @@ void iter_store_parentside_neg(struct module_env* env,
 	/* TTL: NS from referral in iq->deleg_msg,
 	 *      or first RR from iq->response,
 	 *      or servfail5secs if !iq->response */ 
-	uint32_t ttl = NORR_TTL;
+	time_t ttl = NORR_TTL;
 	struct ub_packed_rrset_key* neg;
 	struct packed_rrset_data* newd;
 	if(rep) {
@@ -798,7 +800,7 @@ void iter_store_parentside_neg(struct module_env* env,
 	neg->entry.hash = rrset_key_hash(&neg->rk);
 	newd = (struct packed_rrset_data*)regional_alloc_zero(env->scratch, 
 		sizeof(struct packed_rrset_data) + sizeof(size_t) +
-		sizeof(uint8_t*) + sizeof(uint32_t) + sizeof(uint16_t));
+		sizeof(uint8_t*) + sizeof(time_t) + sizeof(uint16_t));
 	if(!newd) {
 		log_err("out of memory in store_parentside_neg");
 		return;

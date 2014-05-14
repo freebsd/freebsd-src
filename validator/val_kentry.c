@@ -275,8 +275,8 @@ key_entry_setup(struct regional* region,
 
 struct key_entry_key* 
 key_entry_create_null(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl,
-	uint32_t now)
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl,
+	time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -294,7 +294,7 @@ key_entry_create_null(struct regional* region,
 struct key_entry_key* 
 key_entry_create_rrset(struct regional* region,
 	uint8_t* name, size_t namelen, uint16_t dclass,
-	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, uint32_t now)
+	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -321,8 +321,8 @@ key_entry_create_rrset(struct regional* region,
 
 struct key_entry_key* 
 key_entry_create_bad(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl, 
-	uint32_t now)
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl, 
+	time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;

@@ -75,7 +75,7 @@ struct key_entry_key {
  */
 struct key_entry_data {
 	/** the TTL of this entry (absolute time) */
-	uint32_t ttl;
+	time_t ttl;
 	/** the key rrdata. can be NULL to signal keyless name. */
 	struct packed_rrset_data* rrset_data;
 	/** not NULL sometimes to give reason why bogus */
@@ -169,8 +169,8 @@ char* key_entry_get_reason(struct key_entry_key* kkey);
  * @return new key entry or NULL on alloc failure
  */
 struct key_entry_key* key_entry_create_null(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl, 
-	uint32_t now);
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl, 
+	time_t now);
 
 /**
  * Create a key entry from an rrset, in the given region.
@@ -185,7 +185,7 @@ struct key_entry_key* key_entry_create_null(struct regional* region,
  */
 struct key_entry_key* key_entry_create_rrset(struct regional* region,
         uint8_t* name, size_t namelen, uint16_t dclass, 
-	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, uint32_t now);
+	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, time_t now);
 
 /**
  * Create a bad entry, in the given region.
@@ -198,8 +198,8 @@ struct key_entry_key* key_entry_create_rrset(struct regional* region,
  * @return new key entry or NULL on alloc failure
  */
 struct key_entry_key* key_entry_create_bad(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl,
-	uint32_t now);
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl,
+	time_t now);
 
 /**
  * Obtain rrset from a key entry, allocated in region.

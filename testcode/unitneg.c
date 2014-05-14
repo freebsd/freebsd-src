@@ -195,7 +195,7 @@ static void add_item(struct val_neg_cache* neg)
 	struct packed_rrset_data rd;
 	struct ub_packed_rrset_key nsec;
 	size_t rr_len;
-	uint32_t rr_ttl;
+	time_t rr_ttl;
 	uint8_t* rr_data;
 	char* zname = get_random_zone();
 	char* from, *to;

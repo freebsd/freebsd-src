@@ -53,9 +53,9 @@
 #include "util/data/msgencode.h"
 
 /** MAX TTL default for messages and rrsets */
-uint32_t MAX_TTL = 3600 * 24 * 10; /* ten days */
+time_t MAX_TTL = 3600 * 24 * 10; /* ten days */
 /** MIN TTL default for messages and rrsets */
-uint32_t MIN_TTL = 0;
+time_t MIN_TTL = 0;
 
 /** allocate qinfo, return 0 on error */
 static int
@@ -79,7 +79,7 @@ parse_create_qinfo(ldns_buffer* pkt, struct msg_parse* msg,
 /** constructor for replyinfo */
 static struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-	uint32_t ttl, uint32_t prettl, size_t an, size_t ns, size_t ar, 
+	time_t ttl, time_t prettl, size_t an, size_t ns, size_t ar, 
 	size_t total, enum sec_status sec)
 {
 	struct reply_info* rep;
@@ -154,7 +154,7 @@ repinfo_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc,
 /** do the rdata copy */
 static int
 rdata_copy(ldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to, 
-	struct rr_parse* rr, uint32_t* rr_ttl, uint16_t type)
+	struct rr_parse* rr, time_t* rr_ttl, uint16_t type)
 {
 	uint16_t pkt_len;
 	const ldns_rr_descriptor* desc;
@@ -245,7 +245,7 @@ parse_rr_copy(ldns_buffer* pkt, struct rrset_parse* pset,
 	data->rr_len = (size_t*)((uint8_t*)data + 
 		sizeof(struct packed_rrset_data));
 	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
 	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
 	for(i=0; i<data->count; i++) {
 		data->rr_len[i] = rr->size;
@@ -278,7 +278,7 @@ parse_create_rrset(ldns_buffer* pkt, struct rrset_parse* pset,
 	/* allocate */
 	size_t s = sizeof(struct packed_rrset_data) + 
 		(pset->rr_count + pset->rrsig_count) * 
-		(sizeof(size_t)+sizeof(uint8_t*)+sizeof(uint32_t)) + 
+		(sizeof(size_t)+sizeof(uint8_t*)+sizeof(time_t)) + 
 		pset->size;
 	if(region)
 		*data = regional_alloc(region, s);
@@ -465,7 +465,7 @@ reply_info_sortref(struct reply_info* rep)
 }
 
 void 
-reply_info_set_ttls(struct reply_info* rep, uint32_t timenow)
+reply_info_set_ttls(struct reply_info* rep, time_t timenow)
 {
 	size_t i, j;
 	rep->ttl += timenow;

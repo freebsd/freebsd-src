@@ -62,7 +62,7 @@ static void
 remove_rrset(const char* str, ldns_buffer* pkt, struct msg_parse* msg, 
 	struct rrset_parse* prev, struct rrset_parse** rrset)
 {
-	if(verbosity >= VERB_QUERY 
+	if(verbosity >= VERB_QUERY && str
 		&& (*rrset)->dname_len <= LDNS_MAX_DOMAINLEN) {
 		uint8_t buf[LDNS_MAX_DOMAINLEN+1];
 		dname_pkt_copy(pkt, buf, (*rrset)->dname);
@@ -520,7 +520,7 @@ store_rrset(ldns_buffer* pkt, struct msg_parse* msg, struct module_env* env,
 	struct ub_packed_rrset_key* k;
 	struct packed_rrset_data* d;
 	struct rrset_ref ref;
-	uint32_t now = *env->now;
+	time_t now = *env->now;
 
 	k = alloc_special_obtain(env->alloc);
 	if(!k)
@@ -646,14 +646,16 @@ scrub_sanitize(ldns_buffer* pkt, struct msg_parse* msg,
 
 		/* remove private addresses */
 		if( (rrset->type == LDNS_RR_TYPE_A || 
-			rrset->type == LDNS_RR_TYPE_AAAA) &&
-			priv_rrset_bad(ie->priv, pkt, rrset)) {
+			rrset->type == LDNS_RR_TYPE_AAAA)) {
 
 			/* do not set servfail since this leads to too
 			 * many drops of other people using rfc1918 space */
-			remove_rrset("sanitize: removing public name with "
-				"private address", pkt, msg, prev, &rrset);
-			continue;
+			/* also do not remove entire rrset, unless all records
+			 * in it are bad */
+			if(priv_rrset_bad(ie->priv, pkt, rrset)) {
+				remove_rrset(NULL, pkt, msg, prev, &rrset);
+				continue;
+			}
 		}
 		
 		/* skip DNAME records -- they will always be followed by a 

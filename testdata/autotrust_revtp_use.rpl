@@ -89,7 +89,7 @@ example.com.	10800	IN	RRSIG	DNSKEY 5 2 10800 20091124111500 20091018111500 16614
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode subdomain
+MATCH opcode qname qtype
 ADJUST copy_id copy_query
 REPLY QR
 SECTION QUESTION
@@ -97,8 +97,16 @@ www.example.com. IN A
 SECTION ANSWER
 www.example.com. IN A 10.20.30.40
 ENTRY_END
-RANGE_END
 
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST copy_id copy_query
+REPLY QR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION ANSWER
+; no AAAA
+ENTRY_END
 RANGE_END
 
 STEP 20 QUERY

@@ -368,7 +368,7 @@ int tube_read_msg(struct tube* tube, uint8_t** buf, uint32_t* len,
 		return 0;
 	}
 	d = 0;
-	while(d != (ssize_t)*len) {
+	while(d < (ssize_t)*len) {
 		if((r=read(fd, (*buf)+d, (size_t)((ssize_t)*len)-d)) == -1) {
 			log_err("tube msg read failed: %s", strerror(errno));
 			(void)fd_set_nonblock(fd);

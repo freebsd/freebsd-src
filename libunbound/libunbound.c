@@ -60,6 +60,9 @@
 #include "services/localzone.h"
 #include "services/cache/infra.h"
 #include "services/cache/rrset.h"
+#ifdef HAVE_PTHREAD
+#include <signal.h>
+#endif
 
 #if defined(UB_ON_WINDOWS) && defined (HAVE_WINDOWS_H)
 #include <windows.h>
@@ -155,11 +158,9 @@ delq(rbnode_t* n, void* ATTR_UNUSED(arg))
 	context_query_delete(q);
 }
 
-void 
-ub_ctx_delete(struct ub_ctx* ctx)
+/** stop the bg thread */
+static void ub_stop_bg(struct ub_ctx* ctx)
 {
-	struct alloc_cache* a, *na;
-	if(!ctx) return;
 	/* stop the bg thread */
 	lock_basic_lock(&ctx->cfglock);
 	if(ctx->created_bg) {
@@ -195,7 +196,28 @@ ub_ctx_delete(struct ub_ctx* ctx)
 	else {
 		lock_basic_unlock(&ctx->cfglock);
 	}
+}
 
+void 
+ub_ctx_delete(struct ub_ctx* ctx)
+{
+	struct alloc_cache* a, *na;
+	int do_stop = 1;
+	if(!ctx) return;
+
+	/* see if bg thread is created and if threads have been killed */
+	/* no locks, because those may be held by terminated threads */
+	/* for processes the read pipe is closed and we see that on read */
+#ifdef HAVE_PTHREAD
+	if(ctx->created_bg && ctx->dothread) {
+		if(pthread_kill(ctx->bg_tid, 0) == ESRCH) {
+			/* thread has been killed */
+			do_stop = 0;
+		}
+	}
+#endif /* HAVE_PTHREAD */
+	if(do_stop)
+		ub_stop_bg(ctx);
 
 	modstack_desetup(&ctx->mods, ctx->env);
 	a = ctx->alloc_list;
@@ -229,7 +251,7 @@ ub_ctx_delete(struct ub_ctx* ctx)
 }
 
 int 
-ub_ctx_set_option(struct ub_ctx* ctx, char* opt, char* val)
+ub_ctx_set_option(struct ub_ctx* ctx, const char* opt, const char* val)
 {
 	lock_basic_lock(&ctx->cfglock);
 	if(ctx->finalized) {
@@ -245,7 +267,7 @@ ub_ctx_set_option(struct ub_ctx* ctx, char* opt, char* val)
 }
 
 int
-ub_ctx_get_option(struct ub_ctx* ctx, char* opt, char** str)
+ub_ctx_get_option(struct ub_ctx* ctx, const char* opt, char** str)
 {
 	int r;
 	lock_basic_lock(&ctx->cfglock);
@@ -258,7 +280,7 @@ ub_ctx_get_option(struct ub_ctx* ctx, char* opt, char** str)
 }
 
 int 
-ub_ctx_config(struct ub_ctx* ctx, char* fname)
+ub_ctx_config(struct ub_ctx* ctx, const char* fname)
 {
 	lock_basic_lock(&ctx->cfglock);
 	if(ctx->finalized) {
@@ -274,7 +296,7 @@ ub_ctx_config(struct ub_ctx* ctx, char* fname)
 }
 
 int 
-ub_ctx_add_ta(struct ub_ctx* ctx, char* ta)
+ub_ctx_add_ta(struct ub_ctx* ctx, const char* ta)
 {
 	char* dup = strdup(ta);
 	if(!dup) return UB_NOMEM;
@@ -294,7 +316,7 @@ ub_ctx_add_ta(struct ub_ctx* ctx, char* ta)
 }
 
 int 
-ub_ctx_add_ta_file(struct ub_ctx* ctx, char* fname)
+ub_ctx_add_ta_file(struct ub_ctx* ctx, const char* fname)
 {
 	char* dup = strdup(fname);
 	if(!dup) return UB_NOMEM;
@@ -314,7 +336,7 @@ ub_ctx_add_ta_file(struct ub_ctx* ctx, char* fname)
 }
 
 int 
-ub_ctx_trustedkeys(struct ub_ctx* ctx, char* fname)
+ub_ctx_trustedkeys(struct ub_ctx* ctx, const char* fname)
 {
 	char* dup = strdup(fname);
 	if(!dup) return UB_NOMEM;
@@ -547,7 +569,7 @@ ub_wait(struct ub_ctx* ctx)
 }
 
 int 
-ub_resolve(struct ub_ctx* ctx, char* name, int rrtype, 
+ub_resolve(struct ub_ctx* ctx, const char* name, int rrtype, 
 	int rrclass, struct ub_result** result)
 {
 	struct ctx_query* q;
@@ -591,7 +613,7 @@ ub_resolve(struct ub_ctx* ctx, char* name, int rrtype,
 }
 
 int 
-ub_resolve_async(struct ub_ctx* ctx, char* name, int rrtype, 
+ub_resolve_async(struct ub_ctx* ctx, const char* name, int rrtype, 
 	int rrclass, void* mydata, ub_callback_t callback, int* async_id)
 {
 	struct ctx_query* q;
@@ -732,7 +754,7 @@ ub_strerror(int err)
 }
 
 int 
-ub_ctx_set_fwd(struct ub_ctx* ctx, char* addr)
+ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr)
 {
 	struct sockaddr_storage storage;
 	socklen_t stlen;
@@ -804,7 +826,7 @@ ub_ctx_set_fwd(struct ub_ctx* ctx, char* addr)
 }
 
 int 
-ub_ctx_resolvconf(struct ub_ctx* ctx, char* fname)
+ub_ctx_resolvconf(struct ub_ctx* ctx, const char* fname)
 {
 	FILE* in;
 	int numserv = 0;
@@ -890,7 +912,7 @@ ub_ctx_resolvconf(struct ub_ctx* ctx, char* fname)
 }
 
 int
-ub_ctx_hosts(struct ub_ctx* ctx, char* fname)
+ub_ctx_hosts(struct ub_ctx* ctx, const char* fname)
 {
 	FILE* in;
 	char buf[1024], ldata[1024];
@@ -1016,7 +1038,8 @@ int ub_ctx_print_local_zones(struct ub_ctx* ctx)
 }
 
 /* Add a new zone */
-int ub_ctx_zone_add(struct ub_ctx* ctx, char *zone_name, char *zone_type)
+int ub_ctx_zone_add(struct ub_ctx* ctx, const char *zone_name, 
+	const char *zone_type)
 {
 	enum localzone_type t;
 	struct local_zone* z;
@@ -1056,7 +1079,7 @@ int ub_ctx_zone_add(struct ub_ctx* ctx, char *zone_name, char *zone_type)
 }
 
 /* Remove zone */
-int ub_ctx_zone_remove(struct ub_ctx* ctx, char *zone_name)
+int ub_ctx_zone_remove(struct ub_ctx* ctx, const char *zone_name)
 {   
 	struct local_zone* z;
 	uint8_t* nm;
@@ -1082,7 +1105,7 @@ int ub_ctx_zone_remove(struct ub_ctx* ctx, char *zone_name)
 }
 
 /* Add new RR data */
-int ub_ctx_data_add(struct ub_ctx* ctx, char *data)
+int ub_ctx_data_add(struct ub_ctx* ctx, const char *data)
 {
 	ldns_buffer* buf;
 	int res = ub_ctx_finalize(ctx);
@@ -1100,7 +1123,7 @@ int ub_ctx_data_add(struct ub_ctx* ctx, char *data)
 }
 
 /* Remove RR data */
-int ub_ctx_data_remove(struct ub_ctx* ctx, char *data)
+int ub_ctx_data_remove(struct ub_ctx* ctx, const char *data)
 {
 	uint8_t* nm;
 	int nmlabs;

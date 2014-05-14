@@ -229,7 +229,7 @@ void val_neg_addreferral(struct val_neg_cache* neg, struct reply_info* rep,
  *	  thus, qname DLV qclass does not exist.
  */
 int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
-	uint16_t qclass, struct rrset_cache* rrset_cache, uint32_t now);
+	uint16_t qclass, struct rrset_cache* rrset_cache, time_t now);
 
 /**
  * For the given query, try to get a reply out of the negative cache.
@@ -255,7 +255,7 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
  */
 struct dns_msg* val_neg_getmsg(struct val_neg_cache* neg, 
 	struct query_info* qinfo, struct regional* region, 
-	struct rrset_cache* rrset_cache, ldns_buffer* buf, uint32_t now,
+	struct rrset_cache* rrset_cache, ldns_buffer* buf, time_t now,
 	int addsoa, uint8_t* topname);
 
 

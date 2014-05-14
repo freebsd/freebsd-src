@@ -220,6 +220,9 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
 /* Define to 1 if the system has the type `pthread_rwlock_t'. */
 #undef HAVE_PTHREAD_RWLOCK_T
 
@@ -805,7 +808,7 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 
 
-#ifndef HAVE_SLEEP
+#if !defined(HAVE_SLEEP) || defined(HAVE_WINDOWS_H)
 #define sleep(x) Sleep((x)*1000) /* on win32 */
 #endif /* HAVE_SLEEP */
 
@@ -871,8 +874,6 @@ char *strptime(const char *s, const char *format, struct tm *tm);
 #  endif
 #endif /* CHECKED_INET6 */
 
-/* maximum nesting of included files */
-#define MAXINCLUDES 10
 #ifndef HAVE_GETADDRINFO
 struct sockaddr_storage;
 #include "compat/fake-rfc2553.h"

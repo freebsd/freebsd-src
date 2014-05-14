@@ -234,7 +234,7 @@ void context_query_delete(struct ctx_query* q);
  * @param cbarg: user arg for async queries.
  * @return new ctx_query or NULL for malloc failure.
  */
-struct ctx_query* context_new(struct ub_ctx* ctx, char* name, int rrtype,
+struct ctx_query* context_new(struct ub_ctx* ctx, const char* name, int rrtype,
         int rrclass, ub_callback_t cb, void* cbarg);
 
 /**

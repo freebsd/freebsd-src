@@ -116,21 +116,21 @@ struct reply_info {
 	 */
 	uint8_t qdcount;
 
+	/** 32 bit padding to pad struct member alignment to 64 bits. */
+	uint32_t padding;
+
 	/** 
 	 * TTL of the entire reply (for negative caching).
 	 * only for use when there are 0 RRsets in this message.
 	 * if there are RRsets, check those instead.
 	 */
-	uint32_t ttl;
+	time_t ttl;
 
 	/**
 	 * TTL for prefetch. After it has expired, a prefetch is suitable.
 	 * Smaller than the TTL, otherwise the prefetch would not happen.
 	 */
-	uint32_t prefetch_ttl;
-
-	/** 32 bit padding to pad struct member alignment to 64 bits. */
-	uint32_t padding;
+	time_t prefetch_ttl;
 
 	/**
 	 * The security status from DNSSEC validation of this message.
@@ -253,7 +253,7 @@ void reply_info_sortref(struct reply_info* rep);
  *	Also refs must be filled in.
  * @param timenow: the current time.
  */
-void reply_info_set_ttls(struct reply_info* rep, uint32_t timenow);
+void reply_info_set_ttls(struct reply_info* rep, time_t timenow);
 
 /** 
  * Delete reply_info and packed_rrsets (while they are not yet added to the

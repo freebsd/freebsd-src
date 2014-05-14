@@ -325,6 +325,20 @@ forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg)
 }
 
 struct delegpt* 
+forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
+{
+	rbnode_t* res = NULL;
+	struct iter_forward_zone key;
+	key.node.key = &key;
+	key.dclass = qclass;
+	key.name = qname;
+	key.namelabs = dname_count_size_labels(qname, &key.namelen);
+	res = rbtree_search(fwd->tree, &key);
+	if(res) return ((struct iter_forward_zone*)res)->dp;
+	return NULL;
+}
+
+struct delegpt* 
 forwards_lookup(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
 {
 	/* lookup the forward zone in the tree */
