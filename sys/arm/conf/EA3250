@@ -65,6 +65,7 @@ device		bpf
 device		lpe
 
 # USB
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG
 device		usb
 device		ohci

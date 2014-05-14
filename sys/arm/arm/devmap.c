@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
  * Routines for mapping device memory.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
@@ -52,6 +54,36 @@ static boolean_t devmap_bootstrap_done = false;
 static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
 static vm_offset_t		akva_devmap_vaddr = ARM_VECTORS_HIGH;
+
+/*
+ * Print the contents of the static mapping table using the provided printf-like
+ * output function (which will be either printf or db_printf).
+ */
+static void
+devmap_dump_table(int (*prfunc)(const char *, ...))
+{
+	const struct arm_devmap_entry *pd;
+
+	if (devmap_table == NULL || devmap_table[0].pd_size == 0) {
+		prfunc("No static device mappings.\n");
+		return;
+	}
+
+	prfunc("Static device mappings:\n");
+	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+		prfunc("  0x%08x - 0x%08x mapped at VA 0x%08x\n",
+		    pd->pd_pa, pd->pd_pa + pd->pd_size - 1, pd->pd_va);
+	}
+}
+
+/*
+ * Print the contents of the static mapping table.  Used for bootverbose.
+ */
+void
+arm_devmap_print_table()
+{
+	devmap_dump_table(printf);
+}
 
 /*
  * Return the "last" kva address used by the registered devmap table.  It's
@@ -265,4 +297,14 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 
 	kva_free(va, origsize);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(devmap, db_show_devmap)
+{
+	devmap_dump_table(db_printf);
+}
+
+#endif /* DDB */
 

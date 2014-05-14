@@ -81,6 +81,7 @@ device		sdhci			# generic sdhci
 device		bpf			# Berkeley packet filter
 
 # USB support
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
