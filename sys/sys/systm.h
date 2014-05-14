@@ -196,6 +196,10 @@ void	init_param1(void);
 void	init_param2(long physpages);
 void	init_static_kenv(char *, size_t);
 void	tablefull(const char *);
+#ifdef  EARLY_PRINTF
+void	eprintf(const char *, ...) __printflike(1, 2);
+void	eputc(int ch);
+#endif
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);

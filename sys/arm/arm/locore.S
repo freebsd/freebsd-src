@@ -258,9 +258,13 @@ mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
 #if !defined(SMP)
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(PHYSADDR, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#if defined(SOCDEV_PA) && defined(SOCKDEV_VA)
+	/* Map in 0x04000000 worth of the SoC's devices for bootstrap debugging */
+	MMU_INIT(SOCKDEV_VA, SOCDEV_PA, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#endif
 #else
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
