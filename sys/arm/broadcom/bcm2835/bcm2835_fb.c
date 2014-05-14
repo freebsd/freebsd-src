@@ -361,7 +361,7 @@ static driver_t bcm_fb_driver = {
 	sizeof(struct bcmsc_softc),
 };
 
-DRIVER_MODULE(bcm2835fb, fdtbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, nexus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
 
 /*
  * Video driver routines and glue.

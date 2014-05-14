@@ -80,6 +80,7 @@ static int	atphy_setmedia(struct mii_softc *, int);
 static const struct mii_phydesc atphys[] = {
 	MII_PHY_DESC(xxATHEROS, F1),
 	MII_PHY_DESC(xxATHEROS, F1_7),
+	MII_PHY_DESC(xxATHEROS, AR8021),
 	MII_PHY_DESC(xxATHEROS, F2),
 	MII_PHY_END
 };

@@ -2759,7 +2759,7 @@ mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
     vm_paddr_t *locked_pa)
 {
 
-	TODO;
+	/* XXX: this should be implemented at some point */
 	return (0);
 }
 
