@@ -726,7 +726,6 @@ __FBSDID("$FreeBSD$");
 /* small chunk store for looking at chunk_list in auth */
 #define SCTP_SMALL_CHUNK_STORE 260
 
-#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 #define SCTP_HOW_MANY_SECRETS	2	/* how many secrets I keep */
 
 #define SCTP_NUMBER_OF_SECRETS	8	/* or 8 * 4 = 32 octets */
