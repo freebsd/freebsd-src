@@ -1398,6 +1398,37 @@ arm10_setup(args)
 }
 #endif	/* CPU_ARM9E || CPU_ARM10 */
 
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) \
+ || defined(CPU_MV_PJ4B) \
+ || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+static __inline void
+cpu_scc_setup_ccnt(void)
+{
+/* This is how you give userland access to the CCNT and PMCn
+ * registers.
+ * BEWARE! This gives write access also, which may not be what
+ * you want!
+ */
+#ifdef _PMC_USER_READ_WRITE_
+	/* Set PMUSERENR[0] to allow userland access */
+	__asm volatile ("mcr	p15, 0, %0, c9, c14, 0\n\t"
+			:
+			: "r"(0x00000001));
+#endif
+        /* Set up the PMCCNTR register as a cyclecounter:
+	 * Set PMINTENCLR to 0xFFFFFFFF to block interrupts
+	 * Set PMCR[2,0] to enable counters and reset CCNT
+	 * Set PMCNTENSET to 0x80000000 to enable CCNT */
+	__asm volatile ("mcr	p15, 0, %0, c9, c14, 2\n\t"
+			"mcr	p15, 0, %1, c9, c12, 0\n\t"
+			"mcr	p15, 0, %2, c9, c12, 1\n\t"
+			:
+			: "r"(0xFFFFFFFF),
+			  "r"(0x00000005),
+			  "r"(0x80000000));
+}
+#endif
+
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176)
 struct cpu_option arm11_options[] = {
 	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
@@ -1501,6 +1532,8 @@ arm11x6_setup(char *args)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
+
+	cpu_scc_setup_ccnt();
 }
 #endif  /* CPU_ARM1136 || CPU_ARM1176 */
 
@@ -1535,6 +1568,8 @@ pj4bv7_setup(args)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
+
+	cpu_scc_setup_ccnt();
 }
 #endif /* CPU_MV_PJ4B */
 
@@ -1582,6 +1617,8 @@ cortexa_setup(char *args)
 #ifdef SMP
 	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
 #endif
+
+	cpu_scc_setup_ccnt();
 }
 #endif  /* CPU_CORTEXA */
 
