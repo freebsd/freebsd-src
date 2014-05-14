@@ -52,6 +52,8 @@
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		160
+#elif defined(CPU_KRAIT)
+#define NIRQ		288
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define NIRQ		128
 #elif defined(SOC_MV_ARMADAXP)
