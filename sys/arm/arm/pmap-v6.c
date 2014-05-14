@@ -3079,31 +3079,33 @@ validate:
 	 * then continue setting mapping parameters
 	 */
 	if (m != NULL) {
-		if (prot & (VM_PROT_ALL)) {
-			if ((m->oflags & VPO_UNMANAGED) == 0)
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
+			if (prot & (VM_PROT_ALL)) {
 				vm_page_aflag_set(m, PGA_REFERENCED);
-		} else {
-			/*
-			 * Need to do page referenced emulation.
-			 */
-			npte &= ~L2_S_REF;
+			} else {
+				/*
+				 * Need to do page referenced emulation.
+				 */
+				npte &= ~L2_S_REF;
+			}
 		}
 
 		if (prot & VM_PROT_WRITE) {
-			/* Write enable */
-			npte &= ~(L2_APX);
-
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
 				vm_page_aflag_set(m, PGA_WRITEABLE);
 				/*
-				 * The access type and permissions indicate 
-				 * that the page will be written as soon as
-				 * returned from fault service.
-				 * Mark it dirty from the outset.
+				 * XXX: Skip modified bit emulation for now.
+				 *	The emulation reveals problems
+				 *	that result in random failures
+				 *	during memory allocation on some
+				 *	platforms.
+				 *	Therefore, the page is marked RW
+				 *	immediately.
 				 */
-				if ((access & VM_PROT_WRITE) != 0)
-					vm_page_dirty(m);
-			}
+				npte &= ~(L2_APX);
+				vm_page_dirty(m);
+			} else
+				npte &= ~(L2_APX);
 		}
 		if (!(prot & VM_PROT_EXECUTE))
 			npte |= L2_XN;

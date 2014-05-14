@@ -102,7 +102,7 @@ extern void xscalec3_l2cache_purge(void);
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 extern void sheeva_l2cache_wbinv_all(void);
-#elif defined(CPU_CORTEXA)
+#elif defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 #define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
 #define cpu_l2cache_wbinv_all()
 #else
