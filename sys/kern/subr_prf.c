@@ -1122,3 +1122,25 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 		printf("\n");
 	}
 }
+#ifdef EARLY_PRINTF
+/*
+ * Support for calling an alternate printf early in boot (like before
+ * cn_init() can be called).  Platforms need to define eputc that want
+ * to use this.
+ */
+static void
+early_putc_func(int ch, void *arg __unused)
+{
+	eputc(ch);
+}
+
+void
+eprintf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	kvprintf(fmt, early_putc_func, NULL, 10, ap);
+	va_end(ap);
+}
+#endif

@@ -1,4 +1,4 @@
-# Kernel configuration for the AT91SAM9 based Hot-e configuration file
+# Kernel configuration for the AT91SAM9G20 based Hot-e configuration file
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -39,16 +39,16 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	MD_ROOT			#MD is a potential root device
 #options 	MD_ROOT_SIZE=4096	# 4MB ram disk
 options 	NANDFS			# NAND file system
-#options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 options 	NFSCL			#New Network Filesystem Client
 #options 	NFSD			#New Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
-options 	BOOTP_NFSROOT
-options 	BOOTP
-options 	BOOTP_NFSV3
+#options 	BOOTP_NFSROOT
+#options 	BOOTP
+#options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ate0
-options 	BOOTP_COMPAT
+#options 	BOOTP_COMPAT
 
 options 	ALT_BREAK_TO_DEBUGGER
 
@@ -62,7 +62,6 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-#options 	SYSCTL_OMIT_DESCR
 options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
@@ -83,22 +82,11 @@ device		mii
 #options 	DIAGNOSTIC
 
 device		md
-#device		at91_twi		# TWI: Two Wire Interface
-#device		at91_spi		# SPI:
-device		spibus
-# MMC/SD
-#device		at91_mci
-#device		mmc
-#device		mmcsd
-# iic
-device		iic
-device		iicbus
-device		icee
-
 device		bpf
+
 # USB support
 options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
-#device		ohci		# OHCI localbus->USB interface
+device		ohci		# OHCI localbus->USB interface
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
 device		uhid		# "Human Interface Devices"
@@ -132,5 +120,14 @@ device		pass		# Passthrough device (direct SCSI access)
 #device		wlan_amrr	# AMRR transmit rate control algorithm
 options 	ROOTDEVNAME=\"ufs:da0s1a\"
 
-# NAND Flash - my board as 128MB Samsung part
-device		nand			# NAND interface on CS3
+# NAND Flash - my board as 128MB Samsung part, YMMV.
+device		nand		# NAND interface on CS3
+
+# Coming soon, but not yet
+#options 	FDT
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=at91sam9g20ek.dts
+
+options 	EARLY_PRINTF
+options  	SOCDEV_PA=0xfc000000
+options 	SOCDEV_VA=0xdc000000

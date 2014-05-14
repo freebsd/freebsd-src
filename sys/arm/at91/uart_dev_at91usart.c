@@ -276,6 +276,24 @@ at91_usart_putc(struct uart_bas *bas, int c)
 	WR4(bas, USART_THR, c);
 }
 
+#ifdef EARLY_PRINTF
+/*
+ * Early printf support. This assumes that we have the SoC "system" devices
+ * mapped into AT91_BASE. To use this before we adjust the boostrap tables,
+ * You'll need to define SOCDEV_VA to be 0xdc000000 and SOCDEV_PA to be
+ * 0xfc000000 in your config file where you define EARLY_PRINTF
+ */
+volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
+
+void
+eputc(int c)
+{
+	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
+		continue;
+	at91_dbgu[USART_THR / 4] = c;
+}
+#endif
+
 /*
  * Check for a character available.
  */
