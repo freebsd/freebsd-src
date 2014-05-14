@@ -155,6 +155,11 @@
 	&man.mrsas.4;.</para>
     </note>
 
+    <para revision="265876">A kernel bug that inhibited proper
+      functionality of the <literal>dev.cpu.0.freq</literal>
+      &man.sysctl.8; on &intel; processors with Turbo
+      Boost&nbsp;&trade; enabled has been fixed.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
