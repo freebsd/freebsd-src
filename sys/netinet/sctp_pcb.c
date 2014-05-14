@@ -875,6 +875,9 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 					 */
 					continue;
 				}
+				if (sctp_ifa->address.sa.sa_family != to->sa_family) {
+					continue;
+				}
 				switch (sctp_ifa->address.sa.sa_family) {
 #ifdef INET
 				case AF_INET:
