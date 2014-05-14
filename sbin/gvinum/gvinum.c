@@ -71,7 +71,7 @@ void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
 void	gvinum_raid5(int, char **);
 void	gvinum_rename(int, char **);
-void	gvinum_resetconfig(void);
+void	gvinum_resetconfig(int, char **);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
 void	gvinum_setstate(int, char **);
@@ -191,8 +191,8 @@ gvinum_create(int argc, char **argv)
 			flags |= GV_FLAG_F;
 		/* Else it must be a file. */
 		} else {
-			if ((tmp = fopen(argv[1], "r")) == NULL) {
-				warn("can't open '%s' for reading", argv[1]);
+			if ((tmp = fopen(argv[i], "r")) == NULL) {
+				warn("can't open '%s' for reading", argv[i]);
 				return;
 			}
 		}	
@@ -718,7 +718,7 @@ gvinum_help(void)
 	    "        Change the name of the specified object.\n"
 	    "rebuildparity plex [-f]\n"
 	    "        Rebuild the parity blocks of a RAID-5 plex.\n"
-	    "resetconfig\n"
+	    "resetconfig [-f]\n"
 	    "        Reset the complete gvinum configuration\n"
 	    "rm [-r] [-f] volume | plex | subdisk | drive\n"
 	    "        Remove an object.\n"
@@ -1097,26 +1097,40 @@ gvinum_rm(int argc, char **argv)
 }
 
 void
-gvinum_resetconfig(void)
+gvinum_resetconfig(int argc, char **argv)
 {
 	struct gctl_req *req;
 	const char *errstr;
 	char reply[32];
+	int flags, i;
 
-	if (!isatty(STDIN_FILENO)) {
-		warn("Please enter this command from a tty device\n");
-		return;
+	flags = 0;
+	while ((i = getopt(argc, argv, "f")) != -1) {
+		switch (i) {
+		case 'f':
+			flags |= GV_FLAG_F;
+			break;
+		default:
+			warn("invalid flag: %c", i);
+			return;
+		}
 	}
-	printf(" WARNING!  This command will completely wipe out your gvinum"
-	    "configuration.\n"
-	    " All data will be lost.  If you really want to do this,"
-	    " enter the text\n\n"
-	    " NO FUTURE\n"
-	    " Enter text -> ");
-	fgets(reply, sizeof(reply), stdin);
-	if (strcmp(reply, "NO FUTURE\n")) {
-		printf("\n No change\n");
-		return;
+	if ((flags & GV_FLAG_F) == 0) {
+		if (!isatty(STDIN_FILENO)) {
+			warn("Please enter this command from a tty device\n");
+			return;
+		}
+		printf(" WARNING!  This command will completely wipe out"
+		    " your gvinum configuration.\n"
+		    " All data will be lost.  If you really want to do this,"
+		    " enter the text\n\n"
+		    " NO FUTURE\n"
+		    " Enter text -> ");
+		fgets(reply, sizeof(reply), stdin);
+		if (strcmp(reply, "NO FUTURE\n")) {
+			printf("\n No change\n");
+			return;
+		}
 	}
 	req = gctl_get_handle();
 	gctl_ro_param(req, "class", -1, "VINUM");
@@ -1256,6 +1270,7 @@ gvinum_grow(int argc, char **argv)
 	const char *errstr;
 	int drives, volumes, plexes, subdisks, flags;
 
+	flags = 0;
 	drives = volumes = plexes = subdisks = 0;
 	if (argc < 3) {
 		warnx("usage:\tgrow plex drive\n");
@@ -1366,7 +1381,7 @@ parseline(int argc, char **argv)
 	else if (!strcmp(argv[0], "rename"))
 		gvinum_rename(argc, argv);
 	else if (!strcmp(argv[0], "resetconfig"))
-		gvinum_resetconfig();
+		gvinum_resetconfig(argc, argv);
 	else if (!strcmp(argv[0], "rm"))
 		gvinum_rm(argc, argv);
 	else if (!strcmp(argv[0], "saveconfig"))
