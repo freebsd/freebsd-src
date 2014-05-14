@@ -45,7 +45,7 @@
 #endif
 
 #include "config.h"
-#include <ldns/ldns.h>
+#include "ldns/sbuffer.h"
 
 #undef _POSIX_C_SOURCE
 #undef _XOPEN_SOURCE

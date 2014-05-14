@@ -21,16 +21,16 @@
  * specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 /**
@@ -41,6 +41,8 @@
 #include <ctype.h>
 #include "testcode/readhex.h"
 #include "util/log.h"
+#include "ldns/sbuffer.h"
+#include "ldns/parseutil.h"
 
 /** skip whitespace */
 static void
@@ -60,24 +62,24 @@ skip_whites(const char** p)
 }
 
 /* takes a hex string and puts into buffer */
-void hex_to_buf(ldns_buffer* pkt, const char* hex)
+void hex_to_buf(sldns_buffer* pkt, const char* hex)
 {
 	const char* p = hex;
 	int val;
-	ldns_buffer_clear(pkt);
+	sldns_buffer_clear(pkt);
 	while(*p) {
 		skip_whites(&p);
-		if(ldns_buffer_position(pkt) == ldns_buffer_limit(pkt))
+		if(sldns_buffer_position(pkt) == sldns_buffer_limit(pkt))
 			fatal_exit("hex_to_buf: buffer too small");
 		if(!isalnum((int)*p))
 			break;
-		val = ldns_hexdigit_to_int(*p++) << 4;
+		val = sldns_hexdigit_to_int(*p++) << 4;
 		skip_whites(&p);
 		log_assert(*p && isalnum((int)*p));
-		val |= ldns_hexdigit_to_int(*p++);
-		ldns_buffer_write_u8(pkt, (uint8_t)val);
+		val |= sldns_hexdigit_to_int(*p++);
+		sldns_buffer_write_u8(pkt, (uint8_t)val);
 		skip_whites(&p);
 	}
-	ldns_buffer_flip(pkt);
+	sldns_buffer_flip(pkt);
 }
 

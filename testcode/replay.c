@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -42,12 +42,15 @@
 #include "config.h"
 /* for strtod prototype */
 #include <math.h>
+#include <ctype.h>
+#include <time.h>
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/config_file.h"
 #include "testcode/replay.h"
-#include "testcode/ldns-testpkts.h"
+#include "testcode/testpkts.h"
 #include "testcode/fake_event.h"
+#include "ldns/str2wire.h"
 
 /** max length of lines in file */
 #define MAX_LINE_LEN 10240
@@ -138,16 +141,15 @@ strip_end_white(char* p)
  * @param remain: Rest of line (after RANGE keyword).
  * @param in: file to read from.
  * @param name: name to print in errors.
- * @param lineno: incremented as lines are read.
+ * @param pstate: read state structure with
+ * 	with lineno : incremented as lines are read.
+ * 	ttl, origin, prev for readentry.
  * @param line: line buffer.
- * @param ttl: for readentry
- * @param or: for readentry
- * @param prev: for readentry
  * @return: range object to add to list, or NULL on error.
  */
 static struct replay_range*
-replay_range_read(char* remain, FILE* in, const char* name, int* lineno, 
-	char* line, uint32_t* ttl, ldns_rdf** or, ldns_rdf** prev)
+replay_range_read(char* remain, FILE* in, const char* name,
+	struct sldns_file_parse_state* pstate, char* line)
 {
 	struct replay_range* rng = (struct replay_range*)malloc(
 		sizeof(struct replay_range));
@@ -166,7 +168,7 @@ replay_range_read(char* remain, FILE* in, const char* name, int* lineno,
 	/* read entries */
 	pos = ftello(in);
 	while(fgets(line, MAX_LINE_LEN-1, in)) {
-		(*lineno)++;
+		pstate->lineno++;
 		parse = line;
 		while(isspace((int)*parse))
 			parse++;
@@ -180,7 +182,7 @@ replay_range_read(char* remain, FILE* in, const char* name, int* lineno,
 			strip_end_white(parse);
 			if(!extstrtoaddr(parse, &rng->addr, &rng->addrlen)) {
 				log_err("Line %d: could not read ADDRESS: %s", 
-					*lineno, parse);
+					pstate->lineno, parse);
 				free(rng);
 				return NULL;
 			}
@@ -191,11 +193,11 @@ replay_range_read(char* remain, FILE* in, const char* name, int* lineno,
 			return rng;
 		}
 		/* set position before line; read entry */
-		(*lineno)--;
+		pstate->lineno--;
 		fseeko(in, pos, SEEK_SET);
-		entry = read_entry(in, name, lineno, ttl, or, prev, 1);
+		entry = read_entry(in, name, pstate, 1);
 		if(!entry)
-			fatal_exit("%d: bad entry", *lineno);
+			fatal_exit("%d: bad entry", pstate->lineno);
 		entry->next = NULL;
 		if(last)
 			last->next = entry;
@@ -258,15 +260,13 @@ read_assign_step(char* remain, struct replay_moment* mom)
  * @param remain: Rest of line (after STEP keyword).
  * @param in: file to read from.
  * @param name: name to print in errors.
- * @param lineno: incremented as lines are read.
- * @param ttl: for readentry
- * @param or: for readentry
- * @param prev: for readentry
+ * @param pstate: with lineno, ttl, origin, prev for parse state.
+ * 	lineno is incremented.
  * @return: range object to add to list, or NULL on error.
  */
 static struct replay_moment*
-replay_moment_read(char* remain, FILE* in, const char* name, int* lineno, 
-	uint32_t* ttl, ldns_rdf** or, ldns_rdf** prev)
+replay_moment_read(char* remain, FILE* in, const char* name,
+	struct sldns_file_parse_state* pstate)
 {
 	struct replay_moment* mom = (struct replay_moment*)malloc(
 		sizeof(struct replay_moment));
@@ -276,7 +276,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 		return NULL;
 	memset(mom, 0, sizeof(*mom));
 	if(sscanf(remain, " %d%n", &mom->time_step, &skip) != 1) {
-		log_err("%d: cannot read number: %s", *lineno, remain);
+		log_err("%d: cannot read number: %s", pstate->lineno, remain);
 		free(mom);
 		return NULL;
 	}
@@ -322,7 +322,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 			remain[strlen(remain)-1] = 0;
 		mom->autotrust_id = strdup(remain);
 		if(!mom->autotrust_id) fatal_exit("out of memory");
-		read_file_content(in, lineno, mom);
+		read_file_content(in, &pstate->lineno, mom);
 	} else if(parse_keyword(&remain, "ERROR")) {
 		mom->evt_type = repevt_error;
 	} else if(parse_keyword(&remain, "TRAFFIC")) {
@@ -357,7 +357,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 		if(!mom->string) fatal_exit("out of memory");
 		if(!mom->variable) fatal_exit("out of memory");
 	} else {
-		log_err("%d: unknown event type %s", *lineno, remain);
+		log_err("%d: unknown event type %s", pstate->lineno, remain);
 		free(mom);
 		return NULL;
 	}
@@ -370,7 +370,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 			remain[strlen(remain)-1] = 0;
 		if(!extstrtoaddr(remain, &mom->addr, &mom->addrlen)) {
 			log_err("line %d: could not parse ADDRESS: %s", 
-				*lineno, remain);
+				pstate->lineno, remain);
 			free(mom);
 			return NULL;
 		}
@@ -381,7 +381,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 		sec = strtod(remain, &remain);
 		if(sec == 0. && errno != 0) {
 			log_err("line %d: could not parse ELAPSE: %s (%s)", 
-				*lineno, remain, strerror(errno));
+				pstate->lineno, remain, strerror(errno));
 			free(mom);
 			return NULL;
 		}
@@ -393,7 +393,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 	} 
 
 	if(readentry) {
-		mom->match = read_entry(in, name, lineno, ttl, or, prev, 1);
+		mom->match = read_entry(in, name, pstate, 1);
 		if(!mom->match) {
 			free(mom);
 			return NULL;
@@ -432,13 +432,15 @@ replay_scenario_read(FILE* in, const char* name, int* lineno)
 	char line[MAX_LINE_LEN];
 	char *parse;
 	struct replay_scenario* scen = NULL;
-	uint32_t ttl = 3600;
-	ldns_rdf* or = NULL;
-	ldns_rdf* prev = NULL;
+	struct sldns_file_parse_state pstate;
 	line[MAX_LINE_LEN-1]=0;
+	memset(&pstate, 0, sizeof(pstate));
+	pstate.default_ttl = 3600;
+	pstate.lineno = *lineno;
 
 	while(fgets(line, MAX_LINE_LEN-1, in)) {
 		parse=line;
+		pstate.lineno++;
 		(*lineno)++;
 		while(isspace((int)*parse))
 			parse++;
@@ -456,16 +458,18 @@ replay_scenario_read(FILE* in, const char* name, int* lineno)
 			fatal_exit("%d: expected SCENARIO", *lineno);
 		if(parse_keyword(&parse, "RANGE_BEGIN")) {
 			struct replay_range* newr = replay_range_read(parse, 
-				in, name, lineno, line, &ttl, &or, &prev);
+				in, name, &pstate, line);
 			if(!newr)
-				fatal_exit("%d: bad range", *lineno);
+				fatal_exit("%d: bad range", pstate.lineno);
+			*lineno = pstate.lineno;
 			newr->next_range = scen->range_list;
 			scen->range_list = newr;
 		} else if(parse_keyword(&parse, "STEP")) {
 			struct replay_moment* mom = replay_moment_read(parse, 
-				in, name, lineno, &ttl, &or, &prev);
+				in, name, &pstate);
 			if(!mom)
-				fatal_exit("%d: bad moment", *lineno);
+				fatal_exit("%d: bad moment", pstate.lineno);
+			*lineno = pstate.lineno;
 			if(scen->mom_last && 
 				scen->mom_last->time_step >= mom->time_step)
 				fatal_exit("%d: time goes backwards", *lineno);
@@ -481,13 +485,9 @@ replay_scenario_read(FILE* in, const char* name, int* lineno)
 				p = p->mom_next;
 			}
 			log_info("Scenario has %d steps", num);
-			ldns_rdf_deep_free(or);
-			ldns_rdf_deep_free(prev);
 			return scen;
 		}
 	}
-	ldns_rdf_deep_free(or);
-	ldns_rdf_deep_free(prev);
 	replay_scenario_delete(scen);
 	return NULL;
 }
@@ -792,7 +792,7 @@ macro_expand(rbtree_t* store, struct replay_runtime* runtime, char** text)
 
 	/* check for functions */
 	if(strcmp(buf, "time") == 0) {
-		snprintf(buf, sizeof(buf), "%lld", (long long)runtime->now_secs);
+		snprintf(buf, sizeof(buf), ARG_LL "d", (long long)runtime->now_secs);
 		*text += len;
 		return strdup(buf);
 	} else if(strcmp(buf, "timeout") == 0) {
@@ -800,7 +800,7 @@ macro_expand(rbtree_t* store, struct replay_runtime* runtime, char** text)
 		struct fake_timer* t = first_timer(runtime);
 		if(t && (time_t)t->tv.tv_sec >= runtime->now_secs) 
 			res = (time_t)t->tv.tv_sec - runtime->now_secs;
-		snprintf(buf, sizeof(buf), "%lld", (long long)res);
+		snprintf(buf, sizeof(buf), ARG_LL "d", (long long)res);
 		*text += len;
 		return strdup(buf);
 	} else if(strncmp(buf, "ctime ", 6) == 0 ||

@@ -9,7 +9,7 @@ sinclude(ac_pkg_swig.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[4])
-m4_define([VERSION_MICRO],[21])
+m4_define([VERSION_MICRO],[22])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
@@ -92,6 +92,9 @@ AC_DEFINE_UNQUOTED(CONFIGURE_DATE, ["`date`"], [configure date])
 
 CFLAGS="$CFLAGS"
 AC_AIX
+if test "$ac_cv_header_minix_config_h" = "yes"; then
+	AC_DEFINE(_NETBSD_SOURCE,1, [Enable for compile on Minix])
+fi
 
 dnl
 dnl By default set prefix to /usr/local
@@ -295,6 +298,20 @@ ACX_TYPE_SOCKLEN_T
 ACX_TYPE_IN_ADDR_T
 ACX_TYPE_IN_PORT_T
 ACX_CHECK_MEMCMP_SIGNED
+
+AC_CHECK_SIZEOF(time_t,,[
+AC_INCLUDES_DEFAULT
+#ifdef TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+])
 
 # add option to disable the evil rpath
 ACX_ARG_RPATH
@@ -600,7 +617,7 @@ AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <openssl/evp.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
-/* routine to load gost from ldns */
+/* routine to load gost (from sldns) */
 int load_gost_id(void)
 {
 	static int gost_id = 0;
@@ -728,6 +745,16 @@ case "$enable_ecdsa" in
       ;;
 esac
 
+AC_ARG_ENABLE(event-api, AC_HELP_STRING([--enable-event-api], [Enable (experimental) libevent-based libunbound API installed to unbound-event.h]))
+use_unbound_event="no"
+case "$enable_event_api" in
+    yes)
+      use_unbound_event="yes"
+      ;;
+    *)
+      ;;
+esac
+
 # check for libevent
 AC_ARG_WITH(libevent, AC_HELP_STRING([--with-libevent=pathname],
     [use libevent (will check /usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr  or you can specify an explicit path). Slower, but allows use of large outgoing port ranges.]),
@@ -739,7 +766,7 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
         fi
         for dir in $withval; do
             thedir="$dir"
-            if test -f "$dir/include/event.h"; then
+            if test -f "$dir/include/event.h" -o -f "$dir/include/event2/event.h"; then
                 found_libevent="yes"
 		dnl assume /usr is in default path.
 		if test "$thedir" != "/usr"; then
@@ -775,10 +802,16 @@ large outgoing port ranges.  ])
 		fi
         else
             AC_MSG_RESULT(found in $thedir)
-	    dnl assume /usr is in default path, do not add "".
-	    if test "$thedir" != "/usr" -a "$thedir" != ""; then
-                LDFLAGS="$LDFLAGS -L$thedir/lib"
-		ACX_RUNTIME_PATH_ADD([$thedir/lib])
+	    dnl if event2 exists and no event lib in dir itself, use subdir
+	    if test ! -f $thedir/lib/libevent.a -a ! -f $thedir/lib/libevent.so -a -d "$thedir/lib/event2"; then
+		    LDFLAGS="$LDFLAGS -L$thedir/lib/event2"
+		    ACX_RUNTIME_PATH_ADD([$thedir/lib/event2])
+	    else
+		    dnl assume /usr is in default path, do not add "".
+		    if test "$thedir" != "/usr" -a "$thedir" != ""; then
+			LDFLAGS="$LDFLAGS -L$thedir/lib"
+			ACX_RUNTIME_PATH_ADD([$thedir/lib])
+		    fi
 	    fi
         fi
 	# check for library used by libevent after 1.3c
@@ -801,6 +834,10 @@ large outgoing port ranges.  ])
 	AC_CHECK_FUNCS([ev_default_loop]) # only in libev. (tested on 4.00)
 	if test -n "$BAK_LDFLAGS_SET"; then
 		LDFLAGS="$BAK_LDFLAGS"
+	fi
+        if test "$use_unbound_event" = "yes"; then
+		AC_SUBST(UNBOUND_EVENT_INSTALL, [unbound-event-install])
+		AC_SUBST(UNBOUND_EVENT_UNINSTALL, [unbound-event-uninstall])
 	fi
 else
 	AC_DEFINE(USE_MINI_EVENT, 1, [Define if you want to use internal select based events])
@@ -833,7 +870,7 @@ AC_CHECK_HEADERS([expat.h],,, [AC_INCLUDES_DEFAULT])
 AC_SUBST(staticexe)
 staticexe=""
 AC_ARG_ENABLE(static-exe, AC_HELP_STRING([--enable-static-exe],
-	[ enable to compile executables statically against event, ldns libs, for debug purposes ]), 
+	[ enable to compile executables statically against (event) libs, for debug purposes ]), 
 	, )
 if test x_$enable_static_exe = x_yes; then
 	staticexe="-static"
@@ -926,7 +963,7 @@ AC_INCLUDES_DEFAULT
 #endif
 ])
 AC_SEARCH_LIBS([setusercontext], [util])
-AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam getrlimit setrlimit setsid sbrk chroot kill sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex])
+AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam getrlimit setrlimit setsid sbrk chroot kill sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 
@@ -938,6 +975,7 @@ AC_REPLACE_FUNCS(inet_aton)
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(snprintf)
+AC_REPLACE_FUNCS(strlcat)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_REPLACE_FUNCS(gmtime_r)
@@ -1014,100 +1052,17 @@ AC_SUBST(SOURCEFILE)
 
 # see if we want to build the library or everything
 ALLTARGET="alltargets"
+INSTALLTARGET="install-all"
 AC_ARG_WITH(libunbound-only, AC_HELP_STRING([--with-libunbound-only],
 	[do not build daemon and tool programs]),
 	[
 	if test "$withval" = "yes"; then
 		ALLTARGET="lib"
+		INSTALLTARGET="install-lib"
 	fi
 ])
 AC_SUBST(ALLTARGET)
-
-# check this after all other compilation checks, since the linking of the lib
-# may break checks after this.
-AC_ARG_WITH(ldns, AC_HELP_STRING([--with-ldns=PATH], 
-	[specify prefix of path of ldns library to use]), 
-	[
-	if test "$withval" != "yes"; then
-		if test "$withval" != "/usr" -a "$withval" != ""; then
-			CPPFLAGS="-I$withval/include $CPPFLAGS"
-			LDFLAGS="-L$withval/lib $LDFLAGS"
-			ACX_RUNTIME_PATH_ADD([$withval/lib])
-		fi
-		ldnsdir="$withval"
-		AC_SUBST(ldnsdir)
-	fi
-])
-
-# check if ldns is good enough
-AC_CHECK_LIB(ldns, ldns_rr_new,,[
-	AC_MSG_ERROR([No ldns library found, install the ldns library into system lib dir or use --with-ldns=path to other location.  The --with-ldns can point to the make-dir of ldns.  Install the package ldns or download source http://www.nlnetlabs.nl/projects/ldns])
-])
-AC_CHECK_FUNC(ldns_buffer_copy)
-if test $USE_NSS = "no"; then
-    AC_CHECK_FUNC(ldns_key_buf2rsa_raw)
-else
-    dnl ignore test
-    ac_cv_func_ldns_key_buf2rsa_raw="yes"
-fi
-AC_CHECK_FUNC(ldns_get_random)
-AC_CHECK_FUNC(ldns_b32_ntop_extended_hex)
-if test x$use_gost = xyes -a x$USE_NSS = xno; then
-    AC_CHECK_FUNC(ldns_key_EVP_load_gost_id)
-    AC_CHECK_FUNCS([ldns_key_EVP_unload_gost])
-else
-    dnl ignore test
-    ac_cv_func_ldns_key_EVP_load_gost_id="yes"
-fi
-if test x$use_ecdsa = xyes; then
-    AC_CHECK_DECL([LDNS_ECDSAP384SHA384], [], [], [
-AC_INCLUDES_DEFAULT
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
-#ifdef HAVE_WS2TCPIP_H
-#  include <ws2tcpip.h>
-#endif
-#include <ldns/ldns.h>
-    ])
-else
-    ac_cv_have_decl_LDNS_ECDSAP384SHA384="yes"
-fi
-AC_CHECK_HEADERS([ldns/ldns.h],,[
-	AC_MSG_ERROR([No ldns include file found, install the ldns library development files.  Install package ldns-dev or ldns-devel or download source http://www.nlnetlabs.nl/projects/ldns])
-	], [AC_INCLUDES_DEFAULT
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#endif
-
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-])
-if test $ac_cv_func_ldns_buffer_copy = yes \
-    -a $ac_cv_func_ldns_key_buf2rsa_raw = yes \
-    -a $ac_cv_func_ldns_get_random = yes \
-    -a $ac_cv_header_ldns_ldns_h = yes \
-    -a $ac_cv_func_ldns_b32_ntop_extended_hex = yes \
-    -a $ac_cv_func_ldns_key_EVP_load_gost_id = yes \
-    -a $ac_cv_have_decl_LDNS_ECDSAP384SHA384 = yes; then
-    dnl ldns was found
-    :
-else
-    AC_MSG_ERROR([ldns library is not recent, update the ldns library, install it into system lib dir or use --with-ldns=path to other location.  The --with-ldns can point to the make-dir of ldns.  Package libldns or download source http://www.nlnetlabs.nl/projects/ldns])
-fi
+AC_SUBST(INSTALLTARGET)
 
 ACX_STRIP_EXT_FLAGS
 LDFLAGS="$LATE_LDFLAGS $LDFLAGS"
@@ -1124,6 +1079,12 @@ dnl includes
 #  define NDEBUG
 #endif
 
+/** Use small-ldns codebase */
+#define USE_SLDNS 1
+#ifdef HAVE_SSL
+#  define LDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -1132,6 +1093,10 @@ dnl includes
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
 #endif
 
 #ifdef HAVE_STDINT_H
@@ -1167,6 +1132,12 @@ dnl includes
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
+#endif
 ]
 
 AHX_CONFIG_FORMAT_ATTRIBUTE
@@ -1178,6 +1149,7 @@ AHX_CONFIG_INET_PTON(unbound)
 AHX_CONFIG_INET_NTOP(unbound)
 AHX_CONFIG_INET_ATON(unbound)
 AHX_CONFIG_MEMMOVE(unbound)
+AHX_CONFIG_STRLCAT(unbound)
 AHX_CONFIG_STRLCPY(unbound)
 AHX_CONFIG_GMTIME_R(unbound)
 AHX_CONFIG_W32_SLEEP

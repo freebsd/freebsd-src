@@ -21,16 +21,16 @@
  * specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 /**
@@ -39,32 +39,31 @@
  */
 
 #include "config.h"
-#include <ldns/dname.h>
-#include <ldns/host2wire.h>
 #include "util/log.h"
 #include "testcode/unitmain.h"
 #include "util/data/dname.h"
+#include "ldns/sbuffer.h"
+#include "ldns/str2wire.h"
 
 /** put dname into buffer */
-static ldns_buffer*
-dname_to_buf(ldns_buffer* b, const char* str)
+static sldns_buffer*
+dname_to_buf(sldns_buffer* b, const char* str)
 {
-	ldns_rdf* rdf;
-	ldns_status status;
-	ldns_buffer_clear(b);
-	rdf = ldns_dname_new_frm_str(str);	
-	status = ldns_dname2buffer_wire(b, rdf);
-	if(status != LDNS_STATUS_OK)
+	int e;
+	size_t len = sldns_buffer_capacity(b);
+	sldns_buffer_clear(b);
+	e = sldns_str2wire_dname_buf(str, sldns_buffer_begin(b), &len);
+	if(e != 0)
 		fatal_exit("%s ldns: %s", __func__, 
-			ldns_get_errorstr_by_id(status));
-	ldns_rdf_deep_free(rdf);
-	ldns_buffer_flip(b);
+			sldns_get_errorstr_parse(e));
+	sldns_buffer_set_position(b, len);
+	sldns_buffer_flip(b);
 	return b;
 }
 
 /** test query_dname_len function */
 static void 
-dname_test_qdl(ldns_buffer* buff)
+dname_test_qdl(sldns_buffer* buff)
 {
 	unit_show_func("util/data/dname.c", "query_dname_len");
 	unit_assert( query_dname_len(buff) == 0);
@@ -76,26 +75,26 @@ dname_test_qdl(ldns_buffer* buff)
 
 /** test query_dname_tolower */
 static void
-dname_test_qdtl(ldns_buffer* buff)
+dname_test_qdtl(sldns_buffer* buff)
 {
 	unit_show_func("util/data/dname.c", "query_dname_tolower");
-	ldns_buffer_write_at(buff, 0, "\012abCDeaBCde\003cOm\000", 16);
-	query_dname_tolower(ldns_buffer_begin(buff));
-	unit_assert( memcmp(ldns_buffer_begin(buff), 
+	sldns_buffer_write_at(buff, 0, "\012abCDeaBCde\003cOm\000", 16);
+	query_dname_tolower(sldns_buffer_begin(buff));
+	unit_assert( memcmp(sldns_buffer_begin(buff), 
 		"\012abcdeabcde\003com\000", 16) == 0);
 
-	ldns_buffer_write_at(buff, 0, "\001+\012abC{e-ZYXe\003NET\000", 18);
-	query_dname_tolower(ldns_buffer_begin(buff));
-	unit_assert( memcmp(ldns_buffer_begin(buff), 
+	sldns_buffer_write_at(buff, 0, "\001+\012abC{e-ZYXe\003NET\000", 18);
+	query_dname_tolower(sldns_buffer_begin(buff));
+	unit_assert( memcmp(sldns_buffer_begin(buff), 
 		"\001+\012abc{e-zyxe\003net\000", 18) == 0);
 
-	ldns_buffer_write_at(buff, 0, "\000", 1);
-	query_dname_tolower(ldns_buffer_begin(buff));
-	unit_assert( memcmp(ldns_buffer_begin(buff), "\000", 1) == 0);
+	sldns_buffer_write_at(buff, 0, "\000", 1);
+	query_dname_tolower(sldns_buffer_begin(buff));
+	unit_assert( memcmp(sldns_buffer_begin(buff), "\000", 1) == 0);
 
-	ldns_buffer_write_at(buff, 0, "\002NL\000", 4);
-	query_dname_tolower(ldns_buffer_begin(buff));
-	unit_assert( memcmp(ldns_buffer_begin(buff), "\002nl\000", 4) == 0);
+	sldns_buffer_write_at(buff, 0, "\002NL\000", 4);
+	query_dname_tolower(sldns_buffer_begin(buff));
+	unit_assert( memcmp(sldns_buffer_begin(buff), "\002nl\000", 4) == 0);
 }
 
 /** test query_dname_compare */
@@ -164,62 +163,62 @@ dname_test_count_size_labels(void)
 
 /** test pkt_dname_len */
 static void
-dname_test_pkt_dname_len(ldns_buffer* buff)
+dname_test_pkt_dname_len(sldns_buffer* buff)
 {
 	unit_show_func("util/data/dname.c", "pkt_dname_len");
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\000", 1);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\000", 1);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 1 );
-	unit_assert( ldns_buffer_position(buff) == 1);
+	unit_assert( sldns_buffer_position(buff) == 1);
 
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\003org\000", 5);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\003org\000", 5);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 5 );
-	unit_assert( ldns_buffer_position(buff) == 5);
+	unit_assert( sldns_buffer_position(buff) == 5);
 
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\002os\007example\003org\000", 16);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\002os\007example\003org\000", 16);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 16 );
-	unit_assert( ldns_buffer_position(buff) == 16);
+	unit_assert( sldns_buffer_position(buff) == 16);
 
 	/* invalid compression pointer: to self */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\300\000os\007example\003org\000", 17);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\300\000os\007example\003org\000", 17);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 0 );
 
 	/* valid compression pointer */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\003com\000\040\300\000", 8);
-	ldns_buffer_flip(buff);
-	ldns_buffer_set_position(buff, 6);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\003com\000\040\300\000", 8);
+	sldns_buffer_flip(buff);
+	sldns_buffer_set_position(buff, 6);
 	unit_assert( pkt_dname_len(buff) == 5 );
-	unit_assert( ldns_buffer_position(buff) == 8);
+	unit_assert( sldns_buffer_position(buff) == 8);
 
 	/* unknown label type */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\002os\107example\003org\000", 16);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\002os\107example\003org\000", 16);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 0 );
 
 	/* label too long */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\002os\047example\003org\000", 16);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\002os\047example\003org\000", 16);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 0 );
 
 	/* label exceeds packet */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, "\002os\007example\007org\004", 16);
-	ldns_buffer_flip(buff);
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\002os\007example\007org\004", 16);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 0 );
 
 	/* name very long */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, 
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, 
 		"\020a1cdef5555544444"
 		"\020a2cdef5555544444"
 		"\020a3cdef5555544444"
@@ -237,13 +236,13 @@ dname_test_pkt_dname_len(ldns_buffer* buff)
 		"\007aabbccd"		/* 246 up to here */
 		"\007example\000"	/* 255 to here */
 		, 255);
-	ldns_buffer_flip(buff);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 255 );
-	unit_assert( ldns_buffer_position(buff) == 255);
+	unit_assert( sldns_buffer_position(buff) == 255);
 
 	/* name too long */
-	ldns_buffer_clear(buff);
-	ldns_buffer_write(buff, 
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, 
 		"\020a1cdef5555544444"
 		"\020a2cdef5555544444"
 		"\020a3cdef5555544444"
@@ -264,7 +263,7 @@ dname_test_pkt_dname_len(ldns_buffer* buff)
 		"\007aabbccd"		/* 246 up to here */
 		"\007example\000"	/* 255 to here */
 		, 255);
-	ldns_buffer_flip(buff);
+	sldns_buffer_flip(buff);
 	unit_assert( pkt_dname_len(buff) == 0 );
 }
 
@@ -797,47 +796,47 @@ dname_test_valid(void)
 
 /** test pkt_dname_tolower */
 static void
-dname_test_pdtl(ldns_buffer* loopbuf, ldns_buffer* boundbuf)
+dname_test_pdtl(sldns_buffer* loopbuf, sldns_buffer* boundbuf)
 {
 	unit_show_func("util/data/dname.c", "pkt_dname_tolower");
-	pkt_dname_tolower(loopbuf, ldns_buffer_at(loopbuf, 12));
-	pkt_dname_tolower(boundbuf, ldns_buffer_at(boundbuf, 12));
+	pkt_dname_tolower(loopbuf, sldns_buffer_at(loopbuf, 12));
+	pkt_dname_tolower(boundbuf, sldns_buffer_at(boundbuf, 12));
 }
 
 /** setup looped dname and out-of-bounds dname ptr */
 static void
-dname_setup_bufs(ldns_buffer* loopbuf, ldns_buffer* boundbuf)
+dname_setup_bufs(sldns_buffer* loopbuf, sldns_buffer* boundbuf)
 {
-	ldns_buffer_write_u16(loopbuf, 0xd54d);  /* id */
-	ldns_buffer_write_u16(loopbuf, 0x12);    /* flags  */
-	ldns_buffer_write_u16(loopbuf, 1);       /* qdcount */
-	ldns_buffer_write_u16(loopbuf, 0);       /* ancount */
-	ldns_buffer_write_u16(loopbuf, 0);       /* nscount */
-	ldns_buffer_write_u16(loopbuf, 0);       /* arcount */
-	ldns_buffer_write_u8(loopbuf, 0xc0); /* PTR back at itself */
-	ldns_buffer_write_u8(loopbuf, 0x0c);
-	ldns_buffer_flip(loopbuf);
+	sldns_buffer_write_u16(loopbuf, 0xd54d);  /* id */
+	sldns_buffer_write_u16(loopbuf, 0x12);    /* flags  */
+	sldns_buffer_write_u16(loopbuf, 1);       /* qdcount */
+	sldns_buffer_write_u16(loopbuf, 0);       /* ancount */
+	sldns_buffer_write_u16(loopbuf, 0);       /* nscount */
+	sldns_buffer_write_u16(loopbuf, 0);       /* arcount */
+	sldns_buffer_write_u8(loopbuf, 0xc0); /* PTR back at itself */
+	sldns_buffer_write_u8(loopbuf, 0x0c);
+	sldns_buffer_flip(loopbuf);
 
-	ldns_buffer_write_u16(boundbuf, 0xd54d);  /* id */
-	ldns_buffer_write_u16(boundbuf, 0x12);    /* flags  */
-	ldns_buffer_write_u16(boundbuf, 1);       /* qdcount */
-	ldns_buffer_write_u16(boundbuf, 0);       /* ancount */
-	ldns_buffer_write_u16(boundbuf, 0);       /* nscount */
-	ldns_buffer_write_u16(boundbuf, 0);       /* arcount */
-	ldns_buffer_write_u8(boundbuf, 0x01); /* len=1 */
-	ldns_buffer_write_u8(boundbuf, (uint8_t)'A'); /* A. label */
-	ldns_buffer_write_u8(boundbuf, 0xc0); /* PTR out of bounds */
-	ldns_buffer_write_u8(boundbuf, 0xcc);
-	ldns_buffer_flip(boundbuf);
+	sldns_buffer_write_u16(boundbuf, 0xd54d);  /* id */
+	sldns_buffer_write_u16(boundbuf, 0x12);    /* flags  */
+	sldns_buffer_write_u16(boundbuf, 1);       /* qdcount */
+	sldns_buffer_write_u16(boundbuf, 0);       /* ancount */
+	sldns_buffer_write_u16(boundbuf, 0);       /* nscount */
+	sldns_buffer_write_u16(boundbuf, 0);       /* arcount */
+	sldns_buffer_write_u8(boundbuf, 0x01); /* len=1 */
+	sldns_buffer_write_u8(boundbuf, (uint8_t)'A'); /* A. label */
+	sldns_buffer_write_u8(boundbuf, 0xc0); /* PTR out of bounds */
+	sldns_buffer_write_u8(boundbuf, 0xcc);
+	sldns_buffer_flip(boundbuf);
 }
 
 void dname_test(void)
 {
-	ldns_buffer* loopbuf = ldns_buffer_new(14);
-	ldns_buffer* boundbuf = ldns_buffer_new(16);
-	ldns_buffer* buff = ldns_buffer_new(65800);
+	sldns_buffer* loopbuf = sldns_buffer_new(14);
+	sldns_buffer* boundbuf = sldns_buffer_new(16);
+	sldns_buffer* buff = sldns_buffer_new(65800);
 	unit_assert(loopbuf && boundbuf && buff);
-	ldns_buffer_flip(buff);
+	sldns_buffer_flip(buff);
 	dname_setup_bufs(loopbuf, boundbuf);
 	dname_test_qdl(buff);
 	dname_test_qdtl(buff);
@@ -856,7 +855,7 @@ void dname_test(void)
 	dname_test_canoncmp();
 	dname_test_topdomain();
 	dname_test_valid();
-	ldns_buffer_free(buff);
-	ldns_buffer_free(loopbuf);
-	ldns_buffer_free(boundbuf);
+	sldns_buffer_free(buff);
+	sldns_buffer_free(loopbuf);
+	sldns_buffer_free(boundbuf);
 }

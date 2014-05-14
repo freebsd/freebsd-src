@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -43,7 +43,6 @@
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
-#include <ldns/ldns.h>
 #include <signal.h>
 #include "util/log.h"
 #include "util/locks.h"
@@ -51,6 +50,10 @@
 #include "util/data/msgencode.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
+#include "ldns/sbuffer.h"
+#include "ldns/wire2str.h"
+#include "ldns/str2wire.h"
+#include <sys/time.h>
 
 /** usage information for perf */
 static void usage(char* nm) 
@@ -75,7 +78,7 @@ struct perfinfo {
 	/** need to exit */
 	volatile int exit;
 	/** all purpose buffer (for UDP send and receive) */
-	ldns_buffer* buf;
+	sldns_buffer* buf;
 
 	/** destination */
 	struct sockaddr_storage dest;
@@ -303,8 +306,8 @@ static void
 perfreply(struct perfinfo* info, size_t n, struct timeval* now)
 {
 	ssize_t r;
-	r = recv(info->io[n].fd, (void*)ldns_buffer_begin(info->buf),
-		ldns_buffer_capacity(info->buf), 0);
+	r = recv(info->io[n].fd, (void*)sldns_buffer_begin(info->buf),
+		sldns_buffer_capacity(info->buf), 0);
 	if(r == -1) {
 #ifndef USE_WINSOCK
 		log_err("recv: %s", strerror(errno));
@@ -312,11 +315,11 @@ perfreply(struct perfinfo* info, size_t n, struct timeval* now)
 		log_err("recv: %s", wsa_strerror(WSAGetLastError()));
 #endif
 	} else {
-		info->by_rcode[LDNS_RCODE_WIRE(ldns_buffer_begin(
+		info->by_rcode[LDNS_RCODE_WIRE(sldns_buffer_begin(
 			info->buf))]++;
 		info->numrecv++;
 	}
-	/*ldns_buffer_set_limit(info->buf, r);
+	/*sldns_buffer_set_limit(info->buf, r);
 	log_buf(0, "reply", info->buf);*/
 	perfsend(info, n, now);
 }
@@ -434,11 +437,10 @@ perfendstats(struct perfinfo* info)
 		for(i=0; i<(int)(sizeof(info->by_rcode)/sizeof(size_t)); i++)
 		{
 			if(info->by_rcode[i] > 0) {
+				char rc[16];
+				sldns_wire2str_rcode_buf(i, rc, sizeof(rc));
 				printf("%d(%5s): 	%u replies\n",
-					i, ldns_lookup_by_id(ldns_rcodes, i)?
-					ldns_lookup_by_id(ldns_rcodes, 
-					i)->name:"??", 
-					(unsigned)info->by_rcode[i]);
+					i, rc, (unsigned)info->by_rcode[i]);
 			}
 		}
 	}
@@ -459,38 +461,35 @@ perfmain(struct perfinfo* info)
 
 /** parse a query line to a packet into buffer */
 static int
-qlist_parse_line(ldns_buffer* buf, char* p)
+qlist_parse_line(sldns_buffer* buf, char* p)
 {
 	char nm[1024], cl[1024], tp[1024], fl[1024];
 	int r; 
 	int rec = 1, edns = 0;
 	struct query_info qinfo;
-	ldns_rdf* rdf;
 	nm[0] = 0; cl[0] = 0; tp[0] = 0; fl[0] = 0;
 	r = sscanf(p, " %1023s %1023s %1023s %1023s", nm, cl, tp, fl);
 	if(r != 3 && r != 4)
 		return 0;
 	/*printf("nm='%s', cl='%s', tp='%s', fl='%s'\n", nm, cl, tp, fl);*/
 	if(strcmp(tp, "IN") == 0 || strcmp(tp, "CH") == 0) {
-		qinfo.qtype = ldns_get_rr_type_by_name(cl);
-		qinfo.qclass = ldns_get_rr_class_by_name(tp);
+		qinfo.qtype = sldns_get_rr_type_by_name(cl);
+		qinfo.qclass = sldns_get_rr_class_by_name(tp);
 	} else {
-		qinfo.qtype = ldns_get_rr_type_by_name(tp);
-		qinfo.qclass = ldns_get_rr_class_by_name(cl);
+		qinfo.qtype = sldns_get_rr_type_by_name(tp);
+		qinfo.qclass = sldns_get_rr_class_by_name(cl);
 	}
 	if(fl[0] == '+') rec = 1;
 	else if(fl[0] == '-') rec = 0;
 	else if(fl[0] == 'E') edns = 1;
 	if((fl[0] == '+' || fl[0] == '-') && fl[1] == 'E')
 		edns = 1;
-	rdf = ldns_dname_new_frm_str(nm);
-	if(!rdf)
+	qinfo.qname = sldns_str2wire_dname(nm, &qinfo.qname_len);
+	if(!qinfo.qname)
 		return 0;
-	qinfo.qname = ldns_rdf_data(rdf);
-	qinfo.qname_len = ldns_rdf_size(rdf);
 	qinfo_query_encode(buf, &qinfo);
-	ldns_buffer_write_u16_at(buf, 0, 0); /* zero ID */
-	if(rec) LDNS_RD_SET(ldns_buffer_begin(buf));
+	sldns_buffer_write_u16_at(buf, 0, 0); /* zero ID */
+	if(rec) LDNS_RD_SET(sldns_buffer_begin(buf));
 	if(edns) {
 		struct edns_data ed;
 		memset(&ed, 0, sizeof(ed));
@@ -500,7 +499,7 @@ qlist_parse_line(ldns_buffer* buf, char* p)
 		ed.bits = EDNS_DO;
 		attach_edns_record(buf, &ed);
 	}
-	ldns_rdf_deep_free(rdf);
+	free(qinfo.qname);
 	return 1;
 }
 
@@ -532,13 +531,13 @@ qlist_add_line(struct perfinfo* info, char* line, int no)
 		printf("error parsing query %d: %s\n", no, line);
 		exit(1);
 	}
-	ldns_buffer_write_u16_at(info->buf, 0, (uint16_t)info->qlist_size); 
+	sldns_buffer_write_u16_at(info->buf, 0, (uint16_t)info->qlist_size); 
 	if(info->qlist_size + 1 > info->qlist_capacity) {
 		qlist_grow_capacity(info);
 	}
-	info->qlist_len[info->qlist_size] = ldns_buffer_limit(info->buf);
+	info->qlist_len[info->qlist_size] = sldns_buffer_limit(info->buf);
 	info->qlist_data[info->qlist_size] = memdup(
-		ldns_buffer_begin(info->buf), ldns_buffer_limit(info->buf));
+		sldns_buffer_begin(info->buf), sldns_buffer_limit(info->buf));
 	if(!info->qlist_data[info->qlist_size])
 		fatal_exit("out of memory");
 	info->qlist_size ++;
@@ -598,7 +597,7 @@ int main(int argc, char* argv[])
 		fatal_exit("WSAStartup failed: %s", wsa_strerror(r));
 #endif
 
-	info.buf = ldns_buffer_new(65553);
+	info.buf = sldns_buffer_new(65553);
 	if(!info.buf) fatal_exit("out of memory");
 
 	/* parse the options */
@@ -645,7 +644,7 @@ int main(int argc, char* argv[])
 	/* do the performance test */
 	perfmain(&info);
 
-	ldns_buffer_free(info.buf);
+	sldns_buffer_free(info.buf);
 #ifdef USE_WINSOCK
 	WSACleanup();
 #endif

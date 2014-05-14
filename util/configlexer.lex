@@ -221,10 +221,12 @@ ssl-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
 ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
+ip-address{COLON}		{ YDVAR(1, VAR_INTERFACE) }
 outgoing-interface{COLON}	{ YDVAR(1, VAR_OUTGOING_INTERFACE) }
 interface-automatic{COLON}	{ YDVAR(1, VAR_INTERFACE_AUTOMATIC) }
 so-rcvbuf{COLON}		{ YDVAR(1, VAR_SO_RCVBUF) }
 so-sndbuf{COLON}		{ YDVAR(1, VAR_SO_SNDBUF) }
+so-reuseport{COLON}		{ YDVAR(1, VAR_SO_REUSEPORT) }
 chroot{COLON}			{ YDVAR(1, VAR_CHROOT) }
 username{COLON}			{ YDVAR(1, VAR_USERNAME) }
 directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
@@ -246,6 +248,7 @@ infra-cache-numhosts{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_NUMHOSTS) }
 infra-cache-lame-size{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_LAME_SIZE) }
 num-queries-per-thread{COLON}	{ YDVAR(1, VAR_NUM_QUERIES_PER_THREAD) }
 jostle-timeout{COLON}		{ YDVAR(1, VAR_JOSTLE_TIMEOUT) }
+delay-close{COLON}		{ YDVAR(1, VAR_DELAY_CLOSE) }
 target-fetch-policy{COLON}	{ YDVAR(1, VAR_TARGET_FETCH_POLICY) }
 harden-short-bufsize{COLON}	{ YDVAR(1, VAR_HARDEN_SHORT_BUFSIZE) }
 harden-large-queries{COLON}	{ YDVAR(1, VAR_HARDEN_LARGE_QUERIES) }

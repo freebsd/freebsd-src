@@ -2,7 +2,8 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 25
+# Version 26
+# 2013-09-19 FLTO help text improved.
 # 2013-07-18 Enable ACX_CHECK_COMPILER_FLAG to test for -Wstrict-prototypes
 # 2013-06-25 FLTO has --disable-flto option.
 # 2013-05-03 Update W32_SLEEP for newer mingw that links but not defines it.
@@ -410,7 +411,7 @@ dnl Check if CC supports -flto.
 dnl in a way that supports clang and suncc (that flag does something else,
 dnl but fails to link).  It sets it in CFLAGS if it works.
 AC_DEFUN([ACX_CHECK_FLTO], [
-    AC_ARG_ENABLE([flto], AS_HELP_STRING([--disable-flto], [Disable link-time optimization]))
+    AC_ARG_ENABLE([flto], AS_HELP_STRING([--disable-flto], [Disable link-time optimization (gcc specific option)]))
     AS_IF([test "x$enable_flto" != "xno"], [
         AC_MSG_CHECKING([if $CC supports -flto])
         BAKCFLAGS="$CFLAGS"

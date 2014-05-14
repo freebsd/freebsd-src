@@ -1,4 +1,4 @@
-.TH "unbound-checkconf" "8" "Sep 19, 2013" "NLnet Labs" "unbound 1.4.21"
+.TH "unbound-checkconf" "8" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
 .\"
 .\" unbound-checkconf.8 -- unbound configuration checker manual
 .\"

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,10 +41,12 @@
  * and do the library calls (for the crypto library in use).
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "validator/val_secalgo.h"
 #include "util/data/packed_rrset.h"
 #include "util/log.h"
+#include "ldns/rrdef.h"
+#include "ldns/keyraw.h"
+#include "ldns/sbuffer.h"
 
 #if !defined(HAVE_SSL) && !defined(HAVE_NSS)
 #error "Need crypto library to do digital signature cryptography"
@@ -108,7 +110,7 @@ do_gost94(unsigned char* data, size_t len, unsigned char* dest)
 	const EVP_MD* md = EVP_get_digestbyname("md_gost94");
 	if(!md) 
 		return 0;
-	return ldns_digest_evp(data, (unsigned int)len, dest, md);
+	return sldns_digest_evp(data, (unsigned int)len, dest, md);
 }
 #endif
 
@@ -172,7 +174,7 @@ dnskey_algo_id_is_supported(int id)
 #ifdef USE_GOST
 	case LDNS_ECC_GOST:
 		/* we support GOST if it can be loaded */
-		return ldns_key_EVP_load_gost_id();
+		return sldns_key_EVP_load_gost_id();
 #endif
 	default:
 		return 0;
@@ -304,10 +306,10 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				log_err("verify: malloc failure in crypto");
 				return 0;
 			}
-			dsa = ldns_key_buf2dsa_raw(key, keylen);
+			dsa = sldns_key_buf2dsa_raw(key, keylen);
 			if(!dsa) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2dsa_raw failed");
+					"sldns_key_buf2dsa_raw failed");
 				return 0;
 			}
 			if(EVP_PKEY_assign_DSA(*evp_key, dsa) == 0) {
@@ -331,10 +333,10 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				log_err("verify: malloc failure in crypto");
 				return 0;
 			}
-			rsa = ldns_key_buf2rsa_raw(key, keylen);
+			rsa = sldns_key_buf2rsa_raw(key, keylen);
 			if(!rsa) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2rsa_raw SHA failed");
+					"sldns_key_buf2rsa_raw SHA failed");
 				return 0;
 			}
 			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
@@ -363,10 +365,10 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				log_err("verify: malloc failure in crypto");
 				return 0;
 			}
-			rsa = ldns_key_buf2rsa_raw(key, keylen);
+			rsa = sldns_key_buf2rsa_raw(key, keylen);
 			if(!rsa) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2rsa_raw MD5 failed");
+					"sldns_key_buf2rsa_raw MD5 failed");
 				return 0;
 			}
 			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
@@ -379,10 +381,10 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 			break;
 #ifdef USE_GOST
 		case LDNS_ECC_GOST:
-			*evp_key = ldns_gost2pkey_raw(key, keylen);
+			*evp_key = sldns_gost2pkey_raw(key, keylen);
 			if(!*evp_key) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_gost2pkey_raw failed");
+					"sldns_gost2pkey_raw failed");
 				return 0;
 			}
 			*digest_type = EVP_get_digestbyname("md_gost94");
@@ -395,11 +397,11 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 #endif
 #ifdef USE_ECDSA
 		case LDNS_ECDSAP256SHA256:
-			*evp_key = ldns_ecdsa2pkey_raw(key, keylen,
+			*evp_key = sldns_ecdsa2pkey_raw(key, keylen,
 				LDNS_ECDSAP256SHA256);
 			if(!*evp_key) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_ecdsa2pkey_raw failed");
+					"sldns_ecdsa2pkey_raw failed");
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
@@ -422,11 +424,11 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 #endif
 			break;
 		case LDNS_ECDSAP384SHA384:
-			*evp_key = ldns_ecdsa2pkey_raw(key, keylen,
+			*evp_key = sldns_ecdsa2pkey_raw(key, keylen,
 				LDNS_ECDSAP384SHA384);
 			if(!*evp_key) {
 				verbose(VERB_QUERY, "verify: "
-					"ldns_ecdsa2pkey_raw failed");
+					"sldns_ecdsa2pkey_raw failed");
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
@@ -471,7 +473,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
  *	unchecked on format errors and alloc failures.
  */
 enum sec_status
-verify_canonrrset(ldns_buffer* buf, int algo, unsigned char* sigblock, 
+verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock, 
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
 	char** reason)
 {
@@ -518,8 +520,8 @@ verify_canonrrset(ldns_buffer* buf, int algo, unsigned char* sigblock,
 		if(dofree) free(sigblock);
 		return sec_status_unchecked;
 	}
-	if(EVP_VerifyUpdate(&ctx, (unsigned char*)ldns_buffer_begin(buf), 
-		(unsigned int)ldns_buffer_limit(buf)) == 0) {
+	if(EVP_VerifyUpdate(&ctx, (unsigned char*)sldns_buffer_begin(buf), 
+		(unsigned int)sldns_buffer_limit(buf)) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_VerifyUpdate failed");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
@@ -963,7 +965,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
  *	unchecked on format errors and alloc failures.
  */
 enum sec_status
-verify_canonrrset(ldns_buffer* buf, int algo, unsigned char* sigblock, 
+verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock, 
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
 	char** reason)
 {
@@ -1019,8 +1021,8 @@ verify_canonrrset(ldns_buffer* buf, int algo, unsigned char* sigblock,
 		SECKEY_DestroyPublicKey(pubkey);
 		return sec_status_unchecked;
 	}
-	if(HASH_HashBuf(htype, hash, (unsigned char*)ldns_buffer_begin(buf),
-		(unsigned int)ldns_buffer_limit(buf)) != SECSuccess) {
+	if(HASH_HashBuf(htype, hash, (unsigned char*)sldns_buffer_begin(buf),
+		(unsigned int)sldns_buffer_limit(buf)) != SECSuccess) {
 		verbose(VERB_QUERY, "verify: HASH_HashBuf failed");
 		SECKEY_DestroyPublicKey(pubkey);
 		return sec_status_unchecked;

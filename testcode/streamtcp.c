@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -43,7 +43,6 @@
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif
-#include <ldns/ldns.h>
 #include <signal.h>
 #include "util/locks.h"
 #include "util/log.h"
@@ -52,6 +51,11 @@
 #include "util/data/msgparse.h"
 #include "util/data/msgreply.h"
 #include "util/data/dname.h"
+#include "ldns/sbuffer.h"
+#include "ldns/str2wire.h"
+#include "ldns/wire2str.h"
+#include <openssl/ssl.h>
+#include <openssl/rand.h>
 #include <openssl/err.h>
 
 #ifndef PF_INET6
@@ -108,31 +112,26 @@ open_svr(const char* svr, int udp)
 
 /** write a query over the TCP fd */
 static void
-write_q(int fd, int udp, SSL* ssl, ldns_buffer* buf, uint16_t id, 
+write_q(int fd, int udp, SSL* ssl, sldns_buffer* buf, uint16_t id, 
 	const char* strname, const char* strtype, const char* strclass)
 {
 	struct query_info qinfo;
-	ldns_rdf* rdf;
 	uint16_t len;
 	/* qname */
-	rdf = ldns_dname_new_frm_str(strname);
-	if(!rdf) {
+	qinfo.qname = sldns_str2wire_dname(strname, &qinfo.qname_len);
+	if(!qinfo.qname) {
 		printf("cannot parse query name: '%s'\n", strname);
 		exit(1);
 	}
-	qinfo.qname = memdup(ldns_rdf_data(rdf), ldns_rdf_size(rdf));
-	if(!qinfo.qname) fatal_exit("out of memory");
-	(void)dname_count_size_labels(qinfo.qname, &qinfo.qname_len);
-	ldns_rdf_deep_free(rdf);
 
 	/* qtype and qclass */
-	qinfo.qtype = ldns_get_rr_type_by_name(strtype);
-	qinfo.qclass = ldns_get_rr_class_by_name(strclass);
+	qinfo.qtype = sldns_get_rr_type_by_name(strtype);
+	qinfo.qclass = sldns_get_rr_class_by_name(strclass);
 
 	/* make query */
 	qinfo_query_encode(buf, &qinfo);
-	ldns_buffer_write_u16_at(buf, 0, id);
-	ldns_buffer_write_u16_at(buf, 2, BIT_RD);
+	sldns_buffer_write_u16_at(buf, 0, id);
+	sldns_buffer_write_u16_at(buf, 2, BIT_RD);
 
 	if(1) {
 		/* add EDNS DO */
@@ -146,7 +145,7 @@ write_q(int fd, int udp, SSL* ssl, ldns_buffer* buf, uint16_t id,
 
 	/* send it */
 	if(!udp) {
-		len = (uint16_t)ldns_buffer_limit(buf);
+		len = (uint16_t)sldns_buffer_limit(buf);
 		len = htons(len);
 		if(ssl) {
 			if(SSL_write(ssl, (void*)&len, (int)sizeof(len)) <= 0) {
@@ -167,15 +166,15 @@ write_q(int fd, int udp, SSL* ssl, ldns_buffer* buf, uint16_t id,
 		}
 	}
 	if(ssl) {
-		if(SSL_write(ssl, (void*)ldns_buffer_begin(buf),
-			(int)ldns_buffer_limit(buf)) <= 0) {
+		if(SSL_write(ssl, (void*)sldns_buffer_begin(buf),
+			(int)sldns_buffer_limit(buf)) <= 0) {
 			log_crypto_err("cannot SSL_write");
 			exit(1);
 		}
 	} else {
-		if(send(fd, (void*)ldns_buffer_begin(buf),
-			ldns_buffer_limit(buf), 0) < 
-			(ssize_t)ldns_buffer_limit(buf)) {
+		if(send(fd, (void*)sldns_buffer_begin(buf),
+			sldns_buffer_limit(buf), 0) < 
+			(ssize_t)sldns_buffer_limit(buf)) {
 #ifndef USE_WINSOCK
 			perror("send() data failed");
 #else
@@ -190,11 +189,10 @@ write_q(int fd, int udp, SSL* ssl, ldns_buffer* buf, uint16_t id,
 
 /** receive DNS datagram over TCP and print it */
 static void
-recv_one(int fd, int udp, SSL* ssl, ldns_buffer* buf)
+recv_one(int fd, int udp, SSL* ssl, sldns_buffer* buf)
 {
+	char* pktstr;
 	uint16_t len;
-	ldns_pkt* pkt;
-	ldns_status status;
 	if(!udp) {
 		if(ssl) {
 			if(SSL_read(ssl, (void*)&len, (int)sizeof(len)) <= 0) {
@@ -214,10 +212,10 @@ recv_one(int fd, int udp, SSL* ssl, ldns_buffer* buf)
 			}
 		}
 		len = ntohs(len);
-		ldns_buffer_clear(buf);
-		ldns_buffer_set_limit(buf, len);
+		sldns_buffer_clear(buf);
+		sldns_buffer_set_limit(buf, len);
 		if(ssl) {
-			int r = SSL_read(ssl, (void*)ldns_buffer_begin(buf),
+			int r = SSL_read(ssl, (void*)sldns_buffer_begin(buf),
 				(int)len);
 			if(r <= 0) {
 				log_crypto_err("could not SSL_read");
@@ -226,7 +224,7 @@ recv_one(int fd, int udp, SSL* ssl, ldns_buffer* buf)
 			if(r != (int)len)
 				fatal_exit("ssl_read %d of %d", r, len);
 		} else {
-			if(recv(fd, (void*)ldns_buffer_begin(buf), len, 0) < 
+			if(recv(fd, (void*)sldns_buffer_begin(buf), len, 0) < 
 				(ssize_t)len) {
 #ifndef USE_WINSOCK
 				perror("read() data failed");
@@ -239,9 +237,9 @@ recv_one(int fd, int udp, SSL* ssl, ldns_buffer* buf)
 		}
 	} else {
 		ssize_t l;
-		ldns_buffer_clear(buf);
-		if((l=recv(fd, (void*)ldns_buffer_begin(buf), 
-			ldns_buffer_capacity(buf), 0)) < 0) {
+		sldns_buffer_clear(buf);
+		if((l=recv(fd, (void*)sldns_buffer_begin(buf), 
+			sldns_buffer_capacity(buf), 0)) < 0) {
 #ifndef USE_WINSOCK
 			perror("read() data failed");
 #else
@@ -250,28 +248,31 @@ recv_one(int fd, int udp, SSL* ssl, ldns_buffer* buf)
 #endif
 			exit(1);
 		}
-		ldns_buffer_set_limit(buf, (size_t)l);
+		sldns_buffer_set_limit(buf, (size_t)l);
 		len = (size_t)l;
 	}
 	printf("\nnext received packet\n");
 	log_buf(0, "data", buf);
 
-	status = ldns_wire2pkt(&pkt, ldns_buffer_begin(buf), len);
-	if(status != LDNS_STATUS_OK) {
-		printf("could not parse incoming packet: %s\n",
-			ldns_get_errorstr_by_id(status));
-		log_buf(0, "data was", buf);
-		exit(1);
+	pktstr = sldns_wire2str_pkt(sldns_buffer_begin(buf), len);
+	printf("%s", pktstr);
+	free(pktstr);
+}
+
+static int get_random(void)
+{
+	int r;
+	if (RAND_bytes((unsigned char*)&r, (int)sizeof(r)) == 1) {
+		return r;
 	}
-	ldns_pkt_print(stdout, pkt);
-	ldns_pkt_free(pkt);
+	return (int)random();
 }
 
 /** send the TCP queries and print answers */
 static void
 send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
 {
-	ldns_buffer* buf = ldns_buffer_new(65553);
+	sldns_buffer* buf = sldns_buffer_new(65553);
 	int fd = open_svr(svr, udp);
 	int i;
 	SSL_CTX* ctx = NULL;
@@ -305,7 +306,7 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
 	}
 	for(i=0; i<num; i+=3) {
 		printf("\nNext query is %s %s %s\n", qs[i], qs[i+1], qs[i+2]);
-		write_q(fd, udp, ssl, buf, ldns_get_random(), qs[i],
+		write_q(fd, udp, ssl, buf, (uint16_t)get_random(), qs[i],
 			qs[i+1], qs[i+2]);
 		/* print at least one result */
 		if(!noanswer)
@@ -322,7 +323,7 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int num, char** qs)
 #else
 	closesocket(fd);
 #endif
-	ldns_buffer_free(buf);
+	sldns_buffer_free(buf);
 	printf("orderly exit\n");
 }
 

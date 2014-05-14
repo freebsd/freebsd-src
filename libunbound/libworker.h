@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -57,6 +57,8 @@ struct comm_point;
 struct comm_reply;
 struct regional;
 struct tube;
+struct sldns_buffer;
+struct event_base;
 
 /** 
  * The library-worker status structure
@@ -106,6 +108,31 @@ int libworker_bg(struct ub_ctx* ctx);
  */
 int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q);
 
+/**
+ * create worker for event-based interface.
+ * @param ctx: context with config.
+ * @param eb: event base.
+ * @return new worker or NULL.
+ */
+struct libworker* libworker_create_event(struct ub_ctx* ctx,
+	struct event_base* eb);
+
+/**
+ * Attach context_query to mesh for callback in event-driven setup.
+ * @param ctx: context
+ * @param q: context query entry
+ * @param async_id: store query num if query takes long.
+ * @return 0 if finished OK, else error.
+ */
+int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
+	int* async_id);
+
+/** 
+ * delete worker for event-based interface.  does not free the event_base.
+ * @param w: event-based worker to delete.
+ */
+void libworker_delete_event(struct libworker* w);
+
 /** cleanup the cache to remove all rrset IDs from it, arg is libworker */
 void libworker_alloc_cleanup(void* arg);
 
@@ -148,11 +175,15 @@ void libworker_handle_result_write(struct tube* tube, uint8_t* msg, size_t len,
 	int err, void* arg);
 
 /** mesh callback with fg results */
-void libworker_fg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_fg_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /** mesh callback with bg results */
-void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_bg_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
+	enum sec_status s, char* why_bogus);
+
+/** mesh callback with event results */
+void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /** 
@@ -164,7 +195,7 @@ void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf,
  *   On error, the res may contain a different status 
  *   (out of memory is not secure, not bogus).
  */
-void libworker_enter_result(struct ub_result* res, ldns_buffer* buf,
+void libworker_enter_result(struct ub_result* res, struct sldns_buffer* buf,
 	struct regional* temp, enum sec_status msg_security);
 
 #endif /* LIBUNBOUND_WORKER_H */
