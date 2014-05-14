@@ -1519,10 +1519,10 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		vm_page_dirty(m);
 
 		/* Re-enable write permissions for the page */
-		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
-		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
+		*ptep = (pte & ~L2_APX);
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	} else if (!L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page referenced"
@@ -1545,6 +1545,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		*ptep = pte | L2_S_REF;
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	}
 
 	/*
@@ -2453,6 +2454,8 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 
+	if (kernel_vm_end == 0)
+		return (0);
 	return (pmap_extract_locked(kernel_pmap, va));
 }
 
@@ -3302,9 +3305,11 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	vm_paddr_t pa;
 
-	PMAP_LOCK(pmap);
+	if (kernel_vm_end != 0)
+		PMAP_LOCK(pmap);
 	pa = pmap_extract_locked(pmap, va);
-	PMAP_UNLOCK(pmap);
+	if (kernel_vm_end != 0)
+		PMAP_UNLOCK(pmap);
 	return (pa);
 }
 
@@ -3317,7 +3322,7 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 	vm_paddr_t pa;
 	u_int l1idx;
 
-	if (pmap != kernel_pmap)
+	if (kernel_vm_end != 0 && pmap != kernel_pmap)
 		PMAP_ASSERT_LOCKED(pmap);
 	l1idx = L1_IDX(va);
 	l1pd = pmap->pm_l1->l1_kva[l1idx];

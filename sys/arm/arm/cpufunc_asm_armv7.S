@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #define PT_OUTER_WBWA	(1 << 3)
 	
 #ifdef SMP
-#define PT_ATTR	(PT_S|PT_INNER_WT|PT_OUTER_WT|PT_NOS)
+#define PT_ATTR	(PT_S|PT_INNER_WBWA|PT_OUTER_WBWA|PT_NOS)
 #else
-#define PT_ATTR	(PT_INNER_WT|PT_OUTER_WT)
+#define PT_ATTR	(PT_INNER_WBWA|PT_OUTER_WBWA)
 #endif
 
 ENTRY(armv7_setttb)
@@ -98,7 +98,7 @@ ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
 	bic	r0, r0, r1
 #ifdef SMP
-	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry Inner Shareable*/
+	mcr	p15, 0, r0, c8, c3, 3	/* flush D tlb single entry Inner Shareable*/
 	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB Inner Shareable */
 #else
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
