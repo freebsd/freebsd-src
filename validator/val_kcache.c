@@ -126,7 +126,7 @@ key_cache_search(struct key_cache* kcache, uint8_t* name, size_t namelen,
 
 struct key_entry_key* 
 key_cache_obtain(struct key_cache* kcache, uint8_t* name, size_t namelen, 
-	uint16_t key_class, struct regional* region, uint32_t now)
+	uint16_t key_class, struct regional* region, time_t now)
 {
 	/* keep looking until we find a nonexpired entry */
 	while(1) {

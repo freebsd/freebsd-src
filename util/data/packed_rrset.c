@@ -183,7 +183,7 @@ packed_rrset_ptr_fixup(struct packed_rrset_data* data)
 	data->rr_len = (size_t*)((uint8_t*)data +
 		sizeof(struct packed_rrset_data));
 	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
 	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
 	for(i=0; i<total; i++) {
 		data->rr_data[i] = nextrdata;
@@ -215,7 +215,7 @@ get_cname_target(struct ub_packed_rrset_key* rrset, uint8_t** dname,
 }
 
 void 
-packed_rrset_ttl_add(struct packed_rrset_data* data, uint32_t add)
+packed_rrset_ttl_add(struct packed_rrset_data* data, time_t add)
 {
 	size_t i;
 	size_t total = data->count + data->rrsig_count;
@@ -266,7 +266,7 @@ void log_rrset_key(enum verbosity_value v, const char* str,
 			ntohs(rrset->rk.type), ntohs(rrset->rk.rrset_class));
 }
 
-uint32_t 
+time_t 
 ub_packed_rrset_ttl(struct ub_packed_rrset_key* key)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)key->
@@ -276,7 +276,7 @@ ub_packed_rrset_ttl(struct ub_packed_rrset_key* key)
 
 struct ub_packed_rrset_key*
 packed_rrset_copy_region(struct ub_packed_rrset_key* key, 
-	struct regional* region, uint32_t now)
+	struct regional* region, time_t now)
 {
 	struct ub_packed_rrset_key* ck = regional_alloc(region, 
 		sizeof(struct ub_packed_rrset_key));
@@ -315,7 +315,7 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 
 struct ub_packed_rrset_key* 
 packed_rrset_copy_alloc(struct ub_packed_rrset_key* key, 
-	struct alloc_cache* alloc, uint32_t now)
+	struct alloc_cache* alloc, time_t now)
 {
 	struct packed_rrset_data* fd, *dd;
 	struct ub_packed_rrset_key* dk = alloc_special_obtain(alloc);
@@ -386,7 +386,7 @@ packed_rrset_heap_data(ldns_rr_list* rrset)
 
 	/* allocate */
 	total = count + rrsig_count;
-	len += sizeof(*data) + total*(sizeof(size_t) + sizeof(uint32_t) + 
+	len += sizeof(*data) + total*(sizeof(size_t) + sizeof(time_t) + 
 		sizeof(uint8_t*));
 	data = (struct packed_rrset_data*)calloc(1, len);
 	if(!data)
@@ -399,7 +399,7 @@ packed_rrset_heap_data(ldns_rr_list* rrset)
 	data->rr_len = (size_t*)((uint8_t*)data +
 		sizeof(struct packed_rrset_data));
 	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
 	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
 
 	/* fill out len, ttl, fields */

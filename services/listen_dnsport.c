@@ -328,6 +328,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #    else
 			closesocket(s);
 #    endif
+			*noproto = 0;
+			*inuse = 0;
 			return -1;
 		}
 #  elif defined(IP_DONTFRAG)
@@ -341,12 +343,15 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #    else
 			closesocket(s);
 #    endif
+			*noproto = 0;
+			*inuse = 0;
 			return -1;
 		}
 #  endif /* IPv4 MTU */
 	}
 	if(bind(s, (struct sockaddr*)addr, addrlen) != 0) {
 		*noproto = 0;
+		*inuse = 0;
 #ifndef USE_WINSOCK
 #ifdef EADDRINUSE
 		*inuse = (errno == EADDRINUSE);

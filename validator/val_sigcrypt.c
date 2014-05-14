@@ -579,7 +579,7 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 
 enum sec_status 
 dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve, 
-	uint32_t now, struct ub_packed_rrset_key* rrset, 
+	time_t now, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, size_t sig_idx, 
 	struct rbtree_t** sortree, char** reason)
 {
@@ -808,7 +808,12 @@ canonical_compare(struct ub_packed_rrset_key* rrset, size_t i, size_t j)
 		case LDNS_RR_TYPE_MR:
 		case LDNS_RR_TYPE_PTR:
 		case LDNS_RR_TYPE_DNAME:
-			return query_dname_compare(d->rr_data[i]+2, 
+			/* the wireread function has already checked these
+			 * dname's for correctness, and this double checks */
+			if(!dname_valid(d->rr_data[i]+2, d->rr_len[i]-2) ||
+				!dname_valid(d->rr_data[j]+2, d->rr_len[j]-2))
+				return 0;
+			return query_dname_compare(d->rr_data[i]+2,
 				d->rr_data[j]+2);
 
 		/* These RR types have STR and fixed size rdata fields
@@ -1215,12 +1220,12 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 	 *
 	 * Use the smallest of these.
 	 */
-	if(d->ttl > (uint32_t)origttl) {
+	if(d->ttl > (time_t)origttl) {
 		verbose(VERB_QUERY, "rrset TTL larger than original TTL,"
 			" adjusting TTL downwards");
 		d->ttl = origttl;
 	}
-	if(expittl > 0 && d->ttl > (uint32_t)expittl) {
+	if(expittl > 0 && d->ttl > (time_t)expittl) {
 		verbose(VERB_ALGO, "rrset TTL larger than sig expiration ttl,"
 			" adjusting TTL downwards");
 		d->ttl = expittl;
@@ -1229,7 +1234,7 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 
 enum sec_status 
 dnskey_verify_rrset_sig(struct regional* region, ldns_buffer* buf, 
-	struct val_env* ve, uint32_t now,
+	struct val_env* ve, time_t now,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
         size_t dnskey_idx, size_t sig_idx,
 	struct rbtree_t** sortree, int* buf_canon, char** reason)

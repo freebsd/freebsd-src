@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
+.TH "unbound.conf" "5" "Sep 19, 2013" "NLnet Labs" "unbound 1.4.21"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -182,6 +182,11 @@ then a value of 1480 can fix it.  Setting to 512 bypasses even the most
 stringent path MTU problems, but is seen as extreme, since the amount
 of TCP fallback generated is excessive (probably also for this resolver,
 consider tuning the outgoing tcp number).
+.TP
+.B max\-udp\-size: \fI<number>
+Maximum UDP response size (not applied to TCP response).  65536 disables the
+udp response size maximum, and uses the choice from the client, always.
+Suggested values are 512 to 4096. Default is 4096. 
 .TP
 .B msg\-buffer\-size: \fI<number>
 Number of bytes size of the message buffers. Default is 65552 bytes, enough
@@ -492,7 +497,7 @@ unsigned to badly signed often. If turned off you run the risk of a
 downgrade attack that disables security for a zone. Default is on.
 .TP
 .B harden\-below\-nxdomain: \fI<yes or no>
-From draft-vixie-dnsext-resimprove, returns nxdomain to queries for a name
+From draft\-vixie\-dnsext\-resimprove, returns nxdomain to queries for a name
 below another name that is already known to be nxdomain.  DNSSEC mandates
 noerror for empty nonterminals, hence this is possible.  Very old software
 might return nxdomain for empty nonterminals (that usually happen for reverse

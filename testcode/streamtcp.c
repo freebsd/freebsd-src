@@ -121,9 +121,9 @@ write_q(int fd, int udp, SSL* ssl, ldns_buffer* buf, uint16_t id,
 		exit(1);
 	}
 	qinfo.qname = memdup(ldns_rdf_data(rdf), ldns_rdf_size(rdf));
+	if(!qinfo.qname) fatal_exit("out of memory");
 	(void)dname_count_size_labels(qinfo.qname, &qinfo.qname_len);
 	ldns_rdf_deep_free(rdf);
-	if(!qinfo.qname) fatal_exit("out of memory");
 
 	/* qtype and qclass */
 	qinfo.qtype = ldns_get_rr_type_by_name(strtype);

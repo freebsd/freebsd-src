@@ -349,13 +349,14 @@ provide_file_10(SSL* ssl, char* fname)
 		"rb"
 #endif
 		);
-	int r;
+	size_t r;
 	const char* rcode = "200 OK";
 	if(!in) {
 		char hdr[1024];
 		rcode = "404 File not found";
-		r = snprintf(hdr, sizeof(hdr), "HTTP/1.1 %s\r\n\r\n", rcode);
-		if(SSL_write(ssl, hdr, r) <= 0) {
+		snprintf(hdr, sizeof(hdr), "HTTP/1.1 %s\r\n\r\n", rcode);
+		r = strlen(hdr);
+		if(SSL_write(ssl, hdr, (int)r) <= 0) {
 			/* write failure */
 		}
 		return;
@@ -371,16 +372,20 @@ provide_file_10(SSL* ssl, char* fname)
 	}
 	avail = len+header_reserve;
 	at = buf;
-	r = snprintf(at, avail, "HTTP/1.1 %s\r\n", rcode);
+	snprintf(at, avail, "HTTP/1.1 %s\r\n", rcode);
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "Server: petal/%s\r\n", PACKAGE_VERSION);
+	snprintf(at, avail, "Server: petal/%s\r\n", PACKAGE_VERSION);
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "Content-Length: %u\r\n", (unsigned)len);
+	snprintf(at, avail, "Content-Length: %u\r\n", (unsigned)len);
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "\r\n");
+	snprintf(at, avail, "\r\n");
+	r = strlen(at);
 	at += r;
 	avail -= r;
 	if(avail < len) { /* robust */
@@ -409,7 +414,7 @@ provide_file_chunked(SSL* ssl, char* fname)
 	char buf[16384];
 	char* at = buf;
 	size_t avail = sizeof(buf);
-	int r;
+	size_t r;
 	FILE* in = fopen(fname, 
 #ifndef USE_WINSOCK
 		"r"
@@ -423,19 +428,24 @@ provide_file_chunked(SSL* ssl, char* fname)
 	}
 
 	/* print headers */
-	r = snprintf(at, avail, "HTTP/1.1 %s\r\n", rcode);
+	snprintf(at, avail, "HTTP/1.1 %s\r\n", rcode);
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "Server: petal/%s\r\n", PACKAGE_VERSION);
+	snprintf(at, avail, "Server: petal/%s\r\n", PACKAGE_VERSION);
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "Transfer-Encoding: chunked\r\n");
+	snprintf(at, avail, "Transfer-Encoding: chunked\r\n");
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "Connection: close\r\n");
+	snprintf(at, avail, "Connection: close\r\n");
+	r = strlen(at);
 	at += r;
 	avail -= r;
-	r = snprintf(at, avail, "\r\n");
+	snprintf(at, avail, "\r\n");
+	r = strlen(at);
 	at += r;
 	avail -= r;
 	if(avail < 16) { /* robust */
@@ -448,7 +458,8 @@ provide_file_chunked(SSL* ssl, char* fname)
 		/* read chunk; space-16 for xxxxCRLF..CRLF0CRLFCRLF (3 spare)*/
 		size_t red = in?fread(tmpbuf, 1, avail-16, in):0;
 		/* prepare chunk */
-		r = snprintf(at, avail, "%x\r\n", (unsigned)red);
+		snprintf(at, avail, "%x\r\n", (unsigned)red);
+		r = strlen(at);
 		if(verb >= 3)
 		{printf("chunk len %x\n", (unsigned)red); fflush(stdout);}
 		at += r;
@@ -458,17 +469,20 @@ provide_file_chunked(SSL* ssl, char* fname)
 			memmove(at, tmpbuf, red);
 			at += red;
 			avail -= red;
-			r = snprintf(at, avail, "\r\n");
+			snprintf(at, avail, "\r\n");
+			r = strlen(at);
 			at += r;
 			avail -= r;
 		}
 		if(in && feof(in) && red != 0) {
-			r = snprintf(at, avail, "0\r\n");
+			snprintf(at, avail, "0\r\n");
+			r = strlen(at);
 			at += r;
 			avail -= r;
 		}
 		if(!in || feof(in)) {
-			r = snprintf(at, avail, "\r\n");
+			snprintf(at, avail, "\r\n");
+			r = strlen(at);
 			at += r;
 			avail -= r;
 		}

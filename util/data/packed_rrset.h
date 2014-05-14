@@ -215,7 +215,7 @@ enum sec_status {
 struct packed_rrset_data {
 	/** TTL (in seconds like time()) of the rrset.
 	 * Same for all RRs see rfc2181(5.2).  */
-	uint32_t ttl;
+	time_t ttl;
 	/** number of rrs. */
 	size_t count;
 	/** number of rrsigs, if 0 no rrsigs */
@@ -227,7 +227,7 @@ struct packed_rrset_data {
 	/** length of every rr's rdata, rr_len[i] is size of rr_data[i]. */
 	size_t* rr_len;
 	/** ttl of every rr. rr_ttl[i] ttl of rr i. */
-	uint32_t *rr_ttl;
+	time_t *rr_ttl;
 	/** 
 	 * Array of pointers to every rr's rdata. 
 	 * The rr_data[i] rdata is stored in uncompressed wireformat. 
@@ -281,7 +281,7 @@ size_t packed_rrset_sizeof(struct packed_rrset_data* data);
  * @param key: rrset key, with data to examine.
  * @return ttl value.
  */
-uint32_t ub_packed_rrset_ttl(struct ub_packed_rrset_key* key);
+time_t ub_packed_rrset_ttl(struct ub_packed_rrset_key* key);
 
 /**
  * Calculate memory size of rrset entry. For hash table usage.
@@ -343,7 +343,7 @@ void packed_rrset_ptr_fixup(struct packed_rrset_data* data);
  * @param data: rrset data structure. Otherwise correctly filled in.
  * @param add: how many seconds to add, pass time(0) for example.
  */
-void packed_rrset_ttl_add(struct packed_rrset_data* data, uint32_t add);
+void packed_rrset_ttl_add(struct packed_rrset_data* data, time_t add);
 
 /**
  * Utility procedure to extract CNAME target name from its rdata.
@@ -392,7 +392,7 @@ void log_rrset_key(enum verbosity_value v, const char* str,
  */
 struct ub_packed_rrset_key* packed_rrset_copy_region(
 	struct ub_packed_rrset_key* key, struct regional* region, 
-	uint32_t now);
+	time_t now);
 
 /** 
  * Allocate rrset with malloc (from region or you are holding the lock).
@@ -403,7 +403,7 @@ struct ub_packed_rrset_key* packed_rrset_copy_region(
  */
 struct ub_packed_rrset_key* packed_rrset_copy_alloc(
 	struct ub_packed_rrset_key* key, struct alloc_cache* alloc, 
-	uint32_t now);
+	time_t now);
 
 /**
  * Create a ub_packed_rrset_key allocated on the heap.

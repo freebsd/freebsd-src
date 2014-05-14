@@ -129,7 +129,7 @@ struct event_base
 	/** if we need to exit */
 	int need_to_exit;
 	/** where to store time in seconds */
-	uint32_t* time_secs;
+	time_t* time_secs;
 	/** where to store time in microseconds */
 	struct timeval* time_tv;
 	/** 
@@ -194,7 +194,7 @@ struct event {
 };
 
 /** create event base */
-void *event_init(uint32_t* time_secs, struct timeval* time_tv);
+void *event_init(time_t* time_secs, struct timeval* time_tv);
 /** get version */
 const char *event_get_version(void);
 /** get polling method (select,epoll) */

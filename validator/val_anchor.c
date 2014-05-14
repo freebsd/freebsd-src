@@ -242,6 +242,8 @@ anchor_new_ta(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	}
 #ifdef UNBOUND_DEBUG
 	r =
+#else
+	(void)
 #endif
 	rbtree_insert(anchors->tree, &ta->node);
 	if(lockit) {
@@ -900,7 +902,7 @@ assemble_it(struct trust_anchor* ta, size_t num, uint16_t type)
 		free(pkey);
 		return NULL;
 	}
-	pd->rr_ttl = (uint32_t*)malloc(num*sizeof(uint32_t));
+	pd->rr_ttl = (time_t*)malloc(num*sizeof(time_t));
 	if(!pd->rr_ttl) {
 		free(pd->rr_len);
 		free(pd);

@@ -131,7 +131,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * 	but the query resolution can continue without cache storage.
  */
 void iter_dns_store(struct module_env* env, struct query_info* qinf,
-	struct reply_info* rep, int is_referral, uint32_t leeway, int pside,
+	struct reply_info* rep, int is_referral, time_t leeway, int pside,
 	struct regional* region);
 
 /**

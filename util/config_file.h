@@ -296,6 +296,9 @@ struct config_file {
 
 	/* RRSet roundrobin */
 	int rrset_roundrobin;
+
+	/* maximum UDP response size */
+	size_t max_udp_size;
 };
 
 /**
@@ -493,7 +496,7 @@ void config_delstubs(struct config_stub* list);
  * @param str: string of 14 digits
  * @return time value or 0 for error.
  */
-uint32_t cfg_convert_timeval(const char* str);
+time_t cfg_convert_timeval(const char* str);
 
 /**
  * Count number of values in the string.

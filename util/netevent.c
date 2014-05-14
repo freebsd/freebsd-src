@@ -122,7 +122,7 @@ struct internal_base {
 	/** libevent event_base type. */
 	struct event_base* base;
 	/** seconds time pointer points here */
-	uint32_t secs;
+	time_t secs;
 	/** timeval with current time */
 	struct timeval now;
 	/** the event used for slow_accept timeouts */
@@ -171,7 +171,7 @@ comm_base_now(struct comm_base* b)
 	if(gettimeofday(&b->eb->now, NULL) < 0) {
 		log_err("gettimeofday: %s", strerror(errno));
 	}
-	b->eb->secs = (uint32_t)b->eb->now.tv_sec;
+	b->eb->secs = (time_t)b->eb->now.tv_sec;
 }
 #endif /* USE_MINI_EVENT */
 
@@ -258,7 +258,7 @@ comm_base_delete(struct comm_base* b)
 }
 
 void 
-comm_base_timept(struct comm_base* b, uint32_t** tt, struct timeval** tv)
+comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv)
 {
 	*tt = &b->eb->secs;
 	*tv = &b->eb->now;
@@ -320,6 +320,10 @@ udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 			break;
 	}
 #endif
+	/* permission denied is gotten for every send if the
+	 * network is disconnected (on some OS), squelch it */
+	if(errno == EPERM && verbosity < VERB_DETAIL)
+		return 0;
 	/* squelch errors where people deploy AAAA ::ffff:bla for
 	 * authority servers, which we try for intranets. */
 	if(errno == EINVAL && addr_is_ip4mapped(

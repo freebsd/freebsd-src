@@ -486,7 +486,7 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
-		has_useful_ds = true;
+		has_useful_ds = 1;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
 			ds_rrset, i, reason);
@@ -596,7 +596,7 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
-		has_useful_ta = true;
+		has_useful_ta = 1;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
 			ta_ds, i, reason);
@@ -622,7 +622,7 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			continue;
 
 		/* we saw a useful TA */
-		has_useful_ta = true;
+		has_useful_ta = 1;
 
 		sec = dnskey_verify_rrset(env, ve, dnskey_rrset,
 			ta_dnskey, i, reason);
@@ -773,6 +773,8 @@ rrset_has_signer(struct ub_packed_rrset_key* rrset, uint8_t* name, size_t len)
 	for(i = d->count; i< d->count+d->rrsig_count; i++) {
 		if(d->rr_len[i] > 2+18+len) {
 			/* at least rdatalen + signature + signame (+1 sig)*/
+			if(!dname_valid(d->rr_data[i]+2+18, d->rr_len[i]-2-18))
+				continue;
 			if(query_dname_compare(name, d->rr_data[i]+2+18) == 0)
 			{
 				return 1;

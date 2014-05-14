@@ -225,7 +225,7 @@ lz_enter_zone(struct local_zones* zones, const char* name, const char* type,
 /** return name and class and rdata of rr; parses string */
 static int
 get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
-	uint16_t* dclass, uint32_t* ttl, ldns_buffer* rdata)
+	uint16_t* dclass, time_t* ttl, ldns_buffer* rdata)
 {
 	ldns_rr* rr = NULL;
 	ldns_status status = ldns_rr_new_frm_str(&rr, str, 3600, NULL, NULL);
@@ -244,7 +244,7 @@ get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
 	}
 	*dclass = ldns_rr_get_class(rr);
 	*type = ldns_rr_get_type(rr);
-	*ttl = (uint32_t)ldns_rr_ttl(rr);
+	*ttl = (time_t)ldns_rr_ttl(rr);
 	ldns_buffer_clear(rdata);
 	ldns_buffer_skip(rdata, 2);
 	status = ldns_rr_rdata2buffer_wire(rdata, rr);
@@ -356,10 +356,10 @@ new_local_rrset(struct regional* region, struct local_data* node,
 /** insert RR into RRset data structure; Wastes a couple of bytes */
 static int
 insert_rr(struct regional* region, struct packed_rrset_data* pd,
-	ldns_buffer* buf, uint32_t ttl)
+	ldns_buffer* buf, time_t ttl)
 {
 	size_t* oldlen = pd->rr_len;
-	uint32_t* oldttl = pd->rr_ttl;
+	time_t* oldttl = pd->rr_ttl;
 	uint8_t** olddata = pd->rr_data;
 
 	/* add RR to rrset */
@@ -450,7 +450,7 @@ lz_enter_rr_into_zone(struct local_zone* z, ldns_buffer* buf,
 	struct local_rrset* rrset;
 	struct packed_rrset_data* pd;
 	uint16_t rrtype = 0, rrclass = 0;
-	uint32_t ttl = 0;
+	time_t ttl = 0;
 	if(!get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, buf)) {
 		log_err("bad local-data: %s", rrstr);
 		return 0;

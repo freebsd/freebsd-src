@@ -71,7 +71,7 @@ struct delegpt* delegpt_copy(struct delegpt* dp, struct regional* region)
 	copy->bogus = dp->bogus;
 	copy->has_parent_side_NS = dp->has_parent_side_NS;
 	for(ns = dp->nslist; ns; ns = ns->next) {
-		if(!delegpt_add_ns(copy, region, ns->name, (int)ns->lame))
+		if(!delegpt_add_ns(copy, region, ns->name, ns->lame))
 			return NULL;
 		copy->nslist->resolved = ns->resolved;
 		copy->nslist->got4 = ns->got4;
@@ -98,7 +98,7 @@ delegpt_set_name(struct delegpt* dp, struct regional* region, uint8_t* name)
 
 int 
 delegpt_add_ns(struct delegpt* dp, struct regional* region, uint8_t* name,
-	int lame)
+	uint8_t lame)
 {
 	struct delegpt_ns* ns;
 	size_t len;
@@ -119,7 +119,7 @@ delegpt_add_ns(struct delegpt* dp, struct regional* region, uint8_t* name,
 	ns->resolved = 0;
 	ns->got4 = 0;
 	ns->got6 = 0;
-	ns->lame = (uint8_t)lame;
+	ns->lame = lame;
 	ns->done_pside4 = 0;
 	ns->done_pside6 = 0;
 	return ns->name != 0;
@@ -156,7 +156,7 @@ delegpt_find_addr(struct delegpt* dp, struct sockaddr_storage* addr,
 int 
 delegpt_add_target(struct delegpt* dp, struct regional* region, 
 	uint8_t* name, size_t namelen, struct sockaddr_storage* addr, 
-	socklen_t addrlen, int bogus, int lame)
+	socklen_t addrlen, uint8_t bogus, uint8_t lame)
 {
 	struct delegpt_ns* ns = delegpt_find_ns(dp, name, namelen);
 	log_assert(!dp->dp_type_mlc);
@@ -176,8 +176,8 @@ delegpt_add_target(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_addr(struct delegpt* dp, struct regional* region, 
-	struct sockaddr_storage* addr, socklen_t addrlen, int bogus, 
-	int lame)
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t bogus, 
+	uint8_t lame)
 {
 	struct delegpt_addr* a;
 	log_assert(!dp->dp_type_mlc);
@@ -204,6 +204,7 @@ delegpt_add_addr(struct delegpt* dp, struct regional* region,
 	a->attempts = 0;
 	a->bogus = bogus;
 	a->lame = lame;
+	a->dnsseclame = 0;
 	return 1;
 }
 
@@ -376,7 +377,7 @@ delegpt_from_message(struct dns_msg* msg, struct regional* region)
 
 int 
 delegpt_rrset_add_ns(struct delegpt* dp, struct regional* region,
-        struct ub_packed_rrset_key* ns_rrset, int lame)
+        struct ub_packed_rrset_key* ns_rrset, uint8_t lame)
 {
 	struct packed_rrset_data* nsdata = (struct packed_rrset_data*)
 		ns_rrset->entry.data;
@@ -398,7 +399,7 @@ delegpt_rrset_add_ns(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset_A(struct delegpt* dp, struct regional* region,
-	struct ub_packed_rrset_key* ak, int lame)
+	struct ub_packed_rrset_key* ak, uint8_t lame)
 {
         struct packed_rrset_data* d=(struct packed_rrset_data*)ak->entry.data;
         size_t i;
@@ -422,7 +423,7 @@ delegpt_add_rrset_A(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* region,
-	struct ub_packed_rrset_key* ak, int lame)
+	struct ub_packed_rrset_key* ak, uint8_t lame)
 {
         struct packed_rrset_data* d=(struct packed_rrset_data*)ak->entry.data;
         size_t i;
@@ -446,7 +447,7 @@ delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset(struct delegpt* dp, struct regional* region,
-        struct ub_packed_rrset_key* rrset, int lame)
+        struct ub_packed_rrset_key* rrset, uint8_t lame)
 {
 	if(!rrset)
 		return 1;
@@ -548,7 +549,7 @@ int delegpt_set_name_mlc(struct delegpt* dp, uint8_t* name)
 	return (dp->name != NULL);
 }
 
-int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, int lame)
+int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame)
 {
 	struct delegpt_ns* ns;
 	size_t len;
@@ -579,7 +580,7 @@ int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, int lame)
 }
 
 int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
-	socklen_t addrlen, int bogus, int lame)
+	socklen_t addrlen, uint8_t bogus, uint8_t lame)
 {
 	struct delegpt_addr* a;
 	log_assert(dp->dp_type_mlc);
@@ -605,11 +606,13 @@ int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
 	a->attempts = 0;
 	a->bogus = bogus;
 	a->lame = lame;
+	a->dnsseclame = 0;
 	return 1;
 }
 
 int delegpt_add_target_mlc(struct delegpt* dp, uint8_t* name, size_t namelen,
-	struct sockaddr_storage* addr, socklen_t addrlen, int bogus, int lame)
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t bogus,
+	uint8_t lame)
 {
 	struct delegpt_ns* ns = delegpt_find_ns(dp, name, namelen);
 	log_assert(dp->dp_type_mlc);

@@ -713,6 +713,8 @@ nsec3_hash_name(rbtree_t* table, struct regional* region, ldns_buffer* buf,
 		return r;
 #ifdef UNBOUND_DEBUG
 	n =
+#else
+	(void)
 #endif
 	rbtree_insert(table, &c->node);
 	log_assert(n); /* cannot be duplicate, just did lookup */

@@ -792,15 +792,15 @@ macro_expand(rbtree_t* store, struct replay_runtime* runtime, char** text)
 
 	/* check for functions */
 	if(strcmp(buf, "time") == 0) {
-		snprintf(buf, sizeof(buf), "%u", (unsigned)runtime->now_secs);
+		snprintf(buf, sizeof(buf), "%lld", (long long)runtime->now_secs);
 		*text += len;
 		return strdup(buf);
 	} else if(strcmp(buf, "timeout") == 0) {
-		uint32_t res = 0;
+		time_t res = 0;
 		struct fake_timer* t = first_timer(runtime);
-		if(t && (uint32_t)t->tv.tv_sec >= runtime->now_secs) 
-			res = (uint32_t)t->tv.tv_sec - runtime->now_secs;
-		snprintf(buf, sizeof(buf), "%u", (unsigned)res);
+		if(t && (time_t)t->tv.tv_sec >= runtime->now_secs) 
+			res = (time_t)t->tv.tv_sec - runtime->now_secs;
+		snprintf(buf, sizeof(buf), "%lld", (long long)res);
 		*text += len;
 		return strdup(buf);
 	} else if(strncmp(buf, "ctime ", 6) == 0 ||

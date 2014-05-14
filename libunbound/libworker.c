@@ -198,7 +198,10 @@ libworker_setup(struct ub_ctx* ctx, int is_bg)
 	}
 	numports = cfg_condense_ports(cfg, &ports);
 	if(numports == 0) {
+		int locked = !w->is_bg || w->is_bg_thread;
 		libworker_delete(w);
+		if(locked)
+			lock_basic_unlock(&ctx->cfglock);
 		return NULL;
 	}
 	w->back = outside_network_create(w->base, cfg->msg_buffer_size,
@@ -372,6 +375,11 @@ int libworker_bg(struct ub_ctx* ctx)
 			case -1:
 				return UB_FORKFAIL;
 			default:
+				/* close non-used parts, so that the worker
+				 * bgprocess gets 'pipe closed' when the
+				 * main process exits */
+				tube_close_read(ctx->qq_pipe);
+				tube_close_write(ctx->rr_pipe);
 				break;
 		}
 #endif /* HAVE_FORK */ 

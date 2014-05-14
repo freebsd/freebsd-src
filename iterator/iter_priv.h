@@ -92,6 +92,8 @@ int priv_apply_cfg(struct iter_priv* priv, struct config_file* cfg);
 
 /**
  * See if rrset is bad.
+ * Will remove individual RRs that are bad (if possible) to
+ * sanitize the RRset without removing it completely.
  * @param priv: structure for private address storage.
  * @param pkt: packet to decompress rrset name in.
  * @param rrset: the rrset to examine, A or AAAA.

@@ -30,6 +30,9 @@ PYTHONMOD_INSTALL=@PYTHONMOD_INSTALL@
 PYTHONMOD_UNINSTALL=@PYTHONMOD_UNINSTALL@
 PYUNBOUND_INSTALL=@PYUNBOUND_INSTALL@
 PYUNBOUND_UNINSTALL=@PYUNBOUND_UNINSTALL@
+UNBOUND_VERSION_MAJOR=@UNBOUND_VERSION_MAJOR@
+UNBOUND_VERSION_MINOR=@UNBOUND_VERSION_MINOR@
+UNBOUND_VERSION_MICRO=@UNBOUND_VERSION_MICRO@
 ALLTARGET=@ALLTARGET@
 
 # _unbound.la if pyunbound enabled.
@@ -275,7 +278,7 @@ test:	unittest$(EXEEXT) testbound$(EXEEXT)
 longtest:	tests
 	if test -x "`which bash`"; then bash testcode/do-tests.sh; else sh testcode/do-tests.sh; fi
 
-lib:	libunbound.la
+lib:	libunbound.la unbound.h
 
 libunbound.la:	$(LIBUNBOUND_OBJ_LINK)
 	$(LINK_LIB) $(UBSYMS) -o $@ $(LIBUNBOUND_OBJ_LINK) -rpath $(libdir) -lssl $(LIBS)
@@ -340,6 +343,9 @@ delayer$(EXEEXT):	$(DELAYER_OBJ_LINK)
 harvest$(EXEEXT):	$(HARVEST_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(HARVEST_OBJ_LINK) $(LIBS) -L. -L.libs -lunbound
 
+unbound.h:	$(srcdir)/libunbound/unbound.h
+	sed -e 's/@''UNBOUND_VERSION_MAJOR@/$(UNBOUND_VERSION_MAJOR)/' -e 's/@''UNBOUND_VERSION_MINOR@/$(UNBOUND_VERSION_MINOR)/' -e 's/@''UNBOUND_VERSION_MICRO@/$(UNBOUND_VERSION_MICRO)/' < $(srcdir)/libunbound/unbound.h > $@
+
 unbound-control-setup:	$(srcdir)/smallapp/unbound-control-setup.sh
 	sed -e 's:^DESTDIR=.*$$:DESTDIR=$(UNBOUND_RUN_DIR):' < $(srcdir)/smallapp/unbound-control-setup.sh > $@
 	-chmod +x $@
@@ -367,8 +373,8 @@ pythonmod/interface.h:	$(srcdir)/pythonmod/interface.i config.h
 	$(SWIG) $(CPPFLAGS) -o $@ -python $(srcdir)/pythonmod/interface.i
 
 libunbound_wrap.lo libunbound_wrap.o: libunbound/python/libunbound_wrap.c \
-	$(srcdir)/libunbound/unbound.h
-libunbound/python/libunbound_wrap.c:	$(srcdir)/libunbound/python/libunbound.i $(srcdir)/libunbound/unbound.h
+	unbound.h
+libunbound/python/libunbound_wrap.c:	$(srcdir)/libunbound/python/libunbound.i unbound.h
 	@-if test ! -d libunbound/python; then $(INSTALL) -d libunbound/python; fi
 	$(SWIG) -python -o $@ $(CPPFLAGS) $(srcdir)/libunbound/python/libunbound.i
 
@@ -391,7 +397,7 @@ util/configparser.c util/configparser.h:  $(srcdir)/util/configparser.y
 
 clean:
 	rm -f *.o *.d *.lo *~ tags
-	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la
+	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la unbound.h
 	rm -f $(ALL_SRC:.c=.lint)
 	rm -f _unbound.la libunbound/python/libunbound_wrap.c libunbound/python/unbound.py pythonmod/interface.h pythonmod/unboundmodule.py
 	rm -rf autom4te.cache .libs build doc/html doc/xml
@@ -466,6 +472,7 @@ install:	all $(PYTHONMOD_INSTALL) $(PYUNBOUND_INSTALL)
 	$(INSTALL) -c -m 644 doc/unbound.8 $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -c -m 644 doc/unbound-checkconf.8 $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -c -m 644 doc/unbound-control.8 $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -c -m 644 doc/unbound-control.8 $(DESTDIR)$(mandir)/man8/unbound-control-setup.8
 	$(INSTALL) -c -m 644 doc/unbound-anchor.8 $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -c -m 644 doc/unbound.conf.5 $(DESTDIR)$(mandir)/man5
 	$(INSTALL) -c -m 644 $(srcdir)/doc/unbound-host.1 $(DESTDIR)$(mandir)/man1
@@ -482,7 +489,7 @@ install:	all $(PYTHONMOD_INSTALL) $(PYUNBOUND_INSTALL)
 	done
 	$(INSTALL) -c -m 755 unbound-control-setup $(DESTDIR)$(sbindir)/unbound-control-setup
 	if test ! -e $(DESTDIR)$(configfile); then $(INSTALL) -d `dirname $(DESTDIR)$(configfile)`; $(INSTALL) -c -m 644 doc/example.conf $(DESTDIR)$(configfile); fi
-	$(LIBTOOL) --mode=install cp $(srcdir)/libunbound/unbound.h $(DESTDIR)$(includedir)/unbound.h
+	$(LIBTOOL) --mode=install cp unbound.h $(DESTDIR)$(includedir)/unbound.h
 	$(LIBTOOL) --mode=install cp libunbound.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
@@ -495,7 +502,7 @@ pyunbound-uninstall:
 
 uninstall:	$(PYTHONMOD_UNINSTALL) $(PYUNBOUND_UNINSTALL)
 	rm -f -- $(DESTDIR)$(sbindir)/unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-host$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-anchor$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control-setup
-	rm -f -- $(DESTDIR)$(mandir)/man8/unbound.8 $(DESTDIR)$(mandir)/man8/unbound-checkconf.8 $(DESTDIR)$(mandir)/man5/unbound.conf.5 $(DESTDIR)$(mandir)/man8/unbound-control.8 $(DESTDIR)$(mandir)/man8/unbound-anchor.8
+	rm -f -- $(DESTDIR)$(mandir)/man8/unbound.8 $(DESTDIR)$(mandir)/man8/unbound-checkconf.8 $(DESTDIR)$(mandir)/man5/unbound.conf.5 $(DESTDIR)$(mandir)/man8/unbound-control.8 $(DESTDIR)$(mandir)/man8/unbound-anchor.8 $(DESTDIR)$(mandir)/man8/unbound-control-setup.8
 	rm -f -- $(DESTDIR)$(mandir)/man1/unbound-host.1 $(DESTDIR)$(mandir)/man3/libunbound.3
 	for mpage in ub_ctx ub_result ub_ctx_create ub_ctx_delete \
 		ub_ctx_set_option ub_ctx_get_option ub_ctx_config ub_ctx_set_fwd \

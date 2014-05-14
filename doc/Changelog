@@ -1,5 +1,158 @@
+16 Sep 2013: Wouter
+	- Fix#524: max-udp-size not effective to non-EDNS0 queries, from
+	  Daisuke HIGASHI.
+
+10 Sep 2013: Wouter
+	- MIN_TTL and MAX_TTL also in time_t.
+	- tag 1.4.21rc1 made again.
+
+26 Aug 2013: Wouter
+	- More fixes for bug#519: for the threaded case test if the bg
+	  thread has been killed, on ub_ctx_delete, to avoid hangs.
+
+22 Aug 2013: Wouter
+	- more fixes that I overlooked.
+	- review fixes from Willem.
+
+21 Aug 2013: Wouter
+	- Fix#520: Errors found by static analysis from Tomas Hozza(redhat).
+
+20 Aug 2013: Wouter
+	- Fix for 2038, with time_t instead of uint32_t.
+
+19 Aug 2013: Wouter
+	- Fix#519 ub_ctx_delete may hang in some scenarios (libunbound).
+
+14 Aug 2013: Wouter
+	- Fix uninit variable in fix#516.
+
+8 Aug 2013: Wouter
+	- Fix#516 dnssec lameness detection for answers that are improper.
+
+30 Jun 2013: Wouter
+	- tag 1.4.21rc1
+
+29 Jun 2013: Wouter
+	- Fix#512 memleak in testcode for testbound (if it fails).
+	- Fix#512 NSS returned arrays out of setup function to be statics.
+
+26 Jun 2013: Wouter
+	- max include of 100.000 files (depth and globbed at one time).
+	  This is to preserve system memory in bug cases, or endless cases.
+	- iana portlist updated.
+
+19 Jun 2013: Wouter
+	- streamtcp man page, contributed by Tomas Hozza.
+	- iana portlist updated.
+	- libunbound documentation on how to avoid openssl race conditions.
+
+25 Jun 2013: Wouter
+	- Squelch sendto-permission denied errors when the network is
+	  not connected, to avoid spamming syslog.
+	- configure --disable-flto option (from Robert Edmonds).
+
+18 Jun 2013: Wouter
+	- Fix for const string literals in C++ for libunbound, from Karel
+	  Slany.
+	- iana portlist updated.
+
+17 Jun 2013: Wouter
+	- Fixup manpage syntax.
+
+14 Jun 2013: Wouter
+	- get_option and set_option support for log-time-ascii, python-script
+	  val-sig-skew-min and val-sig-skew-max.  log-time-ascii takes effect
+	  immediately.  The others are mostly useful for libunbound users.
+
+13 Jun 2013: Wouter
+	- get_option, set_option, unbound-checkconf -o and libunbound
+	  getoption and setoption support cache-min-ttl and cache-max-ttl.
+
+10 Jun 2013: Wouter
+	- Fix#501: forward-first does not recurse, when forward name is ".".
+	- iana portlist update.
+	- Max include depth is unlimited.
+
+27 May 2013: Wouter
+	- Update acx_pthreads.m4 to ax_pthreads.4 (2013-03-29), and apply
+	  patch to it to not fail when -Werror is also specified, from the
+	  autoconf-archives.
+	- iana portlist update.
+
+21 May 2013: Wouter
+	- Explain bogus and secure flags in libunbound more.
+
+16 May 2013: Wouter
+	- Fix#499 use-after-free in out-of-memory handling code (thanks Jake
+	  Montgomery).
+	- Fix#500 use on non-initialised values on socket bind failures.
+
+15 May 2013: Wouter
+	- Fix round-robin doesn't work with some Windows clients (from Ilya
+	  Bakulin).
+
+3 May 2013: Wouter
+	- update acx_nlnetlabs.m4 to v23, sleep w32 fix.
+
+26 April 2013: Wouter
+	- add unbound-control insecure_add and insecure_remove for the
+	  administration of negative trust anchors.
+
+25 April 2013: Wouter
+	- Implement max-udp-size config option, default 4096 (thanks
+	  Daisuke Higashi).
+	- Robust checks on dname validity from rdata for dname compare.
+	- updated iana portlist.
+
+19 April 2013: Wouter
+	- Fixup snprintf return value usage, fixed libunbound_get_option.
+
+18 April 2013: Wouter
+	- fix bug #491: pick program name (0th argument) as syslog identity.
+	- own implementation of compat/snprintf.c.
+
+15 April 2013: Wouter
+	- Fix so that for a configuration line of include: "*.conf" it is not
+	  an error if there are no files matching the glob pattern.
+	- unbound-anchor review: BIO_write can return 0 successfully if it
+	  has successfully appended a zero length string.
+
+11 April 2013: Wouter
+	- Fix queries leaking up for stubs and forwards, if the configured
+	  nameservers all fail to answer.
+
+10 April 2013: Wouter
+	- code improve for minimal responses, small speed increase.
+
+9 April 2013: Wouter
+	- updated iana portlist.
+	- Fix crash in previous private address fixup of 22 March.
+
+28 March 2013: Wouter
+	- Make reverse zones easier by documenting the nodefault statements
+	  commented-out in the example config file.
+
+26 March 2013: Wouter
+	- more fixes to lookup3.c endianness detection.
+
+25 March 2013: Wouter
+	- #492: Fix endianness detection, revert to older lookup3.c detection
+	  and put new detect lines after previous tests, to avoid regressions
+	  but allow new detections to succeed.
+	  And add detection for machine/endian.h to it.
+
+22 March 2013: Wouter
+	- Fix resolve of names that use a mix of public and private addresses.
+	- iana portlist update.
+	- Fix makedist for new svn for -d option.
+	- unbound.h header file has UNBOUND_VERSION_MAJOR define.
+	- Fix windows RSRC version for long version numbers.
+
 21 March 2013: Wouter
 	- release 1.4.20
+	- trunk has 1.4.21
+	- committed libunbound version 4:1:2 for binary API updated in 1.4.20
+	- install copy of unbound-control.8 man page for unbound-control-setup
 
 14 March 2013: Wouter
 	- iana portlist update.

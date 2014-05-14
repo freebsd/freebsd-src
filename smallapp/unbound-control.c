@@ -106,6 +106,8 @@ usage()
 	printf("  list_forwards			list forward-zones in use\n");
 	printf("  list_local_zones		list local-zones in use\n");
 	printf("  list_local_data		list local-data RRs in use\n");
+	printf("  insecure_add zone 		add domain-insecure zone\n");
+	printf("  insecure_remove zone		remove domain-insecure zone\n");
 	printf("  forward_add [+i] zone addr..	add forward-zone with servers\n");
 	printf("  forward_remove [+i] zone	remove forward zone\n");
 	printf("  stub_add [+ip] zone addr..	add stub-zone with servers\n");

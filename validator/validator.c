@@ -2398,7 +2398,7 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 		subtype == VAL_CLASS_NAMEERROR) {
 		/* NODATA means that the qname exists, but that there was 
 		 * no DS.  This is a pretty normal case. */
-		uint32_t proof_ttl = 0;
+		time_t proof_ttl = 0;
 		enum sec_status sec;
 
 		/* make sure there are NSECs or NSEC3s with signatures */

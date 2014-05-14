@@ -186,7 +186,7 @@ struct module_env {
 	/** random table to generate random numbers */
 	struct ub_randstate* rnd;
 	/** time in seconds, converted to integer */
-	uint32_t* now;
+	time_t* now;
 	/** time in microseconds. Relatively recent. */
 	struct timeval* now_tv;
 	/** is validation required for messages, controls client-facing
@@ -309,7 +309,7 @@ struct module_qstate {
 	/** mesh related information for this query */
 	struct mesh_state* mesh_info;
 	/** how many seconds before expiry is this prefetched (0 if not) */
-	uint32_t prefetch_leeway;
+	time_t prefetch_leeway;
 };
 
 /** 

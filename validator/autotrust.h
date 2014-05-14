@@ -104,9 +104,9 @@ struct autr_point_data {
 	time_t next_probe_time;
 
 	/** when to query if !failed */
-	uint32_t query_interval;
+	time_t query_interval;
 	/** when to retry if failed */
-	uint32_t retry_time;
+	time_t retry_time;
 
 	/** 
 	 * How many times did it fail. diagnostic only (has no effect).
@@ -151,7 +151,7 @@ size_t autr_get_num_anchors(struct val_anchors* anchors);
  * @return time of next probe (in seconds from now).
  * 	If 0, then there is no next probe anymore (trust points deleted).
  */
-uint32_t autr_probe_timer(struct module_env* env);
+time_t autr_probe_timer(struct module_env* env);
 
 /** probe tree compare function */
 int probetree_cmp(const void* x, const void* y);

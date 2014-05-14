@@ -106,7 +106,7 @@ void key_cache_remove(struct key_cache* kcache,
  */
 struct key_entry_key* key_cache_obtain(struct key_cache* kcache,
 	uint8_t* name, size_t namelen, uint16_t key_class, 
-	struct regional* region, uint32_t now);
+	struct regional* region, time_t now);
 
 /**
  * Get memory in use by the key cache.
