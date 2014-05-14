@@ -1147,7 +1147,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GPROC0_SEL	9 Proc 0 Tss Descriptor */
 {	.ssd_base = 0x0,
-	.ssd_limit = sizeof(struct amd64tss) + IOPAGES * PAGE_SIZE - 1,
+	.ssd_limit = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE - 1,
 	.ssd_type = SDT_SYSTSS,
 	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
@@ -2003,8 +2003,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	common_tss[0].tss_ist2 = (long) np;
 
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
-	common_tss[0].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
