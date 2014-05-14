@@ -207,7 +207,8 @@ static phandle_t
 ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
 
-	return (-1);
+	/* Where real OF uses ihandles in the tree, FDT uses xref phandles */
+	return (OF_xref_phandle(instance));
 }
 
 /* Get the length of a property of a package. */
@@ -266,8 +267,10 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 }
 
 /*
- * Get the next property of a package. Return the actual len of retrieved
- * prop name.
+ * Get the next property of a package. Return values:
+ *  -1: package or previous property does not exist
+ *   0: no more properties
+ *   1: success
  */
 static int
 ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
@@ -309,7 +312,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 
 	strncpy(buf, fdt_string(fdtp, fdt32_to_cpu(prop->nameoff)), size);
 
-	return (strlen(buf));
+	return (1);
 }
 
 /* Set the value of a property of a package. */
@@ -350,8 +353,13 @@ ofw_fdt_finddevice(ofw_t ofw, const char *device)
 static ssize_t
 ofw_fdt_instance_to_path(ofw_t ofw, ihandle_t instance, char *buf, size_t len)
 {
+	phandle_t phandle;
 
-	return (-1);
+	phandle = OF_instance_to_package(instance);
+	if (phandle == -1)
+		return (-1);
+
+	return (OF_package_to_path(phandle, buf, len));
 }
 
 /* Return the fully qualified pathname corresponding to a package. */
