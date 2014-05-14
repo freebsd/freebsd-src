@@ -92,7 +92,7 @@ ar71xx_wdog_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Atheros AR71XX watchdog timer");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void

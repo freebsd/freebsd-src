@@ -190,7 +190,7 @@ static void iodi_identify(driver_t *, device_t);
 int
 iodi_probe(device_t dev)
 {
-	return 0;
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 void

@@ -315,7 +315,7 @@ clock_probe(device_t dev)
 		panic("can't attach more clocks");
 
 	device_set_desc(dev, "Generic MIPS32 ticker");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
