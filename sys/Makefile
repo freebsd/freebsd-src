@@ -47,6 +47,25 @@ ${.CURDIR}/cscope.files: .PHONY
 cscope-clean:
 	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
 
+#
+# Installs SCM hooks to update the cscope database every time the source tree
+# is updated.
+# cscope understands incremental updates, so it's considerably faster when only
+# a few files have changed.
+#
+HG_DIR=${.CURDIR}/../.hg
+HG_HOOK=if [ \$$HG_ERROR -eq 0 ]; then cd sys && make -m ../share/mk cscope; fi
+cscope-hook:
+	@if [ -d ${HG_DIR} ]; then 					\
+		if [ "`grep hooks ${HG_DIR}/hgrc`" = "" ]; then		\
+			echo "[hooks]" >> ${HG_DIR}/hgrc;		\
+			echo "update = ${HG_HOOK}" >> ${HG_DIR}/hgrc;	\
+			echo "Hook installed in ${HG_DIR}/hgrc";	\
+		else 							\
+			echo "Mercurial update hook already exists.";	\
+		fi;							\
+	fi
+
 # You need the devel/global and one of editor/emacs* ports for that.
 TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
 	rm -f ${.CURDIR}/TAGS
