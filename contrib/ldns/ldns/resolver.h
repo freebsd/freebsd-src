@@ -740,6 +740,12 @@ void ldns_resolver_deep_free(ldns_resolver *res);
 ldns_rr* ldns_axfr_next(ldns_resolver *resolver);
 
 /**
+ * Abort a transfer that is in progress
+ * \param[in] resolver the resolver that is used
+ */
+void ldns_axfr_abort(ldns_resolver *resolver);
+
+/**
  * Returns true if the axfr transfer has completed (i.e. 2 SOA RRs and no errors were encountered
  * \param[in] resolver the resolver that is used
  * \return bool true if axfr transfer was completed without error
