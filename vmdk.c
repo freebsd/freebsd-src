@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 
+#define	VMDK_MIN_GRAIN_SIZE	8192
+#define	VMDK_SECTOR_SIZE	512
+
 struct vmdk_header {
 	uint32_t	magic;
 #define	VMDK_MAGIC		0x564d444b
@@ -61,7 +64,7 @@ struct vmdk_header {
 	uint64_t	gd_offset;
 	uint64_t	overhead;
 	uint8_t		unclean;
-	uint8_t		nl_test[4];
+	uint32_t	nl_test;
 #define	VMDK_NL_TEST		0x0a200d0a
 	uint16_t	compress;
 #define	VMDK_COMPRESS_NONE	0
@@ -84,60 +87,95 @@ static const char desc_fmt[] =
     "ddb.geometry.heads = \"%u\"\n"
     "ddb.geometry.sectors = \"%u\"\n";
 
-static int
-vmdk_resize(lba_t imgsz __unused)
-{
+static uint64_t grainsz;
 
-	/*
-	 * Caulculate optimal grain size and round image size to
-	 * a multiple of the grain size.
-	 */
-	return (ENOSYS);
+static int
+vmdk_resize(lba_t imgsz)
+{
+	uint64_t imagesz;
+
+	imagesz = imgsz * secsz;
+	grainsz = (blksz < VMDK_MIN_GRAIN_SIZE) ? VMDK_MIN_GRAIN_SIZE : blksz;
+	imagesz = (imagesz + grainsz - 1) & ~(grainsz - 1);
+
+	if (verbose)
+		fprintf(stderr, "VMDK: image size = %ju, grain size = %ju\n",
+		    (uintmax_t)imagesz, (uintmax_t)grainsz);
+
+	grainsz /= VMDK_SECTOR_SIZE;
+	return (image_set_size(imagesz / secsz));
 }
 
 static int
-vmdk_write(int fd __unused)
+vmdk_write(int fd)
 {
+	struct vmdk_header hdr;
+	uint32_t *gt, *gd;
 	char *desc;
-	lba_t imgsz;
-	int desc_len;
+	uint64_t imagesz;
+	size_t gdsz, gtsz;
+	uint32_t sec;
+	int desc_len, n, ngrains, ngts;
 
-	imgsz = image_get_size();
-	desc_len = asprintf(&desc, desc_fmt, 1 /*version*/, 0 /*CID*/,
-	    (uintmax_t)imgsz /*size*/, "mkimg.vmdk" /*name*/,
+	imagesz = (image_get_size() * secsz) / VMDK_SECTOR_SIZE;
+
+	memset(&hdr, 0, sizeof(hdr));
+	le32enc(&hdr.magic, VMDK_MAGIC);
+	le32enc(&hdr.version, VMDK_VERSION);
+	le32enc(&hdr.flags, VMDK_FLAGS_NL_TEST | VMDK_FLAGS_RGT_USED);
+	le64enc(&hdr.capacity, imagesz);
+	le64enc(&hdr.grain_size, grainsz);
+
+	n = asprintf(&desc, desc_fmt, 1 /*version*/, 0 /*CID*/,
+	    (uintmax_t)imagesz /*size*/, "" /*name*/,
 	    ncyls /*cylinders*/, nheads /*heads*/, nsecs /*sectors*/);
-	desc_len = (desc_len + 512 - 1) & ~(512 - 1);
+	desc_len = (n + VMDK_SECTOR_SIZE - 1) & ~(VMDK_SECTOR_SIZE - 1);
 	desc = realloc(desc, desc_len);
+	memset(desc + n, 0, desc_len - n);
 
-	/*
-	 * Steps:
-	 * 1. create embedded descriptor. We need to know its size upfront.
-	 * 2. create and populate grain directory and tables. This means
-	 *    iterating over the written sectors of the image.
-	 * 3. (optional) create and populate redundant directory and
-	 *    tables while doing step 2.
-	 * 4. create and write header (512 bytes)
-	 * 5. write descriptor (# x 512 bytes)
-	 * 6. write grain directory and tables (# x 512 bytes)
-	 * 7. (optional) write redundant directory and tables (# x 512 bytes)
-	 * 8. align to grain size.
-	 * 9. create and write grains.
-	 *
-	 * Notes:
-	 * 1. The drain directory is being ignored by some implementations
-	 *    so the tables must be at their known/assumed offsets.
-	 * 2. Default grain size is 128 sectors (= 64KB).
-	 * 3. There are 512 entries in a table, each entry being 32-bits.
-	 *    Thus, a grain table is 2KB (= 4 sectors).
-	 * 4. Each grain table covers 512 * 128 sectors (= 64K sectors).
-	 *    With 512-bytes per sector, this yields 32MB of disk data.
-	 * 5. For smaller images, the grain size can be reduced to avoid
-	 *    rounding the output file to 32MB. The minimum grain size is
-	 *    8 sectors (= 4KB). The smallest VMDK file is 2MB without
-	 *    overhead (= metadata).
-	 * 6. The capacity is a multiple of the grain size.
-	 */
-	return (ENOSYS);
+	le64enc(&hdr.desc_offset, 1);
+	le64enc(&hdr.desc_size, desc_len / VMDK_SECTOR_SIZE);
+	le32enc(&hdr.ngtes, VMDK_NGTES);
+
+	sec = desc_len / VMDK_SECTOR_SIZE + 1;
+	le64enc(&hdr.rgd_offset, sec);
+	le64enc(&hdr.gd_offset, sec);
+
+	ngrains = imagesz / grainsz;
+	ngts = (ngrains + VMDK_NGTES - 1) / VMDK_NGTES;
+	gdsz = (ngts * sizeof(uint32_t) + VMDK_SECTOR_SIZE - 1) &
+	    ~(VMDK_SECTOR_SIZE - 1);
+	gd = malloc(gdsz);
+	memset(gd, 0, gdsz);
+
+	sec += gdsz / VMDK_SECTOR_SIZE;
+	for (n = 0; n < ngts; n++) {
+		le32enc(gd + n, sec);
+		sec += VMDK_NGTES * sizeof(uint32_t) / VMDK_SECTOR_SIZE;
+	}
+
+	sec = (sec + grainsz - 1) & ~(grainsz - 1);
+
+	if (verbose)
+		fprintf(stderr, "VMDK: overhead = %ju\n",
+		    (uintmax_t)(sec * VMDK_SECTOR_SIZE));
+
+	le64enc(&hdr.overhead, sec);
+	be32enc(&hdr.nl_test, VMDK_NL_TEST);
+
+	gtsz = ngts * VMDK_NGTES * sizeof(uint32_t);
+	gt = malloc(gtsz);
+	memset(gt, 0, gtsz);
+
+	for (n = 0; n < ngrains; n++)
+		le32enc(gt + n, sec + n * grainsz);
+
+	write(fd, &hdr, VMDK_SECTOR_SIZE);
+	write(fd, desc, desc_len);
+	write(fd, gd, gdsz);
+	write(fd, gt, gtsz);
+	lseek(fd, sec * VMDK_SECTOR_SIZE, SEEK_SET);
+	return (image_copyout(fd));
 }
 
 static struct mkimg_format vmdk_format = {
