@@ -241,15 +241,15 @@ name:
 #ifdef _ARM_ARCH_6
 #define	AST_LOCALS
 #define GET_CURTHREAD_PTR(tmp) \
-	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURTHREAD)
+    	mrc	p15, 0, tmp, c13, c0, 4
 #else
 #define	AST_LOCALS							;\
 .Lcurthread:								;\
 	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
 
 #define GET_CURTHREAD_PTR(tmp) \
-	ldr	tmp, .Lcurthread
+	ldr	tmp, .Lcurthread;     \
+	ldr	tmp, [tmp]
 #endif
 
 #define	DO_AST								\
@@ -262,7 +262,6 @@ name:
 	bne	2f			/* Nope, get out now */		;\
 	bic	r4, r4, #(I32_bit|F32_bit)				;\
 1:	GET_CURTHREAD_PTR(r5)						;\
-	ldr	r5, [r5]						;\
 	ldr	r1, [r5, #(TD_FLAGS)]					;\
 	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
 	teq	r1, #0x00000000						;\

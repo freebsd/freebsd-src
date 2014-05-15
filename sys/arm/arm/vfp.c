@@ -140,9 +140,11 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	u_int fpexc;
 	struct pcb *curpcb;
 	struct thread *vfptd;
+	int i;
 
 	if (!vfp_exists)
 		return 1;		/* vfp does not exist */
+	i = disable_interrupts(I32_bit|F32_bit);
 	fpexc = fmrx(VFPEXC);		/* read the vfp exception reg */
 	if (fpexc & VFPEXC_EN) {
 		vfptd = PCPU_GET(vfpcthread);
@@ -164,6 +166,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 		fmxr(VFPEXC, fpexc);	/* turn vfp hardware off */
 		if (vfptd == curthread) {
 			/* kill the process - we do not handle emulation */
+			restore_interrupts(i);
 			killproc(curthread->td_proc, "vfp emulation");
 			return 1;
 		}
@@ -173,7 +176,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	}
 	fpexc |= VFPEXC_EN;
 	fmxr(VFPEXC, fpexc);	/* enable the vfp and repeat command */
-	curpcb = PCPU_GET(curpcb);
+	curpcb = curthread->td_pcb;
 	/* If we were the last process to use the VFP, the process did not
 	 * use a VFP on another processor, then the registers in the VFP
 	 * will still be ours and are current. Eventually, we will make the
@@ -183,7 +186,8 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 #ifdef SMP
 	curpcb->pcb_vfpcpu = PCPU_GET(cpu);
 #endif
-	PCPU_SET(vfpcthread, PCPU_GET(curthread));
+	PCPU_SET(vfpcthread, curthread);
+	restore_interrupts(i);
 	return 0;
 }
 
@@ -218,7 +222,6 @@ vfp_restore(struct vfp_state *vfpsave)
 			"ldr	%0, [%1]\n"		/* set old vfpscr */
 			"mcr	p10, 7, %0, cr1, c0, 0\n"
 			: "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
-		PCPU_SET(vfpcthread, PCPU_GET(curthread));
 	}
 }
 
@@ -237,7 +240,7 @@ vfp_store(struct vfp_state *vfpsave)
 	u_int tmp, vfpscr = 0;
 
 	tmp = fmrx(VFPEXC);		/* Is the vfp enabled? */
-	if (vfpsave && tmp & VFPEXC_EN) {
+	if (vfpsave && (tmp & VFPEXC_EN)) {
 		__asm __volatile("stc	p11, c0, [%1], #128\n" /* d0-d15 */
 			"cmp	%2, #0\n"		/* -D16 or -D32? */
 			stclne"	p11, c0, [%1], #128\n"	/* d16-d31 */
@@ -265,6 +268,12 @@ vfp_discard()
 {
 	u_int tmp = 0;
 
+	/*
+	 * No need to protect the access to vfpcthread by disabling
+	 * interrupts, since it's called from cpu_throw(), who is called
+	 * with interrupts disabled.
+	 */
+	  
 	PCPU_SET(vfpcthread, 0);	/* permanent forget about reg */
 	tmp = fmrx(VFPEXC);
 	tmp &= ~VFPEXC_EN;		/* turn off VFP hardware */
