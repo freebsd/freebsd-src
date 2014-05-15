@@ -157,6 +157,9 @@ sdhci_fdt_probe(device_t dev)
 	sc->quirks = 0;
 	sc->num_slots = 1;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "sdhci_generic")) {
 		device_set_desc(dev, "generic fdt SDHCI controller");
 	} else if (ofw_bus_is_compatible(dev, "xlnx,zy7_sdhci")) {

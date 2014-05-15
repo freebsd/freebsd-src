@@ -86,6 +86,9 @@ static int
 bcmwd_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-wdt")) {
 		device_set_desc(dev, "BCM2708/2835 Watchdog");
 		return (BUS_PROBE_DEFAULT);

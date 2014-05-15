@@ -184,6 +184,9 @@ static int
 sp804_timer_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "arm,sp804")) {
 		device_set_desc(dev, "SP804 System Timer");
 		return (BUS_PROBE_DEFAULT);

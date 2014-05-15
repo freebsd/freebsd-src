@@ -129,6 +129,9 @@ static int
 arm_gic_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,gic"))
 		return (ENXIO);
 	device_set_desc(dev, "ARM Generic Interrupt Controller");
