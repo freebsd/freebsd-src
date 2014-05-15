@@ -144,9 +144,15 @@ disable_mmu:
 	nop
 	mov	pc, r7
 Lunmapped:
-#ifdef STARTUP_PAGETABLE_ADDR
-	/* build page table from scratch */
-	ldr	r0, Lstartup_pagetable
+	/*
+	 * Build page table from scratch.
+	 */
+
+	/* Load the page tables physical address */
+	ldr	r1, Lstartup_pagetable
+	ldr	r2, =(KERNVIRTADDR - KERNPHYSADDR)
+	sub	r0, r1, r2
+
 	adr	r4, mmu_init_table
 	b	3f
 
@@ -197,7 +203,6 @@ Lunmapped:
 	nop
 	CPWAIT(r0)
 
-#endif
 mmu_done:
 	nop
 	adr	r1, .Lstart
@@ -231,7 +236,6 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
-#ifdef STARTUP_PAGETABLE_ADDR
 #define MMU_INIT(va,pa,n_sec,attr) \
 	.word	n_sec					    ; \
 	.word	4*((va)>>L1_S_SHIFT)			    ; \
@@ -246,7 +250,7 @@ Lreal_start:
 Lend:	
 	.word	_edata
 Lstartup_pagetable:
-	.word	STARTUP_PAGETABLE_ADDR
+	.word	pagetable
 #ifdef SMP
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
@@ -261,9 +265,9 @@ mmu_init_table:
 	MMU_INIT(PHYSADDR, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(SOCDEV_PA) && defined(SOCKDEV_VA)
+#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Map in 0x04000000 worth of the SoC's devices for bootstrap debugging */
-	MMU_INIT(SOCKDEV_VA, SOCDEV_PA, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(SOCDEV_VA, SOCDEV_PA, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 #endif
 #else
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
@@ -272,10 +276,9 @@ mmu_init_table:
 	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 #endif /* SMP */
 	.word 0	/* end of table */
-#endif
 .Lstart:
 	.word	_edata
-	.word	_end
+	.word	_ebss
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
 .Lvirt_done:
@@ -292,6 +295,15 @@ mmu_init_table:
 	.bss
 svcstk:
 	.space	INIT_ARM_STACK_SIZE
+
+/*
+ * Memory for the initial pagetable. We are unable to place this in
+ * the bss as this will be cleared after the table is loaded.
+ */
+	.section ".init_pagetable"
+	.align	14 /* 16KiB aligned */
+pagetable:
+	.space	L1_TABLE_SIZE
 
 	.text
 	.align	0

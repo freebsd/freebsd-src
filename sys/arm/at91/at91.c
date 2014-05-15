@@ -74,7 +74,7 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	}
 	endpa = round_page(bpa + size);
 
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
+	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa) + (bpa - pa);
 
 	return (0);
 }
@@ -260,7 +260,6 @@ static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	const struct arm_devmap_entry *pdevmap;
 	int i;
 
 	arm_post_filter = at91_eoi;
@@ -281,11 +280,15 @@ at91_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	for (pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
-		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
-		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
-			panic("at91_attach: failed to set up memory rman");
-	}
+	/*
+	 * Manage the physical space, defined as being everything that isn't
+	 * DRAM.
+	 */
+	if (rman_manage_region(&sc->sc_mem_rman, 0, PHYSADDR - 1) != 0)
+		panic("at91_attach: failed to set up memory rman");
+	if (rman_manage_region(&sc->sc_mem_rman, PHYSADDR + (256 << 20),
+	    0xfffffffful) != 0)
+		panic("at91_attach: failed to set up memory rman");
 
 	/*
 	 * Setup the interrupt table.
@@ -330,6 +333,7 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct at91_ivar *ivar = device_get_ivars(child);
 	struct resource_list *rl = &ivar->resources;
+	bus_space_handle_t bsh;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -355,8 +359,10 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
 		if (rle->res != NULL) {
+			bus_space_map(&at91_bs_tag, start,
+			    rman_get_size(rle->res), 0, &bsh);
 			rman_set_bustag(rle->res, &at91_bs_tag);
-			rman_set_bushandle(rle->res, start);
+			rman_set_bushandle(rle->res, bsh);
 		}
 		break;
 	}
@@ -538,8 +544,14 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91_BASE) 
-		addr += AT91_BASE;
+	/*
+	 * Special case for on-board devices. These have their address
+	 * defined relative to AT91_PA_BASE in all the register files we
+	 * have. We could change this, but that's a lot of effort which
+	 * will be obsoleted when FDT arrives.
+	 */
+	if (addr != 0 && addr < 0x10000000 && addr >= 0x0f000000) 
+		addr += AT91_PA_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }

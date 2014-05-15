@@ -126,7 +126,7 @@ device		nand		# NAND interface on CS3
 # Coming soon, but not yet
 #options 	FDT
 #options 	FDT_DTB_STATIC
-#makeoptions	FDT_DTS_FILE=at91sam9g20ek.dts
+#makeoptions	FDT_DTS_FILE=hl201.dts
 
 options 	EARLY_PRINTF
 options  	SOCDEV_PA=0xfc000000
