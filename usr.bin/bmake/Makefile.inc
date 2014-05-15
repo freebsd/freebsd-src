@@ -13,5 +13,9 @@ PROG= make
 NO_SHARED?=     YES
 .endif
 
+.if defined(MK_TESTS) && ${MK_TESTS} != no
+SUBDIR+= tests
+.endif
+
 WARNS=3
 CFLAGS+= -DNO_PWD_OVERRIDE
