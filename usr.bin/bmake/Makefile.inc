@@ -13,7 +13,10 @@ PROG= make
 NO_SHARED?=     YES
 .endif
 
-.if defined(MK_TESTS) && ${MK_TESTS} != no
+# hack to not add tests to tests subdir since this is included from
+# there and to avoid renaming things that require changes to generated
+# files.
+.if defined(MK_TESTS) && ${MK_TESTS} != no && exists(${.CURDIR}/tests)
 SUBDIR+= tests
 .endif
 
