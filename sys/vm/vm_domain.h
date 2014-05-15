@@ -84,7 +84,7 @@ vm_domain_select_next(struct vm_domain_select *sel, int domain)
 			domain = (domain + 1) % vm_ndomains;
 		} while (!VM_DOMAIN_ISSET(domain, &sel->ds_mask));
 	}
-	return domain;
+	return (domain);
 }
 
 static inline int
