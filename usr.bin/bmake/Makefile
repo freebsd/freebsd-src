@@ -3,7 +3,6 @@
 #
 # $FreeBSD$
 
-.include <src.opts.mk>
 .sinclude "Makefile.inc"
 
 SRCTOP?= ${.CURDIR:H:H}
@@ -106,11 +105,6 @@ COPTS.meta.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 .if make(obj) || make(clean)
 SUBDIR+= unit-tests
 .endif
-
-.if ${MK_TESTS} != no
-SUBDIR+= tests
-.endif
-
 
 MAN= ${PROG}.1
 MAN1= ${MAN}
