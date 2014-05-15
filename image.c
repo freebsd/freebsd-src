@@ -80,7 +80,7 @@ image_copyin(lba_t blk, int fd, uint64_t *sizep)
 		if (error)
 			break;
 		blk += bcnt;
-		partial = (bcnt * secsz != rdsz) ? 1 : 0;
+		partial = ((ssize_t)(bcnt * secsz) != rdsz) ? 1 : 0;
 	}
 	free(buffer);
 	if (sizep != NULL)
