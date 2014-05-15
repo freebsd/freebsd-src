@@ -72,6 +72,10 @@ int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 	    void *, void *, int, phandle_t *);
 
+/* Helper to get device status property */
+const char *ofw_bus_get_status(device_t dev);
+int ofw_bus_status_okay(device_t dev);
+
 /* Helper to get node's interrupt parent */
 void	ofw_bus_find_iparent(phandle_t);
 

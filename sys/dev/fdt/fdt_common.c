@@ -489,11 +489,10 @@ fdt_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl,
 		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
 		for (i = 0, k = 0; i < nintr; i += icells, k++) {
-			intr[i] = ofw_bus_map_intr(dev, iparent, intr[i]);
+			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
+			    &intr[i]);
 			resource_list_add(rl, SYS_RES_IRQ, k, intr[i], intr[i],
 			    1);
-			if (icells > 1)
-				ofw_bus_config_intr(dev, intr[i], intr[i+1]);
 		}
 		free(intr, M_OFWPROP);
 	}
