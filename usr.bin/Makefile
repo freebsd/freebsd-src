@@ -37,7 +37,6 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
-	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -229,6 +228,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_GPL_DTC} != "yes"
+SUBDIR+=	dtc
 .endif
 
 .if ${MK_GROFF} != "no"
