@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 
+#define	VMDK_IMAGE_ROUND	1048576
 #define	VMDK_MIN_GRAIN_SIZE	8192
 #define	VMDK_SECTOR_SIZE	512
 
@@ -95,8 +96,8 @@ vmdk_resize(lba_t imgsz)
 	uint64_t imagesz;
 
 	imagesz = imgsz * secsz;
+	imagesz = (imagesz + VMDK_IMAGE_ROUND - 1) & ~(VMDK_IMAGE_ROUND - 1);
 	grainsz = (blksz < VMDK_MIN_GRAIN_SIZE) ? VMDK_MIN_GRAIN_SIZE : blksz;
-	imagesz = (imagesz + grainsz - 1) & ~(grainsz - 1);
 
 	if (verbose)
 		fprintf(stderr, "VMDK: image size = %ju, grain size = %ju\n",
