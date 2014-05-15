@@ -71,6 +71,7 @@ struct imx_sdhci_softc {
 	uint32_t		r1bfix_intmask;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
+	boolean_t		force_card_present;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -88,6 +89,27 @@ struct imx_sdhci_softc {
 #define	 SDHC_VEND_IPGEN	(1 << 11)
 #define	 SDHC_VEND_HCKEN	(1 << 12)
 #define	 SDHC_VEND_PEREN	(1 << 13)
+
+#define	SDHC_PRES_STATE		0x24
+#define	  SDHC_PRES_CIHB	  (1 <<  0)
+#define	  SDHC_PRES_CDIHB	  (1 <<  1)
+#define	  SDHC_PRES_DLA		  (1 <<  2)
+#define	  SDHC_PRES_SDSTB	  (1 <<  3)
+#define	  SDHC_PRES_IPGOFF	  (1 <<  4)
+#define	  SDHC_PRES_HCKOFF	  (1 <<  5)
+#define	  SDHC_PRES_PEROFF	  (1 <<  6)
+#define	  SDHC_PRES_SDOFF	  (1 <<  7)
+#define	  SDHC_PRES_WTA		  (1 <<  8)
+#define	  SDHC_PRES_RTA		  (1 <<  9)
+#define	  SDHC_PRES_BWEN	  (1 << 10)
+#define	  SDHC_PRES_BREN	  (1 << 11)
+#define	  SDHC_PRES_RTR		  (1 << 12)
+#define	  SDHC_PRES_CINST	  (1 << 16)
+#define	  SDHC_PRES_CDPL	  (1 << 18)
+#define	  SDHC_PRES_WPSPL	  (1 << 19)
+#define	  SDHC_PRES_CLSL	  (1 << 23)
+#define	  SDHC_PRES_DLSL_SHIFT	  24
+#define	  SDHC_PRES_DLSL_MASK	  (0xffU << SDHC_PRES_DLSL_SHIFT)
 
 #define	SDHC_PROT_CTRL		0x28
 #define	 SDHC_PROT_LED		(1 << 0)
@@ -254,8 +276,8 @@ imx_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		wrk32 = RD4(sc, SDHC_VEND_SPEC);
 		if (wrk32 & SDHC_VEND_FRC_SDCLK_ON)
 			val32 |= SDHCI_CLOCK_INT_EN | SDHCI_CLOCK_CARD_EN;
-		wrk32 = RD4(sc, SDHCI_PRESENT_STATE);
-		if (wrk32 & 0x08)
+		wrk32 = RD4(sc, SDHC_PRES_STATE);
+		if (wrk32 & SDHC_PRES_SDSTB)
 			val32 |= SDHCI_CLOCK_INT_STABLE;
 		val32 |= sc->sdclockreg_freq_bits;
 		return (val32);
@@ -268,7 +290,9 @@ static uint32_t
 imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
-	uint32_t val32;
+	uint32_t val32, wrk32;
+
+	val32 = RD4(sc, off);
 
 	/*
 	 * The hardware leaves the base clock frequency out of the capabilities
@@ -280,7 +304,6 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 * doesn't yet handle (1.8v, suspend/resume, etc).
 	 */
 	if (off == SDHCI_CAPABILITIES) {
-		val32 = RD4(sc, off);
 		val32 &= ~SDHCI_CAN_VDD_180;
 		val32 &= ~SDHCI_CAN_DO_SUSPEND;
 		val32 |= SDHCI_CAN_DO_8BITBUS;
@@ -288,14 +311,30 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		return (val32);
 	}
 	
-	val32 = RD4(sc, off);
+	/*
+	 * The hardware moves bits around in the present state register to make
+	 * room for all 8 data line state bits.  To translate, mask out all the
+	 * bits which are not in the same position in both registers (this also
+	 * masks out some freescale-specific bits in locations defined as
+	 * reserved by sdhci), then shift the data line and retune request bits
+	 * down to their standard locations.
+	 */
+	if (off == SDHCI_PRESENT_STATE) {
+		wrk32 = val32;
+		val32 &= 0x000F0F07;
+		val32 |= (wrk32 >> 4) & SDHCI_STATE_DAT_MASK;
+		val32 |= (wrk32 >> 9) & SDHCI_RETUNE_REQUEST;
+		if (sc->force_card_present)
+			val32 |= SDHCI_CARD_PRESENT;
+		return (val32);
+	}
 
 	/*
 	 * imx_sdhci_intr() can synthesize a DATA_END interrupt following a
 	 * command with an R1B response, mix it into the hardware status.
 	 */
 	if (off == SDHCI_INT_STATUS) {
-		val32 |= sc->r1bfix_intmask;
+		return (val32 | sc->r1bfix_intmask);
 	}
 
 	return val32;
@@ -522,7 +561,7 @@ imx_sdhci_intr(void *arg)
 		count = 0;
 		/* XXX use a callout or something instead of busy-waiting. */
 		while (count < 250000 && 
-		       (RD4(sc, SDHCI_PRESENT_STATE) & SDHCI_DAT_ACTIVE)) {
+		   (RD4(sc, SDHC_PRES_STATE) & SDHC_PRES_DLA)) {
 			++count;
 			DELAY(1);
 		}
@@ -555,6 +594,7 @@ imx_sdhci_attach(device_t dev)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
+	phandle_t node;
 
 	sc->dev = dev;
 
@@ -620,6 +660,25 @@ imx_sdhci_attach(device_t dev)
 	}
 
 	sdhci_init_slot(dev, &sc->slot, 0);
+
+	/*
+	 * If the slot is flagged with the non-removable property, set our flag
+	 * to always force the SDHCI_CARD_PRESENT bit on.
+	 *
+	 * XXX Workaround for gpio-based card detect...
+	 *
+	 * We don't have gpio support yet.  If there's a cd-gpios property just
+	 * force the SDHCI_CARD_PRESENT bit on for now.  If there isn't really a
+	 * card there it will fail to probe at the mmc layer and nothing bad
+	 * happens except instantiating a /dev/mmcN device for an empty slot.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "non-removable"))
+		sc->force_card_present = true;
+	else if (OF_hasprop(node, "cd-gpios")) {
+		/* XXX put real gpio hookup here. */
+		sc->force_card_present = true;
+	}
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

@@ -403,6 +403,8 @@
 #define FAULT_PERM_P    0x0f /* Permission -- Page */
 
 #define	FAULT_IMPRECISE	0x400	/* Imprecise exception (XSCALE) */
+#define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
+#define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
 
 /*
  * Address of the vector page, low and high versions.

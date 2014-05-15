@@ -148,15 +148,31 @@ Lunmapped:
 	 * Build page table from scratch.
 	 */
 
-	/* Load the page tables physical address */
-	ldr	r1, Lstartup_pagetable
-	ldr	r2, =(KERNVIRTADDR - KERNPHYSADDR)
+	/* Find the delta between VA and PA */
+	adr	r0, Lpagetable
+	ldr	r1, [r0]
+	sub	r2, r1, r0
+	/* At this point: r2 = VA - PA */
+
+	/*
+	 * Find the physical address of the table. After these two
+	 * instructions:
+	 * r1 = va(pagetable)
+	 *
+	 * r0 = va(pagetable) - (VA - PA)
+	 *    = va(pagetable) - VA + PA
+	 *    = pa(pagetable)
+	 */
+	ldr	r1, [r0, #4]
 	sub	r0, r1, r2
 
 	/*
 	 * Map PA == VA
 	 */
-	ldr	r5, =(PHYSADDR)
+	/* Find the start kernels load address */
+	adr	r5, _start
+	ldr	r2, =(L1_S_OFFSET)
+	bic	r5, r2
 	mov	r1, r5
 	mov	r2, r5
 	/* Map 64MiB, preserved over calls to build_pagetables */
@@ -165,7 +181,7 @@ Lunmapped:
 
 	/* Create the kernel map to jump to */
 	mov	r1, r5
-	ldr	r2, =(KERNBASE)
+	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
@@ -223,16 +239,16 @@ mmu_done:
 virt_done:
 	mov	r1, #28			/* loader info size is 28 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
-	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
+	bic	sp, sp, #7		/* align stack to 8 bytes */
 	str	r1, [r0]		/* Store length of loader info */
 	str	r9, [r0, #4]		/* Store r0 from boot loader */
 	str	r8, [r0, #8]		/* Store r1 from boot loader */
 	str	ip, [r0, #12]		/* store r2 from boot loader */
 	str	fp, [r0, #16]		/* store r3 from boot loader */
-	ldr	r5, =KERNPHYSADDR	/* load KERNPHYSADDR as the physical address */
 	str	r5, [r0, #20]		/* store the physical address */
-	ldr	r5, Lstartup_pagetable
+	adr	r4, Lpagetable		/* load the pagetable address */
+	ldr	r5, [r4, #4]
 	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
@@ -279,16 +295,19 @@ build_pagetables:
 
 	RET
 
+Lpagetable:
+	.word	.
+	.word	pagetable
+
 Lvirtaddr:
 	.word	KERNVIRTADDR
 Lphysaddr:
 	.word	KERNPHYSADDR
 Lreal_start:
 	.word	_start
-Lend:	
+Lend:
 	.word	_edata
-Lstartup_pagetable:
-	.word	pagetable
+
 #ifdef SMP
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
