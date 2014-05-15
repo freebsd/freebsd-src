@@ -119,7 +119,6 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
-    NCURSESW \
     NDIS \
     NETCAT \
     NETGRAPH \

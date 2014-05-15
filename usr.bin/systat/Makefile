@@ -16,16 +16,7 @@ CFLAGS+= -DINET6
 
 WARNS?=	0
 
-DPADD=	${LIBM} ${LIBDEVSTAT} ${LIBKVM}
-LDADD=	-lm -ldevstat -lkvm
-
-.if ${MK_NCURSESW} == "no"
-DPADD+=		${LIBNCURSES}
-LDADD+=		-lncurses
-.else
-CFLAGS+=	-DUSE_WIDECHAR
-DPADD+=		${LIBNCURSESW}
-LDADD+=		-lncursesw
-.endif
+DPADD=	${LIBNCURSESW} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lncursesw -lm -ldevstat -lkvm
 
 .include <bsd.prog.mk>
