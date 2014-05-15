@@ -67,8 +67,8 @@
 			usb@02184200		{ status = "okay"; };
 			usb@02184400		{ status = "disabled"; };
 			usb@02184600		{ status = "disabled"; };
-			usdhc@02190000		{ status = "disabled"; };
-			usdhc@02194000		{ status = "okay"; };
+			usdhc@02190000		{ status = "okay"; };
+			usdhc@02194000		{ status = "disabled"; };
 			usdhc@02198000		{ status = "okay"; };
 			usdhc@0219c000		{ status = "disabled"; };
 		};
