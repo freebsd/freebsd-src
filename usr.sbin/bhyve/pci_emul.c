@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "ioapic.h"
 #include "mem.h"
 #include "pci_emul.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
@@ -81,6 +82,7 @@ struct funcinfo {
 
 struct intxinfo {
 	int	ii_count;
+	int	ii_pirq_pin;
 	int	ii_ioapic_irq;
 };
 
@@ -113,6 +115,7 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
 
 static struct pci_devemu *pci_emul_finddev(char *name);
+static void	pci_lintr_route(struct pci_devinst *pi);
 static void	pci_lintr_update(struct pci_devinst *pi);
 
 static struct mem_range pci_mem_hole;
@@ -697,6 +700,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
 	pdi->pi_lintr.pin = 0;
 	pdi->pi_lintr.state = IDLE;
+	pdi->pi_lintr.pirq_pin = 0;
 	pdi->pi_lintr.ioapic_irq = 0;
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s-pci-%d", pde->pe_emu, slot);
@@ -1067,6 +1071,27 @@ init_pci(struct vmctx *ctx)
 	}
 
 	/*
+	 * PCI backends are initialized before routing INTx interrupts
+	 * so that LPC devices are able to reserve ISA IRQs before
+	 * routing PIRQ pins.
+	 */
+	for (bus = 0; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			for (func = 0; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_devi == NULL)
+					continue;
+				pci_lintr_route(fi->fi_devi);
+			}
+		}
+	}
+	lpc_pirq_routed();
+
+	/*
 	 * The guest physical memory map looks like the following:
 	 * [0,		    lowmem)		guest system memory
 	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
@@ -1093,19 +1118,36 @@ init_pci(struct vmctx *ctx)
 }
 
 static void
-pci_prt_entry(int bus, int slot, int pin, int ioapic_irq, void *arg)
+pci_apic_prt_entry(int bus, int slot, int pin, int pirq_pin, int ioapic_irq,
+    void *arg)
 {
-	int *count;
 
-	count = arg;
-	dsdt_line("  Package (0x04)");
+	dsdt_line("  Package ()");
 	dsdt_line("  {");
 	dsdt_line("    0x%X,", slot << 16 | 0xffff);
 	dsdt_line("    0x%02X,", pin - 1);
 	dsdt_line("    Zero,");
 	dsdt_line("    0x%X", ioapic_irq);
-	dsdt_line("  }%s", *count == 1 ? "" : ",");
-	(*count)--;
+	dsdt_line("  },");
+}
+
+static void
+pci_pirq_prt_entry(int bus, int slot, int pin, int pirq_pin, int ioapic_irq,
+    void *arg)
+{
+	char *name;
+
+	name = lpc_pirq_name(pirq_pin);
+	if (name == NULL)
+		return;
+	dsdt_line("  Package ()");
+	dsdt_line("  {");
+	dsdt_line("    0x%X,", slot << 16 | 0xffff);
+	dsdt_line("    0x%02X,", pin - 1);
+	dsdt_line("    %s,", name);
+	dsdt_line("    0x00");
+	dsdt_line("  },");
+	free(name);
 }
 
 /*
@@ -1118,7 +1160,7 @@ pci_bus_write_dsdt(int bus)
 	struct businfo *bi;
 	struct slotinfo *si;
 	struct pci_devinst *pi;
-	int count, slot, func;
+	int count, func, slot;
 
 	/*
 	 * If there are no devices on this 'bus' then just return.
@@ -1133,9 +1175,6 @@ pci_bus_write_dsdt(int bus)
 			return;
 	}
 
-	dsdt_indent(1);
-	dsdt_line("Scope (_SB)");
-	dsdt_line("{");
 	dsdt_line("  Device (PC%02X)", bus);
 	dsdt_line("  {");
 	dsdt_line("    Name (_HID, EisaId (\"PNP0A03\"))");
@@ -1228,10 +1267,25 @@ pci_bus_write_dsdt(int bus)
 	count = pci_count_lintr(bus);
 	if (count != 0) {
 		dsdt_indent(2);
-		dsdt_line("Name (_PRT, Package (0x%02X)", count);
+		dsdt_line("Name (PPRT, Package ()");
 		dsdt_line("{");
-		pci_walk_lintr(bus, pci_prt_entry, &count);
-		dsdt_line("})");
+		pci_walk_lintr(bus, pci_pirq_prt_entry, NULL);
+ 		dsdt_line("})");
+		dsdt_line("Name (APRT, Package ()");
+		dsdt_line("{");
+		pci_walk_lintr(bus, pci_apic_prt_entry, NULL);
+ 		dsdt_line("})");
+		dsdt_line("Method (_PRT, 0, NotSerialized)");
+		dsdt_line("{");
+		dsdt_line("  If (PICM)");
+		dsdt_line("  {");
+		dsdt_line("    Return (APRT)");
+		dsdt_line("  }");
+		dsdt_line("  Else");
+		dsdt_line("  {");
+		dsdt_line("    Return (PPRT)");
+		dsdt_line("  }");
+		dsdt_line("}");
 		dsdt_unindent(2);
 	}
 
@@ -1247,8 +1301,6 @@ pci_bus_write_dsdt(int bus)
 	dsdt_unindent(2);
 done:
 	dsdt_line("  }");
-	dsdt_line("}");
-	dsdt_unindent(1);
 }
 
 void
@@ -1256,8 +1308,19 @@ pci_write_dsdt(void)
 {
 	int bus;
 
+	dsdt_indent(1);
+	dsdt_line("Name (PICM, 0x00)");
+	dsdt_line("Method (_PIC, 1, NotSerialized)");
+	dsdt_line("{");
+	dsdt_line("  Store (Arg0, PICM)");
+	dsdt_line("}");
+	dsdt_line("");
+	dsdt_line("Scope (_SB)");
+	dsdt_line("{");
 	for (bus = 0; bus < MAXBUSES; bus++)
 		pci_bus_write_dsdt(bus);
+	dsdt_line("}");
+	dsdt_unindent(1);
 }
 
 int
@@ -1330,18 +1393,19 @@ pci_lintr_permitted(struct pci_devinst *pi)
 		(cmd & PCIM_CMD_INTxDIS)));
 }
 
-int
+void
 pci_lintr_request(struct pci_devinst *pi)
 {
 	struct businfo *bi;
 	struct slotinfo *si;
-	int bestpin, bestcount, irq, pin;
+	int bestpin, bestcount, pin;
 
 	bi = pci_businfo[pi->pi_bus];
 	assert(bi != NULL);
 
 	/*
-	 * First, allocate a pin from our slot.
+	 * Just allocate a pin from our slot.  The pin will be
+	 * assigned IRQs later when interrupts are routed.
 	 */
 	si = &bi->slotinfo[pi->pi_slot];
 	bestpin = 0;
@@ -1353,26 +1417,43 @@ pci_lintr_request(struct pci_devinst *pi)
 		}
 	}
 
-	/*
-	 * Attempt to allocate an I/O APIC pin for this intpin.  If
-	 * 8259A support is added we will need a separate field to
-	 * assign the intpin to an input pin on the PCI interrupt
-	 * router.
-	 */
-	if (si->si_intpins[bestpin].ii_count == 0) {
-		irq = ioapic_pci_alloc_irq();
-		if (irq < 0)
-			return (-1);		
-		si->si_intpins[bestpin].ii_ioapic_irq = irq;
-	} else
-		irq = si->si_intpins[bestpin].ii_ioapic_irq;
 	si->si_intpins[bestpin].ii_count++;
-
 	pi->pi_lintr.pin = bestpin + 1;
-	pi->pi_lintr.ioapic_irq = irq;
-	pci_set_cfgdata8(pi, PCIR_INTLINE, irq);
 	pci_set_cfgdata8(pi, PCIR_INTPIN, bestpin + 1);
-	return (0);
+}
+
+static void
+pci_lintr_route(struct pci_devinst *pi)
+{
+	struct businfo *bi;
+	struct intxinfo *ii;
+
+	if (pi->pi_lintr.pin == 0)
+		return;
+
+	bi = pci_businfo[pi->pi_bus];
+	assert(bi != NULL);
+	ii = &bi->slotinfo[pi->pi_slot].si_intpins[pi->pi_lintr.pin - 1];
+
+	/*
+	 * Attempt to allocate an I/O APIC pin for this intpin if one
+	 * is not yet assigned.
+	 */
+	if (ii->ii_ioapic_irq == 0)
+		ii->ii_ioapic_irq = ioapic_pci_alloc_irq();
+	assert(ii->ii_ioapic_irq > 0);
+
+	/*
+	 * Attempt to allocate a PIRQ pin for this intpin if one is
+	 * not yet assigned.
+	 */
+	if (ii->ii_pirq_pin == 0)
+		ii->ii_pirq_pin = pirq_alloc_pin(pi->pi_vmctx);
+	assert(ii->ii_pirq_pin > 0);
+
+	pi->pi_lintr.ioapic_irq = ii->ii_ioapic_irq;
+	pi->pi_lintr.pirq_pin = ii->ii_pirq_pin;
+	pci_set_cfgdata8(pi, PCIR_INTLINE, pirq_irq(ii->ii_pirq_pin));
 }
 
 void
@@ -1385,8 +1466,7 @@ pci_lintr_assert(struct pci_devinst *pi)
 	if (pi->pi_lintr.state == IDLE) {
 		if (pci_lintr_permitted(pi)) {
 			pi->pi_lintr.state = ASSERTED;
-			vm_ioapic_assert_irq(pi->pi_vmctx,
-			    pi->pi_lintr.ioapic_irq);
+			pci_irq_assert(pi);
 		} else
 			pi->pi_lintr.state = PENDING;
 	}
@@ -1402,7 +1482,7 @@ pci_lintr_deassert(struct pci_devinst *pi)
 	pthread_mutex_lock(&pi->pi_lintr.lock);
 	if (pi->pi_lintr.state == ASSERTED) {
 		pi->pi_lintr.state = IDLE;
-		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+		pci_irq_deassert(pi);
 	} else if (pi->pi_lintr.state == PENDING)
 		pi->pi_lintr.state = IDLE;
 	pthread_mutex_unlock(&pi->pi_lintr.lock);
@@ -1414,11 +1494,11 @@ pci_lintr_update(struct pci_devinst *pi)
 
 	pthread_mutex_lock(&pi->pi_lintr.lock);
 	if (pi->pi_lintr.state == ASSERTED && !pci_lintr_permitted(pi)) {
-		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+		pci_irq_deassert(pi);
 		pi->pi_lintr.state = PENDING;
 	} else if (pi->pi_lintr.state == PENDING && pci_lintr_permitted(pi)) {
 		pi->pi_lintr.state = ASSERTED;
-		vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+		pci_irq_assert(pi);
 	}
 	pthread_mutex_unlock(&pi->pi_lintr.lock);
 }
@@ -1458,7 +1538,8 @@ pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg)
 		for (pin = 0; pin < 4; pin++) {
 			ii = &si->si_intpins[pin];
 			if (ii->ii_count != 0)
-				cb(bus, slot, pin + 1, ii->ii_ioapic_irq, arg);
+				cb(bus, slot, pin + 1, ii->ii_pirq_pin,
+				    ii->ii_ioapic_irq, arg);
 		}
 	}
 }
@@ -1754,20 +1835,6 @@ INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+0, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+1, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+2, IOPORT_F_INOUT, pci_emul_cfgdata);
 INOUT_PORT(pci_cfgdata, CONF1_DATA_PORT+3, IOPORT_F_INOUT, pci_emul_cfgdata);
-
-/*
- * I/O ports to configure PCI IRQ routing. We ignore all writes to it.
- */
-static int
-pci_irq_port_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-		     uint32_t *eax, void *arg)
-{
-	assert(in == 0);
-	return (0);
-}
-INOUT_PORT(pci_irq, 0xC00, IOPORT_F_OUT, pci_irq_port_handler);
-INOUT_PORT(pci_irq, 0xC01, IOPORT_F_OUT, pci_irq_port_handler);
-SYSRES_IO(0xC00, 2);
 
 #define PCI_EMUL_TEST
 #ifdef PCI_EMUL_TEST
