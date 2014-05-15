@@ -138,6 +138,9 @@ struct ldns_struct_resolver
 	char *_tsig_keydata;
 	/** TSIG signing algorithm */
 	char *_tsig_algorithm;
+
+	/** Source address to query from */
+	ldns_rdf *_source;
 };
 typedef struct ldns_struct_resolver ldns_resolver;
 
@@ -150,6 +153,13 @@ typedef struct ldns_struct_resolver ldns_resolver;
  * \return the port number
  */
 uint16_t ldns_resolver_port(const ldns_resolver *r);
+
+/**
+ * Get the source address the resolver should use
+ * \param[in] r the resolver
+ * \return the source rdf
+ */
+ldns_rdf *ldns_resolver_source(const ldns_resolver *r);
 
 /**
  * Is the resolver set to recurse
@@ -338,6 +348,13 @@ size_t ldns_resolver_searchlist_count(const ldns_resolver *r);
 void ldns_resolver_set_port(ldns_resolver *r, uint16_t p);
 
 /**
+ * Set the source rdf (address) the resolver should use
+ * \param[in] r the resolver
+ * \param[in] s the source address
+ */
+void ldns_resolver_set_source(ldns_resolver *r, ldns_rdf *s);
+
+/**
  * Set the resolver recursion
  * \param[in] r the resolver
  * \param[in] b true: set to recurse, false: unset
@@ -464,9 +481,10 @@ void ldns_resolver_set_retrans(ldns_resolver *r, uint8_t re);
 void ldns_resolver_set_fallback(ldns_resolver *r, bool fallback);
 
 /**
- * Set the resolver retry interval (in seconds)
+ * Set the number of times a resolver should retry a nameserver before the
+ * next one is tried.
  * \param[in] r the resolver
- * \param[in] re the retry interval
+ * \param[in] re the number of retries
  */
 void ldns_resolver_set_retry(ldns_resolver *r, uint8_t re);
 
@@ -583,6 +601,22 @@ ldns_status ldns_resolver_push_nameserver_rr_list(ldns_resolver *r, ldns_rr_list
  */
 ldns_pkt* ldns_resolver_search(const ldns_resolver *r, const ldns_rdf *rdf, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
 
+
+/**
+ * Send the query for using the resolver and take the search list into account
+ * The search algorithm is as follows:
+ * If the name is absolute, try it as-is, otherwise apply the search list
+ * \param[out] pkt a packet with the reply from the nameserver
+ * \param[in] *r operate using this resolver
+ * \param[in] *rdf query for this name
+ * \param[in] t query for this type (may be 0, defaults to A)
+ * \param[in] c query for this class (may be 0, default to IN)
+ * \param[in] flags the query flags
+ *
+ * \return ldns_status LDNS_STATUS_OK on success
+ */
+ldns_status ldns_resolver_search_status(ldns_pkt** pkt, ldns_resolver *r, const ldns_rdf *rdf, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
+
 /**
  * Form a query packet from a resolver and name/type/class combo
  * \param[out] **q a pointer to a ldns_pkt pointer (initialized by this function)
@@ -619,7 +653,24 @@ ldns_status ldns_resolver_send_pkt(ldns_pkt **answer, ldns_resolver *r, ldns_pkt
 
 /**
  * Send a query to a nameserver
+ * \param[out] pkt a packet with the reply from the nameserver
  * \param[in] *r operate using this resolver
+ * \param[in] *name query for this name
+ * \param[in] *t query for this type (may be 0, defaults to A)
+ * \param[in] *c query for this class (may be 0, default to IN)
+ * \param[in] flags the query flags
+ *
+ * \return ldns_status LDNS_STATUS_OK on success
+ * if _defnames is true the default domain will be added
+ */
+ldns_status ldns_resolver_query_status(ldns_pkt** pkt, ldns_resolver *r, const ldns_rdf *name, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
+
+
+/**
+ * Send a query to a nameserver
+ * \param[in] *r operate using this resolver 
+ *               (despite the const in the declaration,
+ *                the struct is altered as a side-effect)
  * \param[in] *name query for this name
  * \param[in] *t query for this type (may be 0, defaults to A)
  * \param[in] *c query for this class (may be 0, default to IN)
