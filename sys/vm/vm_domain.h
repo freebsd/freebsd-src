@@ -29,8 +29,9 @@
 #ifndef _VM_DOMAIN_H_
 #define	_VM_DOMAIN_H_
 
-#include <vm/_vm_domain.h>
 #include <sys/bitset.h>
+
+#include <vm/_vm_domain.h>
 
 #define	VM_DOMAIN_CLR(n, p)		BIT_CLR(VM_DOMAIN_SETSIZE, n, p)
 #define	VM_DOMAIN_COPY(f, t)		BIT_COPY(VM_DOMAIN_SETSIZE, f, t)

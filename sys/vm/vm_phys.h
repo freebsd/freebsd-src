@@ -107,6 +107,11 @@ vm_phys_domain(vm_page_t m)
 #endif
 }
 
+/*
+ *	vm_page_domain:
+ *
+ * 	Return the memory domain structure the page belongs to.
+ */
 static inline struct vm_domain *
 vm_page_domain(vm_page_t m)
 {

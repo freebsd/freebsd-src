@@ -72,8 +72,8 @@
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
 
-#include <vm/_vm_radix.h>
 #include <vm/_vm_domain.h>
+#include <vm/_vm_radix.h>
 
 /*
  *	Types defined:
@@ -294,7 +294,6 @@ void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
-
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */
