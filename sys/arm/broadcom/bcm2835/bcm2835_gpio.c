@@ -589,7 +589,7 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
  	tree_node = device_get_sysctl_tree(sc->sc_dev);
  	tree = SYSCTL_CHILDREN(tree_node);
 	pin_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "pin",
-	    CTLFLAG_RW, NULL, "GPIO Pins");
+	    CTLFLAG_RD, NULL, "GPIO Pins");
 	pin_tree = SYSCTL_CHILDREN(pin_node);
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
