@@ -301,6 +301,11 @@ enum x2apic_state {
 	X2APIC_STATE_LAST
 };
 
+enum vm_intr_trigger {
+	EDGE_TRIGGER,
+	LEVEL_TRIGGER
+};
+	
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.

@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
 #include "smbiostbl.h"
 #include "xmsr.h"
@@ -770,9 +771,11 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
 	rtc_init(ctx);
+	sci_init(ctx);
 
 	/*
 	 * Exit if a device emulation finds an error in it's initilization
