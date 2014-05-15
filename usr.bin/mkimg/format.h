@@ -26,49 +26,24 @@
  * $FreeBSD$
  */
 
-#ifndef _MKIMG_MKIMG_H_
-#define	_MKIMG_MKIMG_H_
+#ifndef _MKIMG_FORMAT_H_
+#define	_MKIMG_FORMAT_H_
 
-#include <sys/queue.h>
+#include <sys/linker_set.h>
 
-struct part {
-	STAILQ_ENTRY(part) link;
-	char	*alias;		/* Partition type alias. */
-	char	*contents;	/* Contents/size specification. */
-	u_int	kind;		/* Content kind. */
-#define	PART_UNDEF	0
-#define	PART_KIND_FILE	1
-#define	PART_KIND_PIPE	2
-#define	PART_KIND_SIZE	3
-	u_int	index;		/* Partition index (0-based). */
-	uintptr_t type;		/* Scheme-specific partition type. */
-	lba_t	block;		/* Block-offset of partition in image. */
-	lba_t	size;		/* Size in blocks of partition. */
-	char	*label;		/* Partition label. */
+struct mkimg_format {
+	const char	*name;
+	const char	*description;
+	int		(*resize)(lba_t);
+	int		(*write)(int);
 };
 
-extern STAILQ_HEAD(partlisthead, part) partlist;
-extern u_int nparts;
+SET_DECLARE(formats, struct mkimg_format);
+#define	FORMAT_DEFINE(nm)	DATA_SET(formats, nm)
 
-extern u_int verbose;
+int	format_resize(lba_t);
+int	format_select(const char *);
+struct mkimg_format *format_selected(void);
+int	format_write(int);
 
-extern u_int ncyls;
-extern u_int nheads;
-extern u_int nsecs;
-extern u_int secsz;	/* Logical block size. */
-extern u_int blksz;	/* Physical block size. */
-
-static inline lba_t
-round_block(lba_t n)
-{
-	lba_t b = blksz / secsz;
-	return ((n + b - 1) & ~(b - 1));
-}
-
-#if !defined(SPARSE_WRITE)
-#define	sparse_write	write
-#else
-ssize_t sparse_write(int, const void *, size_t);
-#endif
-
-#endif /* _MKIMG_MKIMG_H_ */
+#endif /* _MKIMG_FORMAT_H_ */

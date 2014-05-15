@@ -22,53 +22,70 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MKIMG_MKIMG_H_
-#define	_MKIMG_MKIMG_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/linker_set.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-struct part {
-	STAILQ_ENTRY(part) link;
-	char	*alias;		/* Partition type alias. */
-	char	*contents;	/* Contents/size specification. */
-	u_int	kind;		/* Content kind. */
-#define	PART_UNDEF	0
-#define	PART_KIND_FILE	1
-#define	PART_KIND_PIPE	2
-#define	PART_KIND_SIZE	3
-	u_int	index;		/* Partition index (0-based). */
-	uintptr_t type;		/* Scheme-specific partition type. */
-	lba_t	block;		/* Block-offset of partition in image. */
-	lba_t	size;		/* Size in blocks of partition. */
-	char	*label;		/* Partition label. */
-};
+#include "image.h"
+#include "format.h"
+#include "mkimg.h"
 
-extern STAILQ_HEAD(partlisthead, part) partlist;
-extern u_int nparts;
+static struct mkimg_format *format;
 
-extern u_int verbose;
-
-extern u_int ncyls;
-extern u_int nheads;
-extern u_int nsecs;
-extern u_int secsz;	/* Logical block size. */
-extern u_int blksz;	/* Physical block size. */
-
-static inline lba_t
-round_block(lba_t n)
+int
+format_resize(lba_t end)
 {
-	lba_t b = blksz / secsz;
-	return ((n + b - 1) & ~(b - 1));
+
+	if (format == NULL)
+		return (ENOSYS);
+	return (format->resize(end));
 }
 
-#if !defined(SPARSE_WRITE)
-#define	sparse_write	write
-#else
-ssize_t sparse_write(int, const void *, size_t);
-#endif
+int
+format_select(const char *spec)
+{
+	struct mkimg_format *f, **iter;
 
-#endif /* _MKIMG_MKIMG_H_ */
+	SET_FOREACH(iter, formats) {
+		f = *iter;
+		if (strcasecmp(spec, f->name) == 0) {
+			format = f;
+			return (0);
+		}
+	}
+	return (EINVAL);
+}
+
+struct mkimg_format *
+format_selected(void)
+{
+
+	return (format);
+}
+
+int
+format_write(int fd)
+{
+	lba_t size;
+	int error;
+
+	if (format == NULL)
+		return (ENOSYS);
+	size = image_get_size();
+	error = format->resize(size);
+	if (!error)
+		error = format->write(fd);
+	return (error);
+}
