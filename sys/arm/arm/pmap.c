@@ -1069,9 +1069,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 #ifndef PMAP_INCLUDE_PTE_SYNC
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
-#ifdef ARM_USE_SMALL_ALLOC
-	pd_entry_t *pde;
-#endif
+
 	vm_offset_t va = (vm_offset_t)mem & ~PAGE_MASK;
 
 	/*
@@ -1082,10 +1080,6 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	 * page tables, we simply fix up the cache-mode here if it's not
 	 * correct.
 	 */
-#ifdef ARM_USE_SMALL_ALLOC
-	pde = &kernel_pmap->pm_l1->l1_kva[L1_IDX(va)];
-	if (!l1pte_section_p(*pde)) {
-#endif
 		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		pte = *ptep;
@@ -1100,9 +1094,6 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 			cpu_tlb_flushD_SE(va);
 			cpu_cpwait();
 		}
-#ifdef ARM_USE_SMALL_ALLOC
-	}
-#endif
 #endif
 	memset(mem, 0, L2_TABLE_SIZE_REAL);
 	PTE_SYNC_RANGE(mem, L2_TABLE_SIZE_REAL / sizeof(pt_entry_t));
@@ -2259,10 +2250,6 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
  *	(physical) address starting relative to 0]
  */
 #define PMAP_STATIC_L2_SIZE 16
-#ifdef ARM_USE_SMALL_ALLOC
-extern struct mtx smallalloc_mtx;
-#endif
-
 void
 pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 {
@@ -2425,10 +2412,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	kernel_vm_end = pmap_curmaxkvaddr;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	arm_init_smallalloc();
-#endif
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
 }
 
@@ -2672,11 +2655,7 @@ pmap_remove_pages(pmap_t pmap)
 		KASSERT(l2b != NULL, ("No L2 bucket in pmap_remove_pages"));
 		pt = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
 		m = PHYS_TO_VM_PAGE(*pt & L2_ADDR_MASK);
-#ifdef ARM_USE_SMALL_ALLOC
-		KASSERT((vm_offset_t)m >= alloc_firstaddr, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
-#else
 		KASSERT((vm_offset_t)m >= KERNBASE, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
-#endif
 		*pt = 0;
 		PTE_SYNC(pt);
 		npv = TAILQ_NEXT(pv, pv_plist);
@@ -2935,9 +2914,6 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	return (arm_ptovirt(start));
-#else
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
 
@@ -2952,7 +2928,6 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	}
 	*virt = va;
 	return (sva);
-#endif
 }
 
 static void
@@ -4010,26 +3985,10 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	char *dstpg;
-#endif
 
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
-
-#ifdef ARM_USE_SMALL_ALLOC
-	dstpg = (char *)arm_ptovirt(phys);
-	if (off || size != PAGE_SIZE) {
-		bzero(dstpg + off, size);
-		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
-		cpu_l2cache_wbinv_range((vm_offset_t)(dstpg + off), size);
-	} else {
-		bzero_page((vm_offset_t)dstpg);
-		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-		cpu_l2cache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-	}
-#else
 
 	mtx_lock(&cmtx);
 	/*
@@ -4048,7 +4007,6 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 
 	mtx_unlock(&cmtx);
-#endif
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
@@ -4056,23 +4014,11 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	char *dstpg;
-#endif
 
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
-#ifdef ARM_USE_SMALL_ALLOC
-	dstpg = (char *)arm_ptovirt(phys);
-	if (off || size != PAGE_SIZE) {
-		bzero(dstpg + off, size);
-		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
-	} else {
-		bzero_page((vm_offset_t)dstpg);
-		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-	}
-#else
+
 	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
@@ -4090,7 +4036,6 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
-#endif
 }
 
 /*
@@ -4415,9 +4360,6 @@ pmap_copy_page_offs_xscale(vm_paddr_t a_phys, vm_offset_t a_offs,
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	vm_offset_t srcpg, dstpg;
-#endif
 
 	cpu_dcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
@@ -4425,15 +4367,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst),
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
-#ifdef ARM_USE_SMALL_ALLOC
-	srcpg = arm_ptovirt(VM_PAGE_TO_PHYS(src));
-	dstpg = arm_ptovirt(VM_PAGE_TO_PHYS(dst));
-	bcopy_page(srcpg, dstpg);
-	cpu_dcache_wbinv_range(dstpg, PAGE_SIZE);
-	cpu_l2cache_wbinv_range(dstpg, PAGE_SIZE);
-#else
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
-#endif
 }
 
 int unmapped_buf_allowed = 1;
@@ -4445,9 +4379,6 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	vm_page_t a_pg, b_pg;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
-#ifdef ARM_USE_SMALL_ALLOC
-	vm_offset_t a_va, b_va;
-#endif
 
 	cpu_dcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
@@ -4458,16 +4389,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg = mb[b_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-#ifdef ARM_USE_SMALL_ALLOC
-		a_va = arm_ptovirt(VM_PAGE_TO_PHYS(a_pg)) + a_pg_offset;
-		b_va = arm_ptovirt(VM_PAGE_TO_PHYS(b_pg)) + b_pg_offset;
-		bcopy((char *)a_va, (char *)b_va, cnt);
-		cpu_dcache_wbinv_range(b_va, cnt);
-		cpu_l2cache_wbinv_range(b_va, cnt);
-#else
 		pmap_copy_page_offs_func(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
 		    VM_PAGE_TO_PHYS(b_pg), b_pg_offset, cnt);
-#endif
 		xfersize -= cnt;
 		a_offset += cnt;
 		b_offset += cnt;

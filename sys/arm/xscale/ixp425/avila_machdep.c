@@ -301,24 +301,6 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
-#ifdef ARM_USE_SMALL_ALLOC
-	freemempos -= PAGE_SIZE;
-	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - (PHYSADDR + 0x100000)) /
-	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages(
-	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
-	    (void *)0xc0100000,
-	    freemem_pt - (PHYSADDR + 0x100000), 1);
-	freemem_after -= ((freemem_after - (PHYSADDR + 0x1000)) / PAGE_SIZE) *
-	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages(
-	    (void *)(freemem_after + (KERNVIRTADDR - KERNPHYSADDR)),
-	    (void *)0xc0001000,
-	    trunc_page(freemem_after) - (PHYSADDR + 0x1000), 0);
-	freemempos = trunc_page(freemem_after);
-	freemempos -= PAGE_SIZE;
-#endif
 
 	/*
 	 * Now construct the L1 page table.  First map the L2
@@ -354,14 +336,6 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
-		arm_add_smallalloc_pages((void *)(freemem_after),
-		    (void*)(freemem_after + PAGE_SIZE),
-		    afterkern - (freemem_after + PAGE_SIZE), 0);
-		
-	}
-#endif
 
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, afterkern,
@@ -442,13 +416,6 @@ initarm(struct arm_boot_params *abp)
 	mutex_init();
 
 	i = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = PHYSADDR;
-	phys_avail[i++] = PHYSADDR + PAGE_SIZE; 	/*
-					 *XXX: Gross hack to get our
-					 * pages in the vm_page_array.
-					 */
-#endif
 	phys_avail[i++] = round_page(virtual_avail - KERNBASE + PHYSADDR);
 	phys_avail[i++] = trunc_page(PHYSADDR + memsize - 1);
 	phys_avail[i++] = 0;
