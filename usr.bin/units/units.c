@@ -291,7 +291,7 @@ showunit(struct unittype * theunit)
 			counter = 1;
 		}
 	}
-	if ( counter > 1)
+	if (counter > 1)
 		printf("%s%d", powerstring, counter);
 	printf("\n");
 }
@@ -760,7 +760,7 @@ main(int argc, char **argv)
 	el_source(el, NULL);
 	history(inhistory, &ev, H_SETSIZE, 800);
 	if (inhistory == 0)
-		err(1, "Could not initalize history");
+		err(1, "Could not initialize history");
 
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "unable to enter capability mode");
