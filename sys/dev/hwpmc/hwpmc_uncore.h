@@ -115,8 +115,6 @@ struct pmc_md_ucp_pmc {
 int	pmc_uncore_initialize(struct pmc_mdep *_md, int _maxcpu);
 void	pmc_uncore_finalize(struct pmc_mdep *_md);
 
-void	pmc_uncore_mark_started(int _cpu, int _pmc);
-
 int	pmc_ucf_initialize(struct pmc_mdep *_md, int _maxcpu, int _npmc, int _width);
 void	pmc_ucf_finalize(struct pmc_mdep *_md);
 
