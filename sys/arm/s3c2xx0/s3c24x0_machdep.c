@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -112,9 +113,6 @@ extern u_int undefined_handler_address;
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -227,6 +225,7 @@ initarm(struct arm_boot_params *abp)
 
 	boothowto = 0;  /* Likely not needed */
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	i = 0;
 	set_cpufuncs();
 	cpufuncs.cf_sleep = s3c24x0_sleep;
@@ -241,7 +240,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)			\
 	alloc_pages((var).pv_va, (np));		\
-	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
 
 #define alloc_pages(var, np)			\
 	(var) = freemempos;			\
@@ -261,7 +260,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_pa =
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
-			    KERNPHYSADDR;
+			    abp->abp_physaddr;
 		}
 	}
 	/*
@@ -384,20 +383,26 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + 0x100000 * (KERNEL_PT_KERN_NUM - 1);
-	arm_dump_avail_init(abp->abp_physaddr, memsize,
-	    sizeof(dump_avail) / sizeof(dump_avail[0]));
 	vm_max_kernel_address = KERNVIRTADDR + 3 * memsize;
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	physmem = memsize / PAGE_SIZE;
-
-	phys_avail[0] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[1] = PHYSADDR + memsize;
-	phys_avail[2] = 0;
-	phys_avail[3] = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel, and all the things we allocated which immediately
+	 * follow the kernel, from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(PHYSADDR, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();

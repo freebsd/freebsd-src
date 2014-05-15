@@ -33,6 +33,7 @@ arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
+arm/arm/physmem.c		standard
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0

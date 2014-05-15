@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/physmem.h>
 #include <sys/reboot.h>
 
 #include <arm/xscale/i80321/i80321reg.h>
@@ -109,9 +110,6 @@ extern u_int undefined_handler_address;
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -178,6 +176,7 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize, memstart;
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -334,24 +333,27 @@ initarm(struct arm_boot_params *abp)
 	/* Enable MMU, I-cache, D-cache, write buffer. */
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	dump_avail[0] = 0xa0000000;
-	dump_avail[1] = 0xa0000000 + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-					
 	vm_max_kernel_address = 0xd0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 	
-	i = 0;
-	phys_avail[i++] = round_page(virtual_avail - KERNBASE + IQ80321_SDRAM_START);
-	phys_avail[i++] = trunc_page(0xa0000000 + memsize - 1);
-	phys_avail[i++] = 0;
-	phys_avail[i] = 0;
-	
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(IQ80321_SDRAM_START, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
+
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
