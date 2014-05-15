@@ -73,25 +73,6 @@ extern struct vm_domain_select vm_sel_ft;		/* first-touch */
 extern struct vm_domain_select vm_sel_dom[MAXMEMDOM];	/* specific domain */
 
 static inline int
-vm_domain_select_first(struct vm_domain_select *sel)
-{
-	int domain;
-
-	switch (sel->ds_policy) {
-	case FIRSTTOUCH:
-		domain = PCPU_GET(domain);
-		if (VM_DOMAIN_ISSET(domain, &sel->ds_mask))
-			break;
-		/* FALLTHROUGH */
-	case ROUNDROBIN:
-		domain = atomic_fetchadd_int(&sel->ds_cursor, 1) % vm_ndomains;
-		while (!VM_DOMAIN_ISSET(domain, &sel->ds_mask))
-			domain = (domain + 1) % vm_ndomains;
-	}
-	return (domain);
-}
-
-static inline int
 vm_domain_select_next(struct vm_domain_select *sel, int domain)
 {
 
@@ -104,6 +85,25 @@ vm_domain_select_next(struct vm_domain_select *sel, int domain)
 		} while (!VM_DOMAIN_ISSET(domain, &sel->ds_mask));
 	}
 	return domain;
+}
+
+static inline int
+vm_domain_select_first(struct vm_domain_select *sel)
+{
+	int domain;
+
+	switch (sel->ds_policy) {
+	case FIRSTTOUCH:
+		domain = PCPU_GET(domain);
+		if (VM_DOMAIN_ISSET(domain, &sel->ds_mask))
+			break;
+		/* FALLTHROUGH */
+	case ROUNDROBIN:
+		domain = atomic_fetchadd_int(&sel->ds_cursor, 1) % vm_ndomains;
+		if (!VM_DOMAIN_ISSET(domain, &sel->ds_mask))
+			domain = vm_domain_select_next(sel, domain);
+	}
+	return (domain);
 }
 
 #endif /* _KERNEL */
