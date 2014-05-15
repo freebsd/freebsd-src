@@ -170,8 +170,8 @@ Lunmapped:
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
-	ldr	r1, =SOCDEV_VA
-	ldr	r2, =SOCDEV_PA
+	ldr	r1, =SOCDEV_PA
+	ldr	r2, =SOCDEV_VA
 	bl	build_pagetables
 #endif
 

@@ -590,6 +590,11 @@ initarm(struct arm_boot_params *abp)
 		printf("Warning: No soc support for %s found.\n", soc_info.name);
 
 	memsize = board_init();
+	if (memsize == -1) {
+		printf("board_init() failed, cannot determine ram size; "
+		    "assuming 16MB\n");
+		memsize = 16 * 1024 * 1024;
+	}
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
