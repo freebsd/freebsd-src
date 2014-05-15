@@ -153,6 +153,30 @@
 		}
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		led1 {
+			gpios = <&GPIO 53 2 0>;
+			name = "led1";
+		};
+
+		led2 {
+			gpios = <&GPIO 54 2 0>;
+			name = "led2";
+		};
+
+		led3 {
+			gpios = <&GPIO 55 2 0>;
+			name = "led3";
+		};
+
+		led4 {
+			gpios = <&GPIO 56 2 0>;
+			name = "led4";
+		};
+	};
+
 	chosen {
 		stdin = "uart0";
 		stdout = "uart0";

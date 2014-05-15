@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 #include "gpiobus_if.h"
 
-static void gpiobus_print_pins(struct gpiobus_ivar *);
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);
 static int gpiobus_probe(device_t);
 static int gpiobus_attach(device_t);
@@ -73,17 +72,7 @@ static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 
-#define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
-#define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
-#define	GPIOBUS_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpiobus", MTX_DEF)
-#define	GPIOBUS_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
-#define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-
-
-static void
+void
 gpiobus_print_pins(struct gpiobus_ivar *devi)
 {
 	int range_start, range_stop, need_coma;
@@ -175,7 +164,8 @@ static int
 gpiobus_probe(device_t dev)
 {
 	device_set_desc(dev, "GPIO bus");
-	return (0);
+
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -190,12 +180,12 @@ gpiobus_attach(device_t dev)
 	if (res)
 		return (ENXIO);
 
+	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+
 	/*
 	 * Increase to get number of pins
 	 */
 	sc->sc_npins++;
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
 
 	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
 	    M_NOWAIT | M_ZERO);
@@ -209,7 +199,9 @@ gpiobus_attach(device_t dev)
 	/*
 	 * Get parent's pins and mark them as unmapped
 	 */
+	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
+
 	return (bus_generic_attach(dev));
 }
 
