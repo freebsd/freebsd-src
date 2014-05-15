@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -63,7 +64,7 @@ apm_metadata(u_int where)
 }
 
 static int
-apm_write(int fd, lba_t imgsz, void *bootcode __unused)
+apm_write(lba_t imgsz, void *bootcode __unused)
 {
 	u_char *buf;
 	struct apm_ddr *ddr;
@@ -99,7 +100,7 @@ apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 			strcpy(ent->ent_name, part->label);
 	}
 
-	error = mkimg_write(fd, 0, buf, nparts + 2);
+	error = image_write(0, buf, nparts + 2);
 	free(buf);
 	return (error);
 }

@@ -37,6 +37,7 @@
 .Op Fl S Ar secsz
 .Op Fl T Ar tracksz
 .Op Fl b Ar bootcode
+.Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl v
 .Fl s Ar scheme
@@ -55,6 +56,10 @@ The disk image is written to
 .Ar stdout
 by default or the file specified with the
 .Ar outfile
+argument.
+The image file is a raw disk image by default, but the format of the
+image file can be specified with the
+.Ar format
 argument.
 .Pp
 The disk image can be made bootable by specifying the scheme-specific boot
@@ -106,8 +111,8 @@ option increases the level of output that the
 .Nm
 utility prints.
 .Pp
-For a complete list of supported partitioning schemes or for a detailed
-description of how to specify partitions, run the
+For a complete list of supported partitioning schemes or supported output
+format, or for a detailed description of how to specify partitions, run the
 .Nm
 utility without any arguments.
 .Sh EXAMPLES
@@ -120,6 +125,14 @@ utility as follows:
 .Dl % mkimg -s gpt -b /boot/pmbr -p freebsd-boot:=/boot/gptboot \
 -p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G \
 -o gpt.img
+.Pp
+The command line given above results in a raw image file.
+This is because no output format was given.
+To create a VMDK image for example, add the
+.Fl f Ar vmdk
+argument to the
+.Nm
+utility and name the output file accordingly.
 .Pp
 A nested partitioning scheme is created by running the
 .Nm
