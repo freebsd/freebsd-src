@@ -603,7 +603,7 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_LOG_BUFFER_SIZE			4
 #define	PMC_NLOGBUFFERS				1024
 #define	PMC_NSAMPLES				1024
-#define	PMC_CALLCHAIN_DEPTH			8
+#define	PMC_CALLCHAIN_DEPTH			16
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
