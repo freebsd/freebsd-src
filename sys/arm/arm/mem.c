@@ -135,10 +135,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ?
 			    VM_PROT_READ : VM_PROT_WRITE))
-#ifdef ARM_USE_SMALL_ALLOC
-				if (addr <= VM_MAXUSER_ADDRESS ||
-				    addr >= KERNBASE)
-#endif
 					return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
