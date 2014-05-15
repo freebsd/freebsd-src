@@ -16,7 +16,6 @@ SRCS=	buffer.c dane.c dname.c dnssec.c dnssec_sign.c dnssec_verify.c \
 	rr.c rr_functions.c sha1.c sha2.c str2host.c tsig.c update.c util.c \
 	wire2host.c zone.c
 
-#SRCS+=	b32_ntop.c b32_pton.c b64_ntop.c b64_pton.c
 SRCS+=	b64_ntop.c b64_pton.c
 
 DPADD+=	${LIBCRYPTO}
