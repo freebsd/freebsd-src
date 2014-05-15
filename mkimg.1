@@ -126,6 +126,14 @@ utility as follows:
 -p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G \
 -o gpt.img
 .Pp
+The command line given above results in a raw image file.
+This is because no output format was given.
+To create a VMDK image for example, add the
+.Fl f Ar vmdk
+argument to the
+.Nm
+utility and name the output file accordingly.
+.Pp
 A nested partitioning scheme is created by running the
 .Nm
 utility twice.
