@@ -112,7 +112,8 @@ vmdk_write(int fd)
 {
 	struct vmdk_header hdr;
 	uint32_t *gt, *gd;
-	char *desc;
+	char *buf, *desc;
+	off_t cur, lim;
 	uint64_t imagesz;
 	size_t gdsz, gtsz;
 	uint32_t sec;
@@ -181,17 +182,37 @@ vmdk_write(int fd)
 	for (n = 0; n < ngrains; n++)
 		le32enc(gt + n, sec + n * grainsz);
 
-	write(fd, &hdr, VMDK_SECTOR_SIZE);
-	write(fd, desc, desc_len);
-	write(fd, gd, gdsz);
-	write(fd, gt, gtsz);
-	lseek(fd, sec * VMDK_SECTOR_SIZE, SEEK_SET);
-	error = image_copyout(fd);
-
+	error = 0;
+	if (!error && sparse_write(fd, &hdr, VMDK_SECTOR_SIZE) < 0)
+		error = errno;
+	if (!error && sparse_write(fd, desc, desc_len) < 0)
+		error = errno;
+	if (!error && sparse_write(fd, gd, gdsz) < 0)
+		error = errno;
+	if (!error && sparse_write(fd, gt, gtsz) < 0)
+		error = errno;
 	free(gt);
 	free(gd);
 	free(desc);
+	if (error)
+		return (error);
 
+	cur = VMDK_SECTOR_SIZE + desc_len + gdsz + gtsz;
+	lim = sec * VMDK_SECTOR_SIZE;
+	if (cur < lim) {
+		buf = calloc(VMDK_SECTOR_SIZE, 1);
+		if (buf == NULL)
+			error = ENOMEM;
+		while (!error && cur < lim) {
+			if (sparse_write(fd, buf, VMDK_SECTOR_SIZE) < 0)
+				error = errno;
+			cur += VMDK_SECTOR_SIZE;
+		}
+		if (buf != NULL)
+			free(buf);
+	}
+	if (!error)
+		error = image_copyout(fd);
 	return (error);
 }
 
