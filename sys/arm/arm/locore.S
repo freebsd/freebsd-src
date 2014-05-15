@@ -333,10 +333,10 @@ ASENTRY_NP(mptramp)
 
 	AP_DEBUG(#1)
 
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	bic	r3, r3, #(PSR_MODE)
 	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_all, r3
+        msr	cpsr_fsxc, r3
 
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, #0x0f		/* Get CPU ID */
@@ -446,7 +446,7 @@ ENTRY_NP(cpu_halt)
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(I32_bit | F32_bit)
-	msr     cpsr_all, r2
+	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]
