@@ -467,11 +467,10 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
 		for (i = 0; i < nintr; i+= icells) {
-			intr[i] = ofw_bus_map_intr(dev, iparent, intr[i]);
+			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
+			    &intr[i]);
 			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
 			    intr[i], 1);
-			if (icells > 1)
-				ofw_bus_config_intr(dev, intr[i], intr[i+1]);
 		}
 		free(intr, M_OFWPROP);
 	}

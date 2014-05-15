@@ -98,7 +98,7 @@ static int nexus_teardown_intr(device_t, device_t, struct resource *, void *);
 
 #ifdef FDT
 static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
-    int irq);
+    int icells, pcell_t *intr);
 #endif
 
 static device_method_t nexus_methods[] = {
@@ -339,15 +339,16 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 #ifdef FDT
 static int
-nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int irq)
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
+    pcell_t *intr)
 {
-	pcell_t intr[2];
 	fdt_pic_decode_t intr_decode;
 	phandle_t intr_offset;
 	int i, rv, interrupt, trig, pol;
 
 	intr_offset = OF_xref_phandle(iparent);
-	intr[0] = cpu_to_fdt32(irq);
+	for (i = 0; i < icells; i++)
+		intr[i] = cpu_to_fdt32(intr[i]);
 
 	for (i = 0; fdt_pic_table[i] != NULL; i++) {
 		intr_decode = fdt_pic_table[i];
@@ -361,7 +362,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int irq)
 	}
 
 	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(*intr));
+	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
 
 	return (interrupt);
 }
