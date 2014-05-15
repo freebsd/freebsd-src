@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 
 / {
 	model = "Freescale Vybrid Family";
-	compatible = "freescale,vybrid", "fsl,vf";
+	compatible = "freescale,vybrid", "fsl,mvf";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -38,6 +38,15 @@
 		soc = &SOC;
 		serial0 = &serial0;
 		serial1 = &serial1;
+		sai0 = &sai0;
+		sai1 = &sai1;
+		sai2 = &sai2;
+		sai3 = &sai3;
+		esai = &esai;
+		adc0 = &adc0;
+		adc1 = &adc1;
+		edma0 = &edma0;
+		edma1 = &edma1;
 		src = &SRC;
 	};
 
@@ -74,6 +83,7 @@
 		ccm@4006b000 {
 			compatible = "fsl,mvf600-ccm";
 			reg = <0x4006b000 0x1000>;
+			clock_names = "pll4";
 		};
 
 		mp_tmr@40002100 {
@@ -85,6 +95,32 @@
 			      < 0x40002600 0x100 >; /* Private Timer Registers */
 			interrupts = < 27 29 >;
 			interrupt-parent = < &GIC >;
+		};
+
+		dmamux@40024000 {
+			compatible = "fsl,mvf600-dmamux";
+			reg = <0x40024000 0x100>,
+			      <0x40025000 0x100>,
+			      <0x400A1000 0x100>,
+			      <0x400A2000 0x100>;
+		};
+
+		edma0: edma@40018000 {
+			compatible = "fsl,mvf600-edma";
+			reg = <0x40018000 0x1000>,
+			      <0x40019000 0x1000>; /* TCD */
+			interrupts = < 40 41 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		edma1: edma@40098000 {
+			compatible = "fsl,mvf600-edma";
+			reg = <0x40098000 0x1000>,
+			      <0x40099000 0x1000>; /* TCD */
+			interrupts = < 42 43 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
 		};
 
 		pit@40037000 {
@@ -115,7 +151,6 @@
 			gpio-controller;
 			interrupts = < 139 140 141 142 143 >;
 			interrupt-parent = <&GIC>;
-
 		};
 
 		nand@400E0000 {
@@ -125,6 +160,8 @@
 			reg = <0x400E0000 0x10000>;
 			interrupts = < 115 >;
 			interrupt-parent = <&GIC>;
+			clock_names = "nand";
+			status = "disabled";
 
 			partition@40000 {
 				reg = <0x40000 0x200000>; /* 2MB */
@@ -146,7 +183,6 @@
 				reg = <0xe40000 0x1e000000>; /* 480MB */
 				label =	"root";
 			};
-
 		};
 
 		sdhci0: sdhci@400B1000 {
@@ -155,6 +191,8 @@
 			interrupts = < 59 >;
 			interrupt-parent = <&GIC>;
 			clock-frequency = <50000000>;
+			status = "disabled";
+			clock_names = "esdhc0";
 		};
 
 		sdhci1: sdhci@400B2000 {
@@ -163,6 +201,11 @@
 			interrupts = < 60 >;
 			interrupt-parent = <&GIC>;
 			clock-frequency = <50000000>;
+			status = "disabled";
+			clock_names = "esdhc1";
+			iomux_config = < 14 0x5 15 0x5
+					 16 0x5 17 0x5
+					 18 0x5 19 0x5 >;
 		};
 
 		serial0: serial@40027000 {
@@ -172,6 +215,7 @@
 			interrupt-parent = <&GIC>;
 			current-speed = <115200>;
 			clock-frequency = < 24000000 >;
+			status = "disabled";
 		};
 
 		serial1: serial@40028000 {
@@ -181,6 +225,7 @@
 			interrupt-parent = <&GIC>;
 			current-speed = <115200>;
 			clock-frequency = < 24000000 >;
+			status = "disabled";
 		};
 
 		usb@40034000 {
@@ -208,6 +253,13 @@
 			interrupt-parent = <&GIC>;
 			phy-mode = "rmii";
 			phy-disable-preamble;
+			status = "disabled";
+			clock_names = "enet";
+			iomux_config = < 45 0x1 46 0x1
+					 47 0x1 48 0x1
+					 49 0x1 50 0x1
+					 51 0x1 52 0x1
+					 53 0x1 >;
 		};
 
 		fec1: ethernet@400D1000 {
@@ -217,7 +269,145 @@
 			interrupt-parent = <&GIC>;
 			phy-mode = "rmii";
 			phy-disable-preamble;
+			status = "disabled";
+			clock_names = "enet";
+			iomux_config = < 54 0x1 55 0x1
+					 56 0x1 57 0x1
+					 58 0x1 59 0x1
+					 60 0x1 61 0x1
+					 62 0x1 >;
 		};
 
+		sai0: sai@4002F000 {
+			compatible = "fsl,mvf600-sai";
+			reg = <0x4002F000 0x1000>;
+			interrupts = < 116 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		sai1: sai@40030000 {
+			compatible = "fsl,mvf600-sai";
+			reg = <0x40030000 0x1000>;
+			interrupts = < 117 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		sai2: sai@40031000 {
+			compatible = "fsl,mvf600-sai";
+			reg = <0x40031000 0x1000>;
+			interrupts = < 118 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		sai3: sai@40032000 {
+			compatible = "fsl,mvf600-sai";
+			reg = <0x40032000 0x1000>;
+			interrupts = < 119 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+			clock_names = "sai3", "cko1";
+			iomux_config = < 16 0x2
+					 19 0x2
+					 21 0x2
+					 40 0x4 >; /* CKO1 */
+		};
+
+		esai: esai@40062000 {
+			compatible = "fsl,mvf600-esai";
+			reg = <0x40062000 0x1000>;
+			interrupts = < 120 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+			clock_names = "esai";
+			iomux_config = < 45 0x4 46 0x4
+					 47 0x4 48 0x4
+					 49 0x4 50 0x4
+					 51 0x4 52 0x4
+					 78 0x3 40 0x4>;
+		};
+
+		spi0: spi@4002C000 {
+			compatible = "fsl,mvf600-spi";
+			reg = <0x4002C000 0x1000>;
+			interrupts = < 99 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+			iomux_config = < 40 0x1 41 0x1
+					 42 0x1 43 0x1
+					 44 0x1 >;
+		};
+
+		spi1: spi@4002D000 {
+			compatible = "fsl,mvf600-spi";
+			reg = <0x4002D000 0x1000>;
+			interrupts = < 100 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		spi2: spi@400AC000 {
+			compatible = "fsl,mvf600-spi";
+			reg = <0x400AC000 0x1000>;
+			interrupts = < 101 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		spi3: spi@400AD000 {
+			compatible = "fsl,mvf600-spi";
+			reg = <0x400AD000 0x1000>;
+			interrupts = < 102 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		adc0: adc@4003B000 {
+			compatible = "fsl,mvf600-adc";
+			reg = <0x4003B000 0x1000>;
+			interrupts = < 85 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		adc1: adc@400BB000 {
+			compatible = "fsl,mvf600-adc";
+			reg = <0x400BB000 0x1000>;
+			interrupts = < 86 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		tcon0: tcon@4003D000 {
+			compatible = "fsl,mvf600-tcon";
+			reg = <0x4003D000 0x1000>;
+			status = "disabled";
+		};
+
+		dcu0: dcu4@40058000 {
+			compatible = "fsl,mvf600-dcu4";
+			reg = <0x40058000 0x7000>;
+			interrupts = < 62 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+			clock_names = "dcu0";
+			iomux_config = < 105 0x1 106 0x1
+					 107 0x1 108 0x1
+					 109 0x1 110 0x1
+					 111 0x1 112 0x1
+					 113 0x1 114 0x1
+					 115 0x1 116 0x1
+					 117 0x1 118 0x1
+					 119 0x1 120 0x1
+					 121 0x1 122 0x1
+					 123 0x1 124 0x1
+					 125 0x1 126 0x1
+					 127 0x1 128 0x1
+					 129 0x1 130 0x1
+					 131 0x1 132 0x1
+					 133 0x1 >;
+		};
 	};
 };
