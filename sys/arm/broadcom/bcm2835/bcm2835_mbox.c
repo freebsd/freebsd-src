@@ -128,6 +128,9 @@ static int
 bcm_mbox_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-mbox")) {
 		device_set_desc(dev, "BCM2835 VideoCore Mailbox");
 		return(BUS_PROBE_DEFAULT);

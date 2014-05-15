@@ -1711,6 +1711,9 @@ ffec_probe(device_t dev)
 {
 	uintptr_t fectype;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (fectype == FECTYPE_NONE)
 		return (ENXIO);

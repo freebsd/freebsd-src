@@ -1363,6 +1363,10 @@ omap4_prcm_reset(void)
 static int
 omap4_prcm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,omap4_prcm"))
 		return (ENXIO);
 

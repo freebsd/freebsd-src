@@ -64,6 +64,9 @@ smc_fdt_probe(device_t dev)
 {
 	struct	smc_softc *sc;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "smsc,lan91c111")) {
 		sc = device_get_softc(dev);
 		sc->smc_usemem = 1;

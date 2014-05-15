@@ -64,6 +64,9 @@ static int
 atse_probe_fdt(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "altera,atse")) {
 		device_set_desc(dev, "Altera Triple-Speed Ethernet MegaCore");
 		return (BUS_PROBE_DEFAULT);
