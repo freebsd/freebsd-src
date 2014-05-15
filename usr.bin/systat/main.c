@@ -141,11 +141,7 @@ main(int argc, char **argv)
 	double t;
 	struct cmdentry *cmd = NULL;
 
-#ifdef USE_WIDECHAR
 	(void) setlocale(LC_ALL, "");
-#else
-	(void) setlocale(LC_TIME, "");
-#endif
 
 	SLIST_INIT(&commands);
 	argc--, argv++;
