@@ -1372,7 +1372,7 @@ ldns_axfr_next(ldns_resolver *resolver)
  * library staying in an indetermined state because the socket for the
  * AXFR is never closed
  */
-static void
+void
 ldns_axfr_abort(ldns_resolver *resolver)
 {
 	/* Only abort if an actual AXFR is in progress */
