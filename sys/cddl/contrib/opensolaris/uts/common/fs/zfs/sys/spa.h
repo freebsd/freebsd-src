@@ -106,7 +106,7 @@ _NOTE(CONSTCOND) } while (0)
 #define	SPA_BLOCKSIZES		(SPA_MAXBLOCKSHIFT - SPA_MINBLOCKSHIFT + 1)
 
 /*
- * Maximum supported logical ashift.
+ * Default maximum supported logical ashift.
  *
  * The current 8k allocation block size limit is due to the 8k
  * aligned/sized operations performed by vdev_probe() on
@@ -115,6 +115,11 @@ _NOTE(CONSTCOND) } while (0)
  * only having 8 available uberblocks in the label area.
  */
 #define	SPA_MAXASHIFT		13
+
+/*
+ * Default minimum supported logical ashift.
+ */
+#define SPA_MINASHIFT		SPA_MINBLOCKSHIFT
 
 /*
  * Size of block to hold the configuration data (a packed nvlist)
