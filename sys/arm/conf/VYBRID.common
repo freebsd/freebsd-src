@@ -137,3 +137,10 @@ device		axe			# ASIX Electronics USB Ethernet
 device		bpf			# Berkeley packet filter
 
 device		sound
+
+# Framebuffer
+device		vt
+device		kbdmux
+options		SC_DFLT_FONT    # compile font in
+makeoptions	SC_DFLT_FONT=cp437
+device		ukbd

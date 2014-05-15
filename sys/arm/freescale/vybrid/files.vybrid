@@ -21,6 +21,8 @@ arm/freescale/vybrid/vf_anadig.c		standard
 arm/freescale/vybrid/vf_iomuxc.c		standard
 arm/freescale/vybrid/vf_mscm.c			standard
 arm/freescale/vybrid/vf_src.c			standard
+arm/freescale/vybrid/vf_tcon.c			optional	vt
+arm/freescale/vybrid/vf_dcu4.c			optional	vt
 arm/freescale/vybrid/vf_nfc.c			optional	nand
 arm/freescale/vybrid/vf_ehci.c			optional	ehci
 arm/freescale/vybrid/vf_gpio.c			optional	gpio
