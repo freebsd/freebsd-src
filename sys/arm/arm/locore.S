@@ -221,7 +221,7 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
-	mov	r1, #24			/* loader info size is 24 bytes also second arg */
+	mov	r1, #28			/* loader info size is 28 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
 	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
@@ -232,6 +232,8 @@ virt_done:
 	str	fp, [r0, #16]		/* store r3 from boot loader */
 	ldr	r5, =KERNPHYSADDR	/* load KERNPHYSADDR as the physical address */
 	str	r5, [r0, #20]		/* store the physical address */
+	ldr	r5, Lstartup_pagetable
+	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -276,11 +278,6 @@ build_pagetables:
 	bhi	1b
 
 	RET
-
-#define MMU_INIT(va,pa,n_sec,attr) \
-	.word	n_sec					    ; \
-	.word	4*((va)>>L1_S_SHIFT)			    ; \
-	.word	(pa)|(attr)				    ;
 
 Lvirtaddr:
 	.word	KERNVIRTADDR

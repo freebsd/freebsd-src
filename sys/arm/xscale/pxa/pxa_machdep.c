@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/physmem.h>
 #include <sys/reboot.h>
 
 #include <arm/xscale/pxa/pxareg.h>
@@ -109,9 +110,6 @@ extern u_int undefined_handler_address;
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
-vm_paddr_t dump_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -160,6 +158,7 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize[PXA2X0_SDRAM_BANKS], memstart[PXA2X0_SDRAM_BANKS];
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -309,11 +308,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	pxa_probe_sdram(obio_tag, PXA2X0_MEMCTL_BASE, memstart, memsize);
 
-	physmem = 0;
-	for (i = 0; i < PXA2X0_SDRAM_BANKS; i++) {
-		physmem += memsize[i] / PAGE_SIZE;
-	}
-
 	/* Fire up consoles. */
 	cninit();
 
@@ -329,39 +323,29 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	i = 0;
-	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			dump_avail[i++] = round_page(memstart[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
-	}
-	dump_avail[i] = 0;
-	dump_avail[i] = 0;
 	vm_max_kernel_address = 0xd0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			phys_avail[i] = round_page(memstart[j]);
-			dump_avail[i++] = round_page(memstart[j]);
-			phys_avail[i] =
-			    trunc_page(memstart[j] + memsize[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
+		if (memsize[j] > 0)
+			arm_physmem_hardware_region(memstart[j], memsize[j]);
 	}
-
-	dump_avail[i] = 0;
-	phys_avail[i++] = 0;
-	dump_avail[i] = 0;
-	phys_avail[i] = 0;
-	phys_avail[0] = round_page(virtual_avail - KERNBASE + phys_avail[0]);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();
