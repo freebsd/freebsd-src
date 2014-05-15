@@ -76,20 +76,37 @@ def ADDRrr : ComplexPattern<iPTR, 2, "SelectADDRrr", [], []>;
 def ADDRri : ComplexPattern<iPTR, 2, "SelectADDRri", [frameindex], []>;
 
 // Address operands
+def SparcMEMrrAsmOperand : AsmOperandClass {
+  let Name = "MEMrr";
+  let ParserMethod = "parseMEMOperand";
+}
+
+def SparcMEMriAsmOperand : AsmOperandClass {
+  let Name = "MEMri";
+  let ParserMethod = "parseMEMOperand";
+}
+
 def MEMrr : Operand<iPTR> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, ptr_rc);
+  let ParserMatchClass = SparcMEMrrAsmOperand;
 }
 def MEMri : Operand<iPTR> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, i32imm);
+  let ParserMatchClass = SparcMEMriAsmOperand;
 }
 
 def TLSSym : Operand<iPTR>;
 
 // Branch targets have OtherVT type.
-def brtarget : Operand<OtherVT>;
-def calltarget : Operand<i32>;
+def brtarget : Operand<OtherVT> {
+  let EncoderMethod = "getBranchTargetOpValue";
+}
+
+def calltarget : Operand<i32> {
+  let EncoderMethod = "getCallTargetOpValue";
+}
 
 // Operand for printing out a condition code.
 let PrintMethod = "printCCOperand" in
@@ -163,7 +180,7 @@ def tlscall       : SDNode<"SPISD::TLS_CALL", SDT_SPCall,
                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                              SDNPVariadic]>;
 
-def getPCX        : Operand<i32> {
+def getPCX        : Operand<iPTR> {
   let PrintMethod = "printGetPCX";
 }
 
@@ -210,26 +227,53 @@ def FCC_O   : FCC_VAL<29>;  // Ordered
 //===----------------------------------------------------------------------===//
 
 /// F3_12 multiclass - Define a normal F3_1/F3_2 pattern in one shot.
-multiclass F3_12<string OpcStr, bits<6> Op3Val, SDNode OpNode> {
+multiclass F3_12<string OpcStr, bits<6> Op3Val, SDNode OpNode,
+                 RegisterClass RC, ValueType Ty, Operand immOp> {
   def rr  : F3_1<2, Op3Val,
-                 (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"),
-                 [(set i32:$dst, (OpNode i32:$b, i32:$c))]>;
+                 (outs RC:$rd), (ins RC:$rs1, RC:$rs2),
+                 !strconcat(OpcStr, " $rs1, $rs2, $rd"),
+                 [(set Ty:$rd, (OpNode Ty:$rs1, Ty:$rs2))]>;
   def ri  : F3_2<2, Op3Val,
-                 (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"),
-                 [(set i32:$dst, (OpNode i32:$b, (i32 simm13:$c)))]>;
+                 (outs RC:$rd), (ins RC:$rs1, immOp:$simm13),
+                 !strconcat(OpcStr, " $rs1, $simm13, $rd"),
+                 [(set Ty:$rd, (OpNode Ty:$rs1, (Ty simm13:$simm13)))]>;
 }
 
 /// F3_12np multiclass - Define a normal F3_1/F3_2 pattern in one shot, with no
 /// pattern.
 multiclass F3_12np<string OpcStr, bits<6> Op3Val> {
   def rr  : F3_1<2, Op3Val,
-                 (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"), []>;
+                 (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                 !strconcat(OpcStr, " $rs1, $rs2, $rd"), []>;
   def ri  : F3_2<2, Op3Val,
-                 (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $b, $c, $dst"), []>;
+                 (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                 !strconcat(OpcStr, " $rs1, $simm13, $rd"), []>;
+}
+
+// Load multiclass - Define both Reg+Reg/Reg+Imm patterns in one shot.
+multiclass Load<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
+           RegisterClass RC, ValueType Ty> {
+  def rr  : F3_1<3, Op3Val,
+                 (outs RC:$dst), (ins MEMrr:$addr),
+                 !strconcat(OpcStr, " [$addr], $dst"),
+                 [(set Ty:$dst, (OpNode ADDRrr:$addr))]>;
+  def ri  : F3_2<3, Op3Val,
+                 (outs RC:$dst), (ins MEMri:$addr),
+                 !strconcat(OpcStr, " [$addr], $dst"),
+                 [(set Ty:$dst, (OpNode ADDRri:$addr))]>;
+}
+
+// Store multiclass - Define both Reg+Reg/Reg+Imm patterns in one shot.
+multiclass Store<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
+           RegisterClass RC, ValueType Ty> {
+  def rr  : F3_1<3, Op3Val,
+                 (outs), (ins MEMrr:$addr, RC:$rd),
+                 !strconcat(OpcStr, " $rd, [$addr]"),
+                 [(OpNode Ty:$rd, ADDRrr:$addr)]>;
+  def ri  : F3_2<3, Op3Val,
+                 (outs), (ins MEMri:$addr, RC:$rd),
+                 !strconcat(OpcStr, " $rd, [$addr]"),
+                 [(OpNode Ty:$rd, ADDRri:$addr)]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -238,7 +282,10 @@ multiclass F3_12np<string OpcStr, bits<6> Op3Val> {
 
 // Pseudo instructions.
 class Pseudo<dag outs, dag ins, string asmstr, list<dag> pattern>
-   : InstSP<outs, ins, asmstr, pattern>;
+   : InstSP<outs, ins, asmstr, pattern> {
+  let isCodeGenOnly = 1;
+  let isPseudo = 1;
+}
 
 // GETPCX for PIC
 let Defs = [O7] in {
@@ -264,6 +311,9 @@ let hasSideEffects = 1, mayStore = 1 in {
                    "ta 3",
                    [(flushw)]>;
 }
+
+let isBarrier = 1, isTerminator = 1, rd = 0b1000, rs1 = 0, simm13 = 5 in
+  def TA5 : F3_2<0b10, 0b111010, (outs), (ins), "ta 5", [(trap)]>;
 
 let rd = 0 in
   def UNIMP : F2_1<0b000, (outs), (ins i32imm:$val),
@@ -315,10 +365,18 @@ let usesCustomInserter = 1, Uses = [FCC] in {
             [(set f128:$dst, (SPselectfcc f128:$T, f128:$F, imm:$Cond))]>;
 }
 
+// JMPL Instruction.
+let isTerminator = 1, hasDelaySlot = 1, isBarrier = 1 in {
+  def JMPLrr: F3_1<2, 0b111000, (outs IntRegs:$dst), (ins MEMrr:$addr),
+                  "jmpl $addr, $dst", []>;
+  def JMPLri: F3_2<2, 0b111000, (outs IntRegs:$dst), (ins MEMri:$addr),
+                  "jmpl $addr, $dst", []>;
+}
 
 // Section A.3 - Synthetic Instructions, p. 85
 // special cases of JMPL:
-let isReturn = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1 in {
+let isReturn = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1,
+    isCodeGenOnly = 1 in {
   let rd = 0, rs1 = 15 in
     def RETL: F3_2<2, 0b111000, (outs), (ins i32imm:$val),
                    "jmp %o7+$val", [(retflag simm13:$val)]>;
@@ -329,128 +387,28 @@ let isReturn = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1 in {
 }
 
 // Section B.1 - Load Integer Instructions, p. 90
-def LDSBrr : F3_1<3, 0b001001,
-                  (outs IntRegs:$dst), (ins MEMrr:$addr),
-                  "ldsb [$addr], $dst",
-                  [(set i32:$dst, (sextloadi8 ADDRrr:$addr))]>;
-def LDSBri : F3_2<3, 0b001001,
-                  (outs IntRegs:$dst), (ins MEMri:$addr),
-                  "ldsb [$addr], $dst",
-                  [(set i32:$dst, (sextloadi8 ADDRri:$addr))]>;
-def LDSHrr : F3_1<3, 0b001010,
-                  (outs IntRegs:$dst), (ins MEMrr:$addr),
-                  "ldsh [$addr], $dst",
-                  [(set i32:$dst, (sextloadi16 ADDRrr:$addr))]>;
-def LDSHri : F3_2<3, 0b001010,
-                  (outs IntRegs:$dst), (ins MEMri:$addr),
-                  "ldsh [$addr], $dst",
-                  [(set i32:$dst, (sextloadi16 ADDRri:$addr))]>;
-def LDUBrr : F3_1<3, 0b000001,
-                  (outs IntRegs:$dst), (ins MEMrr:$addr),
-                  "ldub [$addr], $dst",
-                  [(set i32:$dst, (zextloadi8 ADDRrr:$addr))]>;
-def LDUBri : F3_2<3, 0b000001,
-                  (outs IntRegs:$dst), (ins MEMri:$addr),
-                  "ldub [$addr], $dst",
-                  [(set i32:$dst, (zextloadi8 ADDRri:$addr))]>;
-def LDUHrr : F3_1<3, 0b000010,
-                  (outs IntRegs:$dst), (ins MEMrr:$addr),
-                  "lduh [$addr], $dst",
-                  [(set i32:$dst, (zextloadi16 ADDRrr:$addr))]>;
-def LDUHri : F3_2<3, 0b000010,
-                  (outs IntRegs:$dst), (ins MEMri:$addr),
-                  "lduh [$addr], $dst",
-                  [(set i32:$dst, (zextloadi16 ADDRri:$addr))]>;
-def LDrr   : F3_1<3, 0b000000,
-                  (outs IntRegs:$dst), (ins MEMrr:$addr),
-                  "ld [$addr], $dst",
-                  [(set i32:$dst, (load ADDRrr:$addr))]>;
-def LDri   : F3_2<3, 0b000000,
-                  (outs IntRegs:$dst), (ins MEMri:$addr),
-                  "ld [$addr], $dst",
-                  [(set i32:$dst, (load ADDRri:$addr))]>;
+defm LDSB : Load<"ldsb", 0b001001, sextloadi8,  IntRegs, i32>;
+defm LDSH : Load<"ldsh", 0b001010, sextloadi16, IntRegs, i32>;
+defm LDUB : Load<"ldub", 0b000001, zextloadi8,  IntRegs, i32>;
+defm LDUH : Load<"lduh", 0b000010, zextloadi16, IntRegs, i32>;
+defm LD   : Load<"ld",   0b000000, load,        IntRegs, i32>;
 
 // Section B.2 - Load Floating-point Instructions, p. 92
-def LDFrr  : F3_1<3, 0b100000,
-                  (outs FPRegs:$dst), (ins MEMrr:$addr),
-                  "ld [$addr], $dst",
-                  [(set f32:$dst, (load ADDRrr:$addr))]>;
-def LDFri  : F3_2<3, 0b100000,
-                  (outs FPRegs:$dst), (ins MEMri:$addr),
-                  "ld [$addr], $dst",
-                  [(set f32:$dst, (load ADDRri:$addr))]>;
-def LDDFrr : F3_1<3, 0b100011,
-                  (outs DFPRegs:$dst), (ins MEMrr:$addr),
-                  "ldd [$addr], $dst",
-                  [(set f64:$dst, (load ADDRrr:$addr))]>;
-def LDDFri : F3_2<3, 0b100011,
-                  (outs DFPRegs:$dst), (ins MEMri:$addr),
-                  "ldd [$addr], $dst",
-                  [(set f64:$dst, (load ADDRri:$addr))]>;
-def LDQFrr : F3_1<3, 0b100010,
-                  (outs QFPRegs:$dst), (ins MEMrr:$addr),
-                  "ldq [$addr], $dst",
-                  [(set f128:$dst, (load ADDRrr:$addr))]>,
-                  Requires<[HasV9, HasHardQuad]>;
-def LDQFri : F3_2<3, 0b100010,
-                  (outs QFPRegs:$dst), (ins MEMri:$addr),
-                  "ldq [$addr], $dst",
-                  [(set f128:$dst, (load ADDRri:$addr))]>,
-                  Requires<[HasV9, HasHardQuad]>;
+defm LDF   : Load<"ld",  0b100000, load, FPRegs,  f32>;
+defm LDDF  : Load<"ldd", 0b100011, load, DFPRegs, f64>;
+defm LDQF  : Load<"ldq", 0b100010, load, QFPRegs, f128>,
+             Requires<[HasV9, HasHardQuad]>;
 
 // Section B.4 - Store Integer Instructions, p. 95
-def STBrr : F3_1<3, 0b000101,
-                 (outs), (ins MEMrr:$addr, IntRegs:$rd),
-                 "stb $rd, [$addr]",
-                 [(truncstorei8 i32:$rd, ADDRrr:$addr)]>;
-def STBri : F3_2<3, 0b000101,
-                 (outs), (ins MEMri:$addr, IntRegs:$rd),
-                 "stb $rd, [$addr]",
-                 [(truncstorei8 i32:$rd, ADDRri:$addr)]>;
-def STHrr : F3_1<3, 0b000110,
-                 (outs), (ins MEMrr:$addr, IntRegs:$rd),
-                 "sth $rd, [$addr]",
-                 [(truncstorei16 i32:$rd, ADDRrr:$addr)]>;
-def STHri : F3_2<3, 0b000110,
-                 (outs), (ins MEMri:$addr, IntRegs:$rd),
-                 "sth $rd, [$addr]",
-                 [(truncstorei16 i32:$rd, ADDRri:$addr)]>;
-def STrr  : F3_1<3, 0b000100,
-                 (outs), (ins MEMrr:$addr, IntRegs:$rd),
-                 "st $rd, [$addr]",
-                 [(store i32:$rd, ADDRrr:$addr)]>;
-def STri  : F3_2<3, 0b000100,
-                 (outs), (ins MEMri:$addr, IntRegs:$rd),
-                 "st $rd, [$addr]",
-                 [(store i32:$rd, ADDRri:$addr)]>;
+defm STB   : Store<"stb", 0b000101, truncstorei8,  IntRegs, i32>;
+defm STH   : Store<"sth", 0b000110, truncstorei16, IntRegs, i32>;
+defm ST    : Store<"st",  0b000100, store,         IntRegs, i32>;
 
 // Section B.5 - Store Floating-point Instructions, p. 97
-def STFrr   : F3_1<3, 0b100100,
-                   (outs), (ins MEMrr:$addr, FPRegs:$rd),
-                   "st $rd, [$addr]",
-                   [(store f32:$rd, ADDRrr:$addr)]>;
-def STFri   : F3_2<3, 0b100100,
-                   (outs), (ins MEMri:$addr, FPRegs:$rd),
-                   "st $rd, [$addr]",
-                   [(store f32:$rd, ADDRri:$addr)]>;
-def STDFrr  : F3_1<3, 0b100111,
-                   (outs), (ins MEMrr:$addr, DFPRegs:$rd),
-                   "std  $rd, [$addr]",
-                   [(store f64:$rd, ADDRrr:$addr)]>;
-def STDFri  : F3_2<3, 0b100111,
-                   (outs), (ins MEMri:$addr, DFPRegs:$rd),
-                   "std $rd, [$addr]",
-                   [(store f64:$rd, ADDRri:$addr)]>;
-def STQFrr  : F3_1<3, 0b100110,
-                   (outs), (ins MEMrr:$addr, QFPRegs:$rd),
-                   "stq  $rd, [$addr]",
-                   [(store f128:$rd, ADDRrr:$addr)]>,
-                   Requires<[HasV9, HasHardQuad]>;
-def STQFri  : F3_2<3, 0b100110,
-                   (outs), (ins MEMri:$addr, QFPRegs:$rd),
-                   "stq $rd, [$addr]",
-                   [(store f128:$rd, ADDRri:$addr)]>,
-                   Requires<[HasV9, HasHardQuad]>;
+defm STF   : Store<"st",  0b100100, store,         FPRegs,  f32>;
+defm STDF  : Store<"std", 0b100111, store,         DFPRegs, f64>;
+defm STQF  : Store<"stq", 0b100110, store,         QFPRegs, f128>,
+             Requires<[HasV9, HasHardQuad]>;
 
 // Section B.9 - SETHI Instruction, p. 104
 def SETHIi: F2_1<0b100,
@@ -464,85 +422,79 @@ let rd = 0, imm22 = 0 in
   def NOP : F2_1<0b100, (outs), (ins), "nop", []>;
 
 // Section B.11 - Logical Instructions, p. 106
-defm AND    : F3_12<"and", 0b000001, and>;
+defm AND    : F3_12<"and", 0b000001, and, IntRegs, i32, i32imm>;
 
 def ANDNrr  : F3_1<2, 0b000101,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                   "andn $b, $c, $dst",
-                   [(set i32:$dst, (and i32:$b, (not i32:$c)))]>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                   "andn $rs1, $rs2, $rd",
+                   [(set i32:$rd, (and i32:$rs1, (not i32:$rs2)))]>;
 def ANDNri  : F3_2<2, 0b000101,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                   "andn $b, $c, $dst", []>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   "andn $rs1, $simm13, $rd", []>;
 
-defm OR     : F3_12<"or", 0b000010, or>;
+defm OR     : F3_12<"or", 0b000010, or, IntRegs, i32, i32imm>;
 
 def ORNrr   : F3_1<2, 0b000110,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                   "orn $b, $c, $dst",
-                   [(set i32:$dst, (or i32:$b, (not i32:$c)))]>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                   "orn $rs1, $rs2, $rd",
+                   [(set i32:$rd, (or i32:$rs1, (not i32:$rs2)))]>;
 def ORNri   : F3_2<2, 0b000110,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                   "orn $b, $c, $dst", []>;
-defm XOR    : F3_12<"xor", 0b000011, xor>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   "orn $rs1, $simm13, $rd", []>;
+defm XOR    : F3_12<"xor", 0b000011, xor, IntRegs, i32, i32imm>;
 
 def XNORrr  : F3_1<2, 0b000111,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                   "xnor $b, $c, $dst",
-                   [(set i32:$dst, (not (xor i32:$b, i32:$c)))]>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                   "xnor $rs1, $rs2, $rd",
+                   [(set i32:$rd, (not (xor i32:$rs1, i32:$rs2)))]>;
 def XNORri  : F3_2<2, 0b000111,
-                   (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
-                   "xnor $b, $c, $dst", []>;
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   "xnor $rs1, $simm13, $rd", []>;
 
 // Section B.12 - Shift Instructions, p. 107
-defm SLL : F3_12<"sll", 0b100101, shl>;
-defm SRL : F3_12<"srl", 0b100110, srl>;
-defm SRA : F3_12<"sra", 0b100111, sra>;
+defm SLL : F3_12<"sll", 0b100101, shl, IntRegs, i32, i32imm>;
+defm SRL : F3_12<"srl", 0b100110, srl, IntRegs, i32, i32imm>;
+defm SRA : F3_12<"sra", 0b100111, sra, IntRegs, i32, i32imm>;
 
 // Section B.13 - Add Instructions, p. 108
-defm ADD   : F3_12<"add", 0b000000, add>;
+defm ADD   : F3_12<"add", 0b000000, add, IntRegs, i32, i32imm>;
 
 // "LEA" forms of add (patterns to make tblgen happy)
-let Predicates = [Is32Bit] in
+let Predicates = [Is32Bit], isCodeGenOnly = 1 in
   def LEA_ADDri   : F3_2<2, 0b000000,
                      (outs IntRegs:$dst), (ins MEMri:$addr),
                      "add ${addr:arith}, $dst",
                      [(set iPTR:$dst, ADDRri:$addr)]>;
 
 let Defs = [ICC] in
-  defm ADDCC  : F3_12<"addcc", 0b010000, addc>;
+  defm ADDCC  : F3_12<"addcc", 0b010000, addc, IntRegs, i32, i32imm>;
 
 let Uses = [ICC], Defs = [ICC] in
-  defm ADDX  : F3_12<"addxcc", 0b011000, adde>;
+  defm ADDE  : F3_12<"addxcc", 0b011000, adde, IntRegs, i32, i32imm>;
 
 // Section B.15 - Subtract Instructions, p. 110
-defm SUB    : F3_12  <"sub"  , 0b000100, sub>;
+defm SUB    : F3_12  <"sub"  , 0b000100, sub, IntRegs, i32, i32imm>;
 let Uses = [ICC], Defs = [ICC] in
-  defm SUBX   : F3_12  <"subxcc" , 0b011100, sube>;
+  defm SUBE   : F3_12  <"subxcc" , 0b011100, sube, IntRegs, i32, i32imm>;
 
 let Defs = [ICC] in
-  defm SUBCC  : F3_12  <"subcc", 0b010100, subc>;
+  defm SUBCC  : F3_12  <"subcc", 0b010100, subc, IntRegs, i32, i32imm>;
 
 let Defs = [ICC], rd = 0 in {
   def CMPrr   : F3_1<2, 0b010100,
-                     (outs), (ins IntRegs:$b, IntRegs:$c),
-                     "cmp $b, $c",
-                     [(SPcmpicc i32:$b, i32:$c)]>;
+                     (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+                     "cmp $rs1, $rs2",
+                     [(SPcmpicc i32:$rs1, i32:$rs2)]>;
   def CMPri   : F3_2<2, 0b010100,
-                     (outs), (ins IntRegs:$b, i32imm:$c),
-                     "cmp $b, $c",
-                     [(SPcmpicc i32:$b, (i32 simm13:$c))]>;
+                     (outs), (ins IntRegs:$rs1, i32imm:$simm13),
+                     "cmp $rs1, $simm13",
+                     [(SPcmpicc i32:$rs1, (i32 simm13:$simm13))]>;
 }
-
-let Uses = [ICC], Defs = [ICC] in
-  def SUBXCCrr: F3_1<2, 0b011100,
-                (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                "subxcc $b, $c, $dst", []>;
-
 
 // Section B.18 - Multiply Instructions, p. 113
 let Defs = [Y] in {
   defm UMUL : F3_12np<"umul", 0b001010>;
-  defm SMUL : F3_12  <"smul", 0b001011, mul>;
+  defm SMUL : F3_12  <"smul", 0b001011, mul, IntRegs, i32, i32imm>;
 }
 
 // Section B.19 - Divide Instructions, p. 115
@@ -578,9 +530,8 @@ class BranchSP<dag ins, string asmstr, list<dag> pattern>
 }
 
 // Indirect branch instructions.
-let isTerminator = 1, isBarrier = 1,
-     hasDelaySlot = 1, isBranch =1,
-     isIndirectBranch = 1, rd = 0 in {
+let isTerminator = 1, isBarrier = 1,  hasDelaySlot = 1, isBranch =1,
+     isIndirectBranch = 1, rd = 0, isCodeGenOnly = 1 in {
   def BINDrr  : F3_1<2, 0b111000,
                    (outs), (ins MEMrr:$ptr),
                    "jmp $ptr",
@@ -623,15 +574,17 @@ let Uses = [O6],
     let Inst{29-0} = disp;
   }
 
-  // indirect calls
-  def JMPLrr : F3_1<2, 0b111000,
-                    (outs), (ins MEMrr:$ptr, variable_ops),
-                    "call $ptr",
-                    [(call ADDRrr:$ptr)]> { let rd = 15; }
-  def JMPLri : F3_2<2, 0b111000,
-                    (outs), (ins MEMri:$ptr, variable_ops),
-                    "call $ptr",
-                    [(call ADDRri:$ptr)]> { let rd = 15; }
+  // indirect calls: special cases of JMPL.
+  let isCodeGenOnly = 1, rd = 15 in {
+    def CALLrr : F3_1<2, 0b111000,
+                      (outs), (ins MEMrr:$ptr, variable_ops),
+                      "call $ptr",
+                      [(call ADDRrr:$ptr)]>;
+    def CALLri : F3_2<2, 0b111000,
+                      (outs), (ins MEMri:$ptr, variable_ops),
+                      "call $ptr",
+                      [(call ADDRri:$ptr)]>;
+  }
 }
 
 // Section B.28 - Read State Register Instructions
@@ -651,164 +604,164 @@ let Defs = [Y], rd = 0 in {
 }
 // Convert Integer to Floating-point Instructions, p. 141
 def FITOS : F3_3u<2, 0b110100, 0b011000100,
-                 (outs FPRegs:$dst), (ins FPRegs:$src),
-                 "fitos $src, $dst",
-                 [(set FPRegs:$dst, (SPitof FPRegs:$src))]>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                 "fitos $rs2, $rd",
+                 [(set FPRegs:$rd, (SPitof FPRegs:$rs2))]>;
 def FITOD : F3_3u<2, 0b110100, 0b011001000,
-                 (outs DFPRegs:$dst), (ins FPRegs:$src),
-                 "fitod $src, $dst",
-                 [(set DFPRegs:$dst, (SPitof FPRegs:$src))]>;
+                 (outs DFPRegs:$rd), (ins FPRegs:$rs2),
+                 "fitod $rs2, $rd",
+                 [(set DFPRegs:$rd, (SPitof FPRegs:$rs2))]>;
 def FITOQ : F3_3u<2, 0b110100, 0b011001100,
-                 (outs QFPRegs:$dst), (ins FPRegs:$src),
-                 "fitoq $src, $dst",
-                 [(set QFPRegs:$dst, (SPitof FPRegs:$src))]>,
+                 (outs QFPRegs:$rd), (ins FPRegs:$rs2),
+                 "fitoq $rs2, $rd",
+                 [(set QFPRegs:$rd, (SPitof FPRegs:$rs2))]>,
                  Requires<[HasHardQuad]>;
 
 // Convert Floating-point to Integer Instructions, p. 142
 def FSTOI : F3_3u<2, 0b110100, 0b011010001,
-                 (outs FPRegs:$dst), (ins FPRegs:$src),
-                 "fstoi $src, $dst",
-                 [(set FPRegs:$dst, (SPftoi FPRegs:$src))]>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                 "fstoi $rs2, $rd",
+                 [(set FPRegs:$rd, (SPftoi FPRegs:$rs2))]>;
 def FDTOI : F3_3u<2, 0b110100, 0b011010010,
-                 (outs FPRegs:$dst), (ins DFPRegs:$src),
-                 "fdtoi $src, $dst",
-                 [(set FPRegs:$dst, (SPftoi DFPRegs:$src))]>;
+                 (outs FPRegs:$rd), (ins DFPRegs:$rs2),
+                 "fdtoi $rs2, $rd",
+                 [(set FPRegs:$rd, (SPftoi DFPRegs:$rs2))]>;
 def FQTOI : F3_3u<2, 0b110100, 0b011010011,
-                 (outs FPRegs:$dst), (ins QFPRegs:$src),
-                 "fqtoi $src, $dst",
-                 [(set FPRegs:$dst, (SPftoi QFPRegs:$src))]>,
+                 (outs FPRegs:$rd), (ins QFPRegs:$rs2),
+                 "fqtoi $rs2, $rd",
+                 [(set FPRegs:$rd, (SPftoi QFPRegs:$rs2))]>,
                  Requires<[HasHardQuad]>;
 
 // Convert between Floating-point Formats Instructions, p. 143
 def FSTOD : F3_3u<2, 0b110100, 0b011001001,
-                 (outs DFPRegs:$dst), (ins FPRegs:$src),
-                 "fstod $src, $dst",
-                 [(set f64:$dst, (fextend f32:$src))]>;
+                 (outs DFPRegs:$rd), (ins FPRegs:$rs2),
+                 "fstod $rs2, $rd",
+                 [(set f64:$rd, (fextend f32:$rs2))]>;
 def FSTOQ : F3_3u<2, 0b110100, 0b011001101,
-                 (outs QFPRegs:$dst), (ins FPRegs:$src),
-                 "fstoq $src, $dst",
-                 [(set f128:$dst, (fextend f32:$src))]>,
+                 (outs QFPRegs:$rd), (ins FPRegs:$rs2),
+                 "fstoq $rs2, $rd",
+                 [(set f128:$rd, (fextend f32:$rs2))]>,
                  Requires<[HasHardQuad]>;
 def FDTOS : F3_3u<2, 0b110100, 0b011000110,
-                 (outs FPRegs:$dst), (ins DFPRegs:$src),
-                 "fdtos $src, $dst",
-                 [(set f32:$dst, (fround f64:$src))]>;
-def FDTOQ : F3_3u<2, 0b110100, 0b01101110,
-                 (outs QFPRegs:$dst), (ins DFPRegs:$src),
-                 "fdtoq $src, $dst",
-                 [(set f128:$dst, (fextend f64:$src))]>,
+                 (outs FPRegs:$rd), (ins DFPRegs:$rs2),
+                 "fdtos $rs2, $rd",
+                 [(set f32:$rd, (fround f64:$rs2))]>;
+def FDTOQ : F3_3u<2, 0b110100, 0b011001110,
+                 (outs QFPRegs:$rd), (ins DFPRegs:$rs2),
+                 "fdtoq $rs2, $rd",
+                 [(set f128:$rd, (fextend f64:$rs2))]>,
                  Requires<[HasHardQuad]>;
 def FQTOS : F3_3u<2, 0b110100, 0b011000111,
-                 (outs FPRegs:$dst), (ins QFPRegs:$src),
-                 "fqtos $src, $dst",
-                 [(set f32:$dst, (fround f128:$src))]>,
+                 (outs FPRegs:$rd), (ins QFPRegs:$rs2),
+                 "fqtos $rs2, $rd",
+                 [(set f32:$rd, (fround f128:$rs2))]>,
                  Requires<[HasHardQuad]>;
 def FQTOD : F3_3u<2, 0b110100, 0b011001011,
-                 (outs DFPRegs:$dst), (ins QFPRegs:$src),
-                 "fqtod $src, $dst",
-                 [(set f64:$dst, (fround f128:$src))]>,
+                 (outs DFPRegs:$rd), (ins QFPRegs:$rs2),
+                 "fqtod $rs2, $rd",
+                 [(set f64:$rd, (fround f128:$rs2))]>,
                  Requires<[HasHardQuad]>;
 
 // Floating-point Move Instructions, p. 144
 def FMOVS : F3_3u<2, 0b110100, 0b000000001,
-                 (outs FPRegs:$dst), (ins FPRegs:$src),
-                 "fmovs $src, $dst", []>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                 "fmovs $rs2, $rd", []>;
 def FNEGS : F3_3u<2, 0b110100, 0b000000101,
-                 (outs FPRegs:$dst), (ins FPRegs:$src),
-                 "fnegs $src, $dst",
-                 [(set f32:$dst, (fneg f32:$src))]>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                 "fnegs $rs2, $rd",
+                 [(set f32:$rd, (fneg f32:$rs2))]>;
 def FABSS : F3_3u<2, 0b110100, 0b000001001,
-                 (outs FPRegs:$dst), (ins FPRegs:$src),
-                 "fabss $src, $dst",
-                 [(set f32:$dst, (fabs f32:$src))]>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                 "fabss $rs2, $rd",
+                 [(set f32:$rd, (fabs f32:$rs2))]>;
 
 
 // Floating-point Square Root Instructions, p.145
 def FSQRTS : F3_3u<2, 0b110100, 0b000101001,
-                  (outs FPRegs:$dst), (ins FPRegs:$src),
-                  "fsqrts $src, $dst",
-                  [(set f32:$dst, (fsqrt f32:$src))]>;
+                  (outs FPRegs:$rd), (ins FPRegs:$rs2),
+                  "fsqrts $rs2, $rd",
+                  [(set f32:$rd, (fsqrt f32:$rs2))]>;
 def FSQRTD : F3_3u<2, 0b110100, 0b000101010,
-                  (outs DFPRegs:$dst), (ins DFPRegs:$src),
-                  "fsqrtd $src, $dst",
-                  [(set f64:$dst, (fsqrt f64:$src))]>;
+                  (outs DFPRegs:$rd), (ins DFPRegs:$rs2),
+                  "fsqrtd $rs2, $rd",
+                  [(set f64:$rd, (fsqrt f64:$rs2))]>;
 def FSQRTQ : F3_3u<2, 0b110100, 0b000101011,
-                  (outs QFPRegs:$dst), (ins QFPRegs:$src),
-                  "fsqrtq $src, $dst",
-                  [(set f128:$dst, (fsqrt f128:$src))]>,
+                  (outs QFPRegs:$rd), (ins QFPRegs:$rs2),
+                  "fsqrtq $rs2, $rd",
+                  [(set f128:$rd, (fsqrt f128:$rs2))]>,
                   Requires<[HasHardQuad]>;
 
 
 
 // Floating-point Add and Subtract Instructions, p. 146
 def FADDS  : F3_3<2, 0b110100, 0b001000001,
-                  (outs FPRegs:$dst), (ins FPRegs:$src1, FPRegs:$src2),
-                  "fadds $src1, $src2, $dst",
-                  [(set f32:$dst, (fadd f32:$src1, f32:$src2))]>;
+                  (outs FPRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                  "fadds $rs1, $rs2, $rd",
+                  [(set f32:$rd, (fadd f32:$rs1, f32:$rs2))]>;
 def FADDD  : F3_3<2, 0b110100, 0b001000010,
-                  (outs DFPRegs:$dst), (ins DFPRegs:$src1, DFPRegs:$src2),
-                  "faddd $src1, $src2, $dst",
-                  [(set f64:$dst, (fadd f64:$src1, f64:$src2))]>;
+                  (outs DFPRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                  "faddd $rs1, $rs2, $rd",
+                  [(set f64:$rd, (fadd f64:$rs1, f64:$rs2))]>;
 def FADDQ  : F3_3<2, 0b110100, 0b001000011,
-                  (outs QFPRegs:$dst), (ins QFPRegs:$src1, QFPRegs:$src2),
-                  "faddq $src1, $src2, $dst",
-                  [(set f128:$dst, (fadd f128:$src1, f128:$src2))]>,
+                  (outs QFPRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                  "faddq $rs1, $rs2, $rd",
+                  [(set f128:$rd, (fadd f128:$rs1, f128:$rs2))]>,
                   Requires<[HasHardQuad]>;
 
 def FSUBS  : F3_3<2, 0b110100, 0b001000101,
-                  (outs FPRegs:$dst), (ins FPRegs:$src1, FPRegs:$src2),
-                  "fsubs $src1, $src2, $dst",
-                  [(set f32:$dst, (fsub f32:$src1, f32:$src2))]>;
+                  (outs FPRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                  "fsubs $rs1, $rs2, $rd",
+                  [(set f32:$rd, (fsub f32:$rs1, f32:$rs2))]>;
 def FSUBD  : F3_3<2, 0b110100, 0b001000110,
-                  (outs DFPRegs:$dst), (ins DFPRegs:$src1, DFPRegs:$src2),
-                  "fsubd $src1, $src2, $dst",
-                  [(set f64:$dst, (fsub f64:$src1, f64:$src2))]>;
+                  (outs DFPRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                  "fsubd $rs1, $rs2, $rd",
+                  [(set f64:$rd, (fsub f64:$rs1, f64:$rs2))]>;
 def FSUBQ  : F3_3<2, 0b110100, 0b001000111,
-                  (outs QFPRegs:$dst), (ins QFPRegs:$src1, QFPRegs:$src2),
-                  "fsubq $src1, $src2, $dst",
-                  [(set f128:$dst, (fsub f128:$src1, f128:$src2))]>,
+                  (outs QFPRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                  "fsubq $rs1, $rs2, $rd",
+                  [(set f128:$rd, (fsub f128:$rs1, f128:$rs2))]>,
                   Requires<[HasHardQuad]>;
 
 
 // Floating-point Multiply and Divide Instructions, p. 147
 def FMULS  : F3_3<2, 0b110100, 0b001001001,
-                  (outs FPRegs:$dst), (ins FPRegs:$src1, FPRegs:$src2),
-                  "fmuls $src1, $src2, $dst",
-                  [(set f32:$dst, (fmul f32:$src1, f32:$src2))]>;
+                  (outs FPRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                  "fmuls $rs1, $rs2, $rd",
+                  [(set f32:$rd, (fmul f32:$rs1, f32:$rs2))]>;
 def FMULD  : F3_3<2, 0b110100, 0b001001010,
-                  (outs DFPRegs:$dst), (ins DFPRegs:$src1, DFPRegs:$src2),
-                  "fmuld $src1, $src2, $dst",
-                  [(set f64:$dst, (fmul f64:$src1, f64:$src2))]>;
+                  (outs DFPRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                  "fmuld $rs1, $rs2, $rd",
+                  [(set f64:$rd, (fmul f64:$rs1, f64:$rs2))]>;
 def FMULQ  : F3_3<2, 0b110100, 0b001001011,
-                  (outs QFPRegs:$dst), (ins QFPRegs:$src1, QFPRegs:$src2),
-                  "fmulq $src1, $src2, $dst",
-                  [(set f128:$dst, (fmul f128:$src1, f128:$src2))]>,
+                  (outs QFPRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                  "fmulq $rs1, $rs2, $rd",
+                  [(set f128:$rd, (fmul f128:$rs1, f128:$rs2))]>,
                   Requires<[HasHardQuad]>;
 
 def FSMULD : F3_3<2, 0b110100, 0b001101001,
-                  (outs DFPRegs:$dst), (ins FPRegs:$src1, FPRegs:$src2),
-                  "fsmuld $src1, $src2, $dst",
-                  [(set f64:$dst, (fmul (fextend f32:$src1),
-                                        (fextend f32:$src2)))]>;
+                  (outs DFPRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                  "fsmuld $rs1, $rs2, $rd",
+                  [(set f64:$rd, (fmul (fextend f32:$rs1),
+                                        (fextend f32:$rs2)))]>;
 def FDMULQ : F3_3<2, 0b110100, 0b001101110,
-                  (outs QFPRegs:$dst), (ins DFPRegs:$src1, DFPRegs:$src2),
-                  "fdmulq $src1, $src2, $dst",
-                  [(set f128:$dst, (fmul (fextend f64:$src1),
-                                         (fextend f64:$src2)))]>,
+                  (outs QFPRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                  "fdmulq $rs1, $rs2, $rd",
+                  [(set f128:$rd, (fmul (fextend f64:$rs1),
+                                         (fextend f64:$rs2)))]>,
                   Requires<[HasHardQuad]>;
 
 def FDIVS  : F3_3<2, 0b110100, 0b001001101,
-                 (outs FPRegs:$dst), (ins FPRegs:$src1, FPRegs:$src2),
-                 "fdivs $src1, $src2, $dst",
-                 [(set f32:$dst, (fdiv f32:$src1, f32:$src2))]>;
+                 (outs FPRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                 "fdivs $rs1, $rs2, $rd",
+                 [(set f32:$rd, (fdiv f32:$rs1, f32:$rs2))]>;
 def FDIVD  : F3_3<2, 0b110100, 0b001001110,
-                 (outs DFPRegs:$dst), (ins DFPRegs:$src1, DFPRegs:$src2),
-                 "fdivd $src1, $src2, $dst",
-                 [(set f64:$dst, (fdiv f64:$src1, f64:$src2))]>;
+                 (outs DFPRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                 "fdivd $rs1, $rs2, $rd",
+                 [(set f64:$rd, (fdiv f64:$rs1, f64:$rs2))]>;
 def FDIVQ  : F3_3<2, 0b110100, 0b001001111,
-                 (outs QFPRegs:$dst), (ins QFPRegs:$src1, QFPRegs:$src2),
-                 "fdivq $src1, $src2, $dst",
-                 [(set f128:$dst, (fdiv f128:$src1, f128:$src2))]>,
+                 (outs QFPRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                 "fdivq $rs1, $rs2, $rd",
+                 [(set f128:$rd, (fdiv f128:$rs1, f128:$rs2))]>,
                  Requires<[HasHardQuad]>;
 
 // Floating-point Compare Instructions, p. 148
@@ -820,24 +773,24 @@ def FDIVQ  : F3_3<2, 0b110100, 0b001001111,
 
 let Defs = [FCC] in {
   def FCMPS  : F3_3c<2, 0b110101, 0b001010001,
-                   (outs), (ins FPRegs:$src1, FPRegs:$src2),
-                   "fcmps $src1, $src2",
-                   [(SPcmpfcc f32:$src1, f32:$src2)]>;
+                   (outs), (ins FPRegs:$rs1, FPRegs:$rs2),
+                   "fcmps $rs1, $rs2",
+                   [(SPcmpfcc f32:$rs1, f32:$rs2)]>;
   def FCMPD  : F3_3c<2, 0b110101, 0b001010010,
-                   (outs), (ins DFPRegs:$src1, DFPRegs:$src2),
-                   "fcmpd $src1, $src2",
-                   [(SPcmpfcc f64:$src1, f64:$src2)]>;
+                   (outs), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                   "fcmpd $rs1, $rs2",
+                   [(SPcmpfcc f64:$rs1, f64:$rs2)]>;
   def FCMPQ  : F3_3c<2, 0b110101, 0b001010011,
-                   (outs), (ins QFPRegs:$src1, QFPRegs:$src2),
-                   "fcmpq $src1, $src2",
-                   [(SPcmpfcc f128:$src1, f128:$src2)]>,
+                   (outs), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                   "fcmpq $rs1, $rs2",
+                   [(SPcmpfcc f128:$rs1, f128:$rs2)]>,
                    Requires<[HasHardQuad]>;
 }
 
 //===----------------------------------------------------------------------===//
 // Instructions for Thread Local Storage(TLS).
 //===----------------------------------------------------------------------===//
-
+let isCodeGenOnly = 1, isAsmParserOnly = 1 in {
 def TLS_ADDrr : F3_1<2, 0b000000,
                     (outs IntRegs:$rd),
                     (ins IntRegs:$rs1, IntRegs:$rs2, TLSSym:$sym),
@@ -860,6 +813,7 @@ let Uses = [O6], isCall = 1, hasDelaySlot = 1 in
   bits<30> disp;
   let op = 1;
   let Inst{29-0} = disp;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -912,8 +866,9 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
     def FMOVQ_ICC
       : F4_3<0b110101, 0b000011, (outs QFPRegs:$rd),
                (ins QFPRegs:$rs2, QFPRegs:$f, CCOp:$cond),
-               "fmovd$cond %icc, $rs2, $rd",
-               [(set f128:$rd, (SPselecticc f128:$rs2, f128:$f, imm:$cond))]>;
+               "fmovq$cond %icc, $rs2, $rd",
+               [(set f128:$rd, (SPselecticc f128:$rs2, f128:$f, imm:$cond))]>,
+               Requires<[HasHardQuad]>;
   }
 
   let Uses = [FCC], opf_cc = 0b000 in {
@@ -930,8 +885,9 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
     def FMOVQ_FCC
       : F4_3<0b110101, 0b000011, (outs QFPRegs:$rd),
              (ins QFPRegs:$rs2, QFPRegs:$f, CCOp:$cond),
-             "fmovd$cond %fcc0, $rs2, $rd",
-             [(set f128:$rd, (SPselectfcc f128:$rs2, f128:$f, imm:$cond))]>;
+             "fmovq$cond %fcc0, $rs2, $rd",
+             [(set f128:$rd, (SPselectfcc f128:$rs2, f128:$f, imm:$cond))]>,
+             Requires<[HasHardQuad]>;
   }
 
 }
@@ -939,40 +895,67 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
 // Floating-Point Move Instructions, p. 164 of the V9 manual.
 let Predicates = [HasV9] in {
   def FMOVD : F3_3u<2, 0b110100, 0b000000010,
-                   (outs DFPRegs:$dst), (ins DFPRegs:$src),
-                   "fmovd $src, $dst", []>;
+                   (outs DFPRegs:$rd), (ins DFPRegs:$rs2),
+                   "fmovd $rs2, $rd", []>;
   def FMOVQ : F3_3u<2, 0b110100, 0b000000011,
-                   (outs QFPRegs:$dst), (ins QFPRegs:$src),
-                   "fmovq $src, $dst", []>,
+                   (outs QFPRegs:$rd), (ins QFPRegs:$rs2),
+                   "fmovq $rs2, $rd", []>,
                    Requires<[HasHardQuad]>;
   def FNEGD : F3_3u<2, 0b110100, 0b000000110,
-                   (outs DFPRegs:$dst), (ins DFPRegs:$src),
-                   "fnegd $src, $dst",
-                   [(set f64:$dst, (fneg f64:$src))]>;
+                   (outs DFPRegs:$rd), (ins DFPRegs:$rs2),
+                   "fnegd $rs2, $rd",
+                   [(set f64:$rd, (fneg f64:$rs2))]>;
   def FNEGQ : F3_3u<2, 0b110100, 0b000000111,
-                   (outs QFPRegs:$dst), (ins QFPRegs:$src),
-                   "fnegq $src, $dst",
-                   [(set f128:$dst, (fneg f128:$src))]>,
+                   (outs QFPRegs:$rd), (ins QFPRegs:$rs2),
+                   "fnegq $rs2, $rd",
+                   [(set f128:$rd, (fneg f128:$rs2))]>,
                    Requires<[HasHardQuad]>;
   def FABSD : F3_3u<2, 0b110100, 0b000001010,
-                   (outs DFPRegs:$dst), (ins DFPRegs:$src),
-                   "fabsd $src, $dst",
-                   [(set f64:$dst, (fabs f64:$src))]>;
+                   (outs DFPRegs:$rd), (ins DFPRegs:$rs2),
+                   "fabsd $rs2, $rd",
+                   [(set f64:$rd, (fabs f64:$rs2))]>;
   def FABSQ : F3_3u<2, 0b110100, 0b000001011,
-                   (outs QFPRegs:$dst), (ins QFPRegs:$src),
-                   "fabsq $src, $dst",
-                   [(set f128:$dst, (fabs f128:$src))]>,
+                   (outs QFPRegs:$rd), (ins QFPRegs:$rs2),
+                   "fabsq $rs2, $rd",
+                   [(set f128:$rd, (fabs f128:$rs2))]>,
                    Requires<[HasHardQuad]>;
 }
 
 // POPCrr - This does a ctpop of a 64-bit register.  As such, we have to clear
-// the top 32-bits before using it.  To do this clearing, we use a SLLri X,0.
+// the top 32-bits before using it.  To do this clearing, we use a SRLri X,0.
 let rs1 = 0 in
   def POPCrr : F3_1<2, 0b101110,
                     (outs IntRegs:$dst), (ins IntRegs:$src),
                     "popc $src, $dst", []>, Requires<[HasV9]>;
 def : Pat<(ctpop i32:$src),
-          (POPCrr (SLLri $src, 0))>;
+          (POPCrr (SRLri $src, 0))>;
+
+// Atomic swap.
+let hasSideEffects =1, rd = 0, rs1 = 0b01111, rs2 = 0 in
+  def STBAR : F3_1<2, 0b101000, (outs), (ins), "stbar", []>;
+
+let Predicates = [HasV9], hasSideEffects = 1, rd = 0, rs1 = 0b01111 in
+ def MEMBARi : F3_2<2, 0b101000, (outs), (ins i32imm:$simm13),
+                    "membar $simm13", []>;
+
+let Constraints = "$val = $dst" in {
+  def SWAPrr : F3_1<3, 0b001111,
+                 (outs IntRegs:$dst), (ins MEMrr:$addr, IntRegs:$val),
+                 "swap [$addr], $dst",
+                 [(set i32:$dst, (atomic_swap_32 ADDRrr:$addr, i32:$val))]>;
+  def SWAPri : F3_2<3, 0b001111,
+                 (outs IntRegs:$dst), (ins MEMri:$addr, IntRegs:$val),
+                 "swap [$addr], $dst",
+                 [(set i32:$dst, (atomic_swap_32 ADDRri:$addr, i32:$val))]>;
+}
+
+let Predicates = [HasV9], Constraints = "$swap = $rd" in
+  def CASrr: F3_1_asi<3, 0b111100, 0b10000000,
+                (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2,
+                                     IntRegs:$swap),
+                 "cas [$rs1], $rs2, $rd",
+                 [(set i32:$rd,
+                     (atomic_cmp_swap iPTR:$rs1, i32:$rs2, i32:$swap))]>;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
@@ -987,6 +970,8 @@ def : Pat<(i32 imm:$val),
 
 
 // Global addresses, constant pool entries
+let Predicates = [Is32Bit] in {
+
 def : Pat<(SPhi tglobaladdr:$in), (SETHIi tglobaladdr:$in)>;
 def : Pat<(SPlo tglobaladdr:$in), (ORri (i32 G0), tglobaladdr:$in)>;
 def : Pat<(SPhi tconstpool:$in), (SETHIi tconstpool:$in)>;
@@ -1009,6 +994,7 @@ def : Pat<(add iPTR:$r, (SPlo tglobaladdr:$in)), (ADDri $r, tglobaladdr:$in)>;
 def : Pat<(add iPTR:$r, (SPlo tconstpool:$in)),  (ADDri $r, tconstpool:$in)>;
 def : Pat<(add iPTR:$r, (SPlo tblockaddress:$in)),
                         (ADDri $r, tblockaddress:$in)>;
+}
 
 // Calls:
 def : Pat<(call tglobaladdr:$dst),
@@ -1032,4 +1018,18 @@ def : Pat<(i32 (zextloadi1 ADDRri:$src)), (LDUBri ADDRri:$src)>;
 def : Pat<(store (i32 0), ADDRrr:$dst), (STrr ADDRrr:$dst, (i32 G0))>;
 def : Pat<(store (i32 0), ADDRri:$dst), (STri ADDRri:$dst, (i32 G0))>;
 
+// store bar for all atomic_fence in V8.
+let Predicates = [HasNoV9] in
+  def : Pat<(atomic_fence imm, imm), (STBAR)>;
+
+// atomic_load_32 addr -> load addr
+def : Pat<(i32 (atomic_load ADDRrr:$src)), (LDrr ADDRrr:$src)>;
+def : Pat<(i32 (atomic_load ADDRri:$src)), (LDri ADDRri:$src)>;
+
+// atomic_store_32 val, addr -> store val, addr
+def : Pat<(atomic_store ADDRrr:$dst, i32:$val), (STrr ADDRrr:$dst, $val)>;
+def : Pat<(atomic_store ADDRri:$dst, i32:$val), (STri ADDRri:$dst, $val)>;
+
+
 include "SparcInstr64Bit.td"
+include "SparcInstrAliases.td"

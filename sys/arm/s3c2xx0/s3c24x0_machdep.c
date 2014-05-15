@@ -106,10 +106,6 @@ __FBSDID("$FreeBSD$");
 
 extern int s3c2410_pclk;
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -134,42 +130,42 @@ static const struct arm_devmap_entry s3c24x0_devmap[] = {
 		_A(S3C24X0_CLKMAN_PA_BASE),
 		_S(S3C24X0_CLKMAN_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		_A(S3C24X0_GPIO_BASE),
 		_A(S3C24X0_GPIO_PA_BASE),
 		_S(S3C2410_GPIO_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		_A(S3C24X0_INTCTL_BASE),
 		_A(S3C24X0_INTCTL_PA_BASE),
 		_S(S3C24X0_INTCTL_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		_A(S3C24X0_TIMER_BASE),
 		_A(S3C24X0_TIMER_PA_BASE),
 		_S(S3C24X0_TIMER_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		_A(S3C24X0_UART0_BASE),
 		_A(S3C24X0_UART0_PA_BASE),
 		_S(S3C24X0_UART_PA_BASE(3) - S3C24X0_UART0_PA_BASE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		_A(S3C24X0_WDT_BASE),
 		_A(S3C24X0_WDT_PA_BASE),
 		_S(S3C24X0_WDT_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		0,
@@ -372,10 +368,6 @@ initarm(struct arm_boot_params *abp)
 	}
 	cninit();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 	
 	init_proc0(kernelstack.pv_va);			

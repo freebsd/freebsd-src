@@ -165,7 +165,7 @@ f_keymap_get_all()
 			marks[keym] = mark
 			name = keym
 			gsub(/[^[:alnum:]_]/, "_", name)
-			gsub(/'\''/, "'\''\\'\'''\''", desc);
+			gsub(/'\''/, "'\''\\'\'\''", desc);
 			printf "f_keymap_checkfile %s && " \
 			       "f_keymap_register %s '\'%s\'' %s %u\n",
 			       keym, name, desc, keym, mark

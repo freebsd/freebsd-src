@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,12 +293,6 @@ int
 a10_timer_get_timerfreq(struct a10_timer_softc *sc)
 {
 	return (sc->timer0_freq);
-}
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
 }
 
 static int

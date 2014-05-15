@@ -172,10 +172,21 @@ arswitch_readreg(device_t dev, int addr)
 int
 arswitch_writereg(device_t dev, int addr, int value)
 {
+	struct arswitch_softc *sc;
+	int r;
+
+	sc = device_get_softc(dev);
 
 	/* XXX Check the first write too? */
-	arswitch_writereg_msb(dev, addr, value);
-	return (arswitch_writereg_lsb(dev, addr, value));
+	if (sc->mii_lo_first) {
+		r = arswitch_writereg_lsb(dev, addr, value);
+		r |= arswitch_writereg_msb(dev, addr, value);
+	} else {
+		r = arswitch_writereg_msb(dev, addr, value);
+		r |= arswitch_writereg_lsb(dev, addr, value);
+	}
+
+	return r;
 }
 
 int

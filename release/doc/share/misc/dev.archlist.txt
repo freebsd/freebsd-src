@@ -108,6 +108,7 @@ qlxgbe	amd64
 qlxge	amd64
 rc	i386
 ral	i386,amd64
+rsu	i386,amd64
 rue	i386,pc98,amd64
 rum	i386,amd64
 run	i386,amd64
@@ -152,6 +153,7 @@ tl	i386,pc98,amd64
 trm	i386,amd64
 twa	i386,amd64
 twe	i386,amd64
+tws	i386,amd64
 ubsa	i386,pc98,amd64
 ubsec	i386,pc98,amd64
 ubser	i386,pc98,amd64

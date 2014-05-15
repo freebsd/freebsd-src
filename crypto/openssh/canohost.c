@@ -192,7 +192,7 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 	memcpy(&inaddr, ((char *)&a6->sin6_addr) + 12, sizeof(inaddr));
 	port = a6->sin6_port;
 
-	bzero(a4, sizeof(*a4));
+	memset(a4, 0, sizeof(*a4));
 
 	a4->sin_family = AF_INET;
 	*len = sizeof(*a4);

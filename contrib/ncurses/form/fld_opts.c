@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_opts.c,v 1.11 2004/12/11 21:55:46 tom Exp $")
+MODULE_ID("$Id: fld_opts.c,v 1.12 2010/01/23 21:14:36 tom Exp $")
 
 /*----------------------------------------------------------------------------
   Field-Options manipulation routines
@@ -55,7 +55,7 @@ set_field_opts(FIELD *field, Field_Options opts)
 {
   int res = E_BAD_ARGUMENT;
 
-  T((T_CALLED("set_field_opts(%p,%d)"), field, opts));
+  T((T_CALLED("set_field_opts(%p,%d)"), (void *)field, opts));
 
   opts &= ALL_FIELD_OPTS;
   if (!(opts & ~ALL_FIELD_OPTS))
@@ -74,7 +74,7 @@ set_field_opts(FIELD *field, Field_Options opts)
 NCURSES_EXPORT(Field_Options)
 field_opts(const FIELD *field)
 {
-  T((T_CALLED("field_opts(%p)"), field));
+  T((T_CALLED("field_opts(%p)"), (const void *)field));
 
   returnCode(ALL_FIELD_OPTS & Normalize_Field(field)->opts);
 }
@@ -96,7 +96,7 @@ field_opts_on(FIELD *field, Field_Options opts)
 {
   int res = E_BAD_ARGUMENT;
 
-  T((T_CALLED("field_opts_on(%p,%d)"), field, opts));
+  T((T_CALLED("field_opts_on(%p,%d)"), (void *)field, opts));
 
   opts &= ALL_FIELD_OPTS;
   if (!(opts & ~ALL_FIELD_OPTS))
@@ -124,7 +124,7 @@ field_opts_off(FIELD *field, Field_Options opts)
 {
   int res = E_BAD_ARGUMENT;
 
-  T((T_CALLED("field_opts_off(%p,%d)"), field, opts));
+  T((T_CALLED("field_opts_off(%p,%d)"), (void *)field, opts));
 
   opts &= ALL_FIELD_OPTS;
   if (!(opts & ~ALL_FIELD_OPTS))

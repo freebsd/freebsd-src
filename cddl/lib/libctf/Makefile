@@ -27,5 +27,8 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
+DPADD=         ${LIBZ}
+LDADD=         -lz
+
 .include <bsd.lib.mk>
 

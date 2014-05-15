@@ -298,6 +298,9 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_POLARITY_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS");
+		/* FALLTHROUGH*/
 	case ACPI_MADT_POLARITY_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_POLARITY_LOW);
@@ -307,8 +310,6 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_POLARITY_HIGH);
 	case ACPI_MADT_POLARITY_ACTIVE_LOW:
 		return (INTR_POLARITY_LOW);
-	default:
-		panic("Bogus Interrupt Polarity");
 	}
 }
 
@@ -317,6 +318,9 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.");
+		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_TRIGGER_LEVEL);
@@ -326,8 +330,6 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_TRIGGER_EDGE);
 	case ACPI_MADT_TRIGGER_LEVEL:
 		return (INTR_TRIGGER_LEVEL);
-	default:
-		panic("Bogus Interrupt Trigger Mode");
 	}
 }
 
@@ -492,7 +494,7 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		ioapic_set_triggermode(ioapic, pin,
 		    interrupt_trigger(nmi->IntiFlags, 0));
-	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
+	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
 		ioapic_set_polarity(ioapic, pin,
 		    interrupt_polarity(nmi->IntiFlags, 0));
 }

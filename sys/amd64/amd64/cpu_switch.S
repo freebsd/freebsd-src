@@ -345,8 +345,8 @@ ENTRY(savectx)
 	movq	%r14,PCB_R14(%rdi)
 	movq	%r15,PCB_R15(%rdi)
 
-	movq	%cr0,%rsi
-	movq	%rsi,PCB_CR0(%rdi)
+	movq	%cr0,%rax
+	movq	%rax,PCB_CR0(%rdi)
 	movq	%cr2,%rax
 	movq	%rax,PCB_CR2(%rdi)
 	movq	%cr3,%rax
@@ -408,8 +408,6 @@ ENTRY(savectx)
 	sidt	PCB_IDT(%rdi)
 	sldt	PCB_LDT(%rdi)
 	str	PCB_TR(%rdi)
-
-2:	movq	%rsi,%cr0	/* The previous %cr0 is saved in %rsi. */
 
 	movl	$1,%eax
 	ret
@@ -548,14 +546,3 @@ ENTRY(resumectx)
 	xorl	%eax,%eax
 	ret
 END(resumectx)
-
-/*
- * Wrapper around fpusave to care about TS0_CR.
- */
-ENTRY(ctx_fpusave)
-	movq	%cr0,%rsi
-	clts
-	call	fpusave
-	movq	%rsi,%cr0
-	ret
-END(ctx_fpusave)

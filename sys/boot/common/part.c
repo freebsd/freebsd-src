@@ -634,7 +634,7 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	for (i = 0, count = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80) {
 			DEBUG("invalid partition flag %x", dp[i].dp_flag);
-			break;
+			goto out;
 		}
 #ifdef LOADER_GPT_SUPPORT
 		if (dp[i].dp_typ == DOSPTYP_PMBR) {
@@ -646,15 +646,12 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 			count++;
 	}
 	/* Do we have some invalid values? */
-	if (i != NDOSPART ||
-	    (table->type == PTABLE_GPT && count > 1)) {
+	if (table->type == PTABLE_GPT && count > 1) {
 		if (dp[1].dp_typ != DOSPTYP_HFS) {
 			table->type = PTABLE_NONE;
-			DEBUG("invalid values detected, ignore "
-			    "partition table");
-			goto out;
-		}
-		DEBUG("Bootcamp detected");
+			DEBUG("Incorrect PMBR, ignore it");
+		} else
+			DEBUG("Bootcamp detected");
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {

@@ -144,9 +144,7 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INP_INFO_WLOCK(&V_tcbinfo);
-		(void) tcp_tw_2msl_scan(0);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		tcp_tw_2msl_scan();
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();

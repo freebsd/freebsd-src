@@ -805,7 +805,7 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 			mp->mnt_stat.f_mntonname, (u_long)ip->i_number,(long)offset, how);
 	else
 	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-            mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 
 }
 

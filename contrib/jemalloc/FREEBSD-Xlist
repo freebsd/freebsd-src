@@ -28,6 +28,7 @@ include/jemalloc/internal/public_unnamespace.sh
 include/jemalloc/internal/size_classes.sh
 include/jemalloc/jemalloc.h.in
 include/jemalloc/jemalloc.sh
+include/jemalloc/jemalloc_defs.h
 include/jemalloc/jemalloc_defs.h.in
 include/jemalloc/jemalloc_macros.h
 include/jemalloc/jemalloc_macros.h.in

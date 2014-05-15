@@ -2,7 +2,7 @@
 
 .PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/hw/mthca
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD    = mthca
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h

@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#include <machine/vfp.h>
 
 /*
  * struct switchframe and trapframe must both be a multiple of 8
@@ -144,9 +145,10 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_und_sp = td2->td_kstack + USPACE_UNDEF_STACK_TOP;
 	pcb2->un_32.pcb32_sp = td2->td_kstack +
 	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
+	pcb2->pcb_vfpcpu = -1;
+	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	pmap_activate(td2);
 	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
 	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
@@ -366,7 +368,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_spsr &= ~PSR_C_bit;
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
 	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
 	    ("cpu_set_upcall: Incorrect stack alignment"));
 

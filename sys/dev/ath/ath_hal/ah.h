@@ -199,6 +199,7 @@ typedef enum {
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
 	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
+	HAL_CAP_DO_MYBEACON	= 248,	/* Supports HAL_RX_FILTER_MYBEACON */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -404,6 +405,7 @@ typedef enum {
 	HAL_RX_FILTER_PROM	= 0x00000020,	/* Promiscuous mode */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
+	HAL_RX_FILTER_MYBEACON  = 0x00000200,   /* Filter beacons other than mine */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
 	HAL_RX_FILTER_COMP_BA	= 0x00000800,	/* Allow compressed blockack */
 	HAL_RX_FILTER_PHYRADAR	= 0x00002000,	/* Allow phy radar errors */
@@ -1296,6 +1298,9 @@ struct ath_hal {
 
 	uint32_t	ah_intrstate[8];	/* last int state */
 	uint32_t	ah_syncstate;		/* last sync intr state */
+
+	/* Current powerstate from HAL calls */
+	HAL_POWER_MODE	ah_powerMode;
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,

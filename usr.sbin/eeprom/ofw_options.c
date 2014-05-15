@@ -63,7 +63,7 @@ static int	ofwo_secmode(const struct ofwo_extabent *, int, const void *,
 static int	ofwo_secpwd(const struct ofwo_extabent *, int, const void *,
 		    int, const char *);
 
-static const struct ofwo_extabent const ofwo_extab[] = {
+static const struct ofwo_extabent ofwo_extab[] = {
 	{ "oem-logo",			ofwo_oemlogo },
 	{ "security-mode",		ofwo_secmode },
 	{ "security-password",		ofwo_secpwd },

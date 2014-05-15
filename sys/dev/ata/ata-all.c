@@ -360,24 +360,23 @@ ata_interrupt(void *data)
 static void
 ata_interrupt_locked(void *data)
 {
-    struct ata_channel *ch = (struct ata_channel *)data;
-    struct ata_request *request;
+	struct ata_channel *ch = (struct ata_channel *)data;
+	struct ata_request *request;
 
-    do {
 	/* ignore interrupt if its not for us */
 	if (ch->hw.status && !ch->hw.status(ch->dev))
-	    break;
+		return;
 
 	/* do we have a running request */
 	if (!(request = ch->running))
-	    break;
+		return;
 
 	ATA_DEBUG_RQ(request, "interrupt");
 
 	/* safetycheck for the right state */
 	if (ch->state == ATA_IDLE) {
-	    device_printf(request->dev, "interrupt on idle channel ignored\n");
-	    break;
+		device_printf(request->dev, "interrupt on idle channel ignored\n");
+		return;
 	}
 
 	/*
@@ -385,13 +384,12 @@ ata_interrupt_locked(void *data)
 	 * if it finishes immediately otherwise wait for next interrupt
 	 */
 	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
-	    ch->running = NULL;
-	    if (ch->state == ATA_ACTIVE)
-		ch->state = ATA_IDLE;
-	    ata_cam_end_transaction(ch->dev, request);
-	    return;
+		ch->running = NULL;
+		if (ch->state == ATA_ACTIVE)
+			ch->state = ATA_IDLE;
+		ata_cam_end_transaction(ch->dev, request);
+		return;
 	}
-    } while (0);
 }
 
 static void

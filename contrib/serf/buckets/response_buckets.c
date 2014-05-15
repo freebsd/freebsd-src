@@ -43,6 +43,29 @@ typedef struct {
     int head_req;               /* Was this a HEAD request? */
 } response_context_t;
 
+/* Returns 1 if according to RFC2626 this response can have a body, 0 if it
+   must not have a body. */
+static int expect_body(response_context_t *ctx)
+{
+    if (ctx->head_req)
+        return 0;
+
+    /* 100 Continue and 101 Switching Protocols */
+    if (ctx->sl.code >= 100 && ctx->sl.code < 200)
+        return 0;
+
+    /* 204 No Content */
+    if (ctx->sl.code == 204)
+        return 0;
+
+    /* 205? */
+
+    /* 304 Not Modified */
+    if (ctx->sl.code == 304)
+        return 0;
+
+    return 1;
+}
 
 serf_bucket_t *serf_bucket_response_create(
     serf_bucket_t *stream,
@@ -238,6 +261,15 @@ static apr_status_t run_machine(serf_bucket_t *bkt, response_context_t *ctx)
             /* Advance the state. */
             ctx->state = STATE_BODY;
 
+            /* If this is a response to a HEAD request, or code == 1xx,204 or304
+               then we don't receive a real body. */
+            if (!expect_body(ctx)) {
+                ctx->body = serf_bucket_simple_create(NULL, 0, NULL, NULL,
+                                                      bkt->allocator);
+                ctx->state = STATE_BODY;
+                break;
+            }
+
             ctx->body =
                 serf_bucket_barrier_create(ctx->stream, bkt->allocator);
 
@@ -261,10 +293,6 @@ static apr_status_t run_machine(serf_bucket_t *bkt, response_context_t *ctx)
                     ctx->body = serf_bucket_dechunk_create(ctx->body,
                                                            bkt->allocator);
                 }
-
-                if (!v && (ctx->sl.code == 204 || ctx->sl.code == 304)) {
-                    ctx->state = STATE_DONE;
-                }
             }
             v = serf_bucket_headers_get(ctx->headers, "Content-Encoding");
             if (v) {
@@ -279,10 +307,6 @@ static apr_status_t run_machine(serf_bucket_t *bkt, response_context_t *ctx)
                         serf_bucket_deflate_create(ctx->body, bkt->allocator,
                                                    SERF_DEFLATE_DEFLATE);
                 }
-            }
-            /* If we're a HEAD request, we don't receive a body. */
-            if (ctx->head_req) {
-                ctx->state = STATE_DONE;
             }
         }
         break;

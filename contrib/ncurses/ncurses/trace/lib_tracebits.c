@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,13 +33,8 @@
  ****************************************************************************/
 
 #include <curses.priv.h>
-#include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.17 2008/08/03 16:09:26 tom Exp $")
-
-#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
-#define _POSIX_SOURCE
-#endif
+MODULE_ID("$Id: lib_tracebits.c,v 1.23 2012/06/09 19:55:46 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */
@@ -81,22 +76,24 @@ typedef struct {
     const char *name;
 } BITNAMES;
 
+#define TRACE_BUF_SIZE(num) (_nc_globals.tracebuf_ptr[num].size)
+
 static void
 lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned int val)
 {
     const BITNAMES *sp;
 
-    (void) strcat(buf, label);
-    (void) strcat(buf, ": {");
+    _nc_STRCAT(buf, label, TRACE_BUF_SIZE(0));
+    _nc_STRCAT(buf, ": {", TRACE_BUF_SIZE(0));
     for (sp = table; sp->name; sp++)
 	if (sp->val != 0
 	    && (val & sp->val) == sp->val) {
-	    (void) strcat(buf, sp->name);
-	    (void) strcat(buf, ", ");
+	    _nc_STRCAT(buf, sp->name, TRACE_BUF_SIZE(0));
+	    _nc_STRCAT(buf, ", ", TRACE_BUF_SIZE(0));
 	}
     if (buf[strlen(buf) - 2] == ',')
 	buf[strlen(buf) - 2] = '\0';
-    (void) strcat(buf, "} ");
+    _nc_STRCAT(buf, "} ", TRACE_BUF_SIZE(0));
 }
 
 NCURSES_EXPORT(char *)
@@ -193,7 +190,7 @@ _nc_trace_ttymode(TTY * tty)
 		    CS_DATA(CS8),
 	    };
 	    const char *result = "CSIZE? ";
-	    int value = (tty->c_cflag & CSIZE);
+	    int value = (int) (tty->c_cflag & CSIZE);
 	    unsigned n;
 
 	    if (value != 0) {
@@ -204,7 +201,7 @@ _nc_trace_ttymode(TTY * tty)
 		    }
 		}
 	    }
-	    strcat(buf, result);
+	    _nc_STRCAT(buf, result, TRACE_BUF_SIZE(0));
 	}
 #endif
 
@@ -262,5 +259,5 @@ _nc_tracebits(void)
     return _nc_trace_ttymode(&(cur_term->Nttyb));
 }
 #else
-EMPTY_MODULE(_nc_tracebits)
+EMPTY_MODULE(_nc_empty_lib_tracebits)
 #endif /* TRACE */

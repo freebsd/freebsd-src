@@ -111,10 +111,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Static device mappings. */
@@ -130,7 +126,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		0xfff00000,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/* There's a notion that we should do the rest of these lazily. */
 	/*
@@ -154,7 +150,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91RM92_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
@@ -162,7 +158,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91RM92_CF_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/*
 	 * The next two should be good for the 9260, 9261 and 9G20 since
@@ -174,7 +170,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G20_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/* EBI CS3 256MB */
@@ -182,7 +178,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G20_NAND_BASE,
 		AT91SAM9G20_NAND_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/*
 	 * The next should be good for the 9G45.
@@ -193,7 +189,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G45_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
@@ -428,7 +424,7 @@ at91_try_id(uint32_t dbgu_base)
 	return (1);
 }
 
-static void
+void
 at91_soc_id(void)
 {
 
@@ -621,11 +617,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);

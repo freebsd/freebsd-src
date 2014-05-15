@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ipfw
 SRCS=	ipfw2.c dummynet.c ipv6.c main.c nat.c

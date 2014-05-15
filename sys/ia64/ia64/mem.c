@@ -45,21 +45,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/efi.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
-#include <sys/module.h>
-#include <sys/msgbuf.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-
-#include <machine/cpu.h>
-#include <machine/frame.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -69,10 +61,25 @@ __FBSDID("$FreeBSD$");
 
 struct mem_range_softc mem_range_softc;
 
-static __inline int
-ia64_pa_access(vm_offset_t pa)
+static int
+mem_phys2virt(vm_offset_t offset, int prot, void **ptr, u_long *limit)
 {
-	return (VM_PROT_READ|VM_PROT_WRITE);
+	struct efi_md *md;
+
+	if (prot & ~(VM_PROT_READ | VM_PROT_WRITE))
+		return (EPERM);
+
+	md = efi_md_find(offset);
+	if (md == NULL)
+		return (EFAULT);
+
+	if (md->md_type == EFI_MD_TYPE_BAD)
+		return (EIO);
+
+	*ptr = (void *)((md->md_attr & EFI_MD_ATTR_WB)
+	    ? IA64_PHYS_TO_RR7(offset) : IA64_PHYS_TO_RR6(offset));
+	*limit = (md->md_pages * EFI_PAGE_SIZE) - (offset - md->md_phys);
+	return (0);
 }
 
 /* ARGSUSED */
@@ -80,10 +87,15 @@ int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
-	vm_offset_t addr, eaddr, o, v;
-	int c, error, rw;
+	off_t ofs;
+	vm_offset_t addr;
+	void *ptr;
+	u_long limit;
+	int count, error, phys, rw;
 
 	error = 0;
+	rw = (uio->uio_rw == UIO_READ) ? VM_PROT_READ : VM_PROT_WRITE;
+
 	while (uio->uio_resid > 0 && !error) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
@@ -94,51 +106,41 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 
-		if (dev2unit(dev) == CDEV_MINOR_MEM) {
-			v = uio->uio_offset;
-kmemphys:
-			/* Allow reads only in RAM. */
-			rw = (uio->uio_rw == UIO_READ)
-			    ? VM_PROT_READ : VM_PROT_WRITE;
-			if ((ia64_pa_access(v) & rw) != rw) {
-				error = EFAULT;
-				c = 0;
-				break;
-			}
+		ofs = uio->uio_offset;
 
-			o = uio->uio_offset & PAGE_MASK;
-			c = min(uio->uio_resid, (int)(PAGE_SIZE - o));
-			error = uiomove((caddr_t)IA64_PHYS_TO_RR7(v), c, uio);
-			continue;
+		phys = (dev2unit(dev) == CDEV_MINOR_MEM) ? 1 : 0;
+		if (phys == 0 && ofs >= IA64_RR_BASE(6)) {
+			ofs = IA64_RR_MASK(ofs);
+			phys++;
 		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
-			v = uio->uio_offset;
 
-			if (v >= IA64_RR_BASE(6)) {
-				v = IA64_RR_MASK(v);
-				goto kmemphys;
-			}
+		if (phys) {
+			error = mem_phys2virt(ofs, rw, &ptr, &limit);
+			if (error)
+				return (error);
 
-			c = min(iov->iov_len, MAXPHYS);
+			count = min(uio->uio_resid, limit);
+			error = uiomove(ptr, count, uio);
+		} else {
+			ptr = (void *)ofs;
+			count = iov->iov_len;
 
 			/*
 			 * Make sure that all of the pages are currently
 			 * resident so that we don't create any zero-fill
 			 * pages.
 			 */
-			addr = trunc_page(v);
-			eaddr = round_page(v + c);
+			limit = round_page(ofs + count);
+			addr = trunc_page(ofs);
 			if (addr < VM_MAXUSER_ADDRESS)
-				return (EFAULT);
-			for (; addr < eaddr; addr += PAGE_SIZE) {
+				return (EINVAL);
+			for (; addr < limit; addr += PAGE_SIZE) {
 				if (pmap_kextract(addr) == 0)
 					return (EFAULT);
 			}
-			if (!kernacc((caddr_t)v, c, (uio->uio_rw == UIO_READ)
-			    ? VM_PROT_READ : VM_PROT_WRITE))
+			if (!kernacc(ptr, count, rw))
 				return (EFAULT);
-			error = uiomove((caddr_t)v, c, uio);
-			continue;
+			error = uiomove(ptr, count, uio);
 		}
 		/* else panic! */
 	}
@@ -153,6 +155,10 @@ int
 memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
+	void *ptr;
+	u_long limit;
+	int error;
+
 	/*
 	 * /dev/mem is the only one that makes sense through this
 	 * interface.  For /dev/kmem any physaddr we return here
@@ -160,13 +166,14 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	 * a later time.
 	 */
 	if (dev2unit(dev) != CDEV_MINOR_MEM)
-		return (-1);
+		return (ENXIO);
 
-	/*
-	 * Allow access only in RAM.
-	 */
-	if ((prot & ia64_pa_access(atop((vm_offset_t)offset))) != prot)
-		return (-1);
-	*paddr = IA64_PHYS_TO_RR7(offset);
+	error = mem_phys2virt(offset, prot, &ptr, &limit);
+	if (error)
+		return (error);
+
+	*paddr = offset;
+	*memattr = ((uintptr_t)ptr >= IA64_RR_BASE(7)) ?
+	    VM_MEMATTR_WRITE_BACK : VM_MEMATTR_UNCACHEABLE;
 	return (0);
 }

@@ -118,7 +118,7 @@ isa_init(device_t dev)
 static const struct {
 	const char	*const name;
 	uint32_t	id;
-} const ofw_isa_pnp_map[] = {
+} ofw_isa_pnp_map[] = {
 	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
 	{ "dma",	0x0002d041 }, /* PNP0200 */
 	{ "floppy",	0x0007d041 }, /* PNP0700 */

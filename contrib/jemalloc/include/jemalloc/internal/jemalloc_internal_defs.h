@@ -188,6 +188,12 @@
  */
 /* #undef JEMALLOC_HAS_ALLOCA_H */
 
+/* C99 restrict keyword supported. */
+#define JEMALLOC_HAS_RESTRICT 1
+
+/* For use by hash code. */
+/* #undef JEMALLOC_BIG_ENDIAN */
+
 /* sizeof(int) == 2^LG_SIZEOF_INT. */
 #define LG_SIZEOF_INT 2
 

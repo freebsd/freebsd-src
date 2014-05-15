@@ -75,12 +75,7 @@ IRExecutionUnit::WriteNow (const uint8_t *bytes,
         if (err.Success())
         {
             DataExtractor my_extractor(my_buffer.GetBytes(), my_buffer.GetByteSize(), lldb::eByteOrderBig, 8);
-
-            StreamString ss;
-            
-            my_extractor.Dump(&ss, 0, lldb::eFormatBytesWithASCII, 1, my_buffer.GetByteSize(), 32, allocation_process_addr, 0, 0);
-            
-            log->PutCString(ss.GetData());
+            my_extractor.PutToLog(log, 0, my_buffer.GetByteSize(), allocation_process_addr, 16, DataExtractor::TypeUInt8);
         }
     }
     
@@ -243,6 +238,8 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 {
     lldb::ProcessSP process_sp(GetProcessWP().lock());
     
+    static Mutex s_runnable_info_mutex(Mutex::Type::eMutexTypeRecursive);
+    
     func_addr = LLDB_INVALID_ADDRESS;
     func_end = LLDB_INVALID_ADDRESS;
     
@@ -260,6 +257,8 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         
         return;
     };
+    
+    Mutex::Locker runnable_info_mutex_locker(s_runnable_info_mutex);
     
     m_did_jit = true;
     
@@ -393,6 +392,25 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         else
         {
             log->Printf("Function disassembly:\n%s", disassembly_stream.GetData());
+        }
+        
+        log->Printf("Sections: ");
+        for (AllocationRecord &record : m_records)
+        {
+            if (record.m_process_address != LLDB_INVALID_ADDRESS)
+            {
+                record.dump(log);
+                
+                DataBufferHeap my_buffer(record.m_size, 0);
+                Error err;
+                ReadMemory(my_buffer.GetBytes(), record.m_process_address, record.m_size, err);
+                
+                if (err.Success())
+                {
+                    DataExtractor my_extractor(my_buffer.GetBytes(), my_buffer.GetByteSize(), lldb::eByteOrderBig, 8);
+                    my_extractor.PutToLog(log, 0, my_buffer.GetByteSize(), record.m_process_address, 16, DataExtractor::TypeUInt8);
+                }
+            }
         }
     }
     

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
@@ -9,7 +9,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth.c auth1.c auth2.c auth-options.c session.c \
 	auth-chall.c auth2-chall.c groupaccess.c \
 	auth-skey.c auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
-	auth2-none.c auth2-passwd.c auth2-pubkey.c auth2-jpake.c \
+	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	monitor_mm.c monitor.c monitor_wrap.c kexdhs.c kexgexs.c kexecdhs.c \
 	kexc25519s.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
@@ -56,6 +56,16 @@ CFLAGS+= -DNONE_CIPHER_ENABLED
 
 DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD+= -lcrypt -lcrypto -lz
+
+# Fix the order of NEEDED entries for libthr and libc. The libthr
+# needs to interpose libc symbols, leaving the libthr loading as
+# dependency of krb causes reversed order and broken interposing. Put
+# the threading library last on the linker command line, just before
+# the -lc added by a compiler driver.
+.if ${MK_KERBEROS_SUPPORT} != "no"
+DPADD+= ${LIBPTHREAD}
+LDADD+= -lpthread
+.endif
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"

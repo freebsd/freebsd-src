@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.8 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.10 2014/02/03 23:28:00 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -72,7 +72,7 @@ ssh_ecdsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 	}
 
 	sig = ECDSA_do_sign(digest, dlen, key->ecdsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	if (sig == NULL) {
 		error("%s: sign failed", __func__);
@@ -140,9 +140,6 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	/* parse signature */
 	if ((sig = ECDSA_SIG_new()) == NULL)
 		fatal("%s: ECDSA_SIG_new failed", __func__);
-	if ((sig->r = BN_new()) == NULL ||
-	    (sig->s = BN_new()) == NULL)
-		fatal("%s: BN_new failed", __func__);
 
 	buffer_init(&bb);
 	buffer_append(&bb, sigblob, len);
@@ -153,7 +150,7 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	buffer_free(&bb);
 
 	/* clean up */
-	memset(sigblob, 0, len);
+	explicit_bzero(sigblob, len);
 	free(sigblob);
 
 	/* hash the data */
@@ -169,7 +166,7 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	}
 
 	ret = ECDSA_do_verify(digest, dlen, sig, key->ecdsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	ECDSA_SIG_free(sig);
 

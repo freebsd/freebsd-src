@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2006-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,13 +30,23 @@
  *  Author: Thomas E. Dickey                        2006                    *
  ****************************************************************************/
 
-/* $Id: nc_tparm.h,v 1.4 2006/11/26 00:49:25 tom Exp $ */
+/* $Id: nc_tparm.h,v 1.6 2012/02/18 21:34:42 tom Exp $ */
+
+#ifndef NC_TPARM_included
+#define NC_TPARM_included 1
 
 /*
  * Cast parameters past the formatting-string for tparm() to match the
  * assumption of the varargs code.
  */
+#ifndef TPARM_ARG
+#ifdef NCURSES_TPARM_ARG
+#define TPARM_ARG NCURSES_TPARM_ARG
+#else
 #define TPARM_ARG long
+#endif
+#endif /* TPARAM_ARG */
+
 #define TPARM_N(n) (TPARM_ARG)(n)
 
 #define TPARM_9(a,b,c,d,e,f,g,h,i,j) tparm(a,TPARM_N(b),TPARM_N(c),TPARM_N(d),TPARM_N(e),TPARM_N(f),TPARM_N(g),TPARM_N(h),TPARM_N(i),TPARM_N(j))
@@ -63,3 +73,5 @@
 #define TPARM_1(a,b) TPARM_2(a,b,0)
 #define TPARM_0(a) TPARM_1(a,0)
 #endif
+
+#endif /* NC_TPARM_included */

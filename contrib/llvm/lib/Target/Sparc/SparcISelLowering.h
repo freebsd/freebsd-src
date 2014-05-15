@@ -73,6 +73,13 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     ConstraintType getConstraintType(const std::string &Constraint) const;
+    ConstraintWeight
+    getSingleConstraintMatchWeight(AsmOperandInfo &info,
+                                   const char *constraint) const;
+    void LowerAsmOperandForConstraint(SDValue Op,
+                                      std::string &Constraint,
+                                      std::vector<SDValue> &Ops,
+                                      SelectionDAG &DAG) const;
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint, MVT VT) const;
 
@@ -158,6 +165,13 @@ namespace llvm {
     virtual void ReplaceNodeResults(SDNode *N,
                                     SmallVectorImpl<SDValue>& Results,
                                     SelectionDAG &DAG) const;
+
+    MachineBasicBlock *expandSelectCC(MachineInstr *MI, MachineBasicBlock *BB,
+                                      unsigned BROpcode) const;
+    MachineBasicBlock *expandAtomicRMW(MachineInstr *MI,
+                                       MachineBasicBlock *BB,
+                                       unsigned Opcode,
+                                       unsigned CondCode = 0) const;
   };
 } // end namespace llvm
 

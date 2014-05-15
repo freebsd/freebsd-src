@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/devicestat.h>
 #include <machine/md_var.h>
 
@@ -164,7 +163,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 
 	gkd = (struct g_kerneldump*)bp->bio_data;
 	gp = bp->bio_to->geom;
-	g_trace(G_T_TOPOLOGY, "g_disk_kernedump(%s, %jd, %jd)",
+	g_trace(G_T_TOPOLOGY, "g_disk_kerneldump(%s, %jd, %jd)",
 		gp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
 	if (dp->d_dump == NULL) {
 		g_io_deliver(bp, ENODEV);

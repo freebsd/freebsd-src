@@ -1,0 +1,37 @@
+Source: dma
+Section: mail
+Priority: optional
+Maintainer: Peter Pentchev <roam@ringlet.net>
+DM-Upload-Allowed: yes
+Build-Depends: debhelper (>= 7.0.50), byacc, dpkg-dev (>= 1.15.7~), flex, hardening-wrapper, libssl-dev, po-debconf
+Standards-Version: 3.9.1
+Homepage: http://devel.ringlet.net/mail/dma/
+Vcs-Git: git://gitorious.org/dma-roam/pkg-debian.git
+Vcs-Browser: http://gitorious.org/dma-roam/pkg-debian
+
+Package: dma
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: mail-transport-agent
+Conflicts: mail-transport-agent
+Replaces: mail-transport-agent
+Recommends: dma-migrate
+Description: lightweight mail transport agent
+ The DragonFly Mail Agent is a small Mail Transport Agent (MTA),
+ designed for home and office use.  It accepts mails from local Mail
+ User Agents (MUA) and delivers them either to local mailboxes or
+ remote SMTP servers.  Remote delivery includes support for features
+ such as TLS/SSL and SMTP authentication.
+ .
+ dma is not intended as a replacement for full-featured MTAs like
+ Sendmail, Postfix, or Exim.  Consequently, dma does not listen on
+ port 25 for incoming connections.
+
+Package: dma-migrate
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Enhances: dma
+Description: migration utility for the DragonFly Mail Agent's spool files
+ The dma-migrate utility examines the DragonFly Mail Agent's mail queue
+ and performs any conversions from old message file formats to the most
+ recent one as needed.

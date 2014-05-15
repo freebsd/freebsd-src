@@ -60,7 +60,6 @@ struct vmxctx {
 	register_t	host_rbp;
 	register_t	host_rsp;
 	register_t	host_rbx;
-	register_t	host_rip;
 	/*
 	 * XXX todo debug registers and fpu state
 	 */
@@ -80,15 +79,9 @@ struct vmxcap {
 	uint32_t proc_ctls2;
 };
 
-struct vmxevent {
-	uint32_t intr_info;
-	uint32_t error_code;
-};
-
 struct vmxstate {
 	int	lastcpu;	/* host cpu that this 'vcpu' last ran on */
 	uint16_t vpid;
-	struct vmxevent user_event;
 };
 
 struct apic_page {

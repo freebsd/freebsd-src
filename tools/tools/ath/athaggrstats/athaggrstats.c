@@ -180,11 +180,11 @@ ath_collect(struct athaggrstatfoo_p *wf, struct ath_tx_aggr_stats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) stats;
 	if (ioctl(wf->s, SIOCGATHAGSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "%s: ioctl: %s", __func__, wf->ifr.ifr_name);
 }
 
 static void
-ath_collect_cur(struct statfoo *sf)
+ath_collect_cur(struct bsdstat *sf)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 
@@ -192,7 +192,7 @@ ath_collect_cur(struct statfoo *sf)
 }
 
 static void
-ath_collect_tot(struct statfoo *sf)
+ath_collect_tot(struct bsdstat *sf)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 
@@ -200,7 +200,7 @@ ath_collect_tot(struct statfoo *sf)
 }
 
 static void
-ath_update_tot(struct statfoo *sf)
+ath_update_tot(struct bsdstat *sf)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 
@@ -219,7 +219,7 @@ snprintrate(char b[], size_t bs, int rate)
 }
 
 static int
-ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
+ath_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 #define	STAT(x) \
@@ -275,7 +275,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static int
-ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
+ath_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 #define	STAT(x) \
@@ -331,7 +331,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static void
-ath_print_verbose(struct statfoo *sf, FILE *fd)
+ath_print_verbose(struct bsdstat *sf, FILE *fd)
 {
 	struct athaggrstatfoo_p *wf = (struct athaggrstatfoo_p *) sf;
 	const struct fmt *f;
@@ -363,7 +363,7 @@ ath_print_verbose(struct statfoo *sf, FILE *fd)
 	fprintf(fd, "\n");
 }
 
-STATFOO_DEFINE_BOUNCE(athaggrstatfoo)
+BSDSTAT_DEFINE_BOUNCE(athaggrstatfoo)
 
 struct athaggrstatfoo *
 athaggrstats_new(const char *ifname, const char *fmtstring)
@@ -373,7 +373,7 @@ athaggrstats_new(const char *ifname, const char *fmtstring)
 
 	wf = calloc(1, sizeof(struct athaggrstatfoo_p));
 	if (wf != NULL) {
-		statfoo_init(&wf->base.base, "athaggrstats",
+		bsdstat_init(&wf->base.base, "athaggrstats",
 		    athaggrstats, N(athaggrstats));
 		/* override base methods */
 		wf->base.base.collect_cur = ath_collect_cur;
@@ -384,7 +384,7 @@ athaggrstats_new(const char *ifname, const char *fmtstring)
 		wf->base.base.print_verbose = ath_print_verbose;
 
 		/* setup bounce functions for public methods */
-		STATFOO_BOUNCE(wf, athaggrstatfoo);
+		BSDSTAT_BOUNCE(wf, athaggrstatfoo);
 
 		/* setup our public methods */
 		wf->base.setifname = ath_setifname;

@@ -30,11 +30,11 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 
 #include <time.h>
 
 #include "fattr.h"
-#include "queue.h"
 #include "misc.h"
 
 /*

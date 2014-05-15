@@ -42,7 +42,6 @@
 #include "assym.s"
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>

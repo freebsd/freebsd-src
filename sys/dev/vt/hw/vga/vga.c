@@ -71,18 +71,23 @@ struct vga_softc {
 #define	VT_VGA_HEIGHT	480
 #define	VT_VGA_MEMSIZE	(VT_VGA_WIDTH * VT_VGA_HEIGHT / 8)
 
+static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
+static vd_maskbitbltchr_t vga_maskbitbltchr;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
 static const struct vt_driver vt_vga_driver = {
+	.vd_name	= "vga",
+	.vd_probe	= vga_probe,
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
+	.vd_maskbitbltchr = vga_maskbitbltchr,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
@@ -95,8 +100,7 @@ static const struct vt_driver vt_vga_driver = {
  * buffer is always big enough to support both.
  */
 static struct vga_softc vga_conssoftc;
-VT_CONSDEV_DECLARE(vt_vga_driver, MAX(80, PIXEL_WIDTH(VT_VGA_WIDTH)),
-    MAX(25, PIXEL_HEIGHT(VT_VGA_HEIGHT)), &vga_conssoftc);
+VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
 vga_setcolor(struct vt_device *vd, term_color_t color)
@@ -201,6 +205,34 @@ vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
 
 static void
 vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
+{
+	u_long dst, ldst;
+	int w;
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
+	    VT_VGA_HEIGHT))
+		return;
+
+	dst = (VT_VGA_WIDTH * top + left) / 8;
+
+	for (; height > 0; height--) {
+		ldst = dst;
+		for (w = width; w > 0; w -= 8) {
+			vga_bitblt_put(vd, ldst, fg, *src);
+			vga_bitblt_put(vd, ldst, bg, ~*src);
+			ldst++;
+			src++;
+		}
+		dst += VT_VGA_WIDTH / 8;
+	}
+}
+
+/* Bitblt with mask support. Slow. */
+static void
+vga_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {
@@ -601,10 +633,22 @@ vga_initialize(struct vt_device *vd, int textmode)
 }
 
 static int
+vga_probe(struct vt_device *vd)
+{
+
+	return (CN_INTERNAL);
+}
+
+static int
 vga_init(struct vt_device *vd)
 {
-	struct vga_softc *sc = vd->vd_softc;
-	int textmode = 0;
+	struct vga_softc *sc;
+	int textmode;
+
+	if (vd->vd_softc == NULL)
+		vd->vd_softc = (void *)&vga_conssoftc;
+	sc = vd->vd_softc;
+	textmode = 0;
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;

@@ -242,11 +242,6 @@ conf_verify(struct conf *conf)
 		}
 		if (targ->t_protocol == PROTOCOL_UNSPECIFIED)
 			targ->t_protocol = PROTOCOL_ISCSI;
-#ifndef ICL_KERNEL_PROXY
-		if (targ->t_protocol == PROTOCOL_ISER)
-			errx(1, "iSER support requires ICL_KERNEL_PROXY; "
-			    "see iscsi(4) for details");
-#endif
 		if (targ->t_address == NULL)
 			errx(1, "missing TargetAddress for target \"%s\"",
 			    targ->t_nickname);

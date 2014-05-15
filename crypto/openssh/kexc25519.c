@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519.c,v 1.4 2014/01/12 08:13:13 djm Exp $ */
+/* $OpenBSD: kexc25519.c,v 1.5 2014/01/31 16:39:19 tedu Exp $ */
 /*
  * Copyright (c) 2001, 2013 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -70,7 +70,7 @@ kexc25519_shared_key(const u_char key[CURVE25519_SIZE],
 #endif
 	buffer_clear(out);
 	buffer_put_bignum2_from_string(out, shared_key, CURVE25519_SIZE);
-	memset(shared_key, 0, CURVE25519_SIZE);	/* XXX explicit_bzero() */
+	explicit_bzero(shared_key, CURVE25519_SIZE);
 }
 
 void

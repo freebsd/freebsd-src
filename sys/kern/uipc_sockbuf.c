@@ -620,29 +620,12 @@ sbappendrecord(struct sockbuf *sb, struct mbuf *m0)
 	SOCKBUF_UNLOCK(sb);
 }
 
-/*
- * Append address and data, and optionally, control (ancillary) data to the
- * receive queue of a socket.  If present, m0 must include a packet header
- * with total length.  Returns 0 if no space in sockbuf or insufficient
- * mbufs.
- */
-int
-sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
-    struct mbuf *m0, struct mbuf *control)
+/* Helper routine that appends data, control, and address to a sockbuf. */
+static int
+sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control, struct mbuf *ctrl_last)
 {
 	struct mbuf *m, *n, *nlast;
-	int space = asa->sa_len;
-
-	SOCKBUF_LOCK_ASSERT(sb);
-
-	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
-		panic("sbappendaddr_locked");
-	if (m0)
-		space += m0->m_pkthdr.len;
-	space += m_length(control, &n);
-
-	if (space > sbspace(sb))
-		return (0);
 #if MSIZE <= 256
 	if (asa->sa_len > MLEN)
 		return (0);
@@ -652,8 +635,8 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 		return (0);
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
-	if (n)
-		n->m_next = m0;		/* concatenate data to control */
+	if (ctrl_last)
+		ctrl_last->m_next = m0;	/* concatenate data to control */
 	else
 		control = m0;
 	m->m_next = control;
@@ -668,6 +651,50 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 
 	SBLASTRECORDCHK(sb);
 	return (1);
+}
+
+/*
+ * Append address and data, and optionally, control (ancillary) data to the
+ * receive queue of a socket.  If present, m0 must include a packet header
+ * with total length.  Returns 0 if no space in sockbuf or insufficient
+ * mbufs.
+ */
+int
+sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control)
+{
+	struct mbuf *ctrl_last;
+	int space = asa->sa_len;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
+		panic("sbappendaddr_locked");
+	if (m0)
+		space += m0->m_pkthdr.len;
+	space += m_length(control, &ctrl_last);
+
+	if (space > sbspace(sb))
+		return (0);
+	return (sbappendaddr_locked_internal(sb, asa, m0, control, ctrl_last));
+}
+
+/*
+ * Append address and data, and optionally, control (ancillary) data to the
+ * receive queue of a socket.  If present, m0 must include a packet header
+ * with total length.  Returns 0 if insufficient mbufs.  Does not validate space
+ * on the receiving sockbuf.
+ */
+int
+sbappendaddr_nospacecheck_locked(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control)
+{
+	struct mbuf *ctrl_last;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	ctrl_last = (control == NULL) ? NULL : m_last(control);
+	return (sbappendaddr_locked_internal(sb, asa, m0, control, ctrl_last));
 }
 
 /*

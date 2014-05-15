@@ -71,6 +71,8 @@
  * valid for use in SCSI INQUIRY VPD page 0x83.
  *
  * The DEV_TYPE flag tells us that the device_type field is filled in.
+ *
+ * The UNMAP flag tells us that this LUN supports UNMAP.
  */
 typedef enum {
 	CTL_LUN_FLAG_ID_REQ		= 0x01,
@@ -79,7 +81,8 @@ typedef enum {
 	CTL_LUN_FLAG_PRIMARY		= 0x08,
 	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
 	CTL_LUN_FLAG_DEVID		= 0x20,
-	CTL_LUN_FLAG_DEV_TYPE		= 0x40
+	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
+	CTL_LUN_FLAG_UNMAP		= 0x80
 } ctl_backend_lun_flags;
 
 #ifdef _KERNEL
@@ -137,6 +140,10 @@ typedef void (*be_lun_config_t)(void *be_lun,
  * this should be 512.  In theory CTL should be able to handle other block
  * sizes.  Host application software may not deal with it very well, though.
  *
+ * pblockexp is the log2() of number of LBAs on the LUN per physical sector.
+ *
+ * pblockoff is the lowest LBA on the LUN aligned ot physical sector.
+ *
  * req_lun_id is the requested LUN ID.  CTL only pays attention to this
  * field if the CTL_LUN_FLAG_ID_REQ flag is set.  If the requested LUN ID is
  * not available, the LUN addition will fail.  If a particular LUN ID isn't
@@ -185,6 +192,8 @@ struct ctl_be_lun {
 	void			*be_lun;	/* passed to CTL */
 	uint64_t		maxlba;		/* passed to CTL */
 	uint32_t		blocksize;	/* passed to CTL */
+	uint16_t		pblockexp;	/* passed to CTL */
+	uint16_t		pblockoff;	/* passed to CTL */
 	uint32_t		req_lun_id;	/* passed to CTL */
 	uint32_t		lun_id;		/* returned from CTL */
 	uint8_t			serial_num[CTL_SN_LEN];	 /* passed to CTL */

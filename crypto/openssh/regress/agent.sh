@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.9 2013/12/06 13:52:46 markus Exp $
+#	$OpenBSD: agent.sh,v 1.10 2014/02/27 21:21:25 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"

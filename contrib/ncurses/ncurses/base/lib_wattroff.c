@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,12 +42,12 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_wattroff.c,v 1.9 2006/05/27 19:30:33 tom Exp $")
+MODULE_ID("$Id: lib_wattroff.c,v 1.10 2009/10/24 22:36:08 tom Exp $")
 
 NCURSES_EXPORT(int)
 wattr_off(WINDOW *win, attr_t at, void *opts GCC_UNUSED)
 {
-    T((T_CALLED("wattr_off(%p,%s)"), win, _traceattr(at)));
+    T((T_CALLED("wattr_off(%p,%s)"), (void *) win, _traceattr(at)));
     if (win) {
 	T(("... current %s (%d)",
 	   _traceattr(WINDOW_ATTRS(win)),

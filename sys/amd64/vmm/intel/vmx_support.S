@@ -72,8 +72,7 @@
  *
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  */
-#define	VMX_HOST_SAVE(tmpreg)						\
-	movq	(%rsp), tmpreg;			/* return address */	\
+#define	VMX_HOST_SAVE							\
 	movq    %r15, VMXCTX_HOST_R15(%rdi);				\
 	movq    %r14, VMXCTX_HOST_R14(%rdi);				\
 	movq    %r13, VMXCTX_HOST_R13(%rdi);				\
@@ -81,9 +80,8 @@
 	movq    %rbp, VMXCTX_HOST_RBP(%rdi);				\
 	movq    %rsp, VMXCTX_HOST_RSP(%rdi);				\
 	movq    %rbx, VMXCTX_HOST_RBX(%rdi);				\
-	movq    tmpreg, VMXCTX_HOST_RIP(%rdi)
 
-#define	VMX_HOST_RESTORE(tmpreg)					\
+#define	VMX_HOST_RESTORE						\
 	movq	VMXCTX_HOST_R15(%rdi), %r15;				\
 	movq	VMXCTX_HOST_R14(%rdi), %r14;				\
 	movq	VMXCTX_HOST_R13(%rdi), %r13;				\
@@ -91,8 +89,6 @@
 	movq	VMXCTX_HOST_RBP(%rdi), %rbp;				\
 	movq	VMXCTX_HOST_RSP(%rdi), %rsp;				\
 	movq	VMXCTX_HOST_RBX(%rdi), %rbx;				\
-	movq	VMXCTX_HOST_RIP(%rdi), tmpreg;				\
-	movq	tmpreg, (%rsp)			/* return address */
 
 /*
  * vmx_enter_guest(struct vmxctx *vmxctx, int launched)
@@ -105,7 +101,7 @@ ENTRY(vmx_enter_guest)
 	/*
 	 * Save host state before doing anything else.
 	 */
-	VMX_HOST_SAVE(%r10)
+	VMX_HOST_SAVE
 
 	/*
 	 * Activate guest pmap on this cpu.
@@ -186,7 +182,7 @@ inst_error:
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
 	ret
 END(vmx_enter_guest)
 
@@ -226,7 +222,7 @@ ENTRY(vmx_exit_guest)
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
 
 	/*
 	 * This will return to the caller of 'vmx_enter_guest()' with a return

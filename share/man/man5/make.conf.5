@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2013
+.Dd May 2, 2014
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -434,8 +434,11 @@ Set this to run
 .Dq Li "${MAKE} clean"
 instead of
 .Dq Li "${MAKE} cleandir" .
-.It Va NO_MANCOMPRESS
-.Pq Vt bool
+.It Va WITH_MANCOMPRESS
+.Pq Vt defined
+Set to install manual pages compressed.
+.It Va WITHOUT_MANCOMPRESS
+.Pq Vt defined
 Set to install manual pages uncompressed.
 .It Va NO_SHARE
 .Pq Vt bool
@@ -689,6 +692,8 @@ and
 .Ev MAKEOBJDIR
 are environment variables and should not be set in
 .Nm
+or as command line arguments to
+.Xr make 1 ,
 but in make's environment.
 .Sh BUGS
 This manual page may occasionally be out of date with respect to

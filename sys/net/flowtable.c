@@ -772,6 +772,7 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt, int maxidle)
 	tmpsize = ft->ft_size;
 	memcpy(tmpmask, mask, ft->ft_size/8);
 	curbit = 0;
+	fleprev = NULL; /* pacify gcc */
 	/*
 	 * XXX Note to self, bit_ffs operates at the byte level
 	 * and thus adds gratuitous overhead

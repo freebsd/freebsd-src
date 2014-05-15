@@ -50,6 +50,7 @@
 #      undef inline
 #    endif
 #  endif
+#  define SQLITE_DEFAULT_FILE_PERMISSIONS 0666
 #  include <sqlite3.c>
 #  if __GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ >= 6))
 #    pragma GCC diagnostic pop

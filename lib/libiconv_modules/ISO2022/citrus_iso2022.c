@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*	$NetBSD: citrus_iso2022.c,v 1.19 2008/06/14 16:01:07 tnozaki Exp $	*/
+/*	$NetBSD: citrus_iso2022.c,v 1.20 2010/12/07 22:01:45 joerg Exp $	*/
 
 /*-
  * Copyright (c)1999, 2002 Citrus Project,
@@ -78,9 +78,9 @@
 #define CS96MULTI	(3U)
 
 typedef struct {
-	unsigned char	 interm;
-	unsigned char	 final;
 	unsigned char	 type;
+	unsigned char	 final;
+	unsigned char	 interm;
 	unsigned char	 vers;
 } _ISO2022Charset;
 

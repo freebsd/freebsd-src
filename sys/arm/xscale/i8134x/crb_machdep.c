@@ -106,10 +106,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -128,7 +124,7 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_HWADDR,
 		    IOP34X_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    /*
@@ -139,14 +135,14 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
 		    0x100000,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    IOP34X_PCE1_VADDR,
 		    IOP34X_PCE1,
 		    IOP34X_PCE1_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {	
 		    0,
@@ -302,9 +298,6 @@ initarm(struct arm_boot_params *abp)
 	cninit();
 	/* Set stack for exception handlers */
 	
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
 	init_proc0(kernelstack.pv_va);

@@ -4,6 +4,8 @@
 # -DEXTENDED 
 # 	if you want the paste & spaste macros.
 
+.include <src.opts.mk>
+
 PROG=	m4
 CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/lib
 DPADD=	${LIBY} ${LIBL} ${LIBM}
@@ -21,5 +23,9 @@ SRCS+=	ohash_create_entry.c ohash_delete.c ohash_do.c ohash_entries.c \
 tokenizer.o: parser.h
 
 CLEANFILES+=	parser.c parser.h tokenizer.o
+
+.if ${MK_TESTS} != "no"
+SUBDIR+= tests
+.endif
 
 .include <bsd.prog.mk>

@@ -35,6 +35,7 @@
 #include "svn_private_config.h"
 #include "svn_dso.h"
 #include "svn_version.h"
+#include "private/svn_auth_private.h"
 #include "private/svn_dep_compat.h"
 #include "private/svn_subr_private.h"
 
@@ -539,6 +540,11 @@ svn_auth_get_platform_specific_provider(svn_auth_provider_object_t **provider,
                strcmp(provider_type, "ssl_server_trust") == 0)
         {
           svn_auth_get_windows_ssl_server_trust_provider(provider, pool);
+        }
+      else if (strcmp(provider_name, "windows") == 0 &&
+          strcmp(provider_type, "ssl_server_authority") == 0)
+        {
+          svn_auth__get_windows_ssl_server_authority_provider(provider, pool);
         }
 #endif
     }

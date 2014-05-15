@@ -149,6 +149,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			if (x2apic_state != X2APIC_DISABLED)
 				regs[2] |= CPUID2_X2APIC;
+			else
+				regs[2] &= ~CPUID2_X2APIC;
 
 			/*
 			 * Only advertise CPUID2_XSAVE in the guest if
@@ -217,9 +219,18 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			/*
 			 * Do not expose topology.
+			 *
+			 * The maximum number of processor cores in
+			 * this physical processor package and the
+			 * maximum number of threads sharing this
+			 * cache are encoded with "plus 1" encoding.
+			 * Adding one to the value in this register
+			 * field to obtains the actual value.
+			 *
+			 * Therefore 0 for both indicates 1 core per
+			 * package and no cache sharing.
 			 */
 			regs[0] &= 0xffff8000;
-			regs[0] |= 0x04008000;
 			break;
 
 		case CPUID_0000_0007:

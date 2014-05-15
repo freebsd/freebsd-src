@@ -783,7 +783,6 @@ login(struct connection *conn)
 	request = login_new_request(conn);
 
 	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
-	bhslr->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {

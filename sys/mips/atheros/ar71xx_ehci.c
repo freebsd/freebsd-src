@@ -133,7 +133,6 @@ ar71xx_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Atheros");
 
-
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
@@ -159,6 +158,9 @@ ar71xx_ehci_attach(device_t self)
 		case AR71XX_SOC_AR9132:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
 			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
 			break;
 		default:
@@ -171,7 +173,6 @@ ar71xx_ehci_attach(device_t self)
 	 * registers. The AR724x/AR913x offsets aren't 0.
 	*/
 	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
-
 
 	(void) ehci_reset(sc);
 

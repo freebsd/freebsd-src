@@ -19,6 +19,9 @@ static void error(/*const*/ char *msg)
 	fprintf(stderr, "%s\n", msg);
 }
 
+/* Disable the CRC64 support even if it was enabled in the Makefile. */
+#undef XZ_USE_CRC64
+
 #include "../linux/lib/decompress_unxz.c"
 
 static uint8_t in[1024 * 1024];

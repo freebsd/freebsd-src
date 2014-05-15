@@ -169,5 +169,3 @@ METHOD int map_intr {
 	int icells;
 	pcell_t *interrupt;
 } DEFAULT ofw_bus_default_map_intr;
-
-

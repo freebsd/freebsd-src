@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kgssapi.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>

@@ -461,7 +461,9 @@ public:
         }
         else
         {
-            lldb::addr_t addr_of_valobj = valobj_sp->GetAddressOf();
+            AddressType address_type = eAddressTypeInvalid;
+            const bool scalar_is_load_address = false;
+            lldb::addr_t addr_of_valobj = valobj_sp->GetAddressOf(scalar_is_load_address, &address_type);
             if (addr_of_valobj != LLDB_INVALID_ADDRESS)
             {
                 Error write_error;
@@ -502,6 +504,9 @@ public:
                 
                 size_t bit_align = m_variable_sp->GetType()->GetClangLayoutType().GetTypeBitAlign();
                 size_t byte_align = (bit_align + 7) / 8;
+                
+                if (!byte_align)
+                    byte_align = 1;
                 
                 Error alloc_error;
                 
@@ -738,6 +743,9 @@ public:
             size_t byte_size = m_type.GetByteSize();
             size_t bit_align = m_type.GetTypeBitAlign();
             size_t byte_align = (bit_align + 7) / 8;
+            
+            if (!byte_align)
+                byte_align = 1;
             
             Error alloc_error;
             

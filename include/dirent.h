@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/dirent.h>
 
-#if __BSD_VISIBLE || __XSI_VISIBLE
+#if __XSI_VISIBLE
 /*
  * XXX this is probably illegal in the __XSI_VISIBLE case, but brings us closer
  * to the specification.
@@ -95,6 +95,11 @@ void	 rewinddir(DIR *);
 int	 scandir(const char *, struct dirent ***,
 	    int (*)(const struct dirent *), int (*)(const struct dirent **,
 	    const struct dirent **));
+#ifdef __BLOCKS__
+int	 scandir_b(const char *, struct dirent ***,
+	    int (^)(const struct dirent *),
+	    int (^)(const struct dirent **, const struct dirent **));
+#endif
 #endif
 #if __XSI_VISIBLE
 void	 seekdir(DIR *, long);

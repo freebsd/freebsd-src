@@ -4,12 +4,12 @@
 
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SHLIB_MAJOR=	5
 LIB=		crypt
 
-.PATH:		${.CURDIR}/../libmd
+.PATH:		${.CURDIR}/../libmd ${.CURDIR}/../../sys/crypto/sha2
 SRCS=		crypt.c misc.c \
 		crypt-md5.c md5c.c \
 		crypt-nthash.c md4c.c \

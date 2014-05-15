@@ -11,13 +11,13 @@ CXXFLAGS+=	-std=c++11
 
 SRCDIR=	tools/lldb/tools/driver
 SRCS=	Driver.cpp \
-	IOChannel.cpp
+	Platform.cpp
 
 lldb.1:
 	ln -fs ${LLDB_SRCS}/docs/lldb.1 ${.TARGET}
 
 DPADD=	${LIBEDIT} ${LIBCURSES} ${LIBEXECINFO}
-LDADD=	-ledit -lcurses -lexecinfo
+LDADD=	-lcurses -ledit -lexecinfo -lpanel
 
 LLDB_LIBS=\
 	lldb \
@@ -53,6 +53,7 @@ LLDB_LIBS=\
 	lldbPluginProcessGDBRemote \
 	lldbPluginProcessUtility \
 	lldbPluginProcessPOSIX \
+	lldbPluginProcessFreeBSD \
 	lldbPluginUnwindAssemblyInstEmulation \
 	lldbPluginUnwindAssemblyX86
 
@@ -115,6 +116,12 @@ LIBDEPS=\
 	llvmexecutionengine \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmarminfo \
 	llvmarminstprinter \
 	llvmmcparser \

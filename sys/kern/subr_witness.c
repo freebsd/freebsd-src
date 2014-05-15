@@ -135,7 +135,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_COUNT 		1536
 #define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	1024
+#define	WITNESS_PENDLIST	(1024 + MAXCPU)
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -545,12 +545,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "tcp", &lock_class_rw },
 	{ "tcpinp", &lock_class_rw },
 	{ "so_snd", &lock_class_mtx_sleep },
-	{ NULL, NULL },
-	/*
-	 * netatalk
-	 */
-	{ "ddp_list_mtx", &lock_class_mtx_sleep },
-	{ "ddp_mtx", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * BPF

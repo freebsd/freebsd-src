@@ -57,6 +57,7 @@ struct vmctx {
 	int	fd;
 	uint32_t lowmem_limit;
 	enum vm_mmap_style vms;
+	int	memflags;
 	size_t	lowmem;
 	char	*lowmem_addr;
 	size_t	highmem;
@@ -101,6 +102,7 @@ vm_open(const char *name)
 	assert(vm != NULL);
 
 	vm->fd = -1;
+	vm->memflags = 0;
 	vm->lowmem_limit = 3 * GB;
 	vm->name = (char *)(vm + 1);
 	strcpy(vm->name, name);
@@ -180,10 +182,17 @@ vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit)
 	ctx->lowmem_limit = limit;
 }
 
+void
+vm_set_memflags(struct vmctx *ctx, int flags)
+{
+
+	ctx->memflags = flags;
+}
+
 static int
 setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **addr)
 {
-	int error;
+	int error, mmap_flags;
 	struct vm_memory_segment seg;
 
 	/*
@@ -195,8 +204,11 @@ setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **addr)
 	seg.len = len;
 	error = ioctl(ctx->fd, VM_MAP_MEMORY, &seg);
 	if (error == 0 && addr != NULL) {
-		*addr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-				ctx->fd, gpa);
+		mmap_flags = MAP_SHARED;
+		if ((ctx->memflags & VM_MEM_F_INCORE) == 0)
+			mmap_flags |= MAP_NOCORE;
+		*addr = mmap(NULL, len, PROT_READ | PROT_WRITE, mmap_flags,
+		    ctx->fd, gpa);
 	}
 	return (error);
 }
@@ -342,36 +354,43 @@ vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 	return (error);
 }
 
+int
+vm_suspend(struct vmctx *ctx, enum vm_suspend_how how)
+{
+	struct vm_suspend vmsuspend;
+
+	bzero(&vmsuspend, sizeof(vmsuspend));
+	vmsuspend.how = how;
+	return (ioctl(ctx->fd, VM_SUSPEND, &vmsuspend));
+}
+
 static int
-vm_inject_event_real(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		     int vector, int error_code, int error_code_valid)
+vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
+    int error_code, int error_code_valid)
 {
-	struct vm_event ev;
+	struct vm_exception exc;
 
-	bzero(&ev, sizeof(ev));
-	ev.cpuid = vcpu;
-	ev.type = type;
-	ev.vector = vector;
-	ev.error_code = error_code;
-	ev.error_code_valid = error_code_valid;
+	bzero(&exc, sizeof(exc));
+	exc.cpuid = vcpu;
+	exc.vector = vector;
+	exc.error_code = error_code;
+	exc.error_code_valid = error_code_valid;
 
-	return (ioctl(ctx->fd, VM_INJECT_EVENT, &ev));
+	return (ioctl(ctx->fd, VM_INJECT_EXCEPTION, &exc));
 }
 
 int
-vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		int vector)
+vm_inject_exception(struct vmctx *ctx, int vcpu, int vector)
 {
 
-	return (vm_inject_event_real(ctx, vcpu, type, vector, 0, 0));
+	return (vm_inject_exception_real(ctx, vcpu, vector, 0, 0));
 }
 
 int
-vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		 int vector, int error_code)
+vm_inject_exception2(struct vmctx *ctx, int vcpu, int vector, int errcode)
 {
 
-	return (vm_inject_event_real(ctx, vcpu, type, vector, error_code, 1));
+	return (vm_inject_exception_real(ctx, vcpu, vector, errcode, 1));
 }
 
 int
@@ -458,6 +477,55 @@ vm_ioapic_pincount(struct vmctx *ctx, int *pincount)
 {
 
 	return (ioctl(ctx->fd, VM_IOAPIC_PINCOUNT, pincount));
+}
+
+int
+vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_ASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_DEASSERT_IRQ, &isa_irq));
+}
+
+int
+vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq)
+{
+	struct vm_isa_irq isa_irq;
+
+	bzero(&isa_irq, sizeof(struct vm_isa_irq));
+	isa_irq.atpic_irq = atpic_irq;
+	isa_irq.ioapic_irq = ioapic_irq;
+
+	return (ioctl(ctx->fd, VM_ISA_PULSE_IRQ, &isa_irq));
+}
+
+int
+vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
+    enum vm_intr_trigger trigger)
+{
+	struct vm_isa_irq_trigger isa_irq_trigger;
+
+	bzero(&isa_irq_trigger, sizeof(struct vm_isa_irq_trigger));
+	isa_irq_trigger.atpic_irq = atpic_irq;
+	isa_irq_trigger.trigger = trigger;
+
+	return (ioctl(ctx->fd, VM_ISA_SET_IRQ_TRIGGER, &isa_irq_trigger));
 }
 
 int

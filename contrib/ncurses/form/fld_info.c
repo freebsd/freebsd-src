@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_info.c,v 1.10 2004/12/11 22:24:57 tom Exp $")
+MODULE_ID("$Id: fld_info.c,v 1.11 2010/01/23 21:14:35 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -53,10 +53,10 @@ field_info(const FIELD *field,
 	   int *nrow, int *nbuf)
 {
   T((T_CALLED("field_info(%p,%p,%p,%p,%p,%p,%p)"),
-     field,
-     rows, cols,
-     frow, fcol,
-     nrow, nbuf));
+     (const void *)field,
+     (void *)rows, (void *)cols,
+     (void *)frow, (void *)fcol,
+     (void *)nrow, (void *)nbuf));
 
   if (!field)
     RETURN(E_BAD_ARGUMENT);
@@ -91,7 +91,11 @@ field_info(const FIELD *field,
 NCURSES_EXPORT(int)
 dynamic_field_info(const FIELD *field, int *drows, int *dcols, int *maxgrow)
 {
-  T((T_CALLED("dynamic_field_info(%p,%p,%p,%p)"), field, drows, dcols, maxgrow));
+  T((T_CALLED("dynamic_field_info(%p,%p,%p,%p)"),
+     (const void *)field,
+     (void *)drows,
+     (void *)dcols,
+     (void *)maxgrow));
 
   if (!field)
     RETURN(E_BAD_ARGUMENT);

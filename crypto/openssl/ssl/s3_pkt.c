@@ -657,6 +657,10 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 		if (i <= 0)
 			return(i);
 		/* if it went, fall through and send more stuff */
+		/* we may have released our buffer, so get it again */
+		if (wb->buf == NULL)
+			if (!ssl3_setup_write_buffer(s))
+				return -1;
 		}
 
 	if (len == 0 && !create_empty_fragment)
@@ -1055,7 +1059,7 @@ start:
 				{
 				s->rstate=SSL_ST_READ_HEADER;
 				rr->off=0;
-				if (s->mode & SSL_MODE_RELEASE_BUFFERS)
+				if (s->mode & SSL_MODE_RELEASE_BUFFERS && s->s3->rbuf.left == 0)
 					ssl3_release_read_buffer(s);
 				}
 			}

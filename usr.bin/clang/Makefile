@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	clang clang-tblgen tblgen
 
@@ -28,5 +28,7 @@ SUBDIR+=bugpoint \
 SUBDIR+=lldb
 .endif
 .endif # TOOLS_PREFIX
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

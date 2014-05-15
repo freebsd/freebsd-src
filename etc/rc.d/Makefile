@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	DAEMON \
 	FILESYSTEMS \
@@ -63,7 +63,6 @@ FILES=	DAEMON \
 	ipmon \
 	ipnat \
 	ipsec \
-	${_ipxrouted} \
 	iscsictl \
 	iscsid \
 	jail \
@@ -164,10 +163,6 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
-
-.if ${MK_IPX} != "no"
-_ipxrouted=	ipxrouted
-.endif
 
 .if ${MK_OFED} != "no"
 _opensm=	opensm

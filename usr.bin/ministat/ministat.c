@@ -13,6 +13,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 #include <err.h>
 #include <string.h>
 #include <stdlib.h>
@@ -475,8 +476,8 @@ ReadSet(const char *n, int column, const char *delim)
 		line++;
 
 		i = strlen(buf);
-		if (buf[i-1] == '\n')
-			buf[i-1] = '\0';
+		while (i > 0 && isspace(buf[i - 1]))
+			buf[--i] = '\0';
 		for (i = 1, t = strtok(buf, delim);
 		     t != NULL && *t != '#';
 		     i++, t = strtok(NULL, delim)) {

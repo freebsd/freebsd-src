@@ -84,9 +84,9 @@ vm_page_zero_check(void)
 	 * fast sleeps.  We also do not want to be continuously zeroing
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
-	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
+	if (zero_state && vm_page_zero_count >= ZIDLE_LO(vm_cnt.v_free_count))
 		return (0);
-	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
+	if (vm_page_zero_count >= ZIDLE_HI(vm_cnt.v_free_count))
 		return (0);
 	return (1);
 }
@@ -98,7 +98,7 @@ vm_page_zero_idle(void)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	zero_state = 0;
 	if (vm_phys_zero_pages_idle()) {
-		if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
+		if (vm_page_zero_count >= ZIDLE_HI(vm_cnt.v_free_count))
 			zero_state = 1;
 	}
 }

@@ -28,7 +28,7 @@
 #ifndef _FIXUPS_H_
 #define _FIXUPS_H_
 
-#include "queue.h"
+#include <sys/queue.h>
 
 struct coll;
 struct fixups;

@@ -28,7 +28,7 @@
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2012
+.Dd March 28, 2014
 .Dt KDUMP 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd display kernel trace data
 .Sh SYNOPSIS
 .Nm
-.Op Fl dEnlHRsTA
+.Op Fl dEnlHRSsTA
 .Op Fl f Ar trfile
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
@@ -95,6 +95,8 @@ Display relative timestamps (time since previous entry).
 .It Fl r
 When decoding STRU records, display structure members such as UIDs,
 GIDs, dates etc. symbolically instead of numerically.
+.It Fl S
+Display system call numbers.
 .It Fl s
 Suppress display of I/O data.
 .It Fl T

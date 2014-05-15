@@ -29,4 +29,4 @@ BINDIR.${p}=	${TESTSDIR}
 version_helper.o: atf-version
 
 .include "../../../common.mk"
-.include <atf.test.mk>
+.include <bsd.test.mk>

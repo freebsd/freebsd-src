@@ -6,9 +6,9 @@ DPADD=	${LIBFETCH} ${LIBDIALOG} ${LIBM}
 LDADD=	-lfetch -ldialog -lm
 
 WARNS?=	6
-NO_MAN=	true
+MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}

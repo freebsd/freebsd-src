@@ -25,6 +25,7 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
 LIB=		atf-c
@@ -85,6 +86,10 @@ atf-c.pc: atf-c.pc.in atf-version
 beforeinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		atf-c.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+	${INSTALL} -C -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		${ATF}/atf-c/atf-common.m4 ${DESTDIR}${SHAREDIR}/aclocal
+	${INSTALL} -C -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		${ATF}/atf-c/atf-c.m4 ${DESTDIR}${SHAREDIR}/aclocal
 
 .if ${MK_TESTS} != "no"
 SUBDIR=		tests

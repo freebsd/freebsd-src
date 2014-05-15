@@ -20,8 +20,6 @@ SRCS=		apr_cpystrn.c apr_fnmatch.c apr_getpass.c apr_hash.c \
 		thread_mutex.c thread_rwlock.c threadpriv.c time.c \
 		timestr.c userinfo.c version.c waitio.c
 
-NOMAN=		internalonly
-
 .PATH:		${APR}/atomic/unix ${APR}/dso/unix ${APR}/file_io/unix \
 		${APR}/locks/unix ${APR}/memory/unix ${APR}/misc/unix \
 		${APR}/mmap/unix ${APR}/network_io/unix ${APR}/passwd \

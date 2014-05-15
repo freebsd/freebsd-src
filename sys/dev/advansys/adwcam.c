@@ -344,12 +344,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 	{
 		struct	ccb_scsiio *csio;
-		struct	ccb_hdr *ccbh;
 		struct	acb *acb;
 		int error;
 
 		csio = &ccb->csio;
-		ccbh = &ccb->ccb_h;
 
 		/* Max supported CDB length is 12 bytes */
 		if (csio->cdb_len > 12) { 

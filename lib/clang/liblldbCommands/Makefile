@@ -14,6 +14,7 @@ SRCS=	CommandCompletions.cpp \
 	CommandObjectDisassemble.cpp \
 	CommandObjectExpression.cpp \
 	CommandObjectFrame.cpp \
+	CommandObjectGUI.cpp \
 	CommandObjectHelp.cpp \
 	CommandObjectLog.cpp \
 	CommandObjectMemory.cpp \

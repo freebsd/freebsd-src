@@ -374,6 +374,12 @@ DESCRIPTION
              interactive sessions and ``throughput'' for non-interactive
              sessions.
 
+     KbdInteractiveAuthentication
+             Specifies whether to allow keyboard-interactive authentication.
+             The argument to this keyword must be ``yes'' or ``no''.  The
+             default is to use whatever value ChallengeResponseAuthentication
+             is set to (by default ``yes'').
+
      KerberosAuthentication
              Specifies whether the password provided by the user for
              PasswordAuthentication will be validated through the Kerberos
@@ -460,7 +466,9 @@ DESCRIPTION
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
              override those set in the global section of the config file,
-             until either another Match line or the end of the file.
+             until either another Match line or the end of the file.  If a
+             keyword appears in multiple Match blocks that are satisified,
+             only the first instance of the keyword is applied.
 
              The arguments to Match are one or more criteria-pattern pairs or
              the single token All which matches all criteria.  The available
@@ -824,4 +832,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.4                    December 8, 2013                    OpenBSD 5.4
+OpenBSD 5.5                    February 27, 2014                   OpenBSD 5.5

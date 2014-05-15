@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CRL 1"
-.TH CRL 1 "2014-01-06" "1.0.1f" "OpenSSL"
+.TH CRL 1 "2014-04-07" "1.0.1g" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -178,6 +178,10 @@ don't output the encoded version of the \s-1CRL\s0.
 .IX Item "-hash"
 output a hash of the issuer name. This can be use to lookup CRLs in
 a directory by issuer name.
+.IP "\fB\-hash_old\fR" 4
+.IX Item "-hash_old"
+outputs the \*(L"hash\*(R" of the \s-1CRL\s0 issuer name using the older algorithm
+as used by OpenSSL versions before 1.0.0.
 .IP "\fB\-issuer\fR" 4
 .IX Item "-issuer"
 output the issuer name.

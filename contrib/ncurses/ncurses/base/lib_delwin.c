@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2008                    *
  ****************************************************************************/
 
 /*
@@ -40,15 +42,18 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delwin.c,v 1.17 2008/06/07 14:10:56 tom Exp $")
+MODULE_ID("$Id: lib_delwin.c,v 1.20 2009/10/24 22:02:14 tom Exp $")
 
 static bool
 cannot_delete(WINDOW *win)
 {
     WINDOWLIST *p;
     bool result = TRUE;
+#ifdef USE_SP_WINDOWLIST
+    SCREEN *sp = _nc_screen_of(win);
+#endif
 
-    for (each_window(p)) {
+    for (each_window(SP_PARM, p)) {
 	if (&(p->win) == win) {
 	    result = FALSE;
 	} else if ((p->win._flags & _SUBWIN) != 0
@@ -65,18 +70,20 @@ delwin(WINDOW *win)
 {
     int result = ERR;
 
-    T((T_CALLED("delwin(%p)"), win));
+    T((T_CALLED("delwin(%p)"), (void *) win));
 
     if (_nc_try_global(curses) == 0) {
 	if (win == 0
 	    || cannot_delete(win)) {
 	    result = ERR;
 	} else {
-
+#if NCURSES_SP_FUNCS
+	    SCREEN *sp = _nc_screen_of(win);
+#endif
 	    if (win->_flags & _SUBWIN)
 		touchwin(win->_parent);
-	    else if (curscr != 0)
-		touchwin(curscr);
+	    else if (CurScreen(SP_PARM) != 0)
+		touchwin(CurScreen(SP_PARM));
 
 	    result = _nc_freewin(win);
 	}

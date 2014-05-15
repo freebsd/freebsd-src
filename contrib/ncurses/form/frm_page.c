@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_page.c,v 1.10 2004/12/11 22:08:21 tom Exp $")
+MODULE_ID("$Id: frm_page.c,v 1.12 2012/06/10 00:28:04 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -51,14 +51,14 @@ set_form_page(FORM *form, int page)
 {
   int err = E_OK;
 
-  T((T_CALLED("set_form_page(%p,%d)"), form, page));
+  T((T_CALLED("set_form_page(%p,%d)"), (void *)form, page));
 
   if (!form || (page < 0) || (page >= form->maxpage))
     RETURN(E_BAD_ARGUMENT);
 
   if (!(form->status & _POSTED))
     {
-      form->curpage = page;
+      form->curpage = (short)page;
       form->current = _nc_First_Active_Field(form);
     }
   else
@@ -98,7 +98,7 @@ set_form_page(FORM *form, int page)
 NCURSES_EXPORT(int)
 form_page(const FORM *form)
 {
-  T((T_CALLED("form_page(%p)"), form));
+  T((T_CALLED("form_page(%p)"), (const void *)form));
 
   returnCode(Normalize_Form(form)->curpage);
 }

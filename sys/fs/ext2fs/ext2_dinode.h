@@ -27,7 +27,7 @@
  */
 
 #ifndef _FS_EXT2FS_EXT2_DINODE_H_
-#define _FS_EXT2FS_EXT2_DINODE_H_
+#define	_FS_EXT2FS_EXT2_DINODE_H_
 
 /*
  * Special inode numbers
@@ -55,35 +55,35 @@
  * EXT4_HUGE_FILE with some restrictions, imposed the lack of write
  * support.
  */
-#define EXT2_SECRM		0x00000001	/* Secure deletion */
-#define EXT2_UNRM		0x00000002	/* Undelete */
-#define EXT2_COMPR		0x00000004	/* Compress file */
-#define EXT2_SYNC		0x00000008	/* Synchronous updates */
-#define EXT2_IMMUTABLE		0x00000010	/* Immutable file */
-#define EXT2_APPEND		0x00000020 /* Writes to file may only append */
-#define EXT2_NODUMP		0x00000040	/* Do not dump file */
-#define EXT2_NOATIME		0x00000080	/* Do not update atime */
-#define EXT4_INDEX		0x00001000 	/* Hash-indexed directory */
-#define EXT4_IMAGIC		0x00002000 	/* AFS directory */
-#define EXT4_JOURNAL_DATA	0x00004000 /* File data should be journaled */
-#define EXT4_NOTAIL		0x00008000 /* File tail should not be merged */
-#define EXT4_DIRSYNC		0x00010000	/* Dirsync behaviour */
-#define EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
-#define EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
-#define EXT4_EXTENTS		0x00080000	/* Inode uses extents */
-#define EXT4_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
+#define	EXT2_SECRM		0x00000001	/* Secure deletion */
+#define	EXT2_UNRM		0x00000002	/* Undelete */
+#define	EXT2_COMPR		0x00000004	/* Compress file */
+#define	EXT2_SYNC		0x00000008	/* Synchronous updates */
+#define	EXT2_IMMUTABLE		0x00000010	/* Immutable file */
+#define	EXT2_APPEND		0x00000020 /* Writes to file may only append */
+#define	EXT2_NODUMP		0x00000040	/* Do not dump file */
+#define	EXT2_NOATIME		0x00000080	/* Do not update atime */
+#define	EXT4_INDEX		0x00001000	/* Hash-indexed directory */
+#define	EXT4_IMAGIC		0x00002000	/* AFS directory */
+#define	EXT4_JOURNAL_DATA	0x00004000 /* File data should be journaled */
+#define	EXT4_NOTAIL		0x00008000 /* File tail should not be merged */
+#define	EXT4_DIRSYNC		0x00010000	/* Dirsync behaviour */
+#define	EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
+#define	EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
+#define	EXT4_EXTENTS		0x00080000	/* Inode uses extents */
+#define	EXT4_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
 
 /*
  * Definitions for nanosecond timestamps.
  * Ext3 inode versioning, 2006-12-13.
  */
-#define EXT3_EPOCH_BITS	2
-#define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
-#define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
+#define	EXT3_EPOCH_BITS	2
+#define	EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
+#define	EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
 
-#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+#define	E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
 				    EXT2F_ROCOMPAT_EXTRA_ISIZE))
-#define E2DI_HAS_HUGE_FILE(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+#define	E2DI_HAS_HUGE_FILE(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
 				    EXT2F_ROCOMPAT_HUGE_FILE))
 
 /*
@@ -94,7 +94,7 @@
 #define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
 #define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
+#define	EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
 
 /*
  * Structure of an inode on the disk
@@ -121,16 +121,16 @@ struct ext2fs_dinode {
 	uint16_t	e2di_facl_high;	/* 118: File EA bits 47:32 */
 	uint16_t	e2di_uid_high;	/* 120: Owner UID top 16 bits */
 	uint16_t	e2di_gid_high;	/* 122: Owner GID top 16 bits */
-	uint16_t	e2di_chksum_lo;   /* 124: Lower inode checksum */
+	uint16_t	e2di_chksum_lo;	  /* 124: Lower inode checksum */
 	uint16_t	e2di_lx_reserved; /* 126: Unused */
 	uint16_t	e2di_extra_isize; /* 128: Size of this inode */
 	uint16_t	e2di_chksum_hi;	/* 130: High inode checksum */
-	uint32_t        e2di_ctime_extra; /* 132: Extra change time */
-	uint32_t        e2di_mtime_extra; /* 136: Extra modification time */
-	uint32_t        e2di_atime_extra; /* 140: Extra access time */
-	uint32_t        e2di_crtime;	/* 144: Creation (birth)time */
-	uint32_t        e2di_crtime_extra; /* 148: Extra creation (birth)time */
-	uint32_t        e2di_version_hi;  /* 152: High bits of inode version */
+	uint32_t	e2di_ctime_extra; /* 132: Extra change time */
+	uint32_t	e2di_mtime_extra; /* 136: Extra modification time */
+	uint32_t	e2di_atime_extra; /* 140: Extra access time */
+	uint32_t	e2di_crtime;	/* 144: Creation (birth)time */
+	uint32_t	e2di_crtime_extra; /* 148: Extra creation (birth)time */
+	uint32_t	e2di_version_hi;  /* 152: High bits of inode version */
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */

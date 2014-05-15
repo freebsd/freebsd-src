@@ -20,11 +20,10 @@ arm/arm/cpufunc_asm_armv5_ec.S	standard
 arm/arm/cpufunc_asm_armv7.S	standard
 arm/arm/cpufunc_asm_sheeva.S	standard
 arm/arm/cpufunc_asm_pj4b.S	standard
-arm/arm/irq_dispatch.S		standard
 
 arm/mv/bus_space.c		standard
-arm/mv/common.c			standard
 arm/mv/gpio.c			standard
+arm/mv/mv_common.c		standard
 arm/mv/mv_localbus.c		standard
 arm/mv/mv_machdep.c		standard
 arm/mv/mv_pci.c			optional	pci

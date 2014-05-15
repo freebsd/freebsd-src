@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,7 +45,7 @@
 #include <sys/termio.h>		/* needed for ISC */
 #endif
 
-MODULE_ID("$Id: lib_initscr.c,v 1.38 2008/08/16 21:20:48 Werner.Fink Exp $")
+MODULE_ID("$Id: lib_initscr.c,v 1.39 2009/02/14 20:55:49 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 initscr(void)
@@ -90,7 +90,11 @@ initscr(void)
 	}
 
 	/* def_shell_mode - done in newterm/_nc_setupscreen */
+#if NCURSES_SP_FUNCS
+	NCURSES_SP_NAME(def_prog_mode) (CURRENT_SCREEN);
+#else
 	def_prog_mode();
+#endif
     }
     result = stdscr;
     _nc_unlock_global(curses);

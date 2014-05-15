@@ -29,11 +29,20 @@
 #ifndef _VMM_H_
 #define	_VMM_H_
 
+enum vm_suspend_how {
+	VM_SUSPEND_NONE,
+	VM_SUSPEND_RESET,
+	VM_SUSPEND_POWEROFF,
+	VM_SUSPEND_HALT,
+	VM_SUSPEND_LAST
+};
+
 #ifdef _KERNEL
 
 #define	VM_MAX_NAMELEN	32
 
 struct vm;
+struct vm_exception;
 struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
@@ -52,7 +61,8 @@ typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie);
+				  struct pmap *pmap, void *rendezvous_cookie,
+				  void *suspend_cookie);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -62,9 +72,6 @@ typedef int	(*vmi_get_desc_t)(void *vmi, int vcpu, int num,
 				  struct seg_desc *desc);
 typedef int	(*vmi_set_desc_t)(void *vmi, int vcpu, int num,
 				  struct seg_desc *desc);
-typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
-				      int type, int vector,
-				      uint32_t code, int code_valid);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
 typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
@@ -84,7 +91,6 @@ struct vmm_ops {
 	vmi_set_register_t	vmsetreg;
 	vmi_get_desc_t		vmgetdesc;
 	vmi_set_desc_t		vmsetdesc;
-	vmi_inject_event_t	vminject;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
 	vmi_vmspace_alloc	vmspace_alloc;
@@ -117,11 +123,13 @@ int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
-int vm_inject_event(struct vm *vm, int vcpu, int type,
-		    int vector, uint32_t error_code, int error_code_valid);
+int vm_suspend(struct vm *vm, enum vm_suspend_how how);
 int vm_inject_nmi(struct vm *vm, int vcpu);
 int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
+int vm_inject_extint(struct vm *vm, int vcpu);
+int vm_extint_pending(struct vm *vm, int vcpuid);
+void vm_extint_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
@@ -134,6 +142,7 @@ int vm_apicid2vcpuid(struct vm *vm, int apicid);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
+void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
@@ -158,6 +167,13 @@ vcpu_rendezvous_pending(void *rendezvous_cookie)
 {
 
 	return (*(uintptr_t *)rendezvous_cookie != 0);
+}
+
+static __inline int
+vcpu_suspended(void *suspend_cookie)
+{
+
+	return (*(int *)suspend_cookie);
 }
 
 /*
@@ -192,25 +208,40 @@ void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
+struct vatpic *vm_atpic(struct vm *vm);
+struct vatpit *vm_atpit(struct vm *vm);
+
+/*
+ * Inject exception 'vme' into the guest vcpu. This function returns 0 on
+ * success and non-zero on failure.
+ *
+ * Wrapper functions like 'vm_inject_gp()' should be preferred to calling
+ * this function directly because they enforce the trap-like or fault-like
+ * behavior of an exception.
+ *
+ * This function should only be called in the context of the thread that is
+ * executing this vcpu.
+ */
+int vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *vme);
+
+/*
+ * Returns 0 if there is no exception pending for this vcpu. Returns 1 if an
+ * exception is pending and also updates 'vme'. The pending exception is
+ * cleared when this function returns.
+ *
+ * This function should only be called in the context of the thread that is
+ * executing this vcpu.
+ */
+int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
+
+void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
+void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
+
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
-
-/*
- * Identifiers for events that can be injected into the VM
- */
-enum vm_event_type {
-	VM_EVENT_NONE,
-	VM_HW_INTR,
-	VM_NMI,
-	VM_HW_EXCEPTION,
-	VM_SW_INTR,
-	VM_PRIV_SW_EXCEPTION,
-	VM_SW_EXCEPTION,
-	VM_EVENT_MAX
-};
 
 /*
  * Identifiers for architecturally defined registers.
@@ -265,12 +296,16 @@ enum vm_cap_type {
 };
 
 enum x2apic_state {
-	X2APIC_ENABLED,
-	X2APIC_AVAILABLE,
 	X2APIC_DISABLED,
+	X2APIC_ENABLED,
 	X2APIC_STATE_LAST
 };
 
+enum vm_intr_trigger {
+	EDGE_TRIGGER,
+	LEVEL_TRIGGER
+};
+	
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.
@@ -296,9 +331,10 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
-	VM_EXITCODE_SPINDOWN_CPU,
+	VM_EXITCODE_DEPRECATED1,	/* used to be SPINDOWN_CPU */
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
+	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_MAX
 };
 
@@ -360,6 +396,9 @@ struct vm_exit {
 		struct {
 			int		vector;
 		} ioapic_eoi;
+		struct {
+			enum vm_suspend_how how;
+		} suspended;
 	} u;
 };
 

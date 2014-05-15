@@ -127,7 +127,7 @@ vm_phys_freecnt_adj(vm_page_t m, int adj)
 {
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	cnt.v_free_count += adj;
+	vm_cnt.v_free_count += adj;
 	vm_page_domain(m)->vmd_free_count += adj;
 }
 

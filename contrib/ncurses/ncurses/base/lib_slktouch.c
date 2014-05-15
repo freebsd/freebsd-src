@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,8 +27,8 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *  Author: Juergen Pfeifer                         1997,2009               *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -38,16 +38,24 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slktouch.c,v 1.5 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slktouch.c,v 1.8 2009/10/24 22:12:21 tom Exp $")
 
 NCURSES_EXPORT(int)
-slk_touch(void)
+NCURSES_SP_NAME(slk_touch) (NCURSES_SP_DCL0)
 {
-    T((T_CALLED("slk_touch()")));
+    T((T_CALLED("slk_touch(%p)"), (void *) SP_PARM));
 
-    if (SP == NULL || SP->_slk == NULL)
+    if (SP_PARM == 0 || SP_PARM->_slk == 0)
 	returnCode(ERR);
-    SP->_slk->dirty = TRUE;
+    SP_PARM->_slk->dirty = TRUE;
 
     returnCode(OK);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+slk_touch(void)
+{
+    return NCURSES_SP_NAME(slk_touch) (CURRENT_SCREEN);
+}
+#endif

@@ -75,7 +75,7 @@ msdosfs_fileno_init(mp)
 
 	RB_INIT(&pmp->pm_filenos);
 	pmp->pm_nfileno = FILENO_FIRST_DYN;
-        if (pmp->pm_HugeSectors > 0xffffffff /
+	if (pmp->pm_HugeSectors > 0xffffffff /
 	    (pmp->pm_BytesPerSec / sizeof(struct direntry)) + 1)
 		pmp->pm_flags |= MSDOSFS_LARGEFS;
 }

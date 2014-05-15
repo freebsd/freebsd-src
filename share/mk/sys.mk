@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
 
 # Set any local definitions first. Place this early, but it needs
@@ -39,9 +39,12 @@ AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
 .else
-ARFLAGS		?=	cru
+ARFLAGS		?=	-crD
 .endif
 RANLIB		?=	ranlib
+.if !defined(%POSIX)
+RANLIBFLAGS	?=	-D
+.endif
 
 AS		?=	as
 AFLAGS		?=
@@ -71,10 +74,6 @@ CTFMERGE	?=	ctfmerge
 DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
-.else
-# XXX: What to do here? Is removing the CFLAGS part completely ok here?
-# For now comment it out to not compile with -g unconditionally.
-#CFLAGS		+=	-g
 .endif
 
 CXX		?=	c++
@@ -168,11 +167,9 @@ YFLAGS		?=	-d
 # SINGLE SUFFIX RULES
 .c:
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f:
 	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .sh:
 	cp -f ${.IMPSRC} ${.TARGET}
@@ -182,25 +179,21 @@ YFLAGS		?=	-d
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f.o:
 	${FC} ${FFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c
 	rm -f y.tab.c
 	mv y.tab.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c
 	rm -f lex.yy.c
 	mv lex.yy.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
@@ -341,11 +334,7 @@ SHELL=	${__MAKE_SHELL}
 
 # Toggle on warnings
 .WARN: dirsyntax
-.endif
-
-.endif
-
-.if defined(.PARSEDIR)
+.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -362,7 +351,8 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-
-.endif
+.endif # bmake
 
 .include <bsd.cpu.mk>
+
+.endif # ! Posix

@@ -1164,6 +1164,13 @@ void Generic_GCC::GCCInstallationDetector::print(raw_ostream &OS) const {
                                                 "powerpc64le-suse-linux",
                                                 "ppc64le-redhat-linux" };
 
+  static const char *const SPARCv8LibDirs[] = { "/lib32", "/lib" };
+  static const char *const SPARCv8Triples[] = { "sparc-linux-gnu",
+                                                "sparcv8-linux-gnu" };
+  static const char *const SPARCv9LibDirs[] = { "/lib64", "/lib" };
+  static const char *const SPARCv9Triples[] = { "sparc64-linux-gnu",
+                                                "sparcv9-linux-gnu" };
+
   static const char *const SystemZLibDirs[] = { "/lib64", "/lib" };
   static const char *const SystemZTriples[] = {
     "s390x-linux-gnu", "s390x-unknown-linux-gnu", "s390x-ibm-linux-gnu",
@@ -1283,6 +1290,26 @@ void Generic_GCC::GCCInstallationDetector::print(raw_ostream &OS) const {
     TripleAliases.append(PPC64LETriples,
                          PPC64LETriples + llvm::array_lengthof(PPC64LETriples));
     break;
+  case llvm::Triple::sparc:
+    LibDirs.append(SPARCv8LibDirs,
+                   SPARCv8LibDirs + llvm::array_lengthof(SPARCv8LibDirs));
+    TripleAliases.append(SPARCv8Triples,
+                         SPARCv8Triples + llvm::array_lengthof(SPARCv8Triples));
+    BiarchLibDirs.append(SPARCv9LibDirs,
+                         SPARCv9LibDirs + llvm::array_lengthof(SPARCv9LibDirs));
+    BiarchTripleAliases.append(
+        SPARCv9Triples, SPARCv9Triples + llvm::array_lengthof(SPARCv9Triples));
+    break;
+  case llvm::Triple::sparcv9:
+    LibDirs.append(SPARCv9LibDirs,
+                   SPARCv9LibDirs + llvm::array_lengthof(SPARCv9LibDirs));
+    TripleAliases.append(SPARCv9Triples,
+                         SPARCv9Triples + llvm::array_lengthof(SPARCv9Triples));
+    BiarchLibDirs.append(SPARCv8LibDirs,
+                         SPARCv8LibDirs + llvm::array_lengthof(SPARCv8LibDirs));
+    BiarchTripleAliases.append(
+        SPARCv8Triples, SPARCv8Triples + llvm::array_lengthof(SPARCv8Triples));
+    break;
   case llvm::Triple::systemz:
     LibDirs.append(SystemZLibDirs,
                    SystemZLibDirs + llvm::array_lengthof(SystemZLibDirs));
@@ -1379,6 +1406,7 @@ static bool findTargetBiarchSuffix(std::string &Suffix, StringRef Path,
     Suffix = "/n32";
   else if (TargetArch == llvm::Triple::x86_64 ||
            TargetArch == llvm::Triple::ppc64 ||
+           TargetArch == llvm::Triple::sparcv9 ||
            TargetArch == llvm::Triple::systemz ||
            TargetArch == llvm::Triple::mips64 ||
            TargetArch == llvm::Triple::mips64el)
@@ -1620,6 +1648,21 @@ bool Generic_GCC::isPIEDefault() const {
 
 bool Generic_GCC::isPICDefaultForced() const {
   return false;
+}
+
+void Generic_GCC::addClangTargetOptions(const ArgList &DriverArgs,
+                                        ArgStringList &CC1Args) const {
+  const Generic_GCC::GCCVersion &V = GCCInstallation.getVersion();
+  bool UseInitArrayDefault = 
+      getTriple().getArch() == llvm::Triple::aarch64 ||
+      (getTriple().getOS() == llvm::Triple::Linux && (
+         !V.isOlderThan(4, 7, 0) ||
+         getTriple().getEnvironment() == llvm::Triple::Android));
+
+  if (DriverArgs.hasFlag(options::OPT_fuse_init_array,
+                         options::OPT_fno_use_init_array,
+                         UseInitArrayDefault))
+    CC1Args.push_back("-fuse-init-array");
 }
 
 /// Hexagon Toolchain
@@ -2006,6 +2049,7 @@ Tool *FreeBSD::buildLinker() const {
 bool FreeBSD::UseSjLjExceptions() const {
   // FreeBSD uses SjLj exceptions on ARM oabi.
   switch (getTriple().getEnvironment()) {
+  case llvm::Triple::GNUEABIHF:
   case llvm::Triple::GNUEABI:
   case llvm::Triple::EABI:
     return false;
@@ -2535,19 +2579,6 @@ Tool *Linux::buildLinker() const {
 
 Tool *Linux::buildAssembler() const {
   return new tools::gnutools::Assemble(*this);
-}
-
-void Linux::addClangTargetOptions(const ArgList &DriverArgs,
-                                  ArgStringList &CC1Args) const {
-  const Generic_GCC::GCCVersion &V = GCCInstallation.getVersion();
-  bool UseInitArrayDefault =
-      !V.isOlderThan(4, 7, 0) ||
-      getTriple().getArch() == llvm::Triple::aarch64 ||
-      getTriple().getEnvironment() == llvm::Triple::Android;
-  if (DriverArgs.hasFlag(options::OPT_fuse_init_array,
-                         options::OPT_fno_use_init_array,
-                         UseInitArrayDefault))
-    CC1Args.push_back("-fuse-init-array");
 }
 
 std::string Linux::computeSysRoot() const {

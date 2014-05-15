@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
-#include <machine/efi.h>
 #include <machine/pcb.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -354,6 +354,12 @@ trap(int vector, struct trapframe *tf)
 	ksiginfo_t ksi;
 
 	user = TRAPF_USERMODE(tf) ? 1 : 0;
+	if (user)
+		ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+#ifdef XTRACE
+	ia64_xtrace_save();
+#endif
 
 	PCPU_INC(cnt.v_trap);
 
@@ -362,7 +368,6 @@ trap(int vector, struct trapframe *tf)
 	ucode = 0;
 
 	if (user) {
-		ia64_set_fpsr(IA64_FPSR_DEFAULT);
 		td->td_pticks = 0;
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)

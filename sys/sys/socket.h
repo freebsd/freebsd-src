@@ -376,9 +376,8 @@ struct sockproto {
  * Second level is protocol family.
  * Third level is protocol number.
  *
- * Further levels are defined by the individual families below.
+ * Further levels are defined by the individual families.
  */
-#define NET_MAXID	AF_MAX
 
 /*
  * PF_ROUTE - Routing table
@@ -394,8 +393,6 @@ struct sockproto {
 #define	NET_RT_IFMALIST	4		/* return multicast address list */
 #define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
 					 * versions of msghdr structs. */
-#define	NET_RT_MAXID	6
-
 #endif /* __BSD_VISIBLE */
 
 /*

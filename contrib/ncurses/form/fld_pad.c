@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_pad.c,v 1.9 2004/12/11 21:56:49 tom Exp $")
+MODULE_ID("$Id: fld_pad.c,v 1.10 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -50,7 +50,7 @@ set_field_pad(FIELD *field, int ch)
 {
   int res = E_BAD_ARGUMENT;
 
-  T((T_CALLED("set_field_pad(%p,%d)"), field, ch));
+  T((T_CALLED("set_field_pad(%p,%d)"), (void *)field, ch));
 
   Normalize_Field(field);
   if (isprint(UChar(ch)))
@@ -77,7 +77,7 @@ set_field_pad(FIELD *field, int ch)
 NCURSES_EXPORT(int)
 field_pad(const FIELD *field)
 {
-  T((T_CALLED("field_pad(%p)"), field));
+  T((T_CALLED("field_pad(%p)"), (const void *)field));
 
   returnCode(Normalize_Field(field)->pad);
 }

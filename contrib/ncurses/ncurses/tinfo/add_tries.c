@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: add_tries.c,v 1.8 2006/12/30 23:15:26 tom Exp $")
+MODULE_ID("$Id: add_tries.c,v 1.10 2010/12/19 01:31:14 tom Exp $")
 
 #define SET_TRY(dst,src) if ((dst->ch = *src++) == 128) dst->ch = '\0'
 #define CMP_TRY(a,b) ((a)? (a == b) : (b == 128))
@@ -50,7 +50,8 @@ _nc_add_to_try(TRIES ** tree, const char *str, unsigned code)
     TRIES *ptr, *savedptr;
     unsigned const char *txt = (unsigned const char *) str;
 
-    T((T_CALLED("_nc_add_to_try(%p, %s, %u)"), *tree, _nc_visbuf(str), code));
+    T((T_CALLED("_nc_add_to_try(%p, %s, %u)"),
+       (void *) *tree, _nc_visbuf(str), code));
     if (txt == 0 || *txt == '\0' || code == 0)
 	returnCode(ERR);
 
@@ -66,7 +67,7 @@ _nc_add_to_try(TRIES ** tree, const char *str, unsigned code)
 
 	    if (CMP_TRY(ptr->ch, cmp)) {
 		if (*(++txt) == '\0') {
-		    ptr->value = code;
+		    ptr->value = (unsigned short) code;
 		    returnCode(OK);
 		}
 		if (ptr->child != 0)
@@ -115,6 +116,6 @@ _nc_add_to_try(TRIES ** tree, const char *str, unsigned code)
 	ptr->value = 0;
     }
 
-    ptr->value = code;
+    ptr->value = (unsigned short) code;
     returnCode(OK);
 }

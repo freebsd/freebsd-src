@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sysproto.h>
+#include <sys/boot.h>
 
 #include <xen/xen-os.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 
 #include <xen/hypervisor.h>
+#include <xen/xenstore/xenstorevar.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenpmap.h>
@@ -89,6 +91,7 @@ IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 
 int xendebug_flags; 
 start_info_t *xen_start_info;
+start_info_t *HYPERVISOR_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
@@ -155,24 +158,6 @@ xen_setbootenv(char *cmd_line)
 	return cmd_line;
 }
 
-static struct 
-{
-	const char	*ev;
-	int		mask;
-} howto_names[] = {
-	{"boot_askname",	RB_ASKNAME},
-	{"boot_single",	RB_SINGLE},
-	{"boot_nosync",	RB_NOSYNC},
-	{"boot_halt",	RB_ASKNAME},
-	{"boot_serial",	RB_SERIAL},
-	{"boot_cdrom",	RB_CDROM},
-	{"boot_gdb",	RB_GDB},
-	{"boot_gdb_pause",	RB_RESERVED1},
-	{"boot_verbose",	RB_VERBOSE},
-	{"boot_multicons",	RB_MULTIPLE},
-	{NULL,	0}
-};
-
 int 
 xen_boothowto(char *envp)
 {
@@ -183,21 +168,6 @@ xen_boothowto(char *envp)
 		if (getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	return howto;
-}
-
-#define XC_PRINTF_BUFSIZE 1024
-void
-xc_printf(const char *fmt, ...)
-{
-        __va_list ap;
-        int retval;
-        static char buf[XC_PRINTF_BUFSIZE];
-
-        va_start(ap, fmt);
-        retval = vsnprintf(buf, XC_PRINTF_BUFSIZE - 1, fmt, ap);
-        va_end(ap);
-        buf[retval] = 0;
-        (void)HYPERVISOR_console_write(buf, retval);
 }
 
 
@@ -741,11 +711,6 @@ char *bootmem_start, *bootmem_current, *bootmem_end;
 pteinfo_t *pteinfo_list;
 void initvalues(start_info_t *startinfo);
 
-struct xenstore_domain_interface;
-extern struct xenstore_domain_interface *xen_store;
-
-char *console_page;
-
 void *
 bootmem_alloc(unsigned int size) 
 {
@@ -927,6 +892,7 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments_notify);	
 #endif	
 	xen_start_info = startinfo;
+	HYPERVISOR_start_info = startinfo;
 	xen_phys_machine = (xen_pfn_t *)startinfo->mfn_list;
 
 	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
@@ -967,7 +933,7 @@ initvalues(start_info_t *startinfo)
 	xc_printf("initvalues(): wooh - availmem=%x,%x\n", avail_space,
 	    cur_space);
 
-	xc_printf("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n",
+	xc_printf("KERNBASE=%x,pt_base=%lx, VTOPFN(base)=%x, nr_pt_frames=%lx\n",
 	    KERNBASE,xen_start_info->pt_base, VTOPFN(xen_start_info->pt_base),
 	    xen_start_info->nr_pt_frames);
 	xendebug_flags = 0; /* 0xffffffff; */
@@ -976,7 +942,7 @@ initvalues(start_info_t *startinfo)
 	shift_phys_machine(xen_phys_machine, xen_start_info->nr_pages);
 #endif
 	XENPRINTF("IdlePTD %p\n", IdlePTD);
-	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%lx pt_base: 0x%lx "
+	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%x pt_base: 0x%lx "
 		  "mod_start: 0x%lx mod_len: 0x%lx\n",
 		  xen_start_info->nr_pages, xen_start_info->shared_info, 
 		  xen_start_info->flags, xen_start_info->pt_base, 

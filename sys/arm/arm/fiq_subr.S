@@ -91,13 +91,3 @@ ENTRY(fiq_setregs)
 	RET
 END(fiq_setregs)
 
-/*
- * fiq_nullhandler:
- *
- *	Null handler copied down to the FIQ vector when the last
- *	FIQ handler is removed.
- */
-	.global	_C_LABEL(fiq_nullhandler), _C_LABEL(fiq_nullhandler_end)
-_C_LABEL(fiq_nullhandler):
-	subs	pc, lr, #4
-_C_LABEL(fiq_nullhandler_end):

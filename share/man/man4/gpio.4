@@ -42,7 +42,7 @@ following lines in your kernel configuration file:
 .Pp
 Additional device entries for the
 .Li ARM
-architecure include:
+architecture include:
 .Bd -ragged -offset indent
 .Cd "device a10_gpio"
 .Cd "device bcm_gpio"
@@ -58,7 +58,7 @@ architecure include:
 .Pp
 Additional device entries for the
 .Li MIPS
-architecure include:
+architecture include:
 .Bd -ragged -offset indent
 .Cd "device ar71xxx_gpio"
 .Cd "device octeon_gpio"
@@ -67,14 +67,14 @@ architecure include:
 .Pp
 Additional device entries for the
 .Li POWERPC
-architecure include:
+architecture include:
 .Bd -ragged -offset indent
 .Cd "device wiigpio"
 .Cd "device macgpio"
 .Ed
 .Sh DESCRIPTION
 The
-.Em gpiobus
+.Nm
 system provides a simple interface to the GPIO pins that are usually
 available on embedded architectures and can provide bit banging style
 devices to the system.
@@ -89,7 +89,7 @@ for input/output, IRQ delivery, SDA/SCL
 .Em iicbus
 use, etc.
 .Pp
-On some embedded architechtures (like MIPS), discovery of the bus and
+On some embedded architectures (like MIPS), discovery of the bus and
 configuration of the pins is done via
 .Xr device.hints 5
 in the platform's kernel
@@ -101,28 +101,30 @@ On some others (like ARM), where
 is used to describe the device tree, the bus discovery is done via the DTS
 passed to the kernel, being either statically compiled in, or by a variety
 of ways where the boot loader (or Open Firmware enabled system) passes the
-DTS blob to kernel at boot.
+DTS blob to the kernel at boot.
 .Pp
-The following are only provided by the
+The following
+.Xr device.hints 5
+are only provided by the
 .Cd ar71xx_gpio
-driver.
+driver:
 .Bl -tag -width ".Va hint.gpioiic.%d.atXXX"
 .It Va hint.gpio.%d.pinmask
-This is a bitmask of pins on the gpio board that we would like to expose
-for use to the host o/s.
+This is a bitmask of pins on the GPIO board that we would like to expose
+for use to the host operating system.
 To expose pin 0, 4 and 7, use the bitmask of
 10010001 converted to the hexadecimal value 0x0091.
 .It Va hint.gpio.%d.pinon
-This is a bitmask of pins on the gpio board that will be set to ON at host
+This is a bitmask of pins on the GPIO board that will be set to ON at host
 start.
 To set pin 2, 5 and 13 to be set ON at boot, use the bitmask of
 10000000010010 converted to the hexadecimal value 0x2012.
 .It Va hint.gpio.function_set
 .It Va hint.gpio.function_clear
-These are a bitmask of pins that will remap a pin to handle a specific
+These are bitmasks of pins that will remap a pin to handle a specific
 function (USB, UART TX/RX, etc) in the Atheros function registers.
-This is mainly used to set/clear functions that we need when they are setup or
-not setup by uBoot.
+This is mainly used to set/clear functions that we need when they are set up or
+not set up by uBoot.
 .El
 .Pp
 Simply put, each pin of the GPIO interface is connected to an input/output

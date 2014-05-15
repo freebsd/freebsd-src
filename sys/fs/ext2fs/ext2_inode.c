@@ -248,7 +248,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	if (error && (allerror == 0))
 		allerror = error;
 	vnode_pager_setsize(ovp, length);
-	
+
 	/*
 	 * Indirect blocks first.
 	 */

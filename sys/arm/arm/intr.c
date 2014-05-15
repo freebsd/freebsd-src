@@ -56,11 +56,17 @@ typedef void (*mask_fn)(void *);
 
 static struct intr_event *intr_events[NIRQ];
 
-void	arm_handler_execute(struct trapframe *, int);
+void	arm_irq_handler(struct trapframe *);
 
 void (*arm_post_filter)(void *) = NULL;
 int (*arm_config_irq)(int irq, enum intr_trigger trig,
     enum intr_polarity pol) = NULL;
+
+/* Data for statistics reporting. */
+u_long intrcnt[NIRQ];
+char intrnames[NIRQ * INTRNAME_LEN];
+size_t sintrcnt = sizeof(intrcnt);
+size_t sintrnames = sizeof(intrnames);
 
 /*
  * Pre-format intrnames into an array of fixed-size strings containing spaces.
@@ -127,7 +133,7 @@ dosoftints(void)
 }
 
 void
-arm_handler_execute(struct trapframe *frame, int irqnb)
+arm_irq_handler(struct trapframe *frame)
 {
 	struct intr_event *event;
 	int i;

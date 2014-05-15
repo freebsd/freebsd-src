@@ -26,7 +26,7 @@
  */
 
 #ifndef _UFS_UFS_DIRHASH_H_
-#define _UFS_UFS_DIRHASH_H_
+#define	_UFS_UFS_DIRHASH_H_
 
 #include <sys/_lock.h>
 #include <sys/_sx.h>
@@ -44,11 +44,11 @@
  * We also maintain information about free space in each block
  * to speed up creations.
  */
-#define DIRHASH_EMPTY	(-1)	/* entry unused */
-#define DIRHASH_DEL	(-2)	/* deleted entry; may be part of chain */
+#define	DIRHASH_EMPTY	(-1)	/* entry unused */
+#define	DIRHASH_DEL	(-2)	/* deleted entry; may be part of chain */
 
-#define DIRALIGN	4
-#define DH_NFSTATS	(DIRECTSIZ(MAXNAMLEN + 1) / DIRALIGN)
+#define	DIRALIGN	4
+#define	DH_NFSTATS	(DIRECTSIZ(MAXNAMLEN + 1) / DIRALIGN)
 				 /* max DIRALIGN words in a directory entry */
 
 /*
@@ -68,18 +68,18 @@
  * case it limits the number of hash builds to 1/DH_SCOREINIT of the
  * number of accesses.
  */ 
-#define DH_SCOREINIT	8	/* initial dh_score when dirhash built */
-#define DH_SCOREMAX	64	/* max dh_score value */
+#define	DH_SCOREINIT	8	/* initial dh_score when dirhash built */
+#define	DH_SCOREMAX	64	/* max dh_score value */
 
 /*
  * The main hash table has 2 levels. It is an array of pointers to
  * blocks of DH_NBLKOFF offsets.
  */
-#define DH_BLKOFFSHIFT	8
-#define DH_NBLKOFF	(1 << DH_BLKOFFSHIFT)
-#define DH_BLKOFFMASK	(DH_NBLKOFF - 1)
+#define	DH_BLKOFFSHIFT	8
+#define	DH_NBLKOFF	(1 << DH_BLKOFFSHIFT)
+#define	DH_BLKOFFMASK	(DH_NBLKOFF - 1)
 
-#define DH_ENTRY(dh, slot) \
+#define	DH_ENTRY(dh, slot) \
     ((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot) & DH_BLKOFFMASK])
 
 struct dirhash {

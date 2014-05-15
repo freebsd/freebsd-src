@@ -1,7 +1,7 @@
 # $FreeBSD$
 .PATH:  ${.CURDIR}/../../ofed/drivers/net/mlx4
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH:  ${.CURDIR}/../../ofed/include/linux
 KMOD    = mlx4
