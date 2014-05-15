@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 
+/* NB: Make sure FNBUFF is as large as LNBUFF, otherwise it could overflow */
 #define	FNBUFF	512
 #define	LNBUFF	512
 
