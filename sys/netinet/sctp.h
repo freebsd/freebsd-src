@@ -365,6 +365,12 @@ struct sctp_paramhdr {
 /*
  * error cause parameters (user visible)
  */
+struct sctp_gen_error_cause {
+	uint16_t code;
+	uint16_t length;
+	uint8_t info[];
+}                    SCTP_PACKED;
+
 struct sctp_error_cause {
 	uint16_t code;
 	uint16_t length;
