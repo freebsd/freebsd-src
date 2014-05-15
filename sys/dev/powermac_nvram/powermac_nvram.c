@@ -84,7 +84,7 @@ static driver_t	powermac_nvram_driver = {
 
 static devclass_t powermac_nvram_devclass;
 
-DRIVER_MODULE(powermac_nvram, nexus, powermac_nvram_driver, powermac_nvram_devclass, 0, 0);
+DRIVER_MODULE(powermac_nvram, ofwbus, powermac_nvram_driver, powermac_nvram_devclass, 0, 0);
 
 /*
  * Cdev methods.

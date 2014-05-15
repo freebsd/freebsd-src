@@ -121,7 +121,7 @@ static driver_t simplebus_driver = {
 	sizeof(struct simplebus_softc)
 };
 static devclass_t simplebus_devclass;
-DRIVER_MODULE(simplebus, nexus, simplebus_driver, simplebus_devclass, 0, 0);
+DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass, 0, 0);
 DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0, 0);
 
 static int

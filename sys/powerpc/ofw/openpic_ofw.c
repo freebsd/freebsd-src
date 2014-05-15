@@ -90,7 +90,7 @@ static driver_t openpic_ofw_driver = {
 	sizeof(struct openpic_softc),
 };
 
-DRIVER_MODULE(openpic, nexus, openpic_ofw_driver, openpic_devclass, 0, 0);
+DRIVER_MODULE(openpic, ofwbus, openpic_ofw_driver, openpic_devclass, 0, 0);
 DRIVER_MODULE(openpic, simplebus, openpic_ofw_driver, openpic_devclass, 0, 0);
 DRIVER_MODULE(openpic, macio, openpic_ofw_driver, openpic_devclass, 0, 0);
 

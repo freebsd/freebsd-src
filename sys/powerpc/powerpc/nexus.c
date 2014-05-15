@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_nexus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -57,15 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 /*
- * The nexus (which is a pseudo-bus actually) iterates over the nodes that
- * hang from the Open Firmware root node and adds them as devices to this bus
- * (except some special nodes which are excluded) so that drivers can be
- * attached to them.
- *
- * Additionally, interrupt setup/teardown and some resource management are
- * done at this level.
+ * The nexus handles root-level resource allocation requests and interrupt
+ * mapping. All direct subdevices of nexus are attached by DEVICE_IDENTIFY().
  */
 
+static device_probe_t nexus_probe;
+static device_attach_t nexus_attach;
 static bus_setup_intr_t nexus_setup_intr;
 static bus_teardown_intr_t nexus_teardown_intr;
 static bus_activate_resource_t nexus_activate_resource;
@@ -77,7 +73,12 @@ static bus_config_intr_t nexus_config_intr;
 static ofw_bus_map_intr_t nexus_ofw_map_intr;
 
 static device_method_t nexus_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_probe),
+	DEVMETHOD(device_attach,	nexus_attach),
+
 	/* Bus interface */
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
@@ -95,11 +96,29 @@ static device_method_t nexus_methods[] = {
 
 static devclass_t nexus_devclass;
 
-DEFINE_CLASS_1(nexus, nexus_driver, nexus_methods,
-    sizeof(struct ofw_nexus_softc), ofw_nexus_driver);
+DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, 1);
 EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
     BUS_PASS_BUS);
 MODULE_VERSION(nexus, 1);
+
+static int
+nexus_probe(device_t dev)
+{
+        
+	device_quiet(dev);	/* suppress attach message for neatness */
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nexus_attach(device_t dev)
+{
+
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+
+	return (0);
+}
 
 static int
 nexus_setup_intr(device_t bus __unused, device_t child, struct resource *r,

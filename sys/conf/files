@@ -1407,7 +1407,6 @@ dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"$S/boot/fdt/dts/${FDT_DTS_FILE}"
-dev/fdt/fdtbus.c		optional fdtbus
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
@@ -1968,7 +1967,7 @@ dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
 dev/ofw/ofw_iicbus.c		optional fdt iicbus
-dev/ofw/ofw_nexus.c		optional fdt
+dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
 dev/patm/if_patm.c		optional patm pci
