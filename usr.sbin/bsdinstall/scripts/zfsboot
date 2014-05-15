@@ -131,7 +131,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
 	# Compress /tmp, allow exec but not setuid
-	/tmp		mountpoint=/tmp,compression=lz4,exec=on,setuid=off
+	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
 	/usr		mountpoint=/usr,canmount=off
@@ -140,17 +140,17 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/usr/home	# NB: /home is a symlink to /usr/home
 
 	# Ports tree
-	/usr/ports		compression=lz4,setuid=off
+	/usr/ports	setuid=off
 
 	# Source tree (compressed)
-	/usr/src	compression=lz4,exec=off,setuid=off
+	/usr/src
 
 	# Create /var and friends
 	/var		mountpoint=/var
-	/var/crash	compression=lz4,exec=off,setuid=off
-	/var/log	compression=lz4,exec=off,setuid=off
-	/var/mail	compression=lz4,atime=on
-	/var/tmp	compression=lz4,exec=on,setuid=off
+	/var/crash	exec=off,setuid=off
+	/var/log	exec=off,setuid=off
+	/var/mail	atime=on
+	/var/tmp	setuid=off
 " # END-QUOTE
 
 #
@@ -1146,7 +1146,8 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Creating root pool..."
 	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-	             "-o altroot=$BSDINSTALL_CHROOT -m none -f" \
+	             "-o altroot=$BSDINSTALL_CHROOT -O compress=lz4
+	             -m none -f" \
 	             "$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
 	             return $FAILURE
 
