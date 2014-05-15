@@ -101,6 +101,7 @@ device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
 # GPIO
 device		gpio
+device		gpioled
 
 # USB support
 device		usb
