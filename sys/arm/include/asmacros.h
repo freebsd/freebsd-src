@@ -70,7 +70,7 @@
 	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
-	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
+	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!;						   \
 	ldr	r0, =ARM_RAS_START;					   \
 	mov	r1, #0;							   \
@@ -86,7 +86,7 @@
 	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
-	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
+	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!;
 #endif
 
@@ -98,7 +98,7 @@
 #ifdef ARM_TP_ADDRESS
 #define PULLFRAME							   \
         ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
-        msr     spsr_all, r0;						   \
+        msr     spsr_fsxc, r0;						   \
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
@@ -107,7 +107,7 @@
 #else 
 #define PULLFRAME							   \
         ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
-        msr     spsr_all, r0;						   \
+        msr     spsr_fsxc, r0;						   \
 	clrex;								   \
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
@@ -142,7 +142,7 @@
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
-	msr     spsr_all, r3;		/* Restore correct spsr */	   \
+	msr     spsr_fsxc, r3;		/* Restore correct spsr */	   \
 	ldmdb	r1, {r0-r3};		/* Restore 4 regs from xxx mode */ \
 	sub	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
@@ -161,7 +161,7 @@
 	ldrne   r1, [r0, #16];          /* adjust the saved PC so that  */ \
 	cmpne   r4, r1;                 /* execution later resumes at   */ \
 	strhi   r3, [r0, #16];          /* the RAS_START location.      */ \
-	mrs     r0, spsr_all;                                              \
+	mrs     r0, spsr;                                              \
 	str     r0, [sp, #-4]!
 #else
 #define PUSHFRAMEINSVC							   \
@@ -179,14 +179,14 @@
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
-	msr     spsr_all, r3;		/* Restore correct spsr */	   \
+	msr     spsr_fsxc, r3;		/* Restore correct spsr */	   \
 	ldmdb	r1, {r0-r3};		/* Restore 4 regs from xxx mode */ \
 	sub	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
 	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
-	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
+	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!
 #endif
 
@@ -200,7 +200,7 @@
 #ifdef ARM_TP_ADDRESS
 #define PULLFRAMEFROMSVCANDEXIT						   \
         ldr     r0, [sp], #0x0004;	/* Get the SPSR from stack */	   \
-        msr     spsr_all, r0;		/* restore SPSR */		   \
+        msr     spsr_fsxc, r0;		/* restore SPSR */		   \
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
@@ -208,7 +208,7 @@
 #else 
 #define PULLFRAMEFROMSVCANDEXIT						   \
         ldr     r0, [sp], #0x0004;	/* Get the SPSR from stack */	   \
-        msr     spsr_all, r0;		/* restore SPSR */		   \
+        msr     spsr_fsxc, r0;		/* restore SPSR */		   \
 	clrex;								   \
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;	  		/* NOP for previous instruction */ \
@@ -216,8 +216,13 @@
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
 #endif
 #if defined(__ARM_EABI__)
+/*
+ * Unwind hints so we can unwind past functions that use
+ * PULLFRAMEFROMSVCANDEXIT. They are run in reverse order.
+ * As the last thing we do is restore the stack pointer
+ * we can ignore the padding at the end of struct trapframe.
+ */
 #define	UNWINDSVCFRAME							   \
-	.pad #(4);			/* Skip stack alignment */	   \
 	.save {r13-r15};		/* Restore sp, lr, pc */	   \
 	.pad #(2*4);			/* Skip user sp and lr */	   \
 	.save {r0-r12};			/* Restore r0-r12 */		   \

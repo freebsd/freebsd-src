@@ -80,9 +80,9 @@ ENTRY(sa11x0_cpu_sleep)
 	 * re-enable clock switching before servicing interrupts.
 	 */
 
-	mrs	r3, cpsr_all						/* 6 */
+	mrs	r3, cpsr						/* 6 */
 	orr	r2, r3, #(I32_bit|F32_bit)				/* 7 */
-	msr	cpsr_all, r2						/* 8 */
+	msr	cpsr_fsxc, r2						/* 8 */
 
 	/* We're now 32-byte aligned */
 
@@ -93,7 +93,7 @@ ENTRY(sa11x0_cpu_sleep)
 	mcr	p15, 0, r0, c15, c1, 2	/* re-enable clock switching */
 
 	/* Restore interrupts (which will cause them to be serviced). */
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 	RET
 END(sa11x0_cpu_sleep)
 

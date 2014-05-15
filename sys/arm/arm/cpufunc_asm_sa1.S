@@ -52,9 +52,9 @@ ENTRY(getttb)
 	mrc	p15, 0, r0, c2, c0, 0
 ENTRY(sa1_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	orr	r1, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r1
+	msr	cpsr_fsxc, r1
 #else
 	ldr	r3, .Lblock_userspace_access
 	ldr	r2, [r3]
@@ -80,7 +80,7 @@ ENTRY(sa1_setttb)
 	mov	r0, r0
 	mov	r0, r0
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 #else
 	str	r2, [r3]
 #endif
@@ -154,12 +154,12 @@ _C_LABEL(sa1_cache_clean_size):
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
 #define	SA1_CACHE_CLEAN_BLOCK						\
-	mrs	r3, cpsr_all					;	\
+	mrs	r3, cpsr					;	\
 	orr	r0, r3, #(I32_bit | F32_bit)			;	\
-	msr	cpsr_all, r0
+	msr	cpsr_fsxc, r0
 
 #define	SA1_CACHE_CLEAN_UNBLOCK						\
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 #else
 #define	SA1_CACHE_CLEAN_BLOCK						\
 	ldr	r3, .Lblock_userspace_access			;	\
