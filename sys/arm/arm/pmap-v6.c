@@ -2924,10 +2924,21 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
+	struct l2_bucket *l2b;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, access, m, prot, wired, M_WAITOK);
+	/*
+	 * If both the l2b_occupancy and the reservation are fully
+	 * populated, then attempt promotion.
+	 */
+	l2b = pmap_get_l2_bucket(pmap, va);
+	if ((l2b != NULL) && (l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
+	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0)
+		pmap_promote_section(pmap, va);
+
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
@@ -2962,8 +2973,10 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	}
 
 	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
-	if ((*pl1pd & L1_TYPE_MASK) == L1_S_PROTO)
-		panic("pmap_enter_locked: attempt pmap_enter_on 1MB page");
+	if ((va < VM_MAXUSER_ADDRESS) &&
+	    (*pl1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+		(void)pmap_demote_section(pmap, va);
+	}
 
 	user = 0;
 	/*
@@ -3002,6 +3015,10 @@ do_l2b_alloc:
 			return;
 		}
 	}
+
+	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
+	if ((*pl1pd & L1_TYPE_MASK) == L1_S_PROTO)
+		panic("pmap_enter: attempt to enter on 1MB page, va: %#x", va);
 
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 
@@ -3153,14 +3170,6 @@ validate:
 
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 		cpu_icache_sync_range(va, PAGE_SIZE);
-	/*
-	 * If both the l2b_occupancy and the reservation are fully
-	 * populated, then attempt promotion.
-	 */
-	if ((l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
-	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_section(pmap, va);
 }
 
 /*
@@ -3327,10 +3336,6 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 	l1idx = L1_IDX(va);
 	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
-		/*
-		 * These should only happen for the kernel pmap.
-		 */
-		KASSERT(pmap == kernel_pmap, ("unexpected section"));
 		/* XXX: what to do about the bits > 32 ? */
 		if (l1pd & L1_S_SUPERSEC)
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
@@ -3702,13 +3707,14 @@ pmap_remove_section(pmap_t pmap, vm_offset_t sva)
 		KASSERT(l2b->l2b_occupancy == L2_PTE_NUM_TOTAL,
 		    ("pmap_remove_section: l2_bucket occupancy error"));
 		pmap_free_l2_bucket(pmap, l2b, L2_PTE_NUM_TOTAL);
-		/*
-		 * Now invalidate L1 slot as it was not invalidated in
-		 * pmap_free_l2_bucket() due to L1_TYPE mismatch.
-		 */
-		*pl1pd = 0;
-		PTE_SYNC(pl1pd);
 	}
+	/* Now invalidate L1 slot */
+	*pl1pd = 0;
+	PTE_SYNC(pl1pd);
+	if (L1_S_EXECUTABLE(l1pd))
+		cpu_tlb_flushID_SE(sva);
+	else
+		cpu_tlb_flushD_SE(sva);
 }
 
 /*
@@ -3795,10 +3801,13 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 	 * we just configure protections for the section mapping
 	 * that is going to be created.
 	 */
-	if (!L2_S_WRITABLE(firstpte) && (first_pve->pv_flags & PVF_WRITE)) {
-		first_pve->pv_flags &= ~PVF_WRITE;
+	if ((first_pve->pv_flags & PVF_WRITE) != 0) {
+		if (!L2_S_WRITABLE(firstpte)) {
+			first_pve->pv_flags &= ~PVF_WRITE;
+			prot &= ~VM_PROT_WRITE;
+		}
+	} else
 		prot &= ~VM_PROT_WRITE;
-	}
 
 	if (!L2_S_EXECUTABLE(firstpte))
 		prot &= ~VM_PROT_EXECUTE;
@@ -3843,6 +3852,12 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 
 		if (!L2_S_WRITABLE(oldpte) && (pve->pv_flags & PVF_WRITE))
 			pve->pv_flags &= ~PVF_WRITE;
+		if (pve->pv_flags != first_pve->pv_flags) {
+			pmap_section_p_failures++;
+			CTR2(KTR_PMAP, "pmap_promote_section: failure for "
+			    "va %#x in pmap %p", va, pmap);
+			return;
+		}
 
 		old_va -= PAGE_SIZE;
 		pa -= PAGE_SIZE;
@@ -3855,6 +3870,24 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 	 * Map the superpage.
 	 */
 	pmap_map_section(pmap, first_va, l2pte_pa(firstpte), prot, TRUE);
+	/*
+	 * Invalidate all possible TLB mappings for small
+	 * pages within the newly created superpage.
+	 * Rely on the first PTE's attributes since they
+	 * have to be consistent across all of the base pages
+	 * within the superpage. If page is not executable it
+	 * is at least referenced.
+	 * The fastest way to do that is to invalidate whole
+	 * TLB at once instead of executing 256 CP15 TLB
+	 * invalidations by single entry. TLBs usually maintain
+	 * several dozen entries so loss of unrelated entries is
+	 * still a less agresive approach.
+	 */
+	if (L2_S_EXECUTABLE(firstpte))
+		cpu_tlb_flushID();
+	else
+		cpu_tlb_flushD();
+
 	pmap_section_promotions++;
 	CTR2(KTR_PMAP, "pmap_promote_section: success for va %#x"
 	    " in pmap %p", first_va, pmap);
@@ -3890,7 +3923,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	struct l2_bucket *l2b;
 	struct pv_entry *l1pdpve;
 	struct md_page *pvh;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t *pl1pd, l1pd, newl1pd;
 	pt_entry_t *firstptep, newpte;
 	vm_offset_t pa;
 	vm_page_t m;
@@ -3970,9 +4003,14 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	pmap_pv_demote_section(pmap, va, pa);
 
 	/* Now fix-up L1 */
-	l1pd = l2b->l2b_phys | L1_C_DOM(pmap->pm_domain) | L1_C_PROTO;
-	*pl1pd = l1pd;
+	newl1pd = l2b->l2b_phys | L1_C_DOM(pmap->pm_domain) | L1_C_PROTO;
+	*pl1pd = newl1pd;
 	PTE_SYNC(pl1pd);
+	/* Invalidate old TLB mapping */
+	if (L1_S_EXECUTABLE(l1pd))
+		cpu_tlb_flushID_SE(va);
+	else if (L1_S_REFERENCED(l1pd))
+		cpu_tlb_flushD_SE(va);
 
 	pmap_section_demotions++;
 	CTR2(KTR_PMAP, "pmap_demote_section: success for va %#x"

@@ -527,6 +527,7 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROT_MASK		(L1_S_PROT_W|L1_S_PROT_U)
 #define	L1_S_REF		(L1_S_AP(AP_REF))	/* Reference flag */
 #define	L1_S_WRITABLE(pd)	(!((pd) & L1_S_PROT_W))
+#define	L1_S_EXECUTABLE(pd)	(!((pd) & L1_S_XN))
 #define	L1_S_REFERENCED(pd)	((pd) & L1_S_REF)
 
 #define	L1_S_PROT(ku, pr)	(((((ku) == PTE_KERNEL) ? 0 : L1_S_PROT_U) | \
