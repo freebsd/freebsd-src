@@ -300,7 +300,8 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 #define PRIV_PROC_ZONE		(1 << 5)
 #define PRIV_ALL		~0
 
-SYSCTL_NODE(_debug, OID_AUTO, dtrace, CTLFLAG_RD, 0, "DTrace Information");
+SYSCTL_DECL(_debug_dtrace);
+SYSCTL_DECL(_kern_dtrace);
 #endif
 
 #if defined(sun)
