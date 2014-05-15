@@ -116,7 +116,7 @@ vmdk_write(int fd)
 	uint64_t imagesz;
 	size_t gdsz, gtsz;
 	uint32_t sec;
-	int desc_len, n, ngrains, ngts;
+	int error, desc_len, n, ngrains, ngts;
 
 	imagesz = (image_get_size() * secsz) / VMDK_SECTOR_SIZE;
 
@@ -130,6 +130,9 @@ vmdk_write(int fd)
 	n = asprintf(&desc, desc_fmt, 1 /*version*/, 0 /*CID*/,
 	    (uintmax_t)imagesz /*size*/, "" /*name*/,
 	    ncyls /*cylinders*/, nheads /*heads*/, nsecs /*sectors*/);
+	if (n == -1)
+		return (ENOMEM);
+
 	desc_len = (n + VMDK_SECTOR_SIZE - 1) & ~(VMDK_SECTOR_SIZE - 1);
 	desc = realloc(desc, desc_len);
 	memset(desc + n, 0, desc_len - n);
@@ -146,8 +149,11 @@ vmdk_write(int fd)
 	ngts = (ngrains + VMDK_NGTES - 1) / VMDK_NGTES;
 	gdsz = (ngts * sizeof(uint32_t) + VMDK_SECTOR_SIZE - 1) &
 	    ~(VMDK_SECTOR_SIZE - 1);
-	gd = malloc(gdsz);
-	memset(gd, 0, gdsz);
+	gd = calloc(gdsz, 1);
+	if (gd == NULL) {
+		free(desc);
+		return (ENOMEM);
+	}
 
 	sec += gdsz / VMDK_SECTOR_SIZE;
 	for (n = 0; n < ngts; n++) {
@@ -165,8 +171,12 @@ vmdk_write(int fd)
 	be32enc(&hdr.nl_test, VMDK_NL_TEST);
 
 	gtsz = ngts * VMDK_NGTES * sizeof(uint32_t);
-	gt = malloc(gtsz);
-	memset(gt, 0, gtsz);
+	gt = calloc(gtsz, 1);
+	if (gt == NULL) {
+		free(gd);
+		free(desc);
+		return (ENOMEM);
+	}
 
 	for (n = 0; n < ngrains; n++)
 		le32enc(gt + n, sec + n * grainsz);
@@ -176,7 +186,13 @@ vmdk_write(int fd)
 	write(fd, gd, gdsz);
 	write(fd, gt, gtsz);
 	lseek(fd, sec * VMDK_SECTOR_SIZE, SEEK_SET);
-	return (image_copyout(fd));
+	error = image_copyout(fd);
+
+	free(gt);
+	free(gd);
+	free(desc);
+
+	return (error);
 }
 
 static struct mkimg_format vmdk_format = {
