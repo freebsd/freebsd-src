@@ -433,7 +433,8 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
+	arm_dump_avail_init(abp->abp_physaddr, memsize,
+	    sizeof(dump_avail) / sizeof(dump_avail[0]));
 	vm_max_kernel_address = 0xd0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
