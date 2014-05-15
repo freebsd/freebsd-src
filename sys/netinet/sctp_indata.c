@@ -1002,7 +1002,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					 * Huh, need the correct STR here,
 					 * they must be the same.
 					 */
-					SCTP_PRINTF("Prev check - Gak, Evil plot, sid:%d not the same as at:%d\n",
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Prev check - Gak, Evil plot, sid:%d not the same as at:%d\n",
 					    chk->rec.data.stream_number,
 					    prev->rec.data.stream_number);
 					snprintf(msg, sizeof(msg),
