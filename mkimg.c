@@ -218,13 +218,14 @@ parse_part(const char *spec)
 
 #if defined(SPARSE_WRITE)
 ssize_t
-sparse_write(int fd, const char *buf, size_t sz)
+sparse_write(int fd, const void *ptr, size_t sz)
 {
-	const char *p;
+	const char *buf, *p;
 	off_t ofs;
 	size_t len;
 	ssize_t wr, wrsz;
 
+	buf = ptr;
 	wrsz = 0;
 	p = memchr(buf, 0, sz);
 	while (sz > 0) {
