@@ -9,7 +9,6 @@ makeoptions	KERNVIRTADDR		= 0xc2000000
 options		KERNPHYSADDR		= 0x12000000
 makeoptions	KERNPHYSADDR		= 0x12000000
 options		PHYSADDR		= 0x10000000
-options		STARTUP_PAGETABLE_ADDR	= 0x11f00000
 
 files "../freescale/imx/files.imx6"
 
