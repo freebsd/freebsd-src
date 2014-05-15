@@ -140,3 +140,4 @@ ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(NIRQ, NIRQ);
+ASSYM(PCPU_SIZE, sizeof(struct pcpu));

@@ -1755,7 +1755,6 @@ ti_mmchs_attach(device_t dev)
 
 	device_add_child(dev, "mmc", 0);
 
-	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
 
 out:
