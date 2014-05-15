@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -62,7 +63,7 @@ vtoc8_metadata(u_int where)
 }
 
 static int
-vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
+vtoc8_write(lba_t imgsz, void *bootcode __unused)
 {
 	struct vtoc8 vtoc8;
 	struct part *part;
@@ -86,7 +87,9 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.nsecs, nsecs);
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
 
-	ftruncate(fd, imgsz * secsz);
+	error = image_set_size(imgsz);
+	if (error)
+		return (error);
 
 	be32enc(&vtoc8.map[VTOC_RAW_PART].nblks, imgsz);
 	STAILQ_FOREACH(part, &partlist, link) {
@@ -103,7 +106,7 @@ vtoc8_write(int fd, lba_t imgsz, void *bootcode __unused)
 		sum ^= be16dec(p + ofs);
 	be16enc(&vtoc8.cksum, sum);
 
-	error = mkimg_write(fd, 0, &vtoc8, 1);
+	error = image_write(0, &vtoc8, 1);
 	return (error);
 }
 

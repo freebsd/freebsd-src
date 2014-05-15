@@ -26,49 +26,16 @@
  * $FreeBSD$
  */
 
-#ifndef _MKIMG_MKIMG_H_
-#define	_MKIMG_MKIMG_H_
+#ifndef _MKIMG_IMAGE_H_
+#define	_MKIMG_IMAGE_H_
 
-#include <sys/queue.h>
+typedef int64_t lba_t;
 
-struct part {
-	STAILQ_ENTRY(part) link;
-	char	*alias;		/* Partition type alias. */
-	char	*contents;	/* Contents/size specification. */
-	u_int	kind;		/* Content kind. */
-#define	PART_UNDEF	0
-#define	PART_KIND_FILE	1
-#define	PART_KIND_PIPE	2
-#define	PART_KIND_SIZE	3
-	u_int	index;		/* Partition index (0-based). */
-	uintptr_t type;		/* Scheme-specific partition type. */
-	lba_t	block;		/* Block-offset of partition in image. */
-	lba_t	size;		/* Size in blocks of partition. */
-	char	*label;		/* Partition label. */
-};
+int image_copyin(lba_t blk, int fd, uint64_t *sizep);
+int image_copyout(int fd);
+lba_t image_get_size(void);
+int image_init(void);
+int image_set_size(lba_t blk);
+int image_write(lba_t blk, void *buf, ssize_t len);
 
-extern STAILQ_HEAD(partlisthead, part) partlist;
-extern u_int nparts;
-
-extern u_int verbose;
-
-extern u_int ncyls;
-extern u_int nheads;
-extern u_int nsecs;
-extern u_int secsz;	/* Logical block size. */
-extern u_int blksz;	/* Physical block size. */
-
-static inline lba_t
-round_block(lba_t n)
-{
-	lba_t b = blksz / secsz;
-	return ((n + b - 1) & ~(b - 1));
-}
-
-#if !defined(SPARSE_WRITE)
-#define	sparse_write	write
-#else
-ssize_t sparse_write(int, const void *, size_t);
-#endif
-
-#endif /* _MKIMG_MKIMG_H_ */
+#endif /* _MKIMG_IMAGE_H_ */
