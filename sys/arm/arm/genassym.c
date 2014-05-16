@@ -109,6 +109,8 @@ ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
+ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
+
 #ifdef ARM_TP_ADDRESS
 ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(ARM_RAS_START, ARM_RAS_START);

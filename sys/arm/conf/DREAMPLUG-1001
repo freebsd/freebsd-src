@@ -39,7 +39,6 @@ options 	CD9660			#ISO 9660 filesystem
 options 	FFS			#Berkeley Fast Filesystem
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NULLFS			#NULL filesystem
-options 	TMPFS			#Efficient memory filesystem
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores

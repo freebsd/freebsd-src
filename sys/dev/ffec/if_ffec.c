@@ -960,7 +960,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			ghash |= 1 << (crc & 0x3f);
+			ghash |= 1LLU << (crc & 0x3f);
 		}
 		if_maddr_runlock(ifp);
 	}
