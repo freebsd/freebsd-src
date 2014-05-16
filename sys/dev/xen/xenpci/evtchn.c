@@ -68,6 +68,9 @@ static inline unsigned long __ffs(unsigned long word)
 #define is_valid_evtchn(x)	((x) != 0)
 #define evtchn_from_irq(x)	(irq_evtchn[irq].evtchn)
 
+static unsigned int last_processed_l1i;
+static unsigned int last_processed_l2i;
+
 static struct {
 	struct mtx lock;
 	driver_intr_t *handler;
@@ -317,7 +320,6 @@ evtchn_interrupt(void *arg)
 	int irq, handler_mpsafe;
 	shared_info_t *s = HYPERVISOR_shared_info;
 	vcpu_info_t *v = &s->vcpu_info[cpu];
-	struct pcpu *pc = pcpu_find(cpu);
 	unsigned long l1, l2;
 
 	v->evtchn_upcall_pending = 0;
@@ -331,8 +333,8 @@ evtchn_interrupt(void *arg)
 
 	l1 = atomic_readandclear_long(&v->evtchn_pending_sel);
 
-	l1i = pc->pc_last_processed_l1i;
-	l2i = pc->pc_last_processed_l2i;
+	l1i = last_processed_l1i;
+	l2i = last_processed_l2i;
 
 	while (l1 != 0) {
 
@@ -392,8 +394,8 @@ evtchn_interrupt(void *arg)
 			mtx_unlock(&irq_evtchn[irq].lock);
 
 			/* if this is the final port processed, we'll pick up here+1 next time */
-			pc->pc_last_processed_l1i = l1i;
-			pc->pc_last_processed_l2i = l2i;
+			last_processed_l1i = l1i;
+			last_processed_l2i = l2i;
 
 		} while (l2i != LONG_BIT - 1);
 
@@ -442,7 +444,7 @@ irq_resume(void)
 int
 xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 {
-	int irq, cpu;
+	int irq;
 	int error;
 
 	mtx_init(&irq_alloc_lock, "xen-irq-lock", NULL, MTX_DEF);
@@ -450,10 +452,8 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	for (irq = 0; irq < ARRAY_SIZE(irq_evtchn); irq++)
 		mtx_init(&irq_evtchn[irq].lock, "irq-evtchn", NULL, MTX_DEF);
 
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
-		pcpu_find(cpu)->pc_last_processed_l1i = LONG_BIT - 1;
-		pcpu_find(cpu)->pc_last_processed_l2i = LONG_BIT - 1;
-	}
+	last_processed_l1i = LONG_BIT - 1;
+	last_processed_l2i = LONG_BIT - 1;
 
 	error = BUS_SETUP_INTR(device_get_parent(device), device,
 	    scp->res_irq, INTR_MPSAFE|INTR_TYPE_MISC, NULL, evtchn_interrupt,

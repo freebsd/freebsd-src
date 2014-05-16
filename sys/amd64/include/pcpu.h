@@ -43,6 +43,7 @@
 #endif
 
 #ifdef XENHVM
+/* This is now unused, but remains here for KBI compatibility reasons. */
 #define PCPU_XEN_FIELDS							\
 	;								\
 	unsigned int pc_last_processed_l1i;				\
