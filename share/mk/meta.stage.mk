@@ -123,6 +123,7 @@ _STAGE_BASENAME_USE:	.USE ${.TARGET:T}
 STAGE_TARGETS += stage_incs
 STAGE_INCS ?= ${.ALLSRC:N.dirdep}
 
+stage_includes: stage_incs
 stage_incs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_INCSDIR:${STAGE_DIR_FILTER}} ${STAGE_INCS}
 	@touch $@
@@ -220,7 +221,7 @@ stage_as.$s:	.dirdep
 .endfor
 .endif
 
-CLEANFILES += ${STAGE_TARGETS}
+CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # stage_*links usually needs to follow any others.
 .for t in ${STAGE_TARGETS:N*links:O:u}

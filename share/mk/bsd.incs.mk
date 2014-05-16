@@ -45,6 +45,7 @@ ${group}NAME_${header:T}?=	${header:T}
 STAGE_AS_SETS+= ${group}
 STAGE_AS_${header:T}= ${${group}NAME_${header:T}}
 stage_as.${group}: ${header}
+stage_includes: stage_as.${group}
 
 installincludes: _${group}INS_${header:T}
 _${group}INS_${header:T}: ${header}
@@ -58,6 +59,7 @@ _${group}INCS+= ${header}
 .endfor
 .if !empty(_${group}INCS)
 stage_files.${group}: ${_${group}INCS}
+stage_includes: stage_files.${group}
 
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
@@ -91,13 +93,8 @@ realinstall: installincludes
 .ORDER: beforeinstall installincludes
 
 .if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
-.if !target(stage_includes)
-.if !empty(STAGE_SETS)
-buildincludes: stage_files
-.if !empty(STAGE_AS_SETS)
-buildincludes: stage_as
-.endif
-.endif
+.if !defined(NO_STAGE_INCLUDES)
+staging: stage_includes
 .if !empty(INCSLINKS)
 staging: stage_symlinks
 STAGE_SYMLINKS.INCS= ${INCSLINKS}
