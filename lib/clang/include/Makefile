@@ -47,4 +47,7 @@ INCS=	__wmmintrin_aes.h \
 GENINCS= arm_neon.h
 CLEANFILES= ${GENINCS}
 
+# avoid a circular dependency
+GENDIRDEPS_FILTER+= Nusr.bin/clang/clang-tblgen.host
+
 .include <bsd.prog.mk>
