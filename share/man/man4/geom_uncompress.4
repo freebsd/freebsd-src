@@ -1,0 +1,107 @@
+.\" Copyright (c) 2014, Luiz Otavio O Souza <loos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 9, 2014
+.Dt GEOM_UNCOMPRESS 4
+.Os
+.Sh NAME
+.Nm geom_uncompress
+.Nd "GEOM based compressed disk images"
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GEOM_UNCOMPRESS"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_uncompress_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+framework provides support for compressed read only disk images.
+This allows significant storage savings at the expense of a little CPU
+time on each read.
+Data written in the GEOM label area allows
+.Nm
+to detect compressed images which have been created with
+.Xr mkulzma 8
+or
+.Xr mkuzip 8
+and presented to the kernel as a logical disk device via
+.Xr md 4 .
+.Nm
+creates a unique
+.Pa md#.uncompress
+device for each image.
+.Pp
+The
+.Nm
+device is subsequently used by the
+.Fx
+kernel to access the disk images.
+The
+.Nm
+driver does not allow write operations to the underlying disk image.
+To check which
+.Xr md 4
+devices match a given
+.Nm
+device:
+.Bd -literal -offset indent
+# geom uncompress list
+Geom name: md0.uncompress
+Providers:
+1. Name: md0.uncompress
+   Mediasize: 52428800 (50M)
+   Sectorsize: 512
+   Mode: r1w0e0
+Consumers:
+1. Name: md0
+   Mediasize: 20864000 (20M)
+   Sectorsize: 512
+   Mode: r1w0e0
+.Ed
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr md 4 ,
+.Xr geom 8 ,
+.Xr mkulzma 8 ,
+.Xr mkuzip 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An "Maxim Sobolev" Aq sobomax@FreeBSD.org
+and
+.An "Aleksandr Rybalko" Aq ray@FreeBSD.org .
+This manual page was written by
+.An "Luiz Otavio O Souza" Aq loos@FreeBSD.org .
