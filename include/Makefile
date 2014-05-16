@@ -121,7 +121,7 @@ _MARCHS+=	x86
 
 .if ${MK_STAGING} != "no"
 # tell bsd.incs.mk that we have it covered
-stage_includes:
+NO_STAGE_INCLUDES=
 .endif
 
 .include <bsd.prog.mk>
@@ -370,4 +370,13 @@ symlinks:
 	done
 .if ${MK_META_MODE} == "yes"
 	touch ${.TARGET}
+.endif
+
+.if ${MACHINE} == "host"
+# we're here because we are building a sysroot...
+# we need MACHINE et al set correctly
+HOST_MACHINE!= uname -m
+HOST_MACHINE_ARCH!= uname -p
+MACHINE:= ${HOST_MACHINE}
+MACHINE_ARCH:= ${HOST_MACHINE_ARCH}
 .endif
