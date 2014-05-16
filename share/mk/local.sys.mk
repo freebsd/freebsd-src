@@ -4,6 +4,7 @@ WITH_INSTALL_AS_USER= yes
 SRCCONF:= ${.PARSEDIR}/src.conf
 # ensure we are self contained
 __MAKE_CONF:= ${SRCCONF}
+.-include "src.conf"
 
 # some handy macros
 _this = ${.PARSEDIR:tA}/${.PARSEFILE}
@@ -41,9 +42,10 @@ OBJROOT ?= ${SB_OBJROOT}
 
 .if empty(SRCTOP)
 SRCTOP := ${_PARSEDIR:H:H}
-.export SRCTOP
 OBJROOT ?= ${SRCTOP:H}/obj/
+OBJROOT := ${OBJROOT}
 .endif
+.export OBJROOT SRCTOP
 
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
@@ -200,7 +202,7 @@ STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
 
-STAGE_LIBDIR= ${STAGE_OBJTOP}${LIBDIR:U/lib}
+STAGE_LIBDIR= ${STAGE_OBJTOP}${_LIBDIR:U${LIBDIR:U/lib}}
 # this is not the same as INCLUDEDIR
 STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
@@ -209,23 +211,8 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 .if ${MACHINE} == "host" && defined(EARLY_BUILD)
 # we literally want to build with host cc and includes
 .else
-.ifndef WITH_SYSROOT
-.if ${MACHINE} != "host"
-CFLAGS_LAST+= -nostdinc
-.endif
-GCCVER?= 4.2
-CLANGVER?= 3.4
-CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -I${STAGE_OBJTOP}/usr/include
-CFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
-LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR} -L${STAGE_OBJTOP}/lib
-CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER} -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}
-# backward doesn't get searched if -nostdinc
-CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward -I${STAGE_OBJTOP}/usr/include/c++/${GCCVER}/backward
-CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/${CLANGVER} -I${STAGE_OBJTOP}/usr/include/clang/${CLANGVER}
-CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
-.else
-# if ld suppored sysroot, this would suffice
-CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP}
+.ifdef WITH_SYSROOT
+SYSROOT?= ${STAGE_OBJTOP}/
 .endif
 LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
@@ -299,6 +286,9 @@ TRACER= ${TIME_STAMP} ${AnEmptyVar}
 .endif
 
 # toolchains can be a pain - especially bootstrappping them
+.if ${MACHINE} == "host"
+MK_SHARED_TOOLCHAIN= no
+.endif
 .ifdef WITH_TOOLSDIR
 TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP) && exists(${STAGE_HOST_OBJTOP}/usr/bin)
@@ -307,6 +297,10 @@ TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .if ${.MAKE.LEVEL} == 0 && exists(${TOOLSDIR}/usr/bin)
 PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
 .export PATH
+.if exists(${TOOLSDIR}/usr/bin/cc)
+HOST_CC?= ${TOOLSDIR}/usr/bin/cc
+.export HOST_CC
+.endif
 .endif
 
 .endif				# bmake
