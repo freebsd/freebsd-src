@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010 Per Odlund <per.odlund@armagedon.se>
  * Copyright (C) 2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -304,4 +305,41 @@ ENTRY(armv7_auxctrl)
 	mov r0, r2
 	RET
 END(armv7_auxctrl)
+
+ENTRY(armv7_idcache_inv_all)
+	mov     r0, #0
+	mcr     p15, 2, r0, c0, c0, 0   @ set cache level to L1
+	mrc     p15, 1, r0, c0, c0, 0   @ read CCSIDR
+
+	ubfx    r2, r0, #13, #15        @ get num sets - 1 from CCSIDR
+	ubfx    r3, r0, #3, #10         @ get numways - 1 from CCSIDR
+	clz     r1, r3                  @ number of bits to MSB of way
+	lsl     r3, r3, r1              @ shift into position
+	mov     ip, #1                  @
+	lsl     ip, ip, r1              @ ip now contains the way decr
+
+	ubfx    r0, r0, #0, #3          @ get linesize from CCSIDR
+	add     r0, r0, #4              @ apply bias
+	lsl     r2, r2, r0              @ shift sets by log2(linesize)
+	add     r3, r3, r2              @ merge numsets - 1 with numways - 1
+	sub     ip, ip, r2              @ subtract numsets - 1 from way decr
+	mov     r1, #1
+	lsl     r1, r1, r0              @ r1 now contains the set decr
+	mov     r2, ip                  @ r2 now contains set way decr
+
+	/* r3 = ways/sets, r2 = way decr, r1 = set decr, r0 and ip are free */
+1:      mcr     p15, 0, r3, c7, c6, 2   @ invalidate line
+	movs    r0, r3                  @ get current way/set
+	beq     2f                      @ at 0 means we are done.
+	movs    r0, r0, lsl #10         @ clear way bits leaving only set bits
+	subne   r3, r3, r1              @ non-zero?, decrement set #
+	subeq   r3, r3, r2              @ zero?, decrement way # and restore set count
+	b       1b
+
+2:	dsb                             @ wait for stores to finish
+	mov     r0, #0                  @ and ...
+	mcr     p15, 0, r0, c7, c5, 0   @ invalidate instruction+branch cache
+	isb                             @ instruction sync barrier
+	bx      lr                      @ return
+END(armv7_l1cache_inv_all)
 

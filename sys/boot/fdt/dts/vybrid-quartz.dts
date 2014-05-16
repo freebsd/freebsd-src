@@ -31,11 +31,11 @@
 /include/ "vybrid.dtsi"
 
 / {
-	model = "Toradex Colibri VF50";
+	model = "Device Solutions Quartz Module";
 
 	memory {
 		device_type = "memory";
-		reg = < 0x80000000 0x08000000 >;	/* 128MB RAM */
+		reg = < 0x80000000 0x10000000 >;	/* 256MB RAM */
 	};
 
 	SOC: vybrid {
@@ -54,19 +54,7 @@
 					 60 0x103192
 					 61 0x103192
 					 62 0x103192
-					  0 0x103191 >;
-		};
-
-		sai3: sai@40032000 {
-			status = "okay";
-		};
-
-		i2c0: i2c@40066000 {
-			status = "okay";
-		};
-
-		adc0: adc@4003B000 {
-			status = "okay";
+					  0 0x203191 >;
 		};
 
 		edma1: edma@40098000 {

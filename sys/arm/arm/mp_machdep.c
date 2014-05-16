@@ -128,10 +128,10 @@ cpu_mp_start(void)
 	bzero((void *)temp_pagetable_va,  L1_TABLE_SIZE);
 	for (addr = arm_physmem_kernaddr; addr <= addr_end; addr += L1_S_SIZE) { 
 		((int *)(temp_pagetable_va))[addr >> L1_S_SHIFT] =
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
 		((int *)(temp_pagetable_va))[(addr -
 			arm_physmem_kernaddr + KERNVIRTADDR) >> L1_S_SHIFT] = 
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_B|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
 	}
 
 #if defined(CPU_MV_PJ4B)
@@ -172,6 +172,8 @@ init_secondary(int cpu)
 	struct pcpu *pc;
 	uint32_t loop_counter;
 	int start = 0, end = 0;
+
+	cpu_idcache_inv_all();
 
 	cpu_setup(NULL);
 	setttb(pmap_pa);
