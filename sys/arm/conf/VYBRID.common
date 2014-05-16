@@ -124,8 +124,8 @@ device		nand
 device		uart
 
 # I2C (TWSI)
-#device		iic
-#device		iicbus
+device		iic
+device		iicbus
 
 # Ethernet
 device		ether

@@ -279,7 +279,7 @@ at91_usart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	 * we don't want to hang here forever if the hardware is in a bad state.
 	 */
 	if (!(RD4(bas, USART_CSR) & USART_CSR_TXRDY))
-	    DELAY(1000);
+		DELAY(10000);
 
 	at91_usart_param(bas, baudrate, databits, stopbits, parity);
 

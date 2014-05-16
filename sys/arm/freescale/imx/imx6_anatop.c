@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
+#include <machine/fdt.h>
 
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
@@ -85,8 +86,11 @@ struct imx6_anatop_softc {
 	struct resource	*res[2];
 	uint32_t	cpu_curhz;
 	uint32_t	cpu_curmhz;
+	uint32_t	cpu_curmv;
 	uint32_t	cpu_minhz;
+	uint32_t	cpu_minmv;
 	uint32_t	cpu_maxhz;
+	uint32_t	cpu_maxmv;
 	uint32_t	refosc_hz;
 	void		*temp_intrhand;
 	uint32_t	temp_high_val;
@@ -103,11 +107,14 @@ struct imx6_anatop_softc {
 static struct imx6_anatop_softc *imx6_anatop_sc;
 
 /*
- * Table of CPU max frequencies.  This is indexed by the max frequency value
- * (0-3) from the ocotp CFG3 register.
+ * Tables of CPU max frequencies and corresponding voltages.  This is indexed by
+ * the max frequency value (0-3) from the ocotp CFG3 register.
  */
 static uint32_t imx6_cpu_maxhz_tab[] = {
 	 792000000, 852000000, 996000000, 1200000000
+};
+static uint32_t imx6_cpu_millivolt_tab[] = {
+	1150, 1225, 1225, 1275
 };
 
 #define	TZ_ZEROC	2732	/* deci-Kelvin <-> deci-Celcius offset. */
@@ -128,6 +135,64 @@ imx6_anatop_write_4(bus_size_t offset, uint32_t value)
 	KASSERT(imx6_anatop_sc != NULL, ("imx6_anatop_write_4 sc NULL"));
 
 	bus_write_4(imx6_anatop_sc->res[MEMRES], offset, value);
+}
+
+static void
+vdd_set(struct imx6_anatop_softc *sc, int mv)
+{
+	int newtarg, oldtarg;
+	uint32_t delay, pmureg;
+	static boolean_t init_done = false;
+
+	/*
+	 * The datasheet says VDD_PU and VDD_SOC must be equal, and VDD_ARM
+	 * can't be more than 50mV above or 200mV below them.  For now to keep
+	 * things simple we set all three to the same value.
+	 */
+
+	pmureg = imx6_anatop_read_4(IMX6_ANALOG_PMU_REG_CORE);
+	oldtarg = pmureg & IMX6_ANALOG_PMU_REG0_TARG_MASK;
+
+	/* Convert mV to target value.  Clamp target to valid range. */
+	if (mv < 725)
+		newtarg = 0x00;
+	else if (mv > 1450)
+		newtarg = 0x1F;
+	else
+		newtarg = (mv - 700) / 25;
+
+	/*
+	 * The first time through the 3 voltages might not be equal so use a
+	 * long conservative delay.  After that we need to delay 3uS for every
+	 * 25mV step upward.  No need to delay at all when lowering.
+	 */
+	if (init_done) {
+		if (newtarg == oldtarg)
+			return;
+		else if (newtarg > oldtarg)
+			delay = (newtarg - oldtarg) * 3;
+		else
+			delay = 0;
+	} else {
+		delay = 700 / 25 * 3;
+		init_done = true;
+	}
+
+	/*
+	 * Make the change and wait for it to take effect.
+	 */
+	pmureg &= ~(IMX6_ANALOG_PMU_REG0_TARG_MASK |
+	    IMX6_ANALOG_PMU_REG1_TARG_MASK |
+	    IMX6_ANALOG_PMU_REG2_TARG_MASK);
+
+	pmureg |= newtarg << IMX6_ANALOG_PMU_REG0_TARG_SHIFT;
+	pmureg |= newtarg << IMX6_ANALOG_PMU_REG1_TARG_SHIFT;
+	pmureg |= newtarg << IMX6_ANALOG_PMU_REG2_TARG_SHIFT;
+
+	imx6_anatop_write_4(IMX6_ANALOG_PMU_REG_CORE, pmureg);
+	DELAY(delay);
+	sc->cpu_curmv = newtarg * 25 + 700;
+	device_printf(sc->dev, "voltage set to %u\n", sc->cpu_curmv);
 }
 
 static inline uint32_t
@@ -231,7 +296,9 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	    FSL_OCOTP_CFG3_SPEED_MASK) >> FSL_OCOTP_CFG3_SPEED_SHIFT;
 
 	sc->cpu_minhz = cpufreq_actual_hz(sc, imx6_cpu_maxhz_tab[0]);
+	sc->cpu_minmv = imx6_cpu_millivolt_tab[0];
 	sc->cpu_maxhz = cpufreq_actual_hz(sc, imx6_cpu_maxhz_tab[cfg3speed]);
+	sc->cpu_maxmv = imx6_cpu_millivolt_tab[cfg3speed];
 
 	/*
 	 * Set the CPU to maximum speed.
@@ -241,6 +308,7 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	 * basically assumes that a single core can't overheat before interrupts
 	 * are enabled; empirical testing shows that to be a safe assumption.
 	 */
+	vdd_set(sc, sc->cpu_maxmv);
 	cpufreq_set_clock(sc, sc->cpu_maxhz);
 	device_printf(sc->dev, "CPU frequency %uMHz\n", sc->cpu_curmhz);
 }
@@ -321,6 +389,7 @@ tempmon_gofast(struct imx6_anatop_softc *sc)
 {
 
 	if (sc->cpu_curhz < sc->cpu_maxhz) {
+		vdd_set(sc, sc->cpu_maxmv);
 		cpufreq_set_clock(sc, sc->cpu_maxhz);
 	}
 }
@@ -331,6 +400,7 @@ tempmon_goslow(struct imx6_anatop_softc *sc)
 
 	if (sc->cpu_curhz > sc->cpu_minhz) {
 		cpufreq_set_clock(sc, sc->cpu_minhz);
+		vdd_set(sc, sc->cpu_minmv);
 	}
 }
 
@@ -450,6 +520,11 @@ imx6_anatop_attach(device_t dev)
 	    tempmon_intr, NULL, sc, &sc->temp_intrhand);
 	if (err != 0)
 		goto out;
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	    OID_AUTO, "cpu_voltage", CTLFLAG_RD,
+	    &sc->cpu_curmv, 0, "Current CPU voltage in millivolts");
 
 	imx6_anatop_sc = sc;
 
