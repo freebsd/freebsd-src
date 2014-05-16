@@ -178,17 +178,37 @@
 #define	SOTG_CONFIGFLAG 0x0060
 #define	SOTG_CONFIGFLAG_ENABLE (1 << 0)
 #define	SOTG_PORTSC1 0x0064
+#define	SOTG_PORTSC1_PIC (3 << 14)
 #define	SOTG_PORTSC1_PO (1 << 13)
 #define	SOTG_PORTSC1_PP (1 << 12)
+#define	SOTG_PORTSC1_LS (3 << 10)
 #define	SOTG_PORTSC1_PR (1 << 8)
 #define	SOTG_PORTSC1_SUSP (1 << 7)
 #define	SOTG_PORTSC1_FPR (1 << 6)
 #define	SOTG_PORTSC1_PED (1 << 2)
 #define	SOTG_PORTSC1_ECSC (1 << 1)
 #define	SOTG_PORTSC1_ECCS (1 << 0)
+#define	SOTG_DATA_ADDR(x) (0x400 + (512 * (x)))
 #define	SOTG_ASYNC_PDT(x) (0x400 + (60 * 1024) + ((x) * 32))
 #define	SOTG_INTR_PDT(x) (0x400 + (61 * 1024) + ((x) * 32))
 #define	SOTG_ISOC_PDT(x) (0x400 + (62 * 1024) + ((x) * 32))
 #define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
+#define	SOTG_SW_RESET 0x30C
+#define	SOTG_SW_RESET_HC (1 << 1)
+#define	SOTG_SW_RESET_ALL (1 << 0)
+#define	SOTG_POWER_DOWN 0x354
+#define	SOTG_POWER_DOWN_PORT3_PD (1 << 12)
+#define	SOTG_POWER_DOWN_PORT2_PD (1 << 11)
+#define	SOTG_POWER_DOWN_VBATDET_PWR (1 << 10)
+#define	SOTG_POWER_DOWN_BIAS_EN (1 << 5)
+#define	SOTG_POWER_DOWN_VREG_ON (1 << 4)
+#define	SOTG_POWER_DOWN_OC3_PWR (1 << 3)
+#define	SOTG_POWER_DOWN_OC2_PWR (1 << 2)
+#define	SOTG_POWER_DOWN_OC1_PWR (1 << 1)
+#define	SOTG_POWER_DOWN_HC_CLK_EN (1 << 0)
+#define	SOTG_USBCMD 0x20
+#define	SOTG_USBCMD_LHCR (1 << 7)
+#define	SOTG_USBCMD_HCRESET (1 << 1)
+#define	SOTG_USBCMD_RS (1 << 0)
 
 #endif					/* _SAF1761_DCI_REG_H_ */
