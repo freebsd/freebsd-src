@@ -96,6 +96,8 @@ ${GEN}: hdb.asn1
 .hx.h:
 	cp ${.IMPSRC} ${.TARGET}
 
+NO_BEFOREBUILD_INCLUDES=
+
 .include <bsd.lib.mk>
 
 .SUFFIXES: .h .c .x .hx

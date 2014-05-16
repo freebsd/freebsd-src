@@ -291,8 +291,11 @@ ${GEN_CRMF}: crmf.asn1
 .hx.h:
 	cp ${.IMPSRC} ${.TARGET}
 
+NO_BEFOREBUILD_INCLUDES=
+
 .include <bsd.lib.mk>
 
 .SUFFIXES: .h .c .x .hx
 
 .PATH: ${KRB5DIR}/lib/hx509 ${KRB5DIR}/lib/asn1 ${KRB5DIR}/doc/doxyout/hx509/man/man3
+
