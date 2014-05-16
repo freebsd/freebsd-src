@@ -10,12 +10,12 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libpam/libpam \
 	lib/libutil \
 	lib/libypclnt \
+	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

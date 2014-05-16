@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -77,6 +76,14 @@ ASTImporter.po: DeclNodes.inc.h
 ASTImporter.po: DiagnosticASTKinds.inc.h
 ASTImporter.po: DiagnosticCommonKinds.inc.h
 ASTImporter.po: StmtNodes.inc.h
+ASTTypeTraits.o: CommentCommandList.inc.h
+ASTTypeTraits.o: DeclNodes.inc.h
+ASTTypeTraits.o: DiagnosticCommonKinds.inc.h
+ASTTypeTraits.o: StmtNodes.inc.h
+ASTTypeTraits.po: CommentCommandList.inc.h
+ASTTypeTraits.po: DeclNodes.inc.h
+ASTTypeTraits.po: DiagnosticCommonKinds.inc.h
+ASTTypeTraits.po: StmtNodes.inc.h
 AttrImpl.o: AttrImpl.inc.h
 AttrImpl.o: AttrList.inc.h
 AttrImpl.o: Attrs.inc.h
@@ -251,18 +258,6 @@ DeclarationName.po: CommentCommandList.inc.h
 DeclarationName.po: DeclNodes.inc.h
 DeclarationName.po: DiagnosticCommonKinds.inc.h
 DeclarationName.po: StmtNodes.inc.h
-DumpXML.o: AttrList.inc.h
-DumpXML.o: Attrs.inc.h
-DumpXML.o: CommentCommandList.inc.h
-DumpXML.o: DeclNodes.inc.h
-DumpXML.o: DiagnosticCommonKinds.inc.h
-DumpXML.o: StmtNodes.inc.h
-DumpXML.po: AttrList.inc.h
-DumpXML.po: Attrs.inc.h
-DumpXML.po: CommentCommandList.inc.h
-DumpXML.po: DeclNodes.inc.h
-DumpXML.po: DiagnosticCommonKinds.inc.h
-DumpXML.po: StmtNodes.inc.h
 Expr.o: AttrList.inc.h
 Expr.o: Attrs.inc.h
 Expr.o: CommentCommandList.inc.h
@@ -339,22 +334,26 @@ ItaniumMangle.po: CommentCommandList.inc.h
 ItaniumMangle.po: DeclNodes.inc.h
 ItaniumMangle.po: DiagnosticCommonKinds.inc.h
 ItaniumMangle.po: StmtNodes.inc.h
-LambdaMangleContext.o: CommentCommandList.inc.h
-LambdaMangleContext.o: DeclNodes.inc.h
-LambdaMangleContext.o: DiagnosticCommonKinds.inc.h
-LambdaMangleContext.o: StmtNodes.inc.h
-LambdaMangleContext.po: CommentCommandList.inc.h
-LambdaMangleContext.po: DeclNodes.inc.h
-LambdaMangleContext.po: DiagnosticCommonKinds.inc.h
-LambdaMangleContext.po: StmtNodes.inc.h
+Mangle.o: AttrList.inc.h
+Mangle.o: Attrs.inc.h
 Mangle.o: CommentCommandList.inc.h
 Mangle.o: DeclNodes.inc.h
 Mangle.o: DiagnosticCommonKinds.inc.h
 Mangle.o: StmtNodes.inc.h
+Mangle.po: AttrList.inc.h
+Mangle.po: Attrs.inc.h
 Mangle.po: CommentCommandList.inc.h
 Mangle.po: DeclNodes.inc.h
 Mangle.po: DiagnosticCommonKinds.inc.h
 Mangle.po: StmtNodes.inc.h
+MangleNumberingContext.o: CommentCommandList.inc.h
+MangleNumberingContext.o: DeclNodes.inc.h
+MangleNumberingContext.o: DiagnosticCommonKinds.inc.h
+MangleNumberingContext.o: StmtNodes.inc.h
+MangleNumberingContext.po: CommentCommandList.inc.h
+MangleNumberingContext.po: DeclNodes.inc.h
+MangleNumberingContext.po: DiagnosticCommonKinds.inc.h
+MangleNumberingContext.po: StmtNodes.inc.h
 MicrosoftCXXABI.o: AttrList.inc.h
 MicrosoftCXXABI.o: Attrs.inc.h
 MicrosoftCXXABI.o: CommentCommandList.inc.h

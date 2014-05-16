@@ -6,6 +6,7 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
+	lib/clang/include \
 	lib/libbz2 \
 
 

@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -21,6 +20,12 @@ Mips16FrameLowering.o: MipsGenSubtargetInfo.inc.h
 Mips16FrameLowering.po: MipsGenInstrInfo.inc.h
 Mips16FrameLowering.po: MipsGenRegisterInfo.inc.h
 Mips16FrameLowering.po: MipsGenSubtargetInfo.inc.h
+Mips16HardFloat.o: MipsGenInstrInfo.inc.h
+Mips16HardFloat.o: MipsGenRegisterInfo.inc.h
+Mips16HardFloat.o: MipsGenSubtargetInfo.inc.h
+Mips16HardFloat.po: MipsGenInstrInfo.inc.h
+Mips16HardFloat.po: MipsGenRegisterInfo.inc.h
+Mips16HardFloat.po: MipsGenSubtargetInfo.inc.h
 Mips16ISelDAGToDAG.o: Intrinsics.inc.h
 Mips16ISelDAGToDAG.o: MipsGenDAGISel.inc.h
 Mips16ISelDAGToDAG.o: MipsGenInstrInfo.inc.h

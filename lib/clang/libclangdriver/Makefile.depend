@@ -3,22 +3,18 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ArgList.o: DiagnosticCommonKinds.inc.h
-ArgList.o: DiagnosticDriverKinds.inc.h
-ArgList.po: DiagnosticCommonKinds.inc.h
-ArgList.po: DiagnosticDriverKinds.inc.h
 CC1AsOptions.o: CC1AsOptions.inc.h
 CC1AsOptions.po: CC1AsOptions.inc.h
 Compilation.o: DiagnosticCommonKinds.inc.h
@@ -35,8 +31,12 @@ Driver.po: DiagnosticDriverKinds.inc.h
 Driver.po: Options.inc.h
 DriverOptions.o: Options.inc.h
 DriverOptions.po: Options.inc.h
-OptTable.o: Options.inc.h
-OptTable.po: Options.inc.h
+SanitizerArgs.o: DiagnosticCommonKinds.inc.h
+SanitizerArgs.o: DiagnosticDriverKinds.inc.h
+SanitizerArgs.o: Options.inc.h
+SanitizerArgs.po: DiagnosticCommonKinds.inc.h
+SanitizerArgs.po: DiagnosticDriverKinds.inc.h
+SanitizerArgs.po: Options.inc.h
 ToolChain.o: DiagnosticCommonKinds.inc.h
 ToolChain.o: DiagnosticDriverKinds.inc.h
 ToolChain.o: Options.inc.h
@@ -51,9 +51,11 @@ ToolChains.po: DiagnosticDriverKinds.inc.h
 ToolChains.po: Options.inc.h
 Tools.o: DiagnosticCommonKinds.inc.h
 Tools.o: DiagnosticDriverKinds.inc.h
+Tools.o: DiagnosticSemaKinds.inc.h
 Tools.o: Options.inc.h
 Tools.po: DiagnosticCommonKinds.inc.h
 Tools.po: DiagnosticDriverKinds.inc.h
+Tools.po: DiagnosticSemaKinds.inc.h
 Tools.po: Options.inc.h
 WindowsToolChain.o: DiagnosticCommonKinds.inc.h
 WindowsToolChain.o: DiagnosticDriverKinds.inc.h

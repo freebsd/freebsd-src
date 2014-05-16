@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libc++ \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libcxxrt \
 	lib/msun \

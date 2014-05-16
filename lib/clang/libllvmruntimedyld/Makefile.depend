@@ -3,10 +3,10 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/clang/include \
+	lib/libc++ \
 	lib/msun \
 
 

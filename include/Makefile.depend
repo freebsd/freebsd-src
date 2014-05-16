@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

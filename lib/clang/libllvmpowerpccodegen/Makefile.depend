@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -27,9 +26,11 @@ PPCBranchSelector.o: PPCGenSubtargetInfo.inc.h
 PPCBranchSelector.po: PPCGenInstrInfo.inc.h
 PPCBranchSelector.po: PPCGenRegisterInfo.inc.h
 PPCBranchSelector.po: PPCGenSubtargetInfo.inc.h
+PPCCTRLoops.o: Intrinsics.inc.h
 PPCCTRLoops.o: PPCGenInstrInfo.inc.h
 PPCCTRLoops.o: PPCGenRegisterInfo.inc.h
 PPCCTRLoops.o: PPCGenSubtargetInfo.inc.h
+PPCCTRLoops.po: Intrinsics.inc.h
 PPCCTRLoops.po: PPCGenInstrInfo.inc.h
 PPCCTRLoops.po: PPCGenRegisterInfo.inc.h
 PPCCTRLoops.po: PPCGenSubtargetInfo.inc.h
@@ -41,6 +42,18 @@ PPCCodeEmitter.po: PPCGenCodeEmitter.inc.h
 PPCCodeEmitter.po: PPCGenInstrInfo.inc.h
 PPCCodeEmitter.po: PPCGenRegisterInfo.inc.h
 PPCCodeEmitter.po: PPCGenSubtargetInfo.inc.h
+PPCFastISel.o: Intrinsics.inc.h
+PPCFastISel.o: PPCGenCallingConv.inc.h
+PPCFastISel.o: PPCGenFastISel.inc.h
+PPCFastISel.o: PPCGenInstrInfo.inc.h
+PPCFastISel.o: PPCGenRegisterInfo.inc.h
+PPCFastISel.o: PPCGenSubtargetInfo.inc.h
+PPCFastISel.po: Intrinsics.inc.h
+PPCFastISel.po: PPCGenCallingConv.inc.h
+PPCFastISel.po: PPCGenFastISel.inc.h
+PPCFastISel.po: PPCGenInstrInfo.inc.h
+PPCFastISel.po: PPCGenRegisterInfo.inc.h
+PPCFastISel.po: PPCGenSubtargetInfo.inc.h
 PPCFrameLowering.o: PPCGenInstrInfo.inc.h
 PPCFrameLowering.o: PPCGenRegisterInfo.inc.h
 PPCFrameLowering.o: PPCGenSubtargetInfo.inc.h

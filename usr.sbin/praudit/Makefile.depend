@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libbsm \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 
 

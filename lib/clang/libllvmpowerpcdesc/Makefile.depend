@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -41,4 +40,10 @@ PPCMCTargetDesc.o: PPCGenSubtargetInfo.inc.h
 PPCMCTargetDesc.po: PPCGenInstrInfo.inc.h
 PPCMCTargetDesc.po: PPCGenRegisterInfo.inc.h
 PPCMCTargetDesc.po: PPCGenSubtargetInfo.inc.h
+PPCMachObjectWriter.o: PPCGenInstrInfo.inc.h
+PPCMachObjectWriter.o: PPCGenRegisterInfo.inc.h
+PPCMachObjectWriter.o: PPCGenSubtargetInfo.inc.h
+PPCMachObjectWriter.po: PPCGenInstrInfo.inc.h
+PPCMachObjectWriter.po: PPCGenRegisterInfo.inc.h
+PPCMachObjectWriter.po: PPCGenSubtargetInfo.inc.h
 .endif

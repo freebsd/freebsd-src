@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -311,6 +310,16 @@ IdempotentOperationChecker.po: CommentCommandList.inc.h
 IdempotentOperationChecker.po: DeclNodes.inc.h
 IdempotentOperationChecker.po: DiagnosticCommonKinds.inc.h
 IdempotentOperationChecker.po: StmtNodes.inc.h
+IdenticalExprChecker.o: Checkers.inc.h
+IdenticalExprChecker.o: CommentCommandList.inc.h
+IdenticalExprChecker.o: DeclNodes.inc.h
+IdenticalExprChecker.o: DiagnosticCommonKinds.inc.h
+IdenticalExprChecker.o: StmtNodes.inc.h
+IdenticalExprChecker.po: Checkers.inc.h
+IdenticalExprChecker.po: CommentCommandList.inc.h
+IdenticalExprChecker.po: DeclNodes.inc.h
+IdenticalExprChecker.po: DiagnosticCommonKinds.inc.h
+IdenticalExprChecker.po: StmtNodes.inc.h
 IvarInvalidationChecker.o: AttrList.inc.h
 IvarInvalidationChecker.o: Attrs.inc.h
 IvarInvalidationChecker.o: Checkers.inc.h

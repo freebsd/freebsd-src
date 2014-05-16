@@ -9,9 +9,9 @@ DIRDEPS = \
 	include/rpc \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libgssapi \
+	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>
