@@ -302,15 +302,13 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	return (cl);
 
 err:
-	if (cl) {
-		if (ct) {
-			if (ct->ct_addr.len)
-				mem_free(ct->ct_addr.buf, ct->ct_addr.len);
-			mem_free(ct, sizeof (struct ct_data));
-		}
-		if (cl)
-			mem_free(cl, sizeof (CLIENT));
+	if (ct) {
+		if (ct->ct_addr.len)
+			mem_free(ct->ct_addr.buf, ct->ct_addr.len);
+		mem_free(ct, sizeof (struct ct_data));
 	}
+	if (cl)
+		mem_free(cl, sizeof (CLIENT));
 	return ((CLIENT *)NULL);
 }
 
