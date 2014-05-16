@@ -8,8 +8,8 @@
 
 .if !target(__<bsd.init.mk>__)
 __<bsd.init.mk>__:
-.sinclude "local.init.mk"
 .include <bsd.opts.mk>
+.sinclude "local.init.mk"
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
