@@ -168,7 +168,7 @@ PHONY_NOTMAIN+=	fetch patch
 .else
 .PHONY: ${PHONY_NOTMAIN}
 .endif
-.NOTMAIN: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN:Nall}
 
 .if !defined(.PARSEDIR)
 # this is a no-op
@@ -184,6 +184,7 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
+_SHLIBDIRPREFIX= ${STAGE_OBJTOP}
 
 .if commands(beforeinstall)
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
@@ -209,14 +210,42 @@ staging: stage_files
 .endif
 
 .if !empty(_LIBS) && !defined(INTERNALLIB)
+.if defined(SHLIBDIR) && ${SHLIBDIR} != ${LIBDIR} && ${_LIBS:Uno:M*.so.*} != ""
+STAGE_SETS+= shlib
+STAGE_DIR.shlib= ${STAGE_OBJTOP}${SHLIBDIR}
+STAGE_FILES.shlib+= ${_LIBS:M*.so.*}
+stage_files.shlib: ${_LIBS:M*.so.*}
+.endif
+
+.if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
+_LDSCRIPTROOT?= ${STAGE_OBJTOP}
+STAGE_AS_SETS+= ldscript
+STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
+stage_as.ldscript: ${SHLIB_LINK:R}.ld
+STAGE_DIR.ldscript = ${STAGE_LIBDIR}
+STAGE_AS_${SHLIB_LINK:R}.ld:= ${SHLIB_LINK}
+NO_SHLIB_LINKS=
+.endif
+
+.if target(stage_files.shlib)
 stage_libs: ${_LIBS}
+.if defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
+stage_files.shlib: ${SHLIB_NAME}.symbols
+.endif
+.else
+stage_libs: ${_LIBS}
+.endif
 .if defined(SHLIB_NAME) && defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
 stage_libs: ${SHLIB_NAME}.symbols
 .endif
+
 .endif
 
 .if !empty(INCS) || !empty(INCSGROUPS) && target(buildincludes)
-beforebuild: buildincludes
+.if !defined(NO_BEFOREBUILD_INCLUDES)
+stage_includes: buildincludes
+beforebuild: stage_includes
+.endif
 .endif
 
 .for t in stage_libs stage_files stage_as
