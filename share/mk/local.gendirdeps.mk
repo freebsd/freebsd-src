@@ -3,7 +3,17 @@
 GENDIRDEPS_FILTER+= \
 	Ngnu/lib/libssp/libssp_nonshared \
 	Ncddl/usr.bin/ctf* \
-	Npkgs/pseudo/stage*
+	Nlib/clang/include \
+	Nlib/libc_nonshared \
+	Npkgs/pseudo/stage* \
+	Ntools/*
+
+.if ${RELDIR:Mpkgs*} == ""
+GENDIRDEPS_FILTER+= \
+	Nusr.bin/clang/clang.host \
+	Ngnu/usr.bin/cc* \
+
+.endif
 
 # gendirdeps.mk will turn _{VAR} into ${VAR} which keeps this simple
 # order of this list matters!
