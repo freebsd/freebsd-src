@@ -163,8 +163,6 @@ saf1761_dci_pull_up(struct saf1761_dci_softc *sc)
 		DPRINTF("\n");
 
 		sc->sc_flags.d_pulled_up = 1;
-
-		SAF1761_WRITE_2(sc, SOTG_CTRL_SET, SOTG_CTRL_DP_PULL_UP);
 	}
 }
 
@@ -177,8 +175,6 @@ saf1761_dci_pull_down(struct saf1761_dci_softc *sc)
 		DPRINTF("\n");
 
 		sc->sc_flags.d_pulled_up = 0;
-
-		SAF1761_WRITE_2(sc, SOTG_CTRL_CLR, SOTG_CTRL_DP_PULL_UP);
 	}
 }
 
@@ -212,13 +208,15 @@ saf1761_dci_set_address(struct saf1761_dci_softc *sc, uint8_t addr)
 static void
 saf1761_read_fifo(struct saf1761_dci_softc *sc, void *buf, uint32_t len)
 {
-	bus_space_read_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl, SOTG_DATA_PORT, buf, len);
+	bus_space_read_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
+	    SOTG_DATA_PORT, buf, len);
 }
 
 static void
 saf1761_write_fifo(struct saf1761_dci_softc *sc, void *buf, uint32_t len)
 {
-	bus_space_write_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl, SOTG_DATA_PORT, buf, len);
+	bus_space_write_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
+	    SOTG_DATA_PORT, buf, len);
 }
 
 static uint8_t
@@ -270,6 +268,7 @@ saf1761_dci_setup_rx(struct saf1761_dci_softc *sc, struct saf1761_dci_td *td)
 	if ((req.bmRequestType == UT_WRITE_DEVICE) &&
 	    (req.bRequest == UR_SET_ADDRESS)) {
 		sc->sc_dv_addr = req.wValue[0] & 0x7F;
+		DPRINTF("Set address %d\n", sc->sc_dv_addr);
 	} else {
 		sc->sc_dv_addr = 0xFF;
 	}
@@ -563,10 +562,16 @@ saf1761_dci_wait_suspend(struct saf1761_dci_softc *sc, uint8_t on)
 static void
 saf1761_dci_update_vbus(struct saf1761_dci_softc *sc)
 {
-	if (SAF1761_READ_4(sc, SOTG_MODE) & SOTG_MODE_VBUSSTAT) {
-		DPRINTFN(4, "VBUS ON\n");
+	uint16_t status;
 
-		/* VBUS present */
+	/* read fresh status */
+	status = SAF1761_READ_2(sc, SOTG_STATUS);
+
+	DPRINTFN(4, "STATUS=0x%04x\n", status);
+
+	if ((status & SOTG_STATUS_VBUS_VLD) &&
+	    (status & SOTG_STATUS_ID)) {
+		/* VBUS present and device mode */
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
 
@@ -574,9 +579,7 @@ saf1761_dci_update_vbus(struct saf1761_dci_softc *sc)
 			saf1761_dci_root_intr(sc);
 		}
 	} else {
-		DPRINTFN(4, "VBUS OFF\n");
-
-		/* VBUS not-present */
+		/* VBUS not-present or host mode */
 		if (sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 0;
 			sc->sc_flags.status_bus_reset = 0;
@@ -602,11 +605,23 @@ saf1761_dci_interrupt(struct saf1761_dci_softc *sc)
 	/* acknowledge all interrupts */
 	SAF1761_WRITE_4(sc, SOTG_DCINTERRUPT, status);
 
+	DPRINTF("DCINTERRUPT=0x%08x SOF=0x%04x\n", status,
+		SAF1761_READ_2(sc, SOTG_FRAME_NUM));
+
+	/* update VBUS and ID bits, if any */
 	if (status & SOTG_DCINTERRUPT_IEVBUS) {
-		/* update VBUS bit */
 		saf1761_dci_update_vbus(sc);
 	}
+
 	if (status & SOTG_DCINTERRUPT_IEBRST) {
+		/* unlock device */
+		SAF1761_WRITE_2(sc, SOTG_UNLOCK_DEVICE,
+		    SOTG_UNLOCK_DEVICE_CODE);
+
+		/* Enable device address */
+		SAF1761_WRITE_1(sc, SOTG_ADDRESS,
+		    SOTG_ADDRESS_ENABLE);
+
 		sc->sc_flags.status_bus_reset = 1;
 		sc->sc_flags.status_suspend = 0;
 		sc->sc_flags.change_suspend = 0;
@@ -623,6 +638,10 @@ saf1761_dci_interrupt(struct saf1761_dci_softc *sc)
 	 * at least 3 milliseconds of inactivity on the USB BUS:
 	 */
 	if (status & SOTG_DCINTERRUPT_IERESM) {
+		/* unlock device */
+		SAF1761_WRITE_2(sc, SOTG_UNLOCK_DEVICE,
+		    SOTG_UNLOCK_DEVICE_CODE);
+
 		if (sc->sc_flags.status_suspend) {
 			sc->sc_flags.status_suspend = 0;
 			sc->sc_flags.change_suspend = 1;
@@ -833,7 +852,7 @@ saf1761_dci_intr_set(struct usb_xfer *xfer, uint8_t set)
 	uint8_t ep_no = (xfer->endpointno & UE_ADDR);
 	uint32_t mask;
 
-	DPRINTFN(15, "endpoint 0x%02x\n", xfer->endpointno);
+	DPRINTFN(15, "endpoint=%d set=%d\n", xfer->endpointno, set);
 
 	if (ep_no == 0) {
 		mask = SOTG_DCINTERRUPT_IEPRX(0) |
@@ -1121,13 +1140,26 @@ saf1761_dci_init(struct saf1761_dci_softc *sc)
 	const struct usb_hw_ep_profile *pf;
 	uint8_t x;
 
-	DPRINTF("start\n");
+	DPRINTF("\n");
 
 	/* set up the bus structure */
 	sc->sc_bus.usbrev = USB_REV_2_0;
 	sc->sc_bus.methods = &saf1761_dci_bus_methods;
 
 	USB_BUS_LOCK(&sc->sc_bus);
+
+	/* Enable interrupts */
+	sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_GLOBAL_INTR_EN |
+	    SOTG_HW_MODE_CTRL_COMN_INT;
+
+	/*
+	 * Set correct hardware mode, must be written twice if bus
+	 * width is changed:
+	 */
+	SAF1761_WRITE_2(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode);
+	SAF1761_WRITE_4(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode);
+
+	DPRINTF("DCID=0x%08x\n", SAF1761_READ_4(sc, SOTG_DCCHIP_ID));
 
 	/* reset device */
 	SAF1761_WRITE_2(sc, SOTG_MODE, SOTG_MODE_SFRESET);
@@ -1142,7 +1174,7 @@ saf1761_dci_init(struct saf1761_dci_softc *sc)
 	/* wait 10ms for pulldown to stabilise */
 	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
-	for (x = 0;; x++) {
+	for (x = 1;; x++) {
 
 		saf1761_dci_get_hw_ep_profile(NULL, &pf, x);
 		if (pf == NULL)
@@ -1156,10 +1188,6 @@ saf1761_dci_init(struct saf1761_dci_softc *sc)
 		/* select the maximum packet size */
 		SAF1761_WRITE_2(sc, SOTG_EP_MAXPACKET, pf->max_in_frame_size);
 
-		if (x == 0) {
-			/* enable control endpoint */
-			SAF1761_WRITE_2(sc, SOTG_EP_TYPE, SOTG_EP_TYPE_ENABLE);
-		}
 		/* select the correct endpoint */
 		SAF1761_WRITE_1(sc, SOTG_EP_INDEX,
 		    (x << SOTG_EP_INDEX_ENDP_INDEX_SHIFT) |
@@ -1167,20 +1195,35 @@ saf1761_dci_init(struct saf1761_dci_softc *sc)
 
 		/* select the maximum packet size */
 		SAF1761_WRITE_2(sc, SOTG_EP_MAXPACKET, pf->max_out_frame_size);
-
-		if (x == 0) {
-			/* enable control endpoint */
-			SAF1761_WRITE_2(sc, SOTG_EP_TYPE, SOTG_EP_TYPE_ENABLE);
-		}
 	}
 
 	/* enable interrupts */
-	SAF1761_WRITE_2(sc, SOTG_MODE, SOTG_MODE_GLINTENA);
+	SAF1761_WRITE_2(sc, SOTG_MODE, SOTG_MODE_GLINTENA |
+	    SOTG_MODE_CLKAON | SOTG_MODE_WKUPCS);
+
+	/* set default values */
+	SAF1761_WRITE_1(sc, SOTG_INTERRUPT_CFG,
+		SOTG_INTERRUPT_CFG_CDBGMOD |
+		SOTG_INTERRUPT_CFG_DDBGMODIN |
+		SOTG_INTERRUPT_CFG_DDBGMODOUT);
+
+	/* enable VBUS and ID interrupt */
+	SAF1761_WRITE_2(sc, SOTG_IRQ_ENABLE_CLR, 0xFFFF);
+	SAF1761_WRITE_2(sc, SOTG_IRQ_ENABLE_SET,
+	    SOTG_IRQ_ID | SOTG_IRQ_VBUS_VLD);
 
 	/* enable interrupts */
-	sc->sc_intr_enable = SOTG_DCINTERRUPT_EN, SOTG_DCINTERRUPT_IEVBUS |
+	sc->sc_intr_enable = SOTG_DCINTERRUPT_IEVBUS |
 	    SOTG_DCINTERRUPT_IEBRST | SOTG_DCINTERRUPT_IESUSP;
-	SAF1761_WRITE_2(sc, SOTG_DCINTERRUPT_EN, sc->sc_intr_enable);
+	SAF1761_WRITE_4(sc, SOTG_DCINTERRUPT_EN, sc->sc_intr_enable);
+
+	/* connect ATX port 1 to device controller */
+	SAF1761_WRITE_2(sc, SOTG_CTRL_CLR, 0xFFFF);
+	SAF1761_WRITE_2(sc, SOTG_CTRL_SET, SOTG_CTRL_SW_SEL_HC_DC |
+	    SOTG_CTRL_BDIS_ACON_EN);
+
+	/* disable device address */
+	SAF1761_WRITE_1(sc, SOTG_ADDRESS, 0);
 
 	/* poll initial VBUS status */
 	saf1761_dci_update_vbus(sc);

@@ -102,6 +102,17 @@
 #define	SOTG_DEBUG_SET (1 << 0)
 #define	SOTG_DCINTERRUPT_EN 0x214
 #define	SOTG_HW_MODE_CTRL 0x300
+#define	SOTG_HW_MODE_CTRL_ALL_ATX_RESET (1 << 31)
+#define	SOTG_HW_MODE_CTRL_ANA_DIGI_OC (1 << 15)
+#define	SOTG_HW_MODE_CTRL_DEV_DMA (1 << 11)
+#define	SOTG_HW_MODE_CTRL_COMN_INT (1 << 10)
+#define	SOTG_HW_MODE_CTRL_COMN_DMA (1 << 9)
+#define	SOTG_HW_MODE_CTRL_DATA_BUS_WIDTH (1 << 8)
+#define	SOTG_HW_MODE_CTRL_DACK_POL (1 << 6)
+#define	SOTG_HW_MODE_CTRL_DREQ_POL (1 << 5)
+#define	SOTG_HW_MODE_CTRL_INTR_POL (1 << 2)
+#define	SOTG_HW_MODE_CTRL_INTR_LEVEL (1 << 1)
+#define	SOTG_HW_MODE_CTRL_GLOBAL_INTR_EN (1 << 0)
 #define	SOTG_OTG_CTRL 0x374
 #define	SOTG_EP_INDEX 0x22c
 #define	SOTG_EP_INDEX_EP0SETUP (1 << 5)
@@ -155,5 +166,29 @@
 #define	SOTG_UNLOCK_DEVICE_CODE 0xAA37
 #define	SOTG_IRQ_PULSE_WIDTH 0x280
 #define	SOTG_TEST_MODE 0x284
+#define	SOTG_TEST_MODE_FORCEHS (1 << 7)
+#define	SOTG_TEST_MODE_FORCEFS (1 << 4)
+#define	SOTG_TEST_MODE_PRBS (1 << 3)
+#define	SOTG_TEST_MODE_KSTATE (1 << 2)
+#define	SOTG_TEST_MODE_JSTATE (1 << 1)
+#define	SOTG_TEST_MODE_SE0_NAK (1 << 0)
+
+/* Host controller specific registers */
+
+#define	SOTG_CONFIGFLAG 0x0060
+#define	SOTG_CONFIGFLAG_ENABLE (1 << 0)
+#define	SOTG_PORTSC1 0x0064
+#define	SOTG_PORTSC1_PO (1 << 13)
+#define	SOTG_PORTSC1_PP (1 << 12)
+#define	SOTG_PORTSC1_PR (1 << 8)
+#define	SOTG_PORTSC1_SUSP (1 << 7)
+#define	SOTG_PORTSC1_FPR (1 << 6)
+#define	SOTG_PORTSC1_PED (1 << 2)
+#define	SOTG_PORTSC1_ECSC (1 << 1)
+#define	SOTG_PORTSC1_ECCS (1 << 0)
+#define	SOTG_ASYNC_PDT(x) (0x400 + (60 * 1024) + ((x) * 32))
+#define	SOTG_INTR_PDT(x) (0x400 + (61 * 1024) + ((x) * 32))
+#define	SOTG_ISOC_PDT(x) (0x400 + (62 * 1024) + ((x) * 32))
+#define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
 
 #endif					/* _SAF1761_DCI_REG_H_ */
