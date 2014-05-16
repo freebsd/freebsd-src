@@ -82,7 +82,7 @@ ASENTRY_NP(_start)
 	mov	r9, r0		/* 0 or boot mode from boot2 */
 	mov	r8, r1		/* Save Machine type */
 	mov	ip, r2		/* Save meta data */
-	mov	fp, r3		/* Future expantion */
+	mov	fp, r3		/* Future expansion */
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
