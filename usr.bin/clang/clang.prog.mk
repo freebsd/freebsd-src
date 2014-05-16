@@ -14,4 +14,9 @@ LDADD+=	-lncurses
 
 BINDIR?= /usr/bin
 
+
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED= yes
+.endif
+
 .include <bsd.prog.mk>
