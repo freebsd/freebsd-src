@@ -261,7 +261,7 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 	/* sanity checks */
 	if (usb_no_pf != 0)
 		return;
-	if (bus->ifp == NULL)
+	if (bus->ifp == NULL || bus->ifp->if_bpf == NULL)
 		return;
 	if (!bpf_peers_present(bus->ifp->if_bpf))
 		return;
