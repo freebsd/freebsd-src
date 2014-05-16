@@ -60,8 +60,9 @@ SHIPDIR = no
 
 .else
 
+all_machine_list = ${ALL_MACHINE_LIST} host common
 .if defined(ALL_MACHINES)
-DIRDEPS := ${DIRDEPS:O:u:@d@${ALL_MACHINE_LIST:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T:R}.$m):?$d.$m:}@}@}
+DIRDEPS := ${DIRDEPS:O:u:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}.$m):?$d.$m:}@}@}
 .undef ALL_MACHINES
 PKG_MACHINE_LIST ?= ${DIRDEPS:E:O:u}
 .elif defined(HOST_MACHINE) && ${MACHINE} == ${HOST_MACHINE}
@@ -69,10 +70,9 @@ PKG_MACHINE_LIST ?= ${DIRDEPS:E:O:u}
 # some packages only support one machine which may not be ${MACHINE}
 # some support multiple, in which case unless ALL_MACHINES is defined
 # we only want ${MACHINE}
-plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T:R}):?$d:}@}
+plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}):?$d:}@}
 .if ${plain} != ${DIRDEPS}
-all_machine_list = ${ALL_MACHINE_LIST} host
-qual := ${DIRDEPS:${plain:${M_ListToSkip}}:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T:R}.$m):?$d.$m:}@}@}
+qual := ${DIRDEPS:${plain:${M_ListToSkip}}:@d@${all_machine_list:O:u:@m@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}.$m):?$d.$m:}@}@}
 DIRDEPS := ${plain} ${qual}
 PKG_MACHINE_LIST ?= ${MACHINE} ${qual:E:O:u}
 .endif
@@ -85,6 +85,24 @@ DIRDEPS := ${.MAKE.DEPENDFILE_PREFERENCE:T:@m@${DIRDEPS:@d@${exists(${SRCTOP}/$d
 PKG_MACHINE_LIST = ${ALL_MACHINE_LIST}
 .endif
 PKG_MACHINE_LIST := ${PKG_MACHINE_LIST}
+.endif
+.endif
+
+# we don't use DIRDEPS_FILTER, since we only want it to 
+# apply to this initial list
+.if !empty(REQUESTED_MACHINE) && !empty(DIRDEPS)
+# this is a variant of the logic above, we want plain
+# but need to filter the qualified DIRDEPS to REQUESTED_MACHINE
+plain := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE_PREFIX:T}):?$d:}@}
+.if ${plain} != ${DIRDEPS}
+qual := ${DIRDEPS:${plain:${M_ListToSkip}}:M*.${REQUESTED_MACHINE}}
+.if empty(qual)
+qual := ${DIRDEPS:@d@${exists(${SRCTOP}/$d/${.MAKE.DEPENDFILE:T}):?$d.${.MAKE.DEPENDFILE:E}:}@}
+.endif
+DIRDEPS := ${plain} ${qual}
+.endif
+.if empty(DIRDEPS)
+.error ${REQUESTED_MACHINE} is not appropriate for ${DEP_RELDIR:T}
 .endif
 .endif
 
