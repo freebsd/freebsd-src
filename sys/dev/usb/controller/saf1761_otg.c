@@ -2629,12 +2629,9 @@ static void
 saf1761_otg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
     struct usb_endpoint *ep)
 {
-	struct saf1761_otg_softc *sc = SAF1761_OTG_BUS2SC(udev->bus);
-
-	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d\n",
 	    ep, udev->address,
-	    edesc->bEndpointAddress, udev->flags.usb_mode,
-	    sc->sc_rt_addr);
+	    edesc->bEndpointAddress, udev->flags.usb_mode);
 
 	if (udev->parent_hub == NULL) {
 		/* root HUB has special endpoint handling */
