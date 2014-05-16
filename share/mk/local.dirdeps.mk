@@ -25,7 +25,11 @@ M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
 #.info M_dep_qual_fixes=${M_dep_qual_fixes}
 # we want to supress these dependencies for host tools
 # but some libs are sadly needed.
-_need_host_libs= lib/libdwarf
+_need_host_libs= \
+	lib/libc++ \
+	lib/libcxxrt \
+	lib/libdwarf \
+
 N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host = \
 	${N_host_libs} \
@@ -36,17 +40,30 @@ DIRDEPS_FILTER.host = \
 	Ngnu/lib/lib[a-r]* \
 
 
+DIRDEPS_FILTER+= \
+	${DIRDEPS_FILTER.xtras:U}
+.endif
+
+# reset this each time
+DIRDEPS_FILTER.xtras=
+.if ${DEP_MACHINE:Npkgs*} != ""
+DIRDEPS_FILTER.xtras+= Nusr.bin/clang/clang.host
 .endif
 
 .if ${DEP_MACHINE} != "host"
 
 # this is how we can handle optional dependencies
-.if ${MK_SSP:Uno} != "no" && ${DEP_RELDIR:U${RELDIR}} == "lib/libc"
+.if ${DEP_RELDIR} == "lib/libc"
+DIRDEPS += lib/libc_nonshared
+.if ${MK_SSP:Uno} != "no" 
 DIRDEPS += gnu/lib/libssp/libssp_nonshared
+.endif
+.else
+DIRDEPS_FILTER.xtras+= Nlib/libc_nonshared
 .endif
 
 # some optional things
-.if ${MK_CTF} == "yes" && ${DEP_RELDIR:U${RELDIR}:Mcddl/usr.bin/ctf*} == ""
+.if ${MK_CTF} == "yes" && ${DEP_RELDIR:Mcddl/usr.bin/ctf*} == ""
 DIRDEPS += \
 	cddl/usr.bin/ctfconvert.host \
 	cddl/usr.bin/ctfmerge.host
@@ -54,8 +71,12 @@ DIRDEPS += \
 
 .endif
 
+.if ${MK_CLANG} == "yes" && ${DEP_RELDIR:Nlib/clang/lib*:Nlib/libc*} == ""
+DIRDEPS+= lib/clang/include
+.endif
+
 # we need pkgs/pseudo/stage to prep the stage tree
-.if ${DEP_RELDIR:U${RELDIR}} != "pkgs/pseudo/stage"
+.if ${DEP_RELDIR} != "pkgs/pseudo/stage"
 DIRDEPS += pkgs/pseudo/stage
 .endif
 
