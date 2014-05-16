@@ -332,16 +332,6 @@ static devclass_t arm_tmr_devclass;
 DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
 
 void
-cpu_initclocks(void)
-{
-
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
-
-void
 DELAY(int usec)
 {
 	int32_t counts, counts_per_usec;

@@ -371,7 +371,7 @@ struct cpu_group *
 cpu_topo(void)
 {
 
-	return (smp_topo_1level(CG_SHARE_L2, 1, 0));
+	return (smp_topo_1level(CG_SHARE_L2, mp_ncpus, 0));
 }
 
 void

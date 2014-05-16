@@ -319,17 +319,6 @@ imx_gpt_get_timerfreq(struct imx_gpt_softc *sc)
 	return (sc->clkfreq);
 }
 
-void
-cpu_initclocks(void)
-{
-
-	if (imx_gpt_sc == NULL) {
-		panic("%s: i.MX GPT driver has not been initialized!", __func__);
-	}
-
-	cpu_initclocks_bsp();
-}
-
 static int
 imx_gpt_intr(void *arg)
 {

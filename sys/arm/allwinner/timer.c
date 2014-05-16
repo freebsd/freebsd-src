@@ -295,12 +295,6 @@ a10_timer_get_timerfreq(struct a10_timer_softc *sc)
 	return (sc->timer0_freq);
 }
 
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
-
 static int
 a10_timer_hardclock(void *arg)
 {

@@ -39,3 +39,4 @@ LFLAGS+= -d
 .endif
 
 .include <bsd.prog.mk>
+CFLAGS+= -Wno-missing-prototypes
