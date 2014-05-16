@@ -971,16 +971,20 @@ void
 saf1761_otg_interrupt(struct saf1761_otg_softc *sc)
 {
 	uint32_t status;
+	uint32_t hcstat;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
-	status = SAF1761_READ_4(sc, SOTG_DCINTERRUPT);
+	hcstat = SAF1761_READ_4(sc, SOTG_HCINTERRUPT);
+	/* acknowledge all host controller interrupts */
+	SAF1761_WRITE_4(sc, SOTG_HCINTERRUPT, hcstat);
 
-	/* acknowledge all interrupts */
+	status = SAF1761_READ_4(sc, SOTG_DCINTERRUPT);
+	/* acknowledge all device controller interrupts */
 	SAF1761_WRITE_4(sc, SOTG_DCINTERRUPT, status);
 
-	DPRINTF("DCINTERRUPT=0x%08x SOF=0x%04x\n", status,
-		SAF1761_READ_2(sc, SOTG_FRAME_NUM));
+	DPRINTF("DCINTERRUPT=0x%08x HCINTERRUPT=0x%08x SOF=0x%04x\n",
+	    status, hcstat, SAF1761_READ_2(sc, SOTG_FRAME_NUM));
 
 	/* update VBUS and ID bits, if any */
 	if (status & SOTG_DCINTERRUPT_IEVBUS) {
@@ -1715,6 +1719,13 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 
 	/* start the HC */
 	SAF1761_WRITE_4(sc, SOTG_USBCMD, SOTG_USBCMD_RS);
+
+	/* enable HC interrupts */
+	SAF1761_WRITE_4(sc, SOTG_HCINTERRUPT_ENABLE,
+	    SOTG_HCINTERRUPT_OTG_IRQ |
+	    SOTG_HCINTERRUPT_ISO_IRQ |
+	    SOTG_HCINTERRUPT_ALT_IRQ |
+	    SOTG_HCINTERRUPT_INT_IRQ);
 
 	/* poll initial VBUS status */
 	saf1761_otg_update_vbus(sc);
