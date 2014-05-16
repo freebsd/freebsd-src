@@ -1618,16 +1618,18 @@ re_attach(device_t dev)
 	ifp->if_start = re_start;
 	/*
 	 * RTL8168/8111C generates wrong IP checksummed frame if the
-	 * packet has IP options so disable TX IP checksum offloading.
+	 * packet has IP options so disable TX checksum offloading.
 	 */
 	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
 	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2 ||
-	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP)
-		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
-	else
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP) {
+		ifp->if_hwassist = 0;
+		ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TSO4;
+	} else {
 		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+		ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
+	}
 	ifp->if_hwassist |= CSUM_TSO;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -3363,7 +3365,6 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	uint32_t		rev;
 	int			error = 0;
 
 	switch (command) {
@@ -3452,15 +3453,9 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
-				rev = sc->rl_hwrev->rl_rev;
-				if (rev == RL_HWREV_8168C ||
-				    rev == RL_HWREV_8168C_SPIN2 ||
-				    rev == RL_HWREV_8168CP)
-					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
-				else
-					ifp->if_hwassist |= RE_CSUM_FEATURES;
-			} else
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= RE_CSUM_FEATURES;
+			else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
