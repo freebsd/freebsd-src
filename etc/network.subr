@@ -132,13 +132,6 @@ ifconfig_up()
 		_cfg=0
 	fi
 
-	# ifconfig_IF
-	ifconfig_args=`ifconfig_getargs $1`
-	if [ -n "${ifconfig_args}" ]; then
-		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
-		_cfg=0
-	fi
-
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -174,7 +167,17 @@ ifconfig_up()
 		if [ -n "${_ipv6_opts}" ]; then
 			${IFCONFIG_CMD} $1 inet6 ${_ipv6_opts}
 		fi
+	fi
 
+	# ifconfig_IF
+	ifconfig_args=`ifconfig_getargs $1`
+	if [ -n "${ifconfig_args}" ]; then
+		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
+		_cfg=0
+	fi
+
+	# inet6 specific
+	if ! noafif $1 && afexists inet6; then
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
