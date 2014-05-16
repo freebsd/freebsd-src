@@ -36,7 +36,7 @@ S=	${.CURDIR}/../../..
 KMOD=	saf1761
 SRCS=	bus_if.h device_if.h usb_if.h \
 	opt_bus.h opt_usb.h ofw_bus_if.h \
-	saf1761_dci.c saf1761_dci_fdt.c \
+	saf1761_otg.c saf1761_otg_fdt.c \
 	pci_if.h
 
 .include <bsd.kmod.mk>
