@@ -107,7 +107,6 @@ struct saf1761_dci_flags {
 	uint8_t	port_powered:1;
 	uint8_t	port_enabled:1;
 	uint8_t	d_pulled_up:1;
-	uint8_t	mcsr_feat:1;
 };
 
 struct saf1761_dci_softc {
@@ -123,6 +122,7 @@ struct saf1761_dci_softc {
 	bus_space_handle_t sc_io_hdl;
 
 	uint32_t sc_intr_enable;	/* enabled interrupts */
+	uint32_t sc_hw_mode;		/* hardware mode */
 
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
