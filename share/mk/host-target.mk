@@ -18,6 +18,10 @@ _HOST_ARCH != uname -m
 .endif
 .export _HOST_ARCH
 .endif
+.if !defined(HOST_MACHINE)
+HOST_MACHINE != uname -m
+.export HOST_MACHINE
+.endif
 
 HOST_OSMAJOR := ${_HOST_OSREL:C/[^0-9].*//}
 HOST_OSTYPE  :=	${_HOST_OSNAME}-${_HOST_OSREL:C/\([^\)]*\)//}-${_HOST_ARCH}
