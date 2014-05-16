@@ -35,6 +35,10 @@
 #define	SOTG_MAX_DEVICES (USB_MIN_DEVICES + 1)
 #define	SOTG_FS_MAX_PACKET_SIZE 64
 #define	SOTG_HS_MAX_PACKET_SIZE 512
+#define	SOTG_NUM_PORTS 2	/* one Device and one Host port */
+#define	SOTG_HOST_PORT_NUM 1
+#define	SOTG_DEVICE_PORT_NUM 2
+#define	SOTG_HOST_CHANNEL_MAX (3 * 32)
 
 #define	SAF1761_READ_1(sc, reg)	\
   bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -61,12 +65,18 @@ struct saf1761_dci_td {
 	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
+	uint32_t dw1_value;
 	uint16_t max_packet_size;
 	uint8_t	ep_index;
-	uint8_t	error:1;
+	uint8_t ep_type;
+	uint8_t channel;
+	uint8_t	error_any:1;
+	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	did_stall:1;
+	uint8_t	toggle:1;
+	uint8_t	set_toggle:1;
 };
 
 struct saf1761_dci_std_temp {
@@ -121,12 +131,17 @@ struct saf1761_dci_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
+	uint32_t sc_host_async_map;
+	uint32_t sc_host_intr_map;
+	uint32_t sc_host_isoc_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */
 	uint32_t sc_hw_mode;		/* hardware mode */
 
+	uint8_t sc_bounce_buffer[1024] __aligned(4);
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
+	uint8_t sc_isreset;		/* host mode */
 
 	uint8_t	sc_hub_idata[1];
 
