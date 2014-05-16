@@ -42,7 +42,7 @@
 #endif
 #endif
 
-#ifdef XENHVM
+#if defined(XENHVM) && !defined(MODXENHVM)
 /* This is now unused, but remains here for KBI compatibility reasons. */
 #define PCPU_XEN_FIELDS							\
 	;								\
