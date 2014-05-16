@@ -2748,7 +2748,6 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 	struct sbp_ocb *ocb;
 	struct sbp_ocb *next;
 	int s = splfw(), order = 0;
-	int flags;
 
 SBP_DEBUG(1)
 	device_printf(sdev->target->sbp->fd.dev,
@@ -2762,7 +2761,6 @@ END_DEBUG
 	SBP_LOCK(sdev->target->sbp);
 	for (ocb = STAILQ_FIRST(&sdev->ocbs); ocb != NULL; ocb = next) {
 		next = STAILQ_NEXT(ocb, ocb);
-		flags = ocb->flags;
 		if (OCB_MATCH(ocb, sbp_status)) {
 			/* found */
 			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
