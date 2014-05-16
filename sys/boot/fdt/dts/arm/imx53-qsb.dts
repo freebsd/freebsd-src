@@ -105,7 +105,7 @@
 			ethernet@63fec000 {
 				status = "okay";
 				phy-mode = "rmii";
-			}
+			};
 			i2c@63fc4000 {
 				status = "okay";
 			};

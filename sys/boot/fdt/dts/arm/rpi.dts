@@ -28,12 +28,12 @@
 
 /include/ "bcm2835.dtsi"
 
-/memreserve/ 0x08000000 0x08000000;	/* Set by VideoCore */
-
 / {
 	model = "Raspberry Pi (BCM2835)";
 	compatible = "raspberrypi,model-a", "raspberrypi,model-b", 
 		     "broadcom,bcm2835-vc", "broadcom,bcm2708-vc";
+
+	memreserve = <0x08000000 0x08000000>;	/* Set by VideoCore */
 
 	memory {
 		device_type = "memory";
