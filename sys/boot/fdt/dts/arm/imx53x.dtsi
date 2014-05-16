@@ -95,7 +95,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
     		interrupt-parent = <&tzic>;
-		ranges = <0x50000000 0x14000000>;
+		ranges;
 
 		aips@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
