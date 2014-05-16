@@ -9,7 +9,6 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcam \
 	lib/libcompiler_rt \
 	lib/libsbuf \

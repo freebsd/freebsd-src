@@ -3,12 +3,12 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>

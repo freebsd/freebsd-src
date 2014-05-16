@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -33,6 +32,8 @@ LICM.o: Intrinsics.inc.h
 LICM.po: Intrinsics.inc.h
 LoopIdiomRecognize.o: Intrinsics.inc.h
 LoopIdiomRecognize.po: Intrinsics.inc.h
+LoopRerollPass.o: Intrinsics.inc.h
+LoopRerollPass.po: Intrinsics.inc.h
 LoopRotation.o: Intrinsics.inc.h
 LoopRotation.po: Intrinsics.inc.h
 LoopStrengthReduce.o: Intrinsics.inc.h
@@ -45,6 +46,8 @@ LowerAtomic.o: Intrinsics.inc.h
 LowerAtomic.po: Intrinsics.inc.h
 MemCpyOptimizer.o: Intrinsics.inc.h
 MemCpyOptimizer.po: Intrinsics.inc.h
+PartiallyInlineLibCalls.o: Intrinsics.inc.h
+PartiallyInlineLibCalls.po: Intrinsics.inc.h
 Reassociate.o: Intrinsics.inc.h
 Reassociate.po: Intrinsics.inc.h
 SCCP.o: Intrinsics.inc.h
@@ -57,6 +60,8 @@ SimplifyCFGPass.o: Intrinsics.inc.h
 SimplifyCFGPass.po: Intrinsics.inc.h
 Sink.o: Intrinsics.inc.h
 Sink.po: Intrinsics.inc.h
+StructurizeCFG.o: Intrinsics.inc.h
+StructurizeCFG.po: Intrinsics.inc.h
 TailRecursionElimination.o: Intrinsics.inc.h
 TailRecursionElimination.po: Intrinsics.inc.h
 .endif

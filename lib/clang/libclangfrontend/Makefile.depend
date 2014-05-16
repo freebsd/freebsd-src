@@ -3,12 +3,12 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -23,17 +23,11 @@ ASTConsumers.po: CommentCommandList.inc.h
 ASTConsumers.po: DeclNodes.inc.h
 ASTConsumers.po: DiagnosticCommonKinds.inc.h
 ASTConsumers.po: StmtNodes.inc.h
-ASTMerge.o: AttrList.inc.h
-ASTMerge.o: AttrParsedAttrList.inc.h
-ASTMerge.o: Attrs.inc.h
 ASTMerge.o: CommentCommandList.inc.h
 ASTMerge.o: DeclNodes.inc.h
 ASTMerge.o: DiagnosticASTKinds.inc.h
 ASTMerge.o: DiagnosticCommonKinds.inc.h
 ASTMerge.o: StmtNodes.inc.h
-ASTMerge.po: AttrList.inc.h
-ASTMerge.po: AttrParsedAttrList.inc.h
-ASTMerge.po: Attrs.inc.h
 ASTMerge.po: CommentCommandList.inc.h
 ASTMerge.po: DeclNodes.inc.h
 ASTMerge.po: DiagnosticASTKinds.inc.h
@@ -59,16 +53,12 @@ CacheTokens.o: DiagnosticCommonKinds.inc.h
 CacheTokens.po: DiagnosticCommonKinds.inc.h
 ChainedDiagnosticConsumer.o: DiagnosticCommonKinds.inc.h
 ChainedDiagnosticConsumer.po: DiagnosticCommonKinds.inc.h
-ChainedIncludesSource.o: AttrList.inc.h
 ChainedIncludesSource.o: AttrParsedAttrList.inc.h
-ChainedIncludesSource.o: Attrs.inc.h
 ChainedIncludesSource.o: CommentCommandList.inc.h
 ChainedIncludesSource.o: DeclNodes.inc.h
 ChainedIncludesSource.o: DiagnosticCommonKinds.inc.h
 ChainedIncludesSource.o: StmtNodes.inc.h
-ChainedIncludesSource.po: AttrList.inc.h
 ChainedIncludesSource.po: AttrParsedAttrList.inc.h
-ChainedIncludesSource.po: Attrs.inc.h
 ChainedIncludesSource.po: CommentCommandList.inc.h
 ChainedIncludesSource.po: DeclNodes.inc.h
 ChainedIncludesSource.po: DiagnosticCommonKinds.inc.h
@@ -89,14 +79,18 @@ CompilerInstance.po: DeclNodes.inc.h
 CompilerInstance.po: DiagnosticCommonKinds.inc.h
 CompilerInstance.po: DiagnosticFrontendKinds.inc.h
 CompilerInstance.po: StmtNodes.inc.h
+CompilerInvocation.o: AttrParsedAttrList.inc.h
 CompilerInvocation.o: DeclNodes.inc.h
 CompilerInvocation.o: DiagnosticCommonKinds.inc.h
 CompilerInvocation.o: DiagnosticDriverKinds.inc.h
 CompilerInvocation.o: Options.inc.h
+CompilerInvocation.o: StmtNodes.inc.h
+CompilerInvocation.po: AttrParsedAttrList.inc.h
 CompilerInvocation.po: DeclNodes.inc.h
 CompilerInvocation.po: DiagnosticCommonKinds.inc.h
 CompilerInvocation.po: DiagnosticDriverKinds.inc.h
 CompilerInvocation.po: Options.inc.h
+CompilerInvocation.po: StmtNodes.inc.h
 CreateInvocationFromCommandLine.o: DiagnosticCommonKinds.inc.h
 CreateInvocationFromCommandLine.o: DiagnosticFrontendKinds.inc.h
 CreateInvocationFromCommandLine.o: Options.inc.h
@@ -115,17 +109,13 @@ DependencyGraph.po: DiagnosticCommonKinds.inc.h
 DependencyGraph.po: DiagnosticFrontendKinds.inc.h
 DiagnosticRenderer.o: DiagnosticCommonKinds.inc.h
 DiagnosticRenderer.po: DiagnosticCommonKinds.inc.h
-FrontendAction.o: AttrList.inc.h
 FrontendAction.o: AttrParsedAttrList.inc.h
-FrontendAction.o: Attrs.inc.h
 FrontendAction.o: CommentCommandList.inc.h
 FrontendAction.o: DeclNodes.inc.h
 FrontendAction.o: DiagnosticCommonKinds.inc.h
 FrontendAction.o: DiagnosticFrontendKinds.inc.h
 FrontendAction.o: StmtNodes.inc.h
-FrontendAction.po: AttrList.inc.h
 FrontendAction.po: AttrParsedAttrList.inc.h
-FrontendAction.po: Attrs.inc.h
 FrontendAction.po: CommentCommandList.inc.h
 FrontendAction.po: DeclNodes.inc.h
 FrontendAction.po: DiagnosticCommonKinds.inc.h
@@ -153,12 +143,16 @@ HeaderIncludeGen.po: DiagnosticCommonKinds.inc.h
 HeaderIncludeGen.po: DiagnosticFrontendKinds.inc.h
 InitHeaderSearch.o: DiagnosticCommonKinds.inc.h
 InitHeaderSearch.po: DiagnosticCommonKinds.inc.h
+InitPreprocessor.o: AttrParsedAttrList.inc.h
 InitPreprocessor.o: DeclNodes.inc.h
 InitPreprocessor.o: DiagnosticCommonKinds.inc.h
 InitPreprocessor.o: DiagnosticFrontendKinds.inc.h
+InitPreprocessor.o: StmtNodes.inc.h
+InitPreprocessor.po: AttrParsedAttrList.inc.h
 InitPreprocessor.po: DeclNodes.inc.h
 InitPreprocessor.po: DiagnosticCommonKinds.inc.h
 InitPreprocessor.po: DiagnosticFrontendKinds.inc.h
+InitPreprocessor.po: StmtNodes.inc.h
 LayoutOverrideSource.o: DeclNodes.inc.h
 LayoutOverrideSource.o: DiagnosticCommonKinds.inc.h
 LayoutOverrideSource.po: DeclNodes.inc.h

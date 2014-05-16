@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libbluetooth \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libsdp \
 	lib/libusbhid \

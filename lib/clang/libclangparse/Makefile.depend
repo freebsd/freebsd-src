@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -45,19 +44,21 @@ ParseCXXInlineMethods.po: DeclNodes.inc.h
 ParseCXXInlineMethods.po: DiagnosticCommonKinds.inc.h
 ParseCXXInlineMethods.po: DiagnosticParseKinds.inc.h
 ParseCXXInlineMethods.po: StmtNodes.inc.h
-ParseDecl.o: AttrExprArgs.inc.h
+ParseDecl.o: AttrIdentifierArg.inc.h
 ParseDecl.o: AttrLateParsed.inc.h
 ParseDecl.o: AttrList.inc.h
 ParseDecl.o: AttrParsedAttrList.inc.h
+ParseDecl.o: AttrTypeArg.inc.h
 ParseDecl.o: Attrs.inc.h
 ParseDecl.o: DeclNodes.inc.h
 ParseDecl.o: DiagnosticCommonKinds.inc.h
 ParseDecl.o: DiagnosticParseKinds.inc.h
 ParseDecl.o: StmtNodes.inc.h
-ParseDecl.po: AttrExprArgs.inc.h
+ParseDecl.po: AttrIdentifierArg.inc.h
 ParseDecl.po: AttrLateParsed.inc.h
 ParseDecl.po: AttrList.inc.h
 ParseDecl.po: AttrParsedAttrList.inc.h
+ParseDecl.po: AttrTypeArg.inc.h
 ParseDecl.po: Attrs.inc.h
 ParseDecl.po: DeclNodes.inc.h
 ParseDecl.po: DiagnosticCommonKinds.inc.h

@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -57,10 +56,12 @@ ASTReaderDecl.po: DeclNodes.inc.h
 ASTReaderDecl.po: DiagnosticCommonKinds.inc.h
 ASTReaderDecl.po: DiagnosticSemaKinds.inc.h
 ASTReaderDecl.po: StmtNodes.inc.h
+ASTReaderStmt.o: AttrParsedAttrList.inc.h
 ASTReaderStmt.o: CommentCommandList.inc.h
 ASTReaderStmt.o: DeclNodes.inc.h
 ASTReaderStmt.o: DiagnosticCommonKinds.inc.h
 ASTReaderStmt.o: StmtNodes.inc.h
+ASTReaderStmt.po: AttrParsedAttrList.inc.h
 ASTReaderStmt.po: CommentCommandList.inc.h
 ASTReaderStmt.po: DeclNodes.inc.h
 ASTReaderStmt.po: DiagnosticCommonKinds.inc.h
@@ -81,10 +82,12 @@ ASTWriter.po: CommentCommandList.inc.h
 ASTWriter.po: DeclNodes.inc.h
 ASTWriter.po: DiagnosticCommonKinds.inc.h
 ASTWriter.po: StmtNodes.inc.h
+ASTWriterDecl.o: AttrParsedAttrList.inc.h
 ASTWriterDecl.o: CommentCommandList.inc.h
 ASTWriterDecl.o: DeclNodes.inc.h
 ASTWriterDecl.o: DiagnosticCommonKinds.inc.h
 ASTWriterDecl.o: StmtNodes.inc.h
+ASTWriterDecl.po: AttrParsedAttrList.inc.h
 ASTWriterDecl.po: CommentCommandList.inc.h
 ASTWriterDecl.po: DeclNodes.inc.h
 ASTWriterDecl.po: DiagnosticCommonKinds.inc.h

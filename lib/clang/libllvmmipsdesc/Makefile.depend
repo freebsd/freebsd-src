@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -21,20 +20,12 @@ MipsAsmBackend.o: MipsGenSubtargetInfo.inc.h
 MipsAsmBackend.po: MipsGenInstrInfo.inc.h
 MipsAsmBackend.po: MipsGenRegisterInfo.inc.h
 MipsAsmBackend.po: MipsGenSubtargetInfo.inc.h
-MipsDirectObjLower.o: MipsGenInstrInfo.inc.h
-MipsDirectObjLower.o: MipsGenRegisterInfo.inc.h
-MipsDirectObjLower.o: MipsGenSubtargetInfo.inc.h
-MipsDirectObjLower.po: MipsGenInstrInfo.inc.h
-MipsDirectObjLower.po: MipsGenRegisterInfo.inc.h
-MipsDirectObjLower.po: MipsGenSubtargetInfo.inc.h
 MipsELFObjectWriter.o: MipsGenInstrInfo.inc.h
 MipsELFObjectWriter.o: MipsGenRegisterInfo.inc.h
 MipsELFObjectWriter.o: MipsGenSubtargetInfo.inc.h
 MipsELFObjectWriter.po: MipsGenInstrInfo.inc.h
 MipsELFObjectWriter.po: MipsGenRegisterInfo.inc.h
 MipsELFObjectWriter.po: MipsGenSubtargetInfo.inc.h
-MipsELFStreamer.o: MipsGenSubtargetInfo.inc.h
-MipsELFStreamer.po: MipsGenSubtargetInfo.inc.h
 MipsMCCodeEmitter.o: MipsGenInstrInfo.inc.h
 MipsMCCodeEmitter.o: MipsGenMCCodeEmitter.inc.h
 MipsMCCodeEmitter.o: MipsGenRegisterInfo.inc.h

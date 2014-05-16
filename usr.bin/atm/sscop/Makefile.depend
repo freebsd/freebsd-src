@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libbegemot \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libnetgraph \
 	lib/libngatm \

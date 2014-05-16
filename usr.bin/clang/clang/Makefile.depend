@@ -3,8 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
+	gnu/lib/csu \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
@@ -81,9 +80,12 @@ DIRDEPS = \
 	lib/clang/libllvmx86instprinter \
 	lib/clang/libllvmx86utils \
 	lib/libc \
+	lib/libc++ \
 	lib/libcompiler_rt \
 	lib/msun \
+	lib/ncurses/ncurses \
 	usr.bin/clang/clang-tblgen.host \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>

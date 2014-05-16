@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -21,6 +20,4 @@ LoopVectorize.o: Intrinsics.inc.h
 LoopVectorize.po: Intrinsics.inc.h
 SLPVectorizer.o: Intrinsics.inc.h
 SLPVectorizer.po: Intrinsics.inc.h
-VecUtils.o: Intrinsics.inc.h
-VecUtils.po: Intrinsics.inc.h
 .endif

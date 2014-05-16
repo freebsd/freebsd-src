@@ -5,6 +5,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DIRDEPS = \
 	include \
 	include/xlocale \
+	lib/clang/include \
 	lib/libkvm \
 	lib/msun \
 

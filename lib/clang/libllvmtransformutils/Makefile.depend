@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -23,6 +22,8 @@ CloneFunction.o: Intrinsics.inc.h
 CloneFunction.po: Intrinsics.inc.h
 CodeExtractor.o: Intrinsics.inc.h
 CodeExtractor.po: Intrinsics.inc.h
+GlobalStatus.o: Intrinsics.inc.h
+GlobalStatus.po: Intrinsics.inc.h
 InlineFunction.o: Intrinsics.inc.h
 InlineFunction.po: Intrinsics.inc.h
 IntegerDivision.o: Intrinsics.inc.h

@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -47,6 +46,12 @@ ARMMCTargetDesc.o: ARMGenSubtargetInfo.inc.h
 ARMMCTargetDesc.po: ARMGenInstrInfo.inc.h
 ARMMCTargetDesc.po: ARMGenRegisterInfo.inc.h
 ARMMCTargetDesc.po: ARMGenSubtargetInfo.inc.h
+ARMMachORelocationInfo.o: ARMGenInstrInfo.inc.h
+ARMMachORelocationInfo.o: ARMGenRegisterInfo.inc.h
+ARMMachORelocationInfo.o: ARMGenSubtargetInfo.inc.h
+ARMMachORelocationInfo.po: ARMGenInstrInfo.inc.h
+ARMMachORelocationInfo.po: ARMGenRegisterInfo.inc.h
+ARMMachORelocationInfo.po: ARMGenSubtargetInfo.inc.h
 ARMMachObjectWriter.o: ARMGenInstrInfo.inc.h
 ARMMachObjectWriter.o: ARMGenRegisterInfo.inc.h
 ARMMachObjectWriter.o: ARMGenSubtargetInfo.inc.h

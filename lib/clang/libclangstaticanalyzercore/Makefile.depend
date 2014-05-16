@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -283,10 +282,4 @@ SymbolManager.po: CommentCommandList.inc.h
 SymbolManager.po: DeclNodes.inc.h
 SymbolManager.po: DiagnosticCommonKinds.inc.h
 SymbolManager.po: StmtNodes.inc.h
-TextPathDiagnostics.o: DeclNodes.inc.h
-TextPathDiagnostics.o: DiagnosticCommonKinds.inc.h
-TextPathDiagnostics.o: StmtNodes.inc.h
-TextPathDiagnostics.po: DeclNodes.inc.h
-TextPathDiagnostics.po: DiagnosticCommonKinds.inc.h
-TextPathDiagnostics.po: StmtNodes.inc.h
 .endif

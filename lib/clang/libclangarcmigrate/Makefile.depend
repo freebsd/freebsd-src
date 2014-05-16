@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -15,18 +14,14 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ARCMT.o: AttrList.inc.h
 ARCMT.o: AttrParsedAttrList.inc.h
-ARCMT.o: Attrs.inc.h
 ARCMT.o: CommentCommandList.inc.h
 ARCMT.o: DeclNodes.inc.h
 ARCMT.o: DiagnosticCommonKinds.inc.h
 ARCMT.o: DiagnosticGroups.inc.h
 ARCMT.o: DiagnosticSemaKinds.inc.h
 ARCMT.o: StmtNodes.inc.h
-ARCMT.po: AttrList.inc.h
 ARCMT.po: AttrParsedAttrList.inc.h
-ARCMT.po: Attrs.inc.h
 ARCMT.po: CommentCommandList.inc.h
 ARCMT.po: DeclNodes.inc.h
 ARCMT.po: DiagnosticCommonKinds.inc.h
@@ -37,10 +32,14 @@ ARCMTActions.o: DiagnosticCommonKinds.inc.h
 ARCMTActions.po: DiagnosticCommonKinds.inc.h
 FileRemapper.o: DiagnosticCommonKinds.inc.h
 FileRemapper.po: DiagnosticCommonKinds.inc.h
+ObjCMT.o: AttrList.inc.h
+ObjCMT.o: Attrs.inc.h
 ObjCMT.o: CommentCommandList.inc.h
 ObjCMT.o: DeclNodes.inc.h
 ObjCMT.o: DiagnosticCommonKinds.inc.h
 ObjCMT.o: StmtNodes.inc.h
+ObjCMT.po: AttrList.inc.h
+ObjCMT.po: Attrs.inc.h
 ObjCMT.po: CommentCommandList.inc.h
 ObjCMT.po: DeclNodes.inc.h
 ObjCMT.po: DiagnosticCommonKinds.inc.h

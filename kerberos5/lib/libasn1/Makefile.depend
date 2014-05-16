@@ -11,9 +11,9 @@ DIRDEPS = \
 	kerberos5/lib/libroken \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcom_err \
 	lib/libcompiler_rt \
+	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

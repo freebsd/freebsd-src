@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 	usr.bin/clang/tblgen.host \
@@ -377,6 +376,7 @@ CGStmt.o: Attrs.inc.h
 CGStmt.o: CommentCommandList.inc.h
 CGStmt.o: DeclNodes.inc.h
 CGStmt.o: DiagnosticCommonKinds.inc.h
+CGStmt.o: DiagnosticSemaKinds.inc.h
 CGStmt.o: Intrinsics.inc.h
 CGStmt.o: StmtNodes.inc.h
 CGStmt.po: AttrList.inc.h
@@ -384,6 +384,7 @@ CGStmt.po: Attrs.inc.h
 CGStmt.po: CommentCommandList.inc.h
 CGStmt.po: DeclNodes.inc.h
 CGStmt.po: DiagnosticCommonKinds.inc.h
+CGStmt.po: DiagnosticSemaKinds.inc.h
 CGStmt.po: Intrinsics.inc.h
 CGStmt.po: StmtNodes.inc.h
 CGVTT.o: AttrList.inc.h
@@ -410,6 +411,18 @@ CGVTables.po: CommentCommandList.inc.h
 CGVTables.po: DeclNodes.inc.h
 CGVTables.po: DiagnosticCommonKinds.inc.h
 CGVTables.po: StmtNodes.inc.h
+CodeGenABITypes.o: AttrList.inc.h
+CodeGenABITypes.o: Attrs.inc.h
+CodeGenABITypes.o: CommentCommandList.inc.h
+CodeGenABITypes.o: DeclNodes.inc.h
+CodeGenABITypes.o: DiagnosticCommonKinds.inc.h
+CodeGenABITypes.o: StmtNodes.inc.h
+CodeGenABITypes.po: AttrList.inc.h
+CodeGenABITypes.po: Attrs.inc.h
+CodeGenABITypes.po: CommentCommandList.inc.h
+CodeGenABITypes.po: DeclNodes.inc.h
+CodeGenABITypes.po: DiagnosticCommonKinds.inc.h
+CodeGenABITypes.po: StmtNodes.inc.h
 CodeGenAction.o: CommentCommandList.inc.h
 CodeGenAction.o: DeclNodes.inc.h
 CodeGenAction.o: DiagnosticCommonKinds.inc.h
@@ -439,6 +452,7 @@ CodeGenModule.o: Attrs.inc.h
 CodeGenModule.o: CommentCommandList.inc.h
 CodeGenModule.o: DeclNodes.inc.h
 CodeGenModule.o: DiagnosticCommonKinds.inc.h
+CodeGenModule.o: DiagnosticSemaKinds.inc.h
 CodeGenModule.o: Intrinsics.inc.h
 CodeGenModule.o: StmtNodes.inc.h
 CodeGenModule.po: AttrList.inc.h
@@ -446,6 +460,7 @@ CodeGenModule.po: Attrs.inc.h
 CodeGenModule.po: CommentCommandList.inc.h
 CodeGenModule.po: DeclNodes.inc.h
 CodeGenModule.po: DiagnosticCommonKinds.inc.h
+CodeGenModule.po: DiagnosticSemaKinds.inc.h
 CodeGenModule.po: Intrinsics.inc.h
 CodeGenModule.po: StmtNodes.inc.h
 CodeGenTBAA.o: AttrList.inc.h
@@ -498,6 +513,18 @@ MicrosoftCXXABI.po: CommentCommandList.inc.h
 MicrosoftCXXABI.po: DeclNodes.inc.h
 MicrosoftCXXABI.po: DiagnosticCommonKinds.inc.h
 MicrosoftCXXABI.po: StmtNodes.inc.h
+MicrosoftVBTables.o: AttrList.inc.h
+MicrosoftVBTables.o: Attrs.inc.h
+MicrosoftVBTables.o: CommentCommandList.inc.h
+MicrosoftVBTables.o: DeclNodes.inc.h
+MicrosoftVBTables.o: DiagnosticCommonKinds.inc.h
+MicrosoftVBTables.o: StmtNodes.inc.h
+MicrosoftVBTables.po: AttrList.inc.h
+MicrosoftVBTables.po: Attrs.inc.h
+MicrosoftVBTables.po: CommentCommandList.inc.h
+MicrosoftVBTables.po: DeclNodes.inc.h
+MicrosoftVBTables.po: DiagnosticCommonKinds.inc.h
+MicrosoftVBTables.po: StmtNodes.inc.h
 ModuleBuilder.o: AttrList.inc.h
 ModuleBuilder.o: Attrs.inc.h
 ModuleBuilder.o: CommentCommandList.inc.h

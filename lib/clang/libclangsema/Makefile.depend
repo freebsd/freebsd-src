@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -31,6 +30,7 @@ AnalysisBasedWarnings.po: DeclNodes.inc.h
 AnalysisBasedWarnings.po: DiagnosticCommonKinds.inc.h
 AnalysisBasedWarnings.po: DiagnosticSemaKinds.inc.h
 AnalysisBasedWarnings.po: StmtNodes.inc.h
+AttributeList.o: AttrParsedAttrImpl.inc.h
 AttributeList.o: AttrParsedAttrKinds.inc.h
 AttributeList.o: AttrParsedAttrList.inc.h
 AttributeList.o: AttrSpellingListIndex.inc.h
@@ -38,6 +38,7 @@ AttributeList.o: CommentCommandList.inc.h
 AttributeList.o: DeclNodes.inc.h
 AttributeList.o: DiagnosticCommonKinds.inc.h
 AttributeList.o: StmtNodes.inc.h
+AttributeList.po: AttrParsedAttrImpl.inc.h
 AttributeList.po: AttrParsedAttrKinds.inc.h
 AttributeList.po: AttrParsedAttrList.inc.h
 AttributeList.po: AttrSpellingListIndex.inc.h
@@ -683,4 +684,12 @@ TargetAttributesSema.po: DeclNodes.inc.h
 TargetAttributesSema.po: DiagnosticCommonKinds.inc.h
 TargetAttributesSema.po: DiagnosticSemaKinds.inc.h
 TargetAttributesSema.po: StmtNodes.inc.h
+TypeLocBuilder.o: CommentCommandList.inc.h
+TypeLocBuilder.o: DeclNodes.inc.h
+TypeLocBuilder.o: DiagnosticCommonKinds.inc.h
+TypeLocBuilder.o: StmtNodes.inc.h
+TypeLocBuilder.po: CommentCommandList.inc.h
+TypeLocBuilder.po: DeclNodes.inc.h
+TypeLocBuilder.po: DiagnosticCommonKinds.inc.h
+TypeLocBuilder.po: StmtNodes.inc.h
 .endif

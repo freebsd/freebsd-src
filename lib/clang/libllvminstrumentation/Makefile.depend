@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/tblgen.host \
 
@@ -19,6 +18,10 @@ AddressSanitizer.o: Intrinsics.inc.h
 AddressSanitizer.po: Intrinsics.inc.h
 BoundsChecking.o: Intrinsics.inc.h
 BoundsChecking.po: Intrinsics.inc.h
+DataFlowSanitizer.o: Intrinsics.inc.h
+DataFlowSanitizer.po: Intrinsics.inc.h
+DebugIR.o: Intrinsics.inc.h
+DebugIR.po: Intrinsics.inc.h
 MemorySanitizer.o: Intrinsics.inc.h
 MemorySanitizer.po: Intrinsics.inc.h
 ThreadSanitizer.o: Intrinsics.inc.h

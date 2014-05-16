@@ -3,10 +3,9 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	gnu/lib/libstdc++ \
-	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
@@ -59,6 +58,18 @@ CocoaConventions.o: DeclNodes.inc.h
 CocoaConventions.o: DiagnosticCommonKinds.inc.h
 CocoaConventions.po: DeclNodes.inc.h
 CocoaConventions.po: DiagnosticCommonKinds.inc.h
+Consumed.o: AttrList.inc.h
+Consumed.o: Attrs.inc.h
+Consumed.o: CommentCommandList.inc.h
+Consumed.o: DeclNodes.inc.h
+Consumed.o: DiagnosticCommonKinds.inc.h
+Consumed.o: StmtNodes.inc.h
+Consumed.po: AttrList.inc.h
+Consumed.po: Attrs.inc.h
+Consumed.po: CommentCommandList.inc.h
+Consumed.po: DeclNodes.inc.h
+Consumed.po: DiagnosticCommonKinds.inc.h
+Consumed.po: StmtNodes.inc.h
 Dominators.o: DeclNodes.inc.h
 Dominators.o: DiagnosticCommonKinds.inc.h
 Dominators.o: StmtNodes.inc.h
