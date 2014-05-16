@@ -742,28 +742,26 @@ sys_sigreturn(td, uap)
 		const struct __ucontext *sigcntxp;
 	} */ *uap;
 {
-	struct sigframe sf;
-	struct trapframe *tf;
+	ucontext_t uc;
 	int spsr;
 	
 	if (uap == NULL)
 		return (EFAULT);
-	if (copyin(uap->sigcntxp, &sf, sizeof(sf)))
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 	/*
 	 * Make sure the processor mode has not been tampered with and
 	 * interrupts have not been disabled.
 	 */
-	spsr = sf.sf_uc.uc_mcontext.__gregs[_REG_CPSR];
+	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
 	    (spsr & (I32_bit | F32_bit)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
-	tf = td->td_frame;
-	set_mcontext(td, &sf.sf_uc.uc_mcontext);
+	set_mcontext(td, &uc.uc_mcontext);
 
 	/* Restore signal mask. */
-	kern_sigprocmask(td, SIG_SETMASK, &sf.sf_uc.uc_sigmask, NULL, 0);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }

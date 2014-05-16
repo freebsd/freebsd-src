@@ -557,6 +557,7 @@ END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+	add	r0, r0, #SIGF_UC
 
 	/*
 	 * Call the sigreturn system call.
