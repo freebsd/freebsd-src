@@ -910,7 +910,6 @@ axge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 {
-	struct axge_softc *sc;
 	struct axge_csum_hdr csum_hdr;
 	int error, len, pos;
 	int pkt_cnt;
@@ -918,7 +917,6 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	uint16_t hdr_off;
 	uint16_t pktlen;
 
-	sc = uether_getsc(ue);
 	pos = 0;
 	len = 0;
 	error = 0;
