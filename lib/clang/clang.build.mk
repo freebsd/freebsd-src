@@ -40,9 +40,18 @@ CXXFLAGS+=	-fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
+.if ${MACHINE} == "host" && defined(EARLY_BUILD)
+.if !empty(LEGACY_TOOLS) && exists(${LEGACY_TOOLS}/usr/bin/tblgen)
+TOOLSDIR= ${LEGACY_TOOLS}
+.endif
+.endif
 .if ${MK_STAGING} == "yes"
-TBLGEN= ${STAGE_HOST_OBJTOP}/usr/bin/tblgen
-CLANG_TBLGEN= ${STAGE_HOST_OBJTOP}/usr/bin/clang-tblgen
+TOOLSDIR?= ${STAGE_HOST_OBJTOP}
+.endif
+TOOLSDIR?=
+.if !empty(TOOLSDIR)
+TBLGEN= ${TOOLSDIR}/usr/bin/tblgen
+CLANG_TBLGEN= ${TOOLSDIR}/usr/bin/clang-tblgen
 .endif
 TBLGEN?=	tblgen
 CLANG_TBLGEN?=	clang-tblgen
