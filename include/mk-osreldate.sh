@@ -49,4 +49,4 @@ $COPYRIGHT
 #endif
 EOF
 chmod 644 $tmpfile
-mv $tmpfile osreldate.h
+mv -f $tmpfile osreldate.h
