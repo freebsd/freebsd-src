@@ -49,7 +49,7 @@ TOOLSDIR= ${LEGACY_TOOLS}
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
 TOOLSDIR?=
-.if !empty(TOOLSDIR)
+.if !empty(TOOLSDIR) && exists(${TOOLSDIR}/usr/bin/clang-tblgen)
 TBLGEN= ${TOOLSDIR}/usr/bin/tblgen
 CLANG_TBLGEN= ${TOOLSDIR}/usr/bin/clang-tblgen
 .endif
