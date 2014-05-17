@@ -81,4 +81,4 @@ loop:
 return:
 	jr	ra
 	nop
-END(cheri_bcopy)
+END(cheri_memcpy)
