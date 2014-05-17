@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/physmem.h>
+#include <machine/platform.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
@@ -1091,7 +1092,7 @@ initarm(struct arm_boot_params *abp)
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/* Platform-specific initialisation */
-	initarm_early_init();
+	platform_probe_and_attach();
 
 	pcpu0_init();
 
@@ -1207,9 +1208,9 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Establish static device mappings. */
-	err_devmap = initarm_devmap_init();
+	err_devmap = platform_devmap_init();
 	arm_devmap_bootstrap(l1pagetable, NULL);
-	vm_max_kernel_address = initarm_lastaddr();
+	vm_max_kernel_address = platform_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
@@ -1229,7 +1230,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	initarm_gpio_init();
+	platform_gpio_init();
 
 	cninit();
 
@@ -1247,7 +1248,7 @@ initarm(struct arm_boot_params *abp)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
 
-	initarm_late_init();
+	platform_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
