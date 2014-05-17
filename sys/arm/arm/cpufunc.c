@@ -754,14 +754,18 @@ struct cpu_functions cortexa_cpufuncs = {
 	cpufunc_faultstatus,            /* Faultstatus          */
 	cpufunc_faultaddress,           /* Faultaddress         */
 	
-	/* TLB functions */
+	/* 
+	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
+	 * whether the hardware implements separate I+D or not, so we use the
+	 * same 'ID' functions for all 3 variations.
+	 */
 	
 	armv7_tlb_flushID,              /* tlb_flushID          */
 	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
-	arm11_tlb_flushI,               /* tlb_flushI           */
-	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
-	arm11_tlb_flushD,               /* tlb_flushD           */
-	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
+	armv7_tlb_flushID,              /* tlb_flushI           */
+	armv7_tlb_flushID_SE,           /* tlb_flushI_SE        */
+	armv7_tlb_flushID,              /* tlb_flushD           */
+	armv7_tlb_flushID_SE,           /* tlb_flushD_SE        */
 	
 	/* Cache operations */
 	

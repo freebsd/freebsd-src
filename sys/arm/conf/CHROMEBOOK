@@ -1,4 +1,4 @@
-# Kernel configuration for Arndale Board (Exynos5 Dual development platform).
+# Kernel configuration for Samsung Chromebook (Exynos5 Dual machine).
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-ident		ARNDALE
+ident		CHROMEBOOK
 
 include		"../samsung/exynos/std.exynos5"
 
@@ -118,6 +118,13 @@ device		pass
 # Serial ports
 device		uart
 
+# Framebuffer
+device		vt
+device		kbdmux
+options 	SC_DFLT_FONT		# compile font in
+makeoptions	SC_DFLT_FONT=cp437
+device		ukbd
+
 # I2C (TWSI)
 #device		iic
 #device		iicbus
@@ -136,4 +143,4 @@ device		bpf			# Berkeley packet filter
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=exynos5250-arndale.dts
+makeoptions	FDT_DTS_FILE=exynos5250-chromebook.dts
