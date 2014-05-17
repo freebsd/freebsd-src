@@ -1988,8 +1988,6 @@ pmap_release(pmap_t pmap)
 {
 	struct pcb *pcb;
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 	cpu_tlb_flushID();
 	cpu_cpwait();
 	if (vector_page < KERNBASE) {
@@ -2175,14 +2173,6 @@ pmap_growkernel(vm_offset_t addr)
 	for (; pmap_curmaxkvaddr < addr; pmap_curmaxkvaddr += L1_S_SIZE)
 		pmap_grow_l2_bucket(kpmap, pmap_curmaxkvaddr);
 
-	/*
-	 * flush out the cache, expensive but growkernel will happen so
-	 * rarely
-	 */
-	cpu_dcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
-	cpu_tlb_flushD();
-	cpu_cpwait();
 	kernel_vm_end = pmap_curmaxkvaddr;
 }
 
