@@ -286,6 +286,12 @@
 	providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
 	controllers.</para>
 
+      <para revision="266167">A kernel bug that inhibited proper
+	functionality of the <literal>dev.cpu.0.freq</literal>
+	&man.sysctl.8; on &intel; processors with Turbo
+	Boost&nbsp;&trade; enabled has been fixed.</para>
+
+
       <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
 
