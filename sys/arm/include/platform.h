@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,74 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "opt_ddb.h"
-#include "opt_platform.h"
+#ifndef	_MACHINE_PLATFORM_H_
+#define	_MACHINE_PLATFORM_H_
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+void platform_probe_and_attach(void);
+int platform_devmap_init(void);
+vm_offset_t platform_lastaddr(void);
+void platform_gpio_init(void);
+void platform_late_init(void);
 
-#define	_ARM32_BUS_DMA_PRIVATE
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-
-#include <vm/vm.h>
-
-#include <machine/armreg.h>
-#include <machine/bus.h>
-#include <machine/devmap.h>
-#include <machine/machdep.h>
-#include <machine/platform.h> 
-
-#include <dev/fdt/fdt_common.h>
-
-vm_offset_t
-platform_lastaddr(void)
-{
-
-	return (arm_devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
-}
-
-int
-platform_devmap_init(void)
-{
-
-	/* UART */
-	arm_devmap_add_entry(0x12C00000, 0x100000);
-
-	return (0);
-}
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
+#endif	/* _MACHINE_PLATFORM_H_ */

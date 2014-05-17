@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/devmap.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -201,14 +202,14 @@ moveon:
 }
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (fdt_immr_va);
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 	if (fdt_immr_addr(MV_BASE) != 0)
@@ -216,7 +217,7 @@ initarm_early_init(void)
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 	/*
@@ -228,7 +229,7 @@ initarm_gpio_init(void)
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 	/*
 	 * Re-initialise decode windows
@@ -297,7 +298,7 @@ out:
  * Supply a default do-nothing implementation of mv_pci_devmap() via a weak
  * alias.  Many Marvell platforms don't support a PCI interface, but to support
  * those that do, we end up with a reference to this function below, in
- * initarm_devmap_init().  If "device pci" appears in the kernel config, the
+ * platform_devmap_init().  If "device pci" appears in the kernel config, the
  * real implementation of this function in arm/mv/mv_pci.c overrides the weak
  * alias defined here.
  */
@@ -321,7 +322,7 @@ __weak_reference(mv_default_fdt_pci_devmap, mv_pci_devmap);
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 	phandle_t root, child;
 	pcell_t bank_count;
