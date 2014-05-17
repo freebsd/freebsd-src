@@ -189,6 +189,7 @@ ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
+ZPOOL_DESTROY='zpool destroy "%s"'
 ZPOOL_EXPORT='zpool export "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
 ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
@@ -286,7 +287,8 @@ dialog_menu_main()
 	local usegeli="$msg_no"
 	[ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ] && force4k="$msg_yes"
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && usegeli="$msg_yes"
-	local disks n=$( set -- $ZFSBOOT_DISKS; echo $# )
+	local disks n
+	f_count n $ZFSBOOT_DISKS
 	{ [ $n -eq 1 ] && disks=disk; } || disks=disks # grammar
 	local menu_list="
 		'>>> $msg_install'        '$msg_install_desc'
@@ -451,8 +453,29 @@ dialog_menu_layout()
 
 	# Get a list of probed disk devices
 	local disks=
-	f_device_find "" $DEVICE_TYPE_DISK disks
-	f_dprintf "$funcname: disks=[%s]" "$disks"
+	debug= f_device_find "" $DEVICE_TYPE_DISK disks
+
+	# Prune out mounted md(4) devices that may be part of the boot process
+	local disk name new_list=
+	for disk in $disks; do
+		debug= $disk get name name
+		case "$name" in
+		md[0-9]*) f_mounted -b "/dev/$name" && continue ;;
+		esac
+		new_list="$new_list $disk"
+	done
+	disks="${new_list# }"
+
+	# Debugging
+	if [ "$debug" ]; then
+		local disk_names=
+		for disk in $disks; do
+			debug= $disk get name name
+			disk_names="$disk_names $name"
+		done
+		f_dprintf "$funcname: disks=[%s]" "${disk_names# }"
+	fi
+
 	if [ ! "$disks" ]; then
 		f_dprintf "No disk(s) present to configure"
 		f_show_err "$msg_no_disks_present_to_configure"
@@ -460,14 +483,15 @@ dialog_menu_layout()
 	fi
 
 	# Lets sort the disks array to be more user friendly
-	disks=$( echo "$disks" | tr ' ' '\n' | sort | tr '\n' ' ' )
+	f_device_sort_by name disks disks
 
 	#
 	# Operate in a loop so we can (if interactive) repeat if not enough
 	# disks are selected to satisfy the chosen vdev type or user wants to
 	# back-up to the previous menu.
 	#
-	local vardisk ndisks onoff selections vdev_choice
+	local vardisk ndisks onoff selections vdev_choice breakout device
+	local valid_disks all_valid want_disks desc height width rows
 	while :; do
 		#
 		# Confirm the vdev type that was selected
@@ -495,7 +519,7 @@ dialog_menu_layout()
 		fi
 
 		# Determine the number of disks needed for this vdev type
-		local want_disks=0
+		want_disks=0
 		case "$ZFSBOOT_VDEV_TYPE" in
 		stripe) want_disks=1 ;;
 		mirror) want_disks=2 ;;
@@ -504,11 +528,14 @@ dialog_menu_layout()
 		raidz3) want_disks=5 ;;
 		esac
 
+		#
 		# Warn the user if any scripted disks are invalid
-		local disk valid_disks=
-		local all_valid=${ZFSBOOT_DISKS:+1} # optimism
+		#
+		valid_disks= all_valid=${ZFSBOOT_DISKS:+1} # optimism
 		for disk in $ZFSBOOT_DISKS; do
-			if f_struct device_$disk; then
+			if debug= f_device_find -1 \
+				$disk $DEVICE_TYPE_DISK device
+			then
 				valid_disks="$valid_disks $disk"
 				continue
 			fi
@@ -532,7 +559,7 @@ dialog_menu_layout()
 		# Short-circuit if we're running non-interactively
 		#
 		if ! f_interactive || [ ! "$ZFSBOOT_CONFIRM_LAYOUT" ]; then
-			ndisks=$( set -- $ZFSBOOT_DISKS; echo $# )
+			f_count ndisks $ZFSBOOT_DISKS
 			[ $ndisks -ge $want_disks ] && break # to success
 
 			# Not enough disks selected
@@ -551,29 +578,35 @@ dialog_menu_layout()
 		# Confirm the disks that were selected
 		# Loop until the user cancels or selects enough disks
 		#
-		local breakout=
+		breakout=
 		while :; do
 			# Loop over list of available disks, resetting state
-			for disk in $disks; do unset _${disk}_status; done
+			for disk in $disks; do
+				f_isset _${disk}_status && _${disk}_status=
+			done
 
 			# Loop over list of selected disks and create temporary
 			# locals to map statuses onto up-to-date list of disks
 			for disk in $ZFSBOOT_DISKS; do
-				local _${disk}_status=on
+				debug= f_device_find -1 \
+					$disk $DEVICE_TYPE_DISK disk
+				f_isset _${disk}_status ||
+					local _${disk}_status
+				_${disk}_status=on
 			done
 
 			# Create the checklist menu of discovered disk devices
 			disk_check_list=
 			for disk in $disks; do
-				local desc=
-				device_$disk get desc desc
+				desc=
+				$disk get name name
+				$disk get desc desc
 				f_shell_escape "$desc" desc
 				f_getvar _${disk}_status:-off onoff
 				disk_check_list="$disk_check_list
-					$disk '$desc' $onoff"
+					$name '$desc' $onoff"
 			done
 
-			local height width rows
 			eval f_dialog_checklist_size height width rows \
 				\"\$title\" \"\$btitle\" \"\$prompt\" \
 				\"\$hline\" $disk_check_list
@@ -597,7 +630,7 @@ dialog_menu_layout()
 			f_dprintf "$funcname: ZFSBOOT_DISKS=[%s]" \
 			          "$ZFSBOOT_DISKS"
 
-			ndisks=$( set -- $ZFSBOOT_DISKS; echo $# )
+			f_count ndisks $ZFSBOOT_DISKS
 			[ $ndisks -ge $want_disks ] &&
 				breakout=break && break
 
@@ -917,6 +950,16 @@ zfs_create_boot()
 	          "$ZFSBOOT_BOOT_POOL_SIZE" "$bootsize"
 
 	#
+	# Destroy the pool in-case this is our second time 'round (case of
+	# failure and installer presented ``Retry'' option to come back).
+	#
+	# NB: If we don't destroy the pool, later gpart(8) destroy commands
+	# that try to clear existing partitions (see zfs_create_diskpart())
+	# will fail with a `Device Busy' error, leading to `GEOM exists'.
+	#
+	f_eval_catch -d $funcname zpool "$ZPOOL_DESTROY" "$zroot_name"
+
+	#
 	# Prepare the disks and build pool device list(s)
 	#
 	f_dprintf "$funcname: Preparing disk partitions for ZFS pool..."
@@ -973,8 +1016,9 @@ zfs_create_boot()
 		             $BSDINSTALL_CHROOT || return $FAILURE
 
 		# Create mirror across the boot partition on all disks
-		[ $( set -- $boot_vdevs; echo $# ) -gt 1 ] &&
-			bootpool_vdevtype=mirror
+		local nvdevs
+		f_count nvdevs $boot_vdevs
+		[ $nvdevs -gt 1 ] && bootpool_vdevtype=mirror
 
 		bootpool_options="-o altroot=$BSDINSTALL_CHROOT"
 		bootpool_options="$bootpool_options -m \"/$bootpool_name\" -f"
@@ -1229,15 +1273,16 @@ zfs_create_boot()
 #
 dialog_menu_diskinfo()
 {
-	local disk
+	local device disk
 
 	#
 	# Break from loop when user cancels disk selection
 	#
 	while :; do
-		disk=$( msg_cancel="$msg_back" f_device_menu \
+		device=$( msg_cancel="$msg_back" f_device_menu \
 			"$DIALOG_TITLE" "$msg_select_a_disk_device" "" \
 			$DEVICE_TYPE_DISK 2>&1 ) || break
+		$device get name disk
 
 		# Show gpart(8) `show' and camcontrol(8) `inquiry' data
 		f_show_msg "$msg_detailed_disk_info" \
@@ -1309,7 +1354,10 @@ while :; do
 			[ "$ZFSBOOT_BOOT_POOL" ] &&
 				minsize=$(( $minsize + $bootsize ))
 			for disk in $ZFSBOOT_DISKS; do
-				device_$disk get capacity disksize || continue
+				debug= f_device_find -1 \
+					$disk $DEVICE_TYPE_DISK device
+				$device get capacity disksize || continue
+				[ ${disksize:-0} -ge 0 ] || disksize=0
 				disksize=$(( $disksize - $minsize ))
 				[ $disksize -lt $minsize ] &&
 					teeny_disks="$teeny_disks $disk"
