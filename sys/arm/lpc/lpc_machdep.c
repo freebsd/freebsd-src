@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/lpc/lpcreg.h>
 #include <arm/lpc/lpcvar.h>
@@ -60,19 +61,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 	/*
@@ -82,7 +83,7 @@ initarm_gpio_init(void)
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 }
 
@@ -92,7 +93,7 @@ initarm_late_init(void)
  * dts file when this code was converted to arm_devmap_add_entry().
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 
 	arm_devmap_add_entry(LPC_DEV_PHYS_BASE, LPC_DEV_SIZE);

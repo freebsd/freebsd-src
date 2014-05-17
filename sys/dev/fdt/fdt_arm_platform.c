@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -24,72 +24,49 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_ddb.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
 
-#include <vm/vm.h>
+#include <arm/include/platform.h>
+#include <arm/include/platformvar.h>
 
-#include <machine/armreg.h>
-#include <machine/bus.h>
-#include <machine/devmap.h>
-#include <machine/machdep.h>
-#include <machine/platform.h> 
-
+#include <dev/ofw/openfirm.h>
 #include <dev/fdt/fdt_common.h>
 
-vm_offset_t
-platform_lastaddr(void)
-{
+#include "platform_if.h"
 
-	return (arm_devmap_lastaddr());
+#define	FDT_PLATFORM(plat)	\
+    ((fdt_platform_def_t *)(plat)->cls->baseclasses[0])
+
+static int
+fdt_platform_probe(platform_t plat)
+{
+	const char *compat;
+	phandle_t root;
+
+	/*
+	 * TODO: Make these KASSERTs, we should only be here if we
+	 * are using the FDT platform magic.
+	 */
+	if (plat->cls == NULL || FDT_PLATFORM(plat) == NULL)
+		return 1;
+
+	/* Is the device is compatible? */
+	root = OF_finddevice("/");
+	compat = FDT_PLATFORM(plat)->fdt_compatible;
+	if (fdt_is_compatible(root, compat) != 0)
+		return 0;
+
+	/* Not compatible, return an error */
+	return 1;
 }
 
-void
-platform_probe_and_attach(void)
-{
+platform_method_t fdt_platform_methods[] = {
+	PLATFORMMETHOD(platform_probe,	fdt_platform_probe),
+	PLATFORMMETHOD_END
+};
 
-}
-
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
-}
-
-int
-platform_devmap_init(void)
-{
-
-	/* UART */
-	arm_devmap_add_entry(0x12C00000, 0x100000);
-
-	return (0);
-}
-
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
