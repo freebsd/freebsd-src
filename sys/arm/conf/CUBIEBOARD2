@@ -138,3 +138,4 @@ options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard2.dts
 
+options		SMP			# Enable multiple cores
