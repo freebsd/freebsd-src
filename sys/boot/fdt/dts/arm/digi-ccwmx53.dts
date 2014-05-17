@@ -45,7 +45,10 @@
 		       0xB0000000 0x10000000>;
 	};
 
-	localbus@18000000 {
+	localbus@10000000 {
+		sata@10000000 {
+			status = "okay";
+		};
 		ipu3@1E000000 {
 			status = "okay";
 		};
@@ -69,13 +72,19 @@
 			timer@53fa0000 {
 				status = "okay";
 			};
-
 			/* UART1, console */
 			console: serial@53fbc000 {
 				status = "okay";
 				clock-frequency = <0>; /* won't load w/o this */
 			};
-
+			serial@53fc0000 {
+				status = "okay";
+				clock-frequency = <0>; /* won't load w/o this */
+			};
+			serial@53ff0000 {
+				status = "okay";
+				clock-frequency = <0>; /* won't load w/o this */
+			};
 			clock@53fd4000 {
 				status = "okay";
 			};
@@ -100,6 +109,14 @@
 			wdog@53f98000 {
 				status = "okay";
 			};
+			i2c@53fec000 {
+				status = "okay";
+				rtc@68 {
+					compatible = "dialog,ds9052";
+					reg = <0x48>;
+					interrupts = <0x1 0x1 0 0>;
+				};
+			};
 		};
 		aips@60000000 {
 			ethernet@63fec000 {
@@ -116,6 +133,9 @@
 				status = "okay";
 			};
 			ide@63fe0000 {
+				status = "okay";
+			};
+			serial@63f90000 {
 				status = "okay";
 			};
 		};
