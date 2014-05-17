@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_MASK	0xf
 #define	GPIO_OUTPUT	1
 #define	GPIO_INPUT	0
-#define	GPX3CON		0x0C60
-#define	GPX3DAT		0x0C64
+#define	GPX3CON		0x0
+#define	GPX3DAT		0x4
 #define	PIN_USB		5
 
 /* PWR control */
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	PHY_POWER_OFF			0
 
 /* SYSREG */
-#define	EXYNOS5_SYSREG_USB2_PHY	0x230
+#define	EXYNOS5_SYSREG_USB2_PHY	0x0
 #define	USB2_MODE_HOST		0x1
 
 /* USB HOST */
