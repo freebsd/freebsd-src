@@ -20,6 +20,9 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	NFSCL			#Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS
 options 	BOOTP
 options 	BOOTP_NFSROOT

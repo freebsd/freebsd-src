@@ -47,6 +47,9 @@ options 	ROOTDEVNAME=\"ufs:da0s1\"
 #options 	NFSCL			#New Network Filesystem Client
 #options 	NFS_ROOT		#NFS usable as root device
 
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	PSEUDOFS		#Pseudo-filesystem framework
 #options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
 options 	KTRACE			#ktrace(1) support

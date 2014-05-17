@@ -53,6 +53,8 @@ options 	DDB			#Enable the kernel debugger
 
 options 	SCHED_ULE		#ULE scheduler
 #options 	SCHED_4BSD		#4BSD scheduler
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 #options 	GEOM_PART_EBR
 #options 	GEOM_PART_EBR_COMPAT
@@ -69,6 +71,7 @@ options 	NFSCL			#New Network Filesystem Client
 #options 	NFSD			#New Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)

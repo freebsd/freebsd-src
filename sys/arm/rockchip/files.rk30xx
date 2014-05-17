@@ -13,7 +13,7 @@ arm/arm/gic.c				standard
 arm/arm/mpcore_timer.c			standard
 
 arm/rockchip/bus_space.c		standard
-arm/rockchip/common.c			standard
+arm/rockchip/rk30xx_common.c		standard
 arm/rockchip/rk30xx_machdep.c		standard
 arm/rockchip/rk30xx_pmu.c		standard
 arm/rockchip/rk30xx_grf.c		standard

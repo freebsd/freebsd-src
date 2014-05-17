@@ -16,6 +16,9 @@ makeoptions	WERROR="-Werror"
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	FFS			#Berkeley Fast Filesystem
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
