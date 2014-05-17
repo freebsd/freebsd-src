@@ -141,7 +141,8 @@ procstat_rusage(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5s ", "PID");
 		if (Hflag)
 			printf("%6s ", "TID");
-		printf("%-16s %-32s %14s\n", "COMM", "TYPE", "VALUE        ");
+		printf("%-16s %-32s %14s\n", "COMM", "RESOURCE",
+		    "VALUE        ");
 	}
 
 	if (!Hflag) {
