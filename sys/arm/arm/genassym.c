@@ -60,7 +60,6 @@ ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
-ASSYM(PCB_UND_SP, offsetof(struct pcb, un_32.pcb32_und_sp));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
 ASSYM(PCB_PL1VEC, offsetof(struct pcb, pcb_pl1vec));
@@ -119,9 +118,7 @@ ASSYM(ARM_RAS_END, ARM_RAS_END);
 
 #ifdef VFP
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
-ASSYM(PCB_VFPCPU, offsetof(struct pcb, pcb_vfpcpu));
 
-ASSYM(PC_VFPCTHREAD, offsetof(struct pcpu, pc_vfpcthread));
 ASSYM(PC_CPU, offsetof(struct pcpu, pc_cpu));
 
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));

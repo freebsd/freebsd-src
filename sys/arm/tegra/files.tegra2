@@ -11,7 +11,7 @@ arm/arm/irq_dispatch.S			standard
 arm/arm/gic.c				standard
 arm/arm/mpcore_timer.c			standard
 
-arm/tegra/common.c			standard
+arm/tegra/tegra2_common.c		standard
 arm/tegra/tegra2_machdep.c		standard
 
 kern/kern_clocksource.c			standard

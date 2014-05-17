@@ -34,12 +34,15 @@ options 	INET6			#IPv6 communications protocols
 options 	SOFTUPDATES
 options 	CD9660			#ISO 9660 filesystem
 options 	FFS			#Berkeley Fast Filesystem
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NULLFS			#NULL filesystem
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
 options 	GEOM_ELI		# Disk encryption.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_PART_GPT		# GPT partitioning
