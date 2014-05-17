@@ -1967,7 +1967,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * charged clipped mapping of the same object later.
 		 */
 		KASSERT(obj->charge == 0,
-		    ("vm_map_protect: object %p overcharged\n", obj));
+		    ("vm_map_protect: object %p overcharged (entry %p)",
+		    obj, current));
 		if (!swap_reserve(ptoa(obj->size))) {
 			VM_OBJECT_UNLOCK(obj);
 			vm_map_unlock(map);
