@@ -3,7 +3,19 @@
 # Part of a unified Makefile for building kernels.  This part contains all
 # of the definitions that need to be before %BEFORE_DEPEND.
 
-.include <src.opts.mk>
+# Allow user to configure things that only effect src tree builds.
+# Note: This is duplicated from src.sys.mk to ensure that we include
+# /etc/src.conf when building the kernel. Kernels can be built without
+# the rest of /usr/src, but they still always process SRCCONF even though
+# the normal mechanisms to prevent that (compiling out of tree) won't
+# work. To ensure they do work, we have to duplicate thee few lines here.
+SRCCONF?=	/etc/src.conf
+.if (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && !target(_srcconf_included_)
+.include "${SRCCONF}"
+_srcconf_included_:
+.endif
+
+.include <bsd.own.mk>
 .include <bsd.compiler.mk>
 .include "kern.opts.mk"
 
