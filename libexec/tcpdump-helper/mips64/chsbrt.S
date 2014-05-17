@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2012-2013 Robert N. M. Watson
+# Copyright (c) 2012-2014 Robert N. M. Watson
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -49,6 +49,7 @@
 #
 #    $c1, $c2 contain the invoked object capability
 #    $c3-$c10 contain user capability arguments
+#    $c11 contains the stack-segment capability -- for now, equal to $c0
 #
 #    $c26 contains the invoked data capability installed by CCall; the
 #      complete segment, which we will install into $c0 to allow MIPS code to
@@ -74,6 +75,7 @@ __ccall_enter:
 	# Set up in-sandbox stack; assume that suitable space for a stack has
 	# been made at the top of the sandbox address space described by IDC.
 	#
+	cmove	$c11, $c26
 	cgetlen	$sp, $c26
 	move	$fp, $sp
 
@@ -126,6 +128,7 @@ abort_target:
 	# especially as the compiler starts using them.
 	#
 	ccleartag	$c0, $c0
+	ccleartag	$c11, $c11
 
 	#
 	# Return to caller.
