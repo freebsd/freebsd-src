@@ -66,15 +66,15 @@ f_index_initialize()
 	f_media_verify || return $FAILURE
 
 	# Does it move when you kick it?
-	f_device_init media || return $FAILURE
+	f_device_init device_media || return $FAILURE
 
 	f_show_info "$msg_attempting_to_fetch_file_from_selected_media" \
 	            "$__path"
-	eval "$__var_to_set"='$( f_device_get media "$__path" )'
+	eval "$__var_to_set"='$( f_device_get device_media "$__path" )'
 	if [ $? -ne $SUCCESS ]; then
 		f_show_msg "$msg_unable_to_get_file_from_selected_media" \
 		           "$__path"
-		f_device_shutdown media
+		f_device_shutdown device_media
 		return $FAILURE
 	fi
 	eval "$__var_to_set"='$( debug= f_getvar "$__var_to_set" | sort )'
