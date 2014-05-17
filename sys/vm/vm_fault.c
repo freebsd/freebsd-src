@@ -1236,38 +1236,48 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 #endif	/* lint */
 
 	upgrade = src_entry == dst_entry;
+	access = prot = dst_entry->protection;
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
 
-	/*
-	 * Create the top-level object for the destination entry. (Doesn't
-	 * actually shadow anything - we copy the pages directly.)
-	 */
-	dst_object = vm_object_allocate(OBJT_DEFAULT,
-	    OFF_TO_IDX(dst_entry->end - dst_entry->start));
+	if (upgrade && (dst_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) {
+		dst_object = src_object;
+		vm_object_reference(dst_object);
+	} else {
+		/*
+		 * Create the top-level object for the destination entry. (Doesn't
+		 * actually shadow anything - we copy the pages directly.)
+		 */
+		dst_object = vm_object_allocate(OBJT_DEFAULT,
+		    OFF_TO_IDX(dst_entry->end - dst_entry->start));
 #if VM_NRESERVLEVEL > 0
-	dst_object->flags |= OBJ_COLORED;
-	dst_object->pg_color = atop(dst_entry->start);
+		dst_object->flags |= OBJ_COLORED;
+		dst_object->pg_color = atop(dst_entry->start);
 #endif
+	}
 
 	VM_OBJECT_WLOCK(dst_object);
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
-	dst_entry->object.vm_object = dst_object;
-	dst_entry->offset = 0;
-	dst_object->charge = dst_entry->end - dst_entry->start;
+	if (src_object != dst_object) {
+		dst_entry->object.vm_object = dst_object;
+		dst_entry->offset = 0;
+		dst_object->charge = dst_entry->end - dst_entry->start;
+	}
 	if (fork_charge != NULL) {
 		KASSERT(dst_entry->cred == NULL,
 		    ("vm_fault_copy_entry: leaked swp charge"));
 		dst_object->cred = curthread->td_ucred;
 		crhold(dst_object->cred);
 		*fork_charge += dst_object->charge;
-	} else {
+	} else if (dst_object->cred == NULL) {
+		KASSERT(dst_entry->cred != NULL, ("no cred for entry %p",
+		    dst_entry));
 		dst_object->cred = dst_entry->cred;
 		dst_entry->cred = NULL;
 	}
-	access = prot = dst_entry->protection;
+
 	/*
 	 * If not an upgrade, then enter the mappings in the pmap as
 	 * read and/or execute accesses.  Otherwise, enter them as
@@ -1293,26 +1303,14 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
 	    vaddr += PAGE_SIZE, dst_pindex++) {
-
-		/*
-		 * Allocate a page in the destination object.
-		 */
-		do {
-			dst_m = vm_page_alloc(dst_object, dst_pindex,
-			    VM_ALLOC_NORMAL);
-			if (dst_m == NULL) {
-				VM_OBJECT_WUNLOCK(dst_object);
-				VM_WAIT;
-				VM_OBJECT_WLOCK(dst_object);
-			}
-		} while (dst_m == NULL);
-
+again:
 		/*
 		 * Find the page in the source object, and copy it in.
 		 * Because the source is wired down, the page will be
 		 * in memory.
 		 */
-		VM_OBJECT_RLOCK(src_object);
+		if (src_object != dst_object)
+			VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
@@ -1332,14 +1330,40 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 
 			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_RUNLOCK(object);
+			if (object != dst_object)
+				VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		KASSERT(src_m != NULL, ("vm_fault_copy_entry: page missing"));
-		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_RUNLOCK(object);
-		dst_m->valid = VM_PAGE_BITS_ALL;
-		dst_m->dirty = VM_PAGE_BITS_ALL;
+
+		if (object != dst_object) {
+			/*
+			 * Allocate a page in the destination object.
+			 */
+			do {
+				dst_m = vm_page_alloc(dst_object,
+				    (src_object == dst_object ? src_pindex :
+				    0) + dst_pindex, VM_ALLOC_NORMAL);
+				if (dst_m == NULL) {
+					VM_OBJECT_WUNLOCK(dst_object);
+					VM_OBJECT_RUNLOCK(object);
+					VM_WAIT;
+					VM_OBJECT_WLOCK(dst_object);
+					goto again;
+				}
+			} while (dst_m == NULL);
+			pmap_copy_page(src_m, dst_m);
+			VM_OBJECT_RUNLOCK(object);
+			dst_m->valid = VM_PAGE_BITS_ALL;
+			dst_m->dirty = VM_PAGE_BITS_ALL;
+		} else {
+			dst_m = src_m;
+			if (vm_page_sleep_if_busy(dst_m, "fltupg"))
+				goto again;
+			vm_page_xbusy(dst_m);
+			KASSERT(dst_m->valid == VM_PAGE_BITS_ALL,
+			    ("invalid dst page %p", dst_m));
+		}
 		VM_OBJECT_WUNLOCK(dst_object);
 
 		/*
@@ -1355,13 +1379,17 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		VM_OBJECT_WLOCK(dst_object);
 		
 		if (upgrade) {
-			vm_page_lock(src_m);
-			vm_page_unwire(src_m, 0);
-			vm_page_unlock(src_m);
-
-			vm_page_lock(dst_m);
-			vm_page_wire(dst_m);
-			vm_page_unlock(dst_m);
+			if (src_m != dst_m) {
+				vm_page_lock(src_m);
+				vm_page_unwire(src_m, 0);
+				vm_page_unlock(src_m);
+				vm_page_lock(dst_m);
+				vm_page_wire(dst_m);
+				vm_page_unlock(dst_m);
+			} else {
+				KASSERT(dst_m->wire_count > 0,
+				    ("dst_m %p is not wired", dst_m));
+			}
 		} else {
 			vm_page_lock(dst_m);
 			vm_page_activate(dst_m);
