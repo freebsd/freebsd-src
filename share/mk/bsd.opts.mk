@@ -427,6 +427,9 @@ CC:=    ${CHERI_CC} -integrated-as
 .if defined(SYSROOT)
 CC+=    --sysroot=${SYSROOT}
 .endif
+.if defined(USE_CHERI_STACK)
+CC+=	-mllvm -cheri-stack-cap
+.endif
 # XXXRW: Needed as Clang rejects -G0 when using $CC to link.
 CFLAGS+=        -Qunused-arguments
 .endif
