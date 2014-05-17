@@ -1055,7 +1055,10 @@ set_cpufuncs()
 	    cputype == CPU_ID_CORTEXA9R1 ||
 	    cputype == CPU_ID_CORTEXA9R2 ||
 	    cputype == CPU_ID_CORTEXA9R3 ||
-	    cputype == CPU_ID_CORTEXA15 ||
+	    cputype == CPU_ID_CORTEXA15R0 ||
+	    cputype == CPU_ID_CORTEXA15R1 ||
+	    cputype == CPU_ID_CORTEXA15R2 ||
+	    cputype == CPU_ID_CORTEXA15R3 ||
 	    cputype == CPU_ID_KRAIT ) {
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */

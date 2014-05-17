@@ -57,6 +57,16 @@
 			#interrupt-cells = <1>;
 		};
 
+		combiner: interrupt-controller@10440000 {
+			compatible = "exynos,combiner";
+			reg = <0x10440000 0x1000>;
+			interrupts = < 32 33 34 35 36 37 38 39
+				       40 41 42 43 44 45 46 47
+				       48 49 50 51 52 53 54 55
+				       56 57 58 59 60 61 62 63 >;
+			interrupt-parent = <&GIC>;
+		};
+
 		clk0: clk@10010000 {
 			compatible = "exynos,clk";
 			reg = < 0x10020000 0x20000 >;
@@ -81,13 +91,23 @@
 			clock-frequency = <24000000>;
 		};
 
+		pad0: pad@11400000 {
+			compatible = "exynos,pad";
+			status = "disabled";
+			reg = <0x11400000 0x1000>, /* gpio left */
+			      <0x13400000 0x1000>, /* gpio right */
+			      <0x10D10000 0x1000>, /* gpio c2c */
+			      <0x03860000 0x1000>;
+			interrupts = < 78 77 82 79 >;
+			interrupt-parent = <&GIC>;
+		};
+
 		usb@12110000 {
 			compatible = "exynos,usb-ehci", "usb-ehci";
 			reg = <0x12110000 0x1000>, /* EHCI */
 			      <0x12130000 0x1000>, /* EHCI host ctrl */
 			      <0x10040000 0x1000>, /* Power */
-			      <0x10050230 0x10>, /* Sysreg */
-			      <0x11400C60 0x10>; /* GPIO left */
+			      <0x10050230 0x10>; /* Sysreg */
 			interrupts = < 103 >;
 			interrupt-parent = <&GIC>;
 		};
@@ -165,6 +185,70 @@
 			interrupt-parent = <&GIC>;
 			clock-frequency = < 100000000 >;
 			current-speed = <115200>;
+		};
+
+		i2c0: i2c@12C60000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C60000 0x10000>;
+			interrupts = < 88 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c1: i2c@12C70000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C70000 0x10000>;
+			interrupts = < 89 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c2: i2c@12C80000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C80000 0x10000>;
+			interrupts = < 90 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c3: i2c@12C90000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12C90000 0x10000>;
+			interrupts = < 91 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c4: i2c@12CA0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CA0000 0x10000>;
+			interrupts = < 92 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c5: i2c@12CB0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CB0000 0x10000>;
+			interrupts = < 93 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c6: i2c@12CC0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CC0000 0x10000>;
+			interrupts = < 94 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		i2c7: i2c@12CD0000 {
+			compatible = "exynos,i2c";
+			status = "disabled";
+			reg = <0x12CD0000 0x10000>;
+			interrupts = < 95 >;
+			interrupt-parent = <&GIC>;
 		};
 
 		fimd0: fimd@14400000 {
