@@ -1374,7 +1374,7 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 		    (input.next_token(),
 		    input.consume_integer(len))))
 		{
-			input.parse_error("Expected /dts-v1/; version string");
+			input.parse_error("Expected size on /memreserve/ node.");
 		}
 		input.next_token();
 		input.consume(';');
