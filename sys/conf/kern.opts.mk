@@ -19,17 +19,15 @@ __DEFAULT_YES_OPTIONS = \
     FORMAT_EXTENSIONS \
     KERNEL_SYMBOLS
 
-__DEFAULT_NO_OPTIONS = \
+# expanded inline from bsd.mkopt.mk:
 
-# Kludge to allow a less painful transition. If MAKESYSPATH isn't defined,
-# assume we have a standard FreeBSD src tree layout and reach over and grab
-# bsd.mkopt.mk from there. If it is defined, trust it to point someplace sane
-# and include bsd.mkopt.mk from there. We need the !defined case to keep ports
-# kernel modules working (though arguably they should define MAKESYSPATH). We
-# need the latter case to keep the Jenkins testing harness working where they
-# specifically use a non-standard layout, but do define MAKESYSPATH correctly.
-.if !defined(MAKESYSPATH)
-.include "../../share/mk/bsd.mkopt.mk"
+.for var in ${__DEFAULT_YES_OPTIONS}
+.if !defined(MK_${var})
+.if defined(WITHOUT_${var})			# WITHOUT always wins
+MK_${var}:=	no
 .else
-.include <bsd.mkopt.mk>
+MK_${var}:=	yes
 .endif
+.endif
+.endfor
+.undef __DEFAULT_YES_OPTIONS
