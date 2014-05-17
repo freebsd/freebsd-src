@@ -14,11 +14,22 @@ unix		?=	We run FreeBSD, not UNIX.
 # for something different in FreeBSD.
 #
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
+
+# Pull in global settings.
+__MAKE_CONF?=/etc/make.conf
+.if exists(${__MAKE_CONF})
+.include "${__MAKE_CONF}"
 .endif
+
+# Setup anything for the FreeBSD source build, if we're building
+# inside the source tree. Needs to be after make.conf, but before
+# local stuff.
+.sinclude <src.sys.mk>
 
 # Set any local definitions first. Place this early, but it needs
 # MACHINE_CPUARCH to be defined.
 .sinclude <local.sys.mk>
+.endif
 
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
@@ -313,12 +324,6 @@ YFLAGS		?=	-d
 	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
-
-# FreeBSD build pollution.  Hide it in the non-POSIX part of the ifdef.
-__MAKE_CONF?=/etc/make.conf
-.if exists(${__MAKE_CONF})
-.include "${__MAKE_CONF}"
-.endif
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}

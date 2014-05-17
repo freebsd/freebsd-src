@@ -30,13 +30,6 @@
 .if !target(__<src.opts.mk>__)
 __<src.opts.mk>__:
 
-# Allow user to configure things that only effect src tree builds.
-SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf"
-.include "${SRCCONF}"
-.endif
-
-# Must be included after src.conf
 .include <bsd.own.mk>
 
 #
