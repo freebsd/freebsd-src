@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/stat.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <jail.h>
 #include <kvm.h>
 #include <limits.h>
 #include <locale.h>
@@ -123,6 +125,7 @@ struct listinfo {
 	const char	*lname;
 	union {
 		gid_t	*gids;
+		int	*jids;
 		pid_t	*pids;
 		dev_t	*ttys;
 		uid_t	*uids;
@@ -131,6 +134,7 @@ struct listinfo {
 };
 
 static int	 addelem_gid(struct listinfo *, const char *);
+static int	 addelem_jid(struct listinfo *, const char *);
 static int	 addelem_pid(struct listinfo *, const char *);
 static int	 addelem_tty(struct listinfo *, const char *);
 static int	 addelem_uid(struct listinfo *, const char *);
@@ -161,12 +165,12 @@ static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
 			"%cpu,%mem,command";
 static char Zfmt[] = "label";
 
-#define	PS_ARGS	"AaCcde" OPT_LAZY_f "G:gHhjLlM:mN:O:o:p:rSTt:U:uvwXxZ"
+#define	PS_ARGS	"AaCcde" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
 {
-	struct listinfo gidlist, pgrplist, pidlist;
+	struct listinfo gidlist, jidlist, pgrplist, pidlist;
 	struct listinfo ruidlist, sesslist, ttylist, uidlist;
 	struct kinfo_proc *kp;
 	KINFO *kinfo = NULL, *next_KINFO;
@@ -204,6 +208,7 @@ main(int argc, char *argv[])
 	prtheader = showthreads = wflag = xkeep_implied = 0;
 	xkeep = -1;			/* Neither -x nor -X. */
 	init_list(&gidlist, addelem_gid, sizeof(gid_t), "group");
+	init_list(&jidlist, addelem_jid, sizeof(int), "jail id");
 	init_list(&pgrplist, addelem_pid, sizeof(pid_t), "process group");
 	init_list(&pidlist, addelem_pid, sizeof(pid_t), "process id");
 	init_list(&ruidlist, addelem_uid, sizeof(uid_t), "ruser");
@@ -270,6 +275,11 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			prtheader = ws.ws_row > 5 ? ws.ws_row : 22;
+			break;
+		case 'J':
+			add_list(&jidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
 			break;
 		case 'j':
 			parsefmt(jfmt, 0);
@@ -534,6 +544,11 @@ main(int argc, char *argv[])
 					if (kp->ki_rgid == gidlist.l.gids[elem])
 						goto keepit;
 			}
+			if (jidlist.count > 0) {
+				for (elem = 0; elem < jidlist.count; elem++)
+					if (kp->ki_jid == jidlist.l.jids[elem])
+						goto keepit;
+			}
 			if (pgrplist.count > 0) {
 				for (elem = 0; elem < pgrplist.count; elem++)
 					if (kp->ki_pgid ==
@@ -662,6 +677,7 @@ main(int argc, char *argv[])
 		}
 	}
 	free_list(&gidlist);
+	free_list(&jidlist);
 	free_list(&pidlist);
 	free_list(&pgrplist);
 	free_list(&ruidlist);
@@ -723,6 +739,30 @@ addelem_gid(struct listinfo *inf, const char *elem)
 }
 
 #define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h. */
+static int
+addelem_jid(struct listinfo *inf, const char *elem)
+{
+	int tempid;
+
+	if (*elem == '\0') {
+		warnx("Invalid (zero-length) jail id");
+		optfatal = 1;
+		return (0);		/* Do not add this value. */
+	}
+
+	tempid = jail_getid(elem);
+	if (tempid < 0) {
+		warnx("Invalid %s: %s", inf->lname, elem);
+		optfatal = 1;
+		return (0);
+	}
+
+	if (inf->count >= inf->maxcount)
+		expand_list(inf);
+	inf->l.jids[(inf->count)++] = tempid;
+	return (1);
+}
+
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -1359,7 +1399,7 @@ usage(void)
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	    "usage: ps " SINGLE_OPTS " [-O fmt | -o fmt] [-G gid[,gid...]]",
-	    "          [-M core] [-N system]",
+	    "          [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",
 	    "       ps [-L]");
 	exit(1);
