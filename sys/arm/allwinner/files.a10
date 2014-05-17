@@ -7,7 +7,6 @@ arm/arm/cpufunc_asm_armv5.S		standard
 arm/arm/cpufunc_asm_arm10.S		standard
 arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
-arm/arm/irq_dispatch.S			standard
 
 arm/allwinner/a10_clk.c			standard
 arm/allwinner/a10_common.c		standard

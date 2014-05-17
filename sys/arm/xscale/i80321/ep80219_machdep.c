@@ -103,10 +103,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -321,11 +317,6 @@ initarm(struct arm_boot_params *abp)
 	physmem = memsize / PAGE_SIZE;
 	cninit();
 
-	/* Set stack for exception handlers */
-	
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
 	init_proc0(kernelstack.pv_va);

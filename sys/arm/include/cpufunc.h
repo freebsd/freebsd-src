@@ -284,63 +284,6 @@ u_int	cpufunc_faultstatus	(void);
 u_int	cpufunc_faultaddress	(void);
 u_int	cpu_pfr			(int);
 
-#ifdef CPU_ARM3
-u_int	arm3_control		(u_int clear, u_int bic);
-void	arm3_cache_flush	(void);
-#endif	/* CPU_ARM3 */
-
-#if defined(CPU_ARM6) || defined(CPU_ARM7)
-void	arm67_setttb		(u_int ttb);
-void	arm67_tlb_flush		(void);
-void	arm67_tlb_purge		(u_int va);
-void	arm67_cache_flush	(void);
-void	arm67_context_switch	(void);
-#endif	/* CPU_ARM6 || CPU_ARM7 */
-
-#ifdef CPU_ARM6
-void	arm6_setup		(char *string);
-#endif	/* CPU_ARM6 */
-
-#ifdef CPU_ARM7
-void	arm7_setup		(char *string);
-#endif	/* CPU_ARM7 */
-
-#ifdef CPU_ARM7TDMI
-int	arm7_dataabt_fixup	(void *arg);
-void	arm7tdmi_setup		(char *string);
-void	arm7tdmi_setttb		(u_int ttb);
-void	arm7tdmi_tlb_flushID	(void);
-void	arm7tdmi_tlb_flushID_SE	(u_int va);
-void	arm7tdmi_cache_flushID	(void);
-void	arm7tdmi_context_switch	(void);
-#endif /* CPU_ARM7TDMI */
-
-#ifdef CPU_ARM8
-void	arm8_setttb		(u_int ttb);
-void	arm8_tlb_flushID	(void);
-void	arm8_tlb_flushID_SE	(u_int va);
-void	arm8_cache_flushID	(void);
-void	arm8_cache_flushID_E	(u_int entry);
-void	arm8_cache_cleanID	(void);
-void	arm8_cache_cleanID_E	(u_int entry);
-void	arm8_cache_purgeID	(void);
-void	arm8_cache_purgeID_E	(u_int entry);
-
-void	arm8_cache_syncI	(void);
-void	arm8_cache_cleanID_rng	(vm_offset_t start, vm_size_t end);
-void	arm8_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
-void	arm8_cache_purgeID_rng	(vm_offset_t start, vm_size_t end);
-void	arm8_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
-void	arm8_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
-
-void	arm8_context_switch	(void);
-
-void	arm8_setup		(char *string);
-
-u_int	arm8_clock_config	(u_int, u_int);
-#endif
-
-
 #if defined(CPU_FA526) || defined(CPU_FA626TE)
 void	fa526_setup		(char *arg);
 void	fa526_setttb		(u_int ttb);
@@ -361,48 +304,6 @@ void	fa526_idcache_wbinv_all(void);
 void	fa526_idcache_wbinv_range(vm_offset_t start, vm_size_t end);
 #endif
 
-
-#ifdef CPU_SA110
-void	sa110_setup		(char *string);
-void	sa110_context_switch	(void);
-#endif	/* CPU_SA110 */
-
-#if defined(CPU_SA1100) || defined(CPU_SA1110)
-void	sa11x0_drain_readbuf	(void);
-
-void	sa11x0_context_switch	(void);
-void	sa11x0_cpu_sleep	(int mode);
-
-void	sa11x0_setup		(char *string);
-#endif
-
-#if defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110)
-void	sa1_setttb		(u_int ttb);
-
-void	sa1_tlb_flushID_SE	(u_int va);
-
-void	sa1_cache_flushID	(void);
-void	sa1_cache_flushI	(void);
-void	sa1_cache_flushD	(void);
-void	sa1_cache_flushD_SE	(u_int entry);
-
-void	sa1_cache_cleanID	(void);
-void	sa1_cache_cleanD	(void);
-void	sa1_cache_cleanD_E	(u_int entry);
-
-void	sa1_cache_purgeID	(void);
-void	sa1_cache_purgeID_E	(u_int entry);
-void	sa1_cache_purgeD	(void);
-void	sa1_cache_purgeD_E	(u_int entry);
-
-void	sa1_cache_syncI		(void);
-void	sa1_cache_cleanID_rng	(vm_offset_t start, vm_size_t end);
-void	sa1_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
-void	sa1_cache_purgeID_rng	(vm_offset_t start, vm_size_t end);
-void	sa1_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
-void	sa1_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
-
-#endif
 
 #ifdef CPU_ARM9
 void	arm9_setttb		(u_int);
@@ -586,7 +487,6 @@ extern unsigned armv5_dcache_index_inc;
 #endif
 
 #if defined(CPU_ARM9) || defined(CPU_ARM9E) || defined(CPU_ARM10) ||	\
-  defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) ||	\
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
@@ -599,12 +499,6 @@ void	armv4_tlb_flushD_SE	(u_int va);
 
 void	armv4_drain_writebuf	(void);
 void	armv4_idcache_inv_all	(void);
-#endif
-
-#if defined(CPU_IXP12X0)
-void	ixp12x0_drain_readbuf	(void);
-void	ixp12x0_context_switch	(void);
-void	ixp12x0_setup		(char *string);
 #endif
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	\
