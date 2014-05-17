@@ -66,6 +66,8 @@ __weak_reference(_sem_wait, sem_wait);
 struct sem_nameinfo {
 	int open_count;
 	char *name;
+	dev_t dev;
+	ino_t ino;
 	sem_t *sem;
 	LIST_ENTRY(sem_nameinfo) next;
 };
@@ -151,35 +153,44 @@ _sem_open(const char *name, int flags, ...)
 		return (SEM_FAILED);
 	}
 	name++;
-
+	strcpy(path, SEM_PREFIX);
+	if (strlcat(path, name, sizeof(path)) >= sizeof(path)) {
+		errno = ENAMETOOLONG;
+		return (SEM_FAILED);
+	}
 	if (flags & ~(O_CREAT|O_EXCL)) {
 		errno = EINVAL;
 		return (SEM_FAILED);
 	}
-
-	_pthread_once(&once, sem_module_init);
-
-	_pthread_mutex_lock(&sem_llock);
-	LIST_FOREACH(ni, &sem_list, next) {
-		if (strcmp(name, ni->name) == 0) {
-			if ((flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL)) {
-				_pthread_mutex_unlock(&sem_llock);
-				errno = EEXIST;
-				return (SEM_FAILED);
-			} else {
-				ni->open_count++;
-				sem = ni->sem;
-				_pthread_mutex_unlock(&sem_llock);
-				return (sem);
-			}
-		}
-	}
-
-	if (flags & O_CREAT) {
+	if ((flags & O_CREAT) != 0) {
 		va_start(ap, flags);
 		mode = va_arg(ap, int);
 		value = va_arg(ap, int);
 		va_end(ap);
+	}
+	fd = -1;
+	_pthread_once(&once, sem_module_init);
+
+	_pthread_mutex_lock(&sem_llock);
+	LIST_FOREACH(ni, &sem_list, next) {
+		if (ni->name != NULL && strcmp(name, ni->name) == 0) {
+			fd = _open(path, flags | O_RDWR | O_CLOEXEC |
+			    O_EXLOCK, mode);
+			if (fd == -1 || _fstat(fd, &sb) == -1)
+				goto error;
+			if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT |
+			    O_EXCL) || ni->dev != sb.st_dev ||
+			    ni->ino != sb.st_ino) {
+				ni->name = NULL;
+				ni = NULL;
+				break;
+			}
+			ni->open_count++;
+			sem = ni->sem;
+			_pthread_mutex_unlock(&sem_llock);
+			_close(fd);
+			return (sem);
+		}
 	}
 
 	len = sizeof(*ni) + strlen(name) + 1;
@@ -192,17 +203,11 @@ _sem_open(const char *name, int flags, ...)
 	ni->name = (char *)(ni+1);
 	strcpy(ni->name, name);
 
-	strcpy(path, SEM_PREFIX);
-	if (strlcat(path, name, sizeof(path)) >= sizeof(path)) {
-		errno = ENAMETOOLONG;
-		goto error;
+	if (fd == -1) {
+		fd = _open(path, flags | O_RDWR | O_CLOEXEC | O_EXLOCK, mode);
+		if (fd == -1 || _fstat(fd, &sb) == -1)
+			goto error;
 	}
-
-	fd = _open(path, flags|O_RDWR|O_CLOEXEC|O_EXLOCK, mode);
-	if (fd == -1)
-		goto error;
-	if (_fstat(fd, &sb))
-		goto error;
 	if (sb.st_size < sizeof(sem_t)) {
 		sem_t tmp;
 
@@ -228,6 +233,8 @@ _sem_open(const char *name, int flags, ...)
 	}
 	ni->open_count = 1;
 	ni->sem = sem;
+	ni->dev = sb.st_dev;
+	ni->ino = sb.st_ino;
 	LIST_INSERT_HEAD(&sem_list, ni, next);
 	_close(fd);
 	_pthread_mutex_unlock(&sem_llock);
