@@ -853,6 +853,8 @@ pmap_free_l2_bucket(pmap_t pmap, struct l2_bucket *l2b, u_int count)
 	if (l1pd == (L1_C_DOM(pmap->pm_domain) | L1_TYPE_C)) {
 		*pl1pd = 0;
 		PTE_SYNC(pl1pd);
+		cpu_tlb_flushD_SE((vm_offset_t)ptep);
+		cpu_cpwait();
 	}
 
 	/*
@@ -2147,6 +2149,8 @@ pmap_grow_l2_bucket(pmap_t pmap, vm_offset_t va)
 			    L1_C_PROTO;
 			PTE_SYNC(pl1pd);
 	}
+	cpu_tlb_flushID_SE(va);
+	cpu_cpwait();
 
 	return (l2b);
 }
@@ -2427,6 +2431,7 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		if (opte == 0)
 			l2b->l2b_occupancy++;
 	}
+	cpu_cpwait();
 
 	PDEBUG(1, printf("pmap_kenter: pte = %08x, opte = %08x, npte = %08x\n",
 	    (uint32_t) ptep, opte, *ptep));
@@ -4958,10 +4963,10 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 					cpu_tlb_flushID_SE(sva);
 				else if (PTE_BEEN_REFD(opte))
 					cpu_tlb_flushD_SE(sva);
-				cpu_cpwait();
 			}
 		}
 	}
+	cpu_cpwait();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
