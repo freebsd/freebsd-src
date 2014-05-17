@@ -486,21 +486,12 @@ ENTRY(savectx)
 END(savectx)
 
 ENTRY(fork_trampoline)
-	STOP_UNWINDING	/* Can't unwind beyond the thread enty point */
-	mov	r1, r5
+	STOP_UNWINDING	/* EABI: Don't unwind beyond the thread enty point. */
+	mov	fp, #0	/* OABI: Stack traceback via fp stops here. */
 	mov	r2, sp
+	mov	r1, r5
 	mov	r0, r4
-	mov	fp, #0
-	bl	_C_LABEL(fork_exit)
-	/* Kill irq"s */
-	mrs	r0, cpsr
-	orr	r0, r0, #(I32_bit|F32_bit)
-	msr	cpsr_c, r0
-	DO_AST
-	PULLFRAME
-
-	movs	pc, lr			/* Exit */
-
-AST_LOCALS
+	ldr	lr, =swi_exit		/* Go finish forking, then return */
+	b	_C_LABEL(fork_exit)	/* to userland via swi_exit code. */
 END(fork_trampoline)
 

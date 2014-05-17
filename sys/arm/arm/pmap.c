@@ -458,7 +458,7 @@ kernel_pt_lookup(vm_paddr_t pa)
 	return (0);
 }
 
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#if ARM_MMU_GENERIC != 0
 void
 pmap_pte_init_generic(void)
 {
@@ -500,23 +500,6 @@ pmap_pte_init_generic(void)
 	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
-#if defined(CPU_ARM8)
-void
-pmap_pte_init_arm8(void)
-{
-
-	/*
-	 * ARM8 is compatible with generic, but we need to use
-	 * the page tables uncached.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = 0;
-	pte_l2_l_cache_mode_pt = 0;
-	pte_l2_s_cache_mode_pt = 0;
-}
-#endif /* CPU_ARM8 */
-
 #if defined(CPU_ARM9) && defined(ARM9_CACHE_WRITE_THROUGH)
 void
 pmap_pte_init_arm9(void)
@@ -537,7 +520,7 @@ pmap_pte_init_arm9(void)
 	pte_l2_s_cache_mode_pt = L2_C;
 }
 #endif /* CPU_ARM9 */
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if defined(CPU_ARM10)
 void
@@ -560,27 +543,6 @@ pmap_pte_init_arm10(void)
 
 }
 #endif /* CPU_ARM10 */
-
-#if  ARM_MMU_SA1 == 1
-void
-pmap_pte_init_sa1(void)
-{
-
-	/*
-	 * The StrongARM SA-1 cache does not have a write-through
-	 * mode.  So, do the generic initialization, then reset
-	 * the page table cache mode to B=1,C=1, and note that
-	 * the PTEs need to be sync'd.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = L1_S_B|L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_B|L2_C;
-	pte_l2_s_cache_mode_pt = L2_B|L2_C;
-
-	pmap_needs_pte_sync = 1;
-}
-#endif /* ARM_MMU_SA1 == 1*/
 
 #if ARM_MMU_XSCALE == 1
 #if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
@@ -1971,34 +1933,6 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		PTE_SYNC(pl1pd);
 		rv = 1;
 	}
-
-#ifdef CPU_SA110
-	/*
-	 * There are bugs in the rev K SA110.  This is a check for one
-	 * of them.
-	 */
-	if (rv == 0 && curcpu()->ci_arm_cputype == CPU_ID_SA110 &&
-	    curcpu()->ci_arm_cpurev < 3) {
-		/* Always current pmap */
-		if (l2pte_valid(pte)) {
-			extern int kernel_debug;
-			if (kernel_debug & 1) {
-				struct proc *p = curlwp->l_proc;
-				printf("prefetch_abort: page is already "
-				    "mapped - pte=%p *pte=%08x\n", ptep, pte);
-				printf("prefetch_abort: pc=%08lx proc=%p "
-				    "process=%s\n", va, p, p->p_comm);
-				printf("prefetch_abort: far=%08x fs=%x\n",
-				    cpu_faultaddress(), cpu_faultstatus());
-			}
-#ifdef DDB
-			if (kernel_debug & 2)
-				Debugger();
-#endif
-			rv = 1;
-		}
-	}
-#endif /* CPU_SA110 */
 
 #ifdef DEBUG
 	/*
@@ -3981,7 +3915,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_CORE3)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
@@ -4008,7 +3942,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 
 	mtx_unlock(&cmtx);
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void
@@ -4224,7 +4158,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if  (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined (CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined (CPU_XSCALE_CORE3)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
@@ -4289,7 +4223,7 @@ pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
 	cpu_l2cache_inv_range(csrcp + a_offs, cnt);
 	cpu_l2cache_wbinv_range(cdstp + b_offs, cnt);
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void

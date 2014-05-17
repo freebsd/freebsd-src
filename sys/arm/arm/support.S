@@ -87,7 +87,6 @@
  */
 
 #include <machine/asm.h>
-#include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
 
 #include "assym.s"

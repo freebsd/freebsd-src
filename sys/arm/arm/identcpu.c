@@ -69,36 +69,6 @@ static const char * const generic_steppings[16] = {
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
 };
 
-static const char * const sa110_steppings[16] = {
-	"rev 0",	"step J",	"step K",	"step S",
-	"step T",	"rev 5",	"rev 6",	"rev 7",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const sa1100_steppings[16] = {
-	"rev 0",	"step B",	"step C",	"rev 3",
-	"rev 4",	"rev 5",	"rev 6",	"rev 7",
-	"step D",	"step E",	"rev 10"	"step G",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const sa1110_steppings[16] = {
-	"step A-0",	"rev 1",	"rev 2",	"rev 3",
-	"step B-0",	"step B-1",	"step B-2",	"step B-3",
-	"step B-4",	"step B-5",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
-static const char * const ixp12x0_steppings[16] = {
-	"(IXP1200 step A)",		"(IXP1200 step B)",
-	"rev 2",			"(IXP1200 step C)",
-	"(IXP1200 step D)",		"(IXP1240/1250 step A)",
-	"(IXP1240 step B)",		"(IXP1250 step B)",
-	"rev 8",	"rev 9",	"rev 10",	"rev 11",
-	"rev 12",	"rev 13",	"rev 14",	"rev 15",
-};
-
 static const char * const xscale_steppings[16] = {
 	"step A-0",	"step A-1",	"step B-0",	"step C-0",
 	"step D-0",	"rev 5",	"rev 6",	"rev 7",
@@ -168,43 +138,6 @@ struct cpuidtab {
 };
 
 const struct cpuidtab cpuids[] = {
-	{ CPU_ID_ARM2,		CPU_CLASS_ARM2,		"ARM2",
-	  generic_steppings },
-	{ CPU_ID_ARM250,	CPU_CLASS_ARM2AS,	"ARM250",
-	  generic_steppings },
-
-	{ CPU_ID_ARM3,		CPU_CLASS_ARM3,		"ARM3",
-	  generic_steppings },
-
-	{ CPU_ID_ARM600,	CPU_CLASS_ARM6,		"ARM600",
-	  generic_steppings },
-	{ CPU_ID_ARM610,	CPU_CLASS_ARM6,		"ARM610",
-	  generic_steppings },
-	{ CPU_ID_ARM620,	CPU_CLASS_ARM6,		"ARM620",
-	  generic_steppings },
-
-	{ CPU_ID_ARM700,	CPU_CLASS_ARM7,		"ARM700",
-	  generic_steppings },
-	{ CPU_ID_ARM710,	CPU_CLASS_ARM7,		"ARM710",
-	  generic_steppings },
-	{ CPU_ID_ARM7500,	CPU_CLASS_ARM7,		"ARM7500",
-	  generic_steppings },
-	{ CPU_ID_ARM710A,	CPU_CLASS_ARM7,		"ARM710a",
-	  generic_steppings },
-	{ CPU_ID_ARM7500FE,	CPU_CLASS_ARM7,		"ARM7500FE",
-	  generic_steppings },
-	{ CPU_ID_ARM710T,	CPU_CLASS_ARM7TDMI,	"ARM710T",
-	  generic_steppings },
-	{ CPU_ID_ARM720T,	CPU_CLASS_ARM7TDMI,	"ARM720T",
-	  generic_steppings },
-	{ CPU_ID_ARM740T8K,	CPU_CLASS_ARM7TDMI, "ARM740T (8 KB cache)",
-	  generic_steppings },
-	{ CPU_ID_ARM740T4K,	CPU_CLASS_ARM7TDMI, "ARM740T (4 KB cache)",
-	  generic_steppings },
-
-	{ CPU_ID_ARM810,	CPU_CLASS_ARM8,		"ARM810",
-	  generic_steppings },
-
 	{ CPU_ID_ARM920T,	CPU_CLASS_ARM9TDMI,	"ARM920T",
 	  generic_steppings },
 	{ CPU_ID_ARM920T_ALT,	CPU_CLASS_ARM9TDMI,	"ARM920T",
@@ -254,16 +187,6 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_KRAIT,		CPU_CLASS_KRAIT,	"Krait",
 	  generic_steppings },
-
-	{ CPU_ID_SA110,		CPU_CLASS_SA1,		"SA-110",
-	  sa110_steppings },
-	{ CPU_ID_SA1100,	CPU_CLASS_SA1,		"SA-1100",
-	  sa1100_steppings },
-	{ CPU_ID_SA1110,	CPU_CLASS_SA1,		"SA-1110",
-	  sa1110_steppings },
-
-	{ CPU_ID_IXP1200,	CPU_CLASS_SA1,		"IXP1200",
-	  ixp12x0_steppings },
 
 	{ CPU_ID_80200,		CPU_CLASS_XSCALE,	"i80200",
 	  xscale_steppings },
@@ -340,13 +263,6 @@ struct cpu_classtab {
 
 const struct cpu_classtab cpu_classes[] = {
 	{ "unknown",	NULL },			/* CPU_CLASS_NONE */
-	{ "ARM2",	"CPU_ARM2" },		/* CPU_CLASS_ARM2 */
-	{ "ARM2as",	"CPU_ARM250" },		/* CPU_CLASS_ARM2AS */
-	{ "ARM3",	"CPU_ARM3" },		/* CPU_CLASS_ARM3 */
-	{ "ARM6",	"CPU_ARM6" },		/* CPU_CLASS_ARM6 */
-	{ "ARM7",	"CPU_ARM7" },		/* CPU_CLASS_ARM7 */
-	{ "ARM7TDMI",	"CPU_ARM7TDMI" },	/* CPU_CLASS_ARM7TDMI */
-	{ "ARM8",	"CPU_ARM8" },		/* CPU_CLASS_ARM8 */
 	{ "ARM9TDMI",	"CPU_ARM9TDMI" },	/* CPU_CLASS_ARM9TDMI */
 	{ "ARM9E-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9ES */
 	{ "ARM9EJ-S",	"CPU_ARM9E" },		/* CPU_CLASS_ARM9EJS */
@@ -354,7 +270,6 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "ARM10EJ",	"CPU_ARM10" },		/* CPU_CLASS_ARM10EJ */
 	{ "Cortex-A",	"CPU_CORTEXA" },	/* CPU_CLASS_CORTEXA */
 	{ "Krait",	"CPU_KRAIT" },		/* CPU_CLASS_KRAIT */
-	{ "SA-1",	"CPU_SA110" },		/* CPU_CLASS_SA1 */
 	{ "XScale",	"CPU_XSCALE_..." },	/* CPU_CLASS_XSCALE */
 	{ "ARM11J",	"CPU_ARM11" },		/* CPU_CLASS_ARM11J */
 	{ "Marvell",	"CPU_MARVELL" },	/* CPU_CLASS_MARVELL */
@@ -493,18 +408,11 @@ identify_arm_cpu(void)
 			printf(" Little-endian");
 
 		switch (cpu_class) {
-		case CPU_CLASS_ARM6:
-		case CPU_CLASS_ARM7:
-		case CPU_CLASS_ARM7TDMI:
-		case CPU_CLASS_ARM8:
-			print_enadis(ctrl & CPU_CONTROL_IDC_ENABLE, "IDC");
-			break;
 		case CPU_CLASS_ARM9TDMI:
 		case CPU_CLASS_ARM9ES:
 		case CPU_CLASS_ARM9EJS:
 		case CPU_CLASS_ARM10E:
 		case CPU_CLASS_ARM10EJ:
-		case CPU_CLASS_SA1:
 		case CPU_CLASS_XSCALE:
 		case CPU_CLASS_ARM11J:
 		case CPU_CLASS_MARVELL:

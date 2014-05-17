@@ -5,8 +5,6 @@ machine	arm
 cpu	CPU_ARM9
 cpu	CPU_ARM9E
 cpu	CPU_FA526
-cpu	CPU_SA1100
-cpu	CPU_SA1110
 cpu 	CPU_XSCALE_80219
 cpu 	CPU_XSCALE_80321
 cpu 	CPU_XSCALE_81342
@@ -22,7 +20,6 @@ files	"../mv/kirkwood/files.kirkwood"
 files	"../mv/orion/files.db88f5xxx"
 files	"../mv/orion/files.ts7800"
 files	"../s3c2xx0/files.s3c2xx0"
-files	"../sa11x0/files.sa11x0"
 files	"../xscale/i80321/files.ep80219"
 files	"../xscale/i80321/files.i80219"
 files	"../xscale/i80321/files.i80321"
