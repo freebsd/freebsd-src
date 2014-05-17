@@ -190,6 +190,7 @@ typedef enum {
     Includes,	    /* .INCLUDES */
     Interrupt,	    /* .INTERRUPT */
     Libs,	    /* .LIBS */
+    Lstat,	    /* .LSTAT */
     Meta,	    /* .META */
     MFlags,	    /* .MFLAGS or .MAKEFLAGS */
     Main,	    /* .MAIN and we don't have anything user-specified to
@@ -310,6 +311,7 @@ static const struct {
 { ".INVISIBLE",	  Attribute,   	OP_INVISIBLE },
 { ".JOIN",  	  Attribute,   	OP_JOIN },
 { ".LIBS",  	  Libs,	    	0 },
+{ ".LSTAT",	  Lstat,	OP_LSTAT },
 { ".MADE",	  Attribute,	OP_MADE },
 { ".MAIN",	  Main,		0 },
 { ".MAKE",  	  Attribute,   	OP_MAKE },

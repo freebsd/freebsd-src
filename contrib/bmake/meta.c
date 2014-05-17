@@ -867,6 +867,15 @@ string_match(const void *p, const void *q)
 	*ep = '\0'; \
     }
 
+static int
+gn_stat(GNode *gn, const char *path, struct stat *sb)
+{
+    if (gn->type & OP_LSTAT) {
+	return lstat(path, sb);
+    }
+    return stat(path, sb);
+}
+
 Boolean
 meta_oodate(GNode *gn, Boolean oodate)
 {
@@ -1220,7 +1229,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			    if (DEBUG(META))
 				fprintf(debug_file, "%s: %d: looking for: %s\n", fname, lineno, *sdp);
 #endif
-			    if (stat(*sdp, &fs) == 0) {
+			    if (gn_stat(gn, *sdp, &fs) == 0) {
 				found = 1;
 				p = *sdp;
 			    }
