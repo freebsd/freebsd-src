@@ -31,7 +31,6 @@ KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
-NO_EVENTTIMERS		opt_timer.h
 PHYSADDR		opt_global.h
 SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
