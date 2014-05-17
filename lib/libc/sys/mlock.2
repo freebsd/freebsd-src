@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2013
+.Dd May 17, 2014
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -91,14 +91,21 @@ Locked mappings are not inherited by the child process after a
 .Pp
 Since physical memory is a potentially scarce resource, processes are
 limited in how much they can lock down.
-A single process can
+The amount of memory that a single process can
 .Fn mlock
-the minimum of
-a system-wide ``wired pages'' limit
-.Va vm.max_wired
-and the per-process
+is limited by both the per-process
 .Li RLIMIT_MEMLOCK
-resource limit.
+resource limit and the
+system-wide
+.Dq wired pages
+limit
+.Va vm.max_wired .
+.Va vm.max_wired
+applies to the system as a whole, so the amount available to a single
+process at any given time is the difference between
+.Va vm.max_wired
+and
+.Va vm.stats.vm.v_wire_count .
 .Pp
 If
 .Va security.bsd.unprivileged_mlock
