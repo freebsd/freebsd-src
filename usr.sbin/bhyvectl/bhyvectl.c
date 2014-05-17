@@ -1453,8 +1453,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (get_vmcs_exit_interruption_info || get_all)) {
-		error = vm_get_vmcs_field(ctx, vcpu,
-					  VMCS_EXIT_INTERRUPTION_INFO, &u64);
+		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_INTR_INFO, &u64);
 		if (error == 0) {
 			printf("vmcs_exit_interruption_info[%d]\t0x%08lx\n",
 				vcpu, u64);
@@ -1462,8 +1461,8 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (get_vmcs_exit_interruption_error || get_all)) {
-		error = vm_get_vmcs_field(ctx, vcpu,
-					  VMCS_EXIT_INTERRUPTION_ERROR, &u64);
+		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_INTR_ERRCODE,
+		    &u64);
 		if (error == 0) {
 			printf("vmcs_exit_interruption_error[%d]\t0x%08lx\n",
 				vcpu, u64);

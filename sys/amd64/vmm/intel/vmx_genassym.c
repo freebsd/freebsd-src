@@ -68,10 +68,10 @@ ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
 ASSYM(VMXCTX_HOST_RIP, offsetof(struct vmxctx, host_rip));
 
 ASSYM(VMXCTX_INST_FAIL_STATUS, offsetof(struct vmxctx, inst_fail_status));
-ASSYM(VMXCTX_EPTGEN, offsetof(struct vmxctx, eptgen));
-
 ASSYM(VMXCTX_PMAP, offsetof(struct vmxctx, pmap));
-ASSYM(VMXCTX_EPTP, offsetof(struct vmxctx, eptp));
+
+ASSYM(VMX_EPTGEN, offsetof(struct vmx, eptgen));
+ASSYM(VMX_EPTP, offsetof(struct vmx, eptp));
 
 ASSYM(VM_FAIL_INVALID,	VM_FAIL_INVALID);
 ASSYM(VM_FAIL_VALID,	VM_FAIL_VALID);
@@ -84,3 +84,6 @@ ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PM_EPTGEN, offsetof(struct pmap, pm_eptgen));
+
+ASSYM(KERNEL_SS, GSEL(GDATA_SEL, SEL_KPL));
+ASSYM(KERNEL_CS, GSEL(GCODE_SEL, SEL_KPL));
