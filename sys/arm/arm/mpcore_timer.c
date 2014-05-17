@@ -301,6 +301,7 @@ arm_tmr_attach(device_t dev)
 				    "attribute in FDT\n");
 				return (ENXIO);
 			}
+			sc->clkfreq = clock;
 		}
 	}
 

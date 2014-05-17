@@ -81,6 +81,8 @@
 		generic_timer {
 			compatible = "arm,armv7-timer";
 			clock-frequency = <24000000>;
+			interrupts = < 29 30 27 26 >;
+			interrupt-parent = <&GIC>;
 		};
 
 		pwm {

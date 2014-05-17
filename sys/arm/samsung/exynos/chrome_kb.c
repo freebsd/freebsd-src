@@ -138,7 +138,6 @@ struct ckb_softc {
 };
 
 /* prototypes */
-static void	ckb_set_leds(struct ckb_softc *, uint8_t);
 static int	ckb_set_typematic(keyboard_t *, int);
 static uint32_t	ckb_read_char(keyboard_t *, int);
 static void	ckb_clear_state(keyboard_t *);

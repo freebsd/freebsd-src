@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/sysctl.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -74,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 
+static SYSCTL_NODE(_hw, OID_AUTO, imx6, CTLFLAG_RW, NULL, "i.MX6 container");
+
 static struct resource_spec imx6_anatop_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -85,14 +88,15 @@ static struct resource_spec imx6_anatop_spec[] = {
 struct imx6_anatop_softc {
 	device_t	dev;
 	struct resource	*res[2];
-	uint32_t	cpu_curhz;
 	uint32_t	cpu_curmhz;
 	uint32_t	cpu_curmv;
-	uint32_t	cpu_minhz;
+	uint32_t	cpu_minmhz;
 	uint32_t	cpu_minmv;
-	uint32_t	cpu_maxhz;
+	uint32_t	cpu_maxmhz;
 	uint32_t	cpu_maxmv;
-	uint32_t	refosc_hz;
+	uint32_t	cpu_maxmhz_hw;
+	boolean_t	cpu_overclock_enable;
+	uint32_t	refosc_mhz;
 	void		*temp_intrhand;
 	uint32_t	temp_high_val;
 	uint32_t	temp_high_cnt;
@@ -108,15 +112,26 @@ struct imx6_anatop_softc {
 static struct imx6_anatop_softc *imx6_anatop_sc;
 
 /*
- * Tables of CPU max frequencies and corresponding voltages.  This is indexed by
- * the max frequency value (0-3) from the ocotp CFG3 register.
+ * Table of "operating points".
+ * These are combinations of frequency and voltage blessed by Freescale.
  */
-static uint32_t imx6_cpu_maxhz_tab[] = {
-	 792000000, 852000000, 996000000, 1200000000
+static struct oppt {
+	uint32_t	mhz;
+	uint32_t	mv;
+} imx6_oppt_table[] = {
+/*      { 396,	 925},  XXX: need functional ccm code for this speed */
+	{ 792,	1150},
+	{ 852,	1225},
+	{ 996,	1225},
+	{1200,	1275},
 };
-static uint32_t imx6_cpu_millivolt_tab[] = {
-	1150, 1225, 1225, 1275
-};
+
+/*
+ * Table of CPU max frequencies.  This is used to translate the max frequency
+ * value (0-3) from the ocotp CFG3 register into a mhz value that can be looked
+ * up in the operating points table.
+ */
+static uint32_t imx6_ocotp_mhz_tab[] = {792, 852, 996, 1200};
 
 #define	TZ_ZEROC	2732	/* deci-Kelvin <-> deci-Celcius offset. */
 
@@ -193,49 +208,58 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 	imx6_anatop_write_4(IMX6_ANALOG_PMU_REG_CORE, pmureg);
 	DELAY(delay);
 	sc->cpu_curmv = newtarg * 25 + 700;
-	device_printf(sc->dev, "voltage set to %u\n", sc->cpu_curmv);
 }
 
 static inline uint32_t
-cpufreq_hz_from_div(struct imx6_anatop_softc *sc, uint32_t div)
+cpufreq_mhz_from_div(struct imx6_anatop_softc *sc, uint32_t div)
 {
 
-	return (sc->refosc_hz * (div / 2));
+	return (sc->refosc_mhz * (div / 2));
 }
 
 static inline uint32_t
-cpufreq_hz_to_div(struct imx6_anatop_softc *sc, uint32_t cpu_hz)
+cpufreq_mhz_to_div(struct imx6_anatop_softc *sc, uint32_t cpu_mhz)
 {
 
-	return (cpu_hz / (sc->refosc_hz / 2));
+	return (cpu_mhz / (sc->refosc_mhz / 2));
 }
 
 static inline uint32_t
-cpufreq_actual_hz(struct imx6_anatop_softc *sc, uint32_t cpu_hz)
+cpufreq_actual_mhz(struct imx6_anatop_softc *sc, uint32_t cpu_mhz)
 {
 
-	return (cpufreq_hz_from_div(sc, cpufreq_hz_to_div(sc, cpu_hz)));
+	return (cpufreq_mhz_from_div(sc, cpufreq_mhz_to_div(sc, cpu_mhz)));
+}
+
+static struct oppt *
+cpufreq_nearest_oppt(struct imx6_anatop_softc *sc, uint32_t cpu_newmhz)
+{
+	int d, diff, i, nearest;
+
+	if (cpu_newmhz > sc->cpu_maxmhz_hw && !sc->cpu_overclock_enable)
+		cpu_newmhz = sc->cpu_maxmhz_hw;
+
+	diff = INT_MAX;
+	nearest = 0;
+	for (i = 0; i < nitems(imx6_oppt_table); ++i) {
+		d = abs((int)cpu_newmhz - (int)imx6_oppt_table[i].mhz);
+		if (diff > d) {
+			diff = d;
+			nearest = i;
+		}
+	}
+	return (&imx6_oppt_table[nearest]);
 }
 
 static void 
-cpufreq_set_clock(struct imx6_anatop_softc * sc, uint32_t cpu_newhz)
+cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 {
-	uint32_t div, timeout, wrk32;
-	const uint32_t mindiv =  54;
-	const uint32_t maxdiv = 108;
+	uint32_t timeout, wrk32;
 
-	/*
-	 * Clip the requested frequency to the configured max, then clip the
-	 * resulting divisor to the documented min/max values.
-	 */
-	cpu_newhz = min(cpu_newhz, sc->cpu_maxhz);
-	div = cpufreq_hz_to_div(sc, cpu_newhz);
-	if (div < mindiv)
-		div = mindiv;
-	else if (div > maxdiv)
-		div = maxdiv;
-	sc->cpu_curhz = cpufreq_hz_from_div(sc, div);
-	sc->cpu_curmhz = sc->cpu_curhz / 1000000;
+	/* If increasing the frequency, we must first increase the voltage. */
+	if (op->mhz > sc->cpu_curmhz) {
+		vdd_set(sc, op->mv);
+	}
 
 	/*
 	 * I can't find a documented procedure for changing the ARM PLL divisor,
@@ -244,7 +268,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, uint32_t cpu_newhz)
 	 *  - Set the PLL into bypass mode; cpu should now be running at 24mhz.
 	 *  - Change the divisor.
 	 *  - Wait for the LOCK bit to come on; it takes ~50 loop iterations.
-	 *  - Turn off bypass mode; cpu should now be running at cpu_newhz.
+	 *  - Turn off bypass mode; cpu should now be running at the new speed.
 	 */
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
 	    IMX6_ANALOG_CCM_PLL_ARM_CLK_SRC_MASK);
@@ -253,7 +277,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, uint32_t cpu_newhz)
 
 	wrk32 = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM);
 	wrk32 &= ~IMX6_ANALOG_CCM_PLL_ARM_DIV_MASK;
-	wrk32 |= div;
+	wrk32 |= cpufreq_mhz_to_div(sc, op->mhz);
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM, wrk32);
 
 	timeout = 10000;
@@ -265,26 +289,114 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, uint32_t cpu_newhz)
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
 	    IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
 
-	arm_tmr_change_frequency(sc->cpu_curhz / 2);
+	/* If lowering the frequency, it is now safe to lower the voltage. */
+	if (op->mhz < sc->cpu_curmhz)
+		vdd_set(sc, op->mv);
+	sc->cpu_curmhz = op->mhz;
+
+	/* Tell the mpcore timer that its frequency has changed. */
+        arm_tmr_change_frequency(
+	    cpufreq_actual_mhz(sc, sc->cpu_curmhz) * 1000000 / 2);
+}
+
+static int
+cpufreq_sysctl_minmhz(SYSCTL_HANDLER_ARGS)
+{
+	struct imx6_anatop_softc *sc;
+	struct oppt * op;
+	uint32_t temp;
+	int err;
+
+	sc = arg1;
+
+	temp = sc->cpu_minmhz;
+	err = sysctl_handle_int(oidp, &temp, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	op = cpufreq_nearest_oppt(sc, temp);
+	if (op->mhz > sc->cpu_maxmhz)
+		return (ERANGE);
+	else if (op->mhz == sc->cpu_minmhz)
+		return (0);
+
+	/*
+	 * Value changed, update softc.  If the new min is higher than the
+	 * current speed, raise the current speed to match.
+	 */
+	sc->cpu_minmhz = op->mhz;
+	if (sc->cpu_minmhz > sc->cpu_curmhz) {
+		cpufreq_set_clock(sc, op);
+	}
+	return (err);
+}
+
+static int
+cpufreq_sysctl_maxmhz(SYSCTL_HANDLER_ARGS)
+{
+	struct imx6_anatop_softc *sc;
+	struct oppt * op;
+	uint32_t temp;
+	int err;
+
+	sc = arg1;
+
+	temp = sc->cpu_maxmhz;
+	err = sysctl_handle_int(oidp, &temp, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	op = cpufreq_nearest_oppt(sc, temp);
+	if (op->mhz < sc->cpu_minmhz)
+		return (ERANGE);
+	else if (op->mhz == sc->cpu_maxmhz)
+		return (0);
+
+	/*
+	 *  Value changed, update softc and hardware.  The hardware update is
+	 *  unconditional.  We always try to run at max speed, so any change of
+	 *  the max means we need to change the current speed too, regardless of
+	 *  whether it is higher or lower than the old max.
+	 */
+	sc->cpu_maxmhz = op->mhz;
+	cpufreq_set_clock(sc, op);
+
+	return (err);
 }
 
 static void
 cpufreq_initialize(struct imx6_anatop_softc *sc)
 {
 	uint32_t cfg3speed;
-	struct sysctl_ctx_list *ctx;
+	struct oppt * op;
 
-	ctx = device_get_sysctl_ctx(sc->dev);
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
 	    OID_AUTO, "cpu_mhz", CTLFLAG_RD, &sc->cpu_curmhz, 0, 
-	    "CPU frequency in MHz");
+	    "CPU frequency");
+
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
+	    cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
+
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
+	    cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
+
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	    OID_AUTO, "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0, 
+	    "Maximum CPU frequency allowed by hardware");
+
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RWTUN, 
+	    &sc->cpu_overclock_enable, 0, 
+	    "Allow setting CPU frequency higher than cpu_maxmhz_hw");
 
 	/*
 	 * XXX 24mhz shouldn't be hard-coded, should get this from imx6_ccm
 	 * (even though in the real world it will always be 24mhz).  Oh wait a
 	 * sec, I never wrote imx6_ccm.
 	 */
-	sc->refosc_hz = 24000000;
+	sc->refosc_mhz = 24;
 
 	/*
 	 * Get the maximum speed this cpu can be set to.  The values in the
@@ -294,14 +406,25 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	 *   - 2b'10: 996000000Hz;
 	 *   - 2b'01: 852000000Hz; -- i.MX6Q Only, exclusive with 996MHz.
 	 *   - 2b'00: 792000000Hz;
+	 * The default hardware max speed can be overridden by a tunable.
 	 */
 	cfg3speed = (fsl_ocotp_read_4(FSL_OCOTP_CFG3) & 
 	    FSL_OCOTP_CFG3_SPEED_MASK) >> FSL_OCOTP_CFG3_SPEED_SHIFT;
+	sc->cpu_maxmhz_hw = imx6_ocotp_mhz_tab[cfg3speed];
+	sc->cpu_maxmhz = sc->cpu_maxmhz_hw;
 
-	sc->cpu_minhz = cpufreq_actual_hz(sc, imx6_cpu_maxhz_tab[0]);
-	sc->cpu_minmv = imx6_cpu_millivolt_tab[0];
-	sc->cpu_maxhz = cpufreq_actual_hz(sc, imx6_cpu_maxhz_tab[cfg3speed]);
-	sc->cpu_maxmv = imx6_cpu_millivolt_tab[cfg3speed];
+	TUNABLE_INT_FETCH("hw.imx6.cpu_overclock_enable",
+	    &sc->cpu_overclock_enable);
+
+	TUNABLE_INT_FETCH("hw.imx6.cpu_minmhz", &sc->cpu_minmhz);
+	op = cpufreq_nearest_oppt(sc, sc->cpu_minmhz);
+	sc->cpu_minmhz = op->mhz;
+	sc->cpu_minmv = op->mv;
+
+	TUNABLE_INT_FETCH("hw.imx6.cpu_maxmhz", &sc->cpu_maxmhz);
+	op = cpufreq_nearest_oppt(sc, sc->cpu_maxmhz);
+	sc->cpu_maxmhz = op->mhz;
+	sc->cpu_maxmv = op->mv;
 
 	/*
 	 * Set the CPU to maximum speed.
@@ -311,9 +434,7 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	 * basically assumes that a single core can't overheat before interrupts
 	 * are enabled; empirical testing shows that to be a safe assumption.
 	 */
-	vdd_set(sc, sc->cpu_maxmv);
-	cpufreq_set_clock(sc, sc->cpu_maxhz);
-	device_printf(sc->dev, "CPU frequency %uMHz\n", sc->cpu_curmhz);
+	cpufreq_set_clock(sc, op);
 }
 
 static inline uint32_t
@@ -391,9 +512,8 @@ static void
 tempmon_gofast(struct imx6_anatop_softc *sc)
 {
 
-	if (sc->cpu_curhz < sc->cpu_maxhz) {
-		vdd_set(sc, sc->cpu_maxmv);
-		cpufreq_set_clock(sc, sc->cpu_maxhz);
+	if (sc->cpu_curmhz < sc->cpu_maxmhz) {
+		cpufreq_set_clock(sc, cpufreq_nearest_oppt(sc, sc->cpu_maxmhz));
 	}
 }
 
@@ -401,9 +521,8 @@ static void
 tempmon_goslow(struct imx6_anatop_softc *sc)
 {
 
-	if (sc->cpu_curhz > sc->cpu_minhz) {
-		cpufreq_set_clock(sc, sc->cpu_minhz);
-		vdd_set(sc, sc->cpu_minmv);
+	if (sc->cpu_curmhz > sc->cpu_minmhz) {
+		cpufreq_set_clock(sc, cpufreq_nearest_oppt(sc, sc->cpu_minmhz));
 	}
 }
 
@@ -542,6 +661,10 @@ imx6_anatop_attach(device_t dev)
 	cpufreq_initialize(sc);
 	initialize_tempmon(sc);
 
+	if (bootverbose) {
+		device_printf(sc->dev, "CPU %uMHz @ %umV\n", sc->cpu_curmhz,
+		    sc->cpu_curmv);
+	}
 	err = 0;
 
 out:
@@ -575,7 +698,7 @@ imx6_get_cpu_clock()
 
 	div = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM) &
 	    IMX6_ANALOG_CCM_PLL_ARM_DIV_MASK;
-	return (cpufreq_hz_from_div(imx6_anatop_sc, div));
+	return (cpufreq_mhz_from_div(imx6_anatop_sc, div));
 }
 
 static device_method_t imx6_anatop_methods[] = {
