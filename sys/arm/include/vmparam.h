@@ -93,15 +93,10 @@
 #define	VM_FREEPOOL_DIRECT	0
 
 /*
- * we support 2 free lists:
- *
- *	- DEFAULT for all systems
- *	- ISADMA for the ISA DMA range on Sharks only
+ * We need just one free list:  DEFAULT.
  */
-
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
 
 /*
  * The largest allocation size is 1MB.

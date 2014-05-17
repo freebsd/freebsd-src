@@ -71,6 +71,7 @@ ENTRY(armv7_setttb)
 				
 	orr 	r0, r0, #PT_ATTR
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
+	isb
 #ifdef SMP
  	mcr     p15, 0, r0, c8, c3, 0   /* invalidate I+D TLBs Inner Shareable*/
 #else
@@ -273,6 +274,7 @@ ENTRY(armv7_context_switch)
 	orr     r0, r0, #PT_ATTR
 			
 	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
+	isb
 #ifdef SMP
 	mcr	p15, 0, r0, c8, c3, 0	/* and flush the I+D tlbs Inner Sharable */
 #else
