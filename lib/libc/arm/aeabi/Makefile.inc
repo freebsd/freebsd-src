@@ -6,6 +6,10 @@ SRCS+=	aeabi_atexit.c		\
 	aeabi_double.c		\
 	aeabi_float.c		\
 	aeabi_unwind_cpp.c
+.if ${MACHINE_ARCH:Marmv6*}
+SRCS+=	aeabi_vfp_double.S	\
+	aeabi_vfp_float.S
+.endif
 
 # Add the aeabi_mem* functions. While they live in compiler-rt they call into
 # libc. This causes issues when other parts of libc call these functions.
