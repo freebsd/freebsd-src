@@ -43,7 +43,7 @@ options 	NFSCL			# Network Filesystem Client
 
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
@@ -54,7 +54,7 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
-options		FREEBSD_BOOT_LOADER
+options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
 
 # Debugging

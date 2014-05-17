@@ -26,7 +26,7 @@ options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=mge0
 
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	GEOM_PART_GPT

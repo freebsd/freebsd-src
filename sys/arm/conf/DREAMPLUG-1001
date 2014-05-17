@@ -35,7 +35,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	SOFTUPDATES
-options		TMPFS			# Efficient memory filesystem
+options 	TMPFS			# Efficient memory filesystem
 options 	CD9660			# ISO 9660 filesystem
 options 	FFS			# Berkeley Fast Filesystem
 options 	MSDOSFS			# MS DOS File System (FAT, FAT32)

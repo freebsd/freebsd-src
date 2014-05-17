@@ -177,11 +177,11 @@ device		uvscom		# USB serial support for DDI pocket's PHS
 # Wireless NIC cards.
 # The wlan(4) module assumes this, so just define it so it
 # at least correctly loads.
-options		IEEE80211_SUPPORT_MESH
+options 	IEEE80211_SUPPORT_MESH
 
 # The ath(4) and ath_hal(4) code requires this.  The module currently
 # builds everything including AR5416 (and later 11n NIC) support.
-options		AH_SUPPORT_AR5416
+options 	AH_SUPPORT_AR5416
 
 # Various (pseudo) devices
 device		ether		# Ethernet support
