@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <arm/econa/if_ecereg.h>
-#include <arm/econa/if_ecevar.h>
-#include <arm/econa/econa_var.h>
+#include <arm/cavium/cns11xx/if_ecereg.h>
+#include <arm/cavium/cns11xx/if_ecevar.h>
+#include <arm/cavium/cns11xx/econa_var.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>

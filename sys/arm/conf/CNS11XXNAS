@@ -26,7 +26,7 @@ ident		CNS11XXNAS
 #options 	FLASHADDR=0x50000000
 #options 	LOADERRAMADDR=0x00000000
 
-include		"../econa/std.econa"
+include		"../cavium/cns11xx/std.econa"
 
 makeoptions	MODULES_OVERRIDE=""
 
