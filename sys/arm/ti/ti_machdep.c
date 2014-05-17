@@ -51,45 +51,40 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platformvar.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
 
+#include "platform_if.h"
+
 void (*ti_cpu_reset)(void) = NULL;
 
-vm_offset_t
-platform_lastaddr(void)
+static vm_offset_t
+ti_lastaddr(platform_t plat)
 {
 
 	return (arm_devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-}
-
-void
-platform_gpio_init(void)
-{
-}
-
-void
-platform_late_init(void)
-{
 }
 
 /*
  * Construct static devmap entries to map out the most frequently used
  * peripherals using 1mb section mappings.
  */
-int
-platform_devmap_init(void)
-{
 #if defined(SOC_OMAP4)
+static int
+ti_omap4_devmap_init(platform_t plat)
+{
 	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
 	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
-#elif defined(SOC_TI_AM335X)
+	return (0);
+}
+#endif
+
+#if defined(SOC_TI_AM335X)
+static int
+ti_am335x_devmap_init(platform_t plat)
+{
+
 	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
 	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
 	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
@@ -97,11 +92,9 @@ platform_devmap_init(void)
 	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
 	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
 	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
-#else
-#error "Unknown SoC"
-#endif
 	return (0);
 }
+#endif
 
 struct arm32_dma_range *
 bus_dma_get_range(void)
@@ -127,3 +120,24 @@ cpu_reset()
 	printf("Reset failed!\n");
 	while (1);
 }
+
+#if defined(SOC_OMAP4)
+static platform_method_t omap4_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430");
+#endif
+
+#if defined(SOC_TI_AM335X)
+static platform_method_t am335x_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x");
+#endif
