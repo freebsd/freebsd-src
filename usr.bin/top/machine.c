@@ -67,6 +67,9 @@ static int namelength = TOP_USERNAME_LEN;
 #else
 static int namelength = 8;
 #endif
+/* TOP_JID_LEN based on max of 999999 */
+#define TOP_JID_LEN 7
+static int jidlength;
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
@@ -101,26 +104,26 @@ struct handle {
  */
 
 static char io_header[] =
-    "  PID%s %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
+    "  PID%*s %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
 
 #define io_Proc_format \
-    "%5d%s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
+    "%5d%*s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
-    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
+    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
 static char smp_header[] =
-    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
+    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
 
 #define smp_Proc_format \
-    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s %2d%7s %6.2f%% %.*s"
+    "%5d%*s %-*.*s %s%3d %4s%7s %6s %-6.6s %2d%7s %6.2f%% %.*s"
 
 static char up_header_thr[] =
-    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
+    "  PID%*s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
 static char up_header[] =
-    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
+    "  PID%*s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
 
 #define up_Proc_format \
-    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %6.2f%% %.*s"
+    "%5d%*s %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %6.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -393,6 +396,11 @@ format_header(char *uname_field)
 {
 	static char Header[128];
 	const char *prehead;
+	
+	if (ps.jail)
+		jidlength = TOP_JID_LEN + 1;	/* +1 for extra left space. */
+	else
+		jidlength = 0;
 
 	switch (displaymode) {
 	case DISP_CPU:
@@ -406,14 +414,14 @@ format_header(char *uname_field)
 		    (ps.thread ? smp_header : smp_header_thr) :
 		    (ps.thread ? up_header : up_header_thr);
 		snprintf(Header, sizeof(Header), prehead,
-		    ps.jail ? " JID" : "",
+		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field,
 		    ps.wcpu ? "WCPU" : "CPU");
 		break;
 	case DISP_IO:
 		prehead = io_header;
 		snprintf(Header, sizeof(Header), prehead,
-		    ps.jail ? " JID" : "",
+		    jidlength, ps.jail ? " JID" : "",
 		    namelength, namelength, uname_field);
 		break;
 	}
@@ -806,7 +814,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	int cpu, state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
-	char *proc_fmt, thr_buf[6], jid_buf[6];
+	char *proc_fmt, thr_buf[6], jid_buf[TOP_JID_LEN + 1];
 	char *cmdbuf = NULL;
 	char **args;
 
@@ -961,8 +969,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	if (ps.jail == 0) 
 		jid_buf[0] = '\0';
 	else
-		snprintf(jid_buf, sizeof(jid_buf), " %*d",
-		    sizeof(jid_buf) - 3, pp->ki_jid);
+		snprintf(jid_buf, sizeof(jid_buf), "%*d",
+		    jidlength - 1, pp->ki_jid);
 
 	if (displaymode == DISP_IO) {
 		oldp = get_old_proc(pp);
@@ -983,7 +991,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 		snprintf(fmt, sizeof(fmt), io_Proc_format,
 		    pp->ki_pid,
-		    jid_buf,
+		    jidlength, jid_buf,
 		    namelength, namelength, (*get_userid)(pp->ki_ruid),
 		    rup->ru_nvcsw,
 		    rup->ru_nivcsw,
@@ -1018,7 +1026,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    pp->ki_pid,
-	    jid_buf,
+	    jidlength, jid_buf,
 	    namelength, namelength, (*get_userid)(pp->ki_ruid),
 	    thr_buf,
 	    pp->ki_pri.pri_level - PZERO,
