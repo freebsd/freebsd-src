@@ -32,70 +32,45 @@ __FBSDID("$FreeBSD$");
 #include "milieu.h"
 #include "softfloat.h"
 
+#include "aeabi_vfp.h"
+
+extern int _libc_arm_fpu_present;
+
 flag __unordsf2(float32, float32);
 
-int __aeabi_fcmpeq(float32 a, float32 b)
-{
-	return float32_eq(a, b);
-}
+/* These are written in asm and are only called from this file */
+int __aeabi_fcmpeq_vfp(float32, float32);
+int __aeabi_fcmplt_vfp(float32, float32);
+int __aeabi_fcmple_vfp(float32, float32);
+int __aeabi_fcmpgt_vfp(float32, float32);
+int __aeabi_fcmpge_vfp(float32, float32);
+int __aeabi_fcmpun_vfp(float32, float32);
+int __aeabi_f2iz_vfp(float32);
+float64 __aeabi_f2d_vfp(float32);
+float32 __aeabi_i2f_vfp(int);
+float32 __aeabi_fadd_vfp(float32, float32);
+float32 __aeabi_fdiv_vfp(float32, float32);
+float32 __aeabi_fmul_vfp(float32, float32);
+float32 __aeabi_fsub_vfp(float32, float32);
 
-int __aeabi_fcmplt(float32 a, float32 b)
-{
-	return float32_lt(a, b);
-}
+/*
+ * Depending on the target these will:
+ *  On armv6 with a vfp call the above function, or
+ *  Call the softfloat function in the 3rd argument.
+ */
+int AEABI_FUNC2(fcmpeq, float32, float32_eq)
+int AEABI_FUNC2(fcmplt, float32, float32_lt)
+int AEABI_FUNC2(fcmple, float32, float32_le)
+int AEABI_FUNC2_REV(fcmpge, float32, float32_le)
+int AEABI_FUNC2_REV(fcmpgt, float32, float32_lt)
+int AEABI_FUNC2(fcmpun, float32, __unordsf2)
 
-int __aeabi_fcmple(float32 a, float32 b)
-{
-	return float32_le(a, b);
-}
+int AEABI_FUNC(f2iz, float32, float32_to_int32_round_to_zero)
+float64 AEABI_FUNC(f2d, float32, float32_to_float64)
+float32 AEABI_FUNC(i2f, int, int32_to_float32)
 
-int __aeabi_fcmpge(float32 a, float32 b)
-{
-	return float32_le(b, a);
-}
-
-int __aeabi_fcmpgt(float32 a, float32 b)
-{
-	return float32_lt(b, a);
-}
-
-int __aeabi_fcmpun(float32 a, float32 b)
-{
-	return __unordsf2(a, b);
-}
-
-int __aeabi_f2iz(float32 a)
-{
-	return float32_to_int32_round_to_zero(a);
-}
-
-float32 __aeabi_f2d(float32 a)
-{
-	return float32_to_float64(a);
-}
-
-float32 __aeabi_i2f(int a)
-{
-	return int32_to_float32(a);
-}
-
-float32 __aeabi_fadd(float32 a, float32 b)
-{
-	return float32_add(a, b);
-}
-
-float32 __aeabi_fdiv(float32 a, float32 b)
-{
-	return float32_div(a, b);
-}
-
-float32 __aeabi_fmul(float32 a, float32 b)
-{
-	return float32_mul(a, b);
-}
-
-float32 __aeabi_fsub(float32 a, float32 b)
-{
-	return float32_sub(a, b);
-}
+float32 AEABI_FUNC2(fadd, float32, float32_add)
+float32 AEABI_FUNC2(fdiv, float32, float32_div)
+float32 AEABI_FUNC2(fmul, float32, float32_mul)
+float32 AEABI_FUNC2(fsub, float32, float32_sub)
 
