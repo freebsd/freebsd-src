@@ -77,9 +77,9 @@
 #define	VM_PHYSSEG_MAX		32
 
 /*
- * The physical address space is densely populated.
+ * The physical address space may be sparsely populated on some ARM systems.
  */
-#define	VM_PHYSSEG_DENSE
+#define	VM_PHYSSEG_SPARSE
 
 /*
  * Create two free page pools.  Since the ARM kernel virtual address
