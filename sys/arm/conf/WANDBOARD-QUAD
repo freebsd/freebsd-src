@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include  	"WANDBOARD.common"
+include  	"IMX6"
 ident		WANDBOARD-QUAD
 
 # Flattened Device Tree
