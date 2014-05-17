@@ -153,7 +153,7 @@ f_debug_init()
 	# Process stored command-line arguments
 	#
 	set -- $ARGV
-	local OPTIND flag
+	local OPTIND OPTARG flag
 	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
 	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
@@ -798,14 +798,30 @@ f_running_as_init()
 }
 
 # f_mounted $local_directory
+# f_mounted -b $device
 #
-# Return success if a filesystem is mounted on a particular directory.
+# Return success if a filesystem is mounted on a particular directory. If `-b'
+# is present, instead check that the block device (or a partition thereof) is
+# mounted.
 #
 f_mounted()
 {
-	local dir="$1"
-	[ -d "$dir" ] || return $FAILURE
-	mount | grep -Eq " on $dir \([^)]+\)$"
+	local OPTIND OPTARG flag use_device=
+	while getopts b flag; do
+		case "$flag" in
+		b) use_device=1 ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	if [ "$use_device" ]; then
+		local device="$1"
+		mount | grep -Eq \
+			"^$device([[:space:]]|p[0-9]|s[0-9]|\.nop|\.eli)"
+	else
+		[ -d "$dir" ] || return $FAILURE
+		mount | grep -Eq " on $dir \([^)]+\)$"
+	fi
+	# Return status is that of last grep(1)
 }
 
 # f_eval_catch [-de] [-k $var_to_set] $funcname $utility \
@@ -890,7 +906,7 @@ f_eval_catch()
 	#
 	# Process local function arguments
 	#
-	local OPTIND __flag
+	local OPTIND OPTARG __flag
 	while getopts "dek:" __flag > /dev/null; do
 		case "$__flag" in
 		d) __no_dialog=1 ;;
