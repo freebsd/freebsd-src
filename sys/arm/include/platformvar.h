@@ -83,21 +83,24 @@ typedef struct fdt_platform_class fdt_platform_def_t;
 
 extern platform_method_t fdt_platform_methods[];
 
-#define FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible)	\
-static fdt_platform_def_t NAME ## _fdt_platform = {		\
-	.name = NAME_STR,					\
-	.methods = fdt_platform_methods,			\
-	.fdt_compatible = compatible,				\
-};								\
-static kobj_class_t NAME ## _baseclasses[] =			\
-	{ (kobj_class_t)&NAME ## _fdt_platform, NULL };		\
-static platform_def_t NAME ## _platform = {			\
-	NAME_STR,						\
-	NAME ## _methods,					\
-	size,							\
-	NAME ## _baseclasses,					\
-};								\
-DATA_SET(platform_set, NAME ## _platform)
+#define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible)	\
+static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
+	.name = NAME_STR,						\
+	.methods = fdt_platform_methods,				\
+	.fdt_compatible = compatible,					\
+};									\
+static kobj_class_t VAR_NAME ## _baseclasses[] =			\
+	{ (kobj_class_t)&VAR_NAME ## _fdt_platform, NULL };		\
+static platform_def_t VAR_NAME ## _platform = {				\
+	NAME_STR,							\
+	NAME ## _methods,						\
+	size,								\
+	VAR_NAME ## _baseclasses,					\
+};									\
+DATA_SET(platform_set, VAR_NAME ## _platform)
+
+#define	FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible)		\
+    FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible)
 
 #endif
 
