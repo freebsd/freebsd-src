@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2014
+.Dd May 16, 2014
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -33,11 +33,9 @@
 .Nd get detailed process information
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
-.Op Fl n
-.Op Fl C
+.Op Fl CHhn
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | s | t | v | x
+.Op Fl b | c | e | f | i | j | k | l | r | s | t | v | x
 .Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
@@ -73,6 +71,8 @@ If the flag is repeated, function offsets as well as function names are
 printed.
 .It Fl l
 Display resource limits for the process.
+.It Fl r
+Display resource usage information for the process.
 .It Fl s
 Display security credential information for the process.
 .It Fl t
@@ -101,6 +101,13 @@ The
 .Fl C
 flag requests the printing of additional capability information in the file
 descriptor view.
+.Pp
+The
+.Fl H
+flag may be used to request per-thread statistics rather than per-process
+statistics for some options.
+For those options, the second field in the table will list the thread ID
+to which the row of information corresponds.
 .Pp
 Some information, such as VM and file descriptor information, is available
 only to the owner of a process or the superuser.
