@@ -72,6 +72,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	FREEBSD_BOOT_LOADER
 
 options 	PREEMPTION
+options 	PLATFORM
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
