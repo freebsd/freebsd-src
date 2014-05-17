@@ -28,11 +28,11 @@ device		etherswitch
 device		rtl8366rb
 
 # read MSDOS formatted disks - USB
-options		MSDOSFS
+options 	MSDOSFS
 
 # Enable the uboot environment stuff rather then the
 # redboot stuff.
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
 # uncompress - to boot natively from flash
 device         geom_uncompress

@@ -187,7 +187,7 @@ options 	VESA_DEBUG
 device		dpms		# DPMS suspend & resume via VESA BIOS
 
 # x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
-options		X86BIOS
+options 	X86BIOS
 
 #
 # Optional devices:
@@ -442,7 +442,7 @@ device		ips
 #
 # Intel C600 (Patsburg) integrated SAS controller
 device		isci
-options		ISCI_LOGGING	# enable debugging in isci HAL
+options 	ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # NVM Express (NVMe) support
