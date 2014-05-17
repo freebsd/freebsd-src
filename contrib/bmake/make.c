@@ -378,7 +378,7 @@ MakeAddChild(void *gnp, void *lp)
 	if (DEBUG(MAKE))
 	    fprintf(debug_file, "MakeAddChild: need to examine %s%s\n",
 		gn->name, gn->cohort_num);
-	(void)Lst_EnQueue(l, gn);
+	(void)Lst_EnQueueOnce(l, gn);
     }
     return (0);
 }

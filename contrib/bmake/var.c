@@ -3705,6 +3705,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
     } else {
 	Buffer buf;	/* Holds the variable name */
+	int depth = 1;
 
 	endc = startc == PROPEN ? PRCLOSE : BRCLOSE;
 	Buf_Init(&buf, 0);
@@ -3712,10 +3713,21 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	/*
 	 * Skip to the end character or a colon, whichever comes first.
 	 */
-	for (tstr = str + 2;
-	     *tstr != '\0' && *tstr != endc && *tstr != ':';
-	     tstr++)
+	for (tstr = str + 2; *tstr != '\0'; tstr++)
 	{
+	    /*
+	     * Track depth so we can spot parse errors.
+	     */
+	    if (*tstr == startc) {
+		depth++;
+	    }
+	    if (*tstr == endc) {
+		if (--depth == 0)
+		    break;
+	    }
+	    if (depth == 1 && *tstr == ':') {
+		break;
+	    }
 	    /*
 	     * A variable inside a variable, expand
 	     */
@@ -3735,7 +3747,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
 	if (*tstr == ':') {
 	    haveModifier = TRUE;
-	} else if (*tstr != '\0') {
+	} else if (*tstr == endc) {
 	    haveModifier = FALSE;
 	} else {
 	    /*
@@ -4085,7 +4097,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 		 */
 		if (oldVars) {
 		    str += length;
-		} else if (undefErr) {
+		} else if (undefErr || val == var_Error) {
 		    /*
 		     * If variable is undefined, complain and skip the
 		     * variable. The complaint will stop us from doing anything

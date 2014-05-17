@@ -183,6 +183,8 @@ void		Lst_Close(Lst);
  */
 /* Place an element at tail of queue */
 ReturnStatus	Lst_EnQueue(Lst, void *);
+/* Same but only if not on list */
+ReturnStatus	Lst_EnQueueOnce(Lst, void *);
 /* Remove an element from head of queue */
 void		*Lst_DeQueue(Lst);
 
