@@ -293,7 +293,8 @@
 
       <para revision="266269">Support for &man.xen.4;
 	hardware-assisted virtualization, <literal>XENHVM</literal>,
-	has been reworked as a loadable module.</para>
+	is now available as a loadable module,
+	<literal>xenhvm.ko</literal>.</para>
 
       <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
