@@ -505,6 +505,8 @@ struct	tcpstat {
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
+#define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
+
 #ifdef _KERNEL
 #include <sys/counter.h>
 
