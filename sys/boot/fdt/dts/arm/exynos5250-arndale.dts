@@ -38,6 +38,14 @@
 		reg = < 0x40000000 0x80000000 >;  /* 2G */
 	};
 
+	SOC: Exynos5@0 {
+
+		pad0: pad@11400000 {
+			status = "okay";
+		};
+
+	};
+
 	chosen {
 		stdin = &serial2;
 		stdout = &serial2;
