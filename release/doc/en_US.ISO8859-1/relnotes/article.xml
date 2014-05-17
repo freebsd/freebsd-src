@@ -291,6 +291,9 @@
 	&man.sysctl.8; on &intel; processors with Turbo
 	Boost&nbsp;&trade; enabled has been fixed.</para>
 
+      <para revision="266269">Support for &man.xen.4;
+	hardware-assisted virtualization, <literal>XENHVM</literal>,
+	has been reworked as a loadable module.</para>
 
       <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
