@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <arm/econa/econa_reg.h>
+#include <arm/cavium/cns11xx/econa_reg.h>
 
 #define	MEM_RID	0
 

@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <arm/econa/econa_reg.h>
-#include <arm/econa/econa_var.h>
+#include <arm/cavium/cns11xx/econa_reg.h>
+#include <arm/cavium/cns11xx//econa_var.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

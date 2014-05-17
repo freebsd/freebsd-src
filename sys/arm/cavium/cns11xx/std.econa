@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-files	"../econa/files.econa"
+files	"../cavium/cns11xx/files.econa"
 cpu		CPU_FA526
 machine 	arm
 makeoptions	CONF_CFLAGS=-march=armv4
