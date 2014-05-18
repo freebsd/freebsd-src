@@ -47,6 +47,7 @@
 #define	cheri_getunsealed(x)	__builtin_cheri_get_cap_unsealed(x)
 
 #define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms((x), (y))
+#define	cheri_ccleartag(x)	__builtin_cheri_clear_cap_tag(x)
 #define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base((x), (y))
 #define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
 #define	cheri_settype(x, y)	__builtin_cheri_set_cap_type((x), (y))
