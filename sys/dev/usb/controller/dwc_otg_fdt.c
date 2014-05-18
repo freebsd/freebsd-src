@@ -147,7 +147,7 @@ dwc_otg_attach(device_t dev)
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    &dwc_otg_filter_interrupt, &dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
 		goto error;
