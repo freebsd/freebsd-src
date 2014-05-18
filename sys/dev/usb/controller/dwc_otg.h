@@ -48,7 +48,7 @@
 struct dwc_otg_td;
 struct dwc_otg_softc;
 
-typedef uint8_t (dwc_otg_cmd_t)(struct dwc_otg_td *td);
+typedef uint8_t (dwc_otg_cmd_t)(struct dwc_otg_softc *sc, struct dwc_otg_td *td);
 
 struct dwc_otg_td {
 	struct dwc_otg_td *obj_next;
@@ -184,6 +184,7 @@ struct dwc_otg_softc {
 	struct dwc_otg_chan_state sc_chan_state[DWC_OTG_MAX_CHANNELS];
 	uint32_t sc_tmr_val;
 	uint32_t sc_hprt_val;
+	uint32_t sc_xfer_complete;
 
 	uint16_t sc_active_rx_ep;
 	uint16_t sc_last_frame_num;
@@ -207,7 +208,8 @@ struct dwc_otg_softc {
 
 /* prototypes */
 
-void dwc_otg_interrupt(struct dwc_otg_softc *);
+driver_filter_t dwc_otg_filter_interrupt;
+driver_intr_t dwc_otg_interrupt;
 int dwc_otg_init(struct dwc_otg_softc *);
 void dwc_otg_uninit(struct dwc_otg_softc *);
 
