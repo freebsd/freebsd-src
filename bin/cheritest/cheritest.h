@@ -106,6 +106,7 @@ void	test_nofault_ccall_nop_creturn(void);
 /* cheritest_fault.c */
 void	test_fault_cgetcause(void);
 void	test_fault_overrun(void);
+void	test_fault_tag(void);
 void	test_fault_ccheck_user_fail(void);
 void	test_fault_read_kr1c(void);
 void	test_fault_read_kr2c(void);

@@ -72,6 +72,16 @@ test_fault_overrun(void)
 }
 
 void
+test_fault_tag(void)
+{
+	char ch;
+	__capability char *chp = cheri_ptr(&ch, sizeof(ch));
+
+	chp = cheri_ccleartag(chp);
+	*chp = '\0';
+}
+
+void
 test_fault_ccheck_user_fail(void)
 {
 	__capability void *cp;

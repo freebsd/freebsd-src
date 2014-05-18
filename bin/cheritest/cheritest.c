@@ -113,6 +113,15 @@ static const struct cheri_test {
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH },
 
+	{ .ct_name = "test_fault_tag",
+	  .ct_desc = "Store via untagged capability",
+	  .ct_func = test_fault_tag,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
 	{ .ct_name = "test_fault_ccheck_user_fail",
 	  .ct_desc = "Exercise CCheckPerm failure",
 	  .ct_func = test_fault_ccheck_user_fail,
