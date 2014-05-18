@@ -124,7 +124,7 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_HWADDR,
 		    IOP34X_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    /*
@@ -135,14 +135,14 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
 		    0x100000,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    IOP34X_PCE1_VADDR,
 		    IOP34X_PCE1,
 		    IOP34X_PCE1_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {	
 		    0,

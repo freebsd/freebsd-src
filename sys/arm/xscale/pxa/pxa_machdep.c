@@ -129,7 +129,7 @@ static const struct arm_devmap_entry pxa_devmap[] = {
 		PXA2X0_PERIPH_START,
 		PXA250_PERIPH_END - PXA2X0_PERIPH_START,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
