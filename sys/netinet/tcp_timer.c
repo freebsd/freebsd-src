@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -51,10 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
+#include <net/netisr.h>
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
@@ -128,8 +131,49 @@ static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
     &per_cpu_timers , 0, "run tcp timers on all cpus");
 
+#if 0
 #define	INP_CPU(inp)	(per_cpu_timers ? (!CPU_ABSENT(((inp)->inp_flowid % (mp_maxid+1))) ? \
 		((inp)->inp_flowid % (mp_maxid+1)) : curcpu) : 0)
+#endif
+
+/*
+ * Map the given inp to a CPU id.
+ *
+ * This queries RSS if it's compiled in, else it defaults to the current
+ * CPU ID.
+ */
+static inline int
+inp_to_cpuid(struct inpcb *inp)
+{
+	u_int cpuid;
+
+#ifdef	RSS
+	if (per_cpu_timers) {
+		cpuid = rss_hash2cpuid(inp->inp_flowid, inp->inp_flowtype);
+		if (cpuid == NETISR_CPUID_NONE)
+			return (curcpu);	/* XXX */
+		else
+			return (cpuid);
+	}
+#else
+	/* Legacy, pre-RSS behaviour */
+	if (per_cpu_timers) {
+		/*
+		 * We don't have a flowid -> cpuid mapping, so cheat and
+		 * just map unknown cpuids to curcpu.  Not the best, but
+		 * apparently better than defaulting to swi 0.
+		 */
+		cpuid = inp->inp_flowid % (mp_maxid + 1);
+		if (! CPU_ABSENT(cpuid))
+			return (cpuid);
+		return (curcpu);
+	}
+#endif
+	/* Default for RSS and non-RSS - cpuid 0 */
+	else {
+		return (0);
+	}
+}
 
 /*
  * Tcp protocol timeout routine called every 500 ms.
@@ -271,7 +315,8 @@ tcp_timer_2msl(void *xtp)
 		if (tp->t_state != TCPS_TIME_WAIT &&
 		   ticks - tp->t_rcvtime <= TP_MAXIDLE(tp))
 		       callout_reset_on(&tp->t_timers->tt_2msl,
-			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp, INP_CPU(inp));
+			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp,
+			   inp_to_cpuid(inp));
 	       else
 		       tp = tcp_close(tp);
        }
@@ -361,10 +406,10 @@ tcp_timer_keep(void *xtp)
 			free(t_template, M_TEMP);
 		}
 		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
-		    tcp_timer_keep, tp, INP_CPU(inp));
+		    tcp_timer_keep, tp, inp_to_cpuid(inp));
 	} else
 		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
-		    tcp_timer_keep, tp, INP_CPU(inp));
+		    tcp_timer_keep, tp, inp_to_cpuid(inp));
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
@@ -649,7 +694,7 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 	struct callout *t_callout;
 	void *f_callout;
 	struct inpcb *inp = tp->t_inpcb;
-	int cpu = INP_CPU(inp);
+	int cpu = inp_to_cpuid(inp);
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
