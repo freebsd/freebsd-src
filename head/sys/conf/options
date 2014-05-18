@@ -918,3 +918,6 @@ RANDOM_YARROW	opt_random.h
 RANDOM_FORTUNA	opt_random.h
 RANDOM_DEBUG	opt_random.h
 RANDOM_RWFILE	opt_random.h
+
+# evdev protocol support
+EVDEV		opt_evdev.h
