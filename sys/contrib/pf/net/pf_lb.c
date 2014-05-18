@@ -788,6 +788,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 			pool_put(&pf_state_key_pl, *skp);
 #endif
 			*skw = *sks = *nkp = *skp = NULL;
+			*sn = NULL;
 			return (NULL);
 		}
 	}
