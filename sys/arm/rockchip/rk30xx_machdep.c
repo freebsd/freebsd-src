@@ -83,6 +83,7 @@ int
 initarm_devmap_init(void)
 {
 
+	arm_devmap_add_entry(0x10000000, 0x00200000);
 	arm_devmap_add_entry(0x20000000, 0x00100000);
 	
 	return (0);
