@@ -319,6 +319,10 @@ ENTRY(armv7_auxctrl)
 	RET
 END(armv7_auxctrl)
 
+/*
+ * Invalidate all I+D+branch cache.  Used by startup code, which counts
+ * on the fact that only r0-r3,ip are modified and no stack space is used.
+ */
 ENTRY(armv7_idcache_inv_all)
 	mov     r0, #0
 	mcr     p15, 2, r0, c0, c0, 0   @ set cache level to L1
