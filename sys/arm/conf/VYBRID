@@ -17,6 +17,7 @@
 #
 # $FreeBSD$
 
+ident		VYBRID
 include		"../freescale/vybrid/std.vybrid"
 
 makeoptions	MODULES_OVERRIDE=""
@@ -146,3 +147,5 @@ device		kbdmux
 options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp437
 device		ukbd
+
+options 	FDT
