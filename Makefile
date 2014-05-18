@@ -473,9 +473,15 @@ universe_kernels: universe_kernconfs
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
+.if defined(MAKE_ALL_KERNELS)
+_THINNER=cat
+.else
+_THINNER=xargs grep -L "^.NO_UNIVERSE"
+.endif
 KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
-		! -name DEFAULTS ! -name NOTES
+		! -name DEFAULTS ! -name NOTES | \
+		${_THINNER}
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
