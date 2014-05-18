@@ -128,14 +128,14 @@ static const struct arm_devmap_entry iq80321_devmap[] = {
 		    IQ80321_OBIO_BASE,
 		    IQ80321_OBIO_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 	    	    IQ80321_IOW_VBASE,
 		    VERDE_OUT_XLATE_IO_WIN0_BASE,
 		    VERDE_OUT_XLATE_IO_WIN_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	
 	    {
@@ -143,7 +143,7 @@ static const struct arm_devmap_entry iq80321_devmap[] = {
 		    VERDE_PMMR_BASE,
 		    VERDE_PMMR_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    0,
