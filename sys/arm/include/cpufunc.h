@@ -151,6 +151,7 @@ struct cpu_functions {
 	void	(*cf_l2cache_wbinv_range) (vm_offset_t, vm_size_t);
 	void	(*cf_l2cache_inv_range)	  (vm_offset_t, vm_size_t);
 	void	(*cf_l2cache_wb_range)	  (vm_offset_t, vm_size_t);
+	void	(*cf_l2cache_drain_writebuf)	  (void);
 
 	/* Other functions */
 
@@ -252,6 +253,7 @@ void tlb_broadcast(int);
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
 #define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
+#define cpu_l2cache_drain_writebuf() cpufuncs.cf_l2cache_drain_writebuf()
 
 #define	cpu_flush_prefetchbuf()	cpufuncs.cf_flush_prefetchbuf()
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
