@@ -91,7 +91,7 @@ invoke_cap_fault(register_t op)
 		break;
 
 	case CHERITEST_HELPER_OP_CP2_TAG:
-		cap = cheri_zerocap();
+		cap = cheri_ccleartag(cap);
 		ch = cap[0];
 		return (ch);
 
