@@ -429,7 +429,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       "%-5.5s %-6.6s %-6.6s %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (!xflag)
+				if (!xflag && !Rflag)
 					printf(" (state)");
 			}
 			if (xflag) {
@@ -441,6 +441,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 				printf(" %7.7s %7.7s %7.7s %7.7s %7.7s %7.7s",
 				       "rexmt", "persist", "keep",
 				       "2msl", "delack", "rcvtime");
+			} else if (Rflag) {
+				printf ("  %8.8s %5.5s",
+				    "flowid", "ftype");
 			}
 			putchar('\n');
 			first = 0;
@@ -549,7 +552,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
 				    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 		}
-		if (istcp && !Lflag && !xflag && !Tflag) {
+		if (istcp && !Lflag && !xflag && !Tflag && !Rflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
 			else {
@@ -560,7 +563,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 					putchar('*');
 #endif /* defined(TF_NEEDSYN) && defined(TF_NEEDFIN) */
 			}
-		} 		
+		}
+		if (Rflag) {
+			printf(" %08x %5d",
+			    inp->inp_flowid,
+			    inp->inp_flowtype);
+		}
 		putchar('\n');
 	}
 	if (xig != oxig && xig->xig_gen != oxig->xig_gen) {
