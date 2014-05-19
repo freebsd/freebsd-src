@@ -67,7 +67,7 @@ struct vmxctx {
 	int		inst_fail_status;
 
 	/*
-	 * The pmap needs to be deactivated in vmx_exit_guest()
+	 * The pmap needs to be deactivated in vmx_enter_guest()
 	 * so keep a copy of the 'pmap' in each vmxctx.
 	 */
 	struct pmap	*pmap;
@@ -121,10 +121,11 @@ CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 #define	VMX_VMLAUNCH_ERROR	2
 #define	VMX_INVEPT_ERROR	3
 int	vmx_enter_guest(struct vmxctx *ctx, struct vmx *vmx, int launched);
-void	vmx_exit_guest(void);
 void	vmx_call_isr(uintptr_t entry);
 
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
+
+extern char	vmx_exit_guest[];
 
 #endif

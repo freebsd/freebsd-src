@@ -1492,6 +1492,18 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	return (HANDLED);
 }
 
+/*
+ * From section "Guest Register State" in the Intel SDM: CPL = SS.DPL
+ */
+static int
+vmx_cpl(void)
+{
+	uint32_t ssar;
+
+	ssar = vmcs_read(VMCS_GUEST_SS_ACCESS_RIGHTS);
+	return ((ssar >> 5) & 0x3);
+}
+
 static enum vie_cpu_mode
 vmx_cpu_mode(void)
 {
@@ -1514,6 +1526,18 @@ vmx_paging_mode(void)
 		return (PAGING_MODE_64);
 	else
 		return (PAGING_MODE_PAE);
+}
+
+static void
+vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
+{
+	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+	vmexit->u.inst_emul.gpa = gpa;
+	vmexit->u.inst_emul.gla = gla;
+	vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+	vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+	vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+	vmexit->u.inst_emul.cpl = vmx_cpl();
 }
 
 static int
@@ -1707,12 +1731,8 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	}
 
 	if (allowed) {
-		vmexit->exitcode = VM_EXITCODE_INST_EMUL;
-		vmexit->u.inst_emul.gpa = DEFAULT_APIC_BASE + offset;
-		vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
-		vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
-		vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
-		vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+		vmexit_inst_emul(vmexit, DEFAULT_APIC_BASE + offset,
+		    VIE_INVALID_GLA);
 	}
 
 	/*
@@ -1943,12 +1963,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
 		} else if (ept_emulation_fault(qual)) {
-			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
-			vmexit->u.inst_emul.gpa = gpa;
-			vmexit->u.inst_emul.gla = vmcs_gla();
-			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
-			vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
-			vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+			vmexit_inst_emul(vmexit, gpa, vmcs_gla());
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
 		/*

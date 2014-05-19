@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,7 +41,7 @@
 
 #ifndef UTIL_LOG_H
 #define UTIL_LOG_H
-#include <ldns/buffer.h>
+struct sldns_buffer;
 
 /**
  * verbosity value:
@@ -108,7 +108,7 @@ void log_ident_set(const char* id);
  * @param t: the point is copied and used to find the time.
  * 	if NULL, time(2) is used.
  */
-void log_set_time(uint32_t* t);
+void log_set_time(time_t* t);
 
 /**
  * Set if the time value is printed ascii or decimal in log entries.
@@ -149,13 +149,13 @@ void log_warn(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
 void log_hex(const char* msg, void* data, size_t length);
 
 /**
- * Easy alternative for log_hex, takes a ldns_buffer.
+ * Easy alternative for log_hex, takes a sldns_buffer.
  * @param level: verbosity level for this message, compared to global 
  *	verbosity setting.
  * @param msg: string desc to print
  * @param buf: the buffer.
  */
-void log_buf(enum verbosity_value level, const char* msg, ldns_buffer* buf);
+void log_buf(enum verbosity_value level, const char* msg, struct sldns_buffer* buf);
 
 /**
  * Log fatal error message, and exit the current process.

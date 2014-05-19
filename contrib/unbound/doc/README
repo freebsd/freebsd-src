@@ -1,4 +1,4 @@
-README for Unbound 1.4.20
+README for Unbound 1.4.22
 Copyright 2007 NLnet Labs
 http://unbound.net
 
@@ -10,14 +10,11 @@ This software is under BSD license, see LICENSE for details.
   	http://unbound.net/svn/
 
 * Uses the following libraries; 
-  * ldns	http://www.nlnetlabs.nl/ldns/			(BSD license)
-    (required) can use ldns build directory directly with --with-ldns=path.
   * libevent	http://www.monkey.org/~provos/libevent/		(BSD license)
     (optional) can use builtin alternative instead.
+  * libexpat	(for the unbound-anchor helper program)		(MIT license)
 
 * Make and install: ./configure; make; make install
-  * --with-ldns=/path/to/ldns
-	It will dynamically link against it.
   * --with-libevent=/path/to/libevent
   	Can be set to either the system install or the build directory.
 	--with-libevent=no (default) gives a builtin alternative 
@@ -36,8 +33,8 @@ This software is under BSD license, see LICENSE for details.
 	programming errors, among which buffer overflows.  The program exits
 	with an error if an assertion fails (but the buffer did not overflow).
   * --enable-static-exe
-	This enables a debug option to statically link, against ldns and 
-	libevent libraries.
+	This enables a debug option to statically link against the
+	libevent library.
   * --enable-lock-checks
   	This enables a debug option to check lock and unlock calls. It needs
 	a recent pthreads library to work.

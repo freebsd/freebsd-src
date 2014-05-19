@@ -84,6 +84,11 @@ struct vm_isa_irq {
 	int		ioapic_irq;
 };
 
+struct vm_isa_irq_trigger {
+	int		atpic_irq;
+	enum vm_intr_trigger trigger;
+};
+
 struct vm_capability {
 	int		cpuid;
 	enum vm_cap_type captype;
@@ -213,6 +218,7 @@ enum {
 	IOCNUM_ISA_ASSERT_IRQ = 80,
 	IOCNUM_ISA_DEASSERT_IRQ = 81,
 	IOCNUM_ISA_PULSE_IRQ = 82,
+	IOCNUM_ISA_SET_IRQ_TRIGGER = 83,
 };
 
 #define	VM_RUN		\
@@ -253,6 +259,8 @@ enum {
 	_IOW('v', IOCNUM_ISA_DEASSERT_IRQ, struct vm_isa_irq)
 #define	VM_ISA_PULSE_IRQ	\
 	_IOW('v', IOCNUM_ISA_PULSE_IRQ, struct vm_isa_irq)
+#define	VM_ISA_SET_IRQ_TRIGGER	\
+	_IOW('v', IOCNUM_ISA_SET_IRQ_TRIGGER, struct vm_isa_irq_trigger)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \

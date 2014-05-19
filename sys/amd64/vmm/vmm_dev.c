@@ -156,6 +156,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
 	struct vm_isa_irq *isa_irq;
+	struct vm_isa_irq_trigger *isa_irq_trigger;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -345,6 +346,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vatpic_pulse_irq(sc->vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
 			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_SET_IRQ_TRIGGER:
+		isa_irq_trigger = (struct vm_isa_irq_trigger *)data;
+		error = vatpic_set_irq_trigger(sc->vm,
+		    isa_irq_trigger->atpic_irq, isa_irq_trigger->trigger);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;

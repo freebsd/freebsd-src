@@ -301,6 +301,11 @@ enum x2apic_state {
 	X2APIC_STATE_LAST
 };
 
+enum vm_intr_trigger {
+	EDGE_TRIGGER,
+	LEVEL_TRIGGER
+};
+	
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.
@@ -356,6 +361,7 @@ struct vm_exit {
 			uint64_t	cr3;
 			enum vie_cpu_mode cpu_mode;
 			enum vie_paging_mode paging_mode;
+			int		cpl;
 			struct vie	vie;
 		} inst_emul;
 		/*

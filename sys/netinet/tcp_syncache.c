@@ -718,6 +718,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		inp->inp_flags |= INP_HW_FLOWID;
 		inp->inp_flags &= ~INP_SW_FLOWID;
 		inp->inp_flowid = m->m_pkthdr.flowid;
+		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
 
 	/*

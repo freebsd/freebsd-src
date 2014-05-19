@@ -42,14 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "image.h"
+#include "format.h"
 #include "mkimg.h"
 #include "scheme.h"
-
-#if !defined(SPARSE_WRITE)
-#define	sparse_write	write
-#endif
-
-#define	BUFFER_SIZE	(1024*1024)
 
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
@@ -62,31 +58,18 @@ u_int nsecs = 1;
 u_int secsz = 512;
 u_int blksz = 0;
 
-static int bcfd = -1;
-static int outfd = 0;
-static int tmpfd = -1;
-
-static char tmpfname[] = "/tmp/mkimg-XXXXXX";
-
-static void
-cleanup(void)
-{
-
-	if (tmpfd != -1)
-		close(tmpfd);
-	unlink(tmpfname);
-}
-
 static void
 usage(const char *why)
 {
-	struct mkimg_scheme *s, **iter;
+	struct mkimg_format *f, **f_iter;
+	struct mkimg_scheme *s, **s_iter;
 
 	warnx("error: %s", why);
 	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
 
 	fprintf(stderr, "    options:\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
+	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
@@ -95,13 +78,19 @@ usage(const char *why)
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
 
-	fprintf(stderr, "    schemes:\n");
-	SET_FOREACH(iter, schemes) {
-		s = *iter;
+	fprintf(stderr, "\n    formats:\n");
+	SET_FOREACH(f_iter, formats) {
+		f = *f_iter;
+		fprintf(stderr, "\t%s\t-  %s\n", f->name, f->description);
+	}
+
+	fprintf(stderr, "\n    schemes:\n");
+	SET_FOREACH(s_iter, schemes) {
+		s = *s_iter;
 		fprintf(stderr, "\t%s\t-  %s\n", s->name, s->description);
 	}
 
-	fprintf(stderr, "    partition specification:\n");
+	fprintf(stderr, "\n    partition specification:\n");
 	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
@@ -228,14 +217,15 @@ parse_part(const char *spec)
 }
 
 #if defined(SPARSE_WRITE)
-static ssize_t
-sparse_write(int fd, const char *buf, size_t sz)
+ssize_t
+sparse_write(int fd, const void *ptr, size_t sz)
 {
-	const char *p;
+	const char *buf, *p;
 	off_t ofs;
 	size_t len;
 	ssize_t wr, wrsz;
 
+	buf = ptr;
 	wrsz = 0;
 	p = memchr(buf, 0, sz);
 	while (sz > 0) {
@@ -268,76 +258,14 @@ sparse_write(int fd, const char *buf, size_t sz)
 }
 #endif /* SPARSE_WRITE */
 
-static int
-fdcopy(int src, int dst, uint64_t *count)
-{
-	char *buffer;
-	off_t ofs;
-	ssize_t rdsz, wrsz;
-
-	/* A return value of -1 means that we can't write a sparse file. */
-	ofs = lseek(dst, 0L, SEEK_CUR);
-
-	if (count != NULL)
-		*count = 0;
-
-	buffer = malloc(BUFFER_SIZE);
-	if (buffer == NULL)
-		return (errno);
-	while (1) {
-		rdsz = read(src, buffer, BUFFER_SIZE);
-		if (rdsz <= 0) {
-			free(buffer);
-			return ((rdsz < 0) ? errno : 0);
-		}
-		if (count != NULL)
-			*count += rdsz;
-		wrsz = (ofs == -1) ?
-		    write(dst, buffer, rdsz) :
-		    sparse_write(dst, buffer, rdsz);
-		if (wrsz < 0)
-			break;
-	}
-	free(buffer);
-	return (errno);
-}
-
-static int
-mkimg_seek(int fd, lba_t blk)
-{
-	off_t off;
-
-	off = blk * secsz;
-	if (lseek(fd, off, SEEK_SET) != off)
-		return (errno);
-	return (0);
-}
-
-int
-mkimg_write(int fd, lba_t blk, void *buf, ssize_t len)
-{
-
-	blk *= secsz;
-	if (lseek(fd, blk, SEEK_SET) != blk)
-		return (errno);
-	len *= secsz;
-	if (write(fd, buf, len) != len)
-		return (errno);
-	return (0);
-}
-
 static void
-mkimg(int bfd)
+mkimg(void)
 {
 	FILE *fp;
 	struct part *part;
 	lba_t block;
 	off_t bytesize;
 	int error, fd;
-
-	error = scheme_bootcode(bfd);
-	if (error)
-		errc(EX_DATAERR, error, "boot code");
 
 	/* First check partition information */
 	STAILQ_FOREACH(part, &partlist, link) {
@@ -353,7 +281,6 @@ mkimg(int bfd)
 			fprintf(stderr, "partition %d: starting block %llu "
 			    "... ", part->index + 1, (long long)block);
 		part->block = block;
-		error = mkimg_seek(tmpfd, block);
 		switch (part->kind) {
 		case PART_KIND_SIZE:
 			if (expand_number(part->contents, &bytesize) == -1)
@@ -362,7 +289,7 @@ mkimg(int bfd)
 		case PART_KIND_FILE:
 			fd = open(part->contents, O_RDONLY, 0);
 			if (fd != -1) {
-				error = fdcopy(fd, tmpfd, &bytesize);
+				error = image_copyin(block, fd, &bytesize);
 				close(fd);
 			} else
 				error = errno;
@@ -370,7 +297,8 @@ mkimg(int bfd)
 		case PART_KIND_PIPE:
 			fp = popen(part->contents, "r");
 			if (fp != NULL) {
-				error = fdcopy(fileno(fp), tmpfd, &bytesize);
+				fd = fileno(fp);
+				error = image_copyin(block, fd, &bytesize);
 				pclose(fp);
 			} else
 				error = errno;
@@ -389,15 +317,27 @@ mkimg(int bfd)
 	}
 
 	block = scheme_metadata(SCHEME_META_IMG_END, block);
-	error = (scheme_write(tmpfd, block));
+	error = image_set_size(block);
+	if (!error)
+		error = format_resize(block);
+	if (error)
+		errc(EX_IOERR, error, "image sizing");
+	block = image_get_size();
+	ncyls = block / (nsecs * nheads);
+	error = (scheme_write(block));
+	if (error)
+		errc(EX_IOERR, error, "writing metadata");
 }
 
 int
 main(int argc, char *argv[])
 {
+	int bcfd, outfd;
 	int c, error;
 
-	while ((c = getopt(argc, argv, "b:o:p:s:vH:P:S:T:")) != -1) {
+	bcfd = -1;
+	outfd = 1;	/* Write to stdout by default */
+	while ((c = getopt(argc, argv, "b:f:o:p:s:vH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -406,8 +346,15 @@ main(int argc, char *argv[])
 			if (bcfd == -1)
 				err(EX_UNAVAILABLE, "%s", optarg);
 			break;
+		case 'f':	/* OUTPUT FORMAT */
+			if (format_selected() != NULL)
+				usage("multiple formats given");
+			error = format_select(optarg);
+			if (error)
+				errc(EX_DATAERR, error, "format");
+			break;
 		case 'o':	/* OUTPUT FILE */
-			if (outfd != 0)
+			if (outfd != 1)
 				usage("multiple output files given");
 			outfd = open(optarg, O_WRONLY | O_CREAT | O_TRUNC,
 			    S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
@@ -480,35 +427,43 @@ main(int argc, char *argv[])
 		errx(EX_DATAERR, "%d partitions supported; %d given",
 		    scheme_max_parts(), nparts);
 
-	if (outfd == 0) {
-		if (atexit(cleanup) == -1)
-			err(EX_OSERR, "cannot register cleanup function");
-		outfd = 1;
-		tmpfd = mkstemp(tmpfname);
-		if (tmpfd == -1)
-			err(EX_OSERR, "cannot create temporary file");
-	} else
-		tmpfd = outfd;
+	if (format_selected() == NULL)
+		format_select("raw");
+
+	if (bcfd != -1) {
+		error = scheme_bootcode(bcfd);
+		close(bcfd);
+		if (error)
+			errc(EX_DATAERR, error, "boot code");
+	}
 
 	if (verbose) {
 		fprintf(stderr, "Logical sector size: %u\n", secsz);
 		fprintf(stderr, "Physical block size: %u\n", blksz);
 		fprintf(stderr, "Sectors per track:   %u\n", nsecs);
 		fprintf(stderr, "Number of heads:     %u\n", nheads);
+		fputc('\n', stderr);
+		fprintf(stderr, "Partitioning scheme: %s\n",
+		    scheme_selected()->name);
+		fprintf(stderr, "Output file format:  %s\n",
+		    format_selected()->name);
+		fputc('\n', stderr);
 	}
 
-	mkimg(bcfd);
+	error = image_init();
+	if (error)
+		errc(EX_OSERR, error, "cannot initialize");
 
-	if (verbose)
+	mkimg();
+
+	if (verbose) {
+		fputc('\n', stderr);
 		fprintf(stderr, "Number of cylinders: %u\n", ncyls);
-
-	if (tmpfd != outfd) {
-		error = mkimg_seek(tmpfd, 0);
-		if (error == 0)
-			error = fdcopy(tmpfd, outfd, NULL);
-		if (error)
-			errc(EX_IOERR, error, "writing to stdout");
 	}
+
+	error = format_write(outfd);
+	if (error)
+		errc(EX_IOERR, error, "writing image");
 
 	return (0);
 }

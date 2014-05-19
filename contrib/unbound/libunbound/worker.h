@@ -42,6 +42,7 @@
 #ifndef LIBUNBOUND_WORKER_H
 #define LIBUNBOUND_WORKER_H
 
+#include "ldns/sbuffer.h"
 #include "util/data/packed_rrset.h" /* for enum sec_status */
 struct comm_reply;
 struct comm_point;
@@ -83,11 +84,11 @@ void libworker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
 	int err, void* arg);
 
 /** mesh callback with fg results */
-void libworker_fg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /** mesh callback with bg results */
-void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /**
