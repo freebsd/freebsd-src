@@ -121,8 +121,9 @@ hint.map.3.readonly=1
 hint.map.4.at="flash/spi0"
 hint.map.4.start=0x00880000
 hint.map.4.end=0x00890000
-hint.map.4.name="mib0"
-hint.map.4.readonly=1
+# hint.map.4.name="mib0"
+hint.map.4.name="cfg"
+# hint.map.4.readonly=1
 
 hint.map.5.at="flash/spi0"
 hint.map.5.start=0x00890000
