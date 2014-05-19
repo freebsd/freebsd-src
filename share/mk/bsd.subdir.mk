@@ -104,9 +104,8 @@ ${__target}: _SUBDIR
 .for __target in files includes
 .for __stage in build install
 ${__stage}${__target}:
-_${__stage}${__target}: ${__stage}${__target}
 .if make(${__stage}${__target})
-_${__stage}${__target}: _SUBDIR
+${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 ${__target}: .MAKE
