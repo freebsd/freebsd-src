@@ -70,15 +70,16 @@ static struct resource_spec hotplug_res_spec_msi[] = {
 
 
 static void
-pci_slot_status_print(device_t pcib)
+pci_link_status_print(device_t pcib)
 {
 	struct pci_devinfo *dinfo;
-	int pos;
+	int link_sta, pos;
 
 	dinfo = device_get_ivars(pcib);
 	pos = dinfo->cfg.pcie.pcie_location;
-	device_printf(pcib, "... LINK_STA=0x%b\n",
-	    pci_read_config(pcib, pos + PCIER_LINK_STA, 2),
+	link_sta = pci_read_config(pcib, pos + PCIER_LINK_STA, 2);
+	device_printf(pcib, "... LINK_STA=0x%b, width %dx\n",
+	    link_sta,
 	    "\020"
 	    "\001<b0>"
 	    "\002<b1>"
@@ -95,10 +96,56 @@ pci_slot_status_print(device_t pcib)
 	    "\015SlotClkConfig"
 	    "\016DLLLinkActive"
 	    "\017LinkBWManStat"
-	    "\020LinkAutonBwStat"
+	    "\020LinkAutonBwStat",
+	    (link_sta & 0x03f0) >> 4
 	    );
-//	device_printf(pcib, "... SLOT_CAP=0x%x\n",
-//	    pci_read_config(pcib, pos+PCIER_SLOT_CAP, 4));
+}
+
+static void
+pci_slot_cap_print(device_t pcib)
+{
+	struct pci_devinfo *dinfo;
+	int pos;
+
+	dinfo = device_get_ivars(pcib);
+	pos = dinfo->cfg.pcie.pcie_location;
+	device_printf(pcib, "... SLOT_CAP=0x%b\n",
+	    pci_read_config(pcib, pos+PCIER_SLOT_CAP, 4),
+	    "\020"
+	    "\001AttnButt"
+	    "\002PowerCtrl"
+	    "\003MRLSens"
+	    "\004AttnInd"
+	    "\005PwrInd"
+	    "\006HotPlugSurp"
+	    "\007HotPlugCap"
+	    "\010<b8>"
+	    "\011<b8>"
+	    "\012<b10>"
+	    "\013<b11>"
+	    "\014<b12>"
+	    "\015<b13>"
+	    "\016<b14>"
+	    "\017<b15>"
+	    "\020<b16>"
+	    "\021<b17>"
+	    "\022ElecMechInt"
+	    "\023NoCCS"
+	    "\024<b20>"
+	    "\025<b21>"
+	    "\026<b22>"
+	    "\027<b23>"
+	    );
+}
+
+static void
+pci_slot_control_print(device_t pcib)
+{
+	struct pci_devinfo *dinfo;
+	int pos;
+
+	dinfo = device_get_ivars(pcib);
+	pos = dinfo->cfg.pcie.pcie_location;
 	device_printf(pcib, "... SLOT_CTL=0x%b\n",
 	    pci_read_config(pcib, pos + PCIER_SLOT_CTL, 2),
 	    "\020"
@@ -119,6 +166,16 @@ pci_slot_status_print(device_t pcib)
 	    "\017<b14>"
 	    "\020<b15>"
 	    );
+}
+
+static void
+pci_slot_status_print(device_t pcib)
+{
+	struct pci_devinfo *dinfo;
+	int pos;
+
+	dinfo = device_get_ivars(pcib);
+	pos = dinfo->cfg.pcie.pcie_location;
 	device_printf(pcib, "... SLOT_STA=0x%b\n",
 	    pci_read_config(pcib, pos + PCIER_SLOT_STA, 2),
 	    "\020"
@@ -142,6 +199,16 @@ pci_slot_status_print(device_t pcib)
 }
 
 static void
+pci_slot_reg_print(device_t pcib)
+{
+
+	pci_link_status_print(pcib);
+	pci_slot_cap_print(pcib);
+	pci_slot_status_print(pcib);
+	pci_slot_control_print(pcib);
+}
+
+static void
 pci_hotplug_intr_task(void *arg, int npending)
 {
 	device_t dev = arg;
@@ -158,7 +225,7 @@ pci_hotplug_intr_task(void *arg, int npending)
 
 	linksta = pci_read_config(pcib, pos + PCIER_LINK_STA, 2);
 	slotsta = pci_read_config(pcib, pos + PCIER_SLOT_STA, 2);
-	pci_slot_status_print(pcib);
+	pci_slot_reg_print(pcib);
 /* XXXGA: HACK AHEAD */
 	if (slotsta & PCIEM_SLOT_STA_DLLSC) {
 		if ((linksta & PCIEM_LINK_STA_DL_ACTIVE) && dinfo->cfg.hp.hp_cnt == 0) {
@@ -198,7 +265,7 @@ pci_hotplug_intr(void *arg)
 	struct pci_devinfo *dinfo;
 
 	device_printf(dev, "Received interrupt!\n");
-//	pci_slot_status_print(pcib);
+	pci_slot_status_print(pcib);
 	dinfo = device_get_ivars(pcib);
 	taskqueue_enqueue_fast(taskqueue_fast, &dinfo->cfg.hp.hp_inttask);
 
@@ -210,7 +277,7 @@ pci_hotplug_init(device_t dev)
 {
 	device_t pcib = device_get_parent(dev);
 	struct pci_devinfo *dinfo;
-	int error, flags, irq, msic, pos;
+	int cap, error, flags, irq, msic, pos;
 
 	dinfo = device_get_ivars(pcib);
 	pos = dinfo->cfg.pcie.pcie_location;
@@ -218,16 +285,18 @@ pci_hotplug_init(device_t dev)
 	if (pos != 0) {
 		device_printf(dev, "Hotplug?\n");
 		flags = pci_read_config(pcib, pos + PCIER_FLAGS, 2);
+		cap = pci_read_config(pcib, pos + PCIER_SLOT_CAP, 4);
 		device_printf(dev, "... FLAGS = 0x%x\n", flags);
-		if (flags & PCIEM_FLAGS_SLOT) {
+		pci_slot_cap_print(pcib);
+		if ((flags & PCIEM_FLAGS_SLOT &&
+		    cap & PCIEM_SLOT_CAP_HPC)) {
 			mtx_init(&dinfo->cfg.hp.hp_mtx,
 			    device_get_nameunit(dev), "pciehp", MTX_DEF);
-			device_printf(dev, "... is slot!\n");
-/* XXX GAV: Check for SLOT_CAP_HPC here */
+			device_printf(dev, "... is HP capable slot!\n");
 			pci_slot_status_print(pcib);
+
 			irq = (flags & PCIEM_FLAGS_IRQ) >> 9;
 			device_printf(dev, "IRQ = %d\n", irq);
-
 			device_printf(dev, "MSI count self %d parent %d\n", pci_msi_count(dev), pci_msi_count(pcib));
 			device_printf(dev, "MSI-X count self %d parent %d\n", pci_msix_count(dev), pci_msix_count(pcib));
 
@@ -258,11 +327,18 @@ pci_hotplug_init(device_t dev)
 				}
 			}
 			TASK_INIT(&dinfo->cfg.hp.hp_inttask, 0, pci_hotplug_intr_task, dev);
-			/* XXXGA 6.7.3.1 don't enable things the slot doesn't support */
+
 			flags = pci_read_config(pcib, pos + PCIER_SLOT_CTL, 2);
-			flags |= PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_MRLSCE | PCIEM_SLOT_CTL_HPIE | PCIEM_SLOT_CTL_DLLSCE;
+			if (cap & PCIEM_SLOT_CAP_HPC)
+				flags |= PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_HPIE;
+			if (cap & PCIEM_SLOT_CAP_MRLSP)
+				flags |= PCIEM_SLOT_CTL_MRLSCE;
+			if (pci_read_config(pcib, pos + PCIER_LINK_CAP, 4) & PCIEM_LINK_CAP_DL_ACTIVE)
+				flags |= PCIEM_SLOT_CTL_DLLSCE;
 			pci_write_config(pcib, pos + PCIER_SLOT_CTL, flags, 2);
 			device_printf(dev, "Enabled interrupts\n");
+
+			pci_slot_control_print(pcib);
 			pci_slot_status_print(pcib);
 		}
 	}
