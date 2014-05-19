@@ -164,6 +164,7 @@ uart_pci_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	const struct pci_id *id;
+	int result;
 
 	sc = device_get_softc(dev);
 
@@ -176,9 +177,14 @@ uart_pci_probe(device_t dev)
 	return (ENXIO);
 
  match:
+	result = uart_bus_probe(dev, 0, id->rclk, id->rid, 0);
+	/* Bail out on error. */
+	if (result > 0)
+		return (result);
+	/* Set/override the device description. */
 	if (id->desc)
 		device_set_desc(dev, id->desc);
-	return (uart_bus_probe(dev, 0, id->rclk, id->rid, 0));
+	return (result);
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, NULL, NULL);
