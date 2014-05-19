@@ -602,8 +602,6 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			break;
 		if ((s->r_flags & flags) != flags)
 			continue;
-		rstart = ulmax(s->r_start, start);
-		rend = ulmin(s->r_end, ulmax(start + count - 1, end));
 		if (s->r_start >= start && s->r_end <= end
 		    && (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
