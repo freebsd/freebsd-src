@@ -119,7 +119,8 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
  */
 int vmm_fetch_instruction(struct vm *vm, int cpuid,
 			  uint64_t rip, int inst_length, uint64_t cr3,
-			  enum vie_paging_mode paging_mode, struct vie *vie);
+			  enum vie_paging_mode paging_mode, int cpl,
+			  struct vie *vie);
 
 void vie_init(struct vie *vie);
 
