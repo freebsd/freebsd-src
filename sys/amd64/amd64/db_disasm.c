@@ -1391,6 +1391,46 @@ db_disasm(loc, altfmt)
 			i_size = NONE;
 			i_mode = 0;
 			break;
+		case 0xd8:
+			i_name = "vmrun";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xd9:
+			i_name = "vmmcall";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xda:
+			i_name = "vmload";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdb:
+			i_name = "vmsave";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdc:
+			i_name = "stgi";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdd:
+			i_name = "clgi";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xde:
+			i_name = "skinit";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdf:
+			i_name = "invlpga";
+			i_size = NONE;
+			i_mode = 0;
+			break;
 		case 0xf8:
 			i_name = "swapgs";
 			i_size = NONE;
