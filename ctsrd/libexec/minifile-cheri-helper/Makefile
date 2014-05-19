@@ -208,4 +208,5 @@ ${PROG}.bin: ${PROG}
 ${PROG}.dump: ${PROG}
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>

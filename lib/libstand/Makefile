@@ -9,7 +9,7 @@
 MK_PROFILE=	no
 MK_SSP=		no
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=		stand
 NO_PIC=

@@ -90,5 +90,6 @@ uint32_t	rss_hash_ip6_2tuple(struct in6_addr src,
  * Network stack interface to query desired CPU affinity of a packet.
  */
 struct mbuf	*rss_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid);
+u_int		rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type);
 
 #endif /* !_NETINET_IN_RSS_H_ */

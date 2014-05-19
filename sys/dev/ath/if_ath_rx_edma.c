@@ -888,10 +888,13 @@ ath_edma_setup_rxfifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 		    qtype);
 		return (-EINVAL);
 	}
-	device_printf(sc->sc_dev, "%s: type=%d, FIFO depth = %d entries\n",
-	    __func__,
-	    qtype,
-	    re->m_fifolen);
+
+	if (bootverbose)
+		device_printf(sc->sc_dev,
+		    "%s: type=%d, FIFO depth = %d entries\n",
+		    __func__,
+		    qtype,
+		    re->m_fifolen);
 
 	/* Allocate ath_buf FIFO array, pre-zero'ed */
 	re->m_fifo = malloc(sizeof(struct ath_buf *) * re->m_fifolen,
@@ -982,10 +985,12 @@ ath_recv_setup_edma(struct ath_softc *sc)
 	(void) ath_hal_setrxbufsize(sc->sc_ah, sc->sc_edma_bufsize -
 	    sc->sc_rx_statuslen);
 
-	device_printf(sc->sc_dev, "RX status length: %d\n",
-	    sc->sc_rx_statuslen);
-	device_printf(sc->sc_dev, "RX buffer size: %d\n",
-	    sc->sc_edma_bufsize);
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "RX status length: %d\n",
+		    sc->sc_rx_statuslen);
+		device_printf(sc->sc_dev, "RX buffer size: %d\n",
+		    sc->sc_edma_bufsize);
+	}
 
 	sc->sc_rx.recv_stop = ath_edma_stoprecv;
 	sc->sc_rx.recv_start = ath_edma_startrecv;

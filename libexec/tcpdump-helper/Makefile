@@ -4,7 +4,7 @@
 
 USE_CHERI=	yes
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	tcpdump-helper
 SRCS=	tcpdump-helper.c			\
@@ -66,6 +66,7 @@ tcpdump-helper.dump: tcpdump-helper
 .PATH: ${.CURDIR}/../../lib/libc/string
 .PATH: ${.CURDIR}/../../contrib/tcpdump
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:N-Wcast-align}

@@ -104,6 +104,14 @@ static int ncallout;
 SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
     "Number of entries in callwheel and size of timeout() preallocation");
 
+static int pin_default_swi = 0;
+static int pin_pcpu_swi = 0;
+
+SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN, &pin_default_swi,
+    0, "Pin the default (non-per-cpu) swi (shared with PCPU 0 swi)");
+SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN, &pin_pcpu_swi,
+    0, "Pin the per-CPU swis (except PCPU 0, which is also default");
+
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -273,6 +281,12 @@ callout_callwheel_init(void *dummy)
 	callwheelmask = callwheelsize - 1;
 
 	/*
+	 * Fetch whether we're pinning the swi's or not.
+	 */
+	TUNABLE_INT_FETCH("kern.pin_default_swi", &pin_default_swi);
+	TUNABLE_INT_FETCH("kern.pin_pcpu_swi", &pin_pcpu_swi);
+
+	/*
 	 * Only cpu0 handles timeout(9) and receives a preallocation.
 	 *
 	 * XXX: Once all timeout(9) consumers are converted this can
@@ -355,6 +369,7 @@ start_softclock(void *dummy)
 	char name[MAXCOMLEN];
 #ifdef SMP
 	int cpu;
+	struct intr_event *ie;
 #endif
 
 	cc = CC_CPU(timeout_cpu);
@@ -362,6 +377,13 @@ start_softclock(void *dummy)
 	if (swi_add(&clk_intr_event, name, softclock, cc, SWI_CLOCK,
 	    INTR_MPSAFE, &cc->cc_cookie))
 		panic("died while creating standard software ithreads");
+	if (pin_default_swi &&
+	    (intr_event_bind(clk_intr_event, timeout_cpu) != 0)) {
+		printf("%s: timeout clock couldn't be pinned to cpu %d\n",
+		    __func__,
+		    timeout_cpu);
+	}
+
 #ifdef SMP
 	CPU_FOREACH(cpu) {
 		if (cpu == timeout_cpu)
@@ -370,9 +392,16 @@ start_softclock(void *dummy)
 		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(9). */
 		callout_cpu_init(cc);
 		snprintf(name, sizeof(name), "clock (%d)", cpu);
-		if (swi_add(NULL, name, softclock, cc, SWI_CLOCK,
+		ie = NULL;
+		if (swi_add(&ie, name, softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
+		if (pin_pcpu_swi && (intr_event_bind(ie, cpu) != 0)) {
+			printf("%s: per-cpu clock couldn't be pinned to "
+			    "cpu %d\n",
+			    __func__,
+			    cpu);
+		}
 	}
 #endif
 }

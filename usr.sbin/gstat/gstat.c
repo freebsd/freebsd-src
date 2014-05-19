@@ -51,7 +51,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int flag_a, flag_b, flag_c, flag_d;
+static int flag_a, flag_b, flag_c, flag_d, flag_o;
 static int flag_I = 1000000;
 
 #define PRINTMSG(...) do {						\
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	char *p;
 	char f_s[100], pf_s[100], tmp_f_s[100];
 	const char *line;
-	long double ld[11];
+	long double ld[13];
 	uint64_t u64;
 	EditLine *el;
 	History *hist;
@@ -104,7 +104,7 @@ main(int argc, char **argv)
 		flag_b = 1;
 
 	f_s[0] = '\0';
-	while ((i = getopt(argc, argv, "adcf:I:b")) != -1) {
+	while ((i = getopt(argc, argv, "abdcf:oI:")) != -1) {
 		switch (i) {
 		case 'a':
 			flag_a = 1;
@@ -125,6 +125,9 @@ main(int argc, char **argv)
 				errx(EX_USAGE,
 				    "Invalid filter - see re_format(7)");
 			strncpy(f_s, optarg, sizeof(f_s));
+			break;
+		case 'o':
+			flag_o = 1;
 			break;
 		case 'I':
 			p = NULL;
@@ -229,6 +232,8 @@ main(int argc, char **argv)
 		PRINTMSG(" w/s   kBps   ms/w   ");
 		if (flag_d)
 			PRINTMSG(" d/s   kBps   ms/d   ");
+		if (flag_o)
+			PRINTMSG(" o/s   ms/o   ");
 		PRINTMSG("%%busy Name\n");
 		for (;;) {
 			gsp = geom_stats_snapshot_next(sp);
@@ -279,9 +284,14 @@ main(int argc, char **argv)
 			    DSM_MS_PER_TRANSACTION_WRITE, &ld[6],
 
 			    DSM_BUSY_PCT, &ld[7],
+
 			    DSM_TRANSFERS_PER_SECOND_FREE, &ld[8],
 			    DSM_MB_PER_SECOND_FREE, &ld[9],
 			    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
+
+			    DSM_TRANSFERS_PER_SECOND_OTHER, &ld[11],
+			    DSM_MS_PER_TRANSACTION_OTHER, &ld[12],
+
 			    DSM_NONE);
 
 			if (flag_a && ld[7] < 0.1) {
@@ -311,6 +321,14 @@ main(int argc, char **argv)
 					PRINTMSG(" %6.0f", (double)ld[10]);
 				else
 					PRINTMSG(" %6.1f", (double)ld[10]);
+			}
+
+			if (flag_o) {
+				PRINTMSG(" %6.0f", (double)ld[11]);
+				if (ld[12] > 1e3) 
+					PRINTMSG(" %6.0f", (double)ld[12]);
+				else
+					PRINTMSG(" %6.1f", (double)ld[12]);
 			}
 
 			if (ld[7] > 80)

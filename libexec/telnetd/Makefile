@@ -3,7 +3,7 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/telnetd

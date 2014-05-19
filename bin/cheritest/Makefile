@@ -25,4 +25,5 @@ CLEANFILES=	cheritest.dump
 cheritest.dump: cheritest
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>

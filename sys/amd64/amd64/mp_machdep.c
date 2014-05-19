@@ -637,7 +637,7 @@ init_secondary(void)
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */

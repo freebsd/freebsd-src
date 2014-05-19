@@ -142,6 +142,8 @@ struct vm {
 
 	int		suspend;
 	volatile cpuset_t suspended_cpus;
+
+	volatile cpuset_t halted_cpus;
 };
 
 static int vmm_initialized;
@@ -186,6 +188,16 @@ CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
 SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
+
+/*
+ * Halt the guest if all vcpus are executing a HLT instruction with
+ * interrupts disabled.
+ */
+static int halt_detection_enabled = 1;
+TUNABLE_INT("hw.vmm.halt_detection", &halt_detection_enabled);
+SYSCTL_INT(_hw_vmm, OID_AUTO, halt_detection, CTLFLAG_RDTUN,
+    &halt_detection_enabled, 0,
+    "Halt VM if all vcpus execute HLT with interrupts disabled");
 
 static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
@@ -1006,9 +1018,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int t;
+	int t, vcpu_halted, vm_halted;
+
+	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
+	vcpu_halted = 0;
+	vm_halted = 0;
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1032,10 +1048,26 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			}
 		}
 
-		if (vlapic_enabled(vcpu->vlapic))
-			wmesg = "vmidle";
-		else
+		/*
+		 * Some Linux guests implement "halt" by having all vcpus
+		 * execute HLT with interrupts disabled. 'halted_cpus' keeps
+		 * track of the vcpus that have entered this state. When all
+		 * vcpus enter the halted state the virtual machine is halted.
+		 */
+		if (intr_disabled) {
 			wmesg = "vmhalt";
+			VCPU_CTR0(vm, vcpuid, "Halted");
+			if (!vcpu_halted && halt_detection_enabled) {
+				vcpu_halted = 1;
+				CPU_SET_ATOMIC(vcpuid, &vm->halted_cpus);
+			}
+			if (CPU_CMP(&vm->halted_cpus, &vm->active_cpus) == 0) {
+				vm_halted = 1;
+				break;
+			}
+		} else {
+			wmesg = "vmidle";
+		}
 
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
@@ -1043,7 +1075,14 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
+
+	if (vcpu_halted)
+		CPU_CLR_ATOMIC(vcpuid, &vm->halted_cpus);
+
 	vcpu_unlock(vcpu);
+
+	if (vm_halted)
+		vm_suspend(vm, VM_SUSPEND_HALT);
 
 	return (0);
 }
@@ -1092,7 +1131,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vie *vie;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
-	int error, inst_length;
+	int cpl, error, inst_length;
 	uint64_t rip, gla, gpa, cr3;
 	enum vie_cpu_mode cpu_mode;
 	enum vie_paging_mode paging_mode;
@@ -1108,6 +1147,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
 	cr3 = vme->u.inst_emul.cr3;
+	cpl = vme->u.inst_emul.cpl;
 	cpu_mode = vme->u.inst_emul.cpu_mode;
 	paging_mode = vme->u.inst_emul.paging_mode;
 	vie = &vme->u.inst_emul.vie;
@@ -1116,7 +1156,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	/* Fetch, decode and emulate the faulting instruction */
 	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
-	    paging_mode, vie) != 0)
+	    paging_mode, cpl, vie) != 0)
 		return (EFAULT);
 
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)

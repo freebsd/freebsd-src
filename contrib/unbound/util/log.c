@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /**
  * \file
@@ -40,6 +40,8 @@
 #include "config.h"
 #include "util/log.h"
 #include "util/locks.h"
+#include "ldns/sbuffer.h"
+#include <stdarg.h>
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
@@ -73,7 +75,7 @@ static const char* ident="unbound";
 static int logging_to_syslog = 0;
 #endif /* HAVE_SYSLOG_H */
 /** time to print in log, if NULL, use time(2) */
-static uint32_t* log_now = NULL;
+static time_t* log_now = NULL;
 /** print time in UTC or in secondsfrom1970 */
 static int log_time_asc = 0;
 
@@ -151,7 +153,7 @@ void log_ident_set(const char* id)
 	ident = id;
 }
 
-void log_set_time(uint32_t* t)
+void log_set_time(time_t* t)
 {
 	log_now = t;
 }
@@ -228,7 +230,7 @@ log_vmsg(int pri, const char* type,
 			ident, (int)getpid(), tid?*tid:0, type, message);
 	} else
 #endif
-	fprintf(logfile, "[%u] %s[%d:%x] %s: %s\n", (unsigned)now, 
+	fprintf(logfile, "[" ARG_LL "d] %s[%d:%x] %s: %s\n", (long long)now, 
 		ident, (int)getpid(), tid?*tid:0, type, message);
 #ifdef UB_ON_WINDOWS
 	/* line buffering does not work on windows */
@@ -345,11 +347,11 @@ log_hex(const char* msg, void* data, size_t length)
 	log_hex_f(verbosity, msg, data, length);
 }
 
-void log_buf(enum verbosity_value level, const char* msg, ldns_buffer* buf)
+void log_buf(enum verbosity_value level, const char* msg, sldns_buffer* buf)
 {
 	if(verbosity < level)
 		return;
-	log_hex_f(level, msg, ldns_buffer_begin(buf), ldns_buffer_limit(buf));
+	log_hex_f(level, msg, sldns_buffer_begin(buf), sldns_buffer_limit(buf));
 }
 
 #ifdef USE_WINSOCK

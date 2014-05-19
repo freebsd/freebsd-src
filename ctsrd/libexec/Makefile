@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
  
 SUBDIR=	minifile-capsicum-helper \
 	readpng-capsicum-helper

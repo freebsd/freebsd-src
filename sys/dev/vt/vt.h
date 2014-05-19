@@ -78,7 +78,13 @@ one 'device sc' or 'device vt'"
 #endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
+#ifdef VT_DEBUG
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define VT_CONSOLECTL_DEBUG
+#define VT_SYSMOUSE_DEBUG
+#else
+#define	DPRINTF(_l, ...)	do {} while (0)
+#endif
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
@@ -277,6 +283,7 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
@@ -295,7 +302,9 @@ typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
+	char		 vd_name[16];
 	/* Console attachment. */
+	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
 
 	/* Drawing. */
@@ -390,6 +399,9 @@ TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
     &driver ## _conswindow);						\
 SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
     vt_upgrade, &driver ## _consdev)
+
+/* name argument is not used yet. */
+#define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
 
 /*
  * Fonts.

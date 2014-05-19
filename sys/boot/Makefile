@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 .include <bsd.arch.inc.mk>
 
 .if ${MK_FORTH} != "no"

@@ -45,7 +45,7 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
-.include <bsd.own.mk>
+.include "share/mk/src.opts.mk"
 .include <bsd.arch.inc.mk>
 .include <bsd.compiler.mk>
 
@@ -259,7 +259,8 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -269,7 +270,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -288,7 +289,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -624,8 +625,8 @@ build32:
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no \
-	    -DEARLY_BUILD build-tools
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+	    build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
@@ -1016,7 +1017,7 @@ buildkernel:
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
-			-I ${KERNCONFDIR} ${KERNCONFDIR}/${_kernel}
+			-I '${KERNCONFDIR}' '${KERNCONFDIR}/${_kernel}'
 .endif
 .if !defined(NO_CLEAN) && !defined(NO_KERNELCLEAN)
 	@echo
@@ -1823,7 +1824,7 @@ check-old: check-old-files check-old-libs check-old-dirs
 # showconfig - show build configuration.
 #
 showconfig:
-	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 2>&1 | grep ^MK_ | sort
+	@${MAKE} -n -f src.opts.mk -V dummy -dg1 2>&1 | grep ^MK_ | sort
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
@@ -1831,7 +1832,7 @@ DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
 .if exists(${KERNCONFDIR}/${KERNCONF})
 FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
-	${KERNCONFDIR}/${KERNCONF} ; echo
+	'${KERNCONFDIR}/${KERNCONF}' ; echo
 .endif
 .endif
 
@@ -1845,24 +1846,9 @@ DTBOUTPUTPATH= ${.CURDIR}
 # Build 'standalone' Device Tree Blob
 #
 builddtb:
-	@if [ "${FDT_DTS_FILE}" = "" ]; then \
-		echo "ERROR: FDT_DTS_FILE must be specified!"; \
-		exit 1; \
-	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${TARGET}/${FDT_DTS_FILE} ]; then \
-		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
-			exist!"; \
-		exit 1;	\
-	fi;	\
-	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
-		echo "WARNING: DTB will be placed in the current working \
-			directory"; \
-	fi
-	@PATH=${TMPPATH} \
-	MACHINE=${TARGET} \
+	@PATH=${TMPPATH} MACHINE=${TARGET} \
 	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
-	    ${FDT_DTS_FILE} \
-	    ${DTBOUTPUTPATH}/`basename ${FDT_DTS_FILE} .dts`
+	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
 
 ###############
 
@@ -1876,7 +1862,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
-	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no -DNO_WARNS \
+	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 

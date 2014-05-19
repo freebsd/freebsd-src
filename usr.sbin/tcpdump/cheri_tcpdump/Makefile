@@ -3,7 +3,7 @@
 USE_CHERI=
 NO_SHARED=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 .PATH: ${TCPDUMP_DISTDIR}
@@ -48,4 +48,5 @@ version.c: ${TCPDUMP_DISTDIR}/VERSION
 	    sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION \
 		> version.c
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>

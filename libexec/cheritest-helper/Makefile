@@ -39,4 +39,5 @@ cheritest-helper.dump: cheritest-helper
 .PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
 .PATH: ${.CURDIR}/../../lib/libc/string
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>

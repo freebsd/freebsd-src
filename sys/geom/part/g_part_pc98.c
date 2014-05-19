@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -175,32 +176,37 @@ pc98_set_chs(struct g_part_table *table, uint32_t lba, u_short *cylp,
 }
 
 static int
+pc98_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
+{
+	uint32_t cyl;
+
+	cyl = basetable->gpt_heads * basetable->gpt_sectors;
+	if (*size < cyl)
+		return (EINVAL);
+	if (start != NULL && (*start % cyl)) {
+		*size += (*start % cyl) - cyl;
+		*start -= (*start % cyl) - cyl;
+	}
+	if (*size % cyl)
+		*size -= (*size % cyl);
+	if (*size < cyl)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_pc98_entry *entry;
-	struct g_part_pc98_table *table;
-	uint32_t cyl, start, size;
+	uint32_t start, size;
 	int error;
 
-	cyl = basetable->gpt_heads * basetable->gpt_sectors;
-
 	entry = (struct g_part_pc98_entry *)baseentry;
-	table = (struct g_part_pc98_table *)basetable;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < cyl)
+	if (pc98_align(basetable, &start, &size) != 0)
 		return (EINVAL);
-	if (start % cyl) {
-		size = size - cyl + (start % cyl);
-		start = start - (start % cyl) + cyl;
-	}
-	if (size % cyl)
-		size = size - (size % cyl);
-	if (size < cyl)
-		return (EINVAL);
-
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 	else
@@ -344,7 +350,7 @@ g_part_pc98_resize(struct g_part_table *basetable,
 {
 	struct g_part_pc98_entry *entry;
 	struct g_provider *pp;
-	uint32_t size, cyl;
+	uint32_t size;
 
 	if (baseentry == NULL) {
 		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
@@ -352,16 +358,14 @@ g_part_pc98_resize(struct g_part_table *basetable,
 		    UINT32_MAX) - 1;
 		return (0);
 	}
-	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 	size = gpp->gpp_size;
-
-	if (size < cyl)
+	if (pc98_align(basetable, NULL, &size) != 0)
 		return (EINVAL);
-	if (size % cyl)
-		size = size - (size % cyl);
-	if (size < cyl)
-		return (EINVAL);
-
+	/* XXX: prevent unexpected shrinking. */
+	pp = baseentry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    pp->mediasize / pp->sectorsize > size)
+		return (EBUSY);
 	entry = (struct g_part_pc98_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + size - 1;
 	pc98_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,

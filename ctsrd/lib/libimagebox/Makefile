@@ -13,4 +13,5 @@ CFLAGS+=	-I${.CURDIR}/../libvuln_png/
 
 USE_CHERI=	yes
 
+.include <src.opts.mk>
 .include <bsd.lib.mk>

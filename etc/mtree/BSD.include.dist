@@ -94,7 +94,7 @@
     cheri
     ..
     clang
-        3.4
+        3.4.1
         ..
     ..
     crypto

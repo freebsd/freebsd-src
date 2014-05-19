@@ -297,6 +297,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 
 CFLAGS+=	-Wno-cast-align -DFORCE_C_LOCALE
 
+.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS+= ${CFLAGS.${.IMPSRC:T}}

@@ -3010,7 +3010,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct tty *tp;
 
 	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0)
 		return (error);
 	fdp = fdhold(p);
@@ -3503,7 +3503,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	name = (int *)arg1;
 
 	sbuf_new_for_sysctl(&sb, NULL, FILEDESC_SBUF_SIZE, req);
-	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0) {
 		sbuf_delete(&sb);
 		return (error);

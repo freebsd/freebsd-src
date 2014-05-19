@@ -40,18 +40,18 @@
 #include "procstat.h"
 
 static int Lflag, Rflag, Sflag;
-static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, sflag;
-static int tflag, vflag, xflag;
-int	hflag, nflag, Cflag, Xflag;
+static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, rflag;
+static int sflag, tflag, vflag, xflag;
+int	hflag, nflag, Cflag, Hflag, Xflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-C] [-X] [-M core] [-N system] "
+	fprintf(stderr, "usage: procstat [-CHhnX] [-M core] [-N system] "
 	    "[-w interval] \n");
 	fprintf(stderr, "                [-L | -R | -S | -b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -s | -t | -v | -x]\n");
+	    "-l | -r | -s | -t | -v | -x]\n");
 	fprintf(stderr, "                [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
@@ -82,6 +82,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_kstack(prstat, kipp, kflag);
 	else if (lflag)
 		procstat_rlimit(prstat, kipp);
+	else if (rflag)
+		procstat_rusage(prstat, kipp);
 	else if (sflag)
 		procstat_cred(prstat, kipp);
 	else if (tflag)
@@ -133,7 +135,7 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CLN:M:RSXabcefijklhstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CHLM:N:RSXabcefijklhrstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -143,9 +145,14 @@ main(int argc, char *argv[])
 			Lflag++;
 			break;
 
+		case 'H':
+			Hflag++;
+			break;
+
 		case 'M':
 			memf = optarg;
 			break;
+
 		case 'N':
 			nlistf = optarg;
 			break;
@@ -206,6 +213,10 @@ main(int argc, char *argv[])
 			hflag++;
 			break;
 
+		case 'r':
+			rflag++;
+			break;
+
 		case 's':
 			sflag++;
 			break;
@@ -242,7 +253,8 @@ main(int argc, char *argv[])
 
 	/* We require that either 0 or 1 mode flags be set. */
 	tmp = Lflag + Rflag + Sflag + bflag + cflag + eflag + fflag + iflag +
-	    jflag + (kflag ? 1 : 0) + lflag + sflag + tflag + vflag + xflag;
+	    jflag + (kflag ? 1 : 0) + lflag + rflag + sflag + tflag + vflag +
+	    xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 

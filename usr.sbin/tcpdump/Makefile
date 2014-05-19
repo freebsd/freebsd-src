@@ -1,7 +1,7 @@
 #	@(#)Makefile	0.1 (RGrimes) 4/4/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	tcpdump
 
